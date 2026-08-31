@@ -8,4 +8,7 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  build: {
+    chunkSizeWarningLimit: 1000 // Tăng giới hạn lên 1000 kB (1MB)
+  }
 });
