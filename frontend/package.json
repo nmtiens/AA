@@ -1,0 +1,43 @@
+{
+  "name": "production-status-app",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^0.378.0",
+    "papaparse": "^5.4.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.23.0",
+    "recharts": "^2.12.7",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/papaparse": "^5.3.14",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "description": "<div align=\"center\">\r <img width=\"1200\" height=\"475\" alt=\"GHBanner\" src=\"https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6\" />\r </div>",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nhatt-PKH/operations-hub.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/Nhatt-PKH/operations-hub/issues"
+  },
+  "homepage": "https://github.com/Nhatt-PKH/operations-hub#readme",
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}
