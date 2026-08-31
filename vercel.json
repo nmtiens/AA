@@ -1,21 +1,24 @@
 {
   "services": {
     "frontend": {
-      "root": "frontend",
-      "framework": "vite"
+      "root": "frontend"
     },
     "backend": {
       "root": "backend"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/backend/api/$1"
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
     },
     {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
     }
   ]
 }
