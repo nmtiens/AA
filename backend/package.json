@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-  "dev": "tsx watch src/index.ts",
-  "build": "tsc",
-  "start": "node dist/index.js"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -18,16 +18,16 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "pg": "^8.23.0"
-  },
-  "devDependencies": {
+    "pg": "^8.23.0",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
-    "tsx": "^4.23.12",
     "typescript": "^7.0.2"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12"
   }
 }
