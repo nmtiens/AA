@@ -11,9 +11,9 @@ export const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,
-  max: 1,
+  max: 5,                      // tăng từ 1 lên 5 — đủ cho 5 query song song của overview/summary
   idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,  // tăng thêm 1 chút cho an toàn
 });
 
 pool.on('connect', () => {
