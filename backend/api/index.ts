@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import dotenv from 'dotenv';
-import { pool } from './db.js';
+import { pool } from '../src/db.js';
 
 dotenv.config();
 

@@ -9,9 +9,12 @@ types.setTypeParser(1082, (val: string) => val);
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // Tự động bật SSL khi chạy ở môi trường Production (Vercel)
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false } 
-    : false
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false,
+  max: 1,                    // serverless: mỗi instance chỉ giữ 1 connection
+  idleTimeoutMillis: 10000,  // đóng sớm khi idle
+  connectionTimeoutMillis: 5000,
 });
 
 pool.on('connect', () => {
