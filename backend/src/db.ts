@@ -8,8 +8,10 @@ types.setTypeParser(1082, (val: string) => val);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Uncomment if using managed databases (Supabase, Neon, Render, etc.)
-  // ssl: { rejectUnauthorized: false }
+  // Tự động bật SSL khi chạy ở môi trường Production (Vercel)
+  ssl: process.env.NODE_ENV === 'production' 
+    ? { rejectUnauthorized: false } 
+    : false
 });
 
 pool.on('connect', () => {
