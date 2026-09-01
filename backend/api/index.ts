@@ -524,6 +524,8 @@ import bcrypt from 'bcrypt';
 app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
+    console.log('[LOGIN DEBUG] Nhận request:', { username, passwordLength: password?.length });
+
     if (!username || !password) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
     }
@@ -534,17 +536,23 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       [username]
     );
 
+    console.log('[LOGIN DEBUG] Số dòng tìm thấy:', result.rows.length);
+
     const user = result.rows[0];
     if (!user || !user.is_active) {
+      console.log('[LOGIN DEBUG] Không tìm thấy user hoặc is_active =', user?.is_active);
       return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại hoặc đã bị khóa' });
     }
 
+    console.log('[LOGIN DEBUG] Hash trong DB:', user.password_hash);
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
+    console.log('[LOGIN DEBUG] Kết quả so khớp bcrypt:', isMatch);
+
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Sai tên đăng nhập hoặc mật khẩu' });
     }
 
-    // Không trả password_hash về client
     const { password_hash, ...safeUser } = user;
 
     res.json({
