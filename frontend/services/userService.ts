@@ -1,6 +1,6 @@
 import { User, ApiResponse } from '../types';
 
-const API_BASE = '/api';
+const API_BASE = 'http://localhost:5000/api';
 
 export const userService = {
   login: async (username: string, password: string): Promise<ApiResponse<User>> => {

@@ -148,7 +148,7 @@ const MainLayout: React.FC = () => {
 
   const checkAndSync = async (forceAll = false) => {
     try {
-      const verRes = await fetch('/api/check-versions');
+      const verRes = await fetch('http://localhost:5000/api/check-versions');
       if (!verRes.ok) return;
 
       const serverVersions = await verRes.json();

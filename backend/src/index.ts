@@ -323,15 +323,15 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       params = [explicitDates, monthStart, dateToStr];
     } else {
       periodCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $1 AND $2`;
-      mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $3 AND $2`;
-      params = [dateFromStr, dateToStr, monthStart];
+      const monthEnd = new Date(dateToDate.getFullYear(), dateToDate.getMonth() + 1, 0).toISOString().slice(0, 10);
+mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $3 AND $4`;
+params = [dateFromStr, dateToStr, monthStart, monthEnd];
     }
 
     // Card 1 (P001 - Đơn hàng mới): đếm TỔNG SỐ DÒNG, không loại trùng hex.
     // Các card còn lại vẫn đếm theo hex duy nhất như cũ.
-    const countExpr = key === 'order'
-      ? `COUNT(*)`
-      : `COUNT(DISTINCT "${cfg.hexCol}")`;
+   // Áp dụng đếm duy nhất (DISTINCT) theo mã HEX cho tất cả các card để đếm đúng số đơn hàng
+    const countExpr = `COUNT(DISTINCT "${cfg.hexCol}")`;
 
     const q = `
       SELECT
@@ -486,13 +486,16 @@ app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
 
     const planRow = planQ.rows[0];
     const targetTotal = Number(planRow.total);
-    const actualTotal = Number(actualQ.rows[0].total) / 1000;
+    
+    // SỬA Ở ĐÂY: Chia cho 1 Tỷ (1000000000) thay vì 1000
+    const actualTotal = Number(actualQ.rows[0].total) / 1000000000;
 
     const workshopMap: Record<string, { plan: number; actual: number }> = {};
     byWorkshopPlanQ.rows.forEach(r => { workshopMap[r.name] = { plan: Number(r.plan), actual: 0 }; });
     byWorkshopActualQ.rows.forEach(r => {
       if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      workshopMap[r.name].actual = Number(r.actual) / 1000;
+      // SỬA Ở ĐÂY: Chia cho 1 Tỷ (1000000000) thay vì 1000
+      workshopMap[r.name].actual = Number(r.actual) / 1000000000;
     });
 
     const byWorkshop = Object.entries(workshopMap)

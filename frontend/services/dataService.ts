@@ -1,7 +1,7 @@
 import Papa from 'papaparse';
 import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // KHỞI TẠO INDEXED-DB TỐI ƯU
 const initDB = (): Promise<IDBDatabase> => {
