@@ -9,7 +9,9 @@ import { CheckCircle, Filter, ChevronDown, XCircle as CloseIcon, Table as TableI
 import {
   exportToCSV, exportToExcel,
   fetchOverviewSummary, fetchOverviewByGroup, fetchStockDates, fetchStockByProject, fetchRevenue2026,
-  type OverviewSummary, type GroupAnalysisRow, type StockDateEntry, type StockByProjectRow, type Revenue2026Data
+  fetchKhsxNhapKhoSummary,
+  type OverviewSummary, type GroupAnalysisRow, type StockDateEntry, type StockByProjectRow, type Revenue2026Data,
+  type KhsxNhapKhoSummary
 } from '../services/dataService';
 import ProductivityCharts from './ProductivityCharts';
 import { getWeekRange2026 } from '../utils/dateUtils';
@@ -1056,6 +1058,47 @@ const [groupAnalysisCache, setGroupAnalysisCache] = useState<Record<string, Grou
 const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
 const overviewFetchIdRef = useRef(0);
 
+// THÊM MỚI — dữ liệu tổng hợp KH vs TH đã tính sẵn ở backend (đã dedup theo hex)
+const [khsxSummary, setKhsxSummary] = useState<KhsxNhapKhoSummary | null>(null);
+
+const khsxFetchIdRef = useRef(0);
+
+useEffect(() => {
+  const requestId = ++khsxFetchIdRef.current;
+
+  const nam = unifiedTimeFilters.nam[0] ?? new Date().getFullYear().toString();
+  const thang = unifiedTimeFilters.thang[0];
+  const mode = viewMode === 'WEEK' ? 'week' : 'month';
+  const tuan = viewMode === 'WEEK' ? unifiedTimeFilters.tuan[0] : undefined;
+  const ngay = viewMode === 'WEEK' ? unifiedTimeFilters.ngay[0] : undefined;
+
+  fetchKhsxNhapKhoSummary({
+    nam, thang, mode, tuan, ngay,
+    congTrinh: filters.congTrinh,
+    xuong: filters.xuong,
+  }).then(data => {
+    // Chỉ áp dụng nếu đây vẫn là request mới nhất — bỏ qua nếu có request khác đã bắn sau đó
+    if (data && requestId === khsxFetchIdRef.current) {
+      setKhsxSummary(data);
+    }
+  });
+}, [unifiedTimeFilters, viewMode, filters.congTrinh, filters.xuong]);
+
+// Các biến thay thế cho useMemo cũ — JSX phía dưới dùng nguyên tên này, không cần sửa gì thêm
+const totalKhsxAmount = khsxSummary?.totalKh ?? 0;
+const totalInventoryAmount = khsxSummary?.totalTh ?? 0;
+const completionRate = khsxSummary?.completionRate ?? 0;
+
+const combinedWorkshopData = useMemo(() =>
+  (khsxSummary?.byXuong ?? []).map(r => ({ name: r.xuong, khValue: r.kh, thValue: r.th })),
+  [khsxSummary]
+);
+
+const combinedProjectData = useMemo(() =>
+  (khsxSummary?.byCongTrinh ?? []).map(r => ({ name: r.name, code: r.code, khValue: r.kh, thValue: r.th })),
+  [khsxSummary]
+);
+
 useEffect(() => { fetchRevenue2026().then(data => { if (data) setRevenue2026(data); }); }, []);
 useEffect(() => { fetchStockDates().then(setStockDates); }, []);
   const effectiveOrderColumns = useMemo(() => {
@@ -1595,36 +1638,6 @@ const filteredExportOverviewData = useMemo(() => {
     });
   }, [khsxData, viewMode, unifiedTimeFilters, filters.congTrinh, filters.xuong, khsxPhanLoaiKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey, khsxCongTrinhKey, khsxXuongKey]);
 
-const totalKhsxAmount = useMemo(() => {
-  if (!khsxThanhTienKey) return 0;
-  return filteredKhsxData.reduce((sum, row) => sum + parseNumber(row[khsxThanhTienKey]), 0) / 1000;
-}, [filteredKhsxData, khsxThanhTienKey]);
-
- const khsxWorkshopChartData = useMemo(() => {
-  if (!khsxXuongKey || !khsxThanhTienKey) return [];
-  const agg: Record<string, number> = {};
-  filteredKhsxData.forEach(row => {
-    const xuong = String(row[khsxXuongKey] || '').trim();
-    if (xuong) agg[xuong] = (agg[xuong] || 0) + (parseNumber(row[khsxThanhTienKey]) / 1000);
-  });
-  return Object.entries(agg).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
-}, [filteredKhsxData, khsxXuongKey, khsxThanhTienKey]);
-
- const khsxProjectChartData = useMemo(() => {
-  if (!khsxCongTrinhKey || !khsxThanhTienKey) return [];
-  const agg: Record<string, { value: number, code: string }> = {};
-  filteredKhsxData.forEach(row => {
-    const ctName = String(row[khsxCongTrinhKey] || '').trim();
-    const ctCode = khsxMaCongTrinhKey ? String(row[khsxMaCongTrinhKey] || '').trim() : '';
-    if (ctName) {
-      const val = parseNumber(row[khsxThanhTienKey]) / 1000;
-      if (!agg[ctName]) agg[ctName] = { value: 0, code: ctCode || ctName };
-      agg[ctName].value += val;
-      if (ctCode && agg[ctName].code === ctName) agg[ctName].code = ctCode;
-    }
-  });
-  return Object.entries(agg).map(([name, obj]) => ({ name, code: obj.code, value: obj.value })).sort((a, b) => b.value - a.value);
-}, [filteredKhsxData, khsxCongTrinhKey, khsxThanhTienKey, khsxMaCongTrinhKey]);
 
   const filteredInventoryData = useMemo(() => {
     return inventoryData.filter(row => {
@@ -1644,62 +1657,8 @@ const totalKhsxAmount = useMemo(() => {
     });
   }, [inventoryData, filters.congTrinh, filters.xuong, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, invTuanKey]);
 
-  const totalInventoryAmount = useMemo(() => {
-  if (!invThanhTienKey) return 0;
-  const rawSum = filteredInventoryData.reduce((sum, row) => sum + parseNumber(row[invThanhTienKey]), 0);
-  return rawSum / 1000;
-}, [filteredInventoryData, invThanhTienKey]);
 
-  const inventoryWorkshopChartData = useMemo(() => {
-    if (!invXuongKey || !invThanhTienKey) return [];
-    const agg: Record<string, number> = {};
-    filteredInventoryData.forEach(row => {
-      const xuong = String(row[invXuongKey] || '').trim();
-      if (xuong) agg[xuong] = (agg[xuong] || 0) + (parseNumber(row[invThanhTienKey]) / 1000);
-    });
-    return Object.entries(agg).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [filteredInventoryData, invXuongKey, invThanhTienKey]);
 
-  const inventoryProjectChartData = useMemo(() => {
-    if (!invCongTrinhKey || !invThanhTienKey) return [];
-    const agg: Record<string, { value: number, code: string }> = {};
-    filteredInventoryData.forEach(row => {
-      const ctName = String(row[invCongTrinhKey] || '').trim();
-      const ctCode = invMaCongTrinhKey ? String(row[invMaCongTrinhKey] || '').trim() : '';
-      if (ctName) {
-        const val = parseNumber(row[invThanhTienKey]) / 1000;
-        if (!agg[ctName]) agg[ctName] = { value: 0, code: ctCode || ctName };
-        agg[ctName].value += val;
-        if (ctCode && agg[ctName].code === ctName) agg[ctName].code = ctCode;
-      }
-    });
-    return Object.entries(agg).map(([name, obj]) => ({ name, code: obj.code, value: obj.value })).sort((a, b) => b.value - a.value);
-  }, [filteredInventoryData, invCongTrinhKey, invThanhTienKey, invMaCongTrinhKey]);
-
-  const combinedWorkshopData = useMemo(() => {
-    const map = new Map<string, { name: string, khValue: number, thValue: number }>();
-    khsxWorkshopChartData.forEach(item => map.set(item.name, { name: item.name, khValue: item.value, thValue: 0 }));
-    inventoryWorkshopChartData.forEach(item => {
-      if (map.has(item.name)) map.get(item.name)!.thValue = item.value;
-      else map.set(item.name, { name: item.name, khValue: 0, thValue: item.value });
-    });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [khsxWorkshopChartData, inventoryWorkshopChartData]);
-
-  const combinedProjectData = useMemo(() => {
-    const map = new Map<string, { name: string, code: string, khValue: number, thValue: number }>();
-    khsxProjectChartData.forEach(item => map.set(item.name, { name: item.name, code: item.code, khValue: item.value, thValue: 0 }));
-    inventoryProjectChartData.forEach(item => {
-      if (map.has(item.name)) {
-        const obj = map.get(item.name)!;
-        obj.thValue = item.value;
-        if (!obj.code || obj.code === item.name) obj.code = item.code;
-      } else {
-        map.set(item.name, { name: item.name, code: item.code, khValue: 0, thValue: item.value });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => Math.max(b.khValue, b.thValue) - Math.max(a.khValue, a.thValue)).slice(0, 10);
-  }, [khsxProjectChartData, inventoryProjectChartData]);
 
   // Weekly Analysis specific
 
@@ -1909,8 +1868,6 @@ const totalKhsxAmount = useMemo(() => {
     attXuongKey, attTuanKey, attNamKey, attThangKey, attNgayKey, attSoLuongCnKey, attGioCongHcKey, attGioCongTcKey, attDinhBienKey,
     invXuongKey, invThanhTienKey
   ]);
-
-  const completionRate = useMemo(() => totalKhsxAmount > 0 ? (totalInventoryAmount / totalKhsxAmount) * 100 : 0, [totalInventoryAmount, totalKhsxAmount]);
 
   const calculateMetricValue = (row: DataRow, metric: MetricType): number => {
     if (metric === 'COUNT_HEX') return 1;

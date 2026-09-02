@@ -244,3 +244,27 @@ export const fetchRevenue2026 = async (): Promise<Revenue2026Data | null> => {
     return null;
   }
 };
+
+export interface KhsxNhapKhoSummary {
+  totalKh: number;
+  totalTh: number;
+  completionRate: number;
+  byXuong: { xuong: string; kh: number; th: number }[];
+  byCongTrinh: { name: string; code: string; kh: number; th: number }[];
+}
+
+export async function fetchKhsxNhapKhoSummary(params: {
+  nam: string; thang?: string; mode?: 'month' | 'week'; tuan?: string; ngay?: string;
+  congTrinh?: string[]; xuong?: string[];
+}): Promise<KhsxNhapKhoSummary | null> {
+  const q = new URLSearchParams({ nam: params.nam, mode: params.mode ?? 'month' });
+  if (params.thang) q.set('thang', params.thang);
+  if (params.tuan) q.set('tuan', params.tuan);
+  if (params.ngay) q.set('ngay', params.ngay);
+  if (params.congTrinh?.length) q.set('congTrinh', params.congTrinh.join(','));
+  if (params.xuong?.length) q.set('xuong', params.xuong.join(','));
+
+  const res = await fetch(`${API_BASE_URL}/khsx-nhapkho/summary?${q.toString()}`);
+  if (!res.ok) return null;
+  return res.json();
+}

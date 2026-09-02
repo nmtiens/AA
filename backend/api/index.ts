@@ -446,7 +446,6 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
 });
 
 // Trả về: kế hoạch năm 2026, quý, thực hiện, theo xưởng
-// Trả về: kế hoạch năm 2026, quý, thực hiện, theo xưởng
 app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
   try {
     const planQ = await pool.query(`
@@ -486,15 +485,17 @@ app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
 
     const planRow = planQ.rows[0];
     const targetTotal = Number(planRow.total);
-    
-    // SỬA Ở ĐÂY: Chia cho 1 Tỷ (1000000000) thay vì 1000
+
+    // FIX: đơn vị gốc trong DB là VND -> phải chia cho 1 Tỷ (1_000_000_000)
+    // để khớp đơn vị "Tỷ" với targetTotal (từ khsx_nam) và với byWorkshop bên dưới.
+    // Trước đây chia nhầm cho 1000 khiến actualTotal bị lệch ~1 triệu lần
+    // (VD: hiện 1,890,719,857.8 thay vì đúng ra phải là 949.2).
     const actualTotal = Number(actualQ.rows[0].total) / 1000000000;
 
     const workshopMap: Record<string, { plan: number; actual: number }> = {};
     byWorkshopPlanQ.rows.forEach(r => { workshopMap[r.name] = { plan: Number(r.plan), actual: 0 }; });
     byWorkshopActualQ.rows.forEach(r => {
       if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      // SỬA Ở ĐÂY: Chia cho 1 Tỷ (1000000000) thay vì 1000
       workshopMap[r.name].actual = Number(r.actual) / 1000000000;
     });
 
@@ -662,6 +663,144 @@ app.post('/api/auth/change-password', async (req: Request, res: Response) => {
   }
 });
 
+
+// Trả về: Tổng KH vs TH (đã DEDUP theo HEX) — theo Xưởng & theo Công trình
+// Dùng cho: Section "Thống kê Tổng hợp: Kế hoạch & Nhập kho"
+app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
+  try {
+    const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
+    if (!nam) return res.status(400).json({ error: 'Missing nam' });
+
+    const isWeek = mode === 'week';
+    const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
+
+    const normalize = (s: string) => s.trim().toUpperCase();
+    const congTrinhList = congTrinh
+      ? congTrinh.split(',').map(s => normalize(s)).filter(Boolean)
+      : [];
+    const xuongList = xuong
+      ? xuong.split(',').map(s => normalize(s)).filter(Boolean)
+      : [];
+
+    // ---------- KHSX (Kế hoạch) ----------
+    // QUAN TRỌNG: KHÔNG dedup theo hex. Đã verify: SUM trực tiếp trên toàn bộ dòng
+    // khớp filter mới ra đúng số (165.08). Dedup theo hex trước đây làm mất dòng hợp lệ
+    // (1 hex có thể có nhiều dòng kế hoạch khác giá trị nhau — không phải trùng lặp).
+    const khParams: any[] = [phanLoaiPattern, nam];
+    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam::text = $2`;
+    if (thang) { khParams.push(thang); khWhere += ` AND thang::text = $${khParams.length}`; }
+    if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan::text = $${khParams.length}`; }
+    if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay::text = $${khParams.length}`; }
+    if (congTrinhList.length) {
+      khParams.push(congTrinhList);
+      khWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${khParams.length}::text[])`;
+    }
+    if (xuongList.length) {
+      khParams.push(xuongList);
+      khWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${khParams.length}::text[])`;
+    }
+
+    const khQuery = `
+      SELECT
+        TRIM(xuong_chinh) AS xuong,
+        TRIM(ten_cong_trinh) AS cong_trinh,
+        TRIM(ma_cong_trinh) AS ma_cong_trinh,
+        COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) / 1000 AS gia_tri
+      FROM khsx
+      ${khWhere}
+      GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
+    `;
+    const khResult = await pool.query(khQuery, khParams);
+
+    // ---------- NHAP_KHO (Thực hiện) ----------
+    // Giữ nguyên logic cũ: 1 hex có thể nhập kho nhiều lần khác ngày (giao hàng từng phần)
+    // => chỉ loại duplicate thật sự (trùng y hệt hex + ngày + giá trị), không dedup theo hex đơn thuần.
+        // ---------- NHAP_KHO (Thực hiện) ----------
+    // QUAN TRỌNG: KHÔNG dedup theo hex hay theo tổ hợp (hex, date, thanh_tien_nhap_kho).
+    // Đã verify: nhiều dòng có cùng hex+date+giá trị vẫn là các lần nhập kho hợp lệ khác nhau
+    // (trùng giá trị chỉ là trùng hợp, không phải duplicate dữ liệu). Dedup trước đây làm mất
+    // 197 dòng hợp lệ, khiến tổng TH giảm sai từ 150.9 xuống 149.05.
+    const thParams: any[] = [nam];
+    let thWhere = `WHERE nam::text = $1`;
+    if (thang) { thParams.push(thang); thWhere += ` AND thang::text = $${thParams.length}`; }
+    if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan::text = $${thParams.length}`; }
+    if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay::text = $${thParams.length}`; }
+    if (congTrinhList.length) {
+      thParams.push(congTrinhList);
+      thWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${thParams.length}::text[])`;
+    }
+    if (xuongList.length) {
+      thParams.push(xuongList);
+      thWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${thParams.length}::text[])`;
+    }
+
+    const thQuery = `
+      SELECT
+        TRIM(xuong_chinh) AS xuong,
+        TRIM(ten_cong_trinh) AS cong_trinh,
+        TRIM(ma_cong_trinh) AS ma_cong_trinh,
+        COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) / 1000000000 AS gia_tri
+      FROM nhap_kho
+      ${thWhere}
+      GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
+    `;
+    const thResult = await pool.query(thQuery, thParams);
+
+    // ---------- Merge theo Xưởng ----------
+    const xuongMap = new Map<string, { kh: number; th: number }>();
+    khResult.rows.forEach(r => {
+      const k = r.xuong || 'Chưa xác định';
+      const e = xuongMap.get(k) || { kh: 0, th: 0 };
+      e.kh += Number(r.gia_tri);
+      xuongMap.set(k, e);
+    });
+    thResult.rows.forEach(r => {
+      const k = r.xuong || 'Chưa xác định';
+      const e = xuongMap.get(k) || { kh: 0, th: 0 };
+      e.th += Number(r.gia_tri);
+      xuongMap.set(k, e);
+    });
+    const byXuong = Array.from(xuongMap.entries())
+      .map(([xuong, v]) => ({ xuong, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) }))
+      .sort((a, b) => a.xuong.localeCompare(b.xuong));
+
+    // ---------- Merge theo Công trình (Top 10) ----------
+    const ctMap = new Map<string, { code: string; kh: number; th: number }>();
+    khResult.rows.forEach(r => {
+      const k = r.cong_trinh || 'Chưa xác định';
+      const e = ctMap.get(k) || { code: r.ma_cong_trinh || '', kh: 0, th: 0 };
+      e.kh += Number(r.gia_tri);
+      if (r.ma_cong_trinh) e.code = r.ma_cong_trinh;
+      ctMap.set(k, e);
+    });
+    thResult.rows.forEach(r => {
+      const k = r.cong_trinh || 'Chưa xác định';
+      const e = ctMap.get(k) || { code: r.ma_cong_trinh || '', kh: 0, th: 0 };
+      e.th += Number(r.gia_tri);
+      if (r.ma_cong_trinh && !e.code) e.code = r.ma_cong_trinh;
+      ctMap.set(k, e);
+    });
+    const byCongTrinh = Array.from(ctMap.entries())
+      .map(([name, v]) => ({ name, code: v.code || name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) }))
+      .sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th))
+      .slice(0, 10);
+
+    const totalKh = byXuong.reduce((a, b) => a + b.kh, 0);
+    const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
+    const completionRate = totalKh > 0 ? (totalTh / totalKh) * 100 : 0;
+
+    res.json({
+      totalKh: Number(totalKh.toFixed(2)),
+      totalTh: Number(totalTh.toFixed(2)),
+      completionRate: Number(completionRate.toFixed(1)),
+      byXuong,
+      byCongTrinh,
+    });
+  } catch (error) {
+    console.error('Lỗi khsx-nhapkho/summary:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 // app.listen(PORT, () => {
 //  console.log(`Server running on http://localhost:${PORT}`);
 // });
