@@ -127,6 +127,51 @@ export const exportToCSV = (data: DataRow[], filename: string) => {
   }
 };
 
+// Danh sách endpoint tương ứng với key trả về từ /api/all-data
+const ALL_DATA_ENDPOINT_MAP: Record<string, string> = {
+  production: 'production',
+  material: 'material',
+  khsx: 'khsx',
+  order: 'order',
+  inventory: 'inventory',
+  tkbv: 'tkbv',
+  pthsp: 'pthsp',
+  analysis: 'analysis',
+  yearlyPlan: 'yearly-plan',
+  export: 'export',
+  attendance: 'attendance',
+  stock: 'stock',
+};
+
+const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
+  if (!rawData || rawData.length === 0) return [];
+  const headers = Object.keys(rawData[0]).filter(k => k && k.trim() !== '');
+  return headers.map(header => ({
+    key: header,
+    label: header,
+    type: detectColumnType(header, rawData)
+  }));
+};
+
+// TẢI TOÀN BỘ 12 BẢNG TRONG 1 REQUEST DUY NHẤT — thay cho việc gọi 12 endpoint riêng lẻ
+export const fetchAllDataFromServer = async (): Promise<Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> | null> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/all-data`);
+    if (!response.ok) throw new Error(`Failed to fetch all-data: ${response.statusText}`);
+    const raw = await response.json();
+
+    const result: Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> = {};
+    Object.entries(ALL_DATA_ENDPOINT_MAP).forEach(([key, endpoint]) => {
+      const rows: DataRow[] = raw[key] || [];
+      result[endpoint] = { data: rows, columns: buildColumnsFromData(rows) };
+    });
+    return result;
+  } catch (error) {
+    console.error('Error fetching /api/all-data:', error);
+    return null;
+  }
+};
+
 export const exportToExcel = async (data: any[], filename: string) => {
   if (data.length === 0) return;
   if (!(window as any).XLSX) {

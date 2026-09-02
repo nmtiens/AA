@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock } from 'lucide-react';
-import { getCachedData, getCachedVersion, saveToCache, fetchFromServer } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchFromServer, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -146,78 +146,89 @@ const MainLayout: React.FC = () => {
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
 
-  const checkAndSync = async (forceAll = false) => {
-    try {
-      const verRes = await fetch('/api/check-versions');
-      if (!verRes.ok) return;
+const checkAndSync = async (forceAll = false) => {
+  try {
+    const verRes = await fetch('/api/check-versions');
+    if (!verRes.ok) return;
 
-      const serverVersions = await verRes.json();
-      let hasAnyUpdate = false;
+    const serverVersions = await verRes.json();
 
-      const syncTable = async (
-        endpoint: string,
-        serverVerRaw: any,
-        setData: Function,
-        setCols: Function
-      ) => {
-        const serverVer = String(serverVerRaw || '0');
-        const localVer = forceAll ? '0' : String(await getCachedVersion(endpoint));
+    // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
+    const tableConfigs: { endpoint: string; verKey: string; setData: Function; setCols: Function }[] = [
+      { endpoint: 'production', verKey: 'production', setData: setProductionData, setCols: setProductionColumns },
+      { endpoint: 'material', verKey: 'material', setData: setMaterialData, setCols: setMaterialColumns },
+      { endpoint: 'khsx', verKey: 'khsx', setData: setKhsxData, setCols: setKhsxColumns },
+      { endpoint: 'order', verKey: 'order', setData: setOrderData, setCols: setOrderColumns },
+      { endpoint: 'inventory', verKey: 'inventory', setData: setInventoryData, setCols: setInventoryColumns },
+      { endpoint: 'tkbv', verKey: 'tkbv', setData: setTkbvData, setCols: setTkbvColumns },
+      { endpoint: 'pthsp', verKey: 'pthsp', setData: setPthspData, setCols: setPthspColumns },
+      { endpoint: 'analysis', verKey: 'analysis', setData: setAnalysisData, setCols: setAnalysisColumns },
+      { endpoint: 'yearly-plan', verKey: 'yearlyPlan', setData: setYearlyPlanData, setCols: setYearlyPlanColumns },
+      { endpoint: 'export', verKey: 'export', setData: setExportData, setCols: setExportColumns },
+      { endpoint: 'stock', verKey: 'stock', setData: setStockData, setCols: setStockColumns },
+      { endpoint: 'attendance', verKey: 'attendance', setData: setAttendanceData, setCols: setAttendanceColumns },
+    ];
 
-        if (serverVer !== localVer || forceAll) {
-          const res = await fetchFromServer(endpoint);
-          if (res) {
-            setData(res.data);
-            setCols(res.columns);
-            await saveToCache(endpoint, serverVer, res);
-            tableVersions.current[endpoint] = serverVer;
-            dataLoadedRef.current[endpoint] = true;
-            hasAnyUpdate = true;
-          }
-        }
-        else if (!dataLoadedRef.current[endpoint]) { 
-          const cached = await getCachedData(endpoint);
-          if (cached && cached.data && cached.data.length > 0) {
-            setData(cached.data);
-            setCols(cached.columns);
-            hasAnyUpdate = true;
-          } else {
-            const res = await fetchFromServer(endpoint);
-            if (res) { 
-              setData(res.data);
-              setCols(res.columns);
-              await saveToCache(endpoint, serverVer, res);
-              hasAnyUpdate = true;
-            }
-          }
-          tableVersions.current[endpoint] = serverVer;
-          dataLoadedRef.current[endpoint] = true;
-        }
-      };
+    // Xác định bảng nào cần cập nhật (version đổi, hoặc forceAll, hoặc chưa từng load)
+    const toUpdate: typeof tableConfigs = [];
+    const toApplyFromCache: typeof tableConfigs = [];
 
-      await Promise.all([
-        syncTable('production', serverVersions.production, setProductionData, setProductionColumns),
-        syncTable('material', serverVersions.material, setMaterialData, setMaterialColumns),
-        syncTable('khsx', serverVersions.khsx, setKhsxData, setKhsxColumns),
-        syncTable('order', serverVersions.order, setOrderData, setOrderColumns),
-        syncTable('inventory', serverVersions.inventory, setInventoryData, setInventoryColumns),
-        syncTable('tkbv', serverVersions.tkbv, setTkbvData, setTkbvColumns),
-        syncTable('pthsp', serverVersions.pthsp, setPthspData, setPthspColumns),
-        syncTable('analysis', serverVersions.analysis, setAnalysisData, setAnalysisColumns),
-        syncTable('yearly-plan', serverVersions.yearlyPlan, setYearlyPlanData, setYearlyPlanColumns),
-        syncTable('export', serverVersions.export, setExportData, setExportColumns),
-        syncTable('stock', serverVersions.stock, setStockData, setStockColumns),
-        syncTable('attendance', serverVersions.attendance, setAttendanceData, setAttendanceColumns)
-      ]);
+    for (const cfg of tableConfigs) {
+      const serverVer = String(serverVersions[cfg.verKey] || '0');
+      const localVer = forceAll ? '0' : String(await getCachedVersion(cfg.endpoint));
 
-      if (hasAnyUpdate || !lastUpdated) {
-        setLastUpdated(new Date());
+      if (serverVer !== localVer || forceAll) {
+        toUpdate.push(cfg);
+      } else if (!dataLoadedRef.current[cfg.endpoint]) {
+        toApplyFromCache.push(cfg);
       }
-    } catch (err) {
-      console.error("Lỗi đồng bộ ngầm:", err);
-    } finally {
-      setLoading(false);
     }
-  };
+
+    let hasAnyUpdate = false;
+
+    // Áp dụng cache cho các bảng chưa từng load nhưng không đổi version
+    for (const cfg of toApplyFromCache) {
+      const cached = await getCachedData(cfg.endpoint);
+      if (cached && cached.data && cached.data.length > 0) {
+        cfg.setData(cached.data);
+        cfg.setCols(cached.columns);
+        hasAnyUpdate = true;
+      } else {
+        toUpdate.push(cfg); // fallback: cache rỗng, gộp vào nhóm cần fetch
+      }
+      const serverVer = String(serverVersions[cfg.verKey] || '0');
+      tableVersions.current[cfg.endpoint] = serverVer;
+      dataLoadedRef.current[cfg.endpoint] = true;
+    }
+
+    // Nếu có bảng cần cập nhật -> gọi /api/all-data MỘT LẦN thay vì N lần riêng lẻ
+    if (toUpdate.length > 0) {
+      const allData = await fetchAllDataFromServer();
+      if (allData) {
+        for (const cfg of toUpdate) {
+          const res = allData[cfg.endpoint];
+          if (res) {
+            cfg.setData(res.data);
+            cfg.setCols(res.columns);
+            const serverVer = String(serverVersions[cfg.verKey] || '0');
+            await saveToCache(cfg.endpoint, serverVer, res);
+            tableVersions.current[cfg.endpoint] = serverVer;
+            dataLoadedRef.current[cfg.endpoint] = true;
+            hasAnyUpdate = true;
+          }
+        }
+      }
+    }
+
+    if (hasAnyUpdate || !lastUpdated) {
+      setLastUpdated(new Date());
+    }
+  } catch (err) {
+    console.error("Lỗi đồng bộ ngầm:", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     let isMounted = true;
