@@ -12,7 +12,7 @@ export const pool = new Pool({
     ? { rejectUnauthorized: false }
     : false,
 
-  max: 5,
+  max: 15,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,   // MỚI: gửi gói keepalive đầu tiên sau 10s thay vì mặc định 0
                                           // (mặc định 0 gửi ngay, hơi tốn không cần thiết cho connection ngắn hạn)
