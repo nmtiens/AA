@@ -283,6 +283,13 @@ const numericExpr = (col: string) => `
 
 // Trả về: số liệu "trong ngày" + "lũy kế tháng" cho 5 nguồn dữ liệu cùng lúc
 // Dùng cho: 5 card ở phần "BÁO CÁO TỔNG QUAN"
+// ============================================================================
+// BẢN TỐI ƯU: /api/overview/summary
+// Thay vì Promise.all() 5 query song song (chiếm 5 connection cùng lúc,
+// dễ làm cạn pool khi có nhiều user), gộp thành 1 câu SQL UNION ALL —
+// chỉ tốn 1 connection duy nhất cho toàn bộ 5 card.
+// ============================================================================
+
 app.get('/api/overview/summary', async (req: Request, res: Response) => {
   try {
     const hasDateTo = !!(req.query.dateTo || req.query.date);
@@ -295,7 +302,6 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       .map(d => d.toISOString().slice(0, 10));
     const useExplicitDates = explicitDates.length > 0;
 
-    // Không có bất kỳ tham số ngày nào -> lấy tổng hợp toàn bộ thời gian
     const useAllTime = !hasDateTo && !hasDateFrom && !useExplicitDates;
 
     const dateToDate = parseSafeDate(req.query.dateTo as string)
@@ -306,52 +312,66 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
     const dateToStr = dateToDate.toISOString().slice(0, 10);
     const dateFromStr = dateFromDate.toISOString().slice(0, 10);
     const monthStart = `${dateToStr.slice(0, 7)}-01`;
+    const monthEnd = new Date(dateToDate.getFullYear(), dateToDate.getMonth() + 1, 0)
+      .toISOString().slice(0, 10);
 
-    const entries = await Promise.all(
-  Object.entries(ANALYSIS_TABLES).map(async ([key, cfg]) => {
-    let periodCond: string;
-    let mtdCond: string;
-    let params: any[];
+    // Mỗi bảng có tham số riêng (period khác nhau tuỳ useAllTime/useExplicitDates),
+    // nên build từng SELECT con với params độc lập, rồi nối lại bằng UNION ALL.
+    // Dùng $n global offset để mỗi bảng có bộ params riêng trong 1 câu query duy nhất.
+    const subQueries: string[] = [];
+    const allParams: any[] = [];
 
-    if (useAllTime) {
-      periodCond = 'TRUE';
-      mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $1 AND $2`;
-      params = [monthStart, dateToStr];
-    } else if (useExplicitDates) {
-      periodCond = `parse_vn_date("${cfg.dateCol}") = ANY($1::date[])`;
-      mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $2 AND $3`;
-      params = [explicitDates, monthStart, dateToStr];
-    } else {
-      periodCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $1 AND $2`;
-      const monthEnd = new Date(dateToDate.getFullYear(), dateToDate.getMonth() + 1, 0).toISOString().slice(0, 10);
-mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $3 AND $4`;
-params = [dateFromStr, dateToStr, monthStart, monthEnd];
-    }
+    Object.entries(ANALYSIS_TABLES).forEach(([key, cfg]) => {
+      let periodCond: string;
+      let mtdCond: string;
+      let localParams: any[];
 
-    // Card 1 (P001 - Đơn hàng mới): đếm TỔNG SỐ DÒNG, không loại trùng hex.
-    // Các card còn lại vẫn đếm theo hex duy nhất như cũ.
-   // Áp dụng đếm duy nhất (DISTINCT) theo mã HEX cho tất cả các card để đếm đúng số đơn hàng
-    const countExpr = `COUNT(DISTINCT "${cfg.hexCol}")`;
+      if (useAllTime) {
+        periodCond = 'TRUE';
+        mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P1 AND $P2`;
+        localParams = [monthStart, dateToStr];
+      } else if (useExplicitDates) {
+        periodCond = `parse_vn_date("${cfg.dateCol}") = ANY($P1::date[])`;
+        mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P2 AND $P3`;
+        localParams = [explicitDates, monthStart, dateToStr];
+      } else {
+        periodCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P1 AND $P2`;
+        mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P3 AND $P4`;
+        localParams = [dateFromStr, dateToStr, monthStart, monthEnd];
+      }
 
-    const q = `
-      SELECT
-        ${countExpr} FILTER (WHERE ${periodCond}) AS period_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) AS period_value,
-        ${countExpr} FILTER (WHERE ${mtdCond}) AS mtd_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) AS mtd_value
-      FROM ${cfg.table}
-    `;
+      // Map $P1, $P2... sang chỉ số thật trong mảng params tổng ($1, $2, $3...)
+      const baseIdx = allParams.length;
+      localParams.forEach(p => allParams.push(p));
+      const remap = (cond: string) =>
+        cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
 
-    const r = await pool.query(q, params);
-    return [key, {
-      daily: { count: Number(r.rows[0].period_count), value: Number(r.rows[0].period_value) },
-      mtd: { count: Number(r.rows[0].mtd_count), value: Number(r.rows[0].mtd_value) },
-    }] as const;
-  })
-);
+      const countExpr = `COUNT(DISTINCT "${cfg.hexCol}")`;
+
+      subQueries.push(`
+        SELECT
+          '${key}' AS source_key,
+          ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) AS period_value,
+          ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) AS mtd_value
+        FROM ${cfg.table}
+      `);
+    });
+
+    const finalQuery = subQueries.join('\nUNION ALL\n');
+
+    // Chỉ 1 lần gọi pool.query() thay vì 5 -> chỉ chiếm 1 connection
+    const r = await pool.query(finalQuery, allParams);
 
     const results: Record<string, any> = {};
-    entries.forEach(([key, val]) => { results[key] = val; });
+    r.rows.forEach(row => {
+      results[row.source_key] = {
+        daily: { count: Number(row.period_count), value: Number(row.period_value) },
+        mtd: { count: Number(row.mtd_count), value: Number(row.mtd_value) },
+      };
+    });
+
     res.json({ date: dateToStr, dateFrom: dateFromStr, ...results });
   } catch (error) {
     console.error('Lỗi overview/summary:', error);

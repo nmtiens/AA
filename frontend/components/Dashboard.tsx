@@ -1009,23 +1009,33 @@ const khsxFetchIdRef = useRef(0);
 
 useEffect(() => {
   const requestId = ++khsxFetchIdRef.current;
+  const controller = new AbortController();
 
-  const nam = unifiedTimeFilters.nam[0] ?? new Date().getFullYear().toString();
-  const thang = unifiedTimeFilters.thang[0];
-  const mode = viewMode === 'WEEK' ? 'week' : 'month';
-  const tuan = viewMode === 'WEEK' ? unifiedTimeFilters.tuan[0] : undefined;
-  const ngay = viewMode === 'WEEK' ? unifiedTimeFilters.ngay[0] : undefined;
+  const timer = setTimeout(() => {
+    const nam = unifiedTimeFilters.nam[0] ?? new Date().getFullYear().toString();
+    const thang = unifiedTimeFilters.thang[0];
+    const mode = viewMode === 'WEEK' ? 'week' : 'month';
+    const tuan = viewMode === 'WEEK' ? unifiedTimeFilters.tuan[0] : undefined;
+    const ngay = viewMode === 'WEEK' ? unifiedTimeFilters.ngay[0] : undefined;
 
-  fetchKhsxNhapKhoSummary({
-    nam, thang, mode, tuan, ngay,
-    congTrinh: filters.congTrinh,
-    xuong: filters.xuong,
-  }).then(data => {
-    // Chỉ áp dụng nếu đây vẫn là request mới nhất — bỏ qua nếu có request khác đã bắn sau đó
-    if (data && requestId === khsxFetchIdRef.current) {
-      setKhsxSummary(data);
-    }
-  });
+    fetchKhsxNhapKhoSummary({
+      nam, thang, mode, tuan, ngay,
+      congTrinh: filters.congTrinh,
+      xuong: filters.xuong,
+      signal: controller.signal,
+    }).then(data => {
+      if (data && requestId === khsxFetchIdRef.current) {
+        setKhsxSummary(data);
+      }
+    }).catch(err => {
+      if (err.name !== 'AbortError') console.error('Lỗi fetch khsx summary:', err);
+    });
+  }, 300);
+
+  return () => {
+    clearTimeout(timer);
+    controller.abort();
+  };
 }, [unifiedTimeFilters, viewMode, filters.congTrinh, filters.xuong]);
 
 // Các biến thay thế cho useMemo cũ — JSX phía dưới dùng nguyên tên này, không cần sửa gì thêm
@@ -1385,35 +1395,54 @@ const handleExportOverviewSummary = () => {
 
 useEffect(() => {
   const requestId = ++overviewFetchIdRef.current;
+  const controller = new AbortController();
 
-  if (overviewDateFilters.length === 0) {
-    // "Tất cả" — không gửi dateFrom/dateTo/dates gì cả
-    fetchOverviewSummary().then(data => {
+  // Debounce 300ms — gộp các lần đổi filter liên tiếp thành 1 request
+  const timer = setTimeout(() => {
+    if (overviewDateFilters.length === 0) {
+      fetchOverviewSummary(undefined, undefined, undefined, { signal: controller.signal }).then(data => {
+        if (data && requestId === overviewFetchIdRef.current) {
+          setOverviewSummary(data);
+        }
+      }).catch(err => {
+        if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err);
+      });
+      return;
+    }
+
+    const parsedDates = overviewDateFilters
+      .map(d => parseVNDate(d))
+      .filter((d): d is Date => d !== null);
+
+    if (parsedDates.length === 0) return;
+
+    const minDate = new Date(Math.min(...parsedDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...parsedDates.map(d => d.getTime())));
+    const dateFromISO = toISODateLocal(minDate);
+    const dateToISO = toISODateLocal(maxDate);
+    const explicitDatesISO = Array.from(new Set(parsedDates.map(d => toISODateLocal(d))));
+
+    fetchOverviewSummary(dateFromISO, dateToISO, explicitDatesISO, { signal: controller.signal }).then(data => {
       if (data && requestId === overviewFetchIdRef.current) {
         setOverviewSummary(data);
       }
+    }).catch(err => {
+      if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err);
     });
-    return;
-  }
+  }, 300);
 
-  const parsedDates = overviewDateFilters
-    .map(d => parseVNDate(d))
-    .filter((d): d is Date => d !== null);
-
-  if (parsedDates.length === 0) return;
-
-  const minDate = new Date(Math.min(...parsedDates.map(d => d.getTime())));
-  const maxDate = new Date(Math.max(...parsedDates.map(d => d.getTime())));
-  const dateFromISO = toISODateLocal(minDate);
-  const dateToISO = toISODateLocal(maxDate);
-  const explicitDatesISO = Array.from(new Set(parsedDates.map(d => toISODateLocal(d))));
-
-  fetchOverviewSummary(dateFromISO, dateToISO, explicitDatesISO).then(data => {
-    if (data && requestId === overviewFetchIdRef.current) {
-      setOverviewSummary(data);
-    }
-  });
+  // Cleanup: nếu effect chạy lại trước khi debounce/timeout xong,
+  // hủy timer VÀ hủy request HTTP đang bay (nếu đã gửi đi)
+  return () => {
+    clearTimeout(timer);
+    controller.abort();
+  };
 }, [overviewDateFilters]);
+
+
+// --- 2. useEffect cho khsx summary (thay bản cũ) ---
+
+
 
 const latestUnifiedDate = useMemo<Date | null>(() => {
   if (overviewSummary?.date) return parseVNDate(overviewSummary.date) || new Date(overviewSummary.date);

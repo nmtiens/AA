@@ -11,10 +11,27 @@ export const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,
-  max: 5,                        // đủ cho vài query song song / request
-  keepAlive: true,               // giữ TCP connection sống, tránh bị âm thầm ngắt
-  idleTimeoutMillis: 30000,      // tăng từ 10s -> 30s, giảm reconnect giữa các request
+
+  max: 5,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,   // MỚI: gửi gói keepalive đầu tiên sau 10s thay vì mặc định 0
+                                          // (mặc định 0 gửi ngay, hơi tốn không cần thiết cho connection ngắn hạn)
+
+  idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 15000,
+
+  // MỚI: đặt tên connection để dễ nhận diện trong Supabase Dashboard -> Database -> Roles/Activity
+  // Giúp debug khi cần xem connection nào đang chiếm pool
+  application_name: 'vercel-backend',
+
+  // MỚI: tự động hủy query nếu chạy quá lâu, TRẢ CONNECTION VỀ POOL ngay
+  // thay vì để 1 query nặng giữ connection tới khi connectionTimeoutMillis (15s)
+  // -> giảm rủi ro 1 query chậm làm nghẽn cả pool cho các request khác
+  statement_timeout: 10000,   // 10s — chỉnh tùy độ nặng thực tế của query overview/summary
+
+  // MỚI: cho phép pool tự đóng hết connection khi không còn client nào tham chiếu
+  // (hữu ích khi Vercel freeze function giữa các lần gọi — tránh giữ handle treo)
+  allowExitOnIdle: true,
 });
 
 pool.on('connect', () => {
@@ -27,10 +44,7 @@ pool.on('error', (err) => {
 
 /**
  * Helper để query kèm log thời gian connect vs query.
- * Dùng tạm để chẩn đoán chỗ nào đang chậm — connect (network/region/reconnect)
- * hay query (thiếu index / query nặng).
- *
- * Set DEBUG_DB_TIMING=true trong env để bật log, tắt đi khi đã xác định xong nguyên nhân.
+ * Set DEBUG_DB_TIMING=true trong env để bật log.
  */
 export async function timedQuery<T extends QueryResultRow = any>(
   text: string,
@@ -57,8 +71,6 @@ export async function timedQuery<T extends QueryResultRow = any>(
   }
 }
 
-// Trên Vercel serverless, SIGINT không được gửi khi function bị freeze/kill,
-// nên đoạn này chỉ có tác dụng khi chạy local / trên server dài hạn.
 process.on('SIGINT', async () => {
   console.log('Closing PostgreSQL pool...');
   await pool.end();

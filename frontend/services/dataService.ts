@@ -179,7 +179,12 @@ export interface Revenue2026Data {
   byWorkshop: { name: string; plan: number; actual: number }[];
 }
 
-export const fetchOverviewSummary = async (dateFromISO?: string, dateToISO?: string, datesISO?: string[]): Promise<OverviewSummary | null> => {
+export const fetchOverviewSummary = async (
+  dateFromISO?: string,
+  dateToISO?: string,
+  datesISO?: string[],
+  opts?: { signal?: AbortSignal }   // <-- MỚI
+): Promise<OverviewSummary | null> => {
   try {
     const params = new URLSearchParams();
     if (dateFromISO) params.set('dateFrom', dateFromISO);
@@ -187,10 +192,11 @@ export const fetchOverviewSummary = async (dateFromISO?: string, dateToISO?: str
     if (datesISO && datesISO.length > 0) params.set('dates', datesISO.join(','));
     const qs = params.toString();
     const url = qs ? `${API_BASE_URL}/overview/summary?${qs}` : `${API_BASE_URL}/overview/summary`;
-    const r = await fetch(url);
+    const r = await fetch(url, { signal: opts?.signal });   // <-- MỚI: truyền signal
     if (!r.ok) throw new Error('fetch failed');
     return await r.json();
-  } catch (e) {
+  } catch (e: any) {
+    if (e.name === 'AbortError') return null;   // <-- MỚI: request bị hủy chủ động, không phải lỗi thật
     console.error('fetchOverviewSummary error:', e);
     return null;
   }
@@ -256,6 +262,7 @@ export interface KhsxNhapKhoSummary {
 export async function fetchKhsxNhapKhoSummary(params: {
   nam: string; thang?: string; mode?: 'month' | 'week'; tuan?: string; ngay?: string;
   congTrinh?: string[]; xuong?: string[];
+  signal?: AbortSignal;   // <-- MỚI
 }): Promise<KhsxNhapKhoSummary | null> {
   const q = new URLSearchParams({ nam: params.nam, mode: params.mode ?? 'month' });
   if (params.thang) q.set('thang', params.thang);
@@ -263,8 +270,16 @@ export async function fetchKhsxNhapKhoSummary(params: {
   if (params.ngay) q.set('ngay', params.ngay);
   if (params.congTrinh?.length) q.set('congTrinh', params.congTrinh.join(','));
   if (params.xuong?.length) q.set('xuong', params.xuong.join(','));
-
-  const res = await fetch(`${API_BASE_URL}/khsx-nhapkho/summary?${q.toString()}`);
-  if (!res.ok) return null;
-  return res.json();
+ 
+  try {
+    const res = await fetch(`${API_BASE_URL}/khsx-nhapkho/summary?${q.toString()}`, {
+      signal: params.signal,   // <-- MỚI: truyền signal
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch (e: any) {
+    if (e.name === 'AbortError') return null;   // <-- MỚI
+    console.error('fetchKhsxNhapKhoSummary error:', e);
+    return null;
+  }
 }
