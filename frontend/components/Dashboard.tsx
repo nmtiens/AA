@@ -5,7 +5,7 @@ import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../types';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, LabelList, ReferenceLine, Label
 } from 'recharts';
-import { CheckCircle, Filter, ChevronDown, XCircle as CloseIcon, Table as TableIcon, Layers, LayoutList, Calculator, Hash, Activity, Package, MinusCircle, Box, ChevronLeft, ChevronRight, CheckSquare, Square, Calendar, DollarSign, ListFilter, Import, BarChart2, PieChart, TrendingUp, AlertCircle, ShoppingCart, FileText, ClipboardList, Clock, AlertTriangle, Download, Eye, X, Building2, ArrowUp, ArrowDown, ArrowUpDown, Search, Target, Briefcase, PlusSquare, MinusSquare } from 'lucide-react';
+import { CheckCircle, Filter, ChevronDown, XCircle as CloseIcon, Table as TableIcon, Layers, LayoutList, Calculator, Hash, Activity, Package, MinusCircle, Box, ChevronLeft, ChevronRight, CheckSquare, Square, Calendar, DollarSign, ListFilter, Import, BarChart2, TrendingUp, AlertCircle, ShoppingCart, FileText, ClipboardList, Clock, AlertTriangle, Download, Eye, X, Building2, ArrowUp, ArrowDown, ArrowUpDown, Search, Target, Briefcase, PlusSquare, MinusSquare } from 'lucide-react';
 import {
   exportToCSV, exportToExcel,
   fetchOverviewSummary, fetchOverviewByGroup, fetchStockDates, fetchStockByProject, fetchRevenue2026,
@@ -736,20 +736,6 @@ const formatDateToVN = (dateInput: any): string => {
   const year = d.getFullYear();
   return `${day}/${month}/${year}`;
 };
-// Hàm xử lý an toàn: Giúp "Tháng 08" và "8" được hiểu là bằng nhau
-const checkTimeMatch = (filterArr: string[], val: any) => {
-  if (filterArr.length === 0) return true;
-  if (!val) return false;
-  const s = String(val).trim().toLowerCase();
-  return filterArr.some(f => {
-    const lowerF = String(f).toLowerCase();
-    if (lowerF === s) return true;
-    const numF = parseInt(lowerF.replace(/\D/g, ''), 10);
-    const numS = parseInt(s.replace(/\D/g, ''), 10);
-    if (!isNaN(numF) && !isNaN(numS) && numF === numS) return true;
-    return false;
-  });
-};
 
 const diffDays = (date1: Date, date2: Date): number => {
   const d1 = new Date(date1); d1.setHours(0, 0, 0, 0);
@@ -891,13 +877,9 @@ const normalizeString = (str: string) => {
   const matStatusKey = findColumnKey(materialColumns, TARGET_COLUMN_NAMES.STATUS) || 'trang_thai';
   const matStatusSapKey = findColumnKey(materialColumns, TARGET_COLUMN_NAMES.STATUS_SAP)|| 'trang_thai_sap';
   const matEstDateKey = findColumnKey(materialColumns, TARGET_COLUMN_NAMES.EST_DELIVERY)||'ngay_du_kien_giao_hang_pmh_nhap';
-  const matPrLineKey = findColumnKey(materialColumns, TARGET_COLUMN_NAMES.PR_ITEM)||'pr_line';
 
   const khsxXuongKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.XUONG) || 'xuong_chinh';
   const khsxCongTrinhKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.CONG_TRINH) || 'ten_cong_trinh';
-  const khsxMaCongTrinhKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.MA_CONG_TRINH) || 'ma_cong_trinh';
-  const khsxThanhTienKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.THANH_TIEN_KE_HOACH)|| 'thanh_tien_ke_hoach';
-  const khsxPhanLoaiKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.PHAN_LOAI_KH)|| 'phan_loai_kh';
   const khsxNamKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.NAM)|| 'nam';
   const khsxThangKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.THANG)|| 'thang';
   const khsxNgayKey = findColumnKey(khsxColumns, TARGET_COLUMN_NAMES.NGAY)|| 'ngay';
@@ -906,16 +888,12 @@ const normalizeString = (str: string) => {
   const invThanhTienKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.INVENTORY_AMOUNT) ||  'thanh_tien_nhap_kho';
   const invXuongKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
   const invCongTrinhKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.CONG_TRINH)|| 'ten_cong_trinh';
-  const invMaCongTrinhKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.MA_CONG_TRINH)|| 'ma_cong_trinh';
   const invNamKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.NAM)|| 'nam';
   const invThangKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.THANG)|| 'thang';
   const invNgayKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.NGAY)|| 'ngay';
   const invDateKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.DATE)|| 'date';
-  const invHexKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.HEX)|| 'hex';
-  const nhapKhoTuanKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.NHAP_KHO_TUAN)|| 'nhap_kho_tuan';
   const invTuanKey = findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.TUAN)|| 'tuan';
 
-  const expHexKey = findColumnKey(exportColumns, TARGET_COLUMN_NAMES.HEX)|| 'hex';
   const expThanhTienKey = findColumnKey(exportColumns, TARGET_COLUMN_NAMES.EXPORT_AMOUNT)|| 'so_luong_xuat_kho';
   const expDateKey = findColumnKey(exportColumns, TARGET_COLUMN_NAMES.DATE)|| 'date';
   const expXuongKey = findColumnKey(exportColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
@@ -925,10 +903,7 @@ const normalizeString = (str: string) => {
   const stockDateKey = findColumnKey(stockColumns, TARGET_COLUMN_NAMES.DATE) || 'date';
   const stockValueKey = findColumnKey(stockColumns, TARGET_COLUMN_NAMES.GIA_TRI_TON_KHO) || 'gia_tri';
   const stockSapIdKey = findColumnKey(stockColumns, TARGET_COLUMN_NAMES.MA_ID_SAP) || 'ma_id_sap';
-  const stockCongTrinhKey = findColumnKey(stockColumns, TARGET_COLUMN_NAMES.CONG_TRINH) || 'ten_cong_trinh';
-  const stockXuongKey = findColumnKey(stockColumns, TARGET_COLUMN_NAMES.XUONG) || 'xuong_chinh';
 
-  const orderHexKey = findColumnKey(orderColumns, TARGET_COLUMN_NAMES.HEX)|| 'hex';
   const orderDateKey = findColumnKey(orderColumns, TARGET_COLUMN_NAMES.NGAY_NHAN_TU_PM)|| 'ngay_nhan_tu_pm';
   const orderValueKey = findColumnKey(orderColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG)|| 'tri_gia_don_hang_tong';
   const orderXuongKey = findColumnKey(orderColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
@@ -936,20 +911,14 @@ const normalizeString = (str: string) => {
 
   const tkbvDateKey = findColumnKey(tkbvColumns, TARGET_COLUMN_NAMES.NGAY_NHAN)|| 'ngay_nhan';
   const tkbvValueKey = findColumnKey(tkbvColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG)|| 'tri_gia_don_hang_tong';
-  const tkbvHexKey = findColumnKey(tkbvColumns, TARGET_COLUMN_NAMES.HEX)|| 'hex';
   const tkbvXuongKey = findColumnKey(tkbvColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
   const tkbvCongTrinhKey = findColumnKey(tkbvColumns, TARGET_COLUMN_NAMES.CONG_TRINH)|| 'ten_cong_trinh';
 
   const pthspDateKey = findColumnKey(pthspColumns, TARGET_COLUMN_NAMES.NGAY_HOAN_THANH)|| 'ngay_hoan_thanh';
   const pthspValueKey = findColumnKey(pthspColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG)|| 'tri_gia_don_hang_tong';
-  const pthspHexKey = findColumnKey(pthspColumns, TARGET_COLUMN_NAMES.HEX)|| 'hex';
   const pthspXuongKey = findColumnKey(pthspColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
   const pthspCongTrinhKey = findColumnKey(pthspColumns, TARGET_COLUMN_NAMES.CONG_TRINH)|| 'ten_cong_trinh';
 
-  const yearlyPlanAmountKey = findColumnKey(yearlyPlanColumns, TARGET_COLUMN_NAMES.THANH_TIEN_KE_HOACH)|| 'thanh_tien_ke_hoach';
-  const yearlyPlanYearKey = findColumnKey(yearlyPlanColumns, TARGET_COLUMN_NAMES.NAM)|| 'nam';
-  const yearlyPlanMonthKey = findColumnKey(yearlyPlanColumns, TARGET_COLUMN_NAMES.THANG)|| 'thang';
-  const yearlyPlanXuongKey = findColumnKey(yearlyPlanColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
 
   // New keys for Analysis Data
   const analysisXuongKey = findColumnKey(analysisColumns, TARGET_COLUMN_NAMES.XUONG)|| 'xuong_chinh';
@@ -1023,31 +992,6 @@ const normalizeString = (str: string) => {
   const [orderExportScope, setOrderExportScope] = useState<'FILTERED' | 'MTD' | 'ALL'>('FILTERED');
   const [isOrderExportModalOpen, setIsOrderExportModalOpen] = useState(false);
   const [selectedOrderExportColumns, setSelectedOrderExportColumns] = useState<string[]>([]);
-  // Card 2: TKBV
-  const [isTkbvExportScopeModalOpen, setIsTkbvExportScopeModalOpen] = useState(false);
-  const [tkbvExportScope, setTkbvExportScope] = useState<'FILTERED' | 'MTD' | 'ALL'>('FILTERED');
-  const [isTkbvExportModalOpen, setIsTkbvExportModalOpen] = useState(false);
-  const [selectedTkbvExportColumns, setSelectedTkbvExportColumns] = useState<string[]>([]);
-  // Card 3: PTHSP
-  const [isPthspExportScopeModalOpen, setIsPthspExportScopeModalOpen] = useState(false);
-  const [pthspExportScope, setPthspExportScope] = useState<'FILTERED' | 'MTD' | 'ALL'>('FILTERED');
-  const [isPthspExportModalOpen, setIsPthspExportModalOpen] = useState(false);
-  const [selectedPthspExportColumns, setSelectedPthspExportColumns] = useState<string[]>([]);
-  // Card 4: Nhập kho
-  const [isInvExportScopeModalOpen, setIsInvExportScopeModalOpen] = useState(false);
-  const [invExportScope, setInvExportScope] = useState<'FILTERED' | 'MTD' | 'ALL'>('FILTERED');
-  const [isInvExportModalOpen, setIsInvExportModalOpen] = useState(false);
-  const [selectedInvExportColumns, setSelectedInvExportColumns] = useState<string[]>([]);
-  // Card 5: Xuất kho
-  const [isExpExportScopeModalOpen, setIsExpExportScopeModalOpen] = useState(false);
-  const [expExportScope, setExpExportScope] = useState<'FILTERED' | 'MTD' | 'ALL'>('FILTERED');
-  const [isExpExportModalOpen, setIsExpExportModalOpen] = useState(false);
-  const [selectedExpExportColumns, setSelectedExpExportColumns] = useState<string[]>([]);
-  // Card 6: Tồn kho
-  const [isStockExportScopeModalOpen, setIsStockExportScopeModalOpen] = useState(false);
-  const [stockExportScope, setStockExportScope] = useState<'FILTERED' | 'MTD' | 'ALL'>('FILTERED');
-  const [isStockExportModalOpen, setIsStockExportModalOpen] = useState(false);
-  const [selectedStockExportColumns, setSelectedStockExportColumns] = useState<string[]>([]);
   const MATERIAL_ITEMS_PER_PAGE = 15;
 
 
@@ -1109,46 +1053,6 @@ useEffect(() => { fetchStockDates().then(setStockDates); }, []);
     return [];
   }, [orderColumns, orderData]);
 
-  const effectiveTkbvColumns = useMemo(() => {
-    if (tkbvColumns && tkbvColumns.length > 0) return tkbvColumns;
-    if (tkbvData && tkbvData.length > 0) {
-      return Object.keys(tkbvData[0]).filter(k => k && k.trim() !== '').map(k => ({ key: k, label: k, type: 'string' as const }));
-    }
-    return [];
-  }, [tkbvColumns, tkbvData]);
-
-  const effectivePthspColumns = useMemo(() => {
-    if (pthspColumns && pthspColumns.length > 0) return pthspColumns;
-    if (pthspData && pthspData.length > 0) {
-      return Object.keys(pthspData[0]).filter(k => k && k.trim() !== '').map(k => ({ key: k, label: k, type: 'string' as const }));
-    }
-    return [];
-  }, [pthspColumns, pthspData]);
-
-  const effectiveInvColumns = useMemo(() => {
-    if (inventoryColumns && inventoryColumns.length > 0) return inventoryColumns;
-    if (inventoryData && inventoryData.length > 0) {
-      return Object.keys(inventoryData[0]).filter(k => k && k.trim() !== '').map(k => ({ key: k, label: k, type: 'string' as const }));
-    }
-    return [];
-  }, [inventoryColumns, inventoryData]);
-
-  const effectiveExpColumns = useMemo(() => {
-    if (exportColumns && exportColumns.length > 0) return exportColumns;
-    if (exportData && exportData.length > 0) {
-      return Object.keys(exportData[0]).filter(k => k && k.trim() !== '').map(k => ({ key: k, label: k, type: 'string' as const }));
-    }
-    return [];
-  }, [exportColumns, exportData]);
-
-  const effectiveStockColumns = useMemo(() => {
-    if (stockColumns && stockColumns.length > 0) return stockColumns;
-    if (stockData && stockData.length > 0) {
-      return Object.keys(stockData[0]).filter(k => k && k.trim() !== '').map(k => ({ key: k, label: k, type: 'string' as const }));
-    }
-    return [];
-  }, [stockColumns, stockData]);
-
   // Default week filter to current week
   useEffect(() => {
     const currentWeek = getWeekNumber();
@@ -1168,7 +1072,6 @@ useEffect(() => { fetchStockDates().then(setStockDates); }, []);
   const tinhTrangOptions = useMemo(() => getUniqueOptions(productionData, tinhTrangKey), [productionData, tinhTrangKey]);
   const tinhTrangIpoOptions = useMemo(() => getUniqueOptions(productionData, tinhTrangIpoKey), [productionData, tinhTrangIpoKey]);
 
-  const khsxPhanLoaiOptions = useMemo(() => getUniqueOptions(khsxData, khsxPhanLoaiKey), [khsxData, khsxPhanLoaiKey]);
   const khsxNamOptions = useMemo(() => getUniqueOptions(khsxData, khsxNamKey), [khsxData, khsxNamKey]);
   const khsxThangOptions = useMemo(() => getUniqueOptions(khsxData, khsxThangKey), [khsxData, khsxThangKey]);
   const khsxNgayOptions = useMemo(() => getUniqueOptions(khsxData, khsxNgayKey), [khsxData, khsxNgayKey]);
@@ -1479,12 +1382,6 @@ const handleExportOverviewSummary = () => {
     exportToCSV(flatBottleneckData, `Bao_Cao_Diem_Nghen_${new Date().toISOString().split('T')[0]}`);
   };
 
-  const countUniqueHex = (data: DataRow[], key: string | undefined) => {
-    if (!key) return 0;
-    const unique = new Set(data.map(r => String(r[key] || '').trim()).filter(Boolean));
-    return unique.size;
-  };
-
 
 useEffect(() => {
   const requestId = ++overviewFetchIdRef.current;
@@ -1606,38 +1503,6 @@ const filteredExportOverviewData = useMemo(() => {
     }
   }, [isStockDetailModalOpen, closestStockDate]);
 
-  // ... (KHSX & Inventory Chart Logic) ...
-  const filteredKhsxData = useMemo(() => {
-    return khsxData.filter(row => {
-      // 1. View Mode Logic (Implicit Filter)
-      let matchPhanLoai = false;
-      if (viewMode === 'MONTH') {
-        // Force PHAN_LOAI = THÁNG
-        matchPhanLoai = String(row[khsxPhanLoaiKey] || '').trim().toUpperCase().includes('THÁNG');
-      } else {
-        // Force PHAN_LOAI = TUẦN
-        matchPhanLoai = String(row[khsxPhanLoaiKey] || '').trim().toUpperCase().includes('TUẦN');
-      }
-
-      // 2. Time Filters match
-     const matchNam = unifiedTimeFilters.nam.length === 0 || (khsxNamKey && unifiedTimeFilters.nam.includes(String(row[khsxNamKey] || '').trim()));
-      const matchThang = unifiedTimeFilters.thang.length === 0 || (khsxThangKey && unifiedTimeFilters.thang.includes(String(row[khsxThangKey] || '').trim()));
-
-      // Tuan & Ngay only apply in WEEK mode
-      let matchTuan = true;
-      let matchNgay = true;
-      if (viewMode === 'WEEK') {
-        matchTuan = unifiedTimeFilters.tuan.length === 0 || (!!khsxTuanKey && unifiedTimeFilters.tuan.includes(String(row[khsxTuanKey] || '').trim()));
-        matchNgay = unifiedTimeFilters.ngay.length === 0 || (!!khsxNgayKey && unifiedTimeFilters.ngay.includes(String(row[khsxNgayKey] || '').trim()));
-      }
-
-      const matchGeneralCongTrinh = filters.congTrinh.length === 0 || (khsxCongTrinhKey && filters.congTrinh.includes(String(row[khsxCongTrinhKey] || '').trim()));
-      const matchGeneralXuong = filters.xuong.length === 0 || (khsxXuongKey && filters.xuong.includes(String(row[khsxXuongKey] || '').trim()));
-
-      return matchPhanLoai && matchNam && matchThang && matchTuan && matchNgay && matchGeneralCongTrinh && matchGeneralXuong;
-    });
-  }, [khsxData, viewMode, unifiedTimeFilters, filters.congTrinh, filters.xuong, khsxPhanLoaiKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey, khsxCongTrinhKey, khsxXuongKey]);
-
 
   const filteredInventoryData = useMemo(() => {
     return inventoryData.filter(row => {
@@ -1659,25 +1524,6 @@ const filteredExportOverviewData = useMemo(() => {
 
 
 
-
-  // Weekly Analysis specific
-
-  // Update Week Options to use Analysis Data Source
-  const weekOptions = useMemo(() => {
-    const weeks = new Set<string>();
-    filteredAnalysisData.forEach(r => {
-      if (analysisWeekKey) {
-        const val = String(r[analysisWeekKey] || '').trim();
-        if (val) weeks.add(val);
-      }
-    });
-    return Array.from(weeks).sort((a, b) => {
-      const na = parseInt(a);
-      const nb = parseInt(b);
-      if (!isNaN(na) && !isNaN(nb)) return na - nb;
-      return a.localeCompare(b);
-    });
-  }, [filteredAnalysisData, analysisWeekKey]);
 
   // New logic for Weekly Plan vs Actual Data using Analysis Data Source
   const weeklyPlanVsActualData = useMemo(() => {

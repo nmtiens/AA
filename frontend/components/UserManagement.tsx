@@ -162,11 +162,11 @@ const UserManagement: React.FC = () => {
     };
     
     let result;
-    if (editingUser) {
-      result = await userService.updateUser({ ...cleanData, id: editingUser.id });
-    } else {
-      result = await userService.addUser(cleanData as any);
-    }
+if (editingUser && editingUser.id) {
+  result = await userService.updateUser({ ...cleanData, id: editingUser.id });
+} else {
+  result = await userService.addUser(cleanData as any);
+}
 
     setIsSaving(false);
 
