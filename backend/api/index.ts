@@ -327,18 +327,18 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       let localParams: any[];
 
       if (useAllTime) {
-        periodCond = 'TRUE';
-        mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P1 AND $P2`;
-        localParams = [monthStart, dateToStr];
-      } else if (useExplicitDates) {
-        periodCond = `parse_vn_date("${cfg.dateCol}") = ANY($P1::date[])`;
-        mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P2 AND $P3`;
-        localParams = [explicitDates, monthStart, dateToStr];
-      } else {
-        periodCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P1 AND $P2`;
-        mtdCond = `parse_vn_date("${cfg.dateCol}") BETWEEN $P3 AND $P4`;
-        localParams = [dateFromStr, dateToStr, monthStart, monthEnd];
-      }
+  periodCond = 'TRUE';
+  mtdCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P1 AND $P2`;
+  localParams = [monthStart, dateToStr];
+} else if (useExplicitDates) {
+  periodCond = `parse_vn_date("${cfg.dateCol}"::timestamp) = ANY($P1::date[])`;
+  mtdCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P2 AND $P3`;
+  localParams = [explicitDates, monthStart, dateToStr];
+} else {
+  periodCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P1 AND $P2`;
+  mtdCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P3 AND $P4`;
+  localParams = [dateFromStr, dateToStr, monthStart, monthEnd];
+}
 
       // Map $P1, $P2... sang chỉ số thật trong mảng params tổng ($1, $2, $3...)
       const baseIdx = allParams.length;
@@ -394,17 +394,17 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     const monthStart = `${dateStr.slice(0, 7)}-01`;
 
     const q = `
-      SELECT
-        COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
-        COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE parse_vn_date("${cfg.dateCol}") = $1) AS daily_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE parse_vn_date("${cfg.dateCol}") = $1), 0) AS daily_value,
-        COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE parse_vn_date("${cfg.dateCol}") BETWEEN $2 AND $1) AS mtd_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE parse_vn_date("${cfg.dateCol}") BETWEEN $2 AND $1), 0) AS mtd_value
-      FROM ${cfg.table}
-      WHERE parse_vn_date("${cfg.dateCol}") BETWEEN $2 AND $1
-      GROUP BY 1
-      ORDER BY mtd_value DESC
-    `;
+  SELECT
+    COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
+    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) = $1) AS daily_count,
+    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) = $1), 0) AS daily_value,
+    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $2 AND $1) AS mtd_count,
+    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $2 AND $1), 0) AS mtd_value
+  FROM ${cfg.table}
+  WHERE parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $2 AND $1
+  GROUP BY 1
+  ORDER BY mtd_value DESC
+`;
     const r = await pool.query(q, [dateStr, monthStart]);
     res.json(
       r.rows
@@ -427,14 +427,14 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 app.get('/api/stock/dates', async (_req: Request, res: Response) => {
   try {
     const q = `
-      SELECT parse_vn_date(date) AS d,
-             COUNT(DISTINCT ma_id_sap) AS count,
-             COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
-      FROM ton_kho
-      WHERE parse_vn_date(date) IS NOT NULL
-      GROUP BY 1
-      ORDER BY 1 DESC
-    `;
+  SELECT parse_vn_date(date::timestamp) AS d,
+         COUNT(DISTINCT ma_id_sap) AS count,
+         COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
+  FROM ton_kho
+  WHERE parse_vn_date(date::timestamp) IS NOT NULL
+  GROUP BY 1
+  ORDER BY 1 DESC
+`;
     const r = await pool.query(q);
     res.json(r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) })));
   } catch (error) {
@@ -449,14 +449,14 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const { date } = req.query as { date: string };
     if (!date) return res.status(400).json({ error: 'Missing date' });
     const q = `
-      SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
-             COUNT(DISTINCT ma_id_sap) AS count,
-             COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
-      FROM ton_kho
-      WHERE parse_vn_date(date) = $1
-      GROUP BY 1
-      ORDER BY value DESC
-    `;
+  SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
+         COUNT(DISTINCT ma_id_sap) AS count,
+         COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
+  FROM ton_kho
+  WHERE parse_vn_date(date::timestamp) = $1
+  GROUP BY 1
+  ORDER BY value DESC
+`;
     const r = await pool.query(q, [date]);
     res.json(r.rows.map(row => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
   } catch (error) {
