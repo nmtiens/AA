@@ -505,10 +505,14 @@ app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
       FROM khsx_nam WHERE nam::text LIKE '%2026%'
     `);
 
+    // FIX HIỆU NĂNG: trước đây lọc năm bằng "nam::text LIKE '%2026%' OR date::text LIKE '%2026%' OR EXTRACT(...)".
+    // LIKE có dấu % ở đầu chuỗi khiến Postgres KHÔNG dùng được index nào, bắt buộc full scan mỗi request.
+    // Thay bằng lọc theo date_parsed (đã có sẵn cột này và đã tạo index idx_nhap_kho_date_parsed) —
+    // vừa đúng logic (nhap_kho trong năm 2026), vừa tận dụng được index, không phụ thuộc định dạng chuỗi nam/date gốc.
     const actualQ = await pool.query(`
       SELECT COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS total
       FROM nhap_kho
-      WHERE nam::text LIKE '%2026%' OR date::text LIKE '%2026%' OR EXTRACT(YEAR FROM parse_vn_date(date::text)) = 2026
+      WHERE date_parsed BETWEEN '2026-01-01' AND '2026-12-31'
     `);
 
     const TARGET_WORKSHOPS = ['2A', '3A', '4A', '5A', '8AB', '8C'];
@@ -524,7 +528,7 @@ app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
       SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
              COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS actual
       FROM nhap_kho
-      WHERE nam::text LIKE '%2026%' OR date::text LIKE '%2026%' OR EXTRACT(YEAR FROM parse_vn_date(date::text)) = 2026
+      WHERE date_parsed BETWEEN '2026-01-01' AND '2026-12-31'
       GROUP BY 1
     `, [TARGET_WORKSHOPS]);
 
