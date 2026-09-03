@@ -448,10 +448,30 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
   }
 });
 
+// --- CACHE IN-MEMORY CHO /api/stock/dates ---
+// Query này phải GROUP BY + tính regexp cho gần như toàn bộ ~150k dòng của ton_kho
+// mỗi lần gọi (index chỉ giúp tìm dòng nhanh hơn, không giảm khối lượng tính toán khi
+// quét gần hết bảng). Vì danh sách "ngày có dữ liệu tồn kho" chỉ đổi khi ai đó nhập/cập
+// nhật ton_kho (không đổi liên tục trong lúc người dùng F5 dashboard), nên cache theo
+// last_updated của bảng ton_kho trong table_versions — giống cơ chế đã dùng cho /api/all-data.
+let cachedStockDates: any = null;
+let cachedStockDatesVersion: string | null = null;
+
 // Trả về: danh sách các ngày có dữ liệu tồn kho + tổng mỗi ngày (không kéo hết 150k dòng chi tiết)
 app.get('/api/stock/dates', async (_req: Request, res: Response) => {
   try {
-   const q = `
+    const verResult = await pool.query(
+      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
+    );
+    const currentVersion = verResult.rows[0]?.last_updated
+      ? String(verResult.rows[0].last_updated)
+      : null;
+
+    if (cachedStockDates && currentVersion && currentVersion === cachedStockDatesVersion) {
+      return res.json(cachedStockDates);
+    }
+
+    const q = `
   SELECT date_parsed AS d,
          COUNT(DISTINCT ma_id_sap) AS count,
          COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
@@ -461,10 +481,81 @@ app.get('/api/stock/dates', async (_req: Request, res: Response) => {
   ORDER BY 1 DESC
 `;
     const r = await pool.query(q);
-    res.json(r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) })));
+    const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
+
+    cachedStockDates = payload;
+    cachedStockDatesVersion = currentVersion;
+
+    res.json(payload);
   } catch (error) {
     console.error('Lỗi stock/dates:', error);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ============================================================================
+// WARM-UP ENDPOINT — chống cold start trên Vercel Hobby
+// ============================================================================
+// Vercel Hobby không cho cron chạy dưới 1 lần/ngày, nên KHÔNG dùng Vercel Cron
+// cho việc này. Thay vào đó, dùng 1 dịch vụ cron miễn phí bên ngoài (cron-job.org,
+// UptimeRobot, GitHub Actions...) gọi GET vào endpoint này mỗi 5-10 phút.
+//
+// Endpoint làm 2 việc:
+// 1. Giữ function không bị Vercel "ngủ" (cold start) — request nào cũng làm vậy.
+// 2. Chủ động nạp sẵn cache in-memory (cachedData cho /api/all-data,
+//    cachedStockDates cho /api/stock/dates) TRƯỚC khi người dùng thật vào —
+//    nhờ vậy người dùng luôn gặp tốc độ "đã có cache" thay vì phải chờ tính lại.
+//
+// Không cần xác thực gì đặc biệt vì endpoint chỉ đọc dữ liệu, không có tác dụng phụ
+// nguy hiểm — nhưng vẫn nên đặt path khó đoán nếu muốn tránh bot lạ gọi linh tinh.
+app.get('/api/warmup', async (_req: Request, res: Response) => {
+  const startedAt = Date.now();
+  const warmed: string[] = [];
+  try {
+    // 1. Warm /api/all-data cache
+    const versions = await getVersions();
+    if (!cachedData || JSON.stringify(versions) !== JSON.stringify(cachedVersions)) {
+      const [
+        production, material, khsx, order, inventory,
+        tkbv, pthsp, analysis, yearlyPlan, exportData,
+        attendance, stock
+      ] = await Promise.all(TABLES.map(t => fetchTableData(t)));
+      cachedData = {
+        production, material, khsx, order, inventory,
+        tkbv, pthsp, analysis, yearlyPlan, export: exportData,
+        attendance, stock,
+      };
+      cachedVersions = versions;
+    }
+    warmed.push('all-data');
+
+    // 2. Warm /api/stock/dates cache
+    const verResult = await pool.query(
+      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
+    );
+    const currentStockVersion = verResult.rows[0]?.last_updated
+      ? String(verResult.rows[0].last_updated)
+      : null;
+    if (!cachedStockDates || currentStockVersion !== cachedStockDatesVersion) {
+      const q = `
+        SELECT date_parsed AS d,
+               COUNT(DISTINCT ma_id_sap) AS count,
+               COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
+        FROM ton_kho
+        WHERE date_parsed IS NOT NULL
+        GROUP BY 1
+        ORDER BY 1 DESC
+      `;
+      const r = await pool.query(q);
+      cachedStockDates = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
+      cachedStockDatesVersion = currentStockVersion;
+    }
+    warmed.push('stock-dates');
+
+    res.json({ ok: true, warmed, ms: Date.now() - startedAt });
+  } catch (error) {
+    console.error('Lỗi warmup:', error);
+    res.status(500).json({ ok: false, error: 'Warmup failed' });
   }
 });
 
