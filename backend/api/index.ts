@@ -285,9 +285,13 @@ const numericExpr = (col: string) => `
 // Dùng cho: 5 card ở phần "BÁO CÁO TỔNG QUAN"
 // ============================================================================
 // BẢN TỐI ƯU: /api/overview/summary
-// Thay vì Promise.all() 5 query song song (chiếm 5 connection cùng lúc,
-// dễ làm cạn pool khi có nhiều user), gộp thành 1 câu SQL UNION ALL —
-// chỉ tốn 1 connection duy nhất cho toàn bộ 5 card.
+// - Gộp 5 query thành 1 câu SQL UNION ALL (giữ nguyên tối ưu cũ — chỉ 1 connection)
+// - FIX MỚI (quan trọng nhất): thêm mệnh đề WHERE date_parsed BETWEEN ... AND ...
+//   bao trùm cả khoảng "period" lẫn khoảng "MTD" TRƯỚC KHI vào FILTER.
+//   Trước đây điều kiện ngày chỉ nằm trong FILTER, khiến Postgres phải quét
+//   TOÀN BỘ bảng + tính numericExpr (regex) cho từng dòng rồi mới lọc,
+//   là nguyên nhân chính khiến API chậm 5-13s trên bảng lớn.
+//   Giờ WHERE giới hạn số dòng cần quét/tính toán xuống đúng khoảng ngày cần dùng.
 // ============================================================================
 
 app.get('/api/overview/summary', async (req: Request, res: Response) => {
@@ -314,6 +318,18 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
     const monthStart = `${dateToStr.slice(0, 7)}-01`;
     const monthEnd = new Date(dateToDate.getFullYear(), dateToDate.getMonth() + 1, 0)
       .toISOString().slice(0, 10);
+
+    // Tính khoảng ngày RỘNG NHẤT cần quét cho mỗi bảng (bao trùm cả period lẫn MTD).
+    // Dùng làm WHERE ở tầng ngoài để Postgres không phải quét full table.
+    let outerLo = dateFromStr < monthStart ? dateFromStr : monthStart;
+    let outerHi = dateToStr > monthEnd ? dateToStr : monthEnd;
+    if (useExplicitDates) {
+      const sorted = [...explicitDates].sort();
+      const explicitLo = sorted[0];
+      const explicitHi = sorted[sorted.length - 1];
+      outerLo = explicitLo < monthStart ? explicitLo : monthStart;
+      outerHi = explicitHi > monthEnd ? explicitHi : monthEnd;
+    }
 
     // Mỗi bảng có tham số riêng (period khác nhau tuỳ useAllTime/useExplicitDates),
     // nên build từng SELECT con với params độc lập, rồi nối lại bằng UNION ALL.
@@ -348,6 +364,14 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
 
       const countExpr = `COUNT(DISTINCT "${cfg.hexCol}")`;
 
+      // WHERE ngoài (outerLo/outerHi) chỉ áp dụng khi KHÔNG phải useAllTime.
+      // Khi useAllTime, không giới hạn ngày (đúng nghĩa "toàn thời gian").
+      let outerWhere = 'TRUE';
+      if (!useAllTime) {
+        allParams.push(outerLo, outerHi);
+        outerWhere = `date_parsed BETWEEN $${allParams.length - 1} AND $${allParams.length}`;
+      }
+
       subQueries.push(`
         SELECT
           '${key}' AS source_key,
@@ -356,6 +380,7 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
           ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
           COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) AS mtd_value
         FROM ${cfg.table}
+        WHERE ${outerWhere}
       `);
     });
 
@@ -508,8 +533,6 @@ app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
 
     // FIX: đơn vị gốc trong DB là VND -> phải chia cho 1 Tỷ (1_000_000_000)
     // để khớp đơn vị "Tỷ" với targetTotal (từ khsx_nam) và với byWorkshop bên dưới.
-    // Trước đây chia nhầm cho 1000 khiến actualTotal bị lệch ~1 triệu lần
-    // (VD: hiện 1,890,719,857.8 thay vì đúng ra phải là 949.2).
     const actualTotal = Number(actualQ.rows[0].total) / 1000000000;
 
     const workshopMap: Record<string, { plan: number; actual: number }> = {};
@@ -886,9 +909,6 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       : [];
 
     // ---------- KHSX (Kế hoạch) ----------
-    // QUAN TRỌNG: KHÔNG dedup theo hex. Đã verify: SUM trực tiếp trên toàn bộ dòng
-    // khớp filter mới ra đúng số (165.08). Dedup theo hex trước đây làm mất dòng hợp lệ
-    // (1 hex có thể có nhiều dòng kế hoạch khác giá trị nhau — không phải trùng lặp).
     const khParams: any[] = [phanLoaiPattern, nam];
     let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam::text = $2`;
     if (thang) { khParams.push(thang); khWhere += ` AND thang::text = $${khParams.length}`; }
@@ -916,13 +936,6 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const khResult = await pool.query(khQuery, khParams);
 
     // ---------- NHAP_KHO (Thực hiện) ----------
-    // Giữ nguyên logic cũ: 1 hex có thể nhập kho nhiều lần khác ngày (giao hàng từng phần)
-    // => chỉ loại duplicate thật sự (trùng y hệt hex + ngày + giá trị), không dedup theo hex đơn thuần.
-        // ---------- NHAP_KHO (Thực hiện) ----------
-    // QUAN TRỌNG: KHÔNG dedup theo hex hay theo tổ hợp (hex, date, thanh_tien_nhap_kho).
-    // Đã verify: nhiều dòng có cùng hex+date+giá trị vẫn là các lần nhập kho hợp lệ khác nhau
-    // (trùng giá trị chỉ là trùng hợp, không phải duplicate dữ liệu). Dedup trước đây làm mất
-    // 197 dòng hợp lệ, khiến tổng TH giảm sai từ 150.9 xuống 149.05.
     const thParams: any[] = [nam];
     let thWhere = `WHERE nam::text = $1`;
     if (thang) { thParams.push(thang); thWhere += ` AND thang::text = $${thParams.length}`; }
@@ -1004,9 +1017,6 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-// app.listen(PORT, () => {
-//  console.log(`Server running on http://localhost:${PORT}`);
-// });
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
