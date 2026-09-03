@@ -327,18 +327,18 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       let localParams: any[];
 
       if (useAllTime) {
-  periodCond = 'TRUE';
-  mtdCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P1 AND $P2`;
-  localParams = [monthStart, dateToStr];
-} else if (useExplicitDates) {
-  periodCond = `parse_vn_date("${cfg.dateCol}"::timestamp) = ANY($P1::date[])`;
-  mtdCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P2 AND $P3`;
-  localParams = [explicitDates, monthStart, dateToStr];
-} else {
-  periodCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P1 AND $P2`;
-  mtdCond = `parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $P3 AND $P4`;
-  localParams = [dateFromStr, dateToStr, monthStart, monthEnd];
-}
+        periodCond = 'TRUE';
+        mtdCond = `date_parsed BETWEEN $P1 AND $P2`;
+        localParams = [monthStart, dateToStr];
+      } else if (useExplicitDates) {
+        periodCond = `date_parsed = ANY($P1::date[])`;
+        mtdCond = `date_parsed BETWEEN $P2 AND $P3`;
+        localParams = [explicitDates, monthStart, dateToStr];
+      } else {
+        periodCond = `date_parsed BETWEEN $P1 AND $P2`;
+        mtdCond = `date_parsed BETWEEN $P3 AND $P4`;
+        localParams = [dateFromStr, dateToStr, monthStart, monthEnd];
+      }
 
       // Map $P1, $P2... sang chỉ số thật trong mảng params tổng ($1, $2, $3...)
       const baseIdx = allParams.length;
@@ -396,12 +396,12 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     const q = `
   SELECT
     COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
-    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) = $1) AS daily_count,
-    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) = $1), 0) AS daily_value,
-    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $2 AND $1) AS mtd_count,
-    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $2 AND $1), 0) AS mtd_value
+    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE date_parsed = $1) AS daily_count,
+    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE date_parsed = $1), 0) AS daily_value,
+    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE date_parsed BETWEEN $2 AND $1) AS mtd_count,
+    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE date_parsed BETWEEN $2 AND $1), 0) AS mtd_value
   FROM ${cfg.table}
-  WHERE parse_vn_date("${cfg.dateCol}"::timestamp) BETWEEN $2 AND $1
+  WHERE date_parsed BETWEEN $2 AND $1
   GROUP BY 1
   ORDER BY mtd_value DESC
 `;
@@ -426,12 +426,12 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 // Trả về: danh sách các ngày có dữ liệu tồn kho + tổng mỗi ngày (không kéo hết 150k dòng chi tiết)
 app.get('/api/stock/dates', async (_req: Request, res: Response) => {
   try {
-    const q = `
-  SELECT parse_vn_date(date::timestamp) AS d,
+   const q = `
+  SELECT date_parsed AS d,
          COUNT(DISTINCT ma_id_sap) AS count,
          COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
   FROM ton_kho
-  WHERE parse_vn_date(date::timestamp) IS NOT NULL
+  WHERE date_parsed IS NOT NULL
   GROUP BY 1
   ORDER BY 1 DESC
 `;
@@ -453,7 +453,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
          COUNT(DISTINCT ma_id_sap) AS count,
          COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
   FROM ton_kho
-  WHERE parse_vn_date(date::timestamp) = $1
+  WHERE date_parsed = $1
   GROUP BY 1
   ORDER BY value DESC
 `;
