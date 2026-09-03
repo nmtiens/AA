@@ -3214,7 +3214,16 @@ const customFunnelData = useMemo(() => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={combinedProjectData} margin={{ top: 35, right: 30, left: 10, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="code" angle={-50} textAnchor="end" height={80} tick={{ fontSize: 10 }} interval={0} />
+                   <XAxis 
+  dataKey="code" 
+  angle={-50} 
+  textAnchor="end" 
+  height={80} 
+  tick={{ fontSize: 10 }} 
+  interval={0} 
+  // THÊM DÒNG NÀY: Cắt chuỗi lấy phần sau dấu "_" nếu có
+  tickFormatter={(value) => value.includes('_') ? value.split('_').pop() : value}
+/>
                     <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<ProjectChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
