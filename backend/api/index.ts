@@ -316,47 +316,53 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
     const dateToStr = dateToDate.toISOString().slice(0, 10);
     const dateFromStr = dateFromDate.toISOString().slice(0, 10);
     const monthStart = `${dateToStr.slice(0, 7)}-01`;
-    const monthEnd = new Date(dateToDate.getFullYear(), dateToDate.getMonth() + 1, 0)
-      .toISOString().slice(0, 10);
+    const monthEnd = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() + 1, 0))
+  .toISOString().slice(0, 10);
 
-    // Tính khoảng ngày RỘNG NHẤT cần quét cho mỗi bảng (bao trùm cả period lẫn MTD).
-    // Dùng làm WHERE ở tầng ngoài để Postgres không phải quét full table.
+// Khoảng ngày của tháng trước (để tính lũy kế T-1)
+const prevMonthRef = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() - 1, 1));
+const prevMonthStart = prevMonthRef.toISOString().slice(0, 7) + '-01';
+const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthRef.getUTCMonth() + 1, 0))
+  .toISOString().slice(0, 10);
+
+    // Tính khoảng ngày RỘNG NHẤT cần quét cho mỗi bảng (bao trùm period, MTD, và tháng trước).
     let outerLo = dateFromStr < monthStart ? dateFromStr : monthStart;
+    outerLo = prevMonthStart < outerLo ? prevMonthStart : outerLo;
     let outerHi = dateToStr > monthEnd ? dateToStr : monthEnd;
     if (useExplicitDates) {
       const sorted = [...explicitDates].sort();
       const explicitLo = sorted[0];
       const explicitHi = sorted[sorted.length - 1];
-      outerLo = explicitLo < monthStart ? explicitLo : monthStart;
-      outerHi = explicitHi > monthEnd ? explicitHi : monthEnd;
+      outerLo = explicitLo < outerLo ? explicitLo : outerLo;
+      outerHi = explicitHi > outerHi ? explicitHi : outerHi;
     }
 
-    // Mỗi bảng có tham số riêng (period khác nhau tuỳ useAllTime/useExplicitDates),
-    // nên build từng SELECT con với params độc lập, rồi nối lại bằng UNION ALL.
-    // Dùng $n global offset để mỗi bảng có bộ params riêng trong 1 câu query duy nhất.
     const subQueries: string[] = [];
     const allParams: any[] = [];
 
     Object.entries(ANALYSIS_TABLES).forEach(([key, cfg]) => {
       let periodCond: string;
       let mtdCond: string;
+      let lastMonthCond: string;
       let localParams: any[];
 
       if (useAllTime) {
         periodCond = 'TRUE';
         mtdCond = `date_parsed BETWEEN $P1 AND $P2`;
-        localParams = [monthStart, dateToStr];
+        lastMonthCond = `date_parsed BETWEEN $P3 AND $P4`;
+        localParams = [monthStart, dateToStr, prevMonthStart, prevMonthEnd];
       } else if (useExplicitDates) {
         periodCond = `date_parsed = ANY($P1::date[])`;
         mtdCond = `date_parsed BETWEEN $P2 AND $P3`;
-        localParams = [explicitDates, monthStart, dateToStr];
+        lastMonthCond = `date_parsed BETWEEN $P4 AND $P5`;
+        localParams = [explicitDates, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
       } else {
         periodCond = `date_parsed BETWEEN $P1 AND $P2`;
         mtdCond = `date_parsed BETWEEN $P3 AND $P4`;
-        localParams = [dateFromStr, dateToStr, monthStart, monthEnd];
+        lastMonthCond = `date_parsed BETWEEN $P5 AND $P6`;
+        localParams = [dateFromStr, dateToStr, monthStart, monthEnd, prevMonthStart, prevMonthEnd];
       }
 
-      // Map $P1, $P2... sang chỉ số thật trong mảng params tổng ($1, $2, $3...)
       const baseIdx = allParams.length;
       localParams.forEach(p => allParams.push(p));
       const remap = (cond: string) =>
@@ -364,8 +370,6 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
 
       const countExpr = `COUNT(DISTINCT "${cfg.hexCol}")`;
 
-      // WHERE ngoài (outerLo/outerHi) chỉ áp dụng khi KHÔNG phải useAllTime.
-      // Khi useAllTime, không giới hạn ngày (đúng nghĩa "toàn thời gian").
       let outerWhere = 'TRUE';
       if (!useAllTime) {
         allParams.push(outerLo, outerHi);
@@ -378,7 +382,9 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
           ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
           COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) AS period_value,
           ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) AS mtd_value
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) AS mtd_value,
+          ${countExpr} FILTER (WHERE ${remap(lastMonthCond)}) AS last_month_count,
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) AS last_month_value
         FROM ${cfg.table}
         WHERE ${outerWhere}
       `);
@@ -386,7 +392,6 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
 
     const finalQuery = subQueries.join('\nUNION ALL\n');
 
-    // Chỉ 1 lần gọi pool.query() thay vì 5 -> chỉ chiếm 1 connection
     const r = await pool.query(finalQuery, allParams);
 
     const results: Record<string, any> = {};
@@ -394,6 +399,7 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       results[row.source_key] = {
         daily: { count: Number(row.period_count), value: Number(row.period_value) },
         mtd: { count: Number(row.mtd_count), value: Number(row.mtd_value) },
+        lastMonth: { count: Number(row.last_month_count), value: Number(row.last_month_value) },
       };
     });
 

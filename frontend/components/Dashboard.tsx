@@ -811,6 +811,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
   const hasInitializedOverviewDate = useRef(false);
+  const [showDateWarning, setShowDateWarning] = useState(false);
+
 
   const [isIpoDetailModalOpen, setIsIpoDetailModalOpen] = useState(false);
   const [isTkbvDetailModalOpen, setIsTkbvDetailModalOpen] = useState(false);
@@ -1161,31 +1163,33 @@ const unifiedDateOptions = useMemo(() => {
     return `Thống kê số liệu các ngày: ${overviewDateFilters.join(', ')}`;
   };
 
-  useEffect(() => {
-    if (!hasInitializedOverviewDate.current && unifiedDateOptions.length > 0) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
+  const getYesterdayDateOption = (options: string[]): string | null => {
+  if (options.length === 0) return null;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dd = String(yesterday.getDate()).padStart(2, '0');
+  const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const yyyy = yesterday.getFullYear();
+  const yesterdayStrSlash = `${dd}/${mm}/${yyyy}`;
+  const yesterdayStrDash = `${dd}-${mm}-${yyyy}`;
+  const targetDate = options.find(opt => opt === yesterdayStrSlash || opt === yesterdayStrDash);
+  return targetDate || options[0];
+};
 
-      const dd = String(yesterday.getDate()).padStart(2, '0');
-      const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-      const yyyy = yesterday.getFullYear();
+ useEffect(() => {
+  if (!hasInitializedOverviewDate.current && unifiedDateOptions.length > 0) {
+    const target = getYesterdayDateOption(unifiedDateOptions);
+    if (target) setOverviewDateFilters([target]);
+    hasInitializedOverviewDate.current = true;
+  }
+}, [unifiedDateOptions]);
 
-      const yesterdayStrSlash = `${dd}/${mm}/${yyyy}`;
-      const yesterdayStrDash = `${dd}-${mm}-${yyyy}`;
-
-      const targetDate = unifiedDateOptions.find(opt =>
-        opt === yesterdayStrSlash || opt === yesterdayStrDash
-      );
-
-      if (targetDate) {
-        setOverviewDateFilters([targetDate]);
-      } else {
-        setOverviewDateFilters([unifiedDateOptions[0]]);
-      }
-
-      hasInitializedOverviewDate.current = true;
-    }
-  }, [unifiedDateOptions]);
+useEffect(() => {
+  if (showDateWarning) {
+    const timer = setTimeout(() => setShowDateWarning(false), 2500);
+    return () => clearTimeout(timer);
+  }
+}, [showDateWarning]);
 
   // ... (Filtered data logic) ...
 
@@ -1510,10 +1514,29 @@ const filteredExportOverviewData = useMemo(() => {
     return match ? (parseVNDate(match.date) || new Date(match.date)) : null;
   }, [stockDates, latestUnifiedDate]);
 
-  const latestStockStats = useMemo(() => {
-    const entry = stockDates[0];
-    return { count: entry?.count ?? 0, value: entry?.value ?? 0, date: latestStockDateAvailable };
-  }, [stockDates, latestStockDateAvailable]);
+    const latestStockStats = useMemo(() => {
+    if (!latestUnifiedDate) return { count: 0, value: 0, date: null as Date | null };
+    const currentMonthRef = new Date(latestUnifiedDate.getFullYear(), latestUnifiedDate.getMonth(), 1);
+    const entry = stockDates.find(s => {
+      const d = parseVNDate(s.date) || new Date(s.date);
+      return d.getFullYear() === currentMonthRef.getFullYear() && d.getMonth() === currentMonthRef.getMonth();
+    });
+    if (!entry) return { count: 0, value: 0, date: null as Date | null };
+    const d = parseVNDate(entry.date) || new Date(entry.date);
+    return { count: entry.count, value: entry.value, date: d };
+  }, [stockDates, latestUnifiedDate]);
+
+    const latestStockStatsPrevMonth = useMemo(() => {
+    if (!latestUnifiedDate) return { count: 0, value: 0, date: null as Date | null };
+    const prevMonthRef = new Date(latestUnifiedDate.getFullYear(), latestUnifiedDate.getMonth() - 1, 1);
+    const entry = stockDates.find(s => {
+      const d = parseVNDate(s.date) || new Date(s.date);
+      return d.getFullYear() === prevMonthRef.getFullYear() && d.getMonth() === prevMonthRef.getMonth();
+    });
+    if (!entry) return { count: 0, value: 0, date: null as Date | null };
+    const d = parseVNDate(entry.date) || new Date(entry.date);
+    return { count: entry.count, value: entry.value, date: d };
+  }, [stockDates, latestUnifiedDate]);
 
     const stockOverviewCardValue = useMemo(() => {
   if (!closestStockDate) return 0;
@@ -2220,7 +2243,24 @@ const customFunnelData = useMemo(() => {
 
   return (
     <div className="space-y-6 overflow-y-auto h-full custom-scrollbar pb-24 bg-wood-50">
-
+     {showDateWarning && (
+  <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-top-4 duration-300">
+    <div className="flex items-center gap-4 bg-white border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] rounded-2xl px-6 py-4 min-w-[340px]">
+      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center animate-pulse">
+        <AlertTriangle size={24} className="text-red-600" />
+      </div>
+      <div className="flex-1">
+        <p className="text-base font-bold text-red-600">Vui lòng chọn ít nhất 1 ngày báo cáo</p>
+      </div>
+      <button
+        onClick={() => setShowDateWarning(false)}
+        className="flex-shrink-0 p-1 text-gray-400 hover:text-red-600 transition-colors"
+      >
+        <CloseIcon size={20} />
+      </button>
+    </div>
+  </div>
+)}
       {/* Sticky Header & Filters */}
       <div className="sticky top-0 z-40 bg-wood-50/95 backdrop-blur-sm border-b border-wood-200 px-4 py-3 shadow-sm">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -2505,14 +2545,38 @@ const customFunnelData = useMemo(() => {
                   <span className="text-[10px] font-bold text-slate-500 uppercase">BỘ LỌC NGÀY CHUNG (ALL):</span>
                   {overviewDateRangeDisplay && <span className="text-[10px] text-indigo-600 font-semibold">{overviewDateRangeDisplay}</span>}
                 </div>
-                <DashboardFilter
-                  label="NGÀY BÁO CÁO"
-                  options={unifiedDateOptions}
-                  selectedValues={overviewDateFilters}
-                  onChange={setOverviewDateFilters}
-                />
-                <button onClick={handleExportOverviewSummary} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-100 bg-white ml-2" title="Xuất Excel tổng hợp"><Download size={16} /></button>
-                {overviewDateFilters.length > 0 && (<button onClick={() => setOverviewDateFilters([])} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg border border-red-100 bg-white" title="Xóa lọc ngày"><CloseIcon size={16} /></button>)}
+               <DashboardFilter
+  label="NGÀY BÁO CÁO"
+  options={unifiedDateOptions}
+  selectedValues={overviewDateFilters}
+  onChange={(values: string[]) => {
+    if (values.length === 0) {
+      setShowDateWarning(true);
+      return;
+    }
+    setOverviewDateFilters(values);
+  }}
+/>
+<button
+  onClick={handleExportOverviewSummary}
+  className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-100 bg-white ml-2"
+  title="Xuất Excel tổng hợp"
+>
+  <Download size={16} />
+</button>
+{/* Bỏ nút "Xóa lọc ngày" vì luôn bắt buộc phải có ít nhất 1 ngày được chọn */}
+              {overviewDateFilters.length > 0 && (
+  <button
+    onClick={() => {
+      const target = getYesterdayDateOption(unifiedDateOptions);
+      setOverviewDateFilters(target ? [target] : []);
+    }}
+    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg border border-red-100 bg-white"
+    title="Về mặc định (Hôm qua)"
+  >
+    <CloseIcon size={16} />
+  </button>
+)}
               </div>
             </div>
 
@@ -2540,15 +2604,23 @@ const customFunnelData = useMemo(() => {
                     </div>
                   </div>
                   <div className="z-10 mt-3 pt-3 border-t border-pink-200/60 w-full">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-pink-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
-                                            <span className="text-3xl font-extrabold text-pink-700">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold text-pink-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
+                                            <span className="text-3xl font-extrabold text-pink-700">
                         {overviewMetric === 'COUNT'
                           ? `${(overviewSummary?.order.mtd.count ?? 0).toLocaleString('en-US')} đơn`
                           : ((overviewSummary?.order.mtd.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
                       </span>
-                    </div>
-                  </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs font-bold text-pink-800/70 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()}:</span>
+                      <span className="text-lg font-extrabold text-pink-700/70">
+                        {overviewMetric === 'COUNT'
+                          ? `${(overviewSummary?.order.lastMonth?.count ?? 0).toLocaleString('en-US')} đơn`
+                          : ((overviewSummary?.order.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2575,15 +2647,23 @@ const customFunnelData = useMemo(() => {
                     </div>
                   </div>
                   <div className="z-10 mt-3 pt-3 border-t border-blue-200/60 w-full">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-blue-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
-                                            <span className="text-3xl font-extrabold text-blue-700">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold text-blue-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
+                                            <span className="text-3xl font-extrabold text-blue-700">
                         {overviewMetric === 'COUNT'
                           ? `${(overviewSummary?.tkbv.mtd.count ?? 0).toLocaleString('en-US')} bản vẽ`
                           : ((overviewSummary?.tkbv.mtd.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
                       </span>
-                    </div>
-                  </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs font-bold text-blue-800/70 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()}:</span>
+                      <span className="text-lg font-extrabold text-blue-700/70">
+                        {overviewMetric === 'COUNT'
+                          ? `${(overviewSummary?.tkbv.lastMonth?.count ?? 0).toLocaleString('en-US')} bản vẽ`
+                          : ((overviewSummary?.tkbv.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2609,16 +2689,24 @@ const customFunnelData = useMemo(() => {
                       </span>
                     </div>
                   </div>
-                  <div className="z-10 mt-3 pt-3 border-t border-purple-200/60 w-full">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-purple-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
-                                            <span className="text-3xl font-extrabold text-purple-700">
+                <div className="z-10 mt-3 pt-3 border-t border-purple-200/60 w-full">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold text-purple-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
+                                            <span className="text-3xl font-extrabold text-purple-700">
                         {overviewMetric === 'COUNT'
                           ? `${(overviewSummary?.pthsp.mtd.count ?? 0).toLocaleString('en-US')} phiếu`
                           : ((overviewSummary?.pthsp.mtd.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
                       </span>
-                    </div>
-                  </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs font-bold text-purple-800/70 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()}:</span>
+                      <span className="text-lg font-extrabold text-purple-700/70">
+                        {overviewMetric === 'COUNT'
+                          ? `${(overviewSummary?.pthsp.lastMonth?.count ?? 0).toLocaleString('en-US')} phiếu`
+                          : ((overviewSummary?.pthsp.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2644,7 +2732,7 @@ const customFunnelData = useMemo(() => {
                       </span>
                     </div>
                   </div>
-                                    {(overviewSummary?.inventory.mtd.count ?? 0) > 0 && (
+                 {(overviewSummary?.inventory.mtd.count ?? 0) > 0 && (
                     <div className="z-10 mt-3 pt-3 border-t border-teal-200/60 w-full">
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-teal-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
@@ -2654,8 +2742,16 @@ const customFunnelData = useMemo(() => {
                             : ((overviewSummary?.inventory.mtd.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
                         </span>
                       </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-xs font-bold text-teal-800/70 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()}:</span>
+                        <span className="text-lg font-extrabold text-teal-700/70">
+                          {overviewMetric === 'COUNT'
+                            ? `${(overviewSummary?.inventory.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
+                            : ((overviewSummary?.inventory.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                        </span>
+                      </div>
                     </div>
-                  )}
+                    )}
                 </div>
               </div>
 
@@ -2682,16 +2778,24 @@ const customFunnelData = useMemo(() => {
                       </span>
                     </div>
                   </div>
-                  <div className="z-10 mt-3 pt-3 border-t border-amber-200/60 w-full">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-amber-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
-                                            <span className="text-3xl font-extrabold text-amber-700">
+                 <div className="z-10 mt-3 pt-3 border-t border-amber-200/60 w-full">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-bold text-amber-800 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:</span>
+                                            <span className="text-3xl font-extrabold text-amber-700">
                         {overviewMetric === 'COUNT'
                           ? `${(overviewSummary?.export.mtd.count ?? 0).toLocaleString('en-US')} items`
                           : ((overviewSummary?.export.mtd.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
                       </span>
-                    </div>
-                  </div>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs font-bold text-amber-800/70 uppercase">Lũy kế T{latestUnifiedDate?.getMonth()}:</span>
+                      <span className="text-lg font-extrabold text-amber-700/70">
+                        {overviewMetric === 'COUNT'
+                          ? `${(overviewSummary?.export.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
+                          : ((overviewSummary?.export.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2720,19 +2824,27 @@ const customFunnelData = useMemo(() => {
                       </span>
                     </div>
                   </div>
-                  <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-600 uppercase">
-                        Giá trị tồn mới nhất ({latestStockStats.date ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1).toString().padStart(2, '0')}/${latestStockStats.date.getFullYear()}` : 'N/A'})
-                      </span>
-                      <div className="flex justify-end mt-1">
-                        <span className="text-3xl font-extrabold text-slate-700">
-                          {overviewMetric === 'COUNT'
-                            ? `${latestStockStats.count.toLocaleString('en-US')} items`
-                            : (latestStockStats.value / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
-                        </span>
-                      </div>
-                    </div>
+                 <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-600 uppercase leading-tight">
+                        Giá trị tồn mới nhất ({latestStockStats.date ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1).toString().padStart(2, '0')}/${latestStockStats.date.getFullYear()}` : 'N/A'})
+                      </span>
+                      <span className="text-3xl font-extrabold text-slate-700 shrink-0">
+                        {overviewMetric === 'COUNT'
+                          ? `${latestStockStats.count.toLocaleString('en-US')} items`
+                          : (latestStockStats.value / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2 mt-2">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase leading-tight">
+                        Giá trị tồn mới nhất của tháng {latestUnifiedDate?.getMonth()} ({latestStockStatsPrevMonth.date ? `${latestStockStatsPrevMonth.date.getDate().toString().padStart(2, '0')}/${(latestStockStatsPrevMonth.date.getMonth() + 1).toString().padStart(2, '0')}/${latestStockStatsPrevMonth.date.getFullYear()}` : 'N/A'})
+                      </span>
+                      <span className="text-lg font-extrabold text-slate-500 shrink-0">
+                        {overviewMetric === 'COUNT'
+                          ? `${latestStockStatsPrevMonth.count.toLocaleString('en-US')} items`
+                          : (latestStockStatsPrevMonth.value / 1000).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' Tỷ'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

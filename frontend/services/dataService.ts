@@ -192,9 +192,12 @@ export const exportToExcel = async (data: any[], filename: string) => {
 
 // ==================== CÁC HÀM GỌI API TÍNH TOÁN Ở BACKEND ====================
 
+// ==================== CÁC HÀM GỌI API TÍNH TOÁN Ở BACKEND ====================
+
 export interface OverviewSummaryEntry {
   daily: { count: number; value: number };
   mtd: { count: number; value: number };
+  lastMonth: { count: number; value: number }; // THÊM DÒNG NÀY
 }
 export interface OverviewSummary {
   date: string;
