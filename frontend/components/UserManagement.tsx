@@ -141,43 +141,54 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.username || !formData.fullName) {
-      showToast('Vui lòng nhập tên đăng nhập và họ tên', 'error');
-      return;
-    }
-    if (!editingUser && !formData.password) {
-      showToast('Vui lòng nhập mật khẩu cho user mới', 'error');
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!formData.username || !formData.fullName) {
+    showToast('Vui lòng nhập tên đăng nhập và họ tên', 'error');
+    return;
+  }
+  if (!editingUser && !formData.password) {
+    showToast('Vui lòng nhập mật khẩu cho user mới', 'error');
+    return;
+  }
 
-    setIsSaving(true);
-    
-    // Ensure permissions is array
-    const cleanData = {
-        ...formData,
-        role: formData.role || 'USER',
-        permissions: formData.permissions || []
-    };
-    
-    let result;
-if (editingUser && editingUser.id) {
-  result = await userService.updateUser({ ...cleanData, id: editingUser.id });
-} else {
-  result = await userService.addUser(cleanData as any);
-}
+  setIsSaving(true);
 
-    setIsSaving(false);
-
-    if (result.success) {
-      showToast(result.message || 'Thành công', 'success');
-      setIsModalOpen(false);
-      fetchUsers();
-    } else {
-      showToast(result.message || 'Thất bại', 'error');
-    }
+  // Ensure permissions is array
+  const cleanData: any = {
+      ...formData,
+      role: formData.role || 'USER',
+      permissions: formData.permissions || []
   };
+
+  // Không gửi password nếu để trống (giữ nguyên mật khẩu cũ khi sửa user)
+  if (!cleanData.password) {
+    delete cleanData.password;
+  }
+
+  // Email rỗng phải chuyển thành null, không được gửi chuỗi rỗng
+  // (backend validate .email() sẽ từ chối chuỗi rỗng)
+  if (!cleanData.email) {
+    cleanData.email = null;
+  }
+
+  let result;
+  if (editingUser && editingUser.id) {
+    result = await userService.updateUser({ ...cleanData, id: editingUser.id });
+  } else {
+    result = await userService.addUser(cleanData as any);
+  }
+
+  setIsSaving(false);
+
+  if (result.success) {
+    showToast(result.message || 'Thành công', 'success');
+    setIsModalOpen(false);
+    fetchUsers();
+  } else {
+    showToast(result.message || 'Thất bại', 'error');
+  }
+};
 
   const handleDelete = async (id: string, username: string) => {
     if (window.confirm(`Bạn có chắc muốn xóa user: ${username}?`)) {

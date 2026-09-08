@@ -1,17 +1,217 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
+import { z, ZodSchema } from 'zod';
 import { pool } from '../src/db.js';
+
+// Giới hạn số query chạy song song, tránh 1 request xin quá nhiều connection
+// cùng lúc từ transaction-mode pooler (pool phía server rất nhỏ và dùng chung).
+async function runWithLimit<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+  const results: T[] = new Array(tasks.length);
+  let idx = 0;
+  const worker = async () => {
+    while (idx < tasks.length) {
+      const current = idx++;
+      results[current] = await tasks[current]();
+    }
+  };
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+
+
+// ============================================================================
+// CẤU HÌNH BẮT BUỘC QUA ENV (xem .env.example cuối file / README đã gửi trước)
+// ============================================================================
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET chưa được cấu hình trong biến môi trường.');
+}
+const JWT_SECRET_SAFE = JWT_SECRET || 'dev-only-insecure-secret';
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+  throw new Error('ALLOWED_ORIGINS chưa được cấu hình trong biến môi trường (bắt buộc ở production).');
+}
+
+// ============================================================================
+// MIDDLEWARE HẠ TẦNG: helmet, CORS whitelist, compression, rate limit chung
+// ============================================================================
+app.set('trust proxy', 1); // cần thiết khi chạy sau proxy/CDN (Vercel...) để rate-limit theo IP thật hoạt động đúng
+app.use(helmet());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS: origin không được phép'));
+  },
+  credentials: true,
+}));
 app.use(compression()); // Nén gzip response — giảm 70-90% dung lượng JSON
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
+
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Thử đăng nhập quá nhiều lần, vui lòng thử lại sau ít phút' },
+});
+const otpRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Yêu cầu quá nhiều lần, vui lòng thử lại sau' },
+});
+const otpVerifyLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Nhập sai quá nhiều lần, vui lòng yêu cầu mã OTP mới' },
+});
+const warmupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// ============================================================================
+// AUTH MIDDLEWARE: JWT + phân quyền role
+// ============================================================================
+interface AuthTokenPayload {
+  id: string | number;
+  username: string;
+  role: string;
+}
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      user?: AuthTokenPayload;
+    }
+  }
+}
+
+const signAuthToken = (payload: AuthTokenPayload): string =>
+  jwt.sign(payload, JWT_SECRET_SAFE, { expiresIn: '8h' });
+
+const authenticateJWT = (req: Request, res: Response, next: NextFunction) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ success: false, message: 'Thiếu token xác thực' });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET_SAFE) as AuthTokenPayload;
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Token không hợp lệ hoặc đã hết hạn' });
+  }
+};
+
+const requireRole = (...allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) return res.status(401).json({ success: false, message: 'Chưa xác thực' });
+  if (!allowedRoles.includes(req.user.role)) return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
+  next();
+};
+
+const requireSelfOrRole = (usernameParam: (req: Request) => string, ...allowedRoles: string[]) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) return res.status(401).json({ success: false, message: 'Chưa xác thực' });
+    const target = usernameParam(req);
+    if (req.user.username === target || allowedRoles.includes(req.user.role)) return next();
+    return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
+  };
+
+const requireWarmupSecret = (req: Request, res: Response, next: NextFunction) => {
+  const expected = process.env.WARMUP_SECRET;
+  if (!expected) return res.status(503).json({ ok: false, error: 'WARMUP_SECRET chưa được cấu hình' });
+  if (req.headers['x-warmup-key'] !== expected) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  next();
+};
+
+// ============================================================================
+// VALIDATE INPUT (zod)
+// ============================================================================
+const validateBody = (schema: ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ', errors: result.error.flatten().fieldErrors });
+  }
+  req.body = result.data;
+  next();
+};
+
+const loginSchema = z.object({ username: z.string().min(1), password: z.string().min(1) });
+const forgotPasswordSchema = z.object({ email: z.string().email() });
+const verifyOtpSchema = z.object({
+  email: z.string().email(),
+  otp: z.string().length(6),
+  newPassword: z.string().min(8, 'Mật khẩu mới phải có ít nhất 8 ký tự'),
+});
+const changePasswordSchema = z.object({
+  username: z.string().min(1),
+  oldPassword: z.string().min(1),
+  newPassword: z.string().min(8, 'Mật khẩu mới phải có ít nhất 8 ký tự'),
+});
+const createUserSchema = z.object({
+  username: z.string().min(3).max(64),
+  password: z.string().min(8, 'Mật khẩu phải có ít nhất 8 ký tự'),
+  fullName: z.string().min(1),
+  email: z.string().email().optional().nullable(),
+  role: z.string().optional(),
+  permissions: z.array(z.string()).optional(),
+  msnv: z.string().optional().nullable(),
+  department: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+const updateUserSchema = z.object({
+  password: z.string().min(8).optional(),
+  fullName: z.string().min(1).optional(),
+  email: z.string().email().optional().nullable(),
+  role: z.string().optional(),
+  permissions: z.array(z.string()).optional(),
+  msnv: z.string().optional().nullable(),
+  department: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
+// ============================================================================
+// HẰNG SỐ QUY ĐỔI TIỀN TỆ (trước đây là magic number rải rác)
+// ============================================================================
+const VND_TO_TRIEU = 1_000_000;
+const VND_TO_TY = 1_000_000_000;
+const TARGET_WORKSHOPS = ['2A', '3A', '4A', '5A', '8AB', '8C'];
+const DEFAULT_REVENUE_YEAR = new Date().getUTCFullYear();
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('Server Backend PostgreSQL đang hoạt động bình thường!');
@@ -30,11 +230,11 @@ const REPORT_COLUMNS: Record<string, string[]> = {
   vat_tu: [
     'id', 'trang_thai', 'nguoi_tao', 'nguoi_yeu_cau',
     'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu',
-    'so_luong_yeu_cau', 'dvt', 'ngay_pr',  'nhom_vt', 'so_po',
-     'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',
+    'so_luong_yeu_cau', 'dvt', 'ngay_pr', 'nhom_vt', 'so_po',
+    'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',
     'so_luong_da_nhan_sap', 'so_luong_con_lai', 'tinh_trang_po',
     'ghi_chu_tinh_trang_po', 'thanh_tien', 'ngay_ve',
-    'sl_hang_ve_thuc_te', 'updated_at', 
+    'sl_hang_ve_thuc_te', 'updated_at',
     'team_pr_note',
   ],
   khsx: [
@@ -89,16 +289,11 @@ const parseSafeDate = (rawInput?: string): Date | null => {
   if (!rawInput || rawInput === '0' || rawInput === 'undefined' || rawInput === 'null') {
     return null;
   }
-
-  // Nếu input dạng epoch timestamp (chuỗi số hoặc kiểu number)
   if (!isNaN(Number(rawInput))) {
     const num = Number(rawInput);
-    // Nếu là timestamp milliseconds (ví dụ: 1714000000000), còn ít hơn thì coi là seconds
     const dateVal = new Date(num > 10000000000 ? num : num * 1000);
     return !isNaN(dateVal.getTime()) ? dateVal : null;
   }
-
-  // Nếu input dạng ISO String (ví dụ: "2026-08-28T02:41:02.841Z")
   const parsed = new Date(rawInput);
   return !isNaN(parsed.getTime()) ? parsed : null;
 };
@@ -110,7 +305,7 @@ const fetchTableData = async (tableName: string, updatedAfter?: string) => {
     const selectClause = cols ? cols.map(c => `"${c}"`).join(', ') : '*';
 
     let query = `SELECT ${selectClause} FROM ${tableName}`;
-    let values: any[] = [];
+    const values: any[] = [];
 
     const validDate = parseSafeDate(updatedAfter);
     if (validDate) {
@@ -132,13 +327,9 @@ const TABLES = [
   'tkbv_full', 'pthsp_full', 'phan_tich_kh_th', 'khsx_nam',
   'xuat_kho', 'diem_danh', 'ton_kho'
 ];
-const VERSION_KEYS = [
-  'production', 'material', 'khsx', 'order', 'inventory',
-  'tkbv', 'pthsp', 'analysis', 'yearlyPlan', 'export', 'attendance', 'stock'
-];
 
-// Thay hàm getVersions() cũ bằng bản này —
-// 1 query nhẹ thay vì 12 query MAX() trên bảng lớn
+// Trước đây có 1 mảng VERSION_KEYS song song với TABLES, dễ lệch thứ tự nếu
+// sửa 1 trong 2 mà quên sửa cái kia. Gộp thành 1 map duy nhất.
 const TABLE_TO_VERSION_KEY: Record<string, string> = {
   production_status_app: 'production',
   vat_tu: 'material',
@@ -165,32 +356,44 @@ const getVersions = async () => {
 };
 
 // --- CACHE IN-MEMORY CHO /api/all-data ---
+// LƯU Ý (serverless/Vercel): biến module-level chỉ cache trong phạm vi 1
+// instance. Nhiều instance song song hoặc cold start sẽ không chia sẻ cache
+// này. Nếu cần cache đáng tin cậy giữa nhiều instance, cân nhắc chuyển sang
+// Upstash Redis (REST API, hợp với serverless).
 let cachedData: any = null;
 let cachedVersions: Record<string, string> | null = null;
 
+const refreshAllDataCache = async () => {
+  const versions = await getVersions();
+  if (cachedData && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
+    return { payload: cachedData, fromCache: true };
+  }
+
+  // TRƯỚC: Promise.all(TABLES.map(t => fetchTableData(t)))
+  // → xin 12 connection cùng lúc, một mình chiếm gần hết pool (max: 3).
+  // SAU: chạy tối đa 2 query song song, còn lại xếp hàng.
+  const [
+    production, material, khsx, order, inventory,
+    tkbv, pthsp, analysis, yearlyPlan, exportData,
+    attendance, stock
+  ] = await runWithLimit(
+    TABLES.map(t => () => fetchTableData(t)),
+    2
+  );
+
+  const payload = {
+    production, material, khsx, order, inventory,
+    tkbv, pthsp, analysis, yearlyPlan, export: exportData,
+    attendance, stock,
+  };
+  cachedData = payload;
+  cachedVersions = versions;
+  return { payload, fromCache: false };
+};
+
 app.get('/api/all-data', async (_req: Request, res: Response) => {
   try {
-    const versions = await getVersions();
-
-    if (cachedData && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
-      return res.json(cachedData);
-    }
-
-    const [
-      production, material, khsx, order, inventory,
-      tkbv, pthsp, analysis, yearlyPlan, exportData,
-      attendance, stock
-    ] = await Promise.all(TABLES.map(t => fetchTableData(t)));
-
-    const payload = {
-      production, material, khsx, order, inventory,
-      tkbv, pthsp, analysis, yearlyPlan, export: exportData,
-      attendance, stock,
-    };
-
-    cachedData = payload;
-    cachedVersions = versions;
-
+    const { payload } = await refreshAllDataCache();
     res.json(payload);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
@@ -227,8 +430,8 @@ app.get('/api/production/full', async (req: Request, res: Response) => {
   const { updated_after } = req.query;
   try {
     let query = `SELECT * FROM production_status_app`;
-    let values: any[] = [];
-    
+    const values: any[] = [];
+
     const validDate = parseSafeDate(updated_after as string);
     if (validDate) {
       query += ` WHERE updated_at >= $1`;
@@ -254,22 +457,44 @@ app.get('/api/check-versions', async (_req: Request, res: Response) => {
   }
 });
 
-// ============================================================================
-// CÁC ENDPOINT MỚI — TÍNH TOÁN Ở DATABASE THAY VÌ Ở FRONTEND
-// ============================================================================
+interface TrendTableConfig {
+  table: string;
+  dateCol: string;
+  valueCol: string;
+  valueDivisor: number;
+  hexCol?: string;
+  xuongCol?: string;
+  congTrinhCol?: string;
+  dvtCol?: string;                     // 👈 thêm mới — chỉ dht (order) có cột này
+  joinProductionForPhanLoai?: boolean;
+}
 
-const ANALYSIS_TABLES: Record<string, {
-  table: string; dateCol: string; valueCol: string; hexCol: string;
-  xuongCol: string; congTrinhCol: string;
-}> = {
-  order:     { table: 'dht',        dateCol: 'ngay_nhan_tu_pm', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh' },
-  tkbv:      { table: 'tkbv_full',  dateCol: 'ngay_nhan',       valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh' },
-  pthsp:     { table: 'pthsp_full', dateCol: 'ngay_hoan_thanh', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh' },
-  inventory: { table: 'nhap_kho',   dateCol: 'date',            valueCol: 'thanh_tien_nhap_kho',   hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh' },
-  export:    { table: 'xuat_kho',   dateCol: 'date',            valueCol: 'so_luong_xuat_kho',     hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh' },
+const STOCK_TREND_CONFIG: TrendTableConfig = {
+  table: 'ton_kho',
+  dateCol: 'date_parsed',
+  valueCol: 'gia_tri',
+  valueDivisor: 1,
+  hexCol: 'ma_id_sap',
+  congTrinhCol: 'ten_cong_trinh',
+};
+const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
+  order:     { table: 'dht',        dateCol: 'ngay_nhan_tu_pm', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1,  dvtCol: 'dvt', joinProductionForPhanLoai: true,  },
+  tkbv:      { table: 'tkbv_full',  dateCol: 'ngay_nhan',       valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1 },
+  pthsp:     { table: 'pthsp_full', dateCol: 'ngay_hoan_thanh', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1 },
+  inventory: { table: 'nhap_kho',   dateCol: 'date',            valueCol: 'thanh_tien_nhap_kho',   hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1000000 },
+  export:    { table: 'xuat_kho',   dateCol: 'date',            valueCol: 'so_luong_xuat_kho',     hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1 },
 };
 const ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
+const TREND_SOURCES = new Set([...Object.keys(ANALYSIS_TABLES), 'stock']);
 
+/**
+ * LƯU Ý HIỆU NĂNG: regex parse trên mỗi hàng ở mỗi request là nguyên nhân
+ * chính khiến các endpoint tổng hợp chậm dần khi bảng lớn lên (Postgres
+ * không dùng được index cho biểu thức này). Giải pháp lâu dài: migration
+ * thêm cột `<col>_num numeric GENERATED ALWAYS AS (...) STORED` + index, rồi
+ * tham chiếu thẳng cột đó thay vì gọi numericExpr(col). Xem file migration
+ * đã gửi kèm ở lần trả lời trước nếu cần.
+ */
 const numericExpr = (col: string) => `
   NULLIF(
     CASE 
@@ -281,18 +506,17 @@ const numericExpr = (col: string) => `
   )::numeric
 `;
 
-// Trả về: số liệu "trong ngày" + "lũy kế tháng" cho 5 nguồn dữ liệu cùng lúc
-// Dùng cho: 5 card ở phần "BÁO CÁO TỔNG QUAN"
-// ============================================================================
-// BẢN TỐI ƯU: /api/overview/summary
-// - Gộp 5 query thành 1 câu SQL UNION ALL (giữ nguyên tối ưu cũ — chỉ 1 connection)
-// - FIX MỚI (quan trọng nhất): thêm mệnh đề WHERE date_parsed BETWEEN ... AND ...
-//   bao trùm cả khoảng "period" lẫn khoảng "MTD" TRƯỚC KHI vào FILTER.
-//   Trước đây điều kiện ngày chỉ nằm trong FILTER, khiến Postgres phải quét
-//   TOÀN BỘ bảng + tính numericExpr (regex) cho từng dòng rồi mới lọc,
-//   là nguyên nhân chính khiến API chậm 5-13s trên bảng lớn.
-//   Giờ WHERE giới hạn số dòng cần quét/tính toán xuống đúng khoảng ngày cần dùng.
-// ============================================================================
+// Đặt ngay dưới numericExpr — dùng khi cần alias bảng (trường hợp có JOIN)
+const numericExprQualified = (qualifiedCol: string) => `
+  NULLIF(
+    CASE 
+      WHEN regexp_replace(${qualifiedCol}::text, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$' 
+      THEN regexp_replace(${qualifiedCol}::text, '[^0-9.-]', '', 'g') 
+      ELSE NULL 
+    END, 
+    ''
+  )::numeric
+`;
 
 app.get('/api/overview/summary', async (req: Request, res: Response) => {
   try {
@@ -317,15 +541,13 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
     const dateFromStr = dateFromDate.toISOString().slice(0, 10);
     const monthStart = `${dateToStr.slice(0, 7)}-01`;
     const monthEnd = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() + 1, 0))
-  .toISOString().slice(0, 10);
+      .toISOString().slice(0, 10);
 
-// Khoảng ngày của tháng trước (để tính lũy kế T-1)
-const prevMonthRef = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() - 1, 1));
-const prevMonthStart = prevMonthRef.toISOString().slice(0, 7) + '-01';
-const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthRef.getUTCMonth() + 1, 0))
-  .toISOString().slice(0, 10);
+    const prevMonthRef = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() - 1, 1));
+    const prevMonthStart = prevMonthRef.toISOString().slice(0, 7) + '-01';
+    const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthRef.getUTCMonth() + 1, 0))
+      .toISOString().slice(0, 10);
 
-    // Tính khoảng ngày RỘNG NHẤT cần quét cho mỗi bảng (bao trùm period, MTD, và tháng trước).
     let outerLo = dateFromStr < monthStart ? dateFromStr : monthStart;
     outerLo = prevMonthStart < outerLo ? prevMonthStart : outerLo;
     let outerHi = dateToStr > monthEnd ? dateToStr : monthEnd;
@@ -380,18 +602,17 @@ const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthR
         SELECT
           '${key}' AS source_key,
           ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) AS period_value,
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
           ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) AS mtd_value,
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
           ${countExpr} FILTER (WHERE ${remap(lastMonthCond)}) AS last_month_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) AS last_month_value
+          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
         FROM ${cfg.table}
         WHERE ${outerWhere}
       `);
     });
 
     const finalQuery = subQueries.join('\nUNION ALL\n');
-
     const r = await pool.query(finalQuery, allParams);
 
     const results: Record<string, any> = {};
@@ -410,33 +631,65 @@ const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthR
   }
 });
 
-// Trả về: chi tiết theo Xưởng hoặc Công trình cho 1 nguồn dữ liệu
-// Dùng cho: modal "Xem chi tiết" của mỗi card
 app.get('/api/overview/by-group', async (req: Request, res: Response) => {
   try {
-    const { key, groupBy, date } = req.query as { key: string; groupBy: string; date?: string };
+    const { key, groupBy } = req.query as { key: string; groupBy: string };
     if (!ALLOWED_ANALYSIS_KEYS.has(key)) return res.status(400).json({ error: 'Invalid key' });
     if (groupBy !== 'xuong' && groupBy !== 'congtrinh') return res.status(400).json({ error: 'Invalid groupBy' });
 
     const cfg = ANALYSIS_TABLES[key];
     const groupCol = groupBy === 'congtrinh' ? cfg.congTrinhCol : cfg.xuongCol;
-    const targetDate = parseSafeDate(date) || new Date();
-    const dateStr = targetDate.toISOString().slice(0, 10);
-    const monthStart = `${dateStr.slice(0, 7)}-01`;
+
+    const explicitDates = String(req.query.dates || '')
+      .split(',')
+      .map(s => parseSafeDate(s.trim()))
+      .filter((d): d is Date => d !== null)
+      .map(d => d.toISOString().slice(0, 10));
+    const useExplicitDates = explicitDates.length > 0;
+
+    const dateToRaw = parseSafeDate(req.query.dateTo as string) || parseSafeDate(req.query.date as string) || new Date();
+    const dateFromRaw = parseSafeDate(req.query.dateFrom as string) || dateToRaw;
+    const dateToStr = dateToRaw.toISOString().slice(0, 10);
+    const dateFromStr = dateFromRaw.toISOString().slice(0, 10);
+
+    const refDateStr = useExplicitDates ? [...explicitDates].sort().slice(-1)[0] : dateToStr;
+    const monthStart = `${refDateStr.slice(0, 7)}-01`;
+
+    const params: any[] = [];
+    let periodCond: string;
+    if (useExplicitDates) {
+      params.push(explicitDates);
+      periodCond = `date_parsed = ANY($1::date[])`;
+    } else {
+      params.push(dateFromStr, dateToStr);
+      periodCond = `date_parsed BETWEEN $1 AND $2`;
+    }
+    const monthStartIdx = params.length + 1;
+    const refDateIdx = params.length + 2;
+    params.push(monthStart, refDateStr);
+    const mtdCond = `date_parsed BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
+
+    const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
+    const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
+    const outerLo = loCandidates.sort()[0];
+    const outerHi = hiCandidates.sort().slice(-1)[0];
+    const outerLoIdx = params.length + 1;
+    const outerHiIdx = params.length + 2;
+    params.push(outerLo, outerHi);
 
     const q = `
-  SELECT
-    COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
-    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE date_parsed = $1) AS daily_count,
-    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE date_parsed = $1), 0) AS daily_value,
-    COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE date_parsed BETWEEN $2 AND $1) AS mtd_count,
-    COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE date_parsed BETWEEN $2 AND $1), 0) AS mtd_value
-  FROM ${cfg.table}
-  WHERE date_parsed BETWEEN $2 AND $1
-  GROUP BY 1
-  ORDER BY mtd_value DESC
-`;
-    const r = await pool.query(q, [dateStr, monthStart]);
+      SELECT
+        COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
+        COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${periodCond}) AS daily_count,
+        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
+        COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${mtdCond}) AS mtd_count,
+        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
+      FROM ${cfg.table}
+      WHERE date_parsed BETWEEN $${outerLoIdx} AND $${outerHiIdx}
+      GROUP BY 1
+      ORDER BY mtd_value DESC
+    `;
+    const r = await pool.query(q, params);
     res.json(
       r.rows
         .map(row => ({
@@ -455,43 +708,41 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 });
 
 // --- CACHE IN-MEMORY CHO /api/stock/dates ---
-// Query này phải GROUP BY + tính regexp cho gần như toàn bộ ~150k dòng của ton_kho
-// mỗi lần gọi (index chỉ giúp tìm dòng nhanh hơn, không giảm khối lượng tính toán khi
-// quét gần hết bảng). Vì danh sách "ngày có dữ liệu tồn kho" chỉ đổi khi ai đó nhập/cập
-// nhật ton_kho (không đổi liên tục trong lúc người dùng F5 dashboard), nên cache theo
-// last_updated của bảng ton_kho trong table_versions — giống cơ chế đã dùng cho /api/all-data.
 let cachedStockDates: any = null;
 let cachedStockDatesVersion: string | null = null;
 
-// Trả về: danh sách các ngày có dữ liệu tồn kho + tổng mỗi ngày (không kéo hết 150k dòng chi tiết)
+const refreshStockDatesCache = async () => {
+  const verResult = await pool.query(
+    `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
+  );
+  const currentVersion = verResult.rows[0]?.last_updated
+    ? String(verResult.rows[0].last_updated)
+    : null;
+
+  if (cachedStockDates && currentVersion && currentVersion === cachedStockDatesVersion) {
+    return { payload: cachedStockDates, fromCache: true };
+  }
+
+  const q = `
+    SELECT date_parsed AS d,
+           COUNT(DISTINCT ma_id_sap) AS count,
+           COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
+    FROM ton_kho
+    WHERE date_parsed IS NOT NULL
+    GROUP BY 1
+    ORDER BY 1 DESC
+  `;
+  const r = await pool.query(q);
+  const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
+
+  cachedStockDates = payload;
+  cachedStockDatesVersion = currentVersion;
+  return { payload, fromCache: false };
+};
+
 app.get('/api/stock/dates', async (_req: Request, res: Response) => {
   try {
-    const verResult = await pool.query(
-      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
-    );
-    const currentVersion = verResult.rows[0]?.last_updated
-      ? String(verResult.rows[0].last_updated)
-      : null;
-
-    if (cachedStockDates && currentVersion && currentVersion === cachedStockDatesVersion) {
-      return res.json(cachedStockDates);
-    }
-
-    const q = `
-  SELECT date_parsed AS d,
-         COUNT(DISTINCT ma_id_sap) AS count,
-         COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
-  FROM ton_kho
-  WHERE date_parsed IS NOT NULL
-  GROUP BY 1
-  ORDER BY 1 DESC
-`;
-    const r = await pool.query(q);
-    const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
-
-    cachedStockDates = payload;
-    cachedStockDatesVersion = currentVersion;
-
+    const { payload } = await refreshStockDatesCache();
     res.json(payload);
   } catch (error) {
     console.error('Lỗi stock/dates:', error);
@@ -500,63 +751,18 @@ app.get('/api/stock/dates', async (_req: Request, res: Response) => {
 });
 
 // ============================================================================
-// WARM-UP ENDPOINT — chống cold start trên Vercel Hobby
+// WARM-UP ENDPOINT — nay yêu cầu header x-warmup-key + rate limit riêng
+// (trước đây public hoàn toàn, có thể bị gọi dồn dập để ép tính lại cache nặng)
 // ============================================================================
-// Vercel Hobby không cho cron chạy dưới 1 lần/ngày, nên KHÔNG dùng Vercel Cron
-// cho việc này. Thay vào đó, dùng 1 dịch vụ cron miễn phí bên ngoài (cron-job.org,
-// UptimeRobot, GitHub Actions...) gọi GET vào endpoint này mỗi 5-10 phút.
-//
-// Endpoint làm 2 việc:
-// 1. Giữ function không bị Vercel "ngủ" (cold start) — request nào cũng làm vậy.
-// 2. Chủ động nạp sẵn cache in-memory (cachedData cho /api/all-data,
-//    cachedStockDates cho /api/stock/dates) TRƯỚC khi người dùng thật vào —
-//    nhờ vậy người dùng luôn gặp tốc độ "đã có cache" thay vì phải chờ tính lại.
-//
-// Không cần xác thực gì đặc biệt vì endpoint chỉ đọc dữ liệu, không có tác dụng phụ
-// nguy hiểm — nhưng vẫn nên đặt path khó đoán nếu muốn tránh bot lạ gọi linh tinh.
-app.get('/api/warmup', async (_req: Request, res: Response) => {
+app.get('/api/warmup', warmupLimiter, requireWarmupSecret, async (_req: Request, res: Response) => {
   const startedAt = Date.now();
   const warmed: string[] = [];
   try {
-    // 1. Warm /api/all-data cache
-    const versions = await getVersions();
-    if (!cachedData || JSON.stringify(versions) !== JSON.stringify(cachedVersions)) {
-      const [
-        production, material, khsx, order, inventory,
-        tkbv, pthsp, analysis, yearlyPlan, exportData,
-        attendance, stock
-      ] = await Promise.all(TABLES.map(t => fetchTableData(t)));
-      cachedData = {
-        production, material, khsx, order, inventory,
-        tkbv, pthsp, analysis, yearlyPlan, export: exportData,
-        attendance, stock,
-      };
-      cachedVersions = versions;
-    }
-    warmed.push('all-data');
+    const { fromCache: allDataFromCache } = await refreshAllDataCache();
+    warmed.push(allDataFromCache ? 'all-data (cached)' : 'all-data (refreshed)');
 
-    // 2. Warm /api/stock/dates cache
-    const verResult = await pool.query(
-      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
-    );
-    const currentStockVersion = verResult.rows[0]?.last_updated
-      ? String(verResult.rows[0].last_updated)
-      : null;
-    if (!cachedStockDates || currentStockVersion !== cachedStockDatesVersion) {
-      const q = `
-        SELECT date_parsed AS d,
-               COUNT(DISTINCT ma_id_sap) AS count,
-               COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
-        FROM ton_kho
-        WHERE date_parsed IS NOT NULL
-        GROUP BY 1
-        ORDER BY 1 DESC
-      `;
-      const r = await pool.query(q);
-      cachedStockDates = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
-      cachedStockDatesVersion = currentStockVersion;
-    }
-    warmed.push('stock-dates');
+    const { fromCache: stockFromCache } = await refreshStockDatesCache();
+    warmed.push(stockFromCache ? 'stock-dates (cached)' : 'stock-dates (refreshed)');
 
     res.json({ ok: true, warmed, ms: Date.now() - startedAt });
   } catch (error) {
@@ -571,14 +777,14 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const { date } = req.query as { date: string };
     if (!date) return res.status(400).json({ error: 'Missing date' });
     const q = `
-  SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
-         COUNT(DISTINCT ma_id_sap) AS count,
-         COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
-  FROM ton_kho
-  WHERE date_parsed = $1
-  GROUP BY 1
-  ORDER BY value DESC
-`;
+      SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
+             COUNT(DISTINCT ma_id_sap) AS count,
+             COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
+      FROM ton_kho
+      WHERE date_parsed = $1
+      GROUP BY 1
+      ORDER BY value DESC
+    `;
     const r = await pool.query(q, [date]);
     res.json(r.rows.map(row => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
   } catch (error) {
@@ -587,60 +793,63 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   }
 });
 
-// Trả về: kế hoạch năm 2026, quý, thực hiện, theo xưởng
-app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
+// Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
+// Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
+app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Response) => {
   try {
-    const planQ = await pool.query(`
-      SELECT
-        COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) AS total,
-        COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
-          FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 3), 0) AS q1,
-        COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
-          FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
-        COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
-          FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-      FROM khsx_nam WHERE nam::text LIKE '%2026%'
-    `);
+    const yearParam = Number(req.params.year);
+    const year = Number.isInteger(yearParam) && yearParam > 2000 && yearParam < 2100
+      ? yearParam
+      : DEFAULT_REVENUE_YEAR;
 
-    // FIX HIỆU NĂNG: trước đây lọc năm bằng "nam::text LIKE '%2026%' OR date::text LIKE '%2026%' OR EXTRACT(...)".
-    // LIKE có dấu % ở đầu chuỗi khiến Postgres KHÔNG dùng được index nào, bắt buộc full scan mỗi request.
-    // Thay bằng lọc theo date_parsed (đã có sẵn cột này và đã tạo index idx_nhap_kho_date_parsed) —
-    // vừa đúng logic (nhap_kho trong năm 2026), vừa tận dụng được index, không phụ thuộc định dạng chuỗi nam/date gốc.
-    const actualQ = await pool.query(`
-      SELECT COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS total
-      FROM nhap_kho
-      WHERE date_parsed BETWEEN '2026-01-01' AND '2026-12-31'
-    `);
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
 
-    const TARGET_WORKSHOPS = ['2A', '3A', '4A', '5A', '8AB', '8C'];
+    // TRƯỚC: Promise.all([...4 query...]) → xin 4 connection cùng lúc.
+    // SAU: giới hạn 2 song song.
+    const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
+      () => pool.query(`
+        SELECT
+          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) AS total,
+          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
+            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 3), 0) AS q1,
+          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
+            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
+          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
+            FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
+        FROM khsx_nam WHERE nam::text = $1
+      `, [String(year)]),
 
-    const byWorkshopPlanQ = await pool.query(`
-      SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
-             COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) AS plan
-      FROM khsx_nam WHERE nam::text LIKE '%2026%'
-      GROUP BY 1
-    `, [TARGET_WORKSHOPS]);
+      () => pool.query(`
+        SELECT COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS total
+        FROM nhap_kho
+        WHERE date_parsed BETWEEN $1 AND $2
+      `, [yearStart, yearEnd]),
 
-    const byWorkshopActualQ = await pool.query(`
-      SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
-             COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS actual
-      FROM nhap_kho
-      WHERE date_parsed BETWEEN '2026-01-01' AND '2026-12-31'
-      GROUP BY 1
-    `, [TARGET_WORKSHOPS]);
+      () => pool.query(`
+        SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
+               COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) AS plan
+        FROM khsx_nam WHERE nam::text = $2
+        GROUP BY 1
+      `, [TARGET_WORKSHOPS, String(year)]),
 
-    const planRow = planQ.rows[0];
-    const targetTotal = Number(planRow.total);
+      () => pool.query(`
+        SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
+               COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS actual
+        FROM nhap_kho
+        WHERE date_parsed BETWEEN $2 AND $3
+        GROUP BY 1
+      `, [TARGET_WORKSHOPS, yearStart, yearEnd]),
+    ], 2);
 
-    // FIX: đơn vị gốc trong DB là VND -> phải chia cho 1 Tỷ (1_000_000_000)
-    // để khớp đơn vị "Tỷ" với targetTotal (từ khsx_nam) và với byWorkshop bên dưới.
-    const actualTotal = Number(actualQ.rows[0].total) / 1000000000;
+    const targetTotal = Number(planQ.rows[0].total);
+    const actualTotal = Number(actualQ.rows[0].total) / VND_TO_TY;
 
     const workshopMap: Record<string, { plan: number; actual: number }> = {};
     byWorkshopPlanQ.rows.forEach(r => { workshopMap[r.name] = { plan: Number(r.plan), actual: 0 }; });
     byWorkshopActualQ.rows.forEach(r => {
       if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      workshopMap[r.name].actual = Number(r.actual) / 1000000000;
+      workshopMap[r.name].actual = Number(r.actual) / VND_TO_TY;
     });
 
     const byWorkshop = Object.entries(workshopMap)
@@ -648,30 +857,26 @@ app.get('/api/revenue/2026', async (_req: Request, res: Response) => {
       .sort((a, b) => (a.name === 'KHÁC' ? 1 : b.name === 'KHÁC' ? -1 : a.name.localeCompare(b.name)));
 
     res.json({
+      year,
       targetRevenue2026: targetTotal,
-      quarterlyTargets: { q1: Number(planRow.q1), q2: Number(planRow.q2), q3: Number(planRow.q3), q4: targetTotal },
+      quarterlyTargets: { q1: Number(planQ.rows[0].q1), q2: Number(planQ.rows[0].q2), q3: Number(planQ.rows[0].q3), q4: targetTotal },
       actual: { value: actualTotal, percent: targetTotal > 0 ? (actualTotal / targetTotal) * 100 : 0 },
       byWorkshop,
     });
   } catch (error) {
-    console.error('Lỗi revenue/2026:', error);
+    console.error('Lỗi revenue:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-import bcrypt from 'bcrypt';
-
 // ============================================================================
-// AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES (thay cho Google Sheets)
+// AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES
 // ============================================================================
 
-// --- ĐĂNG NHẬP ---
-app.post('/api/auth/login', async (req: Request, res: Response) => {
+// --- ĐĂNG NHẬP (nay phát hành JWT) ---
+app.post('/api/auth/login', loginLimiter, validateBody(loginSchema), async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ thông tin' });
-    }
 
     const result = await pool.query(
       `SELECT id, username, password_hash, full_name, email, role, permissions, is_active
@@ -689,17 +894,18 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Sai tên đăng nhập hoặc mật khẩu' });
     }
 
-    const { password_hash, ...safeUser } = user;
+    const token = signAuthToken({ id: user.id, username: user.username, role: user.role });
 
     res.json({
       success: true,
+      token,
       user: {
-        id: safeUser.id,
-        username: safeUser.username,
-        fullName: safeUser.full_name,
-        email: safeUser.email,
-        role: safeUser.role,
-        permissions: safeUser.permissions || [],
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        email: user.email,
+        role: user.role,
+        permissions: user.permissions || [],
       },
     });
   } catch (error) {
@@ -709,29 +915,31 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
 });
 
 // --- QUÊN MẬT KHẨU: GỬI OTP ---
-app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
+// Trả cùng 1 message dù email tồn tại hay không, tránh lộ danh sách email có tài khoản.
+app.post('/api/auth/forgot-password', otpRequestLimiter, validateBody(forgotPasswordSchema), async (req: Request, res: Response) => {
+  const genericMessage = 'Nếu email tồn tại trong hệ thống, mã OTP đã được gửi tới email đó';
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ success: false, message: 'Vui lòng nhập email' });
 
     const result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Email không tồn tại trong hệ thống' });
-    }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 số
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // hết hạn sau 5 phút
+   if (user) {
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await pool.query(
-      `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = now() WHERE id = $3`,
-      [otp, expiresAt, user.id]
-    );
+  await pool.query(
+    `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = now() WHERE id = $3`,
+    [otp, expiresAt, user.id]
+  );
 
-    // TODO: cắm module gửi email thật ở đây (nodemailer/SES/...) — gửi otp tới email
+  if (process.env.NODE_ENV !== 'production') {
     console.log(`[DEV] OTP cho ${email}: ${otp}`);
+  }
+  // TODO: gọi service gửi email thật ở đây khi có (nodemailer/SES/...)
+}
 
-    res.json({ success: true, message: 'Đã gửi mã OTP đến email của bạn' });
+    res.json({ success: true, message: genericMessage });
   } catch (error) {
     console.error('Lỗi gửi OTP:', error);
     res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
@@ -739,12 +947,9 @@ app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
 });
 
 // --- XÁC THỰC OTP + ĐỔI MẬT KHẨU ---
-app.post('/api/auth/verify-otp', async (req: Request, res: Response) => {
+app.post('/api/auth/verify-otp', otpVerifyLimiter, validateBody(verifyOtpSchema), async (req: Request, res: Response) => {
   try {
     const { email, otp, newPassword } = req.body;
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ thông tin' });
-    }
 
     const result = await pool.query(
       `SELECT id, otp_code, otp_expires_at FROM users WHERE email = $1`,
@@ -759,7 +964,7 @@ app.post('/api/auth/verify-otp', async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Mã OTP đã hết hạn' });
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await bcrypt.hash(newPassword, 12);
     await pool.query(
       `UPDATE users SET password_hash = $1, otp_code = NULL, otp_expires_at = NULL, updated_at = now() WHERE id = $2`,
       [newHash, user.id]
@@ -773,49 +978,67 @@ app.post('/api/auth/verify-otp', async (req: Request, res: Response) => {
 });
 
 // --- ĐỔI MẬT KHẨU (khi đã đăng nhập, biết mật khẩu cũ) ---
-app.post('/api/auth/change-password', async (req: Request, res: Response) => {
-  try {
-    const { username, oldPassword, newPassword } = req.body;
-    if (!username || !oldPassword || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ thông tin' });
+// Nay yêu cầu JWT hợp lệ + chỉ được tự đổi mật khẩu của chính mình (hoặc admin).
+app.post(
+  '/api/auth/change-password',
+  authenticateJWT,
+  requireSelfOrRole((req) => req.body?.username, 'ADMIN'),
+  validateBody(changePasswordSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { username, oldPassword, newPassword } = req.body;
+
+      const result = await pool.query(
+        `SELECT id, password_hash FROM users WHERE username = $1`,
+        [username]
+      );
+      const user = result.rows[0];
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Tài khoản không tồn tại' });
+      }
+
+      const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Mật khẩu cũ không đúng' });
+      }
+
+      const newHash = await bcrypt.hash(newPassword, 12);
+      await pool.query(
+        `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
+        [newHash, user.id]
+      );
+
+      res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+    } catch (error) {
+      console.error('Lỗi đổi mật khẩu:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
     }
-
-    const result = await pool.query(
-      `SELECT id, password_hash FROM users WHERE username = $1`,
-      [username]
-    );
-    const user = result.rows[0];
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'Tài khoản không tồn tại' });
-    }
-
-    const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Mật khẩu cũ không đúng' });
-    }
-
-    const newHash = await bcrypt.hash(newPassword, 10);
-    await pool.query(
-      `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
-      [newHash, user.id]
-    );
-
-    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
-  } catch (error) {
-    console.error('Lỗi đổi mật khẩu:', error);
-    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
   }
-});
+);
 
+// ============================================================================
+// USERS API — nay yêu cầu JWT + role ADMIN cho toàn bộ (trước đây public hoàn toàn)
+// ============================================================================
+const usersRouter = express.Router();
+usersRouter.use(authenticateJWT, requireRole('ADMIN'));
 
-// --- LẤY DANH SÁCH USER ---
-app.get('/api/users', async (req: Request, res: Response) => {
+// --- LẤY DANH SÁCH USER (có phân trang) ---
+usersRouter.get('/', async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      `SELECT id, username, full_name, email, role, permissions,
-              msnv, department, note, is_active, created_at, updated_at
-       FROM users ORDER BY created_at DESC`
-    );
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
+    const [countResult, result] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM users'),
+      pool.query(
+        `SELECT id, username, full_name, email, role, permissions,
+                msnv, department, note, is_active, created_at, updated_at
+         FROM users ORDER BY created_at DESC
+         LIMIT $1 OFFSET $2`,
+        [pageSize, offset]
+      ),
+    ]);
 
     const users = result.rows.map(u => ({
       id: u.id,
@@ -832,7 +1055,11 @@ app.get('/api/users', async (req: Request, res: Response) => {
       updatedAt: u.updated_at,
     }));
 
-    res.json({ success: true, data: users });
+    res.json({
+      success: true,
+      data: users,
+      pagination: { page, pageSize, total: Number(countResult.rows[0].count) },
+    });
   } catch (error) {
     console.error('Lỗi lấy danh sách user:', error);
     res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
@@ -840,38 +1067,23 @@ app.get('/api/users', async (req: Request, res: Response) => {
 });
 
 // --- THÊM USER MỚI ---
-app.post('/api/users', async (req: Request, res: Response) => {
+usersRouter.post('/', validateBody(createUserSchema), async (req: Request, res: Response) => {
   try {
     const { username, password, fullName, email, role, permissions, msnv, department, note, status } = req.body;
-
-    if (!username || !password || !fullName) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ tên đăng nhập, mật khẩu, họ tên' });
-    }
 
     const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
     if (existing.rows.length > 0) {
       return res.status(409).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 12);
     const isActive = status !== 'INACTIVE';
 
     const result = await pool.query(
       `INSERT INTO users (username, password_hash, full_name, email, role, permissions, msnv, department, note, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active, created_at`,
-      [
-        username,
-        passwordHash,
-        fullName,
-        email || null,
-        role || 'USER',
-        permissions || [],
-        msnv || null,
-        department || null,
-        note || null,
-        isActive,
-      ]
+      [username, passwordHash, fullName, email || null, role || 'USER', permissions || [], msnv || null, department || null, note || null, isActive]
     );
 
     const u = result.rows[0];
@@ -879,16 +1091,9 @@ app.post('/api/users', async (req: Request, res: Response) => {
       success: true,
       message: 'Tạo user thành công',
       data: {
-        id: u.id,
-        username: u.username,
-        fullName: u.full_name,
-        email: u.email,
-        role: u.role,
-        permissions: u.permissions || [],
-        msnv: u.msnv,
-        department: u.department,
-        note: u.note,
-        status: u.is_active ? 'ACTIVE' : 'INACTIVE',
+        id: u.id, username: u.username, fullName: u.full_name, email: u.email,
+        role: u.role, permissions: u.permissions || [], msnv: u.msnv,
+        department: u.department, note: u.note, status: u.is_active ? 'ACTIVE' : 'INACTIVE',
       },
     });
   } catch (error) {
@@ -898,7 +1103,7 @@ app.post('/api/users', async (req: Request, res: Response) => {
 });
 
 // --- CẬP NHẬT USER ---
-app.put('/api/users/:id', async (req: Request, res: Response) => {
+usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { password, fullName, email, role, permissions, msnv, department, note, status } = req.body;
@@ -908,16 +1113,10 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
     }
 
-    // Build câu UPDATE động — chỉ đổi mật khẩu nếu có nhập
     const fields: string[] = [];
     const values: any[] = [];
     let idx = 1;
-
-    const push = (col: string, val: any) => {
-      fields.push(`${col} = $${idx}`);
-      values.push(val);
-      idx++;
-    };
+    const push = (col: string, val: any) => { fields.push(`${col} = $${idx}`); values.push(val); idx++; };
 
     if (fullName !== undefined) push('full_name', fullName);
     if (email !== undefined) push('email', email || null);
@@ -929,7 +1128,7 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
     if (status !== undefined) push('is_active', status === 'ACTIVE');
 
     if (password) {
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await bcrypt.hash(password, 12);
       push('password_hash', passwordHash);
     }
 
@@ -951,16 +1150,9 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
       success: true,
       message: 'Cập nhật thành công',
       data: {
-        id: u.id,
-        username: u.username,
-        fullName: u.full_name,
-        email: u.email,
-        role: u.role,
-        permissions: u.permissions || [],
-        msnv: u.msnv,
-        department: u.department,
-        note: u.note,
-        status: u.is_active ? 'ACTIVE' : 'INACTIVE',
+        id: u.id, username: u.username, fullName: u.full_name, email: u.email,
+        role: u.role, permissions: u.permissions || [], msnv: u.msnv,
+        department: u.department, note: u.note, status: u.is_active ? 'ACTIVE' : 'INACTIVE',
       },
     });
   } catch (error) {
@@ -970,7 +1162,7 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
 });
 
 // --- XÓA USER ---
-app.delete('/api/users/:id', async (req: Request, res: Response) => {
+usersRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -990,9 +1182,9 @@ app.delete('/api/users/:id', async (req: Request, res: Response) => {
   }
 });
 
+app.use('/api/users', usersRouter);
 
 // Trả về: Tổng KH vs TH (đã DEDUP theo HEX) — theo Xưởng & theo Công trình
-// Dùng cho: Section "Thống kê Tổng hợp: Kế hoạch & Nhập kho"
 app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
   try {
     const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
@@ -1002,27 +1194,16 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
 
     const normalize = (s: string) => s.trim().toUpperCase();
-    const congTrinhList = congTrinh
-      ? congTrinh.split(',').map(s => normalize(s)).filter(Boolean)
-      : [];
-    const xuongList = xuong
-      ? xuong.split(',').map(s => normalize(s)).filter(Boolean)
-      : [];
+    const congTrinhList = congTrinh ? congTrinh.split(',').map(s => normalize(s)).filter(Boolean) : [];
+    const xuongList = xuong ? xuong.split(',').map(s => normalize(s)).filter(Boolean) : [];
 
-    // ---------- KHSX (Kế hoạch) ----------
     const khParams: any[] = [phanLoaiPattern, nam];
     let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam::text = $2`;
     if (thang) { khParams.push(thang); khWhere += ` AND thang::text = $${khParams.length}`; }
     if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan::text = $${khParams.length}`; }
     if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay::text = $${khParams.length}`; }
-    if (congTrinhList.length) {
-      khParams.push(congTrinhList);
-      khWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${khParams.length}::text[])`;
-    }
-    if (xuongList.length) {
-      khParams.push(xuongList);
-      khWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${khParams.length}::text[])`;
-    }
+    if (congTrinhList.length) { khParams.push(congTrinhList); khWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${khParams.length}::text[])`; }
+    if (xuongList.length) { khParams.push(xuongList); khWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${khParams.length}::text[])`; }
 
     const khQuery = `
       SELECT
@@ -1036,34 +1217,26 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     `;
     const khResult = await pool.query(khQuery, khParams);
 
-    // ---------- NHAP_KHO (Thực hiện) ----------
     const thParams: any[] = [nam];
     let thWhere = `WHERE nam::text = $1`;
     if (thang) { thParams.push(thang); thWhere += ` AND thang::text = $${thParams.length}`; }
     if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan::text = $${thParams.length}`; }
     if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay::text = $${thParams.length}`; }
-    if (congTrinhList.length) {
-      thParams.push(congTrinhList);
-      thWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${thParams.length}::text[])`;
-    }
-    if (xuongList.length) {
-      thParams.push(xuongList);
-      thWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${thParams.length}::text[])`;
-    }
+    if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${thParams.length}::text[])`; }
+    if (xuongList.length) { thParams.push(xuongList); thWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${thParams.length}::text[])`; }
 
     const thQuery = `
       SELECT
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) / 1000000000 AS gia_tri
+        COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) / ${VND_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
     const thResult = await pool.query(thQuery, thParams);
 
-    // ---------- Merge theo Xưởng ----------
     const xuongMap = new Map<string, { kh: number; th: number }>();
     khResult.rows.forEach(r => {
       const k = r.xuong || 'Chưa xác định';
@@ -1081,7 +1254,6 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       .map(([xuong, v]) => ({ xuong, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) }))
       .sort((a, b) => a.xuong.localeCompare(b.xuong));
 
-    // ---------- Merge theo Công trình (Top 10) ----------
     const ctMap = new Map<string, { code: string; kh: number; th: number }>();
     khResult.rows.forEach(r => {
       const k = r.cong_trinh || 'Chưa xác định';
@@ -1117,6 +1289,315 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     console.error('Lỗi khsx-nhapkho/summary:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+});
+
+app.get('/api/trend', async (req: Request, res: Response) => {
+  try {
+    const source = req.query.source as string;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
+
+    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+
+    const granularity = (req.query.granularity as string) || 'day';
+    const truncUnit = granularity === 'week' ? 'week' : granularity === 'month' ? 'month' : 'day';
+
+    const dateFrom = parseSafeDate(req.query.dateFrom as string);
+    const dateTo = parseSafeDate(req.query.dateTo as string);
+    const xuong = (req.query.xuong as string) || '';
+    const congTrinh = (req.query.congTrinh as string) || '';
+    const dvt = (req.query.dvt as string) || '';           // 👈 mới
+    const phanLoai = (req.query.phanLoai as string) || ''; // 👈 mới
+
+    // Chỉ JOIN production_status_app khi thực sự cần lọc theo phân loại —
+    // tránh ảnh hưởng hiệu năng/hành vi của các request không dùng filter này.
+    const needsJoin = !!(phanLoai && cfg.joinProductionForPhanLoai && cfg.hexCol);
+    const mainAlias = needsJoin ? 'm' : '';
+    const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
+    const colQuoted = (name: string) => (mainAlias ? `${mainAlias}."${name}"` : `"${name}"`);
+
+    const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params: any[] = [];
+
+    if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+    if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    if (xuong && cfg.xuongCol) { params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`); }
+    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
+    if (dvt && cfg.dvtCol) { params.push(dvt); conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`); }
+    if (needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
+
+    const useDefaultLimit = !dateFrom && !dateTo;
+    const limit = granularity === 'day' ? 15 : 12;
+
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+    const valueExpr = needsJoin
+      ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})`
+      : `SUM(${numericExpr(cfg.valueCol)})`;
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
+
+    const q = `
+      SELECT
+        date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY 1
+      ORDER BY 1 ${useDefaultLimit ? 'DESC' : 'ASC'}
+      ${useDefaultLimit ? `LIMIT ${limit}` : ''}
+    `;
+    const r = await pool.query(q, params);
+    const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map(row => ({
+      period: row.period,
+      total: Number(row.total_value),
+      totalCount: Number(row.total_count),
+    }));
+    res.json(rows);
+  } catch (error) {
+    console.error('Lỗi /api/trend:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Danh sách các giá trị xưởng distinct, dùng cho dropdown filter
+app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
+  try {
+    const q = `
+      SELECT DISTINCT TRIM(xuong_chinh) AS name
+      FROM khsx
+      WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+      ORDER BY 1
+    `;
+    const r = await pool.query(q);
+    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
+  } catch (error) {
+    console.error('Lỗi filters/xuong:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Danh sách công trình distinct, dùng cho dropdown filter
+app.get('/api/filters/cong-trinh', async (_req: Request, res: Response) => {
+  try {
+    const q = `
+      SELECT DISTINCT TRIM(ten_cong_trinh) AS name
+      FROM khsx
+      WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+      ORDER BY 1
+    `;
+    const r = await pool.query(q);
+    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
+  } catch (error) {
+    console.error('Lỗi filters/cong-trinh:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Danh sách đơn vị tính (dvt) distinct từ dht — dùng cho dropdown filter Đơn hàng mới
+app.get('/api/filters/dvt', async (_req: Request, res: Response) => {
+  try {
+    const q = `
+      SELECT DISTINCT TRIM(dvt) AS name
+      FROM dht
+      WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
+      ORDER BY 1
+    `;
+    const r = await pool.query(q);
+    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
+  } catch (error) {
+    console.error('Lỗi filters/dvt:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Danh sách phân loại nhóm sản phẩm distinct từ production_status_app — dùng cho dropdown filter
+app.get('/api/filters/phan-loai-nhom-san-pham', async (_req: Request, res: Response) => {
+  try {
+    const q = `
+      SELECT DISTINCT TRIM(phan_loai_nhom_san_pham) AS name
+      FROM production_status_app
+      WHERE phan_loai_nhom_san_pham IS NOT NULL AND TRIM(phan_loai_nhom_san_pham) <> ''
+      ORDER BY 1
+    `;
+    const r = await pool.query(q);
+    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
+  } catch (error) {
+    console.error('Lỗi filters/phan-loai-nhom-san-pham:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Trả về: tổng hợp theo XƯỞNG (không group theo thời gian) — dùng cho biểu đồ so sánh xưởng
+app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
+  try {
+    const source = req.query.source as string;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
+
+    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    if (!cfg.xuongCol) {
+      return res.json([]);
+    }
+
+    const dateFrom = parseSafeDate(req.query.dateFrom as string);
+    const dateTo = parseSafeDate(req.query.dateTo as string);
+    const xuong = (req.query.xuong as string) || '';        // 👈 THÊM DÒNG NÀY
+    const congTrinh = (req.query.congTrinh as string) || '';
+    const dvt = (req.query.dvt as string) || '';
+    const phanLoai = (req.query.phanLoai as string) || '';
+
+    const needsJoin = !!(phanLoai && cfg.joinProductionForPhanLoai && cfg.hexCol);
+    const mainAlias = needsJoin ? 'm' : '';
+    const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
+    const colQuoted = (name: string) => (mainAlias ? `${mainAlias}."${name}"` : `"${name}"`);
+
+    const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params: any[] = [];
+
+    if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+    if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    if (xuong && cfg.xuongCol) { params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`); }   // 👈 THÊM ĐIỀU KIỆN
+    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
+    if (dvt && cfg.dvtCol) { params.push(dvt); conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`); }
+    if (needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
+
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+    const valueExpr = needsJoin
+      ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})`
+      : `SUM(${numericExpr(cfg.valueCol)})`;
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
+
+    const q = `
+      SELECT
+        COALESCE(NULLIF(TRIM(${colBare(cfg.xuongCol)}), ''), 'Chưa xác định') AS xuong,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY 1
+      ORDER BY total_value DESC
+    `;
+    const r = await pool.query(q, params);
+    const rows = r.rows.map(row => ({
+      xuongCode: row.xuong,
+      xuongName: row.xuong,
+      total: Number(row.total_value),
+      totalCount: Number(row.total_count),
+    }));
+    res.json(rows);
+  } catch (error) {
+    console.error('Lỗi /api/trend-by-xuong:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Trả về: tổng hợp theo CÔNG TRÌNH (không group theo thời gian) — dùng cho biểu đồ so sánh công trình
+// Trả về: tổng hợp theo CÔNG TRÌNH (không group theo thời gian) — dùng cho biểu đồ so sánh công trình
+app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
+  try {
+    const source = req.query.source as string;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
+
+    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    if (!cfg.congTrinhCol) {
+      return res.json([]);
+    }
+
+    const dateFrom = parseSafeDate(req.query.dateFrom as string);
+    const dateTo = parseSafeDate(req.query.dateTo as string);
+    const xuong = (req.query.xuong as string) || '';
+    const congTrinh = (req.query.congTrinh as string) || '';   // 👈 THÊM DÒNG NÀY — trước đây thiếu hoàn toàn
+    const dvt = (req.query.dvt as string) || '';
+    const phanLoai = (req.query.phanLoai as string) || '';
+
+    const needsJoin = !!(phanLoai && cfg.joinProductionForPhanLoai && cfg.hexCol);
+    const mainAlias = needsJoin ? 'm' : '';
+    const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
+    const colQuoted = (name: string) => (mainAlias ? `${mainAlias}."${name}"` : `"${name}"`);
+
+    const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params: any[] = [];
+
+    if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+    if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    if (xuong && cfg.xuongCol) { params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`); }
+    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }  // 👈 THÊM ĐIỀU KIỆN LỌC
+    if (dvt && cfg.dvtCol) { params.push(dvt); conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`); }
+    if (needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
+
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+    const valueExpr = needsJoin
+      ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})`
+      : `SUM(${numericExpr(cfg.valueCol)})`;
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
+
+    const q = `
+      SELECT
+        COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Chưa xác định') AS cong_trinh,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY 1
+      ORDER BY total_value DESC
+    `;
+    const r = await pool.query(q, params);
+    const rows = r.rows.map(row => ({
+      congTrinhCode: row.cong_trinh,
+      congTrinhName: row.cong_trinh,
+      total: Number(row.total_value),
+      totalCount: Number(row.total_count),
+    }));
+    res.json(rows);
+  } catch (error) {
+    console.error('Lỗi /api/trend-by-congtrinh:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// --- LẤY THÔNG TIN USER HIỆN TẠI TỪ TOKEN (dùng để refresh state, không tin snapshot cũ) ---
+app.get('/api/auth/me', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    // req.user chỉ chứa id/username/role từ token — cần query DB để lấy dữ liệu mới nhất
+    // (role, permissions, status... có thể đã bị admin đổi sau khi token được phát hành)
+    const result = await pool.query(
+      `SELECT id, username, full_name, email, role, permissions, is_active
+       FROM users WHERE id = $1`,
+      [req.user!.id]
+    );
+
+    const user = result.rows[0];
+    if (!user || !user.is_active) {
+      return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại hoặc đã bị khóa' });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        fullName: user.full_name,
+        email: user.email,
+        role: user.role,
+        permissions: user.permissions || [],
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi /api/auth/me:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// --- 404 cho các route không khớp ---
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({ success: false, message: 'Không tìm thấy endpoint' });
+});
+
+// --- ERROR HANDLER TẬP TRUNG (bắt cả lỗi từ CORS callback) ---
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Lỗi không được xử lý:', err);
+  res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
 });
 
 if (process.env.NODE_ENV !== 'production') {

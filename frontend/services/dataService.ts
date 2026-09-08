@@ -1,6 +1,56 @@
 import Papa from 'papaparse';
 import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
 
+// Bảng ánh xạ tên cột kỹ thuật (snake_case từ DB) sang tên hiển thị tiếng Việt.
+// Bổ sung thêm khi phát hiện cột nào chưa có label đẹp.
+const COLUMN_LABEL_MAP: Record<string, string> = {
+  id: 'ID',
+  hex: 'HEX',
+  ngay_nhan_tu_pm: 'NGÀY NHẬN TỪ PM',
+  ngay_nhan: 'NGÀY NHẬN',
+  ngay_hoan_thanh: 'NGÀY HOÀN THÀNH',
+  tri_gia_don_hang_tong: 'TRỊ GIÁ ĐƠN HÀNG TỔNG',
+  xuong_chinh: 'XƯỞNG CHÍNH',
+  ten_cong_trinh: 'TÊN CÔNG TRÌNH',
+  ma_cong_trinh: 'MÃ CÔNG TRÌNH',
+  updated_at: 'CẬP NHẬT LÚC',
+  created_at: 'TẠO LÚC',
+  date: 'NGÀY',
+  nam: 'NĂM',
+  thang: 'THÁNG',
+  ngay: 'NGÀY',
+  tuan: 'TUẦN',
+  thanh_tien_nhap_kho: 'THÀNH TIỀN NHẬP KHO',
+  thanh_tien_nhap_kho_luy_ke: 'THÀNH TIỀN NHẬP KHO LŨY KẾ',
+  so_luong_xuat_kho: 'SỐ LƯỢNG XUẤT KHO',
+  gia_tri: 'GIÁ TRỊ',
+  gia_tri_ton_kho: 'GIÁ TRỊ TỒN KHO',
+  ma_id_sap: 'MÃ ID SAP',
+  tinh_trang: 'TÌNH TRẠNG',
+  tinh_trang_ipo: 'TÌNH TRẠNG IPO',
+  gia_tri_don_hang_con_lai: 'GIÁ TRỊ ĐƠN HÀNG CÒN LẠI',
+  gia_tri_con_lai: 'GIÁ TRỊ CÒN LẠI',
+  ten_hang_muc: 'TÊN HẠNG MỤC',
+  so_ngay_cd_hien_tai: 'SỐ NGÀY CĐ HIỆN TẠI',
+  bop: 'BOP',
+  thanh_tien_tinh_phieu: 'THÀNH TIỀN TÍNH PHIẾU',
+  nhom_vt: 'NHÓM VẬT TƯ',
+  so_luong_yeu_cau: 'SỐ LƯỢNG YÊU CẦU',
+  so_luong_da_nhan_sap: 'SỐ LƯỢNG ĐÃ NHẬN (SAP)',
+  trang_thai: 'TRẠNG THÁI',
+  trang_thai_sap: 'TRẠNG THÁI SAP',
+  ngay_du_kien_giao_hang_pmh_nhap: 'NGÀY DỰ KIẾN GIAO HÀNG PMH NHẬP',
+};
+
+const resolveColumnLabel = (header: string): string => {
+  const normalized = header.trim();
+  if (COLUMN_LABEL_MAP[normalized]) return COLUMN_LABEL_MAP[normalized];
+  // Nếu header đã có sẵn khoảng trắng/hoa (không phải snake_case kỹ thuật), giữ nguyên
+  if (/[A-ZÀ-Ỹ ]/.test(normalized) && !normalized.includes('_')) return normalized;
+  // Fallback: chuyển snake_case -> "TỪ VIẾT HOA CÁCH NHAU"
+  return normalized.toUpperCase().replace(/_/g, ' ');
+};
+
 const API_BASE_URL = '/api';
 
 // KHỞI TẠO INDEXED-DB TỐI ƯU
@@ -71,7 +121,7 @@ export const saveToCache = async (endpoint: string, version: string, result: any
 export const fetchFromServer = async (
   endpoint: string,
   updatedAfter?: string
-): Promise<{ data: DataRow[]; columns: ColumnDefinition[] } | null> => { // Cập nhật kiểu trả về thêm | null
+): Promise<{ data: DataRow[]; columns: ColumnDefinition[] } | null> => {
   try {
     const url = updatedAfter && updatedAfter !== '0'
       ? `${API_BASE_URL}/${endpoint}?updated_after=${updatedAfter}`
@@ -86,15 +136,14 @@ export const fetchFromServer = async (
     const headers = Object.keys(rawData[0]).filter(k => k && k.trim() !== '');
     const columns: ColumnDefinition[] = headers.map(header => ({
       key: header,
-      label: header,
+      label: resolveColumnLabel(header),
       type: detectColumnType(header, rawData)
     }));
 
     return { data: rawData, columns };
   } catch (error) {
     console.error(`Error fetching API [${endpoint}]:`, error);
-    // SỬA Ở ĐÂY: Trả về null thay vì mảng rỗng để báo hiệu fetch thất bại
-    return null; 
+    return null;
   }
 };
 
@@ -112,9 +161,9 @@ const detectColumnType = (header: string, data: DataRow[]): 'string' | 'number' 
 };
 
 export const exportToCSV = (data: DataRow[], filename: string) => {
-  const csv = Papa.unparse(data);
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const csv = Papa.unparse(data, { delimiter: ';' }); // dùng ; thay vì ,
+  const content = '\uFEFF' + csv; // chỉ cần BOM, bỏ sep=,
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
@@ -145,10 +194,20 @@ const ALL_DATA_ENDPOINT_MAP: Record<string, string> = {
 
 const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
   if (!rawData || rawData.length === 0) return [];
-  const headers = Object.keys(rawData[0]).filter(k => k && k.trim() !== '');
+
+  // Lấy UNION toàn bộ key từ tất cả các dòng, tránh trường hợp dòng đầu
+  // thiếu field (do giá trị null/undefined bị lược khỏi JSON) làm mất cột.
+  const headerSet = new Set<string>();
+  rawData.forEach(row => {
+    Object.keys(row).forEach(k => {
+      if (k && k.trim() !== '') headerSet.add(k);
+    });
+  });
+  const headers = Array.from(headerSet);
+
   return headers.map(header => ({
     key: header,
-    label: header,
+    label: resolveColumnLabel(header),
     type: detectColumnType(header, rawData)
   }));
 };
@@ -253,10 +312,17 @@ export const fetchOverviewSummary = async (
 export const fetchOverviewByGroup = async (
   key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export',
   groupBy: 'xuong' | 'congtrinh',
-  dateISO?: string
+  dateParams: { datesISO?: string[]; dateFromISO?: string; dateToISO?: string }
 ): Promise<GroupAnalysisRow[]> => {
   try {
-    const url = `${API_BASE_URL}/overview/by-group?key=${key}&groupBy=${groupBy}${dateISO ? `&date=${dateISO}` : ''}`;
+    const q = new URLSearchParams({ key, groupBy });
+    if (dateParams.datesISO && dateParams.datesISO.length > 0) {
+      q.set('dates', dateParams.datesISO.join(','));
+    } else {
+      if (dateParams.dateFromISO) q.set('dateFrom', dateParams.dateFromISO);
+      if (dateParams.dateToISO) q.set('dateTo', dateParams.dateToISO);
+    }
+    const url = `${API_BASE_URL}/overview/by-group?${q.toString()}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error('fetch failed');
     return await r.json();

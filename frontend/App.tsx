@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchFromServer, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -12,7 +12,6 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const DataGrid = lazy(() => import('./components/DataGrid'));
 const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
-
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -108,6 +107,18 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'Clock': <Clock size={20} />
 };
 
+// Icon nhỏ hơn dùng cho các mục con trong nhóm gộp
+const ICON_MAP_SM: Record<string, React.ReactNode> = {
+  'LayoutDashboard': <LayoutDashboard size={16} />, 'Table': <Table size={16} />, 'Package': <Package size={16} />,
+  'Shield': <Shield size={16} />, 'Calendar': <Calendar size={16} />, 'ShoppingCart': <ShoppingCart size={16} />,
+  'Import': <Import size={16} />, 'FileText': <FileText size={16} />, 'ClipboardList': <ClipboardList size={16} />,
+  'TrendingUp': <TrendingUp size={16} />, 'CalendarRange': <CalendarRange size={16} />, 'Export': <Upload size={16} />,
+  'Clock': <Clock size={16} />
+};
+
+// Các viewId luôn hiển thị riêng lẻ, không gộp vào nhóm "Dữ liệu"
+const STANDALONE_VIEW_IDS = ['dashboard', 'users'];
+
 const AppLogo = () => (
   <div className="w-8 h-8 rounded bg-wood-600 flex items-center justify-center text-white shrink-0 shadow-sm"><TrendingUp size={18} strokeWidth={2.5} /></div>
 );
@@ -136,6 +147,9 @@ const MainLayout: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  // Trạng thái đóng/mở của nhóm menu gộp "Dữ liệu" - mặc định đóng
+  const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -145,6 +159,14 @@ const MainLayout: React.FC = () => {
   const location = useLocation();
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
+
+  // Nếu trang hiện tại nằm trong nhóm "Dữ liệu", tự động mở nhóm ra để người dùng thấy mục đang active
+  useEffect(() => {
+    const currentView = APP_VIEWS.find(v => v.path === location.pathname);
+    if (currentView && !STANDALONE_VIEW_IDS.includes(currentView.id)) {
+      setIsDataMenuOpen(true);
+    }
+  }, [location.pathname]);
 
 const checkAndSync = async (forceAll = false) => {
   try {
@@ -336,6 +358,22 @@ const checkAndSync = async (forceAll = false) => {
     isGlobalLoading: loading
   };
 
+  // Tách các mục điều hướng: standalone (Tổng quan, Quản trị User) và nhóm gộp "Dữ liệu"
+  const dashboardView = APP_VIEWS.find(v => v.id === 'dashboard' && hasPermission(v.id));
+  const usersView = APP_VIEWS.find(v => v.id === 'users' && hasPermission(v.id));
+  const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
+  const isGroupActive = groupedViews.some(v => v.path === location.pathname);
+
+  const handleGroupToggle = () => {
+    if (isCollapsed) {
+      // Khi sidebar đang thu gọn, mở rộng sidebar ra trước rồi mở nhóm
+      setIsCollapsed(false);
+      setIsDataMenuOpen(true);
+    } else {
+      setIsDataMenuOpen(!isDataMenuOpen);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-wood-50 overflow-hidden relative">
       <div className="md:hidden absolute top-0 left-0 right-0 h-16 bg-white border-b border-wood-200 flex items-center justify-between px-4 z-20">
@@ -378,26 +416,85 @@ const checkAndSync = async (forceAll = false) => {
             </div>
             <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
               <div className="text-sm text-white font-medium truncate w-40">{user.fullName}</div>
-              <div className="text-[10px] text-wood-500 font-bold">{user.department || 'User'}</div>
+            <div className="text-[10px] text-wood-500 font-bold">
+  {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
+</div>
             </div>
           </div>
         )}
 
-        <nav className="flex-1 py-4 space-y-1 px-3">
-          {APP_VIEWS.map((view) => {
-            if (!hasPermission(view.id)) return null;
-            return (
-              <NavLink
-                key={view.id}
-                to={view.path}
-                icon={ICON_MAP[view.iconName || 'Table']}
-                label={view.label}
-                active={location.pathname === view.path}
-                onClick={closeMobileSidebar}
-                collapsed={isCollapsed}
-              />
-            );
-          })}
+        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
+          {/* Tổng quan - luôn hiển thị riêng, ở đầu */}
+          {dashboardView && (
+            <NavLink
+              key={dashboardView.id}
+              to={dashboardView.path}
+              icon={ICON_MAP[dashboardView.iconName || 'Table']}
+              label={dashboardView.label}
+              active={location.pathname === dashboardView.path}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {/* Nhóm gộp toàn bộ các mục dữ liệu còn lại */}
+          {groupedViews.length > 0 && (
+            <div>
+              <button
+                onClick={handleGroupToggle}
+                title={isCollapsed ? 'Dữ liệu' : undefined}
+                className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
+                  ${isCollapsed ? 'justify-center px-2' : 'px-4'}
+                  ${isGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+              >
+                <Database size={20} className="shrink-0" />
+                <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                  Dữ liệu
+                </span>
+                {!isCollapsed && (
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 shrink-0 ${isDataMenuOpen ? 'rotate-180' : ''}`}
+                  />
+                )}
+              </button>
+
+              {!isCollapsed && (
+                <div className={`overflow-hidden transition-all duration-300 ${isDataMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+                  <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+                    {groupedViews.map((view) => {
+                      const active = location.pathname === view.path;
+                      return (
+                        <Link
+                          key={view.id}
+                          to={view.path}
+                          onClick={closeMobileSidebar}
+                          className={`flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all duration-200
+                            ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                        >
+                          <div className="shrink-0">{ICON_MAP_SM[view.iconName || 'Table']}</div>
+                          <span className="font-medium whitespace-nowrap overflow-hidden">{view.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quản trị User - luôn hiển thị riêng, cuối danh sách */}
+          {usersView && (
+            <NavLink
+              key={usersView.id}
+              to={usersView.path}
+              icon={ICON_MAP[usersView.iconName || 'Table']}
+              label={usersView.label}
+              active={location.pathname === usersView.path}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2">

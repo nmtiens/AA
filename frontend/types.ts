@@ -142,11 +142,11 @@ export const APP_VIEWS: AppView[] = [
   { id: 'stock', path: '/stock', label: 'Dữ liệu Tồn kho', iconName: 'Box' },
   { id: 'attendance', path: '/attendance', label: 'Dữ liệu Điểm danh', iconName: 'Clock' },
   { id: 'khsx', path: '/khsx', label: 'Kế hoạch SX', iconName: 'Calendar' },
-  { id: 'analysis', path: '/analysis', label: 'Dữ liệu Phân tích KH-TH', iconName: 'TrendingUp' },
+  { id: 'analysis', path: '/analysis', label: 'Phân tích KH-TH', iconName: 'TrendingUp' },
   { id: 'tkbv', path: '/tkbv', label: 'Dữ liệu TKBV', iconName: 'FileText' },
   { id: 'pthsp', path: '/pthsp', label: 'Dữ liệu PTHSP', iconName: 'ClipboardList' },
   { id: 'materials', path: '/materials', label: 'Vật tư', iconName: 'Package' },
-  { id: 'users', path: '/users', label: 'Quản trị User', iconName: 'Shield' }
+  { id: 'users', path: '/users', label: 'Quản trị User', iconName: 'Shield' },
 ];
 
 export interface User {
@@ -166,6 +166,8 @@ export interface User {
 export interface ApiResponse<T = any> {
   success: boolean;
   message?: string;
+  token?: string;   // 👈 thêm nếu thiếu
   data?: T;
-  user?: T;
+  user?: User;
+  pagination?: { page: number; pageSize: number; total: number };
 }

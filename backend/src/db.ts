@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// OID 1082 = DATE type. Keep as string to avoid timezone shifts.
 types.setTypeParser(1082, (val: string) => val);
 
 export const pool = new Pool({
@@ -12,26 +11,30 @@ export const pool = new Pool({
     ? { rejectUnauthorized: false }
     : false,
 
-  max: 15,
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 10000,   // MỚI: gửi gói keepalive đầu tiên sau 10s thay vì mặc định 0
-                                          // (mặc định 0 gửi ngay, hơi tốn không cần thiết cho connection ngắn hạn)
+  // GIẢM MẠNH: transaction-mode pooler (6543) có pool phía server rất nhỏ,
+  // dùng CHUNG cho mọi client/instance. max lớn ở đây không "tận dụng" được gì
+  // vì Supavisor đã multiplex hộ — chỉ khiến 1 instance dễ chiếm hết pool chung.
+  max: 3,
 
-  idleTimeoutMillis: 30000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+
+  // TĂNG: tránh đóng hết connection lúc idle rồi phải mở lại hàng loạt
+  // đúng lúc traffic tăng đột ngột (đây là nguyên nhân gây "connect storm"
+  // thấy trong log — rất nhiều dòng "Connected to PostgreSQL database" liên tiếp)
+  idleTimeoutMillis: 60000,
+
   connectionTimeoutMillis: 15000,
 
-  // MỚI: đặt tên connection để dễ nhận diện trong Supabase Dashboard -> Database -> Roles/Activity
-  // Giúp debug khi cần xem connection nào đang chiếm pool
   application_name: 'vercel-backend',
 
-  // MỚI: tự động hủy query nếu chạy quá lâu, TRẢ CONNECTION VỀ POOL ngay
-  // thay vì để 1 query nặng giữ connection tới khi connectionTimeoutMillis (15s)
-  // -> giảm rủi ro 1 query chậm làm nghẽn cả pool cho các request khác
-  statement_timeout: 10000,   // 10s — chỉnh tùy độ nặng thực tế của query overview/summary
+  // GIẢM nhẹ: fail nhanh hơn để nhường connection cho request khác,
+  // phù hợp với pool server nhỏ
+  statement_timeout: 8000,
 
-  // MỚI: cho phép pool tự đóng hết connection khi không còn client nào tham chiếu
-  // (hữu ích khi Vercel freeze function giữa các lần gọi — tránh giữ handle treo)
-  allowExitOnIdle: true,
+  // TẮT: allowExitOnIdle gây đóng/mở connection hàng loạt không cần thiết
+  // trên serverless — để mặc định (false)
+  allowExitOnIdle: false,
 });
 
 pool.on('connect', () => {
@@ -42,10 +45,6 @@ pool.on('error', (err) => {
   console.error('Unexpected DB error on idle client:', err);
 });
 
-/**
- * Helper để query kèm log thời gian connect vs query.
- * Set DEBUG_DB_TIMING=true trong env để bật log.
- */
 export async function timedQuery<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
