@@ -12,6 +12,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "overrides": {
+    "debug": "^4.4.3"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
