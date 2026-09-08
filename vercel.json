@@ -7,15 +7,15 @@
       "config": { "distDir": "dist" }
     },
     {
-      "src": "backend/api/index.ts",
+      "src": "backend/api/dist.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["backend/node_modules/**"]
+        "includeFiles": ["backend/node_modules/bcrypt/**"]
       }
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "backend/api/index.ts" },
+    { "src": "/api/(.*)", "dest": "backend/api/dist.js" },
     { "src": "/(.*)", "dest": "frontend/$1" }
   ]
 }
