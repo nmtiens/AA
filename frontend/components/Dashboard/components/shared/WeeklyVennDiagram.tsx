@@ -1,4 +1,4 @@
-import { formatDecimal } from 'C:/project_v2/frontend/components/Dashboard/utils/numberParsers.ts';
+import { formatDecimal } from '../../utils/numberParsers.ts';
 export const WeeklyVennDiagram = ({
   totalPlan,
   totalActual,
