@@ -1,4 +1,4 @@
-import {TARGET_COLUMN_NAMES } from 'C:/project_v2/frontend/types.ts';
+import {TARGET_COLUMN_NAMES } from '../../types.ts';
 
 export const STATUS_GROUPS = {
   CO_THE_SX: [
