@@ -7,7 +7,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { z, ZodSchema } from 'zod';
-import { pool } from '../src/db.js';
+import { pool, timedQuery } from '../src/db.js';
 
 // Giới hạn số query chạy song song, tránh 1 request xin quá nhiều connection
 // cùng lúc từ transaction-mode pooler (pool phía server rất nhỏ và dùng chung).
@@ -299,6 +299,8 @@ const parseSafeDate = (rawInput?: string): Date | null => {
 };
 
 // Helper lấy dữ liệu an toàn cho từng bảng (INCREMENTAL SYNC + CẮT CỘT)
+// [ĐO TIMING] Đây là hàm chạy cho /api/all-data và mọi route trong apiRoutes —
+// đổi sang timedQuery để tách bạch connect-time vs query-time khi DEBUG_DB_TIMING=true.
 const fetchTableData = async (tableName: string, updatedAfter?: string) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
@@ -313,7 +315,7 @@ const fetchTableData = async (tableName: string, updatedAfter?: string) => {
       values.push(validDate.toISOString());
     }
 
-    const result = await pool.query(query, values);
+    const result = await timedQuery(query, values);
     return result.rows;
   } catch (error) {
     console.error(`Lỗi truy vấn bảng ${tableName}:`, error);
@@ -345,8 +347,11 @@ const TABLE_TO_VERSION_KEY: Record<string, string> = {
   ton_kho: 'stock',
 };
 
+// [ĐO TIMING] Được gọi bởi /api/check-versions — request xuất hiện dày đặc nhất
+// trong log (poll mỗi 60s + mount + visibilitychange). Đổi sang timedQuery để
+// xem đây có phải nguồn gây tranh chấp connection hay không.
 const getVersions = async () => {
-  const result = await pool.query(`SELECT table_name, last_updated FROM table_versions`);
+  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions`);
   const out: Record<string, string> = {};
   result.rows.forEach(row => {
     const key = TABLE_TO_VERSION_KEY[row.table_name];
@@ -464,7 +469,7 @@ app.get('/api/production/full', async (req: Request, res: Response) => {
       values.push(validDate.toISOString());
     }
 
-    const result = await pool.query(query, values);
+    const result = await timedQuery(query, values);
     res.json(result.rows);
   } catch (error) {
     console.error('Lỗi truy vấn production full:', error);
@@ -570,6 +575,7 @@ const numericColQualified = (table: string, alias: string, col: string): string 
   return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
 };
 
+// [ĐO TIMING] Endpoint từng mất 34.71s trên Network tab — điểm nóng số 1.
  app.get('/api/overview/summary', async (req: Request, res: Response) => {
   try {
     const cacheKey = JSON.stringify({
@@ -677,7 +683,7 @@ const numericColQualified = (table: string, alias: string, col: string): string 
     });
 
     const finalQuery = subQueries.join('\nUNION ALL\n');
-    const r = await pool.query(finalQuery, allParams);
+    const r = await timedQuery(finalQuery, allParams);
 
     const results: Record<string, any> = {};
     r.rows.forEach(row => {
@@ -756,7 +762,7 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY mtd_value DESC
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     res.json(
       r.rows
         .map(row => ({
@@ -778,8 +784,9 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 let cachedStockDates: any = null;
 let cachedStockDatesVersion: string | null = null;
 
+// [ĐO TIMING] Endpoint từng bị "pending" 25.39s trên production — điểm nóng số 2.
 const refreshStockDatesCache = async () => {
-  const verResult = await pool.query(
+  const verResult = await timedQuery(
     `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
   );
   const currentVersion = verResult.rows[0]?.last_updated
@@ -799,7 +806,7 @@ FROM ton_kho
     GROUP BY 1
     ORDER BY 1 DESC
   `;
-  const r = await pool.query(q);
+  const r = await timedQuery(q);
   const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
 
   cachedStockDates = payload;
@@ -852,7 +859,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY value DESC
     `;
-    const r = await pool.query(q, [date]);
+    const r = await timedQuery(q, [date]);
     res.json(r.rows.map(row => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
   } catch (error) {
     console.error('Lỗi stock/by-project:', error);
@@ -862,6 +869,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
 
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
+// [ĐO TIMING] 4 query chạy song song (giới hạn 2) — đổi cả 4 sang timedQuery.
 app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Response) => {
   try {
     const yearParam = Number(req.params.year);
@@ -875,7 +883,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     // TRƯỚC: Promise.all([...4 query...]) → xin 4 connection cùng lúc.
     // SAU: giới hạn 2 song song.
     const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
-      () => pool.query(`
+      () => timedQuery(`
         SELECT
           COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS total,
           COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
@@ -887,20 +895,20 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
               FROM khsx_nam WHERE nam = $1::bigint
       `, [String(year)]),
 
-      () => pool.query(`
+      () => timedQuery(`
         SELECT COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS total
         FROM nhap_kho
         WHERE date_parsed BETWEEN $1 AND $2
       `, [yearStart, yearEnd]),
 
-      () => pool.query(`
+      () => timedQuery(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
                COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS plan
         FROM khsx_nam WHERE nam = $2::bigint
         GROUP BY 1
       `, [TARGET_WORKSHOPS, String(year)]),
 
-      () => pool.query(`
+      () => timedQuery(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
                COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS actual
         FROM nhap_kho
@@ -938,6 +946,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
 
 // ============================================================================
 // AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES
+// (Giữ nguyên pool.query — không phải điểm nóng, không cần đo timing)
 // ============================================================================
 
 // --- ĐĂNG NHẬP (nay phát hành JWT) ---
@@ -1085,6 +1094,7 @@ app.post(
 
 // ============================================================================
 // USERS API — nay yêu cầu JWT + role ADMIN cho toàn bộ (trước đây public hoàn toàn)
+// (Giữ nguyên pool.query — CRUD nhỏ, không phải điểm nóng)
 // ============================================================================
 const usersRouter = express.Router();
 usersRouter.use(authenticateJWT, requireRole('ADMIN'));
@@ -1251,6 +1261,7 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
 
 app.use('/api/users', usersRouter);
 
+// [ĐO TIMING] Endpoint tổng hợp phức tạp — 2 query chính (khQuery, thQuery).
 app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
   try {
     const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
@@ -1288,7 +1299,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       ${khWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
-    const khResult = await pool.query(khQuery, khParams);
+    const khResult = await timedQuery(khQuery, khParams);
 
        const thParams: any[] = [nam];
     let thWhere = `WHERE nam = $1::bigint`;
@@ -1308,7 +1319,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       ${thWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
-    const thResult = await pool.query(thQuery, thParams);
+    const thResult = await timedQuery(thQuery, thParams);
 
     const xuongMap = new Map<string, { kh: number; th: number }>();
     khResult.rows.forEach(r => {
@@ -1367,6 +1378,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
   }
 });
 
+// [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
 app.get('/api/trend', async (req: Request, res: Response) => {
   try {
     const source = req.query.source as string;
@@ -1422,7 +1434,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
       ORDER BY 1 ${useDefaultLimit ? 'DESC' : 'ASC'}
       ${useDefaultLimit ? `LIMIT ${limit}` : ''}
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map(row => ({
       period: row.period,
       total: Number(row.total_value),
@@ -1435,6 +1447,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
   }
 });
 
+// [ĐO TIMING] 4 route filters/* — đang mất 2-3.6s bất thường trong log dù query rất nhẹ.
 // Danh sách các giá trị xưởng distinct, dùng cho dropdown filter
 app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
   try {
@@ -1444,7 +1457,7 @@ app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
       WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
   } catch (error) {
     console.error('Lỗi filters/xuong:', error);
@@ -1461,7 +1474,7 @@ app.get('/api/filters/cong-trinh', async (_req: Request, res: Response) => {
       WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
   } catch (error) {
     console.error('Lỗi filters/cong-trinh:', error);
@@ -1478,7 +1491,7 @@ app.get('/api/filters/dvt', async (_req: Request, res: Response) => {
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
   } catch (error) {
     console.error('Lỗi filters/dvt:', error);
@@ -1495,7 +1508,7 @@ app.get('/api/filters/phan-loai-nhom-san-pham', async (_req: Request, res: Respo
       WHERE phan_loai_nhom_san_pham IS NOT NULL AND TRIM(phan_loai_nhom_san_pham) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
   } catch (error) {
     console.error('Lỗi filters/phan-loai-nhom-san-pham:', error);
@@ -1503,7 +1516,7 @@ app.get('/api/filters/phan-loai-nhom-san-pham', async (_req: Request, res: Respo
   }
 });
 
-// Trả về: tổng hợp theo XƯỞNG (không group theo thời gian) — dùng cho biểu đồ so sánh xưởng
+// [ĐO TIMING] Trả về: tổng hợp theo XƯỞNG (không group theo thời gian) — dùng cho biểu đồ so sánh xưởng
 app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
   try {
     const source = req.query.source as string;
@@ -1553,7 +1566,7 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     const rows = r.rows.map(row => ({
       xuongCode: row.xuong,
       xuongName: row.xuong,
@@ -1567,8 +1580,7 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
   }
 });
 
-// Trả về: tổng hợp theo CÔNG TRÌNH (không group theo thời gian) — dùng cho biểu đồ so sánh công trình
-// Trả về: tổng hợp theo CÔNG TRÌNH (không group theo thời gian) — dùng cho biểu đồ so sánh công trình
+// [ĐO TIMING] Trả về: tổng hợp theo CÔNG TRÌNH (không group theo thời gian) — dùng cho biểu đồ so sánh công trình
 app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
   try {
     const source = req.query.source as string;
@@ -1618,7 +1630,7 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     const rows = r.rows.map(row => ({
       congTrinhCode: row.cong_trinh,
       congTrinhName: row.cong_trinh,
@@ -1633,6 +1645,7 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
 });
 
 // --- LẤY THÔNG TIN USER HIỆN TẠI TỪ TOKEN (dùng để refresh state, không tin snapshot cũ) ---
+// (Giữ nguyên pool.query — nhẹ, chạy trên bảng users nhỏ)
 app.get('/api/auth/me', authenticateJWT, async (req: Request, res: Response) => {
   try {
     // req.user chỉ chứa id/username/role từ token — cần query DB để lấy dữ liệu mới nhất
