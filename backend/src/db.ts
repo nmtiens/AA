@@ -45,28 +45,60 @@ pool.on('error', (err) => {
   console.error('Unexpected DB error on idle client:', err);
 });
 
+// [CHẨN ĐOÁN TẠM THỜI] In ra 1 lần lúc module được load, để xác nhận giá trị
+// env thực tế lúc runtime — không phụ thuộc vào debug flag.
+console.log(
+  `[env check] DEBUG_DB_TIMING="${process.env.DEBUG_DB_TIMING}" ` +
+  `NODE_ENV="${process.env.NODE_ENV}"`
+);
+
 export async function timedQuery<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<{ rows: T[] }> {
   const debug = process.env.DEBUG_DB_TIMING === 'true';
 
+  // [CHẨN ĐOÁN TẠM THỜI] Luôn đo thời gian, luôn log — bất kể debug flag.
+  // Mục đích: xác nhận query thật sự chậm ở đâu (connect vs query) dù
+  // biến môi trường có được đọc đúng hay không.
+  const t0 = Date.now();
+
   if (!debug) {
-    return pool.query(text, params);
+    try {
+      const result = await pool.query(text, params);
+      const t1 = Date.now();
+      console.log(
+        `[db timing:pool.query] total: ${t1 - t0}ms | debugFlag=false | sql: ${text.slice(0, 80)}`
+      );
+      return result;
+    } catch (err) {
+      const t1 = Date.now();
+      console.error(
+        `[db timing:pool.query:ERROR] total: ${t1 - t0}ms | sql: ${text.slice(0, 80)} | err: ${(err as Error).message}`
+      );
+      throw err;
+    }
   }
 
-  const t0 = Date.now();
-  const client = await pool.connect();
-  const t1 = Date.now();
   try {
-    const result = await client.query(text, params);
-    const t2 = Date.now();
-    console.log(
-      `[db timing] connect: ${t1 - t0}ms | query: ${t2 - t1}ms | sql: ${text.slice(0, 80)}`
+    const client = await pool.connect();
+    const t1 = Date.now();
+    try {
+      const result = await client.query(text, params);
+      const t2 = Date.now();
+      console.log(
+        `[db timing] connect: ${t1 - t0}ms | query: ${t2 - t1}ms | sql: ${text.slice(0, 80)}`
+      );
+      return result;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    const t1 = Date.now();
+    console.error(
+      `[db timing:ERROR] failed before/at connect: ${t1 - t0}ms | sql: ${text.slice(0, 80)} | err: ${(err as Error).message}`
     );
-    return result;
-  } finally {
-    client.release();
+    throw err;
   }
 }
 
