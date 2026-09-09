@@ -884,7 +884,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
           COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-        FROM khsx_nam WHERE nam::text = $1
+              FROM khsx_nam WHERE nam = $1::bigint
       `, [String(year)]),
 
       () => pool.query(`
@@ -896,7 +896,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
       () => pool.query(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
                COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS plan
-        FROM khsx_nam WHERE nam::text = $2
+        FROM khsx_nam WHERE nam = $2::bigint
         GROUP BY 1
       `, [TARGET_WORKSHOPS, String(year)]),
 
@@ -1270,11 +1270,11 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const congTrinhList = congTrinh ? congTrinh.split(',').map(s => normalize(s)).filter(Boolean) : [];
     const xuongList = xuong ? xuong.split(',').map(s => normalize(s)).filter(Boolean) : [];
 
-    const khParams: any[] = [phanLoaiPattern, nam];
-    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam::text = $2`;
-    if (thang) { khParams.push(thang); khWhere += ` AND thang::text = $${khParams.length}`; }
-    if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan::text = $${khParams.length}`; }
-    if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay::text = $${khParams.length}`; }
+        const khParams: any[] = [phanLoaiPattern, nam];
+    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint`;
+    if (thang) { khParams.push(thang); khWhere += ` AND thang = $${khParams.length}::bigint`; }
+    if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan = $${khParams.length}::double precision`; }
+    if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay = $${khParams.length}::double precision`; }
     if (congTrinhList.length) { khParams.push(congTrinhList); khWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${khParams.length}::text[])`; }
     if (xuongList.length) { khParams.push(xuongList); khWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${khParams.length}::text[])`; }
 
@@ -1290,11 +1290,11 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     `;
     const khResult = await pool.query(khQuery, khParams);
 
-    const thParams: any[] = [nam];
-    let thWhere = `WHERE nam::text = $1`;
-    if (thang) { thParams.push(thang); thWhere += ` AND thang::text = $${thParams.length}`; }
-    if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan::text = $${thParams.length}`; }
-    if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay::text = $${thParams.length}`; }
+       const thParams: any[] = [nam];
+    let thWhere = `WHERE nam = $1::bigint`;
+    if (thang) { thParams.push(thang); thWhere += ` AND thang = $${thParams.length}::bigint`; }
+    if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan = $${thParams.length}::bigint`; }
+    if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay = $${thParams.length}::bigint`; }
     if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${thParams.length}::text[])`; }
     if (xuongList.length) { thParams.push(xuongList); thWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${thParams.length}::text[])`; }
 
