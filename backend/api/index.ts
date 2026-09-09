@@ -355,6 +355,23 @@ const getVersions = async () => {
   return out;
 };
 
+// Lấy version của 1 tập con các bảng (dùng cho cache theo endpoint)
+const getRelevantVersions = async (keys: string[]): Promise<Record<string, string>> => {
+  const all = await getVersions();
+  const out: Record<string, string> = {};
+  keys.forEach(k => { if (all[k] !== undefined) out[k] = all[k]; });
+  return out;
+};
+
+// Giới hạn số entry trong 1 cache Map, tránh phình bộ nhớ vô hạn khi user
+// chọn nhiều khoảng ngày khác nhau (mỗi khoảng ngày = 1 cache key riêng).
+const CACHE_MAX_ENTRIES = 50;
+const trimCache = (cache: Map<string, any>) => {
+  if (cache.size <= CACHE_MAX_ENTRIES) return;
+  const oldestKey = cache.keys().next().value; // Map giữ thứ tự insert
+  if (oldestKey !== undefined) cache.delete(oldestKey);
+};
+
 // --- CACHE IN-MEMORY CHO /api/all-data ---
 // LƯU Ý (serverless/Vercel): biến module-level chỉ cache trong phạm vi 1
 // instance. Nhiều instance song song hoặc cold start sẽ không chia sẻ cache
@@ -390,6 +407,15 @@ const refreshAllDataCache = async () => {
   cachedVersions = versions;
   return { payload, fromCache: false };
 };
+
+// --- CACHE IN-MEMORY CHO /api/overview/summary ---
+const overviewSummaryCache = new Map<string, { versions: Record<string, string>; payload: any }>();
+const OVERVIEW_SUMMARY_VERSION_KEYS = ['order', 'tkbv', 'pthsp', 'inventory', 'export'];
+
+// --- CACHE IN-MEMORY CHO /api/khsx-nhapkho/summary ---
+const khsxNhapKhoCache = new Map<string, { versions: Record<string, string>; payload: any }>();
+const KHSX_NHAPKHO_VERSION_KEYS = ['khsx', 'inventory'];
+
 
 app.get('/api/all-data', async (_req: Request, res: Response) => {
   try {
@@ -518,8 +544,46 @@ const numericExprQualified = (qualifiedCol: string) => `
   )::numeric
 `;
 
-app.get('/api/overview/summary', async (req: Request, res: Response) => {
+
+// Map "table.column" -> tên generated column numeric tương ứng (xem migration 001).
+// Khi có trong map, dùng thẳng cột đã tính sẵn (có index) thay vì regex runtime.
+const NUMERIC_GENERATED_COLUMNS: Record<string, string> = {
+  'dht.tri_gia_don_hang_tong': 'tri_gia_don_hang_tong_num',
+  'tkbv_full.tri_gia_don_hang_tong': 'tri_gia_don_hang_tong_num',
+  'pthsp_full.tri_gia_don_hang_tong': 'tri_gia_don_hang_tong_num',
+  'nhap_kho.thanh_tien_nhap_kho': 'thanh_tien_nhap_kho_num',
+  'xuat_kho.so_luong_xuat_kho': 'so_luong_xuat_kho_num',
+  'ton_kho.gia_tri': 'gia_tri_num',
+  'khsx.thanh_tien_ke_hoach': 'thanh_tien_ke_hoach_num',
+  'khsx_nam.thanh_tien_ke_hoach': 'thanh_tien_ke_hoach_num',
+};
+
+// Dùng khi KHÔNG có alias bảng (query đơn giản, FROM table trực tiếp)
+const numericCol = (table: string, col: string): string => {
+  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
+  return generated ? `"${generated}"` : numericExpr(col);
+};
+
+// Dùng khi CÓ alias bảng (trường hợp JOIN, ví dụ /api/trend với alias "m")
+const numericColQualified = (table: string, alias: string, col: string): string => {
+  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
+  return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
+};
+
+ app.get('/api/overview/summary', async (req: Request, res: Response) => {
   try {
+    const cacheKey = JSON.stringify({
+      dateFrom: req.query.dateFrom || null,
+      dateTo: req.query.dateTo || null,
+      date: req.query.date || null,
+      dates: req.query.dates || null,
+    });
+    const overviewVersions = await getRelevantVersions(OVERVIEW_SUMMARY_VERSION_KEYS);
+    const cachedOverview = overviewSummaryCache.get(cacheKey);
+    if (cachedOverview && JSON.stringify(cachedOverview.versions) === JSON.stringify(overviewVersions)) {
+      return res.json(cachedOverview.payload);
+    }
+
     const hasDateTo = !!(req.query.dateTo || req.query.date);
     const hasDateFrom = !!req.query.dateFrom;
 
@@ -602,11 +666,11 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
         SELECT
           '${key}' AS source_key,
           ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
+          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
           ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
+          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
           ${countExpr} FILTER (WHERE ${remap(lastMonthCond)}) AS last_month_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
+          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
         FROM ${cfg.table}
         WHERE ${outerWhere}
       `);
@@ -624,7 +688,10 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       };
     });
 
-    res.json({ date: dateToStr, dateFrom: dateFromStr, ...results });
+        const overviewPayload = { date: dateToStr, dateFrom: dateFromStr, ...results };
+    overviewSummaryCache.set(cacheKey, { versions: overviewVersions, payload: overviewPayload });
+    trimCache(overviewSummaryCache);
+    res.json(overviewPayload);
   } catch (error) {
     console.error('Lỗi overview/summary:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -681,9 +748,9 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       SELECT
         COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
         COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${periodCond}) AS daily_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
+        COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${mtdCond}) AS mtd_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
+        COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table}
       WHERE date_parsed BETWEEN $${outerLoIdx} AND $${outerHiIdx}
       GROUP BY 1
@@ -726,8 +793,8 @@ const refreshStockDatesCache = async () => {
   const q = `
     SELECT date_parsed AS d,
            COUNT(DISTINCT ma_id_sap) AS count,
-           COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
-    FROM ton_kho
+           COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
+FROM ton_kho
     WHERE date_parsed IS NOT NULL
     GROUP BY 1
     ORDER BY 1 DESC
@@ -779,7 +846,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const q = `
       SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
              COUNT(DISTINCT ma_id_sap) AS count,
-             COALESCE(SUM(${numericExpr('gia_tri')}), 0) AS value
+             COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
       FROM ton_kho
       WHERE date_parsed = $1
       GROUP BY 1
@@ -810,32 +877,32 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
       () => pool.query(`
         SELECT
-          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) AS total,
-          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
+          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS total,
+          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 3), 0) AS q1,
-          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
+          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
-          COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')})
+          COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
         FROM khsx_nam WHERE nam::text = $1
       `, [String(year)]),
 
       () => pool.query(`
-        SELECT COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS total
+        SELECT COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS total
         FROM nhap_kho
         WHERE date_parsed BETWEEN $1 AND $2
       `, [yearStart, yearEnd]),
 
       () => pool.query(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
-               COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) AS plan
+               COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')}), 0) AS plan
         FROM khsx_nam WHERE nam::text = $2
         GROUP BY 1
       `, [TARGET_WORKSHOPS, String(year)]),
 
       () => pool.query(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
-               COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) AS actual
+               COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS actual
         FROM nhap_kho
         WHERE date_parsed BETWEEN $2 AND $3
         GROUP BY 1
@@ -1184,11 +1251,17 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
 
 app.use('/api/users', usersRouter);
 
-// Trả về: Tổng KH vs TH (đã DEDUP theo HEX) — theo Xưởng & theo Công trình
 app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
   try {
     const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
     if (!nam) return res.status(400).json({ error: 'Missing nam' });
+
+    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxVersions = await getRelevantVersions(KHSX_NHAPKHO_VERSION_KEYS);
+    const cachedKhsx = khsxNhapKhoCache.get(khsxCacheKey);
+    if (cachedKhsx && JSON.stringify(cachedKhsx.versions) === JSON.stringify(khsxVersions)) {
+      return res.json(cachedKhsx.payload);
+    }
 
     const isWeek = mode === 'week';
     const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
@@ -1210,7 +1283,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericExpr('thanh_tien_ke_hoach')}), 0) / 1000 AS gia_tri
+        COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / 1000 AS gia_tri
       FROM khsx
       ${khWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
@@ -1230,7 +1303,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericExpr('thanh_tien_nhap_kho')}), 0) / ${VND_TO_TY} AS gia_tri
+        COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${VND_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
@@ -1278,13 +1351,16 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
     const completionRate = totalKh > 0 ? (totalTh / totalKh) * 100 : 0;
 
-    res.json({
+       const khsxPayload = {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
       completionRate: Number(completionRate.toFixed(1)),
       byXuong,
       byCongTrinh,
-    });
+    };
+    khsxNhapKhoCache.set(khsxCacheKey, { versions: khsxVersions, payload: khsxPayload });
+    trimCache(khsxNhapKhoCache);
+    res.json(khsxPayload);
   } catch (error) {
     console.error('Lỗi khsx-nhapkho/summary:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -1330,8 +1406,8 @@ app.get('/api/trend', async (req: Request, res: Response) => {
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin
-      ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})`
-      : `SUM(${numericExpr(cfg.valueCol)})`;
+  ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
+  : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
 
     const q = `
@@ -1461,9 +1537,9 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     if (needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin
-      ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})`
-      : `SUM(${numericExpr(cfg.valueCol)})`;
+   const valueExpr = needsJoin
+  ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
+  : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
 
     const q = `
@@ -1526,9 +1602,9 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     if (needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin
-      ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})`
-      : `SUM(${numericExpr(cfg.valueCol)})`;
+   const valueExpr = needsJoin
+  ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
+  : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
 
     const q = `
