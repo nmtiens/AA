@@ -57786,11 +57786,28 @@ var trimCache = (cache) => {
 };
 var cachedData = null;
 var cachedVersions = null;
+var fetchLatestStockSnapshot = async () => {
+  try {
+    const cols = REPORT_COLUMNS.ton_kho;
+    const selectClause = cols.map((c) => `"${c}"`).join(", ");
+    const query = `
+      SELECT ${selectClause}
+      FROM ton_kho
+      WHERE date_parsed = (SELECT MAX(date_parsed) FROM ton_kho)
+    `;
+    const result = await timedQuery(query);
+    return result.rows;
+  } catch (error61) {
+    console.error("L\u1ED7i truy v\u1EA5n ton_kho (latest snapshot):", error61);
+    return [];
+  }
+};
 var refreshAllDataCache = async () => {
   const versions = await getVersions();
   if (cachedData && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
     return { payload: cachedData, fromCache: true };
   }
+  const otherTables = TABLES.filter((t) => t !== "ton_kho");
   const [
     production,
     material,
@@ -57802,12 +57819,12 @@ var refreshAllDataCache = async () => {
     analysis,
     yearlyPlan,
     exportData,
-    attendance,
-    stock
+    attendance
   ] = await runWithLimit(
-    TABLES.map((t) => () => fetchTableData(t)),
+    otherTables.map((t) => () => fetchTableData(t)),
     2
   );
+  const stock = await fetchLatestStockSnapshot();
   const payload = {
     production,
     material,
