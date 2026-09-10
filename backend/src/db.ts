@@ -28,17 +28,28 @@ export const pool = new Pool({
 
   application_name: 'vercel-backend',
 
-  // GIẢM nhẹ: fail nhanh hơn để nhường connection cho request khác,
-  // phù hợp với pool server nhỏ
-  statement_timeout: 8000,
+  // ĐÃ BỎ statement_timeout khỏi đây: `pg` gửi tham số này ngay trong gói
+  // StartupMessage lúc mở kết nối. PgBouncer của Layerbase (khác Supavisor
+  // của Supabase) từ chối các startup parameter không chuẩn -> lỗi
+  // "unsupported startup parameter: statement_timeout". Áp dụng lại timeout
+  // này bằng lệnh SQL SET ngay sau khi có kết nối mới, ở sự kiện 'connect'
+  // bên dưới — lúc đó không còn là startup parameter nữa nên không bị chặn.
 
   // TẮT: allowExitOnIdle gây đóng/mở connection hàng loạt không cần thiết
   // trên serverless — để mặc định (false)
   allowExitOnIdle: false,
 });
 
-pool.on('connect', () => {
+const STATEMENT_TIMEOUT_MS = 8000;
+
+pool.on('connect', (client) => {
   console.log('Connected to PostgreSQL database');
+  // Áp dụng statement_timeout sau khi kết nối đã mở (không phải lúc
+  // startup) — an toàn với PgBouncer. Không await ở đây vì 'connect' không
+  // hỗ trợ async; lỗi (nếu có) sẽ tự rơi vào 'error' listener bên dưới.
+  client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
+    console.error('Không set được statement_timeout:', err.message);
+  });
 });
 
 pool.on('error', (err) => {
