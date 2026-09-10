@@ -57328,19 +57328,69 @@ var pool = new Pool({
   idleTimeoutMillis: 6e4,
   connectionTimeoutMillis: 15e3,
   application_name: "vercel-backend",
-  // GIẢM nhẹ: fail nhanh hơn để nhường connection cho request khác,
-  // phù hợp với pool server nhỏ
-  statement_timeout: 8e3,
+  // ĐÃ BỎ statement_timeout khỏi đây: `pg` gửi tham số này ngay trong gói
+  // StartupMessage lúc mở kết nối. PgBouncer của Layerbase (khác Supavisor
+  // của Supabase) từ chối các startup parameter không chuẩn -> lỗi
+  // "unsupported startup parameter: statement_timeout". Áp dụng lại timeout
+  // này bằng lệnh SQL SET ngay sau khi có kết nối mới, ở sự kiện 'connect'
+  // bên dưới — lúc đó không còn là startup parameter nữa nên không bị chặn.
   // TẮT: allowExitOnIdle gây đóng/mở connection hàng loạt không cần thiết
   // trên serverless — để mặc định (false)
   allowExitOnIdle: false
 });
-pool.on("connect", () => {
+var STATEMENT_TIMEOUT_MS = 8e3;
+pool.on("connect", (client) => {
   console.log("Connected to PostgreSQL database");
+  client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
+    console.error("Kh\xF4ng set \u0111\u01B0\u1EE3c statement_timeout:", err.message);
+  });
 });
 pool.on("error", (err) => {
   console.error("Unexpected DB error on idle client:", err);
 });
+console.log(
+  `[env check] DEBUG_DB_TIMING="${process.env.DEBUG_DB_TIMING}" NODE_ENV="${process.env.NODE_ENV}"`
+);
+async function timedQuery(text, params) {
+  const debug = process.env.DEBUG_DB_TIMING === "true";
+  const t0 = Date.now();
+  if (!debug) {
+    try {
+      const result = await pool.query(text, params);
+      const t1 = Date.now();
+      console.log(
+        `[db timing:pool.query] total: ${t1 - t0}ms | debugFlag=false | sql: ${text.slice(0, 80)}`
+      );
+      return result;
+    } catch (err) {
+      const t1 = Date.now();
+      console.error(
+        `[db timing:pool.query:ERROR] total: ${t1 - t0}ms | sql: ${text.slice(0, 80)} | err: ${err.message}`
+      );
+      throw err;
+    }
+  }
+  try {
+    const client = await pool.connect();
+    const t1 = Date.now();
+    try {
+      const result = await client.query(text, params);
+      const t2 = Date.now();
+      console.log(
+        `[db timing] connect: ${t1 - t0}ms | query: ${t2 - t1}ms | sql: ${text.slice(0, 80)}`
+      );
+      return result;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    const t1 = Date.now();
+    console.error(
+      `[db timing:ERROR] failed before/at connect: ${t1 - t0}ms | sql: ${text.slice(0, 80)} | err: ${err.message}`
+    );
+    throw err;
+  }
+}
 process.on("SIGINT", async () => {
   console.log("Closing PostgreSQL pool...");
   await pool.end();
@@ -57676,7 +57726,7 @@ var fetchTableData = async (tableName, updatedAfter) => {
       query += ` WHERE updated_at >= $1`;
       values.push(validDate.toISOString());
     }
-    const result = await pool.query(query, values);
+    const result = await timedQuery(query, values);
     return result.rows;
   } catch (error61) {
     console.error(`L\u1ED7i truy v\u1EA5n b\u1EA3ng ${tableName}:`, error61);
@@ -57712,13 +57762,27 @@ var TABLE_TO_VERSION_KEY = {
   ton_kho: "stock"
 };
 var getVersions = async () => {
-  const result = await pool.query(`SELECT table_name, last_updated FROM table_versions`);
+  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions`);
   const out = {};
   result.rows.forEach((row) => {
     const key = TABLE_TO_VERSION_KEY[row.table_name];
     if (key) out[key] = row.last_updated;
   });
   return out;
+};
+var getRelevantVersions = async (keys) => {
+  const all = await getVersions();
+  const out = {};
+  keys.forEach((k) => {
+    if (all[k] !== void 0) out[k] = all[k];
+  });
+  return out;
+};
+var CACHE_MAX_ENTRIES = 50;
+var trimCache = (cache) => {
+  if (cache.size <= CACHE_MAX_ENTRIES) return;
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey !== void 0) cache.delete(oldestKey);
 };
 var cachedData = null;
 var cachedVersions = null;
@@ -57762,6 +57826,10 @@ var refreshAllDataCache = async () => {
   cachedVersions = versions;
   return { payload, fromCache: false };
 };
+var overviewSummaryCache = /* @__PURE__ */ new Map();
+var OVERVIEW_SUMMARY_VERSION_KEYS = ["order", "tkbv", "pthsp", "inventory", "export"];
+var khsxNhapKhoCache = /* @__PURE__ */ new Map();
+var KHSX_NHAPKHO_VERSION_KEYS = ["khsx", "inventory"];
 app.get("/api/all-data", async (_req, res) => {
   try {
     const { payload } = await refreshAllDataCache();
@@ -57802,7 +57870,7 @@ app.get("/api/production/full", async (req, res) => {
       query += ` WHERE updated_at >= $1`;
       values.push(validDate.toISOString());
     }
-    const result = await pool.query(query, values);
+    const result = await timedQuery(query, values);
     res.json(result.rows);
   } catch (error61) {
     console.error("L\u1ED7i truy v\u1EA5n production full:", error61);
@@ -57855,8 +57923,37 @@ var numericExprQualified = (qualifiedCol) => `
     ''
   )::numeric
 `;
+var NUMERIC_GENERATED_COLUMNS = {
+  "dht.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
+  "tkbv_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
+  "pthsp_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
+  "nhap_kho.thanh_tien_nhap_kho": "thanh_tien_nhap_kho_num",
+  "xuat_kho.so_luong_xuat_kho": "so_luong_xuat_kho_num",
+  "ton_kho.gia_tri": "gia_tri_num",
+  "khsx.thanh_tien_ke_hoach": "thanh_tien_ke_hoach_num",
+  "khsx_nam.thanh_tien_ke_hoach": "thanh_tien_ke_hoach_num"
+};
+var numericCol = (table, col) => {
+  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
+  return generated ? `"${generated}"` : numericExpr(col);
+};
+var numericColQualified = (table, alias, col) => {
+  const generated = NUMERIC_GENERATED_COLUMNS[`${table}.${col}`];
+  return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
+};
 app.get("/api/overview/summary", async (req, res) => {
   try {
+    const cacheKey = JSON.stringify({
+      dateFrom: req.query.dateFrom || null,
+      dateTo: req.query.dateTo || null,
+      date: req.query.date || null,
+      dates: req.query.dates || null
+    });
+    const overviewVersions = await getRelevantVersions(OVERVIEW_SUMMARY_VERSION_KEYS);
+    const cachedOverview = overviewSummaryCache.get(cacheKey);
+    if (cachedOverview && JSON.stringify(cachedOverview.versions) === JSON.stringify(overviewVersions)) {
+      return res.json(cachedOverview.payload);
+    }
     const hasDateTo = !!(req.query.dateTo || req.query.date);
     const hasDateFrom = !!req.query.dateFrom;
     const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
@@ -57917,17 +58014,17 @@ app.get("/api/overview/summary", async (req, res) => {
         SELECT
           '${key}' AS source_key,
           ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
+          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
           ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
+          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
           ${countExpr} FILTER (WHERE ${remap(lastMonthCond)}) AS last_month_count,
-          COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
+          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
         FROM ${cfg.table}
         WHERE ${outerWhere}
       `);
     });
     const finalQuery = subQueries.join("\nUNION ALL\n");
-    const r = await pool.query(finalQuery, allParams);
+    const r = await timedQuery(finalQuery, allParams);
     const results = {};
     r.rows.forEach((row) => {
       results[row.source_key] = {
@@ -57936,7 +58033,10 @@ app.get("/api/overview/summary", async (req, res) => {
         lastMonth: { count: Number(row.last_month_count), value: Number(row.last_month_value) }
       };
     });
-    res.json({ date: dateToStr, dateFrom: dateFromStr, ...results });
+    const overviewPayload = { date: dateToStr, dateFrom: dateFromStr, ...results };
+    overviewSummaryCache.set(cacheKey, { versions: overviewVersions, payload: overviewPayload });
+    trimCache(overviewSummaryCache);
+    res.json(overviewPayload);
   } catch (error61) {
     console.error("L\u1ED7i overview/summary:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -57981,15 +58081,15 @@ app.get("/api/overview/by-group", async (req, res) => {
       SELECT
         COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
         COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${periodCond}) AS daily_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
+        COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${mtdCond}) AS mtd_count,
-        COALESCE(SUM(${numericExpr(cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
+        COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table}
       WHERE date_parsed BETWEEN $${outerLoIdx} AND $${outerHiIdx}
       GROUP BY 1
       ORDER BY mtd_value DESC
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     res.json(
       r.rows.map((row) => ({
         name: row.name,
@@ -58007,7 +58107,7 @@ app.get("/api/overview/by-group", async (req, res) => {
 var cachedStockDates = null;
 var cachedStockDatesVersion = null;
 var refreshStockDatesCache = async () => {
-  const verResult = await pool.query(
+  const verResult = await timedQuery(
     `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
   );
   const currentVersion = verResult.rows[0]?.last_updated ? String(verResult.rows[0].last_updated) : null;
@@ -58017,13 +58117,13 @@ var refreshStockDatesCache = async () => {
   const q = `
     SELECT date_parsed AS d,
            COUNT(DISTINCT ma_id_sap) AS count,
-           COALESCE(SUM(${numericExpr("gia_tri")}), 0) AS value
-    FROM ton_kho
+           COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
+FROM ton_kho
     WHERE date_parsed IS NOT NULL
     GROUP BY 1
     ORDER BY 1 DESC
   `;
-  const r = await pool.query(q);
+  const r = await timedQuery(q);
   const payload = r.rows.map((row) => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
   cachedStockDates = payload;
   cachedStockDatesVersion = currentVersion;
@@ -58059,13 +58159,13 @@ app.get("/api/stock/by-project", async (req, res) => {
     const q = `
       SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
              COUNT(DISTINCT ma_id_sap) AS count,
-             COALESCE(SUM(${numericExpr("gia_tri")}), 0) AS value
+             COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
       FROM ton_kho
       WHERE date_parsed = $1
       GROUP BY 1
       ORDER BY value DESC
     `;
-    const r = await pool.query(q, [date5]);
+    const r = await timedQuery(q, [date5]);
     res.json(r.rows.map((row) => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
   } catch (error61) {
     console.error("L\u1ED7i stock/by-project:", error61);
@@ -58079,31 +58179,31 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
     const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
-      () => pool.query(`
+      () => timedQuery(`
         SELECT
-          COALESCE(SUM(${numericExpr("thanh_tien_ke_hoach")}), 0) AS total,
-          COALESCE(SUM(${numericExpr("thanh_tien_ke_hoach")})
+          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS total,
+          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 3), 0) AS q1,
-          COALESCE(SUM(${numericExpr("thanh_tien_ke_hoach")})
+          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
-          COALESCE(SUM(${numericExpr("thanh_tien_ke_hoach")})
+          COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-        FROM khsx_nam WHERE nam::text = $1
+              FROM khsx_nam WHERE nam = $1::bigint
       `, [String(year)]),
-      () => pool.query(`
-        SELECT COALESCE(SUM(${numericExpr("thanh_tien_nhap_kho")}), 0) AS total
+      () => timedQuery(`
+        SELECT COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS total
         FROM nhap_kho
         WHERE date_parsed BETWEEN $1 AND $2
       `, [yearStart, yearEnd]),
-      () => pool.query(`
+      () => timedQuery(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KH\xC1C' END AS name,
-               COALESCE(SUM(${numericExpr("thanh_tien_ke_hoach")}), 0) AS plan
-        FROM khsx_nam WHERE nam::text = $2
+               COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS plan
+        FROM khsx_nam WHERE nam = $2::bigint
         GROUP BY 1
       `, [TARGET_WORKSHOPS, String(year)]),
-      () => pool.query(`
+      () => timedQuery(`
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KH\xC1C' END AS name,
-               COALESCE(SUM(${numericExpr("thanh_tien_nhap_kho")}), 0) AS actual
+               COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS actual
         FROM nhap_kho
         WHERE date_parsed BETWEEN $2 AND $3
         GROUP BY 1
@@ -58406,24 +58506,30 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
   try {
     const { nam, thang, mode = "month", tuan, ngay, congTrinh, xuong } = req.query;
     if (!nam) return res.status(400).json({ error: "Missing nam" });
+    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxVersions = await getRelevantVersions(KHSX_NHAPKHO_VERSION_KEYS);
+    const cachedKhsx = khsxNhapKhoCache.get(khsxCacheKey);
+    if (cachedKhsx && JSON.stringify(cachedKhsx.versions) === JSON.stringify(khsxVersions)) {
+      return res.json(cachedKhsx.payload);
+    }
     const isWeek = mode === "week";
     const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
     const normalize = (s) => s.trim().toUpperCase();
     const congTrinhList = congTrinh ? congTrinh.split(",").map((s) => normalize(s)).filter(Boolean) : [];
     const xuongList = xuong ? xuong.split(",").map((s) => normalize(s)).filter(Boolean) : [];
     const khParams = [phanLoaiPattern, nam];
-    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam::text = $2`;
+    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint`;
     if (thang) {
       khParams.push(thang);
-      khWhere += ` AND thang::text = $${khParams.length}`;
+      khWhere += ` AND thang = $${khParams.length}::bigint`;
     }
     if (isWeek && tuan) {
       khParams.push(tuan);
-      khWhere += ` AND tuan::text = $${khParams.length}`;
+      khWhere += ` AND tuan = $${khParams.length}::double precision`;
     }
     if (isWeek && ngay) {
       khParams.push(ngay);
-      khWhere += ` AND ngay::text = $${khParams.length}`;
+      khWhere += ` AND ngay = $${khParams.length}::double precision`;
     }
     if (congTrinhList.length) {
       khParams.push(congTrinhList);
@@ -58438,25 +58544,25 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericExpr("thanh_tien_ke_hoach")}), 0) / 1000 AS gia_tri
+        COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / 1000 AS gia_tri
       FROM khsx
       ${khWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
-    const khResult = await pool.query(khQuery, khParams);
+    const khResult = await timedQuery(khQuery, khParams);
     const thParams = [nam];
-    let thWhere = `WHERE nam::text = $1`;
+    let thWhere = `WHERE nam = $1::bigint`;
     if (thang) {
       thParams.push(thang);
-      thWhere += ` AND thang::text = $${thParams.length}`;
+      thWhere += ` AND thang = $${thParams.length}::bigint`;
     }
     if (isWeek && tuan) {
       thParams.push(tuan);
-      thWhere += ` AND tuan::text = $${thParams.length}`;
+      thWhere += ` AND tuan = $${thParams.length}::bigint`;
     }
     if (isWeek && ngay) {
       thParams.push(ngay);
-      thWhere += ` AND ngay::text = $${thParams.length}`;
+      thWhere += ` AND ngay = $${thParams.length}::bigint`;
     }
     if (congTrinhList.length) {
       thParams.push(congTrinhList);
@@ -58471,12 +58577,12 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericExpr("thanh_tien_nhap_kho")}), 0) / ${VND_TO_TY} AS gia_tri
+        COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${VND_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
-    const thResult = await pool.query(thQuery, thParams);
+    const thResult = await timedQuery(thQuery, thParams);
     const xuongMap = /* @__PURE__ */ new Map();
     khResult.rows.forEach((r) => {
       const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
@@ -58510,13 +58616,16 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     const totalKh = byXuong.reduce((a, b) => a + b.kh, 0);
     const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
     const completionRate = totalKh > 0 ? totalTh / totalKh * 100 : 0;
-    res.json({
+    const khsxPayload = {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
       completionRate: Number(completionRate.toFixed(1)),
       byXuong,
       byCongTrinh
-    });
+    };
+    khsxNhapKhoCache.set(khsxCacheKey, { versions: khsxVersions, payload: khsxPayload });
+    trimCache(khsxNhapKhoCache);
+    res.json(khsxPayload);
   } catch (error61) {
     console.error("L\u1ED7i khsx-nhapkho/summary:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -58568,7 +58677,7 @@ app.get("/api/trend", async (req, res) => {
     const useDefaultLimit = !dateFrom && !dateTo;
     const limit = granularity === "day" ? 15 : 12;
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})` : `SUM(${numericExpr(cfg.valueCol)})`;
+    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
     const q = `
       SELECT
@@ -58582,7 +58691,7 @@ app.get("/api/trend", async (req, res) => {
       ORDER BY 1 ${useDefaultLimit ? "DESC" : "ASC"}
       ${useDefaultLimit ? `LIMIT ${limit}` : ""}
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map((row) => ({
       period: row.period,
       total: Number(row.total_value),
@@ -58602,7 +58711,7 @@ app.get("/api/filters/xuong", async (_req, res) => {
       WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
   } catch (error61) {
     console.error("L\u1ED7i filters/xuong:", error61);
@@ -58617,7 +58726,7 @@ app.get("/api/filters/cong-trinh", async (_req, res) => {
       WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
   } catch (error61) {
     console.error("L\u1ED7i filters/cong-trinh:", error61);
@@ -58632,7 +58741,7 @@ app.get("/api/filters/dvt", async (_req, res) => {
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
   } catch (error61) {
     console.error("L\u1ED7i filters/dvt:", error61);
@@ -58647,7 +58756,7 @@ app.get("/api/filters/phan-loai-nhom-san-pham", async (_req, res) => {
       WHERE phan_loai_nhom_san_pham IS NOT NULL AND TRIM(phan_loai_nhom_san_pham) <> ''
       ORDER BY 1
     `;
-    const r = await pool.query(q);
+    const r = await timedQuery(q);
     res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
   } catch (error61) {
     console.error("L\u1ED7i filters/phan-loai-nhom-san-pham:", error61);
@@ -58699,7 +58808,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})` : `SUM(${numericExpr(cfg.valueCol)})`;
+    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
     const q = `
       SELECT
@@ -58712,7 +58821,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     const rows = r.rows.map((row) => ({
       xuongCode: row.xuong,
       xuongName: row.xuong,
@@ -58770,7 +58879,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericExprQualified(colQuoted(cfg.valueCol))})` : `SUM(${numericExpr(cfg.valueCol)})`;
+    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
     const q = `
       SELECT
@@ -58783,7 +58892,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await pool.query(q, params);
+    const r = await timedQuery(q, params);
     const rows = r.rows.map((row) => ({
       congTrinhCode: row.cong_trinh,
       congTrinhName: row.cong_trinh,
