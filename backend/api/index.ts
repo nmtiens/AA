@@ -385,23 +385,45 @@ const trimCache = (cache: Map<string, any>) => {
 let cachedData: any = null;
 let cachedVersions: Record<string, string> | null = null;
 
+
+// Hàm riêng cho ton_kho trong /api/all-data: chỉ lấy snapshot NGÀY MỚI NHẤT,
+// tránh kéo toàn bộ lịch sử (từng gây statement timeout + OOM trên serverless).
+// Chi tiết lịch sử theo ngày vẫn có qua /api/stock/dates và /api/stock/by-project.
+const fetchLatestStockSnapshot = async () => {
+  try {
+    const cols = REPORT_COLUMNS.ton_kho;
+    const selectClause = cols.map(c => `"${c}"`).join(', ');
+    const query = `
+      SELECT ${selectClause}
+      FROM ton_kho
+      WHERE date_parsed = (SELECT MAX(date_parsed) FROM ton_kho)
+    `;
+    const result = await timedQuery(query);
+    return result.rows;
+  } catch (error) {
+    console.error('Lỗi truy vấn ton_kho (latest snapshot):', error);
+    return [];
+  }
+};
 const refreshAllDataCache = async () => {
   const versions = await getVersions();
   if (cachedData && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
     return { payload: cachedData, fromCache: true };
   }
 
-  // TRƯỚC: Promise.all(TABLES.map(t => fetchTableData(t)))
-  // → xin 12 connection cùng lúc, một mình chiếm gần hết pool (max: 3).
-  // SAU: chạy tối đa 2 query song song, còn lại xếp hàng.
+  // 'ton_kho' tách riêng: chỉ lấy snapshot ngày mới nhất (xem fetchLatestStockSnapshot),
+  // các bảng còn lại vẫn lấy đầy đủ như cũ.
+  const otherTables = TABLES.filter(t => t !== 'ton_kho');
+
   const [
     production, material, khsx, order, inventory,
     tkbv, pthsp, analysis, yearlyPlan, exportData,
-    attendance, stock
+    attendance,
   ] = await runWithLimit(
-    TABLES.map(t => () => fetchTableData(t)),
+    otherTables.map(t => () => fetchTableData(t)),
     2
   );
+  const stock = await fetchLatestStockSnapshot();
 
   const payload = {
     production, material, khsx, order, inventory,
