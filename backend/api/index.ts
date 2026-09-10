@@ -228,7 +228,7 @@ const REPORT_COLUMNS: Record<string, string[]> = {
     'updated_at'
   ],
   vat_tu: [
-    'id', 'trang_thai', 'nguoi_tao', 'nguoi_yeu_cau',
+    'id', 'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
     'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu',
     'so_luong_yeu_cau', 'dvt', 'ngay_pr', 'nhom_vt', 'so_po',
     'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',
@@ -236,7 +236,7 @@ const REPORT_COLUMNS: Record<string, string[]> = {
     'ghi_chu_tinh_trang_po', 'thanh_tien', 'ngay_ve',
     'sl_hang_ve_thuc_te', 'updated_at',
     'team_pr_note',
-  ],
+],
   khsx: [
     'id', 'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh', 'thanh_tien_ke_hoach',
     'phan_loai_kh', 'nam', 'thang', 'ngay', 'tuan',

@@ -827,8 +827,10 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                   <div className="p-6">
-                    <TrendChart source="tkbv" embedded displayMode={tkbvMetric} />
-                  </div>
+  <TrendChart source="tkbv" embedded displayMode={tkbvMetric} />
+  <ByXuongChart source="tkbv" displayMode={tkbvMetric} />
+  <ByCongTrinhChart source="tkbv" displayMode={tkbvMetric} />
+</div>
                 </>
               ) : (
                 <div className="p-6">
@@ -920,8 +922,10 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                   <div className="p-6">
-                    <TrendChart source="pthsp" embedded displayMode={pthspMetric} />
-                  </div>
+  <TrendChart source="pthsp" embedded displayMode={pthspMetric} />
+  <ByXuongChart source="pthsp" displayMode={pthspMetric} />
+  <ByCongTrinhChart source="pthsp" displayMode={pthspMetric} />
+</div>
                 </>
               ) : (
                 <div className="p-6">
@@ -1013,9 +1017,11 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
               {inventoryTab === 'chart' ? (
                 <>
                   <SharedDateFilterBar showProductFilters /> 
-                  <div className="p-6">
-                    <TrendChart source="inventory" embedded displayMode={inventoryMetric} />
-                  </div>
+                 <div className="p-6">
+  <TrendChart source="inventory" embedded displayMode={inventoryMetric} />
+  <ByXuongChart source="inventory" displayMode={inventoryMetric} />
+  <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
+</div>
                 </>
               ) : (
                 <div className="p-6">
@@ -1109,8 +1115,10 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
                 <>
                   <SharedDateFilterBar showProductFilters /> 
                   <div className="p-6">
-                    <TrendChart source="export" embedded displayMode={exportMetric} />
-                  </div>
+  <TrendChart source="export" embedded displayMode={exportMetric} />
+  <ByXuongChart source="export" displayMode={exportMetric} />
+  <ByCongTrinhChart source="export" displayMode={exportMetric} />
+</div>
                 </>
               ) : (
                 <div className="p-6">
@@ -1213,8 +1221,10 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
                 <>
                    <SharedDateFilterBar showProductFilters /> 
                   <div className="p-6">
-                    <TrendChart source="stock" embedded displayMode={stockMetric} />
-                  </div>
+  <TrendChart source="stock" embedded displayMode={stockMetric} />
+  <ByXuongChart source="stock" displayMode={stockMetric} />
+  <ByCongTrinhChart source="stock" displayMode={stockMetric} />
+</div>
                 </>
               ) : (
                 <div className="p-6">

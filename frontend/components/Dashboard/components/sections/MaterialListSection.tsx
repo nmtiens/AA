@@ -11,6 +11,19 @@ interface MaterialListSectionProps {
   getMaterialRowClassName: (row: DataRow) => string;
 }
 
+// Định dạng lại giá trị ô hiển thị: nếu là ngày dạng ISO (yyyy-mm-dd hoặc
+// yyyy-mm-ddTHH:mm:ss...) thì chuyển sang dd/mm/yyyy. Các giá trị khác giữ nguyên.
+const formatCellValue = (value: any): string => {
+  if (value === null || value === undefined || value === '') return '';
+  const str = String(value);
+  const isoDateMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
+  if (isoDateMatch) {
+    const [, y, m, d] = isoDateMatch;
+    return `${d}/${m}/${y}`;
+  }
+  return str;
+};
+
 export const MaterialListSection = ({
   sectionRef,
   displayedMaterialData,
@@ -56,7 +69,7 @@ export const MaterialListSection = ({
                     {(materialListPage - 1) * MATERIAL_ITEMS_PER_PAGE + index + 1}
                   </td>
                   {MATERIAL_LIST_COLUMNS.map((col, colIdx) => (
-                    <td key={colIdx} className="px-3 py-2">{row[col] || ''}</td>
+                    <td key={colIdx} className="px-3 py-2">{formatCellValue(row[col])}</td>
                   ))}
                 </tr>
               ))
