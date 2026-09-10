@@ -57570,6 +57570,7 @@ var REPORT_COLUMNS = {
   vat_tu: [
     "id",
     "trang_thai",
+    "trang_thai_sap",
     "nguoi_tao",
     "nguoi_yeu_cau",
     "ten_cong_trinh",
