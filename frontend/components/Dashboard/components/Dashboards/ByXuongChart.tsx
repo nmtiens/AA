@@ -46,25 +46,24 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
   const isStock = source === 'stock';
 
-  useEffect(() => {
-    if (isStock) { setRaw([]); setLoading(false); return; }
-    let cancelled = false;
-    setLoading(true);
-    const params = new URLSearchParams({ source });
-    if (dateFrom) params.set('dateFrom', dateFrom);
-    if (dateTo) params.set('dateTo', dateTo);
-    if (xuong) params.set('xuong', xuong);
-    if (congTrinh) params.set('congTrinh', congTrinh);
-    if (dvt) params.set('dvt', dvt);
-    if (phanLoai) params.set('phanLoai', phanLoai);
+useEffect(() => {
+  let cancelled = false;
+  setLoading(true);
+  const params = new URLSearchParams({ source });
+  if (dateFrom) params.set('dateFrom', dateFrom);
+  if (dateTo) params.set('dateTo', dateTo);
+  if (xuong) params.set('xuong', xuong);
+  if (congTrinh) params.set('congTrinh', congTrinh);
+  if (dvt) params.set('dvt', dvt);
+  if (phanLoai) params.set('phanLoai', phanLoai);
 
-    fetch(`/api/trend-by-xuong?${params.toString()}`)
-      .then(r => r.json())
-      .then(d => { if (!cancelled) setRaw(d); })
-      .catch(err => console.error(`Lỗi fetch /api/trend-by-xuong (${source}):`, err))
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
+  fetch(`/api/trend-by-xuong?${params.toString()}`)
+    .then(r => r.json())
+    .then(d => { if (!cancelled) setRaw(d); })
+    .catch(err => console.error(`Lỗi fetch /api/trend-by-xuong (${source}):`, err))
+    .finally(() => { if (!cancelled) setLoading(false); });
+  return () => { cancelled = true; };
+}, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     const pickValue = (p: ApiXuongPoint) => (displayMode === 'COUNT' ? p.totalCount : p.total);

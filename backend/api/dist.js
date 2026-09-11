@@ -57636,6 +57636,7 @@ var REPORT_COLUMNS = {
     "date",
     "gia_tri",
     "ma_id_sap",
+    "hex",
     "ten_cong_trinh",
     "updated_at"
   ],
@@ -57909,15 +57910,18 @@ var STOCK_TREND_CONFIG = {
   dateCol: "date_parsed",
   valueCol: "gia_tri",
   valueDivisor: 1,
-  hexCol: "ma_id_sap",
-  congTrinhCol: "ten_cong_trinh"
+  hexCol: "hex",
+  congTrinhCol: "ten_cong_trinh",
+  joinProductionForFilters: true,
+  xuongViaProductionJoin: true
+  // MỚI
 };
 var ANALYSIS_TABLES = {
-  order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForPhanLoai: true },
-  tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1 },
-  pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1 },
-  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1e6 },
-  export: { table: "xuat_kho", dateCol: "date", valueCol: "so_luong_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1 }
+  order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true },
+  tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true },
+  pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true },
+  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1e6, joinProductionForFilters: true },
+  export: { table: "xuat_kho", dateCol: "date", valueCol: "so_luong_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true }
 };
 var ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
 var TREND_SOURCES = /* @__PURE__ */ new Set([...Object.keys(ANALYSIS_TABLES), "stock"]);
@@ -58134,7 +58138,7 @@ var refreshStockDatesCache = async () => {
   }
   const q = `
     SELECT date_parsed AS d,
-           COUNT(DISTINCT ma_id_sap) AS count,
+          COUNT(DISTINCT hex) AS count, 
            COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
 FROM ton_kho
     WHERE date_parsed IS NOT NULL
@@ -58176,7 +58180,7 @@ app.get("/api/stock/by-project", async (req, res) => {
     if (!date5) return res.status(400).json({ error: "Missing date" });
     const q = `
       SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
-             COUNT(DISTINCT ma_id_sap) AS count,
+            COUNT(DISTINCT hex) AS count,
              COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
       FROM ton_kho
       WHERE date_parsed = $1
@@ -58662,10 +58666,12 @@ app.get("/api/trend", async (req, res) => {
     const congTrinh = req.query.congTrinh || "";
     const dvt = req.query.dvt || "";
     const phanLoai = req.query.phanLoai || "";
-    const needsJoin = !!(phanLoai && cfg.joinProductionForPhanLoai && cfg.hexCol);
+    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
     const mainAlias = needsJoin ? "m" : "";
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const colQuoted = (name) => mainAlias ? `${mainAlias}."${name}"` : `"${name}"`;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
     if (dateFrom) {
@@ -58676,19 +58682,29 @@ app.get("/api/trend", async (req, res) => {
       params.push(dateTo.toISOString().slice(0, 10));
       conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
     }
-    if (xuong && cfg.xuongCol) {
-      params.push(xuong);
-      conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong);
+        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong);
+        conditions.push(`p.xuong_chinh = $${params.length}`);
+      }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
       conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
     }
-    if (dvt && cfg.dvtCol) {
-      params.push(dvt);
-      conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+    if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt);
+        conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+      } else if (needsJoin) {
+        params.push(dvt);
+        conditions.push(`p.dvt = $${params.length}`);
+      }
     }
-    if (needsJoin) {
+    if (phanLoai && needsJoin) {
       params.push(phanLoai);
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
@@ -58786,7 +58802,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const source = req.query.source;
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
     const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.xuongCol) {
+    if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
       return res.json([]);
     }
     const dateFrom = parseSafeDate(req.query.dateFrom);
@@ -58795,10 +58811,12 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const congTrinh = req.query.congTrinh || "";
     const dvt = req.query.dvt || "";
     const phanLoai = req.query.phanLoai || "";
-    const needsJoin = !!(phanLoai && cfg.joinProductionForPhanLoai && cfg.hexCol);
+    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(cfg.xuongViaProductionJoin && !cfg.xuongCol);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
     const mainAlias = needsJoin ? "m" : "";
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const colQuoted = (name) => mainAlias ? `${mainAlias}."${name}"` : `"${name}"`;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
     if (dateFrom) {
@@ -58809,36 +58827,47 @@ app.get("/api/trend-by-xuong", async (req, res) => {
       params.push(dateTo.toISOString().slice(0, 10));
       conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
     }
-    if (xuong && cfg.xuongCol) {
-      params.push(xuong);
-      conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong);
+        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong);
+        conditions.push(`p.xuong_chinh = $${params.length}`);
+      }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
       conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
     }
-    if (dvt && cfg.dvtCol) {
-      params.push(dvt);
-      conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+    if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt);
+        conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+      } else if (needsJoin) {
+        params.push(dvt);
+        conditions.push(`p.dvt = $${params.length}`);
+      }
     }
-    if (needsJoin) {
+    if (phanLoai && needsJoin) {
       params.push(phanLoai);
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
+    const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
     const q = `
-      SELECT
-        COALESCE(NULLIF(TRIM(${colBare(cfg.xuongCol)}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS xuong,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(" AND ")}
-      GROUP BY 1
-      ORDER BY total_value DESC
-    `;
+  SELECT
+    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS xuong,
+    COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+    ${countExpr} AS total_count
+  FROM ${cfg.table} ${mainAlias}
+  ${joinClause}
+  WHERE ${conditions.join(" AND ")}
+  GROUP BY 1
+  ORDER BY total_value DESC
+`;
     const r = await timedQuery(q, params);
     const rows = r.rows.map((row) => ({
       xuongCode: row.xuong,
@@ -58866,10 +58895,12 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     const congTrinh = req.query.congTrinh || "";
     const dvt = req.query.dvt || "";
     const phanLoai = req.query.phanLoai || "";
-    const needsJoin = !!(phanLoai && cfg.joinProductionForPhanLoai && cfg.hexCol);
+    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
     const mainAlias = needsJoin ? "m" : "";
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const colQuoted = (name) => mainAlias ? `${mainAlias}."${name}"` : `"${name}"`;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
     if (dateFrom) {
@@ -58880,19 +58911,29 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       params.push(dateTo.toISOString().slice(0, 10));
       conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
     }
-    if (xuong && cfg.xuongCol) {
-      params.push(xuong);
-      conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong);
+        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong);
+        conditions.push(`p.xuong_chinh = $${params.length}`);
+      }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
       conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
     }
-    if (dvt && cfg.dvtCol) {
-      params.push(dvt);
-      conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+    if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt);
+        conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+      } else if (needsJoin) {
+        params.push(dvt);
+        conditions.push(`p.dvt = $${params.length}`);
+      }
     }
-    if (needsJoin) {
+    if (phanLoai && needsJoin) {
       params.push(phanLoai);
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }

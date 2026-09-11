@@ -518,8 +518,9 @@ interface TrendTableConfig {
   hexCol?: string;
   xuongCol?: string;
   congTrinhCol?: string;
-  dvtCol?: string;                     // cột dvt có sẵn TRỰC TIẾP trên bảng — chỉ dht (order) có
-  joinProductionForFilters?: boolean;  // cho phép JOIN production_status_app qua hex để lấy dvt/phan_loai_nhom_san_pham khi bảng không có sẵn cột
+  dvtCol?: string;
+  joinProductionForFilters?: boolean;
+  xuongViaProductionJoin?: boolean; // MỚI: bảng chính không có cột xưởng, lấy qua JOIN production_status_app
 }
 
 const STOCK_TREND_CONFIG: TrendTableConfig = {
@@ -527,9 +528,10 @@ const STOCK_TREND_CONFIG: TrendTableConfig = {
   dateCol: 'date_parsed',
   valueCol: 'gia_tri',
   valueDivisor: 1,
-  hexCol: 'hex',                 // sửa: trước là 'ma_id_sap' — sai hệ mã, không khớp production_status_app.hex
+  hexCol: 'hex',
   congTrinhCol: 'ten_cong_trinh',
   joinProductionForFilters: true,
+  xuongViaProductionJoin: true, // MỚI
 };
 const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
   order:     { table: 'dht',        dateCol: 'ngay_nhan_tu_pm', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1,  dvtCol: 'dvt', joinProductionForFilters: true },
@@ -1422,9 +1424,10 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     // JOIN production_status_app qua hex khi:
     // - lọc theo phanLoai (không bảng nào tự có cột này, kể cả order)
     // - lọc theo dvt ở những bảng KHÔNG có sẵn cột dvt riêng (chỉ order/dht có sẵn, không cần join)
-    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin));
+  const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+const needsPhanLoaiJoin = !!phanLoai;
+const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
 
     const mainAlias = needsJoin ? 'm' : '';
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
@@ -1434,7 +1437,13 @@ app.get('/api/trend', async (req: Request, res: Response) => {
 
     if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
     if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
-    if (xuong && cfg.xuongCol) { params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`); }
+   if (xuong) {
+  if (cfg.xuongCol) {
+    params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+  } else if (cfg.xuongViaProductionJoin) {
+    params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
+  }
+}
     if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
     if (dvt) {
       if (cfg.dvtCol) {
@@ -1555,9 +1564,9 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
 
     const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.xuongCol) {
-      return res.json([]);
-    }
+if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
+  return res.json([]);
+}
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -1566,9 +1575,10 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     const dvt = (req.query.dvt as string) || '';
     const phanLoai = (req.query.phanLoai as string) || '';
 
-    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin));
+const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+const needsPhanLoaiJoin = !!phanLoai;
+const needsXuongJoin = !!(cfg.xuongViaProductionJoin && !cfg.xuongCol);
+const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
 
     const mainAlias = needsJoin ? 'm' : '';
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
@@ -1578,7 +1588,13 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
 
     if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
     if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
-    if (xuong && cfg.xuongCol) { params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`); }
+  if (xuong) {
+  if (cfg.xuongCol) {
+    params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+  } else if (cfg.xuongViaProductionJoin) {
+    params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
+  }
+}
     if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
     if (dvt) {
       if (cfg.dvtCol) {
@@ -1595,17 +1611,19 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
 
-    const q = `
-      SELECT
-        COALESCE(NULLIF(TRIM(${colBare(cfg.xuongCol)}), ''), 'Chưa xác định') AS xuong,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(' AND ')}
-      GROUP BY 1
-      ORDER BY total_value DESC
-    `;
+   const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : 'p.xuong_chinh';
+
+const q = `
+  SELECT
+    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'Chưa xác định') AS xuong,
+    COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+    ${countExpr} AS total_count
+  FROM ${cfg.table} ${mainAlias}
+  ${joinClause}
+  WHERE ${conditions.join(' AND ')}
+  GROUP BY 1
+  ORDER BY total_value DESC
+`;
     const r = await timedQuery(q, params);
     const rows = r.rows.map(row => ({
       xuongCode: row.xuong,
@@ -1638,9 +1656,10 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     const dvt = (req.query.dvt as string) || '';
     const phanLoai = (req.query.phanLoai as string) || '';
 
-    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin));
+   const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+const needsPhanLoaiJoin = !!phanLoai;
+const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
 
     const mainAlias = needsJoin ? 'm' : '';
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
@@ -1650,7 +1669,13 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
 
     if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
     if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
-    if (xuong && cfg.xuongCol) { params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`); }
+   if (xuong) {
+  if (cfg.xuongCol) {
+    params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+  } else if (cfg.xuongViaProductionJoin) {
+    params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
+  }
+}
     if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
     if (dvt) {
       if (cfg.dvtCol) {
