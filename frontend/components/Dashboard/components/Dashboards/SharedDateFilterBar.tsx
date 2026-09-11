@@ -9,6 +9,45 @@ interface SharedDateFilterBarProps {
   showXuongFilter?: boolean;
 }
 
+/** Chuyển 'yyyy-mm-dd' (giá trị input date) -> 'dd/mm/yyyy' (hiển thị) */
+function formatDateVN(iso: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return '';
+  return `${d}/${m}/${y}`;
+}
+
+/**
+ * Input ngày luôn hiển thị đúng định dạng dd/mm/yyyy,
+ * bất kể locale trình duyệt/hệ điều hành của người dùng.
+ * Vẫn dùng <input type="date"> gốc để giữ lịch chọn ngày (calendar picker),
+ * chỉ ẩn phần text gốc và phủ text tự định dạng lên trên.
+ */
+function DateInput({
+  value,
+  onChange,
+  className = '',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={`relative shrink-0 ${className}`}>
+      <input
+        type="date"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-[130px] px-2 py-1 border border-slate-300 rounded-md outline-none
+                   text-transparent caret-transparent bg-transparent relative"
+      />
+      <span className="absolute inset-y-0 left-2 flex items-center pr-6 text-slate-700 pointer-events-none">
+        {value ? formatDateVN(value) : 'dd/mm/yyyy'}
+      </span>
+    </div>
+  );
+}
+
 export default function SharedDateFilterBar({
   showProductFilters = false,
   showXuongFilter = true,
@@ -44,11 +83,9 @@ export default function SharedDateFilterBar({
       {/* Dòng 1: khoảng ngày + preset */}
       <div className="flex items-center flex-nowrap overflow-x-auto gap-2 text-xs">
         <Calendar size={13} className="text-slate-400 shrink-0" />
-        <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-          className="px-2 py-1 border border-slate-300 rounded-md outline-none shrink-0" />
+        <DateInput value={dateFrom} onChange={setDateFrom} />
         <span className="text-slate-400 shrink-0">→</span>
-        <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-          className="px-2 py-1 border border-slate-300 rounded-md outline-none shrink-0" />
+        <DateInput value={dateTo} onChange={setDateTo} />
         {[{ label: '7 ngày', days: 7 }, { label: '30 ngày', days: 30 }, { label: '90 ngày', days: 90 }, { label: '1 năm', days: 365 }].map(p => (
           <button key={p.days} onClick={() => applyPreset(p.days)}
             className="px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0">

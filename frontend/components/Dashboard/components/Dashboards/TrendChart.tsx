@@ -97,43 +97,55 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: embedded ? 24 : 30, right: embedded ? 90 : 110, left: 0, bottom: 0 }}>
+         <ComposedChart data={chartData} margin={{ top: embedded ? 40 : 48, right: embedded ? 90 : 110, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
-              <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10, fill: '#64748b' }} width={55} />
+          <YAxis
+  tickFormatter={formatDecimal}
+  tick={{ fontSize: 10, fill: '#64748b' }}
+  width={55}
+  domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+/>
               <RechartsTooltip
                 formatter={(v: number, name: string) => [formatDecimal(v), name]}
                 labelFormatter={(l) => `Kỳ: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
               <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: embedded ? 11 : 13 }} />
-              <Bar dataKey="total" name={unit} fill={theme.bar} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
-                <LabelList dataKey="total" position="top" formatter={(v: number) => v > 0 ? formatDecimal(v) : ''} fontSize={embedded ? 9 : 10} fill={theme.barDark} />
-              </Bar>
+            <Bar dataKey="total" name={unit} fill={theme.bar} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
+  <LabelList
+    dataKey="total"
+    position="top"
+    offset={10}
+    formatter={(v: number) => v > 0 ? formatDecimal(v) : ''}
+    fontSize={embedded ? 9 : 10}
+    fill={theme.barDark}
+  />
+</Bar>
               {chartData.length > 0 && (
-                <ReferenceLine
-                  y={avgAll}
-                  stroke="#16a34a"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  label={(props: any) => {
-                    const { viewBox } = props;
-                    const text = `TB: ${formatShort(avgAll)}`;
-                    return (
-                      <text
-                        x={viewBox.x + viewBox.width + 4}
-                        y={viewBox.y}
-                        dy={4}
-                        textAnchor="start"
-                        fontSize={embedded ? 10 : 11}
-                        fontWeight={600}
-                        fill="#16a34a"
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
-                />
+              <ReferenceLine
+  y={avgAll}
+  stroke="#16a34a"
+  strokeWidth={2}
+  strokeDasharray="6 4"
+  label={(props: any) => {
+    const { viewBox } = props;
+    const text = `TB: ${formatShort(avgAll)}`;
+    return (
+      <text
+        x={viewBox.x + viewBox.width + 8}
+        y={viewBox.y}
+        dy={4}
+        textAnchor="start"
+        fontSize={embedded ? 10 : 11}
+        fontWeight={600}
+        fill="#16a34a"
+      >
+        {text}
+      </text>
+    );
+  }}
+/>
               )}
             </ComposedChart>
           </ResponsiveContainer>

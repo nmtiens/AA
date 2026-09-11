@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, LabelList, ReferenceLine, Label,
@@ -8,7 +8,7 @@ import { Target, CheckCircle, Activity, BarChart2 } from 'lucide-react';
 import { CheckpointTriangle } from '../shared/CheckpointTriangle';
 import { YearlyPlanWorkshopTooltip } from '../shared/tooltips/YearlyPlanWorkshopTooltip';
 import { formatDecimal } from '../../utils/numberParsers';
-
+const QUARTER_COLOR = '#ef4444'; // Đồng bộ 1 màu cho cả 4 mốc quý (line + cờ + text)
 interface FactoryRevenueChartRow {
   name: string;
   thucHien: number;
@@ -38,6 +38,32 @@ interface FactoryRevenueSectionProps {
   yearlyPlan2026WorkshopChartData: WorkshopRevenueRow[];
 }
 
+// ---- Helpers cho việc đo & xếp hàng nhãn quý (tránh chồng chữ) ----
+
+// Canvas dùng chung để đo bề rộng text thật (không re-create mỗi lần render)
+let _measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, font: string): number {
+  if (typeof document === 'undefined') return text.length * 7; // fallback SSR
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  if (!ctx) return text.length * 7;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+const QUARTER_CHART_MARGIN_LEFT = 30;
+const QUARTER_CHART_MARGIN_RIGHT = 30;
+const QUARTER_LABEL_GAP = 10; // khoảng cách tối thiểu giữa 2 nhãn cùng 1 dòng
+const QUARTER_LABEL_ROW_HEIGHT = 14; // ~ chênh lệch dy giữa 2 dòng (khớp thiết kế cũ 20 -> 34)
+const QUARTER_LABEL_BASE_DY = 20;
+const QUARTER_LABEL_FONT = 'bold 12px sans-serif';
+
+interface QuarterDef {
+  key: 'q1' | 'q2' | 'q3' | 'q4';
+  value: number;
+  label: string;
+}
+
 export const FactoryRevenueSection = ({
   sectionRef,
   factoryRevenueChartData,
@@ -47,9 +73,82 @@ export const FactoryRevenueSection = ({
   yearlyPlan2026WorkshopChartData,
 }: FactoryRevenueSectionProps) => {
   // Tự động tính tổng kế hoạch từ mảng xưởng nếu prop targetRevenue2026 truyền vào bị 0 hoặc falsy
-  const displayTargetRevenue = targetRevenue2026 > 0 
-    ? targetRevenue2026 
+  const displayTargetRevenue = targetRevenue2026 > 0
+    ? targetRevenue2026
     : yearlyPlan2026WorkshopChartData.reduce((sum, item) => sum + (item.plan || 0), 0);
+
+  // ---- Đo chiều rộng thực tế của khung chart tiến độ tổng thể ----
+  const chartWrapperRef = useRef<HTMLDivElement>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+
+  useEffect(() => {
+    const el = chartWrapperRef.current;
+    if (!el) return;
+
+    setChartWidth(el.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setChartWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Domain max giống cách recharts tự tính cho XAxis: max(thucHien+conLai) * 1.05
+  const domainMax = useMemo(() => {
+    const maxStack = factoryRevenueChartData.reduce(
+      (max, row) => Math.max(max, (row.thucHien || 0) + (row.conLai || 0)),
+      0
+    );
+    return maxStack > 0 ? maxStack * 1.05 : 1;
+  }, [factoryRevenueChartData]);
+
+  const quarterDefs: QuarterDef[] = useMemo(() => (
+    [
+      { key: 'q1', value: quarterlyTargets.q1, label: `Quí I: ${formatDecimal(quarterlyTargets.q1)}` },
+      { key: 'q2', value: quarterlyTargets.q2, label: `Quí II: ${formatDecimal(quarterlyTargets.q2)}` },
+      { key: 'q3', value: quarterlyTargets.q3, label: `Quí III: ${formatDecimal(quarterlyTargets.q3)}` },
+      { key: 'q4', value: quarterlyTargets.q4, label: `Quí IV: ${formatDecimal(quarterlyTargets.q4)}` },
+    ] as QuarterDef[]
+  ).filter((q) => q.value > 0), [quarterlyTargets]);
+
+  // Xếp mỗi nhãn quý vào 1 "dòng" (row) sao cho không bị chồng chữ lên nhãn liền trước
+  const quarterRows = useMemo(() => {
+    const rows: Partial<Record<QuarterDef['key'], number>> = {};
+
+    if (!chartWidth || quarterDefs.length === 0) {
+      quarterDefs.forEach((q) => { rows[q.key] = 0; });
+      return rows;
+    }
+
+    const plotWidth = Math.max(chartWidth - QUARTER_CHART_MARGIN_LEFT - QUARTER_CHART_MARGIN_RIGHT, 0);
+
+    const items = quarterDefs
+      .map((q) => {
+        const x = QUARTER_CHART_MARGIN_LEFT + (q.value / domainMax) * plotWidth;
+        const textWidth = measureTextWidth(q.label, QUARTER_LABEL_FONT);
+        return { key: q.key, left: x - textWidth / 2, right: x + textWidth / 2 };
+      })
+      .sort((a, b) => a.left - b.left);
+
+    const rowRightEdge: number[] = [];
+    items.forEach((item) => {
+      let rowIndex = rowRightEdge.findIndex((edge) => item.left > edge + QUARTER_LABEL_GAP);
+      if (rowIndex === -1) {
+        rowIndex = rowRightEdge.length;
+        rowRightEdge.push(item.right);
+      } else {
+        rowRightEdge[rowIndex] = item.right;
+      }
+      rows[item.key] = rowIndex;
+    });
+
+    return rows;
+  }, [chartWidth, domainMax, quarterDefs]);
+
+  const getQuarterDy = (key: QuarterDef['key']) =>
+    QUARTER_LABEL_BASE_DY + (quarterRows[key] ?? 0) * QUARTER_LABEL_ROW_HEIGHT;
 
   return (
     <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
@@ -74,7 +173,7 @@ export const FactoryRevenueSection = ({
               <p className="text-xs font-bold text-slate-500 uppercase">Tiến độ tổng thể</p>
               <span className="text-[10px] text-slate-400"></span>
             </div>
-            <div className="h-[110px] w-full bg-slate-50 rounded-lg border border-slate-100 p-2">
+            <div ref={chartWrapperRef} className="h-[110px] w-full bg-slate-50 rounded-lg border border-slate-100 p-2">
               <ResponsiveContainer width="100%" height="100%">
                  <BarChart
       layout="vertical"
@@ -104,25 +203,29 @@ export const FactoryRevenueSection = ({
                   <ReferenceLine x={quarterlyTargets.q4} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
 
                {quarterlyTargets.q1 > 0 && (
-        <ReferenceLine x={quarterlyTargets.q1} stroke="#ea580c" strokeDasharray="3 3">
-          <Label value={`Quý I: ${formatDecimal(quarterlyTargets.q1)}`} position="insideBottom" fill="#c2410c" fontSize={12} fontWeight="bold" dy={20} />
-        </ReferenceLine>
-      )}
-      {quarterlyTargets.q2 > 0 && (
-        <ReferenceLine x={quarterlyTargets.q2} stroke="#0891b2" strokeDasharray="3 3">
-          <Label value={`Quý II: ${formatDecimal(quarterlyTargets.q2)}`} position="insideBottom" fill="#0e7490" fontSize={12} fontWeight="bold" dy={34} />
-        </ReferenceLine>
-      )}
-      {quarterlyTargets.q3 > 0 && (
-        <ReferenceLine x={quarterlyTargets.q3} stroke="#7c3aed" strokeDasharray="3 3">
-          <Label value={`Quý III: ${formatDecimal(quarterlyTargets.q3)}`} position="insideBottom" fill="#6d28d9" fontSize={12} fontWeight="bold" dy={20} />
-        </ReferenceLine>
-      )}
-      {quarterlyTargets.q4 > 0 && (
-        <ReferenceLine x={quarterlyTargets.q4} stroke="#dc2626" strokeDasharray="3 3">
-          <Label value={`Quý IV: ${formatDecimal(quarterlyTargets.q4)}`} position="insideBottom" fill="#b91c1c" fontSize={12} fontWeight="bold" dy={34} />
-        </ReferenceLine>
-      )}
+  <ReferenceLine x={quarterlyTargets.q1} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+    <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+    <Label value={`Quý I: ${formatDecimal(quarterlyTargets.q1)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q1')} />
+  </ReferenceLine>
+)}
+{quarterlyTargets.q2 > 0 && (
+  <ReferenceLine x={quarterlyTargets.q2} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+    <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+    <Label value={`Quý II: ${formatDecimal(quarterlyTargets.q2)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q2')} />
+  </ReferenceLine>
+)}
+{quarterlyTargets.q3 > 0 && (
+  <ReferenceLine x={quarterlyTargets.q3} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+    <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+    <Label value={`Quý III: ${formatDecimal(quarterlyTargets.q3)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q3')} />
+  </ReferenceLine>
+)}
+{quarterlyTargets.q4 > 0 && (
+  <ReferenceLine x={quarterlyTargets.q4} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+    <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+    <Label value={`Quý IV: ${formatDecimal(quarterlyTargets.q4)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q4')} />
+  </ReferenceLine>
+)}
                 </BarChart>
               </ResponsiveContainer>
             </div>
