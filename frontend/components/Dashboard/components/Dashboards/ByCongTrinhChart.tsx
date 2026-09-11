@@ -103,10 +103,16 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
 
-    fetch(`/api/trend-by-congtrinh?${params.toString()}`)
-      .then(r => r.json())
-      .then(d => { if (!cancelled) setRaw(d); })
-      .catch(err => console.error(`Lỗi fetch /api/trend-by-congtrinh (${source}):`, err))
+        fetch(`/api/trend-by-congtrinh?${params.toString()}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
+      .catch(err => {
+        console.error(`Lỗi fetch /api/trend-by-congtrinh (${source}):`, err);
+        if (!cancelled) setRaw([]);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);

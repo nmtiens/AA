@@ -57,12 +57,18 @@ useEffect(() => {
   if (dvt) params.set('dvt', dvt);
   if (phanLoai) params.set('phanLoai', phanLoai);
 
-  fetch(`/api/trend-by-xuong?${params.toString()}`)
-    .then(r => r.json())
-    .then(d => { if (!cancelled) setRaw(d); })
-    .catch(err => console.error(`Lỗi fetch /api/trend-by-xuong (${source}):`, err))
-    .finally(() => { if (!cancelled) setLoading(false); });
-  return () => { cancelled = true; };
+     fetch(`/api/trend-by-xuong?${params.toString()}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
+      .catch(err => {
+        console.error(`Lỗi fetch /api/trend-by-xuong (${source}):`, err);
+        if (!cancelled) setRaw([]);
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
 }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
 
   const chartData = useMemo<ChartPoint[]>(() => {

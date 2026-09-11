@@ -65,10 +65,16 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
 
-    fetch(`/api/trend?${params.toString()}`)
-      .then(r => r.json())
-      .then(d => { if (!cancelled) setRaw(d); })
-      .catch(err => console.error(`Lỗi fetch /api/trend (${source}):`, err))
+       fetch(`/api/trend?${params.toString()}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
+      .catch(err => {
+        console.error(`Lỗi fetch /api/trend (${source}):`, err);
+        if (!cancelled) setRaw([]);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);

@@ -1584,10 +1584,15 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
 
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params: any[] = [];
+const params: any[] = [];
 
-    if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-    if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+if (source === 'stock' && !dateFrom && !dateTo) {
+  // Tồn kho là số liệu snapshot — không group toàn bộ lịch sử, chỉ lấy ngày mới nhất
+  conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+} else {
+  if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+  if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+}
   if (xuong) {
   if (cfg.xuongCol) {
     params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
@@ -1665,10 +1670,15 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
 
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params: any[] = [];
+const params: any[] = [];
 
-    if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-    if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+if (source === 'stock' && !dateFrom && !dateTo) {
+  // Tồn kho là số liệu snapshot — không group toàn bộ lịch sử, chỉ lấy ngày mới nhất
+  conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+} else {
+  if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+  if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+}
    if (xuong) {
   if (cfg.xuongCol) {
     params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);

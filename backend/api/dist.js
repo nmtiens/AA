@@ -58819,13 +58819,17 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (dateFrom) {
-      params.push(dateFrom.toISOString().slice(0, 10));
-      conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-    }
-    if (dateTo) {
-      params.push(dateTo.toISOString().slice(0, 10));
-      conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+    if (source === "stock" && !dateFrom && !dateTo) {
+      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    } else {
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      }
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+      }
     }
     if (xuong) {
       if (cfg.xuongCol) {
@@ -58903,13 +58907,17 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (dateFrom) {
-      params.push(dateFrom.toISOString().slice(0, 10));
-      conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-    }
-    if (dateTo) {
-      params.push(dateTo.toISOString().slice(0, 10));
-      conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+    if (source === "stock" && !dateFrom && !dateTo) {
+      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    } else {
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      }
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+      }
     }
     if (xuong) {
       if (cfg.xuongCol) {
