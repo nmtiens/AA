@@ -251,10 +251,10 @@ const REPORT_COLUMNS: Record<string, string[]> = {
     'id', 'hex', 'so_luong_xuat_kho', 'date', 'xuong_chinh', 'ten_cong_trinh',
     'updated_at'
   ],
-  ton_kho: [
-    'id', 'date', 'gia_tri', 'ma_id_sap', 'ten_cong_trinh',
-    'updated_at'
-  ],
+ ton_kho: [
+  'id', 'date', 'gia_tri', 'ma_id_sap', 'hex', 'ten_cong_trinh',
+  'updated_at'
+],
   dht: [
     'id', 'hex', 'ngay_nhan_tu_pm', 'tri_gia_don_hang_tong', 'xuong_chinh', 'ten_cong_trinh',
     'updated_at'
@@ -527,7 +527,7 @@ const STOCK_TREND_CONFIG: TrendTableConfig = {
   dateCol: 'date_parsed',
   valueCol: 'gia_tri',
   valueDivisor: 1,
-  hexCol: 'ma_id_sap',
+  hexCol: 'hex',                 // sửa: trước là 'ma_id_sap' — sai hệ mã, không khớp production_status_app.hex
   congTrinhCol: 'ten_cong_trinh',
   joinProductionForFilters: true,
 };
@@ -822,7 +822,7 @@ const refreshStockDatesCache = async () => {
 
   const q = `
     SELECT date_parsed AS d,
-           COUNT(DISTINCT ma_id_sap) AS count,
+          COUNT(DISTINCT hex) AS count, 
            COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
 FROM ton_kho
     WHERE date_parsed IS NOT NULL
@@ -875,7 +875,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     if (!date) return res.status(400).json({ error: 'Missing date' });
     const q = `
       SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
-             COUNT(DISTINCT ma_id_sap) AS count,
+            COUNT(DISTINCT hex) AS count,
              COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
       FROM ton_kho
       WHERE date_parsed = $1

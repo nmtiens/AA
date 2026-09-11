@@ -118,19 +118,24 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
                   </svg>
                 </div>
 
-                {customFunnelData.map((item) => (
-                  <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
-                    <div
-                      className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
-                      style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
-                      title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
-                    >
-                      <span className="text-black font-bold text-sm truncate px-1">
-                        {Math.round(item.value / 1000).toLocaleString('en-US')}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                {customFunnelData.map((item) => {
+  const displayValue = Math.round(item.value / 1000);
+  const widthPercent = displayValue === 0 ? 6 : item.percentage;
+
+  return (
+    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+      <div
+        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
+        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+        title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
+      >
+        <span className="text-black font-bold text-sm truncate px-1">
+          {displayValue.toLocaleString('en-US')}
+        </span>
+      </div>
+    </div>
+  );
+})}
               </div>
             </div>
           </div>

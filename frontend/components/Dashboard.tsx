@@ -333,6 +333,7 @@ const {
   triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
   stockDateKey, stockValueKey, stockSapIdKey,
+  selectedCongTrinh: filters.congTrinh,
 });
 
 const {
@@ -411,12 +412,6 @@ const handleContinueToOrderColumnStep = () => {
   };
 
   const getMaterialRowClassName = (row: DataRow): string => {
-  console.log('DEBUG row status:', {
-    matStatusSapKey,
-    matEstDateKey,
-    rawStatus: row[matStatusSapKey],
-    rawDate: row[matEstDateKey],
-  });
     const status = String(row[matStatusSapKey] || '').toLowerCase();
     if (status.includes('hủy')) return 'bg-gray-100 text-gray-500 italic';
     if (status.includes('hoàn thành') || status.includes('đóng') || status.includes('xong')) return 'bg-green-100 text-green-800';

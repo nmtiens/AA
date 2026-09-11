@@ -46,6 +46,11 @@ interface UsePivotTablesParams {
   stockDateKey: string;
   stockValueKey: string;
   stockSapIdKey: string;
+  // Danh sách công trình đang được người dùng CHỦ ĐỘNG chọn lọc (filters.congTrinh
+  // từ useDashboardFilters ở Dashboard.tsx). Rỗng = không filter gì -> P022 lấy
+  // TỔNG TOÀN BỘ tồn kho ngày gần nhất. Có chọn -> P022 chỉ tính tồn kho của
+  // các công trình đó (khớp theo tên, đã chuẩn hoá).
+  selectedCongTrinh?: string[];
 }
 
 interface UsePivotTablesResult {
@@ -118,6 +123,7 @@ export function usePivotTables({
   stockDateKey,
   stockValueKey,
   stockSapIdKey,
+  selectedCongTrinh = [],
 }: UsePivotTablesParams): UsePivotTablesResult {
   // -------------------------------------------------------------------------
   // State
@@ -396,24 +402,39 @@ export function usePivotTables({
     };
   }, [filteredProductionData, bopKey, workshopMetric, valueKey, realValueKey, tinhTrangKey, xuongKey]);
 
+
+  // -------------------------------------------------------------------------
+  // Custom funnel data (bao gồm P022. TỒN KHO)
+  //
+  // Logic P022:
+  //   - selectedCongTrinh RỖNG (không filter) -> TỔNG TOÀN BỘ tồn kho ngày gần nhất.
+  //   - selectedCongTrinh CÓ giá trị (user đang lọc công trình) -> chỉ tính tồn kho
+  //     của các công trình đó, khớp theo tên đã chuẩn hoá với stockData['ten_cong_trinh'].
+  // -------------------------------------------------------------------------
   const customFunnelData = useMemo(() => {
     if (!pivotFunnelData || !pivotFunnelData.data) return [];
 
     const getVal = (bop: string) => pivotFunnelData.data.find(d => d.name === bop)?.value || 0;
+    const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
 
     let p022Val = 0;
+
     if (closestStockDate && stockDateKey && stockValueKey) {
-      const filteredStockRows = stockData.filter(r => {
+      const stockRowsOnDate = stockData.filter(r => {
         const rowDate = parseVNDate(String(r[stockDateKey] || '').trim());
         return rowDate && rowDate.getTime() === closestStockDate.getTime();
       });
 
-      // Kiểm tra xem đang chọn xem theo Số lượng (COUNT) hay Giá trị (SUM)
-      if (workshopMetric === 'COUNT_HEX') {
-        const uniqueSapIds = new Set(filteredStockRows.map(r => String(r[stockSapIdKey] || '').trim()).filter(Boolean));
-        p022Val = uniqueSapIds.size > 0 ? uniqueSapIds.size : filteredStockRows.length;
+      if (selectedCongTrinh.length === 0) {
+        p022Val = stockRowsOnDate.reduce(
+          (sum, row) => sum + parseNumber(row[stockValueKey]),
+          0
+        );
       } else {
-        p022Val = filteredStockRows.reduce((sum, row) => sum + parseNumber(row[stockValueKey]), 0);
+        const activeCongTrinh = new Set(selectedCongTrinh.map(normalizeText));
+        p022Val = stockRowsOnDate
+          .filter(r => activeCongTrinh.has(normalizeText(r['ten_cong_trinh'])))
+          .reduce((sum, row) => sum + parseNumber(row[stockValueKey]), 0);
       }
     }
 
@@ -435,9 +456,9 @@ export function usePivotTables({
 
     return funnelItems.map(item => ({
       ...item,
-      percentage: Math.max((item.value / maxVal) * 100, 2), // min 2% width so it's visible
+      percentage: Math.max((item.value / maxVal) * 100, 2),
     }));
-  }, [pivotFunnelData, stockData, closestStockDate, stockDateKey, stockValueKey, workshopMetric, stockSapIdKey]);
+  }, [pivotFunnelData, stockData, closestStockDate, stockDateKey, stockValueKey, selectedCongTrinh]);
 
   // -------------------------------------------------------------------------
   // Pivot: Project (Công trình x Tình trạng)
