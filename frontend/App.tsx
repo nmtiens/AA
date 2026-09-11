@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield,BarChart3 , User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchFromServer, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
+const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -43,6 +44,12 @@ const App: React.FC = () => {
                 <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
                 <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
+                <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="Biểu đồ - Đơn hàng mới" /></RequirePermission>} />
+<Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="Biểu đồ - Triển khai Bản vẽ" /></RequirePermission>} />
+<Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="Biểu đồ - Đã Tính phiếu" /></RequirePermission>} />
+<Route path="/charts/inventory" element={<RequirePermission viewId="dashboard"><ChartOverview source="inventory" title="Biểu đồ - Nhập kho" /></RequirePermission>} />
+<Route path="/charts/export" element={<RequirePermission viewId="dashboard"><ChartOverview source="export" title="Biểu đồ - Xuất kho" /></RequirePermission>} />
+<Route path="/charts/stock" element={<RequirePermission viewId="dashboard"><ChartOverview source="stock" title="Biểu đồ - Tồn kho" /></RequirePermission>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -99,6 +106,15 @@ interface MainLayoutContext {
   isGlobalLoading: boolean; // Thêm trạng thái loading để truyền cho các component con
 }
 
+const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
+  { key: 'order', label: 'Đơn hàng mới', path: '/charts/order' },
+  { key: 'tkbv', label: 'Triển khai BV', path: '/charts/tkbv' },
+  { key: 'pthsp', label: 'Đã tính phiếu', path: '/charts/pthsp' },
+  { key: 'inventory', label: 'Nhập kho', path: '/charts/inventory' },
+  { key: 'export', label: 'Xuất kho', path: '/charts/export' },
+  { key: 'stock', label: 'Tồn kho', path: '/charts/stock' },
+];
+
 const ICON_MAP: Record<string, React.ReactNode> = {
   'LayoutDashboard': <LayoutDashboard size={20} />, 'Table': <Table size={20} />, 'Package': <Package size={20} />,
   'Shield': <Shield size={20} />, 'Calendar': <Calendar size={20} />, 'ShoppingCart': <ShoppingCart size={20} />,
@@ -149,7 +165,7 @@ const MainLayout: React.FC = () => {
 
   // Trạng thái đóng/mở của nhóm menu gộp "Dữ liệu" - mặc định đóng
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
-
+  const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -160,13 +176,26 @@ const MainLayout: React.FC = () => {
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
 
-  // Nếu trang hiện tại nằm trong nhóm "Dữ liệu", tự động mở nhóm ra để người dùng thấy mục đang active
   useEffect(() => {
-    const currentView = APP_VIEWS.find(v => v.path === location.pathname);
-    if (currentView && !STANDALONE_VIEW_IDS.includes(currentView.id)) {
-      setIsDataMenuOpen(true);
-    }
-  }, [location.pathname]);
+  const currentView = APP_VIEWS.find(v => v.path === location.pathname);
+  if (currentView && !STANDALONE_VIEW_IDS.includes(currentView.id)) {
+    setIsDataMenuOpen(true);
+  }
+  if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
+    setIsChartMenuOpen(true);
+  }
+}, [location.pathname]);
+
+const isChartGroupActive = CHART_SUB_ITEMS.some(item => item.path === location.pathname);
+
+const handleChartGroupToggle = () => {
+  if (isCollapsed) {
+    setIsCollapsed(false);
+    setIsChartMenuOpen(true);
+  } else {
+    setIsChartMenuOpen(!isChartMenuOpen);
+  }
+};
 
 const checkAndSync = async (forceAll = false) => {
   try {
@@ -482,6 +511,50 @@ const checkAndSync = async (forceAll = false) => {
               )}
             </div>
           )}
+
+          {/* Nhóm biểu đồ tổng hợp */}
+<div>
+  <button
+    onClick={handleChartGroupToggle}
+    title={isCollapsed ? 'Biểu đồ' : undefined}
+    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
+      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
+      ${isChartGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+  >
+    <BarChart3 size={20} className="shrink-0" />
+    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+      Biểu đồ
+    </span>
+    {!isCollapsed && (
+      <ChevronDown
+        size={16}
+        className={`transition-transform duration-200 shrink-0 ${isChartMenuOpen ? 'rotate-180' : ''}`}
+      />
+    )}
+  </button>
+
+  {!isCollapsed && (
+    <div className={`overflow-hidden transition-all duration-300 ${isChartMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+        {CHART_SUB_ITEMS.map((item) => {
+          const active = location.pathname === item.path;
+          return (
+            <Link
+              key={item.key}
+              to={item.path}
+              onClick={closeMobileSidebar}
+              className={`flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all duration-200
+                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <TrendingUp size={16} className="shrink-0" />
+              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</div>
 
           {/* Quản trị User - luôn hiển thị riêng, cuối danh sách */}
           {usersView && (

@@ -82,9 +82,9 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-        <h4 className={`${embedded ? 'text-sm' : 'text-xl'} font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide`}>
+       <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          {theme.label} theo xưởng chính
+          Xu hướng {theme.label} theo xưởng chính
         </h4>
       </div>
 
