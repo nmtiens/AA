@@ -161,8 +161,8 @@ const detectColumnType = (header: string, data: DataRow[]): 'string' | 'number' 
 };
 
 export const exportToCSV = (data: DataRow[], filename: string) => {
-  const csv = Papa.unparse(data, { delimiter: ';' }); // dùng ; thay vì ,
-  const content = '\uFEFF' + csv; // chỉ cần BOM, bỏ sep=,
+  const csv = Papa.unparse(data, { delimiter: ',' });
+  const content = '\uFEFF' + csv;   // bỏ 'sep=,\r\n', chỉ giữ BOM
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   if (link.download !== undefined) {

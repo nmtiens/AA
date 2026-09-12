@@ -6,13 +6,13 @@ export const rowsToCsvString = (rows: Record<string, any>[]): string => {
   const escapeCell = (val: any): string => {
     if (val === null || val === undefined) return '';
     const s = String(val);
-    if (s.includes(';') || s.includes('"') || s.includes('\n')) {
+    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
       return `"${s.replace(/"/g, '""')}"`;
     }
     return s;
   };
-  const headerLine = headers.map(escapeCell).join(';');
-  const dataLines = rows.map(row => headers.map(h => escapeCell(row[h])).join(';'));
+  const headerLine = headers.map(escapeCell).join(',');
+  const dataLines = rows.map(row => headers.map(h => escapeCell(row[h])).join(','));
   return '\uFEFF' + [headerLine, ...dataLines].join('\r\n');
 };
 

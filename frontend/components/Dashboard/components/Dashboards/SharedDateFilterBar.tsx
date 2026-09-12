@@ -23,10 +23,16 @@ function todayISO(): string {
 }
 
 /** 'yyyy-mm-dd' của n ngày trước hôm nay */
+/** 'yyyy-mm-dd' của n ngày trước hôm nay */
 function daysAgoISO(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
+}
+
+/** 'yyyy-mm-dd' của hôm qua (today - 1) */
+function yesterdayISO(): string {
+  return daysAgoISO(1);
 }
 
 /**
@@ -73,8 +79,8 @@ export default function SharedDateFilterBar({
 
   const hasExtraFilters = xuong || congTrinh || dvt || phanLoai;
 
-  // Preset đang active = dateFrom/dateTo hiện tại trùng đúng với khoảng preset đó tạo ra
- const isPresetActive = (days: number) => dateFrom === daysAgoISO(days - 1) && dateTo === todayISO();
+const isPresetActive = (days: number) =>
+  dateFrom === daysAgoISO(days) && dateTo === yesterdayISO();
 
   return (
     <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm px-4 py-3 space-y-2">

@@ -34,13 +34,16 @@ const TrendFilterContext = createContext<TrendFilterState | null>(null);
 const toISODate = (d: Date) => d.toISOString().slice(0, 10);
 const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return toISODate(d); };
 
+// Hôm qua (today - 1) — dùng làm mốc "ngày kết thúc" mặc định vì dữ liệu hôm nay có thể chưa đầy đủ
+const yesterday = () => daysAgo(1);
+
 // Số ngày mặc định khi mở trang lần đầu (chưa chọn ngày nào)
 const DEFAULT_RANGE_DAYS = 30;
 
 export function TrendFilterProvider({ children }: { children: ReactNode }) {
   const [granularity, setGranularity] = useState<Granularity>('day');
-const [dateFrom, setDateFrom] = useState(daysAgo(DEFAULT_RANGE_DAYS - 1));
-const [dateTo, setDateTo] = useState(toISODate(new Date()));
+  const [dateFrom, setDateFrom] = useState(daysAgo(DEFAULT_RANGE_DAYS)); // kết thúc ở hôm qua nên từ = hôm qua - (N-1) = daysAgo(N)
+  const [dateTo, setDateTo] = useState(yesterday());
 
   const [xuong, setXuong] = useState('');
   const [congTrinh, setCongTrinh] = useState('');
@@ -70,20 +73,21 @@ const [dateTo, setDateTo] = useState(toISODate(new Date()));
     return () => { cancelled = true; };
   }, []);
 
-const applyGranularity = (g: Granularity) => {
-  setGranularity(g);
-  const rangeDays = g === 'day' ? 30 : g === 'week' ? 90 : 365;
-  setDateFrom(daysAgo(rangeDays - 1)); // trừ 1 để khoảng bao gồm đúng rangeDays ngày (tính cả hôm nay)
-  setDateTo(toISODate(new Date()));
-};
+  const applyGranularity = (g: Granularity) => {
+    setGranularity(g);
+    const rangeDays = g === 'day' ? 30 : g === 'week' ? 90 : 365;
+    setDateFrom(daysAgo(rangeDays)); // kết thúc = hôm qua, nên trừ đúng rangeDays (không -1 nữa)
+    setDateTo(yesterday());
+  };
 
-const applyPreset = (days: number) => {
-  setDateFrom(daysAgo(days - 1)); // trừ 1 để "X ngày" nghĩa là đúng X ngày, không phải X+1
-  setDateTo(toISODate(new Date()));
-  if (days <= 30) setGranularity('day');
-  else if (days <= 180) setGranularity('week');
-  else setGranularity('month');
-};
+  const applyPreset = (days: number) => {
+    setDateFrom(daysAgo(days)); // "X ngày" kết thúc ở hôm qua, bắt đầu = hôm qua - (X-1) = daysAgo(X)
+    setDateTo(yesterday());
+    if (days <= 30) setGranularity('day');
+    else if (days <= 180) setGranularity('week');
+    else setGranularity('month');
+  };
+
 
   const clearRange = () => { setDateFrom(''); setDateTo(''); };
   const clearExtraFilters = () => { setXuong(''); setCongTrinh(''); setDvt(''); setPhanLoai(''); };
