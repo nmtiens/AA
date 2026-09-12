@@ -206,7 +206,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: embedded ? 40 : 48, right: embedded ? 90 : 110, left: 0, bottom: 0 }}>
+ <ComposedChart data={chartData} margin={{ top: embedded ? 40 : 48, right: embedded ? 130 : 150, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
               <YAxis
@@ -239,7 +239,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB: ${formatShort(avgAll)}`;
+                    const text = `TB theo ngày: ${formatShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x + viewBox.width + 8}

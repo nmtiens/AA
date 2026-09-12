@@ -12,6 +12,8 @@ import { getYesterdayDateOption } from '../../utils/dateHelpers';
 import TrendChart from '../Dashboards/TrendChart';
 import ByXuongChart from '../Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
+import TrendByDvtChart from '../Dashboards/TrendByDvtChart';
+import TrendByPhanLoaiChart from '../Dashboards/TrendByPhanLoaiChart';
 import { TrendFilterProvider } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
 // ---------------------------------------------------------------------------
@@ -735,6 +737,8 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
                     <TrendChart source="order" embedded displayMode={ipoMetric} />
                     <ByXuongChart source="order" displayMode={ipoMetric} />
                     <ByCongTrinhChart source="order" displayMode={ipoMetric} />
+                  <TrendByPhanLoaiChart source="order" displayMode={ipoMetric} embedded supportsPhanLoai />
+<TrendByDvtChart source="order" displayMode={ipoMetric} embedded supportsDvt />
                   </div>
                 </>
               ) : (
@@ -826,10 +830,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
               {tkbvTab === 'chart' ? (
                 <>
                   <SharedDateFilterBar showProductFilters /> 
-                  <div className="p-6">
+               <div className="p-6">
   <TrendChart source="tkbv" embedded displayMode={tkbvMetric} />
   <ByXuongChart source="tkbv" displayMode={tkbvMetric} />
   <ByCongTrinhChart source="tkbv" displayMode={tkbvMetric} />
+  <TrendByPhanLoaiChart source="tkbv" displayMode={tkbvMetric} embedded supportsPhanLoai />
+  <TrendByDvtChart source="tkbv" displayMode={tkbvMetric} embedded supportsDvt />
 </div>
                 </>
               ) : (
@@ -921,10 +927,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
               {pthspTab === 'chart' ? (
                 <>
                   <SharedDateFilterBar showProductFilters /> 
-                  <div className="p-6">
+                 <div className="p-6">
   <TrendChart source="pthsp" embedded displayMode={pthspMetric} />
   <ByXuongChart source="pthsp" displayMode={pthspMetric} />
   <ByCongTrinhChart source="pthsp" displayMode={pthspMetric} />
+  <TrendByPhanLoaiChart source="pthsp" displayMode={pthspMetric} embedded supportsPhanLoai />
+  <TrendByDvtChart source="pthsp" displayMode={pthspMetric} embedded supportsDvt />
 </div>
                 </>
               ) : (
@@ -1017,10 +1025,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
               {inventoryTab === 'chart' ? (
                 <>
                   <SharedDateFilterBar showProductFilters /> 
-                 <div className="p-6">
+              <div className="p-6">
   <TrendChart source="inventory" embedded displayMode={inventoryMetric} />
   <ByXuongChart source="inventory" displayMode={inventoryMetric} />
   <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
+  <TrendByPhanLoaiChart source="inventory" displayMode={inventoryMetric} embedded supportsPhanLoai />
+  <TrendByDvtChart source="inventory" displayMode={inventoryMetric} embedded supportsDvt />
 </div>
                 </>
               ) : (
@@ -1114,10 +1124,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
               {exportTab === 'chart' ? (
                 <>
                   <SharedDateFilterBar showProductFilters /> 
-                  <div className="p-6">
+                 <div className="p-6">
   <TrendChart source="export" embedded displayMode={exportMetric} />
   <ByXuongChart source="export" displayMode={exportMetric} />
   <ByCongTrinhChart source="export" displayMode={exportMetric} />
+  <TrendByPhanLoaiChart source="export" displayMode={exportMetric} embedded supportsPhanLoai />
+  <TrendByDvtChart source="export" displayMode={exportMetric} embedded supportsDvt />
 </div>
                 </>
               ) : (
@@ -1220,10 +1232,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
               {stockTab === 'chart' ? (
                 <>
                    <SharedDateFilterBar showProductFilters /> 
-                  <div className="p-6">
+                <div className="p-6">
   <TrendChart source="stock" embedded displayMode={stockMetric} />
   <ByXuongChart source="stock" displayMode={stockMetric} />
   <ByCongTrinhChart source="stock" displayMode={stockMetric} />
+  <TrendByPhanLoaiChart source="stock" displayMode={stockMetric} embedded supportsPhanLoai />
+  <TrendByDvtChart source="stock" displayMode={stockMetric} embedded supportsDvt />
 </div>
                 </>
               ) : (

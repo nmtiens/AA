@@ -220,7 +220,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB: ${formatShort(avgAll)}`;
+                    const text = `TB theo CT: ${formatShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x}

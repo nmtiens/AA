@@ -9,13 +9,13 @@ import { useTrendFilter } from './TrendFilterContext';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
-interface ApiXuongPoint {
-  xuongCode: string;
-  xuongName: string;
+interface ApiPhanLoaiPoint {
+  phanLoaiCode: string;
+  phanLoaiName: string;
   total: number;
   totalCount: number;
 }
-interface ChartPoint { xuong: string; total: number; }
+interface ChartPoint { phanLoai: string; total: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
@@ -29,27 +29,34 @@ const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; 
   stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
 };
 
-interface TrendByXuongChartProps {
+interface TrendByPhanLoaiChartProps {
   source: TrendSource;
   embedded?: boolean;
   displayMode: DisplayMetric;
+  /** Nguồn không có dữ liệu phân loại SP (vd: stock) — hiển thị cảnh báo thay vì gọi API */
+  supportsPhanLoai?: boolean;
 }
 
-export default function TrendByXuongChart({ source, embedded = false, displayMode }: TrendByXuongChartProps) {
+export default function TrendByPhanLoaiChart({
+  source,
+  embedded = false,
+  displayMode,
+  supportsPhanLoai = true,
+}: TrendByPhanLoaiChartProps) {
   const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
 
-  const [raw, setRaw] = useState<ApiXuongPoint[]>([]);
+  const [raw, setRaw] = useState<ApiPhanLoaiPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   const theme = THEME[source];
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
-  const isStock = source === 'stock';
 
-  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
+  // Thiếu 1 trong 2 mốc ngày, hoặc nguồn không hỗ trợ phân loại SP -> không fetch
   const hasValidRange = Boolean(dateFrom && dateTo);
+  const canFetch = hasValidRange && supportsPhanLoai;
 
   useEffect(() => {
-    if (!hasValidRange) {
+    if (!canFetch) {
       setRaw([]);
       setLoading(false);
       return;
@@ -63,29 +70,33 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
     if (xuong) params.set('xuong', xuong);
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (dvt) params.set('dvt', dvt);
+    // Không set 'phanLoai' vào params vì đây chính là chiều đang nhóm dữ liệu theo —
+    // nếu người dùng đã chọn 1 phân loại cụ thể ở bộ lọc chung thì biểu đồ này sẽ tự
+    // hiển thị đúng đúng cột đó khi API tự trả về (không cần lọc thêm ở client),
+    // nhưng vẫn phải gửi lên để API tôn trọng bộ lọc chung nếu người dùng có chọn.
     if (phanLoai) params.set('phanLoai', phanLoai);
 
-    fetch(`/api/trend-by-xuong?${params.toString()}`)
+   fetch(`/api/trend-by-phanloai?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then(d => { if (!cancelled) setRaw(Array.isArray(d) ? d : []); })
       .catch(err => {
-        console.error(`Lỗi fetch /api/trend-by-xuong (${source}):`, err);
+        console.error(`Lỗi fetch /api/trend-by-phan-loai (${source}):`, err);
         if (!cancelled) setRaw([]);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
-    if (!hasValidRange) return [];
-    const pickValue = (p: ApiXuongPoint) => (displayMode === 'COUNT' ? p.totalCount : p.total);
+    if (!canFetch) return [];
+    const pickValue = (p: ApiPhanLoaiPoint) => (displayMode === 'COUNT' ? p.totalCount : p.total);
     return raw
-      .map(p => ({ xuong: p.xuongName || p.xuongCode, total: pickValue(p) }))
+      .map(p => ({ phanLoai: p.phanLoaiName || p.phanLoaiCode, total: pickValue(p) }))
       .sort((a, b) => b.total - a.total);
-  }, [raw, displayMode, hasValidRange]);
+  }, [raw, displayMode, canFetch]);
 
   const avgAll = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -98,18 +109,22 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          Xu hướng {theme.label} theo xưởng chính
+          Xu hướng {theme.label} theo phân loại nhóm sản phẩm
         </h4>
       </div>
 
-      {isStock && (
+      {!supportsPhanLoai && (
         <div className={`${embedded ? 'mb-3' : 'bg-white rounded-xl border border-slate-100 p-3 shadow-sm mb-4'} text-xs text-slate-400`}>
-          Dữ liệu tồn kho không có thông tin theo xưởng.
+          Dữ liệu nguồn này không có thông tin phân loại nhóm sản phẩm.
         </div>
       )}
 
       <div className={`bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col ${embedded ? 'p-3 h-[320px]' : 'p-4 h-[480px]'}`}>
-        {!hasValidRange ? (
+        {!supportsPhanLoai ? (
+          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            Không áp dụng cho nguồn dữ liệu này
+          </div>
+        ) : !hasValidRange ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">
             Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
           </div>
@@ -119,11 +134,11 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: embedded ? 24 : 30, right: embedded ? 90 : 110, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="xuong" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+              <XAxis dataKey="phanLoai" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
               <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10, fill: '#64748b' }} width={55} />
               <RechartsTooltip
                 formatter={(v: number, name: string) => [formatDecimal(v), name]}
-                labelFormatter={(l) => `Xưởng: ${l}`}
+                labelFormatter={(l) => `Phân loại: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
               <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: embedded ? 11 : 13 }} />
@@ -138,7 +153,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB theo xưởng: ${formatShort(avgAll)}`;
+                    const text = `TB theo SP: ${formatShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x + viewBox.width + 4}

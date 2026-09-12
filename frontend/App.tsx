@@ -610,7 +610,7 @@ const checkAndSync = async (forceAll = false) => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col pt-16 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
+     <main className="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
         {error ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
