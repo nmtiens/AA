@@ -57910,11 +57910,12 @@ var STOCK_TREND_CONFIG = {
   dateCol: "date_parsed",
   valueCol: "gia_tri",
   valueDivisor: 1,
-  hexCol: "hex",
+  hexCol: "ma_id_sap",
+  // đổi từ 'hex' sang 'ma_id_sap'
   congTrinhCol: "ten_cong_trinh",
+  dvtCol: "dvt",
   joinProductionForFilters: true,
   xuongViaProductionJoin: true
-  // MỚI
 };
 var ANALYSIS_TABLES = {
   order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true },
@@ -58137,14 +58138,14 @@ var refreshStockDatesCache = async () => {
     return { payload: cachedStockDates, fromCache: true };
   }
   const q = `
-    SELECT date_parsed AS d,
-          COUNT(DISTINCT hex) AS count, 
-           COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
+  SELECT date_parsed AS d,
+        COUNT(DISTINCT ma_id_sap) AS count, 
+         COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
 FROM ton_kho
-    WHERE date_parsed IS NOT NULL
-    GROUP BY 1
-    ORDER BY 1 DESC
-  `;
+  WHERE date_parsed IS NOT NULL
+  GROUP BY 1
+  ORDER BY 1 DESC
+`;
   const r = await timedQuery(q);
   const payload = r.rows.map((row) => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
   cachedStockDates = payload;
@@ -58180,7 +58181,7 @@ app.get("/api/stock/by-project", async (req, res) => {
     if (!date5) return res.status(400).json({ error: "Missing date" });
     const q = `
       SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
-            COUNT(DISTINCT hex) AS count,
+            COUNT(DISTINCT ma_id_sap) AS count,
              COALESCE(SUM(${numericCol("ton_kho", "gia_tri")}), 0) AS value
       FROM ton_kho
       WHERE date_parsed = $1
@@ -58698,10 +58699,10 @@ app.get("/api/trend", async (req, res) => {
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`p.dvt = $${params.length}`);
+        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
       }
     }
     if (phanLoai && needsJoin) {
@@ -58712,7 +58713,7 @@ app.get("/api/trend", async (req, res) => {
     const limit = granularity === "day" ? 15 : 12;
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol)}::double precision` : "";
     const q = `
       SELECT
         date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
@@ -58770,8 +58771,10 @@ app.get("/api/filters/cong-trinh", async (_req, res) => {
 app.get("/api/filters/dvt", async (_req, res) => {
   try {
     const q = `
-      SELECT DISTINCT TRIM(dvt) AS name
-      FROM dht
+      SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM dht
+      WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
+      UNION
+      SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM ton_kho
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       ORDER BY 1
     `;
@@ -58847,10 +58850,10 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`p.dvt = $${params.length}`);
+        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
       }
     }
     if (phanLoai && needsJoin) {
@@ -58859,7 +58862,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol)}::double precision` : "";
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
     const q = `
   SELECT
@@ -58935,10 +58938,10 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
+        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`p.dvt = $${params.length}`);
+        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
       }
     }
     if (phanLoai && needsJoin) {
@@ -58947,7 +58950,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol)}` : "";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol)}::double precision` : "";
     const q = `
       SELECT
         COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,

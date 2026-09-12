@@ -420,11 +420,12 @@ const checkAndSync = async (forceAll = false) => {
       )}
 
       <aside className={`
-        fixed md:static inset-y-0 left-0 z-[60] bg-slate-900 text-slate-300
-        transform transition-all duration-300 ease-in-out flex flex-col shadow-xl md:shadow-none
-        ${isMobileSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
-        ${isCollapsed ? 'md:w-20' : 'md:w-64'}
-      `}>
+  fixed md:static inset-y-0 left-0 z-[60] bg-slate-900 text-slate-300
+  transform transition-all duration-300 ease-in-out flex flex-col shadow-xl md:shadow-none
+  overflow-x-hidden
+  ${isMobileSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
+  ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+`}>
         <div className={`h-16 flex items-center bg-white border-b border-slate-200 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
           <div className={`flex items-center gap-3 font-bold text-slate-800 text-base tracking-wide overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
             <AppLogo />
@@ -452,7 +453,7 @@ const checkAndSync = async (forceAll = false) => {
           </div>
         )}
 
-        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto">
+     <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto overflow-x-hidden">
           {/* Tổng quan - luôn hiển thị riêng, ở đầu */}
           {dashboardView && (
             <NavLink

@@ -528,10 +528,11 @@ const STOCK_TREND_CONFIG: TrendTableConfig = {
   dateCol: 'date_parsed',
   valueCol: 'gia_tri',
   valueDivisor: 1,
-  hexCol: 'hex',
+  hexCol: 'ma_id_sap',           // đổi từ 'hex' sang 'ma_id_sap'
   congTrinhCol: 'ten_cong_trinh',
+  dvtCol: 'dvt',
   joinProductionForFilters: true,
-  xuongViaProductionJoin: true, // MỚI
+  xuongViaProductionJoin: true,
 };
 const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
   order:     { table: 'dht',        dateCol: 'ngay_nhan_tu_pm', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1,  dvtCol: 'dvt', joinProductionForFilters: true },
@@ -823,14 +824,14 @@ const refreshStockDatesCache = async () => {
   }
 
   const q = `
-    SELECT date_parsed AS d,
-          COUNT(DISTINCT hex) AS count, 
-           COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
+  SELECT date_parsed AS d,
+        COUNT(DISTINCT ma_id_sap) AS count, 
+         COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
 FROM ton_kho
-    WHERE date_parsed IS NOT NULL
-    GROUP BY 1
-    ORDER BY 1 DESC
-  `;
+  WHERE date_parsed IS NOT NULL
+  GROUP BY 1
+  ORDER BY 1 DESC
+`;
   const r = await timedQuery(q);
   const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
 
@@ -877,7 +878,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     if (!date) return res.status(400).json({ error: 'Missing date' });
     const q = `
       SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
-            COUNT(DISTINCT hex) AS count,
+            COUNT(DISTINCT ma_id_sap) AS count,
              COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
       FROM ton_kho
       WHERE date_parsed = $1
@@ -1446,12 +1447,12 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
 }
     if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
     if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt); conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
-      } else if (needsJoin) {
-        params.push(dvt); conditions.push(`p.dvt = $${params.length}`);
-      }
-    }
+  if (cfg.dvtCol) {
+    params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+  } else if (needsJoin) {
+    params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+  }
+}
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const useDefaultLimit = !dateFrom && !dateTo;
@@ -1461,7 +1462,7 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
+ const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol!)}::double precision` : '';
 
     const q = `
       SELECT
@@ -1527,8 +1528,10 @@ app.get('/api/filters/cong-trinh', async (_req: Request, res: Response) => {
 app.get('/api/filters/dvt', async (_req: Request, res: Response) => {
   try {
     const q = `
-      SELECT DISTINCT TRIM(dvt) AS name
-      FROM dht
+      SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM dht
+      WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
+      UNION
+      SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM ton_kho
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       ORDER BY 1
     `;
@@ -1601,20 +1604,20 @@ if (source === 'stock' && !dateFrom && !dateTo) {
   }
 }
     if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
-    if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt); conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
-      } else if (needsJoin) {
-        params.push(dvt); conditions.push(`p.dvt = $${params.length}`);
-      }
-    }
+   if (dvt) {
+  if (cfg.dvtCol) {
+    params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+  } else if (needsJoin) {
+    params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+  }
+}
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
+ const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol!)}::double precision` : '';
 
    const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : 'p.xuong_chinh';
 
@@ -1688,19 +1691,19 @@ if (source === 'stock' && !dateFrom && !dateTo) {
 }
     if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
     if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt); conditions.push(`${colBare(cfg.dvtCol)} = $${params.length}`);
-      } else if (needsJoin) {
-        params.push(dvt); conditions.push(`p.dvt = $${params.length}`);
-      }
-    }
+  if (cfg.dvtCol) {
+    params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+  } else if (needsJoin) {
+    params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+  }
+}
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.hex = ${colBare(cfg.hexCol!)}` : '';
+  const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol!)}::double precision` : '';
 
     const q = `
       SELECT
