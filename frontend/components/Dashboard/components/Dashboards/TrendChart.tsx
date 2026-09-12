@@ -165,11 +165,18 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
     return formatChartData(raw, granularity, displayMode, dateFrom, dateTo);
   }, [raw, granularity, displayMode, dateFrom, dateTo]);
 
-  const avgAll = useMemo(() => {
-    if (chartData.length === 0) return 0;
-    const sum = chartData.reduce((s, p) => s + p.total, 0);
-    return Number((sum / chartData.length).toFixed(2));
-  }, [chartData]);
+const avgAll = useMemo(() => {
+  // Riêng tồn kho ('stock'): chỉ tính trung bình trên các ngày CÓ dữ liệu
+  // (bỏ qua các ngày = 0 do không có snapshot tồn kho vào ngày đó),
+  // để không bị kéo trung bình xuống thấp một cách sai lệch.
+  const pointsForAvg = source === 'stock'
+    ? chartData.filter(p => p.total > 0)
+    : chartData;
+
+  if (pointsForAvg.length === 0) return 0;
+  const sum = pointsForAvg.reduce((s, p) => s + p.total, 0);
+  return Number((sum / pointsForAvg.length).toFixed(2));
+}, [chartData, source]);
 
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
