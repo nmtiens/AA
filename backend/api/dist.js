@@ -57911,18 +57911,19 @@ var STOCK_TREND_CONFIG = {
   valueCol: "gia_tri",
   valueDivisor: 1,
   hexCol: "ma_id_sap",
-  // đổi từ 'hex' sang 'ma_id_sap'
   congTrinhCol: "ten_cong_trinh",
   dvtCol: "dvt",
   joinProductionForFilters: true,
-  xuongViaProductionJoin: true
+  xuongViaProductionJoin: true,
+  productionJoinCol: "ma_id_sap"
+  // ton_kho <-> production_status_app khớp qua ma_id_sap (giữ nguyên, đã đúng)
 };
 var ANALYSIS_TABLES = {
-  order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true },
-  tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true },
-  pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true },
-  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1e6, joinProductionForFilters: true },
-  export: { table: "xuat_kho", dateCol: "date", valueCol: "so_luong_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true }
+  order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true, productionJoinCol: "hex" },
+  tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
+  pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
+  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1e6, joinProductionForFilters: true, productionJoinCol: "hex" },
+  export: { table: "xuat_kho", dateCol: "date", valueCol: "so_luong_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" }
 };
 var ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
 var TREND_SOURCES = /* @__PURE__ */ new Set([...Object.keys(ANALYSIS_TABLES), "stock"]);
@@ -58713,7 +58714,8 @@ app.get("/api/trend", async (req, res) => {
     const limit = granularity === "day" ? 15 : 12;
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol)}::double precision` : "";
+    const joinKey = cfg.productionJoinCol || "hex";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
     const q = `
       SELECT
         date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
@@ -58862,7 +58864,8 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol)}::double precision` : "";
+    const joinKey = cfg.productionJoinCol || "hex";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
     const q = `
   SELECT
@@ -58950,7 +58953,8 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     }
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p.ma_id_sap = ${colBare(cfg.hexCol)}::double precision` : "";
+    const joinKey = cfg.productionJoinCol || "hex";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
     const q = `
       SELECT
         COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
@@ -58972,6 +58976,171 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     res.json(rows);
   } catch (error61) {
     console.error("L\u1ED7i /api/trend-by-congtrinh:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get("/api/trend-by-dvt", async (req, res) => {
+  try {
+    const source = req.query.source;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
+    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const dateFrom = parseSafeDate(req.query.dateFrom);
+    const dateTo = parseSafeDate(req.query.dateTo);
+    const xuong = req.query.xuong || "";
+    const congTrinh = req.query.congTrinh || "";
+    const dvt = req.query.dvt || "";
+    const phanLoai = req.query.phanLoai || "";
+    const needsDvtJoin = !cfg.dvtCol;
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+    const mainAlias = needsJoin ? "m" : "";
+    const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
+    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params = [];
+    if (source === "stock" && !dateFrom && !dateTo) {
+      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    } else {
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      }
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+      }
+    }
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong);
+        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong);
+        conditions.push(`p.xuong_chinh = $${params.length}`);
+      }
+    }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh);
+      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+    }
+    if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt);
+        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+      } else if (needsJoin) {
+        params.push(dvt);
+        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+      }
+    }
+    if (phanLoai && needsJoin) {
+      params.push(phanLoai);
+      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+    }
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+    const joinKey = cfg.productionJoinCol || "hex";
+    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const dvtExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
+    const q = `
+      SELECT
+        COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS dvt,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY 1
+      ORDER BY total_value DESC
+    `;
+    const r = await timedQuery(q, params);
+    const rows = r.rows.map((row) => ({
+      dvtCode: row.dvt,
+      dvtName: row.dvt,
+      total: Number(row.total_value),
+      totalCount: Number(row.total_count)
+    }));
+    res.json(rows);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/trend-by-dvt:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get("/api/trend-by-phanloai", async (req, res) => {
+  try {
+    const source = req.query.source;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
+    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    if (!cfg.joinProductionForFilters || !cfg.hexCol) {
+      return res.json([]);
+    }
+    const dateFrom = parseSafeDate(req.query.dateFrom);
+    const dateTo = parseSafeDate(req.query.dateTo);
+    const xuong = req.query.xuong || "";
+    const congTrinh = req.query.congTrinh || "";
+    const dvt = req.query.dvt || "";
+    const mainAlias = "m";
+    const colBare = (name) => `${mainAlias}.${name}`;
+    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params = [];
+    if (source === "stock" && !dateFrom && !dateTo) {
+      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    } else {
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      }
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+      }
+    }
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong);
+        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong);
+        conditions.push(`p.xuong_chinh = $${params.length}`);
+      }
+    }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh);
+      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+    }
+    if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt);
+        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+      } else {
+        params.push(dvt);
+        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+      }
+    }
+    const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
+    const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
+    const joinKey = cfg.productionJoinCol || "hex";
+    const joinClause = `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text`;
+    const q = `
+      SELECT
+        COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS phan_loai,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY 1
+      ORDER BY total_value DESC
+    `;
+    const r = await timedQuery(q, params);
+    const rows = r.rows.map((row) => ({
+      phanLoaiCode: row.phan_loai,
+      phanLoaiName: row.phan_loai,
+      total: Number(row.total_value),
+      totalCount: Number(row.total_count)
+    }));
+    res.json(rows);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/trend-by-phanloai:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
