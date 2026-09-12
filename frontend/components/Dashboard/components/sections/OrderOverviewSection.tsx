@@ -155,9 +155,11 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
 
   return (
     // Bọc TrendFilterProvider ở đây để TẤT CẢ các biểu đồ xu hướng
-    // (ở mọi modal: order/tkbv/pthsp/inventory/export/stock) dùng chung
-    // đúng 1 bộ lọc ngày/granularity, không bị tách rời từng biểu đồ nữa.
-    <TrendFilterProvider>
+    <TrendFilterProvider
+      overviewDateFilters={overviewDateFilters}
+      setOverviewDateFilters={setOverviewDateFilters}
+      unifiedDateOptions={unifiedDateOptions}
+    >
     <>
       <div
         ref={sectionRef}

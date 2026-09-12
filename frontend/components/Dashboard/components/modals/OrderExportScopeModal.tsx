@@ -17,6 +17,13 @@ interface OrderExportScopeModalProps {
   onContinue: () => void;
 }
 
+const formatDateFilters = (dates: string[], maxShow = 5) => {
+  if (dates.length === 0) return 'Xuất theo ngày hiển thị hiện tại';
+  if (dates.length <= maxShow) return `Đang áp dụng ngày: ${dates.join(', ')}`;
+  const shown = dates.slice(0, maxShow).join(', ');
+  return `Đang áp dụng ngày: ${shown} và ${dates.length - maxShow} ngày khác`;
+};
+
 export const OrderExportScopeModal = ({
   isOpen,
   onClose,
@@ -33,8 +40,8 @@ export const OrderExportScopeModal = ({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
-        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-pink-600 to-rose-600">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200 max-h-[90vh]">
+        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-pink-600 to-rose-600 shrink-0">
           <div className="flex items-center gap-3 text-white">
             <div className="p-2 bg-white/20 rounded-lg">
               <Download size={22} className="text-white" />
@@ -49,7 +56,7 @@ export const OrderExportScopeModal = ({
           </button>
         </div>
 
-        <div className="p-6 bg-slate-50/50 flex flex-col gap-4">
+        <div className="p-6 bg-slate-50/50 flex flex-col gap-4 overflow-y-auto">
           <p className="text-sm font-semibold text-slate-700">Bạn muốn xuất dữ liệu theo tùy chọn nào?</p>
 
           <div className="flex flex-col gap-3">
@@ -64,17 +71,18 @@ export const OrderExportScopeModal = ({
                 onChange={() => setOrderExportScope('FILTERED')}
                 className="mt-1 text-pink-600 focus:ring-pink-500 cursor-pointer"
               />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-slate-800">Xuất theo bộ lọc ngày</span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 shrink-0 ml-2">
                     {filteredOrderData.length.toLocaleString('en-US')} dòng
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {overviewDateFilters.length > 0
-                    ? `Đang áp dụng ngày: ${overviewDateFilters.join(', ')}`
-                    : 'Xuất theo ngày hiển thị hiện tại'}
+                <p
+                  className="text-xs text-slate-500 mt-0.5 line-clamp-2 break-words"
+                  title={overviewDateFilters.length > 0 ? overviewDateFilters.join(', ') : undefined}
+                >
+                  {formatDateFilters(overviewDateFilters)}
                 </p>
               </div>
             </div>
@@ -90,10 +98,10 @@ export const OrderExportScopeModal = ({
                 onChange={() => setOrderExportScope('MTD')}
                 className="mt-1 text-pink-600 focus:ring-pink-500 cursor-pointer"
               />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-slate-800">Xuất theo bộ lọc lũy kế tháng</span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 shrink-0 ml-2">
                     {mtdOrderData.length.toLocaleString('en-US')} dòng
                   </span>
                 </div>
@@ -114,10 +122,10 @@ export const OrderExportScopeModal = ({
                 onChange={() => setOrderExportScope('ALL')}
                 className="mt-1 text-pink-600 focus:ring-pink-500 cursor-pointer"
               />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-bold text-slate-800">Xuất đầy đủ dữ liệu (Gốc)</span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0 ml-2">
                     {orderData.length.toLocaleString('en-US')} dòng
                   </span>
                 </div>
@@ -129,7 +137,7 @@ export const OrderExportScopeModal = ({
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-200 bg-white flex justify-end gap-3">
+        <div className="p-4 border-t border-slate-200 bg-white flex justify-end gap-3 shrink-0">
           <button onClick={onClose} className="px-5 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-all text-sm cursor-pointer">
             Hủy
           </button>

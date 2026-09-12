@@ -73,7 +73,28 @@ export function useOverviewSummary({
   const overviewFetchIdRef = useRef(0);
   const hasInitializedOverviewDate = useRef(false);
 
+  // Số ngày tối đa liệt kê trực tiếp trong nhãn trước khi rút gọn thành "và N ngày khác"
+  const MAX_DATES_IN_LABEL = 6;
+
   const getContextLabel = () => {
+    if (overviewDateFilters.length === 0) return "Thống kê toàn bộ thời gian";
+    if (overviewDateFilters.length === 1) return `Thống kê số liệu trong ngày: ${overviewDateFilters[0]}`;
+    if (overviewDateFilters.length <= MAX_DATES_IN_LABEL) {
+      return `Thống kê số liệu các ngày: ${overviewDateFilters.join(', ')}`;
+    }
+    // Sắp xếp giảm dần theo thời gian thực tế (không dựa vào thứ tự chọn) rồi chỉ hiện N ngày gần nhất
+    const sorted = [...overviewDateFilters].sort((a, b) => {
+      const da = parseVNDate(a)?.getTime() ?? 0;
+      const db = parseVNDate(b)?.getTime() ?? 0;
+      return db - da;
+    });
+    const shown = sorted.slice(0, MAX_DATES_IN_LABEL).join(', ');
+    const remaining = overviewDateFilters.length - MAX_DATES_IN_LABEL;
+    return `Thống kê số liệu ${overviewDateFilters.length} ngày: ${shown} và ${remaining} ngày khác`;
+  };
+
+  // Nhãn đầy đủ (không rút gọn) — dùng cho tooltip/title khi cần xem hết danh sách ngày
+  const getContextLabelFull = () => {
     if (overviewDateFilters.length === 0) return "Thống kê toàn bộ thời gian";
     if (overviewDateFilters.length === 1) return `Thống kê số liệu trong ngày: ${overviewDateFilters[0]}`;
     return `Thống kê số liệu các ngày: ${overviewDateFilters.join(', ')}`;
@@ -266,6 +287,7 @@ const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
     setShowDateWarning,
 
     getContextLabel,
+    getContextLabelFull,
     overviewDateRangeDisplay,
     latestUnifiedDate,
 
