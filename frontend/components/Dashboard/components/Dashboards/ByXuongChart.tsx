@@ -36,7 +36,6 @@ interface TrendByXuongChartProps {
 }
 
 export default function TrendByXuongChart({ source, embedded = false, displayMode }: TrendByXuongChartProps) {
-  // Thêm "xuong" vào đây — trước đây chart này bỏ qua bộ lọc xưởng của thanh lọc chung
   const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiXuongPoint[]>([]);
@@ -46,18 +45,27 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
   const isStock = source === 'stock';
 
-useEffect(() => {
-  let cancelled = false;
-  setLoading(true);
-  const params = new URLSearchParams({ source });
-  if (dateFrom) params.set('dateFrom', dateFrom);
-  if (dateTo) params.set('dateTo', dateTo);
-  if (xuong) params.set('xuong', xuong);
-  if (congTrinh) params.set('congTrinh', congTrinh);
-  if (dvt) params.set('dvt', dvt);
-  if (phanLoai) params.set('phanLoai', phanLoai);
+  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
+  const hasValidRange = Boolean(dateFrom && dateTo);
 
-     fetch(`/api/trend-by-xuong?${params.toString()}`)
+  useEffect(() => {
+    if (!hasValidRange) {
+      setRaw([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    const params = new URLSearchParams({ source });
+    params.set('dateFrom', dateFrom);
+    params.set('dateTo', dateTo);
+    if (xuong) params.set('xuong', xuong);
+    if (congTrinh) params.set('congTrinh', congTrinh);
+    if (dvt) params.set('dvt', dvt);
+    if (phanLoai) params.set('phanLoai', phanLoai);
+
+    fetch(`/api/trend-by-xuong?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -69,14 +77,15 @@ useEffect(() => {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-}, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
+    if (!hasValidRange) return [];
     const pickValue = (p: ApiXuongPoint) => (displayMode === 'COUNT' ? p.totalCount : p.total);
     return raw
       .map(p => ({ xuong: p.xuongName || p.xuongCode, total: pickValue(p) }))
       .sort((a, b) => b.total - a.total);
-  }, [raw, displayMode]);
+  }, [raw, displayMode, hasValidRange]);
 
   const avgAll = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -87,7 +96,7 @@ useEffect(() => {
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-       <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+        <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
           Xu hướng {theme.label} theo xưởng chính
         </h4>
@@ -100,7 +109,11 @@ useEffect(() => {
       )}
 
       <div className={`bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col ${embedded ? 'p-3 h-[320px]' : 'p-4 h-[480px]'}`}>
-        {loading ? (
+        {!hasValidRange ? (
+          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
+          </div>
+        ) : loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">

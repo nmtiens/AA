@@ -102,8 +102,8 @@ function formatChartData(
   });
 
   const fullKeys = buildFullPeriodKeys(dateFrom, dateTo, granularity);
-  // Nếu chưa có dateFrom/dateTo (trường hợp hiếm) thì fallback về đúng các kỳ có trong dữ liệu API
-  const keysToRender = fullKeys.length > 0 ? fullKeys : points.map(p => periodKey(p.period, granularity));
+  // Nếu thiếu dateFrom/dateTo thì KHÔNG fallback về dữ liệu thô nữa (tránh render vô hạn điểm)
+  const keysToRender = fullKeys;
 
   return keysToRender.map(key => ({
     period: formatLabel(key, granularity),
@@ -136,18 +136,27 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
   const theme = THEME[source];
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
 
+  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
+  const hasValidRange = Boolean(dateFrom && dateTo);
+
   useEffect(() => {
+    if (!hasValidRange) {
+      setRaw([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     const params = new URLSearchParams({ source, granularity });
-    if (dateFrom) params.set('dateFrom', dateFrom);
-    if (dateTo) params.set('dateTo', dateTo);
+    params.set('dateFrom', dateFrom);
+    params.set('dateTo', dateTo);
     if (xuong) params.set('xuong', xuong);
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
 
-       fetch(`/api/trend?${params.toString()}`)
+    fetch(`/api/trend?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -159,88 +168,93 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
+  }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
 
   const chartData = useMemo(() => {
+    if (!hasValidRange) return [];
     return formatChartData(raw, granularity, displayMode, dateFrom, dateTo);
-  }, [raw, granularity, displayMode, dateFrom, dateTo]);
+  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange]);
 
-const avgAll = useMemo(() => {
-  // Riêng tồn kho ('stock'): chỉ tính trung bình trên các ngày CÓ dữ liệu
-  // (bỏ qua các ngày = 0 do không có snapshot tồn kho vào ngày đó),
-  // để không bị kéo trung bình xuống thấp một cách sai lệch.
-  const pointsForAvg = source === 'stock'
-    ? chartData.filter(p => p.total > 0)
-    : chartData;
+  const avgAll = useMemo(() => {
+    // Riêng tồn kho ('stock'): chỉ tính trung bình trên các ngày CÓ dữ liệu
+    // (bỏ qua các ngày = 0 do không có snapshot tồn kho vào ngày đó),
+    // để không bị kéo trung bình xuống thấp một cách sai lệch.
+    const pointsForAvg = source === 'stock'
+      ? chartData.filter(p => p.total > 0)
+      : chartData;
 
-  if (pointsForAvg.length === 0) return 0;
-  const sum = pointsForAvg.reduce((s, p) => s + p.total, 0);
-  return Number((sum / pointsForAvg.length).toFixed(2));
-}, [chartData, source]);
+    if (pointsForAvg.length === 0) return 0;
+    const sum = pointsForAvg.reduce((s, p) => s + p.total, 0);
+    return Number((sum / pointsForAvg.length).toFixed(2));
+  }, [chartData, source]);
 
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-     <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+        <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
           Xu hướng {theme.label} theo thời gian
         </h4>
       </div>
 
       <div className={`bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col ${embedded ? 'p-3 h-[320px]' : 'p-4 h-[480px]'}`}>
-        {loading ? (
+        {!hasValidRange ? (
+          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
+          </div>
+        ) : loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-         <ComposedChart data={chartData} margin={{ top: embedded ? 40 : 48, right: embedded ? 90 : 110, left: 0, bottom: 0 }}>
+            <ComposedChart data={chartData} margin={{ top: embedded ? 40 : 48, right: embedded ? 90 : 110, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
-          <YAxis
-  tickFormatter={formatDecimal}
-  tick={{ fontSize: 10, fill: '#64748b' }}
-  width={55}
-  domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
-/>
+              <YAxis
+                tickFormatter={formatDecimal}
+                tick={{ fontSize: 10, fill: '#64748b' }}
+                width={55}
+                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
+              />
               <RechartsTooltip
                 formatter={(v: number, name: string) => [formatDecimal(v), name]}
                 labelFormatter={(l) => `Kỳ: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
               <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: embedded ? 11 : 13 }} />
-            <Bar dataKey="total" name={unit} fill={theme.bar} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
-  <LabelList
-    dataKey="total"
-    position="top"
-    offset={10}
-    formatter={(v: number) => formatDecimal(v)}
-    fontSize={embedded ? 9 : 10}
-    fill={theme.barDark}
-  />
-</Bar>
+              <Bar dataKey="total" name={unit} fill={theme.bar} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
+                <LabelList
+                  dataKey="total"
+                  position="top"
+                  offset={10}
+                  formatter={(v: number) => formatDecimal(v)}
+                  fontSize={embedded ? 9 : 10}
+                  fill={theme.barDark}
+                />
+              </Bar>
               {chartData.length > 0 && (
-              <ReferenceLine
-  y={avgAll}
-  stroke="#16a34a"
-  strokeWidth={2}
-  strokeDasharray="6 4"
-  label={(props: any) => {
-    const { viewBox } = props;
-    const text = `TB: ${formatShort(avgAll)}`;
-    return (
-      <text
-        x={viewBox.x + viewBox.width + 8}
-        y={viewBox.y}
-        dy={4}
-        textAnchor="start"
-        fontSize={embedded ? 10 : 11}
-        fontWeight={600}
-        fill="#16a34a"
-      >
-        {text}
-      </text>
-    );
-  }}
-/>
+                <ReferenceLine
+                  y={avgAll}
+                  stroke="#16a34a"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  label={(props: any) => {
+                    const { viewBox } = props;
+                    const text = `TB: ${formatShort(avgAll)}`;
+                    return (
+                      <text
+                        x={viewBox.x + viewBox.width + 8}
+                        y={viewBox.y}
+                        dy={4}
+                        textAnchor="start"
+                        fontSize={embedded ? 10 : 11}
+                        fontWeight={600}
+                        fill="#16a34a"
+                      >
+                        {text}
+                      </text>
+                    );
+                  }}
+                />
               )}
             </ComposedChart>
           </ResponsiveContainer>

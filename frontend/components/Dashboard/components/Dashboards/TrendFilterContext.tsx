@@ -42,8 +42,8 @@ const DEFAULT_RANGE_DAYS = 30;
 
 export function TrendFilterProvider({ children }: { children: ReactNode }) {
   const [granularity, setGranularity] = useState<Granularity>('day');
-  const [dateFrom, setDateFrom] = useState(daysAgo(DEFAULT_RANGE_DAYS)); // kết thúc ở hôm qua nên từ = hôm qua - (N-1) = daysAgo(N)
-  const [dateTo, setDateTo] = useState(yesterday());
+  const [dateFrom, setDateFromRaw] = useState(daysAgo(DEFAULT_RANGE_DAYS));
+  const [dateTo, setDateToRaw] = useState(yesterday());
 
   const [xuong, setXuong] = useState('');
   const [congTrinh, setCongTrinh] = useState('');
@@ -73,23 +73,46 @@ export function TrendFilterProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, []);
 
+  /**
+   * QUAN TRỌNG: Không cho phép trạng thái "chỉ có 1 trong 2 mốc ngày".
+   * Nếu người dùng xóa tay 1 ô (dateFrom hoặc dateTo) trong khi ô còn lại
+   * vẫn có giá trị, coi như xóa cả khoảng — tránh việc chart fetch
+   * "không giới hạn điểm bắt đầu/kết thúc" gây tràn dữ liệu.
+   */
+  const setDateFrom = (d: string) => {
+    if (!d && dateTo) {
+      setDateFromRaw('');
+      setDateToRaw('');
+      return;
+    }
+    setDateFromRaw(d);
+  };
+
+  const setDateTo = (d: string) => {
+    if (!d && dateFrom) {
+      setDateFromRaw('');
+      setDateToRaw('');
+      return;
+    }
+    setDateToRaw(d);
+  };
+
   const applyGranularity = (g: Granularity) => {
     setGranularity(g);
     const rangeDays = g === 'day' ? 30 : g === 'week' ? 90 : 365;
-    setDateFrom(daysAgo(rangeDays)); // kết thúc = hôm qua, nên trừ đúng rangeDays (không -1 nữa)
-    setDateTo(yesterday());
+    setDateFromRaw(daysAgo(rangeDays));
+    setDateToRaw(yesterday());
   };
 
   const applyPreset = (days: number) => {
-    setDateFrom(daysAgo(days)); // "X ngày" kết thúc ở hôm qua, bắt đầu = hôm qua - (X-1) = daysAgo(X)
-    setDateTo(yesterday());
+    setDateFromRaw(daysAgo(days));
+    setDateToRaw(yesterday());
     if (days <= 30) setGranularity('day');
     else if (days <= 180) setGranularity('week');
     else setGranularity('month');
   };
 
-
-  const clearRange = () => { setDateFrom(''); setDateTo(''); };
+  const clearRange = () => { setDateFromRaw(''); setDateToRaw(''); };
   const clearExtraFilters = () => { setXuong(''); setCongTrinh(''); setDvt(''); setPhanLoai(''); };
 
   return (

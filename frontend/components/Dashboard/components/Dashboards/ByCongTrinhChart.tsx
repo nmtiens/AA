@@ -92,18 +92,27 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
   const isStock = source === 'stock';
 
+  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
+  const hasValidRange = Boolean(dateFrom && dateTo);
+
   useEffect(() => {
+    if (!hasValidRange) {
+      setRaw([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     setLoading(true);
     const params = new URLSearchParams({ source });
-    if (dateFrom) params.set('dateFrom', dateFrom);
-    if (dateTo) params.set('dateTo', dateTo);
+    params.set('dateFrom', dateFrom);
+    params.set('dateTo', dateTo);
     if (!isStock && xuong) params.set('xuong', xuong);
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
 
-        fetch(`/api/trend-by-congtrinh?${params.toString()}`)
+    fetch(`/api/trend-by-congtrinh?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -115,16 +124,17 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
+  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
+    if (!hasValidRange) return [];
     const pickValue = (p: ApiCongTrinhPoint) => (displayMode === 'COUNT' ? p.totalCount : p.total);
     return raw
       .map(p => ({ congTrinh: p.congTrinhName || p.congTrinhCode, total: pickValue(p) }))
       .sort((a, b) => b.total - a.total)
       .slice(0, topN)
       .reverse();
-  }, [raw, displayMode, topN]);
+  }, [raw, displayMode, topN, hasValidRange]);
 
   const avgAll = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -151,9 +161,9 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-      <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+        <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-        Xu hướng {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
+          Xu hướng {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
         </h4>
       </div>
 
@@ -165,9 +175,13 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
       <div
         className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col p-4"
-        style={{ height: chartHeight }}
+        style={{ height: hasValidRange ? chartHeight : (embedded ? 320 : 420) }}
       >
-        {loading ? (
+        {!hasValidRange ? (
+          <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+            Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
+          </div>
+        ) : loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
         ) : chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
