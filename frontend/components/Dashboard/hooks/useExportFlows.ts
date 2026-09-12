@@ -213,7 +213,7 @@ export function useExportFlows({
     ];
 
     const dateStr = overviewDateFilters.length > 0 ? overviewDateFilters.join('_') : 'Toan_bo';
-    exportToCSV(summaryData, `Tong_Hop_Bao_Cao_${dateStr}`);
+   exportToCSV(summaryData, `Tong_Hop_Bao_Cao_${dateStr}.csv`);
   };
 
   const handleOpenOverviewExport = () => {
@@ -301,7 +301,7 @@ export function useExportFlows({
     }
 
     const dateStr = filterKey || new Date().toISOString().split('T')[0];
-    exportToCSV(data, `${fileLabel}_${dateStr}`);
+ exportToCSV(data, `${fileLabel}_${dateStr}.csv`);
   };
 
   // -------------------------------------------------------------------------
@@ -318,7 +318,7 @@ export function useExportFlows({
       [unitLabel]: stockMetric === 'COUNT' ? r.count : r.value,
     }));
     const dateStr = closestStockDate ? toISODateLocal(closestStockDate) : new Date().toISOString().split('T')[0];
-    exportToCSV(data, `Ton_Kho_Theo_Cong_Trinh_${dateStr}`);
+   exportToCSV(data, `Ton_Kho_Theo_Cong_Trinh_${dateStr}.csv`);
   };
 
   // -------------------------------------------------------------------------
@@ -433,7 +433,7 @@ export function useExportFlows({
       "3 Tuần": item['3 tuần'] || 0,
       "Trên 4 Tuần": item['Từ 4 tuần trở lên'] || 0
     }));
-    exportToCSV(flatBottleneckData, `Bao_Cao_Diem_Nghen_${new Date().toISOString().split('T')[0]}`);
+exportToCSV(flatBottleneckData, `Bao_Cao_Diem_Nghen_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
   return {
