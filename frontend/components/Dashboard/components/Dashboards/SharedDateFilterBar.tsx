@@ -17,6 +17,18 @@ function formatDateVN(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/** 'yyyy-mm-dd' của hôm nay */
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** 'yyyy-mm-dd' của n ngày trước hôm nay */
+function daysAgoISO(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * Input ngày luôn hiển thị đúng định dạng dd/mm/yyyy,
  * bất kể locale trình duyệt/hệ điều hành của người dùng.
@@ -61,6 +73,9 @@ export default function SharedDateFilterBar({
 
   const hasExtraFilters = xuong || congTrinh || dvt || phanLoai;
 
+  // Preset đang active = dateFrom/dateTo hiện tại trùng đúng với khoảng preset đó tạo ra
+ const isPresetActive = (days: number) => dateFrom === daysAgoISO(days - 1) && dateTo === todayISO();
+
   return (
     <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm px-4 py-3 space-y-2">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -86,12 +101,22 @@ export default function SharedDateFilterBar({
         <DateInput value={dateFrom} onChange={setDateFrom} />
         <span className="text-slate-400 shrink-0">→</span>
         <DateInput value={dateTo} onChange={setDateTo} />
-        {[{ label: '7 ngày', days: 7 }, { label: '30 ngày', days: 30 }, { label: '90 ngày', days: 90 }, { label: '1 năm', days: 365 }].map(p => (
-          <button key={p.days} onClick={() => applyPreset(p.days)}
-            className="px-2 py-1 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0">
-            {p.label}
-          </button>
-        ))}
+        {[{ label: '7 ngày', days: 7 }, { label: '30 ngày', days: 30 }, { label: '90 ngày', days: 90 }, { label: '1 năm', days: 365 }].map(p => {
+          const active = isPresetActive(p.days);
+          return (
+            <button
+              key={p.days}
+              onClick={() => applyPreset(p.days)}
+              className={`px-2 py-1 rounded-md border shrink-0 transition-colors ${
+                active
+                  ? 'bg-indigo-600 border-indigo-600 text-white'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {p.label}
+            </button>
+          );
+        })}
         {(dateFrom || dateTo) && (
           <button onClick={clearRange} className="px-2 py-1 rounded-md hover:underline text-indigo-600 shrink-0">
             Xóa lọc ngày

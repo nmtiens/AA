@@ -21,11 +21,93 @@ const formatLabel = (period: string, granularity: Granularity) => {
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 };
 
-function formatChartData(points: ApiPoint[], granularity: Granularity, metric: DisplayMetric): TrendPoint[] {
+/** 'yyyy-mm-dd' không phụ thuộc giờ/timezone */
+const toISO = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/** Ngày thứ Hai của tuần chứa d (dùng làm key chuẩn hóa cho granularity 'week') */
+function startOfWeekMonday(d: Date): Date {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = date.getDay(); // 0 = CN, 1 = T2, ...
+  const diff = (day === 0 ? -6 : 1) - day;
+  date.setDate(date.getDate() + diff);
+  return date;
+}
+
+/** Ngày 1 đầu tháng chứa d (dùng làm key chuẩn hóa cho granularity 'month') */
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+/** Chuẩn hóa 1 period trả về từ API thành key so sánh được (yyyy-mm-dd) theo đúng granularity */
+function periodKey(period: string, granularity: Granularity): string {
+  const d = new Date(period);
+  if (granularity === 'week') return toISO(startOfWeekMonday(d));
+  if (granularity === 'month') return toISO(startOfMonth(d));
+  return toISO(d);
+}
+
+/** Tự sinh đủ danh sách kỳ liên tục từ dateFrom -> dateTo theo granularity, không phụ thuộc dữ liệu API trả về */
+function buildFullPeriodKeys(dateFrom: string, dateTo: string, granularity: Granularity): string[] {
+  if (!dateFrom || !dateTo) return [];
+  const start = new Date(dateFrom);
+  const end = new Date(dateTo);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+
+  const keys: string[] = [];
+
+  if (granularity === 'day') {
+    const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cur <= last) {
+      keys.push(toISO(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+  } else if (granularity === 'week') {
+    let cur = startOfWeekMonday(start);
+    const last = startOfWeekMonday(end);
+    while (cur <= last) {
+      keys.push(toISO(cur));
+      cur = new Date(cur);
+      cur.setDate(cur.getDate() + 7);
+    }
+  } else {
+    let cur = startOfMonth(start);
+    const last = startOfMonth(end);
+    while (cur <= last) {
+      keys.push(toISO(cur));
+      cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+    }
+  }
+  return keys;
+}
+
+function formatChartData(
+  points: ApiPoint[],
+  granularity: Granularity,
+  metric: DisplayMetric,
+  dateFrom: string,
+  dateTo: string,
+): TrendPoint[] {
   const pickValue = (p: ApiPoint) => (metric === 'COUNT' ? p.totalCount : p.total);
-  return points.map((p) => ({
-    period: formatLabel(p.period, granularity),
-    total: pickValue(p),
+
+  // Gom dữ liệu API trả về theo key đã chuẩn hóa, để tra cứu nhanh
+  const dataMap = new Map<string, number>();
+  points.forEach(p => {
+    dataMap.set(periodKey(p.period, granularity), pickValue(p));
+  });
+
+  const fullKeys = buildFullPeriodKeys(dateFrom, dateTo, granularity);
+  // Nếu chưa có dateFrom/dateTo (trường hợp hiếm) thì fallback về đúng các kỳ có trong dữ liệu API
+  const keysToRender = fullKeys.length > 0 ? fullKeys : points.map(p => periodKey(p.period, granularity));
+
+  return keysToRender.map(key => ({
+    period: formatLabel(key, granularity),
+    total: dataMap.get(key) ?? 0, // Không có dữ liệu -> 0, thay vì bỏ qua kỳ đó
   }));
 }
 
@@ -80,8 +162,8 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
   }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai]);
 
   const chartData = useMemo(() => {
-    return formatChartData(raw, granularity, displayMode);
-  }, [raw, granularity, displayMode]);
+    return formatChartData(raw, granularity, displayMode, dateFrom, dateTo);
+  }, [raw, granularity, displayMode, dateFrom, dateTo]);
 
   const avgAll = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -123,7 +205,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
     dataKey="total"
     position="top"
     offset={10}
-    formatter={(v: number) => v > 0 ? formatDecimal(v) : ''}
+    formatter={(v: number) => formatDecimal(v)}
     fontSize={embedded ? 9 : 10}
     fill={theme.barDark}
   />
