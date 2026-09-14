@@ -51,7 +51,7 @@ const resolveColumnLabel = (header: string): string => {
   return normalized.toUpperCase().replace(/_/g, ' ');
 };
 
-const API_BASE_URL = '/api';
+export const API_BASE_URL = '/api';
 
 // KHỞI TẠO INDEXED-DB TỐI ƯU
 const initDB = (): Promise<IDBDatabase> => {
@@ -397,3 +397,15 @@ export async function fetchKhsxNhapKhoSummary(params: {
     return null;
   }
 }
+
+export const fetchStockForExport = async (dates?: string[]): Promise<DataRow[]> => {
+  try {
+    const qs = dates && dates.length > 0 ? `?dates=${dates.join(',')}` : '';
+    const r = await fetch(`${API_BASE_URL}/stock/export${qs}`);
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchStockForExport error:', e);
+    return [];
+  }
+};

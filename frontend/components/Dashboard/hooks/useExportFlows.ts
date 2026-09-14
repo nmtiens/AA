@@ -3,11 +3,12 @@ import JSZip from 'jszip';
 import { DataRow, ColumnDefinition } from '../../../types';
 import { ExportFlowType, BottleneckItem } from '../types';
 import { rowsToCsvString, mapRowsToLabeledCsvRows } from '../utils/csvExport';
-import { toISODateLocal } from '../utils/dateHelpers';
+import { toISODateLocal, parseVNDate } from '../utils/dateHelpers';
 import {
-  exportToCSV,
+  exportToCSV, API_BASE_URL,
   type GroupAnalysisRow,
   type OverviewSummary,
+  type StockDateEntry,
 } from '../../../services/dataService';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,10 @@ interface UseExportFlowsParams {
   stockColumns: ColumnDefinition[];
   stockData: DataRow[];
   productionColumns: ColumnDefinition[];
+
+  // --- MỚI: cần cho việc lọc tồn kho theo mốc thời gian đã chọn ---
+  stockDateKey: string;
+  stockDates: StockDateEntry[];
 
   // Overview summary context
   overviewSummary: OverviewSummary | null;
@@ -75,7 +80,15 @@ interface ExportFlowConfig {
   columns: ColumnDefinition[];
   filePrefix: string;
   color: string;
+  displayCount?: number; // MỚI
 }
+
+// Chuẩn hóa 1 giá trị ngày thô (chuỗi từ BE, có thể là ISO hoặc dd/mm/yyyy) về
+// dạng YYYY-MM-DD theo local time, dùng để so khớp mốc thời gian tồn kho.
+const normalizeToISODate = (raw: string): string => {
+  const parsed = parseVNDate(raw) || new Date(raw);
+  return toISODateLocal(parsed);
+};
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -89,6 +102,9 @@ export function useExportFlows({
   exportColumns, exportData,
   stockColumns, stockData,
   productionColumns,
+
+  stockDateKey,
+  stockDates,
 
   overviewSummary,
   overviewDateFilters,
@@ -131,6 +147,13 @@ export function useExportFlows({
   const [isOverviewExportScopeModalOpen, setIsOverviewExportScopeModalOpen] = useState(false);
   const [overviewExportScope, setOverviewExportScope] = useState<ExportScope>('FILTERED');
 
+  // --- MỚI: các mốc thời gian tồn kho đang được chọn trong checklist.
+  // Ý nghĩa của genericExportScope khi flow === 'stock':
+  //   'FILTERED' -> xuất theo các mốc trong selectedStockExportDates
+  //   'ALL'      -> xuất toàn bộ stockData, không lọc
+  // ('MTD' không áp dụng cho tồn kho, không dùng tới trong flow này)
+  const [selectedStockExportDates, setSelectedStockExportDates] = useState<string[]>([]);
+
   // -------------------------------------------------------------------------
   // Effective columns (fallback to inferring from data when no column defs)
   // -------------------------------------------------------------------------
@@ -139,6 +162,11 @@ export function useExportFlows({
     : (orderData && orderData.length > 0
         ? Object.keys(orderData[0]).filter(k => k && k.trim() !== '').map(k => ({ key: k, label: k, type: 'string' as const }))
         : []);
+
+const stockTotalRowCount = useMemo(
+  () => stockDates.reduce((sum, d) => sum + d.count, 0),
+  [stockDates]
+);
 
   const effectiveTkbvColumns = (tkbvColumns && tkbvColumns.length > 0)
     ? tkbvColumns
@@ -173,8 +201,6 @@ export function useExportFlows({
   // -------------------------------------------------------------------------
   // Helper: khóa cache phải khớp CHÍNH XÁC với cách component
   // (OrderOverviewSection) tính filterKey, nếu không 2 bên sẽ ghi/đọc lệch key.
-  // Nhân bản lại công thức ở đây để các hàm export trong hook này luôn tự
-  // tính đúng, thay vì phụ thuộc caller phải nhớ truyền đúng chuỗi.
   // -------------------------------------------------------------------------
   const computeFilterKey = () =>
     overviewDateFilters.length > 0
@@ -265,14 +291,7 @@ export function useExportFlows({
   };
 
   // -------------------------------------------------------------------------
-  // FIX: Group analysis export (theo Xưởng / Công trình từ groupAnalysisCache)
-  // TRƯỚC: tự tính `dateISO = overviewSummary?.date` (luôn chỉ 1 ngày) để tra
-  // cache — sai lệch với `filterKey` mà OrderOverviewSection.tsx dùng để GHI
-  // vào cache (có thể là nhiều ngày nối chuỗi, hoặc "all-<date>"). Khi người
-  // dùng chọn lọc nhiều ngày, tra nhầm key -> luôn rỗng -> báo "Không có dữ
-  // liệu để xuất!" dù cache thực sự có dữ liệu.
-  // SAU: dùng đúng computeFilterKey() — cùng công thức với component, nên
-  // luôn khớp key bất kể chọn 1 ngày, nhiều ngày, hay không chọn ngày nào.
+  // Group analysis export (theo Xưởng / Công trình từ groupAnalysisCache)
   // -------------------------------------------------------------------------
   const handleExportGroupAnalysis = (
     key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export',
@@ -305,7 +324,7 @@ export function useExportFlows({
   };
 
   // -------------------------------------------------------------------------
-  // Stock detail export
+  // Stock detail export (theo công trình, tại đúng ngày tồn gần nhất)
   // -------------------------------------------------------------------------
   const handleExportStockDetail = () => {
     if (stockByProjectData.length === 0) {
@@ -338,15 +357,8 @@ export function useExportFlows({
   };
 
   // Lưu ý: bước "Tiếp tục" (mở modal chọn cột) và bước "Xác nhận xuất" cho
-  // luồng P001 KHÔNG nằm trong hook này. Chúng đã được xử lý đầy đủ ở nơi
-  // khác:
-  //   - Bước tiếp tục: `handleContinueToOrderColumnStep` định nghĩa trực
-  //     tiếp trong Dashboard.tsx, truyền vào `OrderExportScopeModal` qua
-  //     prop `onContinue`.
-  //   - Bước xác nhận xuất: logic `handleConfirmExport` nằm ngay bên trong
-  //     `OrderExportColumnModal.tsx`, tự nhận orderData/filteredOrderData/
-  //     mtdOrderData qua props và tự gọi exportToCSV.
-  // Không thêm hàm trùng lặp ở đây để tránh 2 nơi cùng giữ 1 logic.
+  // luồng P001 KHÔNG nằm trong hook này — xem chú thích gốc ở Dashboard.tsx /
+  // OrderExportColumnModal.tsx.
 
   // -------------------------------------------------------------------------
   // Generic export flow (tkbv / pthsp / inventory / export / stock)
@@ -361,10 +373,18 @@ export function useExportFlows({
         return { title: 'Nhập kho', rawData: inventoryData, filteredData: filteredInventoryOverviewData, mtdData: mtdInventoryData, columns: effectiveInventoryColumns, filePrefix: 'Nhap_Kho', color: 'teal' };
       case 'export':
         return { title: 'Xuất kho', rawData: exportData, filteredData: filteredExportOverviewData, mtdData: mtdExportKhoData, columns: effectiveExportDataColumns, filePrefix: 'Xuat_Kho', color: 'amber' };
-      case 'stock':
-        return { title: 'Tồn kho', rawData: stockData, filteredData: filteredStockDataForExport, mtdData: mtdStockData, columns: effectiveStockColumns, filePrefix: 'Ton_Kho', color: 'slate' };
+     case 'stock':
+  return {
+    title: 'Tồn kho',
+    rawData: stockData,
+    filteredData: filteredStockDataForExport,
+    mtdData: mtdStockData,
+    columns: effectiveStockColumns,
+    filePrefix: 'Ton_Kho',
+    color: 'slate',
+    displayCount: stockTotalRowCount, // MỚI — dùng số này để hiển thị, không dùng rawData.length
+  };
       default:
-        // TypeScript exhaustiveness check — nếu sau này thêm giá trị mới vào ExportFlowType mà quên xử lý ở đây, dòng dưới sẽ báo lỗi compile ngay
         const _exhaustiveCheck: never = type;
         throw new Error(`Unhandled export flow type: ${_exhaustiveCheck}`);
     }
@@ -373,53 +393,105 @@ export function useExportFlows({
   const handleOpenGenericExport = (type: ExportFlowType) => {
     setGenericExportFlow(type);
     setGenericExportScope('FILTERED');
+    if (type === 'stock') {
+      // Mặc định chọn sẵn mốc gần nhất (nếu có) để người dùng đỡ phải tick lại từ đầu
+      setSelectedStockExportDates(stockDates.length > 0 ? [stockDates[0].date] : []);
+    }
     setIsGenericExportScopeModalOpen(true);
   };
 
   const handleGenericExportContinue = () => {
     if (!genericExportFlow) return;
+
+    // Với tồn kho ở chế độ "theo mốc thời gian", bắt buộc phải chọn ít nhất 1 mốc
+    if (genericExportFlow === 'stock' && genericExportScope === 'FILTERED' && selectedStockExportDates.length === 0) {
+      alert('Vui lòng chọn ít nhất 1 mốc thời gian tồn kho để xuất.');
+      return;
+    }
+
     const config = getExportFlowConfig(genericExportFlow);
     setGenericExportSelectedColumns(config.columns.map(c => c.key));
     setIsGenericExportScopeModalOpen(false);
     setIsGenericExportColumnModalOpen(true);
   };
 
-  const handleGenericExportConfirm = () => {
-    if (!genericExportFlow) return;
-    const config = getExportFlowConfig(genericExportFlow);
-    let sourceData: DataRow[] = [];
-    let suffix = 'Theo_Bo_Loc_Ngay';
+const handleGenericExportConfirm = () => {
+  if (!genericExportFlow) return;
 
-    if (genericExportScope === 'ALL') {
-      sourceData = config.rawData;
-      suffix = 'Toan_Bo';
-    } else if (genericExportScope === 'MTD') {
-      sourceData = (config.mtdData && config.mtdData.length > 0) ? config.mtdData : config.rawData;
-      suffix = `Luy_Ke_Thang_T${latestUnifiedDate ? latestUnifiedDate.getMonth() + 1 : ''}`;
-    } else {
-      sourceData = (config.filteredData && config.filteredData.length > 0) ? config.filteredData : config.rawData;
-      suffix = 'Theo_Bo_Loc_Ngay';
-    }
+  // -------------------------------------------------------------------
+  // NHÁNH RIÊNG CHO TỒN KHO: không lọc/tải dữ liệu ở client nữa.
+  // Để server query theo batch và stream thẳng file CSV về trình duyệt,
+  // tránh phải kéo hàng trăm nghìn dòng lịch sử tồn kho vào bộ nhớ client.
+  // -------------------------------------------------------------------
+  if (genericExportFlow === 'stock') {
+    const isAll = genericExportScope === 'ALL';
 
-    if (!sourceData || sourceData.length === 0) {
-      alert('Không có dữ liệu nào để xuất!');
+    // Bắt buộc phải có ít nhất 1 mốc khi không chọn "toàn bộ"
+    if (!isAll && selectedStockExportDates.length === 0) {
+      alert('Vui lòng chọn ít nhất 1 mốc thời gian tồn kho để xuất.');
       return;
     }
 
-    const exportDataMapped = sourceData.map(row => {
-      const newRow: any = {};
-      genericExportSelectedColumns.forEach(colKey => {
-        const colDef = config.columns.find(c => c.key === colKey);
-        const headerLabel = colDef ? colDef.label : colKey;
-        newRow[headerLabel] = row[colKey] !== undefined && row[colKey] !== null ? row[colKey] : '';
-      });
-      return newRow;
-    });
+    const params = new URLSearchParams();
+    if (!isAll) {
+      const isoDates = selectedStockExportDates.map(normalizeToISODate);
+      params.set('dates', isoDates.join(','));
+    }
+    if (genericExportSelectedColumns.length > 0) {
+      params.set('cols', genericExportSelectedColumns.join(','));
+    }
 
-    exportToCSV(exportDataMapped, `${config.filePrefix}_${suffix}_${new Date().toISOString().split('T')[0]}.csv`);
+    const url = `${API_BASE_URL}/stock/export/csv?${params.toString()}`;
+
+    const a = document.createElement('a');
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
     setIsGenericExportColumnModalOpen(false);
     setGenericExportFlow(null);
-  };
+    return;
+  }
+
+  // -------------------------------------------------------------------
+  // NHÁNH MẶC ĐỊNH (tkbv / pthsp / inventory / export) — giữ nguyên logic
+  // cũ: lọc dữ liệu đã có sẵn ở client theo FILTERED/MTD/ALL rồi xuất CSV.
+  // -------------------------------------------------------------------
+  const config = getExportFlowConfig(genericExportFlow);
+  let sourceData: DataRow[] = [];
+  let suffix = 'Theo_Bo_Loc_Ngay';
+
+  if (genericExportScope === 'ALL') {
+    sourceData = config.rawData;
+    suffix = 'Toan_Bo';
+  } else if (genericExportScope === 'MTD') {
+    sourceData = (config.mtdData && config.mtdData.length > 0) ? config.mtdData : config.rawData;
+    suffix = `Luy_Ke_Thang_T${latestUnifiedDate ? latestUnifiedDate.getMonth() + 1 : ''}`;
+  } else {
+    sourceData = (config.filteredData && config.filteredData.length > 0) ? config.filteredData : config.rawData;
+    suffix = 'Theo_Bo_Loc_Ngay';
+  }
+
+  if (!sourceData || sourceData.length === 0) {
+    alert('Không có dữ liệu nào để xuất!');
+    return;
+  }
+
+  const exportDataMapped = sourceData.map(row => {
+    const newRow: any = {};
+    genericExportSelectedColumns.forEach(colKey => {
+      const colDef = config.columns.find(c => c.key === colKey);
+      const headerLabel = colDef ? colDef.label : colKey;
+      newRow[headerLabel] = row[colKey] !== undefined && row[colKey] !== null ? row[colKey] : '';
+    });
+    return newRow;
+  });
+
+  exportToCSV(exportDataMapped, `${config.filePrefix}_${suffix}_${new Date().toISOString().split('T')[0]}.csv`);
+  setIsGenericExportColumnModalOpen(false);
+  setGenericExportFlow(null);
+};
 
   // -------------------------------------------------------------------------
   // Bottleneck export
@@ -451,6 +523,10 @@ exportToCSV(flatBottleneckData, `Bao_Cao_Diem_Nghen_${new Date().toISOString().s
     genericExportSelectedColumns, setGenericExportSelectedColumns,
     isOverviewExportScopeModalOpen, setIsOverviewExportScopeModalOpen,
     overviewExportScope, setOverviewExportScope,
+
+    // --- MỚI: state cho checklist mốc thời gian tồn kho ---
+    selectedStockExportDates, setSelectedStockExportDates,
+    stockDates,
 
     // effective columns
     effectiveOrderColumns,

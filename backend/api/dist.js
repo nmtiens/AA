@@ -58196,6 +58196,89 @@ app.get("/api/stock/by-project", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+app.get("/api/stock/export", async (req, res) => {
+  try {
+    const datesParam = String(req.query.dates || "").trim();
+    const cols = REPORT_COLUMNS.ton_kho;
+    const selectClause = cols.map((c) => `"${c}"`).join(", ");
+    if (!datesParam) {
+      const result2 = await timedQuery(`SELECT ${selectClause} FROM ton_kho`);
+      return res.json(result2.rows);
+    }
+    const dates = datesParam.split(",").map((s) => s.trim()).filter(Boolean);
+    const query = `
+      SELECT ${selectClause}
+      FROM ton_kho
+      WHERE date_parsed = ANY($1::date[])
+    `;
+    const result = await timedQuery(query, [dates]);
+    res.json(result.rows);
+  } catch (error61) {
+    console.error("L\u1ED7i stock/export:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var STOCK_EXPORT_LABELS = {
+  id: "ID",
+  date: "NG\xC0Y",
+  gia_tri: "GI\xC1 TR\u1ECA T\u1ED2N KHO",
+  ma_id_sap: "M\xC3 ID SAP",
+  hex: "HEX",
+  ten_cong_trinh: "T\xCAN C\xD4NG TR\xCCNH",
+  updated_at: "C\u1EACP NH\u1EACT L\xDAC"
+};
+var csvEscape = (value) => {
+  if (value === null || value === void 0) return "";
+  const str = String(value);
+  return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+};
+app.get("/api/stock/export/csv", async (req, res) => {
+  try {
+    const datesParam = String(req.query.dates || "").trim();
+    const allCols = REPORT_COLUMNS.ton_kho;
+    const requestedCols = String(req.query.cols || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const cols = requestedCols.length > 0 ? requestedCols.filter((c) => allCols.includes(c)) : allCols;
+    if (cols.length === 0) return res.status(400).json({ error: "Kh\xF4ng c\xF3 c\u1ED9t h\u1EE3p l\u1EC7" });
+    const selectClause = cols.map((c) => `"${c}"`).join(", ");
+    const params = [];
+    let whereClause = "";
+    let fileSuffix = "Toan_Bo";
+    if (datesParam) {
+      const dates = datesParam.split(",").map((s) => s.trim()).filter(Boolean);
+      params.push(dates);
+      whereClause = `WHERE date_parsed = ANY($1::date[])`;
+      fileSuffix = dates.length === 1 ? `Moc_${dates[0]}` : `${dates.length}_Moc_Thoi_Gian`;
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="Ton_Kho_${fileSuffix}_${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.csv"`
+    );
+    res.write("\uFEFF");
+    res.write(cols.map((c) => csvEscape(STOCK_EXPORT_LABELS[c] || c.toUpperCase())).join(",") + "\r\n");
+    const BATCH_SIZE = 5e3;
+    let offset = 0;
+    while (true) {
+      const query = `
+        SELECT ${selectClause} FROM ton_kho
+        ${whereClause}
+        ORDER BY id
+        LIMIT ${BATCH_SIZE} OFFSET ${offset}
+      `;
+      const result = await timedQuery(query, params);
+      if (result.rows.length === 0) break;
+      const chunk = result.rows.map((row) => cols.map((c) => csvEscape(row[c])).join(",")).join("\r\n") + "\r\n";
+      res.write(chunk);
+      offset += BATCH_SIZE;
+      if (result.rows.length < BATCH_SIZE) break;
+    }
+    res.end();
+  } catch (error61) {
+    console.error("L\u1ED7i stock/export/csv:", error61);
+    if (!res.headersSent) res.status(500).json({ error: "Internal Server Error" });
+    else res.end();
+  }
+});
 app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
   try {
     const yearParam = Number(req.params.year);
