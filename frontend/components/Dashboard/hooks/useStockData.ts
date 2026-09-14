@@ -4,6 +4,7 @@ import { parseVNDate, toISODateLocal, computeMtdRows } from '../utils/dateHelper
 import {
   fetchStockDates,
   fetchStockByProject,
+  fetchStockTotalCount,
   type StockDateEntry,
   type StockByProjectRow,
 } from '../../../services/dataService';
@@ -36,6 +37,7 @@ interface UseStockDataResult {
   latestStockStatsPrevMonth: StockStatsResult;
   stockOverviewCardValue: number;
   loadStockByProject: () => void;
+  stockTotalCount: number; // MỚI — tổng số dòng thật (COUNT(*)) của toàn bộ ton_kho
 }
 
 // ---------------------------------------------------------------------------
@@ -50,9 +52,11 @@ export function useStockData({
 }: UseStockDataParams): UseStockDataResult {
   const [stockDates, setStockDates] = useState<StockDateEntry[]>([]);
   const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
+  const [stockTotalCount, setStockTotalCount] = useState<number>(0); // MỚI
 
   useEffect(() => {
     fetchStockDates().then(setStockDates);
+    fetchStockTotalCount().then(setStockTotalCount); // MỚI
   }, []);
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {
@@ -112,28 +116,29 @@ export function useStockData({
     const dateStr = toISODateLocal(closestStockDate);
     const entry = stockDates.find(s => {
       const sDate = parseVNDate(s.date) || new Date(s.date);
-      return toISODateLocal(sDate) === dateStr; // compare normalized YYYY-MM-DD, not raw strings
+      return toISODateLocal(sDate) === dateStr;
     });
     if (!entry) return 0;
     return overviewMetric === 'COUNT' ? entry.count : entry.value;
   }, [stockDates, closestStockDate, overviewMetric]);
 
   const loadStockByProject = () => {
-  if (closestStockDate) {
-    fetchStockByProject(toISODateLocal(closestStockDate)).then(setStockByProjectData);
-  }
-};;
+    if (closestStockDate) {
+      fetchStockByProject(toISODateLocal(closestStockDate)).then(setStockByProjectData);
+    }
+  };
 
   return {
-  stockDates,
-  stockByProjectData,
-  latestStockDateAvailable,
-  closestStockDate,
-  mtdStockData,
-  filteredStockDataForExport,
-  latestStockStats,
-  latestStockStatsPrevMonth,
-  stockOverviewCardValue,   // ← thêm dòng này
-  loadStockByProject,
-};
+    stockDates,
+    stockByProjectData,
+    latestStockDateAvailable,
+    closestStockDate,
+    mtdStockData,
+    filteredStockDataForExport,
+    latestStockStats,
+    latestStockStatsPrevMonth,
+    stockOverviewCardValue,
+    loadStockByProject,
+    stockTotalCount, // MỚI
+  };
 }

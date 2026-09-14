@@ -68,6 +68,18 @@ const initDB = (): Promise<IDBDatabase> => {
   });
 };
 
+export const fetchStockTotalCount = async (): Promise<number> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/stock/total-count`);
+    if (!r.ok) throw new Error('fetch failed');
+    const data = await r.json();
+    return Number(data.total) || 0;
+  } catch (e) {
+    console.error('fetchStockTotalCount error:', e);
+    return 0;
+  }
+};
+
 // ĐỌC DỮ LIỆU TỪ CACHE
 export const getCachedData = async (endpoint: string): Promise<any> => {
   try {

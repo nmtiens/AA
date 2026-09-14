@@ -293,6 +293,7 @@ const {
   latestStockStats,
   latestStockStatsPrevMonth,
   stockOverviewCardValue,
+  stockTotalCount, // MỚI
 } = useStockData({
   stockData,
   stockDateKey,
@@ -383,9 +384,9 @@ const {
   stockColumns, stockData,
   productionColumns,
 
-  // --- MỚI: cần cho việc lọc tồn kho theo mốc thời gian đã chọn ---
   stockDateKey,
   stockDates,
+  stockTotalCount, // MỚI
 
   overviewSummary,
   overviewDateFilters,

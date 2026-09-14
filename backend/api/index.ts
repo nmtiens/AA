@@ -997,6 +997,36 @@ app.get('/api/stock/export/csv', async (req: Request, res: Response) => {
   }
 });
 
+// --- CACHE IN-MEMORY CHO /api/stock/total-count ---
+let cachedStockTotalCount: number | null = null;
+let cachedStockTotalCountVersion: string | null = null;
+
+app.get('/api/stock/total-count', async (_req: Request, res: Response) => {
+  try {
+    const verResult = await timedQuery(
+      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
+    );
+    const currentVersion = verResult.rows[0]?.last_updated
+      ? String(verResult.rows[0].last_updated)
+      : null;
+
+    if (cachedStockTotalCount !== null && currentVersion && currentVersion === cachedStockTotalCountVersion) {
+      return res.json({ total: cachedStockTotalCount });
+    }
+
+    // COUNT(*) thật — khớp đúng số dòng mà /api/stock/export/csv (scope ALL) sẽ trả về
+    const r = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho`);
+    const total = Number(r.rows[0].total);
+
+    cachedStockTotalCount = total;
+    cachedStockTotalCountVersion = currentVersion;
+    res.json({ total });
+  } catch (error) {
+    console.error('Lỗi stock/total-count:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
 // [ĐO TIMING] 4 query chạy song song (giới hạn 2) — đổi cả 4 sang timedQuery.

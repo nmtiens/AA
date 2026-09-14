@@ -12,7 +12,7 @@ interface ExportFlowConfig {
   columns: ColumnDefinition[];
   filePrefix: string;
   color: string;
-  displayCount?: number; // MỚI — khớp với interface bên useExportFlows.ts
+  displayCount?: number; // MỚI
 }
 
 // Mốc thời gian tồn kho (1 dòng = 1 ngày chụp tồn kho), dùng cho checklist.
@@ -208,7 +208,7 @@ export const GenericExportScopeModal = ({
                       <Database size={14} className="text-slate-500" />
                       Xuất toàn bộ tồn kho
                     </span>
-                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0 ml-2">
+                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0 ml-2">
   {(config.displayCount ?? config.rawData.length).toLocaleString('en-US')} dòng
 </span>
                   </div>

@@ -58279,6 +58279,27 @@ app.get("/api/stock/export/csv", async (req, res) => {
     else res.end();
   }
 });
+var cachedStockTotalCount = null;
+var cachedStockTotalCountVersion = null;
+app.get("/api/stock/total-count", async (_req, res) => {
+  try {
+    const verResult = await timedQuery(
+      `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
+    );
+    const currentVersion = verResult.rows[0]?.last_updated ? String(verResult.rows[0].last_updated) : null;
+    if (cachedStockTotalCount !== null && currentVersion && currentVersion === cachedStockTotalCountVersion) {
+      return res.json({ total: cachedStockTotalCount });
+    }
+    const r = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho`);
+    const total = Number(r.rows[0].total);
+    cachedStockTotalCount = total;
+    cachedStockTotalCountVersion = currentVersion;
+    res.json({ total });
+  } catch (error61) {
+    console.error("L\u1ED7i stock/total-count:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
   try {
     const yearParam = Number(req.params.year);
