@@ -58196,28 +58196,6 @@ app.get("/api/stock/by-project", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-app.get("/api/stock/export", async (req, res) => {
-  try {
-    const datesParam = String(req.query.dates || "").trim();
-    const cols = REPORT_COLUMNS.ton_kho;
-    const selectClause = cols.map((c) => `"${c}"`).join(", ");
-    if (!datesParam) {
-      const result2 = await timedQuery(`SELECT ${selectClause} FROM ton_kho`);
-      return res.json(result2.rows);
-    }
-    const dates = datesParam.split(",").map((s) => s.trim()).filter(Boolean);
-    const query = `
-      SELECT ${selectClause}
-      FROM ton_kho
-      WHERE date_parsed = ANY($1::date[])
-    `;
-    const result = await timedQuery(query, [dates]);
-    res.json(result.rows);
-  } catch (error61) {
-    console.error("L\u1ED7i stock/export:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
 var STOCK_EXPORT_LABELS = {
   id: "ID",
   date: "NG\xC0Y",
@@ -58232,7 +58210,14 @@ var csvEscape = (value) => {
   const str = String(value);
   return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 };
-app.get("/api/stock/export/csv", async (req, res) => {
+var stockExportLimiter = rate_limit_default({
+  windowMs: 60 * 1e3,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Xu\u1EA5t t\u1ED3n kho qu\xE1 nhi\u1EC1u l\u1EA7n, vui l\xF2ng th\u1EED l\u1EA1i sau" }
+});
+app.get("/api/stock/export/csv", stockExportLimiter, async (req, res) => {
   try {
     const datesParam = String(req.query.dates || "").trim();
     const allCols = REPORT_COLUMNS.ton_kho;

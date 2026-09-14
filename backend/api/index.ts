@@ -891,34 +891,6 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   }
 });
 
-// Lấy dữ liệu tồn kho RAW (đủ cột whitelist) theo 1 hoặc nhiều ngày cụ thể — dùng cho export.
-// Khác /api/stock (không lọc ngày -> full lịch sử, quá nặng để tải mỗi lần export)
-// và khác /api/stock/by-project (đã aggregate theo công trình, mất chi tiết từng dòng).
-app.get('/api/stock/export', async (req: Request, res: Response) => {
-  try {
-    const datesParam = String(req.query.dates || '').trim();
-    const cols = REPORT_COLUMNS.ton_kho;
-    const selectClause = cols.map(c => `"${c}"`).join(', ');
-
-    if (!datesParam) {
-      // Không truyền dates -> hiểu là "toàn bộ tồn kho" (giữ hành vi ALL hiện có)
-      const result = await timedQuery(`SELECT ${selectClause} FROM ton_kho`);
-      return res.json(result.rows);
-    }
-
-    const dates = datesParam.split(',').map(s => s.trim()).filter(Boolean);
-    const query = `
-      SELECT ${selectClause}
-      FROM ton_kho
-      WHERE date_parsed = ANY($1::date[])
-    `;
-    const result = await timedQuery(query, [dates]);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Lỗi stock/export:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
 
 const STOCK_EXPORT_LABELS: Record<string, string> = {
   id: 'ID',
@@ -935,8 +907,15 @@ const csvEscape = (value: any): string => {
   const str = String(value);
   return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 };
+const stockExportLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Xuất tồn kho quá nhiều lần, vui lòng thử lại sau' },
+});
 
-app.get('/api/stock/export/csv', async (req: Request, res: Response) => {
+app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: Response) => {
   try {
     const datesParam = String(req.query.dates || '').trim();
     const allCols = REPORT_COLUMNS.ton_kho;
