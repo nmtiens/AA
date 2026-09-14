@@ -58961,7 +58961,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
     const q = `
   SELECT
-    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS xuong,
+    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'T\u1ED2N KHO KH\xC1C') AS xuong,
     COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
     ${countExpr} AS total_count
   FROM ${cfg.table} ${mainAlias}

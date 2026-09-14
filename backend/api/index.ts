@@ -1750,7 +1750,7 @@ if (source === 'stock' && !dateFrom && !dateTo) {
 
 const q = `
   SELECT
-    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'Chưa xác định') AS xuong,
+    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'TỒN KHO KHÁC') AS xuong,
     COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
     ${countExpr} AS total_count
   FROM ${cfg.table} ${mainAlias}
