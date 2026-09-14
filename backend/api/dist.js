@@ -58229,7 +58229,10 @@ app.get("/api/stock/export/csv", stockExportLimiter, async (req, res) => {
     let whereClause = "";
     let fileSuffix = "Toan_Bo";
     if (datesParam) {
-      const dates = datesParam.split(",").map((s) => s.trim()).filter(Boolean);
+      const dates = datesParam.split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
+      if (dates.length === 0) {
+        return res.status(400).json({ error: "Danh s\xE1ch ng\xE0y kh\xF4ng h\u1EE3p l\u1EC7" });
+      }
       params.push(dates);
       whereClause = `WHERE date_parsed = ANY($1::date[])`;
       fileSuffix = dates.length === 1 ? `Moc_${dates[0]}` : `${dates.length}_Moc_Thoi_Gian`;

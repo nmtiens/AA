@@ -921,7 +921,6 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
     const allCols = REPORT_COLUMNS.ton_kho;
     const requestedCols = String(req.query.cols || '')
       .split(',').map(s => s.trim()).filter(Boolean);
-    // Whitelist chặt: chỉ nhận cột đã khai báo, tránh SQL injection qua tên cột
     const cols = requestedCols.length > 0
       ? requestedCols.filter(c => allCols.includes(c))
       : allCols;
@@ -931,8 +930,21 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
     const params: any[] = [];
     let whereClause = '';
     let fileSuffix = 'Toan_Bo';
+
     if (datesParam) {
-      const dates = datesParam.split(',').map(s => s.trim()).filter(Boolean);
+      // MỚI: validate từng ngày bằng parseSafeDate (nhất quán với các route khác),
+      // và chuẩn hóa về YYYY-MM-DD trước khi dùng làm tham số SQL lẫn tên file —
+      // tránh lỗi cast Postgres mơ hồ và tránh giá trị lạ lọt vào header response.
+      const dates = datesParam
+        .split(',')
+        .map(s => parseSafeDate(s.trim()))
+        .filter((d): d is Date => d !== null)
+        .map(d => d.toISOString().slice(0, 10));
+
+      if (dates.length === 0) {
+        return res.status(400).json({ error: 'Danh sách ngày không hợp lệ' });
+      }
+
       params.push(dates);
       whereClause = `WHERE date_parsed = ANY($1::date[])`;
       fileSuffix = dates.length === 1 ? `Moc_${dates[0]}` : `${dates.length}_Moc_Thoi_Gian`;
@@ -944,7 +956,7 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
       `attachment; filename="Ton_Kho_${fileSuffix}_${new Date().toISOString().slice(0, 10)}.csv"`
     );
 
-    res.write('\uFEFF'); // BOM để Excel nhận đúng UTF-8
+    res.write('\uFEFF');
     res.write(cols.map(c => csvEscape(STOCK_EXPORT_LABELS[c] || c.toUpperCase())).join(',') + '\r\n');
 
     const BATCH_SIZE = 5000;
@@ -962,7 +974,7 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
       const chunk = result.rows
         .map(row => cols.map(c => csvEscape(row[c])).join(','))
         .join('\r\n') + '\r\n';
-      res.write(chunk); // gửi từng đợt, không giữ toàn bộ trong RAM
+      res.write(chunk);
 
       offset += BATCH_SIZE;
       if (result.rows.length < BATCH_SIZE) break;
