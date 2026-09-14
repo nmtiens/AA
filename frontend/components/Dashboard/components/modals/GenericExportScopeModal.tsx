@@ -1,5 +1,5 @@
-import React from 'react';
-import { Download, X, CalendarDays, Database, CheckSquare, Square } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Download, X, CalendarDays, Database, CheckSquare, Square, Search } from 'lucide-react';
 import { DataRow, ColumnDefinition } from '../../../../types';
 import { ExportScope } from './OrderExportScopeModal';
 import { ExportFlowType } from '../../types';
@@ -12,12 +12,11 @@ interface ExportFlowConfig {
   columns: ColumnDefinition[];
   filePrefix: string;
   color: string;
-  displayCount?: number; // MỚI
+  displayCount?: number;
 }
 
-// Mốc thời gian tồn kho (1 dòng = 1 ngày chụp tồn kho), dùng cho checklist.
 export interface StockDateOption {
-  date: string;   // giá trị gốc từ BE (dùng làm value khi lọc)
+  date: string;
   count: number;
   value: number;
 }
@@ -33,10 +32,7 @@ interface GenericExportScopeModalProps {
   latestUnifiedDate: Date | null;
   onContinue: () => void;
 
-  // --- MỚI: dành riêng cho flow 'stock' ---
-  // Danh sách các mốc thời gian tồn kho (ngày chụp) để người dùng chọn checklist.
   stockDates?: StockDateOption[];
-  // Các mốc đang được chọn (giá trị = StockDateOption.date)
   selectedStockDates: string[];
   setSelectedStockDates: (dates: string[]) => void;
 }
@@ -48,7 +44,6 @@ const formatDateFilters = (dates: string[], maxShow = 5) => {
   return `Đang áp dụng ngày: ${shown} và ${dates.length - maxShow} ngày khác`;
 };
 
-// Format 1 giá trị ngày thô (ISO hoặc chuỗi từ BE) thành dd/mm/yyyy để hiển thị.
 const formatDisplayDate = (raw: string): string => {
   const d = new Date(raw);
   if (isNaN(d.getTime())) return raw;
@@ -71,13 +66,27 @@ export const GenericExportScopeModal = ({
   selectedStockDates,
   setSelectedStockDates,
 }: GenericExportScopeModalProps) => {
+  const [stockDateSearch, setStockDateSearch] = useState('');
+
+  // SỬA: useMemo phải được gọi ở MỌI lần render, kể cả khi isOpen=false —
+  // không được đặt early return trước hook này. Dùng stockDates (đã có
+  // default = []) nên an toàn để tính toán ngay cả khi modal đang đóng.
+  const filteredStockDates = useMemo(() => {
+    const keyword = stockDateSearch.trim().toLowerCase();
+    if (!keyword) return stockDates;
+    return stockDates.filter(sd => {
+      const displayDate = formatDisplayDate(sd.date).toLowerCase();
+      const rawDate = String(sd.date).toLowerCase();
+      return displayDate.includes(keyword) || rawDate.includes(keyword);
+    });
+  }, [stockDates, stockDateSearch]);
+
+  // SỬA: early return giờ đặt SAU tất cả hook, không đặt xen giữa.
   if (!isOpen || !genericExportFlow) return null;
 
   const config = getExportFlowConfig(genericExportFlow);
   const isStockFlow = genericExportFlow === 'stock';
 
-  // Với tồn kho: 'FILTERED' được tái dùng với ý nghĩa "theo mốc thời gian đã chọn",
-  // 'ALL' giữ nguyên ý nghĩa "toàn bộ dữ liệu tồn kho, không lọc".
   const isStockByDatesMode = genericExportScope === 'FILTERED';
   const isStockAllMode = genericExportScope === 'ALL';
 
@@ -94,9 +103,23 @@ export const GenericExportScopeModal = ({
     setSelectedStockDates(allStockDatesSelected ? [] : stockDates.map(d => d.date));
   };
 
+  const allFilteredSelected = filteredStockDates.length > 0 &&
+    filteredStockDates.every(sd => selectedStockDates.includes(sd.date));
+  const toggleSelectAllFiltered = () => {
+    if (allFilteredSelected) {
+      const filteredSet = new Set(filteredStockDates.map(d => d.date));
+      setSelectedStockDates(selectedStockDates.filter(d => !filteredSet.has(d)));
+    } else {
+      const merged = new Set([...selectedStockDates, ...filteredStockDates.map(d => d.date)]);
+      setSelectedStockDates(Array.from(merged));
+    }
+  };
+
   const canContinue = isStockFlow
     ? (isStockAllMode || (isStockByDatesMode && selectedStockDates.length > 0))
     : true;
+
+  // ... phần return JSX giữ nguyên như bản trước
 
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -118,12 +141,6 @@ export const GenericExportScopeModal = ({
           <p className="text-sm font-semibold text-slate-700">Bạn muốn xuất dữ liệu theo tùy chọn nào?</p>
 
           {isStockFlow ? (
-            // -----------------------------------------------------------------
-            // GIAO DIỆN RIÊNG CHO TỒN KHO: 2 lựa chọn (theo mốc / toàn bộ)
-            // Tồn kho là dữ liệu snapshot theo ngày chụp, không phải dòng phát
-            // sinh theo ngày như các nguồn khác, nên không dùng "bộ lọc ngày"
-            // hay "lũy kế tháng" của các nguồn kia.
-            // -----------------------------------------------------------------
             <div className="flex flex-col gap-3">
               <div
                 onClick={() => setGenericExportScope('FILTERED')}
@@ -146,26 +163,63 @@ export const GenericExportScopeModal = ({
 
                   {isStockByDatesMode && (
                     <div className="mt-3 border border-slate-200 rounded-lg bg-white overflow-hidden">
+                      {/* MỚI: ô tìm kiếm mốc thời gian */}
+                      <div
+                        className="px-3 py-2 border-b border-slate-200 bg-white"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={stockDateSearch}
+                            onChange={(e) => setStockDateSearch(e.target.value)}
+                            placeholder="Tìm ngày (VD: 07/09 hoặc 2026-09-07)..."
+                            className="w-full text-xs pl-7 pr-7 py-1.5 border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                          />
+                          {stockDateSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setStockDateSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="flex justify-between items-center px-3 py-2 bg-slate-50 border-b border-slate-200">
                         <span className="text-[11px] font-bold text-slate-500 uppercase">
-                          {stockDates.length} mốc khả dụng
+                          {stockDateSearch
+                            ? `${filteredStockDates.length}/${stockDates.length} mốc khớp`
+                            : `${stockDates.length} mốc khả dụng`}
                         </span>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); toggleSelectAllStockDates(); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            stockDateSearch ? toggleSelectAllFiltered() : toggleSelectAllStockDates();
+                          }}
                           className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                         >
-                          {allStockDatesSelected ? <CheckSquare size={13} /> : <Square size={13} />}
-                          {allStockDatesSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                          {(stockDateSearch ? allFilteredSelected : allStockDatesSelected)
+                            ? <CheckSquare size={13} />
+                            : <Square size={13} />}
+                          {(stockDateSearch ? allFilteredSelected : allStockDatesSelected)
+                            ? 'Bỏ chọn tất cả'
+                            : 'Chọn tất cả'}
                         </button>
                       </div>
                       <div className="max-h-48 overflow-y-auto divide-y divide-slate-100">
-                        {stockDates.length === 0 ? (
+                        {filteredStockDates.length === 0 ? (
                           <div className="px-3 py-4 text-center text-xs text-slate-400">
-                            Không có dữ liệu mốc thời gian tồn kho.
+                            {stockDateSearch
+                              ? 'Không tìm thấy mốc thời gian nào khớp.'
+                              : 'Không có dữ liệu mốc thời gian tồn kho.'}
                           </div>
                         ) : (
-                          stockDates.map((sd) => {
+                          filteredStockDates.map((sd) => {
                             const checked = selectedStockDates.includes(sd.date);
                             return (
                               <label
@@ -208,9 +262,9 @@ export const GenericExportScopeModal = ({
                       <Database size={14} className="text-slate-500" />
                       Xuất toàn bộ tồn kho
                     </span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0 ml-2">
-  {(config.displayCount ?? config.rawData.length).toLocaleString('en-US')} dòng
-</span>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0 ml-2">
+                      {(config.displayCount ?? config.rawData.length).toLocaleString('en-US')} dòng
+                    </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Bao gồm toàn bộ tất cả các mốc thời gian tồn kho trong hệ thống (không lọc).
@@ -219,9 +273,6 @@ export const GenericExportScopeModal = ({
               </div>
             </div>
           ) : (
-            // -----------------------------------------------------------------
-            // GIAO DIỆN MẶC ĐỊNH (dùng cho tkbv / pthsp / inventory / export)
-            // -----------------------------------------------------------------
             <div className="flex flex-col gap-3">
               <div
                 onClick={() => setGenericExportScope('FILTERED')}

@@ -90,3 +90,19 @@ export const getYesterdayDateOption = (options: string[]): string | null => {
   const targetDate = options.find(opt => opt === yesterdayStrSlash || opt === yesterdayStrDash);
   return targetDate || options[0];
 };
+
+// MỚI: Lọc dữ liệu theo đúng năm/tháng chỉ định (không phụ thuộc "hôm nay").
+// Khác computeMtdRows (vốn luôn cắt tại latestUnifiedDate cho tháng hiện tại),
+// hàm này cho phép xuất lũy kế của BẤT KỲ tháng nào người dùng chọn — với
+// tháng đã qua thì tự nhiên lấy trọn tháng (vì không có dữ liệu tương lai),
+// với tháng hiện tại thì cũng tự nhiên chỉ có dữ liệu tính đến hôm nay.
+export const computeMonthRows = (data: DataRow[], dateKey: string, year: number, month: number): DataRow[] => {
+  if (!dateKey) return data;
+  return data.filter(row => {
+    const raw = String(row[dateKey] || '').trim();
+    if (!raw) return false;
+    const d = parseVNDate(raw) || new Date(raw);
+    if (isNaN(d.getTime())) return false;
+    return d.getFullYear() === year && d.getMonth() + 1 === month;
+  });
+};

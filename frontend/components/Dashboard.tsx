@@ -375,6 +375,7 @@ const {
   handleGenericExportContinue,
   handleGenericExportConfirm,
   handleExportBottlenecks,
+  selectedExportMonth, setSelectedExportMonth,
 } = useExportFlows({
   orderColumns, orderData,
   tkbvColumns, tkbvData,
@@ -384,9 +385,16 @@ const {
   stockColumns, stockData,
   productionColumns,
 
+  // MỚI: date keys để lọc theo tháng bất kỳ
+  orderDateKey,
+  tkbvDateKey,
+  pthspDateKey,
+  invDateKey,
+  expDateKey,
+
   stockDateKey,
   stockDates,
-  stockTotalCount, // MỚI
+  stockTotalCount,
 
   overviewSummary,
   overviewDateFilters,
@@ -727,14 +735,16 @@ const handleContinueToOrderColumnStep = () => {
      latestUnifiedDate={latestUnifiedDate}
    />
        <OverviewExportScopeModal
-     isOpen={isOverviewExportScopeModalOpen}
-     onClose={() => setIsOverviewExportScopeModalOpen(false)}
-     overviewExportScope={overviewExportScope}
-     setOverviewExportScope={setOverviewExportScope}
-     overviewDateFilters={overviewDateFilters}
-     latestUnifiedDate={latestUnifiedDate}
-     onConfirm={handleOverviewExportConfirm}
-   />
+  isOpen={isOverviewExportScopeModalOpen}
+  onClose={() => setIsOverviewExportScopeModalOpen(false)}
+  overviewExportScope={overviewExportScope}
+  setOverviewExportScope={setOverviewExportScope}
+  overviewDateFilters={overviewDateFilters}
+  latestUnifiedDate={latestUnifiedDate}
+  onConfirm={handleOverviewExportConfirm}
+  selectedExportMonth={selectedExportMonth}
+  setSelectedExportMonth={setSelectedExportMonth}
+/>
        <GenericExportScopeModal
      isOpen={isGenericExportScopeModalOpen}
      onClose={() => setIsGenericExportScopeModalOpen(false)}
