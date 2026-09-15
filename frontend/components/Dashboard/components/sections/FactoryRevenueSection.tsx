@@ -162,171 +162,171 @@ export const FactoryRevenueSection = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column: Progress Bar & Cards — giữ nguyên */}
-          <div className="lg:col-span-1 flex flex-col gap-6 h-full">
-            <div className="w-full">
-              <div className="flex justify-between items-end mb-2">
-                <p className="text-xs font-bold text-slate-500 uppercase">Tiến độ tổng thể</p>
-                <span className="text-[10px] text-slate-400"></span>
-              </div>
-              <div ref={chartWrapperRef} className="h-[110px] w-full bg-slate-50 rounded-lg border border-slate-100 p-2">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    layout="vertical"
-                    data={factoryRevenueChartData}
-                    margin={{ top: 20, right: 30, left: 30, bottom: 36 }}
-                    barSize={24}
-                  >
-                    <XAxis type="number" hide domain={[0, (dataMax: number) => dataMax * 1.05]} />
-                    <YAxis type="category" dataKey="name" hide />
-                    <RechartsTooltip
-                      cursor={{ fill: 'transparent' }}
-                      formatter={(value: number, name: string) => {
-                        if (name === 'thucHien') return [formatDecimal(value) + ' Tỷ', 'Thực hiện (Lũy kế)'];
-                        if (name === 'conLai') return [formatDecimal(value) + ' Tỷ', 'Còn lại'];
-                        return [value, name];
-                      }}
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
-                    />
-                    <Bar dataKey="thucHien" stackId="a" fill="#3b82f6" radius={[4, 0, 0, 4]}>
-                      <LabelList dataKey="thucHien" position="center" fill="white" fontSize={10} fontWeight="bold" formatter={(val: number) => val > 0 ? formatDecimal(val) : ''} />
-                    </Bar>
-                    <Bar dataKey="conLai" stackId="a" fill="#e2e8f0" radius={[0, 4, 4, 0]} />
-
-                    <ReferenceLine x={quarterlyTargets.q1} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
-                    <ReferenceLine x={quarterlyTargets.q2} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
-                    <ReferenceLine x={quarterlyTargets.q3} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
-                    <ReferenceLine x={quarterlyTargets.q4} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
-
-                    {quarterlyTargets.q1 > 0 && (
-                      <ReferenceLine x={quarterlyTargets.q1} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
-                        <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                        <Label value={`Quý I: ${formatDecimal(quarterlyTargets.q1)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q1')} />
-                      </ReferenceLine>
-                    )}
-                    {quarterlyTargets.q2 > 0 && (
-                      <ReferenceLine x={quarterlyTargets.q2} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
-                        <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                        <Label value={`Quý II: ${formatDecimal(quarterlyTargets.q2)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q2')} />
-                      </ReferenceLine>
-                    )}
-                    {quarterlyTargets.q3 > 0 && (
-                      <ReferenceLine x={quarterlyTargets.q3} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
-                        <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                        <Label value={`Quý III: ${formatDecimal(quarterlyTargets.q3)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q3')} />
-                      </ReferenceLine>
-                    )}
-                    {quarterlyTargets.q4 > 0 && (
-                      <ReferenceLine x={quarterlyTargets.q4} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
-                        <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                        <Label value={`Quý IV: ${formatDecimal(quarterlyTargets.q4)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q4')} />
-                      </ReferenceLine>
-                    )}
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          {/* Cột trái: thanh tiến độ */}
+          <div className="lg:col-span-1 flex flex-col">
+            <div className="flex justify-between items-end mb-2">
+              <p className="text-xs font-bold text-slate-500 uppercase">Tiến độ tổng thể</p>
+              <span className="text-[10px] text-slate-400"></span>
             </div>
+            <div ref={chartWrapperRef} className="h-[110px] w-full bg-slate-50 rounded-lg border border-slate-100 p-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={factoryRevenueChartData}
+                  margin={{ top: 20, right: 30, left: 30, bottom: 36 }}
+                  barSize={24}
+                >
+                  <XAxis type="number" hide domain={[0, (dataMax: number) => dataMax * 1.05]} />
+                  <YAxis type="category" dataKey="name" hide />
+                  <RechartsTooltip
+                    cursor={{ fill: 'transparent' }}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'thucHien') return [formatDecimal(value) + ' Tỷ', 'Thực hiện (Lũy kế)'];
+                      if (name === 'conLai') return [formatDecimal(value) + ' Tỷ', 'Còn lại'];
+                      return [value, name];
+                    }}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
+                  />
+                  <Bar dataKey="thucHien" stackId="a" fill="#3b82f6" radius={[4, 0, 0, 4]}>
+                    <LabelList dataKey="thucHien" position="center" fill="white" fontSize={10} fontWeight="bold" formatter={(val: number) => val > 0 ? formatDecimal(val) : ''} />
+                  </Bar>
+                  <Bar dataKey="conLai" stackId="a" fill="#e2e8f0" radius={[0, 4, 4, 0]} />
 
-            <div className="grid grid-cols-3 gap-4 flex-1">
-              <div className="p-2 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-1.5 mb-0.5 z-10">
-                  <div className="p-1 bg-emerald-100 rounded text-emerald-600 shadow-sm"><Target size={18} /></div>
-                  <p className="text-xs font-bold text-emerald-800 opacity-80 uppercase tracking-wide">Kế hoạch Năm</p>
-                </div>
-                <div className="z-10 flex items-baseline gap-1 pl-0.5">
-                  <h4 className="text-3xl font-extrabold text-emerald-600 tracking-tight">{formatDecimal(targetRevenue2026)}</h4>
-                  <span className="text-xs font-medium text-emerald-500">Tỷ</span>
-                </div>
-              </div>
+                  <ReferenceLine x={quarterlyTargets.q1} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
+                  <ReferenceLine x={quarterlyTargets.q2} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
+                  <ReferenceLine x={quarterlyTargets.q3} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
+                  <ReferenceLine x={quarterlyTargets.q4} stroke="none" label={(props: any) => <CheckpointTriangle {...props} />} />
 
-              <div className="p-2 bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-1.5 mb-0.5 z-10">
-                  <div className="p-1 bg-blue-100 rounded text-blue-600 shadow-sm"><CheckCircle size={18} /></div>
-                  <p className="text-xs font-bold text-blue-800 opacity-80 uppercase tracking-wide">Thực hiện Lũy kế</p>
-                </div>
-                <div className="z-10 flex items-baseline gap-1 pl-0.5">
-                  <h4 className="text-3xl font-extrabold text-blue-600 tracking-tight">{formatDecimal(factoryRevenueStats.actual)}</h4>
-                  <span className="text-xs font-medium text-blue-500">Tỷ</span>
-                </div>
-              </div>
-
-              <div className="p-2 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-lg border border-violet-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-1.5 mb-0.5 z-10">
-                  <div className="p-1 bg-violet-100 rounded text-violet-600 shadow-sm"><Activity size={18} /></div>
-                  <p className="text-xs font-bold text-violet-800 opacity-80 uppercase tracking-wide">Tỷ lệ Đạt</p>
-                </div>
-                <div className="z-10 flex items-baseline gap-1 pl-0.5">
-                  <h4 className={`text-3xl font-extrabold tracking-tight ${factoryRevenueStats.percent >= 100 ? 'text-emerald-600' : factoryRevenueStats.percent >= 80 ? 'text-violet-600' : 'text-amber-600'}`}>
-                    {formatDecimal(factoryRevenueStats.percent)}%
-                  </h4>
-                </div>
-              </div>
+                  {quarterlyTargets.q1 > 0 && (
+                    <ReferenceLine x={quarterlyTargets.q1} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+                      <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+                      <Label value={`Quý I: ${formatDecimal(quarterlyTargets.q1)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q1')} />
+                    </ReferenceLine>
+                  )}
+                  {quarterlyTargets.q2 > 0 && (
+                    <ReferenceLine x={quarterlyTargets.q2} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+                      <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+                      <Label value={`Quý II: ${formatDecimal(quarterlyTargets.q2)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q2')} />
+                    </ReferenceLine>
+                  )}
+                  {quarterlyTargets.q3 > 0 && (
+                    <ReferenceLine x={quarterlyTargets.q3} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+                      <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+                      <Label value={`Quý III: ${formatDecimal(quarterlyTargets.q3)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q3')} />
+                    </ReferenceLine>
+                  )}
+                  {quarterlyTargets.q4 > 0 && (
+                    <ReferenceLine x={quarterlyTargets.q4} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
+                      <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
+                      <Label value={`Quý IV: ${formatDecimal(quarterlyTargets.q4)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q4')} />
+                    </ReferenceLine>
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Right Column: giờ hiển thị FUNNEL "TÌNH TRẠNG ĐƠN HÀNG AATN" */}
-          <div className="lg:col-span-2 flex flex-col bg-white rounded-xl border border-slate-100 p-4 shadow-sm h-full min-h-[400px]">
-            <div className="flex justify-end mb-2">
-              <button
-                onClick={() => setIsFunnelPivotModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
-                title="Xem bảng chi tiết"
-              >
-                <Eye size={14} /> Chi tiết
-              </button>
+          {/* Cột phải: 3 card — ngang hàng với thanh tiến độ */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:pt-[26px]">
+            <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
+              <div className="flex items-center gap-1.5 mb-0.5 z-10">
+                <div className="p-1 bg-emerald-100 rounded text-emerald-600 shadow-sm"><Target size={18} /></div>
+                <p className="text-xs font-bold text-emerald-800 opacity-80 uppercase tracking-wide">Kế hoạch Năm</p>
+              </div>
+              <div className="z-10 flex items-baseline gap-1 pl-0.5">
+                <h4 className="text-3xl font-extrabold text-emerald-600 tracking-tight">{formatDecimal(targetRevenue2026)}</h4>
+                <span className="text-xs font-medium text-emerald-500">Tỷ</span>
+              </div>
             </div>
 
-            <div className="w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200 relative">
-              <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
-                TÌNH TRẠNG ĐƠN HÀNG AATN
-              </h3>
+            <div className="p-3 bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
+              <div className="flex items-center gap-1.5 mb-0.5 z-10">
+                <div className="p-1 bg-blue-100 rounded text-blue-600 shadow-sm"><CheckCircle size={18} /></div>
+                <p className="text-xs font-bold text-blue-800 opacity-80 uppercase tracking-wide">Thực hiện Lũy kế</p>
+              </div>
+              <div className="z-10 flex items-baseline gap-1 pl-0.5">
+                <h4 className="text-3xl font-extrabold text-blue-600 tracking-tight">{formatDecimal(factoryRevenueStats.actual)}</h4>
+                <span className="text-xs font-medium text-blue-500">Tỷ</span>
+              </div>
+            </div>
 
-              <div className="flex flex-row gap-[30px] w-full max-w-5xl mx-auto relative mt-2">
-                <div className="w-auto shrink-0 flex flex-col gap-3">
-                  {customFunnelData.map((item) => (
-                    <div
-                      key={`lbl-${item.id}`}
-                      className="h-10 text-right font-semibold text-slate-700 text-sm flex items-center justify-end whitespace-nowrap"
-                    >
-                      {item.name}
-                    </div>
-                  ))}
-                </div>
+            <div className="p-3 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-lg border border-violet-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
+              <div className="flex items-center gap-1.5 mb-0.5 z-10">
+                <div className="p-1 bg-violet-100 rounded text-violet-600 shadow-sm"><Activity size={18} /></div>
+                <p className="text-xs font-bold text-violet-800 opacity-80 uppercase tracking-wide">Tỷ lệ Đạt</p>
+              </div>
+              <div className="z-10 flex items-baseline gap-1 pl-0.5">
+                <h4 className={`text-3xl font-extrabold tracking-tight ${factoryRevenueStats.percent >= 100 ? 'text-emerald-600' : factoryRevenueStats.percent >= 80 ? 'text-violet-600' : 'text-amber-600'}`}>
+                  {formatDecimal(factoryRevenueStats.percent)}%
+                </h4>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                <div className="flex-1 relative flex flex-col gap-3 min-w-0">
-                  <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
-                    <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
-                      <polygon
-                        points="-2,0 102,0 50,100"
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="2px"
-                        strokeDasharray="6 4"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
+        {/* ===== HÀNG DƯỚI: FUNNEL TÌNH TRẠNG ĐƠN HÀNG AATN (full width) ===== */}
+        <div className="mt-6 w-full flex flex-col bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={() => setIsFunnelPivotModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
+              title="Xem bảng chi tiết"
+            >
+              <Eye size={14} /> Chi tiết
+            </button>
+          </div>
+
+          <div className="w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200 relative">
+            <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
+              TÌNH TRẠNG ĐƠN HÀNG AATN
+            </h3>
+
+            <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative mt-2">
+              <div className="w-auto shrink-0 flex flex-col gap-3">
+                {customFunnelData.map((item) => (
+                  <div
+                    key={`lbl-${item.id}`}
+                    className="h-10 text-right font-semibold text-slate-700 text-sm flex items-center justify-end whitespace-nowrap"
+                  >
+                    {item.name}
                   </div>
+                ))}
+              </div>
 
-                  {customFunnelData.map((item) => {
-                    const displayValue = Math.round(item.value / 1000);
-                    const widthPercent = displayValue === 0 ? 6 : item.percentage;
-
-                    return (
-                      <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
-                        <div
-                          className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
-                          style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
-                          title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
-                        >
-                          <span className="text-black font-bold text-sm truncate px-1">
-                            {displayValue.toLocaleString('en-US')}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="flex-1 relative flex flex-col gap-3 min-w-0">
+                <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
+                  <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
+                    <polygon
+                      points="-2,0 102,0 50,100"
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="2px"
+                      strokeDasharray="6 4"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  </svg>
                 </div>
+
+                {customFunnelData.map((item) => {
+                  const displayValue = Math.round(item.value / 1000);
+                  const widthPercent = displayValue === 0 ? 6 : item.percentage;
+
+                  return (
+                    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+                      <div
+                        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
+                        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+                        title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
+                      >
+                        <span className="text-black font-bold text-sm truncate px-1">
+                          {displayValue.toLocaleString('en-US')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

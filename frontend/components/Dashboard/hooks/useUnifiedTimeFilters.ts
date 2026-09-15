@@ -10,7 +10,7 @@ export interface UnifiedTimeFiltersState {
   tuan: string[];
 }
 
-export type ViewMode = 'MONTH' | 'WEEK';
+export type ViewMode = 'MONTH' | 'WEEK' | 'YEAR';
 
 interface UseUnifiedTimeFiltersParams {
   inventoryData: DataRow[];

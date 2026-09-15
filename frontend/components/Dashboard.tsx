@@ -169,10 +169,17 @@ const {
   analysisCongTrinhKey,
   analysisXuongKey,
 });
-
 const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
 const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
-useEffect(() => { fetchRevenue2026().then(data => { if (data) setRevenue2026(data); }); }, []);
+
+// Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
+// Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
+// thang/tuan/ngay — nên effect chỉ re-run khi giá trị năm thay đổi.
+const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
+
+useEffect(() => {
+  fetchRevenue2026(selectedRevenueYear).then(data => { if (data) setRevenue2026(data); });
+}, [selectedRevenueYear]);
  
 const {
   congTrinhOptions,
@@ -621,7 +628,6 @@ const handleContinueToOrderColumnStep = () => {
   expandedBops={expandedBops}
   setExpandedBops={setExpandedBops}
   handleExportProductionStatus={handleExportProductionStatus}
-  yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
 />
         <BottleneckSection
           sectionRef={bottleneckSectionRef}
@@ -632,7 +638,7 @@ const handleContinueToOrderColumnStep = () => {
           handleExportBottlenecks={handleExportBottlenecks}
         />
 
-          <KhsxPlanActualSection
+         <KhsxPlanActualSection
   sectionRef={khsxSectionRef}
   inventorySectionRef={inventorySectionRef}
   khsxDataLength={khsxData.length}
@@ -652,6 +658,8 @@ const handleContinueToOrderColumnStep = () => {
   combinedProjectData={combinedProjectData}
   weeklyPlanVsActualData={weeklyPlanVsActualData}
   productivityAnalysisData={productivityAnalysisData}
+yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
+  selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
 />
 
           <ProjectSummarySection

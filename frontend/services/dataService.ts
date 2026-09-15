@@ -292,6 +292,7 @@ export interface StockDateEntry { date: string; count: number; value: number; }
 export interface StockByProjectRow { name: string; count: number; value: number; }
 
 export interface Revenue2026Data {
+  year: number;                 // MỚI: backend trả về field này
   targetRevenue2026: number;
   quarterlyTargets: { q1: number; q2: number; q3: number; q4: number };
   actual: { value: number; percent: number };
@@ -366,9 +367,12 @@ export const fetchStockByProject = async (dateISO: string): Promise<StockByProje
   }
 };
 
-export const fetchRevenue2026 = async (): Promise<Revenue2026Data | null> => {
+export const fetchRevenue2026 = async (year?: string | number): Promise<Revenue2026Data | null> => {
   try {
-    const r = await fetch(`${API_BASE_URL}/revenue/2026`);
+    const url = year
+      ? `${API_BASE_URL}/revenue/${year}`
+      : `${API_BASE_URL}/revenue`;
+    const r = await fetch(url);
     if (!r.ok) throw new Error('fetch failed');
     return await r.json();
   } catch (e) {

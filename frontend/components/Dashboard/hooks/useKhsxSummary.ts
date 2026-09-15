@@ -7,7 +7,11 @@ import { fetchKhsxNhapKhoSummary, type KhsxNhapKhoSummary } from '../../../servi
 // Types
 // ---------------------------------------------------------------------------
 
-export type ViewMode = 'WEEK' | 'MONTH';
+// MỚI: thêm 'YEAR' — chế độ "Xem theo NĂM" chỉ hiển thị biểu đồ Phân bổ Kế
+// hoạch theo Xưởng (KhsxPlanActualSection tự ẩn phần còn lại khi viewMode
+// === 'YEAR'), nhưng type ở đây vẫn cần bao gồm 'YEAR' để khớp với type
+// ViewMode dùng chung trong toàn bộ Dashboard (xem useUnifiedTimeFilters.ts).
+export type ViewMode = 'WEEK' | 'MONTH' | 'YEAR';
 
 export interface UnifiedTimeFilters {
   nam: string[];
@@ -140,6 +144,15 @@ export function useKhsxSummary({
   const khsxFetchIdRef = useRef(0);
 
   useEffect(() => {
+    // Ở chế độ NĂM, bảng KH/TH theo tháng-tuần này không hiển thị (xem
+    // KhsxPlanActualSection: viewMode === 'YEAR' chỉ render biểu đồ theo xưởng
+    // lấy từ /api/revenue/:year, không dùng khsxSummary) — bỏ qua fetch để
+    // tránh gọi API thừa mỗi khi người dùng đổi năm ở chế độ NĂM.
+    if (viewMode === 'YEAR') {
+      setKhsxSummary(null);
+      return;
+    }
+
     const requestId = ++khsxFetchIdRef.current;
     const controller = new AbortController();
 
@@ -188,7 +201,10 @@ export function useKhsxSummary({
   // Weekly Plan vs Actual (Analysis data source)
   // -------------------------------------------------------------------------
   const weeklyPlanVsActualData = useMemo<WeeklyPlanVsActualRow[]>(() => {
-    if (viewMode === 'MONTH') return [];
+    // SỬA: trước đây chỉ loại trừ 'MONTH' — với 'YEAR' điều kiện này là false
+    // nên code bên dưới vẫn chạy nhầm như đang ở chế độ WEEK. Giờ chỉ tính khi
+    // viewMode thực sự là 'WEEK'.
+    if (viewMode !== 'WEEK') return [];
     if (!analysisXuongKey || !analysisPlanKey || !analysisActualKey) return [];
 
     const map = new Map<string, WeeklyPlanVsActualRow>();
@@ -250,7 +266,8 @@ export function useKhsxSummary({
   // Productivity Analysis (Attendance + Inventory)
   // -------------------------------------------------------------------------
   const productivityAnalysisData = useMemo<ProductivityAnalysisRow[]>(() => {
-    if (viewMode === 'MONTH') return [];
+    // SỬA: cùng lý do như trên — chỉ tính khi thực sự ở chế độ WEEK.
+    if (viewMode !== 'WEEK') return [];
 
     // 1. Aggregate Attendance Data
     const attendanceMap = new Map<string, {

@@ -39,7 +39,6 @@ interface ProductionStatusSectionProps {
   expandedBops: Set<string>;
   setExpandedBops: React.Dispatch<React.SetStateAction<Set<string>>>;
   handleExportProductionStatus: () => void;
-  yearlyPlan2026WorkshopChartData: WorkshopRevenueRow[];
 }
 
 export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = ({
@@ -52,7 +51,6 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
   expandedBops,
   setExpandedBops,
   handleExportProductionStatus,
-  yearlyPlan2026WorkshopChartData,
 }) => {
   return (
     <div
@@ -60,52 +58,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
       id="production-status-section"
       className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-8"
     >
-      {/* Chart - PHÂN BỔ KẾ HOẠCH THEO XƯỞNG (2026) */}
-      <div className="mb-0">
-        {yearlyPlan2026WorkshopChartData.length > 0 ? (
-          <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-4">
-            <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-wide">
-              <BarChart2 className="w-4 h-4 text-emerald-600" /> Phân bổ Kế hoạch theo Xưởng (2026)
-            </h4>
-            <div className="w-full h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={yearlyPlan2026WorkshopChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
-                  <YAxis tickFormatter={(val) => formatDecimal(val)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                  <RechartsTooltip content={<YearlyPlanWorkshopTooltip />} cursor={{ fill: '#f8fafc' }} />
-                  <Legend verticalAlign="top" height={36} />
-                  <Bar dataKey="plan" name="Kế hoạch (Tỷ)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30}>
-                    <LabelList dataKey="plan" position="top" formatter={(val: number) => val > 0 ? formatDecimal(val) : ''} fontSize={10} fill="#059669" />
-                  </Bar>
-                  <Bar dataKey="actual" name="Thực hiện (Tỷ)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
-                    <LabelList
-                      dataKey="actual"
-                      position="top"
-                      content={(props: any) => {
-                        const { x, y, width, value, index } = props;
-                        const item = yearlyPlan2026WorkshopChartData[index as number];
-                        const plan = item?.plan || 0;
-                        const actual = Number(value) || 0;
-                        if (actual <= 0) return null;
-                        const percent = plan > 0 ? (actual / plan) * 100 : 0;
-                        return (
-                          <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
-                            <tspan x={x + width / 2} dy="0">{formatDecimal(actual)}</tspan>
-                            <tspan x={x + width / 2} dy="12">({Math.round(percent)}%)</tspan>
-                          </text>
-                        );
-                      }}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        ) : (
-          <div className="h-[200px] flex items-center justify-center text-slate-400">Không có dữ liệu xưởng</div>
-        )}
-      </div>
+  
 
       <div className="flex flex-row justify-between items-start border-b border-slate-100 pb-4">
         <div className="flex flex-col gap-1">

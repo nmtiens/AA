@@ -16,7 +16,7 @@ import { WeeklyVennDiagram } from '../shared/WeeklyVennDiagram';
 import { ProjectChartTooltip } from '../shared/tooltips/ProjectChartTooltip';
 import { WorkshopChartTooltip } from '../shared/tooltips/WorkshopChartTooltip';
 import ProductivityCharts from '../../../ProductivityCharts';
-
+import type { ViewMode } from '../../hooks/useUnifiedTimeFilters';
 // ---------------------------------------------------------------------------
 // Types (mirror the fields actually consumed below — verify against
 // useKhsxSummary's real return type and replace this block with an import
@@ -30,7 +30,6 @@ export interface UnifiedTimeFilters {
   tuan: string[];
 }
 
-export type ViewMode = 'MONTH' | 'WEEK';
 
 export interface CombinedChartRow {
   name: string;
@@ -73,6 +72,13 @@ export interface ProductivityAnalysisRow {
   hoursPerWorker: number;
 }
 
+// MỚI: dữ liệu Kế hoạch theo Xưởng — chỉ phụ thuộc vào Năm được chọn
+export interface YearlyWorkshopRow {
+  name: string;
+  plan: number;
+  actual: number;
+}
+
 interface KhsxPlanActualSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
   inventorySectionRef: React.Ref<HTMLDivElement>;
@@ -98,6 +104,12 @@ interface KhsxPlanActualSectionProps {
   combinedProjectData: CombinedProjectChartRow[];
   weeklyPlanVsActualData: WeeklyPlanVsActualRow[];
   productivityAnalysisData: ProductivityAnalysisRow[];
+
+  // MỚI: dữ liệu "Phân bổ Kế hoạch theo Xưởng" — CHỈ lọc theo unifiedTimeFilters.nam,
+  // không bị ảnh hưởng bởi thang/tuan/ngay. Component cha (Dashboard) chịu trách
+  // nhiệm tính lại mảng này mỗi khi unifiedTimeFilters.nam thay đổi.
+  yearlyPlan2026WorkshopChartData: YearlyWorkshopRow[];
+  selectedRevenueYearLabel: string;   // MỚI
 }
 
 // ---------------------------------------------------------------------------
@@ -124,10 +136,13 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
   combinedProjectData,
   weeklyPlanVsActualData,
   productivityAnalysisData,
+  yearlyPlan2026WorkshopChartData,
+  selectedRevenueYearLabel,
 }) => {
   const [isWeeklyDetailModalOpen, setIsWeeklyDetailModalOpen] = useState(false);
 
   if (khsxDataLength === 0 && inventoryDataLength === 0) return null;
+
 
   return (
     <>
@@ -155,6 +170,18 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
             </div>
 
             <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
+               {/* MỚI: Xem theo NĂM — bỏ mọi lọc Tháng/Tuần/Ngày, chỉ còn Năm */}
+              <button
+                onClick={() => {
+                  setViewMode('YEAR');
+                  setUnifiedTimeFilters((prev) => ({ ...prev, thang: [], tuan: [], ngay: [] }));
+                }}
+                className={`px-3 py-1 text-[10px] font-bold rounded ${
+                  viewMode === 'YEAR' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                Xem theo NĂM
+              </button>
               <button
                 onClick={() => {
                   setViewMode('MONTH');
@@ -192,12 +219,16 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
               selectedValues={unifiedTimeFilters.nam}
               onChange={(vals) => setUnifiedTimeFilters((prev) => ({ ...prev, nam: vals }))}
             />
-            <DashboardFilter
-              label="LỌC THÁNG"
-              options={unifiedThangOptions}
-              selectedValues={unifiedTimeFilters.thang}
-              onChange={(vals) => setUnifiedTimeFilters((prev) => ({ ...prev, thang: vals }))}
-            />
+
+            {/* Tháng/Tuần/Ngày chỉ có ý nghĩa ở chế độ THÁNG/TUẦN — ẩn hoàn toàn ở chế độ NĂM */}
+            {viewMode !== 'YEAR' && (
+              <DashboardFilter
+                label="LỌC THÁNG"
+                options={unifiedThangOptions}
+                selectedValues={unifiedTimeFilters.thang}
+                onChange={(vals) => setUnifiedTimeFilters((prev) => ({ ...prev, thang: vals }))}
+              />
+            )}
 
             {viewMode === 'WEEK' && (
               <>
@@ -231,414 +262,472 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 shadow-sm flex flex-col justify-center">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-orange-100 rounded text-orange-600">
-                <Calendar size={18} />
+        {/* ================= CHẾ ĐỘ NĂM: chỉ hiện biểu đồ Phân bổ Kế hoạch theo Xưởng ================= */}
+        {viewMode === 'YEAR' ? (
+  <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-4" ref={inventorySectionRef}>
+    <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-wide">
+      <BarChart2 className="w-4 h-4 text-emerald-600" /> Phân bổ Kế hoạch theo Xưởng ({selectedRevenueYearLabel})
+    </h4>
+    {yearlyPlan2026WorkshopChartData.length > 0 ? (
+      <div className="w-full h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={yearlyPlan2026WorkshopChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+                    <YAxis tickFormatter={(val) => formatDecimal(val)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <RechartsTooltip
+                      formatter={(value: number, name: string) => [
+                        `${formatDecimal(value)} Tỷ`,
+                        name === 'plan' ? 'Kế hoạch' : 'Thực hiện',
+                      ]}
+                      cursor={{ fill: '#f8fafc' }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Bar dataKey="plan" name="Kế hoạch (Tỷ)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30}>
+                      <LabelList dataKey="plan" position="top" formatter={(val: number) => (val > 0 ? formatDecimal(val) : '')} fontSize={10} fill="#059669" />
+                    </Bar>
+                    <Bar dataKey="actual" name="Thực hiện (Tỷ)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
+                      <LabelList
+                        dataKey="actual"
+                        position="top"
+                        content={(props: any) => {
+                          const { x, y, width, value, index } = props;
+                          const item = yearlyPlan2026WorkshopChartData[index as number];
+                          const plan = item?.plan || 0;
+                          const actual = Number(value) || 0;
+                          if (actual <= 0) return null;
+                          const percent = plan > 0 ? (actual / plan) * 100 : 0;
+                          return (
+                            <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
+                              <tspan x={x + width / 2} dy="0">{formatDecimal(actual)}</tspan>
+                              <tspan x={x + width / 2} dy="12">({Math.round(percent)}%)</tspan>
+                            </text>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-              <p className="text-xs font-bold text-orange-800 opacity-70 uppercase">Tổng KH Sản Xuất</p>
-            </div>
-            <h4 className="text-2xl lg:text-3xl font-bold text-orange-600 tracking-tight">
-              {formatDecimal(totalKhsxAmount)}
-            </h4>
-            <div className="mt-1 text-[10px] text-orange-800/60 italic">
-              {`Chế độ xem: ${viewMode === 'MONTH' ? 'Theo Tháng' : 'Theo Tuần'}`}
-            </div>
+            ) : (
+                <div className="h-[200px] flex items-center justify-center text-slate-400">
+        Không có dữ liệu xưởng cho năm {selectedRevenueYearLabel}
+      </div>
+            )}
           </div>
-          <div className="p-4 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl border border-teal-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
-            <div className="flex items-center gap-2 mb-2 z-10">
-              <div className="p-1.5 bg-teal-100 rounded text-teal-600">
-                <TrendingUp size={18} />
-              </div>
-              <p className="text-xs font-bold text-teal-800 opacity-70 uppercase">Tỷ lệ Thực hiện / KH</p>
-            </div>
-            <div className="flex items-baseline gap-2 z-10">
-              <h4
-                className={`text-3xl font-bold tracking-tight ${
-                  completionRate >= 80 ? 'text-emerald-600' : completionRate >= 50 ? 'text-amber-600' : 'text-red-500'
-                }`}
-              >
-                {formatDecimal(completionRate)}%
-              </h4>
-            </div>
-            <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 z-10">
-              <div
-                className={`h-1.5 rounded-full transition-all duration-500 ${
-                  completionRate >= 100
-                    ? 'bg-emerald-500'
-                    : completionRate >= 80
-                    ? 'bg-teal-500'
-                    : completionRate >= 50
-                    ? 'bg-amber-500'
-                    : 'bg-red-500'
-                }`}
-                style={{ width: `${Math.min(completionRate, 100)}%` }}
-              ></div>
-            </div>
-            <div className="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2">
-              <TrendingUp size={80} className="text-teal-600" />
-            </div>
-          </div>
-          <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-center">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
-                <Import size={18} />
-              </div>
-              <p className="text-xs font-bold text-indigo-800 opacity-70 uppercase">Tổng Thực Hiện (NK)</p>
-            </div>
-            <h4 className="text-2xl lg:text-3xl font-bold text-indigo-600 tracking-tight">
-              {formatDecimal(totalInventoryAmount)}
-            </h4>
-          </div>
-        </div>
-
-        <div className="border-t border-slate-100 pt-2"></div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={inventorySectionRef}>
-          <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
-            <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
-              SO SÁNH: KH vs TH (Theo Xưởng)
-            </div>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={combinedWorkshopData} margin={{ top: 35, right: 30, left: 10, bottom: 50 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10 }} interval={0} />
-                <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
-                <RechartsTooltip content={<WorkshopChartTooltip />} cursor={{ fill: '#f8fafc' }} />
-                <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                  <LabelList position="top" formatter={formatDecimal} fontSize={10} fill="#059669" />
-                </Bar>
-                <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
-                  <LabelList
-                    dataKey="thValue"
-                    position="top"
-                    content={(props: any) => {
-                      const { x, y, width, value, index } = props;
-                      const item = combinedWorkshopData[index as number];
-                      const plan = item?.khValue || 0;
-                      const actual = Number(value) || 0;
-
-                      if (actual <= 0) return null;
-
-                      const percent = plan > 0 ? (actual / plan) * 100 : 0;
-
-                      return (
-                        <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
-                          <tspan x={x + width / 2} dy="0">
-                            {formatDecimal(actual)}
-                          </tspan>
-                          <tspan x={x + width / 2} dy="12">
-                            ({Math.round(percent)}%)
-                          </tspan>
-                        </text>
-                      );
-                    }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
-            <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
-              SO SÁNH: KH vs TH (Theo Công Trình - Top 10)
-            </div>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={combinedProjectData} margin={{ top: 35, right: 30, left: 10, bottom: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis
-                  dataKey="code"
-                  angle={-50}
-                  textAnchor="end"
-                  height={80}
-                  tick={{ fontSize: 10 }}
-                  interval={0}
-                  tickFormatter={(value) => (value.includes('_') ? value.split('_').pop() : value)}
-                />
-                <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
-                <RechartsTooltip content={<ProjectChartTooltip />} cursor={{ fill: '#f8fafc' }} />
-                <Legend verticalAlign="top" height={36} iconType="circle" />
-                <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                  <LabelList position="top" formatter={formatDecimal} fontSize={10} fill="#059669" />
-                </Bar>
-                <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
-                  <LabelList
-                    dataKey="thValue"
-                    position="top"
-                    content={(props: any) => {
-                      const { x, y, width, value, index } = props;
-                      const item = combinedProjectData[index as number];
-                      const plan = item?.khValue || 0;
-                      const actual = Number(value) || 0;
-
-                      if (actual <= 0) return null;
-
-                      const percent = plan > 0 ? (actual / plan) * 100 : 0;
-
-                      return (
-                        <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
-                          <tspan x={x + width / 2} dy="0">
-                            {formatDecimal(actual)}
-                          </tspan>
-                          <tspan x={x + width / 2} dy="12">
-                            ({Math.round(percent)}%)
-                          </tspan>
-                        </text>
-                      );
-                    }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {viewMode === 'WEEK' && (
-          <div className="w-full mt-4">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                <TableIcon className="w-4 h-4 text-orange-600" /> Phân tích Kế hoạch-Thực hiện Tuần
-              </h4>
-            </div>
-
-            {weeklyPlanVsActualData.length > 0 ? (
-              <div className="flex flex-col xl:flex-row gap-6 items-start">
-                <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg flex-1 min-w-0">
-                  <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                      <TableIcon className="w-4 h-4 text-wood-500" />
-                      {(() => {
-                        const w = parseInt(unifiedTimeFilters.tuan[0] || '0');
-                        if (!w) return 'KẾ HOẠCH-THỰC HIỆN TUẦN';
-                        const { start, end } = getWeekRange2026(w);
-                        const fmt = (d: Date) =>
-                          `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-                        return `KẾ HOẠCH-THỰC HIỆN TUẦN ${w} (từ ${fmt(start)} đến ${fmt(end)})`;
-                      })()}
-                    </h4>
-                    <button
-                      onClick={() => setIsWeeklyDetailModalOpen(true)}
-                      className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-200"
-                      title="Xem chi tiết"
-                    >
-                      <Eye size={16} />
-                    </button>
+        ) : (
+          <>
+            {/* ================= CHẾ ĐỘ THÁNG/TUẦN: giữ nguyên toàn bộ nội dung cũ ================= */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-4 bg-orange-50 rounded-xl border border-orange-100 shadow-sm flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-orange-100 rounded text-orange-600">
+                    <Calendar size={18} />
                   </div>
-                  <table className="w-full text-xs text-right min-w-[800px]">
-                    <thead className="bg-wood-50 text-slate-700 font-semibold uppercase">
-                      <tr>
-                        <th className="px-4 py-3 text-left sticky left-0 bg-wood-50 border-b border-wood-200 z-10 w-32">
-                          Xưởng Chính
-                        </th>
-                        <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Thành tiền Kế hoạch</th>
-                        <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Nhập kho Tuần</th>
-                        <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Tỷ lệ (Tuần/KH)</th>
-                        <th className="px-4 py-3 border-b border-wood-200 text-green-700 bg-green-50">ĐÚNG TIẾN ĐỘ</th>
-                        <th className="px-4 py-3 border-b border-wood-200 text-red-700 bg-red-50">CHẬM TIẾN ĐỘ</th>
-                        <th className="px-4 py-3 border-b border-wood-200 text-teal-700 bg-teal-50">NGOÀI KẾ HOẠCH</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {weeklyPlanVsActualData.map((item, idx) => {
-                        const dungTienDo = item.dungKh + item.thucHienDungKh1Phan + item.nhapKhoTruocKh;
-                        const chamTienDo = item.rotKh + item.thucHienRotKh1Phan;
-                        const ngoaiKeHoach = item.vuotKh + item.nhapKhoNgoaiKh;
-                        const percent = item.plan > 0 ? (item.actualWeek / item.plan) * 100 : 0;
+                  <p className="text-xs font-bold text-orange-800 opacity-70 uppercase">Tổng KH Sản Xuất</p>
+                </div>
+                <h4 className="text-2xl lg:text-3xl font-bold text-orange-600 tracking-tight">
+                  {formatDecimal(totalKhsxAmount)}
+                </h4>
+                <div className="mt-1 text-[10px] text-orange-800/60 italic">
+                  {`Chế độ xem: ${viewMode === 'MONTH' ? 'Theo Tháng' : 'Theo Tuần'}`}
+                </div>
+              </div>
+              <div className="p-4 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl border border-teal-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
+                <div className="flex items-center gap-2 mb-2 z-10">
+                  <div className="p-1.5 bg-teal-100 rounded text-teal-600">
+                    <TrendingUp size={18} />
+                  </div>
+                  <p className="text-xs font-bold text-teal-800 opacity-70 uppercase">Tỷ lệ Thực hiện / KH</p>
+                </div>
+                <div className="flex items-baseline gap-2 z-10">
+                  <h4
+                    className={`text-3xl font-bold tracking-tight ${
+                      completionRate >= 80 ? 'text-emerald-600' : completionRate >= 50 ? 'text-amber-600' : 'text-red-500'
+                    }`}
+                  >
+                    {formatDecimal(completionRate)}%
+                  </h4>
+                </div>
+                <div className="w-full bg-slate-200 h-1.5 rounded-full mt-3 z-10">
+                  <div
+                    className={`h-1.5 rounded-full transition-all duration-500 ${
+                      completionRate >= 100
+                        ? 'bg-emerald-500'
+                        : completionRate >= 80
+                        ? 'bg-teal-500'
+                        : completionRate >= 50
+                        ? 'bg-amber-500'
+                        : 'bg-red-500'
+                    }`}
+                    style={{ width: `${Math.min(completionRate, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="absolute right-0 top-0 opacity-10 transform translate-x-2 -translate-y-2">
+                  <TrendingUp size={80} className="text-teal-600" />
+                </div>
+              </div>
+              <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 shadow-sm flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
+                    <Import size={18} />
+                  </div>
+                  <p className="text-xs font-bold text-indigo-800 opacity-70 uppercase">Tổng Thực Hiện (NK)</p>
+                </div>
+                <h4 className="text-2xl lg:text-3xl font-bold text-indigo-600 tracking-tight">
+                  {formatDecimal(totalInventoryAmount)}
+                </h4>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-2"></div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={inventorySectionRef}>
+              <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
+                <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
+                  SO SÁNH: KH vs TH (Theo Xưởng)
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={combinedWorkshopData} margin={{ top: 35, right: 30, left: 10, bottom: 50 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10 }} interval={0} />
+                    <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
+                    <RechartsTooltip content={<WorkshopChartTooltip />} cursor={{ fill: '#f8fafc' }} />
+                    <Legend verticalAlign="top" height={36} iconType="circle" />
+                    <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
+                      <LabelList position="top" formatter={formatDecimal} fontSize={10} fill="#059669" />
+                    </Bar>
+                    <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
+                      <LabelList
+                        dataKey="thValue"
+                        position="top"
+                        content={(props: any) => {
+                          const { x, y, width, value, index } = props;
+                          const item = combinedWorkshopData[index as number];
+                          const plan = item?.khValue || 0;
+                          const actual = Number(value) || 0;
+
+                          if (actual <= 0) return null;
+
+                          const percent = plan > 0 ? (actual / plan) * 100 : 0;
+
+                          return (
+                            <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
+                              <tspan x={x + width / 2} dy="0">
+                                {formatDecimal(actual)}
+                              </tspan>
+                              <tspan x={x + width / 2} dy="12">
+                                ({Math.round(percent)}%)
+                              </tspan>
+                            </text>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
+                <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
+                  SO SÁNH: KH vs TH (Theo Công Trình - Top 10)
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={combinedProjectData} margin={{ top: 35, right: 30, left: 10, bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis
+                      dataKey="code"
+                      angle={-50}
+                      textAnchor="end"
+                      height={80}
+                      tick={{ fontSize: 10 }}
+                      interval={0}
+                      tickFormatter={(value) => (value.includes('_') ? value.split('_').pop() : value)}
+                    />
+                    <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
+                    <RechartsTooltip content={<ProjectChartTooltip />} cursor={{ fill: '#f8fafc' }} />
+                    <Legend verticalAlign="top" height={36} iconType="circle" />
+                    <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
+                      <LabelList position="top" formatter={formatDecimal} fontSize={10} fill="#059669" />
+                    </Bar>
+                    <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
+                      <LabelList
+                        dataKey="thValue"
+                        position="top"
+                        content={(props: any) => {
+                          const { x, y, width, value, index } = props;
+                          const item = combinedProjectData[index as number];
+                          const plan = item?.khValue || 0;
+                          const actual = Number(value) || 0;
+
+                          if (actual <= 0) return null;
+
+                          const percent = plan > 0 ? (actual / plan) * 100 : 0;
+
+                          return (
+                            <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
+                              <tspan x={x + width / 2} dy="0">
+                                {formatDecimal(actual)}
+                              </tspan>
+                              <tspan x={x + width / 2} dy="12">
+                                ({Math.round(percent)}%)
+                              </tspan>
+                            </text>
+                          );
+                        }}
+                      />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {viewMode === 'WEEK' && (
+              <div className="w-full mt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+                    <TableIcon className="w-4 h-4 text-orange-600" /> Phân tích Kế hoạch-Thực hiện Tuần
+                  </h4>
+                </div>
+
+                {weeklyPlanVsActualData.length > 0 ? (
+                  <div className="flex flex-col xl:flex-row gap-6 items-start">
+                    <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg flex-1 min-w-0">
+                      <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+                          <TableIcon className="w-4 h-4 text-wood-500" />
+                          {(() => {
+                            const w = parseInt(unifiedTimeFilters.tuan[0] || '0');
+                            if (!w) return 'KẾ HOẠCH-THỰC HIỆN TUẦN';
+                            const { start, end } = getWeekRange2026(w);
+                            const fmt = (d: Date) =>
+                              `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+                            return `KẾ HOẠCH-THỰC HIỆN TUẦN ${w} (từ ${fmt(start)} đến ${fmt(end)})`;
+                          })()}
+                        </h4>
+                        <button
+                          onClick={() => setIsWeeklyDetailModalOpen(true)}
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-slate-200"
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </div>
+                      <table className="w-full text-xs text-right min-w-[800px]">
+                        <thead className="bg-wood-50 text-slate-700 font-semibold uppercase">
+                          <tr>
+                            <th className="px-4 py-3 text-left sticky left-0 bg-wood-50 border-b border-wood-200 z-10 w-32">
+                              Xưởng Chính
+                            </th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Thành tiền Kế hoạch</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Nhập kho Tuần</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Tỷ lệ (Tuần/KH)</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-green-700 bg-green-50">ĐÚNG TIẾN ĐỘ</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-red-700 bg-red-50">CHẬM TIẾN ĐỘ</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-teal-700 bg-teal-50">NGOÀI KẾ HOẠCH</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {weeklyPlanVsActualData.map((item, idx) => {
+                            const dungTienDo = item.dungKh + item.thucHienDungKh1Phan + item.nhapKhoTruocKh;
+                            const chamTienDo = item.rotKh + item.thucHienRotKh1Phan;
+                            const ngoaiKeHoach = item.vuotKh + item.nhapKhoNgoaiKh;
+                            const percent = item.plan > 0 ? (item.actualWeek / item.plan) * 100 : 0;
+
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">
+                                  {item.name}
+                                </td>
+                                <td className="px-4 py-3 text-slate-600 font-bold">{formatDecimal(item.plan)}</td>
+                                <td className="px-4 py-3 font-bold text-slate-800">{formatDecimal(item.actualWeek)}</td>
+                                <td className="px-4 py-3">
+                                  <span
+                                    className={`px-2 py-1 rounded font-bold text-[10px] inline-block w-16 text-center ${
+                                      percent >= 80
+                                        ? 'bg-green-100 text-green-700'
+                                        : percent >= 50
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-red-100 text-red-700'
+                                    }`}
+                                  >
+                                    {formatDecimal(percent)}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-green-700 bg-green-50/30 font-bold">{formatDecimal(dungTienDo)}</td>
+                                <td className="px-4 py-3 text-red-700 bg-red-50/30 font-bold">{formatDecimal(chamTienDo)}</td>
+                                <td className="px-4 py-3 text-teal-700 bg-teal-50/30 font-bold">{formatDecimal(ngoaiKeHoach)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
+                          <tr>
+                            <td className="px-4 py-3 text-left sticky left-0 bg-wood-100 z-10">TỔNG CỘNG</td>
+                            <td className="px-4 py-3">{formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
+                            <td className="px-4 py-3">
+                              {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
+                            </td>
+                            <td className="px-4 py-3">
+                              {(() => {
+                                const totalPlan = weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0);
+                                const totalActual = weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0);
+                                const totalPercent = totalPlan > 0 ? (totalActual / totalPlan) * 100 : 0;
+                                return `${formatDecimal(totalPercent)}%`;
+                              })()}
+                            </td>
+                            <td className="px-4 py-3 text-green-800 bg-green-100/50">
+                              {formatDecimal(
+                                weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh, 0)
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-red-800 bg-red-100/50">
+                              {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0))}
+                            </td>
+                            <td className="px-4 py-3 text-teal-800 bg-teal-100/50">
+                              {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0))}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                    <div className="w-full xl:w-auto xl:max-w-[40%] shrink-0">
+                      {(() => {
+                        const totalPlan = weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0);
+                        const totalActual = weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0);
+                        const intersection = weeklyPlanVsActualData.reduce(
+                          (a, b) => a + b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh,
+                          0
+                        );
+                        const leftOnly = weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0);
+                        const rightOnly = weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0);
 
                         return (
+                          <WeeklyVennDiagram
+                            totalPlan={totalPlan}
+                            totalActual={totalActual}
+                            intersection={intersection}
+                            leftOnly={leftOnly}
+                            rightOnly={rightOnly}
+                          />
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
+                    Không có dữ liệu phân tích tuần (Kiểm tra lại bộ lọc hoặc dữ liệu nguồn).
+                  </div>
+                )}
+              </div>
+            )}
+
+            {viewMode === 'WEEK' && (
+              <div className="w-full mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+                    <Activity className="w-4 h-4 text-purple-600" /> Phân tích Năng suất (Dữ liệu Điểm danh)
+                  </h4>
+                </div>
+
+                {productivityAnalysisData.length > 0 ? (
+                  <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
+                    <table className="w-full text-xs text-right min-w-[1200px]">
+                      <thead className="bg-purple-50 text-slate-700 font-semibold uppercase">
+                        <tr>
+                          <th className="px-4 py-3 text-left border-b border-purple-200 sticky left-0 bg-purple-50 z-10 w-[200px]">
+                            Xưởng Chính
+                          </th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600" title="Định biên">
+                            ĐỊNH BIÊN
+                          </th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600" title="Trung bình cộng">
+                            TRUNG BÌNH SỐ LƯỢNG CÔNG NHÂN
+                          </th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ CÔNG HÀNH CHÍNH</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ TĂNG CA</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700">TỶ LỆ GIỜ TĂNG CA (%)</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-purple-800 bg-purple-100/30">
+                            DOANH SỐ NHẬP KHO
+                          </th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 GIỜ</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 CÔNG NHÂN</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700">BÌNH QUÂN GIỜ CÔNG / 1 CÔNG NHÂN</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {productivityAnalysisData.map((item, idx) => (
                           <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">
+                            <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white z-10 border-r border-slate-100 drop-shadow-sm">
                               {item.name}
                             </td>
-                            <td className="px-4 py-3 text-slate-600 font-bold">{formatDecimal(item.plan)}</td>
-                            <td className="px-4 py-3 font-bold text-slate-800">{formatDecimal(item.actualWeek)}</td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`px-2 py-1 rounded font-bold text-[10px] inline-block w-16 text-center ${
-                                  percent >= 80
-                                    ? 'bg-green-100 text-green-700'
-                                    : percent >= 50
-                                    ? 'bg-yellow-100 text-yellow-700'
-                                    : 'bg-red-100 text-red-700'
-                                }`}
-                              >
-                                {formatDecimal(percent)}%
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-green-700 bg-green-50/30 font-bold">{formatDecimal(dungTienDo)}</td>
-                            <td className="px-4 py-3 text-red-700 bg-red-50/30 font-bold">{formatDecimal(chamTienDo)}</td>
-                            <td className="px-4 py-3 text-teal-700 bg-teal-50/30 font-bold">{formatDecimal(ngoaiKeHoach)}</td>
+                            <td className="px-2 py-3 text-slate-700">{formatInteger(item.avgDinhBien)}</td>
+                            <td className="px-2 py-3 text-slate-700">{formatInteger(item.avgWorkers)}</td>
+                            <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalHc)}</td>
+                            <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalTc)}</td>
+                            <td className="px-2 py-3 text-orange-600">{formatDecimal(item.overtimeRate)}%</td>
+                            <td className="px-2 py-3 text-purple-700 font-bold bg-purple-50/20">{formatDecimal(item.sales)}</td>
+                            <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerHour)}</td>
+                            <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerWorker)}</td>
+                            <td className="px-2 py-3 text-orange-600">{formatDecimal(item.hoursPerWorker)}</td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
-                      <tr>
-                        <td className="px-4 py-3 text-left sticky left-0 bg-wood-100 z-10">TỔNG CỘNG</td>
-                        <td className="px-4 py-3">{formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
-                        <td className="px-4 py-3">
-                          {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
-                        </td>
-                        <td className="px-4 py-3">
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-purple-100 font-bold text-slate-800 border-t border-purple-300">
+                        <tr>
+                          <td className="px-4 py-3 text-left sticky left-0 bg-purple-100 z-10 w-[200px]">
+                            TỔNG CỘNG / BÌNH QUÂN
+                          </td>
+                          <td className="px-2 py-3">
+                            {formatInteger(productivityAnalysisData.reduce((sum, item) => sum + item.avgDinhBien, 0))}
+                          </td>
+                          <td className="px-2 py-3">
+                            {formatInteger(productivityAnalysisData.reduce((sum, item) => sum + item.avgWorkers, 0))}
+                          </td>
+                          <td className="px-2 py-3">
+                            {formatDecimal(productivityAnalysisData.reduce((sum, item) => sum + item.totalHc, 0))}
+                          </td>
+                          <td className="px-2 py-3">
+                            {formatDecimal(productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0))}
+                          </td>
                           {(() => {
-                            const totalPlan = weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0);
-                            const totalActual = weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0);
-                            const totalPercent = totalPlan > 0 ? (totalActual / totalPlan) * 100 : 0;
-                            return `${formatDecimal(totalPercent)}%`;
+                            const totalSales = productivityAnalysisData.reduce((sum, item) => sum + item.sales, 0);
+                            const totalAvgWorkers = productivityAnalysisData.reduce((sum, item) => sum + item.avgWorkers, 0);
+                            const totalHc = productivityAnalysisData.reduce((sum, item) => sum + item.totalHc, 0);
+                            const totalTc = productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0);
+                            const totalHours = totalHc + totalTc;
+
+                            const avgSalesPerHour = totalHours > 0 ? totalSales / totalHours : 0;
+                            const avgSalesPerWorker = totalAvgWorkers > 0 ? totalSales / totalAvgWorkers : 0;
+                            const avgOvertimeRate = totalHours > 0 ? (totalTc / totalHours) * 100 : 0;
+                            const avgHoursPerWorker = totalAvgWorkers > 0 ? totalHours / totalAvgWorkers : 0;
+
+                            return (
+                              <>
+                                <td className="px-2 py-3 text-orange-800">{formatDecimal(avgOvertimeRate)}%</td>
+                                <td className="px-2 py-3 text-purple-900">{formatDecimal(totalSales)}</td>
+                                <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerHour)}</td>
+                                <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerWorker)}</td>
+                                <td className="px-2 py-3 text-orange-800">{formatDecimal(avgHoursPerWorker)}</td>
+                              </>
+                            );
                           })()}
-                        </td>
-                        <td className="px-4 py-3 text-green-800 bg-green-100/50">
-                          {formatDecimal(
-                            weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh, 0)
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-red-800 bg-red-100/50">
-                          {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0))}
-                        </td>
-                        <td className="px-4 py-3 text-teal-800 bg-teal-100/50">
-                          {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
+                    Không có dữ liệu năng suất cho tuần này.
+                  </div>
+                )}
 
-                <div className="w-full xl:w-auto xl:max-w-[40%] shrink-0">
-                  {(() => {
-                    const totalPlan = weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0);
-                    const totalActual = weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0);
-                    const intersection = weeklyPlanVsActualData.reduce(
-                      (a, b) => a + b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh,
-                      0
-                    );
-                    const leftOnly = weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0);
-                    const rightOnly = weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0);
-
-                    return (
-                      <WeeklyVennDiagram
-                        totalPlan={totalPlan}
-                        totalActual={totalActual}
-                        intersection={intersection}
-                        leftOnly={leftOnly}
-                        rightOnly={rightOnly}
-                      />
-                    );
-                  })()}
-                </div>
-              </div>
-            ) : (
-              <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
-                Không có dữ liệu phân tích tuần (Kiểm tra lại bộ lọc hoặc dữ liệu nguồn).
+                {productivityAnalysisData.length > 0 && (
+                  <ProductivityCharts data={productivityAnalysisData} viewMode={viewMode} filters={unifiedTimeFilters} />
+                )}
               </div>
             )}
-          </div>
-        )}
-
-        {viewMode === 'WEEK' && (
-          <div className="w-full mt-6">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                <Activity className="w-4 h-4 text-purple-600" /> Phân tích Năng suất (Dữ liệu Điểm danh)
-              </h4>
-            </div>
-
-            {productivityAnalysisData.length > 0 ? (
-              <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
-                <table className="w-full text-xs text-right min-w-[1200px]">
-                  <thead className="bg-purple-50 text-slate-700 font-semibold uppercase">
-                    <tr>
-                      <th className="px-4 py-3 text-left border-b border-purple-200 sticky left-0 bg-purple-50 z-10 w-[200px]">
-                        Xưởng Chính
-                      </th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-slate-600" title="Định biên">
-                        ĐỊNH BIÊN
-                      </th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-slate-600" title="Trung bình cộng">
-                        TRUNG BÌNH SỐ LƯỢNG CÔNG NHÂN
-                      </th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ CÔNG HÀNH CHÍNH</th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ TĂNG CA</th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-orange-700">TỶ LỆ GIỜ TĂNG CA (%)</th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-purple-800 bg-purple-100/30">
-                        DOANH SỐ NHẬP KHO
-                      </th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 GIỜ</th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 CÔNG NHÂN</th>
-                      <th className="px-2 py-3 border-b border-purple-200 text-orange-700">BÌNH QUÂN GIỜ CÔNG / 1 CÔNG NHÂN</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {productivityAnalysisData.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white z-10 border-r border-slate-100 drop-shadow-sm">
-                          {item.name}
-                        </td>
-                        <td className="px-2 py-3 text-slate-700">{formatInteger(item.avgDinhBien)}</td>
-                        <td className="px-2 py-3 text-slate-700">{formatInteger(item.avgWorkers)}</td>
-                        <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalHc)}</td>
-                        <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalTc)}</td>
-                        <td className="px-2 py-3 text-orange-600">{formatDecimal(item.overtimeRate)}%</td>
-                        <td className="px-2 py-3 text-purple-700 font-bold bg-purple-50/20">{formatDecimal(item.sales)}</td>
-                        <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerHour)}</td>
-                        <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerWorker)}</td>
-                        <td className="px-2 py-3 text-orange-600">{formatDecimal(item.hoursPerWorker)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-purple-100 font-bold text-slate-800 border-t border-purple-300">
-                    <tr>
-                      <td className="px-4 py-3 text-left sticky left-0 bg-purple-100 z-10 w-[200px]">
-                        TỔNG CỘNG / BÌNH QUÂN
-                      </td>
-                      <td className="px-2 py-3">
-                        {formatInteger(productivityAnalysisData.reduce((sum, item) => sum + item.avgDinhBien, 0))}
-                      </td>
-                      <td className="px-2 py-3">
-                        {formatInteger(productivityAnalysisData.reduce((sum, item) => sum + item.avgWorkers, 0))}
-                      </td>
-                      <td className="px-2 py-3">
-                        {formatDecimal(productivityAnalysisData.reduce((sum, item) => sum + item.totalHc, 0))}
-                      </td>
-                      <td className="px-2 py-3">
-                        {formatDecimal(productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0))}
-                      </td>
-                      {(() => {
-                        const totalSales = productivityAnalysisData.reduce((sum, item) => sum + item.sales, 0);
-                        const totalAvgWorkers = productivityAnalysisData.reduce((sum, item) => sum + item.avgWorkers, 0);
-                        const totalHc = productivityAnalysisData.reduce((sum, item) => sum + item.totalHc, 0);
-                        const totalTc = productivityAnalysisData.reduce((sum, item) => sum + item.totalTc, 0);
-                        const totalHours = totalHc + totalTc;
-
-                        const avgSalesPerHour = totalHours > 0 ? totalSales / totalHours : 0;
-                        const avgSalesPerWorker = totalAvgWorkers > 0 ? totalSales / totalAvgWorkers : 0;
-                        const avgOvertimeRate = totalHours > 0 ? (totalTc / totalHours) * 100 : 0;
-                        const avgHoursPerWorker = totalAvgWorkers > 0 ? totalHours / totalAvgWorkers : 0;
-
-                        return (
-                          <>
-                            <td className="px-2 py-3 text-orange-800">{formatDecimal(avgOvertimeRate)}%</td>
-                            <td className="px-2 py-3 text-purple-900">{formatDecimal(totalSales)}</td>
-                            <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerHour)}</td>
-                            <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerWorker)}</td>
-                            <td className="px-2 py-3 text-orange-800">{formatDecimal(avgHoursPerWorker)}</td>
-                          </>
-                        );
-                      })()}
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            ) : (
-              <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
-                Không có dữ liệu năng suất cho tuần này.
-              </div>
-            )}
-
-            {productivityAnalysisData.length > 0 && (
-              <ProductivityCharts data={productivityAnalysisData} viewMode={viewMode} filters={unifiedTimeFilters} />
-            )}
-          </div>
+          </>
         )}
       </div>
 
