@@ -571,13 +571,15 @@ const handleContinueToOrderColumnStep = () => {
       <div className="px-4 md:px-8 space-y-6">
 
            <FactoryRevenueSection
-     sectionRef={factoryRevenueRef}
-     factoryRevenueChartData={factoryRevenueChartData}
-     quarterlyTargets={quarterlyTargets}
-     targetRevenue2026={targetRevenue2026}
-     factoryRevenueStats={factoryRevenueStats}
-     yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
-   />
+  sectionRef={factoryRevenueRef}
+  factoryRevenueChartData={factoryRevenueChartData}
+  quarterlyTargets={quarterlyTargets}
+  targetRevenue2026={targetRevenue2026}
+  factoryRevenueStats={factoryRevenueStats}
+  customFunnelData={customFunnelData}
+  pivotFunnelData={pivotFunnelData}
+  workshopMetric={workshopMetric}
+/>
 
         {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}
         {/* ... (Order Overview content unchanged) ... */}
@@ -612,15 +614,14 @@ const handleContinueToOrderColumnStep = () => {
         <ProductionStatusSection
   sectionRef={productionStatusRef}
   pivotWorkshopRef={pivotWorkshopRef}
-  customFunnelData={customFunnelData}
   cardMetrics={cardMetrics}
   pivotWorkshopData={pivotWorkshopData}
-  pivotFunnelData={pivotFunnelData}
   workshopMetric={workshopMetric}
   setWorkshopMetric={setWorkshopMetric}
   expandedBops={expandedBops}
   setExpandedBops={setExpandedBops}
   handleExportProductionStatus={handleExportProductionStatus}
+  yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
 />
         <BottleneckSection
           sectionRef={bottleneckSectionRef}
