@@ -44,12 +44,12 @@ const App: React.FC = () => {
                 <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
                 <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
-                <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="Biểu đồ - Đơn hàng mới" /></RequirePermission>} />
-<Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="Biểu đồ - Triển khai Bản vẽ" /></RequirePermission>} />
-<Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="Biểu đồ - Đã Tính phiếu" /></RequirePermission>} />
-<Route path="/charts/inventory" element={<RequirePermission viewId="dashboard"><ChartOverview source="inventory" title="Biểu đồ - Nhập kho" /></RequirePermission>} />
-<Route path="/charts/export" element={<RequirePermission viewId="dashboard"><ChartOverview source="export" title="Biểu đồ - Xuất kho" /></RequirePermission>} />
-<Route path="/charts/stock" element={<RequirePermission viewId="dashboard"><ChartOverview source="stock" title="Biểu đồ - Tồn kho" /></RequirePermission>} />
+               <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="1. ĐƠN HÀNG MỚI (P001)" /></RequirePermission>} />
+<Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="2. TRIỂN KHAI BV (P002)" /></RequirePermission>} />
+<Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="3. ĐÃ TÍNH PHIẾU (P003)" /></RequirePermission>} />
+<Route path="/charts/inventory" element={<RequirePermission viewId="dashboard"><ChartOverview source="inventory" title="4. NHẬP KHO (P004)" /></RequirePermission>} />
+<Route path="/charts/export" element={<RequirePermission viewId="dashboard"><ChartOverview source="export" title="5. XUẤT KHO (P005)" /></RequirePermission>} />
+<Route path="/charts/stock" element={<RequirePermission viewId="dashboard"><ChartOverview source="stock" title="6. TỒN KHO (P006)" /></RequirePermission>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -107,12 +107,12 @@ interface MainLayoutContext {
 }
 
 const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
-  { key: 'order', label: 'Đơn hàng mới', path: '/charts/order' },
-  { key: 'tkbv', label: 'Triển khai BV', path: '/charts/tkbv' },
-  { key: 'pthsp', label: 'Đã tính phiếu', path: '/charts/pthsp' },
-  { key: 'inventory', label: 'Nhập kho', path: '/charts/inventory' },
-  { key: 'export', label: 'Xuất kho', path: '/charts/export' },
-  { key: 'stock', label: 'Tồn kho', path: '/charts/stock' },
+  { key: 'order', label: '1. ĐƠN HÀNG MỚI (P001)', path: '/charts/order' },
+  { key: 'tkbv', label: '2. TRIỂN KHAI BV (P002)', path: '/charts/tkbv' },
+  { key: 'pthsp', label: '3. ĐÃ TÍNH PHIẾU (P003)', path: '/charts/pthsp' },
+  { key: 'inventory', label: '4. NHẬP KHO (P004)', path: '/charts/inventory' },
+  { key: 'export', label: '5. XUẤT KHO (P005)', path: '/charts/export' },
+  { key: 'stock', label: '6. TỒN KHO (P006)', path: '/charts/stock' },
 ];
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -544,10 +544,9 @@ const checkAndSync = async (forceAll = false) => {
               key={item.key}
               to={item.path}
               onClick={closeMobileSidebar}
-              className={`flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all duration-200
+              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
                 ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
             >
-              <TrendingUp size={16} className="shrink-0" />
               <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
             </Link>
           );

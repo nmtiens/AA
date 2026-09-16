@@ -15,6 +15,16 @@ interface ChartOverviewProps {
   title: string;
 }
 
+// Màu badge tiêu đề ăn theo đúng bảng màu đang dùng ở các biểu đồ (THEME trong ByXuongChart/ByCongTrinhChart/...)
+const TITLE_BADGE_THEME: Record<ChartSource, string> = {
+  order: 'text-pink-800 bg-pink-50',
+  tkbv: 'text-blue-800 bg-blue-50',
+  pthsp: 'text-purple-800 bg-purple-50',
+  inventory: 'text-teal-800 bg-teal-50',
+  export: 'text-amber-800 bg-amber-50',
+  stock: 'text-slate-800 bg-slate-100',
+};
+
 const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title }) => {
   const [displayMode, setDisplayMode] = useState<DisplayMetric>('COUNT');
 
@@ -22,7 +32,9 @@ const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title }) => {
     <TrendFilterProvider>
       <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
   <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between sticky top-0 z-20">
-    <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+    <h2 className={`inline-block px-3 py-1.5 text-sm font-extrabold uppercase tracking-wide rounded ${TITLE_BADGE_THEME[source]}`}>
+      {title}
+    </h2>
     <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
       <button
         onClick={() => setDisplayMode('COUNT')}
