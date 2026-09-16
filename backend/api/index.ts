@@ -913,18 +913,31 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
     params.push(filters.congTrinh);
     conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
   }
+
+  // SỬA: thay LEFT JOIN trực tiếp trên toàn bộ lịch sử ton_kho (rất nặng, gây
+  // statement timeout) bằng CTE lọc TRƯỚC tập ma_id_sap thỏa điều kiện xưởng/
+  // tình trạng/IPO từ production_status_app (bảng snapshot hiện tại, nhỏ hơn
+  // nhiều và không có nhiều dòng lặp theo ngày như ton_kho), sau đó chỉ INNER
+  // JOIN ton_kho với tập ma_id_sap đã lọc sẵn này — giảm chi phí đáng kể.
+  let cteClause = '';
+  let joinClause = '';
   if (needsJoin) {
-    if (filters.xuong.length) { params.push(filters.xuong); conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`); }
-    if (filters.tinhTrang.length) { params.push(filters.tinhTrang); conds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`); }
-    if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); conds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+    const pConds: string[] = [];
+    if (filters.xuong.length) { params.push(filters.xuong); pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`); }
+    if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
+    if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+
+    cteClause = `
+      WITH matched_ids AS (
+        SELECT DISTINCT ma_id_sap FROM production_status_app
+        WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(' AND ')}` : ''}
+      )
+    `;
+    joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
-  // Lưu ý: ton_kho join với production_status_app qua ma_id_sap (nhất quán với STOCK_TREND_CONFIG),
-  // KHÔNG dùng cột 'hex' của ton_kho vì đã có ghi chú trước đó là join theo ma_id_sap mới đúng.
-  const joinClause = needsJoin
-    ? `LEFT JOIN production_status_app p ON p."ma_id_sap"::text = s."ma_id_sap"::text`
-    : '';
 
   const q = `
+    ${cteClause}
     SELECT s.date_parsed AS d,
           COUNT(DISTINCT s.ma_id_sap) AS count,
            COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
@@ -992,16 +1005,26 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
       params.push(filters.congTrinh);
       conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
     }
+
+    let cteClause = '';
+    let joinClause = '';
     if (needsJoin) {
-      if (filters.xuong.length) { params.push(filters.xuong); conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`); }
-      if (filters.tinhTrang.length) { params.push(filters.tinhTrang); conds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`); }
-      if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); conds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+      const pConds: string[] = [];
+      if (filters.xuong.length) { params.push(filters.xuong); pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`); }
+      if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
+      if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+
+      cteClause = `
+        WITH matched_ids AS (
+          SELECT DISTINCT ma_id_sap FROM production_status_app
+          WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(' AND ')}` : ''}
+        )
+      `;
+      joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
     }
-    const joinClause = needsJoin
-      ? `LEFT JOIN production_status_app p ON p."ma_id_sap"::text = s."ma_id_sap"::text`
-      : '';
 
     const q = `
+      ${cteClause}
       SELECT COALESCE(NULLIF(TRIM(s.ten_cong_trinh), ''), 'Chưa xác định') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value

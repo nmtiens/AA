@@ -361,7 +361,7 @@ export const fetchOverviewByGroup = async (
   }
 };
 
-export const fetchStockDates = async (opts?: OverviewFilterOpts): Promise<StockDateEntry[]> => {
+export const fetchStockDates = async (opts?: OverviewFilterOpts): Promise<StockDateEntry[] | null> => {
   try {
     const params = new URLSearchParams();
     appendFilterParams(params, opts);
@@ -372,7 +372,7 @@ export const fetchStockDates = async (opts?: OverviewFilterOpts): Promise<StockD
     return await r.json();
   } catch (e) {
     console.error('fetchStockDates error:', e);
-    return [];
+    return null; // SỬA: null thay vì [] để phân biệt "lỗi" với "thực sự rỗng"
   }
 };
 

@@ -56,14 +56,18 @@ export function useStockData({
   const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
   const [stockTotalCount, setStockTotalCount] = useState<number>(0);
 
-  useEffect(() => {
-    // MỚI: filters chảy vào fetchStockDates; stockTotalCount KHÔNG lọc (giữ nguyên theo yêu cầu)
-    fetchStockDates({
-      congTrinh: filters.congTrinh, xuong: filters.xuong,
-      tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
-    }).then(setStockDates);
-    fetchStockTotalCount().then(setStockTotalCount);
-  }, [filters.congTrinh, filters.xuong, filters.tinhTrang, filters.tinhTrangIpo]);
+// useStockData.ts
+useEffect(() => {
+  fetchStockDates({
+    congTrinh: filters.congTrinh, xuong: filters.xuong,
+    tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
+  }).then(result => {
+    // SỬA: chỉ cập nhật khi fetch thành công — fetch lỗi thì giữ nguyên
+    // dữ liệu cũ thay vì reset về [] làm card nhảy về 0.
+    if (result !== null) setStockDates(result);
+  });
+  fetchStockTotalCount().then(setStockTotalCount);
+}, [filters.congTrinh, filters.xuong, filters.tinhTrang, filters.tinhTrangIpo]);
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {
     if (stockDates.length === 0) return null;

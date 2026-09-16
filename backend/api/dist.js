@@ -58212,22 +58212,32 @@ var refreshStockDatesCache = async (filters) => {
     params.push(filters.congTrinh);
     conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
   }
+  let cteClause = "";
+  let joinClause = "";
   if (needsJoin) {
+    const pConds = [];
     if (filters.xuong.length) {
       params.push(filters.xuong);
-      conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
+      pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
     }
     if (filters.tinhTrang.length) {
       params.push(filters.tinhTrang);
-      conds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`);
+      pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
     }
     if (filters.tinhTrangIpo.length) {
       params.push(filters.tinhTrangIpo);
-      conds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+      pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
     }
+    cteClause = `
+      WITH matched_ids AS (
+        SELECT DISTINCT ma_id_sap FROM production_status_app
+        WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(" AND ")}` : ""}
+      )
+    `;
+    joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
-  const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."ma_id_sap"::text = s."ma_id_sap"::text` : "";
   const q = `
+    ${cteClause}
     SELECT s.date_parsed AS d,
           COUNT(DISTINCT s.ma_id_sap) AS count,
            COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
@@ -58283,22 +58293,32 @@ app.get("/api/stock/by-project", async (req, res) => {
       params.push(filters.congTrinh);
       conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
     }
+    let cteClause = "";
+    let joinClause = "";
     if (needsJoin) {
+      const pConds = [];
       if (filters.xuong.length) {
         params.push(filters.xuong);
-        conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
+        pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
       }
       if (filters.tinhTrang.length) {
         params.push(filters.tinhTrang);
-        conds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`);
+        pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
       }
       if (filters.tinhTrangIpo.length) {
         params.push(filters.tinhTrangIpo);
-        conds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+        pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
       }
+      cteClause = `
+        WITH matched_ids AS (
+          SELECT DISTINCT ma_id_sap FROM production_status_app
+          WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(" AND ")}` : ""}
+        )
+      `;
+      joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
     }
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."ma_id_sap"::text = s."ma_id_sap"::text` : "";
     const q = `
+      ${cteClause}
       SELECT COALESCE(NULLIF(TRIM(s.ten_cong_trinh), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
