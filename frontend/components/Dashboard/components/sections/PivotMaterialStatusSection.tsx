@@ -42,17 +42,27 @@ export const PivotMaterialStatusSection = ({
         <table className="w-full text-xs text-right min-w-[800px] border-separate border-spacing-0">
           <thead className="bg-emerald-50 text-slate-700 font-semibold uppercase">
             <tr>
-              <th className="px-3 py-2 text-left sticky left-0 top-0 bg-emerald-100 border-b border-emerald-200 z-30 min-w-[200px] shadow-[1px_1px_2px_rgba(0,0,0,0.05)]">Nhóm Vật Tư</th>
+              {/* Góc trên-trái: ghim cả top + left */}
+              <th className="px-3 py-2 text-left sticky left-0 top-0 bg-emerald-100 border-b border-emerald-200 z-40 min-w-[200px] shadow-[1px_1px_2px_rgba(0,0,0,0.05)]">
+                Nhóm Vật Tư
+              </th>
               {pivotMaterialStatusData.uniqueStatuses.map((s: string) => (
-                <th key={s} className="px-3 py-2 border-b border-emerald-200 whitespace-nowrap text-emerald-900 sticky top-0 bg-emerald-50 z-20">{s}</th>
+                <th key={s} className="px-3 py-2 border-b border-emerald-200 whitespace-nowrap text-emerald-900 sticky top-0 bg-emerald-50 z-20">
+                  {s}
+                </th>
               ))}
-              <th className="px-3 py-2 bg-emerald-100 border-b border-emerald-200 font-bold text-slate-800 sticky top-0 right-0 z-20">Tổng Cộng</th>
+              {/* Góc trên-phải: ghim cả top + right */}
+              <th className="px-3 py-2 bg-emerald-100 border-b border-emerald-200 font-bold text-slate-800 sticky top-0 right-0 z-40 shadow-[-1px_1px_2px_rgba(0,0,0,0.05)]">
+                Tổng Cộng
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {pivotMaterialStatusData.sortedGroups.map((group: string) => (
               <tr key={group} className="hover:bg-slate-50 transition-colors group">
-                <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{group}</td>
+                <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                  {group}
+                </td>
                 {pivotMaterialStatusData.uniqueStatuses.map((s: string) => {
                   const matrix = pivotMaterialStatusData.matrix || {};
                   const val = matrix[group]?.[s] || 0;
@@ -62,7 +72,8 @@ export const PivotMaterialStatusSection = ({
                     </td>
                   );
                 })}
-                <td className="px-3 py-2 font-bold text-slate-800 bg-emerald-50/30">
+                {/* Cột Tổng Cộng của từng dòng: ghim bên phải */}
+                <td className="px-3 py-2 font-bold text-slate-800 bg-emerald-50/30 group-hover:bg-emerald-50 sticky right-0 z-10 whitespace-nowrap shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                   {matStatusMetric === 'SUM_QTY' ? formatDecimal(pivotMaterialStatusData.rowTotals[group]) : formatNumber(pivotMaterialStatusData.rowTotals[group])}
                 </td>
               </tr>
@@ -70,13 +81,17 @@ export const PivotMaterialStatusSection = ({
           </tbody>
           <tfoot className="bg-emerald-100 font-bold text-slate-800 border-t border-emerald-300">
             <tr>
-              <td className="px-3 py-2 text-left sticky left-0 bottom-0 z-20 bg-emerald-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Tổng Cộng (Toàn bộ)</td>
+              {/* Góc dưới-trái: ghim cả bottom + left */}
+              <td className="px-3 py-2 text-left sticky left-0 bottom-0 z-40 bg-emerald-100 shadow-[2px_-1px_2px_rgba(0,0,0,0.05)]">
+                Tổng Cộng (Toàn bộ)
+              </td>
               {pivotMaterialStatusData.uniqueStatuses.map((s: string) => (
-                <td key={s} className="px-3 py-2 whitespace-nowrap">
+                <td key={s} className="px-3 py-2 whitespace-nowrap sticky bottom-0 z-20 bg-emerald-100">
                   {matStatusMetric === 'SUM_QTY' ? formatDecimal(pivotMaterialStatusData.colTotals[s]) : formatNumber(pivotMaterialStatusData.colTotals[s])}
                 </td>
               ))}
-              <td className="px-3 py-2 text-emerald-900 text-sm">
+              {/* Góc dưới-phải: ghim cả bottom + right */}
+              <td className="px-3 py-2 text-emerald-900 text-sm sticky bottom-0 right-0 z-40 bg-emerald-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
                 {matStatusMetric === 'SUM_QTY' ? formatDecimal(pivotMaterialStatusData.grandTotal) : formatNumber(pivotMaterialStatusData.grandTotal)}
               </td>
             </tr>
