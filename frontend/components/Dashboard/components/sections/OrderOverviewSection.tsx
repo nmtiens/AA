@@ -58,6 +58,9 @@ interface OrderOverviewSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
  isSidebarCollapsed: boolean;   // ← THÊM DÒNG NÀY
   hasAnyData: boolean;
+  
+filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
+
 
   overviewMetric: DisplayMetric;
   setOverviewMetric: React.Dispatch<React.SetStateAction<DisplayMetric>>;
@@ -93,6 +96,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   sectionRef,
   isSidebarCollapsed, 
   hasAnyData,
+  filters, // MỚI
   overviewMetric,
   setOverviewMetric,
   getContextLabel,
@@ -139,26 +143,40 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   const [isExportDetailModalOpen, setIsExportDetailModalOpen] = useState(false);
   const [isStockDetailModalOpen, setIsStockDetailModalOpen] = useState(false);
 
+  // MỚI: đếm số lần MỞ bất kỳ modal nào trong section này (dùng chung 1 counter).
+  // Mỗi lần tăng -> TrendFilterProvider tự đồng bộ lại xuong/congTrinh theo bộ lọc tổng.
+  const [trendResetKey, setTrendResetKey] = useState(0);
+  const openModalWithTrendReset = (opener: () => void) => {
+    setTrendResetKey(k => k + 1);
+    opener();
+  };
+
   if (!hasAnyData) return null;
 
   // --- MỚI: Khóa cache phải phản ánh đúng TẬP NGÀY đang lọc ngoài dashboard.
   // Phải khớp CHÍNH XÁC với cách useOverviewSummary.loadGroupAnalysis tính filterKey,
   // nếu không 2 bên sẽ ghi/đọc lệch key nhau.
-  const filterKey = overviewDateFilters.length > 0
+  const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
+    `_x-${[...filters.xuong].sort().join('|')}` +
+    `_tt-${[...filters.tinhTrang].sort().join('|')}` +
+    `_ipo-${[...filters.tinhTrangIpo].sort().join('|')}`;
+  const filterKey = (overviewDateFilters.length > 0
     ? [...overviewDateFilters].sort().join('_')
-    : `all-${overviewSummary?.date ?? ''}`;
+    : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
 
   // --- MỚI: Nhãn cột "ngày" trong modal chi tiết — phản ánh đúng khi chọn nhiều ngày.
   const periodLabel = overviewDateFilters.length > 1
     ? `${overviewDateFilters.length} NGÀY ĐÃ CHỌN`
     : `NGÀY ${latestUnifiedDate ? `${latestUnifiedDate.getDate()}/${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`;
 
-  return (
-    // Bọc TrendFilterProvider ở đây để TẤT CẢ các biểu đồ xu hướng
+   return (
     <TrendFilterProvider
       overviewDateFilters={overviewDateFilters}
       setOverviewDateFilters={setOverviewDateFilters}
       unifiedDateOptions={unifiedDateOptions}
+      defaultXuong={filters.xuong[0] || ''}          // MỚI
+      defaultCongTrinh={filters.congTrinh[0] || ''}  // MỚI
+      resetKey={trendResetKey}                        // MỚI
     >
     <>
       <div
@@ -246,16 +264,16 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
           {/* Card 1: Đơn hàng mới */}
           <div className="flex flex-col gap-4">
             <div className="p-5 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-              <button
-                onClick={() => {
-                  setIsIpoDetailModalOpen(true);
-                  loadGroupAnalysis('order');
-                }}
-                className="absolute top-4 right-4 text-pink-400 hover:text-pink-700 transition-colors z-20"
-                title="Xem chi tiết"
-              >
-                <Eye size={18} />
-              </button>
+             <button
+  onClick={() => openModalWithTrendReset(() => {
+    setIsIpoDetailModalOpen(true);
+    loadGroupAnalysis('order');
+  })}
+  className="absolute top-4 right-4 text-pink-400 hover:text-pink-700 transition-colors z-20"
+  title="Xem chi tiết"
+>
+  <Eye size={18} />
+</button>
               <div className="flex items-center gap-2 mb-3 z-10">
                 <div className="p-2 bg-pink-100 rounded-lg text-pink-600 shadow-sm group-hover:scale-110 transition-transform">
                   <ShoppingCart size={20} />
@@ -314,16 +332,16 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
           {/* Card 2: TKBV */}
           <div className="flex flex-col gap-4">
             <div className="p-5 bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-              <button
-                onClick={() => {
-                  setIsTkbvDetailModalOpen(true);
-                  loadGroupAnalysis('tkbv');
-                }}
-                className="absolute top-4 right-4 text-blue-400 hover:text-blue-700 transition-colors z-20"
-                title="Xem chi tiết"
-              >
-                <Eye size={18} />
-              </button>
+             <button
+  onClick={() => openModalWithTrendReset(() => {
+    setIsTkbvDetailModalOpen(true);
+    loadGroupAnalysis('tkbv');
+  })}
+  className="absolute top-4 right-4 text-blue-400 hover:text-blue-700 transition-colors z-20"
+  title="Xem chi tiết"
+>
+  <Eye size={18} />
+</button>
               <div className="flex items-center gap-2 mb-3 z-10">
                 <div className="p-2 bg-blue-100 rounded-lg text-blue-600 shadow-sm group-hover:scale-110 transition-transform">
                   <FileText size={20} />
@@ -384,16 +402,16 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
           {/* Card 3: PTHSP */}
           <div className="flex flex-col gap-4">
             <div className="p-5 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-xl border border-purple-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-              <button
-                onClick={() => {
-                  setIsPthspDetailModalOpen(true);
-                  loadGroupAnalysis('pthsp');
-                }}
-                className="absolute top-4 right-4 text-purple-400 hover:text-purple-700 transition-colors z-20"
-                title="Xem chi tiết"
-              >
-                <Eye size={18} />
-              </button>
+             <button
+  onClick={() => openModalWithTrendReset(() => {
+    setIsPthspDetailModalOpen(true);
+    loadGroupAnalysis('pthsp');
+  })}
+  className="absolute top-4 right-4 text-purple-400 hover:text-purple-700 transition-colors z-20"
+  title="Xem chi tiết"
+>
+  <Eye size={18} />
+</button>
               <div className="flex items-center gap-2 mb-3 z-10">
                 <div className="p-2 bg-purple-100 rounded-lg text-purple-600 shadow-sm group-hover:scale-110 transition-transform">
                   <ClipboardList size={20} />
@@ -454,16 +472,16 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
           {/* Card 4: Nhập kho */}
           <div className="flex flex-col gap-4">
             <div className="p-5 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl border border-teal-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-              <button
-                onClick={() => {
-                  setIsInventoryDetailModalOpen(true);
-                  loadGroupAnalysis('inventory');
-                }}
-                className="absolute top-4 right-4 text-teal-400 hover:text-teal-700 transition-colors z-20"
-                title="Xem chi tiết"
-              >
-                <Eye size={18} />
-              </button>
+             <button
+  onClick={() => openModalWithTrendReset(() => {
+    setIsInventoryDetailModalOpen(true);
+    loadGroupAnalysis('inventory');
+  })}
+  className="absolute top-4 right-4 text-teal-400 hover:text-teal-700 transition-colors z-20"
+  title="Xem chi tiết"
+>
+  <Eye size={18} />
+</button>
               <div className="flex items-center gap-2 mb-3 z-10">
                 <div className="p-2 bg-teal-100 rounded-lg text-teal-600 shadow-sm group-hover:scale-110 transition-transform">
                   <Package size={20} />
@@ -524,16 +542,16 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
           {/* Card 5: Xuất kho */}
           <div className="flex flex-col gap-4">
             <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-              <button
-                onClick={() => {
-                  setIsExportDetailModalOpen(true);
-                  loadGroupAnalysis('export');
-                }}
-                className="absolute top-4 right-4 text-amber-400 hover:text-amber-700 transition-colors z-20"
-                title="Xem chi tiết"
-              >
-                <Eye size={18} />
-              </button>
+             <button
+  onClick={() => openModalWithTrendReset(() => {
+    setIsExportDetailModalOpen(true);
+    loadGroupAnalysis('export');
+  })}
+  className="absolute top-4 right-4 text-amber-400 hover:text-amber-700 transition-colors z-20"
+  title="Xem chi tiết"
+>
+  <Eye size={18} />
+</button>
               <div className="flex items-center gap-2 mb-3 z-10">
                 <div className="p-2 bg-amber-100 rounded-lg text-amber-600 shadow-sm group-hover:scale-110 transition-transform">
                   <Package size={20} />
@@ -592,11 +610,11 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
           {/* Card 6: Tồn kho */}
           <div className="flex flex-col gap-4">
             <div className="p-5 bg-gradient-to-br from-gray-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-              <button
-  onClick={() => {
+             <button
+  onClick={() => openModalWithTrendReset(() => {
     setIsStockDetailModalOpen(true);
-    loadStockByProject();   // 👈 thêm dòng này
-  }}
+    loadStockByProject();
+  })}
   className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors z-20"
   title="Xem chi tiết"
 >

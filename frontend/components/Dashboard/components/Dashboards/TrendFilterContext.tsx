@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 
 export type Granularity = 'day' | 'week' | 'month';
@@ -44,25 +44,17 @@ const DEFAULT_RANGE_DAYS = 7;
 
 interface TrendFilterProviderProps {
   children: ReactNode;
-  /**
-   * (Tùy chọn) Nguồn ngày dùng CHUNG với dropdown "NGÀY BÁO CÁO" + card xuất
-   * CSV ở Dashboard/OrderOverviewSection.
-   *
-   * - TRUYỀN ĐỦ 3 PROP (chế độ "controlled", dùng ở OrderOverviewSection):
-   *   dateFrom/dateTo không tự giữ state riêng nữa mà chỉ là min/max ĐƯỢC
-   *   TÍNH từ overviewDateFilters. Mọi thao tác đổi range ở "Bộ lọc chung"
-   *   (gõ tay, bấm preset, đổi granularity, xóa lọc) đều ghi NGƯỢC lại vào
-   *   overviewDateFilters qua setOverviewDateFilters — nhờ vậy "Bộ lọc
-   *   chung", "NGÀY BÁO CÁO" và nút "Xuất CSV" luôn đồng bộ 2 chiều.
-   *
-   * - KHÔNG TRUYỀN (chế độ "uncontrolled", dùng ở ChartOverview — trang biểu
-   *   đồ độc lập, không có "NGÀY BÁO CÁO"/xuất CSV đi kèm): component tự
-   *   quản lý dateFrom/dateTo bằng state riêng, giữ nguyên hành vi gốc trước
-   *   đây (mặc định 7 ngày gần nhất). Không cần sửa gì ở nơi gọi.
-   */
   overviewDateFilters?: string[];
   setOverviewDateFilters?: (values: string[]) => void;
   unifiedDateOptions?: string[];
+
+  // MỚI: giá trị hiện tại của "Bộ lọc tổng" (Tên Công Trình / Khu Vực Sản Xuất) ở Dashboard.
+  // Chỉ lấy phần tử đầu tiên vì bộ lọc tổng cho multi-select, còn ở đây modal chỉ nhận 1 giá trị.
+  defaultXuong?: string;
+  defaultCongTrinh?: string;
+  // MỚI: đổi giá trị này (vd: tăng dần) mỗi khi 1 modal được MỞ -> Provider sẽ
+  // tự đồng bộ lại xuong/congTrinh về đúng defaultXuong/defaultCongTrinh tại thời điểm đó.
+  resetKey?: number;
 }
 
 export function TrendFilterProvider({
@@ -70,19 +62,30 @@ export function TrendFilterProvider({
   overviewDateFilters,
   setOverviewDateFilters,
   unifiedDateOptions = [],
+  defaultXuong = '',     // MỚI
+  defaultCongTrinh = '', // MỚI
+  resetKey = 0,          // MỚI
 }: TrendFilterProviderProps) {
   const isControlled = overviewDateFilters !== undefined && setOverviewDateFilters !== undefined;
 
   const [granularity, setGranularity] = useState<Granularity>('day');
 
-  // --- State riêng, CHỈ dùng ở chế độ uncontrolled (giữ nguyên hành vi gốc) ---
   const [uncontrolledFrom, setUncontrolledFrom] = useState(daysAgo(DEFAULT_RANGE_DAYS));
   const [uncontrolledTo, setUncontrolledTo] = useState(yesterday());
 
-  const [xuong, setXuong] = useState('');
-  const [congTrinh, setCongTrinh] = useState('');
+  // MỚI: khởi tạo lần đầu bằng giá trị mặc định (áp dụng cho lần mount đầu tiên)
+  const [xuong, setXuong] = useState(defaultXuong);
+  const [congTrinh, setCongTrinh] = useState(defaultCongTrinh);
   const [dvt, setDvt] = useState('');
   const [phanLoai, setPhanLoai] = useState('');
+
+  const isFirstRun = useRef(true);
+  useEffect(() => {
+    if (isFirstRun.current) { isFirstRun.current = false; return; }
+    setXuong(defaultXuong);
+    setCongTrinh(defaultCongTrinh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
 
   const [xuongList, setXuongList] = useState<FilterOption[]>([]);
   const [congTrinhList, setCongTrinhList] = useState<FilterOption[]>([]);
@@ -173,7 +176,7 @@ export function TrendFilterProvider({
   const clearRange = () => applyRange('', '');
   const clearExtraFilters = () => { setXuong(''); setCongTrinh(''); setDvt(''); setPhanLoai(''); };
 
-  return (
+   return (
     <TrendFilterContext.Provider
       value={{
         granularity, dateFrom, dateTo, setDateFrom, setDateTo, applyGranularity, applyPreset, clearRange,

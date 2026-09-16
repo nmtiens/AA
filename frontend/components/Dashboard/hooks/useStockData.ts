@@ -24,6 +24,7 @@ interface UseStockDataParams {
   stockDateKey: string;
   latestUnifiedDate: Date | null;
   overviewMetric: 'COUNT' | 'SUM';
+  filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] }; // MỚI
 }
 
 interface UseStockDataResult {
@@ -49,15 +50,20 @@ export function useStockData({
   stockDateKey,
   latestUnifiedDate,
   overviewMetric,
+  filters, // MỚI
 }: UseStockDataParams): UseStockDataResult {
   const [stockDates, setStockDates] = useState<StockDateEntry[]>([]);
   const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
-  const [stockTotalCount, setStockTotalCount] = useState<number>(0); // MỚI
+  const [stockTotalCount, setStockTotalCount] = useState<number>(0);
 
   useEffect(() => {
-    fetchStockDates().then(setStockDates);
-    fetchStockTotalCount().then(setStockTotalCount); // MỚI
-  }, []);
+    // MỚI: filters chảy vào fetchStockDates; stockTotalCount KHÔNG lọc (giữ nguyên theo yêu cầu)
+    fetchStockDates({
+      congTrinh: filters.congTrinh, xuong: filters.xuong,
+      tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
+    }).then(setStockDates);
+    fetchStockTotalCount().then(setStockTotalCount);
+  }, [filters.congTrinh, filters.xuong, filters.tinhTrang, filters.tinhTrangIpo]);
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {
     if (stockDates.length === 0) return null;
@@ -124,7 +130,10 @@ export function useStockData({
 
   const loadStockByProject = () => {
     if (closestStockDate) {
-      fetchStockByProject(toISODateLocal(closestStockDate)).then(setStockByProjectData);
+      fetchStockByProject(toISODateLocal(closestStockDate), {
+        congTrinh: filters.congTrinh, xuong: filters.xuong,
+        tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
+      }).then(setStockByProjectData); // MỚI: truyền filters
     }
   };
 

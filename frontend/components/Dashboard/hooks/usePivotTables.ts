@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { STATUS_GROUPS } from '../constants';
 import { parseNumber } from '../utils/numberParsers';
-import { parseVNDate } from '../utils/dateHelpers';
+import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import {
   MetricType,
   BottleneckItem,
@@ -24,7 +24,11 @@ interface UsePivotTablesParams {
   filteredProductionData: DataRow[];
   filteredMaterialData: DataRow[];
   displayedMaterialData: DataRow[];
-  stockData: DataRow[];
+
+  // SỬA: thay cho stockData thô (nặng, tới từ /api/all-data) — dùng bảng đã
+  // tổng hợp sẵn phía server (/api/stock/dates, qua useStockData), rất nhẹ và
+  // đã TỰ ĐỘNG ăn theo bộ lọc tổng (congTrinh/xuong/tinhTrang/tinhTrangIpo).
+  stockDates: { date: string; count: number; value: number }[];
   closestStockDate: Date | null;
 
   tinhTrangKey: string;
@@ -43,14 +47,8 @@ interface UsePivotTablesParams {
   matSlYeuCauKey: string;
   matSlDaNhanKey: string;
   matStatusKey: string;
-  stockDateKey: string;
-  stockValueKey: string;
-  stockSapIdKey: string;
-  // Danh sách công trình đang được người dùng CHỦ ĐỘNG chọn lọc (filters.congTrinh
-  // từ useDashboardFilters ở Dashboard.tsx). Rỗng = không filter gì -> P022 lấy
-  // TỔNG TOÀN BỘ tồn kho ngày gần nhất. Có chọn -> P022 chỉ tính tồn kho của
-  // các công trình đó (khớp theo tên, đã chuẩn hoá).
-  selectedCongTrinh?: string[];
+  // XÓA: stockDateKey, stockValueKey, stockSapIdKey, selectedCongTrinh
+  // (không còn cần vì stockDates đã tổng hợp + lọc sẵn phía server)
 }
 
 interface UsePivotTablesResult {
@@ -101,7 +99,7 @@ export function usePivotTables({
   filteredProductionData,
   filteredMaterialData,
   displayedMaterialData,
-  stockData,
+  stockDates,          // MỚI
   closestStockDate,
 
   tinhTrangKey,
@@ -120,10 +118,7 @@ export function usePivotTables({
   matSlYeuCauKey,
   matSlDaNhanKey,
   matStatusKey,
-  stockDateKey,
-  stockValueKey,
-  stockSapIdKey,
-  selectedCongTrinh = [],
+  // XÓA: stockDateKey, stockValueKey, stockSapIdKey, selectedCongTrinh = [],
 }: UsePivotTablesParams): UsePivotTablesResult {
   // -------------------------------------------------------------------------
   // State
@@ -402,40 +397,28 @@ export function usePivotTables({
     };
   }, [filteredProductionData, bopKey, workshopMetric, valueKey, realValueKey, tinhTrangKey, xuongKey]);
 
-
+  // -------------------------------------------------------------------------
   // -------------------------------------------------------------------------
   // Custom funnel data (bao gồm P022. TỒN KHO)
   //
-  // Logic P022:
-  //   - selectedCongTrinh RỖNG (không filter) -> TỔNG TOÀN BỘ tồn kho ngày gần nhất.
-  //   - selectedCongTrinh CÓ giá trị (user đang lọc công trình) -> chỉ tính tồn kho
-  //     của các công trình đó, khớp theo tên đã chuẩn hoá với stockData['ten_cong_trinh'].
+  // SỬA: P022 giờ lấy từ `stockDates` (kết quả /api/stock/dates — đã SUM sẵn ở
+  // Postgres và đã lọc theo bộ lọc tổng hiện tại) thay vì quét `stockData` thô
+  // (payload nặng từ /api/all-data). Nhờ vậy P022 hiển thị nhanh gần như Card 6
+  // (cả hai giờ dùng chung 1 nguồn), không còn hiện "0" chờ payload nặng load.
   // -------------------------------------------------------------------------
   const customFunnelData = useMemo(() => {
     if (!pivotFunnelData || !pivotFunnelData.data) return [];
 
     const getVal = (bop: string) => pivotFunnelData.data.find(d => d.name === bop)?.value || 0;
-    const normalizeText = (v: unknown) => String(v ?? '').trim().toUpperCase();
 
     let p022Val = 0;
-
-    if (closestStockDate && stockDateKey && stockValueKey) {
-      const stockRowsOnDate = stockData.filter(r => {
-        const rowDate = parseVNDate(String(r[stockDateKey] || '').trim());
-        return rowDate && rowDate.getTime() === closestStockDate.getTime();
+    if (closestStockDate) {
+      const targetISO = toISODateLocal(closestStockDate);
+      const entry = stockDates.find(s => {
+        const d = parseVNDate(s.date) || new Date(s.date);
+        return toISODateLocal(d) === targetISO;
       });
-
-      if (selectedCongTrinh.length === 0) {
-        p022Val = stockRowsOnDate.reduce(
-          (sum, row) => sum + parseNumber(row[stockValueKey]),
-          0
-        );
-      } else {
-        const activeCongTrinh = new Set(selectedCongTrinh.map(normalizeText));
-        p022Val = stockRowsOnDate
-          .filter(r => activeCongTrinh.has(normalizeText(r['ten_cong_trinh'])))
-          .reduce((sum, row) => sum + parseNumber(row[stockValueKey]), 0);
-      }
+      p022Val = entry?.value ?? 0;
     }
 
     const funnelItems = [
@@ -458,7 +441,7 @@ export function usePivotTables({
       ...item,
       percentage: Math.max((item.value / maxVal) * 100, 2),
     }));
-  }, [pivotFunnelData, stockData, closestStockDate, stockDateKey, stockValueKey, selectedCongTrinh]);
+  }, [pivotFunnelData, stockDates, closestStockDate]);
 
   // -------------------------------------------------------------------------
   // Pivot: Project (Công trình x Tình trạng)

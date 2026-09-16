@@ -34,8 +34,7 @@ interface UseOverviewSummaryParams {
   expDateKey: string | undefined;
   expCongTrinhKey: string | undefined;
   expXuongKey: string | undefined;
-
-  filters: Pick<DashboardFiltersState, 'congTrinh' | 'xuong'>;
+filters: Pick<DashboardFiltersState, 'congTrinh' | 'xuong' | 'tinhTrang' | 'tinhTrangIpo'>; // MỚI: thêm 2 field
   unifiedDateOptions: string[];
 
 
@@ -123,48 +122,40 @@ export function useOverviewSummary({
   }, [showDateWarning]);
 
   // Fetch overview summary — debounce 300ms + hủy request cũ khi filter đổi liên tục
-  useEffect(() => {
+useEffect(() => {
     const requestId = ++overviewFetchIdRef.current;
     const controller = new AbortController();
+    const filterOpts = {
+      signal: controller.signal,
+      congTrinh: filters.congTrinh,
+      xuong: filters.xuong,
+      tinhTrang: filters.tinhTrang,     // MỚI
+      tinhTrangIpo: filters.tinhTrangIpo, // MỚI
+    };
 
     const timer = setTimeout(() => {
       if (overviewDateFilters.length === 0) {
-        fetchOverviewSummary(undefined, undefined, undefined, { signal: controller.signal }).then(data => {
-          if (data && requestId === overviewFetchIdRef.current) {
-            setOverviewSummary(data);
-          }
-        }).catch(err => {
-          if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err);
-        });
+        fetchOverviewSummary(undefined, undefined, undefined, filterOpts).then(data => {
+          if (data && requestId === overviewFetchIdRef.current) setOverviewSummary(data);
+        }).catch(err => { if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err); });
         return;
       }
-
-      const parsedDates = overviewDateFilters
-        .map(d => parseVNDate(d))
-        .filter((d): d is Date => d !== null);
-
+      const parsedDates = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null);
       if (parsedDates.length === 0) return;
-
       const minDate = new Date(Math.min(...parsedDates.map(d => d.getTime())));
       const maxDate = new Date(Math.max(...parsedDates.map(d => d.getTime())));
       const dateFromISO = toISODateLocal(minDate);
       const dateToISO = toISODateLocal(maxDate);
       const explicitDatesISO = Array.from(new Set(parsedDates.map(d => toISODateLocal(d))));
 
-      fetchOverviewSummary(dateFromISO, dateToISO, explicitDatesISO, { signal: controller.signal }).then(data => {
-        if (data && requestId === overviewFetchIdRef.current) {
-          setOverviewSummary(data);
-        }
-      }).catch(err => {
-        if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err);
-      });
+      fetchOverviewSummary(dateFromISO, dateToISO, explicitDatesISO, filterOpts).then(data => {
+        if (data && requestId === overviewFetchIdRef.current) setOverviewSummary(data);
+      }).catch(err => { if (err.name !== 'AbortError') console.error('Lỗi fetch overview:', err); });
     }, 300);
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [overviewDateFilters]);
+    return () => { clearTimeout(timer); controller.abort(); };
+  // MỚI: thêm 4 field filter vào dependency
+  }, [overviewDateFilters, filters.congTrinh, filters.xuong, filters.tinhTrang, filters.tinhTrangIpo]);
 
   const latestUnifiedDate = useMemo<Date | null>(() => {
     if (overviewSummary?.date) return parseVNDate(overviewSummary.date) || new Date(overviewSummary.date);
@@ -236,31 +227,32 @@ export function useOverviewSummary({
 
   // --- Cache phân tích theo nhóm (Xưởng / Công trình) cho từng nguồn, dùng trong modal chi tiết ---
 const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
-  // Khóa cache phải phản ánh đúng TẬP NGÀY đang lọc (không chỉ ngày mới nhất) —
-  // để khi người dùng đổi bộ lọc ngoài, modal chi tiết tự load lại đúng dữ liệu.
-  const filterKey = overviewDateFilters.length > 0
+  const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
+    `_x-${[...filters.xuong].sort().join('|')}` +
+    `_tt-${[...filters.tinhTrang].sort().join('|')}` +
+    `_ipo-${[...filters.tinhTrangIpo].sort().join('|')}`; // MỚI
+  const filterKey = (overviewDateFilters.length > 0
     ? [...overviewDateFilters].sort().join('_')
-    : `all-${overviewSummary?.date ?? ''}`;
+    : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
   const kW = `${key}-xuong-${filterKey}`;
   const kP = `${key}-congtrinh-${filterKey}`;
   if (groupAnalysisCache[kW] && groupAnalysisCache[kP]) return;
 
   let datesISO: string[] | undefined;
   let dateToISO: string | undefined;
-
   if (overviewDateFilters.length > 0) {
-    datesISO = overviewDateFilters
-      .map(d => parseVNDate(d))
-      .filter((d): d is Date => d !== null)
-      .map(d => toISODateLocal(d));
+    datesISO = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null).map(d => toISODateLocal(d));
   } else if (overviewSummary?.date) {
-    // Không chọn ngày cụ thể (toàn bộ thời gian) — dùng ngày mới nhất làm mốc
     dateToISO = overviewSummary.date;
   }
 
+  const filterOpts = {
+    congTrinh: filters.congTrinh, xuong: filters.xuong,
+    tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
+  };
   const [byXuong, byCongTrinh] = await Promise.all([
-    fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO }),
-    fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO }),
+    fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, ...filterOpts }),
+    fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, ...filterOpts }),
   ]);
   setGroupAnalysisCache(prev => ({ ...prev, [kW]: byXuong, [kP]: byCongTrinh }));
 };

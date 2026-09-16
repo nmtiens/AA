@@ -299,24 +299,40 @@ export interface Revenue2026Data {
   byWorkshop: { name: string; plan: number; actual: number }[];
 }
 
+interface OverviewFilterOpts {
+  signal?: AbortSignal;
+  congTrinh?: string[];
+  xuong?: string[];
+  tinhTrang?: string[];
+  tinhTrangIpo?: string[];
+}
+
+const appendFilterParams = (params: URLSearchParams, opts?: OverviewFilterOpts) => {
+  if (opts?.congTrinh?.length) params.set('congTrinh', opts.congTrinh.join(','));
+  if (opts?.xuong?.length) params.set('xuong', opts.xuong.join(','));
+  if (opts?.tinhTrang?.length) params.set('tinhTrang', opts.tinhTrang.join(','));
+  if (opts?.tinhTrangIpo?.length) params.set('tinhTrangIpo', opts.tinhTrangIpo.join(','));
+};
+
 export const fetchOverviewSummary = async (
   dateFromISO?: string,
   dateToISO?: string,
   datesISO?: string[],
-  opts?: { signal?: AbortSignal }   // <-- MỚI
+  opts?: OverviewFilterOpts
 ): Promise<OverviewSummary | null> => {
   try {
     const params = new URLSearchParams();
     if (dateFromISO) params.set('dateFrom', dateFromISO);
     if (dateToISO) params.set('dateTo', dateToISO);
-    if (datesISO && datesISO.length > 0) params.set('dates', datesISO.join(','));
+    if (datesISO?.length) params.set('dates', datesISO.join(','));
+    appendFilterParams(params, opts);
     const qs = params.toString();
     const url = qs ? `${API_BASE_URL}/overview/summary?${qs}` : `${API_BASE_URL}/overview/summary`;
-    const r = await fetch(url, { signal: opts?.signal });   // <-- MỚI: truyền signal
+    const r = await fetch(url, { signal: opts?.signal });
     if (!r.ok) throw new Error('fetch failed');
     return await r.json();
   } catch (e: any) {
-    if (e.name === 'AbortError') return null;   // <-- MỚI: request bị hủy chủ động, không phải lỗi thật
+    if (e.name === 'AbortError') return null;
     console.error('fetchOverviewSummary error:', e);
     return null;
   }
@@ -325,16 +341,16 @@ export const fetchOverviewSummary = async (
 export const fetchOverviewByGroup = async (
   key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export',
   groupBy: 'xuong' | 'congtrinh',
-  dateParams: { datesISO?: string[]; dateFromISO?: string; dateToISO?: string }
+  dateParams: { datesISO?: string[]; dateFromISO?: string; dateToISO?: string } & OverviewFilterOpts
 ): Promise<GroupAnalysisRow[]> => {
   try {
     const q = new URLSearchParams({ key, groupBy });
-    if (dateParams.datesISO && dateParams.datesISO.length > 0) {
-      q.set('dates', dateParams.datesISO.join(','));
-    } else {
+    if (dateParams.datesISO?.length) q.set('dates', dateParams.datesISO.join(','));
+    else {
       if (dateParams.dateFromISO) q.set('dateFrom', dateParams.dateFromISO);
       if (dateParams.dateToISO) q.set('dateTo', dateParams.dateToISO);
     }
+    appendFilterParams(q, dateParams);
     const url = `${API_BASE_URL}/overview/by-group?${q.toString()}`;
     const r = await fetch(url);
     if (!r.ok) throw new Error('fetch failed');
@@ -345,9 +361,13 @@ export const fetchOverviewByGroup = async (
   }
 };
 
-export const fetchStockDates = async (): Promise<StockDateEntry[]> => {
+export const fetchStockDates = async (opts?: OverviewFilterOpts): Promise<StockDateEntry[]> => {
   try {
-    const r = await fetch(`${API_BASE_URL}/stock/dates`);
+    const params = new URLSearchParams();
+    appendFilterParams(params, opts);
+    const qs = params.toString();
+    const url = qs ? `${API_BASE_URL}/stock/dates?${qs}` : `${API_BASE_URL}/stock/dates`;
+    const r = await fetch(url);
     if (!r.ok) throw new Error('fetch failed');
     return await r.json();
   } catch (e) {
@@ -356,9 +376,14 @@ export const fetchStockDates = async (): Promise<StockDateEntry[]> => {
   }
 };
 
-export const fetchStockByProject = async (dateISO: string): Promise<StockByProjectRow[]> => {
+export const fetchStockByProject = async (
+  dateISO: string,
+  opts?: OverviewFilterOpts
+): Promise<StockByProjectRow[]> => {
   try {
-    const r = await fetch(`${API_BASE_URL}/stock/by-project?date=${dateISO}`);
+    const params = new URLSearchParams({ date: dateISO });
+    appendFilterParams(params, opts);
+    const r = await fetch(`${API_BASE_URL}/stock/by-project?${params.toString()}`);
     if (!r.ok) throw new Error('fetch failed');
     return await r.json();
   } catch (e) {
@@ -425,3 +450,4 @@ export const fetchStockForExport = async (dates?: string[]): Promise<DataRow[]> 
     return [];
   }
 };
+

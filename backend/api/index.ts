@@ -600,15 +600,27 @@ const numericColQualified = (table: string, alias: string, col: string): string 
 };
 
 // [ĐO TIMING] Endpoint từng mất 34.71s trên Network tab — điểm nóng số 1.
- app.get('/api/overview/summary', async (req: Request, res: Response) => {
+app.get('/api/overview/summary', async (req: Request, res: Response) => {
   try {
+    const congTrinhList = String(req.query.congTrinh || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const xuongList = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const tinhTrangList = String(req.query.tinhTrang || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const tinhTrangIpoList = String(req.query.tinhTrangIpo || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
+
     const cacheKey = JSON.stringify({
       dateFrom: req.query.dateFrom || null,
       dateTo: req.query.dateTo || null,
       date: req.query.date || null,
       dates: req.query.dates || null,
+      congTrinh: congTrinhList,
+      xuong: xuongList,
+      tinhTrang: tinhTrangList,
+      tinhTrangIpo: tinhTrangIpoList,
     });
-    const overviewVersions = await getRelevantVersions(OVERVIEW_SUMMARY_VERSION_KEYS);
+     const overviewVersions = await getRelevantVersions(
+      needsRoleJoin ? [...OVERVIEW_SUMMARY_VERSION_KEYS, 'production'] : OVERVIEW_SUMMARY_VERSION_KEYS
+    );
     const cachedOverview = overviewSummaryCache.get(cacheKey);
     if (cachedOverview && JSON.stringify(cachedOverview.versions) === JSON.stringify(overviewVersions)) {
       return res.json(cachedOverview.payload);
@@ -623,7 +635,6 @@ const numericColQualified = (table: string, alias: string, col: string): string 
       .filter((d): d is Date => d !== null)
       .map(d => d.toISOString().slice(0, 10));
     const useExplicitDates = explicitDates.length > 0;
-
     const useAllTime = !hasDateTo && !hasDateFrom && !useExplicitDates;
 
     const dateToDate = parseSafeDate(req.query.dateTo as string)
@@ -647,61 +658,89 @@ const numericColQualified = (table: string, alias: string, col: string): string 
     let outerHi = dateToStr > monthEnd ? dateToStr : monthEnd;
     if (useExplicitDates) {
       const sorted = [...explicitDates].sort();
-      const explicitLo = sorted[0];
-      const explicitHi = sorted[sorted.length - 1];
-      outerLo = explicitLo < outerLo ? explicitLo : outerLo;
-      outerHi = explicitHi > outerHi ? explicitHi : outerHi;
+      outerLo = sorted[0] < outerLo ? sorted[0] : outerLo;
+      outerHi = sorted[sorted.length - 1] > outerHi ? sorted[sorted.length - 1] : outerHi;
     }
 
     const subQueries: string[] = [];
     const allParams: any[] = [];
 
+    // MỚI: mọi bảng nguồn giờ dùng alias 't' cố định để qualify cột an toàn khi có JOIN
     Object.entries(ANALYSIS_TABLES).forEach(([key, cfg]) => {
+      const alias = 't';
+      const colBare = (name: string) => `${alias}.${name}`;
+
       let periodCond: string;
       let mtdCond: string;
       let lastMonthCond: string;
       let localParams: any[];
 
-      if (useAllTime) {
+            if (useAllTime) {
         periodCond = 'TRUE';
-        mtdCond = `date_parsed BETWEEN $P1 AND $P2`;
-        lastMonthCond = `date_parsed BETWEEN $P3 AND $P4`;
+        mtdCond = `${colBare('date_parsed')} BETWEEN $P1 AND $P2`;
+        lastMonthCond = `${colBare('date_parsed')} BETWEEN $P3 AND $P4`;
         localParams = [monthStart, dateToStr, prevMonthStart, prevMonthEnd];
       } else if (useExplicitDates) {
-        periodCond = `date_parsed = ANY($P1::date[])`;
-        mtdCond = `date_parsed BETWEEN $P2 AND $P3`;
-        lastMonthCond = `date_parsed BETWEEN $P4 AND $P5`;
+        periodCond = `${colBare('date_parsed')} = ANY($P1::date[])`;
+        mtdCond = `${colBare('date_parsed')} BETWEEN $P2 AND $P3`;
+        lastMonthCond = `${colBare('date_parsed')} BETWEEN $P4 AND $P5`;
         localParams = [explicitDates, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
       } else {
-        periodCond = `date_parsed BETWEEN $P1 AND $P2`;
-        mtdCond = `date_parsed BETWEEN $P3 AND $P4`;
-        lastMonthCond = `date_parsed BETWEEN $P5 AND $P6`;
+        periodCond = `${colBare('date_parsed')} BETWEEN $P1 AND $P2`;
+        mtdCond = `${colBare('date_parsed')} BETWEEN $P3 AND $P4`;
+        lastMonthCond = `${colBare('date_parsed')} BETWEEN $P5 AND $P6`;
         localParams = [dateFromStr, dateToStr, monthStart, monthEnd, prevMonthStart, prevMonthEnd];
       }
 
       const baseIdx = allParams.length;
       localParams.forEach(p => allParams.push(p));
-      const remap = (cond: string) =>
-        cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
+      const remap = (cond: string) => cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
 
-      const countExpr = `COUNT(DISTINCT "${cfg.hexCol}")`;
+      const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol!)})`;
 
-      let outerWhere = 'TRUE';
-      if (!useAllTime) {
+      const outerConds: string[] = [];
+            if (!useAllTime) {
         allParams.push(outerLo, outerHi);
-        outerWhere = `date_parsed BETWEEN $${allParams.length - 1} AND $${allParams.length}`;
+        outerConds.push(`${colBare('date_parsed')} BETWEEN $${allParams.length - 1} AND $${allParams.length}`);
       }
+      if (congTrinhList.length && cfg.congTrinhCol) {
+        allParams.push(congTrinhList);
+        outerConds.push(`UPPER(TRIM(${colBare(cfg.congTrinhCol)})) = ANY($${allParams.length}::text[])`);
+      }
+      if (xuongList.length && cfg.xuongCol) {
+        allParams.push(xuongList);
+        outerConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${allParams.length}::text[])`);
+      }
+      if (needsRoleJoin) {
+        if (tinhTrangList.length) {
+          allParams.push(tinhTrangList);
+          outerConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${allParams.length}::text[])`);
+        }
+        if (tinhTrangIpoList.length) {
+          allParams.push(tinhTrangIpoList);
+          outerConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${allParams.length}::text[])`);
+        }
+      }
+      const outerWhere = outerConds.length ? outerConds.join(' AND ') : 'TRUE';
+
+      // MỚI: JOIN production_status_app chỉ khi cần lọc tinh_trang/tinh_trang_ipo.
+      // LEFT JOIN + filter p.xxx = ANY(...) => dòng không có hex khớp bên production
+      // sẽ có p.tinh_trang IS NULL và tự động bị loại (đúng như đã thống nhất).
+      const joinClause = needsRoleJoin
+        ? `LEFT JOIN production_status_app p ON p."${cfg.productionJoinCol || 'hex'}"::text = ${colBare(cfg.hexCol!)}::text`
+        : '';
 
       subQueries.push(`
         SELECT
           '${key}' AS source_key,
           ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
-          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
+          COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${remap(periodCond)}), 0) / ${cfg.valueDivisor} AS period_value,
           ${countExpr} FILTER (WHERE ${remap(mtdCond)}) AS mtd_count,
-          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
+          COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${remap(mtdCond)}), 0) / ${cfg.valueDivisor} AS mtd_value,
           ${countExpr} FILTER (WHERE ${remap(lastMonthCond)}) AS last_month_count,
-          COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
-        FROM ${cfg.table}
+          COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
+        FROM ${cfg.table} ${alias}
+        ${joinClause}
         WHERE ${outerWhere}
       `);
     });
@@ -718,7 +757,7 @@ const numericColQualified = (table: string, alias: string, col: string): string 
       };
     });
 
-        const overviewPayload = { date: dateToStr, dateFrom: dateFromStr, ...results };
+    const overviewPayload = { date: dateToStr, dateFrom: dateFromStr, ...results };
     overviewSummaryCache.set(cacheKey, { versions: overviewVersions, payload: overviewPayload });
     trimCache(overviewSummaryCache);
     res.json(overviewPayload);
@@ -735,7 +774,17 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     if (groupBy !== 'xuong' && groupBy !== 'congtrinh') return res.status(400).json({ error: 'Invalid groupBy' });
 
     const cfg = ANALYSIS_TABLES[key];
-    const groupCol = groupBy === 'congtrinh' ? cfg.congTrinhCol : cfg.xuongCol;
+    const alias = 't';
+    const colBare = (name: string) => `${alias}.${name}`;
+    const groupColRaw = groupBy === 'congtrinh' ? cfg.congTrinhCol : cfg.xuongCol;
+    if (!groupColRaw) return res.json([]);
+    const groupCol = colBare(groupColRaw);
+
+    const congTrinhList = String(req.query.congTrinh || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const xuongList = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const tinhTrangList = String(req.query.tinhTrang || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const tinhTrangIpoList = String(req.query.tinhTrangIpo || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
 
     const explicitDates = String(req.query.dates || '')
       .split(',')
@@ -752,19 +801,19 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     const refDateStr = useExplicitDates ? [...explicitDates].sort().slice(-1)[0] : dateToStr;
     const monthStart = `${refDateStr.slice(0, 7)}-01`;
 
-    const params: any[] = [];
+        const params: any[] = [];
     let periodCond: string;
     if (useExplicitDates) {
       params.push(explicitDates);
-      periodCond = `date_parsed = ANY($1::date[])`;
+      periodCond = `${colBare('date_parsed')} = ANY($1::date[])`;
     } else {
       params.push(dateFromStr, dateToStr);
-      periodCond = `date_parsed BETWEEN $1 AND $2`;
+      periodCond = `${colBare('date_parsed')} BETWEEN $1 AND $2`;
     }
     const monthStartIdx = params.length + 1;
     const refDateIdx = params.length + 2;
     params.push(monthStart, refDateStr);
-    const mtdCond = `date_parsed BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
+    const mtdCond = `${colBare('date_parsed')} BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
 
     const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
     const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
@@ -774,15 +823,40 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     const outerHiIdx = params.length + 2;
     params.push(outerLo, outerHi);
 
-    const q = `
+    const extraConds: string[] = [];
+    if (congTrinhList.length && cfg.congTrinhCol) {
+      params.push(congTrinhList);
+      extraConds.push(`UPPER(TRIM(${colBare(cfg.congTrinhCol)})) = ANY($${params.length}::text[])`);
+    }
+    if (xuongList.length && cfg.xuongCol) {
+      params.push(xuongList);
+      extraConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${params.length}::text[])`);
+    }
+    if (needsRoleJoin) {
+      if (tinhTrangList.length) {
+        params.push(tinhTrangList);
+        extraConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`);
+      }
+      if (tinhTrangIpoList.length) {
+        params.push(tinhTrangIpoList);
+        extraConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+      }
+    }
+    const extraWhere = extraConds.length ? ` AND ${extraConds.join(' AND ')}` : '';
+    const joinClause = needsRoleJoin
+      ? `LEFT JOIN production_status_app p ON p."${cfg.productionJoinCol || 'hex'}"::text = ${colBare(cfg.hexCol!)}::text`
+      : '';
+
+       const q = `
       SELECT
-        COALESCE(NULLIF(TRIM("${groupCol}"), ''), 'Chưa xác định') AS name,
-        COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${periodCond}) AS daily_count,
-        COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
-        COUNT(DISTINCT "${cfg.hexCol}") FILTER (WHERE ${mtdCond}) AS mtd_count,
-        COALESCE(SUM(${numericCol(cfg.table, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
-      FROM ${cfg.table}
-      WHERE date_parsed BETWEEN $${outerLoIdx} AND $${outerHiIdx}
+        COALESCE(NULLIF(TRIM(${groupCol}), ''), 'Chưa xác định') AS name,
+        COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${periodCond}) AS daily_count,
+        COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
+        COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
+        COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
+      FROM ${cfg.table} ${alias}
+      ${joinClause}
+      WHERE ${colBare('date_parsed')} BETWEEN $${outerLoIdx} AND $${outerHiIdx}${extraWhere}
       GROUP BY 1
       ORDER BY mtd_value DESC
     `;
@@ -804,43 +878,73 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
   }
 });
 
-// --- CACHE IN-MEMORY CHO /api/stock/dates ---
-let cachedStockDates: any = null;
-let cachedStockDatesVersion: string | null = null;
+// --- CACHE IN-MEMORY CHO /api/stock/dates (theo bộ lọc tổng) ---
+// TRƯỚC: 1 biến module-level duy nhất (không phân biệt filter).
+// SAU: Map key theo bộ lọc, giống overviewSummaryCache/khsxNhapKhoCache.
+const stockDatesCache = new Map<string, { versions: Record<string, string>; payload: any }>();
+
+interface StockFilterParams {
+  congTrinh: string[];
+  xuong: string[];
+  tinhTrang: string[];
+  tinhTrangIpo: string[];
+}
+const parseStockFilters = (req: Request): StockFilterParams => ({
+  congTrinh: String(req.query.congTrinh || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
+  xuong: String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
+  tinhTrang: String(req.query.tinhTrang || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
+  tinhTrangIpo: String(req.query.tinhTrangIpo || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
+});
 
 // [ĐO TIMING] Endpoint từng bị "pending" 25.39s trên production — điểm nóng số 2.
-const refreshStockDatesCache = async () => {
-  const verResult = await timedQuery(
-    `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
-  );
-  const currentVersion = verResult.rows[0]?.last_updated
-    ? String(verResult.rows[0].last_updated)
-    : null;
+const refreshStockDatesCache = async (filters: StockFilterParams) => {
+  const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+  const cacheKey = JSON.stringify(filters);
+  const versions = await getRelevantVersions(needsJoin ? ['stock', 'production'] : ['stock']);
 
-  if (cachedStockDates && currentVersion && currentVersion === cachedStockDatesVersion) {
-    return { payload: cachedStockDates, fromCache: true };
+  const cached = stockDatesCache.get(cacheKey);
+  if (cached && JSON.stringify(cached.versions) === JSON.stringify(versions)) {
+    return { payload: cached.payload, fromCache: true };
   }
 
+  const conds: string[] = ['s.date_parsed IS NOT NULL'];
+  const params: any[] = [];
+  if (filters.congTrinh.length) {
+    params.push(filters.congTrinh);
+    conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
+  }
+  if (needsJoin) {
+    if (filters.xuong.length) { params.push(filters.xuong); conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`); }
+    if (filters.tinhTrang.length) { params.push(filters.tinhTrang); conds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`); }
+    if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); conds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+  }
+  // Lưu ý: ton_kho join với production_status_app qua ma_id_sap (nhất quán với STOCK_TREND_CONFIG),
+  // KHÔNG dùng cột 'hex' của ton_kho vì đã có ghi chú trước đó là join theo ma_id_sap mới đúng.
+  const joinClause = needsJoin
+    ? `LEFT JOIN production_status_app p ON p."ma_id_sap"::text = s."ma_id_sap"::text`
+    : '';
+
   const q = `
-  SELECT date_parsed AS d,
-        COUNT(DISTINCT ma_id_sap) AS count, 
-         COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
-FROM ton_kho
-  WHERE date_parsed IS NOT NULL
-  GROUP BY 1
-  ORDER BY 1 DESC
-`;
-  const r = await timedQuery(q);
+    SELECT s.date_parsed AS d,
+          COUNT(DISTINCT s.ma_id_sap) AS count,
+           COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
+    FROM ton_kho s
+    ${joinClause}
+    WHERE ${conds.join(' AND ')}
+    GROUP BY 1
+    ORDER BY 1 DESC
+  `;
+  const r = await timedQuery(q, params);
   const payload = r.rows.map(row => ({ date: row.d, count: Number(row.count), value: Number(row.value) }));
 
-  cachedStockDates = payload;
-  cachedStockDatesVersion = currentVersion;
+  stockDatesCache.set(cacheKey, { versions, payload });
+  trimCache(stockDatesCache);
   return { payload, fromCache: false };
 };
 
-app.get('/api/stock/dates', async (_req: Request, res: Response) => {
+app.get('/api/stock/dates', async (req: Request, res: Response) => {
   try {
-    const { payload } = await refreshStockDatesCache();
+    const { payload } = await refreshStockDatesCache(parseStockFilters(req));
     res.json(payload);
   } catch (error) {
     console.error('Lỗi stock/dates:', error);
@@ -859,7 +963,11 @@ app.get('/api/warmup', warmupLimiter, requireWarmupSecret, async (_req: Request,
     const { fromCache: allDataFromCache } = await refreshAllDataCache();
     warmed.push(allDataFromCache ? 'all-data (cached)' : 'all-data (refreshed)');
 
-    const { fromCache: stockFromCache } = await refreshStockDatesCache();
+    // MỚI: chỉ warm-up cache cho trường hợp KHÔNG lọc (mặc định), vì không thể
+    // warm trước mọi tổ hợp filter có thể có.
+    const { fromCache: stockFromCache } = await refreshStockDatesCache({
+      congTrinh: [], xuong: [], tinhTrang: [], tinhTrangIpo: [],
+    });
     warmed.push(stockFromCache ? 'stock-dates (cached)' : 'stock-dates (refreshed)');
 
     res.json({ ok: true, warmed, ms: Date.now() - startedAt });
@@ -874,16 +982,36 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   try {
     const { date } = req.query as { date: string };
     if (!date) return res.status(400).json({ error: 'Missing date' });
+
+    const filters = parseStockFilters(req);
+    const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+
+    const conds: string[] = ['s.date_parsed = $1'];
+    const params: any[] = [date];
+    if (filters.congTrinh.length) {
+      params.push(filters.congTrinh);
+      conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
+    }
+    if (needsJoin) {
+      if (filters.xuong.length) { params.push(filters.xuong); conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`); }
+      if (filters.tinhTrang.length) { params.push(filters.tinhTrang); conds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`); }
+      if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); conds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+    }
+    const joinClause = needsJoin
+      ? `LEFT JOIN production_status_app p ON p."ma_id_sap"::text = s."ma_id_sap"::text`
+      : '';
+
     const q = `
-      SELECT COALESCE(NULLIF(TRIM(ten_cong_trinh), ''), 'Chưa xác định') AS name,
-            COUNT(DISTINCT ma_id_sap) AS count,
-             COALESCE(SUM(${numericCol('ton_kho', 'gia_tri')}), 0) AS value
-      FROM ton_kho
-      WHERE date_parsed = $1
+      SELECT COALESCE(NULLIF(TRIM(s.ten_cong_trinh), ''), 'Chưa xác định') AS name,
+            COUNT(DISTINCT s.ma_id_sap) AS count,
+             COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
+      FROM ton_kho s
+      ${joinClause}
+      WHERE ${conds.join(' AND ')}
       GROUP BY 1
       ORDER BY value DESC
     `;
-    const r = await timedQuery(q, [date]);
+    const r = await timedQuery(q, params);
     res.json(r.rows.map(row => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
   } catch (error) {
     console.error('Lỗi stock/by-project:', error);

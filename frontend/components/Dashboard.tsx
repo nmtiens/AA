@@ -306,6 +306,7 @@ const {
   stockDateKey,
   latestUnifiedDate,
   overviewMetric,
+  filters,
 });
 
 const {
@@ -334,14 +335,13 @@ const {
   filteredProductionData,
   filteredMaterialData,
   displayedMaterialData,
-  stockData,
+  stockDates,        // MỚI: thay cho stockData/stockDateKey/stockValueKey/stockSapIdKey
   closestStockDate,
   tinhTrangKey, xuongKey, bopKey, valueKey, realValueKey, hexKey,
   congTrinhKey, hangMucKey, daysAtCurrentStageKey,
   triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
-  stockDateKey, stockValueKey, stockSapIdKey,
-  selectedCongTrinh: filters.congTrinh,
+  // XÓA: stockDateKey, stockValueKey, stockSapIdKey, selectedCongTrinh: filters.congTrinh
 });
 
 const {
@@ -591,9 +591,10 @@ const handleContinueToOrderColumnStep = () => {
         {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}
         {/* ... (Order Overview content unchanged) ... */}
     <OrderOverviewSection
-    sectionRef={orderOverviewRef}
+  sectionRef={orderOverviewRef}
   isSidebarCollapsed={isSidebarCollapsed}
   hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
+  filters={filters}   // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
   overviewMetric={overviewMetric}
   setOverviewMetric={setOverviewMetric}
   getContextLabel={getContextLabel}
