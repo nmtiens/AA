@@ -298,6 +298,69 @@ const parseSafeDate = (rawInput?: string): Date | null => {
   return !isNaN(parsed.getTime()) ? parsed : null;
 };
 
+// MỚI: quy đổi 1 "periodKey" (do client sinh ra khi vẽ TrendChart — xem hàm
+// periodKey() phía frontend) thành khoảng [start, end] để lọc chi tiết dữ liệu
+// khi người dùng bấm xem chi tiết 1 cột trên biểu đồ theo thời gian.
+// - day: periodKey chính là ngày đó -> start = end = ngày đó
+// - week: periodKey là ngày thứ Hai đầu tuần -> end = Chủ nhật cùng tuần
+// - month: periodKey là ngày 01 đầu tháng -> end = ngày cuối tháng
+const getPeriodRangeFromKey = (value: string, granularity: string): { start: string; end: string } => {
+  const d = parseSafeDate(value) || new Date(value);
+  if (granularity === 'week') {
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
+  if (granularity === 'month') {
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
+  const iso = d.toISOString().slice(0, 10);
+  return { start: iso, end: iso };
+};
+
+// [SNAPSHOT FIX] 'ton_kho' là bảng snapshot (ảnh chụp tồn kho theo ngày), KHÔNG
+// PHẢI bảng giao dịch — nên không bao giờ được SUM/gộp nhiều ngày lại với nhau.
+// Luôn ép về đúng 1 ngày đại diện (mới nhất, không vượt quá upperBound nếu có).
+// [SNAPSHOT FIX] 'ton_kho' là bảng snapshot theo ngày — KHÔNG BAO GIỜ được SUM
+// nhiều ngày lại với nhau. Luôn ép về đúng 1 ngày đại diện (mới nhất, không vượt
+// quá upperBound nếu có).
+const buildStockSnapshotCondition = (
+  table: string,
+  dateColExpr: string,
+  rawDateCol: string,
+  upperBound: Date | null,
+  params: any[]
+): string => {
+  if (upperBound) {
+    params.push(upperBound.toISOString().slice(0, 10));
+    return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table} WHERE ${rawDateCol} <= $${params.length})`;
+  }
+  return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table})`;
+};
+
+// [FILTER FIX] So khớp không phân biệt hoa/thường và khoảng trắng thừa — đồng bộ
+// với cách /api/overview/summary, /api/khsx-nhapkho/summary, /api/stock/* đã làm.
+const eqNormalized = (colExpr: string, paramIdx: number) =>
+  `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
+
+// [JOIN DEDUP FIX] Một ma_id_sap/hex có thể khớp NHIỀU dòng trong
+// production_status_app (vd: 1 vật tư dùng cho nhiều hạng mục). LEFT JOIN trực
+// tiếp sẽ nhân dòng bảng chính lên N lần, làm SUM/COUNT bị thổi phồng sai.
+// Dedup bằng DISTINCT ON trước khi join. Đặt tên CTE là "p" để mọi chỗ tham
+// chiếu "p.xuong_chinh", "p.dvt", "p.phan_loai_nhom_san_pham"... không cần sửa.
+const buildMatchedProductionCTE = (joinKey: string): string => `
+  p AS (
+    SELECT DISTINCT ON ("${joinKey}")
+      "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
+    FROM production_status_app
+    WHERE "${joinKey}" IS NOT NULL
+    ORDER BY "${joinKey}", updated_at DESC NULLS LAST
+  )
+`;
+
 // Helper lấy dữ liệu an toàn cho từng bảng (INCREMENTAL SYNC + CẮT CỘT)
 // [ĐO TIMING] Đây là hàm chạy cho /api/all-data và mọi route trong apiRoutes —
 // đổi sang timedQuery để tách bạch connect-time vs query-time khi DEBUG_DB_TIMING=true.
@@ -351,7 +414,12 @@ const TABLE_TO_VERSION_KEY: Record<string, string> = {
 // trong log (poll mỗi 60s + mount + visibilitychange). Đổi sang timedQuery để
 // xem đây có phải nguồn gây tranh chấp connection hay không.
 const getVersions = async () => {
-  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions`);
+  // MỚI: thêm ORDER BY table_name — nếu không có, Postgres không đảm bảo thứ tự row,
+  // khiến object `out` có thể có thứ tự key khác nhau giữa 2 lần gọi dù giá trị giống
+  // hệt nhau. refreshAllDataCache() so sánh cache bằng JSON.stringify(versions), nên
+  // thứ tự key khác nhau -> cache bị coi là stale oan -> query lại toàn bộ /api/all-data
+  // không cần thiết.
+  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
   const out: Record<string, string> = {};
   result.rows.forEach(row => {
     const key = TABLE_TO_VERSION_KEY[row.table_name];
@@ -544,11 +612,6 @@ const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
 };
 const ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
 const TREND_SOURCES = new Set([...Object.keys(ANALYSIS_TABLES), 'stock']);
-
-function buildProductionJoinClause(cfg: TrendTableConfig, colBare: (name: string) => string): string {
-  const joinKey = cfg.productionJoinCol || 'hex';
-  return `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text`;
-}
 
 const numericExpr = (col: string) => `
   NULLIF(
@@ -1680,6 +1743,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
   }
 });
 
+
 // [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
 app.get('/api/trend', async (req: Request, res: Response) => {
   try {
@@ -1687,6 +1751,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
 
     const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const isStock = source === 'stock';
 
     const granularity = (req.query.granularity as string) || 'day';
     const truncUnit = granularity === 'week' ? 'week' : granularity === 'month' ? 'month' : 'day';
@@ -1698,13 +1763,10 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     const dvt = (req.query.dvt as string) || '';
     const phanLoai = (req.query.phanLoai as string) || '';
 
-    // JOIN production_status_app qua hex khi:
-    // - lọc theo phanLoai (không bảng nào tự có cột này, kể cả order)
-    // - lọc theo dvt ở những bảng KHÔNG có sẵn cột dvt riêng (chỉ order/dht có sẵn, không cần join)
-  const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-const needsPhanLoaiJoin = !!phanLoai;
-const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
-const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
 
     const mainAlias = needsJoin ? 'm' : '';
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
@@ -1712,23 +1774,32 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-    if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
-   if (xuong) {
-  if (cfg.xuongCol) {
-    params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
-  } else if (cfg.xuongViaProductionJoin) {
-    params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
-  }
-}
-    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
+    // [SNAPSHOT FIX]
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+    } else {
+      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    }
+
+    // [FILTER FIX] chuẩn hóa UPPER/TRIM
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+      }
+    }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
     if (dvt) {
-  if (cfg.dvtCol) {
-    params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
-  } else if (needsJoin) {
-    params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
-  }
-}
+      if (cfg.dvtCol) {
+        params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+      } else if (needsJoin) {
+        params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length));
+      }
+    }
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const useDefaultLimit = !dateFrom && !dateTo;
@@ -1738,21 +1809,57 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-   const joinKey = cfg.productionJoinCol || 'hex';
-   const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const joinKey = cfg.productionJoinCol || 'hex';
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
 
-    const q = `
-      SELECT
-        date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(' AND ')}
-      GROUP BY 1
-      ORDER BY 1 ${useDefaultLimit ? 'DESC' : 'ASC'}
-      ${useDefaultLimit ? `LIMIT ${limit}` : ''}
-    `;
+    // [JOIN DEDUP FIX] CTE "p" thay cho LEFT JOIN trực tiếp production_status_app
+    const cteList: string[] = [];
+    if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
+
+    let q: string;
+    if (isStock && truncUnit !== 'day') {
+      // [SNAPSHOT FIX] tuần/tháng: mỗi cột chỉ lấy đúng 1 ngày đại diện (mới nhất
+      // trong kỳ đó) — không SUM cả tuần/tháng.
+      cteList.push(`
+        period_dates AS (
+          SELECT date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+                 MAX(${colBare(cfg.dateCol)}) AS snap_date
+          FROM ${cfg.table} ${mainAlias}
+          ${joinClause}
+          WHERE ${conditions.join(' AND ')}
+          GROUP BY 1
+        )
+      `);
+      q = `
+        WITH ${cteList.join(',\n')}
+        SELECT
+          pd.period AS period,
+          COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+          ${countExpr} AS total_count
+        FROM period_dates pd
+        JOIN ${cfg.table} ${mainAlias} ON ${colBare(cfg.dateCol)} = pd.snap_date
+        ${joinClause}
+        WHERE ${conditions.join(' AND ')} AND ${colBare(cfg.dateCol)} = pd.snap_date
+        GROUP BY pd.period
+        ORDER BY pd.period ${useDefaultLimit ? 'DESC' : 'ASC'}
+        ${useDefaultLimit ? `LIMIT ${limit}` : ''}
+      `;
+    } else {
+      const withClause = cteList.length ? `WITH ${cteList.join(',\n')}` : '';
+      q = `
+        ${withClause}
+        SELECT
+          date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+          COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+          ${countExpr} AS total_count
+        FROM ${cfg.table} ${mainAlias}
+        ${joinClause}
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY 1
+        ORDER BY 1 ${useDefaultLimit ? 'DESC' : 'ASC'}
+        ${useDefaultLimit ? `LIMIT ${limit}` : ''}
+      `;
+    }
     const r = await timedQuery(q, params);
     const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map(row => ({
       period: row.period,
@@ -1771,10 +1878,23 @@ const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin
 app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
   try {
     const q = `
-      SELECT DISTINCT TRIM(xuong_chinh) AS name
-      FROM khsx
-      WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
-      ORDER BY 1
+      SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
+      FROM (
+        SELECT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM dht WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM nhap_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM xuat_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM tkbv_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM pthsp_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM production_status_app WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+      ) t
+      ORDER BY UPPER(TRIM(name)), name
     `;
     const r = await timedQuery(q);
     res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
@@ -1788,10 +1908,23 @@ app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
 app.get('/api/filters/cong-trinh', async (_req: Request, res: Response) => {
   try {
     const q = `
-      SELECT DISTINCT TRIM(ten_cong_trinh) AS name
-      FROM khsx
-      WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
-      ORDER BY 1
+      SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
+      FROM (
+        SELECT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM dht WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM nhap_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM xuat_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM tkbv_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM pthsp_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM ton_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+      ) t
+      ORDER BY UPPER(TRIM(name)), name
     `;
     const r = await timedQuery(q);
     res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
@@ -1844,9 +1977,10 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
 
     const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
-  return res.json([]);
-}
+    if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
+      return res.json([]);
+    }
+    const isStock = source === 'stock';
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -1855,61 +1989,65 @@ if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
     const dvt = (req.query.dvt as string) || '';
     const phanLoai = (req.query.phanLoai as string) || '';
 
-const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-const needsPhanLoaiJoin = !!phanLoai;
-const needsXuongJoin = !!(cfg.xuongViaProductionJoin && !cfg.xuongCol);
-const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(cfg.xuongViaProductionJoin && !cfg.xuongCol);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
 
     const mainAlias = needsJoin ? 'm' : '';
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
 
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-const params: any[] = [];
+    const params: any[] = [];
 
-if (source === 'stock' && !dateFrom && !dateTo) {
-  // Tồn kho là số liệu snapshot — không group toàn bộ lịch sử, chỉ lấy ngày mới nhất
-  conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
-} else {
-  if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-  if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
-}
-  if (xuong) {
-  if (cfg.xuongCol) {
-    params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
-  } else if (cfg.xuongViaProductionJoin) {
-    params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
-  }
-}
-    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
-   if (dvt) {
-  if (cfg.dvtCol) {
-    params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
-  } else if (needsJoin) {
-    params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
-  }
-}
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+    } else {
+      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    }
+
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+      }
+    }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
+    if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+      } else if (needsJoin) {
+        params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length));
+      }
+    }
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-   const joinKey = cfg.productionJoinCol || 'hex';
-   const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const joinKey = cfg.productionJoinCol || 'hex';
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
 
-   const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : 'p.xuong_chinh';
+    const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : 'p.xuong_chinh';
 
-const q = `
-  SELECT
-    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'TỒN KHO KHÁC') AS xuong,
-    COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-    ${countExpr} AS total_count
-  FROM ${cfg.table} ${mainAlias}
-  ${joinClause}
-  WHERE ${conditions.join(' AND ')}
-  GROUP BY 1
-  ORDER BY total_value DESC
-`;
+    const q = `
+      ${withClause}
+      SELECT
+        COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'TỒN KHO KHÁC') AS xuong,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(' AND ')}
+      GROUP BY 1
+      ORDER BY total_value DESC
+    `;
     const r = await timedQuery(q, params);
     const rows = r.rows.map(row => ({
       xuongCode: row.xuong,
@@ -1934,6 +2072,7 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     if (!cfg.congTrinhCol) {
       return res.json([]);
     }
+    const isStock = source === 'stock';
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -1942,49 +2081,53 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     const dvt = (req.query.dvt as string) || '';
     const phanLoai = (req.query.phanLoai as string) || '';
 
-   const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-const needsPhanLoaiJoin = !!phanLoai;
-const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
-const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = !!phanLoai;
+    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
 
     const mainAlias = needsJoin ? 'm' : '';
     const colBare = (name: string) => (mainAlias ? `${mainAlias}.${name}` : name);
 
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-const params: any[] = [];
+    const params: any[] = [];
 
-if (source === 'stock' && !dateFrom && !dateTo) {
-  // Tồn kho là số liệu snapshot — không group toàn bộ lịch sử, chỉ lấy ngày mới nhất
-  conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
-} else {
-  if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-  if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
-}
-   if (xuong) {
-  if (cfg.xuongCol) {
-    params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
-  } else if (cfg.xuongViaProductionJoin) {
-    params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
-  }
-}
-    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+    } else {
+      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    }
+
+    if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+      }
+    }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
     if (dvt) {
-  if (cfg.dvtCol) {
-    params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
-  } else if (needsJoin) {
-    params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
-  }
-}
+      if (cfg.dvtCol) {
+        params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+      } else if (needsJoin) {
+        params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length));
+      }
+    }
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-   const joinKey = cfg.productionJoinCol || 'hex';
-   const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const joinKey = cfg.productionJoinCol || 'hex';
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
 
     const q = `
+      ${withClause}
       SELECT
         COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Chưa xác định') AS cong_trinh,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
@@ -2017,6 +2160,7 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
 
     const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const isStock = source === 'stock';
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -2036,25 +2180,28 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (source === 'stock' && !dateFrom && !dateTo) {
-      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
       if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
     }
+
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
+        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
       }
     }
-    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
     if (dvt) {
       if (cfg.dvtCol) {
-        params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else if (needsJoin) {
-        params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length));
       }
     }
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
@@ -2063,13 +2210,14 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     const valueExpr = needsJoin
       ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
       : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    // ĐÃ SỬA: dùng đúng cột production_status_app tương ứng (cfg.productionJoinCol), so sánh ::text
     const joinKey = cfg.productionJoinCol || 'hex';
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
 
     const dvtExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : 'p.dvt';
 
     const q = `
+      ${withClause}
       SELECT
         COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Chưa xác định') AS dvt,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
@@ -2101,52 +2249,60 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
 
     const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-
     if (!cfg.joinProductionForFilters || !cfg.hexCol) {
       return res.json([]);
     }
+    const isStock = source === 'stock';
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
     const xuong = (req.query.xuong as string) || '';
     const congTrinh = (req.query.congTrinh as string) || '';
     const dvt = (req.query.dvt as string) || '';
-
+    const phanLoai = (req.query.phanLoai as string) || '';   // ← THÊM DÒNG NÀY
     const mainAlias = 'm';
     const colBare = (name: string) => `${mainAlias}.${name}`;
 
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (source === 'stock' && !dateFrom && !dateTo) {
-      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
       if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
     }
+
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(`p.xuong_chinh = $${params.length}`);
+        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
       }
     }
-    if (congTrinh && cfg.congTrinhCol) { params.push(congTrinh); conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`); }
+    if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
     if (dvt) {
       if (cfg.dvtCol) {
-        params.push(dvt); conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else {
-        params.push(dvt); conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length));
       }
     }
+    if (phanLoai) {                                          // ← THÊM KHỐI NÀY
+     params.push(phanLoai);
+     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+   }
 
     const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
     const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
-    // ĐÃ SỬA: dùng đúng cột production_status_app tương ứng (cfg.productionJoinCol), so sánh ::text
     const joinKey = cfg.productionJoinCol || 'hex';
-    const joinClause = `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text`;
+    const joinClause = `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text`;
+    const withClause = `WITH ${buildMatchedProductionCTE(joinKey)}`;
 
     const q = `
+      ${withClause}
       SELECT
         COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Chưa xác định') AS phan_loai,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
@@ -2167,6 +2323,165 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
     res.json(rows);
   } catch (error) {
     console.error('Lỗi /api/trend-by-phanloai:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// ============================================================================
+// [MỚI] KHUNG NHÌN CHI TIẾT DỮ LIỆU — dùng cho tính năng "con mắt" trên 4 loại
+// biểu đồ (theo thời gian, theo xưởng, theo công trình, theo ĐVT/phân loại).
+// Khi người dùng bấm chọn 1 cột rồi bấm icon con mắt, frontend gọi endpoint
+// này để lấy TOÀN BỘ dòng dữ liệu gốc khớp với giá trị cột đó + bộ lọc hiện
+// tại (không lấy full toàn bộ bảng).
+// ============================================================================
+const DETAIL_DIMENSIONS = new Set(['period', 'xuong', 'congtrinh', 'dvt', 'phanloai']);
+
+// MỚI: các nhãn "sentinel" mà /api/trend-by-* trả về thay cho giá trị gốc khi
+// cột NULL/rỗng (xem COALESCE(NULLIF(...), '<nhãn>') ở các route đó). Khi người
+// dùng bấm "Xem chi tiết" trên đúng cột này, value gửi lên sẽ là chuỗi nhãn đó
+// chứ không phải giá trị thật trong DB (vì giá trị thật là NULL/rỗng) — nên
+// không thể so `= value` như bình thường, phải chuyển thành điều kiện IS NULL
+// hoặc rỗng.
+const UNKNOWN_VALUE_LABELS = new Set(['CHƯA XÁC ĐỊNH', 'TỒN KHO KHÁC']);
+const isUnknownValueLabel = (v: string) => UNKNOWN_VALUE_LABELS.has(v.trim().toUpperCase());
+
+app.get('/api/detail', async (req: Request, res: Response) => {
+  try {
+    const source = req.query.source as string;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
+
+    const dimension = (req.query.dimension as string) || '';
+    if (!DETAIL_DIMENSIONS.has(dimension)) return res.status(400).json({ error: 'Invalid dimension' });
+
+    const value = ((req.query.value as string) || '').trim();
+    if (!value) return res.status(400).json({ error: 'Missing value' });
+
+    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const isStock = source === 'stock';
+    const granularity = (req.query.granularity as string) || 'day';
+
+    const xuong = (req.query.xuong as string) || '';
+    const congTrinh = (req.query.congTrinh as string) || '';
+    const dvt = (req.query.dvt as string) || '';
+    const phanLoai = (req.query.phanLoai as string) || '';
+    const dateFrom = parseSafeDate(req.query.dateFrom as string);
+    const dateTo = parseSafeDate(req.query.dateTo as string);
+
+    const needsDvtJoin = dimension === 'dvt' ? !cfg.dvtCol : !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = dimension === 'phanloai' || !!phanLoai;
+    const needsXuongJoin = dimension === 'xuong'
+      ? (!cfg.xuongCol && !!cfg.xuongViaProductionJoin)
+      : !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+
+    const alias = needsJoin ? 'm' : '';
+    const colBare = (name: string) => (alias ? `${alias}.${name}` : name);
+
+    const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params: any[] = [];
+
+    // Chiều thời gian
+    if (dimension === 'period') {
+      const { start, end } = getPeriodRangeFromKey(value, granularity);
+      if (isStock && granularity !== 'day') {
+        // [SNAPSHOT FIX] Khớp đúng cách /api/trend tính cột tuần/tháng: chỉ lấy
+        // ĐÚNG 1 ngày đại diện (mới nhất trong kỳ) — không liệt kê cả tuần/tháng.
+        params.push(start, end);
+        conditions.push(
+          `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
+        );
+      } else {
+        params.push(start, end);
+        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
+      }
+    } else if (isStock) {
+      // [SNAPSHOT FIX] Các chiều khác (xưởng/công trình/ĐVT/phân loại): tồn kho
+      // luôn chỉ xem đúng 1 ngày đại diện, không liệt kê nhiều ngày snapshot.
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+    } else {
+      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
+      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+    }
+
+    const emptyCond = (colExpr: string) => `(${colExpr} IS NULL OR TRIM(${colExpr}::text) = '')`;
+
+    // Chiều xưởng — [FILTER FIX] chuẩn hóa UPPER/TRIM
+    if (dimension === 'xuong') {
+      const colExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : (cfg.xuongViaProductionJoin ? 'p.xuong_chinh' : null);
+      if (colExpr) {
+        if (isUnknownValueLabel(value)) {
+          conditions.push(emptyCond(colExpr));
+        } else {
+          params.push(value); conditions.push(eqNormalized(colExpr, params.length));
+        }
+      }
+    } else if (xuong) {
+      if (cfg.xuongCol) { params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length)); }
+      else if (cfg.xuongViaProductionJoin) { params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length)); }
+    }
+
+    // Chiều công trình
+    if (dimension === 'congtrinh' && cfg.congTrinhCol) {
+      if (isUnknownValueLabel(value)) {
+        conditions.push(emptyCond(colBare(cfg.congTrinhCol)));
+      } else {
+        params.push(value); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      }
+    } else if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
+
+    // Chiều ĐVT
+    if (dimension === 'dvt') {
+      const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : 'p.dvt';
+      if (isUnknownValueLabel(value)) {
+        conditions.push(emptyCond(colExpr));
+      } else {
+        params.push(value); conditions.push(eqNormalized(colExpr, params.length));
+      }
+    } else if (dvt) {
+      if (cfg.dvtCol) { params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length)); }
+      else if (needsJoin) { params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length)); }
+    }
+
+    // Chiều phân loại nhóm sản phẩm
+    if (dimension === 'phanloai') {
+      if (isUnknownValueLabel(value)) {
+        conditions.push(emptyCond('p.phan_loai_nhom_san_pham'));
+      } else {
+        params.push(value); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+      }
+    } else if (phanLoai && needsJoin) {
+      params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+    }
+
+    const joinKey = cfg.productionJoinCol || 'hex';
+    const joinClause = needsJoin
+      ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text`
+      : '';
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
+
+    const cols = REPORT_COLUMNS[cfg.table] || [];
+    if (cols.length === 0) return res.status(400).json({ error: 'Bảng không được hỗ trợ' });
+    const selectClause = cols.map(c => `${alias ? `${alias}.` : ''}"${c}"`).join(', ');
+
+    const DETAIL_LIMIT = 500;
+    const q = `
+      ${withClause}
+      SELECT ${selectClause}
+      FROM ${cfg.table} ${alias}
+      ${joinClause}
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY ${colBare(cfg.dateCol)} DESC
+      LIMIT ${DETAIL_LIMIT + 1}
+    `;
+    const r = await timedQuery(q, params);
+    const truncated = r.rows.length > DETAIL_LIMIT;
+    const rows = truncated ? r.rows.slice(0, DETAIL_LIMIT) : r.rows;
+
+    res.json({ rows, columns: cols, truncated });
+  } catch (error) {
+    console.error('Lỗi /api/detail:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

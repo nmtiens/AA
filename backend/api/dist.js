@@ -57717,6 +57717,39 @@ var parseSafeDate = (rawInput) => {
   const parsed = new Date(rawInput);
   return !isNaN(parsed.getTime()) ? parsed : null;
 };
+var getPeriodRangeFromKey = (value, granularity) => {
+  const d = parseSafeDate(value) || new Date(value);
+  if (granularity === "week") {
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
+  if (granularity === "month") {
+    const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+    return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
+  }
+  const iso = d.toISOString().slice(0, 10);
+  return { start: iso, end: iso };
+};
+var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, params) => {
+  if (upperBound) {
+    params.push(upperBound.toISOString().slice(0, 10));
+    return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table} WHERE ${rawDateCol} <= $${params.length})`;
+  }
+  return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table})`;
+};
+var eqNormalized = (colExpr, paramIdx) => `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
+var buildMatchedProductionCTE = (joinKey) => `
+  p AS (
+    SELECT DISTINCT ON ("${joinKey}")
+      "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
+    FROM production_status_app
+    WHERE "${joinKey}" IS NOT NULL
+    ORDER BY "${joinKey}", updated_at DESC NULLS LAST
+  )
+`;
 var fetchTableData = async (tableName, updatedAfter) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
@@ -57764,7 +57797,7 @@ var TABLE_TO_VERSION_KEY = {
   ton_kho: "stock"
 };
 var getVersions = async () => {
-  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions`);
+  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
   const out = {};
   result.rows.forEach((row) => {
     const key = TABLE_TO_VERSION_KEY[row.table_name];
@@ -58891,6 +58924,7 @@ app.get("/api/trend", async (req, res) => {
     const source = req.query.source;
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
     const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const isStock = source === "stock";
     const granularity = req.query.granularity || "day";
     const truncUnit = granularity === "week" ? "week" : granularity === "month" ? "month" : "day";
     const dateFrom = parseSafeDate(req.query.dateFrom);
@@ -58907,34 +58941,38 @@ app.get("/api/trend", async (req, res) => {
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (dateFrom) {
-      params.push(dateFrom.toISOString().slice(0, 10));
-      conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-    }
-    if (dateTo) {
-      params.push(dateTo.toISOString().slice(0, 10));
-      conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+    } else {
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      }
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+      }
     }
     if (xuong) {
       if (cfg.xuongCol) {
         params.push(xuong);
-        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
         params.push(xuong);
-        conditions.push(`p.xuong_chinh = $${params.length}`);
+        conditions.push(eqNormalized("p.xuong_chinh", params.length));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
-      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+      conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized("p.dvt", params.length));
       }
     }
     if (phanLoai && needsJoin) {
@@ -58946,19 +58984,51 @@ app.get("/api/trend", async (req, res) => {
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
-    const q = `
-      SELECT
-        date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(" AND ")}
-      GROUP BY 1
-      ORDER BY 1 ${useDefaultLimit ? "DESC" : "ASC"}
-      ${useDefaultLimit ? `LIMIT ${limit}` : ""}
-    `;
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const cteList = [];
+    if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
+    let q;
+    if (isStock && truncUnit !== "day") {
+      cteList.push(`
+        period_dates AS (
+          SELECT date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+                 MAX(${colBare(cfg.dateCol)}) AS snap_date
+          FROM ${cfg.table} ${mainAlias}
+          ${joinClause}
+          WHERE ${conditions.join(" AND ")}
+          GROUP BY 1
+        )
+      `);
+      q = `
+        WITH ${cteList.join(",\n")}
+        SELECT
+          pd.period AS period,
+          COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+          ${countExpr} AS total_count
+        FROM period_dates pd
+        JOIN ${cfg.table} ${mainAlias} ON ${colBare(cfg.dateCol)} = pd.snap_date
+        ${joinClause}
+        WHERE ${conditions.join(" AND ")} AND ${colBare(cfg.dateCol)} = pd.snap_date
+        GROUP BY pd.period
+        ORDER BY pd.period ${useDefaultLimit ? "DESC" : "ASC"}
+        ${useDefaultLimit ? `LIMIT ${limit}` : ""}
+      `;
+    } else {
+      const withClause = cteList.length ? `WITH ${cteList.join(",\n")}` : "";
+      q = `
+        ${withClause}
+        SELECT
+          date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+          COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+          ${countExpr} AS total_count
+        FROM ${cfg.table} ${mainAlias}
+        ${joinClause}
+        WHERE ${conditions.join(" AND ")}
+        GROUP BY 1
+        ORDER BY 1 ${useDefaultLimit ? "DESC" : "ASC"}
+        ${useDefaultLimit ? `LIMIT ${limit}` : ""}
+      `;
+    }
     const r = await timedQuery(q, params);
     const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map((row) => ({
       period: row.period,
@@ -58974,10 +59044,23 @@ app.get("/api/trend", async (req, res) => {
 app.get("/api/filters/xuong", async (_req, res) => {
   try {
     const q = `
-      SELECT DISTINCT TRIM(xuong_chinh) AS name
-      FROM khsx
-      WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
-      ORDER BY 1
+      SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
+      FROM (
+        SELECT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM dht WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM nhap_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM xuat_kho WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM tkbv_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM pthsp_full WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+        UNION ALL
+        SELECT xuong_chinh FROM production_status_app WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+      ) t
+      ORDER BY UPPER(TRIM(name)), name
     `;
     const r = await timedQuery(q);
     res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
@@ -58989,10 +59072,23 @@ app.get("/api/filters/xuong", async (_req, res) => {
 app.get("/api/filters/cong-trinh", async (_req, res) => {
   try {
     const q = `
-      SELECT DISTINCT TRIM(ten_cong_trinh) AS name
-      FROM khsx
-      WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
-      ORDER BY 1
+      SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
+      FROM (
+        SELECT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM dht WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM nhap_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM xuat_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM tkbv_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM pthsp_full WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+        UNION ALL
+        SELECT ten_cong_trinh FROM ton_kho WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
+      ) t
+      ORDER BY UPPER(TRIM(name)), name
     `;
     const r = await timedQuery(q);
     res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
@@ -59041,6 +59137,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
       return res.json([]);
     }
+    const isStock = source === "stock";
     const dateFrom = parseSafeDate(req.query.dateFrom);
     const dateTo = parseSafeDate(req.query.dateTo);
     const xuong = req.query.xuong || "";
@@ -59055,8 +59152,8 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (source === "stock" && !dateFrom && !dateTo) {
-      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       if (dateFrom) {
         params.push(dateFrom.toISOString().slice(0, 10));
@@ -59070,23 +59167,23 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     if (xuong) {
       if (cfg.xuongCol) {
         params.push(xuong);
-        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
         params.push(xuong);
-        conditions.push(`p.xuong_chinh = $${params.length}`);
+        conditions.push(eqNormalized("p.xuong_chinh", params.length));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
-      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+      conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized("p.dvt", params.length));
       }
     }
     if (phanLoai && needsJoin) {
@@ -59096,19 +59193,21 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
     const q = `
-  SELECT
-    COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'T\u1ED2N KHO KH\xC1C') AS xuong,
-    COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-    ${countExpr} AS total_count
-  FROM ${cfg.table} ${mainAlias}
-  ${joinClause}
-  WHERE ${conditions.join(" AND ")}
-  GROUP BY 1
-  ORDER BY total_value DESC
-`;
+      ${withClause}
+      SELECT
+        COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'T\u1ED2N KHO KH\xC1C') AS xuong,
+        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
+        ${countExpr} AS total_count
+      FROM ${cfg.table} ${mainAlias}
+      ${joinClause}
+      WHERE ${conditions.join(" AND ")}
+      GROUP BY 1
+      ORDER BY total_value DESC
+    `;
     const r = await timedQuery(q, params);
     const rows = r.rows.map((row) => ({
       xuongCode: row.xuong,
@@ -59130,6 +59229,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     if (!cfg.congTrinhCol) {
       return res.json([]);
     }
+    const isStock = source === "stock";
     const dateFrom = parseSafeDate(req.query.dateFrom);
     const dateTo = parseSafeDate(req.query.dateTo);
     const xuong = req.query.xuong || "";
@@ -59144,8 +59244,8 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (source === "stock" && !dateFrom && !dateTo) {
-      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       if (dateFrom) {
         params.push(dateFrom.toISOString().slice(0, 10));
@@ -59159,23 +59259,23 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     if (xuong) {
       if (cfg.xuongCol) {
         params.push(xuong);
-        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
         params.push(xuong);
-        conditions.push(`p.xuong_chinh = $${params.length}`);
+        conditions.push(eqNormalized("p.xuong_chinh", params.length));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
-      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+      conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized("p.dvt", params.length));
       }
     }
     if (phanLoai && needsJoin) {
@@ -59185,8 +59285,10 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
     const q = `
+      ${withClause}
       SELECT
         COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
@@ -59215,6 +59317,7 @@ app.get("/api/trend-by-dvt", async (req, res) => {
     const source = req.query.source;
     if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
     const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const isStock = source === "stock";
     const dateFrom = parseSafeDate(req.query.dateFrom);
     const dateTo = parseSafeDate(req.query.dateTo);
     const xuong = req.query.xuong || "";
@@ -59229,8 +59332,8 @@ app.get("/api/trend-by-dvt", async (req, res) => {
     const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (source === "stock" && !dateFrom && !dateTo) {
-      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       if (dateFrom) {
         params.push(dateFrom.toISOString().slice(0, 10));
@@ -59244,23 +59347,23 @@ app.get("/api/trend-by-dvt", async (req, res) => {
     if (xuong) {
       if (cfg.xuongCol) {
         params.push(xuong);
-        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
         params.push(xuong);
-        conditions.push(`p.xuong_chinh = $${params.length}`);
+        conditions.push(eqNormalized("p.xuong_chinh", params.length));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
-      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+      conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else if (needsJoin) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized("p.dvt", params.length));
       }
     }
     if (phanLoai && needsJoin) {
@@ -59270,9 +59373,11 @@ app.get("/api/trend-by-dvt", async (req, res) => {
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
     const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
     const dvtExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
     const q = `
+      ${withClause}
       SELECT
         COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS dvt,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
@@ -59304,17 +59409,19 @@ app.get("/api/trend-by-phanloai", async (req, res) => {
     if (!cfg.joinProductionForFilters || !cfg.hexCol) {
       return res.json([]);
     }
+    const isStock = source === "stock";
     const dateFrom = parseSafeDate(req.query.dateFrom);
     const dateTo = parseSafeDate(req.query.dateTo);
     const xuong = req.query.xuong || "";
     const congTrinh = req.query.congTrinh || "";
     const dvt = req.query.dvt || "";
+    const phanLoai = req.query.phanLoai || "";
     const mainAlias = "m";
     const colBare = (name) => `${mainAlias}.${name}`;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
-    if (source === "stock" && !dateFrom && !dateTo) {
-      conditions.push(`${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table})`);
+    if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       if (dateFrom) {
         params.push(dateFrom.toISOString().slice(0, 10));
@@ -59328,30 +59435,36 @@ app.get("/api/trend-by-phanloai", async (req, res) => {
     if (xuong) {
       if (cfg.xuongCol) {
         params.push(xuong);
-        conditions.push(`${colBare(cfg.xuongCol)} = $${params.length}`);
+        conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
       } else if (cfg.xuongViaProductionJoin) {
         params.push(xuong);
-        conditions.push(`p.xuong_chinh = $${params.length}`);
+        conditions.push(eqNormalized("p.xuong_chinh", params.length));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh);
-      conditions.push(`${colBare(cfg.congTrinhCol)} = $${params.length}`);
+      conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(${colBare(cfg.dvtCol)})) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
       } else {
         params.push(dvt);
-        conditions.push(`UPPER(TRIM(p.dvt)) = UPPER(TRIM($${params.length}))`);
+        conditions.push(eqNormalized("p.dvt", params.length));
       }
+    }
+    if (phanLoai) {
+      params.push(phanLoai);
+      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
     const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
     const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
     const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = `LEFT JOIN production_status_app p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text`;
+    const joinClause = `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text`;
+    const withClause = `WITH ${buildMatchedProductionCTE(joinKey)}`;
     const q = `
+      ${withClause}
       SELECT
         COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS phan_loai,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
@@ -59372,6 +59485,141 @@ app.get("/api/trend-by-phanloai", async (req, res) => {
     res.json(rows);
   } catch (error61) {
     console.error("L\u1ED7i /api/trend-by-phanloai:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var DETAIL_DIMENSIONS = /* @__PURE__ */ new Set(["period", "xuong", "congtrinh", "dvt", "phanloai"]);
+var UNKNOWN_VALUE_LABELS = /* @__PURE__ */ new Set(["CH\u01AFA X\xC1C \u0110\u1ECANH", "T\u1ED2N KHO KH\xC1C"]);
+var isUnknownValueLabel = (v) => UNKNOWN_VALUE_LABELS.has(v.trim().toUpperCase());
+app.get("/api/detail", async (req, res) => {
+  try {
+    const source = req.query.source;
+    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
+    const dimension = req.query.dimension || "";
+    if (!DETAIL_DIMENSIONS.has(dimension)) return res.status(400).json({ error: "Invalid dimension" });
+    const value = (req.query.value || "").trim();
+    if (!value) return res.status(400).json({ error: "Missing value" });
+    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
+    const isStock = source === "stock";
+    const granularity = req.query.granularity || "day";
+    const xuong = req.query.xuong || "";
+    const congTrinh = req.query.congTrinh || "";
+    const dvt = req.query.dvt || "";
+    const phanLoai = req.query.phanLoai || "";
+    const dateFrom = parseSafeDate(req.query.dateFrom);
+    const dateTo = parseSafeDate(req.query.dateTo);
+    const needsDvtJoin = dimension === "dvt" ? !cfg.dvtCol : !!(dvt && !cfg.dvtCol);
+    const needsPhanLoaiJoin = dimension === "phanloai" || !!phanLoai;
+    const needsXuongJoin = dimension === "xuong" ? !cfg.xuongCol && !!cfg.xuongViaProductionJoin : !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+    const alias = needsJoin ? "m" : "";
+    const colBare = (name) => alias ? `${alias}.${name}` : name;
+    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+    const params = [];
+    if (dimension === "period") {
+      const { start, end } = getPeriodRangeFromKey(value, granularity);
+      if (isStock && granularity !== "day") {
+        params.push(start, end);
+        conditions.push(
+          `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
+        );
+      } else {
+        params.push(start, end);
+        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
+      }
+    } else if (isStock) {
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+    } else {
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      }
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+      }
+    }
+    const emptyCond = (colExpr) => `(${colExpr} IS NULL OR TRIM(${colExpr}::text) = '')`;
+    if (dimension === "xuong") {
+      const colExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : cfg.xuongViaProductionJoin ? "p.xuong_chinh" : null;
+      if (colExpr) {
+        if (isUnknownValueLabel(value)) {
+          conditions.push(emptyCond(colExpr));
+        } else {
+          params.push(value);
+          conditions.push(eqNormalized(colExpr, params.length));
+        }
+      }
+    } else if (xuong) {
+      if (cfg.xuongCol) {
+        params.push(xuong);
+        conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+      } else if (cfg.xuongViaProductionJoin) {
+        params.push(xuong);
+        conditions.push(eqNormalized("p.xuong_chinh", params.length));
+      }
+    }
+    if (dimension === "congtrinh" && cfg.congTrinhCol) {
+      if (isUnknownValueLabel(value)) {
+        conditions.push(emptyCond(colBare(cfg.congTrinhCol)));
+      } else {
+        params.push(value);
+        conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      }
+    } else if (congTrinh && cfg.congTrinhCol) {
+      params.push(congTrinh);
+      conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+    }
+    if (dimension === "dvt") {
+      const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
+      if (isUnknownValueLabel(value)) {
+        conditions.push(emptyCond(colExpr));
+      } else {
+        params.push(value);
+        conditions.push(eqNormalized(colExpr, params.length));
+      }
+    } else if (dvt) {
+      if (cfg.dvtCol) {
+        params.push(dvt);
+        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+      } else if (needsJoin) {
+        params.push(dvt);
+        conditions.push(eqNormalized("p.dvt", params.length));
+      }
+    }
+    if (dimension === "phanloai") {
+      if (isUnknownValueLabel(value)) {
+        conditions.push(emptyCond("p.phan_loai_nhom_san_pham"));
+      } else {
+        params.push(value);
+        conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+      }
+    } else if (phanLoai && needsJoin) {
+      params.push(phanLoai);
+      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+    }
+    const joinKey = cfg.productionJoinCol || "hex";
+    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
+    const cols = REPORT_COLUMNS[cfg.table] || [];
+    if (cols.length === 0) return res.status(400).json({ error: "B\u1EA3ng kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3" });
+    const selectClause = cols.map((c) => `${alias ? `${alias}.` : ""}"${c}"`).join(", ");
+    const DETAIL_LIMIT = 500;
+    const q = `
+      ${withClause}
+      SELECT ${selectClause}
+      FROM ${cfg.table} ${alias}
+      ${joinClause}
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY ${colBare(cfg.dateCol)} DESC
+      LIMIT ${DETAIL_LIMIT + 1}
+    `;
+    const r = await timedQuery(q, params);
+    const truncated = r.rows.length > DETAIL_LIMIT;
+    const rows = truncated ? r.rows.slice(0, DETAIL_LIMIT) : r.rows;
+    res.json({ rows, columns: cols, truncated });
+  } catch (error61) {
+    console.error("L\u1ED7i /api/detail:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
