@@ -51,17 +51,27 @@ export const PivotProjectSection = ({
         <table className="w-full text-xs text-right min-w-[800px] border-separate border-spacing-0">
           <thead className="bg-blue-50/50 text-slate-700 font-semibold uppercase">
             <tr>
-              <th className="px-3 py-2 text-left sticky left-0 top-0 bg-blue-100 border-b border-blue-200 z-30 min-w-[200px] shadow-[1px_1px_2px_rgba(0,0,0,0.05)]">Tên Công Trình</th>
+              {/* Góc trên-trái: ghim cả top + left, z cao nhất */}
+              <th className="px-3 py-2 text-left sticky left-0 top-0 bg-blue-100 border-b border-blue-200 z-40 min-w-[200px] shadow-[1px_1px_2px_rgba(0,0,0,0.05)]">
+                Tên Công Trình
+              </th>
               {pivotProjectData.uniqueStatuses.map((s: string) => (
-                <th key={s} className="px-3 py-2 border-b border-blue-200 whitespace-nowrap text-blue-900 sticky top-0 bg-blue-50 z-20">{s}</th>
+                <th key={s} className="px-3 py-2 border-b border-blue-200 whitespace-nowrap text-blue-900 sticky top-0 bg-blue-50 z-20">
+                  {s}
+                </th>
               ))}
-              <th className="px-3 py-2 bg-blue-100 border-b border-blue-200 font-bold text-slate-800 sticky top-0 right-0 z-20">Tổng Cộng</th>
+              {/* Góc trên-phải: ghim cả top + right, z cao nhất */}
+              <th className="px-3 py-2 bg-blue-100 border-b border-blue-200 font-bold text-slate-800 sticky top-0 right-0 z-40 shadow-[-1px_1px_2px_rgba(0,0,0,0.05)]">
+                Tổng Cộng
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {pivotProjectData.uniqueProjects.map((p: string) => (
               <tr key={p} className="hover:bg-slate-50 transition-colors group">
-                <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{p}</td>
+                <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                  {p}
+                </td>
                 {pivotProjectData.uniqueStatuses.map((s: string) => {
                   const matrix = pivotProjectData.matrix || {};
                   const val = matrix[p]?.[s] || 0;
@@ -71,17 +81,28 @@ export const PivotProjectSection = ({
                     </td>
                   );
                 })}
-                <td className="px-3 py-2 font-bold text-slate-800 bg-blue-50/30">{formatNumber(pivotProjectData.rowTotals[p], projectMetric)}</td>
+                {/* Cột Tổng Cộng của từng dòng: ghim bên phải */}
+                <td className="px-3 py-2 font-bold text-slate-800 bg-blue-50/30 group-hover:bg-blue-50 sticky right-0 z-10 whitespace-nowrap shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                  {formatNumber(pivotProjectData.rowTotals[p], projectMetric)}
+                </td>
               </tr>
             ))}
           </tbody>
           <tfoot className="bg-blue-100 font-bold text-slate-800 border-t border-blue-300">
             <tr>
-              <td className="px-3 py-2 text-left sticky left-0 bottom-0 z-20 bg-blue-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">Tổng Cộng</td>
+              {/* Góc dưới-trái: ghim cả bottom + left, z cao nhất */}
+              <td className="px-3 py-2 text-left sticky left-0 bottom-0 z-40 bg-blue-100 shadow-[2px_-1px_2px_rgba(0,0,0,0.05)]">
+                Tổng Cộng
+              </td>
               {pivotProjectData.uniqueStatuses.map((s: string) => (
-                <td key={s} className="px-3 py-2 whitespace-nowrap">{formatNumber(pivotProjectData.colTotals[s], projectMetric)}</td>
+                <td key={s} className="px-3 py-2 whitespace-nowrap sticky bottom-0 z-20 bg-blue-100">
+                  {formatNumber(pivotProjectData.colTotals[s], projectMetric)}
+                </td>
               ))}
-              <td className="px-3 py-2 text-blue-900 text-sm">{formatNumber(pivotProjectData.grandTotal, projectMetric)}</td>
+              {/* Góc dưới-phải: ghim cả bottom + right, z cao nhất */}
+              <td className="px-3 py-2 text-blue-900 text-sm sticky bottom-0 right-0 z-40 bg-blue-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
+                {formatNumber(pivotProjectData.grandTotal, projectMetric)}
+              </td>
             </tr>
           </tfoot>
         </table>
