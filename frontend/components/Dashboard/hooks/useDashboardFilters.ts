@@ -28,6 +28,16 @@ const DEFAULT_FILTERS: DashboardFiltersState = {
   tinhTrangIpo: ['01. ĐANG SẢN XUẤT'],
 };
 
+// MỚI: helper so sánh 2 mảng string không phân biệt thứ tự — dùng để biết
+// tinhTrangIpo hiện tại có khác giá trị MẶC ĐỊNH hay không (thay vì chỉ
+// kiểm tra length > 0, vì mặc định giờ đã có sẵn 1 phần tử).
+const arraysEqualUnordered = (a: string[], b: string[]) => {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((v, i) => v === sortedB[i]);
+};
+
 /**
  * Gom toàn bộ state + logic lọc tổng (Công trình / Khu vực SX / Tình trạng / Tình trạng IPO)
  * và lọc Vật tư theo Công trình + Nhóm VT.
@@ -46,15 +56,21 @@ export function useDashboardFilters({
   const [filters, setFilters] = useState<DashboardFiltersState>(DEFAULT_FILTERS);
   const [selectedMaterialGroups, setSelectedMaterialGroups] = useState<string[]>([]);
 
+  // SỬA: trước đây set tay tinhTrangIpo: [] (Tất cả) — giờ dùng lại
+  // DEFAULT_FILTERS để "xóa lọc" quay về đúng trạng thái mặc định
+  // (Tình Trạng IPO = "01. ĐANG SẢN XUẤT", các filter khác = Tất cả).
   const clearFilters = () => {
-    setFilters({ congTrinh: [], xuong: [], tinhTrang: [], tinhTrangIpo: [] });
+    setFilters(DEFAULT_FILTERS);
   };
 
+  // SỬA: tinhTrangIpo không còn dùng length > 0 nữa (vì mặc định vốn đã có
+  // 1 phần tử) — phải so sánh với DEFAULT_FILTERS.tinhTrangIpo để biết
+  // người dùng có thực sự đổi khác đi mặc định hay không.
   const hasActiveFilters =
     filters.congTrinh.length > 0 ||
     filters.xuong.length > 0 ||
     filters.tinhTrang.length > 0 ||
-    filters.tinhTrangIpo.length > 0;
+    !arraysEqualUnordered(filters.tinhTrangIpo, DEFAULT_FILTERS.tinhTrangIpo);
 
   const filteredProductionData = useMemo(() => {
     return productionData.filter(row => {

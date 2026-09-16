@@ -24,8 +24,13 @@ interface UseStockDataParams {
   stockDateKey: string;
   latestUnifiedDate: Date | null;
   overviewMetric: 'COUNT' | 'SUM';
-  filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] }; // MỚI
+  // SỬA: giữ nguyên type để không phải đổi chỗ gọi ở Dashboard.tsx, nhưng bên
+  // trong hook này CHỈ dùng congTrinh/xuong — tinhTrang/tinhTrangIpo KHÔNG áp
+  // dụng cho Tồn kho (P022 & Card 6), theo yêu cầu: 2 bộ lọc tình trạng không
+  // ăn cho tồn kho, luôn hiển thị toàn bộ kho theo Công trình/Xưởng.
+  filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
 }
+
 
 interface UseStockDataResult {
   stockDates: StockDateEntry[];
@@ -44,30 +49,26 @@ interface UseStockDataResult {
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
-
 export function useStockData({
   stockData,
   stockDateKey,
   latestUnifiedDate,
   overviewMetric,
-  filters, // MỚI
+  filters,
 }: UseStockDataParams): UseStockDataResult {
   const [stockDates, setStockDates] = useState<StockDateEntry[]>([]);
   const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
   const [stockTotalCount, setStockTotalCount] = useState<number>(0);
 
-// useStockData.ts
-useEffect(() => {
-  fetchStockDates({
-    congTrinh: filters.congTrinh, xuong: filters.xuong,
-    tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
-  }).then(result => {
-    // SỬA: chỉ cập nhật khi fetch thành công — fetch lỗi thì giữ nguyên
-    // dữ liệu cũ thay vì reset về [] làm card nhảy về 0.
-    if (result !== null) setStockDates(result);
-  });
-  fetchStockTotalCount().then(setStockTotalCount);
-}, [filters.congTrinh, filters.xuong, filters.tinhTrang, filters.tinhTrangIpo]);
+  useEffect(() => {
+    // SỬA: KHÔNG truyền tinhTrang/tinhTrangIpo — Tồn kho chỉ lọc theo
+    // congTrinh/xuong, bất kể bộ lọc tổng có chọn Tình Trạng/Tình Trạng IPO hay không.
+    fetchStockDates({
+      congTrinh: filters.congTrinh,
+      xuong: filters.xuong,
+    }).then(result => { if (result !== null) setStockDates(result); });
+    fetchStockTotalCount().then(setStockTotalCount);
+  }, [filters.congTrinh, filters.xuong]); // SỬA: bỏ tinhTrang/tinhTrangIpo khỏi dependency
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {
     if (stockDates.length === 0) return null;
@@ -132,16 +133,17 @@ useEffect(() => {
     return overviewMetric === 'COUNT' ? entry.count : entry.value;
   }, [stockDates, closestStockDate, overviewMetric]);
 
-  const loadStockByProject = () => {
+const loadStockByProject = () => {
     if (closestStockDate) {
+      // SỬA: cùng lý do — không truyền tinhTrang/tinhTrangIpo
       fetchStockByProject(toISODateLocal(closestStockDate), {
-        congTrinh: filters.congTrinh, xuong: filters.xuong,
-        tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
-      }).then(setStockByProjectData); // MỚI: truyền filters
+        congTrinh: filters.congTrinh,
+        xuong: filters.xuong,
+      }).then(setStockByProjectData);
     }
   };
 
-  return {
+ return {
     stockDates,
     stockByProjectData,
     latestStockDateAvailable,
@@ -152,6 +154,6 @@ useEffect(() => {
     latestStockStatsPrevMonth,
     stockOverviewCardValue,
     loadStockByProject,
-    stockTotalCount, // MỚI
+    stockTotalCount,
   };
 }
