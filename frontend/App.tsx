@@ -50,10 +50,10 @@ const App: React.FC = () => {
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
                <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="1. ĐƠN HÀNG MỚI (P001)" /></RequirePermission>} />
 <Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="2. TRIỂN KHAI BV (P002)" /></RequirePermission>} />
-<Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="3. ĐÃ TÍNH PHIẾU (P003)" /></RequirePermission>} />
-<Route path="/charts/inventory" element={<RequirePermission viewId="dashboard"><ChartOverview source="inventory" title="4. NHẬP KHO (P004)" /></RequirePermission>} />
-<Route path="/charts/export" element={<RequirePermission viewId="dashboard"><ChartOverview source="export" title="5. XUẤT KHO (P005)" /></RequirePermission>} />
-<Route path="/charts/stock" element={<RequirePermission viewId="dashboard"><ChartOverview source="stock" title="6. TỒN KHO (P006)" /></RequirePermission>} />
+<Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="3. ĐÃ TÍNH PHIẾU (P012)" /></RequirePermission>} />
+<Route path="/charts/inventory" element={<RequirePermission viewId="dashboard"><ChartOverview source="inventory" title="4. NHẬP KHO (P022)" /></RequirePermission>} />
+<Route path="/charts/export" element={<RequirePermission viewId="dashboard"><ChartOverview source="export" title="5. XUẤT KHO (P025)" /></RequirePermission>} />
+<Route path="/charts/stock" element={<RequirePermission viewId="dashboard"><ChartOverview source="stock" title="6. TỒN KHO" /></RequirePermission>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -122,10 +122,10 @@ interface MainLayoutContext {
 const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
   { key: 'order', label: '1. ĐƠN HÀNG MỚI (P001)', path: '/charts/order' },
   { key: 'tkbv', label: '2. TRIỂN KHAI BV (P002)', path: '/charts/tkbv' },
-  { key: 'pthsp', label: '3. ĐÃ TÍNH PHIẾU (P003)', path: '/charts/pthsp' },
-  { key: 'inventory', label: '4. NHẬP KHO (P004)', path: '/charts/inventory' },
-  { key: 'export', label: '5. XUẤT KHO (P005)', path: '/charts/export' },
-  { key: 'stock', label: '6. TỒN KHO (P006)', path: '/charts/stock' },
+  { key: 'pthsp', label: '3. ĐÃ TÍNH PHIẾU (P012)', path: '/charts/pthsp' },
+  { key: 'inventory', label: '4. NHẬP KHO (P022)', path: '/charts/inventory' },
+  { key: 'export', label: '5. XUẤT KHO (P025)', path: '/charts/export' },
+  { key: 'stock', label: '6. TỒN KHO', path: '/charts/stock' },
 ];
 
 const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string }[] = [
