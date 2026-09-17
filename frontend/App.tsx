@@ -13,6 +13,8 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const DataGrid = lazy(() => import('./components/DataGrid'));
 const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
+const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
+const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -43,6 +45,8 @@ const App: React.FC = () => {
                 <Route path="/tkbv" element={<RequirePermission viewId="tkbv"><TkbvDataWrapper /></RequirePermission>} />
                 <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
                 <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
+                <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="dashboard"><ConstructionRedFlowWrapper /></RequirePermission>} />
+                <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="dashboard"><ConstructionSampleUnitWrapper /></RequirePermission>} />
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
                <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="1. ĐƠN HÀNG MỚI (P001)" /></RequirePermission>} />
 <Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="2. TRIỂN KHAI BV (P002)" /></RequirePermission>} />
@@ -72,6 +76,15 @@ const RequirePermission: React.FC<{ children: React.ReactElement, viewId: string
 
 // Wrapper components
 const DashboardWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <Dashboard {...context} />; };
+const ConstructionRedFlowWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  return <ConstructionRedFlow {...context} />;
+};
+const ConstructionSampleUnitWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  return <ConstructionSampleUnit {...context} />;
+};
+
 const YearlyPlanDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); const primarySearchCol = context.yearlyPlanColumns.length > 0 ? { header: context.yearlyPlanColumns[0].key, label: 'Tìm kiếm' } : { header: 'ID', label: 'Tìm kiếm' }; return <DataGrid data={context.yearlyPlanData} columns={context.yearlyPlanColumns} primarySearchColumn={primarySearchCol} exportFileNamePrefix="du_lieu_ke_hoach_nam" enableAggregation={true} />; };
 const OrderDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.orderData} columns={context.orderColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.TINH_TRANG]} exportFileNamePrefix="du_lieu_don_hang_tong" enableAggregation={true} />; };
 const InventoryDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.inventoryData} columns={context.inventoryColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_nhap_kho" enableAggregation={true} />; };
@@ -113,6 +126,11 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
   { key: 'inventory', label: '4. NHẬP KHO (P004)', path: '/charts/inventory' },
   { key: 'export', label: '5. XUẤT KHO (P005)', path: '/charts/export' },
   { key: 'stock', label: '6. TỒN KHO (P006)', path: '/charts/stock' },
+];
+
+const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string }[] = [
+  { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do' },
+  { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau' },
 ];
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -166,6 +184,7 @@ const MainLayout: React.FC = () => {
   // Trạng thái đóng/mở của nhóm menu gộp "Dữ liệu" - mặc định đóng
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
+  const [isConstructionMenuOpen, setIsConstructionMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -184,7 +203,21 @@ const MainLayout: React.FC = () => {
   if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
     setIsChartMenuOpen(true);
   }
+   if (CONSTRUCTION_SUB_ITEMS.some(item => item.path === location.pathname)) {
+    setIsConstructionMenuOpen(true);
+  }
 }, [location.pathname]);
+
+const isConstructionGroupActive = CONSTRUCTION_SUB_ITEMS.some(item => item.path === location.pathname);
+
+const handleConstructionGroupToggle = () => {
+  if (isCollapsed) {
+    setIsCollapsed(false);
+    setIsConstructionMenuOpen(true);
+  } else {
+    setIsConstructionMenuOpen(!isConstructionMenuOpen);
+  }
+};
 
 const isChartGroupActive = CHART_SUB_ITEMS.some(item => item.path === location.pathname);
 
@@ -524,7 +557,7 @@ const checkAndSync = async (forceAll = false) => {
   >
     <BarChart3 size={20} className="shrink-0" />
     <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-      Biểu đồ
+      Quản trị
     </span>
     {!isCollapsed && (
       <ChevronDown
@@ -538,6 +571,49 @@ const checkAndSync = async (forceAll = false) => {
     <div className={`overflow-hidden transition-all duration-300 ${isChartMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
       <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
         {CHART_SUB_ITEMS.map((item) => {
+          const active = location.pathname === item.path;
+          return (
+            <Link
+              key={item.key}
+              to={item.path}
+              onClick={closeMobileSidebar}
+              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
+                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</div>
+
+{/* Nhóm Công trình */}
+<div>
+  <button
+    onClick={handleConstructionGroupToggle}
+    title={isCollapsed ? 'Công trình' : undefined}
+    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
+      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
+      ${isConstructionGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+  >
+    <Box size={20} className="shrink-0" />
+    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+      Công trình
+    </span>
+    {!isCollapsed && (
+      <ChevronDown
+        size={16}
+        className={`transition-transform duration-200 shrink-0 ${isConstructionMenuOpen ? 'rotate-180' : ''}`}
+      />
+    )}
+  </button>
+
+  {!isCollapsed && (
+    <div className={`overflow-hidden transition-all duration-300 ${isConstructionMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+        {CONSTRUCTION_SUB_ITEMS.map((item) => {
           const active = location.pathname === item.path;
           return (
             <Link

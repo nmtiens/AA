@@ -70,17 +70,16 @@ export default function SharedDateFilterBar({
   showProductFilters = false,
   showXuongFilter = true,
 }: SharedDateFilterBarProps) {
-  const {
-    granularity, dateFrom, dateTo, setDateFrom, setDateTo,
-    applyGranularity, applyPreset, clearRange,
-    xuong, setXuong, congTrinh, setCongTrinh, dvt, setDvt, phanLoai, setPhanLoai,
-    clearExtraFilters, xuongList, congTrinhList, dvtList, phanLoaiList,
-  } = useTrendFilter();
+ const {
+  granularity, dateFrom, dateTo, setDateFrom, setDateTo,
+  applyGranularity, applyPreset, clearRange,
+  xuong, setXuong, congTrinh, setCongTrinh, dvt, setDvt, phanLoai, setPhanLoai,
+  clearExtraFilters, xuongList, congTrinhList, dvtList, phanLoaiList,
+  activePresetDays, // MỚI
+} = useTrendFilter();
 
   const hasExtraFilters = xuong || congTrinh || dvt || phanLoai;
 
-const isPresetActive = (days: number) =>
-  dateFrom === daysAgoISO(days) && dateTo === yesterdayISO();
 
   return (
     <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm px-4 py-3 space-y-2">
@@ -107,22 +106,22 @@ const isPresetActive = (days: number) =>
         <DateInput value={dateFrom} onChange={setDateFrom} />
         <span className="text-slate-400 shrink-0">→</span>
         <DateInput value={dateTo} onChange={setDateTo} />
-        {[{ label: '7 ngày', days: 7 }, { label: '30 ngày', days: 30 }, { label: '90 ngày', days: 90 }, { label: '1 năm', days: 365 }].map(p => {
-          const active = isPresetActive(p.days);
-          return (
-            <button
-              key={p.days}
-              onClick={() => applyPreset(p.days)}
-              className={`px-2 py-1 rounded-md border shrink-0 transition-colors ${
-                active
-                  ? 'bg-indigo-600 border-indigo-600 text-white'
-                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {p.label}
-            </button>
-          );
-        })}
+     {[{ label: '7 ngày', days: 7 }, { label: '30 ngày', days: 30 }, { label: '90 ngày', days: 90 }, { label: '1 năm', days: 365 }].map(p => {
+  const active = activePresetDays === p.days;
+  return (
+    <button
+      key={p.days}
+      onClick={() => applyPreset(p.days)}
+      className={`px-2 py-1 rounded-md border shrink-0 transition-colors ${
+        active
+          ? 'bg-indigo-600 border-indigo-600 text-white'
+          : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+      }`}
+    >
+      {p.label}
+    </button>
+  );
+})}
         {(dateFrom || dateTo) && (
           <button onClick={clearRange} className="px-2 py-1 rounded-md hover:underline text-indigo-600 shrink-0">
             Xóa lọc ngày

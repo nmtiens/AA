@@ -5,7 +5,7 @@ import {
   Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList, ReferenceLine,
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
-
+import DetailDataModal from './DetailDataModal';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
@@ -367,65 +367,16 @@ export default function TrendByPhanLoaiChart({
       </div>
 
       {/* Modal chi tiết dữ liệu */}
-      {detailOpen && (
-        <div
-          className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4"
-          onClick={() => setDetailOpen(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-6xl max-h-[85vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                <Eye size={16} style={{ color: theme.bar }} />
-                Chi tiết {theme.label} — Phân loại: {pinned?.point.phanLoai}
-              </h3>
-              <button onClick={() => setDetailOpen(false)} className="text-slate-400 hover:text-slate-700">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="overflow-auto flex-1 p-4">
-              {detailLoading ? (
-                <div className="text-center text-slate-400 py-10 text-sm">Đang tải...</div>
-              ) : detailRows.length === 0 ? (
-                <div className="text-center text-slate-400 py-10 text-sm">Không có dữ liệu chi tiết cho bộ lọc hiện tại</div>
-              ) : (
-                <table className="min-w-full text-xs border-collapse">
-                  <thead className="sticky top-0 bg-slate-50">
-                    <tr>
-                      {detailColumns.map(col => (
-                        <th
-                          key={col}
-                          className="px-2 py-1.5 text-left border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap"
-                        >
-                          {formatColumnLabel(col)}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailRows.map((row, i) => (
-                      <tr key={i} className="odd:bg-white even:bg-slate-50/50 hover:bg-indigo-50/40">
-                        {detailColumns.map(col => (
-                          <td key={col} className="px-2 py-1 border-b border-slate-100 whitespace-nowrap">
-                            {formatCellValue(row[col])}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            {detailTruncated && (
-              <div className="px-5 py-2 text-[11px] text-amber-600 bg-amber-50 border-t border-amber-100">
-                Chỉ hiển thị {detailRows.length} dòng đầu tiên — dữ liệu còn nhiều hơn, vui lòng thu hẹp bộ lọc để xem đầy đủ.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+     <DetailDataModal
+  open={detailOpen}
+  onClose={() => setDetailOpen(false)}
+  title={`Chi tiết ${theme.label} — Phân loại: ${pinned?.point.phanLoai ?? ''}`}
+  accentColor={theme.bar}
+  rows={detailRows}
+  columns={detailColumns}
+  loading={detailLoading}
+  truncated={detailTruncated}
+/>  
     </div>
   );
 }

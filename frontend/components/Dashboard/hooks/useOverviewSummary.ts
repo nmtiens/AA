@@ -125,12 +125,12 @@ export function useOverviewSummary({
 useEffect(() => {
     const requestId = ++overviewFetchIdRef.current;
     const controller = new AbortController();
+    // SỬA: KHÔNG còn truyền tinhTrang/tinhTrangIpo — 6 card giờ chỉ lọc theo
+    // Tên Công Trình + Khu Vực Sản Xuất, bất kể bộ lọc tổng có chọn Tình Trạng/IPO.
     const filterOpts = {
       signal: controller.signal,
       congTrinh: filters.congTrinh,
       xuong: filters.xuong,
-      tinhTrang: filters.tinhTrang,     // MỚI
-      tinhTrangIpo: filters.tinhTrangIpo, // MỚI
     };
 
     const timer = setTimeout(() => {
@@ -154,8 +154,8 @@ useEffect(() => {
     }, 300);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  // MỚI: thêm 4 field filter vào dependency
-  }, [overviewDateFilters, filters.congTrinh, filters.xuong, filters.tinhTrang, filters.tinhTrangIpo]);
+  // SỬA: bỏ filters.tinhTrang, filters.tinhTrangIpo khỏi dependency
+  }, [overviewDateFilters, filters.congTrinh, filters.xuong]);
 
   const latestUnifiedDate = useMemo<Date | null>(() => {
     if (overviewSummary?.date) return parseVNDate(overviewSummary.date) || new Date(overviewSummary.date);
@@ -227,10 +227,9 @@ useEffect(() => {
 
   // --- Cache phân tích theo nhóm (Xưởng / Công trình) cho từng nguồn, dùng trong modal chi tiết ---
 const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
+  // SỬA: filterSuffix chỉ còn dựa trên congTrinh/xuong
   const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
-    `_x-${[...filters.xuong].sort().join('|')}` +
-    `_tt-${[...filters.tinhTrang].sort().join('|')}` +
-    `_ipo-${[...filters.tinhTrangIpo].sort().join('|')}`; // MỚI
+    `_x-${[...filters.xuong].sort().join('|')}`;
   const filterKey = (overviewDateFilters.length > 0
     ? [...overviewDateFilters].sort().join('_')
     : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
@@ -246,10 +245,8 @@ const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
     dateToISO = overviewSummary.date;
   }
 
-  const filterOpts = {
-    congTrinh: filters.congTrinh, xuong: filters.xuong,
-    tinhTrang: filters.tinhTrang, tinhTrangIpo: filters.tinhTrangIpo,
-  };
+  // SỬA: bỏ tinhTrang/tinhTrangIpo khỏi filterOpts
+  const filterOpts = { congTrinh: filters.congTrinh, xuong: filters.xuong };
   const [byXuong, byCongTrinh] = await Promise.all([
     fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, ...filterOpts }),
     fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, ...filterOpts }),

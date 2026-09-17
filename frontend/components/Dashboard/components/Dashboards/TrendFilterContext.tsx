@@ -14,6 +14,11 @@ interface TrendFilterState {
   applyPreset: (days: number) => void;
   clearRange: () => void;
 
+  // MỚI: preset (số ngày) đang được áp dụng, dùng để tô màu nút đúng —
+  // không suy ra ngược từ dateFrom/dateTo vì ở chế độ controlled, dateFrom/dateTo
+  // là min/max của các ngày THỰC SỰ có dữ liệu, có thể không trùng biên đã tính.
+  activePresetDays: number | null;
+
   xuong: string;
   setXuong: (v: string) => void;
   congTrinh: string;
@@ -73,6 +78,9 @@ export function TrendFilterProvider({
   const [uncontrolledFrom, setUncontrolledFrom] = useState(daysAgo(DEFAULT_RANGE_DAYS));
   const [uncontrolledTo, setUncontrolledTo] = useState(yesterday());
 
+  // MỚI: preset đang active — set khi bấm nút preset, xoá khi người dùng tự đổi ngày
+  const [activePresetDays, setActivePresetDays] = useState<number | null>(null);
+
   // MỚI: khởi tạo lần đầu bằng giá trị mặc định (áp dụng cho lần mount đầu tiên)
   const [xuong, setXuong] = useState(defaultXuong);
   const [congTrinh, setCongTrinh] = useState(defaultCongTrinh);
@@ -128,6 +136,24 @@ export function TrendFilterProvider({
   const dateFrom = isControlled ? controlledRange.dateFrom : uncontrolledFrom;
   const dateTo = isControlled ? controlledRange.dateTo : uncontrolledTo;
 
+  // MỚI: ngày CÓ DỮ LIỆU gần nhất trong unifiedDateOptions — dùng làm mốc "hôm nay ảo"
+  // để tính các preset (7/30/90/365 ngày) khi ở chế độ controlled. Không dùng đồng hồ
+  // hệ thống thật, vì dữ liệu thực tế (báo cáo) có thể "cũ" hơn ngày hiện tại rất nhiều,
+  // khiến preset hẹp (vd: 7 ngày) không khớp được bất kỳ ngày báo cáo nào -> lọc ra rỗng.
+  const latestAvailableDate = useMemo(() => {
+    if (!unifiedDateOptions || unifiedDateOptions.length === 0) return null;
+    const parsed = unifiedDateOptions.map(d => parseVNDate(d)).filter((d): d is Date => d !== null);
+    if (parsed.length === 0) return null;
+    return new Date(Math.max(...parsed.map(d => d.getTime())));
+  }, [unifiedDateOptions]);
+
+  // Mốc "ngày kết thúc" dùng để tính preset: ưu tiên ngày dữ liệu mới nhất (controlled),
+  // fallback về "hôm qua" theo đồng hồ hệ thống nếu chưa có danh sách ngày (uncontrolled).
+  const presetAnchorISO = (): string => {
+    if (isControlled && latestAvailableDate) return toISODate(latestAvailableDate);
+    return yesterday();
+  };
+
   // Ghi 1 khoảng [fromISO, toISO] xuống đúng nơi tùy theo chế độ đang chạy.
   const applyRange = (fromISO: string, toISO: string) => {
     if (isControlled) {
@@ -151,35 +177,55 @@ export function TrendFilterProvider({
    * vẫn có giá trị, coi như xóa cả khoảng.
    */
   const setDateFrom = (d: string) => {
+    setActivePresetDays(null); // người dùng tự sửa ngày -> không còn khớp preset nào nữa
     if (!d && dateTo) { applyRange('', ''); return; }
     applyRange(d, dateTo);
   };
 
   const setDateTo = (d: string) => {
+    setActivePresetDays(null); // người dùng tự sửa ngày -> không còn khớp preset nào nữa
     if (!d && dateFrom) { applyRange('', ''); return; }
     applyRange(dateFrom, d);
   };
 
   const applyGranularity = (g: Granularity) => {
     setGranularity(g);
+    setActivePresetDays(null); // đổi granularity không phải là bấm preset ngày cụ thể
     const rangeDays = g === 'day' ? 30 : g === 'week' ? 90 : 365;
-    applyRange(daysAgo(rangeDays), yesterday());
+    const anchorISO = presetAnchorISO();
+    const anchor = new Date(anchorISO);
+    const from = new Date(anchor);
+    from.setDate(from.getDate() - (rangeDays - 1));
+    applyRange(toISODate(from), anchorISO);
   };
 
   const applyPreset = (days: number) => {
-    applyRange(daysAgo(days), yesterday());
+    const anchorISO = presetAnchorISO();
+    const anchor = new Date(anchorISO);
+    const from = new Date(anchor);
+    from.setDate(from.getDate() - (days - 1));
+    applyRange(toISODate(from), anchorISO);
+
+    setActivePresetDays(days);
+
     if (days <= 30) setGranularity('day');
     else if (days <= 180) setGranularity('week');
     else setGranularity('month');
   };
 
-  const clearRange = () => applyRange('', '');
+    const clearRange = () => {
+    setActivePresetDays(null);
+    const anchorISO = presetAnchorISO();
+    applyRange(anchorISO, anchorISO);
+  };
+
   const clearExtraFilters = () => { setXuong(''); setCongTrinh(''); setDvt(''); setPhanLoai(''); };
 
    return (
     <TrendFilterContext.Provider
       value={{
         granularity, dateFrom, dateTo, setDateFrom, setDateTo, applyGranularity, applyPreset, clearRange,
+        activePresetDays,
         xuong, setXuong, congTrinh, setCongTrinh, dvt, setDvt, phanLoai, setPhanLoai, clearExtraFilters,
         xuongList, congTrinhList, dvtList, phanLoaiList,
       }}

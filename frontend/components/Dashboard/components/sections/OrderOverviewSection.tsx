@@ -156,13 +156,11 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   // --- MỚI: Khóa cache phải phản ánh đúng TẬP NGÀY đang lọc ngoài dashboard.
   // Phải khớp CHÍNH XÁC với cách useOverviewSummary.loadGroupAnalysis tính filterKey,
   // nếu không 2 bên sẽ ghi/đọc lệch key nhau.
-  const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
-    `_x-${[...filters.xuong].sort().join('|')}` +
-    `_tt-${[...filters.tinhTrang].sort().join('|')}` +
-    `_ipo-${[...filters.tinhTrangIpo].sort().join('|')}`;
-  const filterKey = (overviewDateFilters.length > 0
-    ? [...overviewDateFilters].sort().join('_')
-    : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
+ const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
+  `_x-${[...filters.xuong].sort().join('|')}`;
+const filterKey = (overviewDateFilters.length > 0
+  ? [...overviewDateFilters].sort().join('_')
+  : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
 
   // --- MỚI: Nhãn cột "ngày" trong modal chi tiết — phản ánh đúng khi chọn nhiều ngày.
   const periodLabel = overviewDateFilters.length > 1
