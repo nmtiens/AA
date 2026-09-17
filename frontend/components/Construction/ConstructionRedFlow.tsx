@@ -19,7 +19,7 @@ import { PivotMaterialStatusSection } from './../Dashboard/components/sections/P
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
 import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
 import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
-import { FactoryRevenueSection } from './../Dashboard/components/sections/FactoryRevenueSection';
+import { ContructionRevenueSection } from '../Dashboard/components/sections/ContructionRevenueSection';
 import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
 import { ProductionStatusSection } from './../Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './../Dashboard/components/sections/KhsxPlanActualSection';
@@ -583,10 +583,8 @@ const handleContinueToOrderColumnStep = () => {
      getMaterialRowClassName={getMaterialRowClassName}
    />
 
-           <FactoryRevenueSection
+           <ContructionRevenueSection
   sectionRef={factoryRevenueRef}
-  factoryRevenueChartData={factoryRevenueChartData}
-  quarterlyTargets={quarterlyTargets}
   targetRevenue2026={targetRevenue2026}
   factoryRevenueStats={factoryRevenueStats}
   customFunnelData={customFunnelData}
