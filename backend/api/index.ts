@@ -220,67 +220,63 @@ app.get('/', (_req: Request, res: Response) => {
 // --- WHITELIST CỘT: CHỈ TRUY XUẤT CÁC CỘT CẦN THIẾT ---
 const REPORT_COLUMNS: Record<string, string[]> = {
   production_status_app: [
-    'id', 'hex', 'tinh_trang', 'tinh_trang_ipo',
+    'hex', 'tinh_trang', 'tinh_trang_ipo',
     'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
     'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc',
     'so_ngay_cd_hien_tai', 'bop',
     'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke',
-    'updated_at'
   ],
   vat_tu: [
-    'id', 'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
+  'trang_thai', 'trang_thai_sap', 'hex', 'nguoi_tao', 'nguoi_yeu_cau',
     'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu',
     'so_luong_yeu_cau', 'dvt', 'ngay_pr', 'nhom_vt', 'so_po',
     'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',
     'so_luong_da_nhan_sap', 'so_luong_con_lai', 'tinh_trang_po',
     'ghi_chu_tinh_trang_po', 'thanh_tien', 'ngay_ve',
-    'sl_hang_ve_thuc_te', 'updated_at',
+    'sl_hang_ve_thuc_te',
     'team_pr_note',
 ],
   khsx: [
-    'id', 'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh', 'thanh_tien_ke_hoach',
+  'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh', 'thanh_tien_ke_hoach',
     'phan_loai_kh', 'nam', 'thang', 'ngay', 'tuan',
-    'updated_at'
+
   ],
   nhap_kho: [
-    'id', 'thanh_tien_nhap_kho', 'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh',
-    'nam', 'thang', 'ngay', 'date', 'hex', 'tuan',
-    'updated_at'
+  'hex','thanh_tien_nhap_kho', 'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh',
+    'nam', 'thang', 'ngay', 'date', 'tuan',
   ],
   xuat_kho: [
-    'id', 'hex', 'so_luong_xuat_kho', 'date', 'xuong_chinh', 'ten_cong_trinh',
-    'updated_at'
+   'hex', 'so_luong_xuat_kho', 'date', 'xuong_chinh', 'ten_cong_trinh',
   ],
  ton_kho: [
-  'id', 'date', 'gia_tri', 'ma_id_sap', 'hex', 'ten_cong_trinh',
-  'updated_at'
+  'hex','date', 'gia_tri', 'ma_id_sap',  'ten_cong_trinh',
 ],
   dht: [
-    'id', 'hex', 'ngay_nhan_tu_pm', 'tri_gia_don_hang_tong', 'xuong_chinh', 'ten_cong_trinh',
-    'updated_at'
+ 'hex', 'ngay_nhan_tu_pm', 'tri_gia_don_hang_tong', 'xuong_chinh', 'ten_cong_trinh',
+
   ],
   tkbv_full: [
-    'id', 'ngay_nhan', 'tri_gia_don_hang_tong', 'hex', 'xuong_chinh', 'ten_cong_trinh',
-    'updated_at'
+    'hex','ngay_nhan', 'tri_gia_don_hang_tong',  'xuong_chinh', 'ten_cong_trinh',
+   
   ],
   pthsp_full: [
-    'id', 'ngay_hoan_thanh', 'tri_gia_don_hang_tong', 'hex', 'xuong_chinh', 'ten_cong_trinh',
-    'updated_at'
+    'hex','ngay_hoan_thanh', 'tri_gia_don_hang_tong',  'xuong_chinh', 'ten_cong_trinh',
+    
   ],
   khsx_nam: [
-    'id', 'thanh_tien_ke_hoach', 'nam', 'thang', 'xuong_chinh',
-    'updated_at'
+     'thanh_tien_ke_hoach', 'nam', 'thang', 'xuong_chinh',
+  
   ],
   phan_tich_kh_th: [
-    'id', 'xuong_chinh', 'ten_cong_trinh', 'thanh_tien_ke_hoach', 'nhap_kho_tuan', 'tuan',
+ 'xuong_chinh', 'ten_cong_trinh', 'thanh_tien_ke_hoach', 'nhap_kho_tuan', 'tuan',
     'dung_ke_hoach', 'thuc_hien_dung_ke_hoach_1_phan', 'rot_ke_hoach', 'thuc_hien_rot_ke_hoach_1_phan',
     'nhap_kho_truoc_ke_hoach', 'vuot_ke_hoach', 'nhap_kho_ngoai_ke_hoach',
-    'updated_at'
+
   ],
   diem_danh: [
-    'id', 'xuong_chinh', 'so_luong_cong_nhan', 'gio_cong_hanh_chinh', 'gio_cong_tang_ca',
+  'xuong_chinh', 'so_luong_cong_nhan', 'gio_cong_hanh_chinh', 'gio_cong_tang_ca',
     'tuan', 'nam', 'thang', 'ngay', 'dinh_bien',
-    'updated_at'
+
   ]
 };
 

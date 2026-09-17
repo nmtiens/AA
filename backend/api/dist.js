@@ -57551,7 +57551,6 @@ app.get("/", (_req, res) => {
 });
 var REPORT_COLUMNS = {
   production_status_app: [
-    "id",
     "hex",
     "tinh_trang",
     "tinh_trang_ipo",
@@ -57564,13 +57563,12 @@ var REPORT_COLUMNS = {
     "bop",
     "tri_gia_don_hang_tong",
     "thanh_tien_tinh_phieu",
-    "thanh_tien_nhap_kho_luy_ke",
-    "updated_at"
+    "thanh_tien_nhap_kho_luy_ke"
   ],
   vat_tu: [
-    "id",
     "trang_thai",
     "trang_thai_sap",
+    "hex",
     "nguoi_tao",
     "nguoi_yeu_cau",
     "ten_cong_trinh",
@@ -57592,11 +57590,9 @@ var REPORT_COLUMNS = {
     "thanh_tien",
     "ngay_ve",
     "sl_hang_ve_thuc_te",
-    "updated_at",
     "team_pr_note"
   ],
   khsx: [
-    "id",
     "xuong_chinh",
     "ten_cong_trinh",
     "ma_cong_trinh",
@@ -57605,11 +57601,10 @@ var REPORT_COLUMNS = {
     "nam",
     "thang",
     "ngay",
-    "tuan",
-    "updated_at"
+    "tuan"
   ],
   nhap_kho: [
-    "id",
+    "hex",
     "thanh_tien_nhap_kho",
     "xuong_chinh",
     "ten_cong_trinh",
@@ -57618,65 +57613,50 @@ var REPORT_COLUMNS = {
     "thang",
     "ngay",
     "date",
-    "hex",
-    "tuan",
-    "updated_at"
+    "tuan"
   ],
   xuat_kho: [
-    "id",
     "hex",
     "so_luong_xuat_kho",
     "date",
     "xuong_chinh",
-    "ten_cong_trinh",
-    "updated_at"
+    "ten_cong_trinh"
   ],
   ton_kho: [
-    "id",
+    "hex",
     "date",
     "gia_tri",
     "ma_id_sap",
-    "hex",
-    "ten_cong_trinh",
-    "updated_at"
+    "ten_cong_trinh"
   ],
   dht: [
-    "id",
     "hex",
     "ngay_nhan_tu_pm",
     "tri_gia_don_hang_tong",
     "xuong_chinh",
-    "ten_cong_trinh",
-    "updated_at"
+    "ten_cong_trinh"
   ],
   tkbv_full: [
-    "id",
+    "hex",
     "ngay_nhan",
     "tri_gia_don_hang_tong",
-    "hex",
     "xuong_chinh",
-    "ten_cong_trinh",
-    "updated_at"
+    "ten_cong_trinh"
   ],
   pthsp_full: [
-    "id",
+    "hex",
     "ngay_hoan_thanh",
     "tri_gia_don_hang_tong",
-    "hex",
     "xuong_chinh",
-    "ten_cong_trinh",
-    "updated_at"
+    "ten_cong_trinh"
   ],
   khsx_nam: [
-    "id",
     "thanh_tien_ke_hoach",
     "nam",
     "thang",
-    "xuong_chinh",
-    "updated_at"
+    "xuong_chinh"
   ],
   phan_tich_kh_th: [
-    "id",
     "xuong_chinh",
     "ten_cong_trinh",
     "thanh_tien_ke_hoach",
@@ -57688,11 +57668,9 @@ var REPORT_COLUMNS = {
     "thuc_hien_rot_ke_hoach_1_phan",
     "nhap_kho_truoc_ke_hoach",
     "vuot_ke_hoach",
-    "nhap_kho_ngoai_ke_hoach",
-    "updated_at"
+    "nhap_kho_ngoai_ke_hoach"
   ],
   diem_danh: [
-    "id",
     "xuong_chinh",
     "so_luong_cong_nhan",
     "gio_cong_hanh_chinh",
@@ -57701,8 +57679,7 @@ var REPORT_COLUMNS = {
     "nam",
     "thang",
     "ngay",
-    "dinh_bien",
-    "updated_at"
+    "dinh_bien"
   ]
 };
 var parseSafeDate = (rawInput) => {
