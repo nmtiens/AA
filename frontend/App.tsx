@@ -6,6 +6,7 @@ import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLU
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
+import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
@@ -95,15 +96,28 @@ const SetupDataWrapper = () => {
   return <SetupData {...context} />;
 };
 
+
 const ConstructionSetupWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
+
+  const { congTrinhKey } = useColumnKeys({
+    productionColumns: context.productionColumns,
+    materialColumns: context.materialColumns,
+    khsxColumns: context.khsxColumns,
+    inventoryColumns: context.inventoryColumns,
+    exportColumns: context.exportColumns,
+    stockColumns: context.stockColumns,
+    orderColumns: context.orderColumns,
+    tkbvColumns: context.tkbvColumns,
+    pthspColumns: context.pthspColumns,
+    analysisColumns: context.analysisColumns,
+    attendanceColumns: context.attendanceColumns,
+  });
+
   return (
     <ConstructionSetup
       productionData={context.productionData}
-      orderData={context.orderData}
-      materialData={context.materialData}
-      khsxData={context.khsxData}
-      congTrinhKey={TARGET_COLUMN_NAMES.CONG_TRINH}
+      congTrinhKey={congTrinhKey}
     />
   );
 };
@@ -154,7 +168,6 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
 const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string }[] = [
   { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do' },
   { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau' },
-  { key: 'setup', label: 'Setup phân loại', path: '/cong-trinh/setup' },
 ];
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -669,14 +682,15 @@ const checkAndSync = async (forceAll = false) => {
             />
           )}
                     {/* Setup dữ liệu - luôn hiển thị riêng, dưới cùng */}
-          <NavLink
-            to="/setup-data"
-            icon={<Settings size={20} />}
-            label="Setup dữ liệu"
-            active={location.pathname === '/setup-data'}
-            onClick={closeMobileSidebar}
-            collapsed={isCollapsed}
-          />
+       {/* Setup phân loại công trình - luôn hiển thị riêng, dưới cùng (thay cho Setup dữ liệu cũ) */}
+<NavLink
+  to="/cong-trinh/setup"
+  icon={<Settings size={20} />}
+  label="Setup dữ liệu"
+  active={location.pathname === '/cong-trinh/setup'}
+  onClick={closeMobileSidebar}
+  collapsed={isCollapsed}
+/>
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2">

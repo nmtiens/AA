@@ -92,14 +92,13 @@ export function filterByView(
  * cho admin tick chọn, tránh bị sót công trình chỉ xuất hiện ở 1 bảng.
  */
 export function collectUniqueProjects(
-  dataSources: DataRow[][],
-  congTrinhKey: string
+  sources: { data: DataRow[]; key: string }[]
 ): string[] {
-  if (!congTrinhKey) return [];
   const set = new Set<string>();
-  dataSources.forEach((rows) => {
-    rows.forEach((row) => {
-      const val = String(row[congTrinhKey] || '').trim();
+  sources.forEach(({ data, key }) => {
+    if (!key) return;
+    data.forEach((row) => {
+      const val = String(row[key] || '').trim();
       if (val) set.add(val);
     });
   });

@@ -496,7 +496,7 @@ const handleContinueToOrderColumnStep = () => {
     setSelectedOrderExportColumns(effectiveOrderColumns.map(c => c.key));
     setIsOrderExportModalOpen(true);
   };
-
+console.log('[DEBUG] congTrinhOptions:', congTrinhOptions);
   const getMaterialRowClassName = (row: DataRow): string => {
     const status = String(row[matStatusSapKey] || '').toLowerCase();
     if (status.includes('hủy')) return 'bg-gray-100 text-gray-500 italic';
