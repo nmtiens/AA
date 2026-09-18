@@ -794,7 +794,7 @@ useEffect(() => {
                     unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
                     primaryColorClass="text-pink-600"
                     secondaryColorClass="text-indigo-600"
-                    defaultExcludedKeys={['ABC', 'OTHERS', 'X.ĐB']}
+                    defaultExcludedKeys={[ 'OTHERS']}
                   />
 
                   <div className="border-t border-slate-200 pt-6">
