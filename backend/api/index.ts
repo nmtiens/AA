@@ -230,11 +230,10 @@ const REPORT_COLUMNS: Record<string, string[]> = {
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
     'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu',
     'so_luong_yeu_cau', 'dvt', 'ngay_pr', 'nhom_vt', 'so_po',
-    'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',
+    'item_note_pr', 'ngay_du_kien_giao_hang_pmh_nhap',   'team_pr_note',
     'so_luong_da_nhan_sap', 'so_luong_con_lai', 'tinh_trang_po',
     'ghi_chu_tinh_trang_po', 'thanh_tien', 'ngay_ve',
     'sl_hang_ve_thuc_te',
-    'team_pr_note',
 ],
   khsx: [
   'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh', 'thanh_tien_ke_hoach',

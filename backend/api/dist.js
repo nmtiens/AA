@@ -57582,14 +57582,14 @@ var REPORT_COLUMNS = {
     "so_po",
     "item_note_pr",
     "ngay_du_kien_giao_hang_pmh_nhap",
+    "team_pr_note",
     "so_luong_da_nhan_sap",
     "so_luong_con_lai",
     "tinh_trang_po",
     "ghi_chu_tinh_trang_po",
     "thanh_tien",
     "ngay_ve",
-    "sl_hang_ve_thuc_te",
-    "team_pr_note"
+    "sl_hang_ve_thuc_te"
   ],
   khsx: [
     "xuong_chinh",
