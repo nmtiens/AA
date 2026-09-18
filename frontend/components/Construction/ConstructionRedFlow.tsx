@@ -19,7 +19,7 @@ import { PivotMaterialStatusSection } from './../Dashboard/components/sections/P
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
 import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
 import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
-import { ContructionRevenueSection } from '../Dashboard/components/sections/ContructionRevenueSection';
+import { ContructionRevenueSection } from './../Dashboard/components/sections/ContructionRevenueSection';
 import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
 import { ProductionStatusSection } from './../Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './../Dashboard/components/sections/KhsxPlanActualSection';
@@ -30,7 +30,11 @@ import { OverviewExportScopeModal } from './../Dashboard/components/modals/Overv
 import { GenericExportScopeModal } from './../Dashboard/components/modals/GenericExportScopeModal';
 import { GenericExportColumnModal } from './../Dashboard/components/modals/GenericExportColumnModal';
 import { ProductionExportModal } from './../Dashboard/components/modals/ProductionExportModal';
-interface DashboardProps {
+// File này nằm ở src/components/Construction/ConstructionRedFlow.tsx,
+// util nằm ở src/utils/viewDataConfig.ts -> phải đi lên 2 cấp: ../../utils/...
+import { filterByView } from './utils/viewDataConfig';
+
+interface ConstructionRedFlowProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
   materialData: DataRow[];
@@ -58,26 +62,30 @@ interface DashboardProps {
   isSidebarCollapsed: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({
-  productionData,
+// Id của view này trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
+// Bản Căn mẫu chỉ cần đổi giá trị này thành 'can-mau'.
+const VIEW_ID = 'luong-do' as const;
+
+const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
+  productionData: rawProductionData,
   productionColumns,
-  materialData,
+  materialData: rawMaterialData,
   materialColumns,
-  khsxData,
+  khsxData: rawKhsxData,
   khsxColumns,
-  inventoryData,
+  inventoryData: rawInventoryData,
   inventoryColumns,
-  orderData,
+  orderData: rawOrderData,
   orderColumns,
-  tkbvData,
+  tkbvData: rawTkbvData,
   tkbvColumns,
-  pthspData,
+  pthspData: rawPthspData,
   pthspColumns,
   yearlyPlanData,
   yearlyPlanColumns,
-  analysisData,
+  analysisData: rawAnalysisData,
   analysisColumns,
-  exportData,
+  exportData: rawExportData,
   exportColumns,
   stockData,
   stockColumns,
@@ -126,6 +134,58 @@ const Dashboard: React.FC<DashboardProps> = ({
   analysisColumns, attendanceColumns,
 });
 
+  // ------------------------------------------------------------------------------
+  // LỌC TOÀN BỘ DỮ LIỆU THEO DANH SÁCH CÔNG TRÌNH ĐÃ SETUP CHO VIEW "luong-do"
+  // (đặt SAU useColumnKeys — cần các xxxCongTrinhKey — và TRƯỚC mọi hook tiêu thụ
+  // dữ liệu bên dưới, để toàn bộ các phần của trang đều đồng bộ theo đúng 1 view).
+  //
+  // Nếu view chưa được setup gì ở trang Setup (danh sách rỗng), filterByView sẽ
+  // trả về mảng rỗng cho TẤT CẢ các bảng — đúng tinh thần "bộ lọc: chưa chọn thì
+  // chưa hiển thị".
+  //
+  // stockData và attendanceData KHÔNG có cột công trình trong useColumnKeys hiện tại
+  // nên tạm thời giữ nguyên, chưa lọc theo view. Xác nhận lại nếu cần lọc cả 2 bảng này.
+  // ------------------------------------------------------------------------------
+  const productionData = useMemo(
+    () => filterByView(rawProductionData, congTrinhKey, VIEW_ID),
+    [rawProductionData, congTrinhKey]
+  );
+  const materialData = useMemo(
+    () => filterByView(rawMaterialData, matCongTrinhKey, VIEW_ID),
+    [rawMaterialData, matCongTrinhKey]
+  );
+  const khsxData = useMemo(
+    () => filterByView(rawKhsxData, khsxCongTrinhKey, VIEW_ID),
+    [rawKhsxData, khsxCongTrinhKey]
+  );
+  const orderData = useMemo(
+    () => filterByView(rawOrderData, orderCongTrinhKey, VIEW_ID),
+    [rawOrderData, orderCongTrinhKey]
+  );
+  const inventoryData = useMemo(
+    () => filterByView(rawInventoryData, invCongTrinhKey, VIEW_ID),
+    [rawInventoryData, invCongTrinhKey]
+  );
+  const tkbvData = useMemo(
+    () => filterByView(rawTkbvData, tkbvCongTrinhKey, VIEW_ID),
+    [rawTkbvData, tkbvCongTrinhKey]
+  );
+  const pthspData = useMemo(
+    () => filterByView(rawPthspData, pthspCongTrinhKey, VIEW_ID),
+    [rawPthspData, pthspCongTrinhKey]
+  );
+  const analysisData = useMemo(
+    () => filterByView(rawAnalysisData, analysisCongTrinhKey, VIEW_ID),
+    [rawAnalysisData, analysisCongTrinhKey]
+  );
+  const exportData = useMemo(
+    () => filterByView(rawExportData, expCongTrinhKey, VIEW_ID),
+    [rawExportData, expCongTrinhKey]
+  );
+
+  console.log('productionData sau filter:', productionData.length, productionData.map(r => r[congTrinhKey]));
+console.log('stockData length:', stockData.length); // truyền thẳng, không lọc
+console.log('attendanceData length:', attendanceData.length); // truyền thẳng, không lọc
 
 const {
   filters,
@@ -264,6 +324,8 @@ const {
   filters,
   unifiedDateOptions,
 });
+console.log('orderData (đã lọc) length trong OrderOverviewSection:', orderData.length);
+console.log('overviewSummary:', overviewSummary);
 
 const {
   khsxSummary,
@@ -473,7 +535,7 @@ const handleContinueToOrderColumnStep = () => {
   if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
-        Không có dữ liệu để hiển thị.
+        Chưa có công trình nào được setup cho view này. Vào Công trình → Setup phân loại để chọn công trình.
       </div>
     );
   }
@@ -503,7 +565,7 @@ const handleContinueToOrderColumnStep = () => {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Tổng quan</h2>
+              <h2 className="text-xl font-bold text-slate-800">Công trình luồng đỏ</h2>
             </div>
             {/* Anchor Buttons */}
             <div className="flex gap-2">
@@ -577,11 +639,6 @@ const handleContinueToOrderColumnStep = () => {
 
       <div className="px-4 md:px-8 space-y-6">
         
-           <MaterialListSection
-     sectionRef={materialListRef}
-     displayedMaterialData={displayedMaterialData}
-     getMaterialRowClassName={getMaterialRowClassName}
-   />
 
            <ContructionRevenueSection
   sectionRef={factoryRevenueRef}
@@ -691,6 +748,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      toggleMaterialGroup={toggleMaterialGroup}
      activeCongTrinhFilter={filters.congTrinh}
    />
+   
 
            <PivotMaterialStatusSection
      sectionRef={pivotMaterialStatusRef}
@@ -698,12 +756,18 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      matStatusMetric={matStatusMetric}
      setMatStatusMetric={setMatStatusMetric}
    />
+              <MaterialListSection
+     sectionRef={materialListRef}
+     displayedMaterialData={displayedMaterialData}
+     getMaterialRowClassName={getMaterialRowClassName}
+   />
 
            <StatusLineChartSection
      lineChartData={lineChartData}
      chartMetric={chartMetric}
      setChartMetric={setChartMetric}
    />
+   
 
       </div>
 
@@ -753,6 +817,8 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
   selectedExportMonth={selectedExportMonth}
   setSelectedExportMonth={setSelectedExportMonth}
 />
+
+
        <GenericExportScopeModal
      isOpen={isGenericExportScopeModalOpen}
      onClose={() => setIsGenericExportScopeModalOpen(false)}
@@ -767,6 +833,8 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      selectedStockDates={selectedStockExportDates}
      setSelectedStockDates={setSelectedStockExportDates}
    />
+
+   
 
    <GenericExportColumnModal
      isOpen={isGenericExportColumnModalOpen}
@@ -783,4 +851,4 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
   );
 };
 
-export default Dashboard;
+export default ConstructionRedFlow;

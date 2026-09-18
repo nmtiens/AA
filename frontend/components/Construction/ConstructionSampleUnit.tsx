@@ -1,79 +1,834 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { DataRow, ColumnDefinition } from '../../types';
+import { parseVNDate, diffDays } from './../Dashboard/utils/dateHelpers';
+import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
+import { fetchRevenue2026, type Revenue2026Data } from '../../services/dataService';
+import { DashboardFilter } from './../Dashboard/components/shared/DashboardFilter';
+import { useColumnKeys } from './../Dashboard/hooks/useColumnKeys';
+import { useDashboardOptions } from './../Dashboard/hooks/useDashboardOptions';
+import { useDashboardFilters } from './../Dashboard/hooks/useDashboardFilters';
+import { useUnifiedTimeFilters } from './../Dashboard/hooks/useUnifiedTimeFilters';
+import { useOverviewSummary } from './../Dashboard/hooks/useOverviewSummary';
+import { useKhsxSummary } from './../Dashboard/hooks/useKhsxSummary';
+import { useStockData } from './../Dashboard/hooks/useStockData';
+import { usePivotTables } from './../Dashboard/hooks/usePivotTables';
+import { useExportFlows } from './../Dashboard/hooks/useExportFlows';
+import { StatusLineChartSection } from './../Dashboard/components/sections/StatusLineChartSection';
+import { PivotMaterialSummarySection } from './../Dashboard/components/sections/PivotMaterialSummarySection';
+import { PivotMaterialStatusSection } from './../Dashboard/components/sections/PivotMaterialStatusSection';
+import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
+import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
+import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
+import { ContructionRevenueSection } from './../Dashboard/components/sections/ContructionRevenueSection';
+import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
+import { ProductionStatusSection } from './../Dashboard/components/sections/ProductionStatusSection';
+import { KhsxPlanActualSection } from './../Dashboard/components/sections/KhsxPlanActualSection';
+import { OrderOverviewSection } from './../Dashboard/components/sections/OrderOverviewSection';
+import { OrderExportScopeModal } from './../Dashboard/components/modals/OrderExportScopeModal';
+import { OrderExportColumnModal } from './../Dashboard/components/modals/OrderExportColumnModal';
+import { OverviewExportScopeModal } from './../Dashboard/components/modals/OverviewExportScopeModal';
+import { GenericExportScopeModal } from './../Dashboard/components/modals/GenericExportScopeModal';
+import { GenericExportColumnModal } from './../Dashboard/components/modals/GenericExportColumnModal';
+import { ProductionExportModal } from './../Dashboard/components/modals/ProductionExportModal';
+// File này nằm ở src/components/Construction/ConstructionSampleUnit.tsx,
+// util nằm ở src/utils/viewDataConfig.ts -> phải đi lên 2 cấp: ../../utils/...
+import { filterByView } from './utils/viewDataConfig';
 
 interface ConstructionSampleUnitProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
-  orderData: DataRow[];
-  orderColumns: ColumnDefinition[];
+  materialData: DataRow[];
+  materialColumns: ColumnDefinition[];
+  khsxData: DataRow[];
+  khsxColumns: ColumnDefinition[];
   inventoryData: DataRow[];
   inventoryColumns: ColumnDefinition[];
+  orderData: DataRow[];
+  orderColumns: ColumnDefinition[];
   tkbvData: DataRow[];
   tkbvColumns: ColumnDefinition[];
   pthspData: DataRow[];
   pthspColumns: ColumnDefinition[];
+  yearlyPlanData: DataRow[];
+  yearlyPlanColumns: ColumnDefinition[];
+  analysisData: DataRow[];
+  analysisColumns: ColumnDefinition[];
   exportData: DataRow[];
   exportColumns: ColumnDefinition[];
   stockData: DataRow[];
   stockColumns: ColumnDefinition[];
-  isGlobalLoading: boolean;
-  // các field khác từ MainLayoutContext nếu cần dùng thêm
-  [key: string]: any;
+  attendanceData: DataRow[];
+  attendanceColumns: ColumnDefinition[];
+  isSidebarCollapsed: boolean;
 }
 
-const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = (props) => {
-  const { productionData, isGlobalLoading } = props;
+// Id của view này trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
+// Đây là bản "Căn mẫu" — chỉ khác ConstructionRedFlow.tsx ở VIEW_ID này và tiêu đề hiển thị.
+const VIEW_ID = 'can-mau' as const;
 
-  // TODO: thay điều kiện lọc "Căn mẫu" đúng theo cột thực tế
-  // Ví dụ: lọc theo cột phân loại có giá trị 'Căn mẫu'
-  const sampleUnitData = useMemo(() => {
-    return productionData.filter((row) =>
-      String(row['PHÂN LOẠI'] || row['LOẠI CĂN'] || '').toLowerCase().includes('mẫu')
-    );
-  }, [productionData]);
+const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
+  productionData: rawProductionData,
+  productionColumns,
+  materialData: rawMaterialData,
+  materialColumns,
+  khsxData: rawKhsxData,
+  khsxColumns,
+  inventoryData: rawInventoryData,
+  inventoryColumns,
+  orderData: rawOrderData,
+  orderColumns,
+  tkbvData: rawTkbvData,
+  tkbvColumns,
+  pthspData: rawPthspData,
+  pthspColumns,
+  yearlyPlanData,
+  yearlyPlanColumns,
+  analysisData: rawAnalysisData,
+  analysisColumns,
+  exportData: rawExportData,
+  exportColumns,
+  stockData,
+  stockColumns,
+  attendanceData,
+  attendanceColumns,
+  isSidebarCollapsed
+}) => {
+  const factoryRevenueRef = useRef<HTMLDivElement>(null);
+  const productionStatusRef = useRef<HTMLDivElement>(null);
+  const pivotWorkshopRef = useRef<HTMLDivElement>(null);
+  const pivotProjectRef = useRef<HTMLDivElement>(null);
+  const pivotMaterialRef = useRef<HTMLDivElement>(null);
+  const pivotMaterialStatusRef = useRef<HTMLDivElement>(null);
+  const materialListRef = useRef<HTMLDivElement>(null);
+  const khsxSectionRef = useRef<HTMLDivElement>(null);
+  const inventorySectionRef = useRef<HTMLDivElement>(null);
+  const projectSummaryRef = useRef<HTMLDivElement>(null);
+  const orderOverviewRef = useRef<HTMLDivElement>(null);
+  const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
-  if (isGlobalLoading) {
+
+  const {
+  hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
+  xuongKey, hangMucKey, daysAtCurrentStageKey, bopKey, triGiaDonHangTongKey,
+  thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+  matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
+  matStatusSapKey, matEstDateKey,
+  khsxXuongKey, khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
+  invThanhTienKey, invXuongKey, invCongTrinhKey, invNamKey, invThangKey,
+  invNgayKey, invDateKey, invTuanKey,
+  expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey,
+  stockDateKey, stockValueKey, stockSapIdKey,
+  orderDateKey, orderValueKey, orderXuongKey, orderCongTrinhKey,
+  tkbvDateKey, tkbvValueKey, tkbvXuongKey, tkbvCongTrinhKey,
+  pthspDateKey, pthspValueKey, pthspXuongKey, pthspCongTrinhKey,
+  analysisXuongKey, analysisCongTrinhKey, analysisPlanKey, analysisActualKey,
+  analysisWeekKey, analysisDungKhKey, analysisThucHienDungKh1PhanKey,
+  analysisRotKhKey, analysisThucHienRotKh1PhanKey, analysisNhapKhoTruocKhKey,
+  analysisVuotKhKey, analysisNhapKhoNgoaiKhKey,
+  attXuongKey, attSoLuongCnKey, attGioCongHcKey, attGioCongTcKey, attTuanKey,
+  attNamKey, attThangKey, attNgayKey, attDinhBienKey,
+} = useColumnKeys({
+  productionColumns, materialColumns, khsxColumns, inventoryColumns,
+  exportColumns, stockColumns, orderColumns, tkbvColumns, pthspColumns,
+  analysisColumns, attendanceColumns,
+});
+
+  // ------------------------------------------------------------------------------
+  // LỌC TOÀN BỘ DỮ LIỆU THEO DANH SÁCH CÔNG TRÌNH ĐÃ SETUP CHO VIEW "can-mau"
+  // (đặt SAU useColumnKeys — cần các xxxCongTrinhKey — và TRƯỚC mọi hook tiêu thụ
+  // dữ liệu bên dưới, để toàn bộ các phần của trang đều đồng bộ theo đúng 1 view).
+  //
+  // Nếu view chưa được setup gì ở trang Setup (danh sách rỗng), filterByView sẽ
+  // trả về mảng rỗng cho TẤT CẢ các bảng — đúng tinh thần "bộ lọc: chưa chọn thì
+  // chưa hiển thị".
+  //
+  // stockData và attendanceData KHÔNG có cột công trình trong useColumnKeys hiện tại
+  // nên tạm thời giữ nguyên, chưa lọc theo view. Xác nhận lại nếu cần lọc cả 2 bảng này.
+  // ------------------------------------------------------------------------------
+  const productionData = useMemo(
+    () => filterByView(rawProductionData, congTrinhKey, VIEW_ID),
+    [rawProductionData, congTrinhKey]
+  );
+  const materialData = useMemo(
+    () => filterByView(rawMaterialData, matCongTrinhKey, VIEW_ID),
+    [rawMaterialData, matCongTrinhKey]
+  );
+  const khsxData = useMemo(
+    () => filterByView(rawKhsxData, khsxCongTrinhKey, VIEW_ID),
+    [rawKhsxData, khsxCongTrinhKey]
+  );
+  const orderData = useMemo(
+    () => filterByView(rawOrderData, orderCongTrinhKey, VIEW_ID),
+    [rawOrderData, orderCongTrinhKey]
+  );
+  const inventoryData = useMemo(
+    () => filterByView(rawInventoryData, invCongTrinhKey, VIEW_ID),
+    [rawInventoryData, invCongTrinhKey]
+  );
+  const tkbvData = useMemo(
+    () => filterByView(rawTkbvData, tkbvCongTrinhKey, VIEW_ID),
+    [rawTkbvData, tkbvCongTrinhKey]
+  );
+  const pthspData = useMemo(
+    () => filterByView(rawPthspData, pthspCongTrinhKey, VIEW_ID),
+    [rawPthspData, pthspCongTrinhKey]
+  );
+  const analysisData = useMemo(
+    () => filterByView(rawAnalysisData, analysisCongTrinhKey, VIEW_ID),
+    [rawAnalysisData, analysisCongTrinhKey]
+  );
+  const exportData = useMemo(
+    () => filterByView(rawExportData, expCongTrinhKey, VIEW_ID),
+    [rawExportData, expCongTrinhKey]
+  );
+
+const {
+  filters,
+  setFilters,
+  hasActiveFilters,
+  clearFilters,
+  filteredProductionData,
+  filteredMaterialData,
+  displayedMaterialData,
+  selectedMaterialGroups,
+  setSelectedMaterialGroups,
+  toggleMaterialGroup,
+} = useDashboardFilters({
+  productionData,
+  materialData,
+  congTrinhKey,
+  xuongKey,
+  tinhTrangKey,
+  tinhTrangIpoKey,
+  matCongTrinhKey,
+  matNhomVtKey,
+});
+
+const {
+  unifiedTimeFilters,
+  setUnifiedTimeFilters,
+  viewMode,
+  setViewMode,
+  filteredInventoryData,
+  filteredAnalysisData,
+} = useUnifiedTimeFilters({
+  inventoryData,
+  analysisData,
+  filters,
+  invCongTrinhKey,
+  invXuongKey,
+  invNamKey,
+  invThangKey,
+  invNgayKey,
+  invTuanKey,
+  analysisCongTrinhKey,
+  analysisXuongKey,
+});
+const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
+const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
+
+// Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
+// Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
+// thang/tuan/ngay — nên effect chỉ re-run khi giá trị năm thay đổi.
+const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
+
+useEffect(() => {
+  fetchRevenue2026(selectedRevenueYear).then(data => { if (data) setRevenue2026(data); });
+}, [selectedRevenueYear]);
+ 
+const {
+  congTrinhOptions,
+  xuongOptions,
+  tinhTrangOptions,
+  tinhTrangIpoOptions,
+  khsxNamOptions,
+  khsxThangOptions,
+  khsxNgayOptions,
+  khsxTuanOptions,
+  invNamOptions,
+  invThangOptions,
+  invNgayOptions,
+  invTuanOptions,
+  unifiedNamOptions,
+  unifiedThangOptions,
+  unifiedNgayOptions,
+  unifiedTuanOptions,
+  unifiedDateOptions,
+} = useDashboardOptions({
+  productionData,
+  khsxData,
+  inventoryData,
+  orderData,
+  tkbvData,
+  pthspData,
+  congTrinhKey,
+  xuongKey,
+  tinhTrangKey,
+  tinhTrangIpoKey,
+  khsxNamKey,
+  khsxThangKey,
+  khsxNgayKey,
+  khsxTuanKey,
+  invNamKey,
+  invThangKey,
+  invNgayKey,
+  invTuanKey,
+  orderDateKey,
+  tkbvDateKey,
+  pthspDateKey,
+  invDateKey,
+});
+
+const {
+  overviewSummary,
+  overviewDateFilters,
+  setOverviewDateFilters,
+  overviewMetric,
+  setOverviewMetric,
+  showDateWarning,
+  setShowDateWarning,
+  getContextLabel,
+  overviewDateRangeDisplay,
+  latestUnifiedDate,
+  filteredOrderData,
+  filteredTkbvData,
+  filteredPthspData,
+  filteredInventoryOverviewData,
+  filteredExportOverviewData,
+  mtdOrderData,
+  mtdTkbvData,
+  mtdPthspData,
+  mtdInventoryData,
+  mtdExportKhoData,
+  groupAnalysisCache,
+  loadGroupAnalysis,
+  toAnalysisItems,
+} = useOverviewSummary({
+  orderData,
+  tkbvData,
+  pthspData,
+  inventoryData,
+  exportData,
+  orderDateKey,
+  tkbvDateKey,
+  pthspDateKey,
+  invDateKey,
+  expDateKey,
+  expCongTrinhKey,
+  expXuongKey,
+  filters,
+  unifiedDateOptions,
+});
+
+const {
+  khsxSummary,
+  totalKhsxAmount,
+  totalInventoryAmount,
+  completionRate,
+  combinedWorkshopData,
+  combinedProjectData,
+  weeklyPlanVsActualData,
+  productivityAnalysisData,
+} = useKhsxSummary({
+  unifiedTimeFilters,
+  viewMode,
+  filters,
+  filteredAnalysisData,
+  analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey,
+  analysisDungKhKey, analysisThucHienDungKh1PhanKey, analysisRotKhKey,
+  analysisThucHienRotKh1PhanKey, analysisNhapKhoTruocKhKey, analysisVuotKhKey,
+  analysisNhapKhoNgoaiKhKey,
+  attendanceData,
+  attXuongKey, attNamKey, attThangKey, attTuanKey, attNgayKey,
+  attSoLuongCnKey, attGioCongHcKey, attGioCongTcKey, attDinhBienKey,
+  filteredInventoryData, invXuongKey, invThanhTienKey,
+});
+
+const {
+  stockDates,
+  stockByProjectData,
+  loadStockByProject, 
+  latestStockDateAvailable,
+  closestStockDate,
+  mtdStockData,
+  filteredStockDataForExport,
+  latestStockStats,
+  latestStockStatsPrevMonth,
+  stockOverviewCardValue,
+  stockTotalCount,
+} = useStockData({
+  stockData,
+  stockDateKey,
+  latestUnifiedDate,
+  overviewMetric,
+  filters,
+});
+
+const {
+  workshopMetric, setWorkshopMetric,
+  projectMetric, setProjectMetric,
+  chartMetric, setChartMetric,
+  projectSummaryMetric, setProjectSummaryMetric,
+  matStatusMetric, setMatStatusMetric,
+  excludeFabrics, setExcludeFabrics,
+  expandedBops, setExpandedBops,
+  bottleneckViewMode, setBottleneckViewMode,
+
+  calculateMetricValue,
+  cardMetrics,
+  projectStatusSummary,
+  pivotWorkshopData,
+  pivotFunnelData,
+  customFunnelData,
+  pivotProjectData,
+  pivotMaterialSummary,
+  pivotMaterialStatusData,
+  lineChartData,
+  bottleneckData,
+  topBottlenecks,
+} = usePivotTables({
+  filteredProductionData,
+  filteredMaterialData,
+  displayedMaterialData,
+  stockDates,
+  closestStockDate,
+  tinhTrangKey, xuongKey, bopKey, valueKey, realValueKey, hexKey,
+  congTrinhKey, hangMucKey, daysAtCurrentStageKey,
+  triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+  matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
+});
+
+const {
+  selectedExportColumns, setSelectedExportColumns,
+  isProductionExportModalOpen, setIsProductionExportModalOpen,
+  isOrderExportScopeModalOpen, setIsOrderExportScopeModalOpen,
+  orderExportScope, setOrderExportScope,
+  isOrderExportModalOpen, setIsOrderExportModalOpen,
+  selectedOrderExportColumns, setSelectedOrderExportColumns,
+  genericExportFlow, setGenericExportFlow,
+  genericExportScope, setGenericExportScope,
+  isGenericExportScopeModalOpen, setIsGenericExportScopeModalOpen,
+  isGenericExportColumnModalOpen, setIsGenericExportColumnModalOpen,
+  genericExportSelectedColumns, setGenericExportSelectedColumns,
+  isOverviewExportScopeModalOpen, setIsOverviewExportScopeModalOpen,
+  overviewExportScope, setOverviewExportScope,
+
+  selectedStockExportDates,
+  setSelectedStockExportDates,
+
+  effectiveOrderColumns,
+  effectiveTkbvColumns,
+  effectivePthspColumns,
+  effectiveInventoryColumns,
+  effectiveExportDataColumns,
+  effectiveStockColumns,
+
+  handleExportOverviewSummary,
+  handleOpenOverviewExport,
+  handleOverviewExportConfirm,
+  handleExportGroupAnalysis,
+  handleExportStockDetail,
+  handleExportProductionStatus,
+  handleOpenOrderExport,
+  getExportFlowConfig,
+  handleOpenGenericExport,
+  handleGenericExportContinue,
+  handleGenericExportConfirm,
+  handleExportBottlenecks,
+  selectedExportMonth, setSelectedExportMonth,
+} = useExportFlows({
+  orderColumns, orderData,
+  tkbvColumns, tkbvData,
+  pthspColumns, pthspData,
+  inventoryColumns, inventoryData,
+  exportColumns, exportData,
+  stockColumns, stockData,
+  productionColumns,
+
+  orderDateKey,
+  tkbvDateKey,
+  pthspDateKey,
+  invDateKey,
+  expDateKey,
+
+  stockDateKey,
+  stockDates,
+  stockTotalCount,
+
+  overviewSummary,
+  overviewDateFilters,
+  groupAnalysisCache,
+  latestUnifiedDate,
+
+  filteredOrderData,
+  filteredTkbvData,
+  filteredPthspData,
+  filteredInventoryOverviewData,
+  filteredExportOverviewData,
+  filteredStockDataForExport,
+  mtdOrderData,
+  mtdTkbvData,
+  mtdPthspData,
+  mtdInventoryData,
+  mtdExportKhoData,
+  mtdStockData,
+  stockByProjectData,
+  closestStockDate,
+  stockMetric,  
+  bottleneckData,
+});
+
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (ref.current) ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+const handleContinueToOrderColumnStep = () => {
+    setIsOrderExportScopeModalOpen(false);
+    setSelectedOrderExportColumns(effectiveOrderColumns.map(c => c.key));
+    setIsOrderExportModalOpen(true);
+  };
+
+  const getMaterialRowClassName = (row: DataRow): string => {
+    const status = String(row[matStatusSapKey] || '').toLowerCase();
+    if (status.includes('hủy')) return 'bg-gray-100 text-gray-500 italic';
+    if (status.includes('hoàn thành') || status.includes('đóng') || status.includes('xong')) return 'bg-green-100 text-green-800';
+    if (status.includes('mở') || status.includes('open') || !status) {
+      if (matEstDateKey) {
+        const dateStr = String(row[matEstDateKey] || '');
+        const date = parseVNDate(dateStr);
+        if (date) {
+          const diff = diffDays(date, new Date());
+          if (diff < 0) return 'bg-red-100 text-yellow-700 font-bold';
+          if (diff === 0) return 'bg-orange-200 text-orange-800 animate-pulse font-bold';
+          if (diff >= 1 && diff <= 5) return 'bg-yellow-50 text-slate-700';
+          if (diff > 5) return 'bg-yellow-200 text-slate-700';
+        }
+      }
+    }
+    return 'bg-white hover:bg-slate-50';
+  };
+
+  const targetRevenue2026 = revenue2026?.targetRevenue2026 ?? 0;
+  const quarterlyTargets = revenue2026?.quarterlyTargets ?? { q1: 0, q2: 0, q3: 0, q4: 0 };
+  const factoryRevenueStats = {
+    actual: revenue2026?.actual.value ?? 0,
+    percent: revenue2026?.actual.percent ?? 0,
+  };
+  const yearlyPlan2026WorkshopChartData = revenue2026?.byWorkshop ?? [];
+
+  const factoryRevenueChartData = useMemo(() => [{
+    name: 'Năm 2026',
+    thucHien: factoryRevenueStats.actual,
+    conLai: Math.max(0, targetRevenue2026 - factoryRevenueStats.actual),
+    fullTarget: targetRevenue2026,
+  }], [factoryRevenueStats.actual, targetRevenue2026]);
+
+  if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-wood-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center h-full text-slate-500">
+        Chưa có công trình nào được setup cho view này. Vào Công trình → Setup phân loại để chọn công trình.
       </div>
     );
   }
 
   return (
-    <div className="p-6 h-full overflow-auto">
-      <h2 className="text-xl font-bold text-slate-800 mb-4">Căn mẫu</h2>
-      <p className="text-slate-500 mb-4">
-        Hiện có {sampleUnitData.length} bản ghi được xác định là căn mẫu.
-      </p>
-
-      {/* Thay bằng DataGrid nếu muốn hiển thị dạng bảng, ví dụ: */}
-      {/* <DataGrid data={sampleUnitData} columns={props.productionColumns} ... /> */}
-
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100">
-            <tr>
-              {props.productionColumns?.slice(0, 6).map((col: ColumnDefinition) => (
-                <th key={col.key} className="px-3 py-2 text-left font-semibold text-slate-600">
-                  {col.key}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sampleUnitData.map((row, idx) => (
-              <tr key={idx} className="border-t border-slate-100">
-                {props.productionColumns?.slice(0, 6).map((col: ColumnDefinition) => (
-                  <td key={col.key} className="px-3 py-2 text-slate-700">
-                    {String(row[col.key] ?? '')}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-6 overflow-y-auto h-full custom-scrollbar pb-24 bg-wood-50">
+     {showDateWarning && (
+  <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-top-4 duration-300">
+    <div className="flex items-center gap-4 bg-white border-2 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] rounded-2xl px-6 py-4 min-w-[340px]">
+      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-100 flex items-center justify-center animate-pulse">
+        <AlertTriangle size={24} className="text-red-600" />
       </div>
+      <div className="flex-1">
+        <p className="text-base font-bold text-red-600">Vui lòng chọn ít nhất 1 ngày báo cáo</p>
+      </div>
+      <button
+        onClick={() => setShowDateWarning(false)}
+        className="flex-shrink-0 p-1 text-gray-400 hover:text-red-600 transition-colors"
+      >
+        <CloseIcon size={20} />
+      </button>
+    </div>
+  </div>
+)}
+      {/* Sticky Header & Filters */}
+      <div className="sticky top-0 z-40 bg-wood-50/95 backdrop-blur-sm border-b border-wood-200 px-4 py-3 shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">Căn mẫu</h2>
+            </div>
+            {/* Anchor Buttons */}
+            <div className="flex gap-2">
+              <button onClick={() => scrollToRef(factoryRevenueRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Doanh số nhà máy">
+                <Target size={14} className="text-emerald-600" /> Doanh số
+              </button>
+              <button onClick={() => scrollToRef(orderOverviewRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Tổng quan Đơn hàng">
+                <ShoppingCart size={14} className="text-pink-600" /> Tổng quan
+              </button>
+              <button onClick={() => scrollToRef(productionStatusRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Tình trạng sản xuất">
+                <CheckCircle size={14} className="text-emerald-600" /> Tình trạng sản xuất
+              </button>
+              <button onClick={() => scrollToRef(bottleneckSectionRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Báo cáo Điểm nghẽn">
+                <AlertTriangle size={14} className="text-red-600" /> Điểm nghẽn
+              </button>
+              <button onClick={() => scrollToRef(khsxSectionRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Kế hoạch & Nhập kho">
+                <BarChart2 size={14} className="text-indigo-600" /> Kế hoạch-Thực hiện
+              </button>
+            </div>
+          </div>
+
+          {/* Dashboard Filters */}
+          <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
+            <div className="flex items-center gap-2 mr-1 text-slate-500">
+              <Filter size={14} /> <span className="text-[10px] uppercase font-bold">Bộ lọc tổng:</span>
+            </div>
+            {congTrinhKey && (
+              <DashboardFilter
+                label="Tên Công Trình"
+                options={congTrinhOptions}
+                selectedValues={filters.congTrinh}
+                onChange={(vals) => setFilters(prev => ({ ...prev, congTrinh: vals }))}
+              />
+            )}
+            {xuongKey && (
+              <DashboardFilter
+                label="Khu Vực Sản Xuất"
+                options={xuongOptions}
+                selectedValues={filters.xuong}
+                onChange={(vals) => setFilters(prev => ({ ...prev, xuong: vals }))}
+              />
+            )}
+            {tinhTrangIpoKey && (
+              <DashboardFilter
+                label="Tình Trạng IPO"
+                options={tinhTrangIpoOptions}
+                selectedValues={filters.tinhTrangIpo}
+                onChange={(vals) => setFilters(prev => ({ ...prev, tinhTrangIpo: vals }))}
+              />
+            )}
+            {tinhTrangKey && (
+              <DashboardFilter
+                label="Tình Trạng"
+                options={tinhTrangOptions}
+                selectedValues={filters.tinhTrang}
+                onChange={(vals) => setFilters(prev => ({ ...prev, tinhTrang: vals }))}
+              />
+            )}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="Xóa bộ lọc"
+              >
+                <CloseIcon size={18} />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-8 space-y-6">
+
+           <ContructionRevenueSection
+  sectionRef={factoryRevenueRef}
+  targetRevenue2026={targetRevenue2026}
+  factoryRevenueStats={factoryRevenueStats}
+  customFunnelData={customFunnelData}
+  pivotFunnelData={pivotFunnelData}
+  workshopMetric={workshopMetric}
+/>
+
+    <OrderOverviewSection
+  sectionRef={orderOverviewRef}
+  isSidebarCollapsed={isSidebarCollapsed}
+  hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
+  filters={filters}
+  overviewMetric={overviewMetric}
+  setOverviewMetric={setOverviewMetric}
+  getContextLabel={getContextLabel}
+  overviewDateRangeDisplay={overviewDateRangeDisplay}
+  unifiedDateOptions={unifiedDateOptions}
+  overviewDateFilters={overviewDateFilters}
+  setOverviewDateFilters={setOverviewDateFilters}
+  setShowDateWarning={setShowDateWarning}
+  handleOpenOverviewExport={handleOpenOverviewExport}
+  overviewSummary={overviewSummary}
+  latestUnifiedDate={latestUnifiedDate}
+  closestStockDate={closestStockDate}
+  stockOverviewCardValue={stockOverviewCardValue}
+  latestStockStats={latestStockStats}
+  latestStockStatsPrevMonth={latestStockStatsPrevMonth}
+  stockByProjectData={stockByProjectData}
+  groupAnalysisCache={groupAnalysisCache}
+  toAnalysisItems={toAnalysisItems}
+  loadGroupAnalysis={loadGroupAnalysis}   
+  handleOpenOrderExport={handleOpenOrderExport}
+  handleOpenGenericExport={handleOpenGenericExport}
+  loadStockByProject={loadStockByProject}  
+/>
+
+        <ProductionStatusSection
+  sectionRef={productionStatusRef}
+  pivotWorkshopRef={pivotWorkshopRef}
+  cardMetrics={cardMetrics}
+  pivotWorkshopData={pivotWorkshopData}
+  workshopMetric={workshopMetric}
+  setWorkshopMetric={setWorkshopMetric}
+  expandedBops={expandedBops}
+  setExpandedBops={setExpandedBops}
+  handleExportProductionStatus={handleExportProductionStatus}
+/>
+        <BottleneckSection
+          sectionRef={bottleneckSectionRef}
+          bottleneckData={bottleneckData}
+          topBottlenecks={topBottlenecks}
+          bottleneckViewMode={bottleneckViewMode}
+          setBottleneckViewMode={setBottleneckViewMode}
+          handleExportBottlenecks={handleExportBottlenecks}
+        />
+
+         <KhsxPlanActualSection
+  sectionRef={khsxSectionRef}
+  inventorySectionRef={inventorySectionRef}
+  khsxDataLength={khsxData.length}
+  inventoryDataLength={inventoryData.length}
+  unifiedTimeFilters={unifiedTimeFilters}
+  setUnifiedTimeFilters={setUnifiedTimeFilters}
+  viewMode={viewMode}
+  setViewMode={setViewMode}
+  unifiedNamOptions={unifiedNamOptions}
+  unifiedThangOptions={unifiedThangOptions}
+  unifiedTuanOptions={unifiedTuanOptions}
+  unifiedNgayOptions={unifiedNgayOptions}
+  totalKhsxAmount={totalKhsxAmount}
+  completionRate={completionRate}
+  totalInventoryAmount={totalInventoryAmount}
+  combinedWorkshopData={combinedWorkshopData}
+  combinedProjectData={combinedProjectData}
+  weeklyPlanVsActualData={weeklyPlanVsActualData}
+  productivityAnalysisData={productivityAnalysisData}
+yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
+  selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
+/>
+
+          <ProjectSummarySection
+     sectionRef={projectSummaryRef}
+     projectStatusSummary={projectStatusSummary}
+     projectSummaryMetric={projectSummaryMetric}
+     setProjectSummaryMetric={setProjectSummaryMetric}
+   />
+
+           <PivotProjectSection
+     sectionRef={pivotProjectRef}
+     pivotProjectData={pivotProjectData}
+     projectMetric={projectMetric}
+     setProjectMetric={setProjectMetric}
+     excludeFabrics={excludeFabrics}
+     setExcludeFabrics={setExcludeFabrics}
+   />
+
+           <PivotMaterialSummarySection
+     sectionRef={pivotMaterialRef}
+     pivotMaterialSummary={pivotMaterialSummary}
+     selectedMaterialGroups={selectedMaterialGroups}
+     setSelectedMaterialGroups={setSelectedMaterialGroups}
+     toggleMaterialGroup={toggleMaterialGroup}
+     activeCongTrinhFilter={filters.congTrinh}
+   />
+
+           <PivotMaterialStatusSection
+     sectionRef={pivotMaterialStatusRef}
+     pivotMaterialStatusData={pivotMaterialStatusData}
+     matStatusMetric={matStatusMetric}
+     setMatStatusMetric={setMatStatusMetric}
+   />
+              <MaterialListSection
+     sectionRef={materialListRef}
+     displayedMaterialData={displayedMaterialData}
+     getMaterialRowClassName={getMaterialRowClassName}
+   />
+
+           <StatusLineChartSection
+     lineChartData={lineChartData}
+     chartMetric={chartMetric}
+     setChartMetric={setChartMetric}
+   />
+
+      </div>
+
+        <ProductionExportModal
+     isOpen={isProductionExportModalOpen}
+     onClose={() => setIsProductionExportModalOpen(false)}
+     productionColumns={productionColumns}
+     selectedExportColumns={selectedExportColumns}
+     setSelectedExportColumns={setSelectedExportColumns}
+     filteredProductionData={filteredProductionData}
+   />
+
+        <OrderExportScopeModal
+     isOpen={isOrderExportScopeModalOpen}
+     onClose={() => setIsOrderExportScopeModalOpen(false)}
+     orderExportScope={orderExportScope}
+     setOrderExportScope={setOrderExportScope}
+     filteredOrderData={filteredOrderData}
+     mtdOrderData={mtdOrderData}
+     orderData={orderData}
+     latestUnifiedDate={latestUnifiedDate}
+     overviewDateFilters={overviewDateFilters}
+     onContinue={handleContinueToOrderColumnStep}
+   />
+
+   <OrderExportColumnModal
+     isOpen={isOrderExportModalOpen}
+     onClose={() => setIsOrderExportModalOpen(false)}
+     onBack={() => { setIsOrderExportModalOpen(false); setIsOrderExportScopeModalOpen(true); }}
+     orderExportScope={orderExportScope}
+     effectiveOrderColumns={effectiveOrderColumns}
+     selectedOrderExportColumns={selectedOrderExportColumns}
+     setSelectedOrderExportColumns={setSelectedOrderExportColumns}
+     orderData={orderData}
+     filteredOrderData={filteredOrderData}
+     mtdOrderData={mtdOrderData}
+     latestUnifiedDate={latestUnifiedDate}
+   />
+       <OverviewExportScopeModal
+  isOpen={isOverviewExportScopeModalOpen}
+  onClose={() => setIsOverviewExportScopeModalOpen(false)}
+  overviewExportScope={overviewExportScope}
+  setOverviewExportScope={setOverviewExportScope}
+  overviewDateFilters={overviewDateFilters}
+  latestUnifiedDate={latestUnifiedDate}
+  onConfirm={handleOverviewExportConfirm}
+  selectedExportMonth={selectedExportMonth}
+  setSelectedExportMonth={setSelectedExportMonth}
+/>
+
+       <GenericExportScopeModal
+     isOpen={isGenericExportScopeModalOpen}
+     onClose={() => setIsGenericExportScopeModalOpen(false)}
+     genericExportFlow={genericExportFlow}
+     genericExportScope={genericExportScope}
+     setGenericExportScope={setGenericExportScope}
+     getExportFlowConfig={getExportFlowConfig}
+     overviewDateFilters={overviewDateFilters}
+     latestUnifiedDate={latestUnifiedDate}
+     onContinue={handleGenericExportContinue}
+     stockDates={stockDates}
+     selectedStockDates={selectedStockExportDates}
+     setSelectedStockDates={setSelectedStockExportDates}
+   />
+
+   <GenericExportColumnModal
+     isOpen={isGenericExportColumnModalOpen}
+     onClose={() => setIsGenericExportColumnModalOpen(false)}
+     onBack={() => { setIsGenericExportColumnModalOpen(false); setIsGenericExportScopeModalOpen(true); }}
+     genericExportFlow={genericExportFlow}
+     genericExportScope={genericExportScope}
+     getExportFlowConfig={getExportFlowConfig}
+     genericExportSelectedColumns={genericExportSelectedColumns}
+     setGenericExportSelectedColumns={setGenericExportSelectedColumns}
+     onConfirmExport={handleGenericExportConfirm}
+   />
     </div>
   );
 };

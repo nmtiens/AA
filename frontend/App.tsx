@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield,BarChart3 , User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchFromServer, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -15,6 +15,9 @@ const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
 const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
+const SetupData = lazy(() => import('./components/SetupData'));
+const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
+
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -48,6 +51,8 @@ const App: React.FC = () => {
                 <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="dashboard"><ConstructionRedFlowWrapper /></RequirePermission>} />
                 <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="dashboard"><ConstructionSampleUnitWrapper /></RequirePermission>} />
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
+                <Route path="/cong-trinh/setup" element={<RequirePermission viewId="dashboard"><ConstructionSetupWrapper /></RequirePermission>} />
+                <Route path="/setup-data" element={<RequirePermission viewId="setup_data"><SetupDataWrapper /></RequirePermission>} />
                <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="1. ĐƠN HÀNG MỚI (P001)" /></RequirePermission>} />
 <Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="2. TRIỂN KHAI BV (P002)" /></RequirePermission>} />
 <Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="3. ĐÃ TÍNH PHIẾU (P012)" /></RequirePermission>} />
@@ -83,6 +88,24 @@ const ConstructionRedFlowWrapper = () => {
 const ConstructionSampleUnitWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   return <ConstructionSampleUnit {...context} />;
+};
+
+const SetupDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  return <SetupData {...context} />;
+};
+
+const ConstructionSetupWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  return (
+    <ConstructionSetup
+      productionData={context.productionData}
+      orderData={context.orderData}
+      materialData={context.materialData}
+      khsxData={context.khsxData}
+      congTrinhKey={TARGET_COLUMN_NAMES.CONG_TRINH}
+    />
+  );
 };
 
 const YearlyPlanDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); const primarySearchCol = context.yearlyPlanColumns.length > 0 ? { header: context.yearlyPlanColumns[0].key, label: 'Tìm kiếm' } : { header: 'ID', label: 'Tìm kiếm' }; return <DataGrid data={context.yearlyPlanData} columns={context.yearlyPlanColumns} primarySearchColumn={primarySearchCol} exportFileNamePrefix="du_lieu_ke_hoach_nam" enableAggregation={true} />; };
@@ -131,6 +154,7 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
 const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string }[] = [
   { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do' },
   { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau' },
+  { key: 'setup', label: 'Setup phân loại', path: '/cong-trinh/setup' },
 ];
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -644,6 +668,15 @@ const checkAndSync = async (forceAll = false) => {
               collapsed={isCollapsed}
             />
           )}
+                    {/* Setup dữ liệu - luôn hiển thị riêng, dưới cùng */}
+          <NavLink
+            to="/setup-data"
+            icon={<Settings size={20} />}
+            label="Setup dữ liệu"
+            active={location.pathname === '/setup-data'}
+            onClick={closeMobileSidebar}
+            collapsed={isCollapsed}
+          />
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2">
