@@ -537,6 +537,92 @@ const checkAndSync = async (forceAll = false) => {
             />
           )}
 
+{/* Nhóm Công trình */}
+<div>
+  <button
+    onClick={handleConstructionGroupToggle}
+    title={isCollapsed ? 'Công trình' : undefined}
+    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
+      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
+      ${isConstructionGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+  >
+    <Box size={20} className="shrink-0" />
+    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+      Công trình
+    </span>
+    {!isCollapsed && (
+      <ChevronDown
+        size={16}
+        className={`transition-transform duration-200 shrink-0 ${isConstructionMenuOpen ? 'rotate-180' : ''}`}
+      />
+    )}
+  </button>
+
+  {!isCollapsed && (
+    <div className={`overflow-hidden transition-all duration-300 ${isConstructionMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+        {CONSTRUCTION_SUB_ITEMS.map((item) => {
+          const active = location.pathname === item.path;
+          return (
+            <Link
+              key={item.key}
+              to={item.path}
+              onClick={closeMobileSidebar}
+              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
+                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</div>
+
+          {/* Nhóm biểu đồ tổng hợp */}
+<div>
+  <button
+    onClick={handleChartGroupToggle}
+    title={isCollapsed ? 'Biểu đồ' : undefined}
+    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
+      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
+      ${isChartGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+  >
+    <BarChart3 size={20} className="shrink-0" />
+    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+      Quản trị
+    </span>
+    {!isCollapsed && (
+      <ChevronDown
+        size={16}
+        className={`transition-transform duration-200 shrink-0 ${isChartMenuOpen ? 'rotate-180' : ''}`}
+      />
+    )}
+  </button>
+
+  {!isCollapsed && (
+    <div className={`overflow-hidden transition-all duration-300 ${isChartMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+        {CHART_SUB_ITEMS.map((item) => {
+          const active = location.pathname === item.path;
+          return (
+            <Link
+              key={item.key}
+              to={item.path}
+              onClick={closeMobileSidebar}
+              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
+                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  )}
+</div>
+
           {/* Nhóm gộp toàn bộ các mục dữ liệu còn lại */}
           {groupedViews.length > 0 && (
             <div>
@@ -582,92 +668,6 @@ const checkAndSync = async (forceAll = false) => {
               )}
             </div>
           )}
-
-          {/* Nhóm biểu đồ tổng hợp */}
-<div>
-  <button
-    onClick={handleChartGroupToggle}
-    title={isCollapsed ? 'Biểu đồ' : undefined}
-    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
-      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
-      ${isChartGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
-  >
-    <BarChart3 size={20} className="shrink-0" />
-    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-      Quản trị
-    </span>
-    {!isCollapsed && (
-      <ChevronDown
-        size={16}
-        className={`transition-transform duration-200 shrink-0 ${isChartMenuOpen ? 'rotate-180' : ''}`}
-      />
-    )}
-  </button>
-
-  {!isCollapsed && (
-    <div className={`overflow-hidden transition-all duration-300 ${isChartMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
-        {CHART_SUB_ITEMS.map((item) => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={item.key}
-              to={item.path}
-              onClick={closeMobileSidebar}
-              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
-                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  )}
-</div>
-
-{/* Nhóm Công trình */}
-<div>
-  <button
-    onClick={handleConstructionGroupToggle}
-    title={isCollapsed ? 'Công trình' : undefined}
-    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
-      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
-      ${isConstructionGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
-  >
-    <Box size={20} className="shrink-0" />
-    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-      Công trình
-    </span>
-    {!isCollapsed && (
-      <ChevronDown
-        size={16}
-        className={`transition-transform duration-200 shrink-0 ${isConstructionMenuOpen ? 'rotate-180' : ''}`}
-      />
-    )}
-  </button>
-
-  {!isCollapsed && (
-    <div className={`overflow-hidden transition-all duration-300 ${isConstructionMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
-        {CONSTRUCTION_SUB_ITEMS.map((item) => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={item.key}
-              to={item.path}
-              onClick={closeMobileSidebar}
-              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
-                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  )}
-</div>
 
           {/* Quản trị User - luôn hiển thị riêng, cuối danh sách */}
           {usersView && (
