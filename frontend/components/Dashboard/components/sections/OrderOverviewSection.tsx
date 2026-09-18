@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ShoppingCart, FileText, ClipboardList, Package, Box, Eye, Download, X,
   Layers, Building2, Briefcase, XCircle as CloseIcon,
@@ -166,6 +166,30 @@ const filterKey = (overviewDateFilters.length > 0
   const periodLabel = overviewDateFilters.length > 1
     ? `${overviewDateFilters.length} NGÀY ĐÃ CHỌN`
     : `NGÀY ${latestUnifiedDate ? `${latestUnifiedDate.getDate()}/${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`;
+
+  useEffect(() => {
+  if (isIpoDetailModalOpen && ipoTab === 'detail') loadGroupAnalysis('order');
+}, [isIpoDetailModalOpen, ipoTab, filterKey]);
+
+useEffect(() => {
+  if (isTkbvDetailModalOpen && tkbvTab === 'detail') loadGroupAnalysis('tkbv');
+}, [isTkbvDetailModalOpen, tkbvTab, filterKey]);
+
+useEffect(() => {
+  if (isPthspDetailModalOpen && pthspTab === 'detail') loadGroupAnalysis('pthsp');
+}, [isPthspDetailModalOpen, pthspTab, filterKey]);
+
+useEffect(() => {
+  if (isInventoryDetailModalOpen && inventoryTab === 'detail') loadGroupAnalysis('inventory');
+}, [isInventoryDetailModalOpen, inventoryTab, filterKey]);
+
+useEffect(() => {
+  if (isExportDetailModalOpen && exportTab === 'detail') loadGroupAnalysis('export');
+}, [isExportDetailModalOpen, exportTab, filterKey]);
+
+useEffect(() => {
+  if (isStockDetailModalOpen && stockTab === 'detail') loadStockByProject();
+}, [isStockDetailModalOpen, stockTab, filterKey]);
 
    return (
     <TrendFilterProvider
