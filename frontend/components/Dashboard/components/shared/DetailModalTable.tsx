@@ -36,25 +36,35 @@ export const DetailModalTable = ({
   });
 
   // 👇 Thêm mới: theo dõi tập "name" đã dùng để khởi tạo selectedKeys lần gần nhất
-const lastDataSignatureRef = useRef<string>(
-  data && data.length > 0 ? data.map(i => i.name).sort().join('|') : ''
+// Tích lũy MỌI tên đã từng xuất hiện qua các lần fetch (không reset theo signature),
+// để phát hiện đúng "tên hoàn toàn mới" mà không đụng vào lựa chọn filter người dùng đã tự tắt.
+const allSeenNamesRef = useRef<Set<string>>(
+  new Set(data && data.length > 0 ? data.map(i => i.name) : [])
 );
 
 // 👇 Thêm mới: khi data thay đổi (ví dụ fetch async xong sau khi mount),
 // đồng bộ lại selectedKeys nếu tập tên khác với lần khởi tạo trước —
 // tránh trường hợp selectedKeys "đóng băng" ở giá trị rỗng ban đầu.
 useEffect(() => {
-  if (!data || data.length === 0) return; // vẫn đang loading, chưa có gì để đồng bộ
-  const currentSignature = data.map(i => i.name).sort().join('|');
-  if (currentSignature !== lastDataSignatureRef.current) {
-    lastDataSignatureRef.current = currentSignature;
-    setSelectedKeys(
-      new Set(data.map(item => item.name).filter(name => !defaultExcludedKeys.includes(name)))
-    );
-  }
+  if (!data || data.length === 0) return;
+  setSelectedKeys(prev => {
+    const newSet = new Set(prev);
+    let changed = false;
+    data.forEach(item => {
+      // Nếu tên này CHƯA từng xuất hiện trong bất kỳ lần fetch trước & không nằm trong defaultExcludedKeys
+      // -> tự động thêm vào (mặc định hiển thị)
+      if (!allSeenNamesRef.current.has(item.name)) {
+        allSeenNamesRef.current.add(item.name);
+        if (!defaultExcludedKeys.includes(item.name)) {
+          newSet.add(item.name);
+          changed = true;
+        }
+      }
+    });
+    return changed ? newSet : prev;
+  });
   // defaultExcludedKeys thường là literal [] mới mỗi lần render ở component cha,
-  // nên KHÔNG đưa vào dependency array để tránh so sánh sai lệch không cần thiết —
-  // logic so khớp currentSignature đã đủ để quyết định khi nào cần reset.
+  // nên KHÔNG đưa vào dependency array để tránh so sánh sai lệch không cần thiết.
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [data]);
 
