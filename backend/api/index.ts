@@ -920,16 +920,19 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     `;
     const r = await timedQuery(q, params);
     res.json(
-      r.rows
-        .map(row => ({
-          name: row.name as string,
-          dailyCount: Number(row.daily_count),
-          dailyValue: Number(row.daily_value),
-          mtdCount: Number(row.mtd_count),
-          mtdValue: Number(row.mtd_value),
-        }))
-        .filter(row => row.mtdCount > 0 || row.mtdValue > 0)
-    );
+  r.rows
+    .map(row => ({
+      name: row.name as string,
+      dailyCount: Number(row.daily_count),
+      dailyValue: Number(row.daily_value),
+      mtdCount: Number(row.mtd_count),
+      mtdValue: Number(row.mtd_value),
+    }))
+    .filter(row =>
+      row.dailyCount > 0 || row.dailyValue > 0 ||
+      row.mtdCount > 0 || row.mtdValue > 0
+    )
+);
   } catch (error) {
     console.error('Lỗi overview/by-group:', error);
     res.status(500).json({ error: 'Internal Server Error' });

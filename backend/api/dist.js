@@ -58193,7 +58193,9 @@ app.get("/api/overview/by-group", async (req, res) => {
         dailyValue: Number(row.daily_value),
         mtdCount: Number(row.mtd_count),
         mtdValue: Number(row.mtd_value)
-      })).filter((row) => row.mtdCount > 0 || row.mtdValue > 0)
+      })).filter(
+        (row) => row.dailyCount > 0 || row.dailyValue > 0 || row.mtdCount > 0 || row.mtdValue > 0
+      )
     );
   } catch (error61) {
     console.error("L\u1ED7i overview/by-group:", error61);
