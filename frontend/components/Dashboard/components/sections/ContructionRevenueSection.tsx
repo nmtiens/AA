@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Target, CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
+import { CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
 
@@ -125,41 +125,26 @@ export const ContructionRevenueSection = ({
   return (
     <>
       <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-emerald-50 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-              <Target size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">TỔNG QUAN DOANH SỐ CÔNG TRÌNH LUỒNG ĐỎ (Năm 2026)</h3>
-              <p className="text-xs text-slate-500">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch</p>
-            </div>
-          </div>
-        </div>
+        <div className="relative w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200">
+          <button
+            onClick={handleOpenOverallDetail}
+            className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
+            title="Xem bảng chi tiết"
+          >
+            <Eye size={14} /> Chi tiết
+          </button>
 
-        <div className="mt-6 w-full flex flex-col bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={handleOpenOverallDetail}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
-              title="Xem bảng chi tiết"
-            >
-              <Eye size={14} /> Chi tiết
-            </button>
-          </div>
+          {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
+            <span className="absolute top-4 left-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+              Đơn vị: Triệu đồng
+            </span>
+          )}
 
-          <div className="w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200 relative">
-            {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
-              <span className="absolute top-3 right-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-                Đơn vị: Triệu đồng
-              </span>
-            )}
+          <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
+            TÌNH TRẠNG ĐƠN HÀNG AATN
+          </h3>
 
-            <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
-              TÌNH TRẠNG ĐƠN HÀNG AATN
-            </h3>
-
-            <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative mt-2">
+          <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative">
               <div className="w-auto shrink-0 flex flex-col gap-3">
                 {customFunnelData.map((item) => (
                   <div
@@ -211,7 +196,6 @@ export const ContructionRevenueSection = ({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Funnel Pivot Detail Modal */}
       {isFunnelPivotModalOpen && (
