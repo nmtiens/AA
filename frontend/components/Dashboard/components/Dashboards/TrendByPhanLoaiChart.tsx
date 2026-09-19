@@ -104,7 +104,7 @@ export default function TrendByPhanLoaiChart({
   displayMode,
   supportsPhanLoai = true,
 }: TrendByPhanLoaiChartProps) {
-  const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
+const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiPhanLoaiPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,7 +164,7 @@ export default function TrendByPhanLoaiChart({
     // hiển thị đúng đúng cột đó khi API tự trả về (không cần lọc thêm ở client),
     // nhưng vẫn phải gửi lên để API tôn trọng bộ lọc chung nếu người dùng có chọn.
     if (phanLoai) params.set('phanLoai', phanLoai);
-
+    if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     fetch(`/api/trend-by-phanloai?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -177,7 +177,7 @@ export default function TrendByPhanLoaiChart({
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch,hasCtWhitelist,ctWhitelistCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!canFetch) return [];
@@ -217,7 +217,7 @@ export default function TrendByPhanLoaiChart({
       if (xuong) params.set('xuong', xuong);
       if (congTrinh) params.set('congTrinh', congTrinh);
       if (dvt) params.set('dvt', dvt);
-
+      if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();

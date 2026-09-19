@@ -1,5 +1,6 @@
 import Papa from 'papaparse';
 import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
+import { getToken } from './userService';
 
 // Bảng ánh xạ tên cột kỹ thuật (snake_case từ DB) sang tên hiển thị tiếng Việt.
 // Bổ sung thêm khi phát hiện cột nào chưa có label đẹp.
@@ -67,10 +68,13 @@ const initDB = (): Promise<IDBDatabase> => {
     request.onerror = () => reject(request.error);
   });
 };
-
-export const fetchStockTotalCount = async (): Promise<number> => {
+export const fetchStockTotalCount = async (opts?: OverviewFilterOpts): Promise<number> => {
   try {
-    const r = await fetch(`${API_BASE_URL}/stock/total-count`);
+    const params = new URLSearchParams();
+    appendFilterParams(params, opts);
+    const qs = params.toString();
+    const url = qs ? `${API_BASE_URL}/stock/total-count?${qs}` : `${API_BASE_URL}/stock/total-count`;
+    const r = await fetch(url);
     if (!r.ok) throw new Error('fetch failed');
     const data = await r.json();
     return Number(data.total) || 0;
@@ -263,12 +267,10 @@ export const exportToExcel = async (data: any[], filename: string) => {
 
 // ==================== CÁC HÀM GỌI API TÍNH TOÁN Ở BACKEND ====================
 
-// ==================== CÁC HÀM GỌI API TÍNH TOÁN Ở BACKEND ====================
-
 export interface OverviewSummaryEntry {
   daily: { count: number; value: number };
   mtd: { count: number; value: number };
-  lastMonth: { count: number; value: number }; // THÊM DÒNG NÀY
+  lastMonth: { count: number; value: number };
 }
 export interface OverviewSummary {
   date: string;
@@ -292,7 +294,7 @@ export interface StockDateEntry { date: string; count: number; value: number; }
 export interface StockByProjectRow { name: string; count: number; value: number; }
 
 export interface Revenue2026Data {
-  year: number;                 // MỚI: backend trả về field này
+  year: number;
   targetRevenue2026: number;
   quarterlyTargets: { q1: number; q2: number; q3: number; q4: number };
   actual: { value: number; percent: number };
@@ -372,7 +374,7 @@ export const fetchStockDates = async (opts?: OverviewFilterOpts): Promise<StockD
     return await r.json();
   } catch (e) {
     console.error('fetchStockDates error:', e);
-    return null; // SỬA: null thay vì [] để phân biệt "lỗi" với "thực sự rỗng"
+    return null; // null thay vì [] để phân biệt "lỗi" với "thực sự rỗng"
   }
 };
 
@@ -417,7 +419,7 @@ export interface KhsxNhapKhoSummary {
 export async function fetchKhsxNhapKhoSummary(params: {
   nam: string; thang?: string; mode?: 'month' | 'week'; tuan?: string; ngay?: string;
   congTrinh?: string[]; xuong?: string[];
-  signal?: AbortSignal;   // <-- MỚI
+  signal?: AbortSignal;
 }): Promise<KhsxNhapKhoSummary | null> {
   const q = new URLSearchParams({ nam: params.nam, mode: params.mode ?? 'month' });
   if (params.thang) q.set('thang', params.thang);
@@ -425,15 +427,15 @@ export async function fetchKhsxNhapKhoSummary(params: {
   if (params.ngay) q.set('ngay', params.ngay);
   if (params.congTrinh?.length) q.set('congTrinh', params.congTrinh.join(','));
   if (params.xuong?.length) q.set('xuong', params.xuong.join(','));
- 
+
   try {
     const res = await fetch(`${API_BASE_URL}/khsx-nhapkho/summary?${q.toString()}`, {
-      signal: params.signal,   // <-- MỚI: truyền signal
+      signal: params.signal,
     });
     if (!res.ok) return null;
     return res.json();
   } catch (e: any) {
-    if (e.name === 'AbortError') return null;   // <-- MỚI
+    if (e.name === 'AbortError') return null;
     console.error('fetchKhsxNhapKhoSummary error:', e);
     return null;
   }
@@ -451,3 +453,45 @@ export const fetchStockForExport = async (dates?: string[]): Promise<DataRow[]> 
   }
 };
 
+// ==================== VIEW PROJECT MAPPING (Setup theo View) ====================
+// Danh sách công trình được admin setup cho từng view (Luồng đỏ, Căn mẫu...).
+// Lưu tập trung ở backend (bảng view_project_mapping) thay vì localStorage,
+// để mọi người dùng ở bất kỳ máy nào cũng thấy cùng 1 cấu hình do admin setup.
+
+export type ViewProjectMapping = Record<string, string[]>;
+
+export const fetchViewProjectMapping = async (): Promise<ViewProjectMapping> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/view-project-mapping`);
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchViewProjectMapping error:', e);
+    return {};
+  }
+};
+
+// SỬA: dùng chung getToken() từ userService.ts (đọc đúng key 'app_token' ở
+// localStorage/sessionStorage) thay vì tự đọc sai key 'token' như bản cũ —
+// đây là lý do POST luôn 401 trước đây dù đã đăng nhập ADMIN.
+export const saveViewProjectMapping = async (
+  viewId: string,
+  projects: string[]
+): Promise<boolean> => {
+  try {
+    const token = getToken();
+    const r = await fetch(`${API_BASE_URL}/view-project-mapping/${encodeURIComponent(viewId)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ projects }),
+    });
+    if (!r.ok) throw new Error('save failed');
+    return true;
+  } catch (e) {
+    console.error('saveViewProjectMapping error:', e);
+    return false;
+  }
+};

@@ -57717,6 +57717,14 @@ var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, p
   return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table})`;
 };
 var eqNormalized = (colExpr, paramIdx) => `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
+var hasCtWhitelist = (req) => req.query.ctWhitelist !== void 0;
+var parseCtWhitelist = (req) => String(req.query.ctWhitelist || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+var applyCtWhitelist = (req, congTrinhColExpr, conditions, params) => {
+  if (!hasCtWhitelist(req) || !congTrinhColExpr) return;
+  const wl = parseCtWhitelist(req);
+  params.push(wl);
+  conditions.push(`UPPER(TRIM(${congTrinhColExpr})) = ANY($${params.length}::text[])`);
+};
 var buildMatchedProductionCTE = (joinKey) => `
   p AS (
     SELECT DISTINCT ON ("${joinKey}")
@@ -58498,6 +58506,45 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+var viewMappingSchema = external_exports.object({
+  projects: external_exports.array(external_exports.string())
+});
+app.get("/api/view-project-mapping", async (_req, res) => {
+  try {
+    const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
+    const mapping = {};
+    r.rows.forEach((row) => {
+      mapping[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
+    });
+    res.json(mapping);
+  } catch (error61) {
+    console.error("L\u1ED7i view-project-mapping GET:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.post(
+  "/api/view-project-mapping/:viewId",
+  authenticateJWT,
+  requireRole("ADMIN"),
+  validateBody(viewMappingSchema),
+  async (req, res) => {
+    try {
+      const { viewId } = req.params;
+      const { projects } = req.body;
+      await pool.query(
+        `INSERT INTO view_project_mapping (view_id, projects, updated_at)
+         VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (view_id) DO UPDATE
+         SET projects = EXCLUDED.projects, updated_at = now()`,
+        [viewId, JSON.stringify(projects)]
+      );
+      res.json({ success: true, message: "\u0110\xE3 l\u01B0u setup" });
+    } catch (error61) {
+      console.error("L\u1ED7i view-project-mapping POST:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
 app.post("/api/auth/login", loginLimiter, validateBody(loginSchema), async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -58944,6 +58991,7 @@ app.get("/api/trend", async (req, res) => {
       params.push(congTrinh);
       conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
@@ -59155,6 +59203,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
       params.push(congTrinh);
       conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
@@ -59247,6 +59296,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       params.push(congTrinh);
       conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
@@ -59335,6 +59385,7 @@ app.get("/api/trend-by-dvt", async (req, res) => {
       params.push(congTrinh);
       conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
@@ -59423,6 +59474,7 @@ app.get("/api/trend-by-phanloai", async (req, res) => {
       params.push(congTrinh);
       conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt);
@@ -59548,6 +59600,7 @@ app.get("/api/detail", async (req, res) => {
       params.push(congTrinh);
       conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
     if (dimension === "dvt") {
       const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
       if (isUnknownValueLabel(value)) {

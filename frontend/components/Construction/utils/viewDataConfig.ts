@@ -1,80 +1,75 @@
-// src/utils/viewDataConfig.ts
+// src/components/Construction/utils/viewDataConfig.ts
 //
-// Quản lý việc setup dữ liệu riêng cho từng "view" (Công trình luồng đỏ, Căn mẫu,
-// hoặc các view khác thêm sau này). Mỗi view có 1 danh sách công trình được admin
-// tick chọn ở trang Setup — view đó CHỈ hiển thị đúng dữ liệu của các công trình
-// nằm trong danh sách này (giống 1 bộ lọc cố định gắn theo view).
-//
-// Một công trình có thể thuộc nhiều view khác nhau (không bắt buộc 1-1).
-// Mapping được lưu lại và giữ nguyên cho tới khi admin vào Setup sửa lại.
-//
-// GHI CHÚ TÍCH HỢP:
-// - Hiện lưu bằng localStorage để chạy được ngay không cần backend mới.
-//   Khi có API thật, thay 2 hàm loadViewMapping / saveViewMapping bằng
-//   fetch tới endpoint của bạn (gợi ý: GET/POST /api/view-data-config).
+// Lưu mapping "view -> danh sách công trình" tập trung ở backend (bảng
+// view_project_mapping) thay vì localStorage, để admin setup 1 lần thì MỌI
+// người truy cập web ở bất kỳ đâu đều thấy cùng 1 cấu hình. Do gọi API là
+// bất đồng bộ, dùng 1 cache trong bộ nhớ (module-level) + cơ chế preload để
+// các component vẫn đọc được đồng bộ (getProjectsForView) ở chỗ cần.
 
 import { DataRow } from '../../../types';
+import { fetchViewProjectMapping, saveViewProjectMapping as apiSaveViewProjectMapping } from '../../../services/dataService';
 
 export interface ViewDefinition {
   id: string;
   label: string;
 }
 
-// Đăng ký các view có thể setup dữ liệu riêng ở đây.
-// Muốn thêm view mới (vd "Công trình VIP") chỉ cần thêm 1 dòng vào đây,
-// không cần sửa gì thêm ở util này.
 export const CONFIGURABLE_VIEWS: ViewDefinition[] = [
   { id: 'luong-do', label: 'Công trình luồng đỏ' },
   { id: 'can-mau', label: 'Căn mẫu' },
 ];
 
-const STORAGE_KEY = 'view_project_mapping_v1';
-
-// Cấu trúc lưu: { [viewId]: string[] danh sách công trình được chọn cho view đó }
 type ViewMapping = Record<string, string[]>;
 
-/** Đọc toàn bộ mapping view -> danh sách công trình đã setup */
-export function loadViewMapping(): ViewMapping {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
+// Cache trong bộ nhớ (module-level) — nạp khi app khởi động (App.tsx) và khi
+// admin lưu setup mới. Các component đọc đồng bộ từ cache này.
+let cachedMapping: ViewMapping = {};
+let hasLoadedOnce = false;
+let inFlightLoad: Promise<ViewMapping> | null = null;
+
+/** Nạp mapping mới nhất từ backend, cập nhật cache. Có thể gọi nhiều lần từ
+ * nhiều nơi (App.tsx prefetch + wrapper gate) — dùng chung 1 request nhờ
+ * inFlightLoad, không gọi API trùng lặp. */
+export async function loadViewMapping(): Promise<ViewMapping> {
+  if (inFlightLoad) return inFlightLoad;
+  inFlightLoad = fetchViewProjectMapping()
+    .then((data) => {
+      cachedMapping = data || {};
+      hasLoadedOnce = true;
+      return cachedMapping;
+    })
+    .finally(() => { inFlightLoad = null; });
+  return inFlightLoad;
+}
+
+/** Lưu danh sách công trình cho 1 view (gọi API — chỉ ADMIN thành công),
+ * đồng thời cập nhật cache cục bộ ngay để UI phản ánh tức thì. */
+export async function setProjectsForView(viewId: string, projects: string[]): Promise<boolean> {
+  const ok = await apiSaveViewProjectMapping(viewId, projects);
+  if (ok) {
+    cachedMapping = { ...cachedMapping, [viewId]: projects };
   }
+  return ok;
 }
 
-/** Lưu toàn bộ mapping (ghi đè) */
-export function saveViewMapping(map: ViewMapping) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+/** Đọc đồng bộ từ cache — dùng ở những nơi cần giá trị ngay lập tức (component
+ * render). Trước khi cache có dữ liệu thật (hasLoadedOnce = false), trả về
+ * mảng rỗng — các wrapper trong App.tsx đảm bảo không render trang phụ thuộc
+ * vào hàm này cho tới khi loadViewMapping() xong (xem isViewMappingLoaded). */
+export function getProjectsForView(viewId: string): string[] {
+  return cachedMapping[viewId] || [];
 }
 
-/** Lấy danh sách công trình đã setup cho 1 view cụ thể */
-export function getProjectsForView(viewId: string, map?: ViewMapping): string[] {
-  const m = map || loadViewMapping();
-  return m[viewId] || [];
+/** Cho component/wrapper biết cache đã có dữ liệu thật hay chưa — dùng để
+ * quyết định có cần chờ (hiện loader) trước khi render hay không. */
+export function isViewMappingLoaded(): boolean {
+  return hasLoadedOnce;
 }
 
-/** Lưu danh sách công trình cho 1 view cụ thể (ghi đè riêng view đó, giữ nguyên các view khác) */
-export function setProjectsForView(viewId: string, projects: string[]) {
-  const current = loadViewMapping();
-  saveViewMapping({ ...current, [viewId]: projects });
+export function isProjectInView(congTrinh: string, viewId: string): boolean {
+  return getProjectsForView(viewId).includes(congTrinh);
 }
 
-/** Kiểm tra 1 công trình có thuộc view hay không */
-export function isProjectInView(congTrinh: string, viewId: string, map?: ViewMapping): boolean {
-  const list = getProjectsForView(viewId, map);
-  return list.includes(congTrinh);
-}
-
-/**
- * Lọc một mảng DataRow: CHỈ giữ lại các dòng có công trình nằm trong danh sách
- * đã setup cho view. Nếu view chưa setup gì (danh sách rỗng), trả về mảng rỗng
- * — đúng tinh thần "bộ lọc": chưa chọn gì thì chưa hiển thị gì.
- *
- * @param data         mảng dữ liệu gốc (production/material/order/...)
- * @param congTrinhKey tên cột chứa giá trị công trình trong DataRow
- * @param viewId       id của view cần lọc (vd 'luong-do')
- */
 export function filterByView(
   data: DataRow[],
   congTrinhKey: string,
@@ -86,11 +81,6 @@ export function filterByView(
   return data.filter((row) => allowed.has(String(row[congTrinhKey] || '')));
 }
 
-/**
- * Lấy danh sách công trình duy nhất (unique) từ nhiều nguồn dữ liệu khác nhau
- * (production, material, order, khsx, ...) — dùng để hiển thị lên trang Setup
- * cho admin tick chọn, tránh bị sót công trình chỉ xuất hiện ở 1 bảng.
- */
 export function collectUniqueProjects(
   sources: { data: DataRow[]; key: string }[]
 ): string[] {
@@ -103,4 +93,4 @@ export function collectUniqueProjects(
     });
   });
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
-}
+} 

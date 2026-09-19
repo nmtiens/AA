@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ShoppingCart, FileText, ClipboardList, Package, Box, Eye, Download, X,
   Layers, Building2, Briefcase, XCircle as CloseIcon,
@@ -56,11 +56,25 @@ export interface StockByProjectRow {
 
 interface OrderOverviewSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
- isSidebarCollapsed: boolean;   // ← THÊM DÒNG NÀY
+  isSidebarCollapsed: boolean;
   hasAnyData: boolean;
-  
-filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
 
+  filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
+  // ✅ FIX: danh sách công trình đã setup cho view hiện tại (ConstructionRedFlow /
+  // ConstructionSampleUnit truyền vào; Dashboard tổng KHÔNG truyền -> undefined).
+  // Dùng để tính effectiveCongTrinh bên dưới, PHẢI GIỐNG HỆT công thức
+  // getEffectiveCongTrinh() trong useOverviewSummary.ts, nếu không filterKey ở đây
+  // sẽ lệch với key mà loadGroupAnalysis dùng để GHI cache, khiến
+  // toAnalysisItems(groupAnalysisCache[...]) luôn đọc phải mảng rỗng.
+  viewProjectWhitelist?: string[];
+
+  // ✅ MỚI: khi true, hiển thị số liệu GIÁ TRỊ (chế độ SUM) ở dạng số đầy đủ (VNĐ)
+  // thay vì rút gọn chia 1000 + đơn vị "Tỷ". Dùng cho các view theo công trình
+  // (ConstructionRedFlow "Công trình luồng đỏ", ConstructionSampleUnit "Căn mẫu")
+  // vì giá trị ở các view này thường nhỏ, hiển thị "Tỷ" làm mất độ chính xác
+  // (vd 1.6 Tỷ thay vì 1.600.000.000 VNĐ). Dashboard tổng không truyền prop này
+  // -> mặc định false -> giữ nguyên hành vi cũ (chia 1000 + "Tỷ").
+  useDetailedNumbers?: boolean;
 
   overviewMetric: DisplayMetric;
   setOverviewMetric: React.Dispatch<React.SetStateAction<DisplayMetric>>;
@@ -85,7 +99,7 @@ filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangI
   loadGroupAnalysis: (key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export') => void;
   handleOpenOrderExport: () => void;
   handleOpenGenericExport: (flow: 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock') => void;
-  loadStockByProject: () => void; 
+  loadStockByProject: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,9 +108,11 @@ filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangI
 
 export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   sectionRef,
-  isSidebarCollapsed, 
+  isSidebarCollapsed,
   hasAnyData,
-  filters, // MỚI
+  filters,
+  viewProjectWhitelist, // ✅ FIX
+  useDetailedNumbers = false, // ✅ MỚI
   overviewMetric,
   setOverviewMetric,
   getContextLabel,
@@ -151,45 +167,60 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     opener();
   };
 
+  // ✅ MỚI: helper format số GIÁ TRỊ (chế độ SUM) — thay thế cho các đoạn lặp lại
+  // "(value / 1000).toLocaleString(...)" + đơn vị 'Tỷ' rải rác khắp component.
+  // - useDetailedNumbers = false (mặc định, Dashboard tổng): giữ nguyên hành vi cũ,
+  //   chia 1000 và làm tròn 1 chữ số thập phân -> hiển thị dạng "1.6".
+  // - useDetailedNumbers = true (view luồng đỏ / căn mẫu): hiển thị số đầy đủ,
+  //   làm tròn số nguyên (VNĐ không có phần thập phân) -> "1,600,000,000".
+ const formatValueNumber = (value: number): string => {
+  if (useDetailedNumbers) {
+    // ✅ SỬA: value đã ở đơn vị TRIỆU ĐỒNG sẵn -> hiển thị thẳng, KHÔNG nhân
+    // 1_000_000 nữa (trước đây ra VNĐ đầy đủ, giờ hiển thị "Triệu" theo yêu
+    // cầu — chỉ áp dụng cho 2 view Luồng đỏ/Căn mẫu, Dashboard tổng không đổi).
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    });
+  }
+  return (value / 1000).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  });
+};
+
+  // ✅ SỬA: nhãn đơn vị đổi thành 'Triệu' khi useDetailedNumbers=true
+  const valueUnitLabel = useDetailedNumbers ? 'Triệu' : 'Tỷ';
+
   if (!hasAnyData) return null;
 
-  // --- MỚI: Khóa cache phải phản ánh đúng TẬP NGÀY đang lọc ngoài dashboard.
-  // Phải khớp CHÍNH XÁC với cách useOverviewSummary.loadGroupAnalysis tính filterKey,
-  // nếu không 2 bên sẽ ghi/đọc lệch key nhau.
- const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
-  `_x-${[...filters.xuong].sort().join('|')}`;
-const filterKey = (overviewDateFilters.length > 0
-  ? [...overviewDateFilters].sort().join('_')
-  : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
+  // ✅ FIX: effectiveCongTrinh = giao giữa bộ lọc tổng (filters.congTrinh) và
+  // whitelist của view (viewProjectWhitelist) — PHẢI dùng công thức GIỐNG HỆT
+  // getEffectiveCongTrinh() bên useOverviewSummary.ts:
+  // - viewProjectWhitelist === undefined (Dashboard tổng, không scope theo view)
+  //   -> không áp whitelist, dùng nguyên filters.congTrinh.
+  // - viewProjectWhitelist là mảng (kể cả []) -> đang ở trang theo view -> áp
+  //   whitelist: nếu user chưa chọn gì trên dropdown "Tên Công Trình" thì mặc định
+  //   dùng ĐÚNG whitelist của view; nếu đã chọn thì giao với whitelist.
+  const effectiveCongTrinh = viewProjectWhitelist === undefined
+    ? filters.congTrinh
+    : filters.congTrinh.length > 0
+      ? filters.congTrinh.filter(ct => viewProjectWhitelist.includes(ct))
+      : viewProjectWhitelist;
+
+  // --- Khóa cache phải phản ánh đúng TẬP NGÀY đang lọc ngoài dashboard.
+  // Phải khớp CHÍNH XÁC với cách useOverviewSummary.loadGroupAnalysis tính filterKey
+  // (đã dùng effectiveCongTrinh ở đó), nếu không 2 bên sẽ ghi/đọc lệch key nhau.
+  const filterSuffix = `_ct-${[...effectiveCongTrinh].sort().join('|')}` + // ✅ FIX
+    `_x-${[...filters.xuong].sort().join('|')}`;
+  const filterKey = (overviewDateFilters.length > 0
+    ? [...overviewDateFilters].sort().join('_')
+    : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
 
   // --- MỚI: Nhãn cột "ngày" trong modal chi tiết — phản ánh đúng khi chọn nhiều ngày.
   const periodLabel = overviewDateFilters.length > 1
     ? `${overviewDateFilters.length} NGÀY ĐÃ CHỌN`
     : `NGÀY ${latestUnifiedDate ? `${latestUnifiedDate.getDate()}/${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`;
-
-  useEffect(() => {
-  if (isIpoDetailModalOpen && ipoTab === 'detail') loadGroupAnalysis('order');
-}, [isIpoDetailModalOpen, ipoTab, filterKey]);
-
-useEffect(() => {
-  if (isTkbvDetailModalOpen && tkbvTab === 'detail') loadGroupAnalysis('tkbv');
-}, [isTkbvDetailModalOpen, tkbvTab, filterKey]);
-
-useEffect(() => {
-  if (isPthspDetailModalOpen && pthspTab === 'detail') loadGroupAnalysis('pthsp');
-}, [isPthspDetailModalOpen, pthspTab, filterKey]);
-
-useEffect(() => {
-  if (isInventoryDetailModalOpen && inventoryTab === 'detail') loadGroupAnalysis('inventory');
-}, [isInventoryDetailModalOpen, inventoryTab, filterKey]);
-
-useEffect(() => {
-  if (isExportDetailModalOpen && exportTab === 'detail') loadGroupAnalysis('export');
-}, [isExportDetailModalOpen, exportTab, filterKey]);
-
-useEffect(() => {
-  if (isStockDetailModalOpen && stockTab === 'detail') loadStockByProject();
-}, [isStockDetailModalOpen, stockTab, filterKey]);
 
    return (
     <TrendFilterProvider
@@ -198,7 +229,8 @@ useEffect(() => {
       unifiedDateOptions={unifiedDateOptions}
       defaultXuong={filters.xuong[0] || ''}          // MỚI
       defaultCongTrinh={filters.congTrinh[0] || ''}  // MỚI
-      resetKey={trendResetKey}                        // MỚI
+      resetKey={trendResetKey}    
+      viewProjectWhitelist={viewProjectWhitelist}                     // MỚI
     >
     <>
       <div
@@ -310,13 +342,10 @@ useEffect(() => {
                   <h4 className="text-4xl font-extrabold text-pink-600 tracking-tight">
                     {overviewMetric === 'COUNT'
                       ? (overviewSummary?.order.daily.count ?? 0).toLocaleString('en-US')
-                      : ((overviewSummary?.order.daily.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        })}
+                      : formatValueNumber(overviewSummary?.order.daily.value ?? 0)}
                   </h4>
                   <span className="text-sm font-medium text-pink-400">
-                    {overviewMetric === 'COUNT' ? 'đơn hàng (HEX)' : 'Tỷ'}
+                    {overviewMetric === 'COUNT' ? 'đơn hàng (HEX)' : valueUnitLabel}
                   </span>
                 </div>
               </div>
@@ -328,10 +357,7 @@ useEffect(() => {
                   <span className="text-3xl font-extrabold text-pink-700">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.order.mtd.count ?? 0).toLocaleString('en-US')} đơn`
-                      : ((overviewSummary?.order.mtd.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.order.mtd.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-1">
@@ -341,10 +367,7 @@ useEffect(() => {
                   <span className="text-lg font-extrabold text-pink-700/70">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.order.lastMonth?.count ?? 0).toLocaleString('en-US')} đơn`
-                      : ((overviewSummary?.order.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.order.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
               </div>
@@ -380,13 +403,10 @@ useEffect(() => {
                   <h4 className="text-4xl font-extrabold text-blue-600 tracking-tight">
                     {overviewMetric === 'COUNT'
                       ? (overviewSummary?.tkbv.daily.count ?? 0).toLocaleString('en-US')
-                      : ((overviewSummary?.tkbv.daily.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        })}
+                      : formatValueNumber(overviewSummary?.tkbv.daily.value ?? 0)}
                   </h4>
                   <span className="text-sm font-medium text-blue-400">
-                    {overviewMetric === 'COUNT' ? 'bản vẽ (Items)' : 'Tỷ'}
+                    {overviewMetric === 'COUNT' ? 'bản vẽ (Items)' : valueUnitLabel}
                   </span>
                 </div>
               </div>
@@ -398,10 +418,7 @@ useEffect(() => {
                   <span className="text-3xl font-extrabold text-blue-700">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.tkbv.mtd.count ?? 0).toLocaleString('en-US')} bản vẽ`
-                      : ((overviewSummary?.tkbv.mtd.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.tkbv.mtd.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-1">
@@ -411,10 +428,7 @@ useEffect(() => {
                   <span className="text-lg font-extrabold text-blue-700/70">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.tkbv.lastMonth?.count ?? 0).toLocaleString('en-US')} bản vẽ`
-                      : ((overviewSummary?.tkbv.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.tkbv.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
               </div>
@@ -450,13 +464,10 @@ useEffect(() => {
                   <h4 className="text-4xl font-extrabold text-purple-600 tracking-tight">
                     {overviewMetric === 'COUNT'
                       ? (overviewSummary?.pthsp.daily.count ?? 0).toLocaleString('en-US')
-                      : ((overviewSummary?.pthsp.daily.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        })}
+                      : formatValueNumber(overviewSummary?.pthsp.daily.value ?? 0)}
                   </h4>
                   <span className="text-sm font-medium text-purple-400">
-                    {overviewMetric === 'COUNT' ? 'phiếu (Items)' : 'Tỷ'}
+                    {overviewMetric === 'COUNT' ? 'phiếu (Items)' : valueUnitLabel}
                   </span>
                 </div>
               </div>
@@ -468,10 +479,7 @@ useEffect(() => {
                   <span className="text-3xl font-extrabold text-purple-700">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.pthsp.mtd.count ?? 0).toLocaleString('en-US')} phiếu`
-                      : ((overviewSummary?.pthsp.mtd.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.pthsp.mtd.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-1">
@@ -481,10 +489,7 @@ useEffect(() => {
                   <span className="text-lg font-extrabold text-purple-700/70">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.pthsp.lastMonth?.count ?? 0).toLocaleString('en-US')} phiếu`
-                      : ((overviewSummary?.pthsp.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.pthsp.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
               </div>
@@ -518,13 +523,10 @@ useEffect(() => {
                   <h4 className="text-4xl font-extrabold text-teal-600 tracking-tight">
                     {overviewMetric === 'COUNT'
                       ? (overviewSummary?.inventory.daily.count ?? 0).toLocaleString('en-US')
-                      : ((overviewSummary?.inventory.daily.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        })}
+                      : formatValueNumber(overviewSummary?.inventory.daily.value ?? 0)}
                   </h4>
                   <span className="text-sm font-medium text-teal-400">
-                    {overviewMetric === 'COUNT' ? 'items' : 'Tỷ'}
+                    {overviewMetric === 'COUNT' ? 'items' : valueUnitLabel}
                   </span>
                 </div>
               </div>
@@ -537,23 +539,17 @@ useEffect(() => {
                     <span className="text-3xl font-extrabold text-teal-700">
                       {overviewMetric === 'COUNT'
                         ? `${(overviewSummary?.inventory.mtd.count ?? 0).toLocaleString('en-US')} items`
-                        : ((overviewSummary?.inventory.mtd.value ?? 0) / 1000).toLocaleString('en-US', {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 1,
-                          }) + ' Tỷ'}
+                        : `${formatValueNumber(overviewSummary?.inventory.mtd.value ?? 0)} ${valueUnitLabel}`}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-1">
-                    <span className="text-xs font-bold text-teal-800/70 uppercase">
+                    <span className="text-[9px] font-bold text-teal-800/70 uppercase">
                       Lũy kế T{latestUnifiedDate?.getMonth()}:
                     </span>
                     <span className="text-lg font-extrabold text-teal-700/70">
                       {overviewMetric === 'COUNT'
                         ? `${(overviewSummary?.inventory.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
-                        : ((overviewSummary?.inventory.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', {
-                            minimumFractionDigits: 0,
-                            maximumFractionDigits: 1,
-                          }) + ' Tỷ'}
+                        : `${formatValueNumber(overviewSummary?.inventory.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
                     </span>
                   </div>
                 </div>
@@ -588,13 +584,10 @@ useEffect(() => {
                   <h4 className="text-4xl font-extrabold text-amber-600 tracking-tight">
                     {overviewMetric === 'COUNT'
                       ? (overviewSummary?.export.daily.count ?? 0).toLocaleString('en-US')
-                      : ((overviewSummary?.export.daily.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        })}
+                      : formatValueNumber(overviewSummary?.export.daily.value ?? 0)}
                   </h4>
                   <span className="text-sm font-medium text-amber-400">
-                    {overviewMetric === 'COUNT' ? 'items' : 'Tỷ'}
+                    {overviewMetric === 'COUNT' ? 'items' : valueUnitLabel}
                   </span>
                 </div>
               </div>
@@ -606,10 +599,7 @@ useEffect(() => {
                   <span className="text-3xl font-extrabold text-amber-700">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.export.mtd.count ?? 0).toLocaleString('en-US')} items`
-                      : ((overviewSummary?.export.mtd.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.export.mtd.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mt-1">
@@ -619,10 +609,7 @@ useEffect(() => {
                   <span className="text-lg font-extrabold text-amber-700/70">
                     {overviewMetric === 'COUNT'
                       ? `${(overviewSummary?.export.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
-                      : ((overviewSummary?.export.lastMonth?.value ?? 0) / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(overviewSummary?.export.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
                   </span>
                 </div>
               </div>
@@ -661,13 +648,10 @@ useEffect(() => {
                   <h4 className="text-4xl font-extrabold text-slate-700 tracking-tight">
                     {overviewMetric === 'COUNT'
                       ? stockOverviewCardValue.toLocaleString('en-US')
-                      : (stockOverviewCardValue / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        })}
+                      : formatValueNumber(stockOverviewCardValue)}
                   </h4>
                   <span className="text-sm font-medium text-slate-500">
-                    {overviewMetric === 'COUNT' ? 'items' : 'Tỷ'}
+                    {overviewMetric === 'COUNT' ? 'items' : valueUnitLabel}
                   </span>
                 </div>
               </div>
@@ -685,10 +669,7 @@ useEffect(() => {
                   <span className="text-3xl font-extrabold text-slate-700 shrink-0">
                     {overviewMetric === 'COUNT'
                       ? `${latestStockStats.count.toLocaleString('en-US')} items`
-                      : (latestStockStats.value / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(latestStockStats.value)} ${valueUnitLabel}`}
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2 mt-2">
@@ -706,10 +687,7 @@ useEffect(() => {
                   <span className="text-lg font-extrabold text-slate-500 shrink-0">
                     {overviewMetric === 'COUNT'
                       ? `${latestStockStatsPrevMonth.count.toLocaleString('en-US')} items`
-                      : (latestStockStatsPrevMonth.value / 1000).toLocaleString('en-US', {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 1,
-                        }) + ' Tỷ'}
+                      : `${formatValueNumber(latestStockStatsPrevMonth.value)} ${valueUnitLabel}`}
                   </span>
                 </div>
               </div>
@@ -794,7 +772,7 @@ useEffect(() => {
                     unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
                     primaryColorClass="text-pink-600"
                     secondaryColorClass="text-indigo-600"
-                    defaultExcludedKeys={[ 'OTHERS']}
+                    defaultExcludedKeys={['ABC', 'OTHERS', 'X.ĐB']}
                   />
 
                   <div className="border-t border-slate-200 pt-6">

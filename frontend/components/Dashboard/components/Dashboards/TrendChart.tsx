@@ -190,7 +190,7 @@ interface TrendChartProps {
 
 export default function TrendChart({ source, embedded = false, displayMode }: TrendChartProps) {
   // Toàn bộ filter (ngày, granularity, xưởng, công trình, ĐVT, phân loại) đến từ SharedDateFilterBar / context
-  const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
+const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -245,7 +245,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
-
+    if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     fetch(`/api/trend?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -263,7 +263,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
   const chartData = useMemo(() => {
     if (!hasValidRange) return [];
     return formatChartData(raw, granularity, displayMode, dateFrom, dateTo);
-  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange]);
+  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, hasCtWhitelist, ctWhitelistCsv]);
 
   const avgAll = useMemo(() => {
     // Riêng tồn kho ('stock'): chỉ tính trung bình trên các ngày CÓ dữ liệu
@@ -294,7 +294,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
       if (congTrinh) params.set('congTrinh', congTrinh);
       if (dvt) params.set('dvt', dvt);
       if (phanLoai) params.set('phanLoai', phanLoai);
-
+      if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();

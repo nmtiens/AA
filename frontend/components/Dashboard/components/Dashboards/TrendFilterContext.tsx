@@ -33,6 +33,17 @@ interface TrendFilterState {
   congTrinhList: FilterOption[];
   dvtList: FilterOption[];
   phanLoaiList: FilterOption[];
+
+  // ✅ FIX: cờ + danh sách whitelist công trình của view hiện tại (đã chuẩn hóa
+  // UPPER/TRIM), dùng để mọi chart con gửi kèm lên các endpoint /api/trend*,
+  // /api/detail dưới dạng query "ctWhitelist" — GIỮ NGUYÊN Ý NGHĨA:
+  // - hasCtWhitelist === false: không scope theo view (Dashboard tổng) -> các chart
+  //   KHÔNG gửi tham số ctWhitelist -> server không lọc theo whitelist.
+  // - hasCtWhitelist === true: có scope theo view -> các chart LUÔN gửi tham số
+  //   ctWhitelist (kể cả khi ctWhitelistCsv === '', nghĩa là view chưa có công trình
+  //   nào -> server phải trả về 0 dòng, không phải "không lọc").
+  hasCtWhitelist: boolean;
+  ctWhitelistCsv: string;
 }
 
 const TrendFilterContext = createContext<TrendFilterState | null>(null);
@@ -47,6 +58,9 @@ const yesterday = () => daysAgo(1);
 // nguồn overviewDateFilters ngoài truyền vào — ví dụ trang ChartOverview)
 const DEFAULT_RANGE_DAYS = 7;
 
+// ✅ FIX: chuẩn hóa tên công trình để so khớp whitelist không phân biệt hoa/thường/khoảng trắng
+const normalizeCT = (s: string) => s.trim().toUpperCase();
+
 interface TrendFilterProviderProps {
   children: ReactNode;
   overviewDateFilters?: string[];
@@ -60,6 +74,13 @@ interface TrendFilterProviderProps {
   // MỚI: đổi giá trị này (vd: tăng dần) mỗi khi 1 modal được MỞ -> Provider sẽ
   // tự đồng bộ lại xuong/congTrinh về đúng defaultXuong/defaultCongTrinh tại thời điểm đó.
   resetKey?: number;
+
+  // ✅ FIX: danh sách công trình đã setup cho view hiện tại (ConstructionRedFlow /
+  // ConstructionSampleUnit truyền vào; Dashboard tổng KHÔNG truyền -> undefined).
+  // undefined = không scope theo view (giữ nguyên hành vi cũ, không lọc gì thêm).
+  // mảng (kể cả []) = có scope theo view -> mọi chart con + dropdown công trình đều
+  // phải giới hạn theo đúng whitelist này.
+  viewProjectWhitelist?: string[];
 }
 
 export function TrendFilterProvider({
@@ -70,6 +91,7 @@ export function TrendFilterProvider({
   defaultXuong = '',     // MỚI
   defaultCongTrinh = '', // MỚI
   resetKey = 0,          // MỚI
+  viewProjectWhitelist,  // ✅ FIX
 }: TrendFilterProviderProps) {
   const isControlled = overviewDateFilters !== undefined && setOverviewDateFilters !== undefined;
 
@@ -96,7 +118,10 @@ export function TrendFilterProvider({
   }, [resetKey]);
 
   const [xuongList, setXuongList] = useState<FilterOption[]>([]);
-  const [congTrinhList, setCongTrinhList] = useState<FilterOption[]>([]);
+  // ✅ FIX: đổi tên thành rawCongTrinhList — đây là danh sách TOÀN BỘ công trình của
+  // hệ thống lấy từ /api/filters/cong-trinh, chưa lọc theo view. congTrinhList thực sự
+  // trả ra context (bên dưới) sẽ là bản đã lọc theo viewProjectWhitelist.
+  const [rawCongTrinhList, setRawCongTrinhList] = useState<FilterOption[]>([]);
   const [dvtList, setDvtList] = useState<FilterOption[]>([]);
   const [phanLoaiList, setPhanLoaiList] = useState<FilterOption[]>([]);
 
@@ -111,12 +136,30 @@ export function TrendFilterProvider({
     ]).then(([xuongData, ctData, dvtData, plData]) => {
       if (cancelled) return;
       setXuongList(xuongData);
-      setCongTrinhList(ctData);
+      setRawCongTrinhList(ctData);
       setDvtList(dvtData);
       setPhanLoaiList(plData);
     });
     return () => { cancelled = true; };
   }, []);
+
+  // ✅ FIX: danh sách công trình hiển thị trong dropdown — nếu có scope theo view thì
+  // CHỈ giữ lại những công trình nằm trong viewProjectWhitelist, tránh người dùng chọn
+  // nhầm 1 công trình ngoài view (điều này cũng là nguồn gốc gây lệch dữ liệu như đã
+  // thấy: dropdown liệt kê toàn bộ công trình hệ thống dù đang ở view đã scope).
+  const congTrinhList = useMemo(() => {
+    if (viewProjectWhitelist === undefined) return rawCongTrinhList;
+    const wl = new Set(viewProjectWhitelist.map(normalizeCT));
+    return rawCongTrinhList.filter(o => wl.has(normalizeCT(o.name)) || wl.has(normalizeCT(o.code)));
+  }, [rawCongTrinhList, viewProjectWhitelist]);
+
+  // ✅ FIX: cờ + chuỗi whitelist (đã chuẩn hóa, join bằng dấu phẩy) để các chart con gửi
+  // kèm lên mọi endpoint /api/trend*, /api/detail. Xem giải thích ở TrendFilterState.
+  const hasCtWhitelist = viewProjectWhitelist !== undefined;
+  const ctWhitelistCsv = useMemo(
+    () => (viewProjectWhitelist ?? []).map(normalizeCT).join(','),
+    [viewProjectWhitelist]
+  );
 
   // dateFrom/dateTo (ISO yyyy-mm-dd) khi controlled = min/max của
   // overviewDateFilters (dd/mm/yyyy). Rỗng nếu chưa chọn ngày nào.
@@ -228,6 +271,7 @@ export function TrendFilterProvider({
         activePresetDays,
         xuong, setXuong, congTrinh, setCongTrinh, dvt, setDvt, phanLoai, setPhanLoai, clearExtraFilters,
         xuongList, congTrinhList, dvtList, phanLoaiList,
+        hasCtWhitelist, ctWhitelistCsv, // ✅ FIX
       }}
     >
       {children}

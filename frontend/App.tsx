@@ -7,6 +7,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
+// MỚI: prefetch + gate cho mapping "view -> danh sách công trình" (xem ConstructionRedFlowWrapper / ConstructionSampleUnitWrapper bên dưới).
+import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
@@ -27,6 +29,15 @@ const FullScreenLoader = () => (
 );
 
 const App: React.FC = () => {
+  // MỚI: bắn request lấy view-project-mapping ngay khi app khởi động, KHÔNG
+  // await/chặn render — tới lúc user vào 2 trang Công trình (Luồng đỏ/Căn mẫu)
+  // thì thường đã có sẵn trong cache (xem loadViewMapping trong viewDataConfig.ts).
+  // Nếu user vào thẳng URL đó trước khi request này xong, wrapper bên dưới sẽ
+  // tự chờ thêm (gate) — nhờ inFlightLoad dùng chung nên không gọi API 2 lần.
+  useEffect(() => {
+    loadViewMapping();
+  }, []);
+
   return (
     <ToastProvider>
       <AuthProvider>
@@ -82,12 +93,43 @@ const RequirePermission: React.FC<{ children: React.ReactElement, viewId: string
 
 // Wrapper components
 const DashboardWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <Dashboard {...context} />; };
+
+// MỚI: gate cho tới khi view-project-mapping đã load xong (isViewMappingLoaded),
+// tránh trường hợp getProjectsForView() trả về mảng rỗng tạm thời khi user mở
+// thẳng URL này trước khi prefetch ở App() kịp xong — vì loadViewMapping() dùng
+// chung inFlightLoad nên gọi lại ở đây không tốn thêm request nếu đã có 1 cái
+// đang chạy.
 const ConstructionRedFlowWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
+  const [mappingReady, setMappingReady] = useState(isViewMappingLoaded());
+
+  useEffect(() => {
+    if (mappingReady) return;
+    let cancelled = false;
+    loadViewMapping().then(() => {
+      if (!cancelled) setMappingReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [mappingReady]);
+
+  if (!mappingReady) return <FullScreenLoader />;
   return <ConstructionRedFlow {...context} />;
 };
+
 const ConstructionSampleUnitWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
+  const [mappingReady, setMappingReady] = useState(isViewMappingLoaded());
+
+  useEffect(() => {
+    if (mappingReady) return;
+    let cancelled = false;
+    loadViewMapping().then(() => {
+      if (!cancelled) setMappingReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [mappingReady]);
+
+  if (!mappingReady) return <FullScreenLoader />;
   return <ConstructionSampleUnit {...context} />;
 };
 

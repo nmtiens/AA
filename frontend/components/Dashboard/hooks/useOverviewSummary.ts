@@ -34,10 +34,13 @@ interface UseOverviewSummaryParams {
   expDateKey: string | undefined;
   expCongTrinhKey: string | undefined;
   expXuongKey: string | undefined;
-filters: Pick<DashboardFiltersState, 'congTrinh' | 'xuong' | 'tinhTrang' | 'tinhTrangIpo'>; // MỚI: thêm 2 field
+  filters: Pick<DashboardFiltersState, 'congTrinh' | 'xuong' | 'tinhTrang' | 'tinhTrangIpo'>;
   unifiedDateOptions: string[];
-
-
+  // ✅ FIX: optional — chỉ các trang theo VIEW (ConstructionRedFlow, ConstructionSampleUnit)
+  // mới truyền tham số này. Trang Dashboard tổng KHÔNG truyền -> không được coi là lỗi,
+  // và KHÔNG được ép buộc, nếu không sẽ crash "Cannot read properties of undefined
+  // (reading 'length')" ngay khi Dashboard tổng gọi hook này.
+  viewProjectWhitelist?: string[];
 }
 
 /**
@@ -45,6 +48,18 @@ filters: Pick<DashboardFiltersState, 'congTrinh' | 'xuong' | 'tinhTrang' | 'tinh
  * summary (debounce + abort), dữ liệu lọc theo ngày / lũy kế tháng (MTD) cho 5 nguồn
  * (Order, TKBV, PTHSP, Inventory, Export), và cache phân tích theo nhóm (Xưởng/Công trình)
  * dùng cho các modal chi tiết.
+ *
+ * QUAN TRỌNG: mọi lời gọi API (fetchOverviewSummary / fetchOverviewByGroup) đều phải
+ * lọc theo viewProjectWhitelist (danh sách công trình đã setup cho view đang xem ở
+ * ConstructionSetup), KHÔNG được dùng thẳng filters.congTrinh (bộ lọc tổng trên UI) —
+ * vì khi filters.congTrinh rỗng (chưa chọn gì), server sẽ trả về TOÀN BỘ công trình
+ * trong hệ thống, không giới hạn theo view. Dùng getEffectiveCongTrinh() bên dưới ở
+ * MỌI nơi cần truyền congTrinh cho fetch.
+ *
+ * ✅ FIX: viewProjectWhitelist là OPTIONAL. Nếu hook được gọi từ một nơi KHÔNG có khái
+ * niệm "view" (ví dụ Dashboard tổng — không truyền tham số này), getEffectiveCongTrinh()
+ * sẽ coi như "không giới hạn theo view" và trả nguyên filters.congTrinh — giữ đúng hành
+ * vi cũ, không còn crash.
  */
 export function useOverviewSummary({
   orderData,
@@ -61,6 +76,7 @@ export function useOverviewSummary({
   expXuongKey,
   filters,
   unifiedDateOptions,
+  viewProjectWhitelist, // ✅ FIX: có thể là undefined
 }: UseOverviewSummaryParams) {
 
   const [overviewSummary, setOverviewSummary] = useState<OverviewSummary | null>(null);
@@ -72,6 +88,43 @@ export function useOverviewSummary({
   const overviewFetchIdRef = useRef(0);
   const hasInitializedOverviewDate = useRef(false);
 
+  // ✅ FIX: hàm dùng chung — giao giữa bộ lọc tổng (filters.congTrinh) và danh sách
+  // công trình đã setup cho view (viewProjectWhitelist).
+  //
+  // - viewProjectWhitelist === undefined  -> hook đang được dùng ở nơi KHÔNG scope theo
+  //   view (Dashboard tổng) -> KHÔNG áp whitelist, trả nguyên filters.congTrinh y như cũ.
+  // - viewProjectWhitelist là mảng (kể cả []) -> đang ở trang theo view -> áp whitelist:
+  //   nếu user CHƯA chọn gì trên dropdown "Tên Công Trình" thì mặc định dùng ĐÚNG
+  //   whitelist của view (không phải "tất cả"); nếu đã chọn thì giao với whitelist.
+  const getEffectiveCongTrinh = (): string[] => {
+    if (viewProjectWhitelist === undefined) {
+      return filters.congTrinh;
+    }
+    if (filters.congTrinh.length > 0) {
+      return filters.congTrinh.filter(ct => viewProjectWhitelist.includes(ct));
+    }
+    return viewProjectWhitelist;
+  };
+
+    const isScopedWithNoProjects = viewProjectWhitelist !== undefined
+    && getEffectiveCongTrinh().length === 0;
+
+  const buildZeroOverviewSummary = (dateStr: string): OverviewSummary => {
+    const zeroGroup = {
+      daily: { count: 0, value: 0 },
+      mtd: { count: 0, value: 0 },
+      lastMonth: { count: 0, value: 0 },
+    };
+    return {
+      date: dateStr,
+      order: { ...zeroGroup },
+      tkbv: { ...zeroGroup },
+      pthsp: { ...zeroGroup },
+      inventory: { ...zeroGroup },
+      export: { ...zeroGroup },
+    } as OverviewSummary;
+  };
+
   // Số ngày tối đa liệt kê trực tiếp trong nhãn trước khi rút gọn thành "và N ngày khác"
   const MAX_DATES_IN_LABEL = 6;
 
@@ -81,7 +134,6 @@ export function useOverviewSummary({
     if (overviewDateFilters.length <= MAX_DATES_IN_LABEL) {
       return `Thống kê số liệu các ngày: ${overviewDateFilters.join(', ')}`;
     }
-    // Sắp xếp giảm dần theo thời gian thực tế (không dựa vào thứ tự chọn) rồi chỉ hiện N ngày gần nhất
     const sorted = [...overviewDateFilters].sort((a, b) => {
       const da = parseVNDate(a)?.getTime() ?? 0;
       const db = parseVNDate(b)?.getTime() ?? 0;
@@ -92,7 +144,6 @@ export function useOverviewSummary({
     return `Thống kê số liệu ${overviewDateFilters.length} ngày: ${shown} và ${remaining} ngày khác`;
   };
 
-  // Nhãn đầy đủ (không rút gọn) — dùng cho tooltip/title khi cần xem hết danh sách ngày
   const getContextLabelFull = () => {
     if (overviewDateFilters.length === 0) return "Thống kê toàn bộ thời gian";
     if (overviewDateFilters.length === 1) return `Thống kê số liệu trong ngày: ${overviewDateFilters[0]}`;
@@ -104,7 +155,6 @@ export function useOverviewSummary({
     [overviewDateFilters, unifiedDateOptions]
   );
 
-  // Khởi tạo mặc định overviewDateFilters = ngày hôm qua (chỉ 1 lần, khi unifiedDateOptions đã có dữ liệu)
   useEffect(() => {
     if (!hasInitializedOverviewDate.current && unifiedDateOptions.length > 0) {
       const target = getYesterdayDateOption(unifiedDateOptions);
@@ -113,7 +163,6 @@ export function useOverviewSummary({
     }
   }, [unifiedDateOptions]);
 
-  // Tự động ẩn cảnh báo "chưa chọn ngày" sau 2.5s
   useEffect(() => {
     if (showDateWarning) {
       const timer = setTimeout(() => setShowDateWarning(false), 2500);
@@ -122,14 +171,22 @@ export function useOverviewSummary({
   }, [showDateWarning]);
 
   // Fetch overview summary — debounce 300ms + hủy request cũ khi filter đổi liên tục
-useEffect(() => {
+  useEffect(() => {
     const requestId = ++overviewFetchIdRef.current;
+
+    // ✅ FIX: đừng gọi fetchOverviewSummary với congTrinh=[] — server sẽ không nhận
+    // được param congTrinh (vì appendFilterParams check .length trước khi set) và
+    // hiểu nhầm thành "không lọc" -> trả về toàn bộ nhà máy.
+    if (isScopedWithNoProjects) {
+      const fallbackDate = overviewDateFilters[0] || toISODateLocal(new Date());
+      setOverviewSummary(buildZeroOverviewSummary(fallbackDate));
+      return;
+    }
+
     const controller = new AbortController();
-    // SỬA: KHÔNG còn truyền tinhTrang/tinhTrangIpo — 6 card giờ chỉ lọc theo
-    // Tên Công Trình + Khu Vực Sản Xuất, bất kể bộ lọc tổng có chọn Tình Trạng/IPO.
     const filterOpts = {
       signal: controller.signal,
-      congTrinh: filters.congTrinh,
+      congTrinh: getEffectiveCongTrinh(), // ✅ dùng whitelist (nếu có) thay vì filters.congTrinh trần
       xuong: filters.xuong,
     };
 
@@ -154,8 +211,9 @@ useEffect(() => {
     }, 300);
 
     return () => { clearTimeout(timer); controller.abort(); };
-  // SỬA: bỏ filters.tinhTrang, filters.tinhTrangIpo khỏi dependency
-  }, [overviewDateFilters, filters.congTrinh, filters.xuong]);
+  // viewProjectWhitelist ảnh hưởng tới filterOpts nên vẫn cần trong dependency (an toàn
+  // kể cả khi nó là undefined giữa các lần render).
+  }, [overviewDateFilters, filters.congTrinh, filters.xuong, viewProjectWhitelist]);
 
   const latestUnifiedDate = useMemo<Date | null>(() => {
     if (overviewSummary?.date) return parseVNDate(overviewSummary.date) || new Date(overviewSummary.date);
@@ -163,6 +221,10 @@ useEffect(() => {
   }, [overviewSummary]);
 
   // --- Dữ liệu lọc theo overviewDateFilters ---
+  // Các bảng này (orderData, tkbvData, ...) là dữ liệu ĐÃ được filterByView() lọc từ
+  // component cha (ConstructionRedFlow/ConstructionSampleUnit) trước khi truyền vào hook,
+  // nên các useMemo dưới đây không cần áp lại whitelist. Với Dashboard tổng (không scope
+  // theo view), dữ liệu truyền vào vốn không bị filterByView() nên cũng không cần áp gì thêm.
   const filteredOrderData = useMemo(() => {
     if (overviewDateFilters.length === 0) return orderData;
     return orderData.filter(row => {
@@ -200,13 +262,20 @@ useEffect(() => {
   }, [inventoryData, overviewDateFilters, invDateKey]);
 
   const filteredExportOverviewData = useMemo(() => {
+    const effectiveCongTrinh = getEffectiveCongTrinh();
+
+    // ✅ FIX: rỗng chỉ = "khớp tất cả" khi KHÔNG có scope. Có scope mà rỗng = khớp 0.
+    if (viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0) {
+      return [];
+    }
+
     return exportData.filter(row => {
       const dateMatch = overviewDateFilters.length === 0 || (expDateKey && overviewDateFilters.includes(formatDateToVN(row[expDateKey])));
-      const congTrinhMatch = filters.congTrinh.length === 0 || (expCongTrinhKey && filters.congTrinh.includes(String(row[expCongTrinhKey!] || '').trim()));
+      const congTrinhMatch = effectiveCongTrinh.length === 0 || (expCongTrinhKey && effectiveCongTrinh.includes(String(row[expCongTrinhKey!] || '').trim()));
       const xuongMatch = filters.xuong.length === 0 || (expXuongKey && filters.xuong.includes(String(row[expXuongKey!] || '').trim()));
       return dateMatch && congTrinhMatch && xuongMatch;
     });
-  }, [exportData, overviewDateFilters, filters.congTrinh, filters.xuong, expDateKey, expCongTrinhKey, expXuongKey]);
+  }, [exportData, overviewDateFilters, filters.congTrinh, filters.xuong, expDateKey, expCongTrinhKey, expXuongKey, viewProjectWhitelist]);
 
   // --- Dữ liệu lũy kế tháng (MTD) tính theo latestUnifiedDate ---
   const mtdOrderData = useMemo(() => {
@@ -226,33 +295,43 @@ useEffect(() => {
   const mtdExportKhoData = useMemo(() => computeMtdRows(exportData, expDateKey, latestUnifiedDate), [exportData, expDateKey, latestUnifiedDate]);
 
   // --- Cache phân tích theo nhóm (Xưởng / Công trình) cho từng nguồn, dùng trong modal chi tiết ---
-const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
-  // SỬA: filterSuffix chỉ còn dựa trên congTrinh/xuong
-  const filterSuffix = `_ct-${[...filters.congTrinh].sort().join('|')}` +
-    `_x-${[...filters.xuong].sort().join('|')}`;
-  const filterKey = (overviewDateFilters.length > 0
-    ? [...overviewDateFilters].sort().join('_')
-    : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
-  const kW = `${key}-xuong-${filterKey}`;
-  const kP = `${key}-congtrinh-${filterKey}`;
-  if (groupAnalysisCache[kW] && groupAnalysisCache[kP]) return;
+  const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
+    const effectiveCongTrinh = getEffectiveCongTrinh(); // ✅ FIX: không còn thể là undefined
 
-  let datesISO: string[] | undefined;
-  let dateToISO: string | undefined;
-  if (overviewDateFilters.length > 0) {
-    datesISO = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null).map(d => toISODateLocal(d));
-  } else if (overviewSummary?.date) {
-    dateToISO = overviewSummary.date;
-  }
+    // filterSuffix PHẢI dựa trên effectiveCongTrinh (đã giao với whitelist nếu có),
+    // không phải filters.congTrinh thô — nếu không cache key sẽ không phản ánh đúng
+    // dữ liệu thực sự được fetch, và OrderOverviewSection.tsx (nơi tính lại filterKey
+    // để ĐỌC cache) phải dùng ĐÚNG công thức này để không bị lệch key.
+    const filterSuffix = `_ct-${[...effectiveCongTrinh].sort().join('|')}` +
+      `_x-${[...filters.xuong].sort().join('|')}`;
+    const filterKey = (overviewDateFilters.length > 0
+      ? [...overviewDateFilters].sort().join('_')
+      : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
+     const kW = `${key}-xuong-${filterKey}`;
+    const kP = `${key}-congtrinh-${filterKey}`;
+    if (groupAnalysisCache[kW] && groupAnalysisCache[kP]) return;
 
-  // SỬA: bỏ tinhTrang/tinhTrangIpo khỏi filterOpts
-  const filterOpts = { congTrinh: filters.congTrinh, xuong: filters.xuong };
-  const [byXuong, byCongTrinh] = await Promise.all([
-    fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, ...filterOpts }),
-    fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, ...filterOpts }),
-  ]);
-  setGroupAnalysisCache(prev => ({ ...prev, [kW]: byXuong, [kP]: byCongTrinh }));
-};
+    // ✅ FIX: cùng lý do — scope rỗng thì không gọi API, set thẳng cache = [].
+    if (viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0) {
+      setGroupAnalysisCache(prev => ({ ...prev, [kW]: [], [kP]: [] }));
+      return;
+    }
+
+    let datesISO: string[] | undefined;
+    let dateToISO: string | undefined;
+    if (overviewDateFilters.length > 0) {
+      datesISO = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null).map(d => toISODateLocal(d));
+    } else if (overviewSummary?.date) {
+      dateToISO = overviewSummary.date;
+    }
+
+    const filterOpts = { congTrinh: effectiveCongTrinh, xuong: filters.xuong };
+    const [byXuong, byCongTrinh] = await Promise.all([
+      fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, ...filterOpts }),
+      fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, ...filterOpts }),
+    ]);
+    setGroupAnalysisCache(prev => ({ ...prev, [kW]: byXuong, [kP]: byCongTrinh }));
+  };
 
   const toAnalysisItems = (
     rows: GroupAnalysisRow[],
@@ -263,8 +342,6 @@ const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
       daily: metric === 'COUNT' ? r.dailyCount : r.dailyValue,
       mtd: metric === 'COUNT' ? r.mtdCount : r.mtdValue,
     }));
-
-
 
   return {
     overviewSummary,

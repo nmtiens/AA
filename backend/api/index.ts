@@ -341,6 +341,21 @@ const buildStockSnapshotCondition = (
 const eqNormalized = (colExpr: string, paramIdx: number) =>
   `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
 
+const hasCtWhitelist = (req: Request): boolean => req.query.ctWhitelist !== undefined;
+const parseCtWhitelist = (req: Request): string[] =>
+  String(req.query.ctWhitelist || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+const applyCtWhitelist = (
+  req: Request,
+  congTrinhColExpr: string | undefined,
+  conditions: string[],
+  params: any[],
+): void => {
+  if (!hasCtWhitelist(req) || !congTrinhColExpr) return;
+  const wl = parseCtWhitelist(req);
+  params.push(wl);
+  conditions.push(`UPPER(TRIM(${congTrinhColExpr})) = ANY($${params.length}::text[])`);
+};
+
 // [JOIN DEDUP FIX] Một ma_id_sap/hex có thể khớp NHIỀU dòng trong
 // production_status_app (vd: 1 vật tư dùng cho nhiều hạng mục). LEFT JOIN trực
 // tiếp sẽ nhân dòng bảng chính lên N lần, làm SUM/COUNT bị thổi phồng sai.
@@ -1306,7 +1321,56 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+// ============================================================================
+// VIEW PROJECT MAPPING — danh sách công trình đã setup cho từng view (Luồng
+// đỏ, Căn mẫu...), lưu tập trung ở DB thay vì localStorage để mọi người dùng
+// truy cập web ở bất kỳ máy nào đều thấy cùng 1 cấu hình do admin setup.
+// ============================================================================
+const viewMappingSchema = z.object({
+  projects: z.array(z.string()),
+});
 
+// GET: public (mọi user cần đọc để lọc đúng dữ liệu view của họ, không cần đăng nhập admin)
+app.get('/api/view-project-mapping', async (_req: Request, res: Response) => {
+  try {
+    const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
+    const mapping: Record<string, string[]> = {};
+    r.rows.forEach(row => {
+      mapping[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
+    });
+    res.json(mapping);
+  } catch (error) {
+    console.error('Lỗi view-project-mapping GET:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST: chỉ ADMIN được sửa — lưu (upsert) danh sách công trình cho 1 view
+app.post(
+  '/api/view-project-mapping/:viewId',
+  authenticateJWT,
+  requireRole('ADMIN'),
+  validateBody(viewMappingSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { viewId } = req.params;
+      const { projects } = req.body;
+
+      await pool.query(
+        `INSERT INTO view_project_mapping (view_id, projects, updated_at)
+         VALUES ($1, $2::jsonb, now())
+         ON CONFLICT (view_id) DO UPDATE
+         SET projects = EXCLUDED.projects, updated_at = now()`,
+        [viewId, JSON.stringify(projects)]
+      );
+
+      res.json({ success: true, message: 'Đã lưu setup' });
+    } catch (error) {
+      console.error('Lỗi view-project-mapping POST:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
 // ============================================================================
 // AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES
 // (Giữ nguyên pool.query — không phải điểm nóng, không cần đo timing)
@@ -1791,6 +1855,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -2015,6 +2080,7 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -2107,6 +2173,7 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -2195,6 +2262,7 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);  
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -2281,6 +2349,7 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
     if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -2428,7 +2497,7 @@ app.get('/api/detail', async (req: Request, res: Response) => {
     } else if (congTrinh && cfg.congTrinhCol) {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
-
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Chiều ĐVT
     if (dimension === 'dvt') {
       const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : 'p.dvt';

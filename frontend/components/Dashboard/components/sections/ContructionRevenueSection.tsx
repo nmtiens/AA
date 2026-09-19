@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Target, CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
@@ -23,7 +23,24 @@ interface ContructionRevenueSectionProps {
   customFunnelData: CustomFunnelItem[];
   pivotFunnelData: PivotFunnelData | null;
   workshopMetric: MetricType;
+  // Khi true (view Luồng đỏ / Căn mẫu), hiển thị giá trị funnel dưới dạng
+  // "Triệu đồng" (số ngắn gọn) thay vì rút gọn "Tỷ". Dashboard tổng không
+  // truyền prop này -> mặc định false -> giữ nguyên hành vi "Tỷ" như cũ.
+  useDetailedNumbers?: boolean;
 }
+
+let _measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, font: string): number {
+  if (typeof document === 'undefined') return text.length * 7;
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  if (!ctx) return text.length * 7;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
+const BAR_LABEL_FONT = 'bold 14px sans-serif';
+const BAR_LABEL_HORIZONTAL_PADDING = 16;
 
 export const ContructionRevenueSection = ({
   sectionRef,
@@ -32,10 +49,56 @@ export const ContructionRevenueSection = ({
   customFunnelData,
   pivotFunnelData,
   workshopMetric,
+  useDetailedNumbers = false,
 }: ContructionRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
 
+  const funnelBarsRef = useRef<HTMLDivElement>(null);
+  const [funnelBarsWidth, setFunnelBarsWidth] = useState(0);
+
+  useEffect(() => {
+    const el = funnelBarsRef.current;
+    if (!el) return;
+    setFunnelBarsWidth(el.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setFunnelBarsWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const cancelledValue = factoryRevenueStats.cancelled ?? 0;
+
+  // ✅ SỬA: nhánh useDetailedNumbers giờ hiển thị "Triệu" thay vì "VNĐ" đầy
+  // đủ. `value` từ pivotFunnelData/customFunnelData đã ở đơn vị TRIỆU ĐỒNG
+  // sẵn (từ usePivotTables/calculateMetricValue lấy thẳng valueKey/realValueKey
+  // không qua quy đổi nào) -> hiển thị thẳng value, KHÔNG nhân 1_000_000 nữa.
+  const formatFunnelValue = (value: number): string => {
+    if (workshopMetric === 'COUNT_HEX') {
+      return formatNumber(value, workshopMetric);
+    }
+    if (useDetailedNumbers) {
+      return `${value.toLocaleString('en-US', { maximumFractionDigits: 6 })} Triệu`;
+    }
+    return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 6 })} Tỷ`;
+  };
+
+const formatBarLabel = (value: number): string => {
+    if (workshopMetric === 'COUNT_HEX') {
+      return formatNumber(value, workshopMetric);
+    }
+    if (useDetailedNumbers) {
+      return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
+    }
+    return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })} Tỷ`;
+  };
+
+  const getMinWidthPercentForText = (text: string): number => {
+    if (!funnelBarsWidth) return 0;
+    const textPx = measureTextWidth(text, BAR_LABEL_FONT) + BAR_LABEL_HORIZONTAL_PADDING;
+    return (textPx / funnelBarsWidth) * 100;
+  };
 
   return (
     <>
@@ -101,6 +164,7 @@ export const ContructionRevenueSection = ({
         </div>
 
         {/* ===== HÀNG DƯỚI: FUNNEL TÌNH TRẠNG ĐƠN HÀNG AATN (full width) ===== */}
+                  {/* ===== HÀNG DƯỚI: FUNNEL TÌNH TRẠNG ĐƠN HÀNG AATN (full width) ===== */}
         <div className="mt-6 w-full flex flex-col bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
           <div className="flex justify-end mb-2">
             <button
@@ -112,10 +176,20 @@ export const ContructionRevenueSection = ({
             </button>
           </div>
 
+          {/* ✅ SỬA: thêm relative để label định vị absolute bên trong khung này */}
           <div className="w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200 relative">
+            {/* ✅ MỚI: label ghi chú đơn vị, nằm TRONG khung viền, góc trên bên
+                phải — chỉ hiện ở view Luồng đỏ/Căn mẫu (useDetailedNumbers=true) */}
+            {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
+              <span className="absolute top-3 right-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                Đơn vị: Triệu đồng
+              </span>
+            )}
+
             <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
               TÌNH TRẠNG ĐƠN HÀNG AATN
             </h3>
+            {/* ... phần còn lại (flex flex-row gap-[30px] w-full max-w-6xl...) giữ nguyên như trước ... */}
 
             <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative mt-2">
               <div className="w-auto shrink-0 flex flex-col gap-3">
@@ -129,7 +203,7 @@ export const ContructionRevenueSection = ({
                 ))}
               </div>
 
-              <div className="flex-1 relative flex flex-col gap-3 min-w-0">
+              <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-3 min-w-0">
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
                   <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
                     <polygon
@@ -143,24 +217,27 @@ export const ContructionRevenueSection = ({
                   </svg>
                 </div>
 
-                {customFunnelData.map((item) => {
-                  const displayValue = Math.round(item.value / 1000);
-                  const widthPercent = displayValue === 0 ? 6 : item.percentage;
+             {customFunnelData.map((item) => {
+  const barLabel = formatBarLabel(item.value);
+  const tooltipValue = formatFunnelValue(item.value);
+  const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
+  const minWidthPercent = getMinWidthPercentForText(barLabel);
+  const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
 
-                  return (
-                    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
-                      <div
-                        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
-                        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
-                        title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
-                      >
-                        <span className="text-black font-bold text-sm truncate px-1">
-                          {displayValue.toLocaleString('en-US')}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+  return (
+    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+      <div
+        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
+        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+        title={`${item.name}: ${tooltipValue}`}
+      >
+        <span className="text-black font-bold text-sm whitespace-nowrap px-1">
+          {barLabel}
+        </span>
+      </div>
+    </div>
+  );
+})}
               </div>
             </div>
           </div>
@@ -209,7 +286,7 @@ export const ContructionRevenueSection = ({
                             <span className="truncate max-w-[200px]" title={item.name}>{item.name}</span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                            {formatNumber(item.value, workshopMetric)}
+                            {formatFunnelValue(item.value)}
                           </td>
                         </tr>
                       ))}
@@ -218,7 +295,7 @@ export const ContructionRevenueSection = ({
                       <tr>
                         <td className="px-4 py-3 text-left uppercase text-slate-700">Tổng Cộng</td>
                         <td className="px-4 py-3 text-right text-slate-800 text-base">
-                          {formatNumber(pivotFunnelData.total, workshopMetric)}
+                          {formatFunnelValue(pivotFunnelData.total)}
                         </td>
                       </tr>
                     </tfoot>

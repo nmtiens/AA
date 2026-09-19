@@ -29,6 +29,16 @@ interface UseStockDataParams {
   // dụng cho Tồn kho (P022 & Card 6), theo yêu cầu: 2 bộ lọc tình trạng không
   // ăn cho tồn kho, luôn hiển thị toàn bộ kho theo Công trình/Xưởng.
   filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
+  // ✅ FIX: danh sách công trình đã setup cho view hiện tại (giống hệt tham số
+  // cùng tên trong useOverviewSummary). Optional — Dashboard tổng không truyền,
+  // các trang theo view (ConstructionRedFlow/ConstructionSampleUnit) truyền vào.
+  //
+  // TRƯỚC ĐÂY: hook này gọi fetchStockDates/fetchStockByProject/fetchStockTotalCount
+  // bằng filters.congTrinh THÔ, không hề biết tới whitelist của view. Khi user chưa
+  // chọn gì ở dropdown "Tên Công Trình" (filters.congTrinh = []), server hiểu là
+  // "không lọc" và trả về tồn kho của TOÀN NHÀ MÁY — sai hoàn toàn với view đang xem.
+  // Đây chính là lỗi "Tồn kho chưa ăn theo view/id".
+  viewProjectWhitelist?: string[];
 }
 
 
@@ -43,7 +53,7 @@ interface UseStockDataResult {
   latestStockStatsPrevMonth: StockStatsResult;
   stockOverviewCardValue: number;
   loadStockByProject: () => void;
-  stockTotalCount: number; // MỚI — tổng số dòng thật (COUNT(*)) của toàn bộ ton_kho
+  stockTotalCount: number; // tổng số dòng thật (COUNT(*)) — ĐÃ scope theo view nếu có
 }
 
 // ---------------------------------------------------------------------------
@@ -55,20 +65,59 @@ export function useStockData({
   latestUnifiedDate,
   overviewMetric,
   filters,
+  viewProjectWhitelist, // ✅ FIX
 }: UseStockDataParams): UseStockDataResult {
   const [stockDates, setStockDates] = useState<StockDateEntry[]>([]);
   const [stockByProjectData, setStockByProjectData] = useState<StockByProjectRow[]>([]);
   const [stockTotalCount, setStockTotalCount] = useState<number>(0);
 
+  // ✅ FIX: công thức giao whitelist — PHẢI GIỐNG HỆT getEffectiveCongTrinh() trong
+  // useOverviewSummary.ts, nếu không 2 nơi sẽ lọc lệch nhau.
+  // - viewProjectWhitelist === undefined -> không scope theo view (Dashboard tổng) ->
+  //   dùng nguyên filters.congTrinh, giữ đúng hành vi cũ.
+  // - viewProjectWhitelist là mảng (kể cả []) -> đang ở trang theo view -> áp whitelist:
+  //   chưa chọn gì ở dropdown thì mặc định dùng ĐÚNG whitelist của view (không phải
+  //   "tất cả"); đã chọn thì giao với whitelist.
+  const effectiveCongTrinh = useMemo((): string[] => {
+    if (viewProjectWhitelist === undefined) {
+      return filters.congTrinh;
+    }
+    if (filters.congTrinh.length > 0) {
+      return filters.congTrinh.filter(ct => viewProjectWhitelist.includes(ct));
+    }
+    return viewProjectWhitelist;
+  }, [filters.congTrinh, viewProjectWhitelist]);
+
+  // Đang ở 1 view (whitelist tồn tại) nhưng giao ra rỗng (0 công trình khớp) ->
+  // không được gọi API với congTrinh=[] (server sẽ hiểu là "không lọc" = toàn bộ),
+  // phải set thẳng kết quả = rỗng.
+  const isScopedWithNoProjects = viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0;
+
   useEffect(() => {
     // SỬA: KHÔNG truyền tinhTrang/tinhTrangIpo — Tồn kho chỉ lọc theo
     // congTrinh/xuong, bất kể bộ lọc tổng có chọn Tình Trạng/Tình Trạng IPO hay không.
+    if (isScopedWithNoProjects) {
+      setStockDates([]);
+      setStockTotalCount(0);
+      return;
+    }
+
+    // ✅ FIX: dùng effectiveCongTrinh (đã giao với whitelist nếu có) thay vì
+    // filters.congTrinh trần — đây là chỗ gây lỗi tồn kho không lọc theo view.
     fetchStockDates({
-      congTrinh: filters.congTrinh,
+      congTrinh: effectiveCongTrinh,
       xuong: filters.xuong,
     }).then(result => { if (result !== null) setStockDates(result); });
-    fetchStockTotalCount().then(setStockTotalCount);
-  }, [filters.congTrinh, filters.xuong]); // SỬA: bỏ tinhTrang/tinhTrangIpo khỏi dependency
+
+    // ✅ FIX: fetchStockTotalCount() trước đây KHÔNG nhận tham số filter nào —
+    // luôn trả COUNT(*) của toàn bộ bảng ton_kho bất kể đang ở view nào.
+    // Cần áp dụng PATCH tương ứng ở dataService.ts (xem dataService_patch.ts)
+    // để hàm này nhận opts và backend đọc được congTrinh/xuong query param.
+    fetchStockTotalCount({
+      congTrinh: effectiveCongTrinh,
+      xuong: filters.xuong,
+    }).then(setStockTotalCount);
+  }, [effectiveCongTrinh, filters.xuong, isScopedWithNoProjects]);
 
   const latestStockDateAvailable = useMemo<Date | null>(() => {
     if (stockDates.length === 0) return null;
@@ -134,10 +183,14 @@ export function useStockData({
   }, [stockDates, closestStockDate, overviewMetric]);
 
 const loadStockByProject = () => {
+    if (isScopedWithNoProjects) {
+      setStockByProjectData([]);
+      return;
+    }
     if (closestStockDate) {
-      // SỬA: cùng lý do — không truyền tinhTrang/tinhTrangIpo
+      // ✅ FIX: dùng effectiveCongTrinh thay vì filters.congTrinh trần — cùng lý do trên.
       fetchStockByProject(toISODateLocal(closestStockDate), {
-        congTrinh: filters.congTrinh,
+        congTrinh: effectiveCongTrinh,
         xuong: filters.xuong,
       }).then(setStockByProjectData);
     }

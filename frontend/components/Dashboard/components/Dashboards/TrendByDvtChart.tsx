@@ -107,7 +107,7 @@ export default function TrendByDvtChart({
   displayMode,
   supportsDvt = true,
 }: TrendByDvtChartProps) {
-  const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
+const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiDvtPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,7 +165,7 @@ export default function TrendByDvtChart({
     // Không set 'dvt' vào params vì đây chính là chiều đang nhóm dữ liệu theo,
     // nhưng vẫn gửi lên nếu người dùng đã chọn ở bộ lọc chung để API tôn trọng đúng phạm vi.
     if (dvt) params.set('dvt', dvt);
-
+    if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     fetch(`/api/trend-by-dvt?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -178,7 +178,7 @@ export default function TrendByDvtChart({
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch, hasCtWhitelist,ctWhitelistCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!canFetch) return [];
@@ -210,7 +210,7 @@ export default function TrendByDvtChart({
       if (xuong) params.set('xuong', xuong);
       if (congTrinh) params.set('congTrinh', congTrinh);
       if (phanLoai) params.set('phanLoai', phanLoai);
-
+      if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();

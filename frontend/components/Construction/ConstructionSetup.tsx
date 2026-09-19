@@ -49,8 +49,15 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
   useEffect(() => {
     if (!selectedViewId) return;
     const saved = getProjectsForView(selectedViewId);
-    setSelectedProjects(new Set(saved));
-  }, [selectedViewId]);
+    // ✅ SỬA: đối chiếu với allProjects hiện tại, loại bỏ những công trình đã
+    // lưu trước đó nhưng không còn tồn tại trong dữ liệu sản xuất hiện tại
+    // (do dữ liệu thay đổi, hoặc lệch chuẩn hóa Unicode dấu tiếng Việt) — đây
+    // là nguyên nhân khiến "Đã chọn 1/396" không giảm về 0 dù đã bấm "Bỏ chọn
+    // hết", vì phần tử mồ côi đó không match bất kỳ item nào để bị xóa.
+    const validProjectsSet = new Set(allProjects);
+    const cleaned = saved.filter((p) => validProjectsSet.has(p));
+    setSelectedProjects(new Set(cleaned));
+  }, [selectedViewId, allProjects]);
 
   const toggleProject = (congTrinh: string) => {
     setSelectedProjects((prev) => {
@@ -69,7 +76,13 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     });
   };
 
-  const handleClearAllFiltered = () => {
+    const handleClearAllFiltered = () => {
+    // ✅ SỬA: nếu không đang search (searchTerm rỗng), bỏ chọn TOÀN BỘ, kể cả
+    // phần tử mồ côi còn sót — đảm bảo nút "Bỏ chọn hết" luôn đưa về đúng 0.
+    if (!searchTerm.trim()) {
+      setSelectedProjects(new Set());
+      return;
+    }
     setSelectedProjects((prev) => {
       const next = new Set(prev);
       filteredProjects.forEach((p) => next.delete(p));

@@ -101,7 +101,7 @@ interface TrendByXuongChartProps {
 }
 
 export default function TrendByXuongChart({ source, embedded = false, displayMode }: TrendByXuongChartProps) {
-  const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
+const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiXuongPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,7 +157,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
-
+    if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     fetch(`/api/trend-by-xuong?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -170,7 +170,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,hasCtWhitelist,ctWhitelistCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
@@ -202,7 +202,7 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
       if (congTrinh) params.set('congTrinh', congTrinh);
       if (dvt) params.set('dvt', dvt);
       if (phanLoai) params.set('phanLoai', phanLoai);
-
+      if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();

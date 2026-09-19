@@ -3,7 +3,9 @@ import { User, ApiResponse } from '../types';
 const API_BASE = '/api';
 
 // --- HELPER: Lấy token đã lưu (ưu tiên localStorage "remember me", fallback sessionStorage) ---
-const getToken = (): string | null => {
+// ĐÃ EXPORT: dataService.ts (saveViewProjectMapping) dùng chung hàm này thay vì
+// tự đọc localStorage.getItem('token') sai key như trước.
+export const getToken = (): string | null => {
   return localStorage.getItem('app_token') || sessionStorage.getItem('app_token');
 };
 
@@ -38,11 +40,11 @@ export const userService = {
   },
 
   getMe: async (): Promise<ApiResponse<User>> => {
-  return request<User>(`${API_BASE}/auth/me`, {
-    method: 'GET',
-    headers: authHeaders(),
-  });
-},
+    return request<User>(`${API_BASE}/auth/me`, {
+      method: 'GET',
+      headers: authHeaders(),
+    });
+  },
 
   forgotPassword: async (email: string): Promise<ApiResponse> => {
     return request(`${API_BASE}/auth/forgot-password`, {

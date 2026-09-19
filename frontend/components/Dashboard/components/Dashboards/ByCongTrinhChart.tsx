@@ -152,7 +152,7 @@ interface ByCongTrinhChartProps {
 }
 
 export default function ByCongTrinhChart({ source, embedded = false, displayMode, topN = 15 }: ByCongTrinhChartProps) {
-  const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai } = useTrendFilter();
+const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiCongTrinhPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,7 +214,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
-
+    if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
     fetch(`/api/trend-by-congtrinh?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -227,7 +227,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
+  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange, hasCtWhitelist,ctWhitelistCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
@@ -282,7 +282,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       if (!isStock && xuong) params.set('xuong', xuong);
       if (dvt) params.set('dvt', dvt);
       if (phanLoai) params.set('phanLoai', phanLoai);
-
+      if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
