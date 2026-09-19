@@ -23,10 +23,13 @@ interface ContructionRevenueSectionProps {
   customFunnelData: CustomFunnelItem[];
   pivotFunnelData: PivotFunnelData | null;
   workshopMetric: MetricType;
-  // Khi true (view Luồng đỏ / Căn mẫu), hiển thị giá trị funnel dưới dạng
-  // "Triệu đồng" (số ngắn gọn) thay vì rút gọn "Tỷ". Dashboard tổng không
-  // truyền prop này -> mặc định false -> giữ nguyên hành vi "Tỷ" như cũ.
   useDetailedNumbers?: boolean;
+  // MỚI: báo lên cha khi user bấm vào 1 thanh funnel, để cha đổi
+  // pivotFunnelData sang breakdown theo công trình của đúng bước đó.
+  onFunnelItemClick?: (item: CustomFunnelItem) => void;
+  // MỚI: báo lên cha khi đóng modal, để cha reset lại pivotFunnelData
+  // về dữ liệu tổng (theo BOP) cho lần mở "Chi tiết" chung kế tiếp.
+  onFunnelModalClose?: () => void;
 }
 
 let _measureCanvas: HTMLCanvasElement | null = null;
@@ -50,8 +53,11 @@ export const ContructionRevenueSection = ({
   pivotFunnelData,
   workshopMetric,
   useDetailedNumbers = false,
+  onFunnelItemClick,
+  onFunnelModalClose,
 }: ContructionRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
+  const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
 
   const funnelBarsRef = useRef<HTMLDivElement>(null);
   const [funnelBarsWidth, setFunnelBarsWidth] = useState(0);
@@ -70,10 +76,6 @@ export const ContructionRevenueSection = ({
 
   const cancelledValue = factoryRevenueStats.cancelled ?? 0;
 
-  // ✅ SỬA: nhánh useDetailedNumbers giờ hiển thị "Triệu" thay vì "VNĐ" đầy
-  // đủ. `value` từ pivotFunnelData/customFunnelData đã ở đơn vị TRIỆU ĐỒNG
-  // sẵn (từ usePivotTables/calculateMetricValue lấy thẳng valueKey/realValueKey
-  // không qua quy đổi nào) -> hiển thị thẳng value, KHÔNG nhân 1_000_000 nữa.
   const formatFunnelValue = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
@@ -84,14 +86,34 @@ export const ContructionRevenueSection = ({
     return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 6 })} Tỷ`;
   };
 
-const formatBarLabel = (value: number): string => {
+  const formatBarLabel = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
     }
     if (useDetailedNumbers) {
-      return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
+      return value.toLocaleString('en-US', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
     }
     return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })} Tỷ`;
+  };
+
+  const handleOpenOverallDetail = () => {
+    setSelectedFunnelItem(null); // null = xem tổng theo BOP, giữ hành vi cũ
+    setIsFunnelPivotModalOpen(true);
+  };
+
+  const handleBarClick = (item: CustomFunnelItem) => {
+    setSelectedFunnelItem(item);
+    onFunnelItemClick?.(item); // báo cha đổi pivotFunnelData sang breakdown theo công trình của bước này
+    setIsFunnelPivotModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsFunnelPivotModalOpen(false);
+    setSelectedFunnelItem(null);
+    onFunnelModalClose?.(); // báo cha reset về dữ liệu tổng
   };
 
   const getMinWidthPercentForText = (text: string): number => {
@@ -115,60 +137,10 @@ const formatBarLabel = (value: number): string => {
           </div>
         </div>
 
-        {/* ===== HÀNG TRÊN: 4 CARD (Kế hoạch, Nhập kho, Tỷ lệ đạt, Hủy) ===== */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-            <div className="flex items-center gap-1.5 mb-0.5 z-10">
-              <div className="p-1 bg-emerald-100 rounded text-emerald-600 shadow-sm"><Target size={18} /></div>
-              <p className="text-xs font-bold text-emerald-800 opacity-80 uppercase tracking-wide">Kế hoạch</p>
-            </div>
-            <div className="z-10 flex items-baseline gap-1 pl-0.5">
-              <h4 className="text-3xl font-extrabold text-emerald-600 tracking-tight">{formatDecimal(cancelledValue)}</h4>
-              <span className="text-xs font-medium text-emerald-500">Tỷ</span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-            <div className="flex items-center gap-1.5 mb-0.5 z-10">
-              <div className="p-1 bg-blue-100 rounded text-blue-600 shadow-sm"><CheckCircle size={18} /></div>
-              <p className="text-xs font-bold text-blue-800 opacity-80 uppercase tracking-wide">Nhập kho</p>
-            </div>
-            <div className="z-10 flex items-baseline gap-1 pl-0.5">
-              <h4 className="text-3xl font-extrabold text-blue-600 tracking-tight">{formatDecimal(cancelledValue)}</h4>
-              <span className="text-xs font-medium text-blue-500">Tỷ</span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-lg border border-violet-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-            <div className="flex items-center gap-1.5 mb-0.5 z-10">
-              <div className="p-1 bg-violet-100 rounded text-violet-600 shadow-sm"><Activity size={18} /></div>
-              <p className="text-xs font-bold text-violet-800 opacity-80 uppercase tracking-wide">Tỷ lệ Đạt</p>
-            </div>
-            <div className="z-10 flex items-baseline gap-1 pl-0.5">
-              <h4 className={`text-3xl font-extrabold tracking-tight ${factoryRevenueStats.percent >= 100 ? 'text-emerald-600' : factoryRevenueStats.percent >= 80 ? 'text-violet-600' : 'text-amber-600'}`}>
-              {formatDecimal(cancelledValue)}%
-              </h4>
-            </div>
-          </div>
-
-          <div className="p-3 bg-gradient-to-br from-rose-50 to-red-50 rounded-lg border border-rose-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-            <div className="flex items-center gap-1.5 mb-0.5 z-10">
-              <div className="p-1 bg-rose-100 rounded text-rose-600 shadow-sm"><XCircle size={18} /></div>
-              <p className="text-xs font-bold text-rose-800 opacity-80 uppercase tracking-wide">Hủy</p>
-            </div>
-            <div className="z-10 flex items-baseline gap-1 pl-0.5">
-              <h4 className="text-3xl font-extrabold text-rose-600 tracking-tight">{formatDecimal(cancelledValue)}</h4>
-              <span className="text-xs font-medium text-rose-500">Tỷ</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ===== HÀNG DƯỚI: FUNNEL TÌNH TRẠNG ĐƠN HÀNG AATN (full width) ===== */}
-                  {/* ===== HÀNG DƯỚI: FUNNEL TÌNH TRẠNG ĐƠN HÀNG AATN (full width) ===== */}
         <div className="mt-6 w-full flex flex-col bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
           <div className="flex justify-end mb-2">
             <button
-              onClick={() => setIsFunnelPivotModalOpen(true)}
+              onClick={handleOpenOverallDetail}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
               title="Xem bảng chi tiết"
             >
@@ -176,10 +148,7 @@ const formatBarLabel = (value: number): string => {
             </button>
           </div>
 
-          {/* ✅ SỬA: thêm relative để label định vị absolute bên trong khung này */}
           <div className="w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200 relative">
-            {/* ✅ MỚI: label ghi chú đơn vị, nằm TRONG khung viền, góc trên bên
-                phải — chỉ hiện ở view Luồng đỏ/Căn mẫu (useDetailedNumbers=true) */}
             {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
               <span className="absolute top-3 right-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
                 Đơn vị: Triệu đồng
@@ -189,7 +158,6 @@ const formatBarLabel = (value: number): string => {
             <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
               TÌNH TRẠNG ĐƠN HÀNG AATN
             </h3>
-            {/* ... phần còn lại (flex flex-row gap-[30px] w-full max-w-6xl...) giữ nguyên như trước ... */}
 
             <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative mt-2">
               <div className="w-auto shrink-0 flex flex-col gap-3">
@@ -217,27 +185,28 @@ const formatBarLabel = (value: number): string => {
                   </svg>
                 </div>
 
-             {customFunnelData.map((item) => {
-  const barLabel = formatBarLabel(item.value);
-  const tooltipValue = formatFunnelValue(item.value);
-  const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
-  const minWidthPercent = getMinWidthPercentForText(barLabel);
-  const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
+                {customFunnelData.map((item) => {
+                  const barLabel = formatBarLabel(item.value);
+                  const tooltipValue = formatFunnelValue(item.value);
+                  const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
+                  const minWidthPercent = getMinWidthPercentForText(barLabel);
+                  const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
 
-  return (
-    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
-      <div
-        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
-        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
-        title={`${item.name}: ${tooltipValue}`}
-      >
-        <span className="text-black font-bold text-sm whitespace-nowrap px-1">
-          {barLabel}
-        </span>
-      </div>
-    </div>
-  );
-})}
+                  return (
+                    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+                      <div
+                        onClick={() => handleBarClick(item)}
+                        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
+                        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+                        title={`${item.name}: ${tooltipValue} (bấm để xem chi tiết theo công trình)`}
+                      >
+                        <span className="text-black font-bold text-sm whitespace-nowrap px-1">
+                          {barLabel}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -248,7 +217,7 @@ const formatBarLabel = (value: number): string => {
       {isFunnelPivotModalOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
-          onClick={() => setIsFunnelPivotModalOpen(false)}
+          onClick={closeModal}
         >
           <div
             className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
@@ -256,11 +225,15 @@ const formatBarLabel = (value: number): string => {
           >
             <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Chi tiết dữ liệu Phễu</h2>
-                <p className="text-xs text-slate-500 mt-1">Phân tích giá trị theo BOP</p>
+                <h2 className="text-lg font-bold text-slate-800">
+                  Chi tiết dữ liệu Phễu{selectedFunnelItem ? ` — ${selectedFunnelItem.name}` : ''}
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  {selectedFunnelItem ? 'Phân tích giá trị theo Công trình' : 'Phân tích giá trị theo BOP'}
+                </p>
               </div>
               <button
-                onClick={() => setIsFunnelPivotModalOpen(false)}
+                onClick={closeModal}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} />
@@ -272,7 +245,9 @@ const formatBarLabel = (value: number): string => {
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">BOP</th>
+                        <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">
+                          {selectedFunnelItem ? 'Công trình' : 'BOP'}
+                        </th>
                         <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">Giá Trị</th>
                       </tr>
                     </thead>
@@ -303,7 +278,9 @@ const formatBarLabel = (value: number): string => {
                 </div>
               ) : (
                 <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg border border-slate-200">
-                  Không có dữ liệu để hiển thị.
+                  {selectedFunnelItem
+                    ? `Không có dữ liệu chi tiết theo công trình cho ${selectedFunnelItem.name}.`
+                    : 'Không có dữ liệu để hiển thị.'}
                 </div>
               )}
             </div>

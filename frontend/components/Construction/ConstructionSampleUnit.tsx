@@ -18,8 +18,9 @@ import { PivotMaterialSummarySection } from './../Dashboard/components/sections/
 import { PivotMaterialStatusSection } from './../Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
 import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
+import { ProjectSummarySection_v2 } from './../Dashboard/components/sections/ProjectSummarySection_v2';
 import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
-import { ContructionRevenueSection } from './../Dashboard/components/sections/ContructionRevenueSection';
+import { ContructionRevenueSection, type CustomFunnelItem } from './../Dashboard/components/sections/ContructionRevenueSection';
 import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
 import { ProductionStatusSection } from './../Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './../Dashboard/components/sections/KhsxPlanActualSection';
@@ -30,9 +31,16 @@ import { OverviewExportScopeModal } from './../Dashboard/components/modals/Overv
 import { GenericExportScopeModal } from './../Dashboard/components/modals/GenericExportScopeModal';
 import { GenericExportColumnModal } from './../Dashboard/components/modals/GenericExportColumnModal';
 import { ProductionExportModal } from './../Dashboard/components/modals/ProductionExportModal';
+import {
+  OnLineStageDetailModal,
+  ON_LINE_STAGES,
+  extractStage,
+  type StageDetailRow,
+} from './../Dashboard/components/modals/OnLineStageDetailModal';
+import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/components/modals/HexDetailModal';
 // File này nằm ở src/components/Construction/ConstructionSampleUnit.tsx,
 // util nằm ở src/utils/viewDataConfig.ts -> phải đi lên 2 cấp: ../../utils/...
-import { filterByView, getProjectsForView } from './utils/viewDataConfig'; // ✅ SỬA: bỏ useMemo/khai báo whitelist ở top-level (đã dời vào trong component)
+import { filterByView, getProjectsForView } from './utils/viewDataConfig';
 
 interface ConstructionSampleUnitProps {
   productionData: DataRow[];
@@ -66,6 +74,24 @@ interface ConstructionSampleUnitProps {
 // Đây là bản "Căn mẫu" — chỉ khác ConstructionRedFlow.tsx ở VIEW_ID này và tiêu đề hiển thị.
 const VIEW_ID = 'can-mau' as const;
 
+// ---------------------------------------------------------------------------
+// Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
+// Chỉ khai báo type + label ở module scope (không dùng hook) — an toàn.
+// ---------------------------------------------------------------------------
+type HexDetailColumn = 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine' | 'remaining';
+
+const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
+  totalOrder: 'Tổng Giá Trị Đơn Hàng',
+  afterCancel: 'Tổng Giá Trị Đơn Hàng Sau Khi Hủy',
+  inventory: 'Tổng Giá Trị Đã Nhập Kho',
+  notDeployed: 'Chưa Triển Khai (P001)',
+  onLine: 'Đang Trên Chuyền (P002->P021)',
+  remaining: 'Tổng Giá Trị Đơn Hàng Còn Lại',
+};
+
+const isHexDetailColumn = (column: string): column is HexDetailColumn =>
+  column in HEX_COLUMN_LABELS;
+
 const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   productionData: rawProductionData,
   productionColumns,
@@ -98,8 +124,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   // sẵn sàng tại đây — không còn lỗi "used before declaration" như bản cũ đặt ở top-level).
   const viewProjectWhitelist = useMemo(
     () => getProjectsForView(VIEW_ID),
-    [] // Nếu ConstructionSetup có thể được sửa và áp dụng ngay (không cần reload trang),
-       // cân nhắc thêm 1 cơ chế lắng nghe thay đổi (event/storage listener) và đưa vào đây.
+    []
   );
 
   const factoryRevenueRef = useRef<HTMLDivElement>(null);
@@ -111,7 +136,9 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   const materialListRef = useRef<HTMLDivElement>(null);
   const khsxSectionRef = useRef<HTMLDivElement>(null);
   const inventorySectionRef = useRef<HTMLDivElement>(null);
-  const projectSummaryRef = useRef<HTMLDivElement>(null);
+  // ✅ 2 bảng "Tình trạng đơn hàng theo Công trình" → mỗi bảng 1 ref riêng
+  const projectSummaryRef = useRef<HTMLDivElement>(null);        // bảng mới (v2)
+  const projectSummaryLegacyRef = useRef<HTMLDivElement>(null);  // bảng cũ
   const orderOverviewRef = useRef<HTMLDivElement>(null);
   const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
@@ -316,7 +343,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     expXuongKey,
     filters,
     unifiedDateOptions,
-    viewProjectWhitelist, // ✅ SỬA
+    viewProjectWhitelist,
   });
 
   const {
@@ -377,8 +404,11 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     calculateMetricValue,
     cardMetrics,
     projectStatusSummary,
+    onLineStageBreakdown,
+    hexRowsByColumn,
     pivotWorkshopData,
     pivotFunnelData,
+    funnelBreakdownByBop,
     customFunnelData,
     pivotProjectData,
     pivotMaterialSummary,
@@ -523,6 +553,116 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     fullTarget: targetRevenue2026,
   }], [factoryRevenueStats.actual, targetRevenue2026]);
 
+  // ✅ MỚI: xem chi tiết theo Công trình khi bấm vào 1 bước funnel
+  // ✅ MỚI: xem chi tiết theo Công trình khi bấm vào 1 bước funnel
+  const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
+
+  // P022. TỒN KHO lấy dữ liệu từ stockByProjectData (không nằm trong
+  // filteredProductionData/bopKey như các bước khác) -> cần fetch riêng khi
+  // user chọn bước này, vì loadStockByProject không tự chạy.
+  useEffect(() => {
+    if (activeFunnelItem?.id === 'P022') {
+      loadStockByProject();
+    }
+  }, [activeFunnelItem, loadStockByProject]);
+
+  const activeFunnelPivotData = useMemo(() => {
+    if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> giữ tổng theo BOP như cũ
+
+    if (activeFunnelItem.id === 'P022') {
+      return {
+        data: stockByProjectData,
+        total: stockByProjectData.reduce((sum, r) => sum + r.value, 0),
+      };
+    }
+
+    return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
+  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
+
+  // ✅ MỚI: Adapter chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
+  const projectOrderSummary = useMemo(
+    () =>
+      projectStatusSummary.map(row => {
+        const cancelled = 0; // TODO: chưa có nguồn dữ liệu "đã hủy"
+        const exported = 0;  // TODO: chưa có nguồn dữ liệu "đã xuất kho"
+        const notDeployed = row.notDeployed; // Chưa triển khai P001
+        const onLine = row.inProduction;     // Đang trên chuyền P002->P021
+        return {
+          name: row.name,
+          totalOrder: row.totalOrder,
+          cancelled,
+          afterCancel: row.totalOrder - cancelled,
+          inventory: row.inventory,
+          exported,
+          notDeployed,
+          onLine,
+          remaining: notDeployed + onLine,
+        };
+      }),
+    [projectStatusSummary]
+  );
+
+  // ✅ MỚI: Chi tiết "Đang trên chuyền P002->P021": bấm vào số ở cột này để mở modal.
+  // projectName = null nghĩa là bấm từ dòng TỔNG CỘNG (xem tất cả công trình).
+  const [onLineDetail, setOnLineDetail] = useState<{ open: boolean; projectName: string | null }>({
+    open: false,
+    projectName: null,
+  });
+
+  const onLineStageRows = useMemo<StageDetailRow[]>(() => {
+    if (!onLineDetail.open) return [];
+
+    const names = onLineDetail.projectName
+      ? [onLineDetail.projectName]
+      : projectStatusSummary.map(r => r.name);
+
+    return names.map(name => {
+      const stageValues = onLineStageBreakdown[name.trim()] ?? {};
+      const values: Record<string, number> = {};
+      ON_LINE_STAGES.forEach(stage => {
+        values[stage] = stageValues[stage] ?? 0;
+      });
+      return { name, values };
+    });
+  }, [onLineDetail, onLineStageBreakdown, projectStatusSummary]);
+
+  // -------------------------------------------------------------------------
+  // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
+  // Bấm vào bất kỳ số nào trong 6 cột có dữ liệu thật sẽ mở modal liệt kê
+  // từng hex gốc đứng sau con số đó. projectName = null nghĩa là bấm từ dòng
+  // TỔNG CỘNG (xem tất cả công trình). Nếu bấm từ 1 ô trong modal "Đang trên
+  // chuyền theo giai đoạn" thì stage sẽ được set kèm để lọc thêm.
+  // -------------------------------------------------------------------------
+  const [hexDetail, setHexDetail] = useState<{
+    open: boolean;
+    column: HexDetailColumn | null;
+    projectName: string | null;
+    stage: string | null;
+  }>({ open: false, column: null, projectName: null, stage: null });
+
+  const hexDetailRows = useMemo(() => {
+    if (!hexDetail.open || !hexDetail.column) return [];
+    let source = hexRowsByColumn[hexDetail.column] ?? [];
+    if (hexDetail.projectName && congTrinhKey) {
+      source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
+    }
+    if (hexDetail.stage && bopKey) {
+      source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
+    }
+    return source;
+  }, [hexDetail, hexRowsByColumn, congTrinhKey, bopKey]);
+
+  const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
+    () => ({
+      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+      daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    }),
+    [
+      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+      daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    ]
+  );
+
   if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
@@ -626,14 +766,35 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
       </div>
 
       <div className="px-4 md:px-8 space-y-6">
+
+        {/* ✅ BẢNG MỚI (v2): dùng dữ liệu đã qua adapter projectOrderSummary */}
+        <ProjectSummarySection_v2
+          sectionRef={projectSummaryRef}
+          projectStatusSummary={projectOrderSummary}
+          clickableColumns={['totalOrder', 'afterCancel', 'inventory', 'notDeployed', 'onLine', 'remaining']}
+          onCellClick={({ projectName, column }) => {
+            if (column === 'onLine') {
+              setOnLineDetail({ open: true, projectName });
+              return;
+            }
+            if (isHexDetailColumn(column)) {
+              setHexDetail({ open: true, column, projectName, stage: null });
+            }
+          }}
+          projectSummaryMetric={projectSummaryMetric}
+          setProjectSummaryMetric={setProjectSummaryMetric}
+        />
+
         <ContructionRevenueSection
           sectionRef={factoryRevenueRef}
           targetRevenue2026={targetRevenue2026}
           factoryRevenueStats={factoryRevenueStats}
           customFunnelData={customFunnelData}
-          pivotFunnelData={pivotFunnelData}
+          pivotFunnelData={activeFunnelPivotData}
           workshopMetric={workshopMetric}
-          useDetailedNumbers={true} 
+          useDetailedNumbers={true}
+          onFunnelItemClick={setActiveFunnelItem}
+          onFunnelModalClose={() => setActiveFunnelItem(null)}
         />
 
         <OrderOverviewSection
@@ -641,8 +802,8 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           isSidebarCollapsed={isSidebarCollapsed}
           hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
           filters={filters}
-          viewProjectWhitelist={viewProjectWhitelist} 
-          useDetailedNumbers={true}// ✅ SỬA
+          viewProjectWhitelist={viewProjectWhitelist}
+          useDetailedNumbers={true}
           overviewMetric={overviewMetric}
           setOverviewMetric={setOverviewMetric}
           getContextLabel={getContextLabel}
@@ -712,8 +873,9 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
         />
 
+        {/* ✅ BẢNG CŨ: giữ dữ liệu cũ (projectStatusSummary), dùng ref riêng */}
         <ProjectSummarySection
-          sectionRef={projectSummaryRef}
+          sectionRef={projectSummaryLegacyRef}
           projectStatusSummary={projectStatusSummary}
           projectSummaryMetric={projectSummaryMetric}
           setProjectSummaryMetric={setProjectSummaryMetric}
@@ -755,6 +917,30 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           setChartMetric={setChartMetric}
         />
       </div>
+
+      <OnLineStageDetailModal
+        isOpen={onLineDetail.open}
+        onClose={() => setOnLineDetail(prev => ({ ...prev, open: false }))}
+        projectName={onLineDetail.projectName}
+        metric={projectSummaryMetric}
+        rows={onLineStageRows}
+        onValueClick={(projectName, stage) =>
+          setHexDetail({ open: true, column: 'onLine', projectName, stage })
+        }
+      />
+
+      <HexDetailModal
+        isOpen={hexDetail.open}
+        onClose={() => setHexDetail(prev => ({ ...prev, open: false }))}
+        title={
+          hexDetail.column
+            ? HEX_COLUMN_LABELS[hexDetail.column] + (hexDetail.stage ? ` – ${hexDetail.stage}` : '')
+            : ''
+        }
+        projectName={hexDetail.projectName}
+        rows={hexDetailRows}
+        columnKeys={hexDetailColumnKeys}
+      />
 
       <ProductionExportModal
         isOpen={isProductionExportModalOpen}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { parseVNDate, toISODateLocal, computeMtdRows } from '../utils/dateHelpers';
 import {
@@ -182,19 +182,18 @@ export function useStockData({
     return overviewMetric === 'COUNT' ? entry.count : entry.value;
   }, [stockDates, closestStockDate, overviewMetric]);
 
-const loadStockByProject = () => {
+const loadStockByProject = useCallback(() => {
     if (isScopedWithNoProjects) {
       setStockByProjectData([]);
       return;
     }
     if (closestStockDate) {
-      // ✅ FIX: dùng effectiveCongTrinh thay vì filters.congTrinh trần — cùng lý do trên.
       fetchStockByProject(toISODateLocal(closestStockDate), {
         congTrinh: effectiveCongTrinh,
         xuong: filters.xuong,
       }).then(setStockByProjectData);
     }
-  };
+  }, [isScopedWithNoProjects, closestStockDate, effectiveCongTrinh, filters.xuong]);
 
  return {
     stockDates,

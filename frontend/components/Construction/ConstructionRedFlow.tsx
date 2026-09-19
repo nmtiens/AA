@@ -17,9 +17,9 @@ import { StatusLineChartSection } from './../Dashboard/components/sections/Statu
 import { PivotMaterialSummarySection } from './../Dashboard/components/sections/PivotMaterialSummarySection';
 import { PivotMaterialStatusSection } from './../Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
+import { ProjectSummarySection_v2 } from './../Dashboard/components/sections/ProjectSummarySection_v2';
 import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
 import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
-import { ContructionRevenueSection } from './../Dashboard/components/sections/ContructionRevenueSection';
 import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
 import { ProductionStatusSection } from './../Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './../Dashboard/components/sections/KhsxPlanActualSection';
@@ -31,7 +31,14 @@ import { GenericExportScopeModal } from './../Dashboard/components/modals/Generi
 import { GenericExportColumnModal } from './../Dashboard/components/modals/GenericExportColumnModal';
 import { ProductionExportModal } from './../Dashboard/components/modals/ProductionExportModal';
 import { filterByView, getProjectsForView } from './utils/viewDataConfig';
-
+import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/components/modals/HexDetailModal';
+import { ContructionRevenueSection, type CustomFunnelItem } from './../Dashboard/components/sections/ContructionRevenueSection';
+import {
+  OnLineStageDetailModal,
+  ON_LINE_STAGES,
+  extractStage,
+  type StageDetailRow,
+} from './../Dashboard/components/modals/OnLineStageDetailModal';
 interface ConstructionRedFlowProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
@@ -63,6 +70,24 @@ interface ConstructionRedFlowProps {
 // Id của view này trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
 // Bản Căn mẫu chỉ cần đổi giá trị này thành 'can-mau'.
 const VIEW_ID = 'luong-do' as const;
+
+// ---------------------------------------------------------------------------
+// Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
+// Chỉ khai báo type + label ở module scope (không dùng hook) — an toàn.
+// ---------------------------------------------------------------------------
+type HexDetailColumn = 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine' | 'remaining';
+
+const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
+  totalOrder: 'Tổng Giá Trị Đơn Hàng',
+  afterCancel: 'Tổng Giá Trị Đơn Hàng Sau Khi Hủy',
+  inventory: 'Tổng Giá Trị Đã Nhập Kho',
+  notDeployed: 'Chưa Triển Khai (P001)',
+  onLine: 'Đang Trên Chuyền (P002->P021)',
+  remaining: 'Tổng Giá Trị Đơn Hàng Còn Lại',
+};
+
+const isHexDetailColumn = (column: string): column is HexDetailColumn =>
+  column in HEX_COLUMN_LABELS;
 
 const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   productionData: rawProductionData,
@@ -107,7 +132,9 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   const materialListRef = useRef<HTMLDivElement>(null);
   const khsxSectionRef = useRef<HTMLDivElement>(null);
   const inventorySectionRef = useRef<HTMLDivElement>(null);
-  const projectSummaryRef = useRef<HTMLDivElement>(null);
+  // ✅ 2 bảng "Tình trạng đơn hàng theo Công trình" → mỗi bảng 1 ref riêng
+  const projectSummaryRef = useRef<HTMLDivElement>(null);        // bảng mới (v2)
+  const projectSummaryLegacyRef = useRef<HTMLDivElement>(null);  // bảng cũ
   const orderOverviewRef = useRef<HTMLDivElement>(null);
   const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
@@ -383,11 +410,13 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     expandedBops, setExpandedBops,
     bottleneckViewMode, setBottleneckViewMode,
 
-    calculateMetricValue,
     cardMetrics,
     projectStatusSummary,
+    onLineStageBreakdown,
+    hexRowsByColumn,
     pivotWorkshopData,
     pivotFunnelData,
+    funnelBreakdownByBop,
     customFunnelData,
     pivotProjectData,
     pivotMaterialSummary,
@@ -532,6 +561,107 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     fullTarget: targetRevenue2026,
   }], [factoryRevenueStats.actual, targetRevenue2026]);
 
+  // ✅ Adapter: chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
+  // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
+  const projectOrderSummary = useMemo(
+    () =>
+      projectStatusSummary.map(row => {
+        const cancelled = 0; // TODO: chưa có nguồn dữ liệu "đã hủy"
+        const exported = 0;  // TODO: chưa có nguồn dữ liệu "đã xuất kho"
+        const notDeployed = row.notDeployed; // Chưa triển khai P001
+        const onLine = row.inProduction;     // Đang trên chuyền P002->P021
+        return {
+          name: row.name,
+          totalOrder: row.totalOrder,
+          cancelled,
+          afterCancel: row.totalOrder - cancelled,
+          inventory: row.inventory,
+          exported,
+          notDeployed,
+          onLine,
+          remaining: notDeployed + onLine,
+        };
+      }),
+    [projectStatusSummary]
+  );
+
+  // -------------------------------------------------------------------------
+  // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
+  // Bấm vào bất kỳ số nào trong 6 cột có dữ liệu thật sẽ mở modal liệt kê
+  // từng hex gốc đứng sau con số đó. projectName = null nghĩa là bấm từ dòng
+  // TỔNG CỘNG (xem tất cả công trình).
+  // -------------------------------------------------------------------------
+ const [hexDetail, setHexDetail] = useState<{
+  open: boolean;
+  column: HexDetailColumn | null;
+  projectName: string | null;
+  stage: string | null;
+}>({ open: false, column: null, projectName: null, stage: null });
+
+const [onLineStageDetail, setOnLineStageDetail] = useState<{
+  open: boolean;
+  projectName: string | null;
+}>({ open: false, projectName: null });
+
+const hexDetailRows = useMemo(() => {
+    if (!hexDetail.open || !hexDetail.column) return [];
+    let source = hexRowsByColumn[hexDetail.column] ?? [];
+    if (hexDetail.projectName && congTrinhKey) {
+      source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
+    }
+  if (hexDetail.stage && bopKey) {
+     source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
+   }
+  return source;
+}, [hexDetail, hexRowsByColumn, congTrinhKey, bopKey]);
+
+  const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
+    () => ({
+      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+      daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    }),
+    [
+      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+      daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    ]
+  );
+
+ const onLineStageRows: StageDetailRow[] = useMemo(
+   () =>
+     Object.entries(onLineStageBreakdown)
+       .map(([name, values]) => ({ name, values }))
+       .sort((a, b) => a.name.localeCompare(b.name)),
+   [onLineStageBreakdown]
+ );
+
+const displayedOnLineStageRows = onLineStageDetail.projectName
+  ? onLineStageRows.filter(r => r.name === onLineStageDetail.projectName)
+  : onLineStageRows;
+
+  const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
+
+  useEffect(() => {
+  if (activeFunnelItem?.id === 'P022') {
+    loadStockByProject();
+  }
+}, [activeFunnelItem, loadStockByProject]);
+
+ const activeFunnelPivotData = useMemo(() => {
+    if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> giữ tổng theo BOP như cũ
+
+    // P022. TỒN KHO không nằm trong filteredProductionData/bopKey như các bước
+    // khác -> không có trong funnelBreakdownByBop. Lấy breakdown riêng từ
+    // stockByProjectData (đã fetch qua loadStockByProject ở effect trên).
+    if (activeFunnelItem.id === 'P022') {
+  return {
+    data: stockByProjectData,
+    total: stockByProjectData.reduce((sum, r) => sum + r.value, 0),
+  };
+}
+
+    return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
+  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
+
   if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
@@ -638,15 +768,36 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
       </div>
 
       <div className="px-4 md:px-8 space-y-6">
-        <ContructionRevenueSection
-          sectionRef={factoryRevenueRef}
-          targetRevenue2026={targetRevenue2026}
-          factoryRevenueStats={factoryRevenueStats}
-          customFunnelData={customFunnelData}
-          pivotFunnelData={pivotFunnelData}
-          workshopMetric={workshopMetric}
-          useDetailedNumbers={true} 
+
+        {/* ✅ BẢNG MỚI (v2): dùng dữ liệu đã qua adapter projectOrderSummary */}
+        <ProjectSummarySection_v2
+          sectionRef={projectSummaryRef}
+          projectStatusSummary={projectOrderSummary}
+          clickableColumns={['totalOrder', 'afterCancel', 'inventory', 'notDeployed', 'onLine', 'remaining']}
+         onCellClick={({ projectName, column }) => {
+  if (column === 'onLine') {
+    setOnLineStageDetail({ open: true, projectName });
+    return;
+  }
+  if (isHexDetailColumn(column)) {
+    setHexDetail({ open: true, column, projectName, stage: null });
+  }
+}}
+          projectSummaryMetric={projectSummaryMetric}
+          setProjectSummaryMetric={setProjectSummaryMetric}
         />
+
+<ContructionRevenueSection
+  sectionRef={factoryRevenueRef}
+  targetRevenue2026={targetRevenue2026}
+  factoryRevenueStats={factoryRevenueStats}
+  customFunnelData={customFunnelData}
+  pivotFunnelData={activeFunnelPivotData}
+  workshopMetric={workshopMetric}
+  useDetailedNumbers={true}
+  onFunnelItemClick={setActiveFunnelItem}
+  onFunnelModalClose={() => setActiveFunnelItem(null)}
+/>
 
         {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}
         <OrderOverviewSection
@@ -726,8 +877,9 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
           selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
         />
 
+        {/* ✅ BẢNG CŨ: giữ dữ liệu cũ (projectStatusSummary), dùng ref riêng */}
         <ProjectSummarySection
-          sectionRef={projectSummaryRef}
+          sectionRef={projectSummaryLegacyRef}
           projectStatusSummary={projectStatusSummary}
           projectSummaryMetric={projectSummaryMetric}
           setProjectSummaryMetric={setProjectSummaryMetric}
@@ -769,6 +921,39 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
           setChartMetric={setChartMetric}
         />
       </div>
+
+      <HexDetailModal
+        isOpen={hexDetail.open}
+        onClose={() => setHexDetail(prev => ({ ...prev, open: false }))}
+        title={hexDetail.column ? HEX_COLUMN_LABELS[hexDetail.column] : ''}
+        projectName={hexDetail.projectName}
+        rows={hexDetailRows}
+        columnKeys={hexDetailColumnKeys}
+      />
+
+      <OnLineStageDetailModal
+  isOpen={onLineStageDetail.open}
+  onClose={() => setOnLineStageDetail(prev => ({ ...prev, open: false }))}
+  projectName={onLineStageDetail.projectName}
+  metric={projectSummaryMetric === 'VALUE' ? 'VALUE' : 'COUNT'}
+  rows={displayedOnLineStageRows}
+  onValueClick={(projectName, stage) =>
+    setHexDetail({ open: true, column: 'onLine', projectName, stage })
+  }
+/>
+
+<HexDetailModal
+  isOpen={hexDetail.open}
+  onClose={() => setHexDetail(prev => ({ ...prev, open: false }))}
+  title={
+    hexDetail.column
+      ? HEX_COLUMN_LABELS[hexDetail.column] + (hexDetail.stage ? ` – ${hexDetail.stage}` : '')
+      : ''
+  }
+  projectName={hexDetail.projectName}
+  rows={hexDetailRows}
+  columnKeys={hexDetailColumnKeys}
+/>
 
       <ProductionExportModal
         isOpen={isProductionExportModalOpen}
