@@ -280,9 +280,9 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   const filterKey = getGroupAnalysisFilterKey(activeTrendFilter);
 
   // --- MỚI: Nhãn cột "ngày" trong modal chi tiết — phản ánh đúng khi chọn nhiều ngày.
-  const periodLabel = overviewDateFilters.length > 1
-    ? `${overviewDateFilters.length} NGÀY ĐÃ CHỌN`
-    : `NGÀY ${latestUnifiedDate ? `${latestUnifiedDate.getDate()}/${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`;
+const periodLabel = overviewDateFilters.length > 1
+  ? `${overviewDateFilters.length} NGÀY CÓ DỮ LIỆU`
+  : `NGÀY ${latestUnifiedDate ? `${latestUnifiedDate.getDate()}/${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`;
 
    return (
     <TrendFilterProvider
@@ -837,7 +837,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
                     unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
                     primaryColorClass="text-pink-600"
                     secondaryColorClass="text-indigo-600"
-                    defaultExcludedKeys={['ABC', 'OTHERS', 'X.ĐB']}
+                    defaultExcludedKeys={[]}
                   />
 
                   <div className="border-t border-slate-200 pt-6">
@@ -1151,60 +1151,59 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
       )}
 
       {/* Modal: Chi tiết Xuất kho */}
-      {isExportDetailModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
-           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-amber-500 to-orange-600">
-  <div className="flex items-center gap-6">
-    <div className="flex items-center gap-3 text-white">
-      <div className="p-2 bg-white/20 rounded-lg">
-        <Package size={24} className="text-white" />
+    {isExportDetailModalOpen && (
+  <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+    <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+        <div className="flex items-center gap-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Package className="text-amber-600" size={20} />
+              Chi tiết Xuất Kho
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn Xuất Kho</p>
+          </div>
+          <div className="inline-flex items-center gap-1 bg-white border border-amber-200 rounded-lg p-1 shadow-sm">
+            <button
+              onClick={() => setExportTab('detail')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+                exportTab === 'detail' ? 'bg-amber-600 text-white shadow-sm' : 'text-amber-600 hover:bg-amber-50'
+              }`}
+            >
+              <Table2 size={14} />
+              <span>Chi tiết dữ liệu</span>
+            </button>
+            <button
+              onClick={() => setExportTab('chart')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+                exportTab === 'chart' ? 'bg-amber-600 text-white shadow-sm' : 'text-amber-600 hover:bg-amber-50'
+              }`}
+            >
+              <TrendingUp size={14} />
+              <span>Biểu đồ xu hướng</span>
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <DisplayModeToggle current={exportMetric} onChange={setExportMetric} />
+          <button
+            onClick={() => handleOpenGenericExport('export')}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold border border-amber-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+            title="Xuất dữ liệu Xuất kho ra file .CSV"
+          >
+            <Download size={15} />
+            <span>Xuất CSV</span>
+          </button>
+          <button
+            onClick={() => setIsExportDetailModalOpen(false)}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
       </div>
-      <div>
-        <h3 className="text-xl font-bold text-white uppercase tracking-wider">Chi tiết Xuất kho</h3>
-        <p className="text-[10px] text-amber-50 font-medium">{getContextLabel()}</p>
-      </div>
-    </div>
-    <div className="inline-flex items-center gap-1 bg-white/20 border border-white/30 rounded-lg p-1 shadow-sm">
-  
-      <button
-        onClick={() => setExportTab('detail')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-          exportTab === 'detail' ? 'bg-white text-amber-700 shadow-sm' : 'text-white hover:bg-white/10'
-        }`}
-      >
-        <Table2 size={14} />
-        <span>Chi tiết dữ liệu</span>
-      </button>
-        <button
-        onClick={() => setExportTab('chart')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-          exportTab === 'chart' ? 'bg-white text-amber-700 shadow-sm' : 'text-white hover:bg-white/10'
-        }`}
-      >
-        <TrendingUp size={14} />
-        <span>Biểu đồ xu hướng</span>
-      </button>
-    </div>
-  </div>
-  <div className="flex items-center gap-3">
-    <DisplayModeToggle current={exportMetric} onChange={setExportMetric} light />
-    <button
-      onClick={() => handleOpenGenericExport('export')}
-      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/20 text-white hover:bg-white/30 rounded-lg text-xs font-bold border border-white/30 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu Xuất kho ra file .CSV"
-    >
-      <Download size={15} />
-      <span>Xuất CSV</span>
-    </button>
-    <button
-      onClick={() => setIsExportDetailModalOpen(false)}
-      className="p-2 hover:bg-white/20 rounded-full transition-all text-white/90 hover:text-white"
-    >
-      <X size={24} />
-    </button>
-  </div>
-</div>
+
+      {/* ...giữ nguyên <div className="flex-1 overflow-y-auto ..."> phần body... */}
             <div className="flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar">
               {exportTab === 'chart' ? (
                 <>
@@ -1259,59 +1258,59 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
       )}
 
       {/* Modal: Chi tiết Tồn kho */}
-      {isStockDetailModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200">
-            <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-600 to-slate-800">
-  <div className="flex items-center gap-6">
-    <div className="flex items-center gap-3 text-white">
-      <div className="p-2 bg-white/20 rounded-lg">
-        <Box size={24} className="text-white" />
+    {isStockDetailModalOpen && (
+  <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+    <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+        <div className="flex items-center gap-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Box className="text-slate-600" size={20} />
+              Chi tiết Tồn Kho
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn Tồn Kho</p>
+          </div>
+          <div className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
+            <button
+              onClick={() => setStockTab('detail')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+                stockTab === 'detail' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Table2 size={14} />
+              <span>Chi tiết dữ liệu</span>
+            </button>
+            <button
+              onClick={() => setStockTab('chart')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+                stockTab === 'chart' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <TrendingUp size={14} />
+              <span>Biểu đồ xu hướng</span>
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <DisplayModeToggle current={stockMetric} onChange={setStockMetric} />
+          <button
+            onClick={() => handleOpenGenericExport('stock')}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold border border-slate-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+            title="Xuất dữ liệu Tồn kho ra file .CSV"
+          >
+            <Download size={15} />
+            <span>Xuất CSV</span>
+          </button>
+          <button
+            onClick={() => setIsStockDetailModalOpen(false)}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
       </div>
-      <div>
-        <h3 className="text-xl font-bold text-white uppercase tracking-wider">Chi tiết Tồn kho</h3>
-        <p className="text-[10px] text-slate-50 font-medium">{getContextLabel()}</p>
-      </div>
-    </div>
-    <div className="inline-flex items-center gap-1 bg-white/20 border border-white/30 rounded-lg p-1 shadow-sm">
-      <button
-        onClick={() => setStockTab('detail')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-          stockTab === 'detail' ? 'bg-white text-slate-800 shadow-sm' : 'text-white hover:bg-white/10'
-        }`}
-      >
-        <Table2 size={14} />
-        <span>Chi tiết dữ liệu</span>
-      </button>
-       <button
-        onClick={() => setStockTab('chart')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-          stockTab === 'chart' ? 'bg-white text-slate-800 shadow-sm' : 'text-white hover:bg-white/10'
-        }`}
-      >
-        <TrendingUp size={14} />
-        <span>Biểu đồ xu hướng</span>
-      </button>
-    </div>
-  </div>
-  <div className="flex items-center gap-3">
-    <DisplayModeToggle current={stockMetric} onChange={setStockMetric} light />
-    <button
-      onClick={() => handleOpenGenericExport('stock')}
-      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white/20 text-white hover:bg-white/30 rounded-lg text-xs font-bold border border-white/30 transition-all shadow-sm active:scale-95 cursor-pointer"
-      title="Xuất dữ liệu Tồn kho ra file .CSV"
-    >
-      <Download size={15} />
-      <span>Xuất CSV</span>
-    </button>
-    <button
-      onClick={() => setIsStockDetailModalOpen(false)}
-      className="p-2 hover:bg-white/20 rounded-full transition-all text-white/90 hover:text-white"
-    >
-      <X size={24} />
-    </button>
-  </div>
-</div>
+
+      {/* ...giữ nguyên phần body... */}
 
             <div className="flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar">
               {stockTab === 'chart' ? (

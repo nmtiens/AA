@@ -249,6 +249,12 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     return Number((sum / chartData.length).toFixed(2));
   }, [chartData]);
 
+  const totalAll = useMemo(() => {
+  if (!hasValidRange) return 0;
+  const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : p.total), 0);
+  return Number(sum.toFixed(2));
+}, [raw, displayMode, hasValidRange]);
+
   // Số ký tự tối đa/dòng cho tên công trình — nhỏ hơn ở chế độ embedded vì khung hẹp hơn
   const maxCharsPerLine = embedded ? 18 : 24;
   const yAxisFontSize = embedded ? 9 : 10;
@@ -416,7 +422,18 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Không có dữ liệu</div>
         )}
-
+        {chartData.length > 0 && !loading && (
+  <div
+    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+    style={{
+      color: theme.barDark,
+      borderColor: theme.bar,
+      backgroundColor: `${theme.bar}1A`,
+    }}
+  >
+    Tổng: {formatDecimal(totalAll)}
+  </div>
+)}
         {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
         {pinned && (
           <PinnedPopover

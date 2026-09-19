@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, X, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { exportDetailRowsToCsv } from '../../utils/csvExport';
 
 const ROWS_PER_PAGE = 200;
 
@@ -7,11 +8,12 @@ interface DetailDataModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  accentColor: string; // mã màu hex dùng cho icon (theme.bar)
+  accentColor: string; // mã màu hex dùng cho icon + nút xuất CSV (theme.bar)
   rows: Record<string, any>[];
   columns: string[];
   loading: boolean;
   truncated: boolean;
+  fileName?: string; // tên file CSV khi xuất
 }
 
 const formatColumnLabel = (col: string) => col.toUpperCase().replace(/_/g, ' ');
@@ -22,7 +24,7 @@ const formatCellValue = (v: any) => {
 };
 
 export default function DetailDataModal({
-  open, onClose, title, accentColor, rows, columns, loading, truncated,
+  open, onClose, title, accentColor, rows, columns, loading, truncated, fileName,
 }: DetailDataModalProps) {
   const [page, setPage] = useState(1);
 
@@ -58,9 +60,30 @@ export default function DetailDataModal({
             <Eye size={16} style={{ color: accentColor }} />
             {title}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Xuất toàn bộ rows đang có (không chỉ trang hiện tại) */}
+            <button
+              onClick={() => exportDetailRowsToCsv(fileName ?? 'chi_tiet', columns, rows)}
+              disabled={loading || rows.length === 0}
+              title={
+                truncated
+                  ? 'Server đã giới hạn số dòng, file chỉ chứa các dòng đã tải về'
+                  : 'Xuất dữ liệu đang hiển thị ra file .CSV'
+              }
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold border shadow-sm transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              style={{
+                color: accentColor,
+                borderColor: accentColor,
+                backgroundColor: `${accentColor}1A`,
+              }}
+            >
+              <Download size={15} />
+              <span>Xuất CSV</span>
+            </button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-auto flex-1 p-4">

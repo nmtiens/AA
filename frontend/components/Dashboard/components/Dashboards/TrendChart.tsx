@@ -278,6 +278,11 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
     return Number((sum / pointsForAvg.length).toFixed(2));
   }, [chartData, source]);
 
+  const totalAll = useMemo(() => {
+  const sum = chartData.reduce((s, p) => s + p.total, 0);
+  return Number(sum.toFixed(2));
+}, [chartData]);
+
   // Gọi /api/detail cho kỳ đang ghim — chỉ lấy dữ liệu khớp đúng kỳ + bộ lọc hiện tại
   const openDetailForPinned = async () => {
     if (!pinned) return;
@@ -423,6 +428,19 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Không có dữ liệu</div>
         )}
+
+        {chartData.length > 0 && !loading && (
+  <div
+    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+    style={{
+      color: theme.barDark,
+      borderColor: theme.bar,
+      backgroundColor: `${theme.bar}1A`,
+    }}
+  >
+    Tổng: {formatDecimal(totalAll)}
+  </div>
+)}
 
         {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
         {pinned && (

@@ -194,6 +194,11 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     return Number((sum / chartData.length).toFixed(2));
   }, [chartData]);
 
+  const totalAll = useMemo(() => {
+  const sum = chartData.reduce((s, p) => s + p.total, 0);
+  return Number(sum.toFixed(2));
+}, [chartData]);
+
   // Gọi /api/detail cho ĐVT đang ghim — chỉ lấy dữ liệu khớp đúng ĐVT + bộ lọc + khoảng ngày hiện tại
   const openDetailForPinned = async () => {
     if (!pinned) return;
@@ -348,7 +353,18 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Không có dữ liệu</div>
         )}
-
+{chartData.length > 0 && !loading && (
+  <div
+    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+    style={{
+      color: theme.barDark,
+      borderColor: theme.bar,
+      backgroundColor: `${theme.bar}1A`,
+    }}
+  >
+    Tổng: {formatDecimal(totalAll)}
+  </div>
+)}
         {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
         {pinned && (
           <PinnedPopover
