@@ -49,11 +49,8 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
   useEffect(() => {
     if (!selectedViewId) return;
     const saved = getProjectsForView(selectedViewId);
-    // ✅ SỬA: đối chiếu với allProjects hiện tại, loại bỏ những công trình đã
-    // lưu trước đó nhưng không còn tồn tại trong dữ liệu sản xuất hiện tại
-    // (do dữ liệu thay đổi, hoặc lệch chuẩn hóa Unicode dấu tiếng Việt) — đây
-    // là nguyên nhân khiến "Đã chọn 1/396" không giảm về 0 dù đã bấm "Bỏ chọn
-    // hết", vì phần tử mồ côi đó không match bất kỳ item nào để bị xóa.
+    // đối chiếu với allProjects hiện tại, loại bỏ những công trình đã lưu
+    // trước đó nhưng không còn tồn tại trong dữ liệu sản xuất hiện tại
     const validProjectsSet = new Set(allProjects);
     const cleaned = saved.filter((p) => validProjectsSet.has(p));
     setSelectedProjects(new Set(cleaned));
@@ -76,9 +73,9 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     });
   };
 
-    const handleClearAllFiltered = () => {
-    // ✅ SỬA: nếu không đang search (searchTerm rỗng), bỏ chọn TOÀN BỘ, kể cả
-    // phần tử mồ côi còn sót — đảm bảo nút "Bỏ chọn hết" luôn đưa về đúng 0.
+  const handleClearAllFiltered = () => {
+    // nếu không đang search (searchTerm rỗng), bỏ chọn TOÀN BỘ, kể cả phần tử
+    // mồ côi còn sót — đảm bảo nút "Bỏ chọn hết" luôn đưa về đúng 0.
     if (!searchTerm.trim()) {
       setSelectedProjects(new Set());
       return;
@@ -90,12 +87,28 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     });
   };
 
+  // ✅ SỬA: BUG CHÍNH — bản cũ gọi `setProjectsForView(...)` (hàm async,
+  // trả về Promise<boolean>) mà KHÔNG `await`, nên code chạy thẳng xuống
+  // `showToast('...thành công')` ngay lập tức, không chờ request thật sự
+  // xong. Nếu API lỗi (401 sai token, CORS, route /api không tới đúng
+  // backend...), lỗi đó chỉ vào console.error — người dùng luôn thấy toast
+  // "Đã lưu setup" dù dữ liệu chưa hề được lưu ở backend. Đây là lý do
+  // "lưu rồi" nhưng 2 trang Luồng đỏ/Căn mẫu vẫn rỗng.
+  // Sửa: await kết quả thật, chỉ báo thành công khi backend xác nhận OK,
+  // báo lỗi rõ ràng khi thất bại để không còn "false positive".
   const handleSave = async () => {
     if (!selectedViewId) return;
     setIsSaving(true);
     try {
-      setProjectsForView(selectedViewId, Array.from(selectedProjects));
-      showToast(`Đã lưu setup cho "${selectedView?.label}"`, 'success');
+      const ok = await setProjectsForView(selectedViewId, Array.from(selectedProjects));
+      if (ok) {
+        showToast(`Đã lưu setup cho "${selectedView?.label}"`, 'success');
+      } else {
+        showToast(
+          'Lưu setup thất bại — vui lòng mở Console (F12) để xem lỗi chi tiết (thường là hết hạn đăng nhập hoặc lỗi kết nối API)',
+          'error'
+        );
+      }
     } catch {
       showToast('Lưu setup thất bại', 'error');
     } finally {
