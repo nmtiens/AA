@@ -308,6 +308,7 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     groupAnalysisCache,
     loadGroupAnalysis,
     toAnalysisItems,
+    getGroupAnalysisFilterKey
   } = useOverviewSummary({
     orderData,
     tkbvData,
@@ -678,6 +679,7 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
           handleOpenOrderExport={handleOpenOrderExport}
           handleOpenGenericExport={handleOpenGenericExport}
           loadStockByProject={loadStockByProject}
+          getGroupAnalysisFilterKey={getGroupAnalysisFilterKey}
         />
 
         <ProductionStatusSection

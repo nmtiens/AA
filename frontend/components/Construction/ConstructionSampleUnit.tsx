@@ -300,6 +300,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     groupAnalysisCache,
     loadGroupAnalysis,
     toAnalysisItems,
+    getGroupAnalysisFilterKey
   } = useOverviewSummary({
     orderData,
     tkbvData,
@@ -664,6 +665,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           handleOpenOrderExport={handleOpenOrderExport}
           handleOpenGenericExport={handleOpenGenericExport}
           loadStockByProject={loadStockByProject}
+          getGroupAnalysisFilterKey={getGroupAnalysisFilterKey}
         />
 
         <ProductionStatusSection

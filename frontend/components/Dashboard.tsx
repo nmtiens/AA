@@ -248,6 +248,7 @@ const {
   groupAnalysisCache,
   loadGroupAnalysis,
   toAnalysisItems,
+  getGroupAnalysisFilterKey,
 } = useOverviewSummary({
   orderData,
   tkbvData,
@@ -617,6 +618,7 @@ const handleContinueToOrderColumnStep = () => {
   handleOpenOrderExport={handleOpenOrderExport}
   handleOpenGenericExport={handleOpenGenericExport}
   loadStockByProject={loadStockByProject}  
+  getGroupAnalysisFilterKey={getGroupAnalysisFilterKey}
 />
 
         <ProductionStatusSection

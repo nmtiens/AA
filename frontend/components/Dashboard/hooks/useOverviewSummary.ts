@@ -20,6 +20,17 @@ import { DashboardFiltersState } from './useDashboardFilters';
 type OverviewMetric = 'COUNT' | 'SUM';
 type GroupAnalysisKey = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export';
 
+// MỚI: override công trình/xưởng ĐANG ACTIVE trong TrendFilterContext của modal chi
+// tiết (tab "Biểu đồ xu hướng"). Khi truyền, loadGroupAnalysis/getGroupAnalysisFilterKey
+// sẽ dùng ĐÚNG giá trị này thay vì filters.congTrinh/filters.xuong của Dashboard —
+// đây là phần còn thiếu khiến tab "Chi tiết dữ liệu" luôn tra cache bằng key cũ
+// trong khi tab "Biểu đồ xu hướng" đã fetch theo bộ lọc mới.
+// congTrinh/xuong rỗng ('') nghĩa là "không override, dùng nguyên filters Dashboard".
+interface GroupAnalysisOverride {
+  congTrinh: string;
+  xuong: string;
+}
+
 interface UseOverviewSummaryParams {
   orderData: DataRow[];
   tkbvData: DataRow[];
@@ -60,6 +71,23 @@ interface UseOverviewSummaryParams {
  * niệm "view" (ví dụ Dashboard tổng — không truyền tham số này), getEffectiveCongTrinh()
  * sẽ coi như "không giới hạn theo view" và trả nguyên filters.congTrinh — giữ đúng hành
  * vi cũ, không còn crash.
+ *
+ * ✅ FIX MỚI (đồng bộ modal chi tiết ↔ biểu đồ xu hướng):
+ * Trước đây loadGroupAnalysis() và filterKey (dùng để ghi/đọc groupAnalysisCache) chỉ
+ * tính dựa trên filters.congTrinh/filters.xuong (bộ lọc TỔNG của Dashboard) và
+ * overviewDateFilters. Nhưng tab "Biểu đồ xu hướng" trong modal chi tiết
+ * (OrderOverviewSection.tsx) cho phép người dùng đổi CÔNG TRÌNH/XƯỞNG ngay trong modal
+ * qua TrendFilterContext — một state HOÀN TOÀN TÁCH BIỆT khỏi filters.congTrinh/xuong.
+ * Kết quả: khi người dùng đổi công trình trong tab biểu đồ rồi chuyển sang tab
+ * "Chi tiết dữ liệu", filterKey vẫn tính theo filters.congTrinh CŨ của Dashboard ->
+ * groupAnalysisCache không có key tương ứng -> hiển thị "Không có dữ liệu phân tích".
+ *
+ * Sửa bằng cách cho loadGroupAnalysis() và getGroupAnalysisFilterKey() nhận thêm
+ * tham số `override` (giá trị congTrinh/xuong ĐANG active trong TrendFilterContext,
+ * do OrderOverviewSection.tsx đọc ra qua 1 bridge component và truyền vào). Khi có
+ * override, nó THAY THẾ (không cộng dồn với) filters.congTrinh/xuong của Dashboard —
+ * vì trong modal, người dùng đang chọn 1 công trình/xưởng cụ thể để xem, không phải
+ * đang lọc thêm trên nền bộ lọc tổng.
  */
 export function useOverviewSummary({
   orderData,
@@ -295,24 +323,50 @@ export function useOverviewSummary({
   const mtdExportKhoData = useMemo(() => computeMtdRows(exportData, expDateKey, latestUnifiedDate), [exportData, expDateKey, latestUnifiedDate]);
 
   // --- Cache phân tích theo nhóm (Xưởng / Công trình) cho từng nguồn, dùng trong modal chi tiết ---
-  const loadGroupAnalysis = async (key: GroupAnalysisKey) => {
-    const effectiveCongTrinh = getEffectiveCongTrinh(); // ✅ FIX: không còn thể là undefined
 
-    // filterSuffix PHẢI dựa trên effectiveCongTrinh (đã giao với whitelist nếu có),
-    // không phải filters.congTrinh thô — nếu không cache key sẽ không phản ánh đúng
-    // dữ liệu thực sự được fetch, và OrderOverviewSection.tsx (nơi tính lại filterKey
-    // để ĐỌC cache) phải dùng ĐÚNG công thức này để không bị lệch key.
-    const filterSuffix = `_ct-${[...effectiveCongTrinh].sort().join('|')}` +
-      `_x-${[...filters.xuong].sort().join('|')}`;
-    const filterKey = (overviewDateFilters.length > 0
+  // MỚI: helper tính effectiveCongTrinh/effectiveXuong khi có override từ
+  // TrendFilterContext (modal chi tiết). override.congTrinh/xuong rỗng ('') nghĩa là
+  // "chưa chọn gì trong modal" -> vẫn dùng nguyên filters Dashboard (giữ hành vi cũ).
+  // override.congTrinh/xuong có giá trị -> THAY THẾ filters Dashboard bằng đúng 1 giá
+  // trị đó, vì trong modal người dùng đang chọn xem riêng 1 công trình/xưởng cụ thể.
+  const resolveEffectiveForGroupAnalysis = (override?: GroupAnalysisOverride) => {
+    const effectiveCongTrinh = override?.congTrinh
+      ? [override.congTrinh]
+      : getEffectiveCongTrinh();
+    const effectiveXuong = override?.xuong
+      ? [override.xuong]
+      : filters.xuong;
+    return { effectiveCongTrinh, effectiveXuong };
+  };
+
+  // MỚI: xuất ra ngoài để OrderOverviewSection.tsx dùng khi ĐỌC cache (tính filterKey
+  // hiển thị), đảm bảo dùng CHÍNH XÁC cùng công thức với loadGroupAnalysis khi GHI cache.
+  const getGroupAnalysisFilterKey = (override?: GroupAnalysisOverride): string => {
+    const { effectiveCongTrinh, effectiveXuong } = resolveEffectiveForGroupAnalysis(override);
+    const filterSuffix =
+      `_ct-${[...effectiveCongTrinh].sort().join('|')}` +
+      `_x-${[...effectiveXuong].sort().join('|')}`;
+    return (overviewDateFilters.length > 0
       ? [...overviewDateFilters].sort().join('_')
       : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
-     const kW = `${key}-xuong-${filterKey}`;
+  };
+
+  const loadGroupAnalysis = async (key: GroupAnalysisKey, override?: GroupAnalysisOverride) => {
+    const { effectiveCongTrinh, effectiveXuong } = resolveEffectiveForGroupAnalysis(override);
+
+    // filterKey PHẢI dựa trên effectiveCongTrinh/effectiveXuong (đã áp override/whitelist
+    // nếu có), không phải filters.congTrinh/xuong thô — nếu không cache key sẽ không
+    // phản ánh đúng dữ liệu thực sự được fetch, và OrderOverviewSection.tsx (nơi tính
+    // lại filterKey để ĐỌC cache) phải dùng ĐÚNG công thức này để không bị lệch key.
+    const filterKey = getGroupAnalysisFilterKey(override);
+    const kW = `${key}-xuong-${filterKey}`;
     const kP = `${key}-congtrinh-${filterKey}`;
     if (groupAnalysisCache[kW] && groupAnalysisCache[kP]) return;
 
     // ✅ FIX: cùng lý do — scope rỗng thì không gọi API, set thẳng cache = [].
-    if (viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0) {
+    // Chỉ áp dụng khi KHÔNG có override cụ thể (override luôn có đúng 1 công trình,
+    // không thể rỗng theo nghĩa "scope rỗng").
+    if (!override?.congTrinh && viewProjectWhitelist !== undefined && effectiveCongTrinh.length === 0) {
       setGroupAnalysisCache(prev => ({ ...prev, [kW]: [], [kP]: [] }));
       return;
     }
@@ -325,7 +379,7 @@ export function useOverviewSummary({
       dateToISO = overviewSummary.date;
     }
 
-    const filterOpts = { congTrinh: effectiveCongTrinh, xuong: filters.xuong };
+    const filterOpts = { congTrinh: effectiveCongTrinh, xuong: effectiveXuong };
     const [byXuong, byCongTrinh] = await Promise.all([
       fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, ...filterOpts }),
       fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, ...filterOpts }),
@@ -371,6 +425,7 @@ export function useOverviewSummary({
 
     groupAnalysisCache,
     loadGroupAnalysis,
+    getGroupAnalysisFilterKey, // MỚI: export để OrderOverviewSection.tsx đọc cache đúng key
     toAnalysisItems,
   };
 }

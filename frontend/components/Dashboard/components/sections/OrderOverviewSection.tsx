@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShoppingCart, FileText, ClipboardList, Package, Box, Eye, Download, X,
   Layers, Building2, Briefcase, XCircle as CloseIcon,
@@ -14,7 +14,7 @@ import ByXuongChart from '../Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
 import TrendByDvtChart from '../Dashboards/TrendByDvtChart';
 import TrendByPhanLoaiChart from '../Dashboards/TrendByPhanLoaiChart';
-import { TrendFilterProvider } from '../Dashboards/TrendFilterContext';
+import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
 // ---------------------------------------------------------------------------
 // Types
@@ -52,6 +52,13 @@ export interface StockByProjectRow {
   name: string;
   count: number;
   value: number;
+}
+
+// MỚI: giá trị congTrinh/xuong ĐANG ACTIVE trong TrendFilterContext của modal đang mở.
+// '' nghĩa là "chưa chọn cụ thể" -> dùng nguyên bộ lọc tổng của Dashboard (hành vi cũ).
+interface GroupAnalysisOverride {
+  congTrinh: string;
+  xuong: string;
 }
 
 interface OrderOverviewSectionProps {
@@ -96,11 +103,41 @@ interface OrderOverviewSectionProps {
 
   groupAnalysisCache: Record<string, any[]>;
   toAnalysisItems: (rows: any[], metric: DisplayMetric) => any[];
-  loadGroupAnalysis: (key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export') => void;
+  // ✅ SỬA: nhận thêm override (congTrinh/xuong đang active trong modal) để fetch/khoá
+  // cache ĐÚNG với dữ liệu đang hiển thị ở tab "Biểu đồ xu hướng".
+  loadGroupAnalysis: (
+    key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export',
+    override?: GroupAnalysisOverride
+  ) => void;
+  // ✅ MỚI: tính filterKey THEO ĐÚNG công thức mà loadGroupAnalysis dùng để ghi cache —
+  // dùng ở đây để ĐỌC cache, tránh lệch key giữa ghi và đọc.
+  getGroupAnalysisFilterKey: (override?: GroupAnalysisOverride) => string;
   handleOpenOrderExport: () => void;
   handleOpenGenericExport: (flow: 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock') => void;
   loadStockByProject: () => void;
 }
+
+// ---------------------------------------------------------------------------
+// MỚI: TrendFilterBridge
+// ---------------------------------------------------------------------------
+// Component "cầu nối" phải render BÊN TRONG <TrendFilterProvider> (vì chỉ ở đó
+// useTrendFilter() mới có context để đọc). Nhiệm vụ duy nhất: mỗi khi congTrinh/xuong
+// đang active trong TrendFilterContext (bộ lọc mà người dùng chỉnh trực tiếp ở tab
+// "Biểu đồ xu hướng" qua SharedDateFilterBar) thay đổi, báo giá trị đó ra ngoài cho
+// OrderOverviewSection biết, để:
+//   1. Tính lại filterKey dùng để ĐỌC groupAnalysisCache cho tab "Chi tiết dữ liệu".
+//   2. Tự động gọi lại loadGroupAnalysis() để NẠP cache theo đúng bộ lọc mới.
+// Không render gì ra DOM (return null).
+const TrendFilterBridge: React.FC<{
+  onChange: (v: GroupAnalysisOverride) => void;
+}> = ({ onChange }) => {
+  const { congTrinh, xuong } = useTrendFilter();
+  useEffect(() => {
+    onChange({ congTrinh, xuong });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [congTrinh, xuong]);
+  return null;
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -132,6 +169,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   groupAnalysisCache,
   toAnalysisItems,
   loadGroupAnalysis,
+  getGroupAnalysisFilterKey, // MỚI
   handleOpenOrderExport,
   handleOpenGenericExport,
   loadStockByProject,
@@ -167,6 +205,46 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     opener();
   };
 
+  // ✅ MỚI: giá trị congTrinh/xuong ĐANG ACTIVE trong TrendFilterContext, đổ ra từ
+  // TrendFilterBridge (render bên trong <TrendFilterProvider> ở cuối file). Đây là
+  // NGUỒN SỰ THẬT DUY NHẤT dùng để tính filterKey cho CẢ 2 TAB, thay vì tab "Chi tiết
+  // dữ liệu" tự tính theo filters.congTrinh/xuong (Dashboard) như trước đây.
+  const [activeTrendFilter, setActiveTrendFilter] = useState<GroupAnalysisOverride>({
+    congTrinh: filters.congTrinh[0] || '',
+    xuong: filters.xuong[0] || '',
+  });
+
+  // ✅ SỬA: reset activeTrendFilter mỗi khi 1 modal được mở lại (đồng bộ với
+  // trendResetKey/TrendFilterProvider), tránh dùng sót giá trị của lần mở modal trước.
+  useEffect(() => {
+    setActiveTrendFilter({
+      congTrinh: filters.congTrinh[0] || '',
+      xuong: filters.xuong[0] || '',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trendResetKey]);
+
+  // ✅ MỚI: mỗi khi bộ lọc ĐANG ACTIVE trong modal (activeTrendFilter) hoặc bộ lọc ngày
+  // chung (overviewDateFilters) đổi, NẠP LẠI cache cho ĐÚNG modal đang mở. Đây là phần
+  // còn thiếu trước đây khiến tab "Chi tiết dữ liệu" không bao giờ tự refetch khi người
+  // dùng đổi công trình/ngày ở tab "Biểu đồ xu hướng".
+  useEffect(() => {
+    if (isIpoDetailModalOpen) loadGroupAnalysis('order', activeTrendFilter);
+    else if (isTkbvDetailModalOpen) loadGroupAnalysis('tkbv', activeTrendFilter);
+    else if (isPthspDetailModalOpen) loadGroupAnalysis('pthsp', activeTrendFilter);
+    else if (isInventoryDetailModalOpen) loadGroupAnalysis('inventory', activeTrendFilter);
+    else if (isExportDetailModalOpen) loadGroupAnalysis('export', activeTrendFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    activeTrendFilter,
+    overviewDateFilters,
+    isIpoDetailModalOpen,
+    isTkbvDetailModalOpen,
+    isPthspDetailModalOpen,
+    isInventoryDetailModalOpen,
+    isExportDetailModalOpen,
+  ]);
+
   // ✅ MỚI: helper format số GIÁ TRỊ (chế độ SUM) — thay thế cho các đoạn lặp lại
   // "(value / 1000).toLocaleString(...)" + đơn vị 'Tỷ' rải rác khắp component.
   // - useDetailedNumbers = false (mặc định, Dashboard tổng): giữ nguyên hành vi cũ,
@@ -194,28 +272,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
 
   if (!hasAnyData) return null;
 
-  // ✅ FIX: effectiveCongTrinh = giao giữa bộ lọc tổng (filters.congTrinh) và
-  // whitelist của view (viewProjectWhitelist) — PHẢI dùng công thức GIỐNG HỆT
-  // getEffectiveCongTrinh() bên useOverviewSummary.ts:
-  // - viewProjectWhitelist === undefined (Dashboard tổng, không scope theo view)
-  //   -> không áp whitelist, dùng nguyên filters.congTrinh.
-  // - viewProjectWhitelist là mảng (kể cả []) -> đang ở trang theo view -> áp
-  //   whitelist: nếu user chưa chọn gì trên dropdown "Tên Công Trình" thì mặc định
-  //   dùng ĐÚNG whitelist của view; nếu đã chọn thì giao với whitelist.
-  const effectiveCongTrinh = viewProjectWhitelist === undefined
-    ? filters.congTrinh
-    : filters.congTrinh.length > 0
-      ? filters.congTrinh.filter(ct => viewProjectWhitelist.includes(ct))
-      : viewProjectWhitelist;
-
-  // --- Khóa cache phải phản ánh đúng TẬP NGÀY đang lọc ngoài dashboard.
-  // Phải khớp CHÍNH XÁC với cách useOverviewSummary.loadGroupAnalysis tính filterKey
-  // (đã dùng effectiveCongTrinh ở đó), nếu không 2 bên sẽ ghi/đọc lệch key nhau.
-  const filterSuffix = `_ct-${[...effectiveCongTrinh].sort().join('|')}` + // ✅ FIX
-    `_x-${[...filters.xuong].sort().join('|')}`;
-  const filterKey = (overviewDateFilters.length > 0
-    ? [...overviewDateFilters].sort().join('_')
-    : `all-${overviewSummary?.date ?? ''}`) + filterSuffix;
+  // ✅ SỬA: filterKey giờ tính qua getGroupAnalysisFilterKey(activeTrendFilter) — dùng
+  // CHÍNH XÁC công thức mà loadGroupAnalysis (useOverviewSummary.ts) dùng để GHI cache,
+  // và luôn phản ánh đúng công trình/xưởng NGƯỜI DÙNG ĐANG THẤY trong modal (kể cả khi
+  // họ vừa đổi ở tab "Biểu đồ xu hướng"), thay vì filters.congTrinh/xuong tĩnh của
+  // Dashboard như code cũ.
+  const filterKey = getGroupAnalysisFilterKey(activeTrendFilter);
 
   // --- MỚI: Nhãn cột "ngày" trong modal chi tiết — phản ánh đúng khi chọn nhiều ngày.
   const periodLabel = overviewDateFilters.length > 1
@@ -232,6 +294,9 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
       resetKey={trendResetKey}    
       viewProjectWhitelist={viewProjectWhitelist}                     // MỚI
     >
+    {/* ✅ MỚI: cầu nối đọc congTrinh/xuong đang active trong context ra ngoài, để tab
+        "Chi tiết dữ liệu" (bên ngoài phạm vi hook context) biết và tự refetch/tính key */}
+    <TrendFilterBridge onChange={setActiveTrendFilter} />
     <>
       <div
         ref={sectionRef}
@@ -321,7 +386,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
              <button
   onClick={() => openModalWithTrendReset(() => {
     setIsIpoDetailModalOpen(true);
-    loadGroupAnalysis('order');
+    loadGroupAnalysis('order', activeTrendFilter);
   })}
   className="absolute top-4 right-4 text-pink-400 hover:text-pink-700 transition-colors z-20"
   title="Xem chi tiết"
@@ -380,7 +445,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
              <button
   onClick={() => openModalWithTrendReset(() => {
     setIsTkbvDetailModalOpen(true);
-    loadGroupAnalysis('tkbv');
+    loadGroupAnalysis('tkbv', activeTrendFilter);
   })}
   className="absolute top-4 right-4 text-blue-400 hover:text-blue-700 transition-colors z-20"
   title="Xem chi tiết"
@@ -441,7 +506,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
              <button
   onClick={() => openModalWithTrendReset(() => {
     setIsPthspDetailModalOpen(true);
-    loadGroupAnalysis('pthsp');
+    loadGroupAnalysis('pthsp', activeTrendFilter);
   })}
   className="absolute top-4 right-4 text-purple-400 hover:text-purple-700 transition-colors z-20"
   title="Xem chi tiết"
@@ -502,7 +567,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
              <button
   onClick={() => openModalWithTrendReset(() => {
     setIsInventoryDetailModalOpen(true);
-    loadGroupAnalysis('inventory');
+    loadGroupAnalysis('inventory', activeTrendFilter);
   })}
   className="absolute top-4 right-4 text-teal-400 hover:text-teal-700 transition-colors z-20"
   title="Xem chi tiết"
@@ -563,7 +628,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
              <button
   onClick={() => openModalWithTrendReset(() => {
     setIsExportDetailModalOpen(true);
-    loadGroupAnalysis('export');
+    loadGroupAnalysis('export', activeTrendFilter);
   })}
   className="absolute top-4 right-4 text-amber-400 hover:text-amber-700 transition-colors z-20"
   title="Xem chi tiết"
