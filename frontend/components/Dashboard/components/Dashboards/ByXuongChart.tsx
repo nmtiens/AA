@@ -15,8 +15,6 @@ interface ApiXuongPoint {
   total: number;
   totalCount: number;
 }
-// periodKey ở đây mang giá trị mã xưởng (xuongCode) — đặt tên thống nhất với
-// TrendChart (theo kỳ) để dùng chung quy ước "khoá định danh cột đang ghim".
 interface ChartPoint { xuong: string; periodKey: string; total: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
@@ -31,20 +29,8 @@ const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; 
   stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
 };
 
-// ================== Chi tiết dữ liệu (/api/detail) ==================
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
 
-const formatColumnLabel = (col: string) => col.toUpperCase().replace(/_/g, ' ');
-const formatCellValue = (v: any) => {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-  return String(v);
-};
-
-// ================== Popover ghim ==================
-// <div absolute> tự vẽ, KHÔNG dùng <Tooltip> của Recharts (nó lắng nghe mousemove
-// liên tục nên dù ép coordinate cố định vẫn "chạy" theo chuột). Overlay này độc lập
-// hoàn toàn nên đứng yên tuyệt đối tại điểm đã click.
 interface PinnedPopoverProps {
   x: number;
   y: number;
@@ -57,7 +43,6 @@ interface PinnedPopoverProps {
 }
 function PinnedPopover({ x, y, containerWidth, label, value, unit, onViewDetail, onClose }: PinnedPopoverProps) {
   const POPOVER_WIDTH = 220;
-  // Tránh popover bị tràn ra ngoài mép phải/trái của khung biểu đồ
   const clampedLeft = Math.min(Math.max(x, POPOVER_WIDTH / 2 + 8), containerWidth - POPOVER_WIDTH / 2 - 8);
 
   return (
@@ -101,19 +86,19 @@ interface TrendByXuongChartProps {
 }
 
 export default function TrendByXuongChart({ source, embedded = false, displayMode }: TrendByXuongChartProps) {
-const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
+  const {
+    dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
+    hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI
+  } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiXuongPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Container ref để tính tọa độ popover tương đối với khung chứa biểu đồ
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
 
-  // Xưởng đang được "ghim" (đã click) + tọa độ hiển thị popover
   const [pinned, setPinned] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
 
-  // Modal chi tiết dữ liệu
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailRows, setDetailRows] = useState<Record<string, any>[]>([]);
@@ -124,10 +109,8 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
   const isStock = source === 'stock';
 
-  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
   const hasValidRange = Boolean(dateFrom && dateTo);
 
-  // Theo dõi bề rộng khung chart để clamp popover không tràn mép
   useEffect(() => {
     if (!chartWrapRef.current) return;
     const el = chartWrapRef.current;
@@ -149,7 +132,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
 
     let cancelled = false;
     setLoading(true);
-    setPinned(null); // bỏ ghim khi đổi bộ lọc/khoảng ngày, tránh xem nhầm dữ liệu cũ
+    setPinned(null);
     const params = new URLSearchParams({ source });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
@@ -158,6 +141,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+    if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
     fetch(`/api/trend-by-xuong?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -170,7 +154,8 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,hasCtWhitelist,ctWhitelistCsv]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
@@ -187,11 +172,10 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   }, [chartData]);
 
   const totalAll = useMemo(() => {
-  const sum = chartData.reduce((s, p) => s + p.total, 0);
-  return Number(sum.toFixed(2));
-}, [chartData]);
+    const sum = chartData.reduce((s, p) => s + p.total, 0);
+    return Number(sum.toFixed(2));
+  }, [chartData]);
 
-  // Gọi /api/detail cho xưởng đang ghim — chỉ lấy dữ liệu khớp đúng xưởng + bộ lọc + khoảng ngày hiện tại
   const openDetailForPinned = async () => {
     if (!pinned) return;
     setDetailOpen(true);
@@ -208,6 +192,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
       if (dvt) params.set('dvt', dvt);
       if (phanLoai) params.set('phanLoai', phanLoai);
       if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+      if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
@@ -224,10 +209,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     }
   };
 
-  // Bắt click ở CẤP CẢ BIỂU ĐỒ (không phải ở từng <Bar>). state.activePayload luôn
-  // trả về đúng điểm dữ liệu của xưởng gần con trỏ nhất theo trục X, bất kể bấm vào
-  // vùng trống phía trên cột hay đúng vào cột màu -> luôn ăn click, kể cả với các
-  // cột giá trị 0, không còn phụ thuộc diện tích SVG thật của từng cột.
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
     const point: ChartPoint = state.activePayload[0].payload;
@@ -256,7 +237,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         </div>
       )}
 
-      {/* relative wrapper để đặt popover absolute bên trên biểu đồ */}
       <div
         ref={chartWrapRef}
         className={`relative bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col ${embedded ? 'p-3 h-[320px]' : 'p-4 h-[480px]'}`}
@@ -296,7 +276,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
                 barSize={embedded ? 22 : 30}
                 cursor="pointer"
               >
-                {/* Tô đậm cột đang được ghim để người dùng biết đang xem cột nào */}
                 {chartData.map(entry => (
                   <Cell
                     key={entry.periodKey}
@@ -341,19 +320,18 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Không có dữ liệu</div>
         )}
-{chartData.length > 0 && !loading && (
-  <div
-    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
-    style={{
-      color: theme.barDark,
-      borderColor: theme.bar,
-      backgroundColor: `${theme.bar}1A`,
-    }}
-  >
-    Tổng: {formatDecimal(totalAll)}
-  </div>
-)}
-        {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
+        {chartData.length > 0 && !loading && (
+          <div
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            style={{
+              color: theme.barDark,
+              borderColor: theme.bar,
+              backgroundColor: `${theme.bar}1A`,
+            }}
+          >
+            Tổng: {formatDecimal(totalAll)}
+          </div>
+        )}
         {pinned && (
           <PinnedPopover
             x={pinned.x}
@@ -368,17 +346,16 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         )}
       </div>
 
-      {/* Modal chi tiết dữ liệu */}
-     <DetailDataModal
-  open={detailOpen}
-  onClose={() => setDetailOpen(false)}
-  title={`Chi tiết ${theme.label} — Xưởng: ${pinned?.point.xuong ?? ''}`}
-  accentColor={theme.bar}
-  rows={detailRows}
-  columns={detailColumns}
-  loading={detailLoading}
-  truncated={detailTruncated}
-/>
+      <DetailDataModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={`Chi tiết ${theme.label} — Xưởng: ${pinned?.point.xuong ?? ''}`}
+        accentColor={theme.bar}
+        rows={detailRows}
+        columns={detailColumns}
+        loading={detailLoading}
+        truncated={detailTruncated}
+      />
     </div>
   );
 }

@@ -9,7 +9,9 @@ import DetailDataModal from './DetailDataModal';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
-interface ApiPoint { period: string; total: number; totalCount: number; }
+// [COUNT FIX] distinctTotalCount: số HEX DUY NHẤT trên CẢ KHOẢNG (server tính sẵn,
+// xem /api/trend). Optional vì nhánh 'stock' không trả field này.
+interface ApiPoint { period: string; total: number; totalCount: number; distinctTotalCount?: number; }
 interface TrendPoint { period: string; periodKey: string; total: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
@@ -21,7 +23,6 @@ const formatLabel = (period: string, granularity: Granularity) => {
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 };
 
-/** 'yyyy-mm-dd' không phụ thuộc giờ/timezone */
 const toISO = (d: Date) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -29,21 +30,18 @@ const toISO = (d: Date) => {
   return `${y}-${m}-${day}`;
 };
 
-/** Ngày thứ Hai của tuần chứa d (dùng làm key chuẩn hóa cho granularity 'week') */
 function startOfWeekMonday(d: Date): Date {
   const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = date.getDay(); // 0 = CN, 1 = T2, ...
+  const day = date.getDay();
   const diff = (day === 0 ? -6 : 1) - day;
   date.setDate(date.getDate() + diff);
   return date;
 }
 
-/** Ngày 1 đầu tháng chứa d (dùng làm key chuẩn hóa cho granularity 'month') */
 function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
-/** Chuẩn hóa 1 period trả về từ API thành key so sánh được (yyyy-mm-dd) theo đúng granularity */
 function periodKey(period: string, granularity: Granularity): string {
   const d = new Date(period);
   if (granularity === 'week') return toISO(startOfWeekMonday(d));
@@ -51,7 +49,6 @@ function periodKey(period: string, granularity: Granularity): string {
   return toISO(d);
 }
 
-/** Tự sinh đủ danh sách kỳ liên tục từ dateFrom -> dateTo theo granularity, không phụ thuộc dữ liệu API trả về */
 function buildFullPeriodKeys(dateFrom: string, dateTo: string, granularity: Granularity): string[] {
   if (!dateFrom || !dateTo) return [];
   const start = new Date(dateFrom);
@@ -92,21 +89,26 @@ function formatChartData(
   metric: DisplayMetric,
   dateFrom: string,
   dateTo: string,
+  selectedDates: string[] = [], // ✅ [DATES FIX] danh sách ngày CHÍNH XÁC đã chọn (chỉ áp dụng khi granularity = 'day')
 ): TrendPoint[] {
   const pickValue = (p: ApiPoint) => (metric === 'COUNT' ? p.totalCount : p.total);
 
-  // Gom dữ liệu API trả về theo key đã chuẩn hóa, để tra cứu nhanh
   const dataMap = new Map<string, number>();
   points.forEach(p => {
     dataMap.set(periodKey(p.period, granularity), pickValue(p));
   });
 
-  const fullKeys = buildFullPeriodKeys(dateFrom, dateTo, granularity);
+  // [DATES FIX] Nếu người dùng đã chọn 1 tập ngày RỜI RẠC (không liên tục) ở granularity
+  // 'day', chỉ vẽ ĐÚNG các ngày đó — không suy ra khoảng liên tục [min, max] như trước,
+  // tránh vẽ thêm cột cho ngày KHÔNG được chọn (ví dụ chọn 16,18,19 thì KHÔNG vẽ 17).
+  const fullKeys = (granularity === 'day' && selectedDates.length > 0)
+    ? selectedDates
+    : buildFullPeriodKeys(dateFrom, dateTo, granularity);
 
   return fullKeys.map(key => ({
     period: formatLabel(key, granularity),
     periodKey: key,
-    total: dataMap.get(key) ?? 0, // Không có dữ liệu -> 0, thay vì bỏ qua kỳ đó
+    total: dataMap.get(key) ?? 0,
   }));
 }
 
@@ -119,20 +121,8 @@ const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; 
   stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho',          unitValue: 'Tổng trị giá (Triệu đồng)' },
 };
 
-// ================== Chi tiết dữ liệu (/api/detail) ==================
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
 
-const formatColumnLabel = (col: string) => col.toUpperCase().replace(/_/g, ' ');
-const formatCellValue = (v: any) => {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-  return String(v);
-};
-
-// ================== Popover ghim ==================
-// Đây là 1 <div> tự vẽ (absolute), KHÔNG dùng <Tooltip> của Recharts, vì Tooltip của
-// Recharts luôn tự lắng nghe mousemove để tính lại vị trí -> dù ép coordinate cố định
-// nó vẫn "chạy" theo chuột. Overlay tự vẽ này độc lập hoàn toàn nên đứng yên tuyệt đối.
 interface PinnedPopoverProps {
   x: number;
   y: number;
@@ -145,7 +135,6 @@ interface PinnedPopoverProps {
 }
 function PinnedPopover({ x, y, containerWidth, label, value, unit, onViewDetail, onClose }: PinnedPopoverProps) {
   const POPOVER_WIDTH = 220;
-  // Tránh popover bị tràn ra ngoài mép phải/trái của khung biểu đồ
   const clampedLeft = Math.min(Math.max(x, POPOVER_WIDTH / 2 + 8), containerWidth - POPOVER_WIDTH / 2 - 8);
 
   return (
@@ -189,20 +178,19 @@ interface TrendChartProps {
 }
 
 export default function TrendChart({ source, embedded = false, displayMode }: TrendChartProps) {
-  // Toàn bộ filter (ngày, granularity, xưởng, công trình, ĐVT, phân loại) đến từ SharedDateFilterBar / context
-const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
+  const {
+    granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
+    hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI: selectedDatesCsv
+  } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Container ref để tính tọa độ popover tương đối với khung chứa biểu đồ
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
 
-  // Kỳ đang được "ghim" (đã click) + tọa độ hiển thị popover
   const [pinned, setPinned] = useState<{ point: TrendPoint; x: number; y: number } | null>(null);
 
-  // Modal chi tiết dữ liệu
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailRows, setDetailRows] = useState<Record<string, any>[]>([]);
@@ -211,11 +199,17 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
 
   const theme = THEME[source];
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
+  const isStock = source === 'stock';
 
-  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
   const hasValidRange = Boolean(dateFrom && dateTo);
 
-  // Theo dõi bề rộng khung chart để clamp popover không tràn mép
+  // ✅ [DATES FIX] Danh sách ngày RỜI RẠC áp dụng cho biểu đồ này. Tồn kho là bảng
+  // snapshot theo ngày (không có khái niệm "gộp nhiều ngày rời rạc") nên KHÔNG áp dụng.
+  const selectedDates = useMemo(
+    () => (!isStock && selectedDatesCsv ? selectedDatesCsv.split(',') : []),
+    [selectedDatesCsv, isStock]
+  );
+
   useEffect(() => {
     if (!chartWrapRef.current) return;
     const el = chartWrapRef.current;
@@ -237,7 +231,7 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
 
     let cancelled = false;
     setLoading(true);
-    setPinned(null); // bỏ ghim khi đổi bộ lọc/khoảng ngày, tránh xem nhầm dữ liệu cũ
+    setPinned(null);
     const params = new URLSearchParams({ source, granularity });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
@@ -246,6 +240,7 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+    if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ [DATES FIX]
     fetch(`/api/trend?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -258,17 +253,17 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange]);
+    // ✅ [DATES FIX] thêm selectedDatesCsv vào deps — nếu không, đổi tập ngày rời rạc
+    // (mà dateFrom/dateTo min/max không đổi) sẽ KHÔNG kích hoạt fetch lại.
+  }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
 
   const chartData = useMemo(() => {
     if (!hasValidRange) return [];
-    return formatChartData(raw, granularity, displayMode, dateFrom, dateTo);
-  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, hasCtWhitelist, ctWhitelistCsv]);
+    return formatChartData(raw, granularity, displayMode, dateFrom, dateTo, selectedDates);
+  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, selectedDates]);
 
   const avgAll = useMemo(() => {
-    // Riêng tồn kho ('stock'): chỉ tính trung bình trên các ngày CÓ dữ liệu
-    // (bỏ qua các ngày = 0 do không có snapshot tồn kho vào ngày đó),
-    // để không bị kéo trung bình xuống thấp một cách sai lệch.
     const pointsForAvg = source === 'stock'
       ? chartData.filter(p => p.total > 0)
       : chartData;
@@ -278,12 +273,18 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
     return Number((sum / pointsForAvg.length).toFixed(2));
   }, [chartData, source]);
 
+  // ✅ [COUNT FIX] Ở chế độ Số lượng, dùng distinctTotalCount do server tính sẵn
+  // (HEX duy nhất trên CẢ KHOẢNG) thay vì cộng dồn totalCount của từng cột — tránh
+  // đếm trùng 1 HEX xuất hiện ở nhiều ngày/kỳ khác nhau. Ở chế độ Giá trị, cộng dồn
+  // vẫn đúng (tiền không bị "trùng" theo cách này), nên giữ nguyên cách tính cũ.
   const totalAll = useMemo(() => {
-  const sum = chartData.reduce((s, p) => s + p.total, 0);
-  return Number(sum.toFixed(2));
-}, [chartData]);
+    if (displayMode === 'COUNT') {
+      const distinct = raw.find(p => p.distinctTotalCount != null)?.distinctTotalCount;
+      if (distinct != null) return distinct;
+    }
+    return Number(chartData.reduce((s, p) => s + p.total, 0).toFixed(2));
+  }, [raw, chartData, displayMode]);
 
-  // Gọi /api/detail cho kỳ đang ghim — chỉ lấy dữ liệu khớp đúng kỳ + bộ lọc hiện tại
   const openDetailForPinned = async () => {
     if (!pinned) return;
     setDetailOpen(true);
@@ -300,6 +301,7 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
       if (dvt) params.set('dvt', dvt);
       if (phanLoai) params.set('phanLoai', phanLoai);
       if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+      if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ [DATES FIX]
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
@@ -316,10 +318,6 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
     }
   };
 
-  // Bắt click ở CẤP CẢ BIỂU ĐỒ (không phải ở từng <Bar>). state.activePayload luôn
-  // trả về đúng điểm dữ liệu của kỳ gần con trỏ nhất theo trục X, bất kể bấm vào
-  // vùng trống phía trên cột hay đúng vào cột màu -> luôn ăn click, kể cả với các
-  // cột giá trị 0, 2, 3... không còn phụ thuộc diện tích SVG thật của từng cột.
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
     const point: TrendPoint = state.activePayload[0].payload;
@@ -342,7 +340,6 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
         </h4>
       </div>
 
-      {/* relative wrapper để đặt popover absolute bên trên biểu đồ */}
       <div
         ref={chartWrapRef}
         className={`relative bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col ${embedded ? 'p-3 h-[320px]' : 'p-4 h-[480px]'}`}
@@ -382,7 +379,6 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
                 barSize={embedded ? 22 : 30}
                 cursor="pointer"
               >
-                {/* Tô đậm cột đang được ghim để người dùng biết đang xem cột nào */}
                 {chartData.map(entry => (
                   <Cell
                     key={entry.periodKey}
@@ -430,19 +426,19 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
         )}
 
         {chartData.length > 0 && !loading && (
-  <div
-    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
-    style={{
-      color: theme.barDark,
-      borderColor: theme.bar,
-      backgroundColor: `${theme.bar}1A`,
-    }}
-  >
-    Tổng: {formatDecimal(totalAll)}
-  </div>
-)}
+          <div
+            title={displayMode === 'COUNT' ? 'Số HEX duy nhất trong khoảng — 1 HEX nhập ở nhiều ngày chỉ tính 1' : undefined}
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            style={{
+              color: theme.barDark,
+              borderColor: theme.bar,
+              backgroundColor: `${theme.bar}1A`,
+            }}
+          >
+            Tổng: {formatDecimal(totalAll)}
+          </div>
+        )}
 
-        {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
         {pinned && (
           <PinnedPopover
             x={pinned.x}
@@ -457,18 +453,16 @@ const { granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhi
         )}
       </div>
 
-      {/* Modal chi tiết dữ liệu */}
-     {/* Modal chi tiết dữ liệu */}
-<DetailDataModal
-  open={detailOpen}
-  onClose={() => setDetailOpen(false)}
-  title={`Chi tiết ${theme.label} — Kỳ: ${pinned?.point.period ?? ''}`}
-  accentColor={theme.bar}
-  rows={detailRows}
-  columns={detailColumns}
-  loading={detailLoading}
-  truncated={detailTruncated}
-/>
+      <DetailDataModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={`Chi tiết ${theme.label} — Kỳ: ${pinned?.point.period ?? ''}`}
+        accentColor={theme.bar}
+        rows={detailRows}
+        columns={detailColumns}
+        loading={detailLoading}
+        truncated={detailTruncated}
+      />
     </div>
   );
 }

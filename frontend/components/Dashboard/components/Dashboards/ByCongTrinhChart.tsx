@@ -15,15 +15,11 @@ interface ApiCongTrinhPoint {
   total: number;
   totalCount: number;
 }
-// MỚI: giữ lại congTrinhCode gốc (dùng để gọi /api/detail khớp chính xác với DB,
-// vì backend so khớp bằng "=" chứ không uppercase/trim lại như các dimension khác)
 interface ChartPoint { congTrinh: string; congTrinhCode: string; total: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
 
-// Tách tên công trình thành nhiều dòng theo giới hạn số ký tự/dòng,
-// thay vì cắt bằng "..." như trước — hiển thị ĐẦY ĐỦ tên, không mất chữ.
 function wrapLabel(name: string, maxCharsPerLine: number, maxLines = 3): string[] {
   const words = name.split(' ');
   const lines: string[] = [];
@@ -48,7 +44,6 @@ function wrapLabel(name: string, maxCharsPerLine: number, maxLines = 3): string[
   return lines;
 }
 
-// Custom tick cho trục Y — vẽ tên công trình trên nhiều dòng <tspan>
 function WrappedYAxisTick(props: any) {
   const { x, y, payload, maxCharsPerLine, fontSize } = props;
   const lines = wrapLabel(payload.value as string, maxCharsPerLine);
@@ -76,20 +71,8 @@ const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; 
   stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
 };
 
-// ================== Chi tiết dữ liệu (/api/detail) ==================
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
 
-const formatColumnLabel = (col: string) => col.toUpperCase().replace(/_/g, ' ');
-const formatCellValue = (v: any) => {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-  return String(v);
-};
-
-// ================== Popover ghim ==================
-// <div> tự vẽ (absolute), KHÔNG dùng <Tooltip> của Recharts — Tooltip của Recharts
-// luôn tự lắng nghe mousemove để tính lại vị trí nên dù ép coordinate cố định vẫn
-// "chạy" theo chuột. Overlay tự vẽ này độc lập hoàn toàn nên đứng yên tuyệt đối.
 interface PinnedPopoverProps {
   x: number;
   y: number;
@@ -104,8 +87,6 @@ interface PinnedPopoverProps {
 function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, unit, onViewDetail, onClose }: PinnedPopoverProps) {
   const POPOVER_WIDTH = 240;
   const POPOVER_HEIGHT_EST = 110;
-  // Tránh popover bị tràn ra ngoài mép của khung biểu đồ (cả 4 phía) —
-  // với biểu đồ ngang (theo công trình), điểm bấm có thể ở gần rìa trên/dưới.
   const clampedLeft = Math.min(Math.max(x, POPOVER_WIDTH / 2 + 8), containerWidth - POPOVER_WIDTH / 2 - 8);
   const clampedTop = Math.min(Math.max(y, POPOVER_HEIGHT_EST + 8), containerHeight - 8);
 
@@ -147,25 +128,24 @@ interface ByCongTrinhChartProps {
   source: TrendSource;
   embedded?: boolean;
   displayMode: DisplayMetric;
-  /** Giới hạn số công trình hiển thị (top N theo giá trị), mặc định 15 */
   topN?: number;
 }
 
 export default function ByCongTrinhChart({ source, embedded = false, displayMode, topN = 15 }: ByCongTrinhChartProps) {
-const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
+  const {
+    dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
+    hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI
+  } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiCongTrinhPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Container ref để tính tọa độ popover tương đối với khung chứa biểu đồ
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
   const [wrapHeight, setWrapHeight] = useState(0);
 
-  // Công trình đang được "ghim" (đã click) + tọa độ hiển thị popover
   const [pinned, setPinned] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
 
-  // Modal chi tiết dữ liệu
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailRows, setDetailRows] = useState<Record<string, any>[]>([]);
@@ -176,10 +156,8 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
   const isStock = source === 'stock';
 
-  // Thiếu 1 trong 2 mốc ngày -> không hợp lệ, không fetch, không vẽ
   const hasValidRange = Boolean(dateFrom && dateTo);
 
-  // Theo dõi kích thước khung chart để clamp popover không tràn mép
   useEffect(() => {
     if (!chartWrapRef.current) return;
     const el = chartWrapRef.current;
@@ -206,7 +184,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
 
     let cancelled = false;
     setLoading(true);
-    setPinned(null); // bỏ ghim khi đổi bộ lọc/khoảng ngày, tránh xem nhầm dữ liệu cũ
+    setPinned(null);
     const params = new URLSearchParams({ source });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
@@ -215,6 +193,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     if (dvt) params.set('dvt', dvt);
     if (phanLoai) params.set('phanLoai', phanLoai);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+    if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
     fetch(`/api/trend-by-congtrinh?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -227,7 +206,8 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange, hasCtWhitelist,ctWhitelistCsv]);
+  }, [source, isStock, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
@@ -235,7 +215,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     return raw
       .map(p => ({
         congTrinh: p.congTrinhName || p.congTrinhCode,
-        congTrinhCode: p.congTrinhCode, // MỚI: giữ giá trị gốc để truy vấn /api/detail chính xác
+        congTrinhCode: p.congTrinhCode,
         total: pickValue(p),
       }))
       .sort((a, b) => b.total - a.total)
@@ -250,19 +230,15 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   }, [chartData]);
 
   const totalAll = useMemo(() => {
-  if (!hasValidRange) return 0;
-  const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : p.total), 0);
-  return Number(sum.toFixed(2));
-}, [raw, displayMode, hasValidRange]);
+    if (!hasValidRange) return 0;
+    const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : p.total), 0);
+    return Number(sum.toFixed(2));
+  }, [raw, displayMode, hasValidRange]);
 
-  // Số ký tự tối đa/dòng cho tên công trình — nhỏ hơn ở chế độ embedded vì khung hẹp hơn
   const maxCharsPerLine = embedded ? 18 : 24;
   const yAxisFontSize = embedded ? 9 : 10;
-  // Width trục Y đủ rộng để chứa số ký tự/dòng đã chọn ở trên (ước lượng ~6px/ký tự)
   const yAxisWidth = maxCharsPerLine * (yAxisFontSize * 0.62) + 16;
 
-  // Mỗi công trình có thể chiếm nhiều dòng — ước lượng số dòng tối đa cần thiết
-  // để tính chiều cao mỗi hàng, tránh các dòng chữ đè lên nhau.
   const maxLinesNeeded = useMemo(() => {
     if (chartData.length === 0) return 1;
     return Math.max(...chartData.map(p => wrapLabel(p.congTrinh, maxCharsPerLine).length));
@@ -271,8 +247,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   const rowHeight = Math.max(embedded ? 28 : 34, maxLinesNeeded * (yAxisFontSize + 2) + 14);
   const chartHeight = Math.max(embedded ? 320 : 420, chartData.length * rowHeight + 60);
 
-  // Gọi /api/detail cho công trình đang ghim — dimension "congtrinh", chỉ lấy dữ liệu
-  // khớp đúng công trình đó + bộ lọc hiện tại (xưởng, ĐVT, phân loại, khoảng ngày)
   const openDetailForPinned = async () => {
     if (!pinned) return;
     setDetailOpen(true);
@@ -289,6 +263,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
       if (dvt) params.set('dvt', dvt);
       if (phanLoai) params.set('phanLoai', phanLoai);
       if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+      if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
@@ -305,10 +280,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     }
   };
 
-  // Bắt click ở CẤP CẢ BIỂU ĐỒ (không phải ở từng <Bar>). Vì layout="vertical"
-  // (biểu đồ ngang), activePayload vẫn trả đúng theo trục category (Y) gần con trỏ
-  // nhất -> bấm vào bất kỳ đâu trên cả chiều ngang của hàng đó đều ăn, kể cả vùng
-  // trống bên phải cột giá trị nhỏ.
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
     const point: ChartPoint = state.activePayload[0].payload;
@@ -337,7 +308,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         </div>
       )}
 
-      {/* relative wrapper để đặt popover absolute bên trên biểu đồ */}
       <div
         ref={chartWrapRef}
         className="relative bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col p-4"
@@ -384,7 +354,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
                 barSize={embedded ? 16 : 20}
                 cursor="pointer"
               >
-                {/* Tô đậm hàng đang được ghim để người dùng biết đang xem công trình nào */}
                 {chartData.map(entry => (
                   <Cell
                     key={entry.congTrinhCode}
@@ -423,18 +392,17 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Không có dữ liệu</div>
         )}
         {chartData.length > 0 && !loading && (
-  <div
-    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
-    style={{
-      color: theme.barDark,
-      borderColor: theme.bar,
-      backgroundColor: `${theme.bar}1A`,
-    }}
-  >
-    Tổng: {formatDecimal(totalAll)}
-  </div>
-)}
-        {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
+          <div
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            style={{
+              color: theme.barDark,
+              borderColor: theme.bar,
+              backgroundColor: `${theme.bar}1A`,
+            }}
+          >
+            Tổng: {formatDecimal(totalAll)}
+          </div>
+        )}
         {pinned && (
           <PinnedPopover
             x={pinned.x}
@@ -450,17 +418,16 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         )}
       </div>
 
-      {/* Modal chi tiết dữ liệu */}
       <DetailDataModal
-  open={detailOpen}
-  onClose={() => setDetailOpen(false)}
-  title={`Chi tiết ${theme.label} — Công trình: ${pinned?.point.congTrinh ?? ''}`}
-  accentColor={theme.bar}
-  rows={detailRows}
-  columns={detailColumns}
-  loading={detailLoading}
-  truncated={detailTruncated}
-/>
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={`Chi tiết ${theme.label} — Công trình: ${pinned?.point.congTrinh ?? ''}`}
+        accentColor={theme.bar}
+        rows={detailRows}
+        columns={detailColumns}
+        loading={detailLoading}
+        truncated={detailTruncated}
+      />
     </div>
   );
 }

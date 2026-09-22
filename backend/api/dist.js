@@ -57693,6 +57693,24 @@ var parseSafeDate = (rawInput) => {
   const parsed = new Date(rawInput);
   return !isNaN(parsed.getTime()) ? parsed : null;
 };
+var parseExplicitDates = (req) => Array.from(new Set(
+  String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10))
+)).sort();
+var applyNonStockDateFilter = (dateColExpr, explicitDates, dateFrom, dateTo, conditions, params) => {
+  if (explicitDates.length > 0) {
+    params.push(explicitDates);
+    conditions.push(`${dateColExpr}::date = ANY($${params.length}::date[])`);
+    return;
+  }
+  if (dateFrom) {
+    params.push(dateFrom.toISOString().slice(0, 10));
+    conditions.push(`${dateColExpr} >= $${params.length}`);
+  }
+  if (dateTo) {
+    params.push(dateTo.toISOString().slice(0, 10));
+    conditions.push(`${dateColExpr} <= $${params.length}`);
+  }
+};
 var getPeriodRangeFromKey = (value, granularity) => {
   const d = parseSafeDate(value) || new Date(value);
   if (granularity === "week") {
@@ -58954,6 +58972,7 @@ app.get("/api/trend", async (req, res) => {
     const truncUnit = granularity === "week" ? "week" : granularity === "month" ? "month" : "day";
     const dateFrom = parseSafeDate(req.query.dateFrom);
     const dateTo = parseSafeDate(req.query.dateTo);
+    const explicitDates = isStock ? [] : parseExplicitDates(req);
     const xuong = req.query.xuong || "";
     const congTrinh = req.query.congTrinh || "";
     const dvt = req.query.dvt || "";
@@ -58969,14 +58988,7 @@ app.get("/api/trend", async (req, res) => {
     if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-      }
-      if (dateTo) {
-        params.push(dateTo.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-      }
+      applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
     }
     if (xuong) {
       if (cfg.xuongCol) {
@@ -59005,7 +59017,7 @@ app.get("/api/trend", async (req, res) => {
       params.push(phanLoai);
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
-    const useDefaultLimit = !dateFrom && !dateTo;
+    const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
     const limit = granularity === "day" ? 15 : 12;
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
@@ -59013,6 +59025,7 @@ app.get("/api/trend", async (req, res) => {
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
     const cteList = [];
     if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
+    const distinctTotalExpr = !isStock && cfg.hexCol ? `(SELECT ${countExpr} FROM ${cfg.table} ${mainAlias} ${joinClause} WHERE ${conditions.join(" AND ")})` : "NULL::bigint";
     let q;
     if (isStock && truncUnit !== "day") {
       cteList.push(`
@@ -59030,7 +59043,8 @@ app.get("/api/trend", async (req, res) => {
         SELECT
           pd.period AS period,
           COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-          ${countExpr} AS total_count
+          ${countExpr} AS total_count,
+          NULL::bigint AS distinct_total_count
         FROM period_dates pd
         JOIN ${cfg.table} ${mainAlias} ON ${colBare(cfg.dateCol)} = pd.snap_date
         ${joinClause}
@@ -59046,7 +59060,8 @@ app.get("/api/trend", async (req, res) => {
         SELECT
           date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
           COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-          ${countExpr} AS total_count
+          ${countExpr} AS total_count,
+          ${distinctTotalExpr} AS distinct_total_count
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(" AND ")}
@@ -59059,7 +59074,8 @@ app.get("/api/trend", async (req, res) => {
     const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map((row) => ({
       period: row.period,
       total: Number(row.total_value),
-      totalCount: Number(row.total_count)
+      totalCount: Number(row.total_count),
+      ...row.distinct_total_count != null ? { distinctTotalCount: Number(row.distinct_total_count) } : {}
     }));
     res.json(rows);
   } catch (error61) {
@@ -59181,14 +59197,7 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-      }
-      if (dateTo) {
-        params.push(dateTo.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-      }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
     }
     if (xuong) {
       if (cfg.xuongCol) {
@@ -59274,14 +59283,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
     if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-      }
-      if (dateTo) {
-        params.push(dateTo.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-      }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
     }
     if (xuong) {
       if (cfg.xuongCol) {
@@ -59363,14 +59365,7 @@ app.get("/api/trend-by-dvt", async (req, res) => {
     if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-      }
-      if (dateTo) {
-        params.push(dateTo.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-      }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
     }
     if (xuong) {
       if (cfg.xuongCol) {
@@ -59452,14 +59447,7 @@ app.get("/api/trend-by-phanloai", async (req, res) => {
     if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-      }
-      if (dateTo) {
-        params.push(dateTo.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-      }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
     }
     if (xuong) {
       if (cfg.xuongCol) {
@@ -59546,6 +59534,7 @@ app.get("/api/detail", async (req, res) => {
     const colBare = (name) => alias ? `${alias}.${name}` : name;
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
+    const explicitDates = isStock ? [] : parseExplicitDates(req);
     if (dimension === "period") {
       const { start, end } = getPeriodRangeFromKey(value, granularity);
       if (isStock && granularity !== "day") {
@@ -59553,6 +59542,9 @@ app.get("/api/detail", async (req, res) => {
         conditions.push(
           `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
         );
+      } else if (!isStock && granularity === "day" && explicitDates.length > 0) {
+        params.push(start, end);
+        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
       } else {
         params.push(start, end);
         conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
@@ -59560,14 +59552,7 @@ app.get("/api/detail", async (req, res) => {
     } else if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-      }
-      if (dateTo) {
-        params.push(dateTo.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-      }
+      applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
     }
     const emptyCond = (colExpr) => `(${colExpr} IS NULL OR TRIM(${colExpr}::text) = '')`;
     if (dimension === "xuong") {

@@ -89,6 +89,63 @@ const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
 const isHexDetailColumn = (column: string): column is HexDetailColumn =>
   column in HEX_COLUMN_LABELS;
 
+// ---------------------------------------------------------------------------
+// MỚI: Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
+// cột/giai đoạn tương ứng trong dữ liệu hex gốc (hexRowsByColumn), để bấm vào
+// 1 con số trong bảng pivot của "Chi tiết dữ liệu Phễu" mở tiếp được modal
+// "Chi tiết theo Hex" — giống hệt cách modal "Đang trên chuyền theo giai đoạn"
+// đang làm.
+//
+// - P001 (Tổng đơn hàng nhà máy còn lại) ứng với cột "notDeployed" (các dòng
+//   có Tình Trạng = "15. CHƯA TRIỂN KHAI").
+// - P002 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó
+//   (dùng field `stage` sẵn có trong state hexDetail).
+// - P022 (TỒN KHO) lấy dữ liệu từ nguồn khác (tồn kho theo công trình, không
+//   nằm trong filteredProductionData) nên KHÔNG có dữ liệu hex gốc để xem chi
+//   tiết -> bỏ qua, không mở modal khi bấm vào số của bước này.
+// ---------------------------------------------------------------------------
+const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: HexDetailColumn; stage: string | null }>> = {
+  P001: { column: 'notDeployed', stage: null },
+  P002: { column: 'onLine', stage: 'P002' },
+  P012: { column: 'onLine', stage: 'P012' },
+  P013: { column: 'onLine', stage: 'P013' },
+  GCVT: { column: 'onLine', stage: 'GCVT' },
+  P014: { column: 'onLine', stage: 'P014' },
+  P016: { column: 'onLine', stage: 'P016' },
+  P018: { column: 'onLine', stage: 'P018' },
+  P020: { column: 'onLine', stage: 'P020' },
+  P021: { column: 'onLine', stage: 'P021' },
+};
+
+/**
+ * Xác định (column, stage, projectName) cần dùng cho HexDetailModal khi bấm
+ * vào 1 con số trong bảng pivot của Phễu.
+ * - Nếu đã chọn 1 bước funnel cụ thể (item != null): bảng đang hiển thị theo
+ *   CÔNG TRÌNH -> `name` = tên công trình (hoặc null = dòng TỔNG CỘNG, nghĩa
+ *   là xem tất cả công trình của đúng bước đó).
+ * - Nếu chưa chọn bước nào (item == null): bảng đang hiển thị TỔNG theo BOP
+ *   -> `name` CHÍNH LÀ mã BOP (hoặc null = dòng TỔNG CỘNG, xem tất cả).
+ */
+function resolveFunnelHexTarget(
+  name: string | null,
+  item: CustomFunnelItem | null
+): { column: HexDetailColumn; stage: string | null; projectName: string | null } | null {
+  if (item) {
+    if (item.id === 'P022') return null; // Tồn kho: không có dữ liệu hex gốc
+    const mapping = FUNNEL_TO_HEX_TARGET[item.id];
+    if (!mapping) return null;
+    return { column: mapping.column, stage: mapping.stage, projectName: name };
+  }
+  if (name === null) {
+    // Dòng TỔNG CỘNG của bảng theo BOP -> xem tất cả, không lọc thêm.
+    return { column: 'totalOrder', stage: null, projectName: null };
+  }
+  if (name === 'P022') return null;
+  const mapping = FUNNEL_TO_HEX_TARGET[name];
+  if (!mapping) return null;
+  return { column: mapping.column, stage: mapping.stage, projectName: null };
+}
+
 const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   productionData: rawProductionData,
   productionColumns,
@@ -626,6 +683,15 @@ const hexDetailRows = useMemo(() => {
     ]
   );
 
+  // ✅ MỚI: bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở
+  // HexDetailModal đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và
+  // resolveFunnelHexTarget ở đầu file).
+  const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
+    const target = resolveFunnelHexTarget(name, item);
+    if (!target) return; // vd. bước P022 (Tồn kho) không có dữ liệu hex gốc
+    setHexDetail({ open: true, column: target.column, projectName: target.projectName, stage: target.stage });
+  };
+
  const onLineStageRows: StageDetailRow[] = useMemo(
    () =>
      Object.entries(onLineStageBreakdown)
@@ -797,6 +863,7 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
   useDetailedNumbers={true}
   onFunnelItemClick={setActiveFunnelItem}
   onFunnelModalClose={() => setActiveFunnelItem(null)}
+  onPivotValueClick={handleFunnelPivotValueClick}
 />
 
         {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}

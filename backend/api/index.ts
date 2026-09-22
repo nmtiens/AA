@@ -293,6 +293,38 @@ const parseSafeDate = (rawInput?: string): Date | null => {
   return !isNaN(parsed.getTime()) ? parsed : null;
 };
 
+// [DATES FIX] Danh sách ngày rời rạc (csv yyyy-mm-dd) do client gửi qua ?dates=.
+// Có mặt và không rỗng thì ưu tiên tuyệt đối so với dateFrom/dateTo cho phần điều
+// kiện lọc theo ngày (KHÔNG áp dụng cho nhánh 'stock' — snapshot xử lý riêng).
+const parseExplicitDates = (req: Request): string[] =>
+  Array.from(new Set(
+    String(req.query.dates || '')
+      .split(',')
+      .map(s => parseSafeDate(s.trim()))
+      .filter((d): d is Date => d !== null)
+      .map(d => d.toISOString().slice(0, 10))
+  )).sort();
+
+// [DATES FIX] Áp điều kiện ngày cho các bảng KHÔNG PHẢI snapshot (mọi bảng trừ
+// ton_kho). Có explicitDates -> dùng đúng tập ngày đó; không thì fallback về
+// dateFrom/dateTo như cũ.
+const applyNonStockDateFilter = (
+  dateColExpr: string,
+  explicitDates: string[],
+  dateFrom: Date | null,
+  dateTo: Date | null,
+  conditions: string[],
+  params: any[],
+): void => {
+  if (explicitDates.length > 0) {
+    params.push(explicitDates);
+    conditions.push(`${dateColExpr}::date = ANY($${params.length}::date[])`);
+    return;
+  }
+  if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${dateColExpr} >= $${params.length}`); }
+  if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${dateColExpr} <= $${params.length}`); }
+};
+
 // MỚI: quy đổi 1 "periodKey" (do client sinh ra khi vẽ TrendChart — xem hàm
 // periodKey() phía frontend) thành khoảng [start, end] để lọc chi tiết dữ liệu
 // khi người dùng bấm xem chi tiết 1 cột trên biểu đồ theo thời gian.
@@ -1820,6 +1852,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
+    const explicitDates = isStock ? [] : parseExplicitDates(req); // [DATES FIX]
     const xuong = (req.query.xuong as string) || '';
     const congTrinh = (req.query.congTrinh as string) || '';
     const dvt = (req.query.dvt as string) || '';
@@ -1840,8 +1873,8 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      // [DATES FIX] Ưu tiên danh sách ngày rời rạc nếu có
+      applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
     }
 
     // [FILTER FIX] chuẩn hóa UPPER/TRIM
@@ -1865,7 +1898,9 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     }
     if (phanLoai && needsJoin) { params.push(phanLoai); conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`); }
 
-    const useDefaultLimit = !dateFrom && !dateTo;
+    // [DATES FIX] Có dates rời rạc thì không áp limit mặc định — hiển thị đúng các
+    // ngày đã chọn, dù ít hay nhiều.
+    const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
     const limit = granularity === 'day' ? 15 : 12;
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
@@ -1875,14 +1910,18 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     const joinKey = cfg.productionJoinCol || 'hex';
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
 
-    // [JOIN DEDUP FIX] CTE "p" thay cho LEFT JOIN trực tiếp production_status_app
     const cteList: string[] = [];
     if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
 
+    // [COUNT FIX] Số HEX DUY NHẤT trên CẢ KHOẢNG (không phải cộng dồn từng cột) —
+    // để badge "Tổng" ở client không đếm trùng 1 HEX xuất hiện ở nhiều kỳ khác nhau.
+    // Không áp dụng cho stock (snapshot, không có khái niệm "trùng theo ngày").
+    const distinctTotalExpr = (!isStock && cfg.hexCol)
+      ? `(SELECT ${countExpr} FROM ${cfg.table} ${mainAlias} ${joinClause} WHERE ${conditions.join(' AND ')})`
+      : 'NULL::bigint';
+
     let q: string;
     if (isStock && truncUnit !== 'day') {
-      // [SNAPSHOT FIX] tuần/tháng: mỗi cột chỉ lấy đúng 1 ngày đại diện (mới nhất
-      // trong kỳ đó) — không SUM cả tuần/tháng.
       cteList.push(`
         period_dates AS (
           SELECT date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
@@ -1898,7 +1937,8 @@ app.get('/api/trend', async (req: Request, res: Response) => {
         SELECT
           pd.period AS period,
           COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-          ${countExpr} AS total_count
+          ${countExpr} AS total_count,
+          NULL::bigint AS distinct_total_count
         FROM period_dates pd
         JOIN ${cfg.table} ${mainAlias} ON ${colBare(cfg.dateCol)} = pd.snap_date
         ${joinClause}
@@ -1914,7 +1954,8 @@ app.get('/api/trend', async (req: Request, res: Response) => {
         SELECT
           date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
           COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-          ${countExpr} AS total_count
+          ${countExpr} AS total_count,
+          ${distinctTotalExpr} AS distinct_total_count
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -1928,6 +1969,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
       period: row.period,
       total: Number(row.total_value),
       totalCount: Number(row.total_count),
+      ...(row.distinct_total_count != null ? { distinctTotalCount: Number(row.distinct_total_count) } : {}),
     }));
     res.json(rows);
   } catch (error) {
@@ -2063,11 +2105,10 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (isStock) {
+        if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
     }
 
     if (xuong) {
@@ -2156,11 +2197,10 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (isStock) {
+        if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
     }
 
     if (xuong) {
@@ -2245,11 +2285,10 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (isStock) {
+        if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
     }
 
     if (xuong) {
@@ -2332,11 +2371,10 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    if (isStock) {
+        if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
     }
 
     if (xuong) {
@@ -2448,6 +2486,11 @@ app.get('/api/detail', async (req: Request, res: Response) => {
     const params: any[] = [];
 
     // Chiều thời gian
+      // [DATES FIX] Danh sách ngày rời rạc — dùng cho cả nhánh 'period' lẫn các
+    // chiều khác (xưởng/công trình/ĐVT/phân loại), trừ stock (snapshot).
+    const explicitDates = isStock ? [] : parseExplicitDates(req);
+
+    // Chiều thời gian
     if (dimension === 'period') {
       const { start, end } = getPeriodRangeFromKey(value, granularity);
       if (isStock && granularity !== 'day') {
@@ -2457,6 +2500,13 @@ app.get('/api/detail', async (req: Request, res: Response) => {
         conditions.push(
           `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
         );
+      } else if (!isStock && granularity === 'day' && explicitDates.length > 0) {
+        // [DATES FIX] Bấm xem chi tiết 1 cột ngày: cột đó (value) đã LÀ 1 ngày cụ
+        // thể, nên chỉ cần khớp đúng ngày đó — không cần lọc thêm theo explicitDates
+        // (start/end đã đúng đúng 1 ngày rồi). Giữ điều kiện BETWEEN start/end như
+        // nhánh mặc định bên dưới cho nhất quán.
+        params.push(start, end);
+        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
       } else {
         params.push(start, end);
         conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
@@ -2466,8 +2516,10 @@ app.get('/api/detail', async (req: Request, res: Response) => {
       // luôn chỉ xem đúng 1 ngày đại diện, không liệt kê nhiều ngày snapshot.
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
-      if (dateFrom) { params.push(dateFrom.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`); }
-      if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      // [DATES FIX] Bấm xem chi tiết 1 cột xưởng/công trình/ĐVT/phân loại: phải lọc
+      // đúng tập ngày người dùng đang chọn ở "Bộ lọc ngày chung", không phải cả
+      // khoảng [dateFrom, dateTo] liên tục (nếu không sẽ lại lệch giống lỗi ban đầu).
+      applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
     }
 
     const emptyCond = (colExpr: string) => `(${colExpr} IS NULL OR TRIM(${colExpr}::text) = '')`;

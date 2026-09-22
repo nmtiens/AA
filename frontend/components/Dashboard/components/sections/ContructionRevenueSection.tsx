@@ -30,6 +30,10 @@ interface ContructionRevenueSectionProps {
   // MỚI: báo lên cha khi đóng modal, để cha reset lại pivotFunnelData
   // về dữ liệu tổng (theo BOP) cho lần mở "Chi tiết" chung kế tiếp.
   onFunnelModalClose?: () => void;
+  // MỚI: báo lên cha khi user bấm vào 1 con SỐ trong bảng pivot (Công trình/BOP),
+  // để cha mở tiếp modal chi tiết lớp sau (vd. theo Hex). name=null khi bấm ở
+  // dòng TỔNG CỘNG (xem tất cả các dòng trong bảng pivot hiện tại).
+  onPivotValueClick?: (name: string | null, item: CustomFunnelItem | null) => void;
 }
 
 let _measureCanvas: HTMLCanvasElement | null = null;
@@ -55,6 +59,7 @@ export const ContructionRevenueSection = ({
   useDetailedNumbers = false,
   onFunnelItemClick,
   onFunnelModalClose,
+  onPivotValueClick,
 }: ContructionRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
@@ -76,6 +81,8 @@ export const ContructionRevenueSection = ({
 
   const cancelledValue = factoryRevenueStats.cancelled ?? 0;
 
+  
+
   const formatFunnelValue = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
@@ -86,18 +93,25 @@ export const ContructionRevenueSection = ({
     return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 6 })} Tỷ`;
   };
 
-  const formatBarLabel = (value: number): string => {
-    if (workshopMetric === 'COUNT_HEX') {
-      return formatNumber(value, workshopMetric);
-    }
-    if (useDetailedNumbers) {
-      return value.toLocaleString('en-US', {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      });
-    }
-    return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })} Tỷ`;
-  };
+  const formatRoundedNumber = (value: number): string => {
+  const absValue = Math.abs(value);
+  if (absValue > 0 && absValue < 1) {
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  }
+  return Math.round(value).toLocaleString('en-US');
+};
+
+const formatBarLabel = (value: number): string => {
+  if (workshopMetric === 'COUNT_HEX') {
+    return formatNumber(value, workshopMetric);
+  }
+  const displayValue = useDetailedNumbers ? value : value / 1000;
+  const rounded = formatRoundedNumber(displayValue);
+  return useDetailedNumbers ? rounded : `${rounded} Tỷ`;
+};
 
   const handleOpenOverallDetail = () => {
     setSelectedFunnelItem(null); // null = xem tổng theo BOP, giữ hành vi cũ
@@ -120,6 +134,25 @@ export const ContructionRevenueSection = ({
     if (!funnelBarsWidth) return 0;
     const textPx = measureTextWidth(text, BAR_LABEL_FONT) + BAR_LABEL_HORIZONTAL_PADDING;
     return (textPx / funnelBarsWidth) * 100;
+  };
+
+  // Ô số trong bảng pivot: nếu cha có truyền onPivotValueClick thì hiển thị
+  // dạng nút bấm được (giống style ở OnLineStageDetailModal / HexDetailModal),
+  // ngược lại giữ nguyên text tĩnh như cũ.
+  const renderPivotValue = (value: number, name: string | null) => {
+    const text = formatFunnelValue(value);
+    if (!onPivotValueClick) return text;
+    if (value === 0) return <span className="text-slate-300">{text}</span>;
+    return (
+      <button
+        type="button"
+        onClick={() => onPivotValueClick(name, selectedFunnelItem)}
+        className="text-slate-800 hover:text-emerald-700 hover:underline font-semibold"
+        title="Bấm để xem chi tiết"
+      >
+        {text}
+      </button>
+    );
   };
 
   return (
@@ -245,7 +278,7 @@ export const ContructionRevenueSection = ({
                             <span className="truncate max-w-[200px]" title={item.name}>{item.name}</span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                            {formatFunnelValue(item.value)}
+                            {renderPivotValue(item.value, item.name)}
                           </td>
                         </tr>
                       ))}
@@ -254,7 +287,7 @@ export const ContructionRevenueSection = ({
                       <tr>
                         <td className="px-4 py-3 text-left uppercase text-slate-700">Tổng Cộng</td>
                         <td className="px-4 py-3 text-right text-slate-800 text-base">
-                          {formatFunnelValue(pivotFunnelData.total)}
+                          {renderPivotValue(pivotFunnelData.total, null)}
                         </td>
                       </tr>
                     </tfoot>

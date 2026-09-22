@@ -81,8 +81,11 @@ export const ProjectSummarySection_v2 = ({
     );
   };
 
-  // Header cell dùng chung: hàng 1 sticky top-0, hàng 2 sticky top-9 (36px = chiều cao hàng 1)
-  const thBase = 'px-3 border-b border-r border-emerald-200 bg-emerald-50 sticky z-20';
+  // Header cell dùng chung: hàng 1 sticky top-0, hàng 2 sticky top-9 (36px = chiều cao hàng 1).
+  // Canh giữa (text-center) để khớp với các cột số bên dưới đã canh giữa.
+  const thBase = 'px-3 text-center border-b border-r border-emerald-200 bg-emerald-50 sticky z-20';
+  // Ô số liệu dùng chung: canh giữa, khớp với tiêu đề cột.
+  const tdNumeric = 'px-3 py-2.5 text-center';
 
   return (
     <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
@@ -113,7 +116,7 @@ export const ProjectSummarySection_v2 = ({
       </div>
       {projectStatusSummary.length > 0 ? (
         <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
-          <table className="w-full text-xs text-right min-w-[1300px] border-separate border-spacing-0">
+          <table className="w-full text-xs min-w-[1300px] border-separate border-spacing-0">
             <thead className="text-slate-800 font-bold uppercase tracking-tight">
               {/* Hàng 1: các cột đơn (rowSpan=2) + tiêu đề nhóm "Còn lại" (colSpan=3) */}
               <tr>
@@ -126,9 +129,9 @@ export const ProjectSummarySection_v2 = ({
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đơn Hàng</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Hủy</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} Đơn Hàng <br />Sau Khi Hủy</th>
-                <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Nhập Kho</th>
-                <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Xuất Kho</th>
-                <th colSpan={3} className={`${thBase} top-0 h-9 py-0 text-center bg-emerald-100`}>
+                <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Nhập Kho <br />P022</th>
+                <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Xuất Kho <br />P025</th>
+                <th colSpan={3} className={`${thBase} top-0 h-9 py-0 bg-emerald-100`}>
                   Tổng {label} Đơn Hàng Còn Lại
                 </th>
               </tr>
@@ -143,28 +146,28 @@ export const ProjectSummarySection_v2 = ({
               {projectStatusSummary.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors group">
                   <td className="px-3 py-2.5 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{row.name}</td>
-                  <td className="px-3 py-2.5 text-slate-800">{renderValue(row.totalOrder, 'totalOrder', row.name)}</td>
-                  <td className="px-3 py-2.5 text-red-600">{renderValue(row.cancelled, 'cancelled', row.name)}</td>
-                  <td className="px-3 py-2.5 text-slate-800 font-medium">{renderValue(row.afterCancel, 'afterCancel', row.name)}</td>
-                  <td className="px-3 py-2.5 text-indigo-700 font-medium">{renderValue(row.inventory, 'inventory', row.name)}</td>
-                  <td className="px-3 py-2.5 text-emerald-700 font-medium">{renderValue(row.exported, 'exported', row.name)}</td>
-                  <td className="px-3 py-2.5 text-slate-500">{renderValue(row.notDeployed, 'notDeployed', row.name)}</td>
-                  <td className="px-3 py-2.5 text-slate-600">{renderValue(row.onLine, 'onLine', row.name)}</td>
-                  <td className="px-3 py-2.5 font-bold text-slate-900 bg-slate-50/50">{renderValue(row.remaining, 'remaining', row.name)}</td>
+                  <td className={`${tdNumeric} text-slate-800`}>{renderValue(row.totalOrder, 'totalOrder', row.name)}</td>
+                  <td className={`${tdNumeric} text-red-600`}>{renderValue(row.cancelled, 'cancelled', row.name)}</td>
+                  <td className={`${tdNumeric} text-slate-800 font-medium`}>{renderValue(row.afterCancel, 'afterCancel', row.name)}</td>
+                  <td className={`${tdNumeric} text-indigo-700 font-medium`}>{renderValue(row.inventory, 'inventory', row.name)}</td>
+                  <td className={`${tdNumeric} text-emerald-700 font-medium`}>{renderValue(row.exported, 'exported', row.name)}</td>
+                  <td className={`${tdNumeric} text-slate-500`}>{renderValue(row.notDeployed, 'notDeployed', row.name)}</td>
+                  <td className={`${tdNumeric} text-slate-600`}>{renderValue(row.onLine, 'onLine', row.name)}</td>
+                  <td className={`${tdNumeric} font-bold text-slate-900 bg-slate-50/50`}>{renderValue(row.remaining, 'remaining', row.name)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="bg-emerald-50 font-bold text-slate-800 border-t border-emerald-300 sticky bottom-0 z-20">
               <tr>
                 <td className="px-3 py-3 text-left sticky left-0 bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">TỔNG CỘNG</td>
-                <td className="px-3 py-3">{renderValue(total('totalOrder'), 'totalOrder', null)}</td>
-                <td className="px-3 py-3 text-red-700">{renderValue(total('cancelled'), 'cancelled', null)}</td>
-                <td className="px-3 py-3">{renderValue(total('afterCancel'), 'afterCancel', null)}</td>
-                <td className="px-3 py-3 text-indigo-800">{renderValue(total('inventory'), 'inventory', null)}</td>
-                <td className="px-3 py-3 text-emerald-800">{renderValue(total('exported'), 'exported', null)}</td>
-                <td className="px-3 py-3 text-slate-500">{renderValue(total('notDeployed'), 'notDeployed', null)}</td>
-                <td className="px-3 py-3">{renderValue(total('onLine'), 'onLine', null)}</td>
-                <td className="px-3 py-3 text-slate-900">{renderValue(total('remaining'), 'remaining', null)}</td>
+                <td className="px-3 py-3 text-center">{renderValue(total('totalOrder'), 'totalOrder', null)}</td>
+                <td className="px-3 py-3 text-center text-red-700">{renderValue(total('cancelled'), 'cancelled', null)}</td>
+                <td className="px-3 py-3 text-center">{renderValue(total('afterCancel'), 'afterCancel', null)}</td>
+                <td className="px-3 py-3 text-center text-indigo-800">{renderValue(total('inventory'), 'inventory', null)}</td>
+                <td className="px-3 py-3 text-center text-emerald-800">{renderValue(total('exported'), 'exported', null)}</td>
+                <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('notDeployed'), 'notDeployed', null)}</td>
+                <td className="px-3 py-3 text-center">{renderValue(total('onLine'), 'onLine', null)}</td>
+                <td className="px-3 py-3 text-center text-slate-900">{renderValue(total('remaining'), 'remaining', null)}</td>
               </tr>
             </tfoot>
           </table>

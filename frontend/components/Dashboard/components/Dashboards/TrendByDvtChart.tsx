@@ -15,8 +15,6 @@ interface ApiDvtPoint {
   total: number;
   totalCount: number;
 }
-// periodKey ở đây mang giá trị mã ĐVT (dvtCode) — đặt tên thống nhất với TrendChart
-// (theo kỳ) để dùng chung quy ước "khoá định danh cột đang ghim".
 interface ChartPoint { dvt: string; periodKey: string; total: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
@@ -31,20 +29,8 @@ const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; 
   stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
 };
 
-// ================== Chi tiết dữ liệu (/api/detail) ==================
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
 
-const formatColumnLabel = (col: string) => col.toUpperCase().replace(/_/g, ' ');
-const formatCellValue = (v: any) => {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-  return String(v);
-};
-
-// ================== Popover ghim ==================
-// <div absolute> tự vẽ, KHÔNG dùng <Tooltip> của Recharts (nó lắng nghe mousemove
-// liên tục nên dù ép coordinate cố định vẫn "chạy" theo chuột). Overlay này độc lập
-// hoàn toàn nên đứng yên tuyệt đối tại điểm đã click.
 interface PinnedPopoverProps {
   x: number;
   y: number;
@@ -97,7 +83,6 @@ interface TrendByDvtChartProps {
   source: TrendSource;
   embedded?: boolean;
   displayMode: DisplayMetric;
-  /** Nguồn không có dữ liệu theo ĐVT (vd: stock) — hiển thị cảnh báo thay vì gọi API */
   supportsDvt?: boolean;
 }
 
@@ -107,19 +92,19 @@ export default function TrendByDvtChart({
   displayMode,
   supportsDvt = true,
 }: TrendByDvtChartProps) {
-const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhitelistCsv } = useTrendFilter();
+  const {
+    dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
+    hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI
+  } = useTrendFilter();
 
   const [raw, setRaw] = useState<ApiDvtPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Container ref để tính tọa độ popover tương đối với khung chứa biểu đồ
   const chartWrapRef = useRef<HTMLDivElement>(null);
   const [wrapWidth, setWrapWidth] = useState(0);
 
-  // ĐVT đang được "ghim" (đã click) + tọa độ hiển thị popover
   const [pinned, setPinned] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
 
-  // Modal chi tiết dữ liệu
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailRows, setDetailRows] = useState<Record<string, any>[]>([]);
@@ -129,11 +114,9 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   const theme = THEME[source];
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
 
-  // Thiếu 1 trong 2 mốc ngày, hoặc nguồn không hỗ trợ ĐVT -> không fetch
   const hasValidRange = Boolean(dateFrom && dateTo);
   const canFetch = hasValidRange && supportsDvt;
 
-  // Theo dõi bề rộng khung chart để clamp popover không tràn mép
   useEffect(() => {
     if (!chartWrapRef.current) return;
     const el = chartWrapRef.current;
@@ -155,17 +138,16 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
 
     let cancelled = false;
     setLoading(true);
-    setPinned(null); // bỏ ghim khi đổi bộ lọc/khoảng ngày, tránh xem nhầm dữ liệu cũ
+    setPinned(null);
     const params = new URLSearchParams({ source });
     params.set('dateFrom', dateFrom);
     params.set('dateTo', dateTo);
     if (xuong) params.set('xuong', xuong);
     if (congTrinh) params.set('congTrinh', congTrinh);
     if (phanLoai) params.set('phanLoai', phanLoai);
-    // Không set 'dvt' vào params vì đây chính là chiều đang nhóm dữ liệu theo,
-    // nhưng vẫn gửi lên nếu người dùng đã chọn ở bộ lọc chung để API tôn trọng đúng phạm vi.
     if (dvt) params.set('dvt', dvt);
     if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+    if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
     fetch(`/api/trend-by-dvt?${params.toString()}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -178,7 +160,8 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch, hasCtWhitelist,ctWhitelistCsv]);
+  }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, canFetch,
+      hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!canFetch) return [];
@@ -195,11 +178,10 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
   }, [chartData]);
 
   const totalAll = useMemo(() => {
-  const sum = chartData.reduce((s, p) => s + p.total, 0);
-  return Number(sum.toFixed(2));
-}, [chartData]);
+    const sum = chartData.reduce((s, p) => s + p.total, 0);
+    return Number(sum.toFixed(2));
+  }, [chartData]);
 
-  // Gọi /api/detail cho ĐVT đang ghim — chỉ lấy dữ liệu khớp đúng ĐVT + bộ lọc + khoảng ngày hiện tại
   const openDetailForPinned = async () => {
     if (!pinned) return;
     setDetailOpen(true);
@@ -216,6 +198,7 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
       if (congTrinh) params.set('congTrinh', congTrinh);
       if (phanLoai) params.set('phanLoai', phanLoai);
       if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
+      if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
@@ -232,10 +215,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
     }
   };
 
-  // Bắt click ở CẤP CẢ BIỂU ĐỒ (không phải ở từng <Bar>). state.activePayload luôn
-  // trả về đúng điểm dữ liệu của ĐVT gần con trỏ nhất theo trục X, bất kể bấm vào
-  // vùng trống phía trên cột hay đúng vào cột màu -> luôn ăn click, kể cả với các
-  // cột giá trị 0.
   const handleChartClick = (state: any, event: React.MouseEvent) => {
     if (!state || !state.activePayload || state.activePayload.length === 0) return;
     const point: ChartPoint = state.activePayload[0].payload;
@@ -264,7 +243,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         </div>
       )}
 
-      {/* relative wrapper để đặt popover absolute bên trên biểu đồ */}
       <div
         ref={chartWrapRef}
         className={`relative bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col ${embedded ? 'p-3 h-[320px]' : 'p-4 h-[480px]'}`}
@@ -308,7 +286,6 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
                 barSize={embedded ? 22 : 30}
                 cursor="pointer"
               >
-                {/* Tô đậm cột đang được ghim để người dùng biết đang xem cột nào */}
                 {chartData.map(entry => (
                   <Cell
                     key={entry.periodKey}
@@ -353,19 +330,18 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Không có dữ liệu</div>
         )}
-{chartData.length > 0 && !loading && (
-  <div
-    className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
-    style={{
-      color: theme.barDark,
-      borderColor: theme.bar,
-      backgroundColor: `${theme.bar}1A`,
-    }}
-  >
-    Tổng: {formatDecimal(totalAll)}
-  </div>
-)}
-        {/* Popover ghim, đứng yên tại tọa độ đã click cho tới khi bấm "✕" */}
+        {chartData.length > 0 && !loading && (
+          <div
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            style={{
+              color: theme.barDark,
+              borderColor: theme.bar,
+              backgroundColor: `${theme.bar}1A`,
+            }}
+          >
+            Tổng: {formatDecimal(totalAll)}
+          </div>
+        )}
         {pinned && (
           <PinnedPopover
             x={pinned.x}
@@ -380,17 +356,16 @@ const { dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasCtWhitelist, ctWhi
         )}
       </div>
 
-      {/* Modal chi tiết dữ liệu */}
-    <DetailDataModal
-  open={detailOpen}
-  onClose={() => setDetailOpen(false)}
-  title={`Chi tiết ${theme.label} — ĐVT: ${pinned?.point.dvt ?? ''}`}
-  accentColor={theme.bar}
-  rows={detailRows}
-  columns={detailColumns}
-  loading={detailLoading}
-  truncated={detailTruncated}
-/>
+      <DetailDataModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        title={`Chi tiết ${theme.label} — ĐVT: ${pinned?.point.dvt ?? ''}`}
+        accentColor={theme.bar}
+        rows={detailRows}
+        columns={detailColumns}
+        loading={detailLoading}
+        truncated={detailTruncated}
+      />
     </div>
   );
 }
