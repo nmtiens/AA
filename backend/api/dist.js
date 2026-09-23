@@ -57559,6 +57559,7 @@ var REPORT_COLUMNS = {
     "ten_cong_trinh",
     "xuong_chinh",
     "ten_hang_muc",
+    "phan_loai_nhom_san_pham",
     "so_ngay_cd_hien_tai",
     "bop",
     "tri_gia_don_hang_tong",
@@ -57617,6 +57618,7 @@ var REPORT_COLUMNS = {
   xuat_kho: [
     "hex",
     "so_luong_xuat_kho",
+    "thanh_tien_xuat_kho",
     "date",
     "xuong_chinh",
     "ten_cong_trinh"

@@ -3,7 +3,6 @@ import { X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-reac
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 
-// Thứ tự các công đoạn "đang trên chuyền" theo đúng bảng Tình trạng sản xuất
 export const ON_LINE_STAGES = [
   'P002',
   'P012',
@@ -16,7 +15,6 @@ export const ON_LINE_STAGES = [
   'P021',
 ] as const;
 
-/** Lấy mã công đoạn (P002, GCVT...) từ giá trị cột Tình trạng. Không nhận diện được thì trả null. */
 export const extractStage = (value: unknown): string | null => {
   const match = String(value ?? '').trim().toUpperCase().match(/^(P\d{3}|GCVT)/);
   return match ? match[1] : null;
@@ -24,7 +22,6 @@ export const extractStage = (value: unknown): string | null => {
 
 export interface StageDetailRow {
   name: string;
-  /** Giá trị theo từng mã công đoạn */
   values: Record<string, number>;
 }
 
@@ -34,17 +31,15 @@ interface OnLineStageDetailModalProps {
   projectName: string | null;
   metric: 'COUNT' | 'VALUE';
   rows: StageDetailRow[];
-  /** Bấm vào 1 ô số → mở tiếp modal chi tiết theo Hex (lớp 2). projectName=null khi bấm ở dòng TỔNG CỘNG. */
   onValueClick?: (projectName: string | null, stage: string) => void;
 }
 
-// Độ rộng CỐ ĐỊNH cho từng cột (px), dùng chung cho cả 3 bảng (tiêu đề / dữ liệu /
-// tổng cộng) để đảm bảo các cột luôn thẳng hàng tuyệt đối với nhau.
+const STT_COL_WIDTH = 50;
 const NAME_COL_WIDTH = 220;
 const STAGE_COL_WIDTH = 90;
 const TOTAL_COL_WIDTH = 110;
 
-type SortKey = 'name' | (typeof ON_LINE_STAGES)[number] | 'total';
+type SortKey = 'stt' | 'name' | (typeof ON_LINE_STAGES)[number] | 'total';
 type SortDir = 'asc' | 'desc';
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
@@ -68,8 +63,6 @@ export const OnLineStageDetailModal = ({
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const footerScrollRef = useRef<HTMLDivElement>(null);
 
-  // Độ rộng thanh cuộn dọc thực tế của bảng dữ liệu (bảng tiêu đề / tổng cộng
-  // không có thanh cuộn dọc nên bị "thừa" ra đúng bằng độ rộng này → lệch cột).
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
 
@@ -82,9 +75,6 @@ export const OnLineStageDetailModal = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
-  // Đo lại độ rộng thanh cuộn mỗi khi mở modal / đổi dữ liệu / resize, rồi dùng nó
-  // làm khoảng đệm bên phải cho bảng tiêu đề & bảng tổng cộng, để 3 bảng luôn
-  // thẳng cột với nhau kể cả khi bảng dữ liệu xuất hiện/biến mất thanh cuộn dọc.
   useEffect(() => {
     if (!isOpen) return;
     const measure = () => {
@@ -107,16 +97,28 @@ export const OnLineStageDetailModal = ({
   }, []);
 
   const toggleSort = useCallback((key: SortKey) => {
-    const defaultDir: SortDir = key === 'name' ? 'asc' : 'desc';
+    const defaultDir: SortDir = key === 'name' || key === 'stt' ? 'asc' : 'desc';
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, dir: defaultDir };
       if (prev.dir === defaultDir) return { key, dir: defaultDir === 'asc' ? 'desc' : 'asc' };
-      return null; // bấm lần 3 → bỏ sắp xếp
+      return null;
     });
   }, []);
 
+  // ✅ MỚI: gắn STT cố định (1..N) theo đúng thứ tự gốc của rows.
+  const indexedRows = useMemo(
+    () => rows.map((row, i) => ({ row, stt: i + 1 })),
+    [rows]
+  );
+
   const sortedRows = useMemo(() => {
-    if (!sort) return rows;
+    if (!sort) return indexedRows;
+
+    if (sort.key === 'stt') {
+      const sorted = [...indexedRows].sort((a, b) => a.stt - b.stt);
+      return sort.dir === 'desc' ? sorted.reverse() : sorted;
+    }
+
     const getValue = (row: StageDetailRow): number | string => {
       if (sort.key === 'name') return row.name;
       if (sort.key === 'total') {
@@ -124,16 +126,16 @@ export const OnLineStageDetailModal = ({
       }
       return row.values[sort.key] ?? 0;
     };
-    const sorted = [...rows].sort((a, b) => {
-      const va = getValue(a);
-      const vb = getValue(b);
+    const sorted = [...indexedRows].sort((a, b) => {
+      const va = getValue(a.row);
+      const vb = getValue(b.row);
       if (typeof va === 'string' || typeof vb === 'string') {
         return String(va).localeCompare(String(vb), 'vi');
       }
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [rows, sort]);
+  }, [indexedRows, sort]);
 
   if (!isOpen) return null;
 
@@ -161,9 +163,7 @@ export const OnLineStageDetailModal = ({
       formatter(value)
     );
 
-  // Tổng px dùng làm ngưỡng tối thiểu (min-width) để bật cuộn ngang khi hẹp; trên
-  // màn hình rộng bảng giãn 100% theo % cột bên dưới (tránh để trống lộ nền sau).
-  const totalMinWidth = NAME_COL_WIDTH + ON_LINE_STAGES.length * STAGE_COL_WIDTH + TOTAL_COL_WIDTH;
+  const totalMinWidth = STT_COL_WIDTH + NAME_COL_WIDTH + ON_LINE_STAGES.length * STAGE_COL_WIDTH + TOTAL_COL_WIDTH;
   const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
   const tableStyle: React.CSSProperties = {
     width: '100%',
@@ -173,6 +173,7 @@ export const OnLineStageDetailModal = ({
 
   const ColGroup = () => (
     <colgroup>
+      <col style={{ width: pct(STT_COL_WIDTH) }} />
       <col style={{ width: pct(NAME_COL_WIDTH) }} />
       {ON_LINE_STAGES.map((stage) => (
         <col key={stage} style={{ width: pct(STAGE_COL_WIDTH) }} />
@@ -184,10 +185,9 @@ export const OnLineStageDetailModal = ({
   const headerCellClass =
     'cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 transition-colors hover:bg-emerald-100';
 
-  // Xuất đúng dữ liệu đang hiển thị trên màn hình (đã sắp xếp) ra CSV.
-  const exportColumns = ['Tên Công Trình', ...ON_LINE_STAGES, 'Tổng'];
-  const exportRows = sortedRows.map((row) => {
-    const record: Record<string, number | string> = { 'Tên Công Trình': row.name };
+  const exportColumns = ['STT', 'Tên Công Trình', ...ON_LINE_STAGES, 'Tổng'];
+  const exportRows = sortedRows.map(({ row, stt }) => {
+    const record: Record<string, number | string> = { 'STT': stt, 'Tên Công Trình': row.name };
     ON_LINE_STAGES.forEach((stage) => {
       record[stage] = row.values[stage] ?? 0;
     });
@@ -202,7 +202,6 @@ export const OnLineStageDetailModal = ({
   return (
     <div
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
@@ -245,7 +244,6 @@ export const OnLineStageDetailModal = ({
 
         {rows.length > 0 ? (
           <>
-            {/* BẢNG TIÊU ĐỀ — đứng yên phía trên. Có sắp xếp theo cột (bấm vào tiêu đề). */}
             <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-5 pt-5">
               <div className="flex">
                 <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
@@ -254,8 +252,19 @@ export const OnLineStageDetailModal = ({
                     <thead className="font-bold uppercase tracking-tight text-slate-800">
                       <tr>
                         <th
+                          onClick={() => toggleSort('stt')}
+                          style={{ left: 0 }}
+                          className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
+                        >
+                          <span className="inline-flex items-center justify-center gap-1">
+                            STT
+                            <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
+                          </span>
+                        </th>
+                        <th
                           onClick={() => toggleSort('name')}
-                          className="sticky left-0 z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                          style={{ left: STT_COL_WIDTH }}
+                          className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
                         >
                           <span className="inline-flex items-center gap-1">
                             Tên Công Trình
@@ -287,7 +296,6 @@ export const OnLineStageDetailModal = ({
               </div>
             </div>
 
-            {/* BẢNG DỮ LIỆU — vùng cuộn thật sự */}
             <div
               ref={bodyScrollRef}
               onScroll={handleBodyScroll}
@@ -296,29 +304,40 @@ export const OnLineStageDetailModal = ({
               <table style={tableStyle} className="border-separate border-spacing-0 text-right text-xs">
                 <ColGroup />
                 <tbody className="divide-y divide-emerald-50">
-                  {sortedRows.map((row) => (
-                    <tr key={row.name} className="group transition-colors hover:bg-slate-50">
-                      <td className="sticky left-0 z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50">
-                        {row.name}
-                      </td>
-                      {ON_LINE_STAGES.map((stage) => (
-                        <td key={stage} className="px-3 py-2.5 text-slate-700">
-                          {renderCell(
-                            row.values[stage] ?? 0,
-                            onValueClick ? () => onValueClick(row.name, stage) : undefined
-                          )}
+                  {sortedRows.map((entry) => {
+                    const row = entry.row;
+                    return (
+                      <tr key={row.name} className="group transition-colors hover:bg-slate-50">
+                        <td
+                          style={{ left: 0 }}
+                          className="sticky z-10 border-r border-slate-100 bg-white px-2 py-2.5 text-center font-semibold text-slate-500 group-hover:bg-slate-50"
+                        >
+                          {entry.stt}
                         </td>
-                      ))}
-                      <td className="bg-slate-50/50 px-3 py-2.5 font-bold text-slate-900">
-                        {formatter(rowTotal(row))}
-                      </td>
-                    </tr>
-                  ))}
+                        <td
+                          style={{ left: STT_COL_WIDTH }}
+                          className="sticky z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50"
+                        >
+                          {row.name}
+                        </td>
+                        {ON_LINE_STAGES.map((stage) => (
+                          <td key={stage} className="px-3 py-2.5 text-slate-700">
+                            {renderCell(
+                              row.values[stage] ?? 0,
+                              onValueClick ? () => onValueClick(row.name, stage) : undefined
+                            )}
+                          </td>
+                        ))}
+                        <td className="bg-slate-50/50 px-3 py-2.5 font-bold text-slate-900">
+                          {formatter(rowTotal(row))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* BẢNG TỔNG CỘNG — đứng yên phía dưới, chỉ hiện khi có nhiều hơn 1 dòng */}
             {rows.length > 1 && (
               <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
                 <div className="flex">
@@ -327,7 +346,9 @@ export const OnLineStageDetailModal = ({
                       <ColGroup />
                       <tfoot className="font-bold text-slate-900">
                         <tr>
-                          <td className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left">TỔNG CỘNG</td>
+                          <td className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left" colSpan={2}>
+                            TỔNG CỘNG
+                          </td>
                           {ON_LINE_STAGES.map((stage) => (
                             <td key={stage} className="px-3 py-3">
                               {renderCell(

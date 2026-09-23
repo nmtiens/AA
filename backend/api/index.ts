@@ -219,10 +219,10 @@ app.get('/', (_req: Request, res: Response) => {
 
 // --- WHITELIST CỘT: CHỈ TRUY XUẤT CÁC CỘT CẦN THIẾT ---
 const REPORT_COLUMNS: Record<string, string[]> = {
-  production_status_app: [
+    production_status_app: [
     'hex', 'tinh_trang', 'tinh_trang_ipo',
     'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
-    'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc',
+    'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc', 'phan_loai_nhom_san_pham',
     'so_ngay_cd_hien_tai', 'bop',
     'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke',
   ],
@@ -245,8 +245,8 @@ const REPORT_COLUMNS: Record<string, string[]> = {
     'nam', 'thang', 'ngay', 'date', 'tuan',
   ],
   xuat_kho: [
-   'hex', 'so_luong_xuat_kho', 'date', 'xuong_chinh', 'ten_cong_trinh',
-  ],
+   'hex', 'so_luong_xuat_kho', 'thanh_tien_xuat_kho', 'date', 'xuong_chinh', 'ten_cong_trinh',
+],
  ton_kho: [
   'hex','date', 'gia_tri', 'ma_id_sap',  'ten_cong_trinh',
 ],

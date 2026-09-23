@@ -11,7 +11,7 @@ export interface HexDetailColumnKeys {
   xuongKey: string;
   bopKey: string;
   tinhTrangKey: string;
-  daysAtCurrentStageKey: string;
+  phanLoaiNhomSanPhamKey: string;
   triGiaDonHangTongKey: string;
   thanhTienTinhPhieuKey: string;
   thanhTienNhapKhoKey: string;
@@ -20,9 +20,7 @@ export interface HexDetailColumnKeys {
 interface HexDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Tiêu đề cột đã bấm, vd "Tổng Giá Trị Đơn Hàng" */
   title: string;
-  /** null = xem tất cả công trình (bấm từ dòng TỔNG CỘNG) */
   projectName: string | null;
   rows: DataRow[];
   columnKeys: HexDetailColumnKeys;
@@ -30,35 +28,35 @@ interface HexDetailModalProps {
 
 const money = (value: number) => formatDecimal(value / 1000);
 
-// Độ rộng CỐ ĐỊNH cho từng cột (px). Dùng chung cho cả 3 bảng (tiêu đề / dữ liệu /
-// tổng cộng) để đảm bảo các cột luôn thẳng hàng tuyệt đối với nhau.
 const COL_WIDTHS = {
+  stt: 50,
   hex: 150,
   congTrinh: 200,
   hangMuc: 260,
   xuong: 100,
   bop: 80,
   tinhTrang: 200,
-  soNgay: 120,
+  phanLoai: 160,
   triGiaDonHangTong: 130,
   thanhTienTinhPhieu: 130,
   thanhTienNhapKho: 130,
 };
 
 type SortKey =
+  | 'stt'
   | 'hex'
   | 'congTrinh'
   | 'hangMuc'
   | 'xuong'
   | 'bop'
   | 'tinhTrang'
-  | 'soNgay'
+  | 'phanLoai'
   | 'triGia'
   | 'thanhTienPhieu'
   | 'thanhTienKho';
 type SortDir = 'asc' | 'desc';
 
-const NUMERIC_SORT_KEYS: SortKey[] = ['soNgay', 'triGia', 'thanhTienPhieu', 'thanhTienKho'];
+const NUMERIC_SORT_KEYS: SortKey[] = ['triGia', 'thanhTienPhieu', 'thanhTienKho'];
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-400" />;
@@ -84,8 +82,6 @@ export const HexDetailModal = ({
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const footerScrollRef = useRef<HTMLDivElement>(null);
 
-  // Độ rộng thanh cuộn dọc thực tế của bảng dữ liệu (bảng tiêu đề / tổng cộng
-  // không có thanh cuộn dọc nên bị "thừa" ra đúng bằng độ rộng này → lệch cột).
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
   useEffect(() => {
@@ -102,9 +98,6 @@ export const HexDetailModal = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
-  // Đo lại độ rộng thanh cuộn mỗi khi mở modal / đổi dữ liệu / resize, rồi dùng nó
-  // làm khoảng đệm bên phải cho bảng tiêu đề & bảng tổng cộng, để 3 bảng luôn
-  // thẳng cột với nhau kể cả khi bảng dữ liệu xuất hiện/biến mất thanh cuộn dọc.
   useEffect(() => {
     if (!isOpen) return;
     const measure = () => {
@@ -120,9 +113,6 @@ export const HexDetailModal = ({
     };
   }, [isOpen, rows, search]);
 
-  // Đồng bộ cuộn ngang: khi người dùng cuộn ngang ở bảng dữ liệu (ở giữa),
-  // ta chỉnh scrollLeft của bảng tiêu đề và bảng tổng cộng cho khớp theo,
-  // để 3 bảng luôn thẳng cột dù chúng là 3 phần tử cuộn độc lập.
   const handleBodyScroll = useCallback(() => {
     const left = bodyScrollRef.current?.scrollLeft ?? 0;
     if (headerScrollRef.current) headerScrollRef.current.scrollLeft = left;
@@ -131,7 +121,7 @@ export const HexDetailModal = ({
 
   const {
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-    daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   } = columnKeys;
 
   const toggleSort = useCallback((key: SortKey) => {
@@ -139,7 +129,7 @@ export const HexDetailModal = ({
     setSort((prev) => {
       if (!prev || prev.key !== key) return { key, dir: defaultDir };
       if (prev.dir === defaultDir) return { key, dir: defaultDir === 'asc' ? 'desc' : 'asc' };
-      return null; // bấm lần 3 → bỏ sắp xếp
+      return null;
     });
   }, []);
 
@@ -154,8 +144,22 @@ export const HexDetailModal = ({
     });
   }, [rows, search, hexKey, hangMucKey, tinhTrangKey]);
 
+  // ✅ MỚI: gắn STT cố định (1..N) theo đúng thứ tự gốc của filteredRows —
+  // giá trị này KHÔNG đổi khi sort theo các cột khác, chỉ dùng để sort riêng
+  // cột STT (giống Excel: sort theo STT desc thì đảo N..1).
+  const indexedRows = useMemo(
+    () => filteredRows.map((row, i) => ({ row, stt: i + 1 })),
+    [filteredRows]
+  );
+
   const sortedRows = useMemo(() => {
-    if (!sort) return filteredRows;
+    if (!sort) return indexedRows;
+
+    if (sort.key === 'stt') {
+      const sorted = [...indexedRows].sort((a, b) => a.stt - b.stt);
+      return sort.dir === 'desc' ? sorted.reverse() : sorted;
+    }
+
     const getValue = (row: DataRow): number | string => {
       switch (sort.key) {
         case 'hex': return String(row[hexKey] || '');
@@ -164,23 +168,23 @@ export const HexDetailModal = ({
         case 'xuong': return String(row[xuongKey] || '');
         case 'bop': return String(row[bopKey] || '');
         case 'tinhTrang': return String(row[tinhTrangKey] || '');
-        case 'soNgay': return parseNumber(row[daysAtCurrentStageKey]);
+        case 'phanLoai': return String(row[phanLoaiNhomSanPhamKey] || '');
         case 'triGia': return parseNumber(row[triGiaDonHangTongKey]);
         case 'thanhTienPhieu': return parseNumber(row[thanhTienTinhPhieuKey]);
         case 'thanhTienKho': return parseNumber(row[thanhTienNhapKhoKey]);
         default: return '';
       }
     };
-    const sorted = [...filteredRows].sort((a, b) => {
-      const va = getValue(a);
-      const vb = getValue(b);
+    const sorted = [...indexedRows].sort((a, b) => {
+      const va = getValue(a.row);
+      const vb = getValue(b.row);
       if (typeof va === 'string' || typeof vb === 'string') {
         return String(va).localeCompare(String(vb), 'vi');
       }
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [filteredRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey, daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
+  }, [indexedRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey, phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce(
@@ -198,28 +202,28 @@ export const HexDetailModal = ({
 
   const showProjectColumn = projectName === null;
 
-  // Xuất đúng dữ liệu đang hiển thị trên màn hình (đã lọc/sắp xếp) ra CSV.
-  // Cột tiền quy đổi về đơn vị 1.000 VNĐ, khớp với đơn vị đang hiển thị trên bảng.
   const exportColumns = [
+    'STT',
     'Mã Hex',
     ...(showProjectColumn ? ['Công Trình'] : []),
     'Hạng Mục',
     'Khu Vực SX',
     'BOP',
     'Tình Trạng',
-    'Số Ngày Ở Giai Đoạn',
+    'Phân Loại Nhóm Sản Phẩm',
     'Trị Giá Đơn Hàng Tổng (1000 VNĐ)',
     'Thành Tiền Tính Phiếu (1000 VNĐ)',
     'Thành Tiền Nhập Kho (1000 VNĐ)',
   ];
-  const exportRows = sortedRows.map((row) => ({
+  const exportRows = sortedRows.map(({ row, stt }) => ({
+    'STT': stt,
     'Mã Hex': String(row[hexKey] || ''),
     ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
     'Hạng Mục': String(row[hangMucKey] || ''),
     'Khu Vực SX': String(row[xuongKey] || ''),
     'BOP': String(row[bopKey] || ''),
     'Tình Trạng': String(row[tinhTrangKey] || ''),
-    'Số Ngày Ở Giai Đoạn': String(row[daysAtCurrentStageKey] || ''),
+    'Phân Loại Nhóm Sản Phẩm': String(row[phanLoaiNhomSanPhamKey] || ''),
     'Trị Giá Đơn Hàng Tổng (1000 VNĐ)': parseNumber(row[triGiaDonHangTongKey]) / 1000,
     'Thành Tiền Tính Phiếu (1000 VNĐ)': parseNumber(row[thanhTienTinhPhieuKey]) / 1000,
     'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienNhapKhoKey]) / 1000,
@@ -229,17 +233,15 @@ export const HexDetailModal = ({
     .trim()
     .replace(/\s+/g, '_')}`;
 
-  // Tổng px dùng làm NGƯỠNG TỐI THIỂU (min-width) — để bật thanh cuộn ngang khi
-  // màn hình hẹp hơn tổng này. Trên màn hình rộng, bảng sẽ giãn ra 100% theo % cột
-  // bên dưới thay vì để trống khoảng trắng lộ ra nền phía sau (lỗi "tràn bảng").
   const totalMinWidth =
+    COL_WIDTHS.stt +
     COL_WIDTHS.hex +
     (showProjectColumn ? COL_WIDTHS.congTrinh : 0) +
     COL_WIDTHS.hangMuc +
     COL_WIDTHS.xuong +
     COL_WIDTHS.bop +
     COL_WIDTHS.tinhTrang +
-    COL_WIDTHS.soNgay +
+    COL_WIDTHS.phanLoai +
     COL_WIDTHS.triGiaDonHangTong +
     COL_WIDTHS.thanhTienTinhPhieu +
     COL_WIDTHS.thanhTienNhapKho;
@@ -248,21 +250,20 @@ export const HexDetailModal = ({
 
   const ColGroup = () => (
     <colgroup>
+      <col style={{ width: pct(COL_WIDTHS.stt) }} />
       <col style={{ width: pct(COL_WIDTHS.hex) }} />
       {showProjectColumn && <col style={{ width: pct(COL_WIDTHS.congTrinh) }} />}
       <col style={{ width: pct(COL_WIDTHS.hangMuc) }} />
       <col style={{ width: pct(COL_WIDTHS.xuong) }} />
       <col style={{ width: pct(COL_WIDTHS.bop) }} />
       <col style={{ width: pct(COL_WIDTHS.tinhTrang) }} />
-      <col style={{ width: pct(COL_WIDTHS.soNgay) }} />
+      <col style={{ width: pct(COL_WIDTHS.phanLoai) }} />
       <col style={{ width: pct(COL_WIDTHS.triGiaDonHangTong) }} />
       <col style={{ width: pct(COL_WIDTHS.thanhTienTinhPhieu) }} />
       <col style={{ width: pct(COL_WIDTHS.thanhTienNhapKho) }} />
     </colgroup>
   );
 
-  // width: 100% để bảng luôn lấp đầy hết chiều rộng khung chứa (không để trống
-  // khoảng trắng lộ nền phía sau); minWidth giữ ngưỡng để cuộn ngang khi hẹp.
   const tableStyle: React.CSSProperties = {
     width: '100%',
     minWidth: totalMinWidth,
@@ -294,7 +295,6 @@ export const HexDetailModal = ({
   return (
     <div
       className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
@@ -350,11 +350,6 @@ export const HexDetailModal = ({
 
         {filteredRows.length > 0 ? (
           <>
-            {/*
-              BẢNG TIÊU ĐỀ — đứng yên phía trên, KHÔNG dùng position:sticky (để tránh
-              bug bị các CSS bên ngoài — ví dụ transform của lớp animation modal —
-              vô hiệu hoá). Có thể bấm vào tiêu đề để sắp xếp.
-            */}
             <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-5 pt-5">
               <div className="flex">
                 <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
@@ -363,8 +358,19 @@ export const HexDetailModal = ({
                     <thead className="font-bold uppercase tracking-tight text-slate-800">
                       <tr>
                         <th
+                          onClick={() => toggleSort('stt')}
+                          style={{ left: 0 }}
+                          className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
+                        >
+                          <span className="inline-flex items-center justify-center gap-1">
+                            STT
+                            <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
+                          </span>
+                        </th>
+                        <th
                           onClick={() => toggleSort('hex')}
-                          className="sticky left-0 z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                          style={{ left: COL_WIDTHS.stt }}
+                          className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
                         >
                           <span className="inline-flex items-center gap-1">
                             Mã Hex
@@ -378,8 +384,8 @@ export const HexDetailModal = ({
                         <SortableHeader sortKey="xuong">Khu Vực SX</SortableHeader>
                         <SortableHeader sortKey="bop">BOP</SortableHeader>
                         <SortableHeader sortKey="tinhTrang">Tình Trạng</SortableHeader>
-                        <SortableHeader sortKey="soNgay" align="right">
-                          Số Ngày Ở <br />Giai Đoạn
+                        <SortableHeader sortKey="phanLoai" align="right">
+                          Phân Loại <br />Nhóm SP
                         </SortableHeader>
                         <SortableHeader sortKey="triGia" align="right">
                           Trị Giá Đơn <br />Hàng Tổng
@@ -404,7 +410,6 @@ export const HexDetailModal = ({
               </div>
             </div>
 
-            {/* BẢNG DỮ LIỆU — vùng cuộn thật sự (cả ngang lẫn dọc) */}
             <div
               ref={bodyScrollRef}
               onScroll={handleBodyScroll}
@@ -413,50 +418,58 @@ export const HexDetailModal = ({
               <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                 <ColGroup />
                 <tbody className="divide-y divide-emerald-50">
-                  {sortedRows.map((row, idx) => (
-                    <tr key={idx} className="group transition-colors hover:bg-slate-50">
-                      <td className="sticky left-0 z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50">
-                        {String(row[hexKey] || '—')}
-                      </td>
-                      {showProjectColumn && (
-                        <td className="px-3 py-2.5 text-left text-slate-700">
-                          {String(row[congTrinhKey] || '—')}
+                  {sortedRows.map((entry, idx) => {
+                    const row = entry.row;
+                    return (
+                      <tr key={idx} className="group transition-colors hover:bg-slate-50">
+                        <td
+                          style={{ left: 0 }}
+                          className="sticky z-10 border-r border-slate-100 bg-white px-2 py-2.5 text-center font-semibold text-slate-500 group-hover:bg-slate-50"
+                        >
+                          {entry.stt}
                         </td>
-                      )}
-                      <td className="px-3 py-2.5 text-left text-slate-700">
-                        {String(row[hangMucKey] || '—')}
-                      </td>
-                      <td className="px-3 py-2.5 text-left text-slate-600">
-                        {String(row[xuongKey] || '—')}
-                      </td>
-                      <td className="px-3 py-2.5 text-left text-slate-600">
-                        {String(row[bopKey] || '—')}
-                      </td>
-                      <td className="px-3 py-2.5 text-left text-slate-600">
-                        {String(row[tinhTrangKey] || '—')}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-slate-600">
-                        {String(row[daysAtCurrentStageKey] || '—')}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-slate-800">
-                        {money(parseNumber(row[triGiaDonHangTongKey]))}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-slate-800">
-                        {money(parseNumber(row[thanhTienTinhPhieuKey]))}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-indigo-700 font-medium">
-                        {money(parseNumber(row[thanhTienNhapKhoKey]))}
-                      </td>
-                    </tr>
-                  ))}
+                        <td
+                          style={{ left: COL_WIDTHS.stt }}
+                          className="sticky z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50"
+                        >
+                          {String(row[hexKey] || '—')}
+                        </td>
+                        {showProjectColumn && (
+                          <td className="px-3 py-2.5 text-left text-slate-700">
+                            {String(row[congTrinhKey] || '—')}
+                          </td>
+                        )}
+                        <td className="px-3 py-2.5 text-left text-slate-700">
+                          {String(row[hangMucKey] || '—')}
+                        </td>
+                        <td className="px-3 py-2.5 text-left text-slate-600">
+                          {String(row[xuongKey] || '—')}
+                        </td>
+                        <td className="px-3 py-2.5 text-left text-slate-600">
+                          {String(row[bopKey] || '—')}
+                        </td>
+                        <td className="px-3 py-2.5 text-left text-slate-600">
+                          {String(row[tinhTrangKey] || '—')}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-slate-600">
+                          {String(row[phanLoaiNhomSanPhamKey] || '—')}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-slate-800">
+                          {money(parseNumber(row[triGiaDonHangTongKey]))}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-slate-800">
+                          {money(parseNumber(row[thanhTienTinhPhieuKey]))}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-indigo-700 font-medium">
+                          {money(parseNumber(row[thanhTienNhapKhoKey]))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/*
-              BẢNG TỔNG CỘNG — đứng yên phía dưới cùng, luôn hiển thị, không phụ
-              thuộc vào việc cuộn hết bảng dữ liệu hay không.
-            */}
             <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
               <div className="flex">
                 <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
@@ -466,7 +479,7 @@ export const HexDetailModal = ({
                       <tr>
                         <td
                           className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left"
-                          colSpan={showProjectColumn ? 6 : 5}
+                          colSpan={(showProjectColumn ? 6 : 5) + 1}
                         >
                           TỔNG CỘNG ({filteredRows.length} hex)
                         </td>

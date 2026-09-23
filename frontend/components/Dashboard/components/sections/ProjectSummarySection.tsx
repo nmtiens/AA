@@ -52,7 +52,7 @@ export const ProjectSummarySection = ({
             </button>
           </div>
           <span className="text-xs text-slate-500 italic hidden sm:block">
-            Đơn vị: {projectSummaryMetric === 'COUNT' ? 'Hạng mục (Items)' : '1,000 VNĐ'}
+            Đơn vị: {projectSummaryMetric === 'COUNT' ? 'Hạng mục (Items)' : 'Tỷ đồng'}
           </span>
         </div>
       </div>

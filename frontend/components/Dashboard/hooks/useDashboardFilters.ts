@@ -28,15 +28,9 @@ const DEFAULT_FILTERS: DashboardFiltersState = {
   tinhTrangIpo: ['01. ĐANG SẢN XUẤT'],
 };
 
-// MỚI: helper so sánh 2 mảng string không phân biệt thứ tự — dùng để biết
-// tinhTrangIpo hiện tại có khác giá trị MẶC ĐỊNH hay không (thay vì chỉ
-// kiểm tra length > 0, vì mặc định giờ đã có sẵn 1 phần tử).
-const arraysEqualUnordered = (a: string[], b: string[]) => {
-  if (a.length !== b.length) return false;
-  const sortedA = [...a].sort();
-  const sortedB = [...b].sort();
-  return sortedA.every((v, i) => v === sortedB[i]);
-};
+// Cố định Tình Trạng IPO dùng riêng cho biểu đồ Funnel "TÌNH TRẠNG ĐƠN HÀNG AATN"
+// (KHÔNG phụ thuộc vào lựa chọn của người dùng ở ô "Tình Trạng IPO").
+const FUNNEL_FIXED_TINH_TRANG_IPO = '01. ĐANG SẢN XUẤT';
 
 /**
  * Gom toàn bộ state + logic lọc tổng (Công trình / Khu vực SX / Tình trạng / Tình trạng IPO)
@@ -56,21 +50,17 @@ export function useDashboardFilters({
   const [filters, setFilters] = useState<DashboardFiltersState>(DEFAULT_FILTERS);
   const [selectedMaterialGroups, setSelectedMaterialGroups] = useState<string[]>([]);
 
-  // SỬA: trước đây set tay tinhTrangIpo: [] (Tất cả) — giờ dùng lại
-  // DEFAULT_FILTERS để "xóa lọc" quay về đúng trạng thái mặc định
-  // (Tình Trạng IPO = "01. ĐANG SẢN XUẤT", các filter khác = Tất cả).
   const clearFilters = () => {
     setFilters(DEFAULT_FILTERS);
   };
 
-  // SỬA: tinhTrangIpo không còn dùng length > 0 nữa (vì mặc định vốn đã có
-  // 1 phần tử) — phải so sánh với DEFAULT_FILTERS.tinhTrangIpo để biết
-  // người dùng có thực sự đổi khác đi mặc định hay không.
+  // SỬA: chỉ để hiện lại nút X — quay về kiểm tra length đơn giản, không so
+  // sánh với DEFAULT_FILTERS nữa. Áp dụng chung cho mọi trang dùng hook này.
   const hasActiveFilters =
     filters.congTrinh.length > 0 ||
     filters.xuong.length > 0 ||
     filters.tinhTrang.length > 0 ||
-    !arraysEqualUnordered(filters.tinhTrangIpo, DEFAULT_FILTERS.tinhTrangIpo);
+    filters.tinhTrangIpo.length > 0;
 
   const filteredProductionData = useMemo(() => {
     return productionData.filter(row => {
@@ -82,6 +72,31 @@ export function useDashboardFilters({
       return matchCongTrinh && matchXuong && matchTinhTrang && matchTinhTrangIpo;
     });
   }, [productionData, filters, congTrinhKey, xuongKey, tinhTrangKey, tinhTrangIpoKey]);
+
+  // MỚI: dataset riêng cho biểu đồ "TÌNH TRẠNG ĐƠN HÀNG AATN" (funnel) — LUÔN
+  // cố định Tình Trạng IPO = "01. ĐANG SẢN XUẤT", KHÔNG áp dụng filters.tinhTrang,
+  // KHÔNG áp dụng filters.tinhTrangIpo do người dùng chọn (chỉ ăn Công trình + Khu vực SX).
+  const funnelProductionData = useMemo(() => {
+    return productionData.filter(row => {
+      const matchCongTrinh = filters.congTrinh.length === 0 || (congTrinhKey && filters.congTrinh.includes(String(row[congTrinhKey] || '').trim()));
+      const matchXuong = filters.xuong.length === 0 || (xuongKey && filters.xuong.includes(String(row[xuongKey] || '').trim()));
+      const matchFixedIpo = tinhTrangIpoKey && String(row[tinhTrangIpoKey] || '').trim() === FUNNEL_FIXED_TINH_TRANG_IPO;
+
+      // Cố tình KHÔNG check filters.tinhTrang ở đây
+      return matchCongTrinh && matchXuong && matchFixedIpo;
+    });
+  }, [productionData, filters.congTrinh, filters.xuong, congTrinhKey, xuongKey, tinhTrangIpoKey]);
+
+  // MỚI: dataset riêng cho bảng "Tình trạng đơn hàng theo Công trình" (v2,
+  // ProjectSummarySection_v2) — CHỈ ăn Công trình + Khu vực SX, KHÔNG áp dụng
+  // filters.tinhTrang và filters.tinhTrangIpo, để bảng luôn hiển thị tổng đầy đủ.
+  const projectSummaryProductionData = useMemo(() => {
+    return productionData.filter(row => {
+      const matchCongTrinh = filters.congTrinh.length === 0 || (congTrinhKey && filters.congTrinh.includes(String(row[congTrinhKey] || '').trim()));
+      const matchXuong = filters.xuong.length === 0 || (xuongKey && filters.xuong.includes(String(row[xuongKey] || '').trim()));
+      return matchCongTrinh && matchXuong;
+    });
+  }, [productionData, filters.congTrinh, filters.xuong, congTrinhKey, xuongKey]);
 
   const filteredMaterialData = useMemo(() => {
     return materialData.filter(row => {
@@ -112,6 +127,8 @@ export function useDashboardFilters({
     clearFilters,
 
     filteredProductionData,
+    funnelProductionData,
+    projectSummaryProductionData,
     filteredMaterialData,
     displayedMaterialData,
 

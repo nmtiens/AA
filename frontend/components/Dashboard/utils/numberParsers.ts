@@ -74,3 +74,12 @@ export function formatNumber(value: number, metric?: MetricType): string {
   if (value >= 1_000_000) return (value / 1).toLocaleString('en-US', { maximumFractionDigits: 0 }) + '';
   return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
+
+// Hàm dành riêng cho 2 view "Luồng đỏ" và "Căn mẫu" — làm tròn 3 chữ số thập phân
+export const formatDecimalFull = (value: number): string => {
+  if (!Number.isFinite(value)) return '0';
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  });
+};

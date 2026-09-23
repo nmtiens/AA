@@ -22,10 +22,11 @@ export const TARGET_COLUMN_NAMES = {
   TRI_GIA_DON_HANG_TONG: 'tri_gia_don_hang_tong',
   THANH_TIEN_TINH_PHIEU: 'thanh_tien_tinh_phieu',
 
-  THANH_TIEN_NHAP_KHO: 'thanh_tien_nhap_kho_luy_ke', // Cột cũ của Production View
+   THANH_TIEN_NHAP_KHO: 'thanh_tien_nhap_kho_luy_ke', // Cột cũ của Production View
   INVENTORY_AMOUNT: 'thanh_tien_nhap_kho', // Cột mới chính xác cho Inventory View
   EXPORT_AMOUNT: 'thanh_tien_xuat_kho', // Correct column for Export View
-  GIA_TRI_TON_KHO: 'gia_tri', // For Stock View
+  EXPORT_QUANTITY: 'so_luong_xuat_kho', // ✅ MỚI: cột số lượng (khác với EXPORT_AMOUNT là cột tiền)
+  GIA_TRI_TON_KHO: 'gia_tri', // For Stock View // Correct column for Export View
   MA_ID_SAP: 'ma_id_sap', // For counting unique items in Stock
   NHAP_KHO_TUAN: 'nhap_kho_tuan', // Cột mới theo yêu cầu
 
@@ -37,6 +38,7 @@ export const TARGET_COLUMN_NAMES = {
   TUAN: 'tuan', // New Column for Weekly Analysis
 
   TEN_HANG_MUC: 'ten_hang_muc',
+  PHAN_LOAI_NHOM_SAN_PHAM: 'phan_loai_nhom_san_pham', // ✅ MỚI
 
   // Production Days Columns
   SO_NGAY_CD_HIEN_TAI: 'so_ngay_cd_hien_tai',

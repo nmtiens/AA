@@ -46,6 +46,7 @@ export function useColumnKeys({
     xuongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.XUONG) || 'xuong_chinh',
     hangMucKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TEN_HANG_MUC) || 'ten_hang_muc',
     daysAtCurrentStageKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI) || 'so_ngay_cd_hien_tai',
+    phanLoaiNhomSanPhamKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM) || 'phan_loai_nhom_san_pham', // ✅ MỚI
     bopKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.BOP) || 'bop',
     triGiaDonHangTongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG) || 'tri_gia_don_hang_tong',
     thanhTienTinhPhieuKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || 'thanh_tien_tinh_phieu',
@@ -84,10 +85,10 @@ export function useColumnKeys({
     invDateKey: findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.DATE) || 'date',
     invTuanKey: findColumnKey(inventoryColumns, TARGET_COLUMN_NAMES.TUAN) || 'tuan',
   }), [inventoryColumns]);
-
   // 5. Export Keys
   const exportKeys = useMemo(() => ({
-    expThanhTienKey: findColumnKey(exportColumns, TARGET_COLUMN_NAMES.EXPORT_AMOUNT) || 'so_luong_xuat_kho',
+    expSoLuongKey: findColumnKey(exportColumns, TARGET_COLUMN_NAMES.EXPORT_QUANTITY) || 'so_luong_xuat_kho', // ✅ sửa target
+    expThanhTienKey: findColumnKey(exportColumns, TARGET_COLUMN_NAMES.EXPORT_AMOUNT) || 'thanh_tien_xuat_kho',
     expDateKey: findColumnKey(exportColumns, TARGET_COLUMN_NAMES.DATE) || 'date',
     expXuongKey: findColumnKey(exportColumns, TARGET_COLUMN_NAMES.XUONG) || 'xuong_chinh',
     expCongTrinhKey: findColumnKey(exportColumns, TARGET_COLUMN_NAMES.CONG_TRINH) || 'ten_cong_trinh',

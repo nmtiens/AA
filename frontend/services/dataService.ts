@@ -24,6 +24,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   thanh_tien_nhap_kho: 'THÀNH TIỀN NHẬP KHO',
   thanh_tien_nhap_kho_luy_ke: 'THÀNH TIỀN NHẬP KHO LŨY KẾ',
   so_luong_xuat_kho: 'SỐ LƯỢNG XUẤT KHO',
+  thanh_tien_xuat_kho: 'THÀNH TIỀN XUẤT KHO',  
   gia_tri: 'GIÁ TRỊ',
   gia_tri_ton_kho: 'GIÁ TRỊ TỒN KHO',
   ma_id_sap: 'MÃ ID SAP',

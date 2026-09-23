@@ -83,26 +83,26 @@ export const ContructionRevenueSection = ({
 
   
 
+  const formatRoundedNumber = (value: number): string => {
+    const absValue = Math.abs(value);
+    if (absValue > 0 && absValue < 1) {
+      return value.toLocaleString('en-US', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+    }
+    return Math.round(value).toLocaleString('en-US');
+  };
+
   const formatFunnelValue = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
     }
     if (useDetailedNumbers) {
-      return `${value.toLocaleString('en-US', { maximumFractionDigits: 6 })} Triệu`;
+      return formatRoundedNumber(value);
     }
-    return `${(value / 1000).toLocaleString('en-US', { maximumFractionDigits: 6 })} Tỷ`;
+    return `${formatRoundedNumber(value / 1000)} Tỷ`;
   };
-
-  const formatRoundedNumber = (value: number): string => {
-  const absValue = Math.abs(value);
-  if (absValue > 0 && absValue < 1) {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-  }
-  return Math.round(value).toLocaleString('en-US');
-};
 
 const formatBarLabel = (value: number): string => {
   if (workshopMetric === 'COUNT_HEX') {
@@ -237,24 +237,31 @@ const formatBarLabel = (value: number): string => {
           onClick={closeModal}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800">
+            <div className="flex justify-between items-start gap-4 p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-slate-800 truncate">
                   Chi tiết dữ liệu Phễu{selectedFunnelItem ? ` — ${selectedFunnelItem.name}` : ''}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   {selectedFunnelItem ? 'Phân tích giá trị theo Công trình' : 'Phân tích giá trị theo BOP'}
                 </p>
               </div>
-              <button
-                onClick={closeModal}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                    Đơn vị: Triệu đồng
+                  </span>
+                )}
+                <button
+                  onClick={closeModal}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
             <div className="p-4 sm:p-6 overflow-y-auto">
               {pivotFunnelData && pivotFunnelData.data && pivotFunnelData.data.length > 0 ? (
@@ -275,7 +282,7 @@ const formatBarLabel = (value: number): string => {
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">
                               {index + 1}
                             </span>
-                            <span className="truncate max-w-[200px]" title={item.name}>{item.name}</span>
+                         <span className="break-words">{item.name}</span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
                             {renderPivotValue(item.value, item.name)}

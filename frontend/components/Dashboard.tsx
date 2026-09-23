@@ -133,6 +133,7 @@ const {
   hasActiveFilters,
   clearFilters,
   filteredProductionData,
+  funnelProductionData, // THÊM
   filteredMaterialData,
   displayedMaterialData,
   selectedMaterialGroups,
@@ -335,10 +336,11 @@ const {
 } = usePivotTables({
   filteredProductionData,
   filteredMaterialData,
+  funnelProductionData, // THÊM
   displayedMaterialData,
   stockDates,        // MỚI: thay cho stockData/stockDateKey/stockValueKey/stockSapIdKey
   closestStockDate,
-  tinhTrangKey, xuongKey, bopKey, valueKey, realValueKey, hexKey,
+  tinhTrangKey, tinhTrangIpoKey, xuongKey, bopKey, valueKey, realValueKey, hexKey,
   congTrinhKey, hangMucKey, daysAtCurrentStageKey,
   triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,

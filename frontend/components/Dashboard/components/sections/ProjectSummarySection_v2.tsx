@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Activity, Hash, DollarSign } from 'lucide-react';
-import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { formatNumber, formatDecimalFull } from '../../utils/numberParsers';
 
 export interface ProjectStatusRow {
   name: string;
@@ -39,6 +39,20 @@ interface ProjectSummarySectionProps {
   onCellClick?: (info: ProjectSummaryCellClick) => void;
   /** Những cột cho phép bấm. Mặc định: tất cả các cột số. */
   clickableColumns?: ProjectSummaryColumn[];
+  /**
+   * ✅ MỚI: Danh sách công trình theo ĐÚNG thứ tự ưu tiên đã setup ở trang
+   * "Setup dữ liệu theo View" (chính là viewProjectWhitelist / kết quả của
+   * getProjectsForView). Phần tử đầu tiên = ưu tiên cao nhất.
+   * - Bảng sẽ được SẮP XẾP LẠI theo đúng thứ tự này (công trình không có
+   *   trong danh sách sẽ xếp xuống cuối, giữ nguyên thứ tự gốc).
+   * - Thêm cột "STT" đánh số thứ tự ưu tiên.
+   * - Tô nền dòng theo gradient màu đỏ: ưu tiên càng cao (STT càng nhỏ) màu
+   *   càng đậm, ưu tiên thấp hơn màu nhạt dần. Công trình không nằm trong
+   *   danh sách ưu tiên (không setup) sẽ không tô màu.
+   * Không truyền prop này thì bảng giữ nguyên hành vi cũ (không có cột STT,
+   * không tô màu).
+   */
+  priorityOrder?: string[];
 }
 
 const NUMERIC_KEYS: ProjectSummaryColumn[] = [
@@ -52,6 +66,18 @@ const NUMERIC_KEYS: ProjectSummaryColumn[] = [
   'remaining',
 ];
 
+// Độ đậm nhạt của màu đỏ theo hạng ưu tiên (rank = 0 là ưu tiên cao nhất).
+// alpha giảm dần tuyến tính từ MAX_ALPHA (rank 0) xuống MIN_ALPHA (rank cuối).
+const MAX_ALPHA = 0.38;
+const MIN_ALPHA = 0.05;
+const PRIORITY_RED_RGB = '239, 68, 68'; // tailwind red-500
+
+function getPriorityAlpha(rank: number, total: number): number {
+  if (total <= 1) return MAX_ALPHA;
+  const ratio = rank / (total - 1); // 0 -> 1
+  return MAX_ALPHA - (MAX_ALPHA - MIN_ALPHA) * ratio;
+}
+
 export const ProjectSummarySection_v2 = ({
   sectionRef,
   projectStatusSummary,
@@ -59,9 +85,44 @@ export const ProjectSummarySection_v2 = ({
   setProjectSummaryMetric,
   onCellClick,
   clickableColumns = NUMERIC_KEYS,
+  priorityOrder,
 }: ProjectSummarySectionProps) => {
-  const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatDecimal;
+
+const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatDecimalFull;
   const label = projectSummaryMetric === 'VALUE' ? 'Giá Trị' : 'Số Lượng';
+
+  const hasPriority = !!priorityOrder && priorityOrder.length > 0;
+
+  // Sắp xếp lại dữ liệu theo thứ tự ưu tiên (nếu có) + tính rank cho từng dòng.
+  // Công trình không có trong priorityOrder -> rank = -1, xếp xuống cuối bảng,
+  // giữ nguyên thứ tự tương đối ban đầu giữa các dòng đó.
+  const { orderedRows, rankByName, totalRanked } = useMemo(() => {
+    if (!hasPriority) {
+      return { orderedRows: projectStatusSummary, rankByName: new Map<string, number>(), totalRanked: 0 };
+    }
+    const rankMap = new Map<string, number>();
+    priorityOrder!.forEach((name, idx) => rankMap.set(name.trim(), idx));
+
+    const withRank = projectStatusSummary.map((row, originalIndex) => ({
+      row,
+      originalIndex,
+      rank: rankMap.has(row.name.trim()) ? rankMap.get(row.name.trim())! : Number.POSITIVE_INFINITY,
+    }));
+    withRank.sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.originalIndex - b.originalIndex;
+    });
+
+    return {
+      orderedRows: withRank.map((w) => w.row),
+      rankByName: rankMap,
+      totalRanked: priorityOrder!.length,
+    };
+  }, [projectStatusSummary, priorityOrder, hasPriority]);
+
+  const getRowStyle = (name: string): React.CSSProperties | undefined => {
+    return undefined; // Đã bỏ tô màu ưu tiên, chỉ giữ lại STT/thứ tự sắp xếp
+  };
 
   const total = (key: ProjectSummaryColumn) =>
     projectStatusSummary.reduce((acc, row) => acc + row[key], 0);
@@ -87,6 +148,9 @@ export const ProjectSummarySection_v2 = ({
   // Ô số liệu dùng chung: canh giữa, khớp với tiêu đề cột.
   const tdNumeric = 'px-3 py-2.5 text-center';
 
+  // Độ rộng cột STT (px) — dùng để tính offset sticky cho cột "Tên Công Trình" đứng ngay sau nó.
+  const STT_WIDTH = 48;
+
   return (
     <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
@@ -110,7 +174,7 @@ export const ProjectSummarySection_v2 = ({
             </button>
           </div>
           <span className="text-xs text-slate-500 italic hidden sm:block">
-            Đơn vị: {projectSummaryMetric === 'COUNT' ? 'Hạng mục (Items)' : '1,000 VNĐ'}
+            Đơn vị: {projectSummaryMetric === 'COUNT' ? 'Hạng mục (Items)' : 'Triệu đồng'}
           </span>
         </div>
       </div>
@@ -120,9 +184,19 @@ export const ProjectSummarySection_v2 = ({
             <thead className="text-slate-800 font-bold uppercase tracking-tight">
               {/* Hàng 1: các cột đơn (rowSpan=2) + tiêu đề nhóm "Còn lại" (colSpan=3) */}
               <tr>
+                {hasPriority && (
+                  <th
+                    rowSpan={2}
+                    style={{ width: STT_WIDTH, minWidth: STT_WIDTH }}
+                    className="px-1 py-3 text-center sticky left-0 top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 shadow-sm"
+                  >
+                    STT
+                  </th>
+                )}
                 <th
                   rowSpan={2}
-                  className="px-3 py-3 text-left sticky left-0 top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 min-w-[220px] shadow-sm"
+                  style={hasPriority ? { left: STT_WIDTH } : undefined}
+                  className={`px-3 py-3 text-left sticky ${hasPriority ? '' : 'left-0'} top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 min-w-[220px] shadow-sm`}
                 >
                   Tên Công Trình
                 </th>
@@ -143,23 +217,48 @@ export const ProjectSummarySection_v2 = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-50">
-              {projectStatusSummary.map((row, idx) => (
-                <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-3 py-2.5 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{row.name}</td>
-                  <td className={`${tdNumeric} text-slate-800`}>{renderValue(row.totalOrder, 'totalOrder', row.name)}</td>
-                  <td className={`${tdNumeric} text-red-600`}>{renderValue(row.cancelled, 'cancelled', row.name)}</td>
-                  <td className={`${tdNumeric} text-slate-800 font-medium`}>{renderValue(row.afterCancel, 'afterCancel', row.name)}</td>
-                  <td className={`${tdNumeric} text-indigo-700 font-medium`}>{renderValue(row.inventory, 'inventory', row.name)}</td>
-                  <td className={`${tdNumeric} text-emerald-700 font-medium`}>{renderValue(row.exported, 'exported', row.name)}</td>
-                  <td className={`${tdNumeric} text-slate-500`}>{renderValue(row.notDeployed, 'notDeployed', row.name)}</td>
-                  <td className={`${tdNumeric} text-slate-600`}>{renderValue(row.onLine, 'onLine', row.name)}</td>
-                  <td className={`${tdNumeric} font-bold text-slate-900 bg-slate-50/50`}>{renderValue(row.remaining, 'remaining', row.name)}</td>
-                </tr>
-              ))}
+              {orderedRows.map((row, idx) => {
+                const rowStyle = getRowStyle(row.name);
+                const rank = hasPriority ? rankByName.get(row.name.trim()) : undefined;
+                return (
+                  <tr key={idx} className="hover:brightness-95 transition-colors group" style={rowStyle}>
+                    {hasPriority && (
+                      <td
+                        style={{ width: STT_WIDTH, minWidth: STT_WIDTH, ...rowStyle }}
+                        className="px-1 py-2.5 text-center font-bold text-slate-700 sticky left-0 z-10 border-r border-slate-100"
+                      >
+                        {rank !== undefined ? rank + 1 : '–'}
+                      </td>
+                    )}
+                    <td
+                      style={{ left: hasPriority ? STT_WIDTH : undefined, ...rowStyle }}
+                      className={`px-3 py-2.5 text-left font-medium text-slate-700 sticky ${hasPriority ? '' : 'left-0'} z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}
+                    >
+                      {row.name}
+                    </td>
+                    <td className={`${tdNumeric} text-slate-800`}>{renderValue(row.totalOrder, 'totalOrder', row.name)}</td>
+                    <td className={`${tdNumeric} text-red-600`}>{renderValue(row.cancelled, 'cancelled', row.name)}</td>
+                    <td className={`${tdNumeric} text-slate-800 font-medium`}>{renderValue(row.afterCancel, 'afterCancel', row.name)}</td>
+                    <td className={`${tdNumeric} text-indigo-700 font-medium`}>{renderValue(row.inventory, 'inventory', row.name)}</td>
+                    <td className={`${tdNumeric} text-emerald-700 font-medium`}>{renderValue(row.exported, 'exported', row.name)}</td>
+                    <td className={`${tdNumeric} text-slate-500`}>{renderValue(row.notDeployed, 'notDeployed', row.name)}</td>
+                    <td className={`${tdNumeric} text-slate-600`}>{renderValue(row.onLine, 'onLine', row.name)}</td>
+                    <td className={`${tdNumeric} font-bold text-slate-900`}>{renderValue(row.remaining, 'remaining', row.name)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot className="bg-emerald-50 font-bold text-slate-800 border-t border-emerald-300 sticky bottom-0 z-20">
               <tr>
-                <td className="px-3 py-3 text-left sticky left-0 bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">TỔNG CỘNG</td>
+                {hasPriority && (
+                  <td style={{ width: STT_WIDTH, minWidth: STT_WIDTH }} className="px-1 py-3 text-center sticky left-0 bg-emerald-50" />
+                )}
+                <td
+                  style={hasPriority ? { left: STT_WIDTH } : undefined}
+                  className={`px-3 py-3 text-left sticky ${hasPriority ? '' : 'left-0'} bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}
+                >
+                  TỔNG CỘNG
+                </td>
                 <td className="px-3 py-3 text-center">{renderValue(total('totalOrder'), 'totalOrder', null)}</td>
                 <td className="px-3 py-3 text-center text-red-700">{renderValue(total('cancelled'), 'cancelled', null)}</td>
                 <td className="px-3 py-3 text-center">{renderValue(total('afterCancel'), 'afterCancel', null)}</td>

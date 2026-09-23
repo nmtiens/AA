@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, LabelList, ReferenceLine, Label,
@@ -98,6 +98,63 @@ export const FactoryRevenueSection = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // ---- Đo bề rộng vùng chứa các bar của funnel để quyết định label trong/ngoài bar ----
+  const funnelBarWrapperRef = useRef<HTMLDivElement>(null);
+  const [funnelBarWidth, setFunnelBarWidth] = useState(0);
+const getMinWidthPxForText = (text: string): number => {
+    return measureTextWidth(text, `bold ${FUNNEL_BASE_FONT_SIZE}px sans-serif`) + FUNNEL_LABEL_HORIZONTAL_PADDING;
+  };
+  useEffect(() => {
+    const el = funnelBarWrapperRef.current;
+    if (!el) return;
+    setFunnelBarWidth(el.clientWidth);
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setFunnelBarWidth(w);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // ---- Đo DOM thật để biết nhãn số có vừa trong bar hay không, và co cỡ chữ nếu cần ----
+  // barRefs: div của từng bar (để lấy clientWidth thật, đã bị co lại theo %)
+  // measureRefs: span "ẩn" chứa đúng chữ số ở cỡ chữ gốc, không bị cắt (để lấy scrollWidth thật)
+  const barRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const measureRefs = useRef<Record<string, HTMLSpanElement | null>>({});
+  const [fontSizeMap, setFontSizeMap] = useState<Record<string, number>>({});
+  const [narrowMap, setNarrowMap] = useState<Record<string, boolean>>({});
+  const FUNNEL_BASE_FONT_SIZE = 14;
+  const FUNNEL_LABEL_HORIZONTAL_PADDING = 16;
+  const FUNNEL_MIN_FONT_SIZE = 9; // cỡ chữ nhỏ nhất còn đọc được, dưới mức này thì đẩy số ra ngoài bar
+  const FUNNEL_SAFE_RATIO = 0.9; // chừa margin an toàn 2 bên trong bar
+
+  useLayoutEffect(() => {
+    const nextFont: Record<string, number> = {};
+    const nextNarrow: Record<string, boolean> = {};
+    let changed = false;
+    customFunnelData.forEach((item) => {
+      const barEl = barRefs.current[item.id];
+      const measureEl = measureRefs.current[item.id];
+      if (!barEl || !measureEl) return;
+      const barWidth = barEl.clientWidth;
+      const textWidth = measureEl.scrollWidth; // bề rộng thật của chữ ở cỡ gốc
+
+      // Không co nhỏ font nữa: chỉ kiểm tra có vừa hay không.
+      // Vừa -> giữ nguyên cỡ chữ gốc trong bar. Không vừa -> đẩy hẳn ra ngoài.
+      const fontSize = FUNNEL_BASE_FONT_SIZE;
+      const isNarrow = barWidth > 0 && textWidth > barWidth * FUNNEL_SAFE_RATIO;
+
+      nextFont[item.id] = fontSize;
+      nextNarrow[item.id] = isNarrow;
+      if (fontSizeMap[item.id] !== fontSize || narrowMap[item.id] !== isNarrow) changed = true;
+    });
+    if (changed) {
+      setFontSizeMap(nextFont);
+      setNarrowMap(nextNarrow);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customFunnelData, funnelBarWidth]);
 
   const domainMax = useMemo(() => {
     const maxStack = factoryRevenueChartData.reduce(
@@ -295,7 +352,7 @@ export const FactoryRevenueSection = ({
                 ))}
               </div>
 
-              <div className="flex-1 relative flex flex-col gap-3 min-w-0">
+              <div ref={funnelBarWrapperRef} className="flex-1 relative flex flex-col gap-3 min-w-0">
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
                   <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
                     <polygon
@@ -309,19 +366,26 @@ export const FactoryRevenueSection = ({
                   </svg>
                 </div>
 
-                {customFunnelData.map((item) => {
+                                {customFunnelData.map((item) => {
                   const displayValue = Math.round(item.value / 1000);
                   const widthPercent = displayValue === 0 ? 6 : item.percentage;
+                  const labelText = displayValue.toLocaleString('en-US');
+                  const minWidthPx = getMinWidthPxForText(labelText);
 
                   return (
-                    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+                    <div key={`bar-${item.id}`} className="h-10 flex items-center justify-center w-full relative z-20">
                       <div
                         className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
-                        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+                        style={{
+                          width: `${widthPercent}%`,
+                          minWidth: `${minWidthPx}px`,
+                          flexShrink: 0,
+                          backgroundColor: item.color,
+                        }}
                         title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
                       >
-                        <span className="text-black font-bold text-sm truncate px-1">
-                          {displayValue.toLocaleString('en-US')}
+                        <span className="text-black font-bold text-sm whitespace-nowrap px-1">
+                          {labelText}
                         </span>
                       </div>
                     </div>

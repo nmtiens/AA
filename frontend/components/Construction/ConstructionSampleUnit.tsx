@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { DataRow, ColumnDefinition } from '../../types';
 import { parseVNDate, diffDays } from './../Dashboard/utils/dateHelpers';
+import { parseNumber } from './../Dashboard/utils/numberParsers';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
 import { fetchRevenue2026, type Revenue2026Data } from '../../services/dataService';
 import { DashboardFilter } from './../Dashboard/components/shared/DashboardFilter';
@@ -199,10 +200,10 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   const orderOverviewRef = useRef<HTMLDivElement>(null);
   const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
-  const {
-    hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
-    xuongKey, hangMucKey, daysAtCurrentStageKey, bopKey, triGiaDonHangTongKey,
-    thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+const {
+  hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
+  xuongKey, hangMucKey, daysAtCurrentStageKey, phanLoaiNhomSanPhamKey, bopKey, triGiaDonHangTongKey, // ✅ thêm phanLoaiNhomSanPhamKey
+  thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
     matStatusSapKey, matEstDateKey,
     khsxXuongKey, khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
@@ -271,6 +272,8 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     hasActiveFilters,
     clearFilters,
     filteredProductionData,
+    funnelProductionData,          // THÊM
+    projectSummaryProductionData,  // THÊM
     filteredMaterialData,
     displayedMaterialData,
     selectedMaterialGroups,
@@ -461,8 +464,11 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     calculateMetricValue,
     cardMetrics,
     projectStatusSummary,
+    projectStatusSummaryV2,     // THÊM
     onLineStageBreakdown,
+    onLineStageBreakdownV2,     // THÊM
     hexRowsByColumn,
+    hexRowsByColumnV2,          // THÊM
     pivotWorkshopData,
     pivotFunnelData,
     funnelBreakdownByBop,
@@ -475,6 +481,8 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     topBottlenecks,
   } = usePivotTables({
     filteredProductionData,
+    funnelProductionData,          // THÊM
+    projectSummaryProductionData,  // THÊM
     filteredMaterialData,
     displayedMaterialData,
     stockDates,
@@ -483,6 +491,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     congTrinhKey, hangMucKey, daysAtCurrentStageKey,
     triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
+    tinhTrangIpoKey, // ✅ MỚI — đồng bộ với ConstructionRedFlow: đảm bảo phễu AATN tính đúng theo Tình Trạng IPO
   });
 
   const {
@@ -610,7 +619,28 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     fullTarget: targetRevenue2026,
   }], [factoryRevenueStats.actual, targetRevenue2026]);
 
-  // ✅ MỚI: xem chi tiết theo Công trình khi bấm vào 1 bước funnel
+  // ✅ MỚI (đồng bộ từ ConstructionRedFlow): Gộp "Xuất kho" theo công trình từ
+  // exportData (đã filter theo view) để đưa vào cột "exported" của bảng tổng
+  // hợp đơn hàng, thay vì hardcode 0.
+  // - VALUE: tổng thanh_tien_xuat_kho / 1000 — quy về cùng thang (nghìn -> để
+  //   khớp cách totalOrder/inventory đang chia /1000 ở usePivotTables).
+  // - COUNT: đếm số dòng có giá trị xuất kho > 0 (số hạng mục đã xuất).
+  const exportedByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!expCongTrinhKey) return map;
+    const isCount = projectSummaryMetric === 'COUNT';
+
+    exportData.forEach(row => {
+      const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+      if (!name) return;
+      const raw = parseNumber(row[expThanhTienKey]);
+      const val = isCount ? (raw > 0 ? 1 : 0) : (raw / 1000);
+      map.set(name, (map.get(name) || 0) + val);
+    });
+
+    return map;
+  }, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
+
   // ✅ MỚI: xem chi tiết theo Công trình khi bấm vào 1 bước funnel
   const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
 
@@ -636,14 +666,17 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
   }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
 
-  // ✅ MỚI: Adapter chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
+  // ✅ SỬA (đồng bộ từ ConstructionRedFlow): Adapter chuyển projectStatusSummary
+  // (kiểu cũ) sang kiểu của ProjectSummarySection_v2, dùng dữ liệu thật cho
+  // "cancelled" (từ projectStatusSummaryV2) và "exported" (từ exportedByProject)
+  // thay vì hardcode 0.
   const projectOrderSummary = useMemo(
     () =>
-      projectStatusSummary.map(row => {
-        const cancelled = 0; // TODO: chưa có nguồn dữ liệu "đã hủy"
-        const exported = 0;  // TODO: chưa có nguồn dữ liệu "đã xuất kho"
-        const notDeployed = row.notDeployed; // Chưa triển khai P001
-        const onLine = row.inProduction;     // Đang trên chuyền P002->P021
+      projectStatusSummaryV2.map(row => {
+        const cancelled = row.cancelled;
+        const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
+        const notDeployed = row.notDeployed;
+        const onLine = row.inProduction;
         return {
           name: row.name,
           totalOrder: row.totalOrder,
@@ -656,7 +689,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           remaining: notDeployed + onLine,
         };
       }),
-    [projectStatusSummary]
+    [projectStatusSummaryV2, exportedByProject]
   );
 
   // ✅ MỚI: Chi tiết "Đang trên chuyền P002->P021": bấm vào số ở cột này để mở modal.
@@ -671,17 +704,17 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
 
     const names = onLineDetail.projectName
       ? [onLineDetail.projectName]
-      : projectStatusSummary.map(r => r.name);
+      : projectStatusSummaryV2.map(r => r.name);  // SỬA
 
     return names.map(name => {
-      const stageValues = onLineStageBreakdown[name.trim()] ?? {};
+      const stageValues = onLineStageBreakdownV2[name.trim()] ?? {};  // SỬA
       const values: Record<string, number> = {};
       ON_LINE_STAGES.forEach(stage => {
         values[stage] = stageValues[stage] ?? 0;
       });
       return { name, values };
     });
-  }, [onLineDetail, onLineStageBreakdown, projectStatusSummary]);
+  }, [onLineDetail, onLineStageBreakdownV2, projectStatusSummaryV2]);  // SỬA
 
   // -------------------------------------------------------------------------
   // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
@@ -699,7 +732,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
 
   const hexDetailRows = useMemo(() => {
     if (!hexDetail.open || !hexDetail.column) return [];
-    let source = hexRowsByColumn[hexDetail.column] ?? [];
+    let source = hexRowsByColumnV2[hexDetail.column] ?? [];  // SỬA
     if (hexDetail.projectName && congTrinhKey) {
       source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
     }
@@ -707,18 +740,18 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
       source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
     }
     return source;
-  }, [hexDetail, hexRowsByColumn, congTrinhKey, bopKey]);
+  }, [hexDetail, hexRowsByColumnV2, congTrinhKey, bopKey]);  // SỬA
 
-  const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
-    () => ({
-      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-      daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
-    }),
-    [
-      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-      daysAtCurrentStageKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
-    ]
-  );
+const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
+  () => ({
+    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, // ✅ thay daysAtCurrentStageKey
+  }),
+  [
+    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+  ]
+);
 
   // ✅ MỚI: bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở
   // HexDetailModal đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và
@@ -837,6 +870,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
         <ProjectSummarySection_v2
           sectionRef={projectSummaryRef}
           projectStatusSummary={projectOrderSummary}
+          priorityOrder={viewProjectWhitelist}   // ✅ thêm dòng này
           clickableColumns={['totalOrder', 'afterCancel', 'inventory', 'notDeployed', 'onLine', 'remaining']}
           onCellClick={({ projectName, column }) => {
             if (column === 'onLine') {
@@ -989,7 +1023,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
         isOpen={onLineDetail.open}
         onClose={() => setOnLineDetail(prev => ({ ...prev, open: false }))}
         projectName={onLineDetail.projectName}
-        metric={projectSummaryMetric}
+        metric={projectSummaryMetric === 'VALUE' ? 'VALUE' : 'COUNT'}
         rows={onLineStageRows}
         onValueClick={(projectName, stage) =>
           setHexDetail({ open: true, column: 'onLine', projectName, stage })
