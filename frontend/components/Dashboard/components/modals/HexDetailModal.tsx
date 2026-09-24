@@ -15,6 +15,12 @@ export interface HexDetailColumnKeys {
   triGiaDonHangTongKey: string;
   thanhTienTinhPhieuKey: string;
   thanhTienNhapKhoKey: string;
+  // Các cột ghi chú — tùy chọn, mặc định là tên cột trong DB
+  ghiChuNhapKhoKey?: string;
+  thongTinQcKey?: string;
+  ghiChuXuatKhoKey?: string;
+  ghiChuDonHangTongKey?: string;
+  ghiChuPhieuKey?: string;
 }
 
 interface HexDetailModalProps {
@@ -28,6 +34,44 @@ interface HexDetailModalProps {
 
 const money = (value: number) => formatDecimal(value / 1000);
 
+// Cắt 100 ký tự đầu, thêm "..." nếu dài hơn
+const PREVIEW_LIMIT = 100;
+const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
+  text.length > limit ? `${text.slice(0, limit)}...` : text;
+
+// Tách nội dung ghi chú thành các khối theo mốc ngày (dd/mm/yyyy).
+// Chỉ coi là "mốc ngày" khi ngày đứng ngay trước dấu # (hoặc dấu : rồi #, hoặc cuối chuỗi),
+// để không cắt nhầm những ngày nằm giữa câu ghi chú.
+interface NoteBlock {
+  date: string | null;
+  lines: string[];
+}
+
+const splitNoteLines = (s: string): string[] =>
+  s.split('#').map((x) => x.trim()).filter(Boolean);
+
+const parseNoteBlocks = (text: string): NoteBlock[] => {
+  const src = text.trim();
+  if (!src) return [];
+
+  const marks = [...src.matchAll(/(\d{2}\/\d{2}\/\d{4})(?=:?\s*(?:#|$))/g)];
+  if (marks.length === 0) return [{ date: null, lines: splitNoteLines(src) }];
+
+  const blocks: NoteBlock[] = [];
+
+  const head = src.slice(0, marks[0].index ?? 0);
+  const headLines = splitNoteLines(head);
+  if (headLines.length > 0) blocks.push({ date: null, lines: headLines });
+
+  marks.forEach((m, i) => {
+    const start = (m.index ?? 0) + m[0].length;
+    const end = i + 1 < marks.length ? (marks[i + 1].index ?? src.length) : src.length;
+    blocks.push({ date: m[1], lines: splitNoteLines(src.slice(start, end)) });
+  });
+
+  return blocks;
+};
+
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
@@ -40,6 +84,11 @@ const COL_WIDTHS = {
   triGiaDonHangTong: 130,
   thanhTienTinhPhieu: 130,
   thanhTienNhapKho: 130,
+  ghiChuNhapKho: 280,
+  thongTinQc: 280,
+  ghiChuXuatKho: 280,
+  ghiChuDonHangTong: 280,
+  ghiChuPhieu: 280,
 };
 
 type SortKey =
@@ -53,7 +102,12 @@ type SortKey =
   | 'phanLoai'
   | 'triGia'
   | 'thanhTienPhieu'
-  | 'thanhTienKho';
+  | 'thanhTienKho'
+  | 'ghiChuNhapKho'
+  | 'thongTinQc'
+  | 'ghiChuXuatKho'
+  | 'ghiChuDonHangTong'
+  | 'ghiChuPhieu';
 type SortDir = 'asc' | 'desc';
 
 const NUMERIC_SORT_KEYS: SortKey[] = ['triGia', 'thanhTienPhieu', 'thanhTienKho'];
@@ -67,6 +121,43 @@ const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   );
 };
 
+const NoteSection = ({ label, text }: { label: string; text: string }) => {
+  const blocks = useMemo(() => parseNoteBlocks(text), [text]);
+  // Chỉ thêm tiền tố "# " khi nội dung gốc thực sự dùng dấu # (vd: ghi chú đơn hàng tổng là văn bản thường)
+  const hasHash = text.includes('#');
+
+  return (
+    <div>
+      <h4 className="mb-1.5 text-xs font-bold uppercase tracking-tight text-emerald-800">{label}</h4>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 text-xs leading-relaxed text-slate-700">
+        {blocks.length === 0 ? (
+          <div className="p-3 text-slate-400">Không có dữ liệu</div>
+        ) : (
+          blocks.map((block, i) => (
+            <div
+              key={i}
+              className={`px-3 py-2.5 ${i > 0 ? 'border-t border-slate-200' : ''}`}
+            >
+              {block.date && (
+                <div className="mb-1">
+                  <span className="rounded bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                    {block.date}
+                  </span>
+                </div>
+              )}
+              {block.lines.map((line, j) => (
+                <div key={j} className="break-words whitespace-pre-wrap pl-1">
+                  {hasHash ? '# ' : ''}{line}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const HexDetailModal = ({
   isOpen,
   onClose,
@@ -77,6 +168,8 @@ export const HexDetailModal = ({
 }: HexDetailModalProps) => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
+  // Dòng đang được mở xem đầy đủ nội dung
+  const [selectedEntry, setSelectedEntry] = useState<{ row: DataRow; stt: number } | null>(null);
 
   const bodyScrollRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -85,18 +178,24 @@ export const HexDetailModal = ({
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
   useEffect(() => {
-    if (!isOpen) setSearch('');
-    if (!isOpen) setSort(null);
+    if (!isOpen) {
+      setSearch('');
+      setSort(null);
+      setSelectedEntry(null);
+    }
   }, [isOpen]);
 
+  // Escape: nếu đang mở cửa sổ nội dung đầy đủ thì đóng cửa sổ đó trước
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (selectedEntry) setSelectedEntry(null);
+      else onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, selectedEntry]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -122,6 +221,11 @@ export const HexDetailModal = ({
   const {
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    ghiChuNhapKhoKey = 'tong_hop_ghi_chu_nhap_kho',
+    thongTinQcKey = 'tong_hop_thong_tin_qc',
+    ghiChuXuatKhoKey = 'tong_hop_ghi_chu_xuat_kho',
+    ghiChuDonHangTongKey = 'ghi_chu_don_hang_tong',
+    ghiChuPhieuKey = 'ghi_chu_phieu',
   } = columnKeys;
 
   const toggleSort = useCallback((key: SortKey) => {
@@ -144,9 +248,7 @@ export const HexDetailModal = ({
     });
   }, [rows, search, hexKey, hangMucKey, tinhTrangKey]);
 
-  // ✅ MỚI: gắn STT cố định (1..N) theo đúng thứ tự gốc của filteredRows —
-  // giá trị này KHÔNG đổi khi sort theo các cột khác, chỉ dùng để sort riêng
-  // cột STT (giống Excel: sort theo STT desc thì đảo N..1).
+  // STT cố định (1..N) theo thứ tự gốc của filteredRows — không đổi khi sort cột khác.
   const indexedRows = useMemo(
     () => filteredRows.map((row, i) => ({ row, stt: i + 1 })),
     [filteredRows]
@@ -172,6 +274,11 @@ export const HexDetailModal = ({
         case 'triGia': return parseNumber(row[triGiaDonHangTongKey]);
         case 'thanhTienPhieu': return parseNumber(row[thanhTienTinhPhieuKey]);
         case 'thanhTienKho': return parseNumber(row[thanhTienNhapKhoKey]);
+        case 'ghiChuNhapKho': return String(row[ghiChuNhapKhoKey] || '');
+        case 'thongTinQc': return String(row[thongTinQcKey] || '');
+        case 'ghiChuXuatKho': return String(row[ghiChuXuatKhoKey] || '');
+        case 'ghiChuDonHangTong': return String(row[ghiChuDonHangTongKey] || '');
+        case 'ghiChuPhieu': return String(row[ghiChuPhieuKey] || '');
         default: return '';
       }
     };
@@ -184,7 +291,11 @@ export const HexDetailModal = ({
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [indexedRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey, phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
+  }, [
+    indexedRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    ghiChuNhapKhoKey, thongTinQcKey, ghiChuXuatKhoKey, ghiChuDonHangTongKey, ghiChuPhieuKey,
+  ]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce(
@@ -214,7 +325,13 @@ export const HexDetailModal = ({
     'Trị Giá Đơn Hàng Tổng (1000 VNĐ)',
     'Thành Tiền Tính Phiếu (1000 VNĐ)',
     'Thành Tiền Nhập Kho (1000 VNĐ)',
+    'Tổng Hợp Ghi Chú Nhập Kho',
+    'Tổng Hợp Thông Tin QC',
+    'Tổng Hợp Ghi Chú Xuất Kho',
+    'Ghi Chú Đơn Hàng Tổng',
+    'Ghi Chú Phiếu',
   ];
+  // Export giữ NGUYÊN văn (không cắt 100 ký tự)
   const exportRows = sortedRows.map(({ row, stt }) => ({
     'STT': stt,
     'Mã Hex': String(row[hexKey] || ''),
@@ -227,6 +344,11 @@ export const HexDetailModal = ({
     'Trị Giá Đơn Hàng Tổng (1000 VNĐ)': parseNumber(row[triGiaDonHangTongKey]) / 1000,
     'Thành Tiền Tính Phiếu (1000 VNĐ)': parseNumber(row[thanhTienTinhPhieuKey]) / 1000,
     'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienNhapKhoKey]) / 1000,
+    'Tổng Hợp Ghi Chú Nhập Kho': String(row[ghiChuNhapKhoKey] || ''),
+    'Tổng Hợp Thông Tin QC': String(row[thongTinQcKey] || ''),
+    'Tổng Hợp Ghi Chú Xuất Kho': String(row[ghiChuXuatKhoKey] || ''),
+    'Ghi Chú Đơn Hàng Tổng': String(row[ghiChuDonHangTongKey] || ''),
+    'Ghi Chú Phiếu': String(row[ghiChuPhieuKey] || ''),
   }));
   const exportFileName = `chi_tiet_hex_${(projectName ?? 'tat_ca_cong_trinh')
     .toString()
@@ -244,7 +366,12 @@ export const HexDetailModal = ({
     COL_WIDTHS.phanLoai +
     COL_WIDTHS.triGiaDonHangTong +
     COL_WIDTHS.thanhTienTinhPhieu +
-    COL_WIDTHS.thanhTienNhapKho;
+    COL_WIDTHS.thanhTienNhapKho +
+    COL_WIDTHS.ghiChuNhapKho +
+    COL_WIDTHS.thongTinQc +
+    COL_WIDTHS.ghiChuXuatKho +
+    COL_WIDTHS.ghiChuDonHangTong +
+    COL_WIDTHS.ghiChuPhieu;
 
   const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
 
@@ -261,6 +388,11 @@ export const HexDetailModal = ({
       <col style={{ width: pct(COL_WIDTHS.triGiaDonHangTong) }} />
       <col style={{ width: pct(COL_WIDTHS.thanhTienTinhPhieu) }} />
       <col style={{ width: pct(COL_WIDTHS.thanhTienNhapKho) }} />
+      <col style={{ width: pct(COL_WIDTHS.ghiChuNhapKho) }} />
+      <col style={{ width: pct(COL_WIDTHS.thongTinQc) }} />
+      <col style={{ width: pct(COL_WIDTHS.ghiChuXuatKho) }} />
+      <col style={{ width: pct(COL_WIDTHS.ghiChuDonHangTong) }} />
+      <col style={{ width: pct(COL_WIDTHS.ghiChuPhieu) }} />
     </colgroup>
   );
 
@@ -292,217 +424,303 @@ export const HexDetailModal = ({
     </th>
   );
 
+  const noteCellClass =
+    'px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal';
+
   return (
-    <div
-      className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4"
-      role="dialog"
-      aria-modal="true"
-    >
+    <>
       <div
-        className="flex flex-col rounded-xl bg-white shadow-xl"
-        style={{ width: '96vw', maxWidth: 1680, height: '92vh' }}
-        onClick={(e) => e.stopPropagation()}
+        className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4"
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">
-              Chi tiết theo Hex — {title}
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {projectName ?? 'Tất cả công trình'} · {filteredRows.length} hex ·{' '}
-              Đơn vị tiền: 1,000 VNĐ
-            </p>
+        <div
+          className="flex flex-col rounded-xl bg-white shadow-xl"
+          style={{ width: '96vw', maxWidth: 1680, height: '92vh' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">
+                Chi tiết theo Hex — {title}
+              </h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {projectName ?? 'Tất cả công trình'} · {filteredRows.length} hex ·{' '}
+                Đơn vị tiền: 1,000 VNĐ · Bấm vào dòng để xem đầy đủ ghi chú
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => exportDetailRowsToCsv(exportFileName, exportColumns, exportRows)}
+                disabled={filteredRows.length === 0}
+                title="Xuất dữ liệu đang hiển thị ra file .CSV"
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Download size={15} />
+                <span>Xuất CSV</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Đóng"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => exportDetailRowsToCsv(exportFileName, exportColumns, exportRows)}
-              disabled={filteredRows.length === 0}
-              title="Xuất dữ liệu đang hiển thị ra file .CSV"
-              className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Download size={15} />
-              <span>Xuất CSV</span>
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Đóng"
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
 
-        <div className="shrink-0 border-b border-slate-100 px-5 py-3">
-          <div className="relative max-w-xs">
-            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm theo mã hex, hạng mục, tình trạng..."
-              className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-xs focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300"
-            />
+          <div className="shrink-0 border-b border-slate-100 px-5 py-3">
+            <div className="relative max-w-xs">
+              <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tìm theo mã hex, hạng mục, tình trạng..."
+                className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-xs focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300"
+              />
+            </div>
           </div>
-        </div>
 
-        {filteredRows.length > 0 ? (
-          <>
-            <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-5 pt-5">
-              <div className="flex">
-                <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                  <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                    <ColGroup />
-                    <thead className="font-bold uppercase tracking-tight text-slate-800">
-                      <tr>
-                        <th
-                          onClick={() => toggleSort('stt')}
-                          style={{ left: 0 }}
-                          className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
-                        >
-                          <span className="inline-flex items-center justify-center gap-1">
-                            STT
-                            <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
-                          </span>
-                        </th>
-                        <th
-                          onClick={() => toggleSort('hex')}
-                          style={{ left: COL_WIDTHS.stt }}
-                          className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
-                        >
-                          <span className="inline-flex items-center gap-1">
-                            Mã Hex
-                            <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
-                          </span>
-                        </th>
-                        {showProjectColumn && (
-                          <SortableHeader sortKey="congTrinh">Công Trình</SortableHeader>
-                        )}
-                        <SortableHeader sortKey="hangMuc">Hạng Mục</SortableHeader>
-                        <SortableHeader sortKey="xuong">Khu Vực SX</SortableHeader>
-                        <SortableHeader sortKey="bop">BOP</SortableHeader>
-                        <SortableHeader sortKey="tinhTrang">Tình Trạng</SortableHeader>
-                        <SortableHeader sortKey="phanLoai" align="right">
-                          Phân Loại <br />Nhóm SP
-                        </SortableHeader>
-                        <SortableHeader sortKey="triGia" align="right">
-                          Trị Giá Đơn <br />Hàng Tổng
-                        </SortableHeader>
-                        <SortableHeader sortKey="thanhTienPhieu" align="right">
-                          Thành Tiền <br />Tính Phiếu
-                        </SortableHeader>
-                        <th
-                          onClick={() => toggleSort('thanhTienKho')}
-                          className="cursor-pointer select-none border-b border-emerald-200 bg-emerald-50 px-3 py-3 text-right transition-colors hover:bg-emerald-100"
-                        >
-                          <span className="inline-flex items-center justify-end gap-1">
+          {filteredRows.length > 0 ? (
+            <>
+              <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-5 pt-5">
+                <div className="flex">
+                  <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
+                    <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                      <ColGroup />
+                      <thead className="font-bold uppercase tracking-tight text-slate-800">
+                        <tr>
+                          <th
+                            onClick={() => toggleSort('stt')}
+                            style={{ left: 0 }}
+                            className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
+                          >
+                            <span className="inline-flex items-center justify-center gap-1">
+                              STT
+                              <SortIcon active={sort?.key === 'stt'} dir={sort?.dir} />
+                            </span>
+                          </th>
+                          <th
+                            onClick={() => toggleSort('hex')}
+                            style={{ left: COL_WIDTHS.stt }}
+                            className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              Mã Hex
+                              <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
+                            </span>
+                          </th>
+                          {showProjectColumn && (
+                            <SortableHeader sortKey="congTrinh">Công Trình</SortableHeader>
+                          )}
+                          <SortableHeader sortKey="hangMuc">Hạng Mục</SortableHeader>
+                          <SortableHeader sortKey="xuong">Khu Vực SX</SortableHeader>
+                          <SortableHeader sortKey="bop">BOP</SortableHeader>
+                          <SortableHeader sortKey="tinhTrang">Tình Trạng</SortableHeader>
+                          <SortableHeader sortKey="phanLoai" align="right">
+                            Phân Loại <br />Nhóm SP
+                          </SortableHeader>
+                          <SortableHeader sortKey="triGia" align="right">
+                            Trị Giá Đơn <br />Hàng Tổng
+                          </SortableHeader>
+                          <SortableHeader sortKey="thanhTienPhieu" align="right">
+                            Thành Tiền <br />Tính Phiếu
+                          </SortableHeader>
+                          <SortableHeader sortKey="thanhTienKho" align="right">
                             Thành Tiền <br />Nhập Kho
-                            <SortIcon active={sort?.key === 'thanhTienKho'} dir={sort?.dir} />
-                          </span>
-                        </th>
-                      </tr>
-                    </thead>
-                  </table>
+                          </SortableHeader>
+                          <SortableHeader sortKey="ghiChuNhapKho">
+                            Ghi Chú <br />Nhập Kho
+                          </SortableHeader>
+                          <SortableHeader sortKey="thongTinQc">
+                            Thông Tin <br />QC
+                          </SortableHeader>
+                          <SortableHeader sortKey="ghiChuXuatKho">
+                            Ghi Chú <br />Xuất Kho
+                          </SortableHeader>
+                          <SortableHeader sortKey="ghiChuDonHangTong">
+                            Ghi Chú <br />Đơn Hàng Tổng
+                          </SortableHeader>
+                          <th
+                            onClick={() => toggleSort('ghiChuPhieu')}
+                            className="cursor-pointer select-none border-b border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              Ghi Chú <br />Phiếu
+                              <SortIcon active={sort?.key === 'ghiChuPhieu'} dir={sort?.dir} />
+                            </span>
+                          </th>
+                        </tr>
+                      </thead>
+                    </table>
+                  </div>
+                  {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
                 </div>
-                {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
               </div>
-            </div>
 
-            <div
-              ref={bodyScrollRef}
-              onScroll={handleBodyScroll}
-              className="min-h-0 flex-1 overflow-auto custom-scrollbar px-5"
-            >
-              <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                <ColGroup />
-                <tbody className="divide-y divide-emerald-50">
-                  {sortedRows.map((entry, idx) => {
-                    const row = entry.row;
-                    return (
-                      <tr key={idx} className="group transition-colors hover:bg-slate-50">
-                        <td
-                          style={{ left: 0 }}
-                          className="sticky z-10 border-r border-slate-100 bg-white px-2 py-2.5 text-center font-semibold text-slate-500 group-hover:bg-slate-50"
+              <div
+                ref={bodyScrollRef}
+                onScroll={handleBodyScroll}
+                className="min-h-0 flex-1 overflow-auto custom-scrollbar px-5"
+              >
+                <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                  <ColGroup />
+                  <tbody className="divide-y divide-emerald-50">
+                    {sortedRows.map((entry) => {
+                      const row = entry.row;
+                      return (
+                        <tr
+                          key={entry.stt}
+                          onClick={() => setSelectedEntry(entry)}
+                          title="Bấm để xem đầy đủ nội dung"
+                          className="group cursor-pointer transition-colors hover:bg-slate-50"
                         >
-                          {entry.stt}
-                        </td>
-                        <td
-                          style={{ left: COL_WIDTHS.stt }}
-                          className="sticky z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50"
-                        >
-                          {String(row[hexKey] || '—')}
-                        </td>
-                        {showProjectColumn && (
-                          <td className="px-3 py-2.5 text-left text-slate-700">
-                            {String(row[congTrinhKey] || '—')}
+                          <td
+                            style={{ left: 0 }}
+                            className="sticky z-10 border-r border-slate-100 bg-white px-2 py-2.5 text-center align-top font-semibold text-slate-500 group-hover:bg-slate-50"
+                          >
+                            {entry.stt}
                           </td>
-                        )}
-                        <td className="px-3 py-2.5 text-left text-slate-700">
-                          {String(row[hangMucKey] || '—')}
-                        </td>
-                        <td className="px-3 py-2.5 text-left text-slate-600">
-                          {String(row[xuongKey] || '—')}
-                        </td>
-                        <td className="px-3 py-2.5 text-left text-slate-600">
-                          {String(row[bopKey] || '—')}
-                        </td>
-                        <td className="px-3 py-2.5 text-left text-slate-600">
-                          {String(row[tinhTrangKey] || '—')}
-                        </td>
-                        <td className="px-3 py-2.5 text-right text-slate-600">
-                          {String(row[phanLoaiNhomSanPhamKey] || '—')}
-                        </td>
-                        <td className="px-3 py-2.5 text-right text-slate-800">
-                          {money(parseNumber(row[triGiaDonHangTongKey]))}
-                        </td>
-                        <td className="px-3 py-2.5 text-right text-slate-800">
-                          {money(parseNumber(row[thanhTienTinhPhieuKey]))}
-                        </td>
-                        <td className="px-3 py-2.5 text-right text-indigo-700 font-medium">
-                          {money(parseNumber(row[thanhTienNhapKhoKey]))}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <td
+                            style={{ left: COL_WIDTHS.stt }}
+                            className="sticky z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left align-top font-medium text-slate-700 group-hover:bg-slate-50"
+                          >
+                            {String(row[hexKey] || '—')}
+                          </td>
+                          {showProjectColumn && (
+                            <td className="px-3 py-2.5 text-left align-top text-slate-700">
+                              {String(row[congTrinhKey] || '—')}
+                            </td>
+                          )}
+                          <td className="px-3 py-2.5 text-left align-top text-slate-700">
+                            {String(row[hangMucKey] || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-left align-top text-slate-600">
+                            {String(row[xuongKey] || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-left align-top text-slate-600">
+                            {String(row[bopKey] || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-left align-top text-slate-600">
+                            {String(row[tinhTrangKey] || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-top text-slate-600">
+                            {String(row[phanLoaiNhomSanPhamKey] || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-top text-slate-800">
+                            {money(parseNumber(row[triGiaDonHangTongKey]))}
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-top text-slate-800">
+                            {money(parseNumber(row[thanhTienTinhPhieuKey]))}
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-top font-medium text-indigo-700">
+                            {money(parseNumber(row[thanhTienNhapKhoKey]))}
+                          </td>
+                          <td className={noteCellClass}>
+                            {truncateText(String(row[ghiChuNhapKhoKey] || '')) || '—'}
+                          </td>
+                          <td className={noteCellClass}>
+                            {truncateText(String(row[thongTinQcKey] || '')) || '—'}
+                          </td>
+                          <td className={noteCellClass}>
+                            {truncateText(String(row[ghiChuXuatKhoKey] || '')) || '—'}
+                          </td>
+                          <td className={noteCellClass}>
+                            {truncateText(String(row[ghiChuDonHangTongKey] || '')) || '—'}
+                          </td>
+                          <td className={noteCellClass}>
+                            {truncateText(String(row[ghiChuPhieuKey] || '')) || '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
-              <div className="flex">
-                <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
-                  <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                    <ColGroup />
-                    <tfoot className="font-bold text-slate-900">
-                      <tr>
-                        <td
-                          className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left"
-                          colSpan={(showProjectColumn ? 6 : 5) + 1}
-                        >
-                          TỔNG CỘNG ({filteredRows.length} hex)
-                        </td>
-                        <td className="px-3 py-3"></td>
-                        <td className="px-3 py-3 text-right">{money(totals.triGiaDonHangTong)}</td>
-                        <td className="px-3 py-3 text-right">{money(totals.thanhTienTinhPhieu)}</td>
-                        <td className="px-3 py-3 text-right text-indigo-800">{money(totals.thanhTienNhapKho)}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+              <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
+                <div className="flex">
+                  <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
+                    <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                      <ColGroup />
+                      <tfoot className="font-bold text-slate-900">
+                        <tr>
+                          <td
+                            className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left"
+                            colSpan={(showProjectColumn ? 6 : 5) + 1}
+                          >
+                            TỔNG CỘNG ({filteredRows.length} hex)
+                          </td>
+                          <td className="px-3 py-3"></td>
+                          <td className="px-3 py-3 text-right">{money(totals.triGiaDonHangTong)}</td>
+                          <td className="px-3 py-3 text-right">{money(totals.thanhTienTinhPhieu)}</td>
+                          <td className="px-3 py-3 text-right text-indigo-800">{money(totals.thanhTienNhapKho)}</td>
+                          {/* 5 cột ghi chú không có tổng */}
+                          <td colSpan={5} className="px-3 py-3"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
                 </div>
-                {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
+              </div>
+            </>
+          ) : (
+            <div className="min-h-0 flex-1 overflow-auto p-5">
+              <div className="rounded-lg bg-slate-50 p-8 text-center text-slate-500">
+                Không có dữ liệu hex phù hợp để hiển thị.
               </div>
             </div>
-          </>
-        ) : (
-          <div className="min-h-0 flex-1 overflow-auto p-5">
-            <div className="rounded-lg bg-slate-50 p-8 text-center text-slate-500">
-              Không có dữ liệu hex phù hợp để hiển thị.
+          )}
+        </div>
+      </div>
+
+      {/* Cửa sổ xem đầy đủ nội dung các cột ghi chú của dòng được bấm */}
+      {selectedEntry && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSelectedEntry(null)}
+        >
+          <div
+            className="flex max-h-[92vh] w-[95vw] max-w-6xl flex-col rounded-xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold text-slate-800">
+                  Hex {String(selectedEntry.row[hexKey] || '—')}
+                </h3>
+                <p className="mt-0.5 break-words text-xs text-slate-500">
+                  {String(selectedEntry.row[hangMucKey] || '—')}
+                  {showProjectColumn && selectedEntry.row[congTrinhKey]
+                    ? ` · ${String(selectedEntry.row[congTrinhKey])}`
+                    : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEntry(null)}
+                aria-label="Đóng"
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-4 overflow-auto p-5 custom-scrollbar">
+              <NoteSection label="Ghi chú đơn hàng tổng" text={String(selectedEntry.row[ghiChuDonHangTongKey] || '')} />
+              <NoteSection label="Ghi chú phiếu" text={String(selectedEntry.row[ghiChuPhieuKey] || '')} />
+              <NoteSection label="Tổng hợp ghi chú nhập kho" text={String(selectedEntry.row[ghiChuNhapKhoKey] || '')} />
+              <NoteSection label="Tổng hợp thông tin QC" text={String(selectedEntry.row[thongTinQcKey] || '')} />
+              <NoteSection label="Tổng hợp ghi chú xuất kho" text={String(selectedEntry.row[ghiChuXuatKhoKey] || '')} />
             </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };

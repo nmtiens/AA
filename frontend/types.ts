@@ -1,5 +1,3 @@
-
-
 export const TARGET_COLUMN_NAMES = {
 
   HEX: 'hex',
@@ -22,7 +20,7 @@ export const TARGET_COLUMN_NAMES = {
   TRI_GIA_DON_HANG_TONG: 'tri_gia_don_hang_tong',
   THANH_TIEN_TINH_PHIEU: 'thanh_tien_tinh_phieu',
 
-   THANH_TIEN_NHAP_KHO: 'thanh_tien_nhap_kho_luy_ke', // Cột cũ của Production View
+  THANH_TIEN_NHAP_KHO: 'thanh_tien_nhap_kho_luy_ke', // Cột cũ của Production View
   INVENTORY_AMOUNT: 'thanh_tien_nhap_kho', // Cột mới chính xác cho Inventory View
   EXPORT_AMOUNT: 'thanh_tien_xuat_kho', // Correct column for Export View
   EXPORT_QUANTITY: 'so_luong_xuat_kho', // ✅ MỚI: cột số lượng (khác với EXPORT_AMOUNT là cột tiền)
@@ -150,6 +148,114 @@ export const APP_VIEWS: AppView[] = [
   { id: 'materials', path: '/materials', label: 'Vật tư', iconName: 'Package' },
   { id: 'users', path: '/users', label: 'Quản trị User', iconName: 'Shield' },
 ];
+
+// ============================================================
+// PHÂN QUYỀN: MỤC LỚN (group) -> MỤC NHỎ (item) -> THAO TÁC (action)
+// - id của item là giá trị lưu trong user.permissions
+// - id cũ (dashboard, production, orders...) được giữ nguyên để
+//   user hiện có không bị mất quyền
+// ============================================================
+export interface PermissionItem {
+  id: string;
+  label: string;
+}
+
+export interface PermissionGroup {
+  id: string;
+  label: string;
+  items: PermissionItem[];
+}
+
+export const PERMISSION_GROUPS: PermissionGroup[] = [
+  {
+    id: 'g_dashboard',
+    label: 'Tổng quan',
+    items: [
+      { id: 'dashboard', label: 'Tổng quan' },
+    ],
+  },
+  {
+    id: 'g_construction',
+    label: 'Công trình',
+    items: [
+      { id: 'construction_redflow', label: 'Công trình luồng đỏ' },
+      { id: 'construction_sample', label: 'Căn mẫu' },
+      { id: 'construction_setup', label: 'Setup dữ liệu (phân loại công trình)' },
+    ],
+  },
+  {
+    id: 'g_charts',
+    label: 'Quản trị (Biểu đồ)',
+    items: [
+      { id: 'chart_order', label: '1. Đơn hàng mới (P001)' },
+      { id: 'chart_tkbv', label: '2. Triển khai BV (P002)' },
+      { id: 'chart_pthsp', label: '3. Đã tính phiếu (P012)' },
+      { id: 'chart_inventory', label: '4. Nhập kho (P022)' },
+      { id: 'chart_export', label: '5. Xuất kho (P025)' },
+      { id: 'chart_stock', label: '6. Tồn kho' },
+    ],
+  },
+  {
+    id: 'g_data',
+    label: 'Dữ liệu',
+    items: [
+      { id: 'production', label: 'Dữ liệu Sản xuất' },
+      { id: 'yearly_plan_data', label: 'Dữ liệu kế hoạch năm' },
+      { id: 'orders', label: 'Dữ liệu Đơn hàng tổng' },
+      { id: 'inventory', label: 'Dữ liệu Nhập kho' },
+      { id: 'export', label: 'Dữ liệu Xuất kho' },
+      { id: 'stock', label: 'Dữ liệu Tồn kho' },
+      { id: 'attendance', label: 'Dữ liệu Điểm danh' },
+      { id: 'khsx', label: 'Kế hoạch SX' },
+      { id: 'analysis', label: 'Phân tích KH-TH' },
+      { id: 'tkbv', label: 'Dữ liệu TKBV' },
+      { id: 'pthsp', label: 'Dữ liệu PTHSP' },
+      { id: 'materials', label: 'Vật tư' },
+    ],
+  },
+  {
+    id: 'g_system',
+    label: 'Hệ thống',
+    items: [
+      { id: 'users', label: 'Quản trị User' },
+    ],
+  },
+];
+
+// Thao tác chi tiết bên trong từng mục nhỏ (key = id của item cha).
+// Chỉ hiện trong form khi item cha được tick.
+export const ITEM_ACTIONS: Record<string, { id: string; label: string }[]> = {
+  dashboard: [
+    { id: 'dashboard_overview', label: 'Báo cáo Tổng quan' },
+    { id: 'dashboard_financial', label: 'Số liệu Tài chính' },
+    { id: 'dashboard_bottleneck', label: 'Báo cáo Điểm nghẽn' },
+  ],
+  production: [
+    { id: 'production_edit', label: 'Chỉnh sửa dữ liệu' },
+    { id: 'production_export', label: 'Xuất Excel' },
+  ],
+  yearly_plan_data: [
+    { id: 'yearly_plan_data_export', label: 'Xuất Excel' },
+  ],
+  orders: [
+    { id: 'orders_import', label: 'Import Dữ liệu' },
+    { id: 'orders_view_price', label: 'Xem Giá trị Đơn hàng' },
+  ],
+  materials: [
+    { id: 'materials_view_price', label: 'Xem Giá/NCC' },
+    { id: 'materials_edit', label: 'Cập nhật trạng thái' },
+  ],
+  inventory: [
+    { id: 'inventory_edit', label: 'Điều chỉnh kho' },
+  ],
+  analysis: [
+    { id: 'analysis_export', label: 'Xuất báo cáo KH-TH' },
+  ],
+};
+
+// Tiện ích dùng chung
+export const ALL_ITEM_IDS: string[] = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.id));
+export const ALL_ACTION_IDS: string[] = Object.values(ITEM_ACTIONS).flatMap(a => a.map(x => x.id));
 
 export interface User {
   id: string;

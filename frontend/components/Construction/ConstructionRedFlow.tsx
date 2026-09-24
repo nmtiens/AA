@@ -14,7 +14,6 @@ import { useKhsxSummary } from './../Dashboard/hooks/useKhsxSummary';
 import { useStockData } from './../Dashboard/hooks/useStockData';
 import { usePivotTables } from './../Dashboard/hooks/usePivotTables';
 import { useExportFlows } from './../Dashboard/hooks/useExportFlows';
-import { StatusLineChartSection } from './../Dashboard/components/sections/StatusLineChartSection';
 import { PivotMaterialSummarySection } from './../Dashboard/components/sections/PivotMaterialSummarySection';
 import { PivotMaterialStatusSection } from './../Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
@@ -37,6 +36,7 @@ import { ContructionRevenueSection, type CustomFunnelItem } from './../Dashboard
 import {
   OnLineStageDetailModal,
   ON_LINE_STAGES,
+  TOTAL_STAGE,          // ✅ thêm
   extractStage,
   type StageDetailRow,
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
@@ -704,17 +704,18 @@ const [onLineStageDetail, setOnLineStageDetail] = useState<{
     open: boolean;
     projectName: string | null;
   }>({ open: false, projectName: null });
-  const hexDetailRows = useMemo(() => {
-    if (!hexDetail.open || !hexDetail.column) return [];
-    let source = hexRowsByColumnV2[hexDetail.column] ?? [];  // SỬA
-    if (hexDetail.projectName && congTrinhKey) {
-      source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
-    }
-    if (hexDetail.stage && bopKey) {
-      source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
-    }
-    return source;
-  }, [hexDetail, hexRowsByColumnV2, congTrinhKey, bopKey]);  // SỬA
+const hexDetailRows = useMemo(() => {
+  if (!hexDetail.open || !hexDetail.column) return [];
+  let source = hexRowsByColumnV2[hexDetail.column] ?? [];
+  if (hexDetail.projectName && congTrinhKey) {
+    source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
+  }
+  // ✅ TOTAL_STAGE = tất cả công đoạn P002->P021 -> không lọc thêm theo stage
+  if (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE && bopKey) {
+    source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
+  }
+  return source;
+}, [hexDetail, hexRowsByColumnV2, congTrinhKey, bopKey]);
 
 const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
   () => ({
@@ -1031,32 +1032,24 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
           setExcludeFabrics={setExcludeFabrics}
         />
 
-        <PivotMaterialSummarySection
-          sectionRef={pivotMaterialRef}
-          pivotMaterialSummary={pivotMaterialSummary}
-          selectedMaterialGroups={selectedMaterialGroups}
-          setSelectedMaterialGroups={setSelectedMaterialGroups}
-          toggleMaterialGroup={toggleMaterialGroup}
-          activeCongTrinhFilter={filters.congTrinh}
-        />
 
-        <PivotMaterialStatusSection
-          sectionRef={pivotMaterialStatusRef}
-          pivotMaterialStatusData={pivotMaterialStatusData}
-          matStatusMetric={matStatusMetric}
-          setMatStatusMetric={setMatStatusMetric}
-        />
+
+      <PivotMaterialStatusSection
+  sectionRef={pivotMaterialStatusRef}   // ✅ đổi từ materialStatusRef
+  pivotMaterialStatusData={pivotMaterialStatusData}
+  matStatusMetric={matStatusMetric}
+  setMatStatusMetric={setMatStatusMetric}
+  selectedMaterialGroups={selectedMaterialGroups}
+  setSelectedMaterialGroups={setSelectedMaterialGroups}
+  toggleMaterialGroup={toggleMaterialGroup}
+/>
         <MaterialListSection
           sectionRef={materialListRef}
           displayedMaterialData={displayedMaterialData}
           getMaterialRowClassName={getMaterialRowClassName}
         />
 
-        <StatusLineChartSection
-          lineChartData={lineChartData}
-          chartMetric={chartMetric}
-          setChartMetric={setChartMetric}
-        />
+    
       </div>
 
       <HexDetailModal
@@ -1082,11 +1075,12 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
 <HexDetailModal
   isOpen={hexDetail.open}
   onClose={() => setHexDetail(prev => ({ ...prev, open: false }))}
-  title={
-    hexDetail.column
-      ? HEX_COLUMN_LABELS[hexDetail.column] + (hexDetail.stage ? ` – ${hexDetail.stage}` : '')
-      : ''
-  }
+ title={
+  hexDetail.column
+    ? HEX_COLUMN_LABELS[hexDetail.column] +
+      (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE ? ` – ${hexDetail.stage}` : '')
+    : ''
+}
   projectName={hexDetail.projectName}
   rows={hexDetailRows}
   columnKeys={hexDetailColumnKeys}

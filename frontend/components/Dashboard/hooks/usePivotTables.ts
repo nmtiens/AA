@@ -791,25 +791,25 @@ export function usePivotTables({
     return { summary, sortedGroups, totalReq, totalRec };
   }, [filteredMaterialData, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey]);
 
-  const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
-    if (!matNhomVtKey || !matStatusKey) return null;
-    const uniqueStatuses = Array.from(new Set(displayedMaterialData.map(r => String(r[matStatusKey] || '').trim()).filter(Boolean))).sort();
-    const uniqueGroups = Array.from(new Set(displayedMaterialData.map(r => String(r[matNhomVtKey] || 'Chưa phân nhóm').trim()))).sort();
-    const matrix: Record<string, Record<string, number>> = {};
-    const rowTotals: Record<string, number> = {};
-    const colTotals: Record<string, number> = {};
-    let grandTotal = 0;
-    uniqueGroups.forEach(g => { matrix[g] = {}; rowTotals[g] = 0; uniqueStatuses.forEach(s => { matrix[g][s] = 0; colTotals[s] = (colTotals[s] || 0); }); });
-    displayedMaterialData.forEach(row => {
-      const g = String(row[matNhomVtKey] || 'Chưa phân nhóm').trim();
-      const s = String(row[matStatusKey] || '').trim();
-      if (s) {
-        const val = matStatusMetric === 'COUNT_PR' ? 1 : parseNumber(row[matSlYeuCauKey]);
-        if (matrix[g] && matrix[g][s] !== undefined) { matrix[g][s] += val; rowTotals[g] += val; colTotals[s] += val; grandTotal += val; }
-      }
-    });
-    return { sortedGroups: uniqueGroups, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
-  }, [displayedMaterialData, matNhomVtKey, matStatusKey, matStatusMetric, matSlYeuCauKey]);
+const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
+  if (!matNhomVtKey || !matStatusKey) return null;
+  const uniqueStatuses = Array.from(new Set(filteredMaterialData.map(r => String(r[matStatusKey] || '').trim()).filter(Boolean))).sort();
+  const uniqueGroups = Array.from(new Set(filteredMaterialData.map(r => String(r[matNhomVtKey] || 'Chưa phân nhóm').trim()))).sort();
+  const matrix: Record<string, Record<string, number>> = {};
+  const rowTotals: Record<string, number> = {};
+  const colTotals: Record<string, number> = {};
+  let grandTotal = 0;
+  uniqueGroups.forEach(g => { matrix[g] = {}; rowTotals[g] = 0; uniqueStatuses.forEach(s => { matrix[g][s] = 0; colTotals[s] = (colTotals[s] || 0); }); });
+  filteredMaterialData.forEach(row => {
+    const g = String(row[matNhomVtKey] || 'Chưa phân nhóm').trim();
+    const s = String(row[matStatusKey] || '').trim();
+    if (s) {
+      const val = matStatusMetric === 'COUNT_PR' ? 1 : parseNumber(row[matSlYeuCauKey]);
+      if (matrix[g] && matrix[g][s] !== undefined) { matrix[g][s] += val; rowTotals[g] += val; colTotals[s] += val; grandTotal += val; }
+    }
+  });
+  return { sortedGroups: uniqueGroups, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
+}, [filteredMaterialData, matNhomVtKey, matStatusKey, matStatusMetric, matSlYeuCauKey]);
 
   // -------------------------------------------------------------------------
   // Line chart (Biểu đồ Phân tích Tình trạng)

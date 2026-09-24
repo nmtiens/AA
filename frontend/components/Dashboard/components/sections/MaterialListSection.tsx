@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Box, ChevronLeft, ChevronRight } from 'lucide-react';
 import { DataRow } from '../../../../types';
 import { MATERIAL_LIST_COLUMNS, MATERIAL_LIST_COLUMN_LABELS } from '../../constants';
 
-const MATERIAL_ITEMS_PER_PAGE = 15;
+const MATERIAL_ITEMS_PER_PAGE = 100;
 
 interface MaterialListSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
@@ -29,9 +29,16 @@ export const MaterialListSection = ({
   displayedMaterialData,
   getMaterialRowClassName,
 }: MaterialListSectionProps) => {
-  const [materialListPage, setMaterialListPage] = useState(1);
+const [materialListPage, setMaterialListPage] = useState(1);
 
-  const totalMaterialPages = Math.ceil(displayedMaterialData.length / MATERIAL_ITEMS_PER_PAGE);
+useEffect(() => {
+  setMaterialListPage(1);
+}, [displayedMaterialData]);
+
+const totalMaterialPages = Math.max(
+  1,
+  Math.ceil(displayedMaterialData.length / MATERIAL_ITEMS_PER_PAGE)
+);
 
   const paginatedMaterialList = useMemo(
     () => displayedMaterialData.slice(
@@ -47,9 +54,11 @@ export const MaterialListSection = ({
         <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
           <Box className="w-4 h-4 text-slate-600" />Chi tiết Dữ liệu Vật tư (Lọc theo Công trình)
         </h3>
-        <span className="text-xs text-slate-500">Hiển thị {displayedMaterialData.length} dòng</span>
+       <span className="text-xs text-slate-500">
+  Hiển thị {paginatedMaterialList.length} / {displayedMaterialData.length} dòng
+</span>
       </div>
-      <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg">
+<div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
         <table className="w-full text-xs text-left whitespace-nowrap">
           <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10">
             <tr>

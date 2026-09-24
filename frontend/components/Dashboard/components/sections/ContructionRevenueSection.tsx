@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
-import { formatDecimal, formatNumber } from '../../utils/numberParsers';
+import { formatDecimal, formatNumber, formatDecimalFull } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
 
 export interface CustomFunnelItem {
@@ -81,18 +81,16 @@ export const ContructionRevenueSection = ({
 
   const cancelledValue = factoryRevenueStats.cancelled ?? 0;
 
-  
-
   const formatRoundedNumber = (value: number): string => {
-    const absValue = Math.abs(value);
-    if (absValue > 0 && absValue < 1) {
-      return value.toLocaleString('en-US', {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      });
-    }
-    return Math.round(value).toLocaleString('en-US');
-  };
+  const absValue = Math.abs(value);
+  if (absValue < 1000) {
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  }
+  return Math.round(value).toLocaleString('en-US');
+};
 
   const formatFunnelValue = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
@@ -104,14 +102,26 @@ export const ContructionRevenueSection = ({
     return `${formatRoundedNumber(value / 1000)} Tỷ`;
   };
 
-const formatBarLabel = (value: number): string => {
-  if (workshopMetric === 'COUNT_HEX') {
-    return formatNumber(value, workshopMetric);
-  }
-  const displayValue = useDetailedNumbers ? value : value / 1000;
-  const rounded = formatRoundedNumber(displayValue);
-  return useDetailedNumbers ? rounded : `${rounded} Tỷ`;
-};
+  const formatBarLabel = (value: number): string => {
+    if (workshopMetric === 'COUNT_HEX') {
+      return formatNumber(value, workshopMetric);
+    }
+    const displayValue = useDetailedNumbers ? value : value / 1000;
+    const rounded = formatRoundedNumber(displayValue);
+    return useDetailedNumbers ? rounded : `${rounded} Tỷ`;
+  };
+
+  // ✅ MỚI: Số chi tiết (không làm tròn) — dùng cho tooltip khi rê chuột.
+  // Số hiển thị trên thanh / trong bảng vẫn làm tròn như cũ.
+  const formatDetailValue = (value: number): string => {
+    if (workshopMetric === 'COUNT_HEX') {
+      return formatNumber(value, workshopMetric);
+    }
+    if (useDetailedNumbers) {
+      return formatDecimalFull(value);
+    }
+    return `${formatDecimalFull(value / 1000)} Tỷ`;
+  };
 
   const handleOpenOverallDetail = () => {
     setSelectedFunnelItem(null); // null = xem tổng theo BOP, giữ hành vi cũ
@@ -136,19 +146,25 @@ const formatBarLabel = (value: number): string => {
     return (textPx / funnelBarsWidth) * 100;
   };
 
-  // Ô số trong bảng pivot: nếu cha có truyền onPivotValueClick thì hiển thị
-  // dạng nút bấm được (giống style ở OnLineStageDetailModal / HexDetailModal),
-  // ngược lại giữ nguyên text tĩnh như cũ.
+  // Ô số trong bảng pivot: hiển thị số làm tròn, rê chuột vào sẽ thấy số chi tiết.
+  // Nếu cha có truyền onPivotValueClick thì hiển thị dạng nút bấm được
+  // (giống style ở OnLineStageDetailModal / HexDetailModal),
+  // ngược lại là text tĩnh (vẫn có tooltip số chi tiết).
   const renderPivotValue = (value: number, name: string | null) => {
-    const text = formatFunnelValue(value);
-    if (!onPivotValueClick) return text;
-    if (value === 0) return <span className="text-slate-300">{text}</span>;
+    const text = formatFunnelValue(value);   // hiển thị làm tròn
+    const detail = formatDetailValue(value); // tooltip chi tiết
+    if (!onPivotValueClick) {
+      return <span title={detail}>{text}</span>;
+    }
+    if (value === 0) {
+      return <span className="text-slate-300" title={detail}>{text}</span>;
+    }
     return (
       <button
         type="button"
         onClick={() => onPivotValueClick(name, selectedFunnelItem)}
         className="text-slate-800 hover:text-emerald-700 hover:underline font-semibold"
-        title="Bấm để xem chi tiết"
+        title={`${detail} — bấm để xem chi tiết`}
       >
         {text}
       </button>
@@ -178,57 +194,57 @@ const formatBarLabel = (value: number): string => {
           </h3>
 
           <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative">
-              <div className="w-auto shrink-0 flex flex-col gap-3">
-                {customFunnelData.map((item) => (
-                  <div
-                    key={`lbl-${item.id}`}
-                    className="h-10 text-right font-semibold text-slate-700 text-sm flex items-center justify-end whitespace-nowrap"
-                  >
-                    {item.name}
-                  </div>
-                ))}
-              </div>
-
-              <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-3 min-w-0">
-                <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
-                  <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
-                    <polygon
-                      points="-2,0 102,0 50,100"
-                      fill="none"
-                      stroke="#ef4444"
-                      strokeWidth="2px"
-                      strokeDasharray="6 4"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  </svg>
+            <div className="w-auto shrink-0 flex flex-col gap-3">
+              {customFunnelData.map((item) => (
+                <div
+                  key={`lbl-${item.id}`}
+                  className="h-10 text-right font-semibold text-slate-700 text-sm flex items-center justify-end whitespace-nowrap"
+                >
+                  {item.name}
                 </div>
+              ))}
+            </div>
 
-                {customFunnelData.map((item) => {
-                  const barLabel = formatBarLabel(item.value);
-                  const tooltipValue = formatFunnelValue(item.value);
-                  const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
-                  const minWidthPercent = getMinWidthPercentForText(barLabel);
-                  const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
-
-                  return (
-                    <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
-                      <div
-                        onClick={() => handleBarClick(item)}
-                        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
-                        style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
-                        title={`${item.name}: ${tooltipValue} (bấm để xem chi tiết theo công trình)`}
-                      >
-                        <span className="text-black font-bold text-sm whitespace-nowrap px-1">
-                          {barLabel}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+            <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-3 min-w-0">
+              <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
+                <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
+                  <polygon
+                    points="-2,0 102,0 50,100"
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="2px"
+                    strokeDasharray="6 4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
               </div>
+
+              {customFunnelData.map((item) => {
+                const barLabel = formatBarLabel(item.value);
+                const tooltipValue = formatDetailValue(item.value); // ✅ đổi từ formatFunnelValue -> số chi tiết
+                const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
+                const minWidthPercent = getMinWidthPercentForText(barLabel);
+                const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
+
+                return (
+                  <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+                    <div
+                      onClick={() => handleBarClick(item)}
+                      className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
+                      style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+                      title={`${item.name}: ${tooltipValue} (bấm để xem chi tiết theo công trình)`}
+                    >
+                      <span className="text-black font-bold text-sm whitespace-nowrap px-1">
+                        {barLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
+      </div>
 
       {/* Funnel Pivot Detail Modal */}
       {isFunnelPivotModalOpen && (
@@ -282,7 +298,7 @@ const formatBarLabel = (value: number): string => {
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">
                               {index + 1}
                             </span>
-                         <span className="break-words">{item.name}</span>
+                            <span className="break-words">{item.name}</span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
                             {renderPivotValue(item.value, item.name)}

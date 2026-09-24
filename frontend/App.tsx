@@ -1,24 +1,23 @@
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, User as UserIcon, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings } from 'lucide-react';
-import { getCachedData, getCachedVersion, saveToCache, fetchFromServer, fetchAllDataFromServer } from './services/dataService';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings } from 'lucide-react';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
-// MỚI: prefetch + gate cho mapping "view -> danh sách công trình" (xem ConstructionRedFlowWrapper / ConstructionSampleUnitWrapper bên dưới).
+// Prefetch + gate cho mapping "view -> danh sách công trình"
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
-const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
+const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const DataGrid = lazy(() => import('./components/DataGrid'));
 const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
 const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
-const SetupData = lazy(() => import('./components/SetupData'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
 
 // Loading hiển thị trong lúc tải file JS của component
@@ -28,12 +27,26 @@ const FullScreenLoader = () => (
   </div>
 );
 
+// ============================================================
+// MỤC CON CỦA CÁC NHÓM MENU (permId = id quyền trong user.permissions)
+// Phải khớp với PERMISSION_GROUPS trong types.ts
+// ============================================================
+const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: string }[] = [
+  { key: 'order', label: '1. ĐƠN HÀNG MỚI (P001)', path: '/charts/order', permId: 'chart_order' },
+  { key: 'tkbv', label: '2. TRIỂN KHAI BV (P002)', path: '/charts/tkbv', permId: 'chart_tkbv' },
+  { key: 'pthsp', label: '3. ĐÃ TÍNH PHIẾU (P012)', path: '/charts/pthsp', permId: 'chart_pthsp' },
+  { key: 'inventory', label: '4. NHẬP KHO (P022)', path: '/charts/inventory', permId: 'chart_inventory' },
+  { key: 'export', label: '5. XUẤT KHO (P025)', path: '/charts/export', permId: 'chart_export' },
+  { key: 'stock', label: '6. TỒN KHO', path: '/charts/stock', permId: 'chart_stock' },
+];
+
+const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string; permId: string }[] = [
+  { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do', permId: 'construction_redflow' },
+  { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau', permId: 'construction_sample' },
+];
+
 const App: React.FC = () => {
-  // MỚI: bắn request lấy view-project-mapping ngay khi app khởi động, KHÔNG
-  // await/chặn render — tới lúc user vào 2 trang Công trình (Luồng đỏ/Căn mẫu)
-  // thì thường đã có sẵn trong cache (xem loadViewMapping trong viewDataConfig.ts).
-  // Nếu user vào thẳng URL đó trước khi request này xong, wrapper bên dưới sẽ
-  // tự chờ thêm (gate) — nhờ inFlightLoad dùng chung nên không gọi API 2 lần.
+  // Bắn request lấy view-project-mapping ngay khi app khởi động, KHÔNG chặn render.
   useEffect(() => {
     loadViewMapping();
   }, []);
@@ -47,7 +60,10 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route element={<MainLayout />}>
+                {/* --- Tổng quan --- */}
                 <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
+
+                {/* --- Nhóm Dữ liệu --- */}
                 <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
                 <Route path="/yearly-plan" element={<RequirePermission viewId="yearly_plan_data"><YearlyPlanDataWrapper /></RequirePermission>} />
                 <Route path="/orders" element={<RequirePermission viewId="orders"><OrderDataWrapper /></RequirePermission>} />
@@ -60,17 +76,27 @@ const App: React.FC = () => {
                 <Route path="/tkbv" element={<RequirePermission viewId="tkbv"><TkbvDataWrapper /></RequirePermission>} />
                 <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
                 <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
-                <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="dashboard"><ConstructionRedFlowWrapper /></RequirePermission>} />
-                <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="dashboard"><ConstructionSampleUnitWrapper /></RequirePermission>} />
+
+                {/* --- Nhóm Công trình --- */}
+                <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionRedFlowWrapper /></RequirePermission>} />
+                <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionSampleUnitWrapper /></RequirePermission>} />
+                <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
+
+                {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
+                {CHART_SUB_ITEMS.map(item => (
+                  <Route
+                    key={item.key}
+                    path={item.path}
+                    element={
+                      <RequirePermission viewId={item.permId}>
+                        <ChartOverview source={item.key as any} title={item.label} />
+                      </RequirePermission>
+                    }
+                  />
+                ))}
+
+                {/* --- Hệ thống --- */}
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
-                <Route path="/cong-trinh/setup" element={<RequirePermission viewId="dashboard"><ConstructionSetupWrapper /></RequirePermission>} />
-                <Route path="/setup-data" element={<RequirePermission viewId="setup_data"><SetupDataWrapper /></RequirePermission>} />
-               <Route path="/charts/order" element={<RequirePermission viewId="dashboard"><ChartOverview source="order" title="1. ĐƠN HÀNG MỚI (P001)" /></RequirePermission>} />
-<Route path="/charts/tkbv" element={<RequirePermission viewId="dashboard"><ChartOverview source="tkbv" title="2. TRIỂN KHAI BV (P002)" /></RequirePermission>} />
-<Route path="/charts/pthsp" element={<RequirePermission viewId="dashboard"><ChartOverview source="pthsp" title="3. ĐÃ TÍNH PHIẾU (P012)" /></RequirePermission>} />
-<Route path="/charts/inventory" element={<RequirePermission viewId="dashboard"><ChartOverview source="inventory" title="4. NHẬP KHO (P022)" /></RequirePermission>} />
-<Route path="/charts/export" element={<RequirePermission viewId="dashboard"><ChartOverview source="export" title="5. XUẤT KHO (P025)" /></RequirePermission>} />
-<Route path="/charts/stock" element={<RequirePermission viewId="dashboard"><ChartOverview source="stock" title="6. TỒN KHO" /></RequirePermission>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -91,16 +117,13 @@ const RequirePermission: React.FC<{ children: React.ReactElement, viewId: string
   return children;
 };
 
+// ------------------------------------------------------------
 // Wrapper components
+// ------------------------------------------------------------
 const DashboardWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <Dashboard {...context} />; };
 
-// MỚI: gate cho tới khi view-project-mapping đã load xong (isViewMappingLoaded),
-// tránh trường hợp getProjectsForView() trả về mảng rỗng tạm thời khi user mở
-// thẳng URL này trước khi prefetch ở App() kịp xong — vì loadViewMapping() dùng
-// chung inFlightLoad nên gọi lại ở đây không tốn thêm request nếu đã có 1 cái
-// đang chạy.
-const ConstructionRedFlowWrapper = () => {
-  const context = useOutletContext<MainLayoutContext>();
+// Gate cho tới khi view-project-mapping đã load xong (dùng chung cho 2 trang Công trình)
+const useViewMappingReady = () => {
   const [mappingReady, setMappingReady] = useState(isViewMappingLoaded());
 
   useEffect(() => {
@@ -112,32 +135,22 @@ const ConstructionRedFlowWrapper = () => {
     return () => { cancelled = true; };
   }, [mappingReady]);
 
+  return mappingReady;
+};
+
+const ConstructionRedFlowWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const mappingReady = useViewMappingReady();
   if (!mappingReady) return <FullScreenLoader />;
   return <ConstructionRedFlow {...context} />;
 };
 
 const ConstructionSampleUnitWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
-  const [mappingReady, setMappingReady] = useState(isViewMappingLoaded());
-
-  useEffect(() => {
-    if (mappingReady) return;
-    let cancelled = false;
-    loadViewMapping().then(() => {
-      if (!cancelled) setMappingReady(true);
-    });
-    return () => { cancelled = true; };
-  }, [mappingReady]);
-
+  const mappingReady = useViewMappingReady();
   if (!mappingReady) return <FullScreenLoader />;
   return <ConstructionSampleUnit {...context} />;
 };
-
-const SetupDataWrapper = () => {
-  const context = useOutletContext<MainLayoutContext>();
-  return <SetupData {...context} />;
-};
-
 
 const ConstructionSetupWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
@@ -198,20 +211,6 @@ interface MainLayoutContext {
   isGlobalLoading: boolean; // Thêm trạng thái loading để truyền cho các component con
 }
 
-const CHART_SUB_ITEMS: { key: string; label: string; path: string }[] = [
-  { key: 'order', label: '1. ĐƠN HÀNG MỚI (P001)', path: '/charts/order' },
-  { key: 'tkbv', label: '2. TRIỂN KHAI BV (P002)', path: '/charts/tkbv' },
-  { key: 'pthsp', label: '3. ĐÃ TÍNH PHIẾU (P012)', path: '/charts/pthsp' },
-  { key: 'inventory', label: '4. NHẬP KHO (P022)', path: '/charts/inventory' },
-  { key: 'export', label: '5. XUẤT KHO (P025)', path: '/charts/export' },
-  { key: 'stock', label: '6. TỒN KHO', path: '/charts/stock' },
-];
-
-const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string }[] = [
-  { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do' },
-  { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau' },
-];
-
 const ICON_MAP: Record<string, React.ReactNode> = {
   'LayoutDashboard': <LayoutDashboard size={20} />, 'Table': <Table size={20} />, 'Package': <Package size={20} />,
   'Shield': <Shield size={20} />, 'Calendar': <Calendar size={20} />, 'ShoppingCart': <ShoppingCart size={20} />,
@@ -254,13 +253,13 @@ const MainLayout: React.FC = () => {
   const [attendanceData, setAttendanceData] = useState<DataRow[]>([]); const [attendanceColumns, setAttendanceColumns] = useState<ColumnDefinition[]>([]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Trạng thái đóng/mở của nhóm menu gộp "Dữ liệu" - mặc định đóng
+  // Trạng thái đóng/mở của các nhóm menu - mặc định đóng
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
   const [isConstructionMenuOpen, setIsConstructionMenuOpen] = useState(false);
@@ -274,124 +273,113 @@ const MainLayout: React.FC = () => {
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
 
+  // Tự mở nhóm menu chứa trang hiện tại
   useEffect(() => {
-  const currentView = APP_VIEWS.find(v => v.path === location.pathname);
-  if (currentView && !STANDALONE_VIEW_IDS.includes(currentView.id)) {
-    setIsDataMenuOpen(true);
-  }
-  if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
-    setIsChartMenuOpen(true);
-  }
-   if (CONSTRUCTION_SUB_ITEMS.some(item => item.path === location.pathname)) {
-    setIsConstructionMenuOpen(true);
-  }
-}, [location.pathname]);
-
-const isConstructionGroupActive = CONSTRUCTION_SUB_ITEMS.some(item => item.path === location.pathname);
-
-const handleConstructionGroupToggle = () => {
-  if (isCollapsed) {
-    setIsCollapsed(false);
-    setIsConstructionMenuOpen(true);
-  } else {
-    setIsConstructionMenuOpen(!isConstructionMenuOpen);
-  }
-};
-
-const isChartGroupActive = CHART_SUB_ITEMS.some(item => item.path === location.pathname);
-
-const handleChartGroupToggle = () => {
-  if (isCollapsed) {
-    setIsCollapsed(false);
-    setIsChartMenuOpen(true);
-  } else {
-    setIsChartMenuOpen(!isChartMenuOpen);
-  }
-};
-
-const checkAndSync = async (forceAll = false) => {
-  try {
-    const verRes = await fetch('/api/check-versions');
-    if (!verRes.ok) return;
-
-    const serverVersions = await verRes.json();
-
-    // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
-    const tableConfigs: { endpoint: string; verKey: string; setData: Function; setCols: Function }[] = [
-      { endpoint: 'production', verKey: 'production', setData: setProductionData, setCols: setProductionColumns },
-      { endpoint: 'material', verKey: 'material', setData: setMaterialData, setCols: setMaterialColumns },
-      { endpoint: 'khsx', verKey: 'khsx', setData: setKhsxData, setCols: setKhsxColumns },
-      { endpoint: 'order', verKey: 'order', setData: setOrderData, setCols: setOrderColumns },
-      { endpoint: 'inventory', verKey: 'inventory', setData: setInventoryData, setCols: setInventoryColumns },
-      { endpoint: 'tkbv', verKey: 'tkbv', setData: setTkbvData, setCols: setTkbvColumns },
-      { endpoint: 'pthsp', verKey: 'pthsp', setData: setPthspData, setCols: setPthspColumns },
-      { endpoint: 'analysis', verKey: 'analysis', setData: setAnalysisData, setCols: setAnalysisColumns },
-      { endpoint: 'yearly-plan', verKey: 'yearlyPlan', setData: setYearlyPlanData, setCols: setYearlyPlanColumns },
-      { endpoint: 'export', verKey: 'export', setData: setExportData, setCols: setExportColumns },
-      { endpoint: 'stock', verKey: 'stock', setData: setStockData, setCols: setStockColumns },
-      { endpoint: 'attendance', verKey: 'attendance', setData: setAttendanceData, setCols: setAttendanceColumns },
-    ];
-
-    // Xác định bảng nào cần cập nhật (version đổi, hoặc forceAll, hoặc chưa từng load)
-    const toUpdate: typeof tableConfigs = [];
-    const toApplyFromCache: typeof tableConfigs = [];
-
-    for (const cfg of tableConfigs) {
-      const serverVer = String(serverVersions[cfg.verKey] || '0');
-      const localVer = forceAll ? '0' : String(await getCachedVersion(cfg.endpoint));
-
-      if (serverVer !== localVer || forceAll) {
-        toUpdate.push(cfg);
-      } else if (!dataLoadedRef.current[cfg.endpoint]) {
-        toApplyFromCache.push(cfg);
-      }
+    const currentView = APP_VIEWS.find(v => v.path === location.pathname);
+    if (currentView && !STANDALONE_VIEW_IDS.includes(currentView.id)) {
+      setIsDataMenuOpen(true);
     }
-
-    let hasAnyUpdate = false;
-
-    // Áp dụng cache cho các bảng chưa từng load nhưng không đổi version
-    for (const cfg of toApplyFromCache) {
-      const cached = await getCachedData(cfg.endpoint);
-      if (cached && cached.data && cached.data.length > 0) {
-        cfg.setData(cached.data);
-        cfg.setCols(cached.columns);
-        hasAnyUpdate = true;
-      } else {
-        toUpdate.push(cfg); // fallback: cache rỗng, gộp vào nhóm cần fetch
-      }
-      const serverVer = String(serverVersions[cfg.verKey] || '0');
-      tableVersions.current[cfg.endpoint] = serverVer;
-      dataLoadedRef.current[cfg.endpoint] = true;
+    if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
+      setIsChartMenuOpen(true);
     }
+    if (CONSTRUCTION_SUB_ITEMS.some(item => item.path === location.pathname)) {
+      setIsConstructionMenuOpen(true);
+    }
+  }, [location.pathname]);
 
-    // Nếu có bảng cần cập nhật -> gọi /api/all-data MỘT LẦN thay vì N lần riêng lẻ
-    if (toUpdate.length > 0) {
-      const allData = await fetchAllDataFromServer();
-      if (allData) {
-        for (const cfg of toUpdate) {
-          const res = allData[cfg.endpoint];
-          if (res) {
-            cfg.setData(res.data);
-            cfg.setCols(res.columns);
-            const serverVer = String(serverVersions[cfg.verKey] || '0');
-            await saveToCache(cfg.endpoint, serverVer, res);
-            tableVersions.current[cfg.endpoint] = serverVer;
-            dataLoadedRef.current[cfg.endpoint] = true;
-            hasAnyUpdate = true;
+  // Mở rộng sidebar trước nếu đang thu gọn, rồi mới đóng/mở nhóm
+  const makeGroupToggle = (isOpen: boolean, setOpen: (v: boolean) => void) => () => {
+    if (isCollapsed) {
+      setIsCollapsed(false);
+      setOpen(true);
+    } else {
+      setOpen(!isOpen);
+    }
+  };
+
+  const checkAndSync = async (forceAll = false) => {
+    try {
+      const verRes = await fetch('/api/check-versions');
+      if (!verRes.ok) return;
+
+      const serverVersions = await verRes.json();
+
+      // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
+      const tableConfigs: { endpoint: string; verKey: string; setData: Function; setCols: Function }[] = [
+        { endpoint: 'production', verKey: 'production', setData: setProductionData, setCols: setProductionColumns },
+        { endpoint: 'material', verKey: 'material', setData: setMaterialData, setCols: setMaterialColumns },
+        { endpoint: 'khsx', verKey: 'khsx', setData: setKhsxData, setCols: setKhsxColumns },
+        { endpoint: 'order', verKey: 'order', setData: setOrderData, setCols: setOrderColumns },
+        { endpoint: 'inventory', verKey: 'inventory', setData: setInventoryData, setCols: setInventoryColumns },
+        { endpoint: 'tkbv', verKey: 'tkbv', setData: setTkbvData, setCols: setTkbvColumns },
+        { endpoint: 'pthsp', verKey: 'pthsp', setData: setPthspData, setCols: setPthspColumns },
+        { endpoint: 'analysis', verKey: 'analysis', setData: setAnalysisData, setCols: setAnalysisColumns },
+        { endpoint: 'yearly-plan', verKey: 'yearlyPlan', setData: setYearlyPlanData, setCols: setYearlyPlanColumns },
+        { endpoint: 'export', verKey: 'export', setData: setExportData, setCols: setExportColumns },
+        { endpoint: 'stock', verKey: 'stock', setData: setStockData, setCols: setStockColumns },
+        { endpoint: 'attendance', verKey: 'attendance', setData: setAttendanceData, setCols: setAttendanceColumns },
+      ];
+
+      // Xác định bảng nào cần cập nhật (version đổi, hoặc forceAll, hoặc chưa từng load)
+      const toUpdate: typeof tableConfigs = [];
+      const toApplyFromCache: typeof tableConfigs = [];
+
+      for (const cfg of tableConfigs) {
+        const serverVer = String(serverVersions[cfg.verKey] || '0');
+        const localVer = forceAll ? '0' : String(await getCachedVersion(cfg.endpoint));
+
+        if (serverVer !== localVer || forceAll) {
+          toUpdate.push(cfg);
+        } else if (!dataLoadedRef.current[cfg.endpoint]) {
+          toApplyFromCache.push(cfg);
+        }
+      }
+
+      let hasAnyUpdate = false;
+
+      // Áp dụng cache cho các bảng chưa từng load nhưng không đổi version
+      for (const cfg of toApplyFromCache) {
+        const cached = await getCachedData(cfg.endpoint);
+        if (cached && cached.data && cached.data.length > 0) {
+          cfg.setData(cached.data);
+          cfg.setCols(cached.columns);
+          hasAnyUpdate = true;
+        } else {
+          toUpdate.push(cfg); // fallback: cache rỗng, gộp vào nhóm cần fetch
+        }
+        const serverVer = String(serverVersions[cfg.verKey] || '0');
+        tableVersions.current[cfg.endpoint] = serverVer;
+        dataLoadedRef.current[cfg.endpoint] = true;
+      }
+
+      // Nếu có bảng cần cập nhật -> gọi /api/all-data MỘT LẦN thay vì N lần riêng lẻ
+      if (toUpdate.length > 0) {
+        const allData = await fetchAllDataFromServer();
+        if (allData) {
+          for (const cfg of toUpdate) {
+            const res = allData[cfg.endpoint];
+            if (res) {
+              cfg.setData(res.data);
+              cfg.setCols(res.columns);
+              const serverVer = String(serverVersions[cfg.verKey] || '0');
+              await saveToCache(cfg.endpoint, serverVer, res);
+              tableVersions.current[cfg.endpoint] = serverVer;
+              dataLoadedRef.current[cfg.endpoint] = true;
+              hasAnyUpdate = true;
+            }
           }
         }
       }
-    }
 
-    if (hasAnyUpdate || !lastUpdated) {
-      setLastUpdated(new Date());
+      if (hasAnyUpdate || !lastUpdated) {
+        setLastUpdated(new Date());
+      }
+    } catch (err) {
+      console.error("Lỗi đồng bộ ngầm:", err);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Lỗi đồng bộ ngầm:", err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -399,7 +387,7 @@ const checkAndSync = async (forceAll = false) => {
       if (cachedObj?.data) {
         setData(cachedObj.data);
         setCols(cachedObj.columns);
-        dataLoadedRef.current[endpoint] = true; 
+        dataLoadedRef.current[endpoint] = true;
       }
     };
 
@@ -427,7 +415,7 @@ const checkAndSync = async (forceAll = false) => {
       applyCache('attendance', att, setAttendanceData, setAttendanceColumns);
 
       // Cho phép hiển thị khung trang luôn dù chưa có data
-      setLoading(false); 
+      setLoading(false);
 
       await checkAndSync();
     };
@@ -486,8 +474,8 @@ const checkAndSync = async (forceAll = false) => {
 
   const manualRefresh = async () => {
     setLoading(true);
-    tableVersions.current = {}; 
-    await checkAndSync(true); 
+    tableVersions.current = {};
+    await checkAndSync(true);
     closeMobileSidebar();
   };
 
@@ -499,21 +487,41 @@ const checkAndSync = async (forceAll = false) => {
     isGlobalLoading: loading
   };
 
-  // Tách các mục điều hướng: standalone (Tổng quan, Quản trị User) và nhóm gộp "Dữ liệu"
+  // ------------------------------------------------------------
+  // MENU: chỉ hiện những mục người dùng có quyền
+  // ------------------------------------------------------------
   const dashboardView = APP_VIEWS.find(v => v.id === 'dashboard' && hasPermission(v.id));
   const usersView = APP_VIEWS.find(v => v.id === 'users' && hasPermission(v.id));
+
+  const visibleConstructionItems = CONSTRUCTION_SUB_ITEMS.filter(i => hasPermission(i.permId));
+  const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
+  const canSeeSetup = hasPermission('construction_setup');
+
+  const isConstructionGroupActive = visibleConstructionItems.some(i => i.path === location.pathname);
+  const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
   const isGroupActive = groupedViews.some(v => v.path === location.pathname);
 
-  const handleGroupToggle = () => {
-    if (isCollapsed) {
-      // Khi sidebar đang thu gọn, mở rộng sidebar ra trước rồi mở nhóm
-      setIsCollapsed(false);
-      setIsDataMenuOpen(true);
-    } else {
-      setIsDataMenuOpen(!isDataMenuOpen);
-    }
-  };
+  const handleConstructionGroupToggle = makeGroupToggle(isConstructionMenuOpen, setIsConstructionMenuOpen);
+  const handleChartGroupToggle = makeGroupToggle(isChartMenuOpen, setIsChartMenuOpen);
+  const handleGroupToggle = makeGroupToggle(isDataMenuOpen, setIsDataMenuOpen);
+
+  // Render 1 nhóm menu con dạng chỉ có chữ (Công trình, Biểu đồ)
+  const renderSubLinks = (items: { key: string; label: string; path: string }[]) =>
+    items.map(item => {
+      const active = location.pathname === item.path;
+      return (
+        <Link
+          key={item.key}
+          to={item.path}
+          onClick={closeMobileSidebar}
+          className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
+            ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+        >
+          <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
+        </Link>
+      );
+    });
 
   return (
     <div className="flex h-screen bg-wood-50 overflow-hidden relative">
@@ -558,14 +566,14 @@ const checkAndSync = async (forceAll = false) => {
             </div>
             <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
               <div className="text-sm text-white font-medium truncate w-40">{user.fullName}</div>
-            <div className="text-[10px] text-wood-500 font-bold">
-  {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
-</div>
+              <div className="text-[10px] text-wood-500 font-bold">
+                {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
+              </div>
             </div>
           </div>
         )}
 
-     <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto overflow-x-hidden">
           {/* Tổng quan - luôn hiển thị riêng, ở đầu */}
           {dashboardView && (
             <NavLink
@@ -579,136 +587,61 @@ const checkAndSync = async (forceAll = false) => {
             />
           )}
 
-{/* Nhóm Công trình */}
-<div>
-  <button
-    onClick={handleConstructionGroupToggle}
-    title={isCollapsed ? 'Công trình' : undefined}
-    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
-      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
-      ${isConstructionGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
-  >
-    <Box size={20} className="shrink-0" />
-    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-      Công trình
-    </span>
-    {!isCollapsed && (
-      <ChevronDown
-        size={16}
-        className={`transition-transform duration-200 shrink-0 ${isConstructionMenuOpen ? 'rotate-180' : ''}`}
-      />
-    )}
-  </button>
-
-  {!isCollapsed && (
-    <div className={`overflow-hidden transition-all duration-300 ${isConstructionMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
-        {CONSTRUCTION_SUB_ITEMS.map((item) => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={item.key}
-              to={item.path}
-              onClick={closeMobileSidebar}
-              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
-                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          {/* Nhóm Công trình */}
+          {visibleConstructionItems.length > 0 && (
+            <NavGroup
+              icon={<Box size={20} className="shrink-0" />}
+              label="Công trình"
+              collapsed={isCollapsed}
+              open={isConstructionMenuOpen}
+              active={isConstructionGroupActive}
+              onToggle={handleConstructionGroupToggle}
             >
-              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  )}
-</div>
+              {renderSubLinks(visibleConstructionItems)}
+            </NavGroup>
+          )}
 
-          {/* Nhóm biểu đồ tổng hợp */}
-<div>
-  <button
-    onClick={handleChartGroupToggle}
-    title={isCollapsed ? 'Biểu đồ' : undefined}
-    className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
-      ${isCollapsed ? 'justify-center px-2' : 'px-4'}
-      ${isChartGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
-  >
-    <BarChart3 size={20} className="shrink-0" />
-    <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-      Quản trị
-    </span>
-    {!isCollapsed && (
-      <ChevronDown
-        size={16}
-        className={`transition-transform duration-200 shrink-0 ${isChartMenuOpen ? 'rotate-180' : ''}`}
-      />
-    )}
-  </button>
-
-  {!isCollapsed && (
-    <div className={`overflow-hidden transition-all duration-300 ${isChartMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-      <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
-        {CHART_SUB_ITEMS.map((item) => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={item.key}
-              to={item.path}
-              onClick={closeMobileSidebar}
-              className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
-                ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          {/* Nhóm Quản trị (Biểu đồ) */}
+          {visibleChartItems.length > 0 && (
+            <NavGroup
+              icon={<BarChart3 size={20} className="shrink-0" />}
+              label="Quản trị"
+              tooltip="Biểu đồ"
+              collapsed={isCollapsed}
+              open={isChartMenuOpen}
+              active={isChartGroupActive}
+              onToggle={handleChartGroupToggle}
             >
-              <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  )}
-</div>
+              {renderSubLinks(visibleChartItems)}
+            </NavGroup>
+          )}
 
-          {/* Nhóm gộp toàn bộ các mục dữ liệu còn lại */}
+          {/* Nhóm Dữ liệu */}
           {groupedViews.length > 0 && (
-            <div>
-              <button
-                onClick={handleGroupToggle}
-                title={isCollapsed ? 'Dữ liệu' : undefined}
-                className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
-                  ${isCollapsed ? 'justify-center px-2' : 'px-4'}
-                  ${isGroupActive ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
-              >
-                <Database size={20} className="shrink-0" />
-                <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                  Dữ liệu
-                </span>
-                {!isCollapsed && (
-                  <ChevronDown
-                    size={16}
-                    className={`transition-transform duration-200 shrink-0 ${isDataMenuOpen ? 'rotate-180' : ''}`}
-                  />
-                )}
-              </button>
-
-              {!isCollapsed && (
-                <div className={`overflow-hidden transition-all duration-300 ${isDataMenuOpen ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-                  <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
-                    {groupedViews.map((view) => {
-                      const active = location.pathname === view.path;
-                      return (
-                        <Link
-                          key={view.id}
-                          to={view.path}
-                          onClick={closeMobileSidebar}
-                          className={`flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all duration-200
-                            ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                        >
-                          <div className="shrink-0">{ICON_MAP_SM[view.iconName || 'Table']}</div>
-                          <span className="font-medium whitespace-nowrap overflow-hidden">{view.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+            <NavGroup
+              icon={<Database size={20} className="shrink-0" />}
+              label="Dữ liệu"
+              collapsed={isCollapsed}
+              open={isDataMenuOpen}
+              active={isGroupActive}
+              onToggle={handleGroupToggle}
+            >
+              {groupedViews.map((view) => {
+                const active = location.pathname === view.path;
+                return (
+                  <Link
+                    key={view.id}
+                    to={view.path}
+                    onClick={closeMobileSidebar}
+                    className={`flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all duration-200
+                      ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                  >
+                    <div className="shrink-0">{ICON_MAP_SM[view.iconName || 'Table']}</div>
+                    <span className="font-medium whitespace-nowrap overflow-hidden">{view.label}</span>
+                  </Link>
+                );
+              })}
+            </NavGroup>
           )}
 
           {/* Quản trị User - luôn hiển thị riêng, cuối danh sách */}
@@ -723,16 +656,18 @@ const checkAndSync = async (forceAll = false) => {
               collapsed={isCollapsed}
             />
           )}
-                    {/* Setup dữ liệu - luôn hiển thị riêng, dưới cùng */}
-       {/* Setup phân loại công trình - luôn hiển thị riêng, dưới cùng (thay cho Setup dữ liệu cũ) */}
-<NavLink
-  to="/cong-trinh/setup"
-  icon={<Settings size={20} />}
-  label="Setup dữ liệu"
-  active={location.pathname === '/cong-trinh/setup'}
-  onClick={closeMobileSidebar}
-  collapsed={isCollapsed}
-/>
+
+          {/* Setup dữ liệu (phân loại công trình) - thuộc nhóm quyền Công trình */}
+          {canSeeSetup && (
+            <NavLink
+              to="/cong-trinh/setup"
+              icon={<Settings size={20} />}
+              label="Setup dữ liệu"
+              active={location.pathname === '/cong-trinh/setup'}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-2">
@@ -774,7 +709,7 @@ const checkAndSync = async (forceAll = false) => {
         </div>
       </aside>
 
-     <main className="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
+      <main className="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
         {error ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
@@ -846,6 +781,51 @@ const checkAndSync = async (forceAll = false) => {
     </div>
   );
 };
+
+// ------------------------------------------------------------
+// Nhóm menu có thể đóng/mở (dùng cho Công trình, Quản trị, Dữ liệu)
+// ------------------------------------------------------------
+interface NavGroupProps {
+  icon: React.ReactNode;
+  label: string;
+  tooltip?: string;
+  collapsed: boolean;
+  open: boolean;
+  active: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const NavGroup: React.FC<NavGroupProps> = ({ icon, label, tooltip, collapsed, open, active, onToggle, children }) => (
+  <div>
+    <button
+      onClick={onToggle}
+      title={collapsed ? (tooltip || label) : undefined}
+      className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
+        ${collapsed ? 'justify-center px-2' : 'px-4'}
+        ${active ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+    >
+      {icon}
+      <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+        {label}
+      </span>
+      {!collapsed && (
+        <ChevronDown
+          size={16}
+          className={`transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}
+        />
+      )}
+    </button>
+
+    {!collapsed && (
+      <div className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
+        <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+          {children}
+        </div>
+      </div>
+    )}
+  </div>
+);
 
 interface NavLinkProps {
   to: string;

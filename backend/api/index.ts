@@ -219,13 +219,16 @@ app.get('/', (_req: Request, res: Response) => {
 
 // --- WHITELIST CỘT: CHỈ TRUY XUẤT CÁC CỘT CẦN THIẾT ---
 const REPORT_COLUMNS: Record<string, string[]> = {
-    production_status_app: [
-    'hex', 'tinh_trang', 'tinh_trang_ipo',
-    'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
-    'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc', 'phan_loai_nhom_san_pham',
-    'so_ngay_cd_hien_tai', 'bop',
-    'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke',
-  ],
+   production_status_app: [
+  'hex', 'tinh_trang', 'tinh_trang_ipo',
+  'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
+  'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc', 'phan_loai_nhom_san_pham',
+  'so_ngay_cd_hien_tai', 'bop',
+  'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke',
+  'tong_hop_ghi_chu_nhap_kho', 'tong_hop_thong_tin_qc', 'tong_hop_ghi_chu_xuat_kho',
+  // MỚI
+  'ghi_chu_don_hang_tong', 'ghi_chu_phieu',
+],
   vat_tu: [
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
     'ten_cong_trinh', 'so_pr', 'pr_line', 'ma_vat_tu_sap', 'ten_vat_tu',

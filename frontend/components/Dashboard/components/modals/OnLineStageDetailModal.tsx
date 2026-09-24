@@ -15,6 +15,9 @@ export const ON_LINE_STAGES = [
   'P021',
 ] as const;
 
+// Giá trị đại diện cho "tất cả công đoạn" khi click vào ô Tổng.
+export const TOTAL_STAGE = 'TOTAL';
+
 export const extractStage = (value: unknown): string | null => {
   const match = String(value ?? '').trim().toUpperCase().match(/^(P\d{3}|GCVT)/);
   return match ? match[1] : null;
@@ -31,6 +34,7 @@ interface OnLineStageDetailModalProps {
   projectName: string | null;
   metric: 'COUNT' | 'VALUE';
   rows: StageDetailRow[];
+  // stage = mã công đoạn (P002...) hoặc TOTAL_STAGE khi click ô Tổng
   onValueClick?: (projectName: string | null, stage: string) => void;
 }
 
@@ -105,7 +109,7 @@ export const OnLineStageDetailModal = ({
     });
   }, []);
 
-  // ✅ MỚI: gắn STT cố định (1..N) theo đúng thứ tự gốc của rows.
+  // STT cố định (1..N) theo đúng thứ tự gốc của rows.
   const indexedRows = useMemo(
     () => rows.map((row, i) => ({ row, stt: i + 1 })),
     [rows]
@@ -148,14 +152,18 @@ export const OnLineStageDetailModal = ({
     rows.reduce((acc, row) => acc + (row.values[stage] ?? 0), 0);
   const grandTotal = rows.reduce((acc, row) => acc + rowTotal(row), 0);
 
-  const renderCell = (value: number, onClick?: () => void) =>
+  const renderCell = (
+    value: number,
+    onClick?: () => void,
+    className = 'font-semibold text-slate-700'
+  ) =>
     value === 0 ? (
       <span className="text-slate-300">–</span>
     ) : onClick ? (
       <button
         type="button"
         onClick={onClick}
-        className="text-slate-700 hover:text-emerald-700 hover:underline font-semibold"
+        className={`${className} hover:text-emerald-700 hover:underline`}
       >
         {formatter(value)}
       </button>
@@ -328,8 +336,12 @@ export const OnLineStageDetailModal = ({
                             )}
                           </td>
                         ))}
-                        <td className="bg-slate-50/50 px-3 py-2.5 font-bold text-slate-900">
-                          {formatter(rowTotal(row))}
+                        <td className="bg-slate-50/50 px-3 py-2.5">
+                          {renderCell(
+                            rowTotal(row),
+                            onValueClick ? () => onValueClick(row.name, TOTAL_STAGE) : undefined,
+                            'font-bold text-slate-900'
+                          )}
                         </td>
                       </tr>
                     );
@@ -357,7 +369,13 @@ export const OnLineStageDetailModal = ({
                               )}
                             </td>
                           ))}
-                          <td className="px-3 py-3 text-slate-900">{formatter(grandTotal)}</td>
+                          <td className="px-3 py-3">
+                            {renderCell(
+                              grandTotal,
+                              onValueClick ? () => onValueClick(null, TOTAL_STAGE) : undefined,
+                              'font-bold text-slate-900'
+                            )}
+                          </td>
                         </tr>
                       </tfoot>
                     </table>

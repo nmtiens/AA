@@ -57564,7 +57564,13 @@ var REPORT_COLUMNS = {
     "bop",
     "tri_gia_don_hang_tong",
     "thanh_tien_tinh_phieu",
-    "thanh_tien_nhap_kho_luy_ke"
+    "thanh_tien_nhap_kho_luy_ke",
+    "tong_hop_ghi_chu_nhap_kho",
+    "tong_hop_thong_tin_qc",
+    "tong_hop_ghi_chu_xuat_kho",
+    // MỚI
+    "ghi_chu_don_hang_tong",
+    "ghi_chu_phieu"
   ],
   vat_tu: [
     "trang_thai",
