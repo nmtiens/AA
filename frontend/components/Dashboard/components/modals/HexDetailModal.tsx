@@ -32,6 +32,8 @@ interface HexDetailModalProps {
   columnKeys: HexDetailColumnKeys;
 }
 
+type NotesByHex = Record<string, Record<string, string | null>>;
+
 const money = (value: number) => formatDecimal(value / 1000);
 
 // Cắt 100 ký tự đầu, thêm "..." nếu dài hơn
@@ -177,11 +179,34 @@ export const HexDetailModal = ({
 
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
+  const {
+    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    ghiChuNhapKhoKey = 'tong_hop_ghi_chu_nhap_kho',
+    thongTinQcKey = 'tong_hop_thong_tin_qc',
+    ghiChuXuatKhoKey = 'tong_hop_ghi_chu_xuat_kho',
+    ghiChuDonHangTongKey = 'ghi_chu_don_hang_tong',
+    ghiChuPhieuKey = 'ghi_chu_phieu',
+  } = columnKeys;
+
+  // Ghi chú không nằm trong /api/all-data (quá nặng) nên tải riêng theo danh sách hex
+  const [notesMap, setNotesMap] = useState<NotesByHex>({});
+  const [fullNotes, setFullNotes] = useState<Record<string, string | null> | null>(null);
+  // Đánh số request để bỏ qua response cũ khi bấm nhanh nhiều dòng
+  const openReqRef = useRef(0);
+
+  const hexList = useMemo(
+    () => Array.from(new Set(rows.map((r) => String(r[hexKey] || '')).filter(Boolean))),
+    [rows, hexKey]
+  );
+
   useEffect(() => {
     if (!isOpen) {
       setSearch('');
       setSort(null);
       setSelectedEntry(null);
+      setFullNotes(null);
+      setNotesMap({});
     }
   }, [isOpen]);
 
@@ -218,15 +243,48 @@ export const HexDetailModal = ({
     if (footerScrollRef.current) footerScrollRef.current.scrollLeft = left;
   }, []);
 
-  const {
-    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
-    ghiChuNhapKhoKey = 'tong_hop_ghi_chu_nhap_kho',
-    thongTinQcKey = 'tong_hop_thong_tin_qc',
-    ghiChuXuatKhoKey = 'tong_hop_ghi_chu_xuat_kho',
-    ghiChuDonHangTongKey = 'ghi_chu_don_hang_tong',
-    ghiChuPhieuKey = 'ghi_chu_phieu',
-  } = columnKeys;
+  // Tải bản xem trước ghi chú của toàn bộ hex khi mở popup
+  useEffect(() => {
+    if (!isOpen || hexList.length === 0) return;
+    const ctrl = new AbortController();
+    setNotesMap({});
+    fetch('/api/production/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hexes: hexList }),
+      signal: ctrl.signal,
+    })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then(setNotesMap)
+      .catch(() => { /* bỏ qua: ô ghi chú hiện "—" */ });
+    return () => ctrl.abort();
+  }, [isOpen, hexList]);
+
+  const getNote = useCallback(
+    (row: DataRow, key: string): string =>
+      String(notesMap[String(row[hexKey] || '')]?.[key] ?? ''),
+    [notesMap, hexKey]
+  );
+
+  // Bấm dòng: tải nguyên văn của đúng hex đó
+const openEntry = (entry: { row: DataRow; stt: number }) => {
+  const hex = String(entry.row[hexKey] || '');
+  const reqId = ++openReqRef.current;
+  setSelectedEntry(entry);
+  setFullNotes(null);
+  fetch('/api/production/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hexes: [hex], full: true }),
+  })
+    .then((r): Promise<NotesByHex> => (r.ok ? r.json() : Promise.resolve({})))
+    .then((d) => {
+      if (reqId === openReqRef.current) setFullNotes(d[hex] ?? {});
+    })
+    .catch(() => {
+      if (reqId === openReqRef.current) setFullNotes({});
+    });
+};
 
   const toggleSort = useCallback((key: SortKey) => {
     const defaultDir: SortDir = NUMERIC_SORT_KEYS.includes(key) ? 'desc' : 'asc';
@@ -240,7 +298,7 @@ export const HexDetailModal = ({
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter(row => {
+    return rows.filter((row) => {
       const hex = String(row[hexKey] || '').toLowerCase();
       const hangMuc = String(row[hangMucKey] || '').toLowerCase();
       const status = String(row[tinhTrangKey] || '').toLowerCase();
@@ -274,11 +332,12 @@ export const HexDetailModal = ({
         case 'triGia': return parseNumber(row[triGiaDonHangTongKey]);
         case 'thanhTienPhieu': return parseNumber(row[thanhTienTinhPhieuKey]);
         case 'thanhTienKho': return parseNumber(row[thanhTienNhapKhoKey]);
-        case 'ghiChuNhapKho': return String(row[ghiChuNhapKhoKey] || '');
-        case 'thongTinQc': return String(row[thongTinQcKey] || '');
-        case 'ghiChuXuatKho': return String(row[ghiChuXuatKhoKey] || '');
-        case 'ghiChuDonHangTong': return String(row[ghiChuDonHangTongKey] || '');
-        case 'ghiChuPhieu': return String(row[ghiChuPhieuKey] || '');
+        // Cột ghi chú: sắp xếp theo bản xem trước đã tải từ /api/production/notes
+        case 'ghiChuNhapKho': return getNote(row, ghiChuNhapKhoKey);
+        case 'thongTinQc': return getNote(row, thongTinQcKey);
+        case 'ghiChuXuatKho': return getNote(row, ghiChuXuatKhoKey);
+        case 'ghiChuDonHangTong': return getNote(row, ghiChuDonHangTongKey);
+        case 'ghiChuPhieu': return getNote(row, ghiChuPhieuKey);
         default: return '';
       }
     };
@@ -295,6 +354,7 @@ export const HexDetailModal = ({
     indexedRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     ghiChuNhapKhoKey, thongTinQcKey, ghiChuXuatKhoKey, ghiChuDonHangTongKey, ghiChuPhieuKey,
+    getNote,
   ]);
 
   const totals = useMemo(() => {
@@ -309,6 +369,7 @@ export const HexDetailModal = ({
     );
   }, [filteredRows, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey]);
 
+  // ---- Từ đây trở xuống không được khai báo hook (đã có early return) ----
   if (!isOpen) return null;
 
   const showProjectColumn = projectName === null;
@@ -331,8 +392,17 @@ export const HexDetailModal = ({
     'Ghi Chú Đơn Hàng Tổng',
     'Ghi Chú Phiếu',
   ];
-  // Export giữ NGUYÊN văn (không cắt 100 ký tự)
-  const exportRows = sortedRows.map(({ row, stt }) => ({
+
+  const exportFileName = `chi_tiet_hex_${(projectName ?? 'tat_ca_cong_trinh')
+    .toString()
+    .trim()
+    .replace(/\s+/g, '_')}`;
+
+  const buildExportRow = (
+    row: DataRow,
+    stt: number,
+    note: (row: DataRow, key: string) => string
+  ) => ({
     'STT': stt,
     'Mã Hex': String(row[hexKey] || ''),
     ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
@@ -344,16 +414,29 @@ export const HexDetailModal = ({
     'Trị Giá Đơn Hàng Tổng (1000 VNĐ)': parseNumber(row[triGiaDonHangTongKey]) / 1000,
     'Thành Tiền Tính Phiếu (1000 VNĐ)': parseNumber(row[thanhTienTinhPhieuKey]) / 1000,
     'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienNhapKhoKey]) / 1000,
-    'Tổng Hợp Ghi Chú Nhập Kho': String(row[ghiChuNhapKhoKey] || ''),
-    'Tổng Hợp Thông Tin QC': String(row[thongTinQcKey] || ''),
-    'Tổng Hợp Ghi Chú Xuất Kho': String(row[ghiChuXuatKhoKey] || ''),
-    'Ghi Chú Đơn Hàng Tổng': String(row[ghiChuDonHangTongKey] || ''),
-    'Ghi Chú Phiếu': String(row[ghiChuPhieuKey] || ''),
-  }));
-  const exportFileName = `chi_tiet_hex_${(projectName ?? 'tat_ca_cong_trinh')
-    .toString()
-    .trim()
-    .replace(/\s+/g, '_')}`;
+    'Tổng Hợp Ghi Chú Nhập Kho': note(row, ghiChuNhapKhoKey),
+    'Tổng Hợp Thông Tin QC': note(row, thongTinQcKey),
+    'Tổng Hợp Ghi Chú Xuất Kho': note(row, ghiChuXuatKhoKey),
+    'Ghi Chú Đơn Hàng Tổng': note(row, ghiChuDonHangTongKey),
+    'Ghi Chú Phiếu': note(row, ghiChuPhieuKey),
+  });
+
+  // Export giữ NGUYÊN văn (tải bản full từ API, không cắt 100 ký tự)
+  const exportCsv = async () => {
+    let full: NotesByHex = {};
+    try {
+      const r = await fetch('/api/production/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hexes: hexList, full: true }),
+      });
+      if (r.ok) full = await r.json();
+    } catch { /* xuất không kèm ghi chú nếu lỗi */ }
+    const fullNote = (row: DataRow, key: string) =>
+      String(full[String(row[hexKey] || '')]?.[key] ?? '');
+    const data = sortedRows.map(({ row, stt }) => buildExportRow(row, stt, fullNote));
+    exportDetailRowsToCsv(exportFileName, exportColumns, data);
+  };
 
   const totalMinWidth =
     COL_WIDTHS.stt +
@@ -452,7 +535,7 @@ export const HexDetailModal = ({
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => exportDetailRowsToCsv(exportFileName, exportColumns, exportRows)}
+                onClick={exportCsv}
                 disabled={filteredRows.length === 0}
                 title="Xuất dữ liệu đang hiển thị ra file .CSV"
                 className="flex items-center gap-1.5 rounded-lg border border-emerald-600 bg-emerald-50 px-3.5 py-1.5 text-xs font-bold text-emerald-700 shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
@@ -574,7 +657,7 @@ export const HexDetailModal = ({
                       return (
                         <tr
                           key={entry.stt}
-                          onClick={() => setSelectedEntry(entry)}
+                          onClick={() => openEntry(entry)}
                           title="Bấm để xem đầy đủ nội dung"
                           className="group cursor-pointer transition-colors hover:bg-slate-50"
                         >
@@ -620,19 +703,19 @@ export const HexDetailModal = ({
                             {money(parseNumber(row[thanhTienNhapKhoKey]))}
                           </td>
                           <td className={noteCellClass}>
-                            {truncateText(String(row[ghiChuNhapKhoKey] || '')) || '—'}
+                            {truncateText(getNote(row, ghiChuNhapKhoKey)) || '—'}
                           </td>
                           <td className={noteCellClass}>
-                            {truncateText(String(row[thongTinQcKey] || '')) || '—'}
+                            {truncateText(getNote(row, thongTinQcKey)) || '—'}
                           </td>
                           <td className={noteCellClass}>
-                            {truncateText(String(row[ghiChuXuatKhoKey] || '')) || '—'}
+                            {truncateText(getNote(row, ghiChuXuatKhoKey)) || '—'}
                           </td>
                           <td className={noteCellClass}>
-                            {truncateText(String(row[ghiChuDonHangTongKey] || '')) || '—'}
+                            {truncateText(getNote(row, ghiChuDonHangTongKey)) || '—'}
                           </td>
                           <td className={noteCellClass}>
-                            {truncateText(String(row[ghiChuPhieuKey] || '')) || '—'}
+                            {truncateText(getNote(row, ghiChuPhieuKey)) || '—'}
                           </td>
                         </tr>
                       );
@@ -712,11 +795,17 @@ export const HexDetailModal = ({
               </button>
             </div>
             <div className="min-h-0 flex-1 space-y-4 overflow-auto p-5 custom-scrollbar">
-              <NoteSection label="Ghi chú đơn hàng tổng" text={String(selectedEntry.row[ghiChuDonHangTongKey] || '')} />
-              <NoteSection label="Ghi chú phiếu" text={String(selectedEntry.row[ghiChuPhieuKey] || '')} />
-              <NoteSection label="Tổng hợp ghi chú nhập kho" text={String(selectedEntry.row[ghiChuNhapKhoKey] || '')} />
-              <NoteSection label="Tổng hợp thông tin QC" text={String(selectedEntry.row[thongTinQcKey] || '')} />
-              <NoteSection label="Tổng hợp ghi chú xuất kho" text={String(selectedEntry.row[ghiChuXuatKhoKey] || '')} />
+              {fullNotes === null ? (
+                <div className="text-xs text-slate-400">Đang tải...</div>
+              ) : (
+                <>
+                  <NoteSection label="Ghi chú đơn hàng tổng" text={String(fullNotes[ghiChuDonHangTongKey] ?? '')} />
+                  <NoteSection label="Ghi chú phiếu" text={String(fullNotes[ghiChuPhieuKey] ?? '')} />
+                  <NoteSection label="Tổng hợp ghi chú nhập kho" text={String(fullNotes[ghiChuNhapKhoKey] ?? '')} />
+                  <NoteSection label="Tổng hợp thông tin QC" text={String(fullNotes[thongTinQcKey] ?? '')} />
+                  <NoteSection label="Tổng hợp ghi chú xuất kho" text={String(fullNotes[ghiChuXuatKhoKey] ?? '')} />
+                </>
+              )}
             </div>
           </div>
         </div>
