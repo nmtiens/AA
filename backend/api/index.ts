@@ -219,15 +219,12 @@ app.get('/', (_req: Request, res: Response) => {
 
 // --- WHITELIST CỘT: CHỈ TRUY XUẤT CÁC CỘT CẦN THIẾT ---
 const REPORT_COLUMNS: Record<string, string[]> = {
-   production_status_app: [
+ production_status_app: [
   'hex', 'tinh_trang', 'tinh_trang_ipo',
   'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
   'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc', 'phan_loai_nhom_san_pham',
   'so_ngay_cd_hien_tai', 'bop',
   'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke',
-  'tong_hop_ghi_chu_nhap_kho', 'tong_hop_thong_tin_qc', 'tong_hop_ghi_chu_xuat_kho',
-  // MỚI
-  'ghi_chu_don_hang_tong', 'ghi_chu_phieu',
 ],
   vat_tu: [
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
@@ -409,7 +406,7 @@ const buildMatchedProductionCTE = (joinKey: string): string => `
 // Helper lấy dữ liệu an toàn cho từng bảng (INCREMENTAL SYNC + CẮT CỘT)
 // [ĐO TIMING] Đây là hàm chạy cho /api/all-data và mọi route trong apiRoutes —
 // đổi sang timedQuery để tách bạch connect-time vs query-time khi DEBUG_DB_TIMING=true.
-const fetchTableData = async (tableName: string, updatedAfter?: string) => {
+const fetchTableData = async (tableName: string, updatedAfter?: string, strict = false) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
     const selectClause = cols ? cols.map(c => `"${c}"`).join(', ') : '*';
@@ -427,6 +424,7 @@ const fetchTableData = async (tableName: string, updatedAfter?: string) => {
     return result.rows;
   } catch (error) {
     console.error(`Lỗi truy vấn bảng ${tableName}:`, error);
+    if (strict) throw error; // all-data: lỗi thì KHÔNG được cache bảng rỗng
     return [];
   }
 };
@@ -533,7 +531,7 @@ const refreshAllDataCache = async () => {
     tkbv, pthsp, analysis, yearlyPlan, exportData,
     attendance,
   ] = await runWithLimit(
-    otherTables.map(t => () => fetchTableData(t)),
+  otherTables.map(t => () => fetchTableData(t, undefined, true)),
     2
   );
   const stock = await fetchLatestStockSnapshot();
@@ -608,6 +606,47 @@ app.get('/api/production/full', async (req: Request, res: Response) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Lỗi truy vấn production full:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+const NOTE_COLUMNS = [
+  'tong_hop_ghi_chu_nhap_kho', 'tong_hop_thong_tin_qc', 'tong_hop_ghi_chu_xuat_kho',
+  'ghi_chu_don_hang_tong', 'ghi_chu_phieu',
+];
+const NOTE_PREVIEW_CHARS = 101; // 100 ký tự + 1 để client biết có bị cắt để thêm "..."
+
+// Lấy ghi chú theo danh sách hex. full=false: chỉ 101 ký tự đầu (cho bảng); full=true: nguyên văn (cho xuất CSV)
+app.post('/api/production/notes', async (req: Request, res: Response) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes)
+      ? req.body.hexes.map((h: unknown) => String(h)).filter(Boolean)
+      : [];
+    if (hexes.length === 0) return res.json({});
+    if (hexes.length > 2000) return res.status(400).json({ error: 'Too many hexes' });
+    const full = req.body?.full === true;
+
+    const selectCols = NOTE_COLUMNS
+      .map(c => full ? `"${c}"` : `LEFT("${c}"::text, ${NOTE_PREVIEW_CHARS}) AS "${c}"`)
+      .join(', ');
+
+    const r = await timedQuery(
+      `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${selectCols}
+       FROM production_status_app
+       WHERE hex::text = ANY($1::text[])
+       ORDER BY hex::text, updated_at DESC NULLS LAST`,
+      [hexes],
+      { timeoutMs: 20000 }
+    );
+
+    const out: Record<string, Record<string, string | null>> = {};
+    r.rows.forEach(row => {
+      const { hex, ...rest } = row;
+      out[hex] = rest;
+    });
+    res.json(out);
+  } catch (error) {
+    console.error('Lỗi /api/production/notes:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

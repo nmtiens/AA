@@ -57316,26 +57316,18 @@ types.setTypeParser(1082, (val) => val);
 var pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-  // GIẢM MẠNH: transaction-mode pooler (6543) có pool phía server rất nhỏ,
-  // dùng CHUNG cho mọi client/instance. max lớn ở đây không "tận dụng" được gì
-  // vì Supavisor đã multiplex hộ — chỉ khiến 1 instance dễ chiếm hết pool chung.
+  // Transaction-mode pooler (6543) có pool phía server rất nhỏ, dùng chung cho mọi
+  // client/instance. Không tăng max khi chưa biết giới hạn thật của pooler.
   max: 3,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1e4,
-  // TĂNG: tránh đóng hết connection lúc idle rồi phải mở lại hàng loạt
-  // đúng lúc traffic tăng đột ngột (đây là nguyên nhân gây "connect storm"
-  // thấy trong log — rất nhiều dòng "Connected to PostgreSQL database" liên tiếp)
+  // Giữ connection lâu hơn để tránh "connect storm" khi traffic tăng đột ngột
   idleTimeoutMillis: 6e4,
   connectionTimeoutMillis: 15e3,
   application_name: "vercel-backend",
-  // ĐÃ BỎ statement_timeout khỏi đây: `pg` gửi tham số này ngay trong gói
-  // StartupMessage lúc mở kết nối. PgBouncer của Layerbase (khác Supavisor
-  // của Supabase) từ chối các startup parameter không chuẩn -> lỗi
-  // "unsupported startup parameter: statement_timeout". Áp dụng lại timeout
-  // này bằng lệnh SQL SET ngay sau khi có kết nối mới, ở sự kiện 'connect'
-  // bên dưới — lúc đó không còn là startup parameter nữa nên không bị chặn.
-  // TẮT: allowExitOnIdle gây đóng/mở connection hàng loạt không cần thiết
-  // trên serverless — để mặc định (false)
+  // Không đặt statement_timeout ở đây: pg gửi nó trong StartupMessage và
+  // PgBouncer của Layerbase từ chối startup parameter không chuẩn.
+  // Timeout được áp dụng bằng lệnh SET ở sự kiện 'connect' bên dưới.
   allowExitOnIdle: false
 });
 var STATEMENT_TIMEOUT_MS = 8e3;
@@ -57348,47 +57340,67 @@ pool.on("connect", (client) => {
 pool.on("error", (err) => {
   console.error("Unexpected DB error on idle client:", err);
 });
-console.log(
-  `[env check] DEBUG_DB_TIMING="${process.env.DEBUG_DB_TIMING}" NODE_ENV="${process.env.NODE_ENV}"`
-);
-async function timedQuery(text, params) {
+var Semaphore = class {
+  constructor(max) {
+    this.max = max;
+  }
+  max;
+  queue = [];
+  active = 0;
+  async acquire() {
+    if (this.active >= this.max) {
+      await new Promise((resolve) => this.queue.push(resolve));
+    }
+    this.active++;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.active--;
+      this.queue.shift()?.();
+    };
+  }
+};
+var heavySemaphore = new Semaphore(1);
+async function timedQuery(text, params, opts = {}) {
   const debug = process.env.DEBUG_DB_TIMING === "true";
   const t0 = Date.now();
-  if (!debug) {
-    try {
-      const result = await pool.query(text, params);
-      const t1 = Date.now();
-      console.log(
-        `[db timing:pool.query] total: ${t1 - t0}ms | debugFlag=false | sql: ${text.slice(0, 80)}`
-      );
-      return result;
-    } catch (err) {
-      const t1 = Date.now();
-      console.error(
-        `[db timing:pool.query:ERROR] total: ${t1 - t0}ms | sql: ${text.slice(0, 80)} | err: ${err.message}`
-      );
-      throw err;
-    }
-  }
+  const releaseHeavy = opts.heavy ? await heavySemaphore.acquire() : null;
   try {
     const client = await pool.connect();
     const t1 = Date.now();
     try {
-      const result = await client.query(text, params);
-      const t2 = Date.now();
-      console.log(
-        `[db timing] connect: ${t1 - t0}ms | query: ${t2 - t1}ms | sql: ${text.slice(0, 80)}`
-      );
+      let result;
+      if (opts.timeoutMs) {
+        await client.query("BEGIN");
+        try {
+          await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+          result = await client.query(text, params);
+          await client.query("COMMIT");
+        } catch (e) {
+          await client.query("ROLLBACK").catch(() => {
+          });
+          throw e;
+        }
+      } else {
+        result = await client.query(text, params);
+      }
+      if (debug) {
+        console.log(
+          `[db timing] wait: ${t1 - t0}ms | query: ${Date.now() - t1}ms | sql: ${text.slice(0, 80)}`
+        );
+      }
       return result;
     } finally {
       client.release();
     }
   } catch (err) {
-    const t1 = Date.now();
     console.error(
-      `[db timing:ERROR] failed before/at connect: ${t1 - t0}ms | sql: ${text.slice(0, 80)} | err: ${err.message}`
+      `[db timing:ERROR] ${Date.now() - t0}ms | sql: ${text.slice(0, 80)} | err: ${err.message}`
     );
     throw err;
+  } finally {
+    releaseHeavy?.();
   }
 }
 process.on("SIGINT", async () => {
@@ -57564,13 +57576,7 @@ var REPORT_COLUMNS = {
     "bop",
     "tri_gia_don_hang_tong",
     "thanh_tien_tinh_phieu",
-    "thanh_tien_nhap_kho_luy_ke",
-    "tong_hop_ghi_chu_nhap_kho",
-    "tong_hop_thong_tin_qc",
-    "tong_hop_ghi_chu_xuat_kho",
-    // MỚI
-    "ghi_chu_don_hang_tong",
-    "ghi_chu_phieu"
+    "thanh_tien_nhap_kho_luy_ke"
   ],
   vat_tu: [
     "trang_thai",
@@ -57760,7 +57766,7 @@ var buildMatchedProductionCTE = (joinKey) => `
     ORDER BY "${joinKey}", updated_at DESC NULLS LAST
   )
 `;
-var fetchTableData = async (tableName, updatedAfter) => {
+var fetchTableData = async (tableName, updatedAfter, strict = false) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
     const selectClause = cols ? cols.map((c) => `"${c}"`).join(", ") : "*";
@@ -57775,6 +57781,7 @@ var fetchTableData = async (tableName, updatedAfter) => {
     return result.rows;
   } catch (error61) {
     console.error(`L\u1ED7i truy v\u1EA5n b\u1EA3ng ${tableName}:`, error61);
+    if (strict) throw error61;
     return [];
   }
 };
@@ -57866,7 +57873,7 @@ var refreshAllDataCache = async () => {
     exportData,
     attendance
   ] = await runWithLimit(
-    otherTables.map((t) => () => fetchTableData(t)),
+    otherTables.map((t) => () => fetchTableData(t, void 0, true)),
     2
   );
   const stock = await fetchLatestStockSnapshot();
@@ -57936,6 +57943,40 @@ app.get("/api/production/full", async (req, res) => {
     res.json(result.rows);
   } catch (error61) {
     console.error("L\u1ED7i truy v\u1EA5n production full:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var NOTE_COLUMNS = [
+  "tong_hop_ghi_chu_nhap_kho",
+  "tong_hop_thong_tin_qc",
+  "tong_hop_ghi_chu_xuat_kho",
+  "ghi_chu_don_hang_tong",
+  "ghi_chu_phieu"
+];
+var NOTE_PREVIEW_CHARS = 101;
+app.post("/api/production/notes", async (req, res) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h)).filter(Boolean) : [];
+    if (hexes.length === 0) return res.json({});
+    if (hexes.length > 2e3) return res.status(400).json({ error: "Too many hexes" });
+    const full = req.body?.full === true;
+    const selectCols = NOTE_COLUMNS.map((c) => full ? `"${c}"` : `LEFT("${c}"::text, ${NOTE_PREVIEW_CHARS}) AS "${c}"`).join(", ");
+    const r = await timedQuery(
+      `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${selectCols}
+       FROM production_status_app
+       WHERE hex::text = ANY($1::text[])
+       ORDER BY hex::text, updated_at DESC NULLS LAST`,
+      [hexes],
+      { timeoutMs: 2e4 }
+    );
+    const out = {};
+    r.rows.forEach((row) => {
+      const { hex: hex3, ...rest } = row;
+      out[hex3] = rest;
+    });
+    res.json(out);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/production/notes:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
