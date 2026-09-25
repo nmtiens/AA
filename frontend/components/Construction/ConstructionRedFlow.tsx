@@ -41,6 +41,7 @@ import {
   type StageDetailRow,
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
 import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
+import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
 interface ConstructionRedFlowProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
@@ -640,47 +641,101 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   // - COUNT: đếm số dòng có giá trị xuất kho > 0 (số hạng mục đã xuất).
   // Chuẩn hóa UPPER/TRIM khi gộp và khi tra cứu, đồng bộ với cách backend
   // (server.ts) đang so khớp ten_cong_trinh giữa các bảng.
-  const exportedByProject = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!expCongTrinhKey) return map;
-    const isCount = projectSummaryMetric === 'COUNT';
+// ✅ SỬA: đếm số HEX DUY NHẤT (COUNT) hoặc tổng thành tiền (VALUE) từ exportData,
+// chỉ tính các dòng có tinh_doi_voi_hang_tp = "TÍNH" (đối với hàng thành phẩm).
+const exportedByProject = useMemo(() => {
+  const map = new Map<string, number>();
+  if (!expCongTrinhKey) return map;
+  const isCount = projectSummaryMetric === 'COUNT';
 
+  if (isCount) {
+    // COUNT: đếm số hex duy nhất theo từng công trình, chỉ tính dòng "TÍNH"
+    const hexSetByProject = new Map<string, Set<string>>();
     exportData.forEach(row => {
       const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
       if (!name) return;
-      const raw = parseNumber(row[expThanhTienKey]);
-      const val = isCount ? (raw > 0 ? 1 : 0) : (raw / 1000);
-      map.set(name, (map.get(name) || 0) + val);
+      const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
+      if (tinh !== 'TÍNH') return;
+      const hex = String(row['hex'] || '').trim();
+      if (!hex) return;
+      if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
+      hexSetByProject.get(name)!.add(hex);
     });
+    hexSetByProject.forEach((set, name) => map.set(name, set.size));
+  } else {
+    // VALUE: tổng thành tiền xuất kho, chỉ tính dòng "TÍNH"
+    exportData.forEach(row => {
+      const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+      if (!name) return;
+      const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
+      if (tinh !== 'TÍNH') return;
+      const raw = parseNumber(row[expThanhTienKey]);
+      map.set(name, (map.get(name) || 0) + raw / 1000);
+    });
+  }
 
-    return map;
-  }, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
+  return map;
+}, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
+
+// ✅ MỚI: Gộp "Nhập kho" theo công trình từ inventoryData (bảng nhap_kho),
+// thay vì lấy từ thanhTienNhapKhoKey trong production_status_app — để khớp
+// đúng với InventoryDetailModal khi bấm vào xem chi tiết.
+const inventoryByProject = useMemo(() => {
+  const map = new Map<string, number>();
+  if (!invCongTrinhKey) return map;
+  const isCount = projectSummaryMetric === 'COUNT';
+
+  if (isCount) {
+    // COUNT: đếm số hex duy nhất theo từng công trình
+    const hexSetByProject = new Map<string, Set<string>>();
+    inventoryData.forEach(row => {
+      const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
+      if (!name) return;
+      const hex = String(row['hex'] || '').trim();
+      if (!hex) return;
+      if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
+      hexSetByProject.get(name)!.add(hex);
+    });
+    hexSetByProject.forEach((set, name) => map.set(name, set.size));
+  } else {
+    // VALUE: tổng thành tiền nhập kho
+    inventoryData.forEach(row => {
+      const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
+      if (!name) return;
+      const raw = parseNumber(row[invThanhTienKey]);
+      map.set(name, (map.get(name) || 0) + raw / 1000);
+    });
+  }
+
+  return map;
+}, [inventoryData, invCongTrinhKey, invThanhTienKey, projectSummaryMetric]);
 
   // ✅ Adapter: chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
   // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
   // ✅ Adapter: chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
   // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
-  const projectOrderSummary = useMemo(
-    () =>
-      projectStatusSummaryV2.map(row => {
-        const cancelled = row.cancelled; // ✅ THAY cho const cancelled = 0;
-        const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
-        const notDeployed = row.notDeployed;
-        const onLine = row.inProduction;
-        return {
-          name: row.name,
-          totalOrder: row.totalOrder,
-          cancelled,
-          afterCancel: row.totalOrder - cancelled,
-          inventory: row.inventory,
-          exported,
-          notDeployed,
-          onLine,
-          remaining: notDeployed + onLine,
-        };
-      }),
-    [projectStatusSummaryV2, exportedByProject]
-  );
+const projectOrderSummary = useMemo(
+  () =>
+    projectStatusSummaryV2.map(row => {
+      const cancelled = row.cancelled;
+      const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
+      const inventory = inventoryByProject.get(row.name.trim().toUpperCase()) || 0; // ✅ SỬA
+      const notDeployed = row.notDeployed;
+      const onLine = row.inProduction;
+      return {
+        name: row.name,
+        totalOrder: row.totalOrder,
+        cancelled,
+        afterCancel: row.totalOrder - cancelled,
+        inventory, // ✅ SỬA: dùng giá trị mới thay vì row.inventory
+        exported,
+        notDeployed,
+        onLine,
+        remaining: notDeployed + onLine,
+      };
+    }),
+  [projectStatusSummaryV2, exportedByProject, inventoryByProject] // ✅ thêm inventoryByProject
+);
 
   // -------------------------------------------------------------------------
   // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
@@ -704,6 +759,13 @@ const [onLineStageDetail, setOnLineStageDetail] = useState<{
     open: boolean;
     projectName: string | null;
   }>({ open: false, projectName: null });
+
+  const [inventoryDetail, setInventoryDetail] = useState<{
+  open: boolean;
+  projectName: string | null;
+}>({ open: false, projectName: null });
+
+
 const hexDetailRows = useMemo(() => {
   if (!hexDetail.open || !hexDetail.column) return [];
   let source = hexRowsByColumnV2[hexDetail.column] ?? [];
@@ -741,14 +803,41 @@ const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
   [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
 );
 
-  const exportDetailRows = useMemo(() => {
-    if (!exportDetail.open || !expCongTrinhKey) return [];
-    if (!exportDetail.projectName) return exportData; // dòng TỔNG CỘNG -> xem tất cả
-    const target = exportDetail.projectName.trim().toUpperCase();
-    return exportData.filter(
-      row => String(row[expCongTrinhKey] || '').trim().toUpperCase() === target
-    );
-  }, [exportDetail, exportData, expCongTrinhKey]);
+const exportDetailRows = useMemo(() => {
+  if (!exportDetail.open || !expCongTrinhKey) return [];
+
+  const base = exportDetail.projectName
+    ? exportData.filter(
+        row => String(row[expCongTrinhKey] || '').trim().toUpperCase() === exportDetail.projectName!.trim().toUpperCase()
+      )
+    : exportData; // dòng TỔNG CỘNG -> xem tất cả công trình
+
+  // ✅ Lọc thêm theo tinh_doi_voi_hang_tp = "TÍNH" để khớp đúng cách card đang đếm
+  return base.filter(
+    row => String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase() === 'TÍNH'
+  );
+}, [exportDetail, exportData, expCongTrinhKey]);
+
+const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
+  () => ({
+    hexKey: 'hex',
+    congTrinhKey: invCongTrinhKey,
+    xuongKey: invXuongKey,
+    dateKey: invDateKey,
+    thanhTienKey: invThanhTienKey,
+    ghiChuKey: 'ghi_chu', // ← thêm dòng này
+  }),
+  [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
+);
+
+const inventoryDetailRows = useMemo(() => {
+  if (!inventoryDetail.open || !invCongTrinhKey) return [];
+  if (!inventoryDetail.projectName) return inventoryData; // TỔNG CỘNG -> xem tất cả
+  const target = inventoryDetail.projectName.trim().toUpperCase();
+  return inventoryData.filter(
+    row => String(row[invCongTrinhKey] || '').trim().toUpperCase() === target
+  );
+}, [inventoryDetail, inventoryData, invCongTrinhKey]);
 
   // ✅ MỚI: bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở
   // HexDetailModal đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và

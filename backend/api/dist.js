@@ -57625,7 +57625,8 @@ var REPORT_COLUMNS = {
     "thang",
     "ngay",
     "date",
-    "tuan"
+    "tuan",
+    "ghi_chu"
   ],
   xuat_kho: [
     "hex",
@@ -57634,7 +57635,8 @@ var REPORT_COLUMNS = {
     "date",
     "xuong_chinh",
     "ten_cong_trinh",
-    "ghi_chu"
+    "ghi_chu",
+    "tinh_doi_voi_hang_tp"
   ],
   ton_kho: [
     "hex",
@@ -58007,7 +58009,7 @@ var ANALYSIS_TABLES = {
   order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true, productionJoinCol: "hex" },
   tkbv: { table: "tkbv_full", dateCol: "ngay_nhan", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
   pthsp: { table: "pthsp_full", dateCol: "ngay_hoan_thanh", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
-  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1e6, joinProductionForFilters: true, productionJoinCol: "hex" },
+  inventory: { table: "nhap_kho", dateCol: "date", valueCol: "thanh_tien_nhap_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" },
   export: { table: "xuat_kho", dateCol: "date", valueCol: "so_luong_xuat_kho", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: "hex" }
 };
 var ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
