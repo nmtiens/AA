@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
   ChevronLeft, ChevronRight,
@@ -92,18 +93,9 @@ const extractDriveFileIds = (text: string): string[] => {
   return ids;
 };
 
-// Một dòng chỉ chứa đúng 1 link Drive (không có chữ khác) -> ẩn khỏi phần
-// text vì đã có thumbnail thay thế, tránh hiển thị trùng lặp.
-const isBareDriveLink = (s: string) => /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view$/.test(s.trim());
-
-const stripBareDriveLinks = (line: string): string =>
-  line.split('\n').filter(sub => !isBareDriveLink(sub)).join('\n').trim();
-
 // Lưới ảnh thu nhỏ (thumbnail) + xem phóng to (lightbox) có nút chuyển ảnh trước/sau.
 // Ảnh không tải được (do quyền Drive hoặc chưa đăng nhập đúng tài khoản Google)
 // hiện ô báo lỗi thay vì icon ảnh vỡ mặc định của trình duyệt.
-// Lưới ảnh thu nhỏ (thumbnail) + xem phóng to (lightbox) có nút chuyển ảnh trước/sau.
-//
 // Google Drive chặn <img src="/thumbnail?...">` nếu trình duyệt gửi kèm header
 // Referer là domain lạ (hotlink protection) -> dùng referrerPolicy="no-referrer"
 // để bỏ header đó, ảnh sẽ tải được với các file đã cấp quyền cho tài khoản đang
@@ -160,18 +152,18 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
 
       {lightboxIndex !== null && (
         <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 p-4"
+className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/80 p-4"
           role="dialog"
           aria-modal="true"
         >
-                  <div className="relative flex h-[94vh] w-[97vw] max-w-6xl flex-col rounded-lg bg-white shadow-2xl">
+          <div className="relative flex h-[94vh] w-[97vw] max-w-6xl flex-col rounded-lg bg-white shadow-2xl">
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-2">
               <span className="text-xs text-slate-500">
                 Ảnh {lightboxIndex + 1} / {fileIds.length}
               </span>
               <div className="flex items-center gap-3">
-                <a
-                  href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
+                
+                 <a href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-medium text-emerald-700 hover:underline"
@@ -225,15 +217,6 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
 };
 
 // Hiển thị nội dung ĐÚNG 1 cột ghi chú của ĐÚNG 1 dòng đang chọn (không gộp 5 mục).
-// Mỗi khối theo ngày có vùng cuộn RIÊNG (giới hạn chiều cao), để xem dữ liệu
-// của 1 ngày mà không phải cuộn qua các ngày khác.
-
-
-// Hiển thị nội dung ĐÚNG 1 cột ghi chú của ĐÚNG 1 dòng đang chọn (không gộp 5 mục).
-// Mỗi khối theo ngày hiện ĐẦY ĐỦ (không giới hạn chiều cao riêng, không cuộn
-// riêng) — nội dung dài thì cuộn chung theo toàn bộ cửa sổ popup bên ngoài,
-// để không bị cắt mất dữ liệu (ví dụ link ảnh) như khi cuộn riêng từng khối.
-// Hiển thị nội dung ĐÚNG 1 cột ghi chú của ĐÚNG 1 dòng đang chọn (không gộp 5 mục).
 // CUỘN 2 LỚP:
 //  - Lớp NGOÀI (do component cha bọc, xem trong JSX popup): cuộn qua các NGÀY.
 //  - Lớp TRONG (mỗi khối ngày ở đây): tự cuộn riêng khi nội dung/ảnh của
@@ -265,15 +248,21 @@ const NoteContent = ({ text }: { text: string }) => {
               className="overflow-y-auto p-4 text-sm leading-relaxed text-slate-700 custom-scrollbar"
               style={{ maxHeight: NOTE_BLOCK_MAX_HEIGHT }}
             >
-              {block.lines.map((line, j) => {
-                const displayLine = stripBareDriveLinks(line);
-                if (!displayLine) return null;
-                return (
-                  <div key={j} className="break-words whitespace-pre-wrap pl-1">
-                    # {displayLine}
-                  </div>
-                );
-              })}
+              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+                {block.lines.map((line, j) => {
+                  if (extractDriveFileIds(line).length > 0) return null;
+                  const displayLine = line.trim();
+                  if (!displayLine) return null;
+                  return (
+                    <span
+                      key={j}
+                      className="whitespace-pre-wrap break-words after:mx-1.5 after:text-slate-300 after:content-['•'] last:after:content-none"
+                    >
+                      # {displayLine}
+                    </span>
+                  );
+                })}
+              </div>
               <ImageGallery fileIds={fileIds} />
             </div>
           </div>
@@ -687,14 +676,17 @@ export const HexDetailModal = ({
     );
   };
 
-  return (
+  // ✅ SỬA: return createPortal(...) — render trực tiếp ra document.body để
+  // position: fixed luôn tính theo viewport thật, không bị giam trong bất kỳ
+  // ancestor nào có transform/filter/contain ở layout cha (sidebar, app shell...).
+  return createPortal(
     <>
       <div
-        className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4"
+    className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 p-4"
         role="dialog"
         aria-modal="true"
       >
-               <div
+        <div
           className="flex flex-col rounded-xl bg-white shadow-xl"
           style={{ width: '98vw', maxWidth: 2200, height: '94vh' }}
           onClick={(e) => e.stopPropagation()}
@@ -927,11 +919,11 @@ export const HexDetailModal = ({
           Chỉ đóng bằng nút X — bấm ra ngoài (backdrop) hoặc Escape KHÔNG đóng. */}
       {selectedNote && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
+         className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 p-4"
           role="dialog"
           aria-modal="true"
         >
-                   <div
+          <div
             className="flex h-[92vh] w-[96vw] max-w-none flex-col rounded-xl bg-white shadow-2xl"
           >
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
@@ -965,6 +957,7 @@ export const HexDetailModal = ({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 };

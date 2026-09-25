@@ -16,6 +16,8 @@ export interface ExportDetailColumnKeys {
   thanhTienKey: string;
   // Cột ghi chú xuất kho (bảng production) — tùy chọn, mặc định là tên cột trong DB
   ghiChuXuatKhoKey?: string;
+  // ✅ MỚI: Tên Hạng Mục — tùy chọn, mặc định 'ten_hang_muc'.
+  hangMucKey?: string;
 }
 
 interface ExportDetailModalProps {
@@ -153,8 +155,8 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
                 Ảnh {lightboxIndex + 1} / {fileIds.length}
               </span>
               <div className="flex items-center gap-3">
-                <a
-                  href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
+                
+                  <a href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-medium text-emerald-700 hover:underline"
@@ -257,6 +259,7 @@ const NoteContent = ({ text }: { text: string }) => {
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
+  hangMuc: 260, // ✅ MỚI — Tên Hạng Mục
   congTrinh: 200,
   xuong: 100,
   date: 120,
@@ -265,7 +268,7 @@ const COL_WIDTHS = {
   ghiChuXuatKho: 320,
 };
 
-type SortKey = 'stt' | 'hex' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChuXuatKho';
+type SortKey = 'stt' | 'hex' | 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChuXuatKho';
 type SortDir = 'asc' | 'desc';
 
 const NUMERIC_SORT_KEYS: SortKey[] = ['soLuong', 'thanhTien'];
@@ -300,6 +303,7 @@ export const ExportDetailModal = ({
   const {
     hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey,
     ghiChuXuatKhoKey = 'tong_hop_ghi_chu_xuat_kho',
+    hangMucKey = 'ten_hang_muc', // ✅ MỚI
   } = columnKeys;
 
   const [search, setSearch] = useState('');
@@ -452,6 +456,7 @@ const indexedRows = useMemo(() => {
     const getValue = (row: DataRow): number | string => {
       switch (sort.key) {
         case 'hex': return String(row[hexKey] || '');
+        case 'hangMuc': return String(row[hangMucKey] || ''); // ✅ MỚI
         case 'congTrinh': return String(row[congTrinhKey] || '');
         case 'xuong': return String(row[xuongKey] || '');
         case 'date': return parseDateValue(row[dateKey]);
@@ -470,7 +475,7 @@ const indexedRows = useMemo(() => {
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [indexedRows, sort, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey, getNotePreview]);
+  }, [indexedRows, sort, hexKey, hangMucKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey, getNotePreview]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce(
@@ -491,7 +496,7 @@ const indexedRows = useMemo(() => {
   if (!isOpen) return null;
 
   const exportColumns = [
-    'STT', 'Mã Hex',
+    'STT', 'Mã Hex', 'Hạng Mục', // ✅ MỚI
     ...(showProjectColumn ? ['Công Trình'] : []),
     'Khu Vực SX', 'Ngày Xuất', 'Số Lượng Xuất Kho', 'Thành Tiền Xuất Kho (1000 VNĐ)',
     'Tổng Hợp Ghi Chú Xuất Kho',
@@ -507,6 +512,7 @@ const handleExportCsv = () => {
   const exportRows = sortedRows.map(({ row, stt }) => ({
     'STT': stt,
     'Mã Hex': String(row[hexKey] || ''),
+    'Hạng Mục': String(row[hangMucKey] || ''), // ✅ MỚI
     ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
     'Khu Vực SX': String(row[xuongKey] || ''),
     'Ngày Xuất': formatDateDisplay(row[dateKey]),
@@ -520,6 +526,7 @@ const handleExportCsv = () => {
   const totalMinWidth =
     COL_WIDTHS.stt +
     COL_WIDTHS.hex +
+    COL_WIDTHS.hangMuc + // ✅ MỚI
     (showProjectColumn ? COL_WIDTHS.congTrinh : 0) +
     COL_WIDTHS.xuong +
     COL_WIDTHS.date +
@@ -539,6 +546,7 @@ const handleExportCsv = () => {
     <colgroup>
       <col style={{ width: pct(COL_WIDTHS.stt) }} />
       <col style={{ width: pct(COL_WIDTHS.hex) }} />
+      <col style={{ width: pct(COL_WIDTHS.hangMuc) }} /> {/* ✅ MỚI */}
       {showProjectColumn && <col style={{ width: pct(COL_WIDTHS.congTrinh) }} />}
       <col style={{ width: pct(COL_WIDTHS.xuong) }} />
       <col style={{ width: pct(COL_WIDTHS.date) }} />
@@ -668,6 +676,7 @@ const handleExportCsv = () => {
                               <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                             </span>
                           </th>
+                          <SortableHeader sortKey="hangMuc">Hạng Mục</SortableHeader> {/* ✅ MỚI */}
                           {showProjectColumn && (
                             <SortableHeader sortKey="congTrinh">Công Trình</SortableHeader>
                           )}
@@ -758,6 +767,14 @@ const handleExportCsv = () => {
             {hexValue}
           </td>
         )}
+        {isHexGroupStart && (
+          <td
+            rowSpan={hexRowSpan}
+            className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
+          >
+            {String(row[hangMucKey] || '—')}
+          </td>
+        )}
         {showProjectColumn && (
           <td className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
             {String(row[congTrinhKey] || '—')}
@@ -803,7 +820,7 @@ const handleExportCsv = () => {
                         <tr>
                          <td
   className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left"
-  colSpan={showProjectColumn ? 5 : 4}
+  colSpan={showProjectColumn ? 6 : 5}  // ✅ SỬA: +1 do thêm cột Hạng Mục
 >
   TỔNG CỘNG ({groupCount} mã Hex)
 </td>

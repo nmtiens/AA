@@ -803,12 +803,13 @@ const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
 const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
   () => ({
     hexKey: 'hex',
+    hangMucKey: 'ten_hang_muc', // ✅ MỚI
     congTrinhKey: expCongTrinhKey,
     xuongKey: expXuongKey,
     dateKey: expDateKey,
     soLuongKey: expSoLuongKey,
     thanhTienKey: expThanhTienKey,
-    ghiChuXuatKhoKey: 'ghi_chu', // ← thêm dòng này
+    ghiChuXuatKhoKey: 'ghi_chu',
   }),
   [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
 );
@@ -831,13 +832,12 @@ const exportDetailRows = useMemo(() => {
 const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
   () => ({
     hexKey: 'hex',
+    hangMucKey: 'ten_hang_muc', // ✅ MỚI
     congTrinhKey: invCongTrinhKey,
     xuongKey: invXuongKey,
     dateKey: invDateKey,
     thanhTienKey: invThanhTienKey,
-    ghiChuKey: 'ghi_chu', // ← thêm dòng này
-    // ✅ MỚI: tên cột "số lượng nhập kho" trong bảng nhap_kho ở backend.
-    // Nếu tên field thật trong DB khác 'so_luong', đổi lại giá trị này cho khớp.
+    ghiChuKey: 'ghi_chu',
     soLuongKey: 'so_luong_nhap_kho',
   }),
   [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]

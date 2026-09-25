@@ -16,6 +16,8 @@ export interface InventoryDetailColumnKeys {
   // Cột số lượng nhập kho — tùy chọn, mặc định là tên cột trong DB.
   // ✅ MỚI: backend đã có sẵn field này trong bảng nhap_kho.
   soLuongKey?: string;
+  // ✅ MỚI: Tên Hạng Mục — tùy chọn, mặc định 'ten_hang_muc'.
+  hangMucKey?: string;
 }
 
 interface InventoryDetailModalProps {
@@ -44,6 +46,7 @@ const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
+  hangMuc: 260, // ✅ MỚI — Tên Hạng Mục
   congTrinh: 200,
   xuong: 100,
   date: 120,
@@ -52,7 +55,7 @@ const COL_WIDTHS = {
   ghiChu: 320,
 };
 
-type SortKey = 'stt' | 'hex' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
+type SortKey = 'stt' | 'hex' | 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
 type SortDir = 'asc' | 'desc';
 
 const NUMERIC_SORT_KEYS: SortKey[] = ['thanhTien', 'soLuong'];
@@ -87,6 +90,7 @@ export const InventoryDetailModal = ({
     hexKey, congTrinhKey, xuongKey, dateKey, thanhTienKey,
     ghiChuKey = 'ghi_chu',
     soLuongKey = 'so_luong_nhap_kho', // ✅ MỚI — chỉnh lại nếu tên cột thật trong DB khác
+    hangMucKey = 'ten_hang_muc', // ✅ MỚI
   } = columnKeys;
 
   const [search, setSearch] = useState('');
@@ -209,6 +213,7 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
 const getValue = (row: DataRow): number | string => {
   switch (sort.key) {
     case 'hex': return String(row[hexKey] || '');
+    case 'hangMuc': return String(row[hangMucKey] || ''); // ✅ MỚI
     case 'congTrinh': return String(row[congTrinhKey] || '');
     case 'xuong': return String(row[xuongKey] || '');
     case 'date': return parseDateValue(row[dateKey]);
@@ -227,7 +232,7 @@ const getValue = (row: DataRow): number | string => {
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [indexedRows, sort, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
+  }, [indexedRows, sort, hexKey, hangMucKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce((acc, row) => acc + parseNumber(row[thanhTienKey]), 0);
@@ -246,7 +251,7 @@ const getValue = (row: DataRow): number | string => {
   if (!isOpen) return null;
 
 const exportColumns = [
-  'STT', 'Mã Hex',
+  'STT', 'Mã Hex', 'Hạng Mục', // ✅ MỚI
   ...(showProjectColumn ? ['Công Trình'] : []),
   'Khu Vực SX', 'Ngày Nhập', 'Số Lượng Nhập Kho', 'Thành Tiền Nhập Kho (1000 VNĐ)', 'Ghi Chú Nhập Kho',
 ];
@@ -258,6 +263,7 @@ const handleExportCsv = () => {
   const exportRows = sortedRows.map(({ row, stt }) => ({
     'STT': stt,
     'Mã Hex': String(row[hexKey] || ''),
+    'Hạng Mục': String(row[hangMucKey] || ''), // ✅ MỚI
     ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
     'Khu Vực SX': String(row[xuongKey] || ''),
     'Ngày Nhập': formatDateDisplay(row[dateKey]),
@@ -271,22 +277,24 @@ const handleExportCsv = () => {
 // ✅ SỬA: totalMinWidth vẫn dùng để tính min-width tổng của bảng (đảm bảo
 // scroll ngang khi màn hình hẹp) — nhưng KHÔNG còn dùng để quy đổi % nữa.
 const totalMinWidth =
-  COL_WIDTHS.stt + COL_WIDTHS.hex +
+  COL_WIDTHS.stt + COL_WIDTHS.hex + COL_WIDTHS.hangMuc + // ✅ MỚI
   (showProjectColumn ? COL_WIDTHS.congTrinh : 0) +
   COL_WIDTHS.xuong + COL_WIDTHS.date + COL_WIDTHS.soLuong + COL_WIDTHS.thanhTien + COL_WIDTHS.ghiChu;
 
   const tableStyle: React.CSSProperties = { width: '100%', minWidth: totalMinWidth, tableLayout: 'fixed' };
 
 // ✅ SỬA: colgroup dùng PX cố định cho mọi cột có độ rộng xác định (STT, Hex,
-// Công Trình, Khu Vực SX, Ngày Nhập, Số Lượng, Thành Tiền). Riêng cột "Ghi
-// Chú" KHÔNG khai báo width -> với table-layout: fixed, nó sẽ tự hấp thụ toàn
-// bộ phần không gian còn thừa khi modal rộng hơn totalMinWidth. Nhờ vậy các
-// cột sticky (STT, Mã Hex) luôn có độ rộng thật đúng bằng COL_WIDTHS, offset
-// "left" không bao giờ bị lệch nữa — bất kể modal được mở rộng đến đâu.
+// Hạng Mục, Công Trình, Khu Vực SX, Ngày Nhập, Số Lượng, Thành Tiền). Riêng
+// cột "Ghi Chú" KHÔNG khai báo width -> với table-layout: fixed, nó sẽ tự
+// hấp thụ toàn bộ phần không gian còn thừa khi modal rộng hơn totalMinWidth.
+// Nhờ vậy các cột sticky (STT, Mã Hex) luôn có độ rộng thật đúng bằng
+// COL_WIDTHS, offset "left" không bao giờ bị lệch nữa — bất kể modal được mở
+// rộng đến đâu.
 const ColGroup = () => (
   <colgroup>
     <col style={{ width: COL_WIDTHS.stt }} />
     <col style={{ width: COL_WIDTHS.hex }} />
+    <col style={{ width: COL_WIDTHS.hangMuc }} /> {/* ✅ MỚI */}
     {showProjectColumn && <col style={{ width: COL_WIDTHS.congTrinh }} />}
     <col style={{ width: COL_WIDTHS.xuong }} />
     <col style={{ width: COL_WIDTHS.date }} />
@@ -388,6 +396,7 @@ const ColGroup = () => (
                             <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                           </span>
                         </th>
+                        <SortableHeader sortKey="hangMuc">Hạng Mục</SortableHeader> {/* ✅ MỚI */}
                         {showProjectColumn && <SortableHeader sortKey="congTrinh">Công Trình</SortableHeader>}
                         <SortableHeader sortKey="xuong">Khu Vực SX</SortableHeader>
                         <SortableHeader sortKey="date">Ngày Nhập</SortableHeader>
@@ -469,6 +478,14 @@ const ColGroup = () => (
                             {hexValue}
                           </td>
                         )}
+                        {isHexGroupStart && (
+                          <td
+                            rowSpan={hexRowSpan}
+                            className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
+                          >
+                            {String(row[hangMucKey] || '—')}
+                          </td>
+                        )}
                         {showProjectColumn && (
                           <td className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
                             {String(row[congTrinhKey] || '—')}
@@ -514,7 +531,7 @@ const ColGroup = () => (
   <tr>
    <td
   className="sticky left-0 z-10 bg-indigo-100 px-3 py-3 text-left"
-  colSpan={showProjectColumn ? 5 : 4}   // was 4 : 3
+  colSpan={showProjectColumn ? 6 : 5}   // ✅ SỬA: +1 do thêm cột Hạng Mục
 >
   TỔNG CỘNG ({groupCount} mã Hex)
 </td>

@@ -831,6 +831,7 @@ const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
 const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
   () => ({
     hexKey: 'hex',
+    hangMucKey: 'ten_hang_muc', // ✅ MỚI
     congTrinhKey: expCongTrinhKey,
     xuongKey: expXuongKey,
     dateKey: expDateKey,
@@ -860,16 +861,16 @@ const exportDetailRows = useMemo(() => {
 const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
   () => ({
     hexKey: 'hex',
+    hangMucKey: 'ten_hang_muc', // ✅ MỚI
     congTrinhKey: invCongTrinhKey,
     xuongKey: invXuongKey,
     dateKey: invDateKey,
     thanhTienKey: invThanhTienKey,
     ghiChuKey: 'ghi_chu',
-    soLuongKey: 'so_luong_nhap_kho', // đổi lại nếu tên field thật trong DB khác
+    soLuongKey: 'so_luong_nhap_kho',
   }),
   [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
 );
-
 const inventoryDetailRows = useMemo(() => {
   if (!inventoryDetail.open || !invCongTrinhKey) return [];
   if (!inventoryDetail.projectName) return inventoryData; // TỔNG CỘNG -> xem tất cả

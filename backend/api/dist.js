@@ -57627,7 +57627,8 @@ var REPORT_COLUMNS = {
     "ngay",
     "date",
     "tuan",
-    "ghi_chu"
+    "ghi_chu",
+    "ten_hang_muc"
   ],
   xuat_kho: [
     "hex",
@@ -57637,7 +57638,8 @@ var REPORT_COLUMNS = {
     "xuong_chinh",
     "ten_cong_trinh",
     "ghi_chu",
-    "tinh_doi_voi_hang_tp"
+    "tinh_doi_voi_hang_tp",
+    "ten_hang_muc"
   ],
   ton_kho: [
     "hex",

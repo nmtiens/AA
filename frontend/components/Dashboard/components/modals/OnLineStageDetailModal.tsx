@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
@@ -207,9 +208,13 @@ export const OnLineStageDetailModal = ({
     .trim()
     .replace(/\s+/g, '_')}`;
 
-  return (
+  // ✅ SỬA: return createPortal(...) thay vì return JSX trực tiếp — render ra
+  // document.body để tránh bị "giam" trong ancestor có transform (sidebar/app
+  // shell), và tăng z-index lên z-[9999] để luôn nổi trên HexDetailModal
+  // (z-[9998]) khi cả hai cùng mở, không phụ thuộc thứ tự DOM.
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -393,6 +398,7 @@ export const OnLineStageDetailModal = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
