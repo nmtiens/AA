@@ -58613,7 +58613,7 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
       `, [TARGET_WORKSHOPS, yearStart, yearEnd])
     ], 2);
     const targetTotal = Number(planQ.rows[0].total);
-    const actualTotal = Number(actualQ.rows[0].total) / VND_TO_TY;
+    const actualTotal = Number(actualQ.rows[0].total) / 1e3;
     const workshopMap = {};
     byWorkshopPlanQ.rows.forEach((r) => {
       workshopMap[r.name] = { plan: Number(r.plan), actual: 0 };
