@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
-import { formatDecimal, parseNumber } from '../../utils/numberParsers';
+import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -13,6 +13,9 @@ export interface InventoryDetailColumnKeys {
   thanhTienKey: string;
   // Cột ghi chú nhập kho — tùy chọn, mặc định là tên cột trong DB
   ghiChuKey?: string;
+  // Cột số lượng nhập kho — tùy chọn, mặc định là tên cột trong DB.
+  // ✅ MỚI: backend đã có sẵn field này trong bảng nhap_kho.
+  soLuongKey?: string;
 }
 
 interface InventoryDetailModalProps {
@@ -23,26 +26,36 @@ interface InventoryDetailModalProps {
   columnKeys: InventoryDetailColumnKeys;
 }
 
-const money = (value: number) => formatDecimal(value / 1000);
+const money = (value: number) => formatSmartDecimal(value / 1000);
+const quantity = (value: number) => formatSmartDecimal(value);
+
+const moneyTotal = (value: number) => formatDecimalFull(value / 1000);
+const quantityTotal = (value: number) => formatDecimalFull(value);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
   text.length > limit ? `${text.slice(0, limit)}...` : text;
 
+// ✅ SỬA: đây là độ rộng PX THẬT SỰ của từng cột (dùng trực tiếp trong <colgroup>,
+// không quy đổi ra %). Nhờ vậy offset "sticky left" của cột Mã Hex luôn khớp
+// chính xác với độ rộng thật của cột STT đứng trước nó, bất kể modal rộng bao
+// nhiêu (trước đây dùng % nên khi modal giãn ra, cột bị kéo to hơn COL_WIDTHS,
+// làm lệch toàn bộ bảng).
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
   congTrinh: 200,
   xuong: 100,
   date: 120,
+  soLuong: 110, // ✅ MỚI
   thanhTien: 140,
   ghiChu: 320,
 };
 
-type SortKey = 'stt' | 'hex' | 'congTrinh' | 'xuong' | 'date' | 'thanhTien' | 'ghiChu';
+type SortKey = 'stt' | 'hex' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
 type SortDir = 'asc' | 'desc';
 
-const NUMERIC_SORT_KEYS: SortKey[] = ['thanhTien'];
+const NUMERIC_SORT_KEYS: SortKey[] = ['thanhTien', 'soLuong'];
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-400" />;
@@ -70,7 +83,11 @@ export const InventoryDetailModal = ({
   rows,
   columnKeys,
 }: InventoryDetailModalProps) => {
-  const { hexKey, congTrinhKey, xuongKey, dateKey, thanhTienKey, ghiChuKey = 'ghi_chu' } = columnKeys;
+  const {
+    hexKey, congTrinhKey, xuongKey, dateKey, thanhTienKey,
+    ghiChuKey = 'ghi_chu',
+    soLuongKey = 'so_luong_nhap_kho', // ✅ MỚI — chỉnh lại nếu tên cột thật trong DB khác
+  } = columnKeys;
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
@@ -195,6 +212,7 @@ const getValue = (row: DataRow): number | string => {
     case 'congTrinh': return String(row[congTrinhKey] || '');
     case 'xuong': return String(row[xuongKey] || '');
     case 'date': return parseDateValue(row[dateKey]);
+    case 'soLuong': return parseNumber(row[soLuongKey]);
     case 'thanhTien': return parseNumber(row[thanhTienKey]);
     case 'ghiChu': return getNotePreview(row);
     default: return '';
@@ -209,11 +227,16 @@ const getValue = (row: DataRow): number | string => {
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [indexedRows, sort, hexKey, congTrinhKey, xuongKey, dateKey, thanhTienKey]);
+  }, [indexedRows, sort, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce((acc, row) => acc + parseNumber(row[thanhTienKey]), 0);
   }, [filteredRows, thanhTienKey]);
+
+  // ✅ MỚI: tổng số lượng nhập kho, hiển thị ở dòng TỔNG CỘNG cạnh thành tiền.
+  const totalQuantity = useMemo(() => {
+    return filteredRows.reduce((acc, row) => acc + parseNumber(row[soLuongKey]), 0);
+  }, [filteredRows, soLuongKey]);
 
   const groupCount = useMemo(() => {
     const set = new Set(filteredRows.map(row => String(row[hexKey] || '')));
@@ -225,7 +248,7 @@ const getValue = (row: DataRow): number | string => {
 const exportColumns = [
   'STT', 'Mã Hex',
   ...(showProjectColumn ? ['Công Trình'] : []),
-  'Khu Vực SX', 'Ngày Nhập', 'Thành Tiền Nhập Kho (1000 VNĐ)', 'Ghi Chú Nhập Kho',
+  'Khu Vực SX', 'Ngày Nhập', 'Số Lượng Nhập Kho', 'Thành Tiền Nhập Kho (1000 VNĐ)', 'Ghi Chú Nhập Kho',
 ];
 
   const exportFileName = `chi_tiet_nhap_kho_${(projectName ?? 'tat_ca_cong_trinh')
@@ -238,30 +261,38 @@ const handleExportCsv = () => {
     ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
     'Khu Vực SX': String(row[xuongKey] || ''),
     'Ngày Nhập': formatDateDisplay(row[dateKey]),
+    'Số Lượng Nhập Kho': parseNumber(row[soLuongKey]),
     'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
     'Ghi Chú Nhập Kho': String(row[ghiChuKey] ?? ''),
   }));
   exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
 };
 
+// ✅ SỬA: totalMinWidth vẫn dùng để tính min-width tổng của bảng (đảm bảo
+// scroll ngang khi màn hình hẹp) — nhưng KHÔNG còn dùng để quy đổi % nữa.
 const totalMinWidth =
   COL_WIDTHS.stt + COL_WIDTHS.hex +
   (showProjectColumn ? COL_WIDTHS.congTrinh : 0) +
-  COL_WIDTHS.xuong + COL_WIDTHS.date + COL_WIDTHS.thanhTien + COL_WIDTHS.ghiChu;
-
-  const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
+  COL_WIDTHS.xuong + COL_WIDTHS.date + COL_WIDTHS.soLuong + COL_WIDTHS.thanhTien + COL_WIDTHS.ghiChu;
 
   const tableStyle: React.CSSProperties = { width: '100%', minWidth: totalMinWidth, tableLayout: 'fixed' };
 
+// ✅ SỬA: colgroup dùng PX cố định cho mọi cột có độ rộng xác định (STT, Hex,
+// Công Trình, Khu Vực SX, Ngày Nhập, Số Lượng, Thành Tiền). Riêng cột "Ghi
+// Chú" KHÔNG khai báo width -> với table-layout: fixed, nó sẽ tự hấp thụ toàn
+// bộ phần không gian còn thừa khi modal rộng hơn totalMinWidth. Nhờ vậy các
+// cột sticky (STT, Mã Hex) luôn có độ rộng thật đúng bằng COL_WIDTHS, offset
+// "left" không bao giờ bị lệch nữa — bất kể modal được mở rộng đến đâu.
 const ColGroup = () => (
   <colgroup>
-    <col style={{ width: pct(COL_WIDTHS.stt) }} />
-    <col style={{ width: pct(COL_WIDTHS.hex) }} />
-    {showProjectColumn && <col style={{ width: pct(COL_WIDTHS.congTrinh) }} />}
-    <col style={{ width: pct(COL_WIDTHS.xuong) }} />
-    <col style={{ width: pct(COL_WIDTHS.date) }} />
-    <col style={{ width: pct(COL_WIDTHS.thanhTien) }} />
-    <col style={{ width: pct(COL_WIDTHS.ghiChu) }} />
+    <col style={{ width: COL_WIDTHS.stt }} />
+    <col style={{ width: COL_WIDTHS.hex }} />
+    {showProjectColumn && <col style={{ width: COL_WIDTHS.congTrinh }} />}
+    <col style={{ width: COL_WIDTHS.xuong }} />
+    <col style={{ width: COL_WIDTHS.date }} />
+    <col style={{ width: COL_WIDTHS.soLuong }} />
+    <col style={{ width: COL_WIDTHS.thanhTien }} />
+    <col />
   </colgroup>
 );
 
@@ -283,7 +314,7 @@ const ColGroup = () => (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
       <div
         className="flex flex-col rounded-xl bg-white shadow-xl"
-        style={{ width: '98vw', maxWidth: 1600, height: '94vh' }}
+        style={{ width: '98vw', maxWidth: 2200, height: '96vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
@@ -360,7 +391,7 @@ const ColGroup = () => (
                         {showProjectColumn && <SortableHeader sortKey="congTrinh">Công Trình</SortableHeader>}
                         <SortableHeader sortKey="xuong">Khu Vực SX</SortableHeader>
                         <SortableHeader sortKey="date">Ngày Nhập</SortableHeader>
-                        <SortableHeader sortKey="thanhTien" align="right">Thành Tiền</SortableHeader>
+                        <SortableHeader sortKey="soLuong" align="right">Số Lượng</SortableHeader>
                         <SortableHeader sortKey="thanhTien" align="right">Thành Tiền</SortableHeader>
 <th
   onClick={() => toggleSort('ghiChu')}
@@ -454,6 +485,9 @@ const ColGroup = () => (
                         <td className={`px-3 py-2.5 text-left align-top text-slate-600 ${cellBorder}`}>
                           {formatDateDisplay(row[dateKey]) || '—'}
                         </td>
+                        <td className={`px-3 py-2.5 text-right align-top text-slate-700 ${cellBorder}`}>
+                          {quantity(parseNumber(row[soLuongKey]))}
+                        </td>
                        <td className={`px-3 py-2.5 text-right align-top font-medium text-indigo-700 ${cellBorder}`}>
   {money(parseNumber(row[thanhTienKey]))}
 </td>
@@ -478,13 +512,14 @@ const ColGroup = () => (
                     <ColGroup />
                   <tfoot className="font-bold text-slate-900">
   <tr>
-    <td
-      className="sticky left-0 z-10 bg-indigo-100 px-3 py-3 text-left"
-      colSpan={showProjectColumn ? 4 : 3}
-    >
-      TỔNG CỘNG ({groupCount} mã Hex)
-    </td>
-    <td className="px-3 py-3 text-right">{money(totals)}</td>
+   <td
+  className="sticky left-0 z-10 bg-indigo-100 px-3 py-3 text-left"
+  colSpan={showProjectColumn ? 5 : 4}   // was 4 : 3
+>
+  TỔNG CỘNG ({groupCount} mã Hex)
+</td>
+    <td className="px-3 py-3 text-right">{quantityTotal(totalQuantity)}</td>
+<td className="px-3 py-3 text-right">{moneyTotal(totals)}</td>
     <td className="px-3 py-3"></td>
   </tr>
 </tfoot>

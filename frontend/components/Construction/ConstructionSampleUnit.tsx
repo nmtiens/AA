@@ -39,6 +39,9 @@ import {
   type StageDetailRow,
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
 import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/components/modals/HexDetailModal';
+// ✅ MỚI (đồng bộ từ ConstructionRedFlow): modal chi tiết Xuất kho / Nhập kho.
+import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
+import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
 // File này nằm ở src/components/Construction/ConstructionSampleUnit.tsx,
 // util nằm ở src/utils/viewDataConfig.ts -> phải đi lên 2 cấp: ../../utils/...
 import { filterByView, getProjectsForView } from './utils/viewDataConfig';
@@ -79,7 +82,9 @@ const VIEW_ID = 'can-mau' as const;
 // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
 // Chỉ khai báo type + label ở module scope (không dùng hook) — an toàn.
 // ---------------------------------------------------------------------------
-type HexDetailColumn = 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine' | 'remaining';
+// ✅ SỬA (đồng bộ từ ConstructionRedFlow): thêm 'cancelled' để khớp với cột
+// "Đã Hủy" đang hiển thị trong bảng.
+type HexDetailColumn = 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine' | 'remaining' | 'cancelled';
 
 const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   totalOrder: 'Tổng Giá Trị Đơn Hàng',
@@ -88,10 +93,21 @@ const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   notDeployed: 'Chưa Triển Khai (P001)',
   onLine: 'Đang Trên Chuyền (P002->P021)',
   remaining: 'Tổng Giá Trị Đơn Hàng Còn Lại',
+  cancelled: 'Tổng Giá Trị Đã Hủy', // ✅ MỚI
 };
 
-const isHexDetailColumn = (column: string): column is HexDetailColumn =>
-  column in HEX_COLUMN_LABELS;
+// ✅ SỬA (đồng bộ từ ConstructionRedFlow): cột "inventory" giờ được xử lý
+// riêng (mở InventoryDetailModal, lấy dữ liệu thật từ bảng nhap_kho) —
+// KHÔNG còn đi qua HexDetailModal (vốn suy ra từ filteredProductionData,
+// khác nguồn với số hex đang hiển thị ở bảng tổng quan).
+const HEX_DETAIL_MODAL_COLUMNS: Exclude<HexDetailColumn, 'inventory'>[] = [
+  'totalOrder', 'afterCancel', 'notDeployed', 'onLine', 'remaining', 'cancelled',
+];
+
+const isHexDetailColumn = (
+  column: string
+): column is Exclude<HexDetailColumn, 'inventory'> =>
+  (HEX_DETAIL_MODAL_COLUMNS as string[]).includes(column);
 
 // ---------------------------------------------------------------------------
 // MỚI: Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
@@ -209,7 +225,7 @@ const {
     khsxXuongKey, khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
     invThanhTienKey, invXuongKey, invCongTrinhKey, invNamKey, invThangKey,
     invNgayKey, invDateKey, invTuanKey,
-    expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey,
+    expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey, expSoLuongKey, // ✅ thêm expSoLuongKey
     stockDateKey, stockValueKey, stockSapIdKey,
     orderDateKey, orderValueKey, orderXuongKey, orderCongTrinhKey,
     tkbvDateKey, tkbvValueKey, tkbvXuongKey, tkbvCongTrinhKey,
@@ -619,27 +635,73 @@ const {
     fullTarget: targetRevenue2026,
   }], [factoryRevenueStats.actual, targetRevenue2026]);
 
-  // ✅ MỚI (đồng bộ từ ConstructionRedFlow): Gộp "Xuất kho" theo công trình từ
-  // exportData (đã filter theo view) để đưa vào cột "exported" của bảng tổng
-  // hợp đơn hàng, thay vì hardcode 0.
-  // - VALUE: tổng thanh_tien_xuat_kho / 1000 — quy về cùng thang (nghìn -> để
-  //   khớp cách totalOrder/inventory đang chia /1000 ở usePivotTables).
-  // - COUNT: đếm số dòng có giá trị xuất kho > 0 (số hạng mục đã xuất).
+  // ✅ SỬA (đồng bộ từ ConstructionRedFlow): đếm số HEX DUY NHẤT (COUNT) hoặc
+  // tổng thành tiền (VALUE) từ exportData, chỉ tính các dòng có
+  // tinh_doi_voi_hang_tp = "TÍNH" (đối với hàng thành phẩm) — khớp đúng cách
+  // ExportDetailModal đang lọc khi mở chi tiết.
   const exportedByProject = useMemo(() => {
     const map = new Map<string, number>();
     if (!expCongTrinhKey) return map;
     const isCount = projectSummaryMetric === 'COUNT';
 
-    exportData.forEach(row => {
-      const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
-      if (!name) return;
-      const raw = parseNumber(row[expThanhTienKey]);
-      const val = isCount ? (raw > 0 ? 1 : 0) : (raw / 1000);
-      map.set(name, (map.get(name) || 0) + val);
-    });
+    if (isCount) {
+      const hexSetByProject = new Map<string, Set<string>>();
+      exportData.forEach(row => {
+        const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
+        if (tinh !== 'TÍNH') return;
+        const hex = String(row['hex'] || '').trim();
+        if (!hex) return;
+        if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
+        hexSetByProject.get(name)!.add(hex);
+      });
+      hexSetByProject.forEach((set, name) => map.set(name, set.size));
+    } else {
+      exportData.forEach(row => {
+        const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
+        if (tinh !== 'TÍNH') return;
+        const raw = parseNumber(row[expThanhTienKey]);
+        map.set(name, (map.get(name) || 0) + raw / 1000);
+      });
+    }
 
     return map;
   }, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
+
+  // ✅ MỚI (đồng bộ từ ConstructionRedFlow): Gộp "Nhập kho" theo công trình từ
+  // inventoryData (bảng nhap_kho), thay vì lấy giá trị cũ trong
+  // projectStatusSummaryV2.row.inventory — để khớp đúng với InventoryDetailModal
+  // khi bấm vào xem chi tiết.
+  const inventoryByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!invCongTrinhKey) return map;
+    const isCount = projectSummaryMetric === 'COUNT';
+
+    if (isCount) {
+      const hexSetByProject = new Map<string, Set<string>>();
+      inventoryData.forEach(row => {
+        const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const hex = String(row['hex'] || '').trim();
+        if (!hex) return;
+        if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
+        hexSetByProject.get(name)!.add(hex);
+      });
+      hexSetByProject.forEach((set, name) => map.set(name, set.size));
+    } else {
+      inventoryData.forEach(row => {
+        const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const raw = parseNumber(row[invThanhTienKey]);
+        map.set(name, (map.get(name) || 0) + raw / 1000);
+      });
+    }
+
+    return map;
+  }, [inventoryData, invCongTrinhKey, invThanhTienKey, projectSummaryMetric]);
 
   // ✅ MỚI: xem chi tiết theo Công trình khi bấm vào 1 bước funnel
   const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
@@ -668,13 +730,14 @@ const {
 
   // ✅ SỬA (đồng bộ từ ConstructionRedFlow): Adapter chuyển projectStatusSummary
   // (kiểu cũ) sang kiểu của ProjectSummarySection_v2, dùng dữ liệu thật cho
-  // "cancelled" (từ projectStatusSummaryV2) và "exported" (từ exportedByProject)
-  // thay vì hardcode 0.
+  // "cancelled" (từ projectStatusSummaryV2), "exported" (từ exportedByProject)
+  // và "inventory" (từ inventoryByProject) thay vì hardcode/dùng giá trị cũ.
   const projectOrderSummary = useMemo(
     () =>
       projectStatusSummaryV2.map(row => {
         const cancelled = row.cancelled;
         const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
+        const inventory = inventoryByProject.get(row.name.trim().toUpperCase()) || 0; // ✅ SỬA
         const notDeployed = row.notDeployed;
         const onLine = row.inProduction;
         return {
@@ -682,19 +745,29 @@ const {
           totalOrder: row.totalOrder,
           cancelled,
           afterCancel: row.totalOrder - cancelled,
-          inventory: row.inventory,
+          inventory, // ✅ SỬA: dùng giá trị mới thay vì row.inventory
           exported,
           notDeployed,
           onLine,
           remaining: notDeployed + onLine,
         };
       }),
-    [projectStatusSummaryV2, exportedByProject]
+    [projectStatusSummaryV2, exportedByProject, inventoryByProject] // ✅ thêm inventoryByProject
   );
 
   // ✅ MỚI: Chi tiết "Đang trên chuyền P002->P021": bấm vào số ở cột này để mở modal.
   // projectName = null nghĩa là bấm từ dòng TỔNG CỘNG (xem tất cả công trình).
   const [onLineDetail, setOnLineDetail] = useState<{ open: boolean; projectName: string | null }>({
+    open: false,
+    projectName: null,
+  });
+
+  // ✅ MỚI (đồng bộ từ ConstructionRedFlow): state cho modal chi tiết Xuất kho / Nhập kho.
+  const [exportDetail, setExportDetail] = useState<{ open: boolean; projectName: string | null }>({
+    open: false,
+    projectName: null,
+  });
+  const [inventoryDetail, setInventoryDetail] = useState<{ open: boolean; projectName: string | null }>({
     open: false,
     projectName: null,
   });
@@ -753,6 +826,58 @@ const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   ]
 );
+
+// ✅ MỚI (đồng bộ từ ConstructionRedFlow): columnKeys + rows cho ExportDetailModal.
+const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
+  () => ({
+    hexKey: 'hex',
+    congTrinhKey: expCongTrinhKey,
+    xuongKey: expXuongKey,
+    dateKey: expDateKey,
+    soLuongKey: expSoLuongKey,
+    thanhTienKey: expThanhTienKey,
+    ghiChuXuatKhoKey: 'ghi_chu',
+  }),
+  [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
+);
+
+const exportDetailRows = useMemo(() => {
+  if (!exportDetail.open || !expCongTrinhKey) return [];
+
+  const base = exportDetail.projectName
+    ? exportData.filter(
+        row => String(row[expCongTrinhKey] || '').trim().toUpperCase() === exportDetail.projectName!.trim().toUpperCase()
+      )
+    : exportData; // dòng TỔNG CỘNG -> xem tất cả công trình
+
+  // ✅ Lọc thêm theo tinh_doi_voi_hang_tp = "TÍNH" để khớp đúng cách card đang đếm
+  return base.filter(
+    row => String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase() === 'TÍNH'
+  );
+}, [exportDetail, exportData, expCongTrinhKey]);
+
+// ✅ MỚI (đồng bộ từ ConstructionRedFlow): columnKeys + rows cho InventoryDetailModal.
+const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
+  () => ({
+    hexKey: 'hex',
+    congTrinhKey: invCongTrinhKey,
+    xuongKey: invXuongKey,
+    dateKey: invDateKey,
+    thanhTienKey: invThanhTienKey,
+    ghiChuKey: 'ghi_chu',
+    soLuongKey: 'so_luong_nhap_kho', // đổi lại nếu tên field thật trong DB khác
+  }),
+  [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
+);
+
+const inventoryDetailRows = useMemo(() => {
+  if (!inventoryDetail.open || !invCongTrinhKey) return [];
+  if (!inventoryDetail.projectName) return inventoryData; // TỔNG CỘNG -> xem tất cả
+  const target = inventoryDetail.projectName.trim().toUpperCase();
+  return inventoryData.filter(
+    row => String(row[invCongTrinhKey] || '').trim().toUpperCase() === target
+  );
+}, [inventoryDetail, inventoryData, invCongTrinhKey]);
 
   // ✅ MỚI: bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở
   // HexDetailModal đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và
@@ -872,10 +997,24 @@ const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
           sectionRef={projectSummaryRef}
           projectStatusSummary={projectOrderSummary}
           priorityOrder={viewProjectWhitelist}   // ✅ thêm dòng này
-          clickableColumns={['totalOrder', 'afterCancel', 'inventory', 'notDeployed', 'onLine', 'remaining']}
+          clickableColumns={['totalOrder', 'afterCancel', 'inventory', 'notDeployed', 'onLine', 'remaining', 'cancelled', 'exported']}
           onCellClick={({ projectName, column }) => {
             if (column === 'onLine') {
               setOnLineDetail({ open: true, projectName });
+              return;
+            }
+            // ✅ MỚI (đồng bộ từ ConstructionRedFlow): cột "exported" mở
+            // ExportDetailModal, lấy dữ liệu thật từ exportData.
+            if (column === 'exported') {
+              setExportDetail({ open: true, projectName });
+              return;
+            }
+            // ✅ MỚI (đồng bộ từ ConstructionRedFlow): cột "inventory" (Đã Nhập
+            // Kho P022) mở InventoryDetailModal, lấy dữ liệu thật từ
+            // inventoryData — cùng nguồn với số đang hiển thị ở bảng tổng
+            // quan. KHÔNG còn rơi vào HexDetailModal như trước.
+            if (column === 'inventory') {
+              setInventoryDetail({ open: true, projectName });
               return;
             }
             if (isHexDetailColumn(column)) {
@@ -1034,6 +1173,24 @@ const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
         projectName={hexDetail.projectName}
         rows={hexDetailRows}
         columnKeys={hexDetailColumnKeys}
+      />
+
+      {/* ✅ MỚI (đồng bộ từ ConstructionRedFlow): modal chi tiết Xuất kho. */}
+      <ExportDetailModal
+        isOpen={exportDetail.open}
+        onClose={() => setExportDetail(prev => ({ ...prev, open: false }))}
+        projectName={exportDetail.projectName}
+        rows={exportDetailRows}
+        columnKeys={exportDetailColumnKeys}
+      />
+
+      {/* ✅ MỚI (đồng bộ từ ConstructionRedFlow): modal chi tiết Nhập kho. */}
+      <InventoryDetailModal
+        isOpen={inventoryDetail.open}
+        onClose={() => setInventoryDetail(prev => ({ ...prev, open: false }))}
+        projectName={inventoryDetail.projectName}
+        rows={inventoryDetailRows}
+        columnKeys={inventoryDetailColumnKeys}
       />
 
       <ProductionExportModal

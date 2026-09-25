@@ -19,7 +19,6 @@ const UserManagement = lazy(() => import('./components/UserManagement'));
 const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
 const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
-
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -76,7 +75,6 @@ const App: React.FC = () => {
                 <Route path="/tkbv" element={<RequirePermission viewId="tkbv"><TkbvDataWrapper /></RequirePermission>} />
                 <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
                 <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
-
                 {/* --- Nhóm Công trình --- */}
                 <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionRedFlowWrapper /></RequirePermission>} />
                 <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionSampleUnitWrapper /></RequirePermission>} />

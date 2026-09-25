@@ -83,3 +83,22 @@ export const formatDecimalFull = (value: number): string => {
     maximumFractionDigits: 3,
   });
 };
+
+// Hiển thị đủ số thập phân để số khác 0 không bị làm tròn về "0",
+// nhưng vẫn gọn cho số bình thường (không thêm số 0 thừa ở đuôi).
+export const formatSmartDecimal = (value: number, maxDecimals = 6): string => {
+  if (!Number.isFinite(value)) return '0';
+  if (value === 0) return '0';
+
+  for (let decimals = 1; decimals <= maxDecimals; decimals++) {
+    const rounded = value.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: decimals,
+    });
+    if (Number.parseFloat(rounded.replace(/,/g, '')) !== 0) {
+      return rounded;
+    }
+  }
+  // Giá trị cực nhỏ (< 1e-6): vẫn hiển thị full precision thay vì "0"
+  return value.toLocaleString('en-US', { maximumFractionDigits: maxDecimals });
+};

@@ -90,8 +90,18 @@ const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   cancelled: 'Tổng Giá Trị Đã Hủy', // ✅ MỚI
 };
 
-const isHexDetailColumn = (column: string): column is HexDetailColumn =>
-  column in HEX_COLUMN_LABELS;
+// ✅ SỬA: cột "inventory" giờ được xử lý riêng (mở InventoryDetailModal, lấy
+// dữ liệu thật từ bảng nhap_kho) — KHÔNG còn đi qua HexDetailModal (vốn suy
+// ra từ filteredProductionData, khác nguồn với số hiển thị ở bảng tổng quan).
+// Vì vậy loại 'inventory' khỏi tập hợp các cột mà isHexDetailColumn() nhận diện.
+const HEX_DETAIL_MODAL_COLUMNS: Exclude<HexDetailColumn, 'inventory'>[] = [
+  'totalOrder', 'afterCancel', 'notDeployed', 'onLine', 'remaining', 'cancelled',
+];
+
+const isHexDetailColumn = (
+  column: string
+): column is Exclude<HexDetailColumn, 'inventory'> =>
+  (HEX_DETAIL_MODAL_COLUMNS as string[]).includes(column);
 
 // ---------------------------------------------------------------------------
 // MỚI: Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
@@ -826,6 +836,9 @@ const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
     dateKey: invDateKey,
     thanhTienKey: invThanhTienKey,
     ghiChuKey: 'ghi_chu', // ← thêm dòng này
+    // ✅ MỚI: tên cột "số lượng nhập kho" trong bảng nhap_kho ở backend.
+    // Nếu tên field thật trong DB khác 'so_luong', đổi lại giá trị này cho khớp.
+    soLuongKey: 'so_luong_nhap_kho',
   }),
   [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
 );
@@ -1006,6 +1019,15 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
               setExportDetail({ open: true, projectName });
               return;
             }
+            // ✅ SỬA: cột "inventory" (Đã Nhập Kho P022) phải mở InventoryDetailModal,
+            // lấy dữ liệu thật từ bảng nhap_kho (inventoryData) — cùng nguồn với
+            // số đang hiển thị ở bảng tổng quan. Trước đây nó rơi vào nhánh
+            // isHexDetailColumn() và mở nhầm HexDetailModal (suy ra từ
+            // filteredProductionData), khiến số hex trong chi tiết không khớp.
+            if (column === 'inventory') {
+              setInventoryDetail({ open: true, projectName });
+              return;
+            }
             if (isHexDetailColumn(column)) {
               setHexDetail({ open: true, column, projectName, stage: null });
             }
@@ -1145,7 +1167,12 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
       <HexDetailModal
         isOpen={hexDetail.open}
         onClose={() => setHexDetail(prev => ({ ...prev, open: false }))}
-        title={hexDetail.column ? HEX_COLUMN_LABELS[hexDetail.column] : ''}
+        title={
+          hexDetail.column
+            ? HEX_COLUMN_LABELS[hexDetail.column] +
+              (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE ? ` – ${hexDetail.stage}` : '')
+            : ''
+        }
         projectName={hexDetail.projectName}
         rows={hexDetailRows}
         columnKeys={hexDetailColumnKeys}
@@ -1162,26 +1189,22 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
   }
 />
 
-<HexDetailModal
-  isOpen={hexDetail.open}
-  onClose={() => setHexDetail(prev => ({ ...prev, open: false }))}
- title={
-  hexDetail.column
-    ? HEX_COLUMN_LABELS[hexDetail.column] +
-      (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE ? ` – ${hexDetail.stage}` : '')
-    : ''
-}
-  projectName={hexDetail.projectName}
-  rows={hexDetailRows}
-  columnKeys={hexDetailColumnKeys}
-/>
-
       <ExportDetailModal
         isOpen={exportDetail.open}
         onClose={() => setExportDetail(prev => ({ ...prev, open: false }))}
         projectName={exportDetail.projectName}
         rows={exportDetailRows}
         columnKeys={exportDetailColumnKeys}
+      />
+
+      {/* ✅ MỚI: modal chi tiết Nhập kho — trước đây bị thiếu hoàn toàn nên
+          bấm vào cột "Đã Nhập Kho P022" không bao giờ hiện đúng dữ liệu. */}
+      <InventoryDetailModal
+        isOpen={inventoryDetail.open}
+        onClose={() => setInventoryDetail(prev => ({ ...prev, open: false }))}
+        projectName={inventoryDetail.projectName}
+        rows={inventoryDetailRows}
+        columnKeys={inventoryDetailColumnKeys}
       />
 
       <ProductionExportModal

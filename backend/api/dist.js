@@ -57618,6 +57618,7 @@ var REPORT_COLUMNS = {
   nhap_kho: [
     "hex",
     "thanh_tien_nhap_kho",
+    "so_luong_nhap_kho",
     "xuong_chinh",
     "ten_cong_trinh",
     "ma_cong_trinh",
@@ -57989,6 +57990,62 @@ app.get("/api/check-versions", async (_req, res) => {
     res.json(versions);
   } catch (error61) {
     console.error("L\u1ED7i check version:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var TABLE_DISPLAY_NAMES = {
+  dht: "D\u1EEF li\u1EC7u \u0110\u01A1n h\xE0ng t\u1ED5ng",
+  tkbv_full: "D\u1EEF li\u1EC7u TKBV",
+  pthsp_full: "D\u1EEF li\u1EC7u PTHSP",
+  nhap_kho: "D\u1EEF li\u1EC7u Nh\u1EADp kho",
+  xuat_kho: "D\u1EEF li\u1EC7u Xu\u1EA5t kho",
+  ton_kho: "D\u1EEF li\u1EC7u T\u1ED3n kho",
+  production_status_app: "D\u1EEF li\u1EC7u S\u1EA3n xu\u1EA5t",
+  vat_tu: "V\u1EADt t\u01B0",
+  khsx: "K\u1EBF ho\u1EA1ch SX",
+  khsx_nam: "D\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m",
+  phan_tich_kh_th: "Ph\xE2n t\xEDch KH-TH",
+  diem_danh: "D\u1EEF li\u1EC7u \u0110i\u1EC3m danh"
+};
+var TABLE_DISPLAY_ORDER = [
+  "dht",
+  "tkbv_full",
+  "pthsp_full",
+  "nhap_kho",
+  "xuat_kho",
+  "ton_kho",
+  "production_status_app",
+  "vat_tu",
+  "khsx",
+  "khsx_nam",
+  "phan_tich_kh_th",
+  "diem_danh"
+];
+var UPDATE_FRESHNESS_HOURS = 24;
+app.get("/api/data-update-log", async (_req, res) => {
+  try {
+    const r = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+    const now = Date.now();
+    const rows = r.rows.map((row) => {
+      const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
+      const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1e3 * 60 * 60) : Infinity;
+      return {
+        table: row.table_name,
+        label: TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
+        lastUpdated: row.last_updated,
+        isFresh: hoursAgo <= UPDATE_FRESHNESS_HOURS,
+        hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null
+      };
+    });
+    rows.sort((a, b) => {
+      if (a.isFresh !== b.isFresh) return a.isFresh ? -1 : 1;
+      const ai = TABLE_DISPLAY_ORDER.indexOf(a.table);
+      const bi = TABLE_DISPLAY_ORDER.indexOf(b.table);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    res.json(rows);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/data-update-log:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

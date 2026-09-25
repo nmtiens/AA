@@ -3,7 +3,7 @@ import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { formatDecimal, parseNumber } from '../../utils/numberParsers';
+import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -29,7 +29,8 @@ interface ExportDetailModalProps {
 // Dữ liệu ghi chú trả về từ /api/production/notes: { [hex]: { [cột]: nội dung } }
 type NotesResponse = Record<string, Record<string, string | null>>;
 
-const money = (value: number) => formatDecimal(value / 1000);
+const money = (value: number) => formatSmartDecimal(value / 1000);
+const moneyTotal = (value: number) => formatDecimalFull(value / 1000);
 
 // Cắt 100 ký tự đầu, thêm "..." nếu dài hơn (dùng cho ô xem trước trong bảng)
 const PREVIEW_LIMIT = 100;
@@ -314,10 +315,25 @@ export const ExportDetailModal = ({
   const [selectedNote, setSelectedNote] = useState<{ row: DataRow } | null>(null);
   const [fullNoteText, setFullNoteText] = useState<string | null>(null);
 
-  const hexList = useMemo(
-    () => Array.from(new Set(rows.map(r => String(r[hexKey] || '')).filter(Boolean))),
-    [rows, hexKey]
-  );
+const hexList = useMemo(
+  () => Array.from(new Set(rows.map(r => String(r[hexKey] || '')).filter(Boolean))),
+  [rows, hexKey]
+);
+
+// Loại bỏ các dòng trùng lặp hoàn toàn (cùng hex, công trình, khu vực,
+// ngày xuất, số lượng, thành tiền) — dữ liệu nguồn đôi khi bị lặp bản ghi.
+const dedupedRows = useMemo(() => {
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const sig = [
+      row[hexKey], row[congTrinhKey], row[xuongKey],
+      row[dateKey], row[soLuongKey], row[thanhTienKey],
+    ].map(v => String(v ?? '')).join('|');
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  });
+}, [rows, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
 
   // Escape: chỉ đóng modal chính. Popup nội dung ghi chú CHỈ đóng bằng nút X.
   useEffect(() => {
@@ -375,16 +391,16 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
 
   const showProjectColumn = projectName === null;
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(row => {
-      const hex = String(row[hexKey] || '').toLowerCase();
-      const xuong = String(row[xuongKey] || '').toLowerCase();
-      const date = String(row[dateKey] || '').toLowerCase();
-      return hex.includes(q) || xuong.includes(q) || date.includes(q);
-    });
-  }, [rows, search, hexKey, xuongKey, dateKey]);
+const filteredRows = useMemo(() => {
+  const q = search.trim().toLowerCase();
+  if (!q) return dedupedRows;
+  return dedupedRows.filter(row => {
+    const hex = String(row[hexKey] || '').toLowerCase();
+    const xuong = String(row[xuongKey] || '').toLowerCase();
+    const date = String(row[dateKey] || '').toLowerCase();
+    return hex.includes(q) || xuong.includes(q) || date.includes(q);
+  });
+}, [dedupedRows, search, hexKey, xuongKey, dateKey]);
 
   // Mặc định (chưa bấm sort cột nào): gom các dòng có mã Hex trùng nhau lại
   // thành 1 nhóm liền kề, mỗi nhóm sắp theo Ngày Xuất giảm dần (mới nhất
@@ -791,8 +807,8 @@ const handleExportCsv = () => {
 >
   TỔNG CỘNG ({groupCount} mã Hex)
 </td>
-                          <td className="px-3 py-3 text-right">{totals.soLuong.toLocaleString('vi-VN')}</td>
-                          <td className="px-3 py-3 text-right">{money(totals.thanhTien)}</td>
+                         <td className="px-3 py-3 text-right">{totals.soLuong.toLocaleString('vi-VN')}</td>
+<td className="px-3 py-3 text-right">{moneyTotal(totals.thanhTien)}</td>
                           {/* Cột ghi chú không có tổng */}
                           <td className="px-3 py-3"></td>
                         </tr>

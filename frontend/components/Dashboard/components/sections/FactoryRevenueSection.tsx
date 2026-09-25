@@ -3,7 +3,8 @@ import {
   XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, LabelList, ReferenceLine, Label,
 } from 'recharts';
-import { Target, CheckCircle, Activity, Eye, X } from 'lucide-react';
+import { Target, CheckCircle, Activity, Eye, X, Clock } from 'lucide-react';
+import { DataUpdateLogModal } from '../modals/DataUpdateLogModal';
 import { CheckpointTriangle } from '../shared/CheckpointTriangle';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
@@ -82,7 +83,8 @@ export const FactoryRevenueSection = ({
   pivotFunnelData,
   workshopMetric,
 }: FactoryRevenueSectionProps) => {
-  const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
+const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
+const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   const chartWrapperRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
@@ -207,17 +209,25 @@ const getMinWidthPxForText = (text: string): number => {
   return (
     <>
       <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-emerald-50 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-              <Target size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">TỔNG QUAN DOANH SỐ NHÀ MÁY (Năm 2026)</h3>
-              <p className="text-xs text-slate-500">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
-            </div>
-          </div>
-        </div>
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-emerald-50 pb-4">
+  <div className="flex items-center gap-3">
+    <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
+      <Target size={24} />
+    </div>
+    <div>
+      <h3 className="text-lg font-bold text-slate-800">TỔNG QUAN DOANH SỐ NHÀ MÁY (Năm 2026)</h3>
+      <p className="text-xs text-slate-500">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
+    </div>
+  </div>
+
+  <button
+    onClick={() => setIsLogModalOpen(true)}
+    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors shrink-0"
+    title="Nhật ký cập nhật dữ liệu"
+  >
+    <Clock size={14} /> Nhật ký cập nhật
+  </button>
+</div>
 
                 {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
@@ -463,6 +473,7 @@ const getMinWidthPxForText = (text: string): number => {
           </div>
         </div>
       )}
+    <DataUpdateLogModal isOpen={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
     </>
   );
 };

@@ -241,7 +241,7 @@ const REPORT_COLUMNS: Record<string, string[]> = {
 
   ],
   nhap_kho: [
-  'hex','thanh_tien_nhap_kho', 'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh',
+  'hex','thanh_tien_nhap_kho','so_luong_nhap_kho' , 'xuong_chinh', 'ten_cong_trinh', 'ma_cong_trinh',
     'nam', 'thang', 'ngay', 'date', 'tuan', 'ghi_chu',
   ],
  xuat_kho: [
@@ -658,6 +658,65 @@ app.get('/api/check-versions', async (_req: Request, res: Response) => {
     res.json(versions);
   } catch (error) {
     console.error('Lỗi check version:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+
+// --- NHẬT KÝ CẬP NHẬT DỮ LIỆU: dùng cho trang "Logs" hiển thị màu theo trạng thái ---
+const TABLE_DISPLAY_NAMES: Record<string, string> = {
+  dht: 'Dữ liệu Đơn hàng tổng',
+  tkbv_full: 'Dữ liệu TKBV',
+  pthsp_full: 'Dữ liệu PTHSP',
+  nhap_kho: 'Dữ liệu Nhập kho',
+  xuat_kho: 'Dữ liệu Xuất kho',
+  ton_kho: 'Dữ liệu Tồn kho',
+  production_status_app: 'Dữ liệu Sản xuất',
+  vat_tu: 'Vật tư',
+  khsx: 'Kế hoạch SX',
+  khsx_nam: 'Dữ liệu kế hoạch năm',
+  phan_tich_kh_th: 'Phân tích KH-TH',
+  diem_danh: 'Dữ liệu Điểm danh',
+};
+
+// Thứ tự hiển thị mong muốn — khớp với thứ tự 6 card P001→Tồn kho ở "Tổng quan Đơn hàng",
+// các bảng còn lại xếp tiếp theo sau. Index nhỏ hơn = ưu tiên hiển thị trước (khi cùng trạng thái).
+const TABLE_DISPLAY_ORDER: string[] = [
+  'dht', 'tkbv_full', 'pthsp_full', 'nhap_kho', 'xuat_kho', 'ton_kho',
+  'production_status_app', 'vat_tu', 'khsx', 'khsx_nam', 'phan_tich_kh_th', 'diem_danh',
+];
+
+// Ngưỡng coi là "đã cập nhật" (giờ). Đổi số này nếu muốn nới/siết.
+const UPDATE_FRESHNESS_HOURS = 24;
+
+app.get('/api/data-update-log', async (_req: Request, res: Response) => {
+  try {
+    const r = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+    const now = Date.now();
+    const rows = r.rows.map(row => {
+      const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
+      const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1000 * 60 * 60) : Infinity;
+      return {
+        table: row.table_name,
+        label: TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
+        lastUpdated: row.last_updated,
+        isFresh: hoursAgo <= UPDATE_FRESHNESS_HOURS,
+        hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null,
+      };
+    });
+
+    // Sắp xếp: các bảng ĐÃ cập nhật lên trước (theo thứ tự nghiệp vụ cố định),
+    // các bảng CHƯA cập nhật đẩy xuống cuối (cũng theo thứ tự nghiệp vụ đó).
+    rows.sort((a, b) => {
+      if (a.isFresh !== b.isFresh) return a.isFresh ? -1 : 1;
+      const ai = TABLE_DISPLAY_ORDER.indexOf(a.table);
+      const bi = TABLE_DISPLAY_ORDER.indexOf(b.table);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Lỗi /api/data-update-log:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
