@@ -57633,7 +57633,8 @@ var REPORT_COLUMNS = {
     "thanh_tien_xuat_kho",
     "date",
     "xuong_chinh",
-    "ten_cong_trinh"
+    "ten_cong_trinh",
+    "ghi_chu"
   ],
   ton_kho: [
     "hex",

@@ -728,17 +728,18 @@ const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
   ]
 );
 
-  const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
-    () => ({
-      hexKey: 'hex',
-      congTrinhKey: expCongTrinhKey,
-      xuongKey: expXuongKey,
-      dateKey: expDateKey,
-      soLuongKey: expSoLuongKey,
-      thanhTienKey: expThanhTienKey,
-    }),
-    [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
-  );
+const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
+  () => ({
+    hexKey: 'hex',
+    congTrinhKey: expCongTrinhKey,
+    xuongKey: expXuongKey,
+    dateKey: expDateKey,
+    soLuongKey: expSoLuongKey,
+    thanhTienKey: expThanhTienKey,
+    ghiChuXuatKhoKey: 'ghi_chu', // ← thêm dòng này
+  }),
+  [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
+);
 
   const exportDetailRows = useMemo(() => {
     if (!exportDetail.open || !expCongTrinhKey) return [];

@@ -106,3 +106,27 @@ export const computeMonthRows = (data: DataRow[], dateKey: string, year: number,
     return d.getFullYear() === year && d.getMonth() + 1 === month;
   });
 };
+
+// Chuyển giá trị ngày bất kỳ (yyyy-mm-dd, ISO, hoặc đã là dd/mm/yyyy) về dd/mm/yyyy để hiển thị
+export const formatDateDisplay = (value: unknown): string => {
+  const s = String(value ?? '').trim();
+  if (!s) return '';
+
+  // Đã đúng định dạng dd/mm/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+
+  // yyyy-mm-dd hoặc yyyy-mm-ddTHH:mm:ss...
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+
+  // Fallback: thử Date.parse
+  const ts = Date.parse(s);
+  if (!Number.isNaN(ts)) {
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  return s; // không parse được thì giữ nguyên
+};
