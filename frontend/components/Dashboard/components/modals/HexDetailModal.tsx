@@ -254,13 +254,13 @@ const NoteContent = ({ text }: { text: string }) => {
               <div className="border-b border-slate-200 p-4 text-sm leading-relaxed text-slate-700">
                 <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
                   {textLines.map((line, j) => (
-                    <span
-                      key={j}
-                      className="whitespace-pre-wrap break-words after:mx-1.5 after:text-slate-300 after:content-['•'] last:after:content-none"
-                    >
-                      # {line}
-                    </span>
-                  ))}
+  <span
+    key={j}
+    className="whitespace-normal break-words after:mx-1.5 after:text-slate-300 after:content-['•'] last:after:content-none"
+  >
+    # {line}
+  </span>
+))}
                 </div>
               </div>
             )}
