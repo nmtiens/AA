@@ -220,9 +220,9 @@ const getMinWidthPxForText = (text: string): number => {
     </div>
   </div>
 
-  <button
+    <button
     onClick={() => setIsLogModalOpen(true)}
-    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors shrink-0"
+    className="fixed top-20 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 shadow-md transition-colors shrink-0"
     title="Nhật ký cập nhật dữ liệu"
   >
     <Clock size={14} /> Nhật ký cập nhật
