@@ -5,7 +5,7 @@ interface UpdateLogRow {
   table: string;
   label: string;
   lastUpdated: string | null;
-  isFresh: boolean;
+  isFresh: boolean; // cờ từ server — không còn dùng để tô màu, xem isUpdatedToday bên dưới
   hoursAgo: number | null;
 }
 
@@ -40,6 +40,20 @@ export const DataUpdateLogModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const formatDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleString('vi-VN') : '—';
 
+  // "Đã cập nhật" chỉ khi lần cập nhật cuối rơi vào ĐÚNG NGÀY HÔM NAY (theo giờ local).
+  // Không dùng cờ isFresh từ server (tính theo số giờ trôi qua), vì cách đó khiến
+  // dữ liệu cập nhật hôm qua (chưa đủ X giờ) vẫn bị tô xanh dù đã sang ngày mới.
+  const isUpdatedToday = (iso: string | null) => {
+    if (!iso) return false;
+    const updated = new Date(iso);
+    const now = new Date();
+    return (
+      updated.getFullYear() === now.getFullYear() &&
+      updated.getMonth() === now.getMonth() &&
+      updated.getDate() === now.getDate()
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -70,21 +84,24 @@ export const DataUpdateLogModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </tr>
             </thead>
             <tbody>
-              {rows.map(row => (
-                <tr key={row.table} className={`rounded-lg ${row.isFresh ? 'bg-green-50' : 'bg-red-50'}`}>
-                  <td className="px-3 py-2 font-medium text-slate-700">{row.label}</td>
-                  <td className="px-3 py-2 text-slate-600">{formatDate(row.lastUpdated)}</td>
-                  <td className="px-3 py-2">
-                    <span className={`inline-flex items-center gap-1.5 font-semibold ${row.isFresh ? 'text-green-700' : 'text-red-700'}`}>
-                      {row.isFresh ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                      {row.isFresh ? 'Đã cập nhật' : 'Chưa cập nhật'}
-                      {row.hoursAgo !== null && (
-                        <span className="text-slate-400 font-normal">({row.hoursAgo}h trước)</span>
-                      )}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {rows.map(row => {
+                const fresh = isUpdatedToday(row.lastUpdated);
+                return (
+                  <tr key={row.table} className={`rounded-lg ${fresh ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <td className="px-3 py-2 font-medium text-slate-700">{row.label}</td>
+                    <td className="px-3 py-2 text-slate-600">{formatDate(row.lastUpdated)}</td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex items-center gap-1.5 font-semibold ${fresh ? 'text-green-700' : 'text-red-700'}`}>
+                        {fresh ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                        {fresh ? 'Đã cập nhật' : 'Chưa cập nhật'}
+                        {row.hoursAgo !== null && (
+                          <span className="text-slate-400 font-normal">({row.hoursAgo}h trước)</span>
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
               {!loading && rows.length === 0 && (
                 <tr><td colSpan={3} className="px-3 py-8 text-center text-slate-400">Không có dữ liệu</td></tr>
               )}
