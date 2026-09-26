@@ -12,10 +12,9 @@ interface VuongMacDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   hex: string;
-  hexLabel?: string; // vd. tên hạng mục, để hiển thị ở tiêu đề
-  // ✅ MỚI: mỗi cột M1..M5 trong bảng chỉ mở đúng 1 loại 5M — popup khóa cứng
-  // vào category này: chỉ hiển thị/thêm/sửa/xóa vướng mắc thuộc đúng loại đó.
+  hexLabel: string;
   category: FiveMCategory;
+  categoryLabel: string; // add this line
 }
 
 const formatDateTime = (iso: string) =>

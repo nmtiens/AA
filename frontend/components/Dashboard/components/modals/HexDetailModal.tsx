@@ -495,12 +495,13 @@ export const HexDetailModal = ({
 
   // ✅ MỚI: hex + loại 5M đang mở popup CRUD + log vướng mắc (khóa cứng theo
   // đúng cột con M vừa bấm)
-  const [vuongMacDetail, setVuongMacDetail] = useState<{
-    open: boolean;
-    hex: string;
-    label: string;
-    category: FiveMCategory;
-  }>({ open: false, hex: '', label: '', category: 'man' });
+const [vuongMacDetail, setVuongMacDetail] = useState<{
+  open: boolean;
+  hex: string;
+  label: string;
+  category: FiveMCategory;
+  categoryLabel: string; // ✅ MỚI: nhãn chuẩn "Con Người (M1)" theo đúng ô vừa bấm
+}>({ open: false, hex: '', label: '', category: 'man', categoryLabel: '' });
 
   // Ô đang được mở xem đầy đủ: đúng 1 hex + đúng 1 cột ghi chú
   const [selectedNote, setSelectedNote] = useState<{
@@ -522,7 +523,7 @@ export const HexDetailModal = ({
       setSort(null);
       setSelectedNote(null);
       setFullNoteText(null);
-      setVuongMacDetail({ open: false, hex: '', label: '', category: 'man' }); // ✅ MỚI
+      setVuongMacDetail({ open: false, hex: '', label: '', category: 'man', categoryLabel: '' });
       return;
     }
     if (hexList.length === 0) return;
@@ -637,12 +638,18 @@ export const HexDetailModal = ({
 
   // ✅ MỚI: bấm vào 1 cột con "M1..M5" bên trong nhóm "Vướng Mắc" -> mở popup
   // CRUD + log, khóa cứng đúng hex + đúng loại 5M của cột con vừa bấm.
-  const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const hex = String(row[hexKey] || '');
-    if (!hex) return;
-    setVuongMacDetail({ open: true, hex, label: String(row[hangMucKey] || ''), category });
-  }, [hexKey, hangMucKey]);
+const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: React.MouseEvent) => {
+  e.stopPropagation();
+  const hex = String(row[hexKey] || '');
+  if (!hex) return;
+  setVuongMacDetail({
+    open: true,
+    hex,
+    label: String(row[hangMucKey] || ''),
+    category,
+    categoryLabel: `${FIVE_M_VI[category]} (${FIVE_M_SHORT[category]})`, // ví dụ: "Con Người (M1)"
+  });
+}, [hexKey, hangMucKey]);
 
   const toggleSort = useCallback((key: SortKey) => {
     const defaultDir: SortDir = NUMERIC_SORT_KEYS.includes(key) ? 'desc' : 'asc';
@@ -1437,12 +1444,13 @@ export const HexDetailModal = ({
 
       {/* ✅ MỚI: Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại
           5M của cột con vừa bấm. */}
-      <VuongMacDetailModal
+          <VuongMacDetailModal
         isOpen={vuongMacDetail.open}
         onClose={() => setVuongMacDetail(prev => ({ ...prev, open: false }))}
         hex={vuongMacDetail.hex}
         hexLabel={vuongMacDetail.label}
         category={vuongMacDetail.category}
+        categoryLabel={vuongMacDetail.categoryLabel} // ✅ MỚI
       />
     </>,
     document.body
