@@ -9,6 +9,17 @@ import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
+// ✅ MỚI: Vướng Mắc 5M — VẪN LÀ 1 CỘT DUY NHẤT "Vướng Mắc (5M)" (tô đỏ, ẩn/hiện
+// 1 lần qua Setup cột), nhưng bên trong tách header 2 tầng: tầng trên là tiêu
+// đề nhóm màu đỏ span ngang 5 cột con, tầng dưới là 5 cột con M1..M5 (Man/
+// Machine/Material/Method/Measurement) — mỗi cột con vẫn sort/click riêng
+// theo đúng loại, mở popup CRUD + log khóa cứng đúng loại đó.
+import {
+  fetchVuongMacList,
+  type VuongMacItem,
+  type FiveMCategory,
+} from '../../../../services/vuongMacService';
+import { VuongMacDetailModal } from './VuongMacDetailModal';
 
 export interface HexDetailColumnKeys {
   hexKey: string;
@@ -154,7 +165,7 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
 
       {lightboxIndex !== null && (
         <div
-className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/80 p-4"
           role="dialog"
           aria-modal="true"
         >
@@ -164,7 +175,7 @@ className="fixed inset-0 z-[10002] flex items-center justify-center bg-black/80 
                 Ảnh {lightboxIndex + 1} / {fileIds.length}
               </span>
               <div className="flex items-center gap-3">
-                
+
                  <a href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -283,6 +294,49 @@ const NoteContent = ({ text }: { text: string }) => {
   );
 };
 
+// ✅ MỚI: thứ tự cố định M1..M5 + nhãn ngắn — dùng cho header con, setup cột,
+// export CSV, và khóa loại khi mở popup CRUD.
+const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement'];
+const FIVE_M_SHORT: Record<FiveMCategory, string> = {
+  man: 'M1',
+  machine: 'M2',
+  material: 'M3',
+  method: 'M4',
+  measurement: 'M5',
+};
+// ✅ MỚI: nhãn THUẦN TIẾNG VIỆT cho từng loại 5M — dùng riêng cho header cột
+// con, tooltip và export CSV trong file này (không dùng nhãn có kèm tiếng
+// Anh từ service để tránh hiển thị lẫn "Man (Con người)").
+const FIVE_M_VI: Record<FiveMCategory, string> = {
+  man: 'Con Người',
+  machine: 'Máy Móc',
+  material: 'Nguyên Vật Liệu',
+  method: 'Phương Pháp',
+  measurement: 'Đo Lường',
+};
+// sort key riêng cho từng cột con bên trong nhóm "Vướng Mắc"
+const CATEGORY_SORT_KEY: Record<FiveMCategory, SortKey> = {
+  man: 'vmMan',
+  machine: 'vmMachine',
+  material: 'vmMaterial',
+  method: 'vmMethod',
+  measurement: 'vmMeasurement',
+};
+
+// ✅ MỚI: màu chữ theo loại 5M — dùng cho nội dung xem trước hiển thị trong
+// từng cột con, để phân biệt nhanh loại vướng mắc bằng màu sắc.
+const VUONG_MAC_TEXT_STYLE: Record<FiveMCategory, string> = {
+  man: 'text-blue-700',
+  machine: 'text-purple-700',
+  material: 'text-amber-700',
+  method: 'text-teal-700',
+  measurement: 'text-pink-700',
+};
+
+// Chiều rộng 1 cột con M — nhân 5 ra tổng chiều rộng của cả nhóm "Vướng Mắc".
+// Tăng từ 76 lên 108 để đủ chỗ hiển thị tên đầy đủ "Con Người (M1)" thay vì chỉ "M1".
+const VM_SUB_WIDTH = 108;
+
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
@@ -300,6 +354,8 @@ const COL_WIDTHS = {
   ghiChuXuatKho: 280,
   ghiChuDonHangTong: 280,
   ghiChuPhieu: 280,
+  // ✅ MỚI: 1 cột gộp "Vướng Mắc (5M)" — chiều rộng = tổng 5 cột con bên trong
+  vuongMac: VM_SUB_WIDTH * 5,
 };
 
 type SortKey =
@@ -318,11 +374,20 @@ type SortKey =
   | 'thongTinQc'
   | 'ghiChuXuatKho'
   | 'ghiChuDonHangTong'
-  | 'ghiChuPhieu';
+  | 'ghiChuPhieu'
+  // ✅ MỚI: 5 khóa sort riêng cho 5 cột con bên trong nhóm "Vướng Mắc"
+  | 'vmMan'
+  | 'vmMachine'
+  | 'vmMaterial'
+  | 'vmMethod'
+  | 'vmMeasurement';
 type SortDir = 'asc' | 'desc';
 
 // Các cột "phụ" — có thể ẩn/hiện và SẮP XẾP LẠI THỨ TỰ qua Setup cột (Admin),
 // đồng bộ cơ chế với ExportDetailModal / InventoryDetailModal.
+// ✅ "vuongMac" vẫn là 1 khóa DUY NHẤT (ẩn/hiện cả nhóm 1 lần); 5 cột con
+// M1..M5 chỉ là chi tiết hiển thị BÊN TRONG vị trí của khóa này, không phải
+// 5 khóa cột riêng.
 type OptionalColKey =
   | 'congTrinh'
   | 'hangMuc'
@@ -337,7 +402,8 @@ type OptionalColKey =
   | 'ghiChuPhieu'
   | 'ghiChuNhapKho'
   | 'thongTinQc'
-  | 'ghiChuXuatKho';
+  | 'ghiChuXuatKho'
+  | 'vuongMac';
 
 const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: SortKey; align?: 'left' | 'right' }> = {
   congTrinh: { label: 'Công Trình', sortKey: 'congTrinh' },
@@ -354,6 +420,10 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   ghiChuNhapKho: { label: <>Ghi Chú <br />Nhập Kho</>, sortKey: 'ghiChuNhapKho' },
   thongTinQc: { label: <>Thông Tin <br />QC</>, sortKey: 'thongTinQc' },
   ghiChuXuatKho: { label: <>Ghi Chú <br />Xuất Kho</>, sortKey: 'ghiChuXuatKho' },
+  // ✅ MỚI: chỉ dùng để thỏa mãn kiểu dữ liệu — header thật của "vuongMac"
+  // được render đặc biệt (2 tầng: nhãn nhóm + 5 cột con), không đi qua
+  // SortableHeader thông thường như các cột khác.
+  vuongMac: { label: 'Vướng Mắc (5M)', sortKey: 'vmMan' },
 };
 
 // Kiểu dòng TỔNG CỘNG cho từng cột phụ: 'label' gộp vào ô nhãn "TỔNG CỘNG",
@@ -373,6 +443,7 @@ const FOOTER_KIND: Record<OptionalColKey, 'label' | 'total' | 'blank'> = {
   ghiChuNhapKho: 'blank',
   thongTinQc: 'blank',
   ghiChuXuatKho: 'blank',
+  vuongMac: 'blank',
 };
 
 const NUMERIC_SORT_KEYS: SortKey[] = ['triGia', 'thanhTienPhieu', 'thanhTienKho'];
@@ -417,6 +488,20 @@ export const HexDetailModal = ({
   // notesMap: bản xem trước (đã cắt 100 ký tự) cho toàn bộ danh sách hex đang xem.
   const [notesMap, setNotesMap] = useState<NotesResponse>({});
 
+  // ✅ MỚI: bản đồ hex -> danh sách vướng mắc 5M (mọi loại, chưa lọc trạng
+  // thái/loại) — dùng chung cho cả nhóm cột "Vướng Mắc", lọc theo category
+  // khi hiển thị từng cột con M1..M5.
+  const [vuongMacMap, setVuongMacMap] = useState<Record<string, VuongMacItem[]>>({});
+
+  // ✅ MỚI: hex + loại 5M đang mở popup CRUD + log vướng mắc (khóa cứng theo
+  // đúng cột con M vừa bấm)
+  const [vuongMacDetail, setVuongMacDetail] = useState<{
+    open: boolean;
+    hex: string;
+    label: string;
+    category: FiveMCategory;
+  }>({ open: false, hex: '', label: '', category: 'man' });
+
   // Ô đang được mở xem đầy đủ: đúng 1 hex + đúng 1 cột ghi chú
   const [selectedNote, setSelectedNote] = useState<{
     row: DataRow;
@@ -437,6 +522,7 @@ export const HexDetailModal = ({
       setSort(null);
       setSelectedNote(null);
       setFullNoteText(null);
+      setVuongMacDetail({ open: false, hex: '', label: '', category: 'man' }); // ✅ MỚI
       return;
     }
     if (hexList.length === 0) return;
@@ -454,17 +540,29 @@ export const HexDetailModal = ({
     return () => ctrl.abort();
   }, [isOpen, hexList]);
 
+  // ✅ MỚI: tải danh sách vướng mắc 5M cho toàn bộ hex đang hiển thị. Tải lại
+  // mỗi khi hexList đổi (kể cả sau khi popup con đóng lại), để badge trong
+  // bảng luôn khớp với dữ liệu vừa thêm/sửa/xóa.
+  useEffect(() => {
+    if (!isOpen || hexList.length === 0) {
+      setVuongMacMap({});
+      return;
+    }
+    fetchVuongMacList(hexList).then(setVuongMacMap);
+  }, [isOpen, hexList, vuongMacDetail.open]);
+
   // Escape: chỉ đóng modal chính. Popup nội dung ghi chú CHỈ đóng bằng nút X.
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (selectedNote) return;
+      if (vuongMacDetail.open) return; // ✅ MỚI: không đóng modal chính khi popup vướng mắc đang mở
       onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, selectedNote]);
+  }, [isOpen, onClose, selectedNote, vuongMacDetail.open]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -492,6 +590,32 @@ export const HexDetailModal = ({
     [notesMap, hexKey]
   );
 
+  // ✅ MỚI: danh sách vướng mắc CHƯA xử lý của 1 hex, lọc theo ĐÚNG 1 loại 5M
+  // — dùng để hiển thị badge của từng cột con M1..M5 và để sort theo số lượng.
+  const getOpenVuongMacByCategory = useCallback(
+    (row: DataRow, category: FiveMCategory): VuongMacItem[] => {
+      const hex = String(row[hexKey] || '');
+      return (vuongMacMap[hex] || []).filter(v => !v.isResolved && v.category === category);
+    },
+    [vuongMacMap, hexKey]
+  );
+
+  // ✅ MỚI: mục vướng mắc CHƯA xử lý được cập nhật/tạo GẦN NHẤT của 1 hex,
+  // đúng 1 loại 5M — dùng để hiển thị nội dung xem trước trong ô cột con
+  // (thay vì chỉ hiện số lượng).
+  const getLatestOpenVuongMac = useCallback(
+    (row: DataRow, category: FiveMCategory): VuongMacItem | null => {
+      const list = getOpenVuongMacByCategory(row, category);
+      if (list.length === 0) return null;
+      return [...list].sort((a, b) => {
+        const ta = new Date(a.updatedAt || a.createdAt).getTime();
+        const tb = new Date(b.updatedAt || b.createdAt).getTime();
+        return tb - ta;
+      })[0];
+    },
+    [getOpenVuongMacByCategory]
+  );
+
   // Bấm vào 1 ô ghi chú: mở popup CHỈ với đúng cột đó, tải nguyên văn riêng
   const openNoteCell = useCallback((row: DataRow, columnKey: string, label: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -510,6 +634,15 @@ export const HexDetailModal = ({
       .then((d: NotesResponse) => setFullNoteText(String(d?.[hex]?.[columnKey] ?? '')))
       .catch(() => setFullNoteText(''));
   }, [hexKey]);
+
+  // ✅ MỚI: bấm vào 1 cột con "M1..M5" bên trong nhóm "Vướng Mắc" -> mở popup
+  // CRUD + log, khóa cứng đúng hex + đúng loại 5M của cột con vừa bấm.
+  const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const hex = String(row[hexKey] || '');
+    if (!hex) return;
+    setVuongMacDetail({ open: true, hex, label: String(row[hangMucKey] || ''), category });
+  }, [hexKey, hangMucKey]);
 
   const toggleSort = useCallback((key: SortKey) => {
     const defaultDir: SortDir = NUMERIC_SORT_KEYS.includes(key) ? 'desc' : 'asc';
@@ -540,6 +673,8 @@ export const HexDetailModal = ({
     { key: 'ghiChuNhapKho', label: 'Tổng Hợp Ghi Chú Nhập Kho' },
     { key: 'thongTinQc', label: 'Tổng Hợp Thông Tin QC' },
     { key: 'ghiChuXuatKho', label: 'Tổng Hợp Ghi Chú Xuất Kho' },
+    // ✅ MỚI: 1 khóa DUY NHẤT — ẩn/hiện cả nhóm 5 cột con M1..M5 cùng lúc
+    { key: 'vuongMac', label: 'Vướng Mắc (5M)' },
   ], [showProjectColumn]);
 
   const visibleCols = useMemo(
@@ -553,6 +688,16 @@ export const HexDetailModal = ({
     () => visibleCols.map(c => c.key) as OptionalColKey[],
     [visibleCols]
   );
+
+  // ✅ MỚI: có đang hiển thị nhóm "Vướng Mắc" hay không — quyết định có cần
+  // thêm hàng header thứ 2 (5 cột con M1..M5) hay không.
+  const hasVuongMacCol = orderedCols.includes('vuongMac');
+
+  // 🔧 FIX (mảng xanh chỗ scrollbar-placeholder): cần biết cột CUỐI CÙNG đang
+  // hiển thị có phải "vuongMac" hay không, để tô đúng màu đỏ cho ô bù trừ
+  // scrollbar ở header — thay vì luôn ăn theo nền emerald mặc định của
+  // container ngoài, gây lộ 1 vệt xanh ngay sau vùng đỏ của nhóm 5M.
+  const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -596,6 +741,12 @@ export const HexDetailModal = ({
         case 'ghiChuXuatKho': return getNotePreview(row, ghiChuXuatKhoKey);
         case 'ghiChuDonHangTong': return getNotePreview(row, ghiChuDonHangTongKey);
         case 'ghiChuPhieu': return getNotePreview(row, ghiChuPhieuKey);
+        // ✅ MỚI: sort theo số lượng vướng mắc CHƯA xử lý của đúng cột con M
+        case 'vmMan': return getOpenVuongMacByCategory(row, 'man').length;
+        case 'vmMachine': return getOpenVuongMacByCategory(row, 'machine').length;
+        case 'vmMaterial': return getOpenVuongMacByCategory(row, 'material').length;
+        case 'vmMethod': return getOpenVuongMacByCategory(row, 'method').length;
+        case 'vmMeasurement': return getOpenVuongMacByCategory(row, 'measurement').length;
         default: return '';
       }
     };
@@ -612,7 +763,7 @@ export const HexDetailModal = ({
     indexedRows, sort, hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     ghiChuNhapKhoKey, thongTinQcKey, ghiChuXuatKhoKey, ghiChuDonHangTongKey, ghiChuPhieuKey,
-    getNotePreview,
+    getNotePreview, getOpenVuongMacByCategory,
   ]);
 
   const totals = useMemo(() => {
@@ -646,6 +797,9 @@ export const HexDetailModal = ({
     'Tổng Hợp Ghi Chú Nhập Kho',
     'Tổng Hợp Thông Tin QC',
     'Tổng Hợp Ghi Chú Xuất Kho',
+    // ✅ MỚI: CSV không có khái niệm "gộp cột" nên vẫn tách 1 cột riêng cho
+    // từng loại M1..M5 để không mất dữ liệu chi tiết khi xuất.
+    ...FIVE_M_ORDER.map((cat) => `Vướng Mắc ${FIVE_M_SHORT[cat]} (${FIVE_M_VI[cat]})`),
   ];
 
   const exportFileName = `chi_tiet_hex_${(projectName ?? 'tat_ca_cong_trinh')
@@ -669,6 +823,17 @@ export const HexDetailModal = ({
     const fullNoteOf = (row: DataRow, key: string) =>
       String(fullMap[String(row[hexKey] || '')]?.[key] ?? '');
 
+    // ✅ MỚI: gộp vướng mắc CỦA ĐÚNG 1 LOẠI thành 1 dòng text cho CSV — mỗi
+    // mục 1 đoạn "nội dung(Đã xử lý nếu có)", các mục cách nhau bằng " | ".
+    const vuongMacTextOf = (row: DataRow, category: FiveMCategory) => {
+      const hex = String(row[hexKey] || '');
+      const list = (vuongMacMap[hex] || []).filter(v => v.category === category);
+      if (list.length === 0) return '';
+      return list
+        .map(v => `${v.content}${v.isResolved ? ' (Đã xử lý)' : ''}`)
+        .join(' | ');
+    };
+
     const exportRows = sortedRows.map(({ row, stt }) => ({
       'STT': stt,
       'Mã Hex': String(row[hexKey] || ''),
@@ -686,6 +851,13 @@ export const HexDetailModal = ({
       'Tổng Hợp Ghi Chú Nhập Kho': fullNoteOf(row, ghiChuNhapKhoKey),
       'Tổng Hợp Thông Tin QC': fullNoteOf(row, thongTinQcKey),
       'Tổng Hợp Ghi Chú Xuất Kho': fullNoteOf(row, ghiChuXuatKhoKey),
+      // ✅ MỚI
+      ...Object.fromEntries(
+        FIVE_M_ORDER.map((cat) => [
+          `Vướng Mắc ${FIVE_M_SHORT[cat]} (${FIVE_M_VI[cat]})`,
+          vuongMacTextOf(row, cat),
+        ])
+      ),
     }));
     exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
   };
@@ -697,15 +869,20 @@ export const HexDetailModal = ({
 
   const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
 
-  // ✅ Colgroup lặp theo orderedCols (đúng thứ tự đã setup) thay vì viết cứng
-  // theo thứ tự cột như trước.
+  // ✅ Colgroup lặp theo orderedCols. Với khóa "vuongMac", 1 vị trí trong
+  // orderedCols cần render thành 5 <col> vật lý (5 cột con M1..M5) thay vì 1.
   const ColGroup = () => (
     <colgroup>
       <col style={{ width: pct(COL_WIDTHS.stt) }} />
       <col style={{ width: pct(COL_WIDTHS.hex) }} />
-      {orderedCols.map((key) => (
-        <col key={key} style={{ width: pct(COL_WIDTHS[key]) }} />
-      ))}
+      {orderedCols.map((key) => {
+        if (key === 'vuongMac') {
+          return FIVE_M_ORDER.map((cat) => (
+            <col key={`vm-${cat}`} style={{ width: pct(VM_SUB_WIDTH) }} />
+          ));
+        }
+        return <col key={key} style={{ width: pct(COL_WIDTHS[key]) }} />;
+      })}
     </colgroup>
   );
 
@@ -724,15 +901,18 @@ export const HexDetailModal = ({
     children,
     className = '',
     isLast = false,
+    rowSpan = 1,
   }: {
     sortKey: SortKey;
     align?: 'left' | 'right';
     children: React.ReactNode;
     className?: string;
     isLast?: boolean;
+    rowSpan?: number;
   }) => (
     <th
       onClick={() => toggleSort(sortKey)}
+      rowSpan={rowSpan}
       className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}
     >
       <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -749,76 +929,109 @@ export const HexDetailModal = ({
       <td
         onClick={(e) => openNoteCell(row, columnKey, label, e)}
         title="Bấm để xem đầy đủ nội dung"
-        className="cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-emerald-50"
+        className="cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors group-hover:bg-slate-50 hover:!bg-emerald-50"
       >
         {truncateText(preview) || '—'}
       </td>
     );
   };
 
+  // ✅ MỚI: 1 ô của 1 cột con M (đã khóa cứng đúng 1 loại) — hiện NỘI DUNG
+  // vướng mắc CHƯA xử lý được cập nhật gần nhất (thay vì chỉ hiện số lượng),
+  // giống cách các ô ghi chú khác đang hiển thị; nếu còn nhiều hơn 1 mục thì
+  // ghi thêm "+N khác" bên dưới. Bấm vào ô để mở popup xem đầy đủ/thêm/sửa/xóa
+  // + log đúng loại này.
+  const VuongMacCatCell = ({ row, category }: { row: DataRow; category: FiveMCategory }) => {
+    const openList = getOpenVuongMacByCategory(row, category);
+    const latest = getLatestOpenVuongMac(row, category);
+    return (
+      <td
+        onClick={(e) => openVuongMacCell(row, category, e)}
+        title={`Bấm để xem/nhập vướng mắc — ${FIVE_M_VI[category]}`}
+        className={`cursor-pointer border-r border-red-100 px-2 py-2.5 text-left align-top transition-colors last:border-r-0 hover:bg-red-50 ${
+          openList.length > 0 ? 'bg-red-50/60' : ''
+        }`}
+      >
+        {!latest ? (
+          <span className="text-slate-300">—</span>
+        ) : (
+          <div className="space-y-0.5">
+            <span className={`block break-words text-[11px] font-medium ${VUONG_MAC_TEXT_STYLE[category]}`}>
+              {truncateText(latest.content, 40)}
+            </span>
+            {openList.length > 1 && (
+              <span className="text-[10px] text-red-400">+{openList.length - 1} khác</span>
+            )}
+          </div>
+        )}
+      </td>
+    );
+  };
+
   // ✅ Render 1 ô "phụ" theo key — vị trí trong hàng do orderedCols.map quyết
-  // định, không hardcode theo vị trí cố định như trước.
+  // định, không hardcode theo vị trí cố định như trước. Riêng "vuongMac" trả
+  // về MẢNG 5 <td> (5 cột con M1..M5) thay vì 1 <td> duy nhất.
   const renderCell = (row: DataRow, key: OptionalColKey): React.ReactNode => {
     switch (key) {
       case 'congTrinh':
         return showProjectColumn ? (
-          <td key="congTrinh" className="px-3 py-2.5 text-left align-top text-slate-700">
+          <td key="congTrinh" className="px-3 py-2.5 text-left align-top text-slate-700 group-hover:bg-slate-50">
             {String(row[congTrinhKey] || '—')}
           </td>
         ) : null;
 
       case 'hangMuc':
         return (
-          <td key="hangMuc" className="px-3 py-2.5 text-left align-top text-slate-700">
+          <td key="hangMuc" className="px-3 py-2.5 text-left align-top text-slate-700 group-hover:bg-slate-50">
             {String(row[hangMucKey] || '—')}
           </td>
         );
 
       case 'xuong':
         return (
-          <td key="xuong" className="px-3 py-2.5 text-left align-top text-slate-600">
+          <td key="xuong" className="px-3 py-2.5 text-left align-top text-slate-600 group-hover:bg-slate-50">
             {String(row[xuongKey] || '—')}
           </td>
         );
 
       case 'bop':
         return (
-          <td key="bop" className="px-3 py-2.5 text-left align-top text-slate-600">
+          <td key="bop" className="px-3 py-2.5 text-left align-top text-slate-600 group-hover:bg-slate-50">
             {String(row[bopKey] || '—')}
           </td>
         );
 
       case 'tinhTrang':
         return (
-          <td key="tinhTrang" className="px-3 py-2.5 text-left align-top text-slate-600">
+          <td key="tinhTrang" className="px-3 py-2.5 text-left align-top text-slate-600 group-hover:bg-slate-50">
             {String(row[tinhTrangKey] || '—')}
           </td>
         );
 
       case 'phanLoai':
         return (
-          <td key="phanLoai" className="px-3 py-2.5 text-right align-top text-slate-600">
+          <td key="phanLoai" className="px-3 py-2.5 text-right align-top text-slate-600 group-hover:bg-slate-50">
             {String(row[phanLoaiNhomSanPhamKey] || '—')}
           </td>
         );
 
       case 'triGia':
         return (
-          <td key="triGia" className="px-3 py-2.5 text-right align-top text-slate-800">
+          <td key="triGia" className="px-3 py-2.5 text-right align-top text-slate-800 group-hover:bg-slate-50">
             {money(parseNumber(row[triGiaDonHangTongKey]))}
           </td>
         );
 
       case 'thanhTienPhieu':
         return (
-          <td key="thanhTienPhieu" className="px-3 py-2.5 text-right align-top text-slate-800">
+          <td key="thanhTienPhieu" className="px-3 py-2.5 text-right align-top text-slate-800 group-hover:bg-slate-50">
             {money(parseNumber(row[thanhTienTinhPhieuKey]))}
           </td>
         );
 
       case 'thanhTienKho':
         return (
-          <td key="thanhTienKho" className="px-3 py-2.5 text-right align-top font-medium text-indigo-700">
+          <td key="thanhTienKho" className="px-3 py-2.5 text-right align-top font-medium text-indigo-700 group-hover:bg-slate-50">
             {money(parseNumber(row[thanhTienNhapKhoKey]))}
           </td>
         );
@@ -847,6 +1060,13 @@ export const HexDetailModal = ({
         return (
           <NoteCell key="ghiChuXuatKho" row={row} columnKey={ghiChuXuatKhoKey} label="Tổng hợp ghi chú xuất kho" />
         );
+
+      // ✅ MỚI: 1 vị trí -> 5 <td> (5 cột con M1..M5), luôn theo đúng
+      // FIVE_M_ORDER để khớp với 5 <col> trong ColGroup và 5 header con.
+      case 'vuongMac':
+        return FIVE_M_ORDER.map((cat) => (
+          <VuongMacCatCell key={cat} row={row} category={cat} />
+        ));
 
       default:
         return null;
@@ -905,7 +1125,7 @@ export const HexDetailModal = ({
             </div>
           </div>
 
-          <div className="shrink-0 border-b border-slate-100 px-5 py-3">
+          <div className="shrink-0 border-b border-slate-100 px-5 py-3 mb-2">
             <div className="relative max-w-xs">
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -920,8 +1140,15 @@ export const HexDetailModal = ({
 
           {filteredRows.length > 0 ? (
             <>
-              <div className="shrink-0 overflow-hidden border-b border-emerald-200 bg-emerald-50 px-5 pt-5">
-                <div className="flex">
+              <div className="shrink-0 overflow-hidden">
+                <div className="flex bg-emerald-50">
+                  {/* 🔧 FIX (rìa xanh/đỏ không khớp): trước đây toàn bộ đệm trái +
+                      phải của header dùng CHUNG 1 lớp bg-emerald-50 px-5 trên div
+                      ngoài cùng, nên rìa phải LUÔN xanh dù cột cuối cùng là nhóm
+                      "Vướng Mắc (5M)" nền đỏ. Giờ tách riêng đệm trái (luôn xanh,
+                      vì cột đầu luôn là cột thường) và đệm phải (đổi màu theo
+                      lastColIsVuongMac) thành 2 div độc lập. */}
+                  <div className="w-5 shrink-0 bg-emerald-50" />
                   <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                     <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                       <ColGroup />
@@ -929,6 +1156,7 @@ export const HexDetailModal = ({
                         <tr>
                           <th
                             onClick={() => toggleSort('stt')}
+                            rowSpan={hasVuongMacCol ? 2 : 1}
                             style={{ left: 0 }}
                             className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
                           >
@@ -939,6 +1167,7 @@ export const HexDetailModal = ({
                           </th>
                           <th
                             onClick={() => toggleSort('hex')}
+                            rowSpan={hasVuongMacCol ? 2 : 1}
                             style={{ left: COL_WIDTHS.stt }}
                             className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
                           >
@@ -947,57 +1176,139 @@ export const HexDetailModal = ({
                               <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                             </span>
                           </th>
-                          {/* ✅ Header lặp theo orderedCols (đúng thứ tự đã setup) thay vì
-                              các SortableHeader hardcode theo vị trí cố định như trước. */}
+                          {/* ✅ Header tầng 1 lặp theo orderedCols (đúng thứ tự đã setup).
+                              Cột thường: <th rowSpan=2> khi có nhóm Vướng Mắc, để chừa
+                              chỗ cho hàng header thứ 2 bên dưới. Riêng "vuongMac": 1 ô
+                              nhãn nhóm màu đỏ, colSpan=5, KHÔNG rowSpan (hàng dưới là 5
+                              cột con của chính nó). */}
                           {orderedCols.map((key, i) => {
-                            const meta = COLUMN_META[key];
                             const isLast = i === orderedCols.length - 1;
+                            if (key === 'vuongMac') {
+                              // ✅ SỬA LỖI GIAO DIỆN: trước đây kế thừa headerCellClass
+                              // (có border-emerald-200) rồi mới thêm bg-red-50 đè lên —
+                              // nền đỏ thắng nhưng viền dưới VẪN LÀ XANH do 2 class border
+                              // màu khác nhau cùng áp cho border-b (đè nhau không chắc
+                              // ăn). Viết riêng 1 class cho ô nhóm này, dùng ĐÚNG tông đỏ
+                              // cho mọi viền (border-b/border-r), không còn lẫn màu xanh.
+                              return (
+                                <th
+                                  key="vuongMac-group"
+                                  colSpan={5}
+                                  className={`cursor-default select-none border-b border-red-200 bg-red-50 px-3 py-3 text-center text-red-700 ${
+                                    isLast ? '' : 'border-r border-red-200'
+                                  }`}
+                                >
+                                  Vướng Mắc (5M)
+                                </th>
+                              );
+                            }
+                            const meta = COLUMN_META[key];
                             return (
-                              <SortableHeader key={key} sortKey={meta.sortKey} align={meta.align} isLast={isLast}>
+                              <SortableHeader
+                                key={key}
+                                sortKey={meta.sortKey}
+                                align={meta.align}
+                                isLast={isLast}
+                                rowSpan={hasVuongMacCol ? 2 : 1}
+                              >
                                 {meta.label}
                               </SortableHeader>
                             );
                           })}
                         </tr>
+                        {/* ✅ Header tầng 2 — CHỈ xuất hiện khi nhóm "Vướng Mắc" đang
+                            hiển thị. Nhờ các <th rowSpan=2> ở tầng 1 đã chiếm sẵn chỗ,
+                            trình duyệt tự xếp 5 ô này đúng vào vị trí bên dưới nhãn
+                            nhóm, bất kể "vuongMac" nằm ở vị trí nào trong orderedCols. */}
+                        {hasVuongMacCol && (
+                          <tr>
+                            {FIVE_M_ORDER.map((cat, idx) => (
+                              <th
+                                key={cat}
+                                onClick={() => toggleSort(CATEGORY_SORT_KEY[cat])}
+                                title={`${FIVE_M_VI[cat]} (${FIVE_M_SHORT[cat]})`}
+                                className={`cursor-pointer select-none border-b border-red-200 bg-red-50/70 px-1 py-2 text-center text-red-700 transition-colors hover:bg-red-100 ${
+                                  idx < FIVE_M_ORDER.length - 1 ? 'border-r border-red-100' : ''
+                                }`}
+                              >
+                                <span className="inline-flex flex-col items-center justify-center gap-0.5 text-[10.5px] normal-case leading-tight">
+                                  <span className="whitespace-normal break-words">
+                                    {FIVE_M_VI[cat]} ({FIVE_M_SHORT[cat]})
+                                  </span>
+                                  <SortIcon active={sort?.key === CATEGORY_SORT_KEY[cat]} dir={sort?.dir} />
+                                </span>
+                              </th>
+                            ))}
+                          </tr>
+                        )}
                       </thead>
                     </table>
                   </div>
-                  {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
+                  {/* Đệm phải: cùng nguyên lý như đệm trái ở trên, nhưng đổi màu
+                      theo cột cuối cùng đang hiển thị — đỏ khi đó là nhóm "Vướng
+                      Mắc (5M)", xanh cho mọi trường hợp còn lại. */}
+                  <div className={`w-5 shrink-0 ${lastColIsVuongMac ? 'bg-red-50' : 'bg-emerald-50'}`} />
+                  {/* Ô bù trừ scrollbar: cũng phải đổi màu theo cùng logic, để
+                      không còn lộ vệt xanh lạc lõng ngay sau vùng đỏ khi cột cuối
+                      là "vuongMac". */}
+                  {scrollbarWidth > 0 && (
+                    <div
+                      style={{ width: scrollbarWidth }}
+                      className={`shrink-0 ${lastColIsVuongMac ? 'bg-red-50' : 'bg-emerald-50'}`}
+                    />
+                  )}
                 </div>
               </div>
 
-              <div
-                ref={bodyScrollRef}
-                onScroll={handleBodyScroll}
-                className="min-h-0 flex-1 overflow-auto custom-scrollbar px-5"
-              >
-                <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
-                  <ColGroup />
-                  <tbody className="divide-y divide-emerald-50">
-                    {sortedRows.map((entry) => {
-                      const row = entry.row;
-                      return (
-                        <tr key={entry.stt} className="transition-colors hover:bg-slate-50">
-                          <td
-                            style={{ left: 0 }}
-                            className="sticky z-10 border-r border-slate-100 bg-white px-2 py-2.5 text-center align-top font-semibold text-slate-500"
-                          >
-                            {entry.stt}
-                          </td>
-                          <td
-                            style={{ left: COL_WIDTHS.stt }}
-                            className="sticky z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left align-top font-medium text-slate-700"
-                          >
-                            {String(row[hexKey] || '—')}
-                          </td>
-                          {/* ✅ Body lặp theo orderedCols, đúng thứ tự + tập cột đang
-                              được cấu hình hiển thị. */}
-                          {orderedCols.map((key) => renderCell(row, key))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="min-h-0 flex-1 overflow-hidden px-5">
+                {/* 🔧 FIX (hở khe lộ dữ liệu khi cuộn ngang): trước đây px-5 nằm
+                    TRỰC TIẾP trên chính div overflow-auto (bodyScrollRef) — div này
+                    vừa là khung cuộn ngang/dọc thật sự, vừa là "scrollport" mà các ô
+                    sticky (STT, Mã Hex) dùng làm mốc tính vị trí. Khi scrollport có
+                    padding, trình duyệt neo ô sticky vào MÉP PADDING (lùi vào trong
+                    20px) chứ không phải mép ngoài cùng của khung nhìn — để lại 1 khe
+                    hở 20px cố định, và nội dung đã cuộn qua vẫn lộ ra qua khe đó.
+                    Sửa bằng cách tách 2 lớp: lớp NGOÀI (div này) chỉ tạo khoảng đệm
+                    20px, KHÔNG cuộn nên không phải là scrollport của sticky; lớp
+                    TRONG (bodyScrollRef ngay dưới) mới thực sự cuộn và KHÔNG còn
+                    padding — sticky lúc này neo đúng sát mép, hết khe hở. */}
+                <div
+                  ref={bodyScrollRef}
+                  onScroll={handleBodyScroll}
+                  className="h-full overflow-auto custom-scrollbar"
+                >
+                  <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
+                    <ColGroup />
+                    <tbody className="divide-y divide-emerald-50">
+                      {sortedRows.map((entry) => {
+                        const row = entry.row;
+                        return (
+                          // 🔧 FIX: thêm "group" để 2 ô sticky (STT, Mã Hex) bên dưới có
+                          // thể bám theo trạng thái hover của CẢ DÒNG qua group-hover,
+                          // thay vì đứng yên bg-white trong khi các ô còn lại đổi sang
+                          // slate-50 — trước đây gây cảm giác 2 cột "nổi" tách rời dòng.
+                          <tr key={entry.stt} className="group transition-colors hover:bg-slate-50">
+                            <td
+                              style={{ left: 0 }}
+                              className="sticky z-10 border-r border-slate-100 bg-white group-hover:bg-slate-50 px-2 py-2.5 text-center align-top font-semibold text-slate-500"
+                            >
+                              {entry.stt}
+                            </td>
+                            <td
+                              style={{ left: COL_WIDTHS.stt }}
+                              className="sticky z-10 border-r border-slate-100 bg-white group-hover:bg-slate-50 px-3 py-2.5 text-left align-top font-medium text-slate-700"
+                            >
+                              {String(row[hexKey] || '—')}
+                            </td>
+                            {/* ✅ Body lặp theo orderedCols, đúng thứ tự + tập cột đang
+                                được cấu hình hiển thị. "vuongMac" tự nở ra 5 <td>. */}
+                            {orderedCols.map((key) => renderCell(row, key))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               <div className="shrink-0 overflow-hidden border-t-2 border-emerald-400 bg-emerald-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
@@ -1011,8 +1322,9 @@ export const HexDetailModal = ({
                             // ✅ Footer duyệt theo orderedCols: gộp colSpan cho mọi cột
                             // "label" (congTrinh/hangMuc/xuong/bop/tinhTrang) vào ô nhãn
                             // "TỔNG CỘNG", in tổng cho 3 cột số liệu (triGia/thanhTienPhieu/
-                            // thanhTienKho) và để trống cho các cột "blank"
-                            // (phanLoai + 5 cột ghi chú) — đúng vị trí đã setup.
+                            // thanhTienKho) và để trống cho các cột "blank" (phanLoai +
+                            // 5 cột ghi chú). Riêng "vuongMac": 1 ô trống colSpan=5 để
+                            // khớp với 5 cột con bên trên.
                             const cells: React.ReactNode[] = [];
                             let pendingSpan = 2; // STT + Mã Hex luôn có mặt
                             let labelRendered = false;
@@ -1050,6 +1362,8 @@ export const HexDetailModal = ({
                                     {money(value)}
                                   </td>
                                 );
+                                } else if (key === 'vuongMac') {
+                                  cells.push(<td key={key} className="px-3 py-3" colSpan={5} />);
                                 } else {
                                   cells.push(<td key={key} className="px-3 py-3" />);
                               }
@@ -1120,6 +1434,16 @@ export const HexDetailModal = ({
           </div>
         </div>
       )}
+
+      {/* ✅ MỚI: Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại
+          5M của cột con vừa bấm. */}
+      <VuongMacDetailModal
+        isOpen={vuongMacDetail.open}
+        onClose={() => setVuongMacDetail(prev => ({ ...prev, open: false }))}
+        hex={vuongMacDetail.hex}
+        hexLabel={vuongMacDetail.label}
+        category={vuongMacDetail.category}
+      />
     </>,
     document.body
   );

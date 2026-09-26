@@ -222,20 +222,20 @@ const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatDecima
                 const rank = hasPriority ? rankByName.get(row.name.trim()) : undefined;
                 return (
                   <tr key={idx} className="hover:brightness-95 transition-colors group" style={rowStyle}>
-                    {hasPriority && (
-                      <td
-                        style={{ width: STT_WIDTH, minWidth: STT_WIDTH, ...rowStyle }}
-                        className="px-1 py-2.5 text-center font-bold text-slate-700 sticky left-0 z-10 border-r border-slate-100"
-                      >
-                        {rank !== undefined ? rank + 1 : '–'}
-                      </td>
-                    )}
-                    <td
-                      style={{ left: hasPriority ? STT_WIDTH : undefined, ...rowStyle }}
-                      className={`px-3 py-2.5 text-left font-medium text-slate-700 sticky ${hasPriority ? '' : 'left-0'} z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}
-                    >
-                      {row.name}
-                    </td>
+                   {hasPriority && (
+  <td
+    style={{ width: STT_WIDTH, minWidth: STT_WIDTH, ...rowStyle }}
+    className="px-1 py-2.5 text-center font-bold text-slate-700 sticky left-0 z-10 border-r border-slate-100 bg-white"
+  >
+    {rank !== undefined ? rank + 1 : '–'}
+  </td>
+)}
+                  <td
+  style={{ left: hasPriority ? STT_WIDTH : undefined, ...rowStyle }}
+  className={`px-3 py-2.5 text-left font-medium text-slate-700 sticky ${hasPriority ? '' : 'left-0'} z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] bg-white`}
+>
+  {row.name}
+</td>
                     <td className={`${tdNumeric} text-slate-800`}>{renderValue(row.totalOrder, 'totalOrder', row.name)}</td>
                     <td className={`${tdNumeric} text-red-600`}>{renderValue(row.cancelled, 'cancelled', row.name)}</td>
                     <td className={`${tdNumeric} text-slate-800 font-medium`}>{renderValue(row.afterCancel, 'afterCancel', row.name)}</td>

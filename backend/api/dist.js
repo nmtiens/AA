@@ -59976,6 +59976,204 @@ app.post(
     }
   }
 );
+var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement"];
+var vuongMacCreateSchema = external_exports.object({
+  hex: external_exports.string().min(1),
+  category: external_exports.enum(FIVE_M_CATEGORIES),
+  content: external_exports.string().min(1).max(2e3)
+});
+var vuongMacUpdateSchema = external_exports.object({
+  category: external_exports.enum(FIVE_M_CATEGORIES).optional(),
+  content: external_exports.string().min(1).max(2e3).optional(),
+  isResolved: external_exports.boolean().optional()
+});
+app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h)).filter(Boolean) : [];
+    if (hexes.length === 0) return res.json({});
+    if (hexes.length > 2e3) return res.status(400).json({ error: "Too many hexes" });
+    const r = await timedQuery(
+      `SELECT id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at
+       FROM vuong_mac
+       WHERE hex = ANY($1::text[])
+       ORDER BY hex, created_at ASC`,
+      [hexes]
+    );
+    const out = {};
+    r.rows.forEach((row) => {
+      if (!out[row.hex]) out[row.hex] = [];
+      out[row.hex].push({
+        id: row.id,
+        category: row.category,
+        content: row.content,
+        isResolved: row.is_resolved,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedBy: row.updated_by,
+        updatedAt: row.updated_at
+      });
+    });
+    res.json(out);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/list:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.post(
+  "/api/vuong-mac",
+  authenticateJWT,
+  validateBody(vuongMacCreateSchema),
+  async (req, res) => {
+    try {
+      const { hex: hex3, category, content } = req.body;
+      const actor = req.user.username;
+      const result = await pool.query(
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $4)
+         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
+        [hex3, category, content, actor]
+      );
+      const row = result.rows[0];
+      await pool.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
+         VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
+        [row.id, hex3, category, content, actor]
+      );
+      res.json({
+        success: true,
+        data: {
+          id: row.id,
+          category: row.category,
+          content: row.content,
+          isResolved: row.is_resolved,
+          createdBy: row.created_by,
+          createdAt: row.created_at,
+          updatedBy: row.updated_by,
+          updatedAt: row.updated_at
+        }
+      });
+    } catch (error61) {
+      console.error("L\u1ED7i t\u1EA1o vuong-mac:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
+app.put(
+  "/api/vuong-mac/:id",
+  authenticateJWT,
+  validateBody(vuongMacUpdateSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const actor = req.user.username;
+      const existing = await pool.query("SELECT * FROM vuong_mac WHERE id = $1", [id]);
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
+      }
+      const old = existing.rows[0];
+      if (old.created_by !== actor && req.user.role !== "ADMIN") {
+        return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c s\u1EEDa" });
+      }
+      const { category, content, isResolved } = req.body;
+      const fields = ["updated_by = $1", "updated_at = now()"];
+      const values = [actor];
+      let idx = 2;
+      if (category !== void 0) {
+        fields.push(`category = $${idx}`);
+        values.push(category);
+        idx++;
+      }
+      if (content !== void 0) {
+        fields.push(`content = $${idx}`);
+        values.push(content);
+        idx++;
+      }
+      if (isResolved !== void 0) {
+        fields.push(`is_resolved = $${idx}`);
+        values.push(isResolved);
+        idx++;
+      }
+      values.push(id);
+      const result = await pool.query(
+        `UPDATE vuong_mac SET ${fields.join(", ")} WHERE id = $${idx}
+         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
+        values
+      );
+      const row = result.rows[0];
+      await pool.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, actor)
+         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6)`,
+        [row.id, row.hex, row.category, old.content, row.content, actor]
+      );
+      res.json({
+        success: true,
+        data: {
+          id: row.id,
+          category: row.category,
+          content: row.content,
+          isResolved: row.is_resolved,
+          createdBy: row.created_by,
+          createdAt: row.created_at,
+          updatedBy: row.updated_by,
+          updatedAt: row.updated_at
+        }
+      });
+    } catch (error61) {
+      console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
+app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const actor = req.user.username;
+    const existing = await pool.query("SELECT * FROM vuong_mac WHERE id = $1", [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
+    }
+    const old = existing.rows[0];
+    if (old.created_by !== actor && req.user.role !== "ADMIN") {
+      return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c x\xF3a" });
+    }
+    await pool.query("DELETE FROM vuong_mac WHERE id = $1", [id]);
+    await pool.query(
+      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, actor)
+       VALUES ($1, $2, 'DELETE', $3, $4, $5)`,
+      [old.id, old.hex, old.category, old.content, actor]
+    );
+    res.json({ success: true, message: "\u0110\xE3 x\xF3a v\u01B0\u1EDBng m\u1EAFc" });
+  } catch (error61) {
+    console.error("L\u1ED7i x\xF3a vuong-mac:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
+  try {
+    const { hex: hex3 } = req.params;
+    const r = await timedQuery(
+      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, actor, acted_at
+       FROM vuong_mac_log
+       WHERE hex = $1
+       ORDER BY acted_at DESC
+       LIMIT 500`,
+      [hex3]
+    );
+    res.json(r.rows.map((row) => ({
+      id: row.id,
+      vuongMacId: row.vuong_mac_id,
+      action: row.action,
+      category: row.category,
+      contentBefore: row.content_before,
+      contentAfter: row.content_after,
+      actor: row.actor,
+      actedAt: row.acted_at
+    })));
+  } catch (error61) {
+    console.error("L\u1ED7i l\u1EA5y log vuong-mac:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y endpoint" });
 });

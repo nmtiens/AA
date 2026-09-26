@@ -3000,6 +3000,213 @@ app.post(
   }
 );
 
+
+// ============================================================================
+// VƯỚNG MẮC 5M — ghi nhận vấn đề tồn đọng theo từng Hex, phân loại theo 5M
+// (Man/Machine/Material/Method/Measurement). Có audit log đầy đủ (ai/khi nào).
+// ============================================================================
+const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
+
+const vuongMacCreateSchema = z.object({
+  hex: z.string().min(1),
+  category: z.enum(FIVE_M_CATEGORIES),
+  content: z.string().min(1).max(2000),
+});
+const vuongMacUpdateSchema = z.object({
+  category: z.enum(FIVE_M_CATEGORIES).optional(),
+  content: z.string().min(1).max(2000).optional(),
+  isResolved: z.boolean().optional(),
+});
+
+// Lấy toàn bộ vướng mắc hiện có cho danh sách hex — dùng để hiển thị cột
+// "Vướng Mắc" trong bảng chi tiết theo Hex.
+app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes)
+      ? req.body.hexes.map((h: unknown) => String(h)).filter(Boolean)
+      : [];
+    if (hexes.length === 0) return res.json({});
+    if (hexes.length > 2000) return res.status(400).json({ error: 'Too many hexes' });
+
+    const r = await timedQuery(
+      `SELECT id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at
+       FROM vuong_mac
+       WHERE hex = ANY($1::text[])
+       ORDER BY hex, created_at ASC`,
+      [hexes]
+    );
+
+    const out: Record<string, any[]> = {};
+    r.rows.forEach(row => {
+      if (!out[row.hex]) out[row.hex] = [];
+      out[row.hex].push({
+        id: row.id,
+        category: row.category,
+        content: row.content,
+        isResolved: row.is_resolved,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedBy: row.updated_by,
+        updatedAt: row.updated_at,
+      });
+    });
+    res.json(out);
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/list:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Tạo mới 1 vướng mắc cho 1 hex — bất kỳ user đã đăng nhập nào cũng được thêm.
+app.post(
+  '/api/vuong-mac',
+  authenticateJWT,
+  validateBody(vuongMacCreateSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { hex, category, content } = req.body;
+      const actor = req.user!.username;
+
+      const result = await pool.query(
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $4)
+         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
+        [hex, category, content, actor]
+      );
+      const row = result.rows[0];
+
+      await pool.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
+         VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
+        [row.id, hex, category, content, actor]
+      );
+
+      res.json({
+        success: true,
+        data: {
+          id: row.id, category: row.category, content: row.content, isResolved: row.is_resolved,
+          createdBy: row.created_by, createdAt: row.created_at, updatedBy: row.updated_by, updatedAt: row.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error('Lỗi tạo vuong-mac:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
+// Sửa 1 vướng mắc — chỉ người tạo hoặc ADMIN.
+app.put(
+  '/api/vuong-mac/:id',
+  authenticateJWT,
+  validateBody(vuongMacUpdateSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = req.user!.username;
+
+      const existing = await pool.query('SELECT * FROM vuong_mac WHERE id = $1', [id]);
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy vướng mắc' });
+      }
+      const old = existing.rows[0];
+      if (old.created_by !== actor && req.user!.role !== 'ADMIN') {
+        return res.status(403).json({ success: false, message: 'Chỉ người tạo hoặc Admin được sửa' });
+      }
+
+      const { category, content, isResolved } = req.body;
+      const fields: string[] = ['updated_by = $1', 'updated_at = now()'];
+      const values: any[] = [actor];
+      let idx = 2;
+      if (category !== undefined) { fields.push(`category = $${idx}`); values.push(category); idx++; }
+      if (content !== undefined) { fields.push(`content = $${idx}`); values.push(content); idx++; }
+      if (isResolved !== undefined) { fields.push(`is_resolved = $${idx}`); values.push(isResolved); idx++; }
+
+      values.push(id);
+      const result = await pool.query(
+        `UPDATE vuong_mac SET ${fields.join(', ')} WHERE id = $${idx}
+         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
+        values
+      );
+      const row = result.rows[0];
+
+      await pool.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, actor)
+         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6)`,
+        [row.id, row.hex, row.category, old.content, row.content, actor]
+      );
+
+      res.json({
+        success: true,
+        data: {
+          id: row.id, category: row.category, content: row.content, isResolved: row.is_resolved,
+          createdBy: row.created_by, createdAt: row.created_at, updatedBy: row.updated_by, updatedAt: row.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error('Lỗi sửa vuong-mac:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
+// Xóa 1 vướng mắc — chỉ người tạo hoặc ADMIN.
+app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const actor = req.user!.username;
+
+    const existing = await pool.query('SELECT * FROM vuong_mac WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy vướng mắc' });
+    }
+    const old = existing.rows[0];
+    if (old.created_by !== actor && req.user!.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'Chỉ người tạo hoặc Admin được xóa' });
+    }
+
+    await pool.query('DELETE FROM vuong_mac WHERE id = $1', [id]);
+    await pool.query(
+      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, actor)
+       VALUES ($1, $2, 'DELETE', $3, $4, $5)`,
+      [old.id, old.hex, old.category, old.content, actor]
+    );
+
+    res.json({ success: true, message: 'Đã xóa vướng mắc' });
+  } catch (error) {
+    console.error('Lỗi xóa vuong-mac:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// Nhật ký (log) toàn bộ thao tác thêm/sửa/xóa trên 1 hex — dùng cho "xem log".
+app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const { hex } = req.params;
+    const r = await timedQuery(
+      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, actor, acted_at
+       FROM vuong_mac_log
+       WHERE hex = $1
+       ORDER BY acted_at DESC
+       LIMIT 500`,
+      [hex]
+    );
+    res.json(r.rows.map(row => ({
+      id: row.id,
+      vuongMacId: row.vuong_mac_id,
+      action: row.action,
+      category: row.category,
+      contentBefore: row.content_before,
+      contentAfter: row.content_after,
+      actor: row.actor,
+      actedAt: row.acted_at,
+    })));
+  } catch (error) {
+    console.error('Lỗi lấy log vuong-mac:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // --- 404 cho các route không khớp ---
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Không tìm thấy endpoint' });
