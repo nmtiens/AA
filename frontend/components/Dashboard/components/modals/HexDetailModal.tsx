@@ -234,6 +234,10 @@ const NoteContent = ({ text }: { text: string }) => {
     <div className="space-y-3">
       {blocks.map((block, i) => {
         const fileIds = extractDriveFileIds(block.lines.join('\n'));
+        const textLines = block.lines.filter(
+          (line) => extractDriveFileIds(line).length === 0 && line.trim()
+        );
+
         return (
           <div key={i} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
             {block.date && (
@@ -244,27 +248,32 @@ const NoteContent = ({ text }: { text: string }) => {
                 <span className="text-[11px] text-slate-400">Cuộn trong khung để xem hết</span>
               </div>
             )}
-            <div
-              className="overflow-y-auto p-4 text-sm leading-relaxed text-slate-700 custom-scrollbar"
-              style={{ maxHeight: NOTE_BLOCK_MAX_HEIGHT }}
-            >
-              <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
-                {block.lines.map((line, j) => {
-                  if (extractDriveFileIds(line).length > 0) return null;
-                  const displayLine = line.trim();
-                  if (!displayLine) return null;
-                  return (
+
+            {/* Dòng nội dung (#...) cố định phía trên, KHÔNG cuộn theo ảnh */}
+            {textLines.length > 0 && (
+              <div className="border-b border-slate-200 p-4 text-sm leading-relaxed text-slate-700">
+                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
+                  {textLines.map((line, j) => (
                     <span
                       key={j}
                       className="whitespace-pre-wrap break-words after:mx-1.5 after:text-slate-300 after:content-['•'] last:after:content-none"
                     >
-                      # {displayLine}
+                      # {line}
                     </span>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-              <ImageGallery fileIds={fileIds} />
-            </div>
+            )}
+
+            {/* Chỉ phần ảnh mới cuộn khi nội dung dài */}
+            {fileIds.length > 0 && (
+              <div
+                className="overflow-y-auto p-4 custom-scrollbar"
+                style={{ maxHeight: NOTE_BLOCK_MAX_HEIGHT }}
+              >
+                <ImageGallery fileIds={fileIds} />
+              </div>
+            )}
           </div>
         );
       })}
