@@ -4,6 +4,8 @@ import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
+import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
+import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 
 export interface InventoryDetailColumnKeys {
   hexKey: string;
@@ -38,11 +40,9 @@ const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
   text.length > limit ? `${text.slice(0, limit)}...` : text;
 
-// ✅ SỬA: đây là độ rộng PX THẬT SỰ của từng cột (dùng trực tiếp trong <colgroup>,
-// không quy đổi ra %). Nhờ vậy offset "sticky left" của cột Mã Hex luôn khớp
-// chính xác với độ rộng thật của cột STT đứng trước nó, bất kể modal rộng bao
-// nhiêu (trước đây dùng % nên khi modal giãn ra, cột bị kéo to hơn COL_WIDTHS,
-// làm lệch toàn bộ bảng).
+// Độ rộng PX THẬT SỰ của từng cột (dùng trực tiếp trong <colgroup>, không quy
+// đổi ra %). Nhờ vậy offset "sticky left" của cột Mã Hex luôn khớp chính xác
+// với độ rộng thật của cột STT đứng trước nó, bất kể modal rộng bao nhiêu.
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
@@ -57,6 +57,20 @@ const COL_WIDTHS = {
 
 type SortKey = 'stt' | 'hex' | 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
 type SortDir = 'asc' | 'desc';
+
+// Các cột "phụ" — có thể ẩn/hiện và SẮP XẾP LẠI THỨ TỰ qua Setup cột (Admin),
+// đồng bộ cơ chế với ExportDetailModal (Xuất kho).
+type OptionalColKey = 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
+
+const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: SortKey; align?: 'left' | 'right' }> = {
+  hangMuc: { label: 'Hạng Mục', sortKey: 'hangMuc' },
+  congTrinh: { label: 'Công Trình', sortKey: 'congTrinh' },
+  xuong: { label: 'Khu Vực SX', sortKey: 'xuong' },
+  date: { label: 'Ngày Nhập', sortKey: 'date' },
+  soLuong: { label: 'Số Lượng', sortKey: 'soLuong', align: 'right' },
+  thanhTien: { label: 'Thành Tiền', sortKey: 'thanhTien', align: 'right' },
+  ghiChu: { label: <>Ghi Chú <br />Nhập Kho</>, sortKey: 'ghiChu' },
+};
 
 const NUMERIC_SORT_KEYS: SortKey[] = ['thanhTien', 'soLuong'];
 
@@ -160,6 +174,32 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
 
   const showProjectColumn = projectName === null;
 
+  // ==== Setup cột hiển thị (chỉ Admin) — đồng bộ cơ chế với Xuất kho ====
+  const [cfgVersion, setCfgVersion] = useState(0);
+
+  const OPTIONAL_COLUMNS: ModalColumnDef[] = useMemo(() => [
+    { key: 'hangMuc', label: 'Hạng Mục' },
+    ...(showProjectColumn ? [{ key: 'congTrinh', label: 'Công Trình' }] : []),
+    { key: 'xuong', label: 'Khu Vực SX' },
+    { key: 'date', label: 'Ngày Nhập' },
+    { key: 'soLuong', label: 'Số Lượng' },
+    { key: 'thanhTien', label: 'Thành Tiền' },
+    { key: 'ghiChu', label: 'Ghi Chú Nhập Kho' },
+  ], [showProjectColumn]);
+
+  const visibleCols = useMemo(
+    () => resolveVisibleModalColumns('modal_inventory_detail', OPTIONAL_COLUMNS),
+    [OPTIONAL_COLUMNS, cfgVersion]
+  );
+  const V = (key: string) => visibleCols.some(c => c.key === key);
+
+  // ✅ Thứ tự cột thực tế cần render — lấy trực tiếp từ visibleCols (đã được
+  // resolveVisibleModalColumns sắp xếp đúng theo cấu hình Admin đã lưu/kéo-thả).
+  const orderedCols = useMemo(
+    () => visibleCols.map(c => c.key) as OptionalColKey[],
+    [visibleCols]
+  );
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
@@ -232,7 +272,7 @@ const getValue = (row: DataRow): number | string => {
       return (va as number) - (vb as number);
     });
     return sort.dir === 'desc' ? sorted.reverse() : sorted;
-  }, [indexedRows, sort, hexKey, hangMucKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
+  }, [indexedRows, sort, hexKey, hangMucKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey, getNotePreview]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce((acc, row) => acc + parseNumber(row[thanhTienKey]), 0);
@@ -274,33 +314,29 @@ const handleExportCsv = () => {
   exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
 };
 
-// ✅ SỬA: totalMinWidth vẫn dùng để tính min-width tổng của bảng (đảm bảo
-// scroll ngang khi màn hình hẹp) — nhưng KHÔNG còn dùng để quy đổi % nữa.
+// ✅ totalMinWidth vẫn dùng để tính min-width tổng của bảng (đảm bảo scroll
+// ngang khi màn hình hẹp) — tính động theo orderedCols thay vì cộng cứng.
 const totalMinWidth =
-  COL_WIDTHS.stt + COL_WIDTHS.hex + COL_WIDTHS.hangMuc + // ✅ MỚI
-  (showProjectColumn ? COL_WIDTHS.congTrinh : 0) +
-  COL_WIDTHS.xuong + COL_WIDTHS.date + COL_WIDTHS.soLuong + COL_WIDTHS.thanhTien + COL_WIDTHS.ghiChu;
+  COL_WIDTHS.stt + COL_WIDTHS.hex +
+  orderedCols.reduce((sum, key) => sum + COL_WIDTHS[key], 0);
 
   const tableStyle: React.CSSProperties = { width: '100%', minWidth: totalMinWidth, tableLayout: 'fixed' };
 
-// ✅ SỬA: colgroup dùng PX cố định cho mọi cột có độ rộng xác định (STT, Hex,
-// Hạng Mục, Công Trình, Khu Vực SX, Ngày Nhập, Số Lượng, Thành Tiền). Riêng
-// cột "Ghi Chú" KHÔNG khai báo width -> với table-layout: fixed, nó sẽ tự
-// hấp thụ toàn bộ phần không gian còn thừa khi modal rộng hơn totalMinWidth.
-// Nhờ vậy các cột sticky (STT, Mã Hex) luôn có độ rộng thật đúng bằng
-// COL_WIDTHS, offset "left" không bao giờ bị lệch nữa — bất kể modal được mở
-// rộng đến đâu.
+// ✅ Colgroup dùng PX cố định cho STT + Hex + mọi cột phụ, LẶP THEO
+// orderedCols để đúng thứ tự đã setup. Cột phụ CUỐI CÙNG trong orderedCols
+// (bất kể đó là cột nào) không khai báo width -> với table-layout: fixed, nó
+// tự hấp thụ phần không gian còn thừa khi modal rộng hơn totalMinWidth,
+// giống hành vi gốc (trước đây cố định là cột Ghi Chú vì nó luôn ở cuối).
 const ColGroup = () => (
   <colgroup>
     <col style={{ width: COL_WIDTHS.stt }} />
     <col style={{ width: COL_WIDTHS.hex }} />
-    <col style={{ width: COL_WIDTHS.hangMuc }} /> {/* ✅ MỚI */}
-    {showProjectColumn && <col style={{ width: COL_WIDTHS.congTrinh }} />}
-    <col style={{ width: COL_WIDTHS.xuong }} />
-    <col style={{ width: COL_WIDTHS.date }} />
-    <col style={{ width: COL_WIDTHS.soLuong }} />
-    <col style={{ width: COL_WIDTHS.thanhTien }} />
-    <col />
+    {orderedCols.map((key, i) => {
+      const isLast = i === orderedCols.length - 1;
+      return isLast
+        ? <col key={key} />
+        : <col key={key} style={{ width: COL_WIDTHS[key] }} />;
+    })}
   </colgroup>
 );
 
@@ -308,9 +344,12 @@ const ColGroup = () => (
     'cursor-pointer select-none border-b border-r border-indigo-200 bg-indigo-50 px-3 py-3 transition-colors hover:bg-indigo-100';
 
   const SortableHeader = ({
-    sortKey, align = 'left', children,
-  }: { sortKey: SortKey; align?: 'left' | 'right'; children: React.ReactNode }) => (
-    <th onClick={() => toggleSort(sortKey)} className={`${headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'}`}>
+    sortKey, align = 'left', children, isLast = false,
+  }: { sortKey: SortKey; align?: 'left' | 'right'; children: React.ReactNode; isLast?: boolean }) => (
+    <th
+      onClick={() => toggleSort(sortKey)}
+      className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'}`}
+    >
       <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
         {children}
         <SortIcon active={sort?.key === sortKey} dir={sort?.dir} />
@@ -333,6 +372,11 @@ const ColGroup = () => (
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <ModalColumnSetupButton
+              modalId="modal_inventory_detail"
+              allColumns={OPTIONAL_COLUMNS}
+              onChange={() => setCfgVersion(v => v + 1)}
+            />
             <button
               type="button"
               onClick={handleExportCsv}
@@ -396,21 +440,17 @@ const ColGroup = () => (
                             <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                           </span>
                         </th>
-                        <SortableHeader sortKey="hangMuc">Hạng Mục</SortableHeader> {/* ✅ MỚI */}
-                        {showProjectColumn && <SortableHeader sortKey="congTrinh">Công Trình</SortableHeader>}
-                        <SortableHeader sortKey="xuong">Khu Vực SX</SortableHeader>
-                        <SortableHeader sortKey="date">Ngày Nhập</SortableHeader>
-                        <SortableHeader sortKey="soLuong" align="right">Số Lượng</SortableHeader>
-                        <SortableHeader sortKey="thanhTien" align="right">Thành Tiền</SortableHeader>
-<th
-  onClick={() => toggleSort('ghiChu')}
-  className="cursor-pointer select-none border-b border-indigo-200 bg-indigo-50 px-3 py-3 text-left transition-colors hover:bg-indigo-100"
->
-  <span className="inline-flex items-center gap-1">
-    Ghi Chú <br />Nhập Kho
-    <SortIcon active={sort?.key === 'ghiChu'} dir={sort?.dir} />
-  </span>
-</th>
+                        {/* ✅ Header lặp theo orderedCols (đúng thứ tự đã setup) thay vì
+                            các SortableHeader hardcode theo vị trí cố định như trước. */}
+                        {orderedCols.map((key, i) => {
+                          const meta = COLUMN_META[key];
+                          const isLast = i === orderedCols.length - 1;
+                          return (
+                            <SortableHeader key={key} sortKey={meta.sortKey} align={meta.align} isLast={isLast}>
+                              {meta.label}
+                            </SortableHeader>
+                          );
+                        })}
                       </tr>
                     </thead>
                   </table>
@@ -458,6 +498,78 @@ const ColGroup = () => (
                     const rowTopBorder = isHexGroupStart && idx > 0 ? 'border-t-2 border-t-indigo-200' : '';
                     const cellBorder = 'border-b border-slate-200';
 
+                    // ✅ Render 1 ô "phụ" theo key — dùng chung logic rowSpan/nhóm ở
+                    // trên, nhưng vị trí trong hàng giờ do orderedCols.map quyết
+                    // định, không hardcode.
+                    const renderCell = (key: OptionalColKey): React.ReactNode => {
+                      switch (key) {
+                        case 'hangMuc':
+                          return isHexGroupStart ? (
+                            <td
+                              key="hangMuc"
+                              rowSpan={hexRowSpan}
+                              className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
+                            >
+                              {String(row[hangMucKey] || '—')}
+                            </td>
+                          ) : null;
+
+                        case 'congTrinh':
+                          return showProjectColumn ? (
+                            <td key="congTrinh" className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
+                              {String(row[congTrinhKey] || '—')}
+                            </td>
+                          ) : null;
+
+                        case 'xuong':
+                          return isXuongGroupStart ? (
+                            <td
+                              key="xuong"
+                              rowSpan={xuongRowSpan}
+                              className={`border-r ${cellBorder} bg-slate-50 px-3 py-2.5 text-left align-middle font-medium text-slate-700`}
+                            >
+                              {xuongValue}
+                            </td>
+                          ) : null;
+
+                        case 'date':
+                          return (
+                            <td key="date" className={`px-3 py-2.5 text-left align-top text-slate-600 ${cellBorder}`}>
+                              {formatDateDisplay(row[dateKey]) || '—'}
+                            </td>
+                          );
+
+                        case 'soLuong':
+                          return (
+                            <td key="soLuong" className={`px-3 py-2.5 text-right align-top text-slate-700 ${cellBorder}`}>
+                              {quantity(parseNumber(row[soLuongKey]))}
+                            </td>
+                          );
+
+                        case 'thanhTien':
+                          return (
+                            <td key="thanhTien" className={`px-3 py-2.5 text-right align-top font-medium text-indigo-700 ${cellBorder}`}>
+                              {money(parseNumber(row[thanhTienKey]))}
+                            </td>
+                          );
+
+                        case 'ghiChu':
+                          return (
+                            <td
+                              key="ghiChu"
+                              onClick={(e) => openNoteCell(row, e)}
+                              title="Bấm để xem đầy đủ nội dung"
+                              className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-indigo-50 ${cellBorder}`}
+                            >
+                              {truncateText(getNotePreview(row)) || '—'}
+                            </td>
+                          );
+
+                        default:
+                          return null;
+                      }
+                    };
+
                     return (
                       <tr key={idx} className={`transition-colors hover:bg-indigo-50/40 ${rowTopBorder}`}>
                         {isHexGroupStart && (
@@ -478,43 +590,7 @@ const ColGroup = () => (
                             {hexValue}
                           </td>
                         )}
-                        {isHexGroupStart && (
-                          <td
-                            rowSpan={hexRowSpan}
-                            className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
-                          >
-                            {String(row[hangMucKey] || '—')}
-                          </td>
-                        )}
-                        {showProjectColumn && (
-                          <td className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
-                            {String(row[congTrinhKey] || '—')}
-                          </td>
-                        )}
-                        {isXuongGroupStart && (
-                          <td
-                            rowSpan={xuongRowSpan}
-                            className={`border-r ${cellBorder} bg-slate-50 px-3 py-2.5 text-left align-middle font-medium text-slate-700`}
-                          >
-                            {xuongValue}
-                          </td>
-                        )}
-                        <td className={`px-3 py-2.5 text-left align-top text-slate-600 ${cellBorder}`}>
-                          {formatDateDisplay(row[dateKey]) || '—'}
-                        </td>
-                        <td className={`px-3 py-2.5 text-right align-top text-slate-700 ${cellBorder}`}>
-                          {quantity(parseNumber(row[soLuongKey]))}
-                        </td>
-                       <td className={`px-3 py-2.5 text-right align-top font-medium text-indigo-700 ${cellBorder}`}>
-  {money(parseNumber(row[thanhTienKey]))}
-</td>
-<td
-  onClick={(e) => openNoteCell(row, e)}
-  title="Bấm để xem đầy đủ nội dung"
-  className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-indigo-50 ${cellBorder}`}
->
-  {truncateText(getNotePreview(row)) || '—'}
-</td>
+                        {orderedCols.map((key) => renderCell(key))}
                       </tr>
                     );
                   })}
@@ -527,17 +603,58 @@ const ColGroup = () => (
                 <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                   <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                     <ColGroup />
-                  <tfoot className="font-bold text-slate-900">
+                <tfoot className="font-bold text-slate-900">
   <tr>
-   <td
-  className="sticky left-0 z-10 bg-indigo-100 px-3 py-3 text-left"
-  colSpan={showProjectColumn ? 6 : 5}   // ✅ SỬA: +1 do thêm cột Hạng Mục
->
-  TỔNG CỘNG ({groupCount} mã Hex)
-</td>
-    <td className="px-3 py-3 text-right">{quantityTotal(totalQuantity)}</td>
-<td className="px-3 py-3 text-right">{moneyTotal(totals)}</td>
-    <td className="px-3 py-3"></td>
+    {(() => {
+      const numericKeys: OptionalColKey[] = ['soLuong', 'thanhTien'];
+      const cells: React.ReactNode[] = [];
+      let pendingSpan = 2; // STT + Mã Hex luôn có mặt
+      let labelRendered = false;
+
+      const flushLabel = () => {
+        cells.push(
+          <td
+            key="label"
+            className="sticky left-0 z-10 bg-indigo-100 px-3 py-3 text-left"
+            colSpan={pendingSpan}
+          >
+            TỔNG CỘNG ({groupCount} mã Hex)
+          </td>
+        );
+        labelRendered = true;
+      };
+
+      orderedCols.forEach((key) => {
+        const isNumeric = numericKeys.includes(key);
+        const isNote = key === 'ghiChu';
+
+        // Cột text (hangMuc/congTrinh/xuong/date) CHỈ được gộp vào ô nhãn khi
+        // nó còn đứng liền đầu. Nếu nó bị Admin kéo ra sau một cột số liệu
+        // hoặc cột ghi chú thì vẫn phải có ô riêng (trống) để không lệch cột.
+        if (!labelRendered && !isNumeric && !isNote) {
+          pendingSpan += 1;
+          return;
+        }
+
+        if (!labelRendered) flushLabel();
+
+        if (isNumeric) {
+          cells.push(
+            <td key={key} className="px-3 py-3 text-right">
+              {key === 'soLuong' ? quantityTotal(totalQuantity) : moneyTotal(totals)}
+            </td>
+          );
+        } else {
+          // ghiChu hoặc cột text đến muộn — ô trống để giữ số cột khớp
+          cells.push(<td key={key} className="px-3 py-3" />);
+        }
+      });
+
+      // Trường hợp không có cột số liệu/ghi chú nào được hiển thị
+      if (!labelRendered) flushLabel();
+
+      return cells;
+    })()}
   </tr>
 </tfoot>
                   </table>

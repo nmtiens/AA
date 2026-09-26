@@ -496,3 +496,45 @@ export const saveViewProjectMapping = async (
     return false;
   }
 };
+
+
+// ==================== TABLE COLUMN CONFIG (Setup cột cho từng bảng) ====================
+
+export interface TableColumnConfigDTO {
+  allowedColumns: string[];
+  defaultVisibleColumns: string[];
+}
+export type TableColumnConfigMap = Record<string, TableColumnConfigDTO>;
+
+export const fetchTableColumnConfig = async (): Promise<TableColumnConfigMap> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/table-column-config`);
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchTableColumnConfig error:', e);
+    return {};
+  }
+};
+
+export const saveTableColumnConfig = async (
+  tableId: string,
+  config: TableColumnConfigDTO
+): Promise<boolean> => {
+  try {
+    const token = getToken();
+    const r = await fetch(`${API_BASE_URL}/table-column-config/${encodeURIComponent(tableId)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(config),
+    });
+    if (!r.ok) throw new Error('save failed');
+    return true;
+  } catch (e) {
+    console.error('saveTableColumnConfig error:', e);
+    return false;
+  }
+};

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Eye, X, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Download } from 'lucide-react';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
+import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
+import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 
 const ROWS_PER_PAGE = 200;
 
@@ -21,6 +23,14 @@ interface DetailDataModalProps {
   loading: boolean;
   truncated: boolean;
   fileName?: string; // tên file CSV khi xuất
+  // ✅ MỚI: id cấu hình cột riêng cho từng bảng dữ liệu (Sản xuất, Đơn hàng...).
+  // Modal này được dùng chung cho nhiều bảng khác nhau (columns đổi theo props),
+  // nên mỗi nơi gọi modal nên truyền 1 modalId cố định, riêng biệt (ví dụ trùng
+  // với id trong CONFIGURABLE_TABLES: 'production', 'order'...) để cấu hình
+  // Setup cột của bảng này không bị lẫn với bảng khác. Nếu không truyền, tự
+  // suy ra 1 id ổn định từ fileName/title (kém ổn định hơn khi đổi ngôn ngữ
+  // tiêu đề, nên khuyến khích luôn truyền modalId tường minh).
+  modalId?: string;
 }
 
 interface GroupedRow {
@@ -36,10 +46,26 @@ const formatCellValue = (v: any) => {
   return String(v);
 };
 
+// Chuyển 1 chuỗi bất kỳ (fileName/title) thành slug an toàn để dùng làm modalId
+// khi component gọi modal này không truyền modalId tường minh.
+const slugify = (s: string) =>
+  s
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
 // Gộp nhiều dòng có cùng giá trị GROUP_BY_COLUMN thành 1 dòng đại diện:
 // - Cột nằm trong SUM_COLUMNS => cộng dồn (số lượng)
 // - Cột khác: nếu tất cả dòng con giống nhau thì giữ nguyên giá trị đó,
 //   nếu khác nhau thì hiển thị "Nhiều giá trị" để không đánh lừa người xem.
+// ✅ LƯU Ý: luôn gộp trên TOÀN BỘ `columns` gốc (không phải danh sách cột đang
+// hiển thị sau khi setup), để dữ liệu merge luôn đúng dù Admin có ẩn bớt cột
+// nào đó khỏi giao diện.
 function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow[] {
   const map = new Map<string, Record<string, any>[]>();
   const order: string[] = [];
@@ -76,7 +102,7 @@ function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow
 }
 
 export default function DetailDataModal({
-  open, onClose, title, accentColor, rows, columns, loading, truncated, fileName,
+  open, onClose, title, accentColor, rows, columns, loading, truncated, fileName, modalId,
 }: DetailDataModalProps) {
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -89,6 +115,31 @@ export default function DetailDataModal({
     setPage(1);
     setExpanded(new Set());
   }, [rows, open]);
+
+  // ==== Setup cột hiển thị (chỉ Admin) — chọn/ẩn + kéo-thả sắp xếp thứ tự cột.
+  // Vì modal này dùng chung cho nhiều bảng dữ liệu khác nhau (columns đổi theo
+  // props mỗi lần mở), effectiveModalId đảm bảo mỗi bảng có 1 cấu hình riêng. ====
+  const [cfgVersion, setCfgVersion] = useState(0);
+
+  const effectiveModalId = modalId || `modal_detail_${slugify(fileName || title || 'chung')}`;
+
+  const OPTIONAL_COLUMNS: ModalColumnDef[] = useMemo(
+    () => columns.map((col) => ({ key: col, label: formatColumnLabel(col) })),
+    [columns]
+  );
+
+  const visibleCols = useMemo(
+    () => resolveVisibleModalColumns(effectiveModalId, OPTIONAL_COLUMNS),
+    [effectiveModalId, OPTIONAL_COLUMNS, cfgVersion]
+  );
+
+  // ✅ Thứ tự + tập cột thực tế cần hiển thị trong bảng/CSV — lấy trực tiếp từ
+  // visibleCols (đã được resolveVisibleModalColumns sắp xếp đúng theo cấu hình
+  // Admin đã lưu/kéo-thả). Nếu chưa từng setup, mặc định hiện đủ theo `columns`.
+  const orderedColumns = useMemo(
+    () => visibleCols.map((c) => c.key),
+    [visibleCols]
+  );
 
   const groups = useMemo(
     () => (canGroup ? buildGroups(rows, columns) : []),
@@ -126,6 +177,12 @@ export default function DetailDataModal({
     });
   };
 
+  // ✅ Xuất CSV theo đúng tập + thứ tự cột đang hiển thị (orderedColumns), để
+  // file tải về khớp với những gì đang thấy trên màn hình.
+  const handleExportCsv = () => {
+    exportDetailRowsToCsv(fileName ?? 'chi_tiet', orderedColumns, rows);
+  };
+
   return (
     <div
       className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4"
@@ -147,9 +204,14 @@ export default function DetailDataModal({
             )}
           </h3>
           <div className="flex items-center gap-3">
+            <ModalColumnSetupButton
+              modalId={effectiveModalId}
+              allColumns={OPTIONAL_COLUMNS}
+              onChange={() => setCfgVersion((v) => v + 1)}
+            />
             {/* Xuất toàn bộ rows GỐC đang có (không group, không chỉ trang hiện tại) */}
             <button
-              onClick={() => exportDetailRowsToCsv(fileName ?? 'chi_tiet', columns, rows)}
+              onClick={handleExportCsv}
               disabled={loading || rows.length === 0}
               title={
                 truncated
@@ -182,7 +244,9 @@ export default function DetailDataModal({
               <thead className="sticky top-0 bg-slate-50">
                 <tr>
                   {canGroup && <th className="w-6 border-b border-slate-200" />}
-                  {columns.map(col => (
+                  {/* ✅ Header lặp theo orderedColumns (đúng thứ tự + tập cột đã setup)
+                      thay vì luôn lặp cố định theo toàn bộ columns gốc. */}
+                  {orderedColumns.map(col => (
                     <th
                       key={col}
                       className="px-2 py-1.5 text-left border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap"
@@ -211,7 +275,8 @@ export default function DetailDataModal({
                             <td className="px-1 py-1 border-b border-slate-100 text-slate-600">
                               {isMulti && (isOpen ? <ChevronDown size={14} strokeWidth={2.75} /> : <ChevronRightIcon size={14} strokeWidth={2.75} />)}
                             </td>
-                            {columns.map(col => (
+                            {/* ✅ Body (hàng cha đã gộp) lặp theo orderedColumns. */}
+                            {orderedColumns.map(col => (
                               <td
                                 key={col}
                                 className={`px-2 py-1 border-b border-slate-100 whitespace-nowrap ${isMulti ? 'font-bold text-slate-800' : ''}`}
@@ -228,7 +293,8 @@ export default function DetailDataModal({
                           {isMulti && isOpen && g.rows.map((row, i) => (
                             <tr key={`${g.key}-${i}`} className="bg-indigo-50/20 text-slate-500">
                               <td className="border-b border-slate-100" />
-                              {columns.map(col => (
+                              {/* ✅ Body (các dòng con khi mở nhóm) lặp theo orderedColumns. */}
+                              {orderedColumns.map(col => (
                                 <td key={col} className="px-2 py-1 pl-4 border-b border-slate-100 whitespace-nowrap">
                                   {formatCellValue(row[col])}
                                 </td>
@@ -240,7 +306,8 @@ export default function DetailDataModal({
                     })
                   : pagedRows.map((row, i) => (
                       <tr key={i} className="odd:bg-white even:bg-slate-50/50 hover:bg-indigo-50/40">
-                        {columns.map(col => (
+                        {/* ✅ Body (chế độ phẳng, không group) lặp theo orderedColumns. */}
+                        {orderedColumns.map(col => (
                           <td key={col} className="px-2 py-1 border-b border-slate-100 whitespace-nowrap">
                             {formatCellValue(row[col])}
                           </td>

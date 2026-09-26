@@ -219,6 +219,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     label: 'Hệ thống',
     items: [
       { id: 'users', label: 'Quản trị User' },
+      { id: 'table_column_setup', label: 'Setup cột dữ liệu' }, // MỚI
     ],
   },
 ];

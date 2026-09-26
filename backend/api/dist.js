@@ -59931,6 +59931,51 @@ app.get("/api/auth/me", authenticateJWT, async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
+var tableColumnConfigSchema = external_exports.object({
+  allowedColumns: external_exports.array(external_exports.string()),
+  defaultVisibleColumns: external_exports.array(external_exports.string())
+});
+app.get("/api/table-column-config", async (_req, res) => {
+  try {
+    const r = await timedQuery(`SELECT table_id, allowed_columns, default_visible_columns FROM table_column_config`);
+    const result = {};
+    r.rows.forEach((row) => {
+      result[row.table_id] = {
+        allowedColumns: Array.isArray(row.allowed_columns) ? row.allowed_columns : [],
+        defaultVisibleColumns: Array.isArray(row.default_visible_columns) ? row.default_visible_columns : []
+      };
+    });
+    res.json(result);
+  } catch (error61) {
+    console.error("L\u1ED7i table-column-config GET:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.post(
+  "/api/table-column-config/:tableId",
+  authenticateJWT,
+  requireRole("ADMIN"),
+  validateBody(tableColumnConfigSchema),
+  async (req, res) => {
+    try {
+      const { tableId } = req.params;
+      const { allowedColumns, defaultVisibleColumns } = req.body;
+      await pool.query(
+        `INSERT INTO table_column_config (table_id, allowed_columns, default_visible_columns, updated_at)
+         VALUES ($1, $2::jsonb, $3::jsonb, now())
+         ON CONFLICT (table_id) DO UPDATE
+         SET allowed_columns = EXCLUDED.allowed_columns,
+             default_visible_columns = EXCLUDED.default_visible_columns,
+             updated_at = now()`,
+        [tableId, JSON.stringify(allowedColumns), JSON.stringify(defaultVisibleColumns)]
+      );
+      res.json({ success: true, message: "\u0110\xE3 l\u01B0u setup c\u1ED9t" });
+    } catch (error61) {
+      console.error("L\u1ED7i table-column-config POST:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y endpoint" });
 });

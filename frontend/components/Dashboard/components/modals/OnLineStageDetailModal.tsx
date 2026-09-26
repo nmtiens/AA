@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
+import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
+import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 
 export const ON_LINE_STAGES = [
   'P002',
@@ -44,8 +46,12 @@ const NAME_COL_WIDTH = 220;
 const STAGE_COL_WIDTH = 90;
 const TOTAL_COL_WIDTH = 110;
 
-type SortKey = 'stt' | 'name' | (typeof ON_LINE_STAGES)[number] | 'total';
+type StageKey = (typeof ON_LINE_STAGES)[number];
+type SortKey = 'stt' | 'name' | StageKey | 'total';
 type SortDir = 'asc' | 'desc';
+
+// Danh sách công đoạn hiển thị cho popover Setup cột (label = mã công đoạn).
+const STAGE_COLUMNS: ModalColumnDef[] = ON_LINE_STAGES.map((stage) => ({ key: stage, label: stage }));
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-400" />;
@@ -110,6 +116,24 @@ export const OnLineStageDetailModal = ({
     });
   }, []);
 
+  // ==== Setup cột hiển thị (chỉ Admin) — chọn/ẩn + kéo-thả sắp xếp thứ tự
+  // các công đoạn (P002..P021). Cột STT/Tên Công Trình/Tổng luôn cố định,
+  // không nằm trong danh sách setup được. ====
+  const [cfgVersion, setCfgVersion] = useState(0);
+
+  const visibleStageCols = useMemo(
+    () => resolveVisibleModalColumns('modal_online_stage_detail', STAGE_COLUMNS),
+    [cfgVersion]
+  );
+
+  // ✅ Thứ tự công đoạn thực tế cần render — lấy trực tiếp từ visibleStageCols
+  // (đã được resolveVisibleModalColumns sắp xếp đúng theo cấu hình Admin đã
+  // lưu/kéo-thả). Nếu chưa từng setup, mặc định hiện đủ theo ON_LINE_STAGES.
+  const orderedStages = useMemo(
+    () => visibleStageCols.map((c) => c.key) as StageKey[],
+    [visibleStageCols]
+  );
+
   // STT cố định (1..N) theo đúng thứ tự gốc của rows.
   const indexedRows = useMemo(
     () => rows.map((row, i) => ({ row, stt: i + 1 })),
@@ -147,6 +171,9 @@ export const OnLineStageDetailModal = ({
   const formatter = metric === 'COUNT' ? formatNumber : formatDecimal;
   const label = metric === 'VALUE' ? 'Giá Trị' : 'Số Lượng';
 
+  // ✅ Tổng của 1 dòng và Tổng của 1 công đoạn LUÔN tính trên toàn bộ
+  // ON_LINE_STAGES (không phụ thuộc setup ẩn/hiện cột), để "Tổng" luôn phản
+  // ánh đúng số liệu thật, kể cả khi Admin đang ẩn bớt vài công đoạn.
   const rowTotal = (row: StageDetailRow) =>
     ON_LINE_STAGES.reduce((acc, stage) => acc + (row.values[stage] ?? 0), 0);
   const stageTotal = (stage: string) =>
@@ -172,7 +199,7 @@ export const OnLineStageDetailModal = ({
       formatter(value)
     );
 
-  const totalMinWidth = STT_COL_WIDTH + NAME_COL_WIDTH + ON_LINE_STAGES.length * STAGE_COL_WIDTH + TOTAL_COL_WIDTH;
+  const totalMinWidth = STT_COL_WIDTH + NAME_COL_WIDTH + orderedStages.length * STAGE_COL_WIDTH + TOTAL_COL_WIDTH;
   const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
   const tableStyle: React.CSSProperties = {
     width: '100%',
@@ -180,11 +207,13 @@ export const OnLineStageDetailModal = ({
     tableLayout: 'fixed',
   };
 
+  // ✅ Colgroup lặp theo orderedStages (đúng thứ tự + số lượng đã setup) thay
+  // vì luôn lặp cố định theo toàn bộ ON_LINE_STAGES.
   const ColGroup = () => (
     <colgroup>
       <col style={{ width: pct(STT_COL_WIDTH) }} />
       <col style={{ width: pct(NAME_COL_WIDTH) }} />
-      {ON_LINE_STAGES.map((stage) => (
+      {orderedStages.map((stage) => (
         <col key={stage} style={{ width: pct(STAGE_COL_WIDTH) }} />
       ))}
       <col style={{ width: pct(TOTAL_COL_WIDTH) }} />
@@ -194,10 +223,12 @@ export const OnLineStageDetailModal = ({
   const headerCellClass =
     'cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 transition-colors hover:bg-emerald-100';
 
-  const exportColumns = ['STT', 'Tên Công Trình', ...ON_LINE_STAGES, 'Tổng'];
+  // ✅ Xuất CSV cũng theo đúng thứ tự/tập công đoạn đang hiển thị (orderedStages),
+  // để file tải về khớp với những gì đang thấy trên màn hình.
+  const exportColumns = ['STT', 'Tên Công Trình', ...orderedStages, 'Tổng'];
   const exportRows = sortedRows.map(({ row, stt }) => {
     const record: Record<string, number | string> = { 'STT': stt, 'Tên Công Trình': row.name };
-    ON_LINE_STAGES.forEach((stage) => {
+    orderedStages.forEach((stage) => {
       record[stage] = row.values[stage] ?? 0;
     });
     record['Tổng'] = rowTotal(row);
@@ -234,6 +265,11 @@ export const OnLineStageDetailModal = ({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <ModalColumnSetupButton
+              modalId="modal_online_stage_detail"
+              allColumns={STAGE_COLUMNS}
+              onChange={() => setCfgVersion(v => v + 1)}
+            />
             <button
               type="button"
               onClick={() => exportDetailRowsToCsv(exportFileName, exportColumns, exportRows)}
@@ -284,7 +320,9 @@ export const OnLineStageDetailModal = ({
                             <SortIcon active={sort?.key === 'name'} dir={sort?.dir} />
                           </span>
                         </th>
-                        {ON_LINE_STAGES.map((stage) => (
+                        {/* ✅ Header lặp theo orderedStages (đúng thứ tự đã setup) thay
+                            vì luôn lặp cố định theo toàn bộ ON_LINE_STAGES. */}
+                        {orderedStages.map((stage) => (
                           <th key={stage} onClick={() => toggleSort(stage)} className={headerCellClass}>
                             <span className="inline-flex items-center justify-end gap-1">
                               {stage}
@@ -333,7 +371,9 @@ export const OnLineStageDetailModal = ({
                         >
                           {row.name}
                         </td>
-                        {ON_LINE_STAGES.map((stage) => (
+                        {/* ✅ Body lặp theo orderedStages, đúng thứ tự + tập công đoạn
+                            đang được cấu hình hiển thị. */}
+                        {orderedStages.map((stage) => (
                           <td key={stage} className="px-3 py-2.5 text-slate-700">
                             {renderCell(
                               row.values[stage] ?? 0,
@@ -366,7 +406,8 @@ export const OnLineStageDetailModal = ({
                           <td className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left" colSpan={2}>
                             TỔNG CỘNG
                           </td>
-                          {ON_LINE_STAGES.map((stage) => (
+                          {/* ✅ Footer lặp theo orderedStages, đúng thứ tự đang hiển thị. */}
+                          {orderedStages.map((stage) => (
                             <td key={stage} className="px-3 py-3">
                               {renderCell(
                                 stageTotal(stage),

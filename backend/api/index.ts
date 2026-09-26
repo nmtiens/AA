@@ -2934,6 +2934,72 @@ app.get('/api/auth/me', authenticateJWT, async (req: Request, res: Response) => 
   }
 });
 
+// ============================================================================
+// TABLE COLUMN CONFIG — cấu hình cột được phép hiển thị / mặc định hiện cho
+// từng bảng dữ liệu (Sản xuất, Đơn hàng, Nhập/Xuất kho...), lưu tập trung ở
+// DB giống hệt cơ chế view_project_mapping ở trên.
+//
+// Migration cần chạy 1 lần trên DB (Postgres):
+//
+//   CREATE TABLE IF NOT EXISTS table_column_config (
+//     table_id TEXT PRIMARY KEY,
+//     allowed_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+//     default_visible_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+//     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+//   );
+// ============================================================================
+const tableColumnConfigSchema = z.object({
+  allowedColumns: z.array(z.string()),
+  defaultVisibleColumns: z.array(z.string()),
+});
+
+// GET: public (mọi user cần đọc để biết cột nào hiển thị, không cần đăng nhập admin)
+app.get('/api/table-column-config', async (_req: Request, res: Response) => {
+  try {
+    const r = await timedQuery(`SELECT table_id, allowed_columns, default_visible_columns FROM table_column_config`);
+    const result: Record<string, { allowedColumns: string[]; defaultVisibleColumns: string[] }> = {};
+    r.rows.forEach(row => {
+      result[row.table_id] = {
+        allowedColumns: Array.isArray(row.allowed_columns) ? row.allowed_columns : [],
+        defaultVisibleColumns: Array.isArray(row.default_visible_columns) ? row.default_visible_columns : [],
+      };
+    });
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi table-column-config GET:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// POST: chỉ ADMIN được sửa — lưu (upsert) cấu hình cột cho 1 bảng
+app.post(
+  '/api/table-column-config/:tableId',
+  authenticateJWT,
+  requireRole('ADMIN'),
+  validateBody(tableColumnConfigSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { tableId } = req.params;
+      const { allowedColumns, defaultVisibleColumns } = req.body;
+
+      await pool.query(
+        `INSERT INTO table_column_config (table_id, allowed_columns, default_visible_columns, updated_at)
+         VALUES ($1, $2::jsonb, $3::jsonb, now())
+         ON CONFLICT (table_id) DO UPDATE
+         SET allowed_columns = EXCLUDED.allowed_columns,
+             default_visible_columns = EXCLUDED.default_visible_columns,
+             updated_at = now()`,
+        [tableId, JSON.stringify(allowedColumns), JSON.stringify(defaultVisibleColumns)]
+      );
+
+      res.json({ success: true, message: 'Đã lưu setup cột' });
+    } catch (error) {
+      console.error('Lỗi table-column-config POST:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
 // --- 404 cho các route không khớp ---
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Không tìm thấy endpoint' });
@@ -2944,6 +3010,8 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Lỗi không được xử lý:', err);
   res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
 });
+
+
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {

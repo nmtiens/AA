@@ -1,6 +1,7 @@
+// src/App.tsx
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -9,6 +10,8 @@ import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
 // Prefetch + gate cho mapping "view -> danh sách công trình"
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
+// Prefetch cho cấu hình "bảng -> danh sách cột được phép / mặc định hiện"
+import { loadTableColumnConfig, applyTableColumnConfig } from './components/Construction/utils/tableColumnConfig';
 
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
@@ -19,6 +22,7 @@ const UserManagement = lazy(() => import('./components/UserManagement'));
 const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
 const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
+const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -45,9 +49,11 @@ const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string; permId
 ];
 
 const App: React.FC = () => {
-  // Bắn request lấy view-project-mapping ngay khi app khởi động, KHÔNG chặn render.
+  // Bắn request lấy view-project-mapping + table-column-config ngay khi app
+  // khởi động, KHÔNG chặn render.
   useEffect(() => {
     loadViewMapping();
+    loadTableColumnConfig();
   }, []);
 
   return (
@@ -95,6 +101,7 @@ const App: React.FC = () => {
 
                 {/* --- Hệ thống --- */}
                 <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
+                <Route path="/setup/cot-du-lieu" element={<RequirePermission viewId="table_column_setup"><TableColumnSetupWrapper /></RequirePermission>} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
@@ -175,21 +182,94 @@ const ConstructionSetupWrapper = () => {
   );
 };
 
-const YearlyPlanDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); const primarySearchCol = context.yearlyPlanColumns.length > 0 ? { header: context.yearlyPlanColumns[0].key, label: 'Tìm kiếm' } : { header: 'ID', label: 'Tìm kiếm' }; return <DataGrid data={context.yearlyPlanData} columns={context.yearlyPlanColumns} primarySearchColumn={primarySearchCol} exportFileNamePrefix="du_lieu_ke_hoach_nam" enableAggregation={true} />; };
-const OrderDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.orderData} columns={context.orderColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.TINH_TRANG]} exportFileNamePrefix="du_lieu_don_hang_tong" enableAggregation={true} />; };
-const InventoryDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.inventoryData} columns={context.inventoryColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_nhap_kho" enableAggregation={true} />; };
-const ExportDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.exportData} columns={context.exportColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_xuat_kho" enableAggregation={true} />; };
-const StockDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.stockData} columns={context.stockColumns} primarySearchColumn={{ header: 'MÃ CÔNG TRÌNH', label: 'Tìm kiếm (Mã CT)' }} filterHeaders={['MÃ CÔNG TRÌNH', 'TÌNH TRẠNG KẾ HOẠCH GIAO HÀNG', 'TÊN SẢN PHẨM']} exportFileNamePrefix="du_lieu_ton_kho" enableAggregation={true} />; };
-const AttendanceDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.attendanceData} columns={context.attendanceColumns} primarySearchColumn={{ header: 'DATE', label: 'Ngày (Tìm kiếm)' }} filterHeaders={['XƯỞNG CHÍNH']} exportFileNamePrefix="du_lieu_diem_danh" enableAggregation={true} />; };
-const TkbvDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.tkbvData} columns={context.tkbvColumns} primarySearchColumn={{ header: 'MÃ', label: 'Tìm kiếm' }} exportFileNamePrefix="du_lieu_tkbv" enableAggregation={true} />; };
-const PthspDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.pthspData} columns={context.pthspColumns} primarySearchColumn={{ header: 'MÃ', label: 'Tìm kiếm' }} exportFileNamePrefix="du_lieu_pthsp" enableAggregation={true} />; };
-const AnalysisDataWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <DataGrid data={context.analysisData} columns={context.analysisColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_phan_tich_kh_th" enableAggregation={true} />; };
+// Setup cột dữ liệu cho toàn bộ các bảng — lấy danh sách cột hiện có của mỗi
+// bảng từ context (đã tải sẵn) để đưa vào màn hình chọn cột.
+const TableColumnSetupWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const columnsByTable: Record<string, ColumnDefinition[]> = {
+    production: context.productionColumns,
+    order: context.orderColumns,
+    inventory: context.inventoryColumns,
+    export: context.exportColumns,
+    stock: context.stockColumns,
+    attendance: context.attendanceColumns,
+    khsx: context.khsxColumns,
+    analysis: context.analysisColumns,
+    tkbv: context.tkbvColumns,
+    pthsp: context.pthspColumns,
+    material: context.materialColumns,
+    yearlyPlan: context.yearlyPlanColumns,
+  };
+  return <TableColumnSetup columnsByTable={columnsByTable} />;
+};
+
+const YearlyPlanDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.yearlyPlanColumns, 'yearlyPlan');
+  const primarySearchCol = columns.length > 0 ? { header: columns[0].key, label: 'Tìm kiếm' } : { header: 'ID', label: 'Tìm kiếm' };
+  return <DataGrid data={context.yearlyPlanData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={primarySearchCol} exportFileNamePrefix="du_lieu_ke_hoach_nam" enableAggregation={true} />;
+};
+
+const OrderDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.orderColumns, 'order');
+  return <DataGrid data={context.orderData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.TINH_TRANG]} exportFileNamePrefix="du_lieu_don_hang_tong" enableAggregation={true} />;
+};
+
+const InventoryDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.inventoryColumns, 'inventory');
+  return <DataGrid data={context.inventoryData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_nhap_kho" enableAggregation={true} />;
+};
+
+const ExportDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.exportColumns, 'export');
+  return <DataGrid data={context.exportData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_xuat_kho" enableAggregation={true} />;
+};
+
+const StockDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.stockColumns, 'stock');
+  return <DataGrid data={context.stockData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'MÃ CÔNG TRÌNH', label: 'Tìm kiếm (Mã CT)' }} filterHeaders={['MÃ CÔNG TRÌNH', 'TÌNH TRẠNG KẾ HOẠCH GIAO HÀNG', 'TÊN SẢN PHẨM']} exportFileNamePrefix="du_lieu_ton_kho" enableAggregation={true} />;
+};
+
+const AttendanceDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.attendanceColumns, 'attendance');
+  return <DataGrid data={context.attendanceData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'DATE', label: 'Ngày (Tìm kiếm)' }} filterHeaders={['XƯỞNG CHÍNH']} exportFileNamePrefix="du_lieu_diem_danh" enableAggregation={true} />;
+};
+
+const TkbvDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.tkbvColumns, 'tkbv');
+  return <DataGrid data={context.tkbvData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'MÃ', label: 'Tìm kiếm' }} exportFileNamePrefix="du_lieu_tkbv" enableAggregation={true} />;
+};
+
+const PthspDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.pthspColumns, 'pthsp');
+  return <DataGrid data={context.pthspData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: 'MÃ', label: 'Tìm kiếm' }} exportFileNamePrefix="du_lieu_pthsp" enableAggregation={true} />;
+};
+
+const AnalysisDataWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.analysisColumns, 'analysis');
+  return <DataGrid data={context.analysisData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Tìm kiếm (HEX/Mã)' }} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG]} exportFileNamePrefix="du_lieu_phan_tich_kh_th" enableAggregation={true} />;
+};
 
 const DataGridWrapper = ({ type }: { type: 'production' | 'material' | 'khsx' }) => {
   const context = useOutletContext<MainLayoutContext>();
-  if (type === 'production') return <DataGrid data={context.productionData} columns={context.productionColumns} defaultVisibleColumns={PRODUCTION_DEFAULT_VIEW_COLUMNS} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG, TARGET_COLUMN_NAMES.TINH_TRANG]} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Mã HEX (Tìm nhiều)' }} exportFileNamePrefix="production_data" enableAggregation={true} />;
-  else if (type === 'khsx') return <DataGrid data={context.khsxData} columns={context.khsxColumns} defaultVisibleColumns={PRODUCTION_DEFAULT_VIEW_COLUMNS} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG, TARGET_COLUMN_NAMES.TINH_TRANG]} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Mã HEX (Tìm nhiều)' }} exportFileNamePrefix="khsx_data" enableAggregation={true} />;
-  else return <DataGrid data={context.materialData} columns={context.materialColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.SO_PR, label: 'Số PR (Tìm nhiều)' }} additionalSearchColumns={[{ header: TARGET_COLUMN_NAMES.SO_PO, label: 'Số PO (Tìm nhiều)' }]} filterHeaders={[TARGET_COLUMN_NAMES.TRACKING_NO, TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.TEN_VAT_TU, TARGET_COLUMN_NAMES.NHOM_VT]} exportFileNamePrefix="material_data" enableAggregation={true} />;
+  if (type === 'production') {
+    const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.productionColumns, 'production', PRODUCTION_DEFAULT_VIEW_COLUMNS);
+    return <DataGrid data={context.productionData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG, TARGET_COLUMN_NAMES.TINH_TRANG]} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Mã HEX (Tìm nhiều)' }} exportFileNamePrefix="production_data" enableAggregation={true} />;
+  } else if (type === 'khsx') {
+    const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.khsxColumns, 'khsx', PRODUCTION_DEFAULT_VIEW_COLUMNS);
+    return <DataGrid data={context.khsxData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} filterHeaders={[TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.XUONG, TARGET_COLUMN_NAMES.TINH_TRANG]} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.HEX, label: 'Mã HEX (Tìm nhiều)' }} exportFileNamePrefix="khsx_data" enableAggregation={true} />;
+  } else {
+    const { columns, defaultVisibleColumns } = applyTableColumnConfig(context.materialColumns, 'material');
+    return <DataGrid data={context.materialData} columns={columns} defaultVisibleColumns={defaultVisibleColumns} primarySearchColumn={{ header: TARGET_COLUMN_NAMES.SO_PR, label: 'Số PR (Tìm nhiều)' }} additionalSearchColumns={[{ header: TARGET_COLUMN_NAMES.SO_PO, label: 'Số PO (Tìm nhiều)' }]} filterHeaders={[TARGET_COLUMN_NAMES.TRACKING_NO, TARGET_COLUMN_NAMES.CONG_TRINH, TARGET_COLUMN_NAMES.TEN_VAT_TU, TARGET_COLUMN_NAMES.NHOM_VT]} exportFileNamePrefix="material_data" enableAggregation={true} />;
+  }
 };
 
 interface MainLayoutContext {
@@ -495,6 +575,7 @@ const MainLayout: React.FC = () => {
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
   const canSeeSetup = hasPermission('construction_setup');
+  const canSeeColumnSetup = hasPermission('table_column_setup');
 
   const isConstructionGroupActive = visibleConstructionItems.some(i => i.path === location.pathname);
   const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
@@ -662,6 +743,18 @@ const MainLayout: React.FC = () => {
               icon={<Settings size={20} />}
               label="Setup dữ liệu"
               active={location.pathname === '/cong-trinh/setup'}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {/* Setup cột dữ liệu - thuộc nhóm quyền Hệ thống */}
+          {canSeeColumnSetup && (
+            <NavLink
+              to="/setup/cot-du-lieu"
+              icon={<Columns size={20} />}
+              label="Setup cột dữ liệu"
+              active={location.pathname === '/setup/cot-du-lieu'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />
