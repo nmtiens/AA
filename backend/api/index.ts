@@ -689,24 +689,107 @@ const TABLE_DISPLAY_ORDER: string[] = [
 // Ngưỡng coi là "đã cập nhật" (giờ). Đổi số này nếu muốn nới/siết.
 const UPDATE_FRESHNESS_HOURS = 24;
 
+// ============================================================================
+// [MỚI] MỞ RỘNG BẢNG table_versions CHO NHẬT KÝ CẬP NHẬT DỮ LIỆU
+// Chạy 1 lần trên DB (migration thủ công, KHÔNG tự chạy từ code):
+//
+//   ALTER TABLE table_versions
+//     ADD COLUMN IF NOT EXISTS display_label TEXT,
+//     ADD COLUMN IF NOT EXISTS source_note TEXT,
+//     ADD COLUMN IF NOT EXISTS note TEXT,
+//     ADD COLUMN IF NOT EXISTS is_manual BOOLEAN NOT NULL DEFAULT FALSE,
+//     ADD COLUMN IF NOT EXISTS manual_data_as_of_date DATE,
+//     ADD COLUMN IF NOT EXISTS notes_updated_by TEXT,
+//     ADD COLUMN IF NOT EXISTS notes_updated_at TIMESTAMPTZ;
+//
+// - display_label / manual_data_as_of_date: chỉ có ý nghĩa với dòng is_manual = TRUE
+//   (nguồn dữ liệu tạo thủ công qua API bên dưới, không gắn với ETL/sync thật).
+// - source_note, note: nhập tay cho MỌI dòng (kể cả 12 bảng hệ thống) — lưu
+//   CHUNG bảng table_versions với nhật ký, đúng yêu cầu, không tạo bảng riêng.
+// ============================================================================
+
+// "Dữ liệu cập nhật đến ngày": ngày nghiệp vụ MỚI NHẤT có trong dữ liệu — khác
+// last_updated (là thời điểm ETL/sync chạy). Chỉ tính tự động được cho các bảng
+// có cột ngày nghiệp vụ rõ ràng, khớp đúng dateCol dùng ở ANALYSIS_TABLES /
+// STOCK_TREND_CONFIG bên dưới (khai báo lại ở đây vì 2 map đó định nghĩa sau).
+const DATA_AS_OF_DATE_COLUMN: Record<string, string> = {
+  dht: 'ngay_nhan_tu_pm',
+  tkbv_full: 'ngay_nhan',
+  pthsp_full: 'ngay_hoan_thanh',
+  nhap_kho: 'date',
+  xuat_kho: 'date',
+  ton_kho: 'date_parsed',
+};
+
+const fetchDataAsOfDates = async (): Promise<Record<string, string | null>> => {
+  const entries = Object.entries(DATA_AS_OF_DATE_COLUMN);
+  const results = await runWithLimit(
+    entries.map(([table, col]) => async (): Promise<readonly [string, string | null]> => {
+      try {
+        const r = await timedQuery(`SELECT MAX("${col}") AS max_date FROM ${table}`);
+        const maxDate = r.rows[0]?.max_date;
+        return [table, maxDate ? new Date(maxDate).toISOString().slice(0, 10) : null] as const;
+      } catch (error) {
+        console.error(`Lỗi lấy "dữ liệu cập nhật đến ngày" cho ${table}:`, error);
+        return [table, null] as const;
+      }
+    }),
+    3
+  );
+  return Object.fromEntries(results);
+};
+
+const createLogEntrySchema = z.object({
+  tableName: z.string().min(2).max(64).regex(/^[a-z][a-z0-9_]*$/, 'Chỉ gồm chữ thường, số, dấu gạch dưới, bắt đầu bằng chữ'),
+  label: z.string().min(1).max(128),
+  sourceNote: z.string().max(500).optional().nullable(),
+  note: z.string().max(1000).optional().nullable(),
+  dataAsOfDate: z.string().optional().nullable(),
+});
+const updateLogEntrySchema = z.object({
+  sourceNote: z.string().max(500).optional().nullable(),
+  note: z.string().max(1000).optional().nullable(),
+  label: z.string().min(1).max(128).optional(), // chỉ áp dụng cho dòng is_manual
+  dataAsOfDate: z.string().optional().nullable(), // chỉ áp dụng cho dòng is_manual
+});
+
 app.get('/api/data-update-log', async (_req: Request, res: Response) => {
   try {
-    const r = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+    const [versionsResult, asOfDates] = await Promise.all([
+      timedQuery(`
+        SELECT table_name, last_updated, display_label, source_note, note,
+               is_manual, manual_data_as_of_date
+        FROM table_versions
+        ORDER BY table_name
+      `),
+      fetchDataAsOfDates(),
+    ]);
+
     const now = Date.now();
-    const rows = r.rows.map(row => {
+    const rows = versionsResult.rows.map(row => {
       const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
       const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1000 * 60 * 60) : Infinity;
+      const dataAsOfDate = row.is_manual
+        ? (row.manual_data_as_of_date ? new Date(row.manual_data_as_of_date).toISOString().slice(0, 10) : null)
+        : (asOfDates[row.table_name] ?? null);
+
       return {
         table: row.table_name,
-        label: TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
+        label: row.display_label || TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
         lastUpdated: row.last_updated,
         isFresh: hoursAgo <= UPDATE_FRESHNESS_HOURS,
         hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null,
+        dataAsOfDate,
+        sourceNote: row.source_note || '',
+        note: row.note || '',
+        isManual: !!row.is_manual,
       };
     });
 
     // Sắp xếp: các bảng ĐÃ cập nhật lên trước (theo thứ tự nghiệp vụ cố định),
     // các bảng CHƯA cập nhật đẩy xuống cuối (cũng theo thứ tự nghiệp vụ đó).
+    // Nguồn thêm thủ công (is_manual, không nằm trong TABLE_DISPLAY_ORDER) xếp
+    // cuối mỗi nhóm.
     rows.sort((a, b) => {
       if (a.isFresh !== b.isFresh) return a.isFresh ? -1 : 1;
       const ai = TABLE_DISPLAY_ORDER.indexOf(a.table);
@@ -720,6 +803,117 @@ app.get('/api/data-update-log', async (_req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+// --- THÊM 1 NGUỒN DỮ LIỆU THỦ CÔNG (không gắn với bảng ETL thật) ---
+app.post(
+  '/api/data-update-log',
+  authenticateJWT,
+  requireRole('ADMIN'),
+  validateBody(createLogEntrySchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { tableName, label, sourceNote, note, dataAsOfDate } = req.body;
+
+      if (TABLES.includes(tableName)) {
+        return res.status(409).json({ success: false, message: 'Trùng tên với bảng dữ liệu hệ thống' });
+      }
+      const existing = await pool.query('SELECT table_name FROM table_versions WHERE table_name = $1', [tableName]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ success: false, message: 'Nguồn dữ liệu này đã tồn tại' });
+      }
+
+      const parsedDate = parseSafeDate(dataAsOfDate);
+      await pool.query(
+        `INSERT INTO table_versions
+           (table_name, last_updated, display_label, source_note, note,
+            is_manual, manual_data_as_of_date, notes_updated_by, notes_updated_at)
+         VALUES ($1, now(), $2, $3, $4, TRUE, $5, $6, now())`,
+        [
+          tableName, label, sourceNote || null, note || null,
+          parsedDate ? parsedDate.toISOString().slice(0, 10) : null,
+          req.user!.username,
+        ]
+      );
+
+      res.json({ success: true, message: 'Đã thêm nguồn dữ liệu' });
+    } catch (error) {
+      console.error('Lỗi thêm data-update-log:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
+// --- SỬA GHI CHÚ / NGUỒN DỮ LIỆU TỪ (áp dụng cho MỌI dòng) — và label / ngày
+// dữ liệu (chỉ áp dụng cho dòng thủ công, vì dòng hệ thống lấy tự động) ---
+app.put(
+  '/api/data-update-log/:table',
+  authenticateJWT,
+  requireRole('ADMIN'),
+  validateBody(updateLogEntrySchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { table } = req.params;
+      const existing = await pool.query('SELECT is_manual FROM table_versions WHERE table_name = $1', [table]);
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy nguồn dữ liệu' });
+      }
+      const isManual = !!existing.rows[0].is_manual;
+
+      const fields: string[] = ['notes_updated_by = $1', 'notes_updated_at = now()'];
+      const values: any[] = [req.user!.username];
+      let idx = 2;
+      const push = (col: string, val: any) => { fields.push(`${col} = $${idx}`); values.push(val); idx++; };
+
+      if (req.body.sourceNote !== undefined) push('source_note', req.body.sourceNote || null);
+      if (req.body.note !== undefined) push('note', req.body.note || null);
+
+      if (isManual) {
+        if (req.body.label !== undefined) push('display_label', req.body.label);
+        if (req.body.dataAsOfDate !== undefined) {
+          const parsedDate = parseSafeDate(req.body.dataAsOfDate);
+          push('manual_data_as_of_date', parsedDate ? parsedDate.toISOString().slice(0, 10) : null);
+        }
+      }
+
+      if (fields.length === 2) {
+        return res.status(400).json({ success: false, message: 'Không có dữ liệu để cập nhật' });
+      }
+
+      values.push(table);
+      await pool.query(`UPDATE table_versions SET ${fields.join(', ')} WHERE table_name = $${idx}`, values);
+
+      res.json({ success: true, message: 'Đã lưu' });
+    } catch (error) {
+      console.error('Lỗi sửa data-update-log:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
+// --- XÓA 1 NGUỒN DỮ LIỆU THỦ CÔNG — không cho xóa 12 bảng hệ thống, vì
+// table_versions của chúng gắn liền với cơ chế cache/ETL đang chạy ---
+app.delete(
+  '/api/data-update-log/:table',
+  authenticateJWT,
+  requireRole('ADMIN'),
+  async (req: Request, res: Response) => {
+    try {
+      const { table } = req.params;
+      const existing = await pool.query('SELECT is_manual FROM table_versions WHERE table_name = $1', [table]);
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy nguồn dữ liệu' });
+      }
+      if (!existing.rows[0].is_manual) {
+        return res.status(403).json({ success: false, message: 'Không thể xóa nguồn dữ liệu hệ thống' });
+      }
+      await pool.query('DELETE FROM table_versions WHERE table_name = $1', [table]);
+      res.json({ success: true, message: 'Đã xóa nguồn dữ liệu' });
+    } catch (error) {
+      console.error('Lỗi xóa data-update-log:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
 
 interface TrendTableConfig {
   table: string;

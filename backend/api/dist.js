@@ -58024,19 +58024,72 @@ var TABLE_DISPLAY_ORDER = [
   "diem_danh"
 ];
 var UPDATE_FRESHNESS_HOURS = 24;
+var DATA_AS_OF_DATE_COLUMN = {
+  dht: "ngay_nhan_tu_pm",
+  tkbv_full: "ngay_nhan",
+  pthsp_full: "ngay_hoan_thanh",
+  nhap_kho: "date",
+  xuat_kho: "date",
+  ton_kho: "date_parsed"
+};
+var fetchDataAsOfDates = async () => {
+  const entries = Object.entries(DATA_AS_OF_DATE_COLUMN);
+  const results = await runWithLimit(
+    entries.map(([table, col]) => async () => {
+      try {
+        const r = await timedQuery(`SELECT MAX("${col}") AS max_date FROM ${table}`);
+        const maxDate = r.rows[0]?.max_date;
+        return [table, maxDate ? new Date(maxDate).toISOString().slice(0, 10) : null];
+      } catch (error61) {
+        console.error(`L\u1ED7i l\u1EA5y "d\u1EEF li\u1EC7u c\u1EADp nh\u1EADt \u0111\u1EBFn ng\xE0y" cho ${table}:`, error61);
+        return [table, null];
+      }
+    }),
+    3
+  );
+  return Object.fromEntries(results);
+};
+var createLogEntrySchema = external_exports.object({
+  tableName: external_exports.string().min(2).max(64).regex(/^[a-z][a-z0-9_]*$/, "Ch\u1EC9 g\u1ED3m ch\u1EEF th\u01B0\u1EDDng, s\u1ED1, d\u1EA5u g\u1EA1ch d\u01B0\u1EDBi, b\u1EAFt \u0111\u1EA7u b\u1EB1ng ch\u1EEF"),
+  label: external_exports.string().min(1).max(128),
+  sourceNote: external_exports.string().max(500).optional().nullable(),
+  note: external_exports.string().max(1e3).optional().nullable(),
+  dataAsOfDate: external_exports.string().optional().nullable()
+});
+var updateLogEntrySchema = external_exports.object({
+  sourceNote: external_exports.string().max(500).optional().nullable(),
+  note: external_exports.string().max(1e3).optional().nullable(),
+  label: external_exports.string().min(1).max(128).optional(),
+  // chỉ áp dụng cho dòng is_manual
+  dataAsOfDate: external_exports.string().optional().nullable()
+  // chỉ áp dụng cho dòng is_manual
+});
 app.get("/api/data-update-log", async (_req, res) => {
   try {
-    const r = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+    const [versionsResult, asOfDates] = await Promise.all([
+      timedQuery(`
+        SELECT table_name, last_updated, display_label, source_note, note,
+               is_manual, manual_data_as_of_date
+        FROM table_versions
+        ORDER BY table_name
+      `),
+      fetchDataAsOfDates()
+    ]);
     const now = Date.now();
-    const rows = r.rows.map((row) => {
+    const rows = versionsResult.rows.map((row) => {
       const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
       const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1e3 * 60 * 60) : Infinity;
+      const dataAsOfDate = row.is_manual ? row.manual_data_as_of_date ? new Date(row.manual_data_as_of_date).toISOString().slice(0, 10) : null : asOfDates[row.table_name] ?? null;
       return {
         table: row.table_name,
-        label: TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
+        label: row.display_label || TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
         lastUpdated: row.last_updated,
         isFresh: hoursAgo <= UPDATE_FRESHNESS_HOURS,
-        hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null
+        hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null,
+        dataAsOfDate,
+        sourceNote: row.source_note || "",
+        note: row.note || "",
+        isManual: !!row.is_manual
       };
     });
     rows.sort((a, b) => {
@@ -58051,6 +58104,107 @@ app.get("/api/data-update-log", async (_req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+app.post(
+  "/api/data-update-log",
+  authenticateJWT,
+  requireRole("ADMIN"),
+  validateBody(createLogEntrySchema),
+  async (req, res) => {
+    try {
+      const { tableName, label, sourceNote, note, dataAsOfDate } = req.body;
+      if (TABLES.includes(tableName)) {
+        return res.status(409).json({ success: false, message: "Tr\xF9ng t\xEAn v\u1EDBi b\u1EA3ng d\u1EEF li\u1EC7u h\u1EC7 th\u1ED1ng" });
+      }
+      const existing = await pool.query("SELECT table_name FROM table_versions WHERE table_name = $1", [tableName]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ success: false, message: "Ngu\u1ED3n d\u1EEF li\u1EC7u n\xE0y \u0111\xE3 t\u1ED3n t\u1EA1i" });
+      }
+      const parsedDate = parseSafeDate(dataAsOfDate);
+      await pool.query(
+        `INSERT INTO table_versions
+           (table_name, last_updated, display_label, source_note, note,
+            is_manual, manual_data_as_of_date, notes_updated_by, notes_updated_at)
+         VALUES ($1, now(), $2, $3, $4, TRUE, $5, $6, now())`,
+        [
+          tableName,
+          label,
+          sourceNote || null,
+          note || null,
+          parsedDate ? parsedDate.toISOString().slice(0, 10) : null,
+          req.user.username
+        ]
+      );
+      res.json({ success: true, message: "\u0110\xE3 th\xEAm ngu\u1ED3n d\u1EEF li\u1EC7u" });
+    } catch (error61) {
+      console.error("L\u1ED7i th\xEAm data-update-log:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
+app.put(
+  "/api/data-update-log/:table",
+  authenticateJWT,
+  requireRole("ADMIN"),
+  validateBody(updateLogEntrySchema),
+  async (req, res) => {
+    try {
+      const { table } = req.params;
+      const existing = await pool.query("SELECT is_manual FROM table_versions WHERE table_name = $1", [table]);
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y ngu\u1ED3n d\u1EEF li\u1EC7u" });
+      }
+      const isManual = !!existing.rows[0].is_manual;
+      const fields = ["notes_updated_by = $1", "notes_updated_at = now()"];
+      const values = [req.user.username];
+      let idx = 2;
+      const push = (col, val) => {
+        fields.push(`${col} = $${idx}`);
+        values.push(val);
+        idx++;
+      };
+      if (req.body.sourceNote !== void 0) push("source_note", req.body.sourceNote || null);
+      if (req.body.note !== void 0) push("note", req.body.note || null);
+      if (isManual) {
+        if (req.body.label !== void 0) push("display_label", req.body.label);
+        if (req.body.dataAsOfDate !== void 0) {
+          const parsedDate = parseSafeDate(req.body.dataAsOfDate);
+          push("manual_data_as_of_date", parsedDate ? parsedDate.toISOString().slice(0, 10) : null);
+        }
+      }
+      if (fields.length === 2) {
+        return res.status(400).json({ success: false, message: "Kh\xF4ng c\xF3 d\u1EEF li\u1EC7u \u0111\u1EC3 c\u1EADp nh\u1EADt" });
+      }
+      values.push(table);
+      await pool.query(`UPDATE table_versions SET ${fields.join(", ")} WHERE table_name = $${idx}`, values);
+      res.json({ success: true, message: "\u0110\xE3 l\u01B0u" });
+    } catch (error61) {
+      console.error("L\u1ED7i s\u1EEDa data-update-log:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
+app.delete(
+  "/api/data-update-log/:table",
+  authenticateJWT,
+  requireRole("ADMIN"),
+  async (req, res) => {
+    try {
+      const { table } = req.params;
+      const existing = await pool.query("SELECT is_manual FROM table_versions WHERE table_name = $1", [table]);
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y ngu\u1ED3n d\u1EEF li\u1EC7u" });
+      }
+      if (!existing.rows[0].is_manual) {
+        return res.status(403).json({ success: false, message: "Kh\xF4ng th\u1EC3 x\xF3a ngu\u1ED3n d\u1EEF li\u1EC7u h\u1EC7 th\u1ED1ng" });
+      }
+      await pool.query("DELETE FROM table_versions WHERE table_name = $1", [table]);
+      res.json({ success: true, message: "\u0110\xE3 x\xF3a ngu\u1ED3n d\u1EEF li\u1EC7u" });
+    } catch (error61) {
+      console.error("L\u1ED7i x\xF3a data-update-log:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
 var STOCK_TREND_CONFIG = {
   table: "ton_kho",
   dateCol: "date_parsed",
