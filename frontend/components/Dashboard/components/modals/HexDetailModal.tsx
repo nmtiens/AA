@@ -474,6 +474,15 @@ export const HexDetailModal = ({
 
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
+  // 🔧 FIX (vệt đỏ lạc chỗ khi chưa cuộn tới nhóm Vướng Mắc): 2 ô đệm màu ở
+  // đầu/cuối phần header (đệm trái, đệm phải, ô bù trừ scrollbar) nằm NGOÀI
+  // vùng overflow-x-hidden nên không tự cuộn theo bảng. Trước đây chúng được
+  // tô đỏ chỉ dựa vào "cột cuối cùng có phải Vướng Mắc không" (lastColIsVuongMac),
+  // nên vệt đỏ bám cứng ở rìa phải NGAY CẢ KHI người dùng chưa cuộn tới đó —
+  // trông như 1 cột khác (vd "Ghi Chú Xuất Kho") bị tô đỏ nhầm. Cần biết thêm
+  // bảng đã thực sự cuộn hết sang phải hay chưa trước khi đổi màu ô đệm.
+  const [scrolledToEnd, setScrolledToEnd] = useState(false);
+
   const {
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
@@ -581,10 +590,27 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
   }, [isOpen, rows, search]);
 
   const handleBodyScroll = useCallback(() => {
-    const left = bodyScrollRef.current?.scrollLeft ?? 0;
+    const el = bodyScrollRef.current;
+    const left = el?.scrollLeft ?? 0;
     if (headerScrollRef.current) headerScrollRef.current.scrollLeft = left;
     if (footerScrollRef.current) footerScrollRef.current.scrollLeft = left;
+
+    // 🔧 FIX: chỉ coi là "đã cuộn tới cuối" khi khoảng cách còn lại gần 0
+    // (chừa 1px sai số làm tròn của trình duyệt).
+    if (el) {
+      const atEnd = left + el.clientWidth >= el.scrollWidth - 1;
+      setScrolledToEnd(atEnd);
+    }
   }, []);
+
+  // 🔧 FIX: đo lại trạng thái cuộn mỗi khi mở modal / đổi dữ liệu / đổi cấu
+  // hình cột — vì scrollWidth có thể đổi (thêm/bớt cột, đổi dữ liệu), nên
+  // trạng thái "đã cuộn hết" tính từ lần trước có thể không còn đúng.
+  useEffect(() => {
+    if (!isOpen) return;
+    handleBodyScroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, rows, search, handleBodyScroll]);
 
   const getNotePreview = useCallback(
     (row: DataRow, key: string): string => String(notesMap[String(row[hexKey] || '')]?.[key] ?? ''),
@@ -704,7 +730,14 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
   // hiển thị có phải "vuongMac" hay không, để tô đúng màu đỏ cho ô bù trừ
   // scrollbar ở header — thay vì luôn ăn theo nền emerald mặc định của
   // container ngoài, gây lộ 1 vệt xanh ngay sau vùng đỏ của nhóm 5M.
+  // Lưu ý: bản thân biến này không còn quyết định màu một mình — phải kết
+  // hợp với scrolledToEnd (xem 2 chỗ dùng bên dưới) để tránh tô nhầm khi
+  // chưa cuộn tới nơi.
   const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
+
+  // 🔧 FIX: điều kiện tô đỏ thực tế cho 2 ô đệm — chỉ đỏ khi cột cuối là
+  // Vướng Mắc VÀ người dùng đã cuộn ngang tới hết bên phải.
+  const showRedEdge = lastColIsVuongMac && scrolledToEnd;
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1154,7 +1187,8 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                       ngoài cùng, nên rìa phải LUÔN xanh dù cột cuối cùng là nhóm
                       "Vướng Mắc (5M)" nền đỏ. Giờ tách riêng đệm trái (luôn xanh,
                       vì cột đầu luôn là cột thường) và đệm phải (đổi màu theo
-                      lastColIsVuongMac) thành 2 div độc lập. */}
+                      showRedEdge, tức là VỪA cột cuối là vuongMac VỪA đã cuộn
+                      hết sang phải) thành 2 div độc lập. */}
                   <div className="w-5 shrink-0 bg-emerald-50" />
                   <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                     <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
@@ -1252,16 +1286,17 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                     </table>
                   </div>
                   {/* Đệm phải: cùng nguyên lý như đệm trái ở trên, nhưng đổi màu
-                      theo cột cuối cùng đang hiển thị — đỏ khi đó là nhóm "Vướng
-                      Mắc (5M)", xanh cho mọi trường hợp còn lại. */}
-                  <div className={`w-5 shrink-0 ${lastColIsVuongMac ? 'bg-red-50' : 'bg-emerald-50'}`} />
-                  {/* Ô bù trừ scrollbar: cũng phải đổi màu theo cùng logic, để
-                      không còn lộ vệt xanh lạc lõng ngay sau vùng đỏ khi cột cuối
-                      là "vuongMac". */}
+                      theo showRedEdge — đỏ CHỈ KHI cột cuối cùng đang hiển thị là
+                      nhóm "Vướng Mắc (5M)" VÀ bảng đã thực sự cuộn tới hết bên
+                      phải; xanh cho mọi trường hợp còn lại (kể cả khi Vướng Mắc
+                      là cột cuối nhưng chưa cuộn tới đó). */}
+                  <div className={`w-5 shrink-0 ${showRedEdge ? 'bg-red-50' : 'bg-emerald-50'}`} />
+                  {/* Ô bù trừ scrollbar: cũng đổi màu theo cùng logic showRedEdge,
+                      để không còn lộ vệt đỏ/xanh sai chỗ khi cuộn ngang. */}
                   {scrollbarWidth > 0 && (
                     <div
                       style={{ width: scrollbarWidth }}
-                      className={`shrink-0 ${lastColIsVuongMac ? 'bg-red-50' : 'bg-emerald-50'}`}
+                      className={`shrink-0 ${showRedEdge ? 'bg-red-50' : 'bg-emerald-50'}`}
                     />
                   )}
                 </div>
