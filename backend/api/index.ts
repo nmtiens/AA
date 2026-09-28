@@ -3002,24 +3002,138 @@ app.post(
 
 
 // ============================================================================
-// VƯỚNG MẮC 5M — ghi nhận vấn đề tồn đọng theo từng Hex, phân loại theo 5M
-// (Man/Machine/Material/Method/Measurement). Có audit log đầy đủ (ai/khi nào).
+// BƯỚC 1 — CHẠY 1 LẦN TRÊN DATABASE (Postgres):
+//
+//   ALTER TABLE vuong_mac
+//     ADD COLUMN IF NOT EXISTS handler TEXT,
+//     ADD COLUMN IF NOT EXISTS bot TEXT,
+//     ADD COLUMN IF NOT EXISTS note TEXT;
+//
 // ============================================================================
+// BƯỚC 2 — TRONG FILE SERVER: thay khối từ dòng
+//     const FIVE_M_CATEGORIES = [...]
+// đến HẾT route  app.put('/api/vuong-mac/:id', ...)
+// bằng đoạn dưới đây.
+// GIỮ NGUYÊN route app.delete('/api/vuong-mac/:id') và app.get('/api/vuong-mac/log/:hex') phía sau.
+// ============================================================================
+
+// ============================================================================
+// THAY THẾ TOÀN BỘ khối trong file server, từ dòng
+//     const FIVE_M_CATEGORIES = [...]
+// đến HẾT route
+//     app.get('/api/vuong-mac/log/:hex', ...)
+// (gồm cả route delete cũ), TRƯỚC dòng "// --- 404 cho các route không khớp ---".
+//
+// KHÔNG cần migration DB: phòng ban lấy từ cột users.department có sẵn.
+//
+// QUY TẮC PHÂN QUYỀN MỚI
+//  - Sửa / Xóa / Đánh dấu "Đã xử lý" 1 vướng mắc: ADMIN, người tạo, hoặc người
+//    CÙNG PHÒNG BAN với người tạo.
+//  - Thêm vướng mắc vào 1 đoạn chat (hex + loại 5M): ADMIN, hoặc đoạn chat còn
+//    trống, hoặc user là người tạo / cùng phòng ban với ít nhất 1 người đã
+//    tham gia đoạn chat đó.
+//  - Khác phòng ban => 403. So khớp phòng ban không phân biệt hoa/thường và
+//    khoảng trắng thừa; phòng ban rỗng KHÔNG được coi là "cùng phòng ban".
+// ============================================================================
+
 const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
 
 const vuongMacCreateSchema = z.object({
   hex: z.string().min(1),
   category: z.enum(FIVE_M_CATEGORIES),
   content: z.string().min(1).max(2000),
+  handler: z.string().max(200).optional().nullable(), // người xử lý
+  bot: z.string().max(200).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
 });
 const vuongMacUpdateSchema = z.object({
   category: z.enum(FIVE_M_CATEGORIES).optional(),
   content: z.string().min(1).max(2000).optional(),
   isResolved: z.boolean().optional(),
+  handler: z.string().max(200).optional().nullable(),
+  bot: z.string().max(200).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
 });
 
-// Lấy toàn bộ vướng mắc hiện có cho danh sách hex — dùng để hiển thị cột
-// "Vướng Mắc" trong bảng chi tiết theo Hex.
+const VUONG_MAC_COLUMN_LIST = [
+  'id', 'hex', 'category', 'content', 'is_resolved', 'created_by', 'created_at',
+  'updated_by', 'updated_at', 'handler', 'bot', 'note',
+];
+// Bản không alias (dùng cho INSERT/UPDATE ... RETURNING trên 1 bảng)
+const VUONG_MAC_COLUMNS = VUONG_MAC_COLUMN_LIST.join(', ');
+// Bản có alias "vm." (dùng khi JOIN users — tránh trùng tên cột id/note/created_at...)
+const VUONG_MAC_COLUMNS_VM = VUONG_MAC_COLUMN_LIST.map(c => `vm.${c}`).join(', ');
+
+// ---------- PHÂN QUYỀN THEO PHÒNG BAN ----------
+const normDept = (d?: string | null) => (d ?? '').trim().toLowerCase();
+const isSameDept = (a?: string | null, b?: string | null) => {
+  const x = normDept(a);
+  return x !== '' && x === normDept(b);
+};
+
+interface VuongMacActor {
+  username: string;
+  role: string;
+  department: string | null;
+}
+
+// Phòng ban lấy từ DB (không lấy từ JWT) để luôn đúng khi admin đổi phòng ban.
+const getVuongMacActor = async (req: Request): Promise<VuongMacActor> => {
+  const r = await pool.query('SELECT department FROM users WHERE id = $1', [req.user!.id]);
+  return {
+    username: req.user!.username,
+    role: req.user!.role,
+    department: r.rows[0]?.department ?? null,
+  };
+};
+
+const canModifyVuongMac = (actor: VuongMacActor, createdBy: string | null, createdDept: string | null) =>
+  actor.role === 'ADMIN' ||
+  (!!createdBy && createdBy === actor.username) ||
+  isSameDept(actor.department, createdDept);
+
+const canAddToVuongMacThread = async (actor: VuongMacActor, hex: string, category: string) => {
+  if (actor.role === 'ADMIN') return true;
+  const r = await pool.query(
+    `SELECT vm.created_by, u.department AS created_department
+     FROM vuong_mac vm
+     LEFT JOIN users u ON u.username = vm.created_by
+     WHERE vm.hex = $1 AND vm.category = $2`,
+    [hex, category]
+  );
+  if (r.rows.length === 0) return true; // đoạn chat trống: ai cũng được bắt đầu
+  return r.rows.some(
+    row => row.created_by === actor.username || isSameDept(actor.department, row.created_department)
+  );
+};
+
+const mapVuongMacRow = (
+  row: any,
+  actor: VuongMacActor,
+  createdDepartment: string | null = row.created_department ?? null
+) => ({
+  id: row.id,
+  category: row.category,
+  content: row.content,
+  isResolved: row.is_resolved,
+  createdBy: row.created_by,
+  createdAt: row.created_at,
+  updatedBy: row.updated_by,
+  updatedAt: row.updated_at,
+  handler: row.handler,
+  bot: row.bot,
+  note: row.note,
+  createdDepartment,
+  canModify: canModifyVuongMac(actor, row.created_by, createdDepartment),
+});
+
+const SELECT_VUONG_MAC_WITH_DEPT = `
+  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department
+  FROM vuong_mac vm
+  LEFT JOIN users u ON u.username = vm.created_by
+`;
+
+// Lấy toàn bộ vướng mắc hiện có cho danh sách hex (kèm cờ canModify cho user hiện tại).
 app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const hexes = Array.isArray(req.body?.hexes)
@@ -3028,27 +3142,18 @@ app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Respo
     if (hexes.length === 0) return res.json({});
     if (hexes.length > 2000) return res.status(400).json({ error: 'Too many hexes' });
 
+    const actor = await getVuongMacActor(req);
     const r = await timedQuery(
-      `SELECT id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at
-       FROM vuong_mac
-       WHERE hex = ANY($1::text[])
-       ORDER BY hex, created_at ASC`,
+      `${SELECT_VUONG_MAC_WITH_DEPT}
+       WHERE vm.hex = ANY($1::text[])
+       ORDER BY vm.hex, vm.created_at ASC`,
       [hexes]
     );
 
     const out: Record<string, any[]> = {};
     r.rows.forEach(row => {
       if (!out[row.hex]) out[row.hex] = [];
-      out[row.hex].push({
-        id: row.id,
-        category: row.category,
-        content: row.content,
-        isResolved: row.is_resolved,
-        createdBy: row.created_by,
-        createdAt: row.created_at,
-        updatedBy: row.updated_by,
-        updatedAt: row.updated_at,
-      });
+      out[row.hex].push(mapVuongMacRow(row, actor));
     });
     res.json(out);
   } catch (error) {
@@ -3057,21 +3162,26 @@ app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Respo
   }
 });
 
-// Tạo mới 1 vướng mắc cho 1 hex — bất kỳ user đã đăng nhập nào cũng được thêm.
+// Tạo mới 1 vướng mắc — chỉ thành viên cùng phòng ban với đoạn chat (hoặc Admin).
 app.post(
   '/api/vuong-mac',
   authenticateJWT,
   validateBody(vuongMacCreateSchema),
   async (req: Request, res: Response) => {
     try {
-      const { hex, category, content } = req.body;
-      const actor = req.user!.username;
+      const { hex, category, content, handler, bot, note } = req.body;
+      const me = await getVuongMacActor(req);
+      const actor = me.username;
+
+      if (!(await canAddToVuongMacThread(me, hex, category))) {
+        return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban mới được thêm vướng mắc vào mục này' });
+      }
 
       const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $4)
-         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
-        [hex, category, content, actor]
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, note)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, $7)
+         RETURNING ${VUONG_MAC_COLUMNS}`,
+        [hex, category, content, actor, handler || null, bot || null, note || null]
       );
       const row = result.rows[0];
 
@@ -3081,13 +3191,7 @@ app.post(
         [row.id, hex, category, content, actor]
       );
 
-      res.json({
-        success: true,
-        data: {
-          id: row.id, category: row.category, content: row.content, isResolved: row.is_resolved,
-          createdBy: row.created_by, createdAt: row.created_at, updatedBy: row.updated_by, updatedAt: row.updated_at,
-        },
-      });
+      res.json({ success: true, data: mapVuongMacRow(row, me, me.department) });
     } catch (error) {
       console.error('Lỗi tạo vuong-mac:', error);
       res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
@@ -3095,7 +3199,8 @@ app.post(
   }
 );
 
-// Sửa 1 vướng mắc — chỉ người tạo hoặc ADMIN.
+// Sửa 1 vướng mắc (nội dung / loại / người xử lý / BOT / ghi chú / trạng thái "Đã xử lý").
+// Chỉ ADMIN, người tạo, hoặc người cùng phòng ban với người tạo.
 app.put(
   '/api/vuong-mac/:id',
   authenticateJWT,
@@ -3103,29 +3208,41 @@ app.put(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const actor = req.user!.username;
+      const me = await getVuongMacActor(req);
+      const actor = me.username;
 
-      const existing = await pool.query('SELECT * FROM vuong_mac WHERE id = $1', [id]);
+      const existing = await pool.query(
+        `SELECT vm.*, u.department AS created_department
+         FROM vuong_mac vm
+         LEFT JOIN users u ON u.username = vm.created_by
+         WHERE vm.id = $1`,
+        [id]
+      );
       if (existing.rows.length === 0) {
         return res.status(404).json({ success: false, message: 'Không tìm thấy vướng mắc' });
       }
       const old = existing.rows[0];
-      if (old.created_by !== actor && req.user!.role !== 'ADMIN') {
-        return res.status(403).json({ success: false, message: 'Chỉ người tạo hoặc Admin được sửa' });
+
+      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+        return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban với người tạo (hoặc Admin) được thao tác' });
       }
 
-      const { category, content, isResolved } = req.body;
+      const { category, content, isResolved, handler, bot, note } = req.body;
+
       const fields: string[] = ['updated_by = $1', 'updated_at = now()'];
       const values: any[] = [actor];
       let idx = 2;
       if (category !== undefined) { fields.push(`category = $${idx}`); values.push(category); idx++; }
       if (content !== undefined) { fields.push(`content = $${idx}`); values.push(content); idx++; }
       if (isResolved !== undefined) { fields.push(`is_resolved = $${idx}`); values.push(isResolved); idx++; }
+      if (handler !== undefined) { fields.push(`handler = $${idx}`); values.push(handler || null); idx++; }
+      if (bot !== undefined) { fields.push(`bot = $${idx}`); values.push(bot || null); idx++; }
+      if (note !== undefined) { fields.push(`note = $${idx}`); values.push(note || null); idx++; }
 
       values.push(id);
       const result = await pool.query(
         `UPDATE vuong_mac SET ${fields.join(', ')} WHERE id = $${idx}
-         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
+         RETURNING ${VUONG_MAC_COLUMNS}`,
         values
       );
       const row = result.rows[0];
@@ -3136,13 +3253,7 @@ app.put(
         [row.id, row.hex, row.category, old.content, row.content, actor]
       );
 
-      res.json({
-        success: true,
-        data: {
-          id: row.id, category: row.category, content: row.content, isResolved: row.is_resolved,
-          createdBy: row.created_by, createdAt: row.created_at, updatedBy: row.updated_by, updatedAt: row.updated_at,
-        },
-      });
+      res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
     } catch (error) {
       console.error('Lỗi sửa vuong-mac:', error);
       res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
@@ -3150,19 +3261,26 @@ app.put(
   }
 );
 
-// Xóa 1 vướng mắc — chỉ người tạo hoặc ADMIN.
+// Xóa 1 vướng mắc — ADMIN, người tạo, hoặc người cùng phòng ban với người tạo.
 app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const actor = req.user!.username;
+    const me = await getVuongMacActor(req);
+    const actor = me.username;
 
-    const existing = await pool.query('SELECT * FROM vuong_mac WHERE id = $1', [id]);
+    const existing = await pool.query(
+      `SELECT vm.*, u.department AS created_department
+       FROM vuong_mac vm
+       LEFT JOIN users u ON u.username = vm.created_by
+       WHERE vm.id = $1`,
+      [id]
+    );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy vướng mắc' });
     }
     const old = existing.rows[0];
-    if (old.created_by !== actor && req.user!.role !== 'ADMIN') {
-      return res.status(403).json({ success: false, message: 'Chỉ người tạo hoặc Admin được xóa' });
+    if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+      return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban với người tạo (hoặc Admin) được xóa' });
     }
 
     await pool.query('DELETE FROM vuong_mac WHERE id = $1', [id]);
@@ -3206,6 +3324,8 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Re
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+
 
 // --- 404 cho các route không khớp ---
 app.use((_req: Request, res: Response) => {

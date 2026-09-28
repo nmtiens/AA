@@ -59980,38 +59980,100 @@ var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement"];
 var vuongMacCreateSchema = external_exports.object({
   hex: external_exports.string().min(1),
   category: external_exports.enum(FIVE_M_CATEGORIES),
-  content: external_exports.string().min(1).max(2e3)
+  content: external_exports.string().min(1).max(2e3),
+  handler: external_exports.string().max(200).optional().nullable(),
+  // người xử lý
+  bot: external_exports.string().max(200).optional().nullable(),
+  note: external_exports.string().max(2e3).optional().nullable()
 });
 var vuongMacUpdateSchema = external_exports.object({
   category: external_exports.enum(FIVE_M_CATEGORIES).optional(),
   content: external_exports.string().min(1).max(2e3).optional(),
-  isResolved: external_exports.boolean().optional()
+  isResolved: external_exports.boolean().optional(),
+  handler: external_exports.string().max(200).optional().nullable(),
+  bot: external_exports.string().max(200).optional().nullable(),
+  note: external_exports.string().max(2e3).optional().nullable()
 });
+var VUONG_MAC_COLUMN_LIST = [
+  "id",
+  "hex",
+  "category",
+  "content",
+  "is_resolved",
+  "created_by",
+  "created_at",
+  "updated_by",
+  "updated_at",
+  "handler",
+  "bot",
+  "note"
+];
+var VUONG_MAC_COLUMNS = VUONG_MAC_COLUMN_LIST.join(", ");
+var VUONG_MAC_COLUMNS_VM = VUONG_MAC_COLUMN_LIST.map((c) => `vm.${c}`).join(", ");
+var normDept = (d) => (d ?? "").trim().toLowerCase();
+var isSameDept = (a, b) => {
+  const x = normDept(a);
+  return x !== "" && x === normDept(b);
+};
+var getVuongMacActor = async (req) => {
+  const r = await pool.query("SELECT department FROM users WHERE id = $1", [req.user.id]);
+  return {
+    username: req.user.username,
+    role: req.user.role,
+    department: r.rows[0]?.department ?? null
+  };
+};
+var canModifyVuongMac = (actor, createdBy, createdDept) => actor.role === "ADMIN" || !!createdBy && createdBy === actor.username || isSameDept(actor.department, createdDept);
+var canAddToVuongMacThread = async (actor, hex3, category) => {
+  if (actor.role === "ADMIN") return true;
+  const r = await pool.query(
+    `SELECT vm.created_by, u.department AS created_department
+     FROM vuong_mac vm
+     LEFT JOIN users u ON u.username = vm.created_by
+     WHERE vm.hex = $1 AND vm.category = $2`,
+    [hex3, category]
+  );
+  if (r.rows.length === 0) return true;
+  return r.rows.some(
+    (row) => row.created_by === actor.username || isSameDept(actor.department, row.created_department)
+  );
+};
+var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null) => ({
+  id: row.id,
+  category: row.category,
+  content: row.content,
+  isResolved: row.is_resolved,
+  createdBy: row.created_by,
+  createdAt: row.created_at,
+  updatedBy: row.updated_by,
+  updatedAt: row.updated_at,
+  handler: row.handler,
+  bot: row.bot,
+  note: row.note,
+  createdDepartment,
+  canModify: canModifyVuongMac(actor, row.created_by, createdDepartment)
+});
+var SELECT_VUONG_MAC_WITH_DEPT = `
+  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department
+  FROM vuong_mac vm
+  LEFT JOIN users u ON u.username = vm.created_by
+`;
 app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h)).filter(Boolean) : [];
     if (hexes.length === 0) return res.json({});
     if (hexes.length > 2e3) return res.status(400).json({ error: "Too many hexes" });
+    const actor = await getVuongMacActor(req);
     const r = await timedQuery(
-      `SELECT id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at
-       FROM vuong_mac
-       WHERE hex = ANY($1::text[])
-       ORDER BY hex, created_at ASC`,
+      `${SELECT_VUONG_MAC_WITH_DEPT}
+       WHERE vm.hex = ANY($1::text[])
+       ORDER BY vm.hex, vm.created_at ASC`,
       [hexes]
     );
     const out = {};
     r.rows.forEach((row) => {
       if (!out[row.hex]) out[row.hex] = [];
-      out[row.hex].push({
-        id: row.id,
-        category: row.category,
-        content: row.content,
-        isResolved: row.is_resolved,
-        createdBy: row.created_by,
-        createdAt: row.created_at,
-        updatedBy: row.updated_by,
-        updatedAt: row.updated_at
-      });
+      out[row.hex].push(mapVuongMacRow(row, actor));
     });
     res.json(out);
   } catch (error61) {
@@ -60025,13 +60087,17 @@ app.post(
   validateBody(vuongMacCreateSchema),
   async (req, res) => {
     try {
-      const { hex: hex3, category, content } = req.body;
-      const actor = req.user.username;
+      const { hex: hex3, category, content, handler, bot, note } = req.body;
+      const me = await getVuongMacActor(req);
+      const actor = me.username;
+      if (!await canAddToVuongMacThread(me, hex3, category)) {
+        return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban m\u1EDBi \u0111\u01B0\u1EE3c th\xEAm v\u01B0\u1EDBng m\u1EAFc v\xE0o m\u1EE5c n\xE0y" });
+      }
       const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $4)
-         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
-        [hex3, category, content, actor]
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, note)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, $7)
+         RETURNING ${VUONG_MAC_COLUMNS}`,
+        [hex3, category, content, actor, handler || null, bot || null, note || null]
       );
       const row = result.rows[0];
       await pool.query(
@@ -60039,19 +60105,7 @@ app.post(
          VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
         [row.id, hex3, category, content, actor]
       );
-      res.json({
-        success: true,
-        data: {
-          id: row.id,
-          category: row.category,
-          content: row.content,
-          isResolved: row.is_resolved,
-          createdBy: row.created_by,
-          createdAt: row.created_at,
-          updatedBy: row.updated_by,
-          updatedAt: row.updated_at
-        }
-      });
+      res.json({ success: true, data: mapVuongMacRow(row, me, me.department) });
     } catch (error61) {
       console.error("L\u1ED7i t\u1EA1o vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
@@ -60065,16 +60119,23 @@ app.put(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const actor = req.user.username;
-      const existing = await pool.query("SELECT * FROM vuong_mac WHERE id = $1", [id]);
+      const me = await getVuongMacActor(req);
+      const actor = me.username;
+      const existing = await pool.query(
+        `SELECT vm.*, u.department AS created_department
+         FROM vuong_mac vm
+         LEFT JOIN users u ON u.username = vm.created_by
+         WHERE vm.id = $1`,
+        [id]
+      );
       if (existing.rows.length === 0) {
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (old.created_by !== actor && req.user.role !== "ADMIN") {
-        return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c s\u1EEDa" });
+      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+        return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
       }
-      const { category, content, isResolved } = req.body;
+      const { category, content, isResolved, handler, bot, note } = req.body;
       const fields = ["updated_by = $1", "updated_at = now()"];
       const values = [actor];
       let idx = 2;
@@ -60093,10 +60154,25 @@ app.put(
         values.push(isResolved);
         idx++;
       }
+      if (handler !== void 0) {
+        fields.push(`handler = $${idx}`);
+        values.push(handler || null);
+        idx++;
+      }
+      if (bot !== void 0) {
+        fields.push(`bot = $${idx}`);
+        values.push(bot || null);
+        idx++;
+      }
+      if (note !== void 0) {
+        fields.push(`note = $${idx}`);
+        values.push(note || null);
+        idx++;
+      }
       values.push(id);
       const result = await pool.query(
         `UPDATE vuong_mac SET ${fields.join(", ")} WHERE id = $${idx}
-         RETURNING id, hex, category, content, is_resolved, created_by, created_at, updated_by, updated_at`,
+         RETURNING ${VUONG_MAC_COLUMNS}`,
         values
       );
       const row = result.rows[0];
@@ -60105,19 +60181,7 @@ app.put(
          VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6)`,
         [row.id, row.hex, row.category, old.content, row.content, actor]
       );
-      res.json({
-        success: true,
-        data: {
-          id: row.id,
-          category: row.category,
-          content: row.content,
-          isResolved: row.is_resolved,
-          createdBy: row.created_by,
-          createdAt: row.created_at,
-          updatedBy: row.updated_by,
-          updatedAt: row.updated_at
-        }
-      });
+      res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
     } catch (error61) {
       console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
@@ -60127,14 +60191,21 @@ app.put(
 app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
-    const actor = req.user.username;
-    const existing = await pool.query("SELECT * FROM vuong_mac WHERE id = $1", [id]);
+    const me = await getVuongMacActor(req);
+    const actor = me.username;
+    const existing = await pool.query(
+      `SELECT vm.*, u.department AS created_department
+       FROM vuong_mac vm
+       LEFT JOIN users u ON u.username = vm.created_by
+       WHERE vm.id = $1`,
+      [id]
+    );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
     }
     const old = existing.rows[0];
-    if (old.created_by !== actor && req.user.role !== "ADMIN") {
-      return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c x\xF3a" });
+    if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+      return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c x\xF3a" });
     }
     await pool.query("DELETE FROM vuong_mac WHERE id = $1", [id]);
     await pool.query(

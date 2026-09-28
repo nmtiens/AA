@@ -47,6 +47,7 @@ interface HexDetailModalProps {
   projectName: string | null;
   rows: DataRow[];
   columnKeys: HexDetailColumnKeys;
+  currentUser: string;
 }
 
 // Dữ liệu ghi chú trả về từ /api/production/notes: { [hex]: { [cột]: nội dung } }
@@ -296,7 +297,7 @@ const NoteContent = ({ text }: { text: string }) => {
 
 // ✅ MỚI: thứ tự cố định M1..M5 + nhãn ngắn — dùng cho header con, setup cột,
 // export CSV, và khóa loại khi mở popup CRUD.
-const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement'];
+const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method'];
 const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   man: 'M1',
   machine: 'M2',
@@ -355,7 +356,7 @@ const COL_WIDTHS = {
   ghiChuDonHangTong: 280,
   ghiChuPhieu: 280,
   // ✅ MỚI: 1 cột gộp "Vướng Mắc (5M)" — chiều rộng = tổng 5 cột con bên trong
-  vuongMac: VM_SUB_WIDTH * 5,
+  vuongMac: VM_SUB_WIDTH * FIVE_M_ORDER.length,
 };
 
 type SortKey =
@@ -464,6 +465,7 @@ export const HexDetailModal = ({
   projectName,
   rows,
   columnKeys,
+  currentUser, 
 }: HexDetailModalProps) => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
@@ -627,20 +629,28 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     [vuongMacMap, hexKey]
   );
 
-  // ✅ MỚI: mục vướng mắc CHƯA xử lý được cập nhật/tạo GẦN NHẤT của 1 hex,
-  // đúng 1 loại 5M — dùng để hiển thị nội dung xem trước trong ô cột con
-  // (thay vì chỉ hiện số lượng).
-  const getLatestOpenVuongMac = useCallback(
-    (row: DataRow, category: FiveMCategory): VuongMacItem | null => {
-      const list = getOpenVuongMacByCategory(row, category);
-      if (list.length === 0) return null;
-      return [...list].sort((a, b) => {
-        const ta = new Date(a.updatedAt || a.createdAt).getTime();
-        const tb = new Date(b.updatedAt || b.createdAt).getTime();
-        return tb - ta;
-      })[0];
+  // Toàn bộ vướng mắc của 1 hex theo ĐÚNG 1 loại 5M (cả đã xử lý lẫn chưa)
+  const getCategoryVuongMac = useCallback(
+    (row: DataRow, category: FiveMCategory): VuongMacItem[] => {
+      const hex = String(row[hexKey] || '');
+      return (vuongMacMap[hex] || []).filter(v => v.category === category);
     },
-    [getOpenVuongMacByCategory]
+    [vuongMacMap, hexKey]
+  );
+
+  // Vướng mắc MỚI NHẤT theo thời điểm tạo, bất kể đã xử lý hay chưa
+  // (khớp với tin nhắn cuối cùng trong popup chat)
+  const getLatestVuongMac = useCallback(
+    (row: DataRow, category: FiveMCategory): VuongMacItem | null => {
+      const list = getCategoryVuongMac(row, category);
+      if (list.length === 0) return null;
+      return list.reduce((best, v) => {
+        const tv = new Date(v.createdAt).getTime();
+        const tb = new Date(best.createdAt).getTime();
+        return tv > tb || (tv === tb && v.id > best.id) ? v : best;
+      });
+    },
+    [getCategoryVuongMac]
   );
 
   // Bấm vào 1 ô ghi chú: mở popup CHỈ với đúng cột đó, tải nguyên văn riêng
@@ -983,7 +993,8 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
   // + log đúng loại này.
   const VuongMacCatCell = ({ row, category }: { row: DataRow; category: FiveMCategory }) => {
     const openList = getOpenVuongMacByCategory(row, category);
-    const latest = getLatestOpenVuongMac(row, category);
+    const total = getCategoryVuongMac(row, category).length;
+    const latest = getLatestVuongMac(row, category);
     return (
       <td
         onClick={(e) => openVuongMacCell(row, category, e)}
@@ -996,11 +1007,18 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
           <span className="text-slate-300">—</span>
         ) : (
           <div className="space-y-0.5">
-            <span className={`block break-words text-[11px] font-medium ${VUONG_MAC_TEXT_STYLE[category]}`}>
+            <span
+              className={`block break-words text-[11px] font-medium ${
+                latest.isResolved ? 'text-emerald-700' : VUONG_MAC_TEXT_STYLE[category]
+              }`}
+            >
               {truncateText(latest.content, 40)}
             </span>
-            {openList.length > 1 && (
-              <span className="text-[10px] text-red-400">+{openList.length - 1} khác</span>
+            {latest.isResolved && <span className="block text-[10px] text-emerald-500">✓ Đã xử lý</span>}
+            {total > 1 && (
+              <span className={`block text-[10px] ${openList.length > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                +{total - 1} khác
+              </span>
             )}
           </div>
         )}
@@ -1234,7 +1252,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                               return (
                                 <th
                                   key="vuongMac-group"
-                                  colSpan={5}
+                                  colSpan={FIVE_M_ORDER.length}
                                   className={`cursor-default select-none border-b border-red-200 bg-red-50 px-3 py-3 text-center text-red-700 ${
                                     isLast ? '' : 'border-r border-red-200'
                                   }`}
@@ -1405,7 +1423,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                                   </td>
                                 );
                                 } else if (key === 'vuongMac') {
-                                  cells.push(<td key={key} className="px-3 py-3" colSpan={5} />);
+                                  cells.push(<td key={key} className="px-3 py-3" colSpan={FIVE_M_ORDER.length} />);
                                 } else {
                                   cells.push(<td key={key} className="px-3 py-3" />);
                               }
@@ -1486,6 +1504,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
         hexLabel={vuongMacDetail.label}
         category={vuongMacDetail.category}
         categoryLabel={vuongMacDetail.categoryLabel} // ✅ MỚI
+        currentUser={currentUser}
       />
     </>,
     document.body
