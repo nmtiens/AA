@@ -149,11 +149,18 @@ const STEPS = ['Nội dung', 'Người xử lý', 'BOT', 'Ghi chú'] as const;
 const STEP_HINT = [
   'Mô tả vướng mắc đang gặp',
   'Ai sẽ xử lý vướng mắc này?',
-  'Nhập BOT',
+  'Chọn thời gian BOT (bắt đầu và kết thúc)',
   'Có cần ghi chú thêm không? (không bắt buộc)',
 ];
 
-const emptyDraft = { content: '', handler: '', bot: '', note: '' };
+const emptyDraft = { content: '', handler: '', botStart: '', botEnd: '', note: '' };
+
+// "2026-09-28T08:00" (datetime-local) -> "08:00 28/09/2026"
+const fmtBotVal = (s: string) => {
+  const [d, t] = s.split('T');
+  const [y, m, day] = (d || '').split('-');
+  return `${t} ${day}/${m}/${y}`;
+};
 
 const clampStyle: React.CSSProperties = {
   display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
@@ -289,11 +296,12 @@ export const VuongMacDetailModal = ({
     ...deleted.map(del => ({ kind: 'deleted' as const, del, at: del.createdAt })),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
-  // Điều kiện qua từng bước: bước 1-3 bắt buộc, bước 4 (ghi chú) không bắt buộc
+  // Điều kiện qua từng bước: bước 1-3 bắt buộc (BOT: có giờ bắt đầu, kết thúc và kết thúc không trước bắt đầu), bước 4 (ghi chú) không bắt buộc
+  const botInvalid = !!(draft.botStart && draft.botEnd && draft.botEnd < draft.botStart);
   const canNext = !!(
     (step === 0 && draft.content.trim()) ||
     (step === 1 && draft.handler.trim()) ||
-    (step === 2 && draft.bot.trim()) ||
+    (step === 2 && draft.botStart && draft.botEnd && !botInvalid) ||
     step === 3
   );
 
@@ -302,7 +310,7 @@ export const VuongMacDetailModal = ({
     try {
       const created = await createVuongMac(hex, category, draft.content.trim(), {
         handler: draft.handler.trim(),
-        bot: draft.bot.trim(),
+        bot: `${fmtBotVal(draft.botStart)} - ${fmtBotVal(draft.botEnd)}`,
         note: draft.note.trim(),
       });
       if (!created) { window.alert('Không gửi được vướng mắc. Vui lòng thử lại (chỉ thành viên cùng phòng ban mới được thêm).'); return; }
@@ -367,7 +375,7 @@ export const VuongMacDetailModal = ({
 
   const myIds = [norm(currentUser), ...tokenIdentities()].filter(Boolean);
   const shortCode = (categoryLabel.match(/M\d+/g) ?? [categoryLabel]).join(' + '); // "Con Người (M1)" -> "M1"
-const badgeLabel = /M5\b/.test(shortCode) ? shortCode : `${shortCode} + M5`; // "M2" -> "M2 + M5" "M1" -> "M1 + M5"
+  const badgeLabel = /M5\b/.test(shortCode) ? shortCode : `${shortCode} + M5`; // "M2" -> "M2 + M5"
   const openCount = items.filter(v => !v.isResolved).length;
   const doneCount = items.length - openCount;
 
@@ -746,9 +754,24 @@ const badgeLabel = /M5\b/.test(shortCode) ? shortCode : `${shortCode} + M5`; // 
                     onKeyDown={e => { if (e.key === 'Enter') goNext(); }} />
                 )}
                 {step === 2 && (
-                  <input autoFocus className={inputCls} placeholder="BOT"
-                    value={draft.bot} onChange={e => setDraft(d => ({ ...d, bot: e.target.value }))}
-                    onKeyDown={e => { if (e.key === 'Enter') goNext(); }} />
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <label className="space-y-1 text-xs font-medium text-slate-500">
+                        Bắt đầu
+                        <input type="datetime-local" autoFocus className={inputCls}
+                          value={draft.botStart}
+                          onChange={e => setDraft(d => ({ ...d, botStart: e.target.value }))} />
+                      </label>
+                      <label className="space-y-1 text-xs font-medium text-slate-500">
+                        Kết thúc
+                        <input type="datetime-local" className={inputCls}
+                          min={draft.botStart || undefined}
+                          value={draft.botEnd}
+                          onChange={e => setDraft(d => ({ ...d, botEnd: e.target.value }))} />
+                      </label>
+                    </div>
+                    {botInvalid && <p className="text-[11px] text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+                  </div>
                 )}
                 {step === 3 && (
                   <textarea autoFocus className={inputCls} rows={2} placeholder="Nhập ghi chú (không bắt buộc)..."
