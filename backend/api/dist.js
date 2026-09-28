@@ -59984,14 +59984,24 @@ var vuongMacCreateSchema = external_exports.object({
   handler: external_exports.string().max(200).optional().nullable(),
   // người xử lý
   bot: external_exports.string().max(200).optional().nullable(),
+  solution: external_exports.string().max(2e3).optional().nullable(),
+  // giải pháp
   note: external_exports.string().max(2e3).optional().nullable()
 });
 var vuongMacUpdateSchema = external_exports.object({
   category: external_exports.enum(FIVE_M_CATEGORIES).optional(),
   content: external_exports.string().min(1).max(2e3).optional(),
   isResolved: external_exports.boolean().optional(),
+  resolvedNote: external_exports.string().max(2e3).optional().nullable(),
+  // nội dung đã xử lý
   handler: external_exports.string().max(200).optional().nullable(),
   bot: external_exports.string().max(200).optional().nullable(),
+  solution: external_exports.string().max(2e3).optional().nullable(),
+  note: external_exports.string().max(2e3).optional().nullable()
+});
+var vuongMacExtendSchema = external_exports.object({
+  content: external_exports.string().trim().min(1).max(2e3),
+  bot: external_exports.string().trim().min(1).max(200),
   note: external_exports.string().max(2e3).optional().nullable()
 });
 var VUONG_MAC_COLUMN_LIST = [
@@ -60006,7 +60016,11 @@ var VUONG_MAC_COLUMN_LIST = [
   "updated_at",
   "handler",
   "bot",
-  "note"
+  "solution",
+  "note",
+  "resolved_note",
+  "resolved_by",
+  "resolved_at"
 ];
 var VUONG_MAC_COLUMNS = VUONG_MAC_COLUMN_LIST.join(", ");
 var VUONG_MAC_COLUMNS_VM = VUONG_MAC_COLUMN_LIST.map((c) => `vm.${c}`).join(", ");
@@ -60049,12 +60063,24 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
   updatedAt: row.updated_at,
   handler: row.handler,
   bot: row.bot,
+  solution: row.solution,
   note: row.note,
+  resolvedNote: row.resolved_note,
+  resolvedBy: row.resolved_by,
+  resolvedAt: row.resolved_at,
+  extensions: Array.isArray(row.extensions) ? row.extensions : [],
   createdDepartment,
   canModify: canModifyVuongMac(actor, row.created_by, createdDepartment)
 });
 var SELECT_VUONG_MAC_WITH_DEPT = `
-  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department
+  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department,
+    COALESCE((
+      SELECT json_agg(json_build_object(
+               'id', e.id, 'content', e.content, 'bot', e.bot, 'oldBot', e.old_bot,
+               'note', e.note, 'createdBy', e.created_by, 'createdAt', e.created_at
+             ) ORDER BY e.created_at, e.id)
+      FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id
+    ), '[]'::json) AS extensions
   FROM vuong_mac vm
   LEFT JOIN users u ON u.username = vm.created_by
 `;
@@ -60087,17 +60113,17 @@ app.post(
   validateBody(vuongMacCreateSchema),
   async (req, res) => {
     try {
-      const { hex: hex3, category, content, handler, bot, note } = req.body;
+      const { hex: hex3, category, content, handler, bot, solution, note } = req.body;
       const me = await getVuongMacActor(req);
       const actor = me.username;
       if (!await canAddToVuongMacThread(me, hex3, category)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban m\u1EDBi \u0111\u01B0\u1EE3c th\xEAm v\u01B0\u1EDBng m\u1EAFc v\xE0o m\u1EE5c n\xE0y" });
       }
       const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, note)
-         VALUES ($1, $2, $3, $4, $4, $5, $6, $7)
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, solution, note)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8)
          RETURNING ${VUONG_MAC_COLUMNS}`,
-        [hex3, category, content, actor, handler || null, bot || null, note || null]
+        [hex3, category, content, actor, handler || null, bot || null, solution || null, note || null]
       );
       const row = result.rows[0];
       await pool.query(
@@ -60135,39 +60161,37 @@ app.put(
       if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
       }
-      const { category, content, isResolved, handler, bot, note } = req.body;
+      const { category, content, isResolved, resolvedNote, handler, bot, solution, note } = req.body;
+      const resolvedNoteClean = (resolvedNote ?? "").trim();
+      const markingResolved = isResolved === true && !old.is_resolved;
+      if (markingResolved && !resolvedNoteClean) {
+        return res.status(400).json({ success: false, message: "Vui l\xF2ng nh\u1EADp n\u1ED9i dung \u0111\xE3 x\u1EED l\xFD" });
+      }
       const fields = ["updated_by = $1", "updated_at = now()"];
       const values = [actor];
       let idx = 2;
-      if (category !== void 0) {
-        fields.push(`category = $${idx}`);
-        values.push(category);
+      const push = (col, val) => {
+        fields.push(`${col} = $${idx}`);
+        values.push(val);
         idx++;
-      }
-      if (content !== void 0) {
-        fields.push(`content = $${idx}`);
-        values.push(content);
-        idx++;
-      }
+      };
+      if (category !== void 0) push("category", category);
+      if (content !== void 0) push("content", content);
+      if (handler !== void 0) push("handler", handler || null);
+      if (bot !== void 0) push("bot", bot || null);
+      if (solution !== void 0) push("solution", solution || null);
+      if (note !== void 0) push("note", note || null);
       if (isResolved !== void 0) {
-        fields.push(`is_resolved = $${idx}`);
-        values.push(isResolved);
-        idx++;
-      }
-      if (handler !== void 0) {
-        fields.push(`handler = $${idx}`);
-        values.push(handler || null);
-        idx++;
-      }
-      if (bot !== void 0) {
-        fields.push(`bot = $${idx}`);
-        values.push(bot || null);
-        idx++;
-      }
-      if (note !== void 0) {
-        fields.push(`note = $${idx}`);
-        values.push(note || null);
-        idx++;
+        push("is_resolved", isResolved);
+        if (isResolved) {
+          if (markingResolved) {
+            push("resolved_note", resolvedNoteClean);
+            push("resolved_by", actor);
+            fields.push("resolved_at = now()");
+          }
+        } else {
+          fields.push("resolved_note = NULL", "resolved_by = NULL", "resolved_at = NULL");
+        }
       }
       values.push(id);
       const result = await pool.query(
@@ -60176,14 +60200,70 @@ app.put(
         values
       );
       const row = result.rows[0];
+      const detail = markingResolved ? `\u0110\xE1nh d\u1EA5u \u0111\xE3 x\u1EED l\xFD: ${resolvedNoteClean}` : null;
       await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, actor)
-         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6)`,
-        [row.id, row.hex, row.category, old.content, row.content, actor]
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
+        [row.id, row.hex, row.category, old.content, row.content, detail, actor]
       );
       res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
     } catch (error61) {
       console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
+app.post(
+  "/api/vuong-mac/:id/extend",
+  authenticateJWT,
+  validateBody(vuongMacExtendSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { content, bot, note } = req.body;
+      const me = await getVuongMacActor(req);
+      const actor = me.username;
+      const existing = await pool.query(
+        `SELECT vm.*, u.department AS created_department
+         FROM vuong_mac vm
+         LEFT JOIN users u ON u.username = vm.created_by
+         WHERE vm.id = $1`,
+        [id]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
+      }
+      const old = existing.rows[0];
+      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+        return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
+      }
+      if (old.is_resolved) {
+        return res.status(400).json({ success: false, message: "V\u01B0\u1EDBng m\u1EAFc \u0111\xE3 x\u1EED l\xFD, kh\xF4ng th\u1EC3 xin th\xEAm th\u1EDDi gian" });
+      }
+      const noteClean = (note ?? "").trim();
+      await pool.query(
+        `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [old.id, content, bot, old.bot || null, noteClean || null, actor]
+      );
+      await pool.query(
+        `UPDATE vuong_mac SET bot = $1, updated_by = $2, updated_at = now() WHERE id = $3`,
+        [bot, actor, old.id]
+      );
+      const detail = [
+        `C\u1EA7n th\xEAm th\u1EDDi gian: ${content}`,
+        `BOT: ${old.bot || "\u2014"} \u2192 ${bot}`,
+        noteClean ? `Ghi ch\xFA: ${noteClean}` : null
+      ].filter(Boolean).join("\n");
+      await pool.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+         VALUES ($1, $2, 'UPDATE', $3, $4, $4, $5, $6)`,
+        [old.id, old.hex, old.category, old.content, detail, actor]
+      );
+      const fresh = await pool.query(`${SELECT_VUONG_MAC_WITH_DEPT} WHERE vm.id = $1`, [old.id]);
+      res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me) });
+    } catch (error61) {
+      console.error("L\u1ED7i extend vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
     }
   }
@@ -60223,7 +60303,7 @@ app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
   try {
     const { hex: hex3 } = req.params;
     const r = await timedQuery(
-      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, actor, acted_at
+      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, actor, acted_at
        FROM vuong_mac_log
        WHERE hex = $1
        ORDER BY acted_at DESC
@@ -60237,6 +60317,7 @@ app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
       category: row.category,
       contentBefore: row.content_before,
       contentAfter: row.content_after,
+      detail: row.detail,
       actor: row.actor,
       actedAt: row.acted_at
     })));

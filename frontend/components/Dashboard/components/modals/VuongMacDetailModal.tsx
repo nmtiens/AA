@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import {
   X, History, Plus, Pencil, Trash2, Check, ChevronLeft, ChevronUp, ChevronDown,
-  Inbox, AlertTriangle, Search, Lock,
+  Inbox, AlertTriangle, Search, Lock, Clock,
 } from 'lucide-react';
 import {
   fetchVuongMacList,
   createVuongMac,
   updateVuongMac,
+  extendVuongMac,
   deleteVuongMac,
   fetchVuongMacLog,
   type VuongMacItem,
@@ -16,7 +17,7 @@ import {
 } from '../../../../services/vuongMacService';
 import { getToken } from '../../../../services/userService';
 
-// VuongMacItem có thêm handler?, bot?, note?, createdDepartment?, canModify? (xem vuongMacService)
+// VuongMacItem có thêm handler?, bot?, solution?, note?, resolvedNote?, extensions?, createdDepartment?, canModify? (xem vuongMacService)
 type ChatItem = VuongMacItem;
 
 const LOG_STYLE: Record<VuongMacLogEntry['action'], { label: string; dot: string; badge: string }> = {
@@ -26,11 +27,11 @@ const LOG_STYLE: Record<VuongMacLogEntry['action'], { label: string; dot: string
 };
 type LogFilter = 'ALL' | VuongMacLogEntry['action'];
 
-// Vướng mắc đã xóa — dựng lại từ log để hiển thị bản thu gọn trong khung chat
 // Thông tin chi tiết của vướng mắc lưu lại ở trình duyệt để còn xem được sau khi bị xóa
 interface ItemSnap {
   handler?: string | null;
   bot?: string | null;
+  solution?: string | null;
   note?: string | null;
   department?: string | null;
   updatedBy?: string | null;
@@ -75,7 +76,6 @@ const norm = (x?: string | null) => (x ?? '').trim().toLowerCase();
 const initialOf = (name?: string | null) => (name ?? '?').trim().charAt(0).toUpperCase() || '?';
 
 // ===== Tìm kiếm: không phân biệt hoa/thường và dấu tiếng Việt ("tồn đọng" khớp "ton dong") =====
-// Mỗi ký tự gốc luôn ánh xạ đúng 1 ký tự sau khi "gấp" -> chỉ số khớp dùng lại để cắt chuỗi gốc khi tô sáng.
 const foldChar = (c: string) => {
   const f = c.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd').toLowerCase();
   return f.length === 1 ? f : c;
@@ -145,15 +145,19 @@ interface Props {
   currentUser: string; // tên/username của user đang đăng nhập — so khớp với createdBy
 }
 
-const STEPS = ['Nội dung', 'Người xử lý', 'BOT', 'Ghi chú'] as const;
+// Thứ tự: Nội dung -> Người xử lý -> BOT -> Giải pháp -> Ghi chú
+const STEPS = ['Nội dung', 'Người xử lý', 'BOT', 'Giải pháp', 'Ghi chú'] as const;
 const STEP_HINT = [
   'Mô tả vướng mắc đang gặp',
   'Ai sẽ xử lý vướng mắc này?',
   'Chọn thời gian BOT (bắt đầu và kết thúc)',
+  'Giải pháp dự kiến để xử lý vướng mắc này',
   'Có cần ghi chú thêm không? (không bắt buộc)',
 ];
+const NOTE_STEP = STEPS.length - 1;
 
-const emptyDraft = { content: '', handler: '', botStart: '', botEnd: '', note: '' };
+const emptyDraft = { content: '', handler: '', botStart: '', botEnd: '', solution: '', note: '' };
+const emptyExtend = { content: '', botStart: '', botEnd: '', note: '' };
 
 // "2026-09-28T08:00" (datetime-local) -> "08:00 28/09/2026"
 const fmtBotVal = (s: string) => {
@@ -161,6 +165,7 @@ const fmtBotVal = (s: string) => {
   const [y, m, day] = (d || '').split('-');
   return `${t} ${day}/${m}/${y}`;
 };
+const fmtBotRange = (start: string, end: string) => `${fmtBotVal(start)} - ${fmtBotVal(end)}`;
 
 const clampStyle: React.CSSProperties = {
   display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
@@ -172,6 +177,9 @@ const inputCls =
 const primaryBtn =
   'rounded-lg bg-red-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors ' +
   'hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-600';
+const ghostBtn =
+  'rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 ' +
+  'hover:bg-slate-100 disabled:opacity-50';
 
 export const VuongMacDetailModal = ({
   isOpen, onClose, hex, hexLabel, category, categoryLabel, currentUser,
@@ -188,13 +196,20 @@ export const VuongMacDetailModal = ({
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
-  const [confirmId, setConfirmId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
+  // "Đã xử lý": bắt buộc nhập nội dung đã xử lý
+  const [resolveId, setResolveId] = useState<number | null>(null);
+  const [resolveText, setResolveText] = useState('');
+  const [resolving, setResolving] = useState(false);
+  // "Cần thêm thời gian": nội dung + BOT mới + ghi chú
+  const [extendId, setExtendId] = useState<number | null>(null);
+  const [extDraft, setExtDraft] = useState(emptyExtend);
+  const [extending, setExtending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -213,7 +228,7 @@ export const VuongMacDetailModal = ({
     const snaps = loadSnaps(hex, category);
     list.forEach(v => {
       snaps[v.id] = {
-        handler: v.handler, bot: v.bot, note: v.note, department: v.createdDepartment,
+        handler: v.handler, bot: v.bot, solution: v.solution, note: v.note, department: v.createdDepartment,
         updatedBy: v.updatedBy, updatedAt: v.updatedAt,
       };
     });
@@ -250,12 +265,12 @@ export const VuongMacDetailModal = ({
     saveSnaps(hex, category, snaps);
   }, [hex, category]);
 
-  // Các vướng mắc khớp từ khóa (theo thứ tự cũ -> mới): tìm trong nội dung, người gửi, người xử lý, BOT, ghi chú
+  // Các vướng mắc khớp từ khóa: tìm trong nội dung, người gửi, người xử lý, BOT, giải pháp, ghi chú, nội dung đã xử lý
   const matchIds = useMemo(() => {
     if (!q) return [] as number[];
     const fq = fold(q);
     return items
-      .filter(v => fold([v.content, v.createdBy, v.handler, v.bot, v.note].filter(Boolean).join('\n')).includes(fq))
+      .filter(v => fold([v.content, v.createdBy, v.handler, v.bot, v.solution, v.note, v.resolvedNote].filter(Boolean).join('\n')).includes(fq))
       .map(v => v.id);
   }, [items, q]);
   const matchKey = matchIds.join(',');
@@ -263,8 +278,9 @@ export const VuongMacDetailModal = ({
   useEffect(() => {
     if (!isOpen) return;
     setShowLog(false); setWizardOpen(false); setStep(0); setDraft(emptyDraft);
-    setEditingId(null); setConfirmId(null); setDeleteId(null); setDetailId(null); setLogFilter('ALL');
+    setEditingId(null); setDeleteId(null); setDetailId(null); setLogFilter('ALL');
     setSearchOpen(false); setQuery(''); setDeletedDetailId(null);
+    setResolveId(null); setResolveText(''); setExtendId(null); setExtDraft(emptyExtend);
     reload();
   }, [isOpen, reload]);
 
@@ -296,13 +312,14 @@ export const VuongMacDetailModal = ({
     ...deleted.map(del => ({ kind: 'deleted' as const, del, at: del.createdAt })),
   ].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 
-  // Điều kiện qua từng bước: bước 1-3 bắt buộc (BOT: có giờ bắt đầu, kết thúc và kết thúc không trước bắt đầu), bước 4 (ghi chú) không bắt buộc
+  // Điều kiện qua từng bước: bước 1-4 bắt buộc (BOT: có giờ bắt đầu, kết thúc và kết thúc không trước bắt đầu), bước 5 (ghi chú) không bắt buộc
   const botInvalid = !!(draft.botStart && draft.botEnd && draft.botEnd < draft.botStart);
   const canNext = !!(
     (step === 0 && draft.content.trim()) ||
     (step === 1 && draft.handler.trim()) ||
     (step === 2 && draft.botStart && draft.botEnd && !botInvalid) ||
-    step === 3
+    (step === 3 && draft.solution.trim()) ||
+    step === NOTE_STEP
   );
 
   const submit = async () => {
@@ -310,7 +327,8 @@ export const VuongMacDetailModal = ({
     try {
       const created = await createVuongMac(hex, category, draft.content.trim(), {
         handler: draft.handler.trim(),
-        bot: `${fmtBotVal(draft.botStart)} - ${fmtBotVal(draft.botEnd)}`,
+        bot: fmtBotRange(draft.botStart, draft.botEnd),
+        solution: draft.solution.trim(),
         note: draft.note.trim(),
       });
       if (!created) { window.alert('Không gửi được vướng mắc. Vui lòng thử lại (chỉ thành viên cùng phòng ban mới được thêm).'); return; }
@@ -325,12 +343,40 @@ export const VuongMacDetailModal = ({
     else submit();
   };
 
-  const doResolve = async (id: number) => {
-    const ok = await updateVuongMac(id, { isResolved: true });
-    if (!ok) window.alert('Không cập nhật được trạng thái (chỉ thành viên cùng phòng ban mới thao tác được).');
-    setConfirmId(null);
-    await reload();
+  // ===== Đã xử lý: bắt buộc nhập "Nội dung đã xử lý" =====
+  const openResolve = (id: number) => { setResolveText(''); setResolveId(id); };
+  const closeResolve = () => { if (!resolving) { setResolveId(null); setResolveText(''); } };
+  const doResolve = async () => {
+    if (resolveId == null || !resolveText.trim()) return;
+    setResolving(true);
+    try {
+      const ok = await updateVuongMac(resolveId, { isResolved: true, resolvedNote: resolveText.trim() });
+      if (!ok) window.alert('Không cập nhật được trạng thái (chỉ thành viên cùng phòng ban mới thao tác được).');
+      setResolveId(null); setResolveText('');
+      await reload();
+    } finally { setResolving(false); }
   };
+
+  // ===== Cần thêm thời gian: nội dung + BOT mới + ghi chú =====
+  const openExtend = (id: number) => { setExtDraft(emptyExtend); setExtendId(id); };
+  const closeExtend = () => { if (!extending) { setExtendId(null); setExtDraft(emptyExtend); } };
+  const extInvalid = !!(extDraft.botStart && extDraft.botEnd && extDraft.botEnd < extDraft.botStart);
+  const canExtend = !!(extDraft.content.trim() && extDraft.botStart && extDraft.botEnd && !extInvalid);
+  const doExtend = async () => {
+    if (extendId == null || !canExtend) return;
+    setExtending(true);
+    try {
+      const ok = await extendVuongMac(extendId, {
+        content: extDraft.content.trim(),
+        bot: fmtBotRange(extDraft.botStart, extDraft.botEnd),
+        note: extDraft.note.trim() || undefined,
+      });
+      if (!ok) window.alert('Không gửi được yêu cầu thêm thời gian (chỉ thành viên cùng phòng ban mới thao tác được).');
+      setExtendId(null); setExtDraft(emptyExtend);
+      await reload();
+    } finally { setExtending(false); }
+  };
+
   const doSaveEdit = async (id: number) => {
     if (!editText.trim()) return;
     const ok = await updateVuongMac(id, { content: editText.trim() });
@@ -359,9 +405,7 @@ export const VuongMacDetailModal = ({
   const closeSearch = () => { setSearchOpen(false); setQuery(''); };
 
   // ===== Phân quyền theo phòng ban (server tính sẵn canModify cho từng vướng mắc) =====
-  // Thiếu trường canModify (server cũ) thì không chặn ở UI — server vẫn là nơi quyết định cuối cùng.
   const canOperate = (v: ChatItem) => v.canModify !== false;
-  // Đoạn chat trống: ai cũng được bắt đầu. Đã có người: phải cùng phòng ban với ít nhất 1 người trong đoạn chat.
   const canAdd = items.length === 0 || items.some(canOperate);
   const deptNames = Array.from(new Set(items.map(v => v.createdDepartment).filter(Boolean))).join(', ');
   const lockMsg = deptNames
@@ -379,26 +423,48 @@ export const VuongMacDetailModal = ({
   const openCount = items.filter(v => !v.isResolved).length;
   const doneCount = items.length - openCount;
 
-  // Nút "Đã xử lý" + bước xác nhận — dùng chung cho bong bóng và cửa sổ chi tiết
-  const renderResolve = (v: ChatItem) =>
-    confirmId === v.id ? (
-      <span className="flex items-center gap-1.5 text-xs">
-        <span className="text-slate-500">Xác nhận đã xử lý?</span>
-        <button type="button" onClick={() => doResolve(v.id)} className="rounded-full bg-emerald-600 px-3 py-1 font-semibold text-white hover:bg-emerald-700">Xác nhận</button>
-        <button type="button" onClick={() => setConfirmId(null)} className="rounded-full px-2 py-1 text-slate-500 hover:bg-white/80">Hủy</button>
+  // Cụm nút hành động (Cần thêm thời gian + Đã xử lý) — dùng chung cho bong bóng và cửa sổ chi tiết
+  const renderActions = (v: ChatItem) =>
+    canOperate(v) ? (
+      <span className="flex flex-wrap items-center justify-end gap-1.5">
+        <button type="button" onClick={() => openExtend(v.id)}
+          className="flex items-center gap-1 rounded-full border border-amber-500 bg-white px-3 py-1 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-50">
+          <Clock size={13} /> Cần thêm thời gian
+        </button>
+        <button type="button" onClick={() => openResolve(v.id)}
+          className="flex items-center gap-1 rounded-full border border-emerald-500 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50">
+          <Check size={13} /> Đã xử lý
+        </button>
       </span>
-    ) : (
-      <button type="button" onClick={() => setConfirmId(v.id)}
-        className="flex items-center gap-1 rounded-full border border-emerald-500 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50">
-        <Check size={13} /> Đã xử lý
-      </button>
-    );
+    ) : lockedHint;
 
   const statusPill = (done: boolean) => (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${done ? 'bg-emerald-500' : 'bg-red-500'}`} />
       {done ? 'Đã xử lý' : 'Đang tồn đọng'}
     </span>
+  );
+
+  // Ô chọn BOT (bắt đầu - kết thúc) dùng cho wizard và form "Cần thêm thời gian"
+  const botFields = (
+    start: string, end: string, invalid: boolean,
+    onStart: (v: string) => void, onEnd: (v: string) => void, autoFocusStart = true,
+  ) => (
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="space-y-1 text-xs font-medium text-slate-500">
+          Bắt đầu
+          <input type="datetime-local" autoFocus={autoFocusStart} className={inputCls}
+            value={start} onChange={e => onStart(e.target.value)} />
+        </label>
+        <label className="space-y-1 text-xs font-medium text-slate-500">
+          Kết thúc
+          <input type="datetime-local" className={inputCls}
+            min={start || undefined} value={end} onChange={e => onEnd(e.target.value)} />
+        </label>
+      </div>
+      {invalid && <p className="text-[11px] text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+    </div>
   );
 
   // ===== Giao diện log: dòng thời gian, nhóm theo ngày, lọc theo loại thao tác =====
@@ -447,6 +513,7 @@ export const VuongMacDetailModal = ({
                 const who = myIds.includes(norm(l.actor)) ? 'Bạn' : l.actor;
                 const item = items.find(v => v.id === l.vuongMacId);
                 const statusOnly = l.action === 'UPDATE' && l.contentBefore === l.contentAfter;
+                const isExtendLog = statusOnly && !!l.detail && l.detail.startsWith('Cần thêm thời gian');
                 return (
                   <li key={l.id} className="relative">
                     <span className={`absolute -left-[26px] top-3 h-2.5 w-2.5 rounded-full ring-4 ring-slate-50 ${st.dot}`} />
@@ -464,7 +531,9 @@ export const VuongMacDetailModal = ({
                         {l.action === 'DELETE' && <span className="text-slate-400 line-through">{l.contentBefore || '—'}</span>}
                         {l.action === 'UPDATE' && (statusOnly ? (
                           <>
-                            <span className="font-medium text-emerald-700">Đánh dấu đã xử lý</span>
+                            <span className={`font-medium ${isExtendLog ? 'text-amber-700' : 'text-emerald-700'}`}>
+                              {isExtendLog ? 'Cần thêm thời gian' : l.detail ? 'Đánh dấu đã xử lý' : 'Cập nhật thông tin'}
+                            </span>
                             <span className="block text-xs text-slate-400">{l.contentAfter}</span>
                           </>
                         ) : (
@@ -475,10 +544,18 @@ export const VuongMacDetailModal = ({
                         ))}
                       </div>
 
-                      {l.action === 'CREATE' && item && (item.handler || item.bot || item.note) && (
+                      {/* Chi tiết: nội dung đã xử lý / gia hạn (BOT cũ -> mới, ghi chú) */}
+                      {l.detail && (
+                        <p className="mt-1.5 whitespace-pre-wrap break-words rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-600">
+                          {l.detail}
+                        </p>
+                      )}
+
+                      {l.action === 'CREATE' && item && (item.handler || item.bot || item.solution || item.note) && (
                         <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                           {item.handler && <span>Người xử lý: <span className="text-slate-700">{item.handler}</span></span>}
                           {item.bot && <span>BOT: <span className="text-slate-700">{item.bot}</span></span>}
+                          {item.solution && <span>Giải pháp: <span className="text-slate-700">{item.solution}</span></span>}
                           {item.note && <span>Ghi chú: <span className="text-slate-700">{item.note}</span></span>}
                         </div>
                       )}
@@ -496,6 +573,8 @@ export const VuongMacDetailModal = ({
   const detail = items.find(v => v.id === detailId) ?? null;
   const toDelete = items.find(v => v.id === deleteId) ?? null;
   const deletedDetail = deleted.find(d => d.id === deletedDetailId) ?? null;
+  const resolveTarget = items.find(v => v.id === resolveId) ?? null;
+  const extendTarget = items.find(v => v.id === extendId) ?? null;
   const whoLabel = (name?: string | null) => (name && myIds.includes(norm(name)) ? 'Bạn' : name);
 
   return createPortal(
@@ -544,7 +623,7 @@ export const VuongMacDetailModal = ({
                 if (e.key === 'Enter') { e.preventDefault(); goMatch(e.shiftKey ? 1 : -1); }
                 else if (e.key === 'Escape') { e.preventDefault(); closeSearch(); }
               }}
-              placeholder="Tìm trong đoạn chat (nội dung, người gửi, xử lý, BOT, ghi chú)..."
+              placeholder="Tìm trong đoạn chat (nội dung, người gửi, xử lý, BOT, giải pháp, ghi chú)..."
               className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
             />
             {q && (
@@ -626,6 +705,8 @@ export const VuongMacDetailModal = ({
                 const isActive = v.id === activeId;
                 const dim = matchIds.length > 0 && !isMatch;
                 const noteMatched = !!(q && v.note && fold(v.note).includes(fold(q)));
+                const resolvedMatched = !!(q && v.resolvedNote && fold(v.resolvedNote).includes(fold(q)));
+                const extCount = v.extensions?.length ?? 0;
                 const tone = done ? 'border-emerald-300 bg-emerald-50' : 'border-red-200 bg-red-50';
                 return (
                   <React.Fragment key={v.id}>
@@ -673,7 +754,7 @@ export const VuongMacDetailModal = ({
                           </p>
                         )}
 
-                        {(v.handler || v.bot || v.note) && (
+                        {(v.handler || v.bot || v.solution || v.note || extCount > 0) && (
                           <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
                             {v.handler && (
                               <span className="rounded-full bg-white/80 px-2 py-0.5 text-slate-500 ring-1 ring-black/5">
@@ -685,9 +766,19 @@ export const VuongMacDetailModal = ({
                                 BOT: <span className="font-medium text-slate-800">{highlight(v.bot, q, isActive)}</span>
                               </span>
                             )}
+                            {v.solution && (
+                              <span title={v.solution} className="max-w-full truncate rounded-full bg-white/80 px-2 py-0.5 text-slate-500 ring-1 ring-black/5">
+                                Giải pháp: <span className="font-medium text-slate-800">{highlight(v.solution, q, isActive)}</span>
+                              </span>
+                            )}
                             {v.note && (
                               <span title={v.note} className="rounded-full bg-white/80 px-2 py-0.5 font-medium text-slate-600 ring-1 ring-black/5">
                                 Có ghi chú
+                              </span>
+                            )}
+                            {extCount > 0 && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 ring-1 ring-amber-200">
+                                Đã xin thêm thời gian ×{extCount}
                               </span>
                             )}
                           </div>
@@ -698,9 +789,21 @@ export const VuongMacDetailModal = ({
                           </p>
                         )}
 
+                        {/* Nội dung đã xử lý (chỉ khi đã xử lý) */}
+                        {done && v.resolvedNote && (
+                          <p
+                            onClick={() => setDetailId(v.id)}
+                            title="Bấm để xem chi tiết"
+                            className="mt-2 cursor-pointer whitespace-pre-wrap break-words rounded-lg bg-white/70 px-2.5 py-1.5 text-xs text-emerald-800 ring-1 ring-emerald-200"
+                            style={resolvedMatched ? undefined : clampStyle}
+                          >
+                            <span className="font-semibold">Đã xử lý: </span>{highlight(v.resolvedNote, q, isActive)}
+                          </p>
+                        )}
+
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-black/5 pt-2.5">
                           {statusPill(done)}
-                          {!done && (operable ? renderResolve(v) : lockedHint)}
+                          {!done && renderActions(v)}
                         </div>
                       </div>
                     </div>
@@ -712,7 +815,7 @@ export const VuongMacDetailModal = ({
           )}
         </div>
 
-        {/* ===== Chân: nút thêm hoặc wizard 4 bước ===== */}
+        {/* ===== Chân: nút thêm hoặc wizard 5 bước ===== */}
         {!showLog && (
           <div className="shrink-0 border-t border-slate-200 bg-white p-4 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
             {!wizardOpen ? (
@@ -753,27 +856,16 @@ export const VuongMacDetailModal = ({
                     value={draft.handler} onChange={e => setDraft(d => ({ ...d, handler: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') goNext(); }} />
                 )}
-                {step === 2 && (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <label className="space-y-1 text-xs font-medium text-slate-500">
-                        Bắt đầu
-                        <input type="datetime-local" autoFocus className={inputCls}
-                          value={draft.botStart}
-                          onChange={e => setDraft(d => ({ ...d, botStart: e.target.value }))} />
-                      </label>
-                      <label className="space-y-1 text-xs font-medium text-slate-500">
-                        Kết thúc
-                        <input type="datetime-local" className={inputCls}
-                          min={draft.botStart || undefined}
-                          value={draft.botEnd}
-                          onChange={e => setDraft(d => ({ ...d, botEnd: e.target.value }))} />
-                      </label>
-                    </div>
-                    {botInvalid && <p className="text-[11px] text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
-                  </div>
+                {step === 2 && botFields(
+                  draft.botStart, draft.botEnd, botInvalid,
+                  v => setDraft(d => ({ ...d, botStart: v })),
+                  v => setDraft(d => ({ ...d, botEnd: v })),
                 )}
                 {step === 3 && (
+                  <textarea autoFocus className={inputCls} rows={3} placeholder="Nhập giải pháp xử lý..."
+                    value={draft.solution} onChange={e => setDraft(d => ({ ...d, solution: e.target.value }))} />
+                )}
+                {step === NOTE_STEP && (
                   <textarea autoFocus className={inputCls} rows={2} placeholder="Nhập ghi chú (không bắt buộc)..."
                     value={draft.note} onChange={e => setDraft(d => ({ ...d, note: e.target.value }))} />
                 )}
@@ -822,6 +914,7 @@ export const VuongMacDetailModal = ({
                   ['Thời gian gửi', fmtFull(detail.createdAt)],
                   ['Người xử lý', detail.handler],
                   ['BOT', detail.bot],
+                  ['Giải pháp', detail.solution],
                   ['Ghi chú', detail.note],
                   ['Cập nhật cuối', detail.updatedBy ? `${detail.updatedBy} · ${fmtFull(detail.updatedAt)}` : ''],
                 ] as [string, string | null | undefined][]).map(([label, value]) => (
@@ -831,10 +924,40 @@ export const VuongMacDetailModal = ({
                   </React.Fragment>
                 ))}
               </dl>
+
+              {/* Nội dung đã xử lý */}
+              {detail.isResolved && detail.resolvedNote && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                  <p className="text-xs font-semibold text-emerald-700">Nội dung đã xử lý</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900">{detail.resolvedNote}</p>
+                  {(detail.resolvedBy || detail.resolvedAt) && (
+                    <p className="mt-1.5 text-[11px] text-emerald-700/70">
+                      {[whoLabel(detail.resolvedBy), detail.resolvedAt ? fmtFull(detail.resolvedAt) : ''].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Lịch sử "Cần thêm thời gian" */}
+              {!!detail.extensions?.length && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-amber-700">Lịch sử xin thêm thời gian ({detail.extensions.length})</p>
+                  {detail.extensions.map(ex => (
+                    <div key={ex.id} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-sm">
+                      <p className="whitespace-pre-wrap break-words text-slate-800">{ex.content}</p>
+                      <p className="mt-1.5 text-xs text-slate-500">
+                        BOT: <span className="text-slate-400">{ex.oldBot || '—'}</span> → <span className="font-medium text-slate-700">{ex.bot}</span>
+                      </p>
+                      {ex.note && <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-slate-500">Ghi chú: {ex.note}</p>}
+                      <p className="mt-1 text-[11px] text-slate-400">{whoLabel(ex.createdBy)} · {fmtFull(ex.createdAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             {!detail.isResolved && (
               <div className="flex shrink-0 justify-end border-t border-slate-200 px-5 py-3">
-                {canOperate(detail) ? renderResolve(detail) : lockedHint}
+                {renderActions(detail)}
               </div>
             )}
           </div>
@@ -867,6 +990,7 @@ export const VuongMacDetailModal = ({
                   ['Thời gian gửi', fmtFull(deletedDetail.createdAt)],
                   ['Người xử lý', deletedDetail.snap?.handler],
                   ['BOT', deletedDetail.snap?.bot],
+                  ['Giải pháp', deletedDetail.snap?.solution],
                   ['Ghi chú', deletedDetail.snap?.note],
                   ['Cập nhật cuối', deletedDetail.snap?.updatedBy ? `${deletedDetail.snap.updatedBy} · ${fmtFull(deletedDetail.snap.updatedAt ?? undefined)}` : ''],
                   ['Người xóa', whoLabel(deletedDetail.deletedBy)],
@@ -878,6 +1002,91 @@ export const VuongMacDetailModal = ({
                   </React.Fragment>
                 ))}
               </dl>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Hộp thoại "Đã xử lý": bắt buộc nhập nội dung đã xử lý ===== */}
+      {resolveTarget && (
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4" onClick={closeResolve}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+            role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Check size={16} className="text-emerald-600" /> Đánh dấu đã xử lý
+              </h4>
+              <button type="button" onClick={closeResolve} aria-label="Đóng" className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              <div className="max-h-20 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-900">
+                {resolveTarget.content}
+              </div>
+              <label className="block space-y-1 text-xs font-medium text-slate-600">
+                Nội dung đã xử lý <span className="text-red-500">*</span>
+                <textarea autoFocus rows={4} className={inputCls} placeholder="Đã xử lý như thế nào..."
+                  value={resolveText} onChange={e => setResolveText(e.target.value)} />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+              <button type="button" disabled={resolving} onClick={closeResolve} className={ghostBtn}>Hủy</button>
+              <button type="button" disabled={!resolveText.trim() || resolving} onClick={doResolve}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600">
+                <Check size={13} /> {resolving ? 'Đang lưu...' : 'Xác nhận đã xử lý'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Hộp thoại "Cần thêm thời gian": nội dung, BOT, ghi chú ===== */}
+      {extendTarget && (
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4" onClick={closeExtend}>
+          <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
+            role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                <Clock size={16} className="text-amber-600" /> Cần thêm thời gian
+              </h4>
+              <button type="button" onClick={closeExtend} aria-label="Đóng" className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4 custom-scrollbar">
+              <div className="max-h-20 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-900">
+                {extendTarget.content}
+              </div>
+              <p className="text-xs text-slate-500">
+                BOT hiện tại: <span className="font-medium text-slate-700">{extendTarget.bot || '—'}</span>
+              </p>
+              <label className="block space-y-1 text-xs font-medium text-slate-600">
+                Nội dung <span className="text-red-500">*</span>
+                <textarea autoFocus rows={3} className={inputCls} placeholder="Lý do / nội dung cần thêm thời gian..."
+                  value={extDraft.content} onChange={e => setExtDraft(d => ({ ...d, content: e.target.value }))} />
+              </label>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-slate-600">BOT mới <span className="text-red-500">*</span></p>
+                {botFields(
+                  extDraft.botStart, extDraft.botEnd, extInvalid,
+                  v => setExtDraft(d => ({ ...d, botStart: v })),
+                  v => setExtDraft(d => ({ ...d, botEnd: v })),
+                  false,
+                )}
+              </div>
+              <label className="block space-y-1 text-xs font-medium text-slate-600">
+                Ghi chú
+                <textarea rows={2} className={inputCls} placeholder="Nhập ghi chú (không bắt buộc)..."
+                  value={extDraft.note} onChange={e => setExtDraft(d => ({ ...d, note: e.target.value }))} />
+              </label>
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
+              <button type="button" disabled={extending} onClick={closeExtend} className={ghostBtn}>Hủy</button>
+              <button type="button" disabled={!canExtend || extending} onClick={doExtend}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-amber-500">
+                <Clock size={13} /> {extending ? 'Đang gửi...' : 'Gửi yêu cầu'}
+              </button>
             </div>
           </div>
         </div>
@@ -906,8 +1115,7 @@ export const VuongMacDetailModal = ({
             </div>
 
             <div className="mt-4 flex justify-end gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3">
-              <button type="button" disabled={deleting} onClick={() => setDeleteId(null)}
-                className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+              <button type="button" disabled={deleting} onClick={() => setDeleteId(null)} className={ghostBtn}>
                 Hủy
               </button>
               <button type="button" disabled={deleting} onClick={() => doDelete(toDelete.id)}

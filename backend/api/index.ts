@@ -3025,15 +3025,22 @@ app.post(
 // (gồm cả route delete cũ), TRƯỚC dòng "// --- 404 cho các route không khớp ---".
 //
 // KHÔNG cần migration DB: phòng ban lấy từ cột users.department có sẵn.
+// ============================================================================
+// THAY THẾ toàn bộ khối trong file server, từ dòng
+//     const FIVE_M_CATEGORIES = [...]
+// đến HẾT route
+//     app.get('/api/vuong-mac/log/:hex', ...)
+// (TRƯỚC dòng "// --- 404 cho các route không khớp ---").
 //
-// QUY TẮC PHÂN QUYỀN MỚI
-//  - Sửa / Xóa / Đánh dấu "Đã xử lý" 1 vướng mắc: ADMIN, người tạo, hoặc người
-//    CÙNG PHÒNG BAN với người tạo.
-//  - Thêm vướng mắc vào 1 đoạn chat (hex + loại 5M): ADMIN, hoặc đoạn chat còn
-//    trống, hoặc user là người tạo / cùng phòng ban với ít nhất 1 người đã
-//    tham gia đoạn chat đó.
-//  - Khác phòng ban => 403. So khớp phòng ban không phân biệt hoa/thường và
-//    khoảng trắng thừa; phòng ban rỗng KHÔNG được coi là "cùng phòng ban".
+// YÊU CẦU: đã chạy vuong-mac-migration.sql (cột solution, resolved_note,
+// resolved_by, resolved_at, vuong_mac_log.detail, bảng vuong_mac_extension).
+//
+// THAY ĐỔI SO VỚI BẢN CŨ
+//  - Thêm "solution" (Giải pháp) khi tạo / sửa vướng mắc.
+//  - Đánh dấu đã xử lý: BẮT BUỘC có "resolvedNote" (Nội dung đã xử lý).
+//  - Route mới POST /api/vuong-mac/:id/extend  ("Cần thêm thời gian"):
+//    nhận content + bot (mới) + note, lưu lịch sử, cập nhật BOT hiện tại.
+//  - Log có thêm cột detail để hiển thị nội dung đã xử lý / gia hạn.
 // ============================================================================
 
 const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
@@ -3044,20 +3051,29 @@ const vuongMacCreateSchema = z.object({
   content: z.string().min(1).max(2000),
   handler: z.string().max(200).optional().nullable(), // người xử lý
   bot: z.string().max(200).optional().nullable(),
+  solution: z.string().max(2000).optional().nullable(), // giải pháp
   note: z.string().max(2000).optional().nullable(),
 });
 const vuongMacUpdateSchema = z.object({
   category: z.enum(FIVE_M_CATEGORIES).optional(),
   content: z.string().min(1).max(2000).optional(),
   isResolved: z.boolean().optional(),
+  resolvedNote: z.string().max(2000).optional().nullable(), // nội dung đã xử lý
   handler: z.string().max(200).optional().nullable(),
   bot: z.string().max(200).optional().nullable(),
+  solution: z.string().max(2000).optional().nullable(),
+  note: z.string().max(2000).optional().nullable(),
+});
+const vuongMacExtendSchema = z.object({
+  content: z.string().trim().min(1).max(2000),
+  bot: z.string().trim().min(1).max(200),
   note: z.string().max(2000).optional().nullable(),
 });
 
 const VUONG_MAC_COLUMN_LIST = [
   'id', 'hex', 'category', 'content', 'is_resolved', 'created_by', 'created_at',
-  'updated_by', 'updated_at', 'handler', 'bot', 'note',
+  'updated_by', 'updated_at', 'handler', 'bot', 'solution', 'note',
+  'resolved_note', 'resolved_by', 'resolved_at',
 ];
 // Bản không alias (dùng cho INSERT/UPDATE ... RETURNING trên 1 bảng)
 const VUONG_MAC_COLUMNS = VUONG_MAC_COLUMN_LIST.join(', ');
@@ -3122,13 +3138,26 @@ const mapVuongMacRow = (
   updatedAt: row.updated_at,
   handler: row.handler,
   bot: row.bot,
+  solution: row.solution,
   note: row.note,
+  resolvedNote: row.resolved_note,
+  resolvedBy: row.resolved_by,
+  resolvedAt: row.resolved_at,
+  extensions: Array.isArray(row.extensions) ? row.extensions : [],
   createdDepartment,
   canModify: canModifyVuongMac(actor, row.created_by, createdDepartment),
 });
 
+// Kèm phòng ban người tạo + lịch sử "Cần thêm thời gian" (json_agg, cũ -> mới)
 const SELECT_VUONG_MAC_WITH_DEPT = `
-  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department
+  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department,
+    COALESCE((
+      SELECT json_agg(json_build_object(
+               'id', e.id, 'content', e.content, 'bot', e.bot, 'oldBot', e.old_bot,
+               'note', e.note, 'createdBy', e.created_by, 'createdAt', e.created_at
+             ) ORDER BY e.created_at, e.id)
+      FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id
+    ), '[]'::json) AS extensions
   FROM vuong_mac vm
   LEFT JOIN users u ON u.username = vm.created_by
 `;
@@ -3169,7 +3198,7 @@ app.post(
   validateBody(vuongMacCreateSchema),
   async (req: Request, res: Response) => {
     try {
-      const { hex, category, content, handler, bot, note } = req.body;
+      const { hex, category, content, handler, bot, solution, note } = req.body;
       const me = await getVuongMacActor(req);
       const actor = me.username;
 
@@ -3178,10 +3207,10 @@ app.post(
       }
 
       const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, note)
-         VALUES ($1, $2, $3, $4, $4, $5, $6, $7)
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, solution, note)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8)
          RETURNING ${VUONG_MAC_COLUMNS}`,
-        [hex, category, content, actor, handler || null, bot || null, note || null]
+        [hex, category, content, actor, handler || null, bot || null, solution || null, note || null]
       );
       const row = result.rows[0];
 
@@ -3199,7 +3228,8 @@ app.post(
   }
 );
 
-// Sửa 1 vướng mắc (nội dung / loại / người xử lý / BOT / ghi chú / trạng thái "Đã xử lý").
+// Sửa 1 vướng mắc (nội dung / loại / người xử lý / BOT / giải pháp / ghi chú / trạng thái "Đã xử lý").
+// Đánh dấu "Đã xử lý" BẮT BUỘC kèm resolvedNote (nội dung đã xử lý).
 // Chỉ ADMIN, người tạo, hoặc người cùng phòng ban với người tạo.
 app.put(
   '/api/vuong-mac/:id',
@@ -3227,17 +3257,39 @@ app.put(
         return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban với người tạo (hoặc Admin) được thao tác' });
       }
 
-      const { category, content, isResolved, handler, bot, note } = req.body;
+      const { category, content, isResolved, resolvedNote, handler, bot, solution, note } = req.body;
+
+      const resolvedNoteClean = (resolvedNote ?? '').trim();
+      const markingResolved = isResolved === true && !old.is_resolved;
+      if (markingResolved && !resolvedNoteClean) {
+        return res.status(400).json({ success: false, message: 'Vui lòng nhập nội dung đã xử lý' });
+      }
 
       const fields: string[] = ['updated_by = $1', 'updated_at = now()'];
       const values: any[] = [actor];
       let idx = 2;
-      if (category !== undefined) { fields.push(`category = $${idx}`); values.push(category); idx++; }
-      if (content !== undefined) { fields.push(`content = $${idx}`); values.push(content); idx++; }
-      if (isResolved !== undefined) { fields.push(`is_resolved = $${idx}`); values.push(isResolved); idx++; }
-      if (handler !== undefined) { fields.push(`handler = $${idx}`); values.push(handler || null); idx++; }
-      if (bot !== undefined) { fields.push(`bot = $${idx}`); values.push(bot || null); idx++; }
-      if (note !== undefined) { fields.push(`note = $${idx}`); values.push(note || null); idx++; }
+      const push = (col: string, val: any) => { fields.push(`${col} = $${idx}`); values.push(val); idx++; };
+
+      if (category !== undefined) push('category', category);
+      if (content !== undefined) push('content', content);
+      if (handler !== undefined) push('handler', handler || null);
+      if (bot !== undefined) push('bot', bot || null);
+      if (solution !== undefined) push('solution', solution || null);
+      if (note !== undefined) push('note', note || null);
+
+      if (isResolved !== undefined) {
+        push('is_resolved', isResolved);
+        if (isResolved) {
+          if (markingResolved) {
+            push('resolved_note', resolvedNoteClean);
+            push('resolved_by', actor);
+            fields.push('resolved_at = now()');
+          }
+        } else {
+          // Mở lại vướng mắc: xóa thông tin đã xử lý
+          fields.push('resolved_note = NULL', 'resolved_by = NULL', 'resolved_at = NULL');
+        }
+      }
 
       values.push(id);
       const result = await pool.query(
@@ -3247,10 +3299,11 @@ app.put(
       );
       const row = result.rows[0];
 
+      const detail = markingResolved ? `Đánh dấu đã xử lý: ${resolvedNoteClean}` : null;
       await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, actor)
-         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6)`,
-        [row.id, row.hex, row.category, old.content, row.content, actor]
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
+        [row.id, row.hex, row.category, old.content, row.content, detail, actor]
       );
 
       res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
@@ -3261,7 +3314,72 @@ app.put(
   }
 );
 
+// "Cần thêm thời gian": lưu 1 lần gia hạn (nội dung, BOT mới, ghi chú) và cập nhật BOT hiện tại.
+// Chỉ áp dụng cho vướng mắc chưa xử lý; cùng quyền với sửa/xóa.
+app.post(
+  '/api/vuong-mac/:id/extend',
+  authenticateJWT,
+  validateBody(vuongMacExtendSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { content, bot, note } = req.body;
+      const me = await getVuongMacActor(req);
+      const actor = me.username;
+
+      const existing = await pool.query(
+        `SELECT vm.*, u.department AS created_department
+         FROM vuong_mac vm
+         LEFT JOIN users u ON u.username = vm.created_by
+         WHERE vm.id = $1`,
+        [id]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy vướng mắc' });
+      }
+      const old = existing.rows[0];
+
+      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+        return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban với người tạo (hoặc Admin) được thao tác' });
+      }
+      if (old.is_resolved) {
+        return res.status(400).json({ success: false, message: 'Vướng mắc đã xử lý, không thể xin thêm thời gian' });
+      }
+
+      const noteClean = (note ?? '').trim();
+
+      await pool.query(
+        `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [old.id, content, bot, old.bot || null, noteClean || null, actor]
+      );
+      await pool.query(
+        `UPDATE vuong_mac SET bot = $1, updated_by = $2, updated_at = now() WHERE id = $3`,
+        [bot, actor, old.id]
+      );
+
+      const detail = [
+        `Cần thêm thời gian: ${content}`,
+        `BOT: ${old.bot || '—'} → ${bot}`,
+        noteClean ? `Ghi chú: ${noteClean}` : null,
+      ].filter(Boolean).join('\n');
+      await pool.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+         VALUES ($1, $2, 'UPDATE', $3, $4, $4, $5, $6)`,
+        [old.id, old.hex, old.category, old.content, detail, actor]
+      );
+
+      const fresh = await pool.query(`${SELECT_VUONG_MAC_WITH_DEPT} WHERE vm.id = $1`, [old.id]);
+      res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me) });
+    } catch (error) {
+      console.error('Lỗi extend vuong-mac:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
 // Xóa 1 vướng mắc — ADMIN, người tạo, hoặc người cùng phòng ban với người tạo.
+// (Lịch sử gia hạn bị xóa theo nhờ ON DELETE CASCADE.)
 app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -3302,7 +3420,7 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Re
   try {
     const { hex } = req.params;
     const r = await timedQuery(
-      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, actor, acted_at
+      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, actor, acted_at
        FROM vuong_mac_log
        WHERE hex = $1
        ORDER BY acted_at DESC
@@ -3316,6 +3434,7 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Re
       category: row.category,
       contentBefore: row.content_before,
       contentAfter: row.content_after,
+      detail: row.detail,
       actor: row.actor,
       actedAt: row.acted_at,
     })));

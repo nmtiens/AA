@@ -11,6 +11,17 @@ export const FIVE_M_LABELS: Record<FiveMCategory, string> = {
   measurement: 'Measurement (Đo lường)',
 };
 
+// Một lần "Cần thêm thời gian"
+export interface VuongMacExtension {
+  id: number;
+  content: string;
+  bot: string;          // BOT mới
+  oldBot?: string | null; // BOT trước đó
+  note?: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface VuongMacItem {
   id: number;
   category: FiveMCategory;
@@ -22,7 +33,12 @@ export interface VuongMacItem {
   updatedAt: string;
   handler?: string | null; // người xử lý
   bot?: string | null;
-  note?: string | null;    // ghi chú
+  solution?: string | null;     // giải pháp
+  note?: string | null;         // ghi chú
+  resolvedNote?: string | null; // nội dung đã xử lý
+  resolvedBy?: string | null;
+  resolvedAt?: string | null;
+  extensions?: VuongMacExtension[]; // lịch sử xin thêm thời gian
   createdDepartment?: string | null; // phòng ban của người tạo
   canModify?: boolean;               // user hiện tại có được sửa/xóa/đánh dấu xử lý không (server tính)
 }
@@ -30,7 +46,14 @@ export interface VuongMacItem {
 export interface VuongMacExtra {
   handler: string;
   bot: string;
+  solution: string;
   note: string;
+}
+
+export interface VuongMacExtendInput {
+  content: string;
+  bot: string;
+  note?: string;
 }
 
 export interface VuongMacLogEntry {
@@ -40,6 +63,7 @@ export interface VuongMacLogEntry {
   category: FiveMCategory | null;
   contentBefore: string | null;
   contentAfter: string | null;
+  detail?: string | null; // mô tả thêm: "Đánh dấu đã xử lý: ..." / "Cần thêm thời gian ..."
   actor: string;
   actedAt: string;
 }
@@ -103,7 +127,9 @@ export const updateVuongMac = async (
     isResolved: boolean;
     handler: string;
     bot: string;
+    solution: string;
     note: string;
+    resolvedNote: string; // bắt buộc khi isResolved = true
   }>
 ): Promise<VuongMacItem | null> => {
   try {
@@ -117,6 +143,26 @@ export const updateVuongMac = async (
     return d.success ? d.data : null;
   } catch (e) {
     console.error('updateVuongMac error:', e);
+    return null;
+  }
+};
+
+// "Cần thêm thời gian": ghi nhận nội dung + BOT mới + ghi chú
+export const extendVuongMac = async (
+  id: number,
+  input: VuongMacExtendInput
+): Promise<VuongMacItem | null> => {
+  try {
+    const r = await fetch(`/api/vuong-mac/${id}/extend`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d.success ? d.data : null;
+  } catch (e) {
+    console.error('extendVuongMac error:', e);
     return null;
   }
 };
