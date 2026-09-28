@@ -361,7 +361,7 @@ export const InventoryDetailModal = ({
   return (
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
       <div
-        className="flex flex-col rounded-xl bg-white shadow-xl"
+        className="flex flex-col overflow-hidden rounded-xl bg-white shadow-xl"
         style={{ width: '98vw', maxWidth: 2200, height: '96vh' }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -414,7 +414,8 @@ export const InventoryDetailModal = ({
 
         {filteredRows.length > 0 ? (
           <>
-            <div className="shrink-0 overflow-hidden border-b border-indigo-200 bg-indigo-50 px-5 pt-5">
+            {/* Header: không padding ngang -> bảng chạy sát mép modal */}
+            <div className="shrink-0 overflow-hidden border-b border-indigo-200 bg-indigo-50 pt-5">
               <div className="flex">
                 <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                   <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
@@ -460,7 +461,12 @@ export const InventoryDetailModal = ({
               </div>
             </div>
 
-            <div ref={bodyScrollRef} onScroll={handleBodyScroll} className="min-h-0 flex-1 overflow-auto custom-scrollbar px-5">
+            {/* Body: vùng cuộn duy nhất, KHÔNG có px-5 để sticky left:0 dính sát mép */}
+            <div
+              ref={bodyScrollRef}
+              onScroll={handleBodyScroll}
+              className="min-h-0 flex-1 overflow-auto custom-scrollbar"
+            >
               <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                 <ColGroup />
                 <tbody>
@@ -602,7 +608,8 @@ export const InventoryDetailModal = ({
               </table>
             </div>
 
-            <div className="shrink-0 overflow-hidden border-t-2 border-indigo-400 bg-indigo-100 px-5 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
+            {/* Footer: không padding ngang */}
+            <div className="shrink-0 overflow-hidden border-t-2 border-indigo-400 bg-indigo-100 shadow-[0_-2px_6px_rgba(0,0,0,0.06)]">
               <div className="flex">
                 <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                   <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
