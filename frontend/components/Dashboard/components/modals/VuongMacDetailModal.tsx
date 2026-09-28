@@ -892,7 +892,7 @@ export const VuongMacDetailModal = ({
 
       {/* ===== Cửa sổ xem chi tiết 1 vướng mắc ===== */}
       {detail && (
-        <div className="fixed inset-0 z-[10004] flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setDetailId(null)}>
+        <div className="fixed inset-0 z-[10004] flex items-center justify-center bg-slate-900/40 p-4">
           <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="flex items-center gap-2">
@@ -966,7 +966,7 @@ export const VuongMacDetailModal = ({
 
       {/* ===== Cửa sổ xem chi tiết vướng mắc đã xóa ===== */}
       {deletedDetail && (
-        <div className="fixed inset-0 z-[10004] flex items-center justify-center bg-slate-900/40 p-4" onClick={() => setDeletedDetailId(null)}>
+        <div className="fixed inset-0 z-[10004] flex items-center justify-center bg-slate-900/40 p-4">
           <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="flex items-center gap-2">
@@ -1009,7 +1009,7 @@ export const VuongMacDetailModal = ({
 
       {/* ===== Hộp thoại "Đã xử lý": bắt buộc nhập nội dung đã xử lý ===== */}
       {resolveTarget && (
-        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4" onClick={closeResolve}>
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
             role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
@@ -1043,7 +1043,7 @@ export const VuongMacDetailModal = ({
 
       {/* ===== Hộp thoại "Cần thêm thời gian": nội dung, BOT, ghi chú ===== */}
       {extendTarget && (
-        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4" onClick={closeExtend}>
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4">
           <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
             role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
@@ -1094,8 +1094,7 @@ export const VuongMacDetailModal = ({
 
       {/* ===== Hộp thoại cảnh báo xóa ===== */}
       {toDelete && (
-        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4"
-          onClick={() => !deleting && setDeleteId(null)}>
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-900/50 p-4">
           <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5"
             role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="flex gap-3 px-5 pt-5">
