@@ -9,6 +9,7 @@ import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
+import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
 
 export interface ExportDetailColumnKeys {
   hexKey: string;
@@ -17,9 +18,7 @@ export interface ExportDetailColumnKeys {
   dateKey: string;
   soLuongKey: string;
   thanhTienKey: string;
-  // Cột ghi chú xuất kho (bảng production) — tùy chọn, mặc định là tên cột trong DB
   ghiChuXuatKhoKey?: string;
-  // ✅ MỚI: Tên Hạng Mục — tùy chọn, mặc định 'ten_hang_muc'.
   hangMucKey?: string;
 }
 
@@ -31,19 +30,14 @@ interface ExportDetailModalProps {
   columnKeys: ExportDetailColumnKeys;
 }
 
-// Dữ liệu ghi chú trả về từ /api/production/notes: { [hex]: { [cột]: nội dung } }
-type NotesResponse = Record<string, Record<string, string | null>>;
-
 const money = (value: number) => formatSmartDecimal(value / 1000);
 const moneyTotal = (value: number) => formatDecimalFull(value / 1000);
 
-// Cắt 100 ký tự đầu, thêm "..." nếu dài hơn (dùng cho ô xem trước trong bảng)
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
   text.length > limit ? `${text.slice(0, limit)}...` : text;
 
 // ===== Tách nội dung ghi chú theo mốc ngày + hiển thị ảnh Google Drive =====
-// (Đồng bộ với cách hiển thị ghi chú trong HexDetailModal)
 interface NoteBlock {
   date: string | null;
   lines: string[];
@@ -87,16 +81,11 @@ const extractDriveFileIds = (text: string): string[] => {
   return ids;
 };
 
-// Một dòng chỉ chứa đúng 1 link Drive (không có chữ khác) -> ẩn khỏi phần
-// text vì đã có thumbnail thay thế, tránh hiển thị trùng lặp.
 const isBareDriveLink = (s: string) => /^https:\/\/drive\.google\.com\/file\/d\/[a-zA-Z0-9_-]+\/view$/.test(s.trim());
 
 const stripBareDriveLinks = (line: string): string =>
   line.split('\n').filter(sub => !isBareDriveLink(sub)).join('\n').trim();
 
-// Lưới ảnh thu nhỏ (thumbnail) + xem phóng to (lightbox), có nút chuyển ảnh trước/sau.
-// Dùng referrerPolicy="no-referrer" để tránh Drive chặn hotlink; nếu vẫn lỗi,
-// tự chuyển sang iframe preview thu nhỏ (cùng cơ chế dùng ở popup phóng to).
 const ImageThumb = ({ id, index }: { id: string; index: number }) => {
   const [imgFailed, setImgFailed] = useState(false);
 
@@ -158,8 +147,8 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
                 Ảnh {lightboxIndex + 1} / {fileIds.length}
               </span>
               <div className="flex items-center gap-3">
-
-                  <a href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
+                
+                <a  href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-medium text-emerald-700 hover:underline"
@@ -212,9 +201,7 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
   );
 };
 
-// Mỗi khối theo ngày tự cuộn riêng khi nội dung/ảnh dài, để không đẩy các
-// ngày khác ra xa và không bị lẫn với ngày khác.
-const NOTE_BLOCK_MAX_HEIGHT = 420; // px — đủ cao để thấy ~1 hàng ảnh trước khi phải cuộn
+const NOTE_BLOCK_MAX_HEIGHT = 420;
 
 const NoteContent = ({ text }: { text: string }) => {
   const blocks = useMemo(() => parseNoteBlocks(text), [text]);
@@ -262,7 +249,7 @@ const NoteContent = ({ text }: { text: string }) => {
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
-  hangMuc: 260, // ✅ MỚI — Tên Hạng Mục
+  hangMuc: 260,
   congTrinh: 200,
   xuong: 100,
   date: 120,
@@ -274,8 +261,6 @@ const COL_WIDTHS = {
 type SortKey = 'stt' | 'hex' | 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChuXuatKho';
 type SortDir = 'asc' | 'desc';
 
-// Các cột "phụ" — có thể ẩn/hiện và SẮP XẾP LẠI THỨ TỰ qua Setup cột (Admin).
-// Khóa của map này phải khớp với `key` dùng trong OPTIONAL_COLUMNS bên dưới.
 type OptionalColKey = 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChuXuatKho';
 
 const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: SortKey; align?: 'left' | 'right' }> = {
@@ -299,7 +284,6 @@ const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   );
 };
 
-// Chuyển ngày (yyyy-mm-dd hoặc dd/mm/yyyy) thành mốc thời gian để so sánh/sort.
 const parseDateValue = (value: unknown): number => {
   const s = String(value ?? '').trim();
   if (!s) return -Infinity;
@@ -320,7 +304,7 @@ export const ExportDetailModal = ({
   const {
     hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey,
     ghiChuXuatKhoKey = 'tong_hop_ghi_chu_xuat_kho',
-    hangMucKey = 'ten_hang_muc', // ✅ MỚI
+    hangMucKey = 'ten_hang_muc',
   } = columnKeys;
 
   const [search, setSearch] = useState('');
@@ -331,32 +315,24 @@ export const ExportDetailModal = ({
   const footerScrollRef = useRef<HTMLDivElement>(null);
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
-  // Ghi chú xuất kho không nằm trong dữ liệu rows nên tải riêng theo danh sách
-  // hex đang hiển thị (giống cơ chế trong HexDetailModal).
   const [selectedNote, setSelectedNote] = useState<{ row: DataRow } | null>(null);
   const [fullNoteText, setFullNoteText] = useState<string | null>(null);
 
-const hexList = useMemo(
-  () => Array.from(new Set(rows.map(r => String(r[hexKey] || '')).filter(Boolean))),
-  [rows, hexKey]
-);
+  // Loại bỏ các dòng trùng lặp hoàn toàn (dữ liệu nguồn đôi khi bị lặp bản ghi).
+  const dedupedRows = useMemo(() => {
+    const seen = new Set<string>();
+    return rows.filter((row) => {
+      const sig = [
+        row[hexKey], row[congTrinhKey], row[xuongKey],
+        row[dateKey], row[soLuongKey], row[thanhTienKey],
+      ].map(v => String(v ?? '')).join('|');
+      if (seen.has(sig)) return false;
+      seen.add(sig);
+      return true;
+    });
+  }, [rows, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
 
-// Loại bỏ các dòng trùng lặp hoàn toàn (cùng hex, công trình, khu vực,
-// ngày xuất, số lượng, thành tiền) — dữ liệu nguồn đôi khi bị lặp bản ghi.
-const dedupedRows = useMemo(() => {
-  const seen = new Set<string>();
-  return rows.filter((row) => {
-    const sig = [
-      row[hexKey], row[congTrinhKey], row[xuongKey],
-      row[dateKey], row[soLuongKey], row[thanhTienKey],
-    ].map(v => String(v ?? '')).join('|');
-    if (seen.has(sig)) return false;
-    seen.add(sig);
-    return true;
-  });
-}, [rows, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
-
-  // Escape: chỉ đóng modal chính. Popup nội dung ghi chú CHỈ đóng bằng nút X.
+  // Escape: chỉ đóng modal chính. Popup ghi chú CHỈ đóng bằng nút X.
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -390,16 +366,15 @@ const dedupedRows = useMemo(() => {
   }, []);
 
   const getNotePreview = useCallback(
-  (row: DataRow): string => String(row[ghiChuXuatKhoKey] ?? ''),
-  [ghiChuXuatKhoKey]
-);
+    (row: DataRow): string => String(row[ghiChuXuatKhoKey] ?? ''),
+    [ghiChuXuatKhoKey]
+  );
 
-  // Bấm vào ô ghi chú: mở popup và tải nguyên văn riêng cho đúng hex đó.
-const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
-  e.stopPropagation();
-  setSelectedNote({ row });
-  setFullNoteText(String(row[ghiChuXuatKhoKey] ?? ''));
-}, [ghiChuXuatKhoKey]);
+  const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedNote({ row });
+    setFullNoteText(String(row[ghiChuXuatKhoKey] ?? ''));
+  }, [ghiChuXuatKhoKey]);
 
   const toggleSort = useCallback((key: SortKey) => {
     const defaultDir: SortDir = NUMERIC_SORT_KEYS.includes(key) || key === 'date' ? 'desc' : 'asc';
@@ -429,32 +404,32 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
     () => resolveVisibleModalColumns('modal_export_detail', OPTIONAL_COLUMNS),
     [OPTIONAL_COLUMNS, cfgVersion]
   );
-  const V = (key: string) => visibleCols.some(c => c.key === key);
 
-  // ✅ Thứ tự cột thực tế cần render — lấy TRỰC TIẾP từ visibleCols (đã được
-  // resolveVisibleModalColumns sắp xếp đúng theo cấu hình Admin đã lưu/kéo-thả).
-  // Đây là mảnh còn thiếu trước đây: trước kia code chỉ dùng V(key) để ẩn/hiện
-  // ở đúng vị trí hardcode, không hề dùng thứ tự trong visibleCols.
   const orderedCols = useMemo(
     () => visibleCols.map(c => c.key) as OptionalColKey[],
     [visibleCols]
   );
 
-const filteredRows = useMemo(() => {
-  const q = search.trim().toLowerCase();
-  if (!q) return dedupedRows;
-  return dedupedRows.filter(row => {
-    const hex = String(row[hexKey] || '').toLowerCase();
-    const xuong = String(row[xuongKey] || '').toLowerCase();
-    const date = String(row[dateKey] || '').toLowerCase();
-    return hex.includes(q) || xuong.includes(q) || date.includes(q);
-  });
-}, [dedupedRows, search, hexKey, xuongKey, dateKey]);
+  // ✅ Freeze: gồm cả STT + Mã Hex + các cột phụ
+  const frozen = useFrozenColumns(
+    'modal_export_detail',
+    [{ key: 'stt', width: COL_WIDTHS.stt }, { key: 'hex', width: COL_WIDTHS.hex }],
+    orderedCols,
+    COL_WIDTHS,
+    cfgVersion
+  );
 
-  // Mặc định (chưa bấm sort cột nào): gom các dòng có mã Hex trùng nhau lại
-  // thành 1 nhóm liền kề, mỗi nhóm sắp theo Ngày Xuất giảm dần (mới nhất
-  // trước); các nhóm được xếp theo ngày mới nhất của cả nhóm, giảm dần —
-  // nhờ vậy vừa gom nhóm hex trùng, vừa luôn thấy dữ liệu mới nhất lên đầu.
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return dedupedRows;
+    return dedupedRows.filter(row => {
+      const hex = String(row[hexKey] || '').toLowerCase();
+      const xuong = String(row[xuongKey] || '').toLowerCase();
+      const date = String(row[dateKey] || '').toLowerCase();
+      return hex.includes(q) || xuong.includes(q) || date.includes(q);
+    });
+  }, [dedupedRows, search, hexKey, xuongKey, dateKey]);
+
   const groupedDefaultRows = useMemo(() => {
     const groups = new Map<string, DataRow[]>();
     filteredRows.forEach((row) => {
@@ -474,21 +449,19 @@ const filteredRows = useMemo(() => {
     return groupList.flatMap((g) => g.sortedGroup);
   }, [filteredRows, hexKey, dateKey]);
 
-  // STT gắn theo thứ tự gốc (đã gom nhóm khi chưa sort cột nào) — không đổi
-  // khi bấm sort cột khác, chỉ đổi khi bấm sort chính cột STT.
-const indexedRows = useMemo(() => {
-  const source = sort ? filteredRows : groupedDefaultRows;
-  let sttCounter = 0;
-  let lastHex: string | null = null;
-  return source.map((row) => {
-    const hexVal = String(row[hexKey] || '');
-    if (hexVal !== lastHex) {
-      sttCounter += 1;
-      lastHex = hexVal;
-    }
-    return { row, stt: sttCounter };
-  });
-}, [filteredRows, groupedDefaultRows, sort, hexKey]);
+  const indexedRows = useMemo(() => {
+    const source = sort ? filteredRows : groupedDefaultRows;
+    let sttCounter = 0;
+    let lastHex: string | null = null;
+    return source.map((row) => {
+      const hexVal = String(row[hexKey] || '');
+      if (hexVal !== lastHex) {
+        sttCounter += 1;
+        lastHex = hexVal;
+      }
+      return { row, stt: sttCounter };
+    });
+  }, [filteredRows, groupedDefaultRows, sort, hexKey]);
 
   const sortedRows = useMemo(() => {
     if (!sort) return indexedRows;
@@ -501,7 +474,7 @@ const indexedRows = useMemo(() => {
     const getValue = (row: DataRow): number | string => {
       switch (sort.key) {
         case 'hex': return String(row[hexKey] || '');
-        case 'hangMuc': return String(row[hangMucKey] || ''); // ✅ MỚI
+        case 'hangMuc': return String(row[hangMucKey] || '');
         case 'congTrinh': return String(row[congTrinhKey] || '');
         case 'xuong': return String(row[xuongKey] || '');
         case 'date': return parseDateValue(row[dateKey]);
@@ -534,14 +507,14 @@ const indexedRows = useMemo(() => {
   }, [filteredRows, soLuongKey, thanhTienKey]);
 
   const groupCount = useMemo(() => {
-  const set = new Set(filteredRows.map(row => String(row[hexKey] || '')));
-  return set.size;
-}, [filteredRows, hexKey]);
+    const set = new Set(filteredRows.map(row => String(row[hexKey] || '')));
+    return set.size;
+  }, [filteredRows, hexKey]);
 
   if (!isOpen) return null;
 
   const exportColumns = [
-    'STT', 'Mã Hex', 'Hạng Mục', // ✅ MỚI
+    'STT', 'Mã Hex', 'Hạng Mục',
     ...(showProjectColumn ? ['Công Trình'] : []),
     'Khu Vực SX', 'Ngày Xuất', 'Số Lượng Xuất Kho', 'Thành Tiền Xuất Kho (1000 VNĐ)',
     'Tổng Hợp Ghi Chú Xuất Kho',
@@ -552,28 +525,25 @@ const indexedRows = useMemo(() => {
     .trim()
     .replace(/\s+/g, '_')}`;
 
-  // Xuất CSV: tải nguyên văn cột ghi chú xuất kho cho toàn bộ hex đang hiển thị
-const handleExportCsv = () => {
-  const exportRows = sortedRows.map(({ row, stt }) => ({
-    'STT': stt,
-    'Mã Hex': String(row[hexKey] || ''),
-    'Hạng Mục': String(row[hangMucKey] || ''), // ✅ MỚI
-    ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
-    'Khu Vực SX': String(row[xuongKey] || ''),
-    'Ngày Xuất': formatDateDisplay(row[dateKey]),
-    'Số Lượng Xuất Kho': parseNumber(row[soLuongKey]),
-    'Thành Tiền Xuất Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
-    'Tổng Hợp Ghi Chú Xuất Kho': String(row[ghiChuXuatKhoKey] ?? ''),
-  }));
-  exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
-};
+  const handleExportCsv = () => {
+    const exportRows = sortedRows.map(({ row, stt }) => ({
+      'STT': stt,
+      'Mã Hex': String(row[hexKey] || ''),
+      'Hạng Mục': String(row[hangMucKey] || ''),
+      ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
+      'Khu Vực SX': String(row[xuongKey] || ''),
+      'Ngày Xuất': formatDateDisplay(row[dateKey]),
+      'Số Lượng Xuất Kho': parseNumber(row[soLuongKey]),
+      'Thành Tiền Xuất Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
+      'Tổng Hợp Ghi Chú Xuất Kho': String(row[ghiChuXuatKhoKey] ?? ''),
+    }));
+    exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
+  };
 
   const totalMinWidth =
     COL_WIDTHS.stt +
     COL_WIDTHS.hex +
     orderedCols.reduce((sum, key) => sum + COL_WIDTHS[key], 0);
-
-  const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
 
   const tableStyle: React.CSSProperties = {
     width: '100%',
@@ -581,14 +551,16 @@ const handleExportCsv = () => {
     tableLayout: 'fixed',
   };
 
-  // ✅ Colgroup giờ lặp theo orderedCols để width khớp đúng thứ tự cột thực tế.
+  // Colgroup dùng PX; cột phụ CUỐI CÙNG không khai báo width -> hấp thụ phần dư.
   const ColGroup = () => (
     <colgroup>
-      <col style={{ width: pct(COL_WIDTHS.stt) }} />
-      <col style={{ width: pct(COL_WIDTHS.hex) }} />
-      {orderedCols.map((key) => (
-        <col key={key} style={{ width: pct(COL_WIDTHS[key]) }} />
-      ))}
+      <col style={{ width: COL_WIDTHS.stt }} />
+      <col style={{ width: COL_WIDTHS.hex }} />
+      {orderedCols.map((key, i) =>
+        i === orderedCols.length - 1
+          ? <col key={key} />
+          : <col key={key} style={{ width: COL_WIDTHS[key] }} />
+      )}
     </colgroup>
   );
 
@@ -601,15 +573,18 @@ const handleExportCsv = () => {
     children,
     className = '',
     isLast = false,
+    style,
   }: {
     sortKey: SortKey;
     align?: 'left' | 'right';
     children: React.ReactNode;
     className?: string;
     isLast?: boolean;
+    style?: React.CSSProperties;
   }) => (
     <th
       onClick={() => toggleSort(sortKey)}
+      style={style}
       className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}
     >
       <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -618,20 +593,6 @@ const handleExportCsv = () => {
       </span>
     </th>
   );
-
-  // Ô ghi chú trong bảng: bấm vào ĐÚNG Ô này mới mở popup, không phải cả dòng
-  const NoteCell = ({ row }: { row: DataRow }) => {
-    const preview = getNotePreview(row);
-    return (
-      <td
-        onClick={(e) => openNoteCell(row, e)}
-        title="Bấm để xem đầy đủ nội dung"
-        className="cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-emerald-50"
-      >
-        {truncateText(preview) || '—'}
-      </td>
-    );
-  };
 
   return (
     <>
@@ -704,8 +665,8 @@ const handleExportCsv = () => {
                         <tr>
                           <th
                             onClick={() => toggleSort('stt')}
-                            style={{ left: 0 }}
-                            className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
+                            style={fzStyle(frozen.get('stt'))}
+                            className={`${fzClass(frozen.get('stt'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100`}
                           >
                             <span className="inline-flex items-center justify-center gap-1">
                               STT
@@ -714,23 +675,23 @@ const handleExportCsv = () => {
                           </th>
                           <th
                             onClick={() => toggleSort('hex')}
-                            style={{ left: COL_WIDTHS.stt }}
-                            className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                            style={fzStyle(frozen.get('hex'))}
+                            className={`${fzClass(frozen.get('hex'))} min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100`}
                           >
                             <span className="inline-flex items-center gap-1">
                               Mã Hex
                               <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                             </span>
                           </th>
-                          {/* ✅ Header giờ lặp theo orderedCols (đúng thứ tự đã setup) thay vì
-                              từng SortableHeader hardcode theo vị trí cố định như trước. */}
                           {orderedCols.map((key, i) => {
                             const meta = COLUMN_META[key];
                             const isLast = i === orderedCols.length - 1;
-                            return (
+                            return applyFrozen(
                               <SortableHeader key={key} sortKey={meta.sortKey} align={meta.align} isLast={isLast}>
                                 {meta.label}
-                              </SortableHeader>
+                              </SortableHeader>,
+                              frozen.get(key),
+                              '!bg-emerald-50'
                             );
                           })}
                         </tr>
@@ -748,141 +709,144 @@ const handleExportCsv = () => {
               >
                 <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                   <ColGroup />
-  <tbody>
-  {sortedRows.map((entry, idx) => {
-    const row = entry.row;
-    const hexValue = String(row[hexKey] || '—');
-    const xuongValue = String(row[xuongKey] || '—');
+                  <tbody>
+                    {sortedRows.map((entry, idx) => {
+                      const row = entry.row;
+                      const hexValue = String(row[hexKey] || '—');
+                      const xuongValue = String(row[xuongKey] || '—');
 
-    const shouldGroupHex = !sort || sort.key === 'hex';
-    const prevHexValue = idx > 0 ? String(sortedRows[idx - 1].row[hexKey] || '—') : null;
-    const isHexGroupStart = !shouldGroupHex || hexValue !== prevHexValue;
+                      const shouldGroupHex = !sort || sort.key === 'hex';
+                      const prevHexValue = idx > 0 ? String(sortedRows[idx - 1].row[hexKey] || '—') : null;
+                      const isHexGroupStart = !shouldGroupHex || hexValue !== prevHexValue;
 
-    let hexRowSpan = 1;
-    if (shouldGroupHex && isHexGroupStart) {
-      let j = idx + 1;
-      while (j < sortedRows.length && String(sortedRows[j].row[hexKey] || '—') === hexValue) {
-        hexRowSpan++;
-        j++;
-      }
-    }
+                      let hexRowSpan = 1;
+                      if (shouldGroupHex && isHexGroupStart) {
+                        let j = idx + 1;
+                        while (j < sortedRows.length && String(sortedRows[j].row[hexKey] || '—') === hexValue) {
+                          hexRowSpan++;
+                          j++;
+                        }
+                      }
 
-    const prevXuongValue = idx > 0 ? String(sortedRows[idx - 1].row[xuongKey] || '—') : null;
-    const isXuongGroupStart = isHexGroupStart || xuongValue !== prevXuongValue;
+                      const prevXuongValue = idx > 0 ? String(sortedRows[idx - 1].row[xuongKey] || '—') : null;
+                      const isXuongGroupStart = isHexGroupStart || xuongValue !== prevXuongValue;
 
-    let xuongRowSpan = 1;
-    if (isXuongGroupStart) {
-      let j = idx + 1;
-      while (
-        j < sortedRows.length &&
-        String(sortedRows[j].row[hexKey] || '—') === hexValue &&
-        String(sortedRows[j].row[xuongKey] || '—') === xuongValue
-      ) {
-        xuongRowSpan++;
-        j++;
-      }
-    }
+                      let xuongRowSpan = 1;
+                      if (isXuongGroupStart) {
+                        let j = idx + 1;
+                        while (
+                          j < sortedRows.length &&
+                          String(sortedRows[j].row[hexKey] || '—') === hexValue &&
+                          String(sortedRows[j].row[xuongKey] || '—') === xuongValue
+                        ) {
+                          xuongRowSpan++;
+                          j++;
+                        }
+                      }
 
-    // Viền đậm hơn khi bắt đầu nhóm Hex mới, viền nhạt bình thường trong cùng nhóm
-    const rowTopBorder = isHexGroupStart && idx > 0 ? 'border-t-2 border-t-emerald-200' : '';
-    const cellBorder = 'border-b border-slate-200';
+                      const rowTopBorder = isHexGroupStart && idx > 0 ? 'border-t-2 border-t-emerald-200' : '';
+                      const cellBorder = 'border-b border-slate-200';
 
-    // ✅ Render 1 ô "phụ" theo key — dùng chung logic rowSpan/nhóm ở trên,
-    // nhưng vị trí trong hàng giờ do orderedCols.map quyết định, không hardcode.
-    const renderCell = (key: OptionalColKey): React.ReactNode => {
-      switch (key) {
-        case 'hangMuc':
-          return isHexGroupStart ? (
-            <td
-              key="hangMuc"
-              rowSpan={hexRowSpan}
-              className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
-            >
-              {String(row[hangMucKey] || '—')}
-            </td>
-          ) : null;
+                      const renderCell = (key: OptionalColKey): React.ReactNode => {
+                        switch (key) {
+                          case 'hangMuc':
+                            return isHexGroupStart ? (
+                              <td
+                                key="hangMuc"
+                                rowSpan={hexRowSpan}
+                                className={`border-r ${cellBorder} px-3 py-2.5 text-left align-middle text-slate-700`}
+                              >
+                                {String(row[hangMucKey] || '—')}
+                              </td>
+                            ) : null;
 
-        case 'congTrinh':
-          return showProjectColumn ? (
-            <td key="congTrinh" className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
-              {String(row[congTrinhKey] || '—')}
-            </td>
-          ) : null;
+                          case 'congTrinh':
+                            return showProjectColumn ? (
+                              <td key="congTrinh" className={`px-3 py-2.5 text-left align-top text-slate-700 ${cellBorder}`}>
+                                {String(row[congTrinhKey] || '—')}
+                              </td>
+                            ) : null;
 
-        case 'xuong':
-          return isXuongGroupStart ? (
-            <td
-              key="xuong"
-              rowSpan={xuongRowSpan}
-              className={`border-r ${cellBorder} bg-slate-50 px-3 py-2.5 text-left align-middle font-medium text-slate-700`}
-            >
-              {xuongValue}
-            </td>
-          ) : null;
+                          case 'xuong':
+                            return isXuongGroupStart ? (
+                              <td
+                                key="xuong"
+                                rowSpan={xuongRowSpan}
+                                className={`border-r ${cellBorder} bg-slate-50 px-3 py-2.5 text-left align-middle font-medium text-slate-700`}
+                              >
+                                {xuongValue}
+                              </td>
+                            ) : null;
 
-        case 'date':
-          return (
-            <td key="date" className={`px-3 py-2.5 text-left align-top text-slate-600 ${cellBorder}`}>
-              {formatDateDisplay(row[dateKey]) || '—'}
-            </td>
-          );
+                          case 'date':
+                            return (
+                              <td key="date" className={`px-3 py-2.5 text-left align-top text-slate-600 ${cellBorder}`}>
+                                {formatDateDisplay(row[dateKey]) || '—'}
+                              </td>
+                            );
 
-        case 'soLuong':
-          return (
-            <td key="soLuong" className={`px-3 py-2.5 text-right align-top text-slate-800 ${cellBorder}`}>
-              {parseNumber(row[soLuongKey]).toLocaleString('vi-VN')}
-            </td>
-          );
+                          case 'soLuong':
+                            return (
+                              <td key="soLuong" className={`px-3 py-2.5 text-right align-top text-slate-800 ${cellBorder}`}>
+                                {parseNumber(row[soLuongKey]).toLocaleString('vi-VN')}
+                              </td>
+                            );
 
-        case 'thanhTien':
-          return (
-            <td key="thanhTien" className={`px-3 py-2.5 text-right align-top font-medium text-emerald-700 ${cellBorder}`}>
-              {money(parseNumber(row[thanhTienKey]))}
-            </td>
-          );
+                          case 'thanhTien':
+                            return (
+                              <td key="thanhTien" className={`px-3 py-2.5 text-right align-top font-medium text-emerald-700 ${cellBorder}`}>
+                                {money(parseNumber(row[thanhTienKey]))}
+                              </td>
+                            );
 
-        case 'ghiChuXuatKho':
-          return (
-            <td
-              key="ghiChuXuatKho"
-              onClick={(e) => openNoteCell(row, e)}
-              title="Bấm để xem đầy đủ nội dung"
-              className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-emerald-50 ${cellBorder}`}
-            >
-              {truncateText(getNotePreview(row)) || '—'}
-            </td>
-          );
+                          case 'ghiChuXuatKho':
+                            return (
+                              <td
+                                key="ghiChuXuatKho"
+                                onClick={(e) => openNoteCell(row, e)}
+                                title="Bấm để xem đầy đủ nội dung"
+                                className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors hover:bg-emerald-50 ${cellBorder}`}
+                              >
+                                {truncateText(getNotePreview(row)) || '—'}
+                              </td>
+                            );
 
-        default:
-          return null;
-      }
-    };
+                          default:
+                            return null;
+                        }
+                      };
 
-    return (
-      <tr key={idx} className={`transition-colors hover:bg-emerald-50/40 ${rowTopBorder}`}>
-        {isHexGroupStart && (
-          <td
-            rowSpan={hexRowSpan}
-            style={{ left: 0 }}
-            className={`sticky z-10 border-r ${cellBorder} bg-emerald-50/60 px-2 py-2.5 text-center align-middle font-semibold text-slate-700`}
-          >
-            {entry.stt}
-          </td>
-        )}
-        {isHexGroupStart && (
-          <td
-            rowSpan={hexRowSpan}
-            style={{ left: COL_WIDTHS.stt }}
-            className={`sticky z-10 border-r ${cellBorder} bg-emerald-50/60 px-3 py-2.5 text-left align-middle font-bold text-slate-800`}
-          >
-            {hexValue}
-          </td>
-        )}
-        {orderedCols.map((key) => renderCell(key))}
-      </tr>
-    );
-  })}
-</tbody>
+                      return (
+                        <tr key={idx} className={`group transition-colors hover:bg-emerald-50/40 ${rowTopBorder}`}>
+                          {isHexGroupStart && (
+                            <td
+                              rowSpan={hexRowSpan}
+                              style={fzStyle(frozen.get('stt'))}
+                              className={`${fzClass(frozen.get('stt'))} border-r ${cellBorder} bg-emerald-50 px-2 py-2.5 text-center align-middle font-semibold text-slate-700`}
+                            >
+                              {entry.stt}
+                            </td>
+                          )}
+                          {isHexGroupStart && (
+                            <td
+                              rowSpan={hexRowSpan}
+                              style={fzStyle(frozen.get('hex'))}
+                              className={`${fzClass(frozen.get('hex'))} border-r ${cellBorder} bg-emerald-50 px-3 py-2.5 text-left align-middle font-bold text-slate-800`}
+                            >
+                              {hexValue}
+                            </td>
+                          )}
+                          {orderedCols.map((key) =>
+                            applyFrozen(
+                              renderCell(key),
+                              frozen.get(key),
+                              key === 'xuong' ? '!bg-slate-50' : '!bg-white group-hover:!bg-emerald-50'
+                            )
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
                 </table>
               </div>
 
@@ -892,61 +856,66 @@ const handleExportCsv = () => {
                     <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                       <ColGroup />
                       <tfoot className="font-bold text-slate-900">
-  <tr>
-    {(() => {
-      const numericKeys: OptionalColKey[] = ['soLuong', 'thanhTien'];
-      const cells: React.ReactNode[] = [];
-      let pendingSpan = 2; // STT + Mã Hex luôn có mặt
-      let labelRendered = false;
+                        <tr>
+                          {(() => {
+                            const numericKeys: OptionalColKey[] = ['soLuong', 'thanhTien'];
+                            const cells: React.ReactNode[] = [];
+                            let pendingSpan = 2; // STT + Mã Hex luôn có mặt
+                            let labelRendered = false;
 
-      const flushLabel = () => {
-        cells.push(
-          <td
-            key="label"
-            className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left"
-            colSpan={pendingSpan}
-          >
-            TỔNG CỘNG ({groupCount} mã Hex)
-          </td>
-        );
-        labelRendered = true;
-      };
+                            const flushLabel = () => {
+                              cells.push(
+                                <td
+                                  key="label"
+                                  className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
+                                  colSpan={pendingSpan}
+                                >
+                                  TỔNG CỘNG ({groupCount} mã Hex)
+                                </td>
+                              );
+                              labelRendered = true;
+                            };
 
-      orderedCols.forEach((key) => {
-        const isNumeric = numericKeys.includes(key);
-        const isNote = key === 'ghiChuXuatKho';
+                            orderedCols.forEach((key) => {
+                              const isNumeric = numericKeys.includes(key);
+                              const isNote = key === 'ghiChuXuatKho';
 
-        // Cột text (hangMuc/congTrinh/xuong/date) CHỈ được gộp vào ô nhãn khi
-        // nó còn đứng liền đầu. Nếu nó bị Admin kéo ra sau một cột số liệu
-        // hoặc cột ghi chú thì vẫn phải có ô riêng (trống) để không lệch cột.
-        if (!labelRendered && !isNumeric && !isNote) {
-          pendingSpan += 1;
-          return;
-        }
+                              if (!labelRendered && !isNumeric && !isNote) {
+                                pendingSpan += 1;
+                                return;
+                              }
 
-        if (!labelRendered) flushLabel();
+                              if (!labelRendered) flushLabel();
 
-        if (isNumeric) {
-          cells.push(
-            <td key={key} className="px-3 py-3 text-right">
-              {key === 'soLuong'
-                ? totals.soLuong.toLocaleString('vi-VN')
-                : moneyTotal(totals.thanhTien)}
-            </td>
-          );
-        } else {
-          // ghiChuXuatKho hoặc cột text đến muộn — ô trống để giữ số cột khớp
-          cells.push(<td key={key} className="px-3 py-3" />);
-        }
-      });
+                              if (isNumeric) {
+                                cells.push(
+                                  applyFrozen(
+                                    <td key={key} className="px-3 py-3 text-right">
+                                      {key === 'soLuong'
+                                        ? totals.soLuong.toLocaleString('vi-VN')
+                                        : moneyTotal(totals.thanhTien)}
+                                    </td>,
+                                    frozen.get(key),
+                                    '!bg-emerald-100'
+                                  )
+                                );
+                              } else {
+                                cells.push(
+                                  applyFrozen(
+                                    <td key={key} className="px-3 py-3" />,
+                                    frozen.get(key),
+                                    '!bg-emerald-100'
+                                  )
+                                );
+                              }
+                            });
 
-      // Trường hợp không có cột số liệu/ghi chú nào được hiển thị
-      if (!labelRendered) flushLabel();
+                            if (!labelRendered) flushLabel();
 
-      return cells;
-    })()}
-  </tr>
-</tfoot>
+                            return cells;
+                          })()}
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
                   {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
@@ -963,8 +932,6 @@ const handleExportCsv = () => {
         </div>
       </div>
 
-      {/* Popup: chỉ hiện nội dung ghi chú xuất kho của ĐÚNG 1 dòng vừa bấm.
-          Chỉ đóng bằng nút X — bấm ra ngoài (backdrop) hoặc Escape KHÔNG đóng. */}
       {selectedNote && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"

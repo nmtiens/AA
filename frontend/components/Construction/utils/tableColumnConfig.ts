@@ -11,8 +11,9 @@ import {
 } from '../../../services/dataService';
 
 export interface TableColumnConfig {
-  allowedColumns: string[];        // thứ tự = thứ tự hiển thị cột trong bảng
-  defaultVisibleColumns: string[]; // subset của allowedColumns, hiện mặc định
+  allowedColumns: string[];
+  defaultVisibleColumns: string[];
+  frozenColumns?: number; // tổng số cột ghim từ trái, GỒM cả 2 cột cố định đầu (STT + Hex). Mặc định 2
 }
 
 export interface TableDefinition {
@@ -129,4 +130,8 @@ export function resolveVisibleModalColumns(
   return allowedColumns
     .map((k) => byKey.get(k))
     .filter((c): c is ModalColumnDef => !!c);
+}
+
+export function getFrozenColumns(modalId: string): number {
+  return getColumnConfigForTable(modalId).frozenColumns ?? 2;
 }

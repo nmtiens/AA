@@ -5,6 +5,7 @@ import { formatNumber, formatDecimal } from '../../utils/numberParsers';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
+import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
 
 export const ON_LINE_STAGES = [
   'P002',
@@ -37,21 +38,23 @@ interface OnLineStageDetailModalProps {
   projectName: string | null;
   metric: 'COUNT' | 'VALUE';
   rows: StageDetailRow[];
-  // stage = mã công đoạn (P002...) hoặc TOTAL_STAGE khi click ô Tổng
   onValueClick?: (projectName: string | null, stage: string) => void;
 }
 
 const STT_COL_WIDTH = 50;
 const NAME_COL_WIDTH = 220;
 const STAGE_COL_WIDTH = 90;
-const TOTAL_COL_WIDTH = 110;
+const TOTAL_MIN_COL = 110;
 
 type StageKey = (typeof ON_LINE_STAGES)[number];
 type SortKey = 'stt' | 'name' | StageKey | 'total';
 type SortDir = 'asc' | 'desc';
 
-// Danh sách công đoạn hiển thị cho popover Setup cột (label = mã công đoạn).
 const STAGE_COLUMNS: ModalColumnDef[] = ON_LINE_STAGES.map((stage) => ({ key: stage, label: stage }));
+
+const STAGE_WIDTHS = Object.fromEntries(
+  ON_LINE_STAGES.map((s) => [s, STAGE_COL_WIDTH])
+) as Record<StageKey, number>;
 
 const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   if (!active) return <ChevronsUpDown size={12} className="shrink-0 text-slate-400" />;
@@ -116,9 +119,7 @@ export const OnLineStageDetailModal = ({
     });
   }, []);
 
-  // ==== Setup cột hiển thị (chỉ Admin) — chọn/ẩn + kéo-thả sắp xếp thứ tự
-  // các công đoạn (P002..P021). Cột STT/Tên Công Trình/Tổng luôn cố định,
-  // không nằm trong danh sách setup được. ====
+  // ==== Setup cột hiển thị (chỉ Admin): chọn/ẩn + kéo-thả + ghim. Cột "Tổng" luôn ở cuối. ====
   const [cfgVersion, setCfgVersion] = useState(0);
 
   const visibleStageCols = useMemo(
@@ -126,15 +127,20 @@ export const OnLineStageDetailModal = ({
     [cfgVersion]
   );
 
-  // ✅ Thứ tự công đoạn thực tế cần render — lấy trực tiếp từ visibleStageCols
-  // (đã được resolveVisibleModalColumns sắp xếp đúng theo cấu hình Admin đã
-  // lưu/kéo-thả). Nếu chưa từng setup, mặc định hiện đủ theo ON_LINE_STAGES.
   const orderedStages = useMemo(
     () => visibleStageCols.map((c) => c.key) as StageKey[],
     [visibleStageCols]
   );
 
-  // STT cố định (1..N) theo đúng thứ tự gốc của rows.
+  // ✅ Freeze: gồm cả STT + Tên Công Trình ('name') + các công đoạn
+  const frozen = useFrozenColumns(
+    'modal_online_stage_detail',
+    [{ key: 'stt', width: STT_COL_WIDTH }, { key: 'name', width: NAME_COL_WIDTH }],
+    orderedStages,
+    STAGE_WIDTHS,
+    cfgVersion
+  );
+
   const indexedRows = useMemo(
     () => rows.map((row, i) => ({ row, stt: i + 1 })),
     [rows]
@@ -171,9 +177,7 @@ export const OnLineStageDetailModal = ({
   const formatter = metric === 'COUNT' ? formatNumber : formatDecimal;
   const label = metric === 'VALUE' ? 'Giá Trị' : 'Số Lượng';
 
-  // ✅ Tổng của 1 dòng và Tổng của 1 công đoạn LUÔN tính trên toàn bộ
-  // ON_LINE_STAGES (không phụ thuộc setup ẩn/hiện cột), để "Tổng" luôn phản
-  // ánh đúng số liệu thật, kể cả khi Admin đang ẩn bớt vài công đoạn.
+  // Tổng luôn tính trên toàn bộ ON_LINE_STAGES (không phụ thuộc ẩn/hiện cột).
   const rowTotal = (row: StageDetailRow) =>
     ON_LINE_STAGES.reduce((acc, stage) => acc + (row.values[stage] ?? 0), 0);
   const stageTotal = (stage: string) =>
@@ -199,32 +203,28 @@ export const OnLineStageDetailModal = ({
       formatter(value)
     );
 
-  const totalMinWidth = STT_COL_WIDTH + NAME_COL_WIDTH + orderedStages.length * STAGE_COL_WIDTH + TOTAL_COL_WIDTH;
-  const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
+  const totalMinWidth = STT_COL_WIDTH + NAME_COL_WIDTH + orderedStages.length * STAGE_COL_WIDTH + TOTAL_MIN_COL;
   const tableStyle: React.CSSProperties = {
     width: '100%',
     minWidth: totalMinWidth,
     tableLayout: 'fixed',
   };
 
-  // ✅ Colgroup lặp theo orderedStages (đúng thứ tự + số lượng đã setup) thay
-  // vì luôn lặp cố định theo toàn bộ ON_LINE_STAGES.
+  // Colgroup dùng PX; cột "Tổng" (cuối) không khai báo width -> hấp thụ phần dư.
   const ColGroup = () => (
     <colgroup>
-      <col style={{ width: pct(STT_COL_WIDTH) }} />
-      <col style={{ width: pct(NAME_COL_WIDTH) }} />
+      <col style={{ width: STT_COL_WIDTH }} />
+      <col style={{ width: NAME_COL_WIDTH }} />
       {orderedStages.map((stage) => (
-        <col key={stage} style={{ width: pct(STAGE_COL_WIDTH) }} />
+        <col key={stage} style={{ width: STAGE_COL_WIDTH }} />
       ))}
-      <col style={{ width: pct(TOTAL_COL_WIDTH) }} />
+      <col />
     </colgroup>
   );
 
   const headerCellClass =
     'cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 transition-colors hover:bg-emerald-100';
 
-  // ✅ Xuất CSV cũng theo đúng thứ tự/tập công đoạn đang hiển thị (orderedStages),
-  // để file tải về khớp với những gì đang thấy trên màn hình.
   const exportColumns = ['STT', 'Tên Công Trình', ...orderedStages, 'Tổng'];
   const exportRows = sortedRows.map(({ row, stt }) => {
     const record: Record<string, number | string> = { 'STT': stt, 'Tên Công Trình': row.name };
@@ -239,10 +239,6 @@ export const OnLineStageDetailModal = ({
     .trim()
     .replace(/\s+/g, '_')}`;
 
-  // ✅ SỬA: return createPortal(...) thay vì return JSX trực tiếp — render ra
-  // document.body để tránh bị "giam" trong ancestor có transform (sidebar/app
-  // shell), và tăng z-index lên z-[9999] để luôn nổi trên HexDetailModal
-  // (z-[9998]) khi cả hai cùng mở, không phụ thuộc thứ tự DOM.
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
@@ -268,6 +264,7 @@ export const OnLineStageDetailModal = ({
             <ModalColumnSetupButton
               modalId="modal_online_stage_detail"
               allColumns={STAGE_COLUMNS}
+              fixedLabels={['STT', 'Tên Công Trình']}
               onChange={() => setCfgVersion(v => v + 1)}
             />
             <button
@@ -302,8 +299,8 @@ export const OnLineStageDetailModal = ({
                       <tr>
                         <th
                           onClick={() => toggleSort('stt')}
-                          style={{ left: 0 }}
-                          className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
+                          style={fzStyle(frozen.get('stt'))}
+                          className={`${fzClass(frozen.get('stt'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100`}
                         >
                           <span className="inline-flex items-center justify-center gap-1">
                             STT
@@ -312,24 +309,26 @@ export const OnLineStageDetailModal = ({
                         </th>
                         <th
                           onClick={() => toggleSort('name')}
-                          style={{ left: STT_COL_WIDTH }}
-                          className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                          style={fzStyle(frozen.get('name'))}
+                          className={`${fzClass(frozen.get('name'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100`}
                         >
                           <span className="inline-flex items-center gap-1">
                             Tên Công Trình
                             <SortIcon active={sort?.key === 'name'} dir={sort?.dir} />
                           </span>
                         </th>
-                        {/* ✅ Header lặp theo orderedStages (đúng thứ tự đã setup) thay
-                            vì luôn lặp cố định theo toàn bộ ON_LINE_STAGES. */}
-                        {orderedStages.map((stage) => (
-                          <th key={stage} onClick={() => toggleSort(stage)} className={headerCellClass}>
-                            <span className="inline-flex items-center justify-end gap-1">
-                              {stage}
-                              <SortIcon active={sort?.key === stage} dir={sort?.dir} />
-                            </span>
-                          </th>
-                        ))}
+                        {orderedStages.map((stage) =>
+                          applyFrozen(
+                            <th key={stage} onClick={() => toggleSort(stage)} className={headerCellClass}>
+                              <span className="inline-flex items-center justify-end gap-1">
+                                {stage}
+                                <SortIcon active={sort?.key === stage} dir={sort?.dir} />
+                              </span>
+                            </th>,
+                            frozen.get(stage),
+                            '!bg-emerald-50'
+                          )
+                        )}
                         <th
                           onClick={() => toggleSort('total')}
                           className="border-b border-emerald-200 bg-emerald-50 px-3 py-3 font-extrabold text-slate-900 cursor-pointer select-none transition-colors hover:bg-emerald-100"
@@ -360,27 +359,29 @@ export const OnLineStageDetailModal = ({
                     return (
                       <tr key={row.name} className="group transition-colors hover:bg-slate-50">
                         <td
-                          style={{ left: 0 }}
-                          className="sticky z-10 border-r border-slate-100 bg-white px-2 py-2.5 text-center font-semibold text-slate-500 group-hover:bg-slate-50"
+                          style={fzStyle(frozen.get('stt'))}
+                          className={`${fzClass(frozen.get('stt'))} border-r border-slate-100 bg-white px-2 py-2.5 text-center font-semibold text-slate-500 group-hover:bg-slate-50`}
                         >
                           {entry.stt}
                         </td>
                         <td
-                          style={{ left: STT_COL_WIDTH }}
-                          className="sticky z-10 border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50"
+                          style={fzStyle(frozen.get('name'))}
+                          className={`${fzClass(frozen.get('name'))} border-r border-slate-100 bg-white px-3 py-2.5 text-left font-medium text-slate-700 group-hover:bg-slate-50`}
                         >
                           {row.name}
                         </td>
-                        {/* ✅ Body lặp theo orderedStages, đúng thứ tự + tập công đoạn
-                            đang được cấu hình hiển thị. */}
-                        {orderedStages.map((stage) => (
-                          <td key={stage} className="px-3 py-2.5 text-slate-700">
-                            {renderCell(
-                              row.values[stage] ?? 0,
-                              onValueClick ? () => onValueClick(row.name, stage) : undefined
-                            )}
-                          </td>
-                        ))}
+                        {orderedStages.map((stage) =>
+                          applyFrozen(
+                            <td key={stage} className="px-3 py-2.5 text-slate-700">
+                              {renderCell(
+                                row.values[stage] ?? 0,
+                                onValueClick ? () => onValueClick(row.name, stage) : undefined
+                              )}
+                            </td>,
+                            frozen.get(stage),
+                            '!bg-white group-hover:!bg-slate-50'
+                          )
+                        )}
                         <td className="bg-slate-50/50 px-3 py-2.5">
                           {renderCell(
                             rowTotal(row),
@@ -403,18 +404,24 @@ export const OnLineStageDetailModal = ({
                       <ColGroup />
                       <tfoot className="font-bold text-slate-900">
                         <tr>
-                          <td className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left" colSpan={2}>
+                          <td
+                            className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
+                            colSpan={2}
+                          >
                             TỔNG CỘNG
                           </td>
-                          {/* ✅ Footer lặp theo orderedStages, đúng thứ tự đang hiển thị. */}
-                          {orderedStages.map((stage) => (
-                            <td key={stage} className="px-3 py-3">
-                              {renderCell(
-                                stageTotal(stage),
-                                onValueClick ? () => onValueClick(null, stage) : undefined
-                              )}
-                            </td>
-                          ))}
+                          {orderedStages.map((stage) =>
+                            applyFrozen(
+                              <td key={stage} className="px-3 py-3">
+                                {renderCell(
+                                  stageTotal(stage),
+                                  onValueClick ? () => onValueClick(null, stage) : undefined
+                                )}
+                              </td>,
+                              frozen.get(stage),
+                              '!bg-emerald-100'
+                            )
+                          )}
                           <td className="px-3 py-3">
                             {renderCell(
                               grandTotal,

@@ -6,6 +6,7 @@ import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
+import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
 
 export interface InventoryDetailColumnKeys {
   hexKey: string;
@@ -13,12 +14,8 @@ export interface InventoryDetailColumnKeys {
   xuongKey: string;
   dateKey: string;
   thanhTienKey: string;
-  // Cột ghi chú nhập kho — tùy chọn, mặc định là tên cột trong DB
   ghiChuKey?: string;
-  // Cột số lượng nhập kho — tùy chọn, mặc định là tên cột trong DB.
-  // ✅ MỚI: backend đã có sẵn field này trong bảng nhap_kho.
   soLuongKey?: string;
-  // ✅ MỚI: Tên Hạng Mục — tùy chọn, mặc định 'ten_hang_muc'.
   hangMucKey?: string;
 }
 
@@ -40,17 +37,16 @@ const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
   text.length > limit ? `${text.slice(0, limit)}...` : text;
 
-// Độ rộng PX THẬT SỰ của từng cột (dùng trực tiếp trong <colgroup>, không quy
-// đổi ra %). Nhờ vậy offset "sticky left" của cột Mã Hex luôn khớp chính xác
-// với độ rộng thật của cột STT đứng trước nó, bất kể modal rộng bao nhiêu.
+// Độ rộng PX thật của từng cột (dùng trực tiếp trong <colgroup>) để offset
+// sticky `left` của các cột ghim luôn khớp.
 const COL_WIDTHS = {
   stt: 50,
   hex: 150,
-  hangMuc: 260, // ✅ MỚI — Tên Hạng Mục
+  hangMuc: 260,
   congTrinh: 200,
   xuong: 100,
   date: 120,
-  soLuong: 110, // ✅ MỚI
+  soLuong: 110,
   thanhTien: 140,
   ghiChu: 320,
 };
@@ -58,8 +54,6 @@ const COL_WIDTHS = {
 type SortKey = 'stt' | 'hex' | 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
 type SortDir = 'asc' | 'desc';
 
-// Các cột "phụ" — có thể ẩn/hiện và SẮP XẾP LẠI THỨ TỰ qua Setup cột (Admin),
-// đồng bộ cơ chế với ExportDetailModal (Xuất kho).
 type OptionalColKey = 'hangMuc' | 'congTrinh' | 'xuong' | 'date' | 'soLuong' | 'thanhTien' | 'ghiChu';
 
 const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: SortKey; align?: 'left' | 'right' }> = {
@@ -103,8 +97,8 @@ export const InventoryDetailModal = ({
   const {
     hexKey, congTrinhKey, xuongKey, dateKey, thanhTienKey,
     ghiChuKey = 'ghi_chu',
-    soLuongKey = 'so_luong_nhap_kho', // ✅ MỚI — chỉnh lại nếu tên cột thật trong DB khác
-    hangMucKey = 'ten_hang_muc', // ✅ MỚI
+    soLuongKey = 'so_luong_nhap_kho',
+    hangMucKey = 'ten_hang_muc',
   } = columnKeys;
 
   const [search, setSearch] = useState('');
@@ -116,31 +110,31 @@ export const InventoryDetailModal = ({
   const footerScrollRef = useRef<HTMLDivElement>(null);
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
-useEffect(() => {
-  if (!isOpen) {
-    setSearch('');
-    setSort(null);
-    setSelectedNote(null);
-    return;
-  }
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    if (selectedNote) return;
-    onClose();
-  };
-  window.addEventListener('keydown', onKeyDown);
-  return () => window.removeEventListener('keydown', onKeyDown);
-}, [isOpen, onClose, selectedNote]);
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch('');
+      setSort(null);
+      setSelectedNote(null);
+      return;
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (selectedNote) return;
+      onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, onClose, selectedNote]);
 
-const getNotePreview = useCallback(
-  (row: DataRow): string => String(row[ghiChuKey] ?? ''),
-  [ghiChuKey]
-);
+  const getNotePreview = useCallback(
+    (row: DataRow): string => String(row[ghiChuKey] ?? ''),
+    [ghiChuKey]
+  );
 
-const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
-  e.stopPropagation();
-  setSelectedNote({ row });
-}, []);
+  const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedNote({ row });
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -174,7 +168,7 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
 
   const showProjectColumn = projectName === null;
 
-  // ==== Setup cột hiển thị (chỉ Admin) — đồng bộ cơ chế với Xuất kho ====
+  // ==== Setup cột hiển thị (chỉ Admin) ====
   const [cfgVersion, setCfgVersion] = useState(0);
 
   const OPTIONAL_COLUMNS: ModalColumnDef[] = useMemo(() => [
@@ -191,13 +185,19 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
     () => resolveVisibleModalColumns('modal_inventory_detail', OPTIONAL_COLUMNS),
     [OPTIONAL_COLUMNS, cfgVersion]
   );
-  const V = (key: string) => visibleCols.some(c => c.key === key);
 
-  // ✅ Thứ tự cột thực tế cần render — lấy trực tiếp từ visibleCols (đã được
-  // resolveVisibleModalColumns sắp xếp đúng theo cấu hình Admin đã lưu/kéo-thả).
   const orderedCols = useMemo(
     () => visibleCols.map(c => c.key) as OptionalColKey[],
     [visibleCols]
+  );
+
+  // ✅ Freeze: gồm cả STT + Mã Hex + các cột phụ
+  const frozen = useFrozenColumns(
+    'modal_inventory_detail',
+    [{ key: 'stt', width: COL_WIDTHS.stt }, { key: 'hex', width: COL_WIDTHS.hex }],
+    orderedCols,
+    COL_WIDTHS,
+    cfgVersion
   );
 
   const filteredRows = useMemo(() => {
@@ -250,19 +250,19 @@ const openNoteCell = useCallback((row: DataRow, e: React.MouseEvent) => {
       const sorted = [...indexedRows].sort((a, b) => a.stt - b.stt);
       return sort.dir === 'desc' ? sorted.reverse() : sorted;
     }
-const getValue = (row: DataRow): number | string => {
-  switch (sort.key) {
-    case 'hex': return String(row[hexKey] || '');
-    case 'hangMuc': return String(row[hangMucKey] || ''); // ✅ MỚI
-    case 'congTrinh': return String(row[congTrinhKey] || '');
-    case 'xuong': return String(row[xuongKey] || '');
-    case 'date': return parseDateValue(row[dateKey]);
-    case 'soLuong': return parseNumber(row[soLuongKey]);
-    case 'thanhTien': return parseNumber(row[thanhTienKey]);
-    case 'ghiChu': return getNotePreview(row);
-    default: return '';
-  }
-};
+    const getValue = (row: DataRow): number | string => {
+      switch (sort.key) {
+        case 'hex': return String(row[hexKey] || '');
+        case 'hangMuc': return String(row[hangMucKey] || '');
+        case 'congTrinh': return String(row[congTrinhKey] || '');
+        case 'xuong': return String(row[xuongKey] || '');
+        case 'date': return parseDateValue(row[dateKey]);
+        case 'soLuong': return parseNumber(row[soLuongKey]);
+        case 'thanhTien': return parseNumber(row[thanhTienKey]);
+        case 'ghiChu': return getNotePreview(row);
+        default: return '';
+      }
+    };
     const sorted = [...indexedRows].sort((a, b) => {
       const va = getValue(a.row);
       const vb = getValue(b.row);
@@ -278,7 +278,6 @@ const getValue = (row: DataRow): number | string => {
     return filteredRows.reduce((acc, row) => acc + parseNumber(row[thanhTienKey]), 0);
   }, [filteredRows, thanhTienKey]);
 
-  // ✅ MỚI: tổng số lượng nhập kho, hiển thị ở dòng TỔNG CỘNG cạnh thành tiền.
   const totalQuantity = useMemo(() => {
     return filteredRows.reduce((acc, row) => acc + parseNumber(row[soLuongKey]), 0);
   }, [filteredRows, soLuongKey]);
@@ -290,65 +289,67 @@ const getValue = (row: DataRow): number | string => {
 
   if (!isOpen) return null;
 
-const exportColumns = [
-  'STT', 'Mã Hex', 'Hạng Mục', // ✅ MỚI
-  ...(showProjectColumn ? ['Công Trình'] : []),
-  'Khu Vực SX', 'Ngày Nhập', 'Số Lượng Nhập Kho', 'Thành Tiền Nhập Kho (1000 VNĐ)', 'Ghi Chú Nhập Kho',
-];
+  const exportColumns = [
+    'STT', 'Mã Hex', 'Hạng Mục',
+    ...(showProjectColumn ? ['Công Trình'] : []),
+    'Khu Vực SX', 'Ngày Nhập', 'Số Lượng Nhập Kho', 'Thành Tiền Nhập Kho (1000 VNĐ)', 'Ghi Chú Nhập Kho',
+  ];
 
   const exportFileName = `chi_tiet_nhap_kho_${(projectName ?? 'tat_ca_cong_trinh')
     .toString().trim().replace(/\s+/g, '_')}`;
 
-const handleExportCsv = () => {
-  const exportRows = sortedRows.map(({ row, stt }) => ({
-    'STT': stt,
-    'Mã Hex': String(row[hexKey] || ''),
-    'Hạng Mục': String(row[hangMucKey] || ''), // ✅ MỚI
-    ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
-    'Khu Vực SX': String(row[xuongKey] || ''),
-    'Ngày Nhập': formatDateDisplay(row[dateKey]),
-    'Số Lượng Nhập Kho': parseNumber(row[soLuongKey]),
-    'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
-    'Ghi Chú Nhập Kho': String(row[ghiChuKey] ?? ''),
-  }));
-  exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
-};
+  const handleExportCsv = () => {
+    const exportRows = sortedRows.map(({ row, stt }) => ({
+      'STT': stt,
+      'Mã Hex': String(row[hexKey] || ''),
+      'Hạng Mục': String(row[hangMucKey] || ''),
+      ...(showProjectColumn ? { 'Công Trình': String(row[congTrinhKey] || '') } : {}),
+      'Khu Vực SX': String(row[xuongKey] || ''),
+      'Ngày Nhập': formatDateDisplay(row[dateKey]),
+      'Số Lượng Nhập Kho': parseNumber(row[soLuongKey]),
+      'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
+      'Ghi Chú Nhập Kho': String(row[ghiChuKey] ?? ''),
+    }));
+    exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
+  };
 
-// ✅ totalMinWidth vẫn dùng để tính min-width tổng của bảng (đảm bảo scroll
-// ngang khi màn hình hẹp) — tính động theo orderedCols thay vì cộng cứng.
-const totalMinWidth =
-  COL_WIDTHS.stt + COL_WIDTHS.hex +
-  orderedCols.reduce((sum, key) => sum + COL_WIDTHS[key], 0);
+  const totalMinWidth =
+    COL_WIDTHS.stt + COL_WIDTHS.hex +
+    orderedCols.reduce((sum, key) => sum + COL_WIDTHS[key], 0);
 
   const tableStyle: React.CSSProperties = { width: '100%', minWidth: totalMinWidth, tableLayout: 'fixed' };
 
-// ✅ Colgroup dùng PX cố định cho STT + Hex + mọi cột phụ, LẶP THEO
-// orderedCols để đúng thứ tự đã setup. Cột phụ CUỐI CÙNG trong orderedCols
-// (bất kể đó là cột nào) không khai báo width -> với table-layout: fixed, nó
-// tự hấp thụ phần không gian còn thừa khi modal rộng hơn totalMinWidth,
-// giống hành vi gốc (trước đây cố định là cột Ghi Chú vì nó luôn ở cuối).
-const ColGroup = () => (
-  <colgroup>
-    <col style={{ width: COL_WIDTHS.stt }} />
-    <col style={{ width: COL_WIDTHS.hex }} />
-    {orderedCols.map((key, i) => {
-      const isLast = i === orderedCols.length - 1;
-      return isLast
-        ? <col key={key} />
-        : <col key={key} style={{ width: COL_WIDTHS[key] }} />;
-    })}
-  </colgroup>
-);
+  // Cột phụ CUỐI CÙNG không khai báo width -> hấp thụ phần dư khi modal rộng.
+  const ColGroup = () => (
+    <colgroup>
+      <col style={{ width: COL_WIDTHS.stt }} />
+      <col style={{ width: COL_WIDTHS.hex }} />
+      {orderedCols.map((key, i) => {
+        const isLast = i === orderedCols.length - 1;
+        return isLast
+          ? <col key={key} />
+          : <col key={key} style={{ width: COL_WIDTHS[key] }} />;
+      })}
+    </colgroup>
+  );
 
   const headerCellClass =
     'cursor-pointer select-none border-b border-r border-indigo-200 bg-indigo-50 px-3 py-3 transition-colors hover:bg-indigo-100';
 
   const SortableHeader = ({
-    sortKey, align = 'left', children, isLast = false,
-  }: { sortKey: SortKey; align?: 'left' | 'right'; children: React.ReactNode; isLast?: boolean }) => (
+    sortKey, align = 'left', children, isLast = false, className = '', style,
+  }: {
+    sortKey: SortKey;
+    align?: 'left' | 'right';
+    children: React.ReactNode;
+    isLast?: boolean;
+    className?: string;
+    style?: React.CSSProperties;
+  }) => (
     <th
       onClick={() => toggleSort(sortKey)}
-      className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'}`}
+      style={style}
+      className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}
     >
       <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
         {children}
@@ -422,8 +423,8 @@ const ColGroup = () => (
                       <tr>
                         <th
                           onClick={() => toggleSort('stt')}
-                          style={{ left: 0 }}
-                          className="sticky z-10 cursor-pointer select-none border-b border-r border-indigo-200 bg-indigo-50 px-2 py-3 text-center transition-colors hover:bg-indigo-100"
+                          style={fzStyle(frozen.get('stt'))}
+                          className={`${fzClass(frozen.get('stt'))} cursor-pointer select-none border-b border-r border-indigo-200 bg-indigo-50 px-2 py-3 text-center transition-colors hover:bg-indigo-100`}
                         >
                           <span className="inline-flex items-center justify-center gap-1">
                             STT
@@ -432,23 +433,23 @@ const ColGroup = () => (
                         </th>
                         <th
                           onClick={() => toggleSort('hex')}
-                          style={{ left: COL_WIDTHS.stt }}
-                          className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-indigo-200 bg-indigo-50 px-3 py-3 text-left transition-colors hover:bg-indigo-100"
+                          style={fzStyle(frozen.get('hex'))}
+                          className={`${fzClass(frozen.get('hex'))} min-w-[140px] cursor-pointer select-none border-b border-r border-indigo-200 bg-indigo-50 px-3 py-3 text-left transition-colors hover:bg-indigo-100`}
                         >
                           <span className="inline-flex items-center gap-1">
                             Mã Hex
                             <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                           </span>
                         </th>
-                        {/* ✅ Header lặp theo orderedCols (đúng thứ tự đã setup) thay vì
-                            các SortableHeader hardcode theo vị trí cố định như trước. */}
                         {orderedCols.map((key, i) => {
                           const meta = COLUMN_META[key];
                           const isLast = i === orderedCols.length - 1;
-                          return (
+                          return applyFrozen(
                             <SortableHeader key={key} sortKey={meta.sortKey} align={meta.align} isLast={isLast}>
                               {meta.label}
-                            </SortableHeader>
+                            </SortableHeader>,
+                            frozen.get(key),
+                            '!bg-indigo-50'
                           );
                         })}
                       </tr>
@@ -498,9 +499,6 @@ const ColGroup = () => (
                     const rowTopBorder = isHexGroupStart && idx > 0 ? 'border-t-2 border-t-indigo-200' : '';
                     const cellBorder = 'border-b border-slate-200';
 
-                    // ✅ Render 1 ô "phụ" theo key — dùng chung logic rowSpan/nhóm ở
-                    // trên, nhưng vị trí trong hàng giờ do orderedCols.map quyết
-                    // định, không hardcode.
                     const renderCell = (key: OptionalColKey): React.ReactNode => {
                       switch (key) {
                         case 'hangMuc':
@@ -571,12 +569,12 @@ const ColGroup = () => (
                     };
 
                     return (
-                      <tr key={idx} className={`transition-colors hover:bg-indigo-50/40 ${rowTopBorder}`}>
+                      <tr key={idx} className={`group transition-colors hover:bg-indigo-50/40 ${rowTopBorder}`}>
                         {isHexGroupStart && (
                           <td
                             rowSpan={hexRowSpan}
-                            style={{ left: 0 }}
-                            className={`sticky z-10 border-r ${cellBorder} bg-indigo-50/60 px-2 py-2.5 text-center align-middle font-semibold text-slate-700`}
+                            style={fzStyle(frozen.get('stt'))}
+                            className={`${fzClass(frozen.get('stt'))} border-r ${cellBorder} bg-indigo-50 px-2 py-2.5 text-center align-middle font-semibold text-slate-700`}
                           >
                             {entry.stt}
                           </td>
@@ -584,13 +582,19 @@ const ColGroup = () => (
                         {isHexGroupStart && (
                           <td
                             rowSpan={hexRowSpan}
-                            style={{ left: COL_WIDTHS.stt }}
-                            className={`sticky z-10 border-r ${cellBorder} bg-indigo-50/60 px-3 py-2.5 text-left align-middle font-bold text-slate-800`}
+                            style={fzStyle(frozen.get('hex'))}
+                            className={`${fzClass(frozen.get('hex'))} border-r ${cellBorder} bg-indigo-50 px-3 py-2.5 text-left align-middle font-bold text-slate-800`}
                           >
                             {hexValue}
                           </td>
                         )}
-                        {orderedCols.map((key) => renderCell(key))}
+                        {orderedCols.map((key) =>
+                          applyFrozen(
+                            renderCell(key),
+                            frozen.get(key),
+                            key === 'xuong' ? '!bg-slate-50' : '!bg-white group-hover:!bg-indigo-50'
+                          )
+                        )}
                       </tr>
                     );
                   })}
@@ -603,60 +607,65 @@ const ColGroup = () => (
                 <div ref={footerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                   <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
                     <ColGroup />
-                <tfoot className="font-bold text-slate-900">
-  <tr>
-    {(() => {
-      const numericKeys: OptionalColKey[] = ['soLuong', 'thanhTien'];
-      const cells: React.ReactNode[] = [];
-      let pendingSpan = 2; // STT + Mã Hex luôn có mặt
-      let labelRendered = false;
+                    <tfoot className="font-bold text-slate-900">
+                      <tr>
+                        {(() => {
+                          const numericKeys: OptionalColKey[] = ['soLuong', 'thanhTien'];
+                          const cells: React.ReactNode[] = [];
+                          let pendingSpan = 2; // STT + Mã Hex luôn có mặt
+                          let labelRendered = false;
 
-      const flushLabel = () => {
-        cells.push(
-          <td
-            key="label"
-            className="sticky left-0 z-10 bg-indigo-100 px-3 py-3 text-left"
-            colSpan={pendingSpan}
-          >
-            TỔNG CỘNG ({groupCount} mã Hex)
-          </td>
-        );
-        labelRendered = true;
-      };
+                          const flushLabel = () => {
+                            cells.push(
+                              <td
+                                key="label"
+                                className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-indigo-100 px-3 py-3 text-left`}
+                                colSpan={pendingSpan}
+                              >
+                                TỔNG CỘNG ({groupCount} mã Hex)
+                              </td>
+                            );
+                            labelRendered = true;
+                          };
 
-      orderedCols.forEach((key) => {
-        const isNumeric = numericKeys.includes(key);
-        const isNote = key === 'ghiChu';
+                          orderedCols.forEach((key) => {
+                            const isNumeric = numericKeys.includes(key);
+                            const isNote = key === 'ghiChu';
 
-        // Cột text (hangMuc/congTrinh/xuong/date) CHỈ được gộp vào ô nhãn khi
-        // nó còn đứng liền đầu. Nếu nó bị Admin kéo ra sau một cột số liệu
-        // hoặc cột ghi chú thì vẫn phải có ô riêng (trống) để không lệch cột.
-        if (!labelRendered && !isNumeric && !isNote) {
-          pendingSpan += 1;
-          return;
-        }
+                            if (!labelRendered && !isNumeric && !isNote) {
+                              pendingSpan += 1;
+                              return;
+                            }
 
-        if (!labelRendered) flushLabel();
+                            if (!labelRendered) flushLabel();
 
-        if (isNumeric) {
-          cells.push(
-            <td key={key} className="px-3 py-3 text-right">
-              {key === 'soLuong' ? quantityTotal(totalQuantity) : moneyTotal(totals)}
-            </td>
-          );
-        } else {
-          // ghiChu hoặc cột text đến muộn — ô trống để giữ số cột khớp
-          cells.push(<td key={key} className="px-3 py-3" />);
-        }
-      });
+                            if (isNumeric) {
+                              cells.push(
+                                applyFrozen(
+                                  <td key={key} className="px-3 py-3 text-right">
+                                    {key === 'soLuong' ? quantityTotal(totalQuantity) : moneyTotal(totals)}
+                                  </td>,
+                                  frozen.get(key),
+                                  '!bg-indigo-100'
+                                )
+                              );
+                            } else {
+                              cells.push(
+                                applyFrozen(
+                                  <td key={key} className="px-3 py-3" />,
+                                  frozen.get(key),
+                                  '!bg-indigo-100'
+                                )
+                              );
+                            }
+                          });
 
-      // Trường hợp không có cột số liệu/ghi chú nào được hiển thị
-      if (!labelRendered) flushLabel();
+                          if (!labelRendered) flushLabel();
 
-      return cells;
-    })()}
-  </tr>
-</tfoot>
+                          return cells;
+                        })()}
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
                 {scrollbarWidth > 0 && <div style={{ width: scrollbarWidth }} className="shrink-0" />}
@@ -673,37 +682,37 @@ const ColGroup = () => (
       </div>
 
       {selectedNote && (
-  <div
-    className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
-    role="dialog"
-    aria-modal="true"
-  >
-    <div className="flex h-[92vh] w-[96vw] max-w-none flex-col rounded-xl bg-white shadow-2xl">
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-slate-800">Ghi chú nhập kho</h3>
-          <p className="mt-0.5 break-words text-xs text-slate-500">
-            Hex {String(selectedNote.row[hexKey] || '—')}
-            {showProjectColumn && selectedNote.row[congTrinhKey]
-              ? ` · ${String(selectedNote.row[congTrinhKey])}`
-              : ''}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setSelectedNote(null)}
-          aria-label="Đóng"
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
         >
-          <X size={20} />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-6 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">
-        {String(selectedNote.row[ghiChuKey] ?? '') || 'Không có dữ liệu'}
-      </div>
-    </div>
-  </div>
-)}
+          <div className="flex h-[92vh] w-[96vw] max-w-none flex-col rounded-xl bg-white shadow-2xl">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+              <div className="min-w-0">
+                <h3 className="text-lg font-semibold text-slate-800">Ghi chú nhập kho</h3>
+                <p className="mt-0.5 break-words text-xs text-slate-500">
+                  Hex {String(selectedNote.row[hexKey] || '—')}
+                  {showProjectColumn && selectedNote.row[congTrinhKey]
+                    ? ` · ${String(selectedNote.row[congTrinhKey])}`
+                    : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedNote(null)}
+                aria-label="Đóng"
+                className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-6 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">
+              {String(selectedNote.row[ghiChuKey] ?? '') || 'Không có dữ liệu'}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

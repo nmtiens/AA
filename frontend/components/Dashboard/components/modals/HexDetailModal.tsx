@@ -9,11 +9,7 @@ import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
-// ✅ MỚI: Vướng Mắc 5M — VẪN LÀ 1 CỘT DUY NHẤT "Vướng Mắc (5M)" (tô đỏ, ẩn/hiện
-// 1 lần qua Setup cột), nhưng bên trong tách header 2 tầng: tầng trên là tiêu
-// đề nhóm màu đỏ span ngang 5 cột con, tầng dưới là 5 cột con M1..M5 (Man/
-// Machine/Material/Method/Measurement) — mỗi cột con vẫn sort/click riêng
-// theo đúng loại, mở popup CRUD + log khóa cứng đúng loại đó.
+import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
 import {
   fetchVuongMacList,
   type VuongMacItem,
@@ -32,7 +28,6 @@ export interface HexDetailColumnKeys {
   triGiaDonHangTongKey: string;
   thanhTienTinhPhieuKey: string;
   thanhTienNhapKhoKey: string;
-  // Các cột ghi chú — tùy chọn, mặc định là tên cột trong DB
   ghiChuNhapKhoKey?: string;
   thongTinQcKey?: string;
   ghiChuXuatKhoKey?: string;
@@ -50,19 +45,14 @@ interface HexDetailModalProps {
   currentUser: string;
 }
 
-// Dữ liệu ghi chú trả về từ /api/production/notes: { [hex]: { [cột]: nội dung } }
 type NotesResponse = Record<string, Record<string, string | null>>;
 
 const money = (value: number) => formatDecimal(value / 1000);
 
-// Cắt 100 ký tự đầu, thêm "..." nếu dài hơn (dùng cho ô xem trước trong bảng)
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
   text.length > limit ? `${text.slice(0, limit)}...` : text;
 
-// Tách nội dung ghi chú thành các khối theo mốc ngày (dd/mm/yyyy).
-// Chỉ coi là "mốc ngày" khi ngày đứng ngay trước dấu # (hoặc dấu : rồi #, hoặc cuối chuỗi),
-// để không cắt nhầm những ngày nằm giữa câu ghi chú.
 interface NoteBlock {
   date: string | null;
   lines: string[];
@@ -107,14 +97,6 @@ const extractDriveFileIds = (text: string): string[] => {
   return ids;
 };
 
-// Lưới ảnh thu nhỏ (thumbnail) + xem phóng to (lightbox) có nút chuyển ảnh trước/sau.
-// Ảnh không tải được (do quyền Drive hoặc chưa đăng nhập đúng tài khoản Google)
-// hiện ô báo lỗi thay vì icon ảnh vỡ mặc định của trình duyệt.
-// Google Drive chặn <img src="/thumbnail?...">` nếu trình duyệt gửi kèm header
-// Referer là domain lạ (hotlink protection) -> dùng referrerPolicy="no-referrer"
-// để bỏ header đó, ảnh sẽ tải được với các file đã cấp quyền cho tài khoản đang
-// đăng nhập. Nếu ảnh vẫn lỗi (quyền chặt hơn), tự chuyển ô đó sang hiển thị bằng
-// iframe preview thu nhỏ — cùng cơ chế đang dùng ở popup phóng to, vốn tải được.
 const ImageThumb = ({ id, index }: { id: string; index: number }) => {
   const [imgFailed, setImgFailed] = useState(false);
 
@@ -176,8 +158,8 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
                 Ảnh {lightboxIndex + 1} / {fileIds.length}
               </span>
               <div className="flex items-center gap-3">
-
-                 <a href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
+                
+               <a   href={DRIVE_VIEW_URL(fileIds[lightboxIndex])}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-medium text-emerald-700 hover:underline"
@@ -230,12 +212,9 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
   );
 };
 
-// Hiển thị nội dung ĐÚNG 1 cột ghi chú của ĐÚNG 1 dòng đang chọn (không gộp 5 mục).
-// CUỘN 2 LỚP:
-//  - Lớp NGOÀI (do component cha bọc, xem trong JSX popup): cuộn qua các NGÀY.
-//  - Lớp TRONG (mỗi khối ngày ở đây): tự cuộn riêng khi nội dung/ảnh của
-//    NGÀY ĐÓ dài, để không đẩy các ngày khác ra xa và không bị lẫn với ngày khác.
-const NOTE_BLOCK_MAX_HEIGHT = 420; // px — đủ cao để thấy ~1 hàng ảnh trước khi phải cuộn
+// CUỘN 2 LỚP: lớp ngoài (popup) cuộn qua các NGÀY; lớp trong (phần ảnh của
+// mỗi khối ngày) tự cuộn riêng khi ảnh của NGÀY ĐÓ dài.
+const NOTE_BLOCK_MAX_HEIGHT = 420;
 
 const NoteContent = ({ text }: { text: string }) => {
   const blocks = useMemo(() => parseNoteBlocks(text), [text]);
@@ -263,23 +242,21 @@ const NoteContent = ({ text }: { text: string }) => {
               </div>
             )}
 
-            {/* Dòng nội dung (#...) cố định phía trên, KHÔNG cuộn theo ảnh */}
             {textLines.length > 0 && (
               <div className="border-b border-slate-200 p-4 text-sm leading-relaxed text-slate-700">
                 <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1">
                   {textLines.map((line, j) => (
-  <span
-    key={j}
-    className="whitespace-normal break-words after:mx-1.5 after:text-slate-300 after:content-['•'] last:after:content-none"
-  >
-    # {line}
-  </span>
-))}
+                    <span
+                      key={j}
+                      className="whitespace-normal break-words after:mx-1.5 after:text-slate-300 after:content-['•'] last:after:content-none"
+                    >
+                      # {line}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Chỉ phần ảnh mới cuộn khi nội dung dài */}
             {fileIds.length > 0 && (
               <div
                 className="overflow-y-auto p-4 custom-scrollbar"
@@ -295,8 +272,6 @@ const NoteContent = ({ text }: { text: string }) => {
   );
 };
 
-// ✅ MỚI: thứ tự cố định M1..M5 + nhãn ngắn — dùng cho header con, setup cột,
-// export CSV, và khóa loại khi mở popup CRUD.
 const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method'];
 const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   man: 'M1',
@@ -305,9 +280,6 @@ const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   method: 'M4',
   measurement: 'M5',
 };
-// ✅ MỚI: nhãn THUẦN TIẾNG VIỆT cho từng loại 5M — dùng riêng cho header cột
-// con, tooltip và export CSV trong file này (không dùng nhãn có kèm tiếng
-// Anh từ service để tránh hiển thị lẫn "Man (Con người)").
 const FIVE_M_VI: Record<FiveMCategory, string> = {
   man: 'Con Người',
   machine: 'Máy Móc',
@@ -315,7 +287,6 @@ const FIVE_M_VI: Record<FiveMCategory, string> = {
   method: 'Phương Pháp',
   measurement: 'Đo Lường',
 };
-// sort key riêng cho từng cột con bên trong nhóm "Vướng Mắc"
 const CATEGORY_SORT_KEY: Record<FiveMCategory, SortKey> = {
   man: 'vmMan',
   machine: 'vmMachine',
@@ -324,8 +295,6 @@ const CATEGORY_SORT_KEY: Record<FiveMCategory, SortKey> = {
   measurement: 'vmMeasurement',
 };
 
-// ✅ MỚI: màu chữ theo loại 5M — dùng cho nội dung xem trước hiển thị trong
-// từng cột con, để phân biệt nhanh loại vướng mắc bằng màu sắc.
 const VUONG_MAC_TEXT_STYLE: Record<FiveMCategory, string> = {
   man: 'text-blue-700',
   machine: 'text-purple-700',
@@ -334,8 +303,6 @@ const VUONG_MAC_TEXT_STYLE: Record<FiveMCategory, string> = {
   measurement: 'text-pink-700',
 };
 
-// Chiều rộng 1 cột con M — nhân 5 ra tổng chiều rộng của cả nhóm "Vướng Mắc".
-// Tăng từ 76 lên 108 để đủ chỗ hiển thị tên đầy đủ "Con Người (M1)" thay vì chỉ "M1".
 const VM_SUB_WIDTH = 108;
 
 const COL_WIDTHS = {
@@ -355,7 +322,6 @@ const COL_WIDTHS = {
   ghiChuXuatKho: 280,
   ghiChuDonHangTong: 280,
   ghiChuPhieu: 280,
-  // ✅ MỚI: 1 cột gộp "Vướng Mắc (5M)" — chiều rộng = tổng 5 cột con bên trong
   vuongMac: VM_SUB_WIDTH * FIVE_M_ORDER.length,
 };
 
@@ -376,7 +342,6 @@ type SortKey =
   | 'ghiChuXuatKho'
   | 'ghiChuDonHangTong'
   | 'ghiChuPhieu'
-  // ✅ MỚI: 5 khóa sort riêng cho 5 cột con bên trong nhóm "Vướng Mắc"
   | 'vmMan'
   | 'vmMachine'
   | 'vmMaterial'
@@ -384,11 +349,7 @@ type SortKey =
   | 'vmMeasurement';
 type SortDir = 'asc' | 'desc';
 
-// Các cột "phụ" — có thể ẩn/hiện và SẮP XẾP LẠI THỨ TỰ qua Setup cột (Admin),
-// đồng bộ cơ chế với ExportDetailModal / InventoryDetailModal.
-// ✅ "vuongMac" vẫn là 1 khóa DUY NHẤT (ẩn/hiện cả nhóm 1 lần); 5 cột con
-// M1..M5 chỉ là chi tiết hiển thị BÊN TRONG vị trí của khóa này, không phải
-// 5 khóa cột riêng.
+// "vuongMac" là 1 khóa DUY NHẤT (ẩn/hiện cả nhóm); 5 cột con chỉ là chi tiết bên trong.
 type OptionalColKey =
   | 'congTrinh'
   | 'hangMuc'
@@ -421,14 +382,10 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   ghiChuNhapKho: { label: <>Ghi Chú <br />Nhập Kho</>, sortKey: 'ghiChuNhapKho' },
   thongTinQc: { label: <>Thông Tin <br />QC</>, sortKey: 'thongTinQc' },
   ghiChuXuatKho: { label: <>Ghi Chú <br />Xuất Kho</>, sortKey: 'ghiChuXuatKho' },
-  // ✅ MỚI: chỉ dùng để thỏa mãn kiểu dữ liệu — header thật của "vuongMac"
-  // được render đặc biệt (2 tầng: nhãn nhóm + 5 cột con), không đi qua
-  // SortableHeader thông thường như các cột khác.
+  // Chỉ để thỏa kiểu dữ liệu — header thật của "vuongMac" render đặc biệt (2 tầng).
   vuongMac: { label: 'Vướng Mắc (5M)', sortKey: 'vmMan' },
 };
 
-// Kiểu dòng TỔNG CỘNG cho từng cột phụ: 'label' gộp vào ô nhãn "TỔNG CỘNG",
-// 'total' có tổng số liệu, 'blank' chỉ là ô trống (text/ghi chú không có tổng).
 const FOOTER_KIND: Record<OptionalColKey, 'label' | 'total' | 'blank'> = {
   congTrinh: 'label',
   hangMuc: 'label',
@@ -465,7 +422,7 @@ export const HexDetailModal = ({
   projectName,
   rows,
   columnKeys,
-  currentUser, 
+  currentUser,
 }: HexDetailModalProps) => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null);
@@ -476,13 +433,7 @@ export const HexDetailModal = ({
 
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
 
-  // 🔧 FIX (vệt đỏ lạc chỗ khi chưa cuộn tới nhóm Vướng Mắc): 2 ô đệm màu ở
-  // đầu/cuối phần header (đệm trái, đệm phải, ô bù trừ scrollbar) nằm NGOÀI
-  // vùng overflow-x-hidden nên không tự cuộn theo bảng. Trước đây chúng được
-  // tô đỏ chỉ dựa vào "cột cuối cùng có phải Vướng Mắc không" (lastColIsVuongMac),
-  // nên vệt đỏ bám cứng ở rìa phải NGAY CẢ KHI người dùng chưa cuộn tới đó —
-  // trông như 1 cột khác (vd "Ghi Chú Xuất Kho") bị tô đỏ nhầm. Cần biết thêm
-  // bảng đã thực sự cuộn hết sang phải hay chưa trước khi đổi màu ô đệm.
+  // Đã cuộn ngang hết sang phải hay chưa — để tô đỏ 2 ô đệm ở rìa phải header đúng lúc.
   const [scrolledToEnd, setScrolledToEnd] = useState(false);
 
   const {
@@ -495,32 +446,22 @@ export const HexDetailModal = ({
     ghiChuPhieuKey = 'ghi_chu_phieu',
   } = columnKeys;
 
-  // Ghi chú không nằm trong /api/all-data (quá nặng) nên tải riêng theo danh sách hex.
-  // notesMap: bản xem trước (đã cắt 100 ký tự) cho toàn bộ danh sách hex đang xem.
   const [notesMap, setNotesMap] = useState<NotesResponse>({});
-
-  // ✅ MỚI: bản đồ hex -> danh sách vướng mắc 5M (mọi loại, chưa lọc trạng
-  // thái/loại) — dùng chung cho cả nhóm cột "Vướng Mắc", lọc theo category
-  // khi hiển thị từng cột con M1..M5.
   const [vuongMacMap, setVuongMacMap] = useState<Record<string, VuongMacItem[]>>({});
 
-  // ✅ MỚI: hex + loại 5M đang mở popup CRUD + log vướng mắc (khóa cứng theo
-  // đúng cột con M vừa bấm)
-const [vuongMacDetail, setVuongMacDetail] = useState<{
-  open: boolean;
-  hex: string;
-  label: string;
-  category: FiveMCategory;
-  categoryLabel: string; // ✅ MỚI: nhãn chuẩn "Con Người (M1)" theo đúng ô vừa bấm
-}>({ open: false, hex: '', label: '', category: 'man', categoryLabel: '' });
+  const [vuongMacDetail, setVuongMacDetail] = useState<{
+    open: boolean;
+    hex: string;
+    label: string;
+    category: FiveMCategory;
+    categoryLabel: string;
+  }>({ open: false, hex: '', label: '', category: 'man', categoryLabel: '' });
 
-  // Ô đang được mở xem đầy đủ: đúng 1 hex + đúng 1 cột ghi chú
   const [selectedNote, setSelectedNote] = useState<{
     row: DataRow;
     columnKey: string;
     label: string;
   } | null>(null);
-  // Nội dung đầy đủ (nguyên văn) của ô đang mở — null nghĩa là đang tải
   const [fullNoteText, setFullNoteText] = useState<string | null>(null);
 
   const hexList = useMemo(
@@ -552,9 +493,7 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     return () => ctrl.abort();
   }, [isOpen, hexList]);
 
-  // ✅ MỚI: tải danh sách vướng mắc 5M cho toàn bộ hex đang hiển thị. Tải lại
-  // mỗi khi hexList đổi (kể cả sau khi popup con đóng lại), để badge trong
-  // bảng luôn khớp với dữ liệu vừa thêm/sửa/xóa.
+  // Tải lại vướng mắc 5M mỗi khi hexList đổi (kể cả sau khi popup con đóng).
   useEffect(() => {
     if (!isOpen || hexList.length === 0) {
       setVuongMacMap({});
@@ -563,13 +502,13 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     fetchVuongMacList(hexList).then(setVuongMacMap);
   }, [isOpen, hexList, vuongMacDetail.open]);
 
-  // Escape: chỉ đóng modal chính. Popup nội dung ghi chú CHỈ đóng bằng nút X.
+  // Escape: chỉ đóng modal chính.
   useEffect(() => {
     if (!isOpen) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (selectedNote) return;
-      if (vuongMacDetail.open) return; // ✅ MỚI: không đóng modal chính khi popup vướng mắc đang mở
+      if (vuongMacDetail.open) return;
       onClose();
     };
     window.addEventListener('keydown', onKeyDown);
@@ -597,17 +536,12 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     if (headerScrollRef.current) headerScrollRef.current.scrollLeft = left;
     if (footerScrollRef.current) footerScrollRef.current.scrollLeft = left;
 
-    // 🔧 FIX: chỉ coi là "đã cuộn tới cuối" khi khoảng cách còn lại gần 0
-    // (chừa 1px sai số làm tròn của trình duyệt).
     if (el) {
       const atEnd = left + el.clientWidth >= el.scrollWidth - 1;
       setScrolledToEnd(atEnd);
     }
   }, []);
 
-  // 🔧 FIX: đo lại trạng thái cuộn mỗi khi mở modal / đổi dữ liệu / đổi cấu
-  // hình cột — vì scrollWidth có thể đổi (thêm/bớt cột, đổi dữ liệu), nên
-  // trạng thái "đã cuộn hết" tính từ lần trước có thể không còn đúng.
   useEffect(() => {
     if (!isOpen) return;
     handleBodyScroll();
@@ -619,8 +553,6 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     [notesMap, hexKey]
   );
 
-  // ✅ MỚI: danh sách vướng mắc CHƯA xử lý của 1 hex, lọc theo ĐÚNG 1 loại 5M
-  // — dùng để hiển thị badge của từng cột con M1..M5 và để sort theo số lượng.
   const getOpenVuongMacByCategory = useCallback(
     (row: DataRow, category: FiveMCategory): VuongMacItem[] => {
       const hex = String(row[hexKey] || '');
@@ -629,7 +561,6 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     [vuongMacMap, hexKey]
   );
 
-  // Toàn bộ vướng mắc của 1 hex theo ĐÚNG 1 loại 5M (cả đã xử lý lẫn chưa)
   const getCategoryVuongMac = useCallback(
     (row: DataRow, category: FiveMCategory): VuongMacItem[] => {
       const hex = String(row[hexKey] || '');
@@ -638,8 +569,6 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     [vuongMacMap, hexKey]
   );
 
-  // Vướng mắc MỚI NHẤT theo thời điểm tạo, bất kể đã xử lý hay chưa
-  // (khớp với tin nhắn cuối cùng trong popup chat)
   const getLatestVuongMac = useCallback(
     (row: DataRow, category: FiveMCategory): VuongMacItem | null => {
       const list = getCategoryVuongMac(row, category);
@@ -653,7 +582,6 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
     [getCategoryVuongMac]
   );
 
-  // Bấm vào 1 ô ghi chú: mở popup CHỈ với đúng cột đó, tải nguyên văn riêng
   const openNoteCell = useCallback((row: DataRow, columnKey: string, label: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedNote({ row, columnKey, label });
@@ -672,20 +600,18 @@ const [vuongMacDetail, setVuongMacDetail] = useState<{
       .catch(() => setFullNoteText(''));
   }, [hexKey]);
 
-  // ✅ MỚI: bấm vào 1 cột con "M1..M5" bên trong nhóm "Vướng Mắc" -> mở popup
-  // CRUD + log, khóa cứng đúng hex + đúng loại 5M của cột con vừa bấm.
-const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: React.MouseEvent) => {
-  e.stopPropagation();
-  const hex = String(row[hexKey] || '');
-  if (!hex) return;
-  setVuongMacDetail({
-    open: true,
-    hex,
-    label: String(row[hangMucKey] || ''),
-    category,
-    categoryLabel: `${FIVE_M_VI[category]} (${FIVE_M_SHORT[category]})`, // ví dụ: "Con Người (M1)"
-  });
-}, [hexKey, hangMucKey]);
+  const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const hex = String(row[hexKey] || '');
+    if (!hex) return;
+    setVuongMacDetail({
+      open: true,
+      hex,
+      label: String(row[hangMucKey] || ''),
+      category,
+      categoryLabel: `${FIVE_M_VI[category]} (${FIVE_M_SHORT[category]})`,
+    });
+  }, [hexKey, hangMucKey]);
 
   const toggleSort = useCallback((key: SortKey) => {
     const defaultDir: SortDir = NUMERIC_SORT_KEYS.includes(key) ? 'desc' : 'asc';
@@ -698,7 +624,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
 
   const showProjectColumn = projectName === null;
 
-  // ==== Setup cột hiển thị (chỉ Admin) — đồng bộ cơ chế với Xuất kho/Nhập kho ====
+  // ==== Setup cột hiển thị (chỉ Admin) ====
   const [cfgVersion, setCfgVersion] = useState(0);
 
   const OPTIONAL_COLUMNS: ModalColumnDef[] = useMemo(() => [
@@ -716,7 +642,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     { key: 'ghiChuNhapKho', label: 'Tổng Hợp Ghi Chú Nhập Kho' },
     { key: 'thongTinQc', label: 'Tổng Hợp Thông Tin QC' },
     { key: 'ghiChuXuatKho', label: 'Tổng Hợp Ghi Chú Xuất Kho' },
-    // ✅ MỚI: 1 khóa DUY NHẤT — ẩn/hiện cả nhóm 5 cột con M1..M5 cùng lúc
     { key: 'vuongMac', label: 'Vướng Mắc (5M)' },
   ], [showProjectColumn]);
 
@@ -725,28 +650,24 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     [OPTIONAL_COLUMNS, cfgVersion]
   );
 
-  // ✅ Thứ tự cột thực tế cần render — lấy trực tiếp từ visibleCols (đã được
-  // resolveVisibleModalColumns sắp xếp đúng theo cấu hình Admin đã lưu/kéo-thả).
   const orderedCols = useMemo(
     () => visibleCols.map(c => c.key) as OptionalColKey[],
     [visibleCols]
   );
 
-  // ✅ MỚI: có đang hiển thị nhóm "Vướng Mắc" hay không — quyết định có cần
-  // thêm hàng header thứ 2 (5 cột con M1..M5) hay không.
+  // ✅ Freeze: gồm cả STT + Mã Hex + các cột phụ. Nhóm "Vướng Mắc (5M)" không
+  // ghim được — hook tự cắt phần ghim lại ở trước nhóm này.
+  const frozen = useFrozenColumns(
+    'modal_hex_detail',
+    [{ key: 'stt', width: COL_WIDTHS.stt }, { key: 'hex', width: COL_WIDTHS.hex }],
+    orderedCols,
+    COL_WIDTHS,
+    cfgVersion,
+    ['vuongMac']
+  );
+
   const hasVuongMacCol = orderedCols.includes('vuongMac');
-
-  // 🔧 FIX (mảng xanh chỗ scrollbar-placeholder): cần biết cột CUỐI CÙNG đang
-  // hiển thị có phải "vuongMac" hay không, để tô đúng màu đỏ cho ô bù trừ
-  // scrollbar ở header — thay vì luôn ăn theo nền emerald mặc định của
-  // container ngoài, gây lộ 1 vệt xanh ngay sau vùng đỏ của nhóm 5M.
-  // Lưu ý: bản thân biến này không còn quyết định màu một mình — phải kết
-  // hợp với scrolledToEnd (xem 2 chỗ dùng bên dưới) để tránh tô nhầm khi
-  // chưa cuộn tới nơi.
   const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
-
-  // 🔧 FIX: điều kiện tô đỏ thực tế cho 2 ô đệm — chỉ đỏ khi cột cuối là
-  // Vướng Mắc VÀ người dùng đã cuộn ngang tới hết bên phải.
   const showRedEdge = lastColIsVuongMac && scrolledToEnd;
 
   const filteredRows = useMemo(() => {
@@ -760,7 +681,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     });
   }, [rows, search, hexKey, hangMucKey, tinhTrangKey]);
 
-  // STT cố định (1..N) theo thứ tự gốc của filteredRows — không đổi khi sort cột khác.
   const indexedRows = useMemo(
     () => filteredRows.map((row, i) => ({ row, stt: i + 1 })),
     [filteredRows]
@@ -791,7 +711,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
         case 'ghiChuXuatKho': return getNotePreview(row, ghiChuXuatKhoKey);
         case 'ghiChuDonHangTong': return getNotePreview(row, ghiChuDonHangTongKey);
         case 'ghiChuPhieu': return getNotePreview(row, ghiChuPhieuKey);
-        // ✅ MỚI: sort theo số lượng vướng mắc CHƯA xử lý của đúng cột con M
         case 'vmMan': return getOpenVuongMacByCategory(row, 'man').length;
         case 'vmMachine': return getOpenVuongMacByCategory(row, 'machine').length;
         case 'vmMaterial': return getOpenVuongMacByCategory(row, 'material').length;
@@ -847,8 +766,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     'Tổng Hợp Ghi Chú Nhập Kho',
     'Tổng Hợp Thông Tin QC',
     'Tổng Hợp Ghi Chú Xuất Kho',
-    // ✅ MỚI: CSV không có khái niệm "gộp cột" nên vẫn tách 1 cột riêng cho
-    // từng loại M1..M5 để không mất dữ liệu chi tiết khi xuất.
     ...FIVE_M_ORDER.map((cat) => `Vướng Mắc ${FIVE_M_SHORT[cat]} (${FIVE_M_VI[cat]})`),
   ];
 
@@ -857,7 +774,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     .trim()
     .replace(/\s+/g, '_')}`;
 
-  // Xuất CSV: tải nguyên văn 5 cột ghi chú cho toàn bộ hex đang hiển thị
   const handleExportCsv = async () => {
     let fullMap: NotesResponse = {};
     if (hexList.length > 0) {
@@ -873,8 +789,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     const fullNoteOf = (row: DataRow, key: string) =>
       String(fullMap[String(row[hexKey] || '')]?.[key] ?? '');
 
-    // ✅ MỚI: gộp vướng mắc CỦA ĐÚNG 1 LOẠI thành 1 dòng text cho CSV — mỗi
-    // mục 1 đoạn "nội dung(Đã xử lý nếu có)", các mục cách nhau bằng " | ".
     const vuongMacTextOf = (row: DataRow, category: FiveMCategory) => {
       const hex = String(row[hexKey] || '');
       const list = (vuongMacMap[hex] || []).filter(v => v.category === category);
@@ -901,7 +815,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
       'Tổng Hợp Ghi Chú Nhập Kho': fullNoteOf(row, ghiChuNhapKhoKey),
       'Tổng Hợp Thông Tin QC': fullNoteOf(row, thongTinQcKey),
       'Tổng Hợp Ghi Chú Xuất Kho': fullNoteOf(row, ghiChuXuatKhoKey),
-      // ✅ MỚI
       ...Object.fromEntries(
         FIVE_M_ORDER.map((cat) => [
           `Vướng Mắc ${FIVE_M_SHORT[cat]} (${FIVE_M_VI[cat]})`,
@@ -917,24 +830,22 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     COL_WIDTHS.hex +
     orderedCols.reduce((sum, key) => sum + COL_WIDTHS[key], 0);
 
-  const pct = (px: number) => `${((px / totalMinWidth) * 100).toFixed(4)}%`;
-
-  // ✅ Colgroup lặp theo orderedCols. Với khóa "vuongMac", 1 vị trí trong
-  // orderedCols cần render thành 5 <col> vật lý (5 cột con M1..M5) thay vì 1.
-  const ColGroup = () => (
-    <colgroup>
-      <col style={{ width: pct(COL_WIDTHS.stt) }} />
-      <col style={{ width: pct(COL_WIDTHS.hex) }} />
-      {orderedCols.map((key) => {
-        if (key === 'vuongMac') {
-          return FIVE_M_ORDER.map((cat) => (
-            <col key={`vm-${cat}`} style={{ width: pct(VM_SUB_WIDTH) }} />
-          ));
-        }
-        return <col key={key} style={{ width: pct(COL_WIDTHS[key]) }} />;
-      })}
-    </colgroup>
-  );
+  // Colgroup dùng PX. Với "vuongMac", 1 vị trí -> 5 <col> vật lý. Cột vật lý
+  // CUỐI CÙNG không khai báo width -> hấp thụ phần dư.
+  const ColGroup = () => {
+    const widths: number[] = [COL_WIDTHS.stt, COL_WIDTHS.hex];
+    orderedCols.forEach((k) => {
+      if (k === 'vuongMac') FIVE_M_ORDER.forEach(() => widths.push(VM_SUB_WIDTH));
+      else widths.push(COL_WIDTHS[k]);
+    });
+    return (
+      <colgroup>
+        {widths.map((w, i) => (
+          <col key={i} style={i === widths.length - 1 ? undefined : { width: w }} />
+        ))}
+      </colgroup>
+    );
+  };
 
   const tableStyle: React.CSSProperties = {
     width: '100%',
@@ -952,6 +863,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     className = '',
     isLast = false,
     rowSpan = 1,
+    style,
   }: {
     sortKey: SortKey;
     align?: 'left' | 'right';
@@ -959,10 +871,12 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     className?: string;
     isLast?: boolean;
     rowSpan?: number;
+    style?: React.CSSProperties;
   }) => (
     <th
       onClick={() => toggleSort(sortKey)}
       rowSpan={rowSpan}
+      style={style}
       className={`${isLast ? headerCellClass.replace('border-r ', '') : headerCellClass} ${align === 'right' ? 'text-right' : 'text-left'} ${className}`}
     >
       <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'justify-end' : ''}`}>
@@ -972,25 +886,28 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     </th>
   );
 
-  // Ô ghi chú trong bảng: bấm vào ĐÚNG Ô này mới mở popup, không phải cả dòng
-  const NoteCell = ({ row, columnKey, label }: { row: DataRow; columnKey: string; label: string }) => {
+  const NoteCell = ({
+    row, columnKey, label, className = '', style,
+  }: {
+    row: DataRow;
+    columnKey: string;
+    label: string;
+    className?: string;
+    style?: React.CSSProperties;
+  }) => {
     const preview = getNotePreview(row, columnKey);
     return (
       <td
+        style={style}
         onClick={(e) => openNoteCell(row, columnKey, label, e)}
         title="Bấm để xem đầy đủ nội dung"
-        className="cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors group-hover:bg-slate-50 hover:!bg-emerald-50"
+        className={`cursor-pointer px-3 py-2.5 text-left align-top text-slate-600 break-words whitespace-normal transition-colors group-hover:bg-slate-50 hover:!bg-emerald-50 ${className}`}
       >
         {truncateText(preview) || '—'}
       </td>
     );
   };
 
-  // ✅ MỚI: 1 ô của 1 cột con M (đã khóa cứng đúng 1 loại) — hiện NỘI DUNG
-  // vướng mắc CHƯA xử lý được cập nhật gần nhất (thay vì chỉ hiện số lượng),
-  // giống cách các ô ghi chú khác đang hiển thị; nếu còn nhiều hơn 1 mục thì
-  // ghi thêm "+N khác" bên dưới. Bấm vào ô để mở popup xem đầy đủ/thêm/sửa/xóa
-  // + log đúng loại này.
   const VuongMacCatCell = ({ row, category }: { row: DataRow; category: FiveMCategory }) => {
     const openList = getOpenVuongMacByCategory(row, category);
     const total = getCategoryVuongMac(row, category).length;
@@ -1026,9 +943,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     );
   };
 
-  // ✅ Render 1 ô "phụ" theo key — vị trí trong hàng do orderedCols.map quyết
-  // định, không hardcode theo vị trí cố định như trước. Riêng "vuongMac" trả
-  // về MẢNG 5 <td> (5 cột con M1..M5) thay vì 1 <td> duy nhất.
+  // Render 1 ô "phụ" theo key — riêng "vuongMac" trả về MẢNG 5 <td>.
   const renderCell = (row: DataRow, key: OptionalColKey): React.ReactNode => {
     switch (key) {
       case 'congTrinh':
@@ -1119,8 +1034,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
           <NoteCell key="ghiChuXuatKho" row={row} columnKey={ghiChuXuatKhoKey} label="Tổng hợp ghi chú xuất kho" />
         );
 
-      // ✅ MỚI: 1 vị trí -> 5 <td> (5 cột con M1..M5), luôn theo đúng
-      // FIVE_M_ORDER để khớp với 5 <col> trong ColGroup và 5 header con.
       case 'vuongMac':
         return FIVE_M_ORDER.map((cat) => (
           <VuongMacCatCell key={cat} row={row} category={cat} />
@@ -1131,13 +1044,10 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
     }
   };
 
-  // ✅ SỬA: return createPortal(...) — render trực tiếp ra document.body để
-  // position: fixed luôn tính theo viewport thật, không bị giam trong bất kỳ
-  // ancestor nào có transform/filter/contain ở layout cha (sidebar, app shell...).
   return createPortal(
     <>
       <div
-    className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 p-4"
+        className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 p-4"
         role="dialog"
         aria-modal="true"
       >
@@ -1200,13 +1110,8 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
             <>
               <div className="shrink-0 overflow-hidden">
                 <div className="flex bg-emerald-50">
-                  {/* 🔧 FIX (rìa xanh/đỏ không khớp): trước đây toàn bộ đệm trái +
-                      phải của header dùng CHUNG 1 lớp bg-emerald-50 px-5 trên div
-                      ngoài cùng, nên rìa phải LUÔN xanh dù cột cuối cùng là nhóm
-                      "Vướng Mắc (5M)" nền đỏ. Giờ tách riêng đệm trái (luôn xanh,
-                      vì cột đầu luôn là cột thường) và đệm phải (đổi màu theo
-                      showRedEdge, tức là VỪA cột cuối là vuongMac VỪA đã cuộn
-                      hết sang phải) thành 2 div độc lập. */}
+                  {/* Đệm trái (luôn xanh) và đệm phải (đỏ CHỈ KHI cột cuối là
+                      Vướng Mắc VÀ đã cuộn hết sang phải) là 2 div độc lập. */}
                   <div className="w-5 shrink-0 bg-emerald-50" />
                   <div ref={headerScrollRef} className="min-w-0 flex-1 overflow-x-hidden">
                     <table style={tableStyle} className="border-separate border-spacing-0 text-xs">
@@ -1216,8 +1121,8 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                           <th
                             onClick={() => toggleSort('stt')}
                             rowSpan={hasVuongMacCol ? 2 : 1}
-                            style={{ left: 0 }}
-                            className="sticky z-10 cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100"
+                            style={fzStyle(frozen.get('stt'))}
+                            className={`${fzClass(frozen.get('stt'))} cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center transition-colors hover:bg-emerald-100`}
                           >
                             <span className="inline-flex items-center justify-center gap-1">
                               STT
@@ -1227,28 +1132,17 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                           <th
                             onClick={() => toggleSort('hex')}
                             rowSpan={hasVuongMacCol ? 2 : 1}
-                            style={{ left: COL_WIDTHS.stt }}
-                            className="sticky z-10 min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100"
+                            style={fzStyle(frozen.get('hex'))}
+                            className={`${fzClass(frozen.get('hex'))} min-w-[140px] cursor-pointer select-none border-b border-r border-emerald-200 bg-emerald-50 px-3 py-3 text-left transition-colors hover:bg-emerald-100`}
                           >
                             <span className="inline-flex items-center gap-1">
                               Mã Hex
                               <SortIcon active={sort?.key === 'hex'} dir={sort?.dir} />
                             </span>
                           </th>
-                          {/* ✅ Header tầng 1 lặp theo orderedCols (đúng thứ tự đã setup).
-                              Cột thường: <th rowSpan=2> khi có nhóm Vướng Mắc, để chừa
-                              chỗ cho hàng header thứ 2 bên dưới. Riêng "vuongMac": 1 ô
-                              nhãn nhóm màu đỏ, colSpan=5, KHÔNG rowSpan (hàng dưới là 5
-                              cột con của chính nó). */}
                           {orderedCols.map((key, i) => {
                             const isLast = i === orderedCols.length - 1;
                             if (key === 'vuongMac') {
-                              // ✅ SỬA LỖI GIAO DIỆN: trước đây kế thừa headerCellClass
-                              // (có border-emerald-200) rồi mới thêm bg-red-50 đè lên —
-                              // nền đỏ thắng nhưng viền dưới VẪN LÀ XANH do 2 class border
-                              // màu khác nhau cùng áp cho border-b (đè nhau không chắc
-                              // ăn). Viết riêng 1 class cho ô nhóm này, dùng ĐÚNG tông đỏ
-                              // cho mọi viền (border-b/border-r), không còn lẫn màu xanh.
                               return (
                                 <th
                                   key="vuongMac-group"
@@ -1262,7 +1156,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                               );
                             }
                             const meta = COLUMN_META[key];
-                            return (
+                            return applyFrozen(
                               <SortableHeader
                                 key={key}
                                 sortKey={meta.sortKey}
@@ -1271,14 +1165,12 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                                 rowSpan={hasVuongMacCol ? 2 : 1}
                               >
                                 {meta.label}
-                              </SortableHeader>
+                              </SortableHeader>,
+                              frozen.get(key),
+                              '!bg-emerald-50'
                             );
                           })}
                         </tr>
-                        {/* ✅ Header tầng 2 — CHỈ xuất hiện khi nhóm "Vướng Mắc" đang
-                            hiển thị. Nhờ các <th rowSpan=2> ở tầng 1 đã chiếm sẵn chỗ,
-                            trình duyệt tự xếp 5 ô này đúng vào vị trí bên dưới nhãn
-                            nhóm, bất kể "vuongMac" nằm ở vị trí nào trong orderedCols. */}
                         {hasVuongMacCol && (
                           <tr>
                             {FIVE_M_ORDER.map((cat, idx) => (
@@ -1303,14 +1195,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                       </thead>
                     </table>
                   </div>
-                  {/* Đệm phải: cùng nguyên lý như đệm trái ở trên, nhưng đổi màu
-                      theo showRedEdge — đỏ CHỈ KHI cột cuối cùng đang hiển thị là
-                      nhóm "Vướng Mắc (5M)" VÀ bảng đã thực sự cuộn tới hết bên
-                      phải; xanh cho mọi trường hợp còn lại (kể cả khi Vướng Mắc
-                      là cột cuối nhưng chưa cuộn tới đó). */}
                   <div className={`w-5 shrink-0 ${showRedEdge ? 'bg-red-50' : 'bg-emerald-50'}`} />
-                  {/* Ô bù trừ scrollbar: cũng đổi màu theo cùng logic showRedEdge,
-                      để không còn lộ vệt đỏ/xanh sai chỗ khi cuộn ngang. */}
                   {scrollbarWidth > 0 && (
                     <div
                       style={{ width: scrollbarWidth }}
@@ -1320,18 +1205,9 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                 </div>
               </div>
 
+              {/* Lớp NGOÀI chỉ tạo đệm 20px, KHÔNG cuộn; lớp TRONG (bodyScrollRef)
+                  mới cuộn và không có padding — để sticky neo sát mép, không hở khe. */}
               <div className="min-h-0 flex-1 overflow-hidden px-5">
-                {/* 🔧 FIX (hở khe lộ dữ liệu khi cuộn ngang): trước đây px-5 nằm
-                    TRỰC TIẾP trên chính div overflow-auto (bodyScrollRef) — div này
-                    vừa là khung cuộn ngang/dọc thật sự, vừa là "scrollport" mà các ô
-                    sticky (STT, Mã Hex) dùng làm mốc tính vị trí. Khi scrollport có
-                    padding, trình duyệt neo ô sticky vào MÉP PADDING (lùi vào trong
-                    20px) chứ không phải mép ngoài cùng của khung nhìn — để lại 1 khe
-                    hở 20px cố định, và nội dung đã cuộn qua vẫn lộ ra qua khe đó.
-                    Sửa bằng cách tách 2 lớp: lớp NGOÀI (div này) chỉ tạo khoảng đệm
-                    20px, KHÔNG cuộn nên không phải là scrollport của sticky; lớp
-                    TRONG (bodyScrollRef ngay dưới) mới thực sự cuộn và KHÔNG còn
-                    padding — sticky lúc này neo đúng sát mép, hết khe hở. */}
                 <div
                   ref={bodyScrollRef}
                   onScroll={handleBodyScroll}
@@ -1343,26 +1219,26 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                       {sortedRows.map((entry) => {
                         const row = entry.row;
                         return (
-                          // 🔧 FIX: thêm "group" để 2 ô sticky (STT, Mã Hex) bên dưới có
-                          // thể bám theo trạng thái hover của CẢ DÒNG qua group-hover,
-                          // thay vì đứng yên bg-white trong khi các ô còn lại đổi sang
-                          // slate-50 — trước đây gây cảm giác 2 cột "nổi" tách rời dòng.
                           <tr key={entry.stt} className="group transition-colors hover:bg-slate-50">
                             <td
-                              style={{ left: 0 }}
-                              className="sticky z-10 border-r border-slate-100 bg-white group-hover:bg-slate-50 px-2 py-2.5 text-center align-top font-semibold text-slate-500"
+                              style={fzStyle(frozen.get('stt'))}
+                              className={`${fzClass(frozen.get('stt'))} border-r border-slate-100 bg-white group-hover:bg-slate-50 px-2 py-2.5 text-center align-top font-semibold text-slate-500`}
                             >
                               {entry.stt}
                             </td>
                             <td
-                              style={{ left: COL_WIDTHS.stt }}
-                              className="sticky z-10 border-r border-slate-100 bg-white group-hover:bg-slate-50 px-3 py-2.5 text-left align-top font-medium text-slate-700"
+                              style={fzStyle(frozen.get('hex'))}
+                              className={`${fzClass(frozen.get('hex'))} border-r border-slate-100 bg-white group-hover:bg-slate-50 px-3 py-2.5 text-left align-top font-medium text-slate-700`}
                             >
                               {String(row[hexKey] || '—')}
                             </td>
-                            {/* ✅ Body lặp theo orderedCols, đúng thứ tự + tập cột đang
-                                được cấu hình hiển thị. "vuongMac" tự nở ra 5 <td>. */}
-                            {orderedCols.map((key) => renderCell(row, key))}
+                            {orderedCols.map((key) =>
+                              applyFrozen(
+                                renderCell(row, key),
+                                frozen.get(key),
+                                '!bg-white group-hover:!bg-slate-50'
+                              )
+                            )}
                           </tr>
                         );
                       })}
@@ -1379,12 +1255,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                       <tfoot className="font-bold text-slate-900">
                         <tr>
                           {(() => {
-                            // ✅ Footer duyệt theo orderedCols: gộp colSpan cho mọi cột
-                            // "label" (congTrinh/hangMuc/xuong/bop/tinhTrang) vào ô nhãn
-                            // "TỔNG CỘNG", in tổng cho 3 cột số liệu (triGia/thanhTienPhieu/
-                            // thanhTienKho) và để trống cho các cột "blank" (phanLoai +
-                            // 5 cột ghi chú). Riêng "vuongMac": 1 ô trống colSpan=5 để
-                            // khớp với 5 cột con bên trên.
                             const cells: React.ReactNode[] = [];
                             let pendingSpan = 2; // STT + Mã Hex luôn có mặt
                             let labelRendered = false;
@@ -1393,7 +1263,7 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                               cells.push(
                                 <td
                                   key="label"
-                                  className="sticky left-0 z-10 bg-emerald-100 px-3 py-3 text-left"
+                                  className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
                                   colSpan={pendingSpan}
                                 >
                                   TỔNG CỘNG ({filteredRows.length} hex)
@@ -1409,27 +1279,36 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                                 return;
                               }
                               if (!labelRendered) flushLabel();
-                             if (kind === 'total') {
+                              if (kind === 'total') {
                                 const value =
                                   key === 'triGia' ? totals.triGiaDonHangTong :
                                   key === 'thanhTienPhieu' ? totals.thanhTienTinhPhieu :
                                   totals.thanhTienNhapKho;
                                 cells.push(
-                                  <td
-                                    key={key}
-                                    className={`px-3 py-3 text-right ${key === 'thanhTienKho' ? 'text-indigo-800' : ''}`}
-                                  >
-                                    {money(value)}
-                                  </td>
+                                  applyFrozen(
+                                    <td
+                                      key={key}
+                                      className={`px-3 py-3 text-right ${key === 'thanhTienKho' ? 'text-indigo-800' : ''}`}
+                                    >
+                                      {money(value)}
+                                    </td>,
+                                    frozen.get(key),
+                                    '!bg-emerald-100'
+                                  )
                                 );
-                                } else if (key === 'vuongMac') {
-                                  cells.push(<td key={key} className="px-3 py-3" colSpan={FIVE_M_ORDER.length} />);
-                                } else {
-                                  cells.push(<td key={key} className="px-3 py-3" />);
+                              } else if (key === 'vuongMac') {
+                                cells.push(<td key={key} className="px-3 py-3" colSpan={FIVE_M_ORDER.length} />);
+                              } else {
+                                cells.push(
+                                  applyFrozen(
+                                    <td key={key} className="px-3 py-3" />,
+                                    frozen.get(key),
+                                    '!bg-emerald-100'
+                                  )
+                                );
                               }
                             });
 
-                            // Trường hợp không có cột số liệu/blank nào được hiển thị
                             if (!labelRendered) flushLabel();
 
                             return cells;
@@ -1452,17 +1331,14 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
         </div>
       </div>
 
-      {/* Popup: chỉ hiện nội dung của ĐÚNG 1 ô (1 dòng x 1 cột) vừa bấm.
-          Chỉ đóng bằng nút X — bấm ra ngoài (backdrop) hoặc Escape KHÔNG đóng. */}
+      {/* Popup ghi chú: chỉ đóng bằng nút X. */}
       {selectedNote && (
         <div
-         className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 p-4"
+          className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 p-4"
           role="dialog"
           aria-modal="true"
         >
-          <div
-            className="flex h-[92vh] w-[96vw] max-w-none flex-col rounded-xl bg-white shadow-2xl"
-          >
+          <div className="flex h-[92vh] w-[96vw] max-w-none flex-col rounded-xl bg-white shadow-2xl">
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
               <div className="min-w-0">
                 <h3 className="text-lg font-semibold text-slate-800">{selectedNote.label}</h3>
@@ -1482,8 +1358,6 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
                 <X size={20} />
               </button>
             </div>
-            {/* Mỗi khối theo ngày (bên trong NoteContent) tự cuộn riêng; khung này
-                chỉ cuộn thêm khi tổng số khối vượt quá chiều cao popup. */}
             <div className="min-h-0 flex-1 overflow-y-auto p-6 custom-scrollbar">
               {fullNoteText === null ? (
                 <div className="p-3 text-sm text-slate-400">Đang tải...</div>
@@ -1495,15 +1369,14 @@ const openVuongMacCell = useCallback((row: DataRow, category: FiveMCategory, e: 
         </div>
       )}
 
-      {/* ✅ MỚI: Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại
-          5M của cột con vừa bấm. */}
-          <VuongMacDetailModal
+      {/* Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại 5M. */}
+      <VuongMacDetailModal
         isOpen={vuongMacDetail.open}
         onClose={() => setVuongMacDetail(prev => ({ ...prev, open: false }))}
         hex={vuongMacDetail.hex}
         hexLabel={vuongMacDetail.label}
         category={vuongMacDetail.category}
-        categoryLabel={vuongMacDetail.categoryLabel} // ✅ MỚI
+        categoryLabel={vuongMacDetail.categoryLabel}
         currentUser={currentUser}
       />
     </>,
