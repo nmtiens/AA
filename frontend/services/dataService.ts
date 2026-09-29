@@ -42,6 +42,9 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   trang_thai: 'TRẠNG THÁI',
   trang_thai_sap: 'TRẠNG THÁI SAP',
   ngay_du_kien_giao_hang_pmh_nhap: 'NGÀY DỰ KIẾN GIAO HÀNG PMH NHẬP',
+  bot_du_an: 'BOT DỰ ÁN',
+  khach_hang: 'KHÁCH HÀNG',
+  khu_vuc_du_an: 'KHU VỰC DỰ ÁN',
 };
 
 const resolveColumnLabel = (header: string): string => {

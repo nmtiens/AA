@@ -251,24 +251,18 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   //   chia 1000 và làm tròn 1 chữ số thập phân -> hiển thị dạng "1.6".
   // - useDetailedNumbers = true (view luồng đỏ / căn mẫu): hiển thị số đầy đủ,
   //   làm tròn số nguyên (VNĐ không có phần thập phân) -> "1,600,000,000".
+  // Đồng bộ với trang Tổng quan: value (đơn vị Triệu) / 1000 -> hiển thị "Tỷ"
+  // Áp dụng cho MỌI view (Dashboard tổng, Luồng đỏ, Căn mẫu).
  const formatValueNumber = (value: number): string => {
-  if (useDetailedNumbers) {
-    // ✅ SỬA: value đã ở đơn vị TRIỆU ĐỒNG sẵn -> hiển thị thẳng, KHÔNG nhân
-    // 1_000_000 nữa (trước đây ra VNĐ đầy đủ, giờ hiển thị "Triệu" theo yêu
-    // cầu — chỉ áp dụng cho 2 view Luồng đỏ/Căn mẫu, Dashboard tổng không đổi).
-    return value.toLocaleString('en-US', {
+    const inBillion = value / 1000;
+    const maxDigits = Math.abs(value) < 100 ? 3 : 1;
+    return inBillion.toLocaleString('en-US', {
       minimumFractionDigits: 0,
-      maximumFractionDigits: 1,
+      maximumFractionDigits: maxDigits,
     });
-  }
-  return (value / 1000).toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  });
-};
+  };
 
-  // ✅ SỬA: nhãn đơn vị đổi thành 'Triệu' khi useDetailedNumbers=true
-  const valueUnitLabel = useDetailedNumbers ? 'Triệu' : 'Tỷ';
+  const valueUnitLabel = 'Tỷ';
 
   if (!hasAnyData) return null;
 

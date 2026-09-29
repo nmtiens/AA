@@ -1,6 +1,6 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
+import { HashRouter, MemoryRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
@@ -12,7 +12,7 @@ import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
 // Prefetch cho cấu hình "bảng -> danh sách cột được phép / mặc định hiện"
 import { loadTableColumnConfig, applyTableColumnConfig } from './components/Construction/utils/tableColumnConfig';
-
+import './index.css';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -23,6 +23,9 @@ const ConstructionRedFlow = lazy(() => import('./components/Construction/Constru
 const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
+// Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
+const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
+
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -48,65 +51,94 @@ const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string; permId
   { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau', permId: 'construction_sample' },
 ];
 
+// ------------------------------------------------------------
+// Cổng đăng nhập cho bản mobile (/m/):
+// chưa đăng nhập -> hiện form Login, đăng nhập xong -> vào MobileApp.
+// Phải nằm bên trong <AuthProvider>.
+// ------------------------------------------------------------
+const MobileEntry: React.FC = () => {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <FullScreenLoader />;
+  if (!user) {
+    // Login có thể dùng useNavigate nên cần bọc trong một Router
+    return (
+      <MemoryRouter initialEntries={['/login']}>
+        <Login />
+      </MemoryRouter>
+    );
+  }
+  return <MobileApp />;
+};
+
 const App: React.FC = () => {
+  // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
+  const isMobileEntry = window.location.pathname.startsWith('/m');
+
   // Bắn request lấy view-project-mapping + table-column-config ngay khi app
-  // khởi động, KHÔNG chặn render.
+  // khởi động, KHÔNG chặn render. (Bản mobile không cần.)
   useEffect(() => {
-    loadViewMapping();
-    loadTableColumnConfig();
-  }, []);
+    if (!isMobileEntry) {
+      loadViewMapping();
+      loadTableColumnConfig();
+    }
+  }, [isMobileEntry]);
 
   return (
     <ToastProvider>
       <AuthProvider>
-        <HashRouter>
-          {/* Suspense bao bọc Routes để hiển thị Loader trong lúc tải Lazy Component */}
-          <Suspense fallback={<FullScreenLoader />}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route element={<MainLayout />}>
-                {/* --- Tổng quan --- */}
-                <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
+        {/* Suspense bao bọc để hiển thị Loader trong lúc tải Lazy Component */}
+        <Suspense fallback={<FullScreenLoader />}>
+          {isMobileEntry ? (
+            <MobileEntry />
+          ) : (
+            <HashRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route element={<MainLayout />}>
+                  {/* --- Tổng quan --- */}
+                  <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
 
-                {/* --- Nhóm Dữ liệu --- */}
-                <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
-                <Route path="/yearly-plan" element={<RequirePermission viewId="yearly_plan_data"><YearlyPlanDataWrapper /></RequirePermission>} />
-                <Route path="/orders" element={<RequirePermission viewId="orders"><OrderDataWrapper /></RequirePermission>} />
-                <Route path="/inventory" element={<RequirePermission viewId="inventory"><InventoryDataWrapper /></RequirePermission>} />
-                <Route path="/export" element={<RequirePermission viewId="export"><ExportDataWrapper /></RequirePermission>} />
-                <Route path="/stock" element={<RequirePermission viewId="stock"><StockDataWrapper /></RequirePermission>} />
-                <Route path="/attendance" element={<RequirePermission viewId="attendance"><AttendanceDataWrapper /></RequirePermission>} />
-                <Route path="/khsx" element={<RequirePermission viewId="khsx"><DataGridWrapper type="khsx" /></RequirePermission>} />
-                <Route path="/analysis" element={<RequirePermission viewId="analysis"><AnalysisDataWrapper /></RequirePermission>} />
-                <Route path="/tkbv" element={<RequirePermission viewId="tkbv"><TkbvDataWrapper /></RequirePermission>} />
-                <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
-                <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
-                {/* --- Nhóm Công trình --- */}
-                <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionRedFlowWrapper /></RequirePermission>} />
-                <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionSampleUnitWrapper /></RequirePermission>} />
-                <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
+                  {/* --- Nhóm Dữ liệu --- */}
+                  <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
+                  <Route path="/yearly-plan" element={<RequirePermission viewId="yearly_plan_data"><YearlyPlanDataWrapper /></RequirePermission>} />
+                  <Route path="/orders" element={<RequirePermission viewId="orders"><OrderDataWrapper /></RequirePermission>} />
+                  <Route path="/inventory" element={<RequirePermission viewId="inventory"><InventoryDataWrapper /></RequirePermission>} />
+                  <Route path="/export" element={<RequirePermission viewId="export"><ExportDataWrapper /></RequirePermission>} />
+                  <Route path="/stock" element={<RequirePermission viewId="stock"><StockDataWrapper /></RequirePermission>} />
+                  <Route path="/attendance" element={<RequirePermission viewId="attendance"><AttendanceDataWrapper /></RequirePermission>} />
+                  <Route path="/khsx" element={<RequirePermission viewId="khsx"><DataGridWrapper type="khsx" /></RequirePermission>} />
+                  <Route path="/analysis" element={<RequirePermission viewId="analysis"><AnalysisDataWrapper /></RequirePermission>} />
+                  <Route path="/tkbv" element={<RequirePermission viewId="tkbv"><TkbvDataWrapper /></RequirePermission>} />
+                  <Route path="/pthsp" element={<RequirePermission viewId="pthsp"><PthspDataWrapper /></RequirePermission>} />
+                  <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
 
-                {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
-                {CHART_SUB_ITEMS.map(item => (
-                  <Route
-                    key={item.key}
-                    path={item.path}
-                    element={
-                      <RequirePermission viewId={item.permId}>
-                        <ChartOverview source={item.key as any} title={item.label} />
-                      </RequirePermission>
-                    }
-                  />
-                ))}
+                  {/* --- Nhóm Công trình --- */}
+                  <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionRedFlowWrapper /></RequirePermission>} />
+                  <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionSampleUnitWrapper /></RequirePermission>} />
+                  <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
 
-                {/* --- Hệ thống --- */}
-                <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
-                <Route path="/setup/cot-du-lieu" element={<RequirePermission viewId="table_column_setup"><TableColumnSetupWrapper /></RequirePermission>} />
-              </Route>
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </HashRouter>
+                  {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
+                  {CHART_SUB_ITEMS.map(item => (
+                    <Route
+                      key={item.key}
+                      path={item.path}
+                      element={
+                        <RequirePermission viewId={item.permId}>
+                          <ChartOverview source={item.key as any} title={item.label} />
+                        </RequirePermission>
+                      }
+                    />
+                  ))}
+
+                  {/* --- Hệ thống --- */}
+                  <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
+                  <Route path="/setup/cot-du-lieu" element={<RequirePermission viewId="table_column_setup"><TableColumnSetupWrapper /></RequirePermission>} />
+                </Route>
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </HashRouter>
+          )}
+        </Suspense>
       </AuthProvider>
     </ToastProvider>
   );
@@ -145,16 +177,18 @@ const useViewMappingReady = () => {
 
 const ConstructionRedFlowWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
+  const { user } = useAuth();
   const mappingReady = useViewMappingReady();
   if (!mappingReady) return <FullScreenLoader />;
-  return <ConstructionRedFlow {...context} />;
+  return <ConstructionRedFlow {...context} currentUser={user?.username ?? ''} />;
 };
 
 const ConstructionSampleUnitWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
+  const { user } = useAuth();
   const mappingReady = useViewMappingReady();
   if (!mappingReady) return <FullScreenLoader />;
-  return <ConstructionSampleUnit {...context} />;
+  return <ConstructionSampleUnit {...context} currentUser={user?.username ?? ''} />;
 };
 
 const ConstructionSetupWrapper = () => {

@@ -57576,7 +57576,10 @@ var REPORT_COLUMNS = {
     "bop",
     "tri_gia_don_hang_tong",
     "thanh_tien_tinh_phieu",
-    "thanh_tien_nhap_kho_luy_ke"
+    "thanh_tien_nhap_kho_luy_ke",
+    "bot_du_an",
+    "khach_hang",
+    "khu_vuc_du_an"
   ],
   vat_tu: [
     "trang_thai",
@@ -60120,6 +60123,61 @@ app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/list:", error61);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
+  try {
+    const status = String(req.query.status || "open");
+    const category = String(req.query.category || "");
+    const q = String(req.query.q || "").trim();
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30));
+    const me = await getVuongMacActor(req);
+    const conds = [];
+    const params = [];
+    if (status === "open") conds.push("b.is_resolved = FALSE");
+    else if (status === "resolved") conds.push("b.is_resolved = TRUE");
+    if (FIVE_M_CATEGORIES.includes(category)) {
+      params.push(category);
+      conds.push(`b.category = $${params.length}`);
+    }
+    if (q) {
+      params.push(`%${q}%`);
+      const n = params.length;
+      conds.push(`(b.content ILIKE $${n} OR b.handler ILIKE $${n} OR b.created_by ILIKE $${n}
+                   OR b.hex ILIKE $${n} OR p.ten_cong_trinh ILIKE $${n})`);
+    }
+    params.push(pageSize, (page - 1) * pageSize);
+    const r = await timedQuery(
+      `WITH base AS (${SELECT_VUONG_MAC_WITH_DEPT})
+       SELECT b.*, p.ten_cong_trinh, p.ten_hang_muc, p.xuong_chinh,
+              COUNT(*) OVER() AS total
+       FROM base b
+       LEFT JOIN LATERAL (
+         SELECT ten_cong_trinh, ten_hang_muc, xuong_chinh
+         FROM production_status_app
+         WHERE hex::text = b.hex
+         ORDER BY updated_at DESC NULLS LAST LIMIT 1
+       ) p ON TRUE
+       ${conds.length ? "WHERE " + conds.join(" AND ") : ""}
+       ORDER BY b.is_resolved ASC, b.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+    res.json({
+      success: true,
+      total: r.rows[0] ? Number(r.rows[0].total) : 0,
+      data: r.rows.map((row) => ({
+        ...mapVuongMacRow(row, me),
+        hex: row.hex,
+        congTrinh: row.ten_cong_trinh,
+        hangMuc: row.ten_hang_muc,
+        xuong: row.xuong_chinh
+      }))
+    });
+  } catch (e) {
+    console.error("L\u1ED7i /api/vuong-mac/all:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
 app.post(

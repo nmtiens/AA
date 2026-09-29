@@ -16,6 +16,25 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "backend/api/dist.js" },
+
+    {
+      "src": "/sw.js",
+      "headers": { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      "dest": "frontend/sw.js"
+    },
+    {
+      "src": "/manifest.webmanifest",
+      "headers": { "Content-Type": "application/manifest+json" },
+      "dest": "frontend/manifest.webmanifest"
+    },
+    {
+      "src": "/manifest-desktop.webmanifest",
+      "headers": { "Content-Type": "application/manifest+json" },
+      "dest": "frontend/manifest-desktop.webmanifest"
+    },
+
+    { "src": "/m(?:/.*)?", "dest": "frontend/index.html" },
+
     { "src": "/(.*)", "dest": "frontend/$1" }
   ]
 }

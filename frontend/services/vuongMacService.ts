@@ -187,3 +187,22 @@ export const fetchVuongMacLog = async (hex: string): Promise<VuongMacLogEntry[]>
     return [];
   }
 };
+
+export interface VuongMacRow extends VuongMacItem {
+  hex: string; congTrinh?: string | null; hangMuc?: string | null; xuong?: string | null;
+}
+
+export const fetchVuongMacAll = async (p: {
+  status?: 'open' | 'resolved' | 'all'; category?: FiveMCategory | ''; q?: string; page?: number;
+}): Promise<{ data: VuongMacRow[]; total: number }> => {
+  try {
+    const qs = new URLSearchParams();
+    Object.entries(p).forEach(([k, v]) => v !== undefined && v !== '' && qs.set(k, String(v)));
+    const r = await fetch(`/api/vuong-mac/all?${qs}`, { headers: authHeaders() });
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchVuongMacAll error:', e);
+    return { data: [], total: 0 };
+  }
+};

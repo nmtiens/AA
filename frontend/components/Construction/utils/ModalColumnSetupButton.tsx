@@ -15,7 +15,7 @@ import {
 interface Props {
   modalId: string;
   allColumns: ModalColumnDef[]; // các cột PHỤ có thể ẩn/hiện (không gồm 2 cột cố định đầu)
-  fixedLabels?: [string, string]; // nhãn 2 cột cố định đầu, mặc định ['STT', 'Mã Hex']
+  fixedLabels?: string[]; // nhãn 2 cột cố định đầu, mặc định ['STT', 'Mã Hex']
   onChange?: () => void;
 }
 

@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { DataRow, ColumnDefinition } from '../../types';
 import { parseVNDate, diffDays } from './../Dashboard/utils/dateHelpers';
 import { parseNumber } from './../Dashboard/utils/numberParsers';
-import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
+import { Filter, XCircle as CloseIcon, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { fetchRevenue2026, type Revenue2026Data } from '../../services/dataService';
 import { DashboardFilter } from './../Dashboard/components/shared/DashboardFilter';
 import { useColumnKeys } from './../Dashboard/hooks/useColumnKeys';
@@ -14,10 +14,9 @@ import { useKhsxSummary } from './../Dashboard/hooks/useKhsxSummary';
 import { useStockData } from './../Dashboard/hooks/useStockData';
 import { usePivotTables } from './../Dashboard/hooks/usePivotTables';
 import { useExportFlows } from './../Dashboard/hooks/useExportFlows';
-import { PivotMaterialSummarySection } from './../Dashboard/components/sections/PivotMaterialSummarySection';
 import { PivotMaterialStatusSection } from './../Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
-import { ProjectSummarySection_v2 } from './../Dashboard/components/sections/ProjectSummarySection_v2';
+import { ProjectSummarySection_v2, type ProjectMeta } from './../Dashboard/components/sections/ProjectSummarySection_v2';
 import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
 import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
 import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
@@ -35,13 +34,13 @@ import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/compone
 import { ContructionRevenueSection, type CustomFunnelItem } from './../Dashboard/components/sections/ContructionRevenueSection';
 import {
   OnLineStageDetailModal,
-  ON_LINE_STAGES,
-  TOTAL_STAGE,          // ✅ thêm
+  TOTAL_STAGE,
   extractStage,
   type StageDetailRow,
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
 import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
 import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
+
 interface ConstructionRedFlowProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
@@ -68,6 +67,7 @@ interface ConstructionRedFlowProps {
   attendanceData: DataRow[];
   attendanceColumns: ColumnDefinition[];
   isSidebarCollapsed: boolean;
+  currentUser: string;
 }
 
 // Id của view này trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
@@ -75,27 +75,90 @@ interface ConstructionRedFlowProps {
 const VIEW_ID = 'luong-do' as const;
 
 // ---------------------------------------------------------------------------
+// Các khối có thể ẩn/hiện (mặc định ẩn, bấm "Mở" để xem).
+// ---------------------------------------------------------------------------
+type SectionId =
+  | 'productionStatus'
+  | 'bottleneck'
+  | 'khsxPlanActual'
+  | 'projectSummaryLegacy'
+  | 'pivotProject';
+
+const SECTION_LABELS: Record<SectionId, string> = {
+  productionStatus: 'Tình trạng sản xuất',
+  bottleneck: 'Báo cáo tỷ trọng điểm nghẽn',
+  khsxPlanActual: 'Thống kê tổng hợp: Kế hoạch & Nhập kho',
+  projectSummaryLegacy: 'Tình trạng đơn hàng theo Công trình (bảng cũ)',
+  pivotProject: 'Chi tiết Giá trị (Công trình x Tình trạng)',
+};
+
+// Mặc định tất cả đang ẩn. Đổi true nếu muốn khối nào mở sẵn.
+const DEFAULT_OPEN_SECTIONS: Record<SectionId, boolean> = {
+  productionStatus: false,
+  bottleneck: false,
+  khsxPlanActual: false,
+  projectSummaryLegacy: false,
+  pivotProject: false,
+};
+
+// Khung bọc: đóng thì chỉ hiện thanh nhỏ, mở thì hiện nội dung + nút Ẩn.
+const CollapsibleSection: React.FC<{
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}> = ({ title, open, onToggle, children }) => {
+  if (!open) {
+    return (
+      <div className="flex items-center justify-between bg-white border border-dashed border-slate-300 rounded-xl px-4 py-3">
+        <span className="text-sm font-semibold text-slate-500">{title}</span>
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-600 hover:bg-wood-50 shadow-sm"
+        >
+          <Eye size={14} /> Mở
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="relative">
+      <button
+        onClick={onToggle}
+        className="absolute top-3 right-16 z-10 flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-600 hover:bg-wood-50 shadow-sm"
+      >
+        <EyeOff size={14} /> Ẩn
+      </button>
+      {children}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
 // Chỉ khai báo type + label ở module scope (không dùng hook) — an toàn.
 // ---------------------------------------------------------------------------
-type HexDetailColumn = 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine' | 'remaining' | 'cancelled'; // ✅ thêm cancelled
+type HexDetailColumn =
+  | 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine'
+  | 'remaining' | 'cancelled'
+  | 'p002'
+  | 'inventoryAfterExport';   // (chỉ để đủ key của Record, không bấm được)
 
 const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   totalOrder: 'Tổng Giá Trị Đơn Hàng',
   afterCancel: 'Tổng Giá Trị Đơn Hàng Sau Khi Hủy',
   inventory: 'Tổng Giá Trị Đã Nhập Kho',
   notDeployed: 'Chưa Triển Khai (P001)',
-  onLine: 'Đang Trên Chuyền (P002->P021)',
+  p002: 'Chưa Tính Phiếu (P002)',
+  onLine: 'Đang Trên Chuyền (P012->P021)',
   remaining: 'Tổng Giá Trị Đơn Hàng Còn Lại',
-  cancelled: 'Tổng Giá Trị Đã Hủy', // ✅ MỚI
+  cancelled: 'Tổng Giá Trị Đã Hủy',
+  inventoryAfterExport: 'Tồn Kho Sau Xuất Kho',
 };
 
-// ✅ SỬA: cột "inventory" giờ được xử lý riêng (mở InventoryDetailModal, lấy
-// dữ liệu thật từ bảng nhap_kho) — KHÔNG còn đi qua HexDetailModal (vốn suy
-// ra từ filteredProductionData, khác nguồn với số hiển thị ở bảng tổng quan).
-// Vì vậy loại 'inventory' khỏi tập hợp các cột mà isHexDetailColumn() nhận diện.
+// Cột "inventory" xử lý riêng (mở InventoryDetailModal) nên không nằm ở đây.
 const HEX_DETAIL_MODAL_COLUMNS: Exclude<HexDetailColumn, 'inventory'>[] = [
-  'totalOrder', 'afterCancel', 'notDeployed', 'onLine', 'remaining', 'cancelled',
+  'totalOrder', 'notDeployed', 'p002', 'onLine', 'remaining',
 ];
 
 const isHexDetailColumn = (
@@ -104,23 +167,18 @@ const isHexDetailColumn = (
   (HEX_DETAIL_MODAL_COLUMNS as string[]).includes(column);
 
 // ---------------------------------------------------------------------------
-// MỚI: Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
-// cột/giai đoạn tương ứng trong dữ liệu hex gốc (hexRowsByColumn), để bấm vào
-// 1 con số trong bảng pivot của "Chi tiết dữ liệu Phễu" mở tiếp được modal
-// "Chi tiết theo Hex" — giống hệt cách modal "Đang trên chuyền theo giai đoạn"
-// đang làm.
+// Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
+// cột/giai đoạn tương ứng trong dữ liệu hex gốc, để bấm vào 1 con số trong
+// bảng pivot của "Chi tiết dữ liệu Phễu" mở tiếp được modal "Chi tiết theo Hex".
 //
-// - P001 (Tổng đơn hàng nhà máy còn lại) ứng với cột "notDeployed" (các dòng
-//   có Tình Trạng = "15. CHƯA TRIỂN KHAI").
-// - P002 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó
-//   (dùng field `stage` sẵn có trong state hexDetail).
-// - P022 (TỒN KHO) lấy dữ liệu từ nguồn khác (tồn kho theo công trình, không
-//   nằm trong filteredProductionData) nên KHÔNG có dữ liệu hex gốc để xem chi
-//   tiết -> bỏ qua, không mở modal khi bấm vào số của bước này.
+// - P001 ứng với cột "notDeployed".
+// - P002 ứng với cột "p002".
+// - P012 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó.
+// - P022 (TỒN KHO) lấy từ nguồn khác nên KHÔNG có hex gốc -> không mở modal.
 // ---------------------------------------------------------------------------
 const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: HexDetailColumn; stage: string | null }>> = {
   P001: { column: 'notDeployed', stage: null },
-  P002: { column: 'onLine', stage: 'P002' },
+  P002: { column: 'p002', stage: 'P002' },
   P012: { column: 'onLine', stage: 'P012' },
   P013: { column: 'onLine', stage: 'P013' },
   GCVT: { column: 'onLine', stage: 'GCVT' },
@@ -135,8 +193,7 @@ const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: HexDetailColumn; st
  * Xác định (column, stage, projectName) cần dùng cho HexDetailModal khi bấm
  * vào 1 con số trong bảng pivot của Phễu.
  * - Nếu đã chọn 1 bước funnel cụ thể (item != null): bảng đang hiển thị theo
- *   CÔNG TRÌNH -> `name` = tên công trình (hoặc null = dòng TỔNG CỘNG, nghĩa
- *   là xem tất cả công trình của đúng bước đó).
+ *   CÔNG TRÌNH -> `name` = tên công trình (hoặc null = dòng TỔNG CỘNG).
  * - Nếu chưa chọn bước nào (item == null): bảng đang hiển thị TỔNG theo BOP
  *   -> `name` CHÍNH LÀ mã BOP (hoặc null = dòng TỔNG CỘNG, xem tất cả).
  */
@@ -185,10 +242,10 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   stockColumns,
   attendanceData,
   attendanceColumns,
-  isSidebarCollapsed
+  isSidebarCollapsed,
+  currentUser,
 }) => {
-  // ✅ SỬA #1: viewProjectWhitelist phải nằm BÊN TRONG component (hook useMemo hợp lệ),
-  // đặt ngay đầu thân component — VIEW_ID đã ở scope module nên luôn sẵn sàng ở đây.
+  // viewProjectWhitelist phải nằm BÊN TRONG component (hook useMemo hợp lệ).
   const viewProjectWhitelist = useMemo(
     () => getProjectsForView(VIEW_ID),
     []
@@ -198,27 +255,26 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   const productionStatusRef = useRef<HTMLDivElement>(null);
   const pivotWorkshopRef = useRef<HTMLDivElement>(null);
   const pivotProjectRef = useRef<HTMLDivElement>(null);
-  const pivotMaterialRef = useRef<HTMLDivElement>(null);
   const pivotMaterialStatusRef = useRef<HTMLDivElement>(null);
   const materialListRef = useRef<HTMLDivElement>(null);
   const khsxSectionRef = useRef<HTMLDivElement>(null);
   const inventorySectionRef = useRef<HTMLDivElement>(null);
-  // ✅ 2 bảng "Tình trạng đơn hàng theo Công trình" → mỗi bảng 1 ref riêng
+  // 2 bảng "Tình trạng đơn hàng theo Công trình" → mỗi bảng 1 ref riêng
   const projectSummaryRef = useRef<HTMLDivElement>(null);        // bảng mới (v2)
   const projectSummaryLegacyRef = useRef<HTMLDivElement>(null);  // bảng cũ
   const orderOverviewRef = useRef<HTMLDivElement>(null);
   const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
- const {
-  hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
-  xuongKey, hangMucKey, daysAtCurrentStageKey, phanLoaiNhomSanPhamKey, bopKey, triGiaDonHangTongKey, // ✅ thêm phanLoaiNhomSanPhamKey
-  thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+  const {
+    hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
+    xuongKey, hangMucKey, daysAtCurrentStageKey, phanLoaiNhomSanPhamKey, bopKey, triGiaDonHangTongKey,
+    thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
     matStatusSapKey, matEstDateKey,
     khsxXuongKey, khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
     invThanhTienKey, invXuongKey, invCongTrinhKey, invNamKey, invThangKey,
     invNgayKey, invDateKey, invTuanKey,
-    expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey, expSoLuongKey, // ✅ thêm expSoLuongKey
+    expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey, expSoLuongKey,
     stockDateKey, stockValueKey, stockSapIdKey,
     orderDateKey, orderValueKey, orderXuongKey, orderCongTrinhKey,
     tkbvDateKey, tkbvValueKey, tkbvXuongKey, tkbvCongTrinhKey,
@@ -235,68 +291,134 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     analysisColumns, attendanceColumns,
   });
 
-  
+  // ------------------------------------------------------------------------------
+  // 2 FILTER MỚI TRONG "BỘ LỌC TỔNG": Khách hàng + Khu vực dự án
+  // ------------------------------------------------------------------------------
+  const [selKhachHang, setSelKhachHang] = useState<string[]>([]);
+  const [selKhuVuc, setSelKhuVuc] = useState<string[]>([]);
 
-  // ------------------------------------------------------------------------------
-  // LỌC TOÀN BỘ DỮ LIỆU THEO DANH SÁCH CÔNG TRÌNH ĐÃ SETUP CHO VIEW "luong-do"
-  // (đặt SAU useColumnKeys — cần các xxxCongTrinhKey — và TRƯỚC mọi hook tiêu thụ
-  // dữ liệu bên dưới, để toàn bộ các phần của trang đều đồng bộ theo đúng 1 view).
-  //
-  // Nếu view chưa được setup gì ở trang Setup (danh sách rỗng), filterByView sẽ
-  // trả về mảng rỗng cho TẤT CẢ các bảng — đúng tinh thần "bộ lọc: chưa chọn thì
-  // chưa hiển thị".
-  //
-  // stockData và attendanceData KHÔNG có cột công trình trong useColumnKeys hiện tại
-  // nên tạm thời giữ nguyên, chưa lọc theo view. Xác nhận lại nếu cần lọc cả 2 bảng này.
-  // ------------------------------------------------------------------------------
-  const productionData = useMemo(
+  // Dữ liệu sản xuất đã lọc theo VIEW (chưa lọc Khách hàng / Khu vực)
+  // -> dùng để dựng projectMeta và danh sách lựa chọn của 2 filter mới.
+  const viewProductionData = useMemo(
     () => filterByView(rawProductionData, congTrinhKey, VIEW_ID),
     [rawProductionData, congTrinhKey]
   );
-  const materialData = useMemo(
-    () => filterByView(rawMaterialData, matCongTrinhKey, VIEW_ID),
-    [rawMaterialData, matCongTrinhKey]
+
+  // Gom BOT / Khách hàng / Khu vực dự án theo công trình (key = tên công trình viết HOA)
+  const projectMeta = useMemo<Record<string, ProjectMeta>>(() => {
+    const acc = new Map<string, { bot: Set<string>; khachHang: Set<string>; khuVuc: Set<string> }>();
+    if (!congTrinhKey) return {};
+    const clean = (v: unknown) => String(v ?? '').trim();
+
+    viewProductionData.forEach(row => {
+      const name = clean(row[congTrinhKey]).toUpperCase();
+      if (!name) return;
+      if (!acc.has(name)) acc.set(name, { bot: new Set(), khachHang: new Set(), khuVuc: new Set() });
+      const e = acc.get(name)!;
+      const bot = clean(row['bot_du_an']);
+      const kh = clean(row['khach_hang']);
+      const kv = clean(row['khu_vuc_du_an']);
+      if (bot) e.bot.add(bot);
+      if (kh) e.khachHang.add(kh);
+      if (kv) e.khuVuc.add(kv);
+    });
+
+    const out: Record<string, ProjectMeta> = {};
+    acc.forEach((v, k) => {
+      out[k] = { bot: [...v.bot], khachHang: [...v.khachHang], khuVuc: [...v.khuVuc] };
+    });
+    return out;
+  }, [viewProductionData, congTrinhKey]);
+
+  const khachHangOptions = useMemo(
+    () => Array.from(new Set(Object.values(projectMeta).flatMap(m => m.khachHang)))
+      .sort((a, b) => a.localeCompare(b, 'vi')),
+    [projectMeta]
   );
-  const khsxData = useMemo(
-    () => filterByView(rawKhsxData, khsxCongTrinhKey, VIEW_ID),
-    [rawKhsxData, khsxCongTrinhKey]
-  );
-  const orderData = useMemo(
-    () => filterByView(rawOrderData, orderCongTrinhKey, VIEW_ID),
-    [rawOrderData, orderCongTrinhKey]
-  );
-  const inventoryData = useMemo(
-    () => filterByView(rawInventoryData, invCongTrinhKey, VIEW_ID),
-    [rawInventoryData, invCongTrinhKey]
-  );
-  const tkbvData = useMemo(
-    () => filterByView(rawTkbvData, tkbvCongTrinhKey, VIEW_ID),
-    [rawTkbvData, tkbvCongTrinhKey]
-  );
-  const pthspData = useMemo(
-    () => filterByView(rawPthspData, pthspCongTrinhKey, VIEW_ID),
-    [rawPthspData, pthspCongTrinhKey]
-  );
-  const analysisData = useMemo(
-    () => filterByView(rawAnalysisData, analysisCongTrinhKey, VIEW_ID),
-    [rawAnalysisData, analysisCongTrinhKey]
-  );
-  const exportData = useMemo(
-    () => filterByView(rawExportData, expCongTrinhKey, VIEW_ID),
-    [rawExportData, expCongTrinhKey]
+  const khuVucOptions = useMemo(
+    () => Array.from(new Set(Object.values(projectMeta).flatMap(m => m.khuVuc)))
+      .sort((a, b) => a.localeCompare(b, 'vi')),
+    [projectMeta]
   );
 
-  console.log('DEBUG expThanhTienKey:', expThanhTienKey, 'expCongTrinhKey:', expCongTrinhKey);
-  console.log('DEBUG exportData sample:', exportData[0]);
-  console.log('DEBUG exportData length:', exportData.length);
+  // Tập công trình thỏa 2 filter mới; null = không lọc
+  const allowedProjects = useMemo<Set<string> | null>(() => {
+    if (selKhachHang.length === 0 && selKhuVuc.length === 0) return null;
+    const s = new Set<string>();
+    Object.entries(projectMeta).forEach(([name, m]) => {
+      if (selKhachHang.length && !m.khachHang.some(v => selKhachHang.includes(v))) return;
+      if (selKhuVuc.length && !m.khuVuc.some(v => selKhuVuc.includes(v))) return;
+      s.add(name);
+    });
+    return s;
+  }, [projectMeta, selKhachHang, selKhuVuc]);
+
+  const byMeta = (rows: DataRow[], key?: string): DataRow[] =>
+    allowedProjects && key
+      ? rows.filter(r => allowedProjects.has(String(r[key] ?? '').trim().toUpperCase()))
+      : rows;
+
+  // ------------------------------------------------------------------------------
+  // LỌC TOÀN BỘ DỮ LIỆU THEO DANH SÁCH CÔNG TRÌNH ĐÃ SETUP CHO VIEW "luong-do"
+  // + 2 filter Khách hàng / Khu vực dự án ở trên.
+  //
+  // stockData và attendanceData KHÔNG có cột công trình trong useColumnKeys hiện tại
+  // nên tạm thời giữ nguyên, chưa lọc theo view.
+  // ------------------------------------------------------------------------------
+  const productionData = useMemo(
+    () => byMeta(viewProductionData, congTrinhKey),
+    [viewProductionData, congTrinhKey, allowedProjects]
+  );
+  const materialData = useMemo(
+    () => byMeta(filterByView(rawMaterialData, matCongTrinhKey, VIEW_ID), matCongTrinhKey),
+    [rawMaterialData, matCongTrinhKey, allowedProjects]
+  );
+  const khsxData = useMemo(
+    () => byMeta(filterByView(rawKhsxData, khsxCongTrinhKey, VIEW_ID), khsxCongTrinhKey),
+    [rawKhsxData, khsxCongTrinhKey, allowedProjects]
+  );
+  const orderData = useMemo(
+    () => byMeta(filterByView(rawOrderData, orderCongTrinhKey, VIEW_ID), orderCongTrinhKey),
+    [rawOrderData, orderCongTrinhKey, allowedProjects]
+  );
+  const inventoryData = useMemo(
+    () => byMeta(filterByView(rawInventoryData, invCongTrinhKey, VIEW_ID), invCongTrinhKey),
+    [rawInventoryData, invCongTrinhKey, allowedProjects]
+  );
+  const tkbvData = useMemo(
+    () => byMeta(filterByView(rawTkbvData, tkbvCongTrinhKey, VIEW_ID), tkbvCongTrinhKey),
+    [rawTkbvData, tkbvCongTrinhKey, allowedProjects]
+  );
+  const pthspData = useMemo(
+    () => byMeta(filterByView(rawPthspData, pthspCongTrinhKey, VIEW_ID), pthspCongTrinhKey),
+    [rawPthspData, pthspCongTrinhKey, allowedProjects]
+  );
+  const analysisData = useMemo(
+    () => byMeta(filterByView(rawAnalysisData, analysisCongTrinhKey, VIEW_ID), analysisCongTrinhKey),
+    [rawAnalysisData, analysisCongTrinhKey, allowedProjects]
+  );
+  const exportData = useMemo(
+    () => byMeta(filterByView(rawExportData, expCongTrinhKey, VIEW_ID), expCongTrinhKey),
+    [rawExportData, expCongTrinhKey, allowedProjects]
+  );
+
+  // Whitelist gửi cho các API tổng quan / tồn kho: thu hẹp theo 2 filter mới.
+  // (priorityOrder của bảng v2 vẫn dùng viewProjectWhitelist gốc để STT không đổi.)
+  const effectiveWhitelist = useMemo(
+    () => allowedProjects
+      ? viewProjectWhitelist.filter(p => allowedProjects.has(p.trim().toUpperCase()))
+      : viewProjectWhitelist,
+    [viewProjectWhitelist, allowedProjects]
+  );
+
   const {
     filters,
     setFilters,
     hasActiveFilters,
     clearFilters,
     filteredProductionData,
-    funnelProductionData,          // THÊM
-    projectSummaryProductionData,  // THÊM
+    funnelProductionData,
+    projectSummaryProductionData,
     filteredMaterialData,
     displayedMaterialData,
     selectedMaterialGroups,
@@ -338,8 +460,6 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
   const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
 
   // Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
-  // Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
-  // thang/tuan/ngay — nên effect chỉ re-run khi giá trị năm thay đổi.
   const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
 
   useEffect(() => {
@@ -429,8 +549,7 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     expXuongKey,
     filters,
     unifiedDateOptions,
-    // ✅ SỬA #3a
-    viewProjectWhitelist,
+    viewProjectWhitelist: effectiveWhitelist,
   });
 
   const {
@@ -475,7 +594,7 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     latestUnifiedDate,
     overviewMetric,
     filters,
-    viewProjectWhitelist,
+    viewProjectWhitelist: effectiveWhitelist,
   });
 
   const {
@@ -490,11 +609,12 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
 
     cardMetrics,
     projectStatusSummary,
-    projectStatusSummaryV2,     // THÊM
+    projectStatusSummaryV2,
     onLineStageBreakdown,
-    onLineStageBreakdownV2,     // THÊM
+    onLineStageBreakdownV2,
+    onLineAreaBreakdownV2,      // breakdown theo khu vực sản xuất
     hexRowsByColumn,
-    hexRowsByColumnV2,          // THÊM
+    hexRowsByColumnV2,
     pivotWorkshopData,
     pivotFunnelData,
     funnelBreakdownByBop,
@@ -505,7 +625,7 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     lineChartData,
     bottleneckData,
     topBottlenecks,
-   } = usePivotTables({
+  } = usePivotTables({
     filteredProductionData,
     funnelProductionData,
     projectSummaryProductionData,
@@ -517,7 +637,7 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     congTrinhKey, hangMucKey, daysAtCurrentStageKey,
     triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
-    tinhTrangIpoKey, // ✅ MỚI
+    tinhTrangIpoKey,
   });
 
   const {
@@ -600,10 +720,6 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     bottleneckData,
   });
 
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
-    if (ref.current) ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
   const handleContinueToOrderColumnStep = () => {
     setIsOrderExportScopeModalOpen(false);
     setSelectedOrderExportColumns(effectiveOrderColumns.map(c => c.key));
@@ -645,125 +761,114 @@ const ConstructionRedFlow: React.FC<ConstructionRedFlowProps> = ({
     fullTarget: targetRevenue2026,
   }], [factoryRevenueStats.actual, targetRevenue2026]);
 
-  // ✅ MỚI: Gộp "Xuất kho" theo công trình từ exportData (đã filter theo view).
-  // - VALUE: tổng thanh_tien_xuat_kho / 1000 — quy về cùng thang (nghìn -> để
-  //   khớp cách totalOrder/inventory đang chia /1000 ở usePivotTables).
-  // - COUNT: đếm số dòng có giá trị xuất kho > 0 (số hạng mục đã xuất).
-  // Chuẩn hóa UPPER/TRIM khi gộp và khi tra cứu, đồng bộ với cách backend
-  // (server.ts) đang so khớp ten_cong_trinh giữa các bảng.
-// ✅ SỬA: đếm số HEX DUY NHẤT (COUNT) hoặc tổng thành tiền (VALUE) từ exportData,
-// chỉ tính các dòng có tinh_doi_voi_hang_tp = "TÍNH" (đối với hàng thành phẩm).
-const exportedByProject = useMemo(() => {
-  const map = new Map<string, number>();
-  if (!expCongTrinhKey) return map;
-  const isCount = projectSummaryMetric === 'COUNT';
+  // Gộp "Xuất kho" theo công trình từ exportData (đã filter theo view):
+  // đếm số HEX DUY NHẤT (COUNT) hoặc tổng thành tiền (VALUE), chỉ tính các dòng
+  // có tinh_doi_voi_hang_tp = "TÍNH" (đối với hàng thành phẩm).
+  const exportedByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!expCongTrinhKey) return map;
+    const isCount = projectSummaryMetric === 'COUNT';
 
-  if (isCount) {
-    // COUNT: đếm số hex duy nhất theo từng công trình, chỉ tính dòng "TÍNH"
-    const hexSetByProject = new Map<string, Set<string>>();
-    exportData.forEach(row => {
-      const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
-      if (!name) return;
-      const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
-      if (tinh !== 'TÍNH') return;
-      const hex = String(row['hex'] || '').trim();
-      if (!hex) return;
-      if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
-      hexSetByProject.get(name)!.add(hex);
-    });
-    hexSetByProject.forEach((set, name) => map.set(name, set.size));
-  } else {
-    // VALUE: tổng thành tiền xuất kho, chỉ tính dòng "TÍNH"
-    exportData.forEach(row => {
-      const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
-      if (!name) return;
-      const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
-      if (tinh !== 'TÍNH') return;
-      const raw = parseNumber(row[expThanhTienKey]);
-      map.set(name, (map.get(name) || 0) + raw / 1000);
-    });
-  }
+    if (isCount) {
+      const hexSetByProject = new Map<string, Set<string>>();
+      exportData.forEach(row => {
+        const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
+        if (tinh !== 'TÍNH') return;
+        const hex = String(row['hex'] || '').trim();
+        if (!hex) return;
+        if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
+        hexSetByProject.get(name)!.add(hex);
+      });
+      hexSetByProject.forEach((set, name) => map.set(name, set.size));
+    } else {
+      exportData.forEach(row => {
+        const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
+        if (tinh !== 'TÍNH') return;
+        const raw = parseNumber(row[expThanhTienKey]);
+        map.set(name, (map.get(name) || 0) + raw / 1000);
+      });
+    }
 
-  return map;
-}, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
+    return map;
+  }, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
 
-// ✅ MỚI: Gộp "Nhập kho" theo công trình từ inventoryData (bảng nhap_kho),
-// thay vì lấy từ thanhTienNhapKhoKey trong production_status_app — để khớp
-// đúng với InventoryDetailModal khi bấm vào xem chi tiết.
-const inventoryByProject = useMemo(() => {
-  const map = new Map<string, number>();
-  if (!invCongTrinhKey) return map;
-  const isCount = projectSummaryMetric === 'COUNT';
+  // Gộp "Nhập kho" theo công trình từ inventoryData (bảng nhap_kho) để khớp
+  // đúng với InventoryDetailModal khi bấm vào xem chi tiết.
+  const inventoryByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!invCongTrinhKey) return map;
+    const isCount = projectSummaryMetric === 'COUNT';
 
-  if (isCount) {
-    // COUNT: đếm số hex duy nhất theo từng công trình
-    const hexSetByProject = new Map<string, Set<string>>();
-    inventoryData.forEach(row => {
-      const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
-      if (!name) return;
-      const hex = String(row['hex'] || '').trim();
-      if (!hex) return;
-      if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
-      hexSetByProject.get(name)!.add(hex);
-    });
-    hexSetByProject.forEach((set, name) => map.set(name, set.size));
-  } else {
-    // VALUE: tổng thành tiền nhập kho
-    inventoryData.forEach(row => {
-      const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
-      if (!name) return;
-      const raw = parseNumber(row[invThanhTienKey]);
-      map.set(name, (map.get(name) || 0) + raw / 1000);
-    });
-  }
+    if (isCount) {
+      const hexSetByProject = new Map<string, Set<string>>();
+      inventoryData.forEach(row => {
+        const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const hex = String(row['hex'] || '').trim();
+        if (!hex) return;
+        if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
+        hexSetByProject.get(name)!.add(hex);
+      });
+      hexSetByProject.forEach((set, name) => map.set(name, set.size));
+    } else {
+      inventoryData.forEach(row => {
+        const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
+        if (!name) return;
+        const raw = parseNumber(row[invThanhTienKey]);
+        map.set(name, (map.get(name) || 0) + raw / 1000);
+      });
+    }
 
-  return map;
-}, [inventoryData, invCongTrinhKey, invThanhTienKey, projectSummaryMetric]);
+    return map;
+  }, [inventoryData, invCongTrinhKey, invThanhTienKey, projectSummaryMetric]);
 
-  // ✅ Adapter: chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
+  // Adapter: chuyển projectStatusSummaryV2 sang kiểu của ProjectSummarySection_v2.
   // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
-  // ✅ Adapter: chuyển projectStatusSummary (kiểu cũ) sang kiểu của ProjectSummarySection_v2.
-  // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
-const projectOrderSummary = useMemo(
-  () =>
-    projectStatusSummaryV2.map(row => {
-      const cancelled = row.cancelled;
-      const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
-      const inventory = inventoryByProject.get(row.name.trim().toUpperCase()) || 0; // ✅ SỬA
-      const notDeployed = row.notDeployed;
-      const onLine = row.inProduction;
-      return {
-        name: row.name,
-        totalOrder: row.totalOrder,
-        cancelled,
-        afterCancel: row.totalOrder - cancelled,
-        inventory, // ✅ SỬA: dùng giá trị mới thay vì row.inventory
-        exported,
-        notDeployed,
-        onLine,
-        remaining: notDeployed + onLine,
-      };
-    }),
-  [projectStatusSummaryV2, exportedByProject, inventoryByProject] // ✅ thêm inventoryByProject
-);
+  const projectOrderSummary = useMemo(
+    () =>
+      projectStatusSummaryV2.map(row => {
+        const cancelled = row.cancelled;
+        const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
+        const inventory = inventoryByProject.get(row.name.trim().toUpperCase()) || 0;
+        const notDeployed = row.notDeployed;
+        return {
+          name: row.name,
+          totalOrder: row.totalOrder,
+          cancelled,
+          afterCancel: row.totalOrder - cancelled,
+          inventory,
+          exported,
+          notDeployed,
+          p002: row.p002,          // Chưa tính phiếu P002
+          onLine: row.onLine,      // P012 -> P021
+          // Giữ nguyên nghĩa cũ: chưa triển khai + toàn bộ đang sản xuất (kể cả P012)
+          remaining: notDeployed + row.inProduction,
+        };
+      }),
+    [projectStatusSummaryV2, exportedByProject, inventoryByProject]
+  );
 
   // -------------------------------------------------------------------------
   // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
-  // Bấm vào bất kỳ số nào trong 6 cột có dữ liệu thật sẽ mở modal liệt kê
-  // từng hex gốc đứng sau con số đó. projectName = null nghĩa là bấm từ dòng
-  // TỔNG CỘNG (xem tất cả công trình).
+  // projectName = null nghĩa là bấm từ dòng TỔNG CỘNG (xem tất cả công trình).
+  // area (tùy chọn) = khu vực sản xuất, dùng khi bấm từ modal "Đang trên chuyền".
   // -------------------------------------------------------------------------
- const [hexDetail, setHexDetail] = useState<{
-  open: boolean;
-  column: HexDetailColumn | null;
-  projectName: string | null;
-  stage: string | null;
-}>({ open: false, column: null, projectName: null, stage: null });
+  const [hexDetail, setHexDetail] = useState<{
+    open: boolean;
+    column: HexDetailColumn | null;
+    projectName: string | null;
+    stage: string | null;
+    area?: string | null;
+  }>({ open: false, column: null, projectName: null, stage: null });
 
-const [onLineStageDetail, setOnLineStageDetail] = useState<{
-  open: boolean;
-  projectName: string | null;
-}>({ open: false, projectName: null });
+  const [onLineStageDetail, setOnLineStageDetail] = useState<{
+    open: boolean;
+    projectName: string | null;
+  }>({ open: false, projectName: null });
 
   const [exportDetail, setExportDetail] = useState<{
     open: boolean;
@@ -771,133 +876,158 @@ const [onLineStageDetail, setOnLineStageDetail] = useState<{
   }>({ open: false, projectName: null });
 
   const [inventoryDetail, setInventoryDetail] = useState<{
-  open: boolean;
-  projectName: string | null;
-}>({ open: false, projectName: null });
+    open: boolean;
+    projectName: string | null;
+  }>({ open: false, projectName: null });
 
+  const hexDetailRows = useMemo(() => {
+    if (!hexDetail.open || !hexDetail.column) return [];
+    let source = hexRowsByColumnV2[hexDetail.column as keyof typeof hexRowsByColumnV2] ?? [];
+    if (hexDetail.projectName && congTrinhKey) {
+      source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
+    }
+    // TOTAL_STAGE = tất cả công đoạn đang trên chuyền -> không lọc thêm theo stage
+    if (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE && bopKey) {
+      source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
+    }
+    // Lọc theo khu vực sản xuất khi bấm từ modal "Đang trên chuyền"
+    if (hexDetail.area && xuongKey) {
+      source = source.filter(
+        row => (String(row[xuongKey] || '').trim() || 'Chưa xác định') === hexDetail.area
+      );
+    }
+    return source;
+  }, [hexDetail, hexRowsByColumnV2, congTrinhKey, bopKey, xuongKey]);
 
-const hexDetailRows = useMemo(() => {
-  if (!hexDetail.open || !hexDetail.column) return [];
-  let source = hexRowsByColumnV2[hexDetail.column] ?? [];
-  if (hexDetail.projectName && congTrinhKey) {
-    source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
-  }
-  // ✅ TOTAL_STAGE = tất cả công đoạn P002->P021 -> không lọc thêm theo stage
-  if (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE && bopKey) {
-    source = source.filter(row => extractStage(row[bopKey]) === hexDetail.stage);
-  }
-  return source;
-}, [hexDetail, hexRowsByColumnV2, congTrinhKey, bopKey]);
-
-const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
-  () => ({
-    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, // ✅ thay daysAtCurrentStageKey
-  }),
-  [
-    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
-    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
-  ]
-);
-
-const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
-  () => ({
-    hexKey: 'hex',
-    hangMucKey: 'ten_hang_muc', // ✅ MỚI
-    congTrinhKey: expCongTrinhKey,
-    xuongKey: expXuongKey,
-    dateKey: expDateKey,
-    soLuongKey: expSoLuongKey,
-    thanhTienKey: expThanhTienKey,
-    ghiChuXuatKhoKey: 'ghi_chu',
-  }),
-  [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
-);
-
-const exportDetailRows = useMemo(() => {
-  if (!exportDetail.open || !expCongTrinhKey) return [];
-
-  const base = exportDetail.projectName
-    ? exportData.filter(
-        row => String(row[expCongTrinhKey] || '').trim().toUpperCase() === exportDetail.projectName!.trim().toUpperCase()
-      )
-    : exportData; // dòng TỔNG CỘNG -> xem tất cả công trình
-
-  // ✅ Lọc thêm theo tinh_doi_voi_hang_tp = "TÍNH" để khớp đúng cách card đang đếm
-  return base.filter(
-    row => String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase() === 'TÍNH'
+  const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
+    () => ({
+      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+      phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    }),
+    [
+      hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+      phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+    ]
   );
-}, [exportDetail, exportData, expCongTrinhKey]);
 
-const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
-  () => ({
-    hexKey: 'hex',
-    hangMucKey: 'ten_hang_muc', // ✅ MỚI
-    congTrinhKey: invCongTrinhKey,
-    xuongKey: invXuongKey,
-    dateKey: invDateKey,
-    thanhTienKey: invThanhTienKey,
-    ghiChuKey: 'ghi_chu',
-    soLuongKey: 'so_luong_nhap_kho',
-  }),
-  [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
-);
-
-const inventoryDetailRows = useMemo(() => {
-  if (!inventoryDetail.open || !invCongTrinhKey) return [];
-  if (!inventoryDetail.projectName) return inventoryData; // TỔNG CỘNG -> xem tất cả
-  const target = inventoryDetail.projectName.trim().toUpperCase();
-  return inventoryData.filter(
-    row => String(row[invCongTrinhKey] || '').trim().toUpperCase() === target
+  const exportDetailColumnKeys: ExportDetailColumnKeys = useMemo(
+    () => ({
+      hexKey: 'hex',
+      hangMucKey: 'ten_hang_muc',
+      congTrinhKey: expCongTrinhKey,
+      xuongKey: expXuongKey,
+      dateKey: expDateKey,
+      soLuongKey: expSoLuongKey,
+      thanhTienKey: expThanhTienKey,
+      ghiChuXuatKhoKey: 'ghi_chu',
+    }),
+    [expCongTrinhKey, expXuongKey, expDateKey, expSoLuongKey, expThanhTienKey]
   );
-}, [inventoryDetail, inventoryData, invCongTrinhKey]);
 
-  // ✅ MỚI: bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở
-  // HexDetailModal đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và
-  // resolveFunnelHexTarget ở đầu file).
+  const exportDetailRows = useMemo(() => {
+    if (!exportDetail.open || !expCongTrinhKey) return [];
+
+    const base = exportDetail.projectName
+      ? exportData.filter(
+          row => String(row[expCongTrinhKey] || '').trim().toUpperCase() === exportDetail.projectName!.trim().toUpperCase()
+        )
+      : exportData; // dòng TỔNG CỘNG -> xem tất cả công trình
+
+    // Lọc thêm theo tinh_doi_voi_hang_tp = "TÍNH" để khớp đúng cách card đang đếm
+    return base.filter(
+      row => String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase() === 'TÍNH'
+    );
+  }, [exportDetail, exportData, expCongTrinhKey]);
+
+  const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
+    () => ({
+      hexKey: 'hex',
+      hangMucKey: 'ten_hang_muc',
+      congTrinhKey: invCongTrinhKey,
+      xuongKey: invXuongKey,
+      dateKey: invDateKey,
+      thanhTienKey: invThanhTienKey,
+      ghiChuKey: 'ghi_chu',
+      soLuongKey: 'so_luong_nhap_kho',
+    }),
+    [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
+  );
+
+  const inventoryDetailRows = useMemo(() => {
+    if (!inventoryDetail.open || !invCongTrinhKey) return [];
+    if (!inventoryDetail.projectName) return inventoryData; // TỔNG CỘNG -> xem tất cả
+    const target = inventoryDetail.projectName.trim().toUpperCase();
+    return inventoryData.filter(
+      row => String(row[invCongTrinhKey] || '').trim().toUpperCase() === target
+    );
+  }, [inventoryDetail, inventoryData, invCongTrinhKey]);
+
+  // Bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở HexDetailModal
+  // đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và resolveFunnelHexTarget).
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
     const target = resolveFunnelHexTarget(name, item);
     if (!target) return; // vd. bước P022 (Tồn kho) không có dữ liệu hex gốc
     setHexDetail({ open: true, column: target.column, projectName: target.projectName, stage: target.stage });
   };
 
-  const onLineStageRows: StageDetailRow[] = useMemo(
-    () =>
-      Object.entries(onLineStageBreakdownV2)  // SỬA
-        .map(([name, values]) => ({ name, values }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [onLineStageBreakdownV2]  // SỬA
-  );
+  // Rows cho modal "Đang trên chuyền" — mỗi dòng là 1 KHU VỰC SẢN XUẤT.
+  // Bấm 1 công trình: chỉ lấy khu vực của công trình đó.
+  // Bấm TỔNG CỘNG: cộng dồn tất cả công trình theo khu vực.
+  const onLineStageRows = useMemo<StageDetailRow[]>(() => {
+    if (!onLineStageDetail.open) return [];
 
-const displayedOnLineStageRows = onLineStageDetail.projectName
-  ? onLineStageRows.filter(r => r.name === onLineStageDetail.projectName)
-  : onLineStageRows;
+    const projects = onLineStageDetail.projectName
+      ? [onLineStageDetail.projectName]
+      : Object.keys(onLineAreaBreakdownV2);
+
+    const merged: Record<string, Record<string, number>> = {};
+    projects.forEach(p => {
+      const areas = onLineAreaBreakdownV2[p.trim()] ?? {};
+      Object.entries(areas).forEach(([area, stages]) => {
+        if (!merged[area]) merged[area] = {};
+        Object.entries(stages).forEach(([stage, v]) => {
+          merged[area][stage] = (merged[area][stage] || 0) + v;
+        });
+      });
+    });
+
+    return Object.entries(merged)
+      .map(([name, values]) => ({ name, values }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [onLineStageDetail, onLineAreaBreakdownV2]);
+
+  // Trạng thái mở/ẩn của 5 khối có thể thu gọn (phải nằm TRƯỚC early return).
+  const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(DEFAULT_OPEN_SECTIONS);
+
+  const toggleSection = (id: SectionId) =>
+    setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
 
   const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
 
   useEffect(() => {
-  if (activeFunnelItem?.id === 'P022') {
-    loadStockByProject();
-  }
-}, [activeFunnelItem, loadStockByProject]);
+    if (activeFunnelItem?.id === 'P022') {
+      loadStockByProject();
+    }
+  }, [activeFunnelItem, loadStockByProject]);
 
- const activeFunnelPivotData = useMemo(() => {
+  const activeFunnelPivotData = useMemo(() => {
     if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> giữ tổng theo BOP như cũ
 
     // P022. TỒN KHO không nằm trong filteredProductionData/bopKey như các bước
-    // khác -> không có trong funnelBreakdownByBop. Lấy breakdown riêng từ
-    // stockByProjectData (đã fetch qua loadStockByProject ở effect trên).
+    // khác -> lấy breakdown riêng từ stockByProjectData.
     if (activeFunnelItem.id === 'P022') {
-  return {
-    data: stockByProjectData,
-    total: stockByProjectData.reduce((sum, r) => sum + r.value, 0),
-  };
-}
+      return {
+        data: stockByProjectData,
+        total: stockByProjectData.reduce((sum, r) => sum + r.value, 0),
+      };
+    }
 
     return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
   }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
 
-  if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
+  // Chỉ hiện thông báo "chưa setup" khi KHÔNG đang lọc Khách hàng / Khu vực;
+  // nếu đang lọc mà ra rỗng thì vẫn giữ thanh bộ lọc để người dùng xóa lọc.
+  if (!allowedProjects && productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
         Chưa có công trình nào được setup cho view này. Vào Công trình → Setup phân loại để chọn công trình.
@@ -932,24 +1062,6 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
             <div>
               <h2 className="text-xl font-bold text-slate-800">Công trình luồng đỏ</h2>
             </div>
-            {/* Anchor Buttons */}
-            <div className="flex gap-2">
-              <button onClick={() => scrollToRef(factoryRevenueRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Doanh số nhà máy">
-                <Target size={14} className="text-emerald-600" /> Doanh số
-              </button>
-              <button onClick={() => scrollToRef(orderOverviewRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Tổng quan Đơn hàng">
-                <ShoppingCart size={14} className="text-pink-600" /> Tổng quan
-              </button>
-              <button onClick={() => scrollToRef(productionStatusRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Tình trạng sản xuất">
-                <CheckCircle size={14} className="text-emerald-600" /> Tình trạng sản xuất
-              </button>
-              <button onClick={() => scrollToRef(bottleneckSectionRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Báo cáo Điểm nghẽn">
-                <AlertTriangle size={14} className="text-red-600" /> Điểm nghẽn
-              </button>
-              <button onClick={() => scrollToRef(khsxSectionRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Kế hoạch & Nhập kho">
-                <BarChart2 size={14} className="text-indigo-600" /> Kế hoạch-Thực hiện
-              </button>
-            </div>
           </div>
 
           {/* Dashboard Filters */}
@@ -957,6 +1069,22 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
             <div className="flex items-center gap-2 mr-1 text-slate-500">
               <Filter size={14} /> <span className="text-[10px] uppercase font-bold">Bộ lọc tổng:</span>
             </div>
+               {khachHangOptions.length > 0 && (
+              <DashboardFilter
+                label="Khách Hàng"
+                options={khachHangOptions}
+                selectedValues={selKhachHang}
+                onChange={setSelKhachHang}
+              />
+            )}
+            {khuVucOptions.length > 0 && (
+              <DashboardFilter
+                label="Khu Vực Dự Án"
+                options={khuVucOptions}
+                selectedValues={selKhuVuc}
+                onChange={setSelKhuVuc}
+              />
+            )}
             {congTrinhKey && (
               <DashboardFilter
                 label="Tên Công Trình"
@@ -989,9 +1117,10 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
                 onChange={(vals) => setFilters(prev => ({ ...prev, tinhTrang: vals }))}
               />
             )}
-            {hasActiveFilters && (
+       
+            {(hasActiveFilters || selKhachHang.length > 0 || selKhuVuc.length > 0) && (
               <button
-                onClick={clearFilters}
+                onClick={() => { clearFilters(); setSelKhachHang([]); setSelKhuVuc([]); }}
                 className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 title="Xóa bộ lọc"
               >
@@ -1004,12 +1133,12 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
 
       <div className="px-4 md:px-8 space-y-6">
 
-        {/* ✅ BẢNG MỚI (v2): dùng dữ liệu đã qua adapter projectOrderSummary */}
-              <ProjectSummarySection_v2
+        {/* BẢNG MỚI (v2): dùng dữ liệu đã qua adapter projectOrderSummary */}
+        <ProjectSummarySection_v2
           sectionRef={projectSummaryRef}
           projectStatusSummary={projectOrderSummary}
           priorityOrder={viewProjectWhitelist}
-          clickableColumns={['totalOrder', 'afterCancel', 'inventory', 'notDeployed', 'onLine', 'remaining', 'cancelled', 'exported']}
+          clickableColumns={['totalOrder', 'inventory', 'exported', 'notDeployed', 'p002', 'onLine', 'remaining']}
           onCellClick={({ projectName, column }) => {
             if (column === 'onLine') {
               setOnLineStageDetail({ open: true, projectName });
@@ -1019,11 +1148,8 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
               setExportDetail({ open: true, projectName });
               return;
             }
-            // ✅ SỬA: cột "inventory" (Đã Nhập Kho P022) phải mở InventoryDetailModal,
-            // lấy dữ liệu thật từ bảng nhap_kho (inventoryData) — cùng nguồn với
-            // số đang hiển thị ở bảng tổng quan. Trước đây nó rơi vào nhánh
-            // isHexDetailColumn() và mở nhầm HexDetailModal (suy ra từ
-            // filteredProductionData), khiến số hex trong chi tiết không khớp.
+            // Cột "inventory" (Đã Nhập Kho P022) mở InventoryDetailModal, lấy dữ liệu
+            // thật từ bảng nhap_kho (inventoryData) — cùng nguồn với số đang hiển thị.
             if (column === 'inventory') {
               setInventoryDetail({ open: true, projectName });
               return;
@@ -1034,29 +1160,44 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
           }}
           projectSummaryMetric={projectSummaryMetric}
           setProjectSummaryMetric={setProjectSummaryMetric}
+          projectMeta={projectMeta}
         />
 
-<ContructionRevenueSection
-  sectionRef={factoryRevenueRef}
-  targetRevenue2026={targetRevenue2026}
-  factoryRevenueStats={factoryRevenueStats}
-  customFunnelData={customFunnelData}
-  pivotFunnelData={activeFunnelPivotData}
-  workshopMetric={workshopMetric}
-  useDetailedNumbers={true}
-  onFunnelItemClick={setActiveFunnelItem}
-  onFunnelModalClose={() => setActiveFunnelItem(null)}
-  onPivotValueClick={handleFunnelPivotValueClick}
-/>
+        <ContructionRevenueSection
+          sectionRef={factoryRevenueRef}
+          targetRevenue2026={targetRevenue2026}
+          factoryRevenueStats={factoryRevenueStats}
+          customFunnelData={customFunnelData}
+          pivotFunnelData={activeFunnelPivotData}
+          workshopMetric={workshopMetric}
+          useDetailedNumbers={true}
+          onFunnelItemClick={setActiveFunnelItem}
+          onFunnelModalClose={() => setActiveFunnelItem(null)}
+          onPivotValueClick={handleFunnelPivotValueClick}
+        />
 
-        {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}
+        <PivotMaterialStatusSection
+          sectionRef={pivotMaterialStatusRef}
+          pivotMaterialStatusData={pivotMaterialStatusData}
+          matStatusMetric={matStatusMetric}
+          setMatStatusMetric={setMatStatusMetric}
+          selectedMaterialGroups={selectedMaterialGroups}
+          setSelectedMaterialGroups={setSelectedMaterialGroups}
+          toggleMaterialGroup={toggleMaterialGroup}
+        />
+        <MaterialListSection
+          sectionRef={materialListRef}
+          displayedMaterialData={displayedMaterialData}
+          getMaterialRowClassName={getMaterialRowClassName}
+        />
+
+        {/* --- ORDER OVERVIEW (BÁO CÁO TỔNG QUAN) --- */}
         <OrderOverviewSection
           sectionRef={orderOverviewRef}
           isSidebarCollapsed={isSidebarCollapsed}
           hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
           filters={filters}
-          // ✅ SỬA #3b
-          viewProjectWhitelist={viewProjectWhitelist}
+          viewProjectWhitelist={effectiveWhitelist}
           useDetailedNumbers={true}
           overviewMetric={overviewMetric}
           setOverviewMetric={setOverviewMetric}
@@ -1083,85 +1224,102 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
           getGroupAnalysisFilterKey={getGroupAnalysisFilterKey}
         />
 
-        <ProductionStatusSection
-          sectionRef={productionStatusRef}
-          pivotWorkshopRef={pivotWorkshopRef}
-          cardMetrics={cardMetrics}
-          pivotWorkshopData={pivotWorkshopData}
-          workshopMetric={workshopMetric}
-          setWorkshopMetric={setWorkshopMetric}
-          expandedBops={expandedBops}
-          setExpandedBops={setExpandedBops}
-          handleExportProductionStatus={handleExportProductionStatus}
-        />
-        <BottleneckSection
-          sectionRef={bottleneckSectionRef}
-          bottleneckData={bottleneckData}
-          topBottlenecks={topBottlenecks}
-          bottleneckViewMode={bottleneckViewMode}
-          setBottleneckViewMode={setBottleneckViewMode}
-          handleExportBottlenecks={handleExportBottlenecks}
-        />
+        {/* 1. TÌNH TRẠNG SẢN XUẤT (thu gọn) */}
+        <CollapsibleSection
+          title={SECTION_LABELS.productionStatus}
+          open={openSections.productionStatus}
+          onToggle={() => toggleSection('productionStatus')}
+        >
+          <ProductionStatusSection
+            sectionRef={productionStatusRef}
+            pivotWorkshopRef={pivotWorkshopRef}
+            cardMetrics={cardMetrics}
+            pivotWorkshopData={pivotWorkshopData}
+            workshopMetric={workshopMetric}
+            setWorkshopMetric={setWorkshopMetric}
+            expandedBops={expandedBops}
+            setExpandedBops={setExpandedBops}
+            handleExportProductionStatus={handleExportProductionStatus}
+          />
+        </CollapsibleSection>
 
-        <KhsxPlanActualSection
-          sectionRef={khsxSectionRef}
-          inventorySectionRef={inventorySectionRef}
-          khsxDataLength={khsxData.length}
-          inventoryDataLength={inventoryData.length}
-          unifiedTimeFilters={unifiedTimeFilters}
-          setUnifiedTimeFilters={setUnifiedTimeFilters}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          unifiedNamOptions={unifiedNamOptions}
-          unifiedThangOptions={unifiedThangOptions}
-          unifiedTuanOptions={unifiedTuanOptions}
-          unifiedNgayOptions={unifiedNgayOptions}
-          totalKhsxAmount={totalKhsxAmount}
-          completionRate={completionRate}
-          totalInventoryAmount={totalInventoryAmount}
-          combinedWorkshopData={combinedWorkshopData}
-          combinedProjectData={combinedProjectData}
-          weeklyPlanVsActualData={weeklyPlanVsActualData}
-          productivityAnalysisData={productivityAnalysisData}
-          yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
-          selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
-        />
+        {/* 2. BÁO CÁO ĐIỂM NGHẼN (thu gọn) */}
+        <CollapsibleSection
+          title={SECTION_LABELS.bottleneck}
+          open={openSections.bottleneck}
+          onToggle={() => toggleSection('bottleneck')}
+        >
+          <BottleneckSection
+            sectionRef={bottleneckSectionRef}
+            bottleneckData={bottleneckData}
+            topBottlenecks={topBottlenecks}
+            bottleneckViewMode={bottleneckViewMode}
+            setBottleneckViewMode={setBottleneckViewMode}
+            handleExportBottlenecks={handleExportBottlenecks}
+          />
+        </CollapsibleSection>
 
-        {/* ✅ BẢNG CŨ: giữ dữ liệu cũ (projectStatusSummary), dùng ref riêng */}
-        <ProjectSummarySection
-          sectionRef={projectSummaryLegacyRef}
-          projectStatusSummary={projectStatusSummary}
-          projectSummaryMetric={projectSummaryMetric}
-          setProjectSummaryMetric={setProjectSummaryMetric}
-        />
+        {/* 3. KẾ HOẠCH & NHẬP KHO (thu gọn) */}
+        <CollapsibleSection
+          title={SECTION_LABELS.khsxPlanActual}
+          open={openSections.khsxPlanActual}
+          onToggle={() => toggleSection('khsxPlanActual')}
+        >
+          <KhsxPlanActualSection
+            sectionRef={khsxSectionRef}
+            inventorySectionRef={inventorySectionRef}
+            khsxDataLength={khsxData.length}
+            inventoryDataLength={inventoryData.length}
+            unifiedTimeFilters={unifiedTimeFilters}
+            setUnifiedTimeFilters={setUnifiedTimeFilters}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            unifiedNamOptions={unifiedNamOptions}
+            unifiedThangOptions={unifiedThangOptions}
+            unifiedTuanOptions={unifiedTuanOptions}
+            unifiedNgayOptions={unifiedNgayOptions}
+            totalKhsxAmount={totalKhsxAmount}
+            completionRate={completionRate}
+            totalInventoryAmount={totalInventoryAmount}
+            combinedWorkshopData={combinedWorkshopData}
+            combinedProjectData={combinedProjectData}
+            weeklyPlanVsActualData={weeklyPlanVsActualData}
+            productivityAnalysisData={productivityAnalysisData}
+            yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
+            selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
+          />
+        </CollapsibleSection>
 
-        <PivotProjectSection
-          sectionRef={pivotProjectRef}
-          pivotProjectData={pivotProjectData}
-          projectMetric={projectMetric}
-          setProjectMetric={setProjectMetric}
-          excludeFabrics={excludeFabrics}
-          setExcludeFabrics={setExcludeFabrics}
-        />
+        {/* 4. BẢNG CŨ: giữ dữ liệu cũ (projectStatusSummary), dùng ref riêng (thu gọn) */}
+        <CollapsibleSection
+          title={SECTION_LABELS.projectSummaryLegacy}
+          open={openSections.projectSummaryLegacy}
+          onToggle={() => toggleSection('projectSummaryLegacy')}
+        >
+          <ProjectSummarySection
+            sectionRef={projectSummaryLegacyRef}
+            projectStatusSummary={projectStatusSummary}
+            projectSummaryMetric={projectSummaryMetric}
+            setProjectSummaryMetric={setProjectSummaryMetric}
+          />
+        </CollapsibleSection>
 
+        {/* 5. CHI TIẾT GIÁ TRỊ (CÔNG TRÌNH x TÌNH TRẠNG) (thu gọn) */}
+        <CollapsibleSection
+          title={SECTION_LABELS.pivotProject}
+          open={openSections.pivotProject}
+          onToggle={() => toggleSection('pivotProject')}
+        >
+          <PivotProjectSection
+            sectionRef={pivotProjectRef}
+            pivotProjectData={pivotProjectData}
+            projectMetric={projectMetric}
+            setProjectMetric={setProjectMetric}
+            excludeFabrics={excludeFabrics}
+            setExcludeFabrics={setExcludeFabrics}
+          />
+        </CollapsibleSection>
 
-
-      <PivotMaterialStatusSection
-  sectionRef={pivotMaterialStatusRef}   // ✅ đổi từ materialStatusRef
-  pivotMaterialStatusData={pivotMaterialStatusData}
-  matStatusMetric={matStatusMetric}
-  setMatStatusMetric={setMatStatusMetric}
-  selectedMaterialGroups={selectedMaterialGroups}
-  setSelectedMaterialGroups={setSelectedMaterialGroups}
-  toggleMaterialGroup={toggleMaterialGroup}
-/>
-        <MaterialListSection
-          sectionRef={materialListRef}
-          displayedMaterialData={displayedMaterialData}
-          getMaterialRowClassName={getMaterialRowClassName}
-        />
-
-    
       </div>
 
       <HexDetailModal
@@ -1170,24 +1328,32 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
         title={
           hexDetail.column
             ? HEX_COLUMN_LABELS[hexDetail.column] +
-              (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE ? ` – ${hexDetail.stage}` : '')
+              (hexDetail.stage && hexDetail.stage !== TOTAL_STAGE ? ` – ${hexDetail.stage}` : '') +
+              (hexDetail.area ? ` – ${hexDetail.area}` : '')
             : ''
         }
         projectName={hexDetail.projectName}
         rows={hexDetailRows}
         columnKeys={hexDetailColumnKeys}
+        currentUser={currentUser}
       />
 
       <OnLineStageDetailModal
-  isOpen={onLineStageDetail.open}
-  onClose={() => setOnLineStageDetail(prev => ({ ...prev, open: false }))}
-  projectName={onLineStageDetail.projectName}
-  metric={projectSummaryMetric === 'VALUE' ? 'VALUE' : 'COUNT'}
-  rows={displayedOnLineStageRows}
-  onValueClick={(projectName, stage) =>
-    setHexDetail({ open: true, column: 'onLine', projectName, stage })
-  }
-/>
+        isOpen={onLineStageDetail.open}
+        onClose={() => setOnLineStageDetail(prev => ({ ...prev, open: false }))}
+        projectName={onLineStageDetail.projectName}
+        metric={projectSummaryMetric === 'VALUE' ? 'VALUE' : 'COUNT'}
+        rows={onLineStageRows}
+        onValueClick={(areaName, stage) =>
+          setHexDetail({
+            open: true,
+            column: 'onLine',
+            projectName: onLineStageDetail.projectName, // tên công trình lấy từ state
+            stage,
+            area: areaName,
+          })
+        }
+      />
 
       <ExportDetailModal
         isOpen={exportDetail.open}
@@ -1197,8 +1363,6 @@ const displayedOnLineStageRows = onLineStageDetail.projectName
         columnKeys={exportDetailColumnKeys}
       />
 
-      {/* ✅ MỚI: modal chi tiết Nhập kho — trước đây bị thiếu hoàn toàn nên
-          bấm vào cột "Đã Nhập Kho P022" không bao giờ hiện đúng dữ liệu. */}
       <InventoryDetailModal
         isOpen={inventoryDetail.open}
         onClose={() => setInventoryDetail(prev => ({ ...prev, open: false }))}
