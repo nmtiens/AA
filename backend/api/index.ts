@@ -687,7 +687,22 @@ const TABLE_DISPLAY_ORDER: string[] = [
 ];
 
 // Ngưỡng coi là "đã cập nhật" (giờ). Đổi số này nếu muốn nới/siết.
-const UPDATE_FRESHNESS_HOURS = 24;
+// "Đã cập nhật" = lần cập nhật cuối rơi vào NGÀY HÔM NAY theo giờ Việt Nam
+// (không còn tính cửa sổ trượt 24h).
+const VN_TZ = 'Asia/Ho_Chi_Minh';
+
+// Trước giờ này (giờ VN), cập nhật của HÔM QUA vẫn được tính là "đã cập nhật",
+// vì ETL chưa kịp chạy. Đặt 0 để tắt hoàn toàn (đúng 00:00 là chuyển đỏ hết).
+// Ví dụ ETL chạy khoảng 8-11h sáng -> đặt 12.
+const GRACE_UNTIL_HOUR = 0;
+
+// 'en-CA' cho ra định dạng YYYY-MM-DD, tính theo giờ VN chứ không phải UTC
+const vnDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: VN_TZ });
+const vnHourFormatter = new Intl.DateTimeFormat('en-GB', {
+  timeZone: VN_TZ, hour: '2-digit', hourCycle: 'h23',
+});
+const vnDayKey = (d: Date): string => vnDayFormatter.format(d);
+const vnHour = (d: Date): number => Number(vnHourFormatter.format(d));
 
 // ============================================================================
 // [MỚI] MỞ RỘNG BẢNG table_versions CHO NHẬT KÝ CẬP NHẬT DỮ LIỆU
@@ -765,7 +780,15 @@ app.get('/api/data-update-log', async (_req: Request, res: Response) => {
       fetchDataAsOfDates(),
     ]);
 
-    const now = Date.now();
+    const nowDate = new Date();
+    const now = nowDate.getTime();
+
+    // Các ngày (theo giờ VN) được coi là "đã cập nhật"
+    const okDayKeys = new Set<string>([vnDayKey(nowDate)]);
+    if (vnHour(nowDate) < GRACE_UNTIL_HOUR) {
+      okDayKeys.add(vnDayKey(new Date(now - 24 * 60 * 60 * 1000)));
+    }
+
     const rows = versionsResult.rows.map(row => {
       const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
       const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1000 * 60 * 60) : Infinity;
@@ -777,7 +800,8 @@ app.get('/api/data-update-log', async (_req: Request, res: Response) => {
         table: row.table_name,
         label: row.display_label || TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
         lastUpdated: row.last_updated,
-        isFresh: hoursAgo <= UPDATE_FRESHNESS_HOURS,
+        // SỬA: theo ngày lịch giờ VN thay vì cửa sổ 24h
+        isFresh: lastUpdated ? okDayKeys.has(vnDayKey(lastUpdated)) : false,
         hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null,
         dataAsOfDate,
         sourceNote: row.source_note || '',

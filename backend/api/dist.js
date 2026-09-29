@@ -58023,7 +58023,16 @@ var TABLE_DISPLAY_ORDER = [
   "phan_tich_kh_th",
   "diem_danh"
 ];
-var UPDATE_FRESHNESS_HOURS = 24;
+var VN_TZ = "Asia/Ho_Chi_Minh";
+var GRACE_UNTIL_HOUR = 0;
+var vnDayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: VN_TZ });
+var vnHourFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: VN_TZ,
+  hour: "2-digit",
+  hourCycle: "h23"
+});
+var vnDayKey = (d) => vnDayFormatter.format(d);
+var vnHour = (d) => Number(vnHourFormatter.format(d));
 var DATA_AS_OF_DATE_COLUMN = {
   dht: "ngay_nhan_tu_pm",
   tkbv_full: "ngay_nhan",
@@ -58075,7 +58084,12 @@ app.get("/api/data-update-log", async (_req, res) => {
       `),
       fetchDataAsOfDates()
     ]);
-    const now = Date.now();
+    const nowDate = /* @__PURE__ */ new Date();
+    const now = nowDate.getTime();
+    const okDayKeys = /* @__PURE__ */ new Set([vnDayKey(nowDate)]);
+    if (vnHour(nowDate) < GRACE_UNTIL_HOUR) {
+      okDayKeys.add(vnDayKey(new Date(now - 24 * 60 * 60 * 1e3)));
+    }
     const rows = versionsResult.rows.map((row) => {
       const lastUpdated = row.last_updated ? new Date(row.last_updated) : null;
       const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1e3 * 60 * 60) : Infinity;
@@ -58084,7 +58098,8 @@ app.get("/api/data-update-log", async (_req, res) => {
         table: row.table_name,
         label: row.display_label || TABLE_DISPLAY_NAMES[row.table_name] || row.table_name,
         lastUpdated: row.last_updated,
-        isFresh: hoursAgo <= UPDATE_FRESHNESS_HOURS,
+        // SỬA: theo ngày lịch giờ VN thay vì cửa sổ 24h
+        isFresh: lastUpdated ? okDayKeys.has(vnDayKey(lastUpdated)) : false,
         hoursAgo: Number.isFinite(hoursAgo) ? Number(hoursAgo.toFixed(1)) : null,
         dataAsOfDate,
         sourceNote: row.source_note || "",
