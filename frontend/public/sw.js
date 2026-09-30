@@ -76,9 +76,10 @@ self.addEventListener('notificationclick', (event) => {
   const url = `/m/?id=${t.id ?? ''}`;
   event.waitUntil((async () => {
     const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    // Ưu tiên tab đang mở trang mobile
-    const target = list.find((c) => new URL(c.url).pathname.startsWith('/m')) || list[0];
-    if (target && 'focus' in target) {
+    // CHỈ dùng tab đang ở trang mobile (/m). Không có thì mở cửa sổ mới,
+    // tránh chỉ đưa tab dashboard lên trước mà không mở vướng mắc nào.
+    const target = list.find((c) => /^\/m(\/|$)/.test(new URL(c.url).pathname));
+    if (target) {
       await target.focus();
       target.postMessage({ type: 'open-vuong-mac', id: t.id });
       return;

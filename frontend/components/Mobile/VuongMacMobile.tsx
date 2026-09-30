@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FIVE_M_LABELS, FIVE_M_CATEGORIES, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, extendVuongMac,
   deleteVuongMac, fetchVuongMacLog,
@@ -34,9 +35,10 @@ function botState(v: VMItem): { label: string; cls: string } | null {
 const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm';
 const btnPrimary = 'w-full rounded-lg bg-slate-800 py-2.5 text-sm font-medium text-white disabled:opacity-50';
 
+// Render ra document.body để không bị thanh menu dưới (z-20) hay khung cuộn cha che mất
 function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-30 flex items-end bg-black/40" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={onClose}>
       <div
         className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+16px)]"
         onClick={e => e.stopPropagation()}
@@ -47,7 +49,8 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -437,6 +440,7 @@ function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
   );
 }
 
+// ---------------- Trang chính: 2 tab (Vướng mắc | Tra cứu hex) ----------------
 export default function VuongMacMobile() {
   const params = new URLSearchParams(location.search);
   const [tab, setTab] = useState<'list' | 'lookup'>(
@@ -444,6 +448,16 @@ export default function VuongMacMobile() {
   );
   const tabBtn = (on: boolean) =>
     `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${on ? 'text-red-700' : 'text-slate-500'}`;
+
+  // Bấm thông báo khi đang ở tab "Tra cứu hex" -> tự chuyển về tab "Vướng mắc"
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const h = (e: MessageEvent) => {
+      if (e.data?.type === 'open-vuong-mac') setTab('list');
+    };
+    navigator.serviceWorker.addEventListener('message', h);
+    return () => navigator.serviceWorker.removeEventListener('message', h);
+  }, []);
 
   return (
     <>
