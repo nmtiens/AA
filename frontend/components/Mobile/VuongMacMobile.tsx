@@ -119,6 +119,73 @@ function MobileLogin({ onSuccess }: { onSuccess: () => void }) {
   );
 }
 
+// Sự kiện cài PWA (chỉ Chrome/Edge Android & desktop có)
+type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
+
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+function InstallBanner() {
+  // __installEvt do index.html bắt sớm, phòng khi sự kiện bắn trước lúc component này được tải
+  const [evt, setEvt] = useState<InstallEvent | null>((window as any).__installEvt ?? null);
+  const [hidden, setHidden] = useState(
+    isStandalone() || localStorage.getItem('install_banner_hidden') === '1'
+  );
+  const [showIOS, setShowIOS] = useState(false);
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as InstallEvent); };
+    const onInstalled = () => setHidden(true);
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
+  const dismiss = () => { localStorage.setItem('install_banner_hidden', '1'); setHidden(true); };
+
+  const install = async () => {
+    if (evt) {
+      await evt.prompt();
+      const { outcome } = await evt.userChoice;
+      setEvt(null);
+      (window as any).__installEvt = null;
+      if (outcome === 'accepted') setHidden(true);
+    } else if (isIOS()) {
+      setShowIOS(v => !v);
+    }
+  };
+
+  // Android: chỉ hiện khi trình duyệt cho phép cài. iPhone: luôn hiện kèm hướng dẫn.
+  if (hidden || (!evt && !isIOS())) return null;
+
+  return (
+    <div className="mx-2 mb-2 rounded-3xl bg-[#d3e3fd] p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-xl">📲</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-900">Cài ứng dụng lên điện thoại</p>
+          <p className="text-xs text-slate-600">Mở nhanh từ màn hình chính, nhận thông báo nhắc hạn BOT</p>
+        </div>
+        <button onClick={install} className="shrink-0 rounded-full bg-slate-800 px-4 py-2 text-sm font-medium text-white active:opacity-80">
+          Cài đặt
+        </button>
+        <button onClick={dismiss} aria-label="Ẩn" className="shrink-0 px-1 text-slate-500">✕</button>
+      </div>
+      {showIOS && (
+        <p className="mt-3 rounded-2xl bg-white/70 p-3 text-xs text-slate-700">
+          Bấm nút <b>Chia sẻ</b> (hình vuông có mũi tên lên) ở thanh dưới của Safari, rồi chọn <b>Thêm vào Màn hình chính</b>.
+          Lưu ý: phải mở bằng Safari, không mở trong Zalo hay Messenger.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function VuongMacList() {
   const targetId = Number(new URLSearchParams(location.search).get('id')) || null;
 
@@ -259,6 +326,8 @@ function VuongMacList() {
           ))}
         </div>
       </header>
+
+      <InstallBanner />
 
       {/* Khối nội dung trắng bo góc lớn, các dòng ngăn cách bằng đường mảnh */}
       <main className="mx-2 min-h-[60dvh] overflow-hidden rounded-3xl bg-white">
