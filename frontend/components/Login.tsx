@@ -56,7 +56,13 @@ const Login: React.FC = () => {
       } else {
           localStorage.removeItem('saved_username');
       }
-      navigate('/', { replace: true });
+     const afterLogin = sessionStorage.getItem('after_login');
+if (afterLogin) {
+  sessionStorage.removeItem('after_login');
+  window.location.replace(afterLogin); // bắt buộc dùng location: /m/ nằm ngoài HashRouter
+  return;
+}
+navigate('/', { replace: true });
     } else {
       setError(result.message || 'Đăng nhập thất bại');
       setIsSubmitting(false);

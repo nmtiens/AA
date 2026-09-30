@@ -136,10 +136,10 @@ function VuongMacList() {
     }
   };
 
-  const goLogin = () => {
-    sessionStorage.setItem('after_login', '/m'); // để trang đăng nhập quay lại /m sau khi xong
-    window.location.href = '/'; // đổi thành route đăng nhập của bạn
-  };
+const goLogin = () => {
+  sessionStorage.setItem('after_login', '/m/');
+  window.location.href = '/#/login';
+};
 
   const chip = (on: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-xs ${on ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`;
