@@ -13,6 +13,7 @@ import {
 } from '../../services/vuongMacMobileApi';
 import HexLookup from './HexLookup';
 import PhotoPicker, { type PhotoItem } from './PhotoPicker';
+import { formCategoriesFor } from './formCategories';
 
 type VMItem = VuongMacRow;
 type VMLog = VuongMacLogEntry;
@@ -39,6 +40,30 @@ const must = <T,>(r: T | null | false, msg: string): T => {
   return r as T;
 };
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
+// Date -> giá trị cho <input type="datetime-local">
+const dateToLocalInput = (d: Date | null) =>
+  d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+
+// "HH:mm dd/MM/yyyy" (dạng lưu trong bot) -> giá trị cho <input type="datetime-local">
+const botTextToLocalInput = (s?: string | null) => {
+  const m = (s ?? '').trim().match(/^(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  return m ? `${m[5]}-${pad(+m[4])}-${pad(+m[3])}T${pad(+m[1])}:${m[2]}` : '';
+};
+
+// Nhãn nằm NGOÀI ô nhập; bên trong ô chỉ để gợi ý nhập
+function LabeledField({ label, required, children, className = '' }: {
+  label: string; required?: boolean; children: ReactNode; className?: string;
+}) {
+  return (
+    <label className={`block text-sm font-medium text-slate-700 ${className}`}>
+      {label}{required && <span className="text-red-500"> *</span>}
+      <div className="mt-1 font-normal">{children}</div>
+    </label>
+  );
+}
+
 function botState(v: VMItem): { label: string; cls: string } | null {
   if (v.isResolved) return null;
   const end = parseBotEnd(v.bot);
@@ -55,15 +80,16 @@ const inputCls =
 const btnPrimary =
   'w-full rounded-full bg-slate-800 py-3 text-base font-medium text-white active:opacity-80 disabled:opacity-50';
 
-// Render ra document.body để không bị thanh menu dưới (z-20) hay khung cuộn cha che mất
+// Render ra document.body để không bị thanh menu dưới (z-20) hay khung cuộn cha che mất.
+// Màn hẹp: trượt từ dưới lên. Màn rộng (md+): hộp thoại giữa màn hình, rộng tối đa 4xl.
 function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
       <div
-        className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+20px)]"
+        className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+20px)] md:max-w-4xl md:rounded-3xl md:pb-5"
         onClick={e => e.stopPropagation()}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300" />
+        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300 md:hidden" />
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-medium text-slate-900">{title}</h2>
           <button onClick={onClose} aria-label="Đóng" className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-500 active:bg-slate-100">
@@ -451,7 +477,7 @@ function VuongMacList({ onCycleSize, sizeLabel }: { onCycleSize: () => void; siz
                   {v.note && <p><b>Ghi chú:</b> {v.note}</p>}
 
                   {photoIds.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
                       {photoIds.map((pid, i) => (
                         <AuthImg
                           key={pid}
@@ -471,14 +497,16 @@ function VuongMacList({ onCycleSize, sizeLabel }: { onCycleSize: () => void; siz
                   {!!v.extensions?.length && (
                     <div className="space-y-2">
                       <p className="font-semibold">Lịch sử gia hạn</p>
-                      {v.extensions.map(e => (
-                        <div key={e.id} className="rounded-2xl bg-slate-100 p-3">
-                          <p>{e.content}</p>
-                          <p className="text-xs text-slate-500">BOT: {e.oldBot || '—'} → {e.bot}</p>
-                          {e.note && <p className="text-xs text-slate-500">Ghi chú: {e.note}</p>}
-                          <p className="text-xs text-slate-400">{e.createdBy} · {fmtTime(e.createdAt)}</p>
-                        </div>
-                      ))}
+                      <div className="grid gap-2 md:grid-cols-2">
+                        {v.extensions.map(e => (
+                          <div key={e.id} className="rounded-2xl bg-slate-100 p-3">
+                            <p>{e.content}</p>
+                            <p className="text-xs text-slate-500">BOT: {e.oldBot || '—'} → {e.bot}</p>
+                            {e.note && <p className="text-xs text-slate-500">Ghi chú: {e.note}</p>}
+                            <p className="text-xs text-slate-400">{e.createdBy} · {fmtTime(e.createdAt)}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -548,15 +576,16 @@ function VuongMacList({ onCycleSize, sizeLabel }: { onCycleSize: () => void; siz
       </main>
 
       {/* Nút thêm mới (nằm trong tab "Vướng mắc" nên tự ẩn khi sang tab Tra cứu hex) */}
-      {error !== UNAUTHORIZED && (
-        <button
-          onClick={() => setSheet({ type: 'create' })}
-          aria-label="Thêm vướng mắc"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+88px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-3xl text-white shadow-lg active:opacity-80"
-        >
-          +
-        </button>
-      )}
+      {error !== UNAUTHORIZED && createPortal(
+  <button
+    onClick={() => setSheet({ type: 'create' })}
+    aria-label="Thêm vướng mắc"
+    className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-3xl text-white shadow-lg active:opacity-80"
+  >
+    +
+  </button>,
+  document.body
+)}
 
       {sheet?.type === 'create' && (
         <FormSheet onClose={() => setSheet(null)} onDone={m => { setSheet(null); flash(m); reload(); }} />
@@ -577,11 +606,12 @@ function VuongMacList({ onCycleSize, sizeLabel }: { onCycleSize: () => void; siz
 
       {viewer && <PhotoLightbox ids={viewer.ids} start={viewer.idx} onClose={() => setViewer(null)} />}
 
-      {toast && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+88px)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">
-          {toast}
-        </div>
-      )}
+     {toast && createPortal(
+  <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">
+    {toast}
+  </div>,
+  document.body
+)}
     </div>
   );
 }
@@ -612,12 +642,15 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
   const [category, setCategory] = useState<FiveMCategory>(row?.category ?? 'man');
   const [content, setContent] = useState(row?.content ?? '');
   const [handler, setHandler] = useState(row?.handler ?? '');
-  const [end, setEnd] = useState(''); // hạn BOT (kết thúc), dạng datetime-local
+  // BOT: thêm mới -> bắt đầu mặc định là bây giờ; sửa -> lấy sẵn từ BOT hiện tại
+  const [start, setStart] = useState(() =>
+    row ? botTextToLocalInput(botStart(row.bot)) : dateToLocalInput(new Date()));
+  const [end, setEnd] = useState(() => (row ? dateToLocalInput(parseBotEnd(row.bot)) : ''));
   const [solution, setSolution] = useState(row?.solution ?? '');
   const [note, setNote] = useState(row?.note ?? '');
 
-  const [photos, setPhotos] = useState<PhotoItem[]>([]);          // ảnh mới chụp/chọn
-  const [keptIds, setKeptIds] = useState<number[]>(row?.photos ?? []); // ảnh cũ còn giữ lại
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [keptIds, setKeptIds] = useState<number[]>(row?.photos ?? []);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -632,8 +665,11 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
     return () => clearTimeout(t);
   }, [hexQ, picked, editing]);
 
-  const newBot = end ? `${(row && botStart(row.bot)) || nowFmt()} - ${fmtLocalInput(end)}` : '';
-  const canSubmit = !busy && !!content.trim() && (editing || !!picked);
+  const botInvalid = !!(start && end && end < start);
+  const newBot = end
+    ? `${fmtLocalInput(start || dateToLocalInput(new Date()))} - ${fmtLocalInput(end)}`
+    : '';
+  const canSubmit = !busy && !!content.trim() && (editing || !!picked) && !botInvalid;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -650,7 +686,7 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
           solution: solution.trim(),
           note: note.trim(),
         };
-        if (newBot) patch.bot = newBot;
+        if (newBot && newBot !== row.bot) patch.bot = newBot;
         must(await updateVuongMac(row.id, patch), 'Không lưu được (kiểm tra quyền hoặc kết nối)');
         id = row.id;
       } else {
@@ -687,91 +723,124 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
 
   return (
     <BottomSheet title={editing ? 'Sửa vướng mắc' : 'Thêm vướng mắc'} onClose={onClose}>
-      <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2">
         {/* HEX */}
-        {editing ? (
-          <p className="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600">
-            HEX {row!.hex}{row!.congTrinh ? ` · ${row!.congTrinh}` : ''}
-          </p>
-        ) : picked ? (
-          <div className="flex items-start justify-between gap-2 rounded-2xl bg-[#d3e3fd] p-3">
-            <div className="min-w-0 text-sm text-slate-800">
-              <p className="font-medium">HEX {picked.hex}</p>
-              <p className="truncate">{picked.congTrinh}{picked.hangMuc ? ` · ${picked.hangMuc}` : ''}</p>
-              {picked.xuong && <p className="text-xs text-slate-600">Xưởng {picked.xuong}</p>}
-            </div>
-            <button type="button" onClick={() => { setPicked(null); setHexQ(''); }} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm text-slate-700 active:bg-slate-100">
-              Đổi
-            </button>
-          </div>
-        ) : (
-          <div>
-            <input
-              value={hexQ}
-              onChange={e => setHexQ(e.target.value)}
-              placeholder="Tìm HEX / công trình / hạng mục (từ 2 ký tự)"
-              className={inputCls}
-            />
-            {searching && <p className="mt-2 text-sm text-slate-400">Đang tìm...</p>}
-            {hits.length > 0 && (
-              <div className="mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200">
-                {hits.map(h => (
-                  <button
-                    type="button"
-                    key={h.hex}
-                    onClick={() => setPicked(h)}
-                    className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 active:bg-slate-100"
-                  >
-                    <p className="text-sm font-medium text-slate-900">HEX {h.hex} · {h.congTrinh}</p>
-                    <p className="truncate text-xs text-slate-500">{h.hangMuc}{h.xuong ? ` · Xưởng ${h.xuong}` : ''}</p>
-                  </button>
-                ))}
+        <div className="md:col-span-2">
+          {editing ? (
+            <p className="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600">
+              HEX {row!.hex}{row!.congTrinh ? ` · ${row!.congTrinh}` : ''}
+            </p>
+          ) : picked ? (
+            <div className="flex items-start justify-between gap-2 rounded-2xl bg-[#d3e3fd] p-3">
+              <div className="min-w-0 text-sm text-slate-800">
+                <p className="font-medium">HEX {picked.hex}</p>
+                <p className="truncate">{picked.congTrinh}{picked.hangMuc ? ` · ${picked.hangMuc}` : ''}</p>
+                {picked.xuong && <p className="text-xs text-slate-600">Xưởng {picked.xuong}</p>}
               </div>
-            )}
-            {!searching && hexQ.trim().length >= 2 && hits.length === 0 && (
-              <p className="mt-2 text-sm text-slate-400">Không tìm thấy HEX phù hợp.</p>
-            )}
-          </div>
-        )}
-
-        {/* Loại 5M */}
-        <div className="flex flex-wrap gap-2">
-          {FIVE_M_CATEGORIES.map(c => (
-            <button
-              type="button"
-              key={c}
-              onClick={() => setCategory(c)}
-              className={`rounded-full px-4 py-2 text-sm ${category === c ? 'bg-[#d3e3fd] font-medium text-slate-900' : 'border border-slate-300 text-slate-600'}`}
-            >
-              {FIVE_M_LABELS[c].split(' ')[0]}
-            </button>
-          ))}
+              <button type="button" onClick={() => { setPicked(null); setHexQ(''); }} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm text-slate-700 active:bg-slate-100">
+                Đổi
+              </button>
+            </div>
+          ) : (
+            <div>
+              <LabeledField label="HEX / mã nhà máy / công trình / hạng mục" required>
+                <input
+                  value={hexQ}
+                  onChange={e => setHexQ(e.target.value)}
+                  placeholder="Nhập từ 2 ký tự để tìm..."
+                  className={inputCls}
+                />
+              </LabeledField>
+              {searching && <p className="mt-2 text-sm text-slate-400">Đang tìm...</p>}
+              {hits.length > 0 && (
+                <div className="mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200">
+                  {hits.map(h => (
+                    <button
+                      type="button"
+                      key={h.hex}
+                      onClick={() => setPicked(h)}
+                      className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 active:bg-slate-100"
+                    >
+                      <p className="text-sm font-medium text-slate-900">HEX {h.hex} · {h.congTrinh}</p>
+                      <p className="truncate text-xs text-slate-500">{h.hangMuc}{h.xuong ? ` · Xưởng ${h.xuong}` : ''}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!searching && hexQ.trim().length >= 2 && hits.length === 0 && (
+                <p className="mt-2 text-sm text-slate-400">Không tìm thấy HEX phù hợp.</p>
+              )}
+            </div>
+          )}
         </div>
 
-        <textarea
-          value={content}
-          onChange={e => setContent(e.target.value)}
-          rows={4}
-          maxLength={2000}
-          placeholder="Nội dung vướng mắc (bắt buộc)"
-          className={inputCls}
-        />
-        <input value={handler} onChange={e => setHandler(e.target.value)} maxLength={200} placeholder="Người xử lý (tuỳ chọn)" className={inputCls} />
+        {/* Loại */}
+        <div className="md:col-span-2">
+          <p className="mb-1 text-sm font-medium text-slate-700">Loại</p>
+          <div className="flex flex-wrap gap-2">
+            {formCategoriesFor(row?.category).map(c => (
+              <button
+                type="button"
+                key={c.value}
+                title={c.hint}
+                onClick={() => setCategory(c.value)}
+                className={`rounded-full px-4 py-2 text-sm ${category === c.value ? 'bg-[#d3e3fd] font-medium text-slate-900' : 'border border-slate-300 text-slate-600'}`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <label className="block text-sm text-slate-500">
-          {editing ? `Hạn BOT mới (để trống nếu giữ nguyên${row!.bot ? `: ${row!.bot}` : ''})` : 'Hạn BOT (kết thúc, tuỳ chọn)'}
-          <input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
-        </label>
-        {newBot && <p className="text-sm text-slate-500">BOT: {newBot}</p>}
+        <LabeledField label="Nội dung vướng mắc" required className="md:col-span-2">
+          <textarea
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            rows={4}
+            maxLength={2000}
+            placeholder="Mô tả vướng mắc đang gặp..."
+            className={inputCls}
+          />
+        </LabeledField>
 
-        <textarea value={solution} onChange={e => setSolution(e.target.value)} rows={2} maxLength={2000} placeholder="Giải pháp (tuỳ chọn)" className={inputCls} />
-        <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={2000} placeholder="Ghi chú (tuỳ chọn)" className={inputCls} />
+        <LabeledField label="Người xử lý">
+          <input value={handler} onChange={e => setHandler(e.target.value)} maxLength={200}
+            placeholder="Nhập tên người xử lý..." className={inputCls} />
+        </LabeledField>
+
+        {/* BOT: bắt đầu + kết thúc */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-slate-700">
+            BOT{editing && row!.bot ? <span className="font-normal text-slate-500"> (hiện tại: {row!.bot})</span> : null}
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block text-xs text-slate-500">
+              Bắt đầu
+              <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className={`${inputCls} mt-1`} />
+            </label>
+            <label className="block text-xs text-slate-500">
+              Kết thúc
+              <input type="datetime-local" min={start || undefined} value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
+            </label>
+          </div>
+          {botInvalid && <p className="text-sm text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+          {newBot && !botInvalid && <p className="text-sm text-slate-500">BOT: {newBot}</p>}
+        </div>
+
+        <LabeledField label="Giải pháp">
+          <textarea value={solution} onChange={e => setSolution(e.target.value)} rows={2} maxLength={2000}
+            placeholder="Nhập giải pháp dự kiến..." className={inputCls} />
+        </LabeledField>
+        <LabeledField label="Ghi chú">
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={2000}
+            placeholder="Nhập ghi chú thêm..." className={inputCls} />
+        </LabeledField>
 
         {/* Ảnh */}
-        <div className="space-y-2">
+        <div className="space-y-2 md:col-span-2">
           <p className="text-sm font-medium text-slate-700">Ảnh đính kèm</p>
           {keptIds.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
               {keptIds.map(pid => (
                 <div key={pid} className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">
                   <AuthImg id={pid} className="h-full w-full object-cover" />
@@ -809,14 +878,16 @@ function ResolveSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => vo
   return (
     <BottomSheet title="Đánh dấu đã xử lý" onClose={onClose}>
       <p className="mb-3 line-clamp-2 text-sm text-slate-500">{row.content}</p>
-      <textarea
-        value={note}
-        onChange={e => setNote(e.target.value)}
-        rows={4}
-        maxLength={2000}
-        placeholder="Nội dung đã xử lý (bắt buộc)"
-        className={inputCls}
-      />
+      <LabeledField label="Nội dung đã xử lý" required>
+        <textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          rows={4}
+          maxLength={2000}
+          placeholder="Nhập nội dung đã xử lý..."
+          className={inputCls}
+        />
+      </LabeledField>
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
       <button disabled={busy || !note.trim()} onClick={submit} className={`${btnPrimary} mt-4`}>
         {busy ? 'Đang lưu...' : 'Xác nhận đã xử lý'}
@@ -827,10 +898,14 @@ function ResolveSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => vo
 
 function ExtendSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => void; onDone: () => void }) {
   const [content, setContent] = useState('');
+  const [start, setStart] = useState(() => botTextToLocalInput(botStart(row.bot)));
   const [end, setEnd] = useState('');
   const [note, setNote] = useState('');
-  const start = botStart(row.bot) || nowFmt();
-  const newBot = end ? `${start} - ${fmtLocalInput(end)}` : '';
+
+  const botInvalid = !!(start && end && end < start);
+  const startText = start ? fmtLocalInput(start) : (botStart(row.bot) || nowFmt());
+  const newBot = end ? `${startText} - ${fmtLocalInput(end)}` : '';
+
   const { busy, err, submit } = useSubmit(
     async () => must(
       await extendVuongMac(row.id, { content: content.trim(), bot: newBot, note: note.trim() || undefined }),
@@ -839,24 +914,40 @@ function ExtendSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => voi
   return (
     <BottomSheet title="Cần thêm thời gian" onClose={onClose}>
       <p className="mb-3 text-sm text-slate-500">BOT hiện tại: {row.bot || '—'}</p>
-      <div className="space-y-3">
-        <textarea
-          value={content}
-          onChange={e => setContent(e.target.value)}
-          rows={3}
-          maxLength={2000}
-          placeholder="Lý do / nội dung cần thêm thời gian (bắt buộc)"
-          className={inputCls}
-        />
-        <label className="block text-sm text-slate-500">
-          Hạn BOT mới (kết thúc)
-          <input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
-        </label>
-        {newBot && <p className="text-sm text-slate-500">BOT mới: {newBot}</p>}
-        <input value={note} onChange={e => setNote(e.target.value)} placeholder="Ghi chú (tuỳ chọn)" className={inputCls} />
+      <div className="grid gap-3 md:grid-cols-2">
+        <LabeledField label="Lý do cần thêm thời gian" required className="md:col-span-2">
+          <textarea
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            rows={3}
+            maxLength={2000}
+            placeholder="Nhập lý do / nội dung cần thêm thời gian..."
+            className={inputCls}
+          />
+        </LabeledField>
+
+        <div className="space-y-2 md:col-span-2">
+          <p className="text-sm font-medium text-slate-700">BOT mới <span className="text-red-500">*</span></p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block text-xs text-slate-500">
+              Bắt đầu
+              <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className={`${inputCls} mt-1`} />
+            </label>
+            <label className="block text-xs text-slate-500">
+              Kết thúc
+              <input type="datetime-local" min={start || undefined} value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
+            </label>
+          </div>
+          {botInvalid && <p className="text-sm text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+          {newBot && !botInvalid && <p className="text-sm text-slate-500">BOT mới: {newBot}</p>}
+        </div>
+
+        <LabeledField label="Ghi chú" className="md:col-span-2">
+          <input value={note} onChange={e => setNote(e.target.value)} placeholder="Nhập ghi chú thêm..." className={inputCls} />
+        </LabeledField>
       </div>
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
-      <button disabled={busy || !content.trim() || !end} onClick={submit} className={`${btnPrimary} mt-4`}>
+      <button disabled={busy || !content.trim() || !end || botInvalid} onClick={submit} className={`${btnPrimary} mt-4`}>
         {busy ? 'Đang gửi...' : 'Gửi yêu cầu'}
       </button>
     </BottomSheet>
@@ -888,7 +979,7 @@ function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
   return (
     <BottomSheet title={`Nhật ký · HEX ${row.hex}`} onClose={onClose}>
       {!logs && <p className="text-sm text-slate-400">Đang tải...</p>}
-      <div className="space-y-2">
+      <div className="grid gap-2 md:grid-cols-2">
         {logs?.map(l => (
           <div key={l.id} className="rounded-2xl bg-slate-100 p-3 text-sm">
             <p className="font-medium text-slate-800">
@@ -899,8 +990,8 @@ function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
             <p className="text-xs text-slate-400">{fmtTime(l.actedAt)}</p>
           </div>
         ))}
-        {logs && logs.length === 0 && <p className="text-sm text-slate-400">Chưa có nhật ký.</p>}
       </div>
+      {logs && logs.length === 0 && <p className="text-sm text-slate-400">Chưa có nhật ký.</p>}
     </BottomSheet>
   );
 }

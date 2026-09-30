@@ -14,6 +14,7 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   xuong_chinh: 'XƯỞNG CHÍNH',
   ten_cong_trinh: 'TÊN CÔNG TRÌNH',
   ma_cong_trinh: 'MÃ CÔNG TRÌNH',
+  ma_nha_may: 'MÃ NHÀ MÁY',
   updated_at: 'CẬP NHẬT LÚC',
   created_at: 'TẠO LÚC',
   date: 'NGÀY',

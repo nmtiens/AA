@@ -224,7 +224,7 @@ const REPORT_COLUMNS: Record<string, string[]> = {
   'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
   'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc', 'phan_loai_nhom_san_pham',
   'so_ngay_cd_hien_tai', 'bop',
-  'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke', 'bot_du_an', 'khach_hang', 'khu_vuc_du_an'
+  'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke', 'bot_du_an', 'khach_hang', 'khu_vuc_du_an', 'ma_nha_may'
 ],
   vat_tu: [
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',
@@ -3633,31 +3633,33 @@ app.get('/api/vuong-mac/xuong', authenticateJWT, async (_req: Request, res: Resp
   }
 });
 
-// Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)
+// Cột "mã nhà máy" (12 số) trong production_status_app. Đổi tên nếu cột thực tế khác.
+const FACTORY_CODE_COL = 'ma_nha_may';
 // Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)
 app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q || '').trim();
-    const xuong = String(req.query.xuong || '').trim();
-    if (q.length < 2 && !xuong) return res.json([]);
+    const xuongList = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    if (q.length < 2 && xuongList.length === 0) return res.json([]);
 
     const conds: string[] = ['hex IS NOT NULL'];
     const params: any[] = [];
-    if (xuong) {
-      params.push(xuong);
-      conds.push(`UPPER(TRIM(xuong_chinh)) = UPPER(TRIM($${params.length}))`);
+    if (xuongList.length) {
+      params.push(xuongList);
+      conds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
     }
     if (q) {
       params.push(`%${q.replace(/[%_\\]/g, '\\$&')}%`);
       const n = params.length;
-      conds.push(`(hex::text ILIKE $${n} OR ten_cong_trinh ILIKE $${n}
-                   OR ten_hang_muc ILIKE $${n} OR xuong_chinh ILIKE $${n})`);
+      conds.push(`(hex::text ILIKE $${n} OR ${FACTORY_CODE_COL}::text ILIKE $${n}
+                   OR ten_cong_trinh ILIKE $${n} OR ten_hang_muc ILIKE $${n} OR xuong_chinh ILIKE $${n})`);
     }
 
     const r = await timedQuery(
       `SELECT * FROM (
          SELECT DISTINCT ON (hex::text)
-                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh,
+                hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
+                ten_cong_trinh, ten_hang_muc, xuong_chinh,
                 bop, tinh_trang, phan_loai_nhom_san_pham,
                 tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke
          FROM production_status_app
@@ -3670,6 +3672,7 @@ app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: 
     );
     res.json(r.rows.map(row => ({
       hex: row.hex,
+      maNhaMay: row.ma_nha_may,
       congTrinh: row.ten_cong_trinh,
       hangMuc: row.ten_hang_muc,
       xuong: row.xuong_chinh,
@@ -3682,6 +3685,57 @@ app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: 
     })));
   } catch (error) {
     console.error('Lỗi /api/vuong-mac/hex-search:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/vuong-mac/hex-bulk', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const codes = Array.from(new Set(
+      (Array.isArray(req.body?.codes) ? req.body.codes : [])
+        .map((c: unknown) => String(c).trim()).filter(Boolean)
+    )).slice(0, 200) as string[];
+    const xuongs = (Array.isArray(req.body?.xuongs) ? req.body.xuongs : [])
+      .map((x: unknown) => String(x).trim().toUpperCase()).filter(Boolean) as string[];
+    if (codes.length === 0) return res.json({ hits: [], missing: [] });
+
+    const params: any[] = [codes];
+    let xuongCond = '';
+    if (xuongs.length) {
+      params.push(xuongs);
+      xuongCond = `AND UPPER(TRIM(xuong_chinh)) = ANY($2::text[])`;
+    }
+
+    const r = await timedQuery(
+      `SELECT DISTINCT ON (hex::text)
+              hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
+              ten_cong_trinh, ten_hang_muc, xuong_chinh,
+              bop, tinh_trang, phan_loai_nhom_san_pham,
+              tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke
+       FROM production_status_app
+       WHERE hex IS NOT NULL
+         AND (TRIM(hex::text) = ANY($1::text[]) OR TRIM(${FACTORY_CODE_COL}::text) = ANY($1::text[]))
+         ${xuongCond}
+       ORDER BY hex::text, updated_at DESC NULLS LAST
+       LIMIT 500`,
+      params
+    );
+
+    const found = new Set<string>();
+    r.rows.forEach(row => { found.add(String(row.hex).trim()); if (row.ma_nha_may) found.add(String(row.ma_nha_may).trim()); });
+
+    res.json({
+      hits: r.rows.map(row => ({
+        hex: row.hex, maNhaMay: row.ma_nha_may,
+        congTrinh: row.ten_cong_trinh, hangMuc: row.ten_hang_muc, xuong: row.xuong_chinh,
+        bop: row.bop, tinhTrang: row.tinh_trang, phanLoai: row.phan_loai_nhom_san_pham,
+        triGia: row.tri_gia_don_hang_tong, thanhTienPhieu: row.thanh_tien_tinh_phieu,
+        thanhTienKho: row.thanh_tien_nhap_kho_luy_ke,
+      })),
+      missing: codes.filter(c => !found.has(c)),
+    });
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/hex-bulk:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

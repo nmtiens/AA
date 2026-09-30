@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FIVE_M_CATEGORIES, FIVE_M_LABELS, UNAUTHORIZED, fetchVuongMacList,
@@ -6,11 +6,12 @@ import {
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import {
-  fetchXuongList, searchHex, fetchHexNotes, createVuongMacStrict, fmtLocalInput,
+  searchHex, fetchHexNotes, createVuongMacStrict, fmtLocalInput,
   type HexHit,
 } from '../../services/vuongMacMobileApi';
-// TODO: thêm `export` cho NoteContent trong HexDetailModal.tsx rồi chỉnh lại đường dẫn import này
 import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
+import { FORM_CATEGORIES } from './formCategories';
+import { searchHexBulk } from './hexBulkApi';
 
 // Các ô ghi chú giống bảng "Chi tiết theo Hex" trên desktop
 const NOTE_LABELS: [string, string][] = [
@@ -44,12 +45,23 @@ const toNum = (v: unknown) => {
 const money = (v: unknown) =>
   (toNum(v) / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 
+// Tách nhiều mã theo dấu phẩy, chấm phẩy hoặc khoảng trắng
+const splitCodes = (s: string) =>
+  Array.from(new Set(s.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean)));
+
+// Tìm hàng loạt khi: có dấu phẩy, hoặc mọi phần đều là dãy số >= 6 chữ số
+// (mã hex 9 số, mã nhà máy 12 số). Nhờ vậy tên công trình có dấu cách vẫn tìm bình thường.
+const isBulk = (s: string) => {
+  const t = splitCodes(s);
+  return t.length > 1 && (/[,;]/.test(s) || t.every(x => /^\d{6,}$/.test(x)));
+};
+
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   // Render ra document.body để không bị thanh menu dưới (z-20) hay khung cuộn cha che mất
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+16px)]"
+        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] md:max-w-4xl md:rounded-2xl"
         onClick={e => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
@@ -72,11 +84,60 @@ function Field({ label, value, className = '' }: { label: string; value: ReactNo
   );
 }
 
+// Ô ghi chú: mặc định chỉ hiện phần đầu (khoảng 1 mục), dài hơn thì có nút "Xem thêm"
+function NoteCell({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflow, setOverflow] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    const inner = box?.firstElementChild;
+    if (!box || !inner) return;
+    const check = () => { if (!expanded) setOverflow(box.scrollHeight > box.clientHeight + 4); };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(inner); // theo dõi nội dung bên trong (ảnh tải xong sẽ đổi chiều cao)
+    return () => ro.disconnect();
+  }, [text, expanded]);
+
+  return (
+    <div>
+      <div ref={boxRef} className={`relative ${expanded ? '' : 'max-h-[13rem] overflow-hidden'}`}>
+        <div><NoteContent text={text} /></div>
+        {!expanded && overflow && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-white to-transparent" />
+        )}
+      </div>
+      {overflow && (
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          className="mt-1 w-full rounded-lg bg-slate-100 py-1.5 text-[11px] font-medium text-slate-600 active:bg-slate-200"
+        >
+          {expanded ? 'Thu gọn ▴' : 'Xem thêm ▾'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function VmItemCard({ v }: { v: VuongMacItem }) {
+  return (
+    <div className={`rounded-lg border p-2 ${v.isResolved ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+      <p className="text-[10px] text-slate-500">{v.isResolved ? 'Đã xử lý' : 'Đang tồn đọng'}</p>
+      <p className="whitespace-pre-wrap break-words">{v.content}</p>
+      <p className="mt-1 text-[10px] text-slate-500">
+        {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT: ${v.bot} · ` : ''}{v.createdBy} · {fmtTime(v.createdAt)}
+      </p>
+    </div>
+  );
+}
+
 export default function HexLookup() {
-  const [xuongs, setXuongs] = useState<string[]>([]);
-  const [xuong, setXuong] = useState('');
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<HexHit[]>([]);
+  const [missing, setMissing] = useState<string[]>([]);
   const [counts, setCounts] = useState<Counts>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -89,25 +150,31 @@ export default function HexLookup() {
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500); };
 
   useEffect(() => {
-    if (!getToken()) return;
-    fetchXuongList().then(setXuongs).catch(() => { /* bỏ qua */ });
-  }, []);
+    const raw = q.trim();
+    const bulk = isBulk(raw);
 
-  useEffect(() => {
-    const term = q.trim();
     if (!getToken()) { setError(UNAUTHORIZED); setLoading(false); return; }
-    if (term.length < 2 && !xuong) {
+    if (!bulk && raw.length < 2) {
       reqId.current++;
-      setHits([]); setCounts({}); setError(''); setLoading(false);
+      setHits([]); setCounts({}); setMissing([]); setError(''); setLoading(false);
       return;
     }
+
     const id = ++reqId.current;
     const t = setTimeout(async () => {
       setLoading(true); setError('');
       try {
-        const r = await searchHex(term, xuong);
+        let r: HexHit[];
+        let miss: string[] = [];
+        if (bulk) {
+          const b = await searchHexBulk(splitCodes(raw).slice(0, 200), []);
+          r = b.hits; miss = b.missing;
+        } else {
+          r = await searchHex(raw, '');
+        }
         if (id !== reqId.current) return;
-        setHits(r);
+        setHits(r); setMissing(miss);
+
         const map = await fetchVuongMacList(r.map(h => h.hex));
         if (id !== reqId.current) return;
         const c: Counts = {};
@@ -123,7 +190,7 @@ export default function HexLookup() {
       }
     }, 350);
     return () => clearTimeout(t);
-  }, [q, xuong]);
+  }, [q]);
 
   const loadDetail = useCallback(async (hex: string) => {
     setDetails(d => ({ ...d, [hex]: 'loading' }));
@@ -152,14 +219,146 @@ export default function HexLookup() {
     window.location.href = '/';
   };
 
-  const chip = (on: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1 text-xs ${on ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`;
-
   const hint = !error && !loading && hits.length === 0
-    ? (q.trim().length < 2 && !xuong
-        ? 'Nhập mã hex, công trình hoặc hạng mục (từ 2 ký tự), hoặc chọn xưởng để bắt đầu.'
+    ? (q.trim().length < 2
+        ? 'Nhập mã hex, mã nhà máy, công trình hoặc hạng mục (từ 2 ký tự). Dán nhiều mã cách nhau bằng dấu phẩy hoặc dấu cách để tìm hàng loạt.'
         : 'Không tìm thấy hex nào phù hợp.')
     : '';
+
+  // Badge tồn đọng / đã xử lý, dùng chung cho thẻ (mobile) và bảng (desktop)
+  const badges = (hex: string) => {
+    const c = counts[hex];
+    if (!c || (!c.open && !c.done)) return null;
+    return (
+      <div className="flex shrink-0 flex-wrap gap-1 text-[10px] font-medium">
+        {c.open > 0 && <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-600">{c.open} tồn đọng</span>}
+        {c.done > 0 && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{c.done} đã xử lý</span>}
+      </div>
+    );
+  };
+
+  // Phần chi tiết khi mở một hex (dùng chung 2 kiểu hiển thị)
+  const renderDetail = (h: HexHit) => {
+    const d = details[h.hex];
+    return (
+      <div className="space-y-4 pt-3 text-xs text-slate-700">
+        {/* Các cột thông tin, xếp ngang */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+          <Field label="Công trình" value={h.congTrinh} className="col-span-full" />
+          <Field label="Hạng mục" value={h.hangMuc} className="col-span-full" />
+          <Field label="Mã nhà máy" value={h.maNhaMay} />
+          <Field label="Khu vực SX" value={h.xuong} />
+          <Field label="BOP" value={h.bop} />
+          <Field label="Tình trạng" value={h.tinhTrang} />
+          <Field label="Phân loại nhóm SP" value={h.phanLoai} />
+          <Field label="Trị giá đơn hàng tổng" value={money(h.triGia)} />
+          <Field label="Thành tiền tính phiếu" value={money(h.thanhTienPhieu)} />
+          <Field label="Thành tiền nhập kho" value={<span className="font-medium text-indigo-700">{money(h.thanhTienKho)}</span>} />
+          <p className="col-span-full text-[10px] text-slate-400">Đơn vị tiền: 1,000 VNĐ</p>
+        </div>
+
+        {d === 'loading' || !d ? (
+          <p className="text-slate-400">Đang tải chi tiết...</p>
+        ) : (
+          <>
+            {/* Ghi chú: mỗi ô chỉ hiện phần đầu, bấm "Xem thêm" để mở đủ; máy tính là bảng 5 cột */}
+            <div className="space-y-3 md:hidden">
+              {NOTE_LABELS.map(([key, label]) => (
+                <div key={key} className="min-w-0">
+                  <p className="mb-1 font-semibold text-slate-500">{label}</p>
+                  {d.notes[key]
+                    ? <NoteCell text={d.notes[key] as string} />
+                    : <p className="text-slate-300">—</p>}
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
+              <table className="w-full min-w-[1000px] table-fixed border-collapse text-left">
+                <thead className="bg-slate-100 text-[11px] font-semibold text-slate-500">
+                  <tr>
+                    {NOTE_LABELS.map(([key, label]) => (
+                      <th key={key} className="border-l border-slate-200 px-3 py-2 first:border-l-0">{label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {NOTE_LABELS.map(([key]) => (
+                      <td key={key} className="min-w-0 border-l border-slate-200 p-2 align-top first:border-l-0">
+                        {d.notes[key]
+                          ? <NoteCell text={d.notes[key] as string} />
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Vướng mắc 5M */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-slate-500">Vướng mắc 5M ({d.items.length})</p>
+                <button
+                  type="button"
+                  onClick={() => setAddFor(h)}
+                  className="shrink-0 rounded-full bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm active:scale-95"
+                >
+                  + Thêm vướng mắc
+                </button>
+              </div>
+
+              {/* Điện thoại: xếp dọc theo từng loại */}
+              <div className="space-y-2 md:hidden">
+                {FIVE_M_CATEGORIES.map(cat => {
+                  const list = d.items.filter(v => v.category === cat);
+                  return (
+                    <div key={cat} className="min-w-0 rounded-lg border border-slate-200 p-2">
+                      <p className={`text-[11px] font-semibold ${VM_TEXT[cat]}`}>{FIVE_M_LABELS[cat]} ({list.length})</p>
+                      {list.length === 0 ? (
+                        <p className="text-slate-300">—</p>
+                      ) : (
+                        <div className="mt-1 space-y-1.5">{list.map(v => <VmItemCard key={v.id} v={v} />)}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Máy tính: bảng 5 cột (mỗi loại 5M một cột) */}
+              <div className="hidden overflow-x-auto rounded-lg border border-slate-200 md:block">
+                <table className="w-full min-w-[1000px] table-fixed border-collapse text-left">
+                  <thead className="bg-slate-100 text-[11px] font-semibold">
+                    <tr>
+                      {FIVE_M_CATEGORIES.map(cat => (
+                        <th key={cat} className={`border-l border-slate-200 px-3 py-2 first:border-l-0 ${VM_TEXT[cat]}`}>
+                          {FIVE_M_LABELS[cat]} ({d.items.filter(v => v.category === cat).length})
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {FIVE_M_CATEGORIES.map(cat => {
+                        const list = d.items.filter(v => v.category === cat);
+                        return (
+                          <td key={cat} className="min-w-0 border-l border-slate-200 p-2 align-top first:border-l-0">
+                            {list.length === 0
+                              ? <span className="text-slate-300">—</span>
+                              : <div className="space-y-1.5">{list.map(v => <VmItemCard key={v.id} v={v} />)}</div>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[calc(env(safe-area-inset-bottom)+72px)]">
@@ -168,24 +367,17 @@ export default function HexLookup() {
           <h1 className="text-base font-semibold text-red-800">Tra cứu hex</h1>
           <span className="text-xs text-slate-500">{loading ? 'Đang tìm...' : hits.length ? `${hits.length} hex` : ''}</span>
         </div>
+
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Mã hex, công trình, hạng mục..."
+          placeholder="Mã hex / mã nhà máy (nhiều mã cách nhau bằng , hoặc dấu cách), công trình..."
           className={inputCls}
           inputMode="search"
         />
-        {xuongs.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto">
-            <button onClick={() => setXuong('')} className={chip(xuong === '')}>Mọi xưởng</button>
-            {xuongs.map(x => (
-              <button key={x} onClick={() => setXuong(xuong === x ? '' : x)} className={chip(xuong === x)}>{x}</button>
-            ))}
-          </div>
-        )}
       </header>
 
-      <main className="space-y-3 p-4">
+      <main className="mx-auto max-w-[1800px] space-y-3 p-4">
         {error === UNAUTHORIZED ? (
           <div className="space-y-2 rounded-lg bg-red-100 p-3 text-sm text-red-700">
             <p>Bạn chưa đăng nhập hoặc phiên đã hết hạn.</p>
@@ -195,104 +387,82 @@ export default function HexLookup() {
           <p className="rounded-lg bg-red-100 p-3 text-sm text-red-700">{error}</p>
         ) : null}
 
+        {missing.length > 0 && (
+          <p className="rounded-lg bg-amber-100 p-3 text-sm text-amber-800">
+            Không tìm thấy {missing.length} mã: {missing.join(', ')}
+          </p>
+        )}
+
         {hint && <p className="py-12 text-center text-sm text-slate-400">{hint}</p>}
 
-        {hits.map(h => {
-          const open = openHex === h.hex;
-          const c = counts[h.hex];
-          const d = details[h.hex];
-          return (
-            <article key={h.hex} className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm ${open ? 'ring-2 ring-slate-300' : ''}`}>
-              <button className="w-full text-left" onClick={() => toggle(h.hex)}>
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{h.hex}</p>
-                  <div className="flex shrink-0 gap-1 text-[10px] font-medium">
-                    {c && c.open > 0 && <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-600">{c.open} tồn đọng</span>}
-                    {c && c.done > 0 && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">{c.done} đã xử lý</span>}
+        {/* ===== ĐIỆN THOẠI: thẻ xếp dọc ===== */}
+        <div className="space-y-3 md:hidden">
+          {hits.map(h => {
+            const open = openHex === h.hex;
+            return (
+              <article
+                key={h.hex}
+                className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm ${open ? 'ring-2 ring-slate-300' : ''}`}
+              >
+                <button className="w-full text-left" onClick={() => toggle(h.hex)}>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-900">{h.hex}</p>
+                    {badges(h.hex)}
                   </div>
-                </div>
-                <p className="mt-0.5 text-xs text-slate-600">{h.congTrinh || '—'}{h.hangMuc ? ` · ${h.hangMuc}` : ''}</p>
-                {h.xuong && <p className="text-[11px] text-slate-400">Xưởng {h.xuong}</p>}
-              </button>
-
-              {open && (
-                <div className="mt-3 space-y-4 border-t border-slate-200 pt-3 text-xs text-slate-700">
-                  {/* Các cột thông tin — giống bảng desktop */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
-                    <Field label="Công trình" value={h.congTrinh} className="col-span-full" />
-                    <Field label="Hạng mục" value={h.hangMuc} className="col-span-full" />
-                    <Field label="Khu vực SX" value={h.xuong} />
-                    <Field label="BOP" value={h.bop} />
-                    <Field label="Tình trạng" value={h.tinhTrang} />
-                    <Field label="Phân loại nhóm SP" value={h.phanLoai} />
-                    <Field label="Trị giá đơn hàng tổng" value={money(h.triGia)} />
-                    <Field label="Thành tiền tính phiếu" value={money(h.thanhTienPhieu)} />
-                    <Field label="Thành tiền nhập kho" value={<span className="font-medium text-indigo-700">{money(h.thanhTienKho)}</span>} />
-                    <p className="col-span-full text-[10px] text-slate-400">Đơn vị tiền: 1,000 VNĐ</p>
+                  <p className="mt-0.5 text-xs text-slate-600">{h.congTrinh || '—'}{h.hangMuc ? ` · ${h.hangMuc}` : ''}</p>
+                  <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-400">
+                    {h.maNhaMay && <span>Mã NM {h.maNhaMay}</span>}
+                    {h.xuong && <span>Xưởng {h.xuong}</span>}
                   </div>
+                </button>
+                {open && <div className="mt-3 border-t border-slate-200">{renderDetail(h)}</div>}
+              </article>
+            );
+          })}
+        </div>
 
-                  {d === 'loading' || !d ? (
-                    <p className="text-slate-400">Đang tải chi tiết...</p>
-                  ) : (
-                    <>
-                      {/* 5 ô ghi chú — hiển thị theo ngày + ảnh Drive như desktop */}
-                      <div className="space-y-3">
-                        {NOTE_LABELS.map(([key, label]) => (
-                          <div key={key}>
-                            <p className="mb-1 font-semibold text-slate-500">{label}</p>
-                            {d.notes[key]
-                              ? <NoteContent text={d.notes[key] as string} />
-                              : <p className="text-slate-300">—</p>}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Vướng mắc gom theo 5M */}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="font-semibold text-slate-500">Vướng mắc 5M ({d.items.length})</p>
-                          <button
-                            type="button"
-                            onClick={() => setAddFor(h)}
-                            className="shrink-0 rounded-full bg-red-600 px-3 py-1.5 text-xs font-medium text-white shadow-sm active:scale-95"
-                          >
-                            + Thêm vướng mắc
-                          </button>
-                        </div>
-                        {FIVE_M_CATEGORIES.map(cat => {
-                          const list = d.items.filter(v => v.category === cat);
-                          return (
-                            <div key={cat} className="rounded-lg border border-slate-200 p-2">
-                              <p className={`text-[11px] font-semibold ${VM_TEXT[cat]}`}>
-                                {FIVE_M_LABELS[cat]} ({list.length})
-                              </p>
-                              {list.length === 0 ? (
-                                <p className="text-slate-300">—</p>
-                              ) : (
-                                <div className="mt-1 space-y-1.5">
-                                  {list.map(v => (
-                                    <div key={v.id} className={`rounded-lg border p-2 ${v.isResolved ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
-                                      <p className="text-[10px] text-slate-500">{v.isResolved ? 'Đã xử lý' : 'Đang tồn đọng'}</p>
-                                      <p className="whitespace-pre-wrap break-words">{v.content}</p>
-                                      <p className="mt-1 text-[10px] text-slate-500">
-                                        {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT: ${v.bot} · ` : ''}{v.createdBy} · {fmtTime(v.createdAt)}
-                                      </p>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-
-                </div>
-              )}
-            </article>
-          );
-        })}
+        {/* ===== MÁY TÍNH: bảng ngang, bấm dòng để mở chi tiết ngay bên dưới ===== */}
+        {hits.length > 0 && (
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+              <thead className="bg-slate-100 text-xs font-semibold uppercase text-slate-500">
+                <tr>
+                  {['Hex', 'Mã nhà máy', 'Công trình', 'Hạng mục', 'Xưởng', 'Tình trạng', 'Vướng mắc'].map(t => (
+                    <th key={t} className="whitespace-nowrap px-4 py-2.5">{t}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {hits.map(h => {
+                  const open = openHex === h.hex;
+                  return (
+                    <Fragment key={h.hex}>
+                      <tr
+                        onClick={() => toggle(h.hex)}
+                        className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${open ? 'bg-slate-100' : ''}`}
+                      >
+                        <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-slate-900">
+                          <span className="mr-2 inline-block w-3 text-slate-400">{open ? '▾' : '▸'}</span>{h.hex}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.maNhaMay || '—'}</td>
+                        <td className="px-4 py-2.5 text-slate-800">{h.congTrinh || '—'}</td>
+                        <td className="px-4 py-2.5 text-slate-600">{h.hangMuc || '—'}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.xuong || '—'}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.tinhTrang || '—'}</td>
+                        <td className="px-4 py-2.5">{badges(h.hex) ?? <span className="text-slate-300">—</span>}</td>
+                      </tr>
+                      {open && (
+                        <tr className="border-t border-slate-200 bg-white">
+                          <td colSpan={7} className="px-4 pb-4">{renderDetail(h)}</td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </main>
 
       {addFor && (
@@ -303,16 +473,17 @@ export default function HexLookup() {
         />
       )}
 
-      {toast && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-lg">
+      {toast && createPortal(
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-lg">
           {toast}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
 
-// ---------------- Form thêm vướng mắc (giữ nguyên) ----------------
+// ---------------- Form thêm vướng mắc ----------------
 function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; onDone: () => void }) {
   const [f, setF] = useState({
     category: 'man' as FiveMCategory, content: '', handler: '', botStart: '', botEnd: '', solution: '', note: '',
@@ -348,19 +519,19 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
   return (
     <Sheet title={`Thêm vướng mắc · ${hit.hex}`} onClose={onClose}>
       <p className="mb-3 text-xs text-slate-500">{hit.congTrinh || '—'}{hit.hangMuc ? ` · ${hit.hangMuc}` : ''}</p>
-      <div className="space-y-3">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Loại (5M)</p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <p className="mb-1 text-xs font-medium text-slate-600">Loại</p>
           <div className="flex flex-wrap gap-2">
-            {FIVE_M_CATEGORIES.map(c => (
-              <button key={c} type="button" onClick={() => upd({ category: c })} className={chip(f.category === c)}>
-                {FIVE_M_LABELS[c]}
+            {FORM_CATEGORIES.map(c => (
+              <button key={c.value} type="button" title={c.hint} onClick={() => upd({ category: c.value })} className={chip(f.category === c.value)}>
+                {c.label}
               </button>
             ))}
           </div>
         </div>
 
-        <label className="block text-xs font-medium text-slate-600">
+        <label className="block text-xs font-medium text-slate-600 md:col-span-2">
           Nội dung vướng mắc <span className="text-red-500">*</span>
           <textarea rows={3} maxLength={2000} value={f.content} onChange={e => upd({ content: e.target.value })}
             placeholder="Mô tả vướng mắc đang gặp" className={`${inputCls} mt-1`} />
@@ -374,15 +545,17 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-slate-600">BOT <span className="text-red-500">*</span></p>
-          <label className="block text-[11px] text-slate-500">
-            Bắt đầu
-            <input type="datetime-local" value={f.botStart} onChange={e => upd({ botStart: e.target.value })} className={`${inputCls} mt-1`} />
-          </label>
-          <label className="block text-[11px] text-slate-500">
-            Kết thúc
-            <input type="datetime-local" min={f.botStart || undefined} value={f.botEnd}
-              onChange={e => upd({ botEnd: e.target.value })} className={`${inputCls} mt-1`} />
-          </label>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block text-[11px] text-slate-500">
+              Bắt đầu
+              <input type="datetime-local" value={f.botStart} onChange={e => upd({ botStart: e.target.value })} className={`${inputCls} mt-1`} />
+            </label>
+            <label className="block text-[11px] text-slate-500">
+              Kết thúc
+              <input type="datetime-local" min={f.botStart || undefined} value={f.botEnd}
+                onChange={e => upd({ botEnd: e.target.value })} className={`${inputCls} mt-1`} />
+            </label>
+          </div>
           {botInvalid && <p className="text-[11px] text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
         </div>
 
@@ -394,7 +567,7 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
 
         <label className="block text-xs font-medium text-slate-600">
           Ghi chú
-          <input value={f.note} maxLength={2000} onChange={e => upd({ note: e.target.value })}
+          <textarea rows={2} maxLength={2000} value={f.note} onChange={e => upd({ note: e.target.value })}
             placeholder="Không bắt buộc" className={`${inputCls} mt-1`} />
         </label>
       </div>

@@ -83,6 +83,7 @@ export async function disablePush() {
 export interface HexHit {
   hex: string;
   congTrinh: string | null;
+maNhaMay?: string | null; 
   hangMuc: string | null;
   xuong: string | null;
   // Các cột phụ giống bảng "Chi tiết theo Hex" trên desktop
