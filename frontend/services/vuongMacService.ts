@@ -220,13 +220,18 @@ export const fetchVuongMacAll = async (p: {
   }
 };
 
+// Mã lỗi khi chưa đăng nhập / token hết hạn — trang mobile dựa vào đây để hiện nút đăng nhập
+export const UNAUTHORIZED = 'UNAUTHORIZED';
+
 // [MỚI] Bản ném lỗi cho trang mobile: phân biệt "lỗi mạng/quyền" với "không có dữ liệu".
 export const fetchVuongMacAllStrict = async (p: {
   status?: 'open' | 'resolved' | 'all'; category?: FiveMCategory | ''; q?: string; page?: number;
 }): Promise<{ data: VuongMacRow[]; total: number }> => {
+  if (!getToken()) throw new Error(UNAUTHORIZED); // chưa có token thì khỏi gọi API
   const qs = new URLSearchParams();
   Object.entries(p).forEach(([k, v]) => v !== undefined && v !== '' && qs.set(k, String(v)));
   const r = await fetch(`/api/vuong-mac/all?${qs}`, { headers: authHeaders() });
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.message || d.error || `Lỗi ${r.status}`);
   return d;

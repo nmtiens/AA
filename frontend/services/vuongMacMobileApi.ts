@@ -56,6 +56,7 @@ export async function isPushOn() {
 }
 
 export async function enablePush() {
+  if (!getToken()) throw new Error('Bạn cần đăng nhập trước khi bật thông báo');
   const key = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
   if (!key) throw new Error('Thiếu VITE_VAPID_PUBLIC_KEY');
   const perm = await Notification.requestPermission();

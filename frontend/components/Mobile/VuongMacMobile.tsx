@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import {
-  FIVE_M_LABELS, FIVE_M_CATEGORIES, fetchVuongMacAllStrict, updateVuongMac, extendVuongMac,
+  FIVE_M_LABELS, FIVE_M_CATEGORIES, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, extendVuongMac,
   deleteVuongMac, fetchVuongMacLog,
   type VuongMacRow, type VuongMacLogEntry, type FiveMCategory,
 } from '../../services/vuongMacService';
+import { getToken } from '../../services/userService';
 import {
   parseBotEnd, botStart, nowFmt, fmtLocalInput, pushSupported, isPushOn, enablePush, disablePush,
 } from '../../services/vuongMacMobileApi';
@@ -75,7 +76,7 @@ export default function VuongMacMobile() {
       setRows(prev => (replace ? r.data : [...prev, ...r.data]));
       setTotal(r.total); setPage(p);
     } catch (e: any) {
-      setError(e.message || 'Không tải được dữ liệu');
+      setError(e.message || 'Không tải được dữ liệu'); // 'UNAUTHORIZED' nếu chưa đăng nhập
     } finally {
       setLoading(false);
     }
@@ -83,11 +84,16 @@ export default function VuongMacMobile() {
 
   const reload = useCallback(() => loadPage(1, true), [loadPage]);
 
-  useEffect(() => { const t = setTimeout(reload, 300); return () => clearTimeout(t); }, [reload]);
+  // Chưa có token thì không gọi API (tránh 401 lặp lại), chỉ hiện nút đăng nhập
+  useEffect(() => {
+    if (!getToken()) { setError(UNAUTHORIZED); return; }
+    const t = setTimeout(reload, 300);
+    return () => clearTimeout(t);
+  }, [reload]);
 
   // Tự làm mới khi mở lại app
   useEffect(() => {
-    const on = () => document.visibilityState === 'visible' && reload();
+    const on = () => document.visibilityState === 'visible' && getToken() && reload();
     document.addEventListener('visibilitychange', on);
     return () => document.removeEventListener('visibilitychange', on);
   }, [reload]);
@@ -100,7 +106,7 @@ export default function VuongMacMobile() {
         focusId.current = e.data.id;
         setStatus('all');
         setOpenId(e.data.id);
-        reload();
+        if (getToken()) reload();
       }
     };
     navigator.serviceWorker.addEventListener('message', h);
@@ -124,6 +130,11 @@ export default function VuongMacMobile() {
     } catch (e: any) {
       flash(e.message || 'Không bật được thông báo');
     }
+  };
+
+  const goLogin = () => {
+    sessionStorage.setItem('after_login', '/m'); // để trang đăng nhập quay lại /m sau khi xong
+    window.location.href = '/'; // đổi thành route đăng nhập của bạn
   };
 
   const chip = (on: boolean) =>
@@ -165,7 +176,16 @@ export default function VuongMacMobile() {
       </header>
 
       <main className="space-y-3 p-4">
-        {error && <p className="rounded-lg bg-red-100 p-3 text-sm text-red-700">{error}</p>}
+        {error === UNAUTHORIZED ? (
+          <div className="space-y-2 rounded-lg bg-red-100 p-3 text-sm text-red-700">
+            <p>Bạn chưa đăng nhập hoặc phiên đã hết hạn.</p>
+            <button onClick={goLogin} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white">
+              Đăng nhập
+            </button>
+          </div>
+        ) : error ? (
+          <p className="rounded-lg bg-red-100 p-3 text-sm text-red-700">{error}</p>
+        ) : null}
 
         {rows.map(v => {
           const bs = botState(v);
