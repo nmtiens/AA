@@ -39,6 +39,7 @@ export interface VuongMacItem {
   resolvedBy?: string | null;
   resolvedAt?: string | null;
   extensions?: VuongMacExtension[]; // lịch sử xin thêm thời gian
+  photos?: number[];                 // [MỚI] id các ảnh đính kèm
   createdDepartment?: string | null; // phòng ban của người tạo
   canModify?: boolean;               // user hiện tại có được sửa/xóa/đánh dấu xử lý không (server tính)
 }
@@ -132,6 +133,24 @@ export const createVuongMac = async (
   }
 };
 
+// [MỚI] Bản ném lỗi (kèm thông báo của server) cho form mobile
+export const createVuongMacStrict = async (
+  hex: string,
+  category: FiveMCategory,
+  content: string,
+  extra?: VuongMacExtra
+): Promise<VuongMacItem> => {
+  const r = await fetch('/api/vuong-mac', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ hex, category, content, ...extra }),
+  });
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.success) throw new Error(d.message || d.error || `Lỗi ${r.status}`);
+  return d.data as VuongMacItem;
+};
+
 export const updateVuongMac = async (
   id: number,
   patch: Partial<{
@@ -223,7 +242,7 @@ export const fetchVuongMacAll = async (p: {
 // Mã lỗi khi chưa đăng nhập / token hết hạn — trang mobile dựa vào đây để hiện nút đăng nhập
 export const UNAUTHORIZED = 'UNAUTHORIZED';
 
-// [MỚI] Bản ném lỗi cho trang mobile: phân biệt "lỗi mạng/quyền" với "không có dữ liệu".
+// Bản ném lỗi cho trang mobile: phân biệt "lỗi mạng/quyền" với "không có dữ liệu".
 export const fetchVuongMacAllStrict = async (p: {
   status?: 'open' | 'resolved' | 'all'; category?: FiveMCategory | ''; q?: string; page?: number;
 }): Promise<{ data: VuongMacRow[]; total: number }> => {
@@ -235,4 +254,75 @@ export const fetchVuongMacAllStrict = async (p: {
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.message || d.error || `Lỗi ${r.status}`);
   return d;
+};
+
+// ---------------------------------------------------------------------------
+// [MỚI] Tìm HEX (dùng cho form Thêm trên mobile)
+// ---------------------------------------------------------------------------
+export interface HexHit {
+  hex: string;
+  congTrinh?: string | null;
+  hangMuc?: string | null;
+  xuong?: string | null;
+}
+
+export const fetchHexSearch = async (q: string): Promise<HexHit[]> => {
+  try {
+    const r = await fetch(`/api/vuong-mac/hex-search?q=${encodeURIComponent(q)}`, { headers: authHeaders() });
+    if (!r.ok) return [];
+    return await r.json();
+  } catch (e) {
+    console.error('fetchHexSearch error:', e);
+    return [];
+  }
+};
+
+// ---------------------------------------------------------------------------
+// [MỚI] Ảnh đính kèm
+// ---------------------------------------------------------------------------
+
+// Tải 1 ảnh (đã nén JPEG) lên. Mỗi request 1 ảnh để không vượt giới hạn body của Vercel.
+export const uploadVuongMacPhoto = async (id: number, blob: Blob): Promise<{ id: number }> => {
+  const token = getToken();
+  const r = await fetch(`/api/vuong-mac/${id}/photos`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'image/jpeg',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: blob,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.success) throw new Error(d.message || `Lỗi ${r.status}`);
+  return d.data;
+};
+
+export const deleteVuongMacPhoto = async (photoId: number): Promise<void> => {
+  const r = await fetch(`/api/vuong-mac/photo/${photoId}`, { method: 'DELETE', headers: authHeaders() });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || `Lỗi ${r.status}`);
+  }
+  photoUrlCache.delete(photoId);
+};
+
+// Ảnh cần token nên không dùng <img src="/api/..."> trực tiếp được:
+// fetch kèm token -> blob -> objectURL, có cache theo id.
+const photoUrlCache = new Map<number, Promise<string>>();
+
+export const fetchVuongMacPhotoUrl = (photoId: number): Promise<string> => {
+  let p = photoUrlCache.get(photoId);
+  if (!p) {
+    p = (async () => {
+      const token = getToken();
+      const r = await fetch(`/api/vuong-mac/photo/${photoId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!r.ok) throw new Error(`Lỗi ${r.status}`);
+      return URL.createObjectURL(await r.blob());
+    })();
+    photoUrlCache.set(photoId, p);
+    p.catch(() => photoUrlCache.delete(photoId));
+  }
+  return p;
 };

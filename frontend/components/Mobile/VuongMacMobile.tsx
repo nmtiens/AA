@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback, useRef, type ReactNode, type FormEven
 import { createPortal } from 'react-dom';
 import {
   FIVE_M_LABELS, FIVE_M_CATEGORIES, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, extendVuongMac,
-  deleteVuongMac, fetchVuongMacLog,
-  type VuongMacRow, type VuongMacLogEntry, type FiveMCategory,
+  deleteVuongMac, fetchVuongMacLog, createVuongMacStrict, uploadVuongMacPhoto, deleteVuongMacPhoto,
+  fetchVuongMacPhotoUrl, fetchHexSearch,
+  type VuongMacRow, type VuongMacLogEntry, type FiveMCategory, type HexHit,
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import { useAuth } from '../../context/AuthContext';
@@ -11,16 +12,24 @@ import {
   parseBotEnd, botStart, nowFmt, fmtLocalInput, pushSupported, isPushOn, enablePush, disablePush,
 } from '../../services/vuongMacMobileApi';
 import HexLookup from './HexLookup';
+import PhotoPicker, { type PhotoItem } from './PhotoPicker';
 
 type VMItem = VuongMacRow;
 type VMLog = VuongMacLogEntry;
-type Sheet = { type: 'resolve' | 'extend' | 'delete' | 'log'; row: VMItem } | null;
+type Sheet =
+  | { type: 'resolve' | 'extend' | 'delete' | 'log' | 'edit'; row: VMItem }
+  | { type: 'create' }
+  | null;
 
 // Bảng màu dùng chung (nền xám xanh nhạt, khối nội dung trắng bo góc lớn)
 const BG = 'bg-[#f1f4f9]';
 const NAV_BG = 'bg-[#e9eef6]';
 const NAV_ACTIVE = 'bg-[#d3e3fd]';
+const TEXT_SIZES = [16, 18, 20, 22];
+const SIZE_LABELS = ['Nhỏ', 'Vừa', 'Lớn', 'Rất lớn'];
+const DEFAULT_SIZE_IDX = 1;
 const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+const MAX_PHOTOS = 5;
 
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
 
@@ -186,7 +195,54 @@ function InstallBanner() {
   );
 }
 
-function VuongMacList() {
+// ---------------- Ảnh đính kèm: hiển thị + xem phóng to ----------------
+// Ảnh cần token nên tải bằng fetch -> objectURL (xem fetchVuongMacPhotoUrl)
+function AuthImg({ id, className, onClick }: { id: number; className?: string; onClick?: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setUrl(null); setFailed(false);
+    fetchVuongMacPhotoUrl(id).then(u => alive && setUrl(u)).catch(() => alive && setFailed(true));
+    return () => { alive = false; };
+  }, [id]);
+
+  if (failed) {
+    return <div className={`flex items-center justify-center bg-slate-100 text-xs text-slate-400 ${className ?? ''}`}>Lỗi ảnh</div>;
+  }
+  if (!url) return <div className={`animate-pulse bg-slate-200 ${className ?? ''}`} />;
+  return <img src={url} alt="" onClick={onClick} className={className} />;
+}
+
+function PhotoLightbox({ ids, start, onClose }: { ids: number[]; start: number; onClose: () => void }) {
+  const [idx, setIdx] = useState(start);
+  const [zoom, setZoom] = useState(false);
+  const go = (d: number) => { setIdx(i => (i + d + ids.length) % ids.length); setZoom(false); };
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex flex-col bg-black/95">
+      <div className="flex items-center justify-between px-4 pb-2 pt-[calc(env(safe-area-inset-top)+8px)] text-white">
+        <span className="text-sm">{idx + 1}/{ids.length}{zoom ? '' : ' · bấm ảnh để phóng to'}</span>
+        <button onClick={onClose} aria-label="Đóng" className="flex h-11 w-11 items-center justify-center rounded-full text-xl active:bg-white/20">✕</button>
+      </div>
+      <div className={`relative min-h-0 flex-1 ${zoom ? 'overflow-auto' : 'flex items-center justify-center overflow-hidden'}`}>
+        <AuthImg
+          id={ids[idx]}
+          onClick={() => setZoom(z => !z)}
+          className={zoom ? 'max-w-none w-[250%]' : 'max-h-full max-w-full object-contain'}
+        />
+      </div>
+      {ids.length > 1 && (
+        <div className="flex justify-between px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3">
+          <button onClick={() => go(-1)} className="h-12 w-16 rounded-full bg-white/15 text-2xl text-white active:bg-white/30">‹</button>
+          <button onClick={() => go(1)} className="h-12 w-16 rounded-full bg-white/15 text-2xl text-white active:bg-white/30">›</button>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+}
+
+function VuongMacList({ onCycleSize, sizeLabel }: { onCycleSize: () => void; sizeLabel: string }) {
   const targetId = Number(new URLSearchParams(location.search).get('id')) || null;
 
   const [rows, setRows] = useState<VMItem[]>([]);
@@ -199,6 +255,7 @@ function VuongMacList() {
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState<number | null>(targetId);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [viewer, setViewer] = useState<{ ids: number[]; idx: number } | null>(null);
   const [toast, setToast] = useState('');
   const [pushOn, setPushOn] = useState(false);
   const focusId = useRef<number | null>(targetId);
@@ -269,7 +326,7 @@ function VuongMacList() {
   };
 
   const chip = (on: boolean) =>
-    `shrink-0 rounded-full px-4 py-1.5 text-sm ${on ? 'bg-[#d3e3fd] font-medium text-slate-900' : 'border border-slate-300 text-slate-600'}`;
+    `shrink-0 rounded-full px-5 py-2.5 text-base ${on ? 'bg-[#d3e3fd] font-medium text-slate-900' : 'border border-slate-300 text-slate-600'}`;
 
   const avatarCls = (v: VMItem, bs: { cls: string } | null) =>
     v.isResolved ? 'bg-emerald-500' : bs?.cls.includes('red') ? 'bg-red-500' : bs ? 'bg-amber-500' : 'bg-orange-400';
@@ -283,6 +340,14 @@ function VuongMacList() {
             <p className="text-xs text-slate-500">{loading ? 'Đang tải...' : `${total} mục`}</p>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={onCycleSize}
+              title="Đổi cỡ chữ"
+              aria-label="Đổi cỡ chữ"
+              className="flex h-12 min-w-12 items-center justify-center rounded-full px-2 text-base font-semibold text-slate-700 active:bg-slate-200"
+            >
+              Aa<span className="ml-0.5 text-[10px] font-normal text-slate-500">{sizeLabel}</span>
+            </button>
             {pushSupported() && (
               <button
                 onClick={togglePush}
@@ -344,30 +409,32 @@ function VuongMacList() {
           const bs = botState(v);
           const open = openId === v.id;
           const title = v.congTrinh || v.hex;
+          const photoIds = v.photos ?? [];
           return (
             <article
               id={`vm-${v.id}`}
               key={v.id}
-              className={`border-b border-slate-100 px-4 py-3 last:border-b-0 ${open ? 'bg-slate-50' : ''}`}
+              className={`border-b border-slate-100 px-4 py-4 last:border-b-0 ${open ? 'bg-slate-50' : ''}`}
             >
               <button className="flex w-full items-start gap-3 text-left" onClick={() => setOpenId(open ? null : v.id)}>
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-medium text-white ${avatarCls(v, bs)}`}>
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-medium text-white ${avatarCls(v, bs)}`}>
                   {v.isResolved ? '✓' : (title || '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className={`text-base font-medium text-slate-900 ${open ? '' : 'truncate'}`}>{title}</p>
+                    <p className={`text-lg font-medium leading-snug text-slate-900 ${open ? '' : 'truncate'}`}>{title}</p>
                     {bs && (
-                      <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${bs.cls}`}>{bs.label}</span>
+                      <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${bs.cls}`}>{bs.label}</span>
                     )}
                   </div>
-                  <p className={`text-sm text-slate-500 ${open ? '' : 'truncate'}`}>
+                  <p className={`text-base text-slate-500 ${open ? '' : 'truncate'}`}>
                     {v.hangMuc ? `${v.hangMuc} · ` : ''}{FIVE_M_LABELS[v.category]}
                   </p>
-                  <p className={`mt-0.5 text-sm text-slate-700 ${open ? '' : 'line-clamp-2'}`}>{v.content}</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5 text-xs text-slate-600">
-                    {v.handler && <span className="rounded-full bg-slate-100 px-2.5 py-1">Xử lý: {v.handler}</span>}
-                    {v.bot && <span className="rounded-full bg-slate-100 px-2.5 py-1">BOT: {v.bot}</span>}
+                  <p className={`mt-0.5 text-base text-slate-700 ${open ? '' : 'line-clamp-2'}`}>{v.content}</p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-600">
+                    {v.handler && <span className="rounded-full bg-slate-100 px-3 py-1.5">Xử lý: {v.handler}</span>}
+                    {v.bot && <span className="rounded-full bg-slate-100 px-3 py-1.5">BOT: {v.bot}</span>}
+                    {photoIds.length > 0 && <span className="rounded-full bg-slate-100 px-3 py-1.5">📷 {photoIds.length}</span>}
                     {!!v.extensions?.length && (
                       <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-700">Gia hạn ×{v.extensions.length}</span>
                     )}
@@ -376,12 +443,26 @@ function VuongMacList() {
               </button>
 
               {open && (
-                <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 text-sm text-slate-700">
+                <div className="mt-3 space-y-3 border-t border-slate-200 pt-3 text-base text-slate-700">
                   <p className="text-xs text-slate-500">
                     HEX {v.hex}{v.xuong ? ` · Xưởng ${v.xuong}` : ''} · Tạo bởi {v.createdBy} · {fmtTime(v.createdAt)}
                   </p>
                   {v.solution && <p><b>Giải pháp:</b> {v.solution}</p>}
                   {v.note && <p><b>Ghi chú:</b> {v.note}</p>}
+
+                  {photoIds.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {photoIds.map((pid, i) => (
+                        <AuthImg
+                          key={pid}
+                          id={pid}
+                          onClick={() => setViewer({ ids: photoIds, idx: i })}
+                          className="aspect-square w-full rounded-2xl object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {v.isResolved && (
                     <p className="rounded-2xl bg-emerald-50 p-3">
                       <b>Đã xử lý</b> ({v.resolvedBy}, {fmtTime(v.resolvedAt)}): {v.resolvedNote}
@@ -395,22 +476,27 @@ function VuongMacList() {
                           <p>{e.content}</p>
                           <p className="text-xs text-slate-500">BOT: {e.oldBot || '—'} → {e.bot}</p>
                           {e.note && <p className="text-xs text-slate-500">Ghi chú: {e.note}</p>}
-                          <p className="text-[11px] text-slate-400">{e.createdBy} · {fmtTime(e.createdAt)}</p>
+                          <p className="text-xs text-slate-400">{e.createdBy} · {fmtTime(e.createdAt)}</p>
                         </div>
                       ))}
                     </div>
                   )}
 
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <button onClick={() => setSheet({ type: 'log', row: v })} className="rounded-full border border-slate-300 bg-white px-4 py-2 active:bg-slate-100">
+                    <button onClick={() => setSheet({ type: 'log', row: v })} className="rounded-full border border-slate-300 bg-white px-5 py-3 active:bg-slate-100">
                       Nhật ký
                     </button>
+                    {v.canModify && (
+                      <button onClick={() => setSheet({ type: 'edit', row: v })} className="rounded-full border border-slate-300 bg-white px-5 py-3 active:bg-slate-100">
+                        Sửa
+                      </button>
+                    )}
                     {v.canModify && !v.isResolved && (
                       <>
-                        <button onClick={() => setSheet({ type: 'resolve', row: v })} className="rounded-full bg-emerald-600 px-4 py-2 text-white active:opacity-80">
+                        <button onClick={() => setSheet({ type: 'resolve', row: v })} className="rounded-full bg-emerald-600 px-5 py-3 text-white active:opacity-80">
                           Đã xử lý
                         </button>
-                        <button onClick={() => setSheet({ type: 'extend', row: v })} className="rounded-full bg-amber-500 px-4 py-2 text-white active:opacity-80">
+                        <button onClick={() => setSheet({ type: 'extend', row: v })} className="rounded-full bg-amber-500 px-5 py-3 text-white active:opacity-80">
                           Cần thêm thời gian
                         </button>
                       </>
@@ -426,13 +512,13 @@ function VuongMacList() {
                             flash(e.message);
                           }
                         }}
-                        className="rounded-full border border-slate-300 bg-white px-4 py-2 active:bg-slate-100"
+                        className="rounded-full border border-slate-300 bg-white px-5 py-3 active:bg-slate-100"
                       >
                         Mở lại
                       </button>
                     )}
                     {v.canModify && (
-                      <button onClick={() => setSheet({ type: 'delete', row: v })} className="rounded-full border border-red-300 bg-white px-4 py-2 text-red-600 active:bg-red-50">
+                      <button onClick={() => setSheet({ type: 'delete', row: v })} className="rounded-full border border-red-300 bg-white px-5 py-3 text-red-600 active:bg-red-50">
                         Xóa
                       </button>
                     )}
@@ -461,6 +547,23 @@ function VuongMacList() {
         )}
       </main>
 
+      {/* Nút thêm mới (nằm trong tab "Vướng mắc" nên tự ẩn khi sang tab Tra cứu hex) */}
+      {error !== UNAUTHORIZED && (
+        <button
+          onClick={() => setSheet({ type: 'create' })}
+          aria-label="Thêm vướng mắc"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+88px)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 text-3xl text-white shadow-lg active:opacity-80"
+        >
+          +
+        </button>
+      )}
+
+      {sheet?.type === 'create' && (
+        <FormSheet onClose={() => setSheet(null)} onDone={m => { setSheet(null); flash(m); reload(); }} />
+      )}
+      {sheet?.type === 'edit' && (
+        <FormSheet row={sheet.row} onClose={() => setSheet(null)} onDone={m => { setSheet(null); flash(m); reload(); }} />
+      )}
       {sheet?.type === 'resolve' && (
         <ResolveSheet row={sheet.row} onClose={() => setSheet(null)} onDone={() => { setSheet(null); flash('Đã đánh dấu xử lý'); reload(); }} />
       )}
@@ -472,8 +575,10 @@ function VuongMacList() {
       )}
       {sheet?.type === 'log' && <LogSheet row={sheet.row} onClose={() => setSheet(null)} />}
 
+      {viewer && <PhotoLightbox ids={viewer.ids} start={viewer.idx} onClose={() => setViewer(null)} />}
+
       {toast && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+88px)] left-1/2 z-[70] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+88px)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">
           {toast}
         </div>
       )}
@@ -492,6 +597,206 @@ function useSubmit(fn: () => Promise<unknown>, onDone: () => void) {
     finally { setBusy(false); }
   };
   return { busy, err, submit };
+}
+
+// Form THÊM (không truyền row) và SỬA (truyền row), có chụp / đính kèm ảnh
+function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void; onDone: (msg: string) => void }) {
+  const editing = !!row;
+
+  // Chọn HEX (chỉ khi thêm)
+  const [picked, setPicked] = useState<HexHit | null>(null);
+  const [hexQ, setHexQ] = useState('');
+  const [hits, setHits] = useState<HexHit[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  const [category, setCategory] = useState<FiveMCategory>(row?.category ?? 'man');
+  const [content, setContent] = useState(row?.content ?? '');
+  const [handler, setHandler] = useState(row?.handler ?? '');
+  const [end, setEnd] = useState(''); // hạn BOT (kết thúc), dạng datetime-local
+  const [solution, setSolution] = useState(row?.solution ?? '');
+  const [note, setNote] = useState(row?.note ?? '');
+
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);          // ảnh mới chụp/chọn
+  const [keptIds, setKeptIds] = useState<number[]>(row?.photos ?? []); // ảnh cũ còn giữ lại
+
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (editing || picked) return;
+    const t = setTimeout(async () => {
+      if (hexQ.trim().length < 2) { setHits([]); return; }
+      setSearching(true);
+      try { setHits(await fetchHexSearch(hexQ.trim())); } finally { setSearching(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [hexQ, picked, editing]);
+
+  const newBot = end ? `${(row && botStart(row.bot)) || nowFmt()} - ${fmtLocalInput(end)}` : '';
+  const canSubmit = !busy && !!content.trim() && (editing || !!picked);
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setBusy(true); setErr('');
+
+    // Bước 1: lưu nội dung
+    let id: number;
+    try {
+      if (row) {
+        const patch: Parameters<typeof updateVuongMac>[1] = {
+          category,
+          content: content.trim(),
+          handler: handler.trim(),
+          solution: solution.trim(),
+          note: note.trim(),
+        };
+        if (newBot) patch.bot = newBot;
+        must(await updateVuongMac(row.id, patch), 'Không lưu được (kiểm tra quyền hoặc kết nối)');
+        id = row.id;
+      } else {
+        const created = await createVuongMacStrict(picked!.hex, category, content.trim(), {
+          handler: handler.trim(), bot: newBot, solution: solution.trim(), note: note.trim(),
+        });
+        id = created.id;
+      }
+    } catch (e: any) {
+      setErr(e.message || 'Có lỗi xảy ra');
+      setBusy(false);
+      return;
+    }
+
+    // Bước 2: ảnh (nội dung đã lưu rồi nên lỗi ảnh chỉ báo, không bắt nhập lại)
+    let failed = 0;
+    if (row) {
+      for (const pid of row.photos ?? []) {
+        if (keptIds.includes(pid)) continue;
+        try { await deleteVuongMacPhoto(pid); } catch { failed++; }
+      }
+    }
+    for (const p of photos) {
+      try { await uploadVuongMacPhoto(id, p.blob); } catch { failed++; }
+    }
+
+    setBusy(false);
+    onDone(
+      failed
+        ? `Đã lưu, nhưng ${failed} ảnh bị lỗi. Bấm Sửa để thêm lại ảnh`
+        : editing ? 'Đã lưu thay đổi' : 'Đã thêm vướng mắc'
+    );
+  };
+
+  return (
+    <BottomSheet title={editing ? 'Sửa vướng mắc' : 'Thêm vướng mắc'} onClose={onClose}>
+      <div className="space-y-3">
+        {/* HEX */}
+        {editing ? (
+          <p className="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600">
+            HEX {row!.hex}{row!.congTrinh ? ` · ${row!.congTrinh}` : ''}
+          </p>
+        ) : picked ? (
+          <div className="flex items-start justify-between gap-2 rounded-2xl bg-[#d3e3fd] p-3">
+            <div className="min-w-0 text-sm text-slate-800">
+              <p className="font-medium">HEX {picked.hex}</p>
+              <p className="truncate">{picked.congTrinh}{picked.hangMuc ? ` · ${picked.hangMuc}` : ''}</p>
+              {picked.xuong && <p className="text-xs text-slate-600">Xưởng {picked.xuong}</p>}
+            </div>
+            <button type="button" onClick={() => { setPicked(null); setHexQ(''); }} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm text-slate-700 active:bg-slate-100">
+              Đổi
+            </button>
+          </div>
+        ) : (
+          <div>
+            <input
+              value={hexQ}
+              onChange={e => setHexQ(e.target.value)}
+              placeholder="Tìm HEX / công trình / hạng mục (từ 2 ký tự)"
+              className={inputCls}
+            />
+            {searching && <p className="mt-2 text-sm text-slate-400">Đang tìm...</p>}
+            {hits.length > 0 && (
+              <div className="mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200">
+                {hits.map(h => (
+                  <button
+                    type="button"
+                    key={h.hex}
+                    onClick={() => setPicked(h)}
+                    className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 active:bg-slate-100"
+                  >
+                    <p className="text-sm font-medium text-slate-900">HEX {h.hex} · {h.congTrinh}</p>
+                    <p className="truncate text-xs text-slate-500">{h.hangMuc}{h.xuong ? ` · Xưởng ${h.xuong}` : ''}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+            {!searching && hexQ.trim().length >= 2 && hits.length === 0 && (
+              <p className="mt-2 text-sm text-slate-400">Không tìm thấy HEX phù hợp.</p>
+            )}
+          </div>
+        )}
+
+        {/* Loại 5M */}
+        <div className="flex flex-wrap gap-2">
+          {FIVE_M_CATEGORIES.map(c => (
+            <button
+              type="button"
+              key={c}
+              onClick={() => setCategory(c)}
+              className={`rounded-full px-4 py-2 text-sm ${category === c ? 'bg-[#d3e3fd] font-medium text-slate-900' : 'border border-slate-300 text-slate-600'}`}
+            >
+              {FIVE_M_LABELS[c].split(' ')[0]}
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          rows={4}
+          maxLength={2000}
+          placeholder="Nội dung vướng mắc (bắt buộc)"
+          className={inputCls}
+        />
+        <input value={handler} onChange={e => setHandler(e.target.value)} maxLength={200} placeholder="Người xử lý (tuỳ chọn)" className={inputCls} />
+
+        <label className="block text-sm text-slate-500">
+          {editing ? `Hạn BOT mới (để trống nếu giữ nguyên${row!.bot ? `: ${row!.bot}` : ''})` : 'Hạn BOT (kết thúc, tuỳ chọn)'}
+          <input type="datetime-local" value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
+        </label>
+        {newBot && <p className="text-sm text-slate-500">BOT: {newBot}</p>}
+
+        <textarea value={solution} onChange={e => setSolution(e.target.value)} rows={2} maxLength={2000} placeholder="Giải pháp (tuỳ chọn)" className={inputCls} />
+        <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={2000} placeholder="Ghi chú (tuỳ chọn)" className={inputCls} />
+
+        {/* Ảnh */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-slate-700">Ảnh đính kèm</p>
+          {keptIds.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {keptIds.map(pid => (
+                <div key={pid} className="relative aspect-square overflow-hidden rounded-2xl bg-slate-100">
+                  <AuthImg id={pid} className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setKeptIds(ids => ids.filter(x => x !== pid))}
+                    aria-label="Xóa ảnh"
+                    className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <PhotoPicker value={photos} onChange={setPhotos} max={MAX_PHOTOS - keptIds.length} />
+        </div>
+      </div>
+
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <button disabled={!canSubmit} onClick={submit} className={`${btnPrimary} mt-4`}>
+        {busy ? (photos.length ? 'Đang lưu và tải ảnh...' : 'Đang lưu...') : editing ? 'Lưu thay đổi' : 'Thêm vướng mắc'}
+      </button>
+    </BottomSheet>
+  );
 }
 
 function ResolveSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => void; onDone: () => void }) {
@@ -565,7 +870,7 @@ function DeleteSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => voi
   return (
     <BottomSheet title="Xóa vướng mắc?" onClose={onClose}>
       <p className="text-base text-slate-800">{row.content}</p>
-      <p className="mt-2 text-sm text-slate-500">Lịch sử gia hạn cũng sẽ bị xóa. Thao tác này không hoàn tác được.</p>
+      <p className="mt-2 text-sm text-slate-500">Lịch sử gia hạn và ảnh đính kèm cũng sẽ bị xóa. Thao tác này không hoàn tác được.</p>
       {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
       <div className="mt-4 flex gap-3">
         <button onClick={onClose} className="flex-1 rounded-full border border-slate-300 py-3 text-base active:bg-slate-100">Hủy</button>
@@ -591,7 +896,7 @@ function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
             </p>
             {l.contentAfter && <p className="text-slate-600">{l.contentAfter}</p>}
             {l.detail && <p className="whitespace-pre-line text-slate-500">{l.detail}</p>}
-            <p className="text-[11px] text-slate-400">{fmtTime(l.actedAt)}</p>
+            <p className="text-xs text-slate-400">{fmtTime(l.actedAt)}</p>
           </div>
         ))}
         {logs && logs.length === 0 && <p className="text-sm text-slate-400">Chưa có nhật ký.</p>}
@@ -606,9 +911,21 @@ export default function VuongMacMobile() {
   const [tab, setTab] = useState<'list' | 'lookup'>(
     params.get('tab') === 'lookup' && !params.get('id') ? 'lookup' : 'list'
   );
+  // Cỡ chữ toàn app: đổi font-size gốc nên mọi kích thước dùng rem (chữ, nút, khoảng cách) đều to lên theo
+  const [sizeIdx, setSizeIdx] = useState(() => {
+    const v = Number(localStorage.getItem('m_size_idx'));
+    return Number.isInteger(v) && v >= 0 && v < TEXT_SIZES.length ? v : DEFAULT_SIZE_IDX;
+  });
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${TEXT_SIZES[sizeIdx]}px`;
+    localStorage.setItem('m_size_idx', String(sizeIdx));
+    return () => { document.documentElement.style.fontSize = ''; };
+  }, [sizeIdx]);
+  const cycleSize = () => setSizeIdx(i => (i + 1) % TEXT_SIZES.length);
+
   const tabBtn = (on: boolean) =>
-    `flex flex-1 flex-col items-center gap-1 pt-2 pb-2.5 text-xs ${on ? 'font-medium text-slate-900' : 'text-slate-500'}`;
-  const pill = (on: boolean) => `rounded-full px-6 py-1 text-xl transition-colors ${on ? NAV_ACTIVE : ''}`;
+    `flex flex-1 flex-col items-center gap-1 pt-2.5 pb-3 text-sm ${on ? 'font-medium text-slate-900' : 'text-slate-500'}`;
+  const pill = (on: boolean) => `rounded-full px-7 py-1.5 text-2xl transition-colors ${on ? NAV_ACTIVE : ''}`;
 
   // Bấm thông báo khi đang ở tab "Tra cứu hex" -> tự chuyển về tab "Vướng mắc"
   useEffect(() => {
@@ -625,7 +942,7 @@ export default function VuongMacMobile() {
       {/* Khung cuộn riêng: không phụ thuộc overflow của html/body/#root */}
       <div className={`fixed inset-0 overflow-y-auto overscroll-contain ${BG}`}>
         {/* Giữ cả 2 tab luôn được mount (ẩn bằng CSS) để không mất bộ lọc / kết quả khi chuyển tab */}
-        <div className={tab === 'list' ? '' : 'hidden'}><VuongMacList /></div>
+        <div className={tab === 'list' ? '' : 'hidden'}><VuongMacList onCycleSize={cycleSize} sizeLabel={SIZE_LABELS[sizeIdx]} /></div>
         <div className={tab === 'lookup' ? '' : 'hidden'}><HexLookup /></div>
       </div>
 

@@ -3102,6 +3102,14 @@ const canAddToVuongMacThread = async (actor: VuongMacActor, hex: string, categor
   );
 };
 
+// =============================================================================
+// PATCH CHO FILE SERVER (file có import express, app.get('/api/vuong-mac/all')...)
+// Chỉ có 3 chỗ: (A) sửa mapVuongMacRow, (B) sửa SELECT_VUONG_MAC_WITH_DEPT,
+// (C) thêm 3 route ảnh, đặt NGAY TRƯỚC dòng `registerVuongMacPush(app, ...)`.
+// =============================================================================
+
+
+// ---------- (A) mapVuongMacRow: thêm dòng `photos` sau `extensions` ----------
 const mapVuongMacRow = (
   row: any,
   actor: VuongMacActor,
@@ -3123,10 +3131,13 @@ const mapVuongMacRow = (
   resolvedBy: row.resolved_by,
   resolvedAt: row.resolved_at,
   extensions: Array.isArray(row.extensions) ? row.extensions : [],
+  photos: Array.isArray(row.photos) ? row.photos : [],          // <-- MỚI: danh sách id ảnh
   createdDepartment,
   canModify: canModifyVuongMac(actor, row.created_by, createdDepartment),
 });
 
+
+// ---------- (B) SELECT_VUONG_MAC_WITH_DEPT: thêm subquery `photos` ----------
 const SELECT_VUONG_MAC_WITH_DEPT = `
   SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department,
     COALESCE((
@@ -3135,10 +3146,113 @@ const SELECT_VUONG_MAC_WITH_DEPT = `
                'note', e.note, 'createdBy', e.created_by, 'createdAt', e.created_at
              ) ORDER BY e.created_at, e.id)
       FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id
-    ), '[]'::json) AS extensions
+    ), '[]'::json) AS extensions,
+    COALESCE((
+      SELECT json_agg(ph.id ORDER BY ph.id)
+      FROM vuong_mac_photo ph WHERE ph.vuong_mac_id = vm.id
+    ), '[]'::json) AS photos
   FROM vuong_mac vm
   LEFT JOIN users u ON u.username = vm.created_by
 `;
+
+
+// ---------- (C) 3 route ảnh — dán trước `registerVuongMacPush(app, ...)` ----------
+const MAX_PHOTOS_PER_ITEM = 5;
+const isJpeg = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+
+// Tải 1 ảnh lên (body = bytes JPEG thô, mỗi request 1 ảnh)
+app.post(
+  '/api/vuong-mac/:id/photos',
+  authenticateJWT,
+  express.raw({ type: 'image/*', limit: '2mb' }),
+  async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+
+      const buf = req.body as Buffer;
+      if (!Buffer.isBuffer(buf) || buf.length === 0) {
+        return res.status(400).json({ success: false, message: 'Không có dữ liệu ảnh' });
+      }
+      if (!isJpeg(buf)) {
+        return res.status(400).json({ success: false, message: 'Chỉ nhận ảnh JPEG' });
+      }
+
+      const me = await getVuongMacActor(req);
+      const existing = await pool.query(
+        `SELECT vm.created_by, u.department AS created_department
+         FROM vuong_mac vm LEFT JOIN users u ON u.username = vm.created_by
+         WHERE vm.id = $1`,
+        [id]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy vướng mắc' });
+      }
+      const old = existing.rows[0];
+      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+        return res.status(403).json({ success: false, message: 'Không có quyền thêm ảnh' });
+      }
+
+      const cnt = await pool.query('SELECT COUNT(*) FROM vuong_mac_photo WHERE vuong_mac_id = $1', [id]);
+      if (Number(cnt.rows[0].count) >= MAX_PHOTOS_PER_ITEM) {
+        return res.status(400).json({ success: false, message: `Tối đa ${MAX_PHOTOS_PER_ITEM} ảnh` });
+      }
+
+      const r = await pool.query(
+        `INSERT INTO vuong_mac_photo (vuong_mac_id, data, mime, size, created_by)
+         VALUES ($1, $2, 'image/jpeg', $3, $4) RETURNING id`,
+        [id, buf, buf.length, me.username]
+      );
+      res.json({ success: true, data: { id: r.rows[0].id } });
+    } catch (error) {
+      console.error('Lỗi upload ảnh vuong-mac:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  }
+);
+
+// Lấy 1 ảnh (cần token nên client fetch -> blob -> objectURL)
+app.get('/api/vuong-mac/photo/:photoId', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const photoId = Number(req.params.photoId);
+    if (!Number.isInteger(photoId)) return res.status(400).json({ error: 'Invalid id' });
+    const r = await pool.query('SELECT data, mime FROM vuong_mac_photo WHERE id = $1', [photoId]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.setHeader('Content-Type', r.rows[0].mime || 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.send(r.rows[0].data);
+  } catch (error) {
+    console.error('Lỗi lấy ảnh vuong-mac:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Xóa 1 ảnh
+app.delete('/api/vuong-mac/photo/:photoId', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const photoId = Number(req.params.photoId);
+    if (!Number.isInteger(photoId)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+
+    const me = await getVuongMacActor(req);
+    const r = await pool.query(
+      `SELECT vm.created_by, u.department AS created_department
+       FROM vuong_mac_photo ph
+       JOIN vuong_mac vm ON vm.id = ph.vuong_mac_id
+       LEFT JOIN users u ON u.username = vm.created_by
+       WHERE ph.id = $1`,
+      [photoId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy ảnh' });
+    if (!canModifyVuongMac(me, r.rows[0].created_by, r.rows[0].created_department)) {
+      return res.status(403).json({ success: false, message: 'Không có quyền xóa ảnh' });
+    }
+    await pool.query('DELETE FROM vuong_mac_photo WHERE id = $1', [photoId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Lỗi xóa ảnh vuong-mac:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
 
 // Lấy toàn bộ vướng mắc cho danh sách hex
 app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Response) => {

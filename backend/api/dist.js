@@ -66107,6 +66107,8 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
   resolvedBy: row.resolved_by,
   resolvedAt: row.resolved_at,
   extensions: Array.isArray(row.extensions) ? row.extensions : [],
+  photos: Array.isArray(row.photos) ? row.photos : [],
+  // <-- MỚI: danh sách id ảnh
   createdDepartment,
   canModify: canModifyVuongMac(actor, row.created_by, createdDepartment)
 });
@@ -66118,10 +66120,99 @@ var SELECT_VUONG_MAC_WITH_DEPT = `
                'note', e.note, 'createdBy', e.created_by, 'createdAt', e.created_at
              ) ORDER BY e.created_at, e.id)
       FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id
-    ), '[]'::json) AS extensions
+    ), '[]'::json) AS extensions,
+    COALESCE((
+      SELECT json_agg(ph.id ORDER BY ph.id)
+      FROM vuong_mac_photo ph WHERE ph.vuong_mac_id = vm.id
+    ), '[]'::json) AS photos
   FROM vuong_mac vm
   LEFT JOIN users u ON u.username = vm.created_by
 `;
+var MAX_PHOTOS_PER_ITEM = 5;
+var isJpeg = (b) => b.length > 3 && b[0] === 255 && b[1] === 216 && b[2] === 255;
+app.post(
+  "/api/vuong-mac/:id/photos",
+  authenticateJWT,
+  import_express.default.raw({ type: "image/*", limit: "2mb" }),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
+      const buf = req.body;
+      if (!Buffer.isBuffer(buf) || buf.length === 0) {
+        return res.status(400).json({ success: false, message: "Kh\xF4ng c\xF3 d\u1EEF li\u1EC7u \u1EA3nh" });
+      }
+      if (!isJpeg(buf)) {
+        return res.status(400).json({ success: false, message: "Ch\u1EC9 nh\u1EADn \u1EA3nh JPEG" });
+      }
+      const me = await getVuongMacActor(req);
+      const existing = await pool.query(
+        `SELECT vm.created_by, u.department AS created_department
+         FROM vuong_mac vm LEFT JOIN users u ON u.username = vm.created_by
+         WHERE vm.id = $1`,
+        [id]
+      );
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
+      }
+      const old = existing.rows[0];
+      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+        return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n th\xEAm \u1EA3nh" });
+      }
+      const cnt = await pool.query("SELECT COUNT(*) FROM vuong_mac_photo WHERE vuong_mac_id = $1", [id]);
+      if (Number(cnt.rows[0].count) >= MAX_PHOTOS_PER_ITEM) {
+        return res.status(400).json({ success: false, message: `T\u1ED1i \u0111a ${MAX_PHOTOS_PER_ITEM} \u1EA3nh` });
+      }
+      const r = await pool.query(
+        `INSERT INTO vuong_mac_photo (vuong_mac_id, data, mime, size, created_by)
+         VALUES ($1, $2, 'image/jpeg', $3, $4) RETURNING id`,
+        [id, buf, buf.length, me.username]
+      );
+      res.json({ success: true, data: { id: r.rows[0].id } });
+    } catch (error61) {
+      console.error("L\u1ED7i upload \u1EA3nh vuong-mac:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  }
+);
+app.get("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) => {
+  try {
+    const photoId = Number(req.params.photoId);
+    if (!Number.isInteger(photoId)) return res.status(400).json({ error: "Invalid id" });
+    const r = await pool.query("SELECT data, mime FROM vuong_mac_photo WHERE id = $1", [photoId]);
+    if (r.rows.length === 0) return res.status(404).json({ error: "Not found" });
+    res.setHeader("Content-Type", r.rows[0].mime || "image/jpeg");
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.send(r.rows[0].data);
+  } catch (error61) {
+    console.error("L\u1ED7i l\u1EA5y \u1EA3nh vuong-mac:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.delete("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) => {
+  try {
+    const photoId = Number(req.params.photoId);
+    if (!Number.isInteger(photoId)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
+    const me = await getVuongMacActor(req);
+    const r = await pool.query(
+      `SELECT vm.created_by, u.department AS created_department
+       FROM vuong_mac_photo ph
+       JOIN vuong_mac vm ON vm.id = ph.vuong_mac_id
+       LEFT JOIN users u ON u.username = vm.created_by
+       WHERE ph.id = $1`,
+      [photoId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
+    if (!canModifyVuongMac(me, r.rows[0].created_by, r.rows[0].created_department)) {
+      return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n x\xF3a \u1EA3nh" });
+    }
+    await pool.query("DELETE FROM vuong_mac_photo WHERE id = $1", [photoId]);
+    res.json({ success: true });
+  } catch (error61) {
+    console.error("L\u1ED7i x\xF3a \u1EA3nh vuong-mac:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
 app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h)).filter(Boolean) : [];
