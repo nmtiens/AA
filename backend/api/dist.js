@@ -66392,11 +66392,21 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
     if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
       return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c x\xF3a" });
     }
+    const ext = await pool.query(
+      `SELECT id, content, bot, old_bot AS "oldBot", note, created_by AS "createdBy", created_at AS "createdAt"
+       FROM vuong_mac_extension WHERE vuong_mac_id = $1 ORDER BY created_at, id`,
+      [old.id]
+    );
+    const { canModify: _omit, ...snapshot } = mapVuongMacRow(
+      { ...old, extensions: ext.rows },
+      me,
+      old.created_department
+    );
     await pool.query("DELETE FROM vuong_mac WHERE id = $1", [id]);
     await pool.query(
-      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, actor)
-       VALUES ($1, $2, 'DELETE', $3, $4, $5)`,
-      [old.id, old.hex, old.category, old.content, actor]
+      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, snapshot, actor)
+       VALUES ($1, $2, 'DELETE', $3, $4, $5::jsonb, $6)`,
+      [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
     );
     res.json({ success: true, message: "\u0110\xE3 x\xF3a v\u01B0\u1EDBng m\u1EAFc" });
   } catch (error61) {
@@ -66408,7 +66418,7 @@ app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
   try {
     const { hex: hex3 } = req.params;
     const r = await timedQuery(
-      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, actor, acted_at
+      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, snapshot, actor, acted_at
        FROM vuong_mac_log
        WHERE hex = $1
        ORDER BY acted_at DESC
@@ -66423,11 +66433,66 @@ app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
       contentBefore: row.content_before,
       contentAfter: row.content_after,
       detail: row.detail,
+      snapshot: row.snapshot ?? null,
       actor: row.actor,
       actedAt: row.acted_at
     })));
   } catch (error61) {
     console.error("L\u1ED7i l\u1EA5y log vuong-mac:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get("/api/vuong-mac/xuong", authenticateJWT, async (_req, res) => {
+  try {
+    const r = await timedQuery(
+      `SELECT DISTINCT TRIM(xuong_chinh) AS name
+       FROM production_status_app
+       WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+       ORDER BY 1`
+    );
+    res.json(r.rows.map((row) => row.name));
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/xuong:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    const xuong = String(req.query.xuong || "").trim();
+    if (q.length < 2 && !xuong) return res.json([]);
+    const conds = ["hex IS NOT NULL"];
+    const params = [];
+    if (xuong) {
+      params.push(xuong);
+      conds.push(`UPPER(TRIM(xuong_chinh)) = UPPER(TRIM($${params.length}))`);
+    }
+    if (q) {
+      params.push(`%${q.replace(/[%_\\]/g, "\\$&")}%`);
+      const n = params.length;
+      conds.push(`(hex::text ILIKE $${n} OR ten_cong_trinh ILIKE $${n}
+                   OR ten_hang_muc ILIKE $${n} OR xuong_chinh ILIKE $${n})`);
+    }
+    const r = await timedQuery(
+      `SELECT * FROM (
+         SELECT DISTINCT ON (hex::text)
+                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh
+         FROM production_status_app
+         WHERE ${conds.join(" AND ")}
+         ORDER BY hex::text, updated_at DESC NULLS LAST
+       ) t
+       ORDER BY hex
+       LIMIT 50`,
+      params
+    );
+    res.json(r.rows.map((row) => ({
+      hex: row.hex,
+      congTrinh: row.ten_cong_trinh,
+      hangMuc: row.ten_hang_muc,
+      xuong: row.xuong_chinh
+    })));
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/hex-search:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

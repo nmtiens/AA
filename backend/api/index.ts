@@ -3449,11 +3449,21 @@ app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Resp
       return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban với người tạo (hoặc Admin) được xóa' });
     }
 
+    // Chụp lại toàn bộ thông tin TRƯỚC khi xóa (lịch sử gia hạn bị xóa theo CASCADE)
+    const ext = await pool.query(
+      `SELECT id, content, bot, old_bot AS "oldBot", note, created_by AS "createdBy", created_at AS "createdAt"
+       FROM vuong_mac_extension WHERE vuong_mac_id = $1 ORDER BY created_at, id`,
+      [old.id]
+    );
+    const { canModify: _omit, ...snapshot } = mapVuongMacRow(
+      { ...old, extensions: ext.rows }, me, old.created_department
+    );
+
     await pool.query('DELETE FROM vuong_mac WHERE id = $1', [id]);
     await pool.query(
-      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, actor)
-       VALUES ($1, $2, 'DELETE', $3, $4, $5)`,
-      [old.id, old.hex, old.category, old.content, actor]
+      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, snapshot, actor)
+       VALUES ($1, $2, 'DELETE', $3, $4, $5::jsonb, $6)`,
+      [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
     );
 
     res.json({ success: true, message: 'Đã xóa vướng mắc' });
@@ -3468,7 +3478,7 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Re
   try {
     const { hex } = req.params;
     const r = await timedQuery(
-      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, actor, acted_at
+      `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, snapshot, actor, acted_at
        FROM vuong_mac_log
        WHERE hex = $1
        ORDER BY acted_at DESC
@@ -3483,11 +3493,72 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Re
       contentBefore: row.content_before,
       contentAfter: row.content_after,
       detail: row.detail,
+      snapshot: row.snapshot ?? null,
       actor: row.actor,
       actedAt: row.acted_at,
     })));
   } catch (error) {
     console.error('Lỗi lấy log vuong-mac:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Danh sách xưởng (nhà máy) cho dropdown
+app.get('/api/vuong-mac/xuong', authenticateJWT, async (_req: Request, res: Response) => {
+  try {
+    const r = await timedQuery(
+      `SELECT DISTINCT TRIM(xuong_chinh) AS name
+       FROM production_status_app
+       WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
+       ORDER BY 1`
+    );
+    res.json(r.rows.map(row => row.name as string));
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/xuong:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)
+app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const xuong = String(req.query.xuong || '').trim();
+    if (q.length < 2 && !xuong) return res.json([]);
+
+    const conds: string[] = ['hex IS NOT NULL'];
+    const params: any[] = [];
+    if (xuong) {
+      params.push(xuong);
+      conds.push(`UPPER(TRIM(xuong_chinh)) = UPPER(TRIM($${params.length}))`);
+    }
+    if (q) {
+      params.push(`%${q.replace(/[%_\\]/g, '\\$&')}%`);
+      const n = params.length;
+      conds.push(`(hex::text ILIKE $${n} OR ten_cong_trinh ILIKE $${n}
+                   OR ten_hang_muc ILIKE $${n} OR xuong_chinh ILIKE $${n})`);
+    }
+
+    const r = await timedQuery(
+      `SELECT * FROM (
+         SELECT DISTINCT ON (hex::text)
+                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh
+         FROM production_status_app
+         WHERE ${conds.join(' AND ')}
+         ORDER BY hex::text, updated_at DESC NULLS LAST
+       ) t
+       ORDER BY hex
+       LIMIT 50`,
+      params
+    );
+    res.json(r.rows.map(row => ({
+      hex: row.hex,
+      congTrinh: row.ten_cong_trinh,
+      hangMuc: row.ten_hang_muc,
+      xuong: row.xuong_chinh,
+    })));
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/hex-search:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
