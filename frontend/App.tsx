@@ -1,7 +1,7 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -13,6 +13,8 @@ import { loadViewMapping, isViewMappingLoaded } from './components/Construction/
 // Prefetch cho cấu hình "bảng -> danh sách cột được phép / mặc định hiện"
 import { loadTableColumnConfig, applyTableColumnConfig } from './components/Construction/utils/tableColumnConfig';
 import './index.css';
+import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal'; 
+import { disablePush } from './services/vuongMacMobileApi';// chỉnh đường dẫn
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -360,7 +362,8 @@ const MainLayout: React.FC = () => {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+const [isInstallOpen, setIsInstallOpen] = useState(false);
 
   const location = useLocation();
   const tableVersions = useRef<Record<string, string>>({});
@@ -560,10 +563,11 @@ const MainLayout: React.FC = () => {
     closeMobileSidebar();
   };
 
-  const confirmLogout = () => {
-    setIsLogoutConfirmOpen(false);
-    logout();
-  };
+const confirmLogout = async () => {
+  setIsLogoutConfirmOpen(false);
+  await disablePush().catch(() => {}); // gỡ đăng ký thông báo của thiết bị này
+  logout();
+};
 
   const manualRefresh = async () => {
     setLoading(true);
@@ -786,6 +790,7 @@ const MainLayout: React.FC = () => {
               <Key size={20} />
               <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đổi mật khẩu</span>
             </button>
+            
           )}
 
           <button
@@ -796,6 +801,15 @@ const MainLayout: React.FC = () => {
             <LogOut size={20} />
             <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đăng xuất</span>
           </button>
+
+          <button
+  onClick={() => { setIsInstallOpen(true); closeMobileSidebar(); }}
+  className={`flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+  title="Tải ứng dụng điện thoại"
+>
+  <Smartphone size={20} />
+  <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Tải app điện thoại</span>
+</button>
 
           <div className={`text-[10px] text-slate-500 text-center transition-all duration-300 mt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
             Đã kết nối ngầm ({lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'})
@@ -883,7 +897,7 @@ const MainLayout: React.FC = () => {
           </div>
         </div>
       )}
-
+  <InstallMobileAppModal isOpen={isInstallOpen} onClose={() => setIsInstallOpen(false)} />
     </div>
   );
 };
