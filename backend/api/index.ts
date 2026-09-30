@@ -3520,6 +3520,7 @@ app.get('/api/vuong-mac/xuong', authenticateJWT, async (_req: Request, res: Resp
 });
 
 // Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)
+// Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)
 app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q || '').trim();
@@ -3542,7 +3543,9 @@ app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: 
     const r = await timedQuery(
       `SELECT * FROM (
          SELECT DISTINCT ON (hex::text)
-                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh
+                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh,
+                bop, tinh_trang, phan_loai_nhom_san_pham,
+                tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke
          FROM production_status_app
          WHERE ${conds.join(' AND ')}
          ORDER BY hex::text, updated_at DESC NULLS LAST
@@ -3556,6 +3559,12 @@ app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: 
       congTrinh: row.ten_cong_trinh,
       hangMuc: row.ten_hang_muc,
       xuong: row.xuong_chinh,
+      bop: row.bop,
+      tinhTrang: row.tinh_trang,
+      phanLoai: row.phan_loai_nhom_san_pham,
+      triGia: row.tri_gia_don_hang_tong,
+      thanhTienPhieu: row.thanh_tien_tinh_phieu,
+      thanhTienKho: row.thanh_tien_nhap_kho_luy_ke,
     })));
   } catch (error) {
     console.error('Lỗi /api/vuong-mac/hex-search:', error);

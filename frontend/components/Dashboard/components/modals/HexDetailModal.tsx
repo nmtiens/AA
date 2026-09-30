@@ -216,7 +216,7 @@ const ImageGallery = ({ fileIds }: { fileIds: string[] }) => {
 // mỗi khối ngày) tự cuộn riêng khi ảnh của NGÀY ĐÓ dài.
 const NOTE_BLOCK_MAX_HEIGHT = 420;
 
-const NoteContent = ({ text }: { text: string }) => {
+export const NoteContent = ({ text }: { text: string }) => {
   const blocks = useMemo(() => parseNoteBlocks(text), [text]);
 
   if (blocks.length === 0) {

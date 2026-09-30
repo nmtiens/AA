@@ -1,4 +1,5 @@
 import { getToken } from './userService';
+import { UNAUTHORIZED, type FiveMCategory, type VuongMacItem } from './vuongMacService';
 
 // ---------------- BOT helpers (khớp parseBotEnd phía server) ----------------
 const RE = /(\d{2}):(\d{2}) (\d{2})\/(\d{2})\/(\d{4})\s*$/;
@@ -76,4 +77,65 @@ export async function disablePush() {
   if (!sub) return;
   await post('/api/push/unsubscribe', { endpoint: sub.endpoint });
   await sub.unsubscribe();
+}
+
+// ---------------- Tra cứu hex (dùng cho tab "Tra cứu" trên mobile) ----------------
+export interface HexHit {
+  hex: string;
+  congTrinh: string | null;
+  hangMuc: string | null;
+  xuong: string | null;
+  // Các cột phụ giống bảng "Chi tiết theo Hex" trên desktop
+  bop?: string | null;
+  tinhTrang?: string | null;
+  phanLoai?: string | null;
+  triGia?: number | string | null;
+  thanhTienPhieu?: number | string | null;
+  thanhTienKho?: number | string | null;
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  if (!getToken()) throw new Error(UNAUTHORIZED);
+  const r = await fetch(path, { headers: authJson() });
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((d as any).message || (d as any).error || `Lỗi ${r.status}`);
+  return d as T;
+}
+
+export const fetchXuongList = () => getJson<string[]>('/api/vuong-mac/xuong');
+
+// Backend yêu cầu: từ khóa >= 2 ký tự HOẶC có chọn xưởng
+export const searchHex = (q: string, xuong: string) => {
+  const qs = new URLSearchParams();
+  if (q) qs.set('q', q);
+  if (xuong) qs.set('xuong', xuong);
+  return getJson<HexHit[]>(`/api/vuong-mac/hex-search?${qs}`);
+};
+
+// Ghi chú của 1 hex (khớp các cột ghi chú ở bảng "Chi tiết theo Hex"); full = nguyên văn
+export const fetchHexNotes = async (hex: string): Promise<Record<string, string | null>> => {
+  if (!getToken()) throw new Error(UNAUTHORIZED);
+  const r = await fetch('/api/production/notes', {
+    method: 'POST', headers: authJson(), body: JSON.stringify({ hexes: [hex], full: true }),
+  });
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((d as any).message || (d as any).error || `Lỗi ${r.status}`);
+  return (d as Record<string, Record<string, string | null>>)[hex] || {};
+};
+
+// Tạo vướng mắc nhưng ném lỗi kèm message của server (vd. "Chỉ thành viên cùng phòng ban...")
+export async function createVuongMacStrict(
+  hex: string, category: FiveMCategory, content: string,
+  extra: { handler: string; bot: string; solution: string; note: string },
+): Promise<VuongMacItem> {
+  if (!getToken()) throw new Error(UNAUTHORIZED);
+  const r = await fetch('/api/vuong-mac', {
+    method: 'POST', headers: authJson(), body: JSON.stringify({ hex, category, content, ...extra }),
+  });
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !(d as any).success) throw new Error((d as any).message || `Không gửi được (lỗi ${r.status})`);
+  return (d as any).data;
 }

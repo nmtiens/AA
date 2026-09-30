@@ -66476,7 +66476,9 @@ app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
     const r = await timedQuery(
       `SELECT * FROM (
          SELECT DISTINCT ON (hex::text)
-                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh
+                hex::text AS hex, ten_cong_trinh, ten_hang_muc, xuong_chinh,
+                bop, tinh_trang, phan_loai_nhom_san_pham,
+                tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke
          FROM production_status_app
          WHERE ${conds.join(" AND ")}
          ORDER BY hex::text, updated_at DESC NULLS LAST
@@ -66489,7 +66491,13 @@ app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
       hex: row.hex,
       congTrinh: row.ten_cong_trinh,
       hangMuc: row.ten_hang_muc,
-      xuong: row.xuong_chinh
+      xuong: row.xuong_chinh,
+      bop: row.bop,
+      tinhTrang: row.tinh_trang,
+      phanLoai: row.phan_loai_nhom_san_pham,
+      triGia: row.tri_gia_don_hang_tong,
+      thanhTienPhieu: row.thanh_tien_tinh_phieu,
+      thanhTienKho: row.thanh_tien_nhap_kho_luy_ke
     })));
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/hex-search:", error61);

@@ -8,6 +8,7 @@ import { getToken } from '../../services/userService';
 import {
   parseBotEnd, botStart, nowFmt, fmtLocalInput, pushSupported, isPushOn, enablePush, disablePush,
 } from '../../services/vuongMacMobileApi';
+import HexLookup from './HexLookup';
 type VMItem = VuongMacRow;
 type VMLog = VuongMacLogEntry;
 type Sheet = { type: 'resolve' | 'extend' | 'delete' | 'log'; row: VMItem } | null;
@@ -50,7 +51,7 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
   );
 }
 
-export default function VuongMacMobile() {
+function VuongMacList() {
   const targetId = Number(new URLSearchParams(location.search).get('id')) || null;
 
   const [rows, setRows] = useState<VMItem[]>([]);
@@ -141,7 +142,7 @@ export default function VuongMacMobile() {
     `shrink-0 rounded-full border px-3 py-1 text-xs ${on ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)]">
+    <div className="min-h-screen bg-slate-50 pb-[calc(env(safe-area-inset-bottom)+72px)]">
       <header className="sticky top-0 z-10 space-y-2 bg-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] shadow-sm">
         <div className="flex items-center justify-between">
           <h1 className="text-base font-semibold text-red-800">Vướng mắc</h1>
@@ -309,7 +310,7 @@ export default function VuongMacMobile() {
       {sheet?.type === 'log' && <LogSheet row={sheet.row} onClose={() => setSheet(null)} />}
 
       {toast && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+16px)] left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-lg">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] left-1/2 z-40 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs text-white shadow-lg">
           {toast}
         </div>
       )}
@@ -433,5 +434,34 @@ function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
         {logs && logs.length === 0 && <p className="text-xs text-slate-400">Chưa có nhật ký.</p>}
       </div>
     </BottomSheet>
+  );
+}
+
+export default function VuongMacMobile() {
+  const params = new URLSearchParams(location.search);
+  const [tab, setTab] = useState<'list' | 'lookup'>(
+    params.get('tab') === 'lookup' && !params.get('id') ? 'lookup' : 'list'
+  );
+  const tabBtn = (on: boolean) =>
+    `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${on ? 'text-red-700' : 'text-slate-500'}`;
+
+  return (
+    <>
+      {/* Khung cuộn riêng: không phụ thuộc overflow của html/body/#root */}
+      <div className="fixed inset-0 overflow-y-auto overscroll-contain bg-slate-50">
+        {/* Giữ cả 2 tab luôn được mount (ẩn bằng CSS) để không mất bộ lọc / kết quả khi chuyển tab */}
+        <div className={tab === 'list' ? '' : 'hidden'}><VuongMacList /></div>
+        <div className={tab === 'lookup' ? '' : 'hidden'}><HexLookup /></div>
+      </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
+        <button onClick={() => setTab('list')} className={tabBtn(tab === 'list')}>
+          <span className="text-lg">📋</span>Vướng mắc
+        </button>
+        <button onClick={() => setTab('lookup')} className={tabBtn(tab === 'lookup')}>
+          <span className="text-lg">🔍</span>Tra cứu hex
+        </button>
+      </nav>
+    </>
   );
 }
