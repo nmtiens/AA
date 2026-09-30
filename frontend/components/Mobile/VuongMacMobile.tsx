@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useRef, type ReactNode, type FormEvent } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { createPortal } from 'react-dom';
 import {
   FIVE_M_LABELS, FIVE_M_CATEGORIES, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, extendVuongMac,
@@ -51,6 +52,55 @@ function BottomSheet({ title, onClose, children }: { title: string; onClose: () 
       </div>
     </div>,
     document.body
+  );
+}
+
+function MobileLogin({ onSuccess }: { onSuccess: () => void }) {
+  const { login } = useAuth();
+  const [username, setUsername] = useState(localStorage.getItem('saved_username') || '');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!username.trim() || !password) { setErr('Vui lòng nhập đầy đủ thông tin'); return; }
+    setBusy(true); setErr('');
+    // rememberMe = true: token vào localStorage để app đã cài giữ được phiên
+    const r = await login(username.trim(), password, true);
+    setBusy(false);
+    if (r.success) {
+      localStorage.setItem('saved_username', username.trim());
+      onSuccess();
+    } else {
+      setErr(r.message || 'Đăng nhập thất bại');
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm font-semibold text-slate-800">Đăng nhập để xem vướng mắc</p>
+      <input
+        value={username}
+        onChange={e => setUsername(e.target.value)}
+        placeholder="Tài khoản"
+        autoCapitalize="none"
+        autoComplete="username"
+        className={inputCls}
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        placeholder="Mật khẩu"
+        autoComplete="current-password"
+        className={inputCls}
+      />
+      {err && <p className="text-xs text-red-600">{err}</p>}
+      <button type="submit" disabled={busy} className={btnPrimary}>
+        {busy ? 'Đang đăng nhập...' : 'Đăng nhập'}
+      </button>
+    </form>
   );
 }
 
@@ -136,10 +186,6 @@ function VuongMacList() {
     }
   };
 
-const goLogin = () => {
-  sessionStorage.setItem('after_login', '/m/');
-  window.location.href = '/#/login';
-};
 
   const chip = (on: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-xs ${on ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`;
@@ -181,13 +227,8 @@ const goLogin = () => {
 
       <main className="space-y-3 p-4">
         {error === UNAUTHORIZED ? (
-          <div className="space-y-2 rounded-lg bg-red-100 p-3 text-sm text-red-700">
-            <p>Bạn chưa đăng nhập hoặc phiên đã hết hạn.</p>
-            <button onClick={goLogin} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white">
-              Đăng nhập
-            </button>
-          </div>
-        ) : error ? (
+  <MobileLogin onSuccess={() => { setError(''); reload(); }} />
+) : error ? (
           <p className="rounded-lg bg-red-100 p-3 text-sm text-red-700">{error}</p>
         ) : null}
 
