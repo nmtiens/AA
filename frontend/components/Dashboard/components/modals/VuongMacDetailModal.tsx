@@ -27,7 +27,7 @@ const LOG_STYLE: Record<VuongMacLogEntry['action'], { label: string; dot: string
 };
 type LogFilter = 'ALL' | VuongMacLogEntry['action'];
 
-// Thông tin chi tiết của vướng mắc lưu lại ở trình duyệt để còn xem được sau khi bị xóa
+// Thông tin chi tiết của vướng mắc: lấy từ snapshot trong log (chuẩn), localStorage chỉ là dự phòng
 interface ItemSnap {
   handler?: string | null;
   bot?: string | null;
@@ -126,13 +126,30 @@ const tokenIdentities = (): string[] => {
   } catch { return []; }
 };
 
-// Lưu/đọc bản chụp thông tin vướng mắc (theo hex + hạng mục) trong localStorage
+// Lưu/đọc bản chụp thông tin vướng mắc (theo hex + hạng mục) trong localStorage — chỉ để dự phòng
 const snapKey = (hex: string, category: string) => `vuongmac-snap:${hex}:${category}`;
 const loadSnaps = (hex: string, category: string): Record<number, ItemSnap> => {
   try { return JSON.parse(localStorage.getItem(snapKey(hex, category)) || '{}'); } catch { return {}; }
 };
 const saveSnaps = (hex: string, category: string, snaps: Record<number, ItemSnap>) => {
   try { localStorage.setItem(snapKey(hex, category), JSON.stringify(snaps)); } catch { /* bỏ qua */ }
+};
+
+// Đọc snapshot từ log: chấp nhận object hoặc chuỗi JSON; hỗ trợ cả camelCase và snake_case
+const readSnapshot = (raw: unknown): ItemSnap => {
+  try {
+    const s: any = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!s || typeof s !== 'object') return {};
+    return {
+      handler: s.handler,
+      bot: s.bot,
+      solution: s.solution,
+      note: s.note,
+      department: s.department ?? s.createdDepartment ?? s.created_department,
+      updatedBy: s.updatedBy ?? s.updated_by,
+      updatedAt: s.updatedAt ?? s.updated_at,
+    };
+  } catch { return {}; }
 };
 
 interface Props {
@@ -224,7 +241,7 @@ export const VuongMacDetailModal = ({
     list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     setItems(list);
 
-    // Chụp lại thông tin các vướng mắc còn tồn tại để xem chi tiết được khi chúng bị xóa
+    // Chụp lại thông tin các vướng mắc còn tồn tại (dự phòng nếu log không có snapshot)
     const snaps = loadSnaps(hex, category);
     list.forEach(v => {
       snaps[v.id] = {
@@ -243,6 +260,14 @@ export const VuongMacDetailModal = ({
       if (l.action !== 'DELETE' || vid == null || alive.has(vid) || seen.has(vid)) return;
       seen.add(vid);
       const created = catLogs.find(c => c.vuongMacId === vid && c.action === 'CREATE');
+
+      // Snapshot trong log là nguồn chuẩn; localStorage chỉ bổ sung những key log còn thiếu
+      const fromLog = readSnapshot(l.snapshot);
+      const merged: ItemSnap = { ...(snaps[vid] || {}) };
+      (Object.keys(fromLog) as (keyof ItemSnap)[]).forEach(k => {
+        if (fromLog[k] != null && fromLog[k] !== '') merged[k] = fromLog[k];
+      });
+
       tomb.push({
         id: vid,
         content: l.contentBefore || '',
@@ -250,7 +275,7 @@ export const VuongMacDetailModal = ({
         createdAt: created?.actedAt || l.actedAt,
         deletedBy: l.actor,
         deletedAt: l.actedAt,
-        snap: snaps[vid],
+        snap: merged,
       });
     });
     setDeleted(tomb);

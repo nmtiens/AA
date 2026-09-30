@@ -56,6 +56,18 @@ export interface VuongMacExtendInput {
   note?: string;
 }
 
+// Bản chụp thông tin vướng mắc tại thời điểm ghi log (dùng để xem chi tiết vướng mắc đã xóa)
+export interface VuongMacSnapshot {
+  handler?: string | null;
+  bot?: string | null;
+  solution?: string | null;
+  note?: string | null;
+  department?: string | null;
+  createdDepartment?: string | null; // phòng khi backend đặt tên khác
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface VuongMacLogEntry {
   id: number;
   vuongMacId: number | null;
@@ -64,6 +76,7 @@ export interface VuongMacLogEntry {
   contentBefore: string | null;
   contentAfter: string | null;
   detail?: string | null; // mô tả thêm: "Đánh dấu đã xử lý: ..." / "Cần thêm thời gian ..."
+  snapshot?: VuongMacSnapshot | string | null; // object hoặc chuỗi JSON (tùy driver/ORM)
   actor: string;
   actedAt: string;
 }
