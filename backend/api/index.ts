@@ -8,7 +8,7 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { z, ZodSchema } from 'zod';
 import { pool, timedQuery } from '../src/db.js';
-
+import { registerVuongMacPush, parseBotEnd, notifyExtension } from '../src/vuongMacPush.js';
 // Giới hạn số query chạy song song, tránh 1 request xin quá nhiều connection
 // cùng lúc từ transaction-mode pooler (pool phía server rất nhỏ và dùng chung).
 async function runWithLimit<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
@@ -3025,64 +3025,22 @@ app.post(
 );
 
 
-// ============================================================================
-// BƯỚC 1 — CHẠY 1 LẦN TRÊN DATABASE (Postgres):
-//
-//   ALTER TABLE vuong_mac
-//     ADD COLUMN IF NOT EXISTS handler TEXT,
-//     ADD COLUMN IF NOT EXISTS bot TEXT,
-//     ADD COLUMN IF NOT EXISTS note TEXT;
-//
-// ============================================================================
-// BƯỚC 2 — TRONG FILE SERVER: thay khối từ dòng
-//     const FIVE_M_CATEGORIES = [...]
-// đến HẾT route  app.put('/api/vuong-mac/:id', ...)
-// bằng đoạn dưới đây.
-// GIỮ NGUYÊN route app.delete('/api/vuong-mac/:id') và app.get('/api/vuong-mac/log/:hex') phía sau.
-// ============================================================================
-
-// ============================================================================
-// THAY THẾ TOÀN BỘ khối trong file server, từ dòng
-//     const FIVE_M_CATEGORIES = [...]
-// đến HẾT route
-//     app.get('/api/vuong-mac/log/:hex', ...)
-// (gồm cả route delete cũ), TRƯỚC dòng "// --- 404 cho các route không khớp ---".
-//
-// KHÔNG cần migration DB: phòng ban lấy từ cột users.department có sẵn.
-// ============================================================================
-// THAY THẾ toàn bộ khối trong file server, từ dòng
-//     const FIVE_M_CATEGORIES = [...]
-// đến HẾT route
-//     app.get('/api/vuong-mac/log/:hex', ...)
-// (TRƯỚC dòng "// --- 404 cho các route không khớp ---").
-//
-// YÊU CẦU: đã chạy vuong-mac-migration.sql (cột solution, resolved_note,
-// resolved_by, resolved_at, vuong_mac_log.detail, bảng vuong_mac_extension).
-//
-// THAY ĐỔI SO VỚI BẢN CŨ
-//  - Thêm "solution" (Giải pháp) khi tạo / sửa vướng mắc.
-//  - Đánh dấu đã xử lý: BẮT BUỘC có "resolvedNote" (Nội dung đã xử lý).
-//  - Route mới POST /api/vuong-mac/:id/extend  ("Cần thêm thời gian"):
-//    nhận content + bot (mới) + note, lưu lịch sử, cập nhật BOT hiện tại.
-//  - Log có thêm cột detail để hiển thị nội dung đã xử lý / gia hạn.
-// ============================================================================
-
 const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
 
 const vuongMacCreateSchema = z.object({
   hex: z.string().min(1),
   category: z.enum(FIVE_M_CATEGORIES),
   content: z.string().min(1).max(2000),
-  handler: z.string().max(200).optional().nullable(), // người xử lý
+  handler: z.string().max(200).optional().nullable(),
   bot: z.string().max(200).optional().nullable(),
-  solution: z.string().max(2000).optional().nullable(), // giải pháp
+  solution: z.string().max(2000).optional().nullable(),
   note: z.string().max(2000).optional().nullable(),
 });
 const vuongMacUpdateSchema = z.object({
   category: z.enum(FIVE_M_CATEGORIES).optional(),
   content: z.string().min(1).max(2000).optional(),
   isResolved: z.boolean().optional(),
-  resolvedNote: z.string().max(2000).optional().nullable(), // nội dung đã xử lý
+  resolvedNote: z.string().max(2000).optional().nullable(),
   handler: z.string().max(200).optional().nullable(),
   bot: z.string().max(200).optional().nullable(),
   solution: z.string().max(2000).optional().nullable(),
@@ -3099,9 +3057,7 @@ const VUONG_MAC_COLUMN_LIST = [
   'updated_by', 'updated_at', 'handler', 'bot', 'solution', 'note',
   'resolved_note', 'resolved_by', 'resolved_at',
 ];
-// Bản không alias (dùng cho INSERT/UPDATE ... RETURNING trên 1 bảng)
 const VUONG_MAC_COLUMNS = VUONG_MAC_COLUMN_LIST.join(', ');
-// Bản có alias "vm." (dùng khi JOIN users — tránh trùng tên cột id/note/created_at...)
 const VUONG_MAC_COLUMNS_VM = VUONG_MAC_COLUMN_LIST.map(c => `vm.${c}`).join(', ');
 
 // ---------- PHÂN QUYỀN THEO PHÒNG BAN ----------
@@ -3117,7 +3073,6 @@ interface VuongMacActor {
   department: string | null;
 }
 
-// Phòng ban lấy từ DB (không lấy từ JWT) để luôn đúng khi admin đổi phòng ban.
 const getVuongMacActor = async (req: Request): Promise<VuongMacActor> => {
   const r = await pool.query('SELECT department FROM users WHERE id = $1', [req.user!.id]);
   return {
@@ -3141,7 +3096,7 @@ const canAddToVuongMacThread = async (actor: VuongMacActor, hex: string, categor
      WHERE vm.hex = $1 AND vm.category = $2`,
     [hex, category]
   );
-  if (r.rows.length === 0) return true; // đoạn chat trống: ai cũng được bắt đầu
+  if (r.rows.length === 0) return true;
   return r.rows.some(
     row => row.created_by === actor.username || isSameDept(actor.department, row.created_department)
   );
@@ -3172,7 +3127,6 @@ const mapVuongMacRow = (
   canModify: canModifyVuongMac(actor, row.created_by, createdDepartment),
 });
 
-// Kèm phòng ban người tạo + lịch sử "Cần thêm thời gian" (json_agg, cũ -> mới)
 const SELECT_VUONG_MAC_WITH_DEPT = `
   SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department,
     COALESCE((
@@ -3186,7 +3140,7 @@ const SELECT_VUONG_MAC_WITH_DEPT = `
   LEFT JOIN users u ON u.username = vm.created_by
 `;
 
-// Lấy toàn bộ vướng mắc hiện có cho danh sách hex (kèm cờ canModify cho user hiện tại).
+// Lấy toàn bộ vướng mắc cho danh sách hex
 app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const hexes = Array.isArray(req.body?.hexes)
@@ -3215,6 +3169,7 @@ app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Respo
   }
 });
 
+// Danh sách toàn bộ (dùng cho trang mobile)
 app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'open'); // open | resolved | all
@@ -3275,7 +3230,7 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
   }
 });
 
-// Tạo mới 1 vướng mắc — chỉ thành viên cùng phòng ban với đoạn chat (hoặc Admin).
+// Tạo mới
 app.post(
   '/api/vuong-mac',
   authenticateJWT,
@@ -3291,10 +3246,10 @@ app.post(
       }
 
       const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, solution, note)
-         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8)
+        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, bot_end, solution, note)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9)
          RETURNING ${VUONG_MAC_COLUMNS}`,
-        [hex, category, content, actor, handler || null, bot || null, solution || null, note || null]
+        [hex, category, content, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null]
       );
       const row = result.rows[0];
 
@@ -3312,9 +3267,7 @@ app.post(
   }
 );
 
-// Sửa 1 vướng mắc (nội dung / loại / người xử lý / BOT / giải pháp / ghi chú / trạng thái "Đã xử lý").
-// Đánh dấu "Đã xử lý" BẮT BUỘC kèm resolvedNote (nội dung đã xử lý).
-// Chỉ ADMIN, người tạo, hoặc người cùng phòng ban với người tạo.
+// Sửa (đánh dấu đã xử lý bắt buộc có resolvedNote)
 app.put(
   '/api/vuong-mac/:id',
   authenticateJWT,
@@ -3357,7 +3310,10 @@ app.put(
       if (category !== undefined) push('category', category);
       if (content !== undefined) push('content', content);
       if (handler !== undefined) push('handler', handler || null);
-      if (bot !== undefined) push('bot', bot || null);
+      if (bot !== undefined) {
+        push('bot', bot || null);
+        push('bot_end', parseBotEnd(bot));
+      }
       if (solution !== undefined) push('solution', solution || null);
       if (note !== undefined) push('note', note || null);
 
@@ -3370,7 +3326,6 @@ app.put(
             fields.push('resolved_at = now()');
           }
         } else {
-          // Mở lại vướng mắc: xóa thông tin đã xử lý
           fields.push('resolved_note = NULL', 'resolved_by = NULL', 'resolved_at = NULL');
         }
       }
@@ -3398,8 +3353,7 @@ app.put(
   }
 );
 
-// "Cần thêm thời gian": lưu 1 lần gia hạn (nội dung, BOT mới, ghi chú) và cập nhật BOT hiện tại.
-// Chỉ áp dụng cho vướng mắc chưa xử lý; cùng quyền với sửa/xóa.
+// "Cần thêm thời gian"
 app.post(
   '/api/vuong-mac/:id/extend',
   authenticateJWT,
@@ -3410,6 +3364,11 @@ app.post(
       const { content, bot, note } = req.body;
       const me = await getVuongMacActor(req);
       const actor = me.username;
+
+      const botEnd = parseBotEnd(bot);
+      if (!botEnd) {
+        return res.status(400).json({ success: false, message: 'BOT không đúng định dạng "HH:mm dd/MM/yyyy - HH:mm dd/MM/yyyy"' });
+      }
 
       const existing = await pool.query(
         `SELECT vm.*, u.department AS created_department
@@ -3438,8 +3397,8 @@ app.post(
         [old.id, content, bot, old.bot || null, noteClean || null, actor]
       );
       await pool.query(
-        `UPDATE vuong_mac SET bot = $1, updated_by = $2, updated_at = now() WHERE id = $3`,
-        [bot, actor, old.id]
+        `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
+        [bot, botEnd, actor, old.id]
       );
 
       const detail = [
@@ -3453,6 +3412,12 @@ app.post(
         [old.id, old.hex, old.category, old.content, detail, actor]
       );
 
+      // Báo push cho người tạo + cùng phòng ban (không chặn response, không ném lỗi)
+      await notifyExtension(
+  { id: old.id, hex: old.hex, category: old.category, created_by: old.created_by, created_department: old.created_department },
+  actor, content
+);
+
       const fresh = await pool.query(`${SELECT_VUONG_MAC_WITH_DEPT} WHERE vm.id = $1`, [old.id]);
       res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me) });
     } catch (error) {
@@ -3462,8 +3427,7 @@ app.post(
   }
 );
 
-// Xóa 1 vướng mắc — ADMIN, người tạo, hoặc người cùng phòng ban với người tạo.
-// (Lịch sử gia hạn bị xóa theo nhờ ON DELETE CASCADE.)
+// Xóa
 app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -3499,7 +3463,7 @@ app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Resp
   }
 });
 
-// Nhật ký (log) toàn bộ thao tác thêm/sửa/xóa trên 1 hex — dùng cho "xem log".
+// Nhật ký theo hex
 app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const { hex } = req.params;
@@ -3527,6 +3491,9 @@ app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Re
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+// Push: /api/push/subscribe, /api/push/unsubscribe, /api/cron/vuong-mac-bot
+registerVuongMacPush(app, { authenticateJWT });
 
 
 

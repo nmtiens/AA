@@ -206,3 +206,15 @@ export const fetchVuongMacAll = async (p: {
     return { data: [], total: 0 };
   }
 };
+
+// [MỚI] Bản ném lỗi cho trang mobile: phân biệt "lỗi mạng/quyền" với "không có dữ liệu".
+export const fetchVuongMacAllStrict = async (p: {
+  status?: 'open' | 'resolved' | 'all'; category?: FiveMCategory | ''; q?: string; page?: number;
+}): Promise<{ data: VuongMacRow[]; total: number }> => {
+  const qs = new URLSearchParams();
+  Object.entries(p).forEach(([k, v]) => v !== undefined && v !== '' && qs.set(k, String(v)));
+  const r = await fetch(`/api/vuong-mac/all?${qs}`, { headers: authHeaders() });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || d.error || `Lỗi ${r.status}`);
+  return d;
+};

@@ -1,6 +1,6 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
-import { HashRouter, MemoryRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
@@ -51,25 +51,6 @@ const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string; permId
   { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau', permId: 'construction_sample' },
 ];
 
-// ------------------------------------------------------------
-// Cổng đăng nhập cho bản mobile (/m/):
-// chưa đăng nhập -> hiện form Login, đăng nhập xong -> vào MobileApp.
-// Phải nằm bên trong <AuthProvider>.
-// ------------------------------------------------------------
-const MobileEntry: React.FC = () => {
-  const { user, isLoading } = useAuth();
-  if (isLoading) return <FullScreenLoader />;
-  if (!user) {
-    // Login có thể dùng useNavigate nên cần bọc trong một Router
-    return (
-      <MemoryRouter initialEntries={['/login']}>
-        <Login />
-      </MemoryRouter>
-    );
-  }
-  return <MobileApp />;
-};
-
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
   const isMobileEntry = window.location.pathname.startsWith('/m');
@@ -89,7 +70,7 @@ const App: React.FC = () => {
         {/* Suspense bao bọc để hiển thị Loader trong lúc tải Lazy Component */}
         <Suspense fallback={<FullScreenLoader />}>
           {isMobileEntry ? (
-            <MobileEntry />
+            <MobileApp />
           ) : (
             <HashRouter>
               <Routes>

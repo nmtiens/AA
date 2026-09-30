@@ -49,3 +49,40 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(req))
   );
 });
+
+// ---------------- WEB PUSH (Vướng mắc) ----------------
+self.addEventListener('push', (event) => {
+  let d = {};
+  try {
+    d = event.data ? event.data.json() : {};
+  } catch {
+    d = { title: 'Vướng mắc', body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(d.title || 'Vướng mắc', {
+      body: d.body || '',
+      tag: d.tag,
+      renotify: !!d.tag,
+      data: d.target || {},
+      icon: '/icon-192.png',   // đổi cho khớp file icon của bạn
+      badge: '/icon-192.png',
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const t = event.notification.data || {};
+  const url = `/m/?id=${t.id ?? ''}`;
+  event.waitUntil((async () => {
+    const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Ưu tiên tab đang mở trang mobile
+    const target = list.find((c) => new URL(c.url).pathname.startsWith('/m')) || list[0];
+    if (target && 'focus' in target) {
+      await target.focus();
+      target.postMessage({ type: 'open-vuong-mac', id: t.id });
+      return;
+    }
+    await clients.openWindow(url);
+  })());
+});
