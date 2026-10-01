@@ -63578,7 +63578,7 @@ var updateUserSchema = external_exports.object({
   note: external_exports.string().optional().nullable(),
   status: external_exports.enum(["ACTIVE", "INACTIVE"]).optional()
 });
-var VND_TO_TY = 1e9;
+var TRIEU_TO_TY = 1e3;
 var TARGET_WORKSHOPS = ["2A", "3A", "4A", "5A", "8AB", "8C"];
 var DEFAULT_REVENUE_YEAR = (/* @__PURE__ */ new Date()).getUTCFullYear();
 app.get("/", (_req, res) => {
@@ -64787,7 +64787,7 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
           COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-              FROM khsx_nam WHERE nam = $1::bigint
+        FROM khsx_nam WHERE nam = $1::bigint
       `, [String(year)]),
       () => timedQuery(`
         SELECT COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS total
@@ -64809,20 +64809,25 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
       `, [TARGET_WORKSHOPS, yearStart, yearEnd])
     ], 2);
     const targetTotal = Number(planQ.rows[0].total);
-    const actualTotal = Number(actualQ.rows[0].total) / 1e3;
+    const actualTotal = Number(actualQ.rows[0].total) / TRIEU_TO_TY;
     const workshopMap = {};
     byWorkshopPlanQ.rows.forEach((r) => {
       workshopMap[r.name] = { plan: Number(r.plan), actual: 0 };
     });
     byWorkshopActualQ.rows.forEach((r) => {
       if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      workshopMap[r.name].actual = Number(r.actual) / VND_TO_TY;
+      workshopMap[r.name].actual = Number(r.actual) / TRIEU_TO_TY;
     });
     const byWorkshop = Object.entries(workshopMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => a.name === "KH\xC1C" ? 1 : b.name === "KH\xC1C" ? -1 : a.name.localeCompare(b.name));
     res.json({
       year,
       targetRevenue2026: targetTotal,
-      quarterlyTargets: { q1: Number(planQ.rows[0].q1), q2: Number(planQ.rows[0].q2), q3: Number(planQ.rows[0].q3), q4: targetTotal },
+      quarterlyTargets: {
+        q1: Number(planQ.rows[0].q1),
+        q2: Number(planQ.rows[0].q2),
+        q3: Number(planQ.rows[0].q3),
+        q4: targetTotal
+      },
       actual: { value: actualTotal, percent: targetTotal > 0 ? actualTotal / targetTotal * 100 : 0 },
       byWorkshop
     });
@@ -65153,8 +65158,8 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     const isWeek = mode === "week";
     const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
     const normalize = (s) => s.trim().toUpperCase();
-    const congTrinhList = congTrinh ? congTrinh.split(",").map((s) => normalize(s)).filter(Boolean) : [];
-    const xuongList = xuong ? xuong.split(",").map((s) => normalize(s)).filter(Boolean) : [];
+    const congTrinhList = congTrinh ? congTrinh.split(",").map(normalize).filter(Boolean) : [];
+    const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
     const khParams = [phanLoaiPattern, nam];
     let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint`;
     if (thang) {
@@ -65182,7 +65187,7 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / 1000 AS gia_tri
+        COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM khsx
       ${khWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
@@ -65215,7 +65220,7 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${VND_TO_TY} AS gia_tri
+        COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)

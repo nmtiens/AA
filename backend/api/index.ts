@@ -206,10 +206,12 @@ const updateUserSchema = z.object({
 });
 
 // ============================================================================
-// HẰNG SỐ QUY ĐỔI TIỀN TỆ (trước đây là magic number rải rác)
 // ============================================================================
-const VND_TO_TRIEU = 1_000_000;
-const VND_TO_TY = 1_000_000_000;
+// HẰNG SỐ QUY ĐỔI TIỀN TỆ
+// Dữ liệu tiền trong DB (thanh_tien_nhap_kho, thanh_tien_ke_hoach...) lưu theo
+// đơn vị TRIỆU ĐỒNG. Dashboard hiển thị theo TỶ ĐỒNG => chia 1000.
+// ============================================================================
+const TRIEU_TO_TY = 1_000;
 const TARGET_WORKSHOPS = ['2A', '3A', '4A', '5A', '8AB', '8C'];
 const DEFAULT_REVENUE_YEAR = new Date().getUTCFullYear();
 
@@ -1599,6 +1601,10 @@ app.get('/api/stock/total-count', async (_req: Request, res: Response) => {
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
 // [ĐO TIMING] 4 query chạy song song (giới hạn 2) — đổi cả 4 sang timedQuery.
+// Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
+// Đơn vị trả ra: TỶ ĐỒNG.
+
+
 app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Response) => {
   try {
     const yearParam = Number(req.params.year);
@@ -1609,8 +1615,6 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
 
-    // TRƯỚC: Promise.all([...4 query...]) → xin 4 connection cùng lúc.
-    // SAU: giới hạn 2 song song.
     const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
       () => timedQuery(`
         SELECT
@@ -1621,7 +1625,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 6), 0) AS q2,
           COALESCE(SUM(${numericCol('khsx_nam', 'thanh_tien_ke_hoach')})
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
-              FROM khsx_nam WHERE nam = $1::bigint
+        FROM khsx_nam WHERE nam = $1::bigint
       `, [String(year)]),
 
       () => timedQuery(`
@@ -1647,13 +1651,13 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     ], 2);
 
     const targetTotal = Number(planQ.rows[0].total);
-    const actualTotal = Number(actualQ.rows[0].total) / 1000;
+    const actualTotal = Number(actualQ.rows[0].total) / TRIEU_TO_TY;   // triệu -> tỷ
 
     const workshopMap: Record<string, { plan: number; actual: number }> = {};
     byWorkshopPlanQ.rows.forEach(r => { workshopMap[r.name] = { plan: Number(r.plan), actual: 0 }; });
     byWorkshopActualQ.rows.forEach(r => {
       if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      workshopMap[r.name].actual = Number(r.actual) / VND_TO_TY;
+      workshopMap[r.name].actual = Number(r.actual) / TRIEU_TO_TY;     // SỬA: trước là / VND_TO_TY
     });
 
     const byWorkshop = Object.entries(workshopMap)
@@ -1663,7 +1667,12 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     res.json({
       year,
       targetRevenue2026: targetTotal,
-      quarterlyTargets: { q1: Number(planQ.rows[0].q1), q2: Number(planQ.rows[0].q2), q3: Number(planQ.rows[0].q3), q4: targetTotal },
+      quarterlyTargets: {
+        q1: Number(planQ.rows[0].q1),
+        q2: Number(planQ.rows[0].q2),
+        q3: Number(planQ.rows[0].q3),
+        q4: targetTotal,
+      },
       actual: { value: actualTotal, percent: targetTotal > 0 ? (actualTotal / targetTotal) * 100 : 0 },
       byWorkshop,
     });
@@ -2040,6 +2049,7 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
 app.use('/api/users', usersRouter);
 
 // [ĐO TIMING] Endpoint tổng hợp phức tạp — 2 query chính (khQuery, thQuery).
+// Đơn vị trả ra: TỶ ĐỒNG (cả KH lẫn TH đều từ triệu -> tỷ, chia 1000).
 app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
   try {
     const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
@@ -2056,10 +2066,11 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
 
     const normalize = (s: string) => s.trim().toUpperCase();
-    const congTrinhList = congTrinh ? congTrinh.split(',').map(s => normalize(s)).filter(Boolean) : [];
-    const xuongList = xuong ? xuong.split(',').map(s => normalize(s)).filter(Boolean) : [];
+    const congTrinhList = congTrinh ? congTrinh.split(',').map(normalize).filter(Boolean) : [];
+    const xuongList = xuong ? xuong.split(',').map(normalize).filter(Boolean) : [];
 
-        const khParams: any[] = [phanLoaiPattern, nam];
+    // ---------- KẾ HOẠCH (khsx) ----------
+    const khParams: any[] = [phanLoaiPattern, nam];
     let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint`;
     if (thang) { khParams.push(thang); khWhere += ` AND thang = $${khParams.length}::bigint`; }
     if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan = $${khParams.length}::double precision`; }
@@ -2072,14 +2083,15 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / 1000 AS gia_tri
+        COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM khsx
       ${khWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
     const khResult = await timedQuery(khQuery, khParams);
 
-       const thParams: any[] = [nam];
+    // ---------- THỰC HIỆN (nhap_kho) ----------
+    const thParams: any[] = [nam];
     let thWhere = `WHERE nam = $1::bigint`;
     if (thang) { thParams.push(thang); thWhere += ` AND thang = $${thParams.length}::bigint`; }
     if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan = $${thParams.length}::bigint`; }
@@ -2092,13 +2104,14 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
         TRIM(xuong_chinh) AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${VND_TO_TY} AS gia_tri
+        COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
       GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
     `;
     const thResult = await timedQuery(thQuery, thParams);
 
+    // ---------- GỘP THEO XƯỞNG ----------
     const xuongMap = new Map<string, { kh: number; th: number }>();
     khResult.rows.forEach(r => {
       const k = r.xuong || 'Chưa xác định';
@@ -2116,6 +2129,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       .map(([xuong, v]) => ({ xuong, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) }))
       .sort((a, b) => a.xuong.localeCompare(b.xuong));
 
+    // ---------- GỘP THEO CÔNG TRÌNH (top 10) ----------
     const ctMap = new Map<string, { code: string; kh: number; th: number }>();
     khResult.rows.forEach(r => {
       const k = r.cong_trinh || 'Chưa xác định';
@@ -2140,7 +2154,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
     const completionRate = totalKh > 0 ? (totalTh / totalKh) * 100 : 0;
 
-       const khsxPayload = {
+    const khsxPayload = {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
       completionRate: Number(completionRate.toFixed(1)),
