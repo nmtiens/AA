@@ -236,7 +236,7 @@ const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
 // TẢI TOÀN BỘ 12 BẢNG TRONG 1 REQUEST DUY NHẤT — thay cho việc gọi 12 endpoint riêng lẻ
 export const fetchAllDataFromServer = async (): Promise<Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/all-data`);
+        const response = await fetch(`${API_BASE_URL}/all-data`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`Failed to fetch all-data: ${response.statusText}`);
     const raw = await response.json();
 

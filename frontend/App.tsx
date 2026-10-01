@@ -377,6 +377,7 @@ const MainLayout: React.FC = () => {
 const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 const [isInstallOpen, setIsInstallOpen] = useState(false);
 const [isLogOpen, setIsLogOpen] = useState(false);
+const [refreshKey, setRefreshKey] = useState(0);
   const location = useLocation();
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
@@ -407,8 +408,8 @@ const [isLogOpen, setIsLogOpen] = useState(false);
 
   const checkAndSync = async (forceAll = false) => {
     try {
-      const verRes = await fetch('/api/check-versions');
-      if (!verRes.ok) return;
+           const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
+      if (!verRes.ok) return false;
 
       const serverVersions = await verRes.json();
 
@@ -442,7 +443,7 @@ const [isLogOpen, setIsLogOpen] = useState(false);
           toApplyFromCache.push(cfg);
         }
       }
-
+let ok = true;
       let hasAnyUpdate = false;
 
       // Áp dụng cache cho các bảng chưa từng load nhưng không đổi version
@@ -461,8 +462,9 @@ const [isLogOpen, setIsLogOpen] = useState(false);
       }
 
       // Nếu có bảng cần cập nhật -> gọi /api/all-data MỘT LẦN thay vì N lần riêng lẻ
-      if (toUpdate.length > 0) {
+         if (toUpdate.length > 0) {
         const allData = await fetchAllDataFromServer();
+        if (!allData) ok = false;
         if (allData) {
           for (const cfg of toUpdate) {
             const res = allData[cfg.endpoint];
@@ -479,11 +481,13 @@ const [isLogOpen, setIsLogOpen] = useState(false);
         }
       }
 
-      if (hasAnyUpdate || !lastUpdated) {
+  if (hasAnyUpdate || !lastUpdated) {
         setLastUpdated(new Date());
       }
+      return ok;
     } catch (err) {
       console.error("Lỗi đồng bộ ngầm:", err);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -584,8 +588,25 @@ const confirmLogout = async () => {
   const manualRefresh = async () => {
     setLoading(true);
     tableVersions.current = {};
-    await checkAndSync(true);
     closeMobileSidebar();
+    try {
+      const [ok] = await Promise.all([
+        checkAndSync(true),
+        loadViewMapping(),
+        loadTableColumnConfig(),
+      ]);
+      if (ok) {
+        // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
+        setRefreshKey(k => k + 1);
+        showToast('Đã cập nhật dữ liệu mới nhất', 'success');
+      } else {
+        showToast('Không tải được dữ liệu mới, vui lòng thử lại', 'error');
+      }
+    } catch {
+      showToast('Không tải được dữ liệu mới, vui lòng thử lại', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const contextValue: MainLayoutContext = {
@@ -878,7 +899,7 @@ const confirmLogout = async () => {
           </div>
         ) : (
           /* HIỂN THỊ LUÔN OUTLET (Giao diện trang con), không chặn chờ data nữa */
-          <Outlet context={contextValue} />
+                 <Outlet key={refreshKey} context={contextValue} />
         )}
       </main>
 
