@@ -73,6 +73,14 @@ const NUMERIC_KEYS: ProjectSummaryColumn[] = [
   'remaining',
 ];
 
+// "2026-06-30" (hoặc chuỗi ISO có kèm giờ) -> "30/06/2026".
+// Giá trị không phải ngày (vd tên BOT dạng chữ) thì giữ nguyên, không ép định dạng.
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$/;
+const formatBotDate = (value: string): string => {
+  const m = ISO_DATE_RE.exec(value.trim());
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : value.trim();
+};
+
 export const ProjectSummarySection_v2 = ({
   sectionRef,
   projectStatusSummary,
@@ -194,7 +202,7 @@ export const ProjectSummarySection_v2 = ({
                 >
                   Tên Công Trình
                 </th>
-                <th rowSpan={2} className={`${thBase} top-0 min-w-[120px]`}>BOT</th>
+                <th rowSpan={2} className={`${thBase} top-0 min-w-[120px]`}>BOT Dự Án</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đơn Hàng</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Nhập Kho <br />P022</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Xuất Kho <br />P025</th>
@@ -230,8 +238,8 @@ export const ProjectSummarySection_v2 = ({
                     >
                       {row.name}
                     </td>
-                    <td className="px-3 py-2.5 text-center text-slate-700">
-                      {metaOf(row.name)?.bot.join(', ') || '–'}
+                                       <td className="px-3 py-2.5 text-center text-slate-700">
+                      {metaOf(row.name)?.bot.map(formatBotDate).join(', ') || '–'}
                     </td>
                     <td className={`${tdNumeric} text-slate-800`}>{renderValue(row.totalOrder, 'totalOrder', row.name)}</td>
                     <td className={`${tdNumeric} text-indigo-700 font-medium`}>{renderValue(row.inventory, 'inventory', row.name)}</td>

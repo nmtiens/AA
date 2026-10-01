@@ -134,6 +134,7 @@ export interface AppView {
 
 export const APP_VIEWS: AppView[] = [
   { id: 'dashboard', path: '/', label: 'Tổng quan', iconName: 'LayoutDashboard' },
+  { id: 'hex_lookup', path: '/tra-cuu-hex', label: 'Tra cứu hex', iconName: 'Search' },
   { id: 'production', path: '/list', label: 'Dữ liệu Sản xuất', iconName: 'Table' },
   { id: 'yearly_plan_data', path: '/yearly-plan', label: 'Dữ liệu kế hoạch năm', iconName: 'CalendarRange' },
   { id: 'orders', path: '/orders', label: 'Dữ liệu Đơn hàng tổng', iconName: 'ShoppingCart' },
@@ -172,6 +173,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     label: 'Tổng quan',
     items: [
       { id: 'dashboard', label: 'Tổng quan' },
+      { id: 'hex_lookup', label: 'Tra cứu hex' },
     ],
   },
   {

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react'; // npm i qrcode.react
-import { X, Copy, Check, Smartphone } from 'lucide-react';
+import { X, Copy, Check, Smartphone, Download } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -10,9 +10,48 @@ interface Props {
 
 // Trang mobile nằm ở /m/ (khớp start_url trong manifest và sw.js)
 const mobileUrl = () => `${window.location.origin}/m/`;
+interface InstallEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+// Đã chạy dưới dạng app cài đặt (cửa sổ riêng) thì không cần hiện nút cài nữa
+const isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
 
 export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
   const [copied, setCopied] = useState(false);
+    // __installEvt do index.html bắt sớm, phòng khi sự kiện bắn trước lúc component này được tải
+  const [evt, setEvt] = useState<InstallEvent | null>((window as any).__installEvt ?? null);
+  const [installed, setInstalled] = useState(isStandalone());
+  const [installMsg, setInstallMsg] = useState('');
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as InstallEvent); (window as any).__installEvt = e; };
+    const onInstalled = () => { setInstalled(true); setEvt(null); (window as any).__installEvt = null; };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
+  const installToDevice = async () => {
+    if (!evt) return;
+    setInstallMsg('');
+    try {
+      await evt.prompt();
+      const { outcome } = await evt.userChoice;
+      // Mỗi sự kiện chỉ dùng được 1 lần
+      setEvt(null);
+      (window as any).__installEvt = null;
+      if (outcome === 'accepted') setInstalled(true);
+      else setInstallMsg('Bạn đã hủy cài đặt. Có thể bấm lại sau.');
+    } catch {
+      setInstallMsg('Không mở được hộp thoại cài đặt, hãy thử lại.');
+    }
+  };
   if (!isOpen) return null;
 
   const url = mobileUrl();
@@ -79,6 +118,27 @@ export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
               </p>
             )}
 
+                        <div className="rounded-lg border border-slate-200 p-3">
+              <p className="font-semibold text-slate-800">Cài về máy tính này</p>
+              {installed ? (
+                <p className="mt-1 text-xs text-emerald-700">✅ Ứng dụng đã được cài trên thiết bị này.</p>
+              ) : evt ? (
+                <button
+                  type="button"
+                  onClick={installToDevice}
+                  className="mt-2 flex items-center gap-1.5 rounded-lg bg-red-700 px-3 py-2 text-xs font-medium text-white hover:bg-red-800"
+                >
+                  <Download size={14} /> Tải và cài đặt về máy
+                </button>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">
+                  Trình duyệt chưa cho phép cài trực tiếp. Dùng Chrome/Edge, bấm biểu tượng cài đặt ⊕ ở cuối thanh địa chỉ
+                  (hoặc menu ⋮ → "Cài đặt Operations Hub"). Nút này chỉ hiện khi mở bằng https hoặc localhost.
+                </p>
+              )}
+              {installMsg && <p className="mt-1 text-xs text-amber-700">{installMsg}</p>}
+            </div>
+
             <div>
               <p className="font-semibold text-slate-800">Android (Chrome)</p>
               <ol className="mt-1 list-decimal space-y-0.5 pl-5 text-xs text-slate-600">
@@ -97,7 +157,14 @@ export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
               </ol>
             </div>
 
-            <p className="break-all rounded-lg bg-slate-50 p-2 text-[11px] text-slate-500">{url}</p>
+                       <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block break-all rounded-lg bg-slate-50 p-2 text-[11px] text-blue-600 underline hover:bg-slate-100 hover:text-blue-800"
+            >
+              {url}
+            </a>
           </div>
         </div>
       </div>

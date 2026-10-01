@@ -3,8 +3,7 @@ import {
   XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, LabelList, ReferenceLine, Label,
 } from 'recharts';
-import { Target, CheckCircle, Activity, Eye, X, Clock } from 'lucide-react';
-import { DataUpdateLogModal } from '../modals/DataUpdateLogModal';
+import { Target, CheckCircle, Activity, Eye, X} from 'lucide-react';
 import { CheckpointTriangle } from '../shared/CheckpointTriangle';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
@@ -84,7 +83,7 @@ export const FactoryRevenueSection = ({
   workshopMetric,
 }: FactoryRevenueSectionProps) => {
 const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
-const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+
 
   const chartWrapperRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
@@ -220,13 +219,6 @@ const getMinWidthPxForText = (text: string): number => {
     </div>
   </div>
 
-    <button
-    onClick={() => setIsLogModalOpen(true)}
-    className="fixed top-20 right-4 z-50 flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 shadow-md transition-colors shrink-0"
-    title="Nhật ký cập nhật dữ liệu"
-  >
-    <Clock size={14} /> Nhật ký cập nhật
-  </button>
 </div>
 
                 {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
@@ -473,7 +465,6 @@ const getMinWidthPxForText = (text: string): number => {
           </div>
         </div>
       )}
-    <DataUpdateLogModal isOpen={isLogModalOpen} onClose={() => setIsLogModalOpen(false)} />
     </>
   );
 };

@@ -1,7 +1,7 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -15,6 +15,7 @@ import { loadTableColumnConfig, applyTableColumnConfig } from './components/Cons
 import './index.css';
 import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal'; 
 import { disablePush } from './services/vuongMacMobileApi';// chỉnh đường dẫn
+import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -27,6 +28,8 @@ const ConstructionSetup = lazy(() => import('./components/Construction/Construct
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
+// Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
+const HexLookup = lazy(() => import('./components/Mobile/HexLookup'));
 
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
@@ -80,6 +83,7 @@ const App: React.FC = () => {
                 <Route element={<MainLayout />}>
                   {/* --- Tổng quan --- */}
                   <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
+                  <Route path="/tra-cuu-hex" element={<RequirePermission viewId="hex_lookup"><HexLookupWrapper /></RequirePermission>} />
 
                   {/* --- Nhóm Dữ liệu --- */}
                   <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
@@ -141,6 +145,14 @@ const RequirePermission: React.FC<{ children: React.ReactElement, viewId: string
 // Wrapper components
 // ------------------------------------------------------------
 const DashboardWrapper = () => { const context = useOutletContext<MainLayoutContext>(); return <Dashboard {...context} />; };
+
+// HexLookup vốn viết cho mobile (root dùng min-h-screen) nên cần khung cuộn riêng
+// khi đặt vào vùng main của desktop (main đang overflow-hidden).
+const HexLookupWrapper = () => (
+  <div className="h-full overflow-y-auto">
+    <HexLookup />
+  </div>
+);
 
 // Gate cho tới khi view-project-mapping đã load xong (dùng chung cho 2 trang Công trình)
 const useViewMappingReady = () => {
@@ -311,7 +323,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'Shield': <Shield size={20} />, 'Calendar': <Calendar size={20} />, 'ShoppingCart': <ShoppingCart size={20} />,
   'Import': <Import size={20} />, 'FileText': <FileText size={20} />, 'ClipboardList': <ClipboardList size={20} />,
   'TrendingUp': <TrendingUp size={20} />, 'CalendarRange': <CalendarRange size={20} />, 'Export': <Upload size={20} />,
-  'Clock': <Clock size={20} />
+  'Clock': <Clock size={20} />, 'Search': <Search size={20} />
 };
 
 // Icon nhỏ hơn dùng cho các mục con trong nhóm gộp
@@ -320,11 +332,11 @@ const ICON_MAP_SM: Record<string, React.ReactNode> = {
   'Shield': <Shield size={16} />, 'Calendar': <Calendar size={16} />, 'ShoppingCart': <ShoppingCart size={16} />,
   'Import': <Import size={16} />, 'FileText': <FileText size={16} />, 'ClipboardList': <ClipboardList size={16} />,
   'TrendingUp': <TrendingUp size={16} />, 'CalendarRange': <CalendarRange size={16} />, 'Export': <Upload size={16} />,
-  'Clock': <Clock size={16} />
+  'Clock': <Clock size={16} />, 'Search': <Search size={16} />
 };
 
 // Các viewId luôn hiển thị riêng lẻ, không gộp vào nhóm "Dữ liệu"
-const STANDALONE_VIEW_IDS = ['dashboard', 'users'];
+const STANDALONE_VIEW_IDS = ['dashboard', 'hex_lookup', 'users'];
 
 const AppLogo = () => (
   <div className="w-8 h-8 rounded bg-wood-600 flex items-center justify-center text-white shrink-0 shadow-sm"><TrendingUp size={18} strokeWidth={2.5} /></div>
@@ -364,7 +376,7 @@ const MainLayout: React.FC = () => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 const [isInstallOpen, setIsInstallOpen] = useState(false);
-
+const [isLogOpen, setIsLogOpen] = useState(false);
   const location = useLocation();
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
@@ -588,6 +600,7 @@ const confirmLogout = async () => {
   // MENU: chỉ hiện những mục người dùng có quyền
   // ------------------------------------------------------------
   const dashboardView = APP_VIEWS.find(v => v.id === 'dashboard' && hasPermission(v.id));
+  const hexLookupView = APP_VIEWS.find(v => v.id === 'hex_lookup' && hasPermission(v.id));
   const usersView = APP_VIEWS.find(v => v.id === 'users' && hasPermission(v.id));
 
   const visibleConstructionItems = CONSTRUCTION_SUB_ITEMS.filter(i => hasPermission(i.permId));
@@ -680,6 +693,19 @@ const confirmLogout = async () => {
               icon={ICON_MAP[dashboardView.iconName || 'Table']}
               label={dashboardView.label}
               active={location.pathname === dashboardView.path}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {/* Tra cứu hex - đặt ngay dưới Tổng quan */}
+          {hexLookupView && (
+            <NavLink
+              key={hexLookupView.id}
+              to={hexLookupView.path}
+              icon={ICON_MAP[hexLookupView.iconName || 'Table']}
+              label={hexLookupView.label}
+              active={location.pathname === hexLookupView.path}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />
@@ -809,7 +835,18 @@ const confirmLogout = async () => {
 >
   <Smartphone size={20} />
   <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Tải app điện thoại</span>
+  
 </button>
+          {hasPermission('data_log') && (
+            <button
+              onClick={() => { setIsLogOpen(true); closeMobileSidebar(); }}
+              className={`flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+              title="Nhật ký cập nhật dữ liệu"
+            >
+              <Clock size={20} />
+              <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Nhật ký cập nhật</span>
+            </button>
+          )}
 
           <div className={`text-[10px] text-slate-500 text-center transition-all duration-300 mt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
             Đã kết nối ngầm ({lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'})
@@ -898,6 +935,7 @@ const confirmLogout = async () => {
         </div>
       )}
   <InstallMobileAppModal isOpen={isInstallOpen} onClose={() => setIsInstallOpen(false)} />
+      <DataUpdateLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
     </div>
   );
 };
