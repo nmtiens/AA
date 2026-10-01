@@ -32,6 +32,10 @@ const VM_TEXT: Record<FiveMCategory, string> = {
 
 type Detail = { notes: Record<string, string | null>; items: VuongMacItem[] };
 type Counts = Record<string, { open: number; done: number }>;
+// Kết quả tìm hàng loạt: số mã đã tìm, số mã tìm thấy, số mã bị bỏ qua do quá giới hạn
+type BulkInfo = { total: number; found: number; skipped: number };
+
+const BULK_LIMIT = 200;
 
 const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm';
 const btnPrimary = 'w-full rounded-lg bg-slate-800 py-2.5 text-sm font-medium text-white disabled:opacity-50';
@@ -49,11 +53,31 @@ const money = (v: unknown) =>
 const splitCodes = (s: string) =>
   Array.from(new Set(s.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean)));
 
-// Tìm hàng loạt khi: có dấu phẩy, hoặc mọi phần đều là dãy số >= 6 chữ số
-// (mã hex 9 số, mã nhà máy 12 số). Nhờ vậy tên công trình có dấu cách vẫn tìm bình thường.
+// Tìm hàng loạt khi: có dấu phẩy, hoặc đa số các phần là dãy số >= 6 chữ số (và có ít nhất 2 dãy)
+// (mã hex 9 số, mã nhà máy 12 số). Một mã gõ sai/thừa dấu cách (vd "25 0301646") không làm hỏng cả lượt tìm.
+// Tên công trình có dấu cách vẫn tìm bình thường vì hầu hết các phần không phải số dài.
 const isBulk = (s: string) => {
   const t = splitCodes(s);
-  return t.length > 1 && (/[,;]/.test(s) || t.every(x => /^\d{6,}$/.test(x)));
+  if (t.length < 2) return false;
+  if (/[,;]/.test(s)) return true;
+  const longNums = t.filter(x => /^\d{6,}$/.test(x)).length;
+  return longNums >= 2 && longNums >= t.length / 2;
+};
+
+// Sắp kết quả theo đúng thứ tự mã người dùng nhập (khớp hex hoặc mã nhà máy).
+// Ưu tiên khớp chính xác, sau đó khớp một phần; hex không khớp mã nào xếp cuối, giữ nguyên thứ tự gốc.
+const orderByCodes = (hits: HexHit[], codes: string[]) => {
+  const rank = (h: HexHit) => {
+    const hex = String(h.hex ?? '');
+    const nm = String(h.maNhaMay ?? '');
+    let i = codes.findIndex(c => c === hex || c === nm);
+    if (i < 0) i = codes.findIndex(c => c.length >= 6 && (hex.includes(c) || nm.includes(c)));
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return hits
+    .map((h, idx) => ({ h, idx, r: rank(h) }))
+    .sort((a, b) => a.r - b.r || a.idx - b.idx)
+    .map(x => x.h);
 };
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -138,6 +162,7 @@ export default function HexLookup() {
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<HexHit[]>([]);
   const [missing, setMissing] = useState<string[]>([]);
+  const [bulkInfo, setBulkInfo] = useState<BulkInfo | null>(null);
   const [counts, setCounts] = useState<Counts>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -156,7 +181,7 @@ export default function HexLookup() {
     if (!getToken()) { setError(UNAUTHORIZED); setLoading(false); return; }
     if (!bulk && raw.length < 2) {
       reqId.current++;
-      setHits([]); setCounts({}); setMissing([]); setError(''); setLoading(false);
+      setHits([]); setCounts({}); setMissing([]); setBulkInfo(null); setError(''); setLoading(false);
       return;
     }
 
@@ -166,14 +191,26 @@ export default function HexLookup() {
       try {
         let r: HexHit[];
         let miss: string[] = [];
+        let info: BulkInfo | null = null;
         if (bulk) {
-          const b = await searchHexBulk(splitCodes(raw).slice(0, 200), []);
-          r = b.hits; miss = b.missing;
+          const all = splitCodes(raw);
+          const used = all.slice(0, BULK_LIMIT);
+          // Mã quá ngắn (vd "25" do gõ cách nhầm) không thể là hex/mã nhà máy: báo "không tìm thấy", không gửi lên API
+          const valid = used.filter(c => c.length >= 4);
+          const b = await searchHexBulk(valid, []);
+          r = orderByCodes(b.hits, used);
+          miss = [...used.filter(c => c.length < 4), ...b.missing]
+            .sort((x, y) => used.indexOf(x) - used.indexOf(y));
+          info = {
+            total: used.length,
+            found: Math.max(0, used.length - miss.length),
+            skipped: all.length - used.length,
+          };
         } else {
           r = await searchHex(raw, '');
         }
         if (id !== reqId.current) return;
-        setHits(r); setMissing(miss);
+        setHits(r); setMissing(miss); setBulkInfo(info);
 
         const map = await fetchVuongMacList(r.map(h => h.hex));
         if (id !== reqId.current) return;
@@ -387,10 +424,31 @@ export default function HexLookup() {
           <p className="rounded-lg bg-red-100 p-3 text-sm text-red-700">{error}</p>
         ) : null}
 
-        {missing.length > 0 && (
-          <p className="rounded-lg bg-amber-100 p-3 text-sm text-amber-800">
-            Không tìm thấy {missing.length} mã: {missing.join(', ')}
-          </p>
+        {/* Kết quả tìm hàng loạt: tìm thấy bao nhiêu mã, không tìm thấy bao nhiêu mã */}
+        {bulkInfo && !loading && !error && (
+          <div className="space-y-2">
+            <p
+              className={`rounded-lg p-3 text-sm ${
+                bulkInfo.found === 0 ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
+              {bulkInfo.found === 0 ? '❌' : '✅'} Tìm thấy <b>{bulkInfo.found}</b>/{bulkInfo.total} mã
+              {missing.length > 0 && <> · không tìm thấy <b>{missing.length}</b> mã</>}
+            </p>
+
+            {missing.length > 0 && (
+              <div className="rounded-lg bg-amber-100 p-3 text-sm text-amber-800">
+                <p className="font-medium">⚠️ {missing.length} mã không tìm thấy:</p>
+                <p className="mt-1 max-h-32 overflow-y-auto break-words text-xs">{missing.join(', ')}</p>
+              </div>
+            )}
+
+            {bulkInfo.skipped > 0 && (
+              <p className="rounded-lg bg-slate-200 p-3 text-xs text-slate-700">
+                ℹ️ Mỗi lần chỉ tìm tối đa {BULK_LIMIT} mã, đã bỏ qua {bulkInfo.skipped} mã cuối.
+              </p>
+            )}
+          </div>
         )}
 
         {hint && <p className="py-12 text-center text-sm text-slate-400">{hint}</p>}
