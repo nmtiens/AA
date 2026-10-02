@@ -1,40 +1,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
 
+// PWA: dùng service worker tự viết ở public/sw.js (có xử lý Web Push cho "Vướng mắc")
+// và 2 manifest ở public/ (manifest.webmanifest cho /m/, manifest-desktop.webmanifest
+// cho desktop — index.html tự chọn). KHÔNG dùng vite-plugin-pwa nữa: plugin này sinh
+// dist/sw.js + manifest.webmanifest trùng tên, ghi đè file tự viết khi build và làm
+// mất phần xử lý thông báo đẩy. Đăng ký service worker nằm ở index.tsx.
 export default defineConfig({
-  plugins: [
-    react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      manifest: {
-        name: 'Vướng mắc sản xuất',
-        short_name: 'Vướng mắc',
-        start_url: '/m/vuong-mac',
-        scope: '/',
-        display: 'standalone',
-        theme_color: '#b91c1c',
-        background_color: '#f8fafc',
-        icons: [
-          { src: '/icons/192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-      workbox: {
-        navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [{
-          urlPattern: /\/api\/vuong-mac\/all/,
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'vm-api',
-            networkTimeoutSeconds: 5,
-            expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
-          },
-        }],
-      },
-    }),
-  ],
+  plugins: [react()],
   server: {
     port: 3000,
     proxy: {

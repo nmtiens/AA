@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { userService } from '../services/userService';
+import { userService, getToken } from '../services/userService';
+import { AUTH_EXPIRED_EVENT } from '../services/authFetch';
 import { useToast } from './ToastContext';
 
 interface AuthContextType {
@@ -86,6 +87,20 @@ useEffect(() => {
 
   initAuth();
 }, []);
+
+  // Token hết hạn / bị thu hồi (authFetch báo 401) -> đăng xuất 1 lần.
+  // Khi đã xoá token thì các 401 tiếp theo bị bỏ qua, nên chỉ hiện 1 thông báo.
+  useEffect(() => {
+    const onExpired = () => {
+      if (!getToken()) return;
+      clearAllStorage();
+      setUser(null);
+      showToast('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại', 'error');
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const clearAllStorage = () => {
     localStorage.removeItem(STORAGE_KEYS.persistUser);

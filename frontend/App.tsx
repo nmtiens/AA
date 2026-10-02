@@ -61,14 +61,9 @@ const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
   const isMobileEntry = window.location.pathname.startsWith('/m');
 
-  // Bắn request lấy view-project-mapping + table-column-config ngay khi app
-  // khởi động, KHÔNG chặn render. (Bản mobile không cần.)
-  useEffect(() => {
-    if (!isMobileEntry) {
-      loadViewMapping();
-      loadTableColumnConfig();
-    }
-  }, [isMobileEntry]);
+  // Lưu ý: view-project-mapping + table-column-config giờ được tải trong MainLayout
+  // (chỉ chạy sau khi đã đăng nhập), vì backend bắt buộc token cho mọi /api/*.
+  // Tải ở đây khi chưa đăng nhập sẽ bị 401 và cache lại cấu hình rỗng.
 
   return (
     <ToastProvider>
@@ -401,6 +396,16 @@ const MainLayout: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const location = useLocation();
+
+  // Tải view-project-mapping + table-column-config sau khi đã đăng nhập (MainLayout chỉ
+  // hiển thị nội dung khi có user). Không chặn render; các trang Công trình tự chờ qua
+  // useViewMappingReady. Đăng nhập lại (user đổi) thì tải lại cho đúng tài khoản.
+  useEffect(() => {
+    if (!user) return;
+    loadViewMapping();
+    loadTableColumnConfig();
+  }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
 

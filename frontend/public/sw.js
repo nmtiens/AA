@@ -1,4 +1,6 @@
-const CACHE = 'ops-hub-shell-v1';
+// Đổi tên cache mỗi khi thay đổi cách cache: bước 'activate' bên dưới sẽ xoá mọi
+// cache cũ (kể cả cache của Workbox/vite-plugin-pwa từ các bản build trước).
+const CACHE = 'ops-hub-shell-v2';
 const SHELL = ['/', '/m/', '/index.html'];
 
 self.addEventListener('install', (event) => {
@@ -64,8 +66,8 @@ self.addEventListener('push', (event) => {
       tag: d.tag,
       renotify: !!d.tag,
       data: d.target || {},
-      icon: '/icon-192.png',   // đổi cho khớp file icon của bạn
-      badge: '/icon-192.png',
+      icon: '/icons/192.png',
+      badge: '/icons/192.png',
     })
   );
 });

@@ -158,6 +158,25 @@ const requireWarmupSecret = (req: Request, res: Response, next: NextFunction) =>
 };
 
 // ============================================================================
+// BẮT BUỘC ĐĂNG NHẬP CHO MỌI ROUTE /api/*
+// Trừ các route đăng nhập / quên mật khẩu, và các route đã có khoá bí mật riêng
+// (warmup: x-warmup-key, cron: CRON_SECRET). Phải đăng ký TRƯỚC mọi route bên dưới.
+// ============================================================================
+const PUBLIC_API_PATHS = new Set([
+  '/api/auth/login',
+  '/api/auth/forgot-password',
+  '/api/auth/verify-otp',
+  '/api/warmup',
+]);
+const PUBLIC_API_PREFIXES = ['/api/cron/'];
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === 'OPTIONS' || !req.path.startsWith('/api/')) return next();
+  if (PUBLIC_API_PATHS.has(req.path) || PUBLIC_API_PREFIXES.some(p => req.path.startsWith(p))) return next();
+  return authenticateJWT(req, res, next);
+});
+
+// ============================================================================
 // VALIDATE INPUT (zod)
 // ============================================================================
 const validateBody = (schema: ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
@@ -1139,24 +1158,25 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
         allParams.push(xuongList);
         outerConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${allParams.length}::text[])`);
       }
+      // Lọc tinh_trang / tinh_trang_ipo bằng EXISTS (semi-join) thay vì LEFT JOIN:
+      // cùng kết quả (dòng không có hex khớp bên production bị loại), nhưng nếu 1 hex
+      // khớp nhiều dòng production thì SUM(value) KHÔNG bị cộng lặp.
       if (needsRoleJoin) {
+        const pConds: string[] = [
+          `p."${cfg.productionJoinCol || 'hex'}"::text = ${colBare(cfg.hexCol!)}::text`,
+        ];
         if (tinhTrangList.length) {
           allParams.push(tinhTrangList);
-          outerConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${allParams.length}::text[])`);
+          pConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${allParams.length}::text[])`);
         }
         if (tinhTrangIpoList.length) {
           allParams.push(tinhTrangIpoList);
-          outerConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${allParams.length}::text[])`);
+          pConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${allParams.length}::text[])`);
         }
+        outerConds.push(`EXISTS (SELECT 1 FROM production_status_app p WHERE ${pConds.join(' AND ')})`);
       }
       const outerWhere = outerConds.length ? outerConds.join(' AND ') : 'TRUE';
-
-      // MỚI: JOIN production_status_app chỉ khi cần lọc tinh_trang/tinh_trang_ipo.
-      // LEFT JOIN + filter p.xxx = ANY(...) => dòng không có hex khớp bên production
-      // sẽ có p.tinh_trang IS NULL và tự động bị loại (đúng như đã thống nhất).
-      const joinClause = needsRoleJoin
-        ? `LEFT JOIN production_status_app p ON p."${cfg.productionJoinCol || 'hex'}"::text = ${colBare(cfg.hexCol!)}::text`
-        : '';
+      const joinClause = '';
 
       subQueries.push(`
         SELECT
@@ -1260,20 +1280,23 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       params.push(xuongList);
       extraConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${params.length}::text[])`);
     }
+    // EXISTS thay cho LEFT JOIN: không cộng lặp SUM khi 1 hex khớp nhiều dòng production.
     if (needsRoleJoin) {
+      const pConds: string[] = [
+        `p."${cfg.productionJoinCol || 'hex'}"::text = ${colBare(cfg.hexCol!)}::text`,
+      ];
       if (tinhTrangList.length) {
         params.push(tinhTrangList);
-        extraConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`);
+        pConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`);
       }
       if (tinhTrangIpoList.length) {
         params.push(tinhTrangIpoList);
-        extraConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+        pConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`);
       }
+      extraConds.push(`EXISTS (SELECT 1 FROM production_status_app p WHERE ${pConds.join(' AND ')})`);
     }
     const extraWhere = extraConds.length ? ` AND ${extraConds.join(' AND ')}` : '';
-    const joinClause = needsRoleJoin
-      ? `LEFT JOIN production_status_app p ON p."${cfg.productionJoinCol || 'hex'}"::text = ${colBare(cfg.hexCol!)}::text`
-      : '';
+    const joinClause = '';
 
        const q = `
       SELECT

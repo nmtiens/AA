@@ -495,11 +495,30 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
 
       const url = `${API_BASE_URL}/stock/export/csv?${params.toString()}`;
 
-      const a = document.createElement('a');
-      a.href = url;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      // Tải bằng fetch (để gửi kèm token đăng nhập) rồi lưu file, thay vì <a href>
+      // trỏ thẳng vào API — cách cũ không mang được header Authorization nên bị 401.
+      (async () => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const blob = await res.blob();
+          const disposition = res.headers.get('Content-Disposition') || '';
+          const match = /filename="?([^";]+)"?/i.exec(disposition);
+          const fileName = match ? match[1] : `Ton_Kho_${new Date().toISOString().slice(0, 10)}.csv`;
+
+          const objectUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = objectUrl;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(objectUrl);
+        } catch (e) {
+          console.error('Lỗi xuất CSV tồn kho:', e);
+          alert('Không xuất được file tồn kho, vui lòng thử lại.');
+        }
+      })();
 
       setIsGenericExportColumnModalOpen(false);
       setGenericExportFlow(null);
