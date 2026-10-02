@@ -589,30 +589,30 @@ const periodLabel = overviewDateFilters.length > 1
                   </span>
                 </div>
               </div>
-              {(overviewSummary?.inventory.mtd.count ?? 0) > 0 && (
-                <div className="z-10 mt-3 pt-3 border-t border-teal-200/60 w-full">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-teal-800 uppercase">
-                      Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
-                    </span>
-                    <span className="text-3xl font-extrabold text-teal-700">
-                      {overviewMetric === 'COUNT'
-                        ? `${(overviewSummary?.inventory.mtd.count ?? 0).toLocaleString('en-US')} items`
-                        : `${formatValueNumber(overviewSummary?.inventory.mtd.value ?? 0)} ${valueUnitLabel}`}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center mt-1">
-                    <span className="text-[9px] font-bold text-teal-800/70 uppercase">
-                      Lũy kế T{latestUnifiedDate?.getMonth()}:
-                    </span>
-                    <span className="text-lg font-extrabold text-teal-700/70">
-                      {overviewMetric === 'COUNT'
-                        ? `${(overviewSummary?.inventory.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
-                        : `${formatValueNumber(overviewSummary?.inventory.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
-                    </span>
-                  </div>
+          
+                             <div className="z-10 mt-3 pt-3 border-t border-teal-200/60 w-full">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-teal-800 uppercase">
+                    Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
+                  </span>
+                  <span className="text-3xl font-extrabold text-teal-700">
+                    {overviewMetric === 'COUNT'
+                      ? `${(overviewSummary?.inventory.mtd.count ?? 0).toLocaleString('en-US')} items`
+                      : `${formatValueNumber(overviewSummary?.inventory.mtd.value ?? 0)} ${valueUnitLabel}`}
+                  </span>
                 </div>
-              )}
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs font-bold text-teal-800/70 uppercase">
+                    Lũy kế T{latestUnifiedDate?.getMonth()}:
+                  </span>
+                  <span className="text-lg font-extrabold text-teal-700/70">
+                    {overviewMetric === 'COUNT'
+                      ? `${(overviewSummary?.inventory.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
+                      : `${formatValueNumber(overviewSummary?.inventory.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
+                  </span>
+                </div>
+              </div>
+           
             </div>
           </div>
 
