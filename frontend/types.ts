@@ -134,7 +134,7 @@ export interface AppView {
 
 export const APP_VIEWS: AppView[] = [
   { id: 'dashboard', path: '/', label: 'Tổng quan', iconName: 'LayoutDashboard' },
-  { id: 'hex_lookup', path: '/tra-cuu-hex', label: 'Tra cứu hex', iconName: 'Search' },
+  { id: 'hex_lookup', path: '/tra-cuu-hex', label: 'Tra cứu', iconName: 'Search' },
   { id: 'production', path: '/list', label: 'Dữ liệu Sản xuất', iconName: 'Table' },
   { id: 'yearly_plan_data', path: '/yearly-plan', label: 'Dữ liệu kế hoạch năm', iconName: 'CalendarRange' },
   { id: 'orders', path: '/orders', label: 'Dữ liệu Đơn hàng tổng', iconName: 'ShoppingCart' },
@@ -180,6 +180,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'g_construction',
     label: 'Công trình',
     items: [
+      { id: 'construction_overview', label: 'Tổng quan công trình' },
       { id: 'construction_redflow', label: 'Công trình luồng đỏ' },
       { id: 'construction_sample', label: 'Căn mẫu' },
       { id: 'construction_setup', label: 'Setup dữ liệu (phân loại công trình)' },

@@ -2,10 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    color: #0f172a;
+    background: #f7f8fa;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::selection { background: #dbe4f3; }
+  h1, h2, h3 { letter-spacing: -0.01em; }
+
+  /* Số trong bảng báo cáo căn đều theo cột */
+  table { font-variant-numeric: tabular-nums; }
+
+  /* Focus rõ ràng cho bàn phím, ô nhập dùng ring riêng của Tailwind */
+  :focus-visible { outline: 2px solid #1f2a44; outline-offset: 2px; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
+}
+
+@layer components {
+  /* Dùng cho các khối mới: <div className="card"> */
+  .card { @apply bg-white border border-slate-200 rounded-xl shadow-sm; }
+  .page-title { @apply text-lg font-semibold tracking-tight text-slate-900; }
+  .section-title { @apply text-sm font-semibold text-slate-700; }
+  .kpi-label { @apply text-[11px] font-medium tracking-wide text-slate-500; }
+  .kpi-value { @apply text-xl font-semibold tabular-nums text-slate-900; }
+}
+
+/* Thanh cuộn mảnh, nền trong suốt */
 .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #d5dae1; border-radius: 999px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #b6bfcb; }
 
 /* --- Giao diện app điện thoại (/m/) --- */
 * { -webkit-tap-highlight-color: transparent; }

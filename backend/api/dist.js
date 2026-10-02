@@ -63603,7 +63603,11 @@ var REPORT_COLUMNS = {
     "bot_du_an",
     "khach_hang",
     "khu_vuc_du_an",
-    "ma_nha_may"
+    "ma_nha_may",
+    // Báo cáo tiến độ công trình
+    "ten_pm",
+    "ten_pc",
+    "ngay_can_giao"
   ],
   vat_tu: [
     "trang_thai",

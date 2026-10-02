@@ -4,6 +4,7 @@ import { parseVNDate, diffDays } from './Dashboard/utils/dateHelpers';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
 import { fetchRevenue2026, type Revenue2026Data } from '../services/dataService';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
+import { ProductionDonutPanel } from './Dashboard/components/shared/ProductionDonutPanel';
 import { useColumnKeys } from './Dashboard/hooks/useColumnKeys';
 import { useDashboardOptions } from './Dashboard/hooks/useDashboardOptions';
 import { useDashboardFilters } from './Dashboard/hooks/useDashboardFilters';
@@ -100,7 +101,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
   const {
-  hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
+   hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
+  khachHangKey, khuVucDuAnKey,
   xuongKey, hangMucKey, daysAtCurrentStageKey, bopKey, triGiaDonHangTongKey,
   thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
@@ -128,11 +130,13 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 const {
   filters,
+  effectiveFilters,
+  scopedProjects,
   setFilters,
   hasActiveFilters,
   clearFilters,
   filteredProductionData,
-  funnelProductionData, // THÊM
+  funnelProductionData,
   filteredMaterialData,
   displayedMaterialData,
   selectedMaterialGroups,
@@ -145,6 +149,8 @@ const {
   xuongKey,
   tinhTrangKey,
   tinhTrangIpoKey,
+  khachHangKey,
+  khuVucDuAnKey,
   matCongTrinhKey,
   matNhomVtKey,
 });
@@ -159,7 +165,7 @@ const {
 } = useUnifiedTimeFilters({
   inventoryData,
   analysisData,
-  filters,
+ filters: effectiveFilters,
   invCongTrinhKey,
   invXuongKey,
   invNamKey,
@@ -176,7 +182,9 @@ const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
 // Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
 // thang/tuan/ngay — nên effect chỉ re-run khi giá trị năm thay đổi.
 const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
-
+// Yêu cầu mở modal "Chi tiết Nhập Kho" theo cả năm (khi bấm ô "Thực hiện lũy kế").
+// nonce tăng mỗi lần bấm để OrderOverviewSection biết có yêu cầu mới.
+const [inventoryOpenRequest, setInventoryOpenRequest] = useState<{ nonce: number; year: number } | null>(null);
 useEffect(() => {
   fetchRevenue2026(selectedRevenueYear).then(data => { if (data) setRevenue2026(data); });
 }, [selectedRevenueYear]);
@@ -185,7 +193,9 @@ const {
   congTrinhOptions,
   xuongOptions,
   tinhTrangOptions,
-  tinhTrangIpoOptions,
+   tinhTrangIpoOptions,
+  khachHangOptions,
+  khuVucDuAnOptions,
   khsxNamOptions,
   khsxThangOptions,
   khsxNgayOptions,
@@ -210,6 +220,8 @@ const {
   xuongKey,
   tinhTrangKey,
   tinhTrangIpoKey,
+  khachHangKey,
+  khuVucDuAnKey,
   khsxNamKey,
   khsxThangKey,
   khsxNgayKey,
@@ -262,7 +274,7 @@ const {
   expDateKey,
   expCongTrinhKey,
   expXuongKey,
-  filters,
+ filters: effectiveFilters,
   unifiedDateOptions,
 });
 
@@ -278,7 +290,7 @@ const {
 } = useKhsxSummary({
   unifiedTimeFilters,
   viewMode,
-  filters,
+ filters: effectiveFilters,
   filteredAnalysisData,
   analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey,
   analysisDungKhKey, analysisThucHienDungKh1PhanKey, analysisRotKhKey,
@@ -307,7 +319,7 @@ const {
   stockDateKey,
   latestUnifiedDate,
   overviewMetric,
-  filters,
+filters: effectiveFilters,
 });
 
 const {
@@ -501,28 +513,28 @@ const handleContinueToOrderColumnStep = () => {
   </div>
 )}
       {/* Sticky Header & Filters */}
-      <div className="sticky top-0 z-40 bg-wood-50/95 backdrop-blur-sm border-b border-wood-200 px-4 py-3 shadow-sm">
+      <div className="sticky top-0 z-40 bg-wood-50/90 backdrop-blur border-b border-slate-200 px-4 py-3">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Tổng quan</h2>
+              <h2 className="page-title">Tổng quan</h2>
             </div>
             {/* Anchor Buttons */}
             <div className="flex gap-2">
-              <button onClick={() => scrollToRef(factoryRevenueRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Doanh số nhà máy">
-                <Target size={14} className="text-emerald-600" /> Doanh số
+              <button onClick={() => scrollToRef(factoryRevenueRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Doanh số nhà máy">
+                <Target size={14} className="text-slate-400" /> Doanh số
               </button>
-              <button onClick={() => scrollToRef(orderOverviewRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Tổng quan Đơn hàng">
-                <ShoppingCart size={14} className="text-pink-600" /> Tổng quan
+              <button onClick={() => scrollToRef(orderOverviewRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tổng quan Đơn hàng">
+                <ShoppingCart size={14} className="text-slate-400" /> Tổng quan
               </button>
-              <button onClick={() => scrollToRef(productionStatusRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Tình trạng sản xuất">
-                <CheckCircle size={14} className="text-emerald-600" /> Tình trạng sản xuất
+              <button onClick={() => scrollToRef(productionStatusRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tình trạng sản xuất">
+                <CheckCircle size={14} className="text-slate-400" /> Tình trạng sản xuất
               </button>
-              <button onClick={() => scrollToRef(bottleneckSectionRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Báo cáo Điểm nghẽn">
-                <AlertTriangle size={14} className="text-red-600" /> Điểm nghẽn
+              <button onClick={() => scrollToRef(bottleneckSectionRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Báo cáo Điểm nghẽn">
+                <AlertTriangle size={14} className="text-slate-400" /> Điểm nghẽn
               </button>
-              <button onClick={() => scrollToRef(khsxSectionRef)} className="p-1.5 text-xs bg-white border border-slate-200 rounded hover:bg-wood-50 text-slate-600 flex items-center gap-1 shadow-sm" title="Đến Kế hoạch & Nhập kho">
-                <BarChart2 size={14} className="text-indigo-600" /> Kế hoạch-Thực hiện
+              <button onClick={() => scrollToRef(khsxSectionRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Kế hoạch & Nhập kho">
+                <BarChart2 size={14} className="text-slate-400" /> Kế hoạch-Thực hiện
               </button>
             </div>
           </div>
@@ -532,10 +544,26 @@ const handleContinueToOrderColumnStep = () => {
             <div className="flex items-center gap-2 mr-1 text-slate-500">
               <Filter size={14} /> <span className="text-[10px] uppercase font-bold">Bộ lọc tổng:</span>
             </div>
+                        {khachHangKey && (
+              <DashboardFilter
+                label="Khách Hàng"
+                options={khachHangOptions}
+                selectedValues={filters.khachHang}
+                onChange={(vals) => setFilters(prev => ({ ...prev, khachHang: vals }))}
+              />
+            )}
+            {khuVucDuAnKey && (
+              <DashboardFilter
+                label="Khu Vực Dự Án"
+                options={khuVucDuAnOptions}
+                selectedValues={filters.khuVucDuAn}
+                onChange={(vals) => setFilters(prev => ({ ...prev, khuVucDuAn: vals }))}
+              />
+            )}
             {congTrinhKey && (
               <DashboardFilter
                 label="Tên Công Trình"
-                options={congTrinhOptions}
+                options={scopedProjects ? congTrinhOptions.filter(c => scopedProjects.has(c)) : congTrinhOptions}
                 selectedValues={filters.congTrinh}
                 onChange={(vals) => setFilters(prev => ({ ...prev, congTrinh: vals }))}
               />
@@ -579,7 +607,7 @@ const handleContinueToOrderColumnStep = () => {
 
       <div className="px-4 md:px-8 space-y-6">
 
-           <FactoryRevenueSection
+                     <FactoryRevenueSection
   sectionRef={factoryRevenueRef}
   factoryRevenueChartData={factoryRevenueChartData}
   quarterlyTargets={quarterlyTargets}
@@ -588,6 +616,20 @@ const handleContinueToOrderColumnStep = () => {
   customFunnelData={customFunnelData}
   pivotFunnelData={pivotFunnelData}
   workshopMetric={workshopMetric}
+  sideContent={
+    <ProductionDonutPanel
+      data={productionData}
+      columns={productionColumns}
+      congTrinh={effectiveFilters.congTrinh}
+      xuong={effectiveFilters.xuong}
+    />
+  }
+  onActualClick={() =>
+    setInventoryOpenRequest(r => ({
+      nonce: (r?.nonce ?? 0) + 1,
+      year: Number(selectedRevenueYear) || new Date().getFullYear(),
+    }))
+  }
 />
 
         {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}
@@ -596,7 +638,8 @@ const handleContinueToOrderColumnStep = () => {
   sectionRef={orderOverviewRef}
   isSidebarCollapsed={isSidebarCollapsed}
   hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
-  filters={filters}   // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
+   filters={filters}   // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
+  openInventoryRequest={inventoryOpenRequest}  // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
   overviewMetric={overviewMetric}
   setOverviewMetric={setOverviewMetric}
   getContextLabel={getContextLabel}

@@ -13,7 +13,10 @@ interface UseDashboardOptionsParams {
   congTrinhKey: string | undefined;
   xuongKey: string | undefined;
   tinhTrangKey: string | undefined;
-  tinhTrangIpoKey: string | undefined;
+   tinhTrangIpoKey: string | undefined;
+  khachHangKey?: string | undefined;
+  khuVucDuAnKey?: string | undefined;
+
 
   khsxNamKey: string | undefined;
   khsxThangKey: string | undefined;
@@ -54,6 +57,8 @@ export function useDashboardOptions({
   xuongKey,
   tinhTrangKey,
   tinhTrangIpoKey,
+  khachHangKey,
+  khuVucDuAnKey,
   khsxNamKey,
   khsxThangKey,
   khsxNgayKey,
@@ -73,7 +78,8 @@ export function useDashboardOptions({
   const xuongOptions = useMemo(() => getUniqueOptions(productionData, xuongKey), [productionData, xuongKey]);
   const tinhTrangOptions = useMemo(() => getUniqueOptions(productionData, tinhTrangKey), [productionData, tinhTrangKey]);
   const tinhTrangIpoOptions = useMemo(() => getUniqueOptions(productionData, tinhTrangIpoKey), [productionData, tinhTrangIpoKey]);
-
+  const khachHangOptions = useMemo(() => getUniqueOptions(productionData, khachHangKey), [productionData, khachHangKey]);
+  const khuVucDuAnOptions = useMemo(() => getUniqueOptions(productionData, khuVucDuAnKey), [productionData, khuVucDuAnKey]);
   // --- KHSX time filter options ---
   const khsxNamOptions = useMemo(() => getUniqueOptions(khsxData, khsxNamKey), [khsxData, khsxNamKey]);
   const khsxThangOptions = useMemo(() => getUniqueOptions(khsxData, khsxThangKey), [khsxData, khsxThangKey]);
@@ -153,6 +159,8 @@ export function useDashboardOptions({
     xuongOptions,
     tinhTrangOptions,
     tinhTrangIpoOptions,
+    khachHangOptions,
+    khuVucDuAnOptions,
     khsxNamOptions,
     khsxThangOptions,
     khsxNgayOptions,

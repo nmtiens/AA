@@ -6,6 +6,8 @@ export interface DashboardFiltersState {
   xuong: string[];
   tinhTrang: string[];
   tinhTrangIpo: string[];
+  khachHang: string[];
+  khuVucDuAn: string[];
 }
 
 interface UseDashboardFiltersParams {
@@ -16,6 +18,8 @@ interface UseDashboardFiltersParams {
   xuongKey: string | undefined;
   tinhTrangKey: string | undefined;
   tinhTrangIpoKey: string | undefined;
+  khachHangKey?: string | undefined;
+  khuVucDuAnKey?: string | undefined;
 
   matCongTrinhKey: string | undefined;
   matNhomVtKey: string | undefined;
@@ -26,15 +30,24 @@ const DEFAULT_FILTERS: DashboardFiltersState = {
   xuong: [],
   tinhTrang: [],
   tinhTrangIpo: ['01. ĐANG SẢN XUẤT'],
+  khachHang: [],
+  khuVucDuAn: [],
 };
 
 // Cố định Tình Trạng IPO dùng riêng cho biểu đồ Funnel "TÌNH TRẠNG ĐƠN HÀNG AATN"
 // (KHÔNG phụ thuộc vào lựa chọn của người dùng ở ô "Tình Trạng IPO").
 const FUNNEL_FIXED_TINH_TRANG_IPO = '01. ĐANG SẢN XUẤT';
 
+// Khi lọc Khách hàng / Khu vực dự án mà không có công trình nào khớp: mảng công trình rỗng
+// nghĩa là "không lọc" nên phải dùng 1 giá trị giả để mọi nơi trả về kết quả rỗng.
+const NO_MATCH_PROJECT = '__KHONG_CO_CONG_TRINH__';
+
 /**
- * Gom toàn bộ state + logic lọc tổng (Công trình / Khu vực SX / Tình trạng / Tình trạng IPO)
- * và lọc Vật tư theo Công trình + Nhóm VT.
+ * Gom toàn bộ state + logic lọc tổng (Khách hàng / Khu vực dự án / Công trình / Khu vực SX /
+ * Tình trạng / Tình trạng IPO) và lọc Vật tư theo Công trình + Nhóm VT.
+ *
+ * Khách hàng + Khu vực dự án được quy về DANH SÁCH CÔNG TRÌNH (effectiveFilters.congTrinh) để
+ * mọi hook/API phía sau (vốn chỉ biết lọc theo công trình) tự áp dụng mà không phải sửa.
  */
 export function useDashboardFilters({
   productionData,
@@ -43,6 +56,8 @@ export function useDashboardFilters({
   xuongKey,
   tinhTrangKey,
   tinhTrangIpoKey,
+  khachHangKey,
+  khuVucDuAnKey,
   matCongTrinhKey,
   matNhomVtKey,
 }: UseDashboardFiltersParams) {
@@ -54,56 +69,87 @@ export function useDashboardFilters({
     setFilters(DEFAULT_FILTERS);
   };
 
-  // SỬA: chỉ để hiện lại nút X — quay về kiểm tra length đơn giản, không so
-  // sánh với DEFAULT_FILTERS nữa. Áp dụng chung cho mọi trang dùng hook này.
+  // Chỉ để hiện lại nút X — kiểm tra length đơn giản.
   const hasActiveFilters =
     filters.congTrinh.length > 0 ||
     filters.xuong.length > 0 ||
     filters.tinhTrang.length > 0 ||
-    filters.tinhTrangIpo.length > 0;
+    filters.tinhTrangIpo.length > 0 ||
+    filters.khachHang.length > 0 ||
+    filters.khuVucDuAn.length > 0;
+
+  // Tập công trình thuộc các Khách hàng + Khu vực dự án đã chọn (null = không lọc theo 2 tiêu chí này)
+  const scopedProjects = useMemo<Set<string> | null>(() => {
+    if (!congTrinhKey) return null;
+    if (filters.khachHang.length === 0 && filters.khuVucDuAn.length === 0) return null;
+
+    const set = new Set<string>();
+    for (const row of productionData) {
+      const ct = String(row[congTrinhKey] || '').trim();
+      if (!ct) continue;
+      if (filters.khachHang.length > 0 &&
+          !(khachHangKey && filters.khachHang.includes(String(row[khachHangKey] || '').trim()))) continue;
+      if (filters.khuVucDuAn.length > 0 &&
+          !(khuVucDuAnKey && filters.khuVucDuAn.includes(String(row[khuVucDuAnKey] || '').trim()))) continue;
+      set.add(ct);
+    }
+    return set;
+  }, [productionData, filters.khachHang, filters.khuVucDuAn, congTrinhKey, khachHangKey, khuVucDuAnKey]);
+
+  // Danh sách công trình thực sự áp dụng = (công trình đã chọn) giao (công trình thuộc khách hàng/khu vực)
+  const effectiveCongTrinh = useMemo<string[]>(() => {
+    if (!scopedProjects) return filters.congTrinh;
+    const list = filters.congTrinh.length > 0
+      ? filters.congTrinh.filter(ct => scopedProjects.has(ct))
+      : Array.from(scopedProjects);
+    return list.length > 0 ? list : [NO_MATCH_PROJECT];
+  }, [scopedProjects, filters.congTrinh]);
+
+  // Bản `filters` dành cho các hook/section phía sau (chỉ khác ở congTrinh)
+  const effectiveFilters = useMemo<DashboardFiltersState>(
+    () => ({ ...filters, congTrinh: effectiveCongTrinh }),
+    [filters, effectiveCongTrinh]
+  );
 
   const filteredProductionData = useMemo(() => {
     return productionData.filter(row => {
-      const matchCongTrinh = filters.congTrinh.length === 0 || (congTrinhKey && filters.congTrinh.includes(String(row[congTrinhKey] || '').trim()));
+      const matchCongTrinh = effectiveCongTrinh.length === 0 || (congTrinhKey && effectiveCongTrinh.includes(String(row[congTrinhKey] || '').trim()));
       const matchXuong = filters.xuong.length === 0 || (xuongKey && filters.xuong.includes(String(row[xuongKey] || '').trim()));
       const matchTinhTrang = filters.tinhTrang.length === 0 || (tinhTrangKey && filters.tinhTrang.includes(String(row[tinhTrangKey] || '').trim()));
       const matchTinhTrangIpo = filters.tinhTrangIpo.length === 0 || (tinhTrangIpoKey && filters.tinhTrangIpo.includes(String(row[tinhTrangIpoKey] || '').trim()));
 
       return matchCongTrinh && matchXuong && matchTinhTrang && matchTinhTrangIpo;
     });
-  }, [productionData, filters, congTrinhKey, xuongKey, tinhTrangKey, tinhTrangIpoKey]);
+  }, [productionData, filters, effectiveCongTrinh, congTrinhKey, xuongKey, tinhTrangKey, tinhTrangIpoKey]);
 
-  // MỚI: dataset riêng cho biểu đồ "TÌNH TRẠNG ĐƠN HÀNG AATN" (funnel) — LUÔN
-  // cố định Tình Trạng IPO = "01. ĐANG SẢN XUẤT", KHÔNG áp dụng filters.tinhTrang,
-  // KHÔNG áp dụng filters.tinhTrangIpo do người dùng chọn (chỉ ăn Công trình + Khu vực SX).
+  // Dataset riêng cho biểu đồ "TÌNH TRẠNG ĐƠN HÀNG AATN" (funnel) — LUÔN cố định
+  // Tình Trạng IPO = "01. ĐANG SẢN XUẤT", chỉ ăn Công trình (+ Khách hàng/Khu vực dự án) + Khu vực SX.
   const funnelProductionData = useMemo(() => {
     return productionData.filter(row => {
-      const matchCongTrinh = filters.congTrinh.length === 0 || (congTrinhKey && filters.congTrinh.includes(String(row[congTrinhKey] || '').trim()));
+      const matchCongTrinh = effectiveCongTrinh.length === 0 || (congTrinhKey && effectiveCongTrinh.includes(String(row[congTrinhKey] || '').trim()));
       const matchXuong = filters.xuong.length === 0 || (xuongKey && filters.xuong.includes(String(row[xuongKey] || '').trim()));
       const matchFixedIpo = tinhTrangIpoKey && String(row[tinhTrangIpoKey] || '').trim() === FUNNEL_FIXED_TINH_TRANG_IPO;
 
-      // Cố tình KHÔNG check filters.tinhTrang ở đây
       return matchCongTrinh && matchXuong && matchFixedIpo;
     });
-  }, [productionData, filters.congTrinh, filters.xuong, congTrinhKey, xuongKey, tinhTrangIpoKey]);
+  }, [productionData, effectiveCongTrinh, filters.xuong, congTrinhKey, xuongKey, tinhTrangIpoKey]);
 
-  // MỚI: dataset riêng cho bảng "Tình trạng đơn hàng theo Công trình" (v2,
-  // ProjectSummarySection_v2) — CHỈ ăn Công trình + Khu vực SX, KHÔNG áp dụng
-  // filters.tinhTrang và filters.tinhTrangIpo, để bảng luôn hiển thị tổng đầy đủ.
+  // Dataset riêng cho bảng "Tình trạng đơn hàng theo Công trình" (v2) — CHỈ ăn Công trình
+  // (+ Khách hàng/Khu vực dự án) + Khu vực SX, KHÔNG áp dụng Tình Trạng / Tình Trạng IPO.
   const projectSummaryProductionData = useMemo(() => {
     return productionData.filter(row => {
-      const matchCongTrinh = filters.congTrinh.length === 0 || (congTrinhKey && filters.congTrinh.includes(String(row[congTrinhKey] || '').trim()));
+      const matchCongTrinh = effectiveCongTrinh.length === 0 || (congTrinhKey && effectiveCongTrinh.includes(String(row[congTrinhKey] || '').trim()));
       const matchXuong = filters.xuong.length === 0 || (xuongKey && filters.xuong.includes(String(row[xuongKey] || '').trim()));
       return matchCongTrinh && matchXuong;
     });
-  }, [productionData, filters.congTrinh, filters.xuong, congTrinhKey, xuongKey]);
+  }, [productionData, effectiveCongTrinh, filters.xuong, congTrinhKey, xuongKey]);
 
   const filteredMaterialData = useMemo(() => {
     return materialData.filter(row => {
-      const matchCongTrinh = filters.congTrinh.length === 0 || (matCongTrinhKey && filters.congTrinh.includes(String(row[matCongTrinhKey] || '').trim()));
+      const matchCongTrinh = effectiveCongTrinh.length === 0 || (matCongTrinhKey && effectiveCongTrinh.includes(String(row[matCongTrinhKey] || '').trim()));
       return matchCongTrinh;
     });
-  }, [materialData, filters.congTrinh, matCongTrinhKey]);
+  }, [materialData, effectiveCongTrinh, matCongTrinhKey]);
 
   const displayedMaterialData = useMemo(() => {
     if (selectedMaterialGroups.length === 0) return filteredMaterialData;
@@ -122,6 +168,8 @@ export function useDashboardFilters({
 
   return {
     filters,
+    effectiveFilters,
+    scopedProjects,
     setFilters,
     hasActiveFilters,
     clearFilters,

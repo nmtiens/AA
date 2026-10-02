@@ -13,8 +13,8 @@ import { loadViewMapping, isViewMappingLoaded } from './components/Construction/
 // Prefetch cho cấu hình "bảng -> danh sách cột được phép / mặc định hiện"
 import { loadTableColumnConfig, applyTableColumnConfig } from './components/Construction/utils/tableColumnConfig';
 import './index.css';
-import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal'; 
-import { disablePush } from './services/vuongMacMobileApi';// chỉnh đường dẫn
+import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal';
+import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
@@ -25,6 +25,7 @@ const UserManagement = lazy(() => import('./components/UserManagement'));
 const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
 const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
+const ConstructionOverview = lazy(() => import('./components/Construction/ConstructionOverview'));
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
@@ -34,7 +35,7 @@ const HexLookup = lazy(() => import('./components/Mobile/HexLookup'));
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
-    <div className="w-8 h-8 border-4 border-wood-600 border-t-transparent rounded-full animate-spin"></div>
+    <div className="w-7 h-7 border-[3px] border-slate-200 border-t-wood-600 rounded-full animate-spin"></div>
   </div>
 );
 
@@ -52,10 +53,10 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: strin
 ];
 
 const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string; permId: string }[] = [
+  { key: 'overview', label: 'Tổng quan công trình', path: '/cong-trinh/tong-quan', permId: 'construction_overview' },
   { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do', permId: 'construction_redflow' },
   { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau', permId: 'construction_sample' },
 ];
-
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
   const isMobileEntry = window.location.pathname.startsWith('/m');
@@ -100,6 +101,7 @@ const App: React.FC = () => {
                   <Route path="/materials" element={<RequirePermission viewId="materials"><DataGridWrapper type="material" /></RequirePermission>} />
 
                   {/* --- Nhóm Công trình --- */}
+                  <Route path="/cong-trinh/tong-quan" element={<RequirePermission viewId="construction_overview"><ConstructionOverviewWrapper /></RequirePermission>} />
                   <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionRedFlowWrapper /></RequirePermission>} />
                   <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionSampleUnitWrapper /></RequirePermission>} />
                   <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
@@ -136,7 +138,13 @@ const RequirePermission: React.FC<{ children: React.ReactElement, viewId: string
   if (isLoading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
   if (!hasPermission(viewId)) {
-    return <div className="h-full flex flex-col items-center justify-center text-slate-500"><Shield className="w-16 h-16 text-slate-300 mb-4" /><h2 className="text-xl font-bold">Truy cập bị từ chối</h2></div>;
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-slate-500">
+        <Shield className="w-12 h-12 text-slate-300 mb-4" strokeWidth={1.5} />
+        <h2 className="text-base font-semibold text-slate-700">Truy cập bị từ chối</h2>
+        <p className="text-sm text-slate-400 mt-1">Bạn chưa được cấp quyền xem mục này.</p>
+      </div>
+    );
   }
   return children;
 };
@@ -168,6 +176,11 @@ const useViewMappingReady = () => {
   }, [mappingReady]);
 
   return mappingReady;
+};
+
+const ConstructionOverviewWrapper = () => {
+  const context = useOutletContext<MainLayoutContext>();
+  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} />;
 };
 
 const ConstructionRedFlowWrapper = () => {
@@ -319,28 +332,35 @@ interface MainLayoutContext {
 }
 
 const ICON_MAP: Record<string, React.ReactNode> = {
-  'LayoutDashboard': <LayoutDashboard size={20} />, 'Table': <Table size={20} />, 'Package': <Package size={20} />,
-  'Shield': <Shield size={20} />, 'Calendar': <Calendar size={20} />, 'ShoppingCart': <ShoppingCart size={20} />,
-  'Import': <Import size={20} />, 'FileText': <FileText size={20} />, 'ClipboardList': <ClipboardList size={20} />,
-  'TrendingUp': <TrendingUp size={20} />, 'CalendarRange': <CalendarRange size={20} />, 'Export': <Upload size={20} />,
-  'Clock': <Clock size={20} />, 'Search': <Search size={20} />
+  'LayoutDashboard': <LayoutDashboard size={18} />, 'Table': <Table size={18} />, 'Package': <Package size={18} />,
+  'Shield': <Shield size={18} />, 'Calendar': <Calendar size={18} />, 'ShoppingCart': <ShoppingCart size={18} />,
+  'Import': <Import size={18} />, 'FileText': <FileText size={18} />, 'ClipboardList': <ClipboardList size={18} />,
+  'TrendingUp': <TrendingUp size={18} />, 'CalendarRange': <CalendarRange size={18} />, 'Export': <Upload size={18} />,
+  'Clock': <Clock size={18} />, 'Search': <Search size={18} />
 };
 
 // Icon nhỏ hơn dùng cho các mục con trong nhóm gộp
 const ICON_MAP_SM: Record<string, React.ReactNode> = {
-  'LayoutDashboard': <LayoutDashboard size={16} />, 'Table': <Table size={16} />, 'Package': <Package size={16} />,
-  'Shield': <Shield size={16} />, 'Calendar': <Calendar size={16} />, 'ShoppingCart': <ShoppingCart size={16} />,
-  'Import': <Import size={16} />, 'FileText': <FileText size={16} />, 'ClipboardList': <ClipboardList size={16} />,
-  'TrendingUp': <TrendingUp size={16} />, 'CalendarRange': <CalendarRange size={16} />, 'Export': <Upload size={16} />,
-  'Clock': <Clock size={16} />, 'Search': <Search size={16} />
+  'LayoutDashboard': <LayoutDashboard size={15} />, 'Table': <Table size={15} />, 'Package': <Package size={15} />,
+  'Shield': <Shield size={15} />, 'Calendar': <Calendar size={15} />, 'ShoppingCart': <ShoppingCart size={15} />,
+  'Import': <Import size={15} />, 'FileText': <FileText size={15} />, 'ClipboardList': <ClipboardList size={15} />,
+  'TrendingUp': <TrendingUp size={15} />, 'CalendarRange': <CalendarRange size={15} />, 'Export': <Upload size={15} />,
+  'Clock': <Clock size={15} />, 'Search': <Search size={15} />
 };
 
 // Các viewId luôn hiển thị riêng lẻ, không gộp vào nhóm "Dữ liệu"
 const STANDALONE_VIEW_IDS = ['dashboard', 'hex_lookup', 'users'];
 
 const AppLogo = () => (
-  <div className="w-8 h-8 rounded bg-wood-600 flex items-center justify-center text-white shrink-0 shadow-sm"><TrendingUp size={18} strokeWidth={2.5} /></div>
+  <div className="w-8 h-8 rounded-lg bg-wood-600 flex items-center justify-center text-white shrink-0"><TrendingUp size={16} strokeWidth={2.25} /></div>
 );
+
+// ------------------------------------------------------------
+// Style dùng chung cho sidebar (sáng, tối giản)
+// ------------------------------------------------------------
+const NAV_ACTIVE = 'bg-slate-100 text-slate-900 font-semibold';
+const NAV_IDLE = 'text-slate-500 hover:bg-slate-50 hover:text-slate-900';
+const FOOT_BTN = 'flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors';
 
 const MainLayout: React.FC = () => {
   const { user, logout, hasPermission } = useAuth();
@@ -374,10 +394,12 @@ const MainLayout: React.FC = () => {
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
-const [isInstallOpen, setIsInstallOpen] = useState(false);
-const [isLogOpen, setIsLogOpen] = useState(false);
-const [refreshKey, setRefreshKey] = useState(0);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const [isInstallOpen, setIsInstallOpen] = useState(false);
+  const [isLogOpen, setIsLogOpen] = useState(false);
+  // Tăng sau mỗi lần "Làm mới" thủ công để trang hiện tại mount lại và gọi lại API
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const location = useLocation();
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
@@ -406,9 +428,10 @@ const [refreshKey, setRefreshKey] = useState(0);
     }
   };
 
-  const checkAndSync = async (forceAll = false) => {
+  // Trả về true nếu đồng bộ thành công, false nếu có lỗi (dùng để báo cho người dùng khi bấm Làm mới)
+  const checkAndSync = async (forceAll = false): Promise<boolean> => {
     try {
-           const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
+      const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
       if (!verRes.ok) return false;
 
       const serverVersions = await verRes.json();
@@ -443,7 +466,8 @@ const [refreshKey, setRefreshKey] = useState(0);
           toApplyFromCache.push(cfg);
         }
       }
-let ok = true;
+
+      let ok = true;
       let hasAnyUpdate = false;
 
       // Áp dụng cache cho các bảng chưa từng load nhưng không đổi version
@@ -462,7 +486,7 @@ let ok = true;
       }
 
       // Nếu có bảng cần cập nhật -> gọi /api/all-data MỘT LẦN thay vì N lần riêng lẻ
-         if (toUpdate.length > 0) {
+      if (toUpdate.length > 0) {
         const allData = await fetchAllDataFromServer();
         if (!allData) ok = false;
         if (allData) {
@@ -481,7 +505,7 @@ let ok = true;
         }
       }
 
-  if (hasAnyUpdate || !lastUpdated) {
+      if (hasAnyUpdate || !lastUpdated) {
         setLastUpdated(new Date());
       }
       return ok;
@@ -579,11 +603,11 @@ let ok = true;
     closeMobileSidebar();
   };
 
-const confirmLogout = async () => {
-  setIsLogoutConfirmOpen(false);
-  await disablePush().catch(() => {}); // gỡ đăng ký thông báo của thiết bị này
-  logout();
-};
+  const confirmLogout = async () => {
+    setIsLogoutConfirmOpen(false);
+    await disablePush().catch(() => {}); // gỡ đăng ký thông báo của thiết bị này
+    logout();
+  };
 
   const manualRefresh = async () => {
     setLoading(true);
@@ -647,65 +671,65 @@ const confirmLogout = async () => {
           key={item.key}
           to={item.path}
           onClick={closeMobileSidebar}
-          className={`flex items-center py-2 px-3 rounded-lg text-sm transition-all duration-200
-            ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          className={`flex items-center py-1.5 px-3 rounded-md text-[13px] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
         >
-          <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>
+          <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
         </Link>
       );
     });
 
   return (
     <div className="flex h-screen bg-wood-50 overflow-hidden relative">
-      <div className="md:hidden absolute top-0 left-0 right-0 h-16 bg-white border-b border-wood-200 flex items-center justify-between px-4 z-20">
-        <div className="flex items-center gap-2 font-bold text-wood-800">
+      {/* Thanh trên cùng cho điện thoại */}
+      <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-20">
+        <div className="flex items-center gap-2 font-semibold text-slate-900">
           <AppLogo />
-          <span>OPS. HUB</span>
+          <span>Operations Hub</span>
         </div>
         <button onClick={toggleMobileSidebar} className="p-2 text-slate-600 hover:bg-slate-100 rounded-md">
-          {isMobileSidebarOpen ? <X /> : <Menu />}
+          {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
       {isMobileSidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 md:hidden" onClick={closeMobileSidebar} />
+        <div className="fixed inset-0 bg-slate-900/40 z-50 md:hidden" onClick={closeMobileSidebar} />
       )}
 
       <aside className={`
-  fixed md:static inset-y-0 left-0 z-[60] bg-slate-900 text-slate-300
-  transform transition-all duration-300 ease-in-out flex flex-col shadow-xl md:shadow-none
+  fixed md:static inset-y-0 left-0 z-[60] bg-white text-slate-600 border-r border-slate-200
+  transform transition-all duration-300 ease-in-out flex flex-col shadow-lg md:shadow-none
   overflow-x-hidden
   ${isMobileSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
   ${isCollapsed ? 'md:w-20' : 'md:w-64'}
 `}>
-        <div className={`h-16 flex items-center bg-white border-b border-slate-200 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
-          <div className={`flex items-center gap-3 font-bold text-slate-800 text-base tracking-wide overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
+        <div className={`h-14 flex items-center bg-white border-b border-slate-200 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
+          <div className={`flex items-center gap-2.5 font-semibold text-slate-900 text-[15px] tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
             <AppLogo />
             <span>Operations Hub</span>
           </div>
-          <button onClick={toggleDesktopSidebar} className={`hidden md:flex p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors ${isCollapsed ? 'mx-auto' : ''}`}>
-            <Menu size={20} />
+          <button onClick={toggleDesktopSidebar} className={`hidden md:flex p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors ${isCollapsed ? 'mx-auto' : ''}`}>
+            <Menu size={18} />
           </button>
-          <button onClick={closeMobileSidebar} className="md:hidden p-2 text-slate-400 hover:text-slate-600">
-            <X size={20} />
+          <button onClick={closeMobileSidebar} className="md:hidden p-2 text-slate-400 hover:text-slate-700">
+            <X size={18} />
           </button>
         </div>
 
         {user && (
-          <div className={`px-4 py-4 flex items-center gap-3 border-b border-slate-800 ${isCollapsed ? 'justify-center' : ''}`}>
-            <div className="w-8 h-8 rounded-full bg-wood-700 flex items-center justify-center text-white font-bold text-xs shrink-0 cursor-help" title={`Permissions: ${user.permissions.length} views`}>
+          <div className={`px-4 py-3.5 flex items-center gap-3 border-b border-slate-200 ${isCollapsed ? 'justify-center' : ''}`}>
+            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-semibold text-xs shrink-0 cursor-help" title={`Permissions: ${user.permissions.length} views`}>
               {user.fullName.charAt(0).toUpperCase()}
             </div>
             <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-              <div className="text-sm text-white font-medium truncate w-40">{user.fullName}</div>
-              <div className="text-[10px] text-wood-500 font-bold">
+              <div className="text-sm text-slate-900 font-medium truncate w-40">{user.fullName}</div>
+              <div className="text-[11px] text-slate-500">
                 {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
               </div>
             </div>
           </div>
         )}
 
-        <nav className="flex-1 py-4 space-y-1 px-3 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 py-3 space-y-0.5 px-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* Tổng quan - luôn hiển thị riêng, ở đầu */}
           {dashboardView && (
             <NavLink
@@ -735,7 +759,7 @@ const confirmLogout = async () => {
           {/* Nhóm Công trình */}
           {visibleConstructionItems.length > 0 && (
             <NavGroup
-              icon={<Box size={20} className="shrink-0" />}
+              icon={<Box size={18} className="shrink-0" />}
               label="Công trình"
               collapsed={isCollapsed}
               open={isConstructionMenuOpen}
@@ -749,7 +773,7 @@ const confirmLogout = async () => {
           {/* Nhóm Quản trị (Biểu đồ) */}
           {visibleChartItems.length > 0 && (
             <NavGroup
-              icon={<BarChart3 size={20} className="shrink-0" />}
+              icon={<BarChart3 size={18} className="shrink-0" />}
               label="Quản trị"
               tooltip="Biểu đồ"
               collapsed={isCollapsed}
@@ -764,7 +788,7 @@ const confirmLogout = async () => {
           {/* Nhóm Dữ liệu */}
           {groupedViews.length > 0 && (
             <NavGroup
-              icon={<Database size={20} className="shrink-0" />}
+              icon={<Database size={18} className="shrink-0" />}
               label="Dữ liệu"
               collapsed={isCollapsed}
               open={isDataMenuOpen}
@@ -778,11 +802,10 @@ const confirmLogout = async () => {
                     key={view.id}
                     to={view.path}
                     onClick={closeMobileSidebar}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all duration-200
-                      ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                    className={`flex items-center gap-2.5 py-1.5 px-3 rounded-md text-[13px] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
                   >
                     <div className="shrink-0">{ICON_MAP_SM[view.iconName || 'Table']}</div>
-                    <span className="font-medium whitespace-nowrap overflow-hidden">{view.label}</span>
+                    <span className="whitespace-nowrap overflow-hidden">{view.label}</span>
                   </Link>
                 );
               })}
@@ -806,7 +829,7 @@ const confirmLogout = async () => {
           {canSeeSetup && (
             <NavLink
               to="/cong-trinh/setup"
-              icon={<Settings size={20} />}
+              icon={<Settings size={18} />}
               label="Setup dữ liệu"
               active={location.pathname === '/cong-trinh/setup'}
               onClick={closeMobileSidebar}
@@ -818,7 +841,7 @@ const confirmLogout = async () => {
           {canSeeColumnSetup && (
             <NavLink
               to="/setup/cot-du-lieu"
-              icon={<Columns size={20} />}
+              icon={<Columns size={18} />}
               label="Setup cột dữ liệu"
               active={location.pathname === '/setup/cot-du-lieu'}
               onClick={closeMobileSidebar}
@@ -827,107 +850,106 @@ const confirmLogout = async () => {
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 space-y-2">
+        <div className="p-3 border-t border-slate-200 space-y-0.5">
           {user?.role === 'USER' && (
             <button
               onClick={() => { setIsChangePasswordOpen(true); closeMobileSidebar(); }}
-              className={`flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center' : ''}`}
               title="Đổi mật khẩu"
             >
-              <Key size={20} />
+              <Key size={18} />
               <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đổi mật khẩu</span>
             </button>
-            
           )}
 
           <button
             onClick={handleLogoutClick}
-            className={`flex items-center gap-3 w-full p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center' : ''}`}
             title="Đăng xuất"
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
             <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đăng xuất</span>
           </button>
 
           <button
-  onClick={() => { setIsInstallOpen(true); closeMobileSidebar(); }}
-  className={`flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
-  title="Tải ứng dụng điện thoại"
->
-  <Smartphone size={20} />
-  <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Tải app điện thoại</span>
-  
-</button>
+            onClick={() => { setIsInstallOpen(true); closeMobileSidebar(); }}
+            className={`${FOOT_BTN} ${isCollapsed ? 'justify-center' : ''}`}
+            title="Tải ứng dụng điện thoại"
+          >
+            <Smartphone size={18} />
+            <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Tải app điện thoại</span>
+          </button>
+
           {hasPermission('data_log') && (
             <button
               onClick={() => { setIsLogOpen(true); closeMobileSidebar(); }}
-              className={`flex items-center gap-3 w-full p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ${isCollapsed ? 'justify-center' : ''}`}
+              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center' : ''}`}
               title="Nhật ký cập nhật dữ liệu"
             >
-              <Clock size={20} />
+              <Clock size={18} />
               <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Nhật ký cập nhật</span>
             </button>
           )}
 
-          <div className={`text-[10px] text-slate-500 text-center transition-all duration-300 mt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+          <div className={`text-[10px] text-slate-400 text-center transition-all duration-300 pt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
             Đã kết nối ngầm ({lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'})
           </div>
 
           <button
             onClick={manualRefresh}
-            className={`flex items-center justify-center w-full gap-2 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all text-sm font-medium text-white
+            className={`flex items-center justify-center w-full gap-2 py-2 mt-1 bg-wood-600 hover:bg-wood-700 rounded-lg transition-colors text-sm font-medium text-white
              ${loading ? 'opacity-50 cursor-not-allowed' : ''} ${isCollapsed ? 'px-0' : 'px-4'}`}
             disabled={loading}
           >
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-              {loading ? '...' : 'Làm mới'}
+              {loading ? 'Đang tải...' : 'Làm mới'}
             </span>
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
+      <main className="flex-1 flex flex-col min-h-0 pt-14 md:pt-0 h-full overflow-hidden w-full transition-all duration-300 relative">
         {error ? (
           <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
+            <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle className="w-7 h-7 text-red-500" />
             </div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">Đã xảy ra lỗi</h3>
-            <p className="text-slate-500 max-w-md">{error}</p>
-            <button onClick={manualRefresh} className="mt-6 px-6 py-2 bg-wood-600 text-white rounded-lg hover:bg-wood-700 transition-colors">Thử lại</button>
+            <h3 className="text-lg font-semibold text-slate-900 mb-1">Đã xảy ra lỗi</h3>
+            <p className="text-sm text-slate-500 max-w-md">{error}</p>
+            <button onClick={manualRefresh} className="mt-6 px-5 py-2 bg-wood-600 text-white text-sm font-medium rounded-lg hover:bg-wood-700 transition-colors">Thử lại</button>
           </div>
         ) : (
           /* HIỂN THỊ LUÔN OUTLET (Giao diện trang con), không chặn chờ data nữa */
-                 <Outlet key={refreshKey} context={contextValue} />
+          <Outlet key={refreshKey} context={contextValue} />
         )}
       </main>
 
       {/* Change Password Modal */}
       {isChangePasswordOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Key className="text-wood-600" size={18} />
-                Đổi Mật Khẩu
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <Key className="text-slate-500" size={16} />
+                Đổi mật khẩu
               </h3>
-              <button onClick={() => setIsChangePasswordOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
+              <button onClick={() => setIsChangePasswordOpen(false)} className="text-slate-400 hover:text-slate-700">
+                <X size={18} />
               </button>
             </div>
             <form onSubmit={handleChangePassword} className="p-6 space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">Mật khẩu cũ</label>
-                <input type="password" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none" value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
+                <label className="text-xs font-medium text-slate-600 block mb-1.5">Mật khẩu cũ</label>
+                <input type="password" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600 outline-none" value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-1">Mật khẩu mới</label>
-                <input type="password" className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <label className="text-xs font-medium text-slate-600 block mb-1.5">Mật khẩu mới</label>
+                <input type="password" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600 outline-none" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
               </div>
               <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setIsChangePasswordOpen(false)} className="flex-1 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy</button>
-                <button type="submit" disabled={isChangingPassword} className="flex-1 py-2 bg-wood-600 text-white rounded-lg hover:bg-wood-700 font-medium flex items-center justify-center gap-2">
+                <button type="button" onClick={() => setIsChangePasswordOpen(false)} className="flex-1 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy</button>
+                <button type="submit" disabled={isChangingPassword} className="flex-1 py-2 text-sm bg-wood-600 text-white rounded-lg hover:bg-wood-700 font-medium flex items-center justify-center gap-2 disabled:opacity-70">
                   {isChangingPassword ? <Loader size={16} className="animate-spin" /> : <Check size={16} />} Xác nhận
                 </button>
               </div>
@@ -938,24 +960,25 @@ const confirmLogout = async () => {
 
       {/* Logout Confirmation Modal */}
       {isLogoutConfirmOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+              <div className="w-11 h-11 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 mb-2">Xác nhận đăng xuất</h3>
+              <h3 className="text-base font-semibold text-slate-900 mb-1.5">Xác nhận đăng xuất</h3>
               <p className="text-sm text-slate-500 mb-6">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?</p>
 
               <div className="flex gap-3">
-                <button onClick={() => setIsLogoutConfirmOpen(false)} className="flex-1 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy bỏ</button>
-                <button onClick={confirmLogout} className="flex-1 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Đăng xuất</button>
+                <button onClick={() => setIsLogoutConfirmOpen(false)} className="flex-1 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy bỏ</button>
+                <button onClick={confirmLogout} className="flex-1 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Đăng xuất</button>
               </div>
             </div>
           </div>
         </div>
       )}
-  <InstallMobileAppModal isOpen={isInstallOpen} onClose={() => setIsInstallOpen(false)} />
+
+      <InstallMobileAppModal isOpen={isInstallOpen} onClose={() => setIsInstallOpen(false)} />
       <DataUpdateLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />
     </div>
   );
@@ -980,25 +1003,25 @@ const NavGroup: React.FC<NavGroupProps> = ({ icon, label, tooltip, collapsed, op
     <button
       onClick={onToggle}
       title={collapsed ? (tooltip || label) : undefined}
-      className={`flex items-center w-full gap-3 py-2.5 rounded-lg transition-all duration-200
-        ${collapsed ? 'justify-center px-2' : 'px-4'}
-        ${active ? 'text-white bg-slate-800' : 'text-slate-400'} hover:bg-slate-800 hover:text-white`}
+      className={`flex items-center w-full gap-3 py-2 rounded-lg text-sm transition-colors duration-150
+        ${collapsed ? 'justify-center px-2' : 'px-3'}
+        ${active ? 'text-slate-900 bg-slate-100 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
     >
       {icon}
-      <span className={`font-medium flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+      <span className={`flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
         {label}
       </span>
       {!collapsed && (
         <ChevronDown
-          size={16}
-          className={`transition-transform duration-200 shrink-0 ${open ? 'rotate-180' : ''}`}
+          size={15}
+          className={`transition-transform duration-200 shrink-0 text-slate-400 ${open ? 'rotate-180' : ''}`}
         />
       )}
     </button>
 
     {!collapsed && (
       <div className={`overflow-hidden transition-all duration-300 ${open ? 'max-h-[2000px] opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-        <div className="pl-3 ml-5 border-l border-slate-700 space-y-1">
+        <div className="pl-3 ml-5 border-l border-slate-200 space-y-0.5">
           {children}
         </div>
       </div>
@@ -1020,13 +1043,13 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, active, onClick, col
     to={to}
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center gap-3 py-2.5 rounded-lg transition-all duration-200 group relative
-      ${collapsed ? 'justify-center px-2' : 'px-4'}
-      ${active ? 'bg-wood-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+    className={`flex items-center gap-3 py-2 rounded-lg text-sm transition-colors duration-150 group relative
+      ${collapsed ? 'justify-center px-2' : 'px-3'}
+      ${active ? NAV_ACTIVE : NAV_IDLE}
     `}
   >
-    <div className="shrink-0 transition-colors duration-200">{icon}</div>
-    <span className={`font-medium whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+    <div className="shrink-0">{icon}</div>
+    <span className={`whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
       {label}
     </span>
     {collapsed && (

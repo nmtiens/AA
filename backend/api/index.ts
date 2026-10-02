@@ -226,7 +226,9 @@ const REPORT_COLUMNS: Record<string, string[]> = {
   'gia_tri_don_hang_con_lai', 'gia_tri_con_lai',
   'ten_cong_trinh', 'xuong_chinh', 'ten_hang_muc', 'phan_loai_nhom_san_pham',
   'so_ngay_cd_hien_tai', 'bop',
-  'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke', 'bot_du_an', 'khach_hang', 'khu_vuc_du_an', 'ma_nha_may'
+  'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke', 'bot_du_an', 'khach_hang', 'khu_vuc_du_an', 'ma_nha_may',
+  // Báo cáo tiến độ công trình
+  'ten_pm', 'ten_pc', 'ngay_can_giao'
 ],
   vat_tu: [
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',

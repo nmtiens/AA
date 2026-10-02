@@ -67,6 +67,7 @@ interface TrendFilterProviderProps {
   resetKey?: number;
 
   viewProjectWhitelist?: string[];
+  granularityRequest?: { nonce: number; value: Granularity; presetDays?: number } | null;
 }
 
 export function TrendFilterProvider({
@@ -78,6 +79,7 @@ export function TrendFilterProvider({
   defaultCongTrinh = '',
   resetKey = 0,
   viewProjectWhitelist,
+  granularityRequest,
 }: TrendFilterProviderProps) {
   const isControlled = overviewDateFilters !== undefined && setOverviewDateFilters !== undefined;
 
@@ -87,7 +89,13 @@ export function TrendFilterProvider({
   const [uncontrolledTo, setUncontrolledTo] = useState(yesterday());
 
   const [activePresetDays, setActivePresetDays] = useState<number | null>(null);
-
+  const lastGranularityNonce = useRef<number | null>(null);
+   useEffect(() => {
+    if (!granularityRequest || granularityRequest.nonce === lastGranularityNonce.current) return;
+    lastGranularityNonce.current = granularityRequest.nonce;
+    setGranularity(granularityRequest.value);
+    setActivePresetDays(granularityRequest.presetDays ?? null);
+  }, [granularityRequest]);
   const [xuong, setXuong] = useState(defaultXuong);
   const [congTrinh, setCongTrinh] = useState(defaultCongTrinh);
   const [dvt, setDvt] = useState('');

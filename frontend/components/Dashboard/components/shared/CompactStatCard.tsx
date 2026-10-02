@@ -15,13 +15,13 @@ export const CompactStatCard = ({
   textColor: string;
   isParent?: boolean;
 }) => (
-  <div className={`${bg} rounded-lg p-3 border ${borderColor} flex flex-col justify-between h-full ${isParent ? 'shadow-sm' : ''}`}>
-    <div className="flex justify-between items-start mb-2">
-      <span className={`text-[10px] font-bold ${textColor} uppercase tracking-wider`}>{title}</span>
-      {icon}
-    </div>
-    <div className={`font-bold ${isParent ? 'text-xl' : 'text-lg'} ${textColor}`}>
-      {value}
-    </div>
-  </div>
+  <div className={`${bg} rounded-lg p-3 border ${borderColor} flex flex-col justify-between h-full`}>
+    <div className="flex justify-between items-start mb-2">
+      <span className={`text-[11px] font-medium ${textColor} opacity-80 tracking-wide`}>{title}</span>
+      {icon}
+    </div>
+    <div className={`font-semibold tabular-nums ${isParent ? 'text-xl' : 'text-lg'} ${textColor}`}>
+      {value}
+    </div>
+  </div>
 );

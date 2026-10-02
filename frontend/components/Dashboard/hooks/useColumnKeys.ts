@@ -51,6 +51,8 @@ export function useColumnKeys({
     triGiaDonHangTongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG) || 'tri_gia_don_hang_tong',
     thanhTienTinhPhieuKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || 'thanh_tien_tinh_phieu',
     thanhTienNhapKhoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO) || 'thanh_tien_nhap_kho_luy_ke',
+  khachHangKey: findColumnKey(productionColumns, 'khach_hang') || 'khach_hang',
+    khuVucDuAnKey: findColumnKey(productionColumns, 'khu_vuc_du_an') || 'khu_vuc_du_an',
   }), [productionColumns]);
 
   // 2. Material Keys

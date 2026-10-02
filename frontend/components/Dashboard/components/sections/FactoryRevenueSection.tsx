@@ -3,12 +3,15 @@ import {
   XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, LabelList, ReferenceLine, Label,
 } from 'recharts';
-import { Target, CheckCircle, Activity, Eye, X} from 'lucide-react';
+import { Target, CheckCircle, Activity, Eye, X } from 'lucide-react';
 import { CheckpointTriangle } from '../shared/CheckpointTriangle';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
 
 const QUARTER_COLOR = '#ef4444';
+// Màu thanh phễu (đồng bộ style tối giản): đầu phễu navy, giữa xanh dương, đáy (tồn kho) xanh lá
+const FUNNEL_BAR_COLOR: Record<string, string> = { P001: '#1f2a44', P002: '#64748b', P022: '#16a34a' };
+const FUNNEL_DEFAULT_COLOR = '#2563eb';
 
 interface FactoryRevenueChartRow {
   name: string;
@@ -46,6 +49,10 @@ interface FactoryRevenueSectionProps {
   customFunnelData: CustomFunnelItem[];
   pivotFunnelData: PivotFunnelData | null;
   workshopMetric: MetricType;
+  /** Nội dung bên phải phễu (3 biểu đồ tròn cơ cấu đơn hàng) */
+  sideContent?: React.ReactNode;
+  /** Bấm vào ô "Thực hiện lũy kế" -> mở chi tiết Nhập kho theo năm */
+  onActualClick?: () => void;
 }
 
 // ---- Helpers đo & xếp hàng nhãn quý (giữ nguyên như cũ) ----
@@ -81,9 +88,10 @@ export const FactoryRevenueSection = ({
   customFunnelData,
   pivotFunnelData,
   workshopMetric,
+  sideContent,
+  onActualClick,
 }: FactoryRevenueSectionProps) => {
-const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
-
+  const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
 
   const chartWrapperRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
@@ -103,7 +111,7 @@ const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   // ---- Đo bề rộng vùng chứa các bar của funnel để quyết định label trong/ngoài bar ----
   const funnelBarWrapperRef = useRef<HTMLDivElement>(null);
   const [funnelBarWidth, setFunnelBarWidth] = useState(0);
-const getMinWidthPxForText = (text: string): number => {
+  const getMinWidthPxForText = (text: string): number => {
     return measureTextWidth(text, `bold ${FUNNEL_BASE_FONT_SIZE}px sans-serif`) + FUNNEL_LABEL_HORIZONTAL_PADDING;
   };
   useEffect(() => {
@@ -208,20 +216,19 @@ const getMinWidthPxForText = (text: string): number => {
   return (
     <>
       <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-emerald-50 pb-4">
-  <div className="flex items-center gap-3">
-    <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-      <Target size={24} />
-    </div>
-    <div>
-      <h3 className="text-lg font-bold text-slate-800">TỔNG QUAN DOANH SỐ NHÀ MÁY (Năm 2026)</h3>
-      <p className="text-xs text-slate-500">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
-    </div>
-  </div>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-emerald-50 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
+              <Target size={24} />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">TỔNG QUAN DOANH SỐ NHÀ MÁY (Năm 2026)</h3>
+              <p className="text-xs text-slate-500">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
+            </div>
+          </div>
+        </div>
 
-</div>
-
-                {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
+        {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {/* Cột trái: thanh tiến độ */}
           <div className="lg:col-span-1 flex flex-col">
@@ -289,6 +296,7 @@ const getMinWidthPxForText = (text: string): number => {
 
           {/* Cột phải: 3 card — ngang hàng với thanh tiến độ */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:pt-[26px]">
+            {/* Kế hoạch năm */}
             <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
               <div className="flex items-center gap-1.5 mb-0.5 z-10">
                 <div className="p-1 bg-emerald-100 rounded text-emerald-600 shadow-sm"><Target size={18} /></div>
@@ -300,17 +308,30 @@ const getMinWidthPxForText = (text: string): number => {
               </div>
             </div>
 
-            <div className="p-3 bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-              <div className="flex items-center gap-1.5 mb-0.5 z-10">
-                <div className="p-1 bg-blue-100 rounded text-blue-600 shadow-sm"><CheckCircle size={18} /></div>
-                <p className="text-xs font-bold text-blue-800 opacity-80 uppercase tracking-wide">Thực hiện Lũy kế</p>
-              </div>
-              <div className="z-10 flex items-baseline gap-1 pl-0.5">
-                <h4 className="text-3xl font-extrabold text-blue-600 tracking-tight">{formatDecimal(factoryRevenueStats.actual)}</h4>
+            {/* Thực hiện lũy kế — BẤM ĐƯỢC: mở chi tiết Nhập kho theo năm */}
+            <button
+              type="button"
+              onClick={onActualClick}
+              disabled={!onActualClick}
+              title="Bấm để xem chi tiết nhập kho theo năm"
+              className="p-3 bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group text-left w-full min-h-[110px] transition-all enabled:cursor-pointer enabled:hover:shadow-md enabled:hover:border-blue-300 enabled:active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              <span className="flex items-center gap-1.5 mb-0.5 z-10">
+                <span className="p-1 bg-blue-100 rounded text-blue-600 shadow-sm"><CheckCircle size={18} /></span>
+                <span className="text-xs font-bold text-blue-800 opacity-80 uppercase tracking-wide">Thực hiện Lũy kế</span>
+              </span>
+              <span className="z-10 flex items-baseline gap-1 pl-0.5">
+                <span className="text-3xl font-extrabold text-blue-600 tracking-tight">{formatDecimal(factoryRevenueStats.actual)}</span>
                 <span className="text-xs font-medium text-blue-500">Tỷ</span>
-              </div>
-            </div>
+              </span>
+              {onActualClick && (
+                <span className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-medium text-blue-500 opacity-70 group-hover:opacity-100">
+                  <Eye size={12} /> Chi tiết
+                </span>
+              )}
+            </button>
 
+            {/* Tỷ lệ đạt */}
             <div className="p-3 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-lg border border-violet-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
               <div className="flex items-center gap-1.5 mb-0.5 z-10">
                 <div className="p-1 bg-violet-100 rounded text-violet-600 shadow-sm"><Activity size={18} /></div>
@@ -325,68 +346,73 @@ const getMinWidthPxForText = (text: string): number => {
           </div>
         </div>
 
-        {/* ===== HÀNG DƯỚI: FUNNEL TÌNH TRẠNG ĐƠN HÀNG AATN (full width) ===== */}
-        <div className="mt-6 w-full flex flex-col bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={() => setIsFunnelPivotModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
-              title="Xem bảng chi tiết"
-            >
-              <Eye size={14} /> Chi tiết
-            </button>
-          </div>
+        {/* ===== HÀNG DƯỚI: PHỄU TÌNH TRẠNG ĐƠN HÀNG AATN (trái) + CƠ CẤU (phải) ===== */}
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+          {/* Phễu */}
+          <div className="xl:col-span-8 bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
+                  Tình trạng đơn hàng AATN
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Phân bổ theo công đoạn (BOP)</p>
+              </div>
+              <button
+                onClick={() => setIsFunnelPivotModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs border border-slate-200 transition-colors shrink-0"
+                title="Xem bảng chi tiết"
+              >
+                <Eye size={14} /> Chi tiết
+              </button>
+            </div>
 
-          <div className="w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200 relative">
-            <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
-              TÌNH TRẠNG ĐƠN HÀNG AATN
-            </h3>
-
-            <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative mt-2">
-              <div className="w-auto shrink-0 flex flex-col gap-3">
+            <div className="flex flex-row gap-4 w-full">
+              {/* Nhãn công đoạn */}
+              <div className="w-56 shrink-0 flex flex-col gap-2">
                 {customFunnelData.map((item) => (
                   <div
                     key={`lbl-${item.id}`}
-                    className="h-10 text-right font-semibold text-slate-700 text-sm flex items-center justify-end whitespace-nowrap"
+                    className="h-9 flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
                   >
-                    {item.name}
+                    <span title={item.name}>{item.name}</span>
                   </div>
                 ))}
               </div>
 
-              <div ref={funnelBarWrapperRef} className="flex-1 relative flex flex-col gap-3 min-w-0">
+              {/* Thanh phễu */}
+              <div ref={funnelBarWrapperRef} className="flex-1 relative flex flex-col gap-2 min-w-0">
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
                   <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
                     <polygon
                       points="-2,0 102,0 50,100"
                       fill="none"
-                      stroke="#ef4444"
-                      strokeWidth="2px"
+                      stroke="#fca5a5"
+                      strokeWidth="1.5px"
                       strokeDasharray="6 4"
                       vectorEffect="non-scaling-stroke"
                     />
                   </svg>
                 </div>
 
-                                {customFunnelData.map((item) => {
+                {customFunnelData.map((item) => {
                   const displayValue = Math.round(item.value / 1000);
                   const widthPercent = displayValue === 0 ? 6 : item.percentage;
                   const labelText = displayValue.toLocaleString('en-US');
                   const minWidthPx = getMinWidthPxForText(labelText);
 
                   return (
-                    <div key={`bar-${item.id}`} className="h-10 flex items-center justify-center w-full relative z-20">
+                    <div key={`bar-${item.id}`} className="h-9 flex items-center justify-center w-full relative z-20">
                       <div
-                        className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm"
+                        className="h-full flex items-center justify-center rounded transition-all duration-500"
                         style={{
                           width: `${widthPercent}%`,
                           minWidth: `${minWidthPx}px`,
                           flexShrink: 0,
-                          backgroundColor: item.color,
+                          backgroundColor: FUNNEL_BAR_COLOR[item.id] ?? FUNNEL_DEFAULT_COLOR,
                         }}
                         title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
                       >
-                        <span className="text-black font-bold text-sm whitespace-nowrap px-1">
+                        <span className="text-white font-semibold text-sm tabular-nums whitespace-nowrap px-1">
                           {labelText}
                         </span>
                       </div>
@@ -396,6 +422,9 @@ const getMinWidthPxForText = (text: string): number => {
               </div>
             </div>
           </div>
+
+          {/* Nội dung bên phải (3 biểu đồ tròn) */}
+          {sideContent && <div className="xl:col-span-4 min-w-0">{sideContent}</div>}
         </div>
       </div>
 

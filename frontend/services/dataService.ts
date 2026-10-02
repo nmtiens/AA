@@ -62,7 +62,7 @@ export const API_BASE_URL = '/api';
 // KHỞI TẠO INDEXED-DB TỐI ƯU
 const initDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('OpsHub_Database_V6', 1);
+ const request = indexedDB.open('OpsHub_Database_V7', 1);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('ops_cache')) {

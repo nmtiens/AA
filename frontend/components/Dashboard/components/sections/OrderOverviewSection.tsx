@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShoppingCart, FileText, ClipboardList, Package, Box, Eye, Download, X,
   Layers, Building2, Briefcase, XCircle as CloseIcon,
@@ -8,7 +8,6 @@ import {
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { DisplayModeToggle } from '../shared/DisplayModeToggle';
 import { DetailModalTable } from '../shared/DetailModalTable';
-import { getYesterdayDateOption } from '../../utils/dateHelpers';
 import TrendChart from '../Dashboards/TrendChart';
 import ByXuongChart from '../Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
@@ -16,6 +15,7 @@ import TrendByDvtChart from '../Dashboards/TrendByDvtChart';
 import TrendByPhanLoaiChart from '../Dashboards/TrendByPhanLoaiChart';
 import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
+import { getYesterdayDateOption, parseVNDate } from '../../utils/dateHelpers';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -115,6 +115,7 @@ interface OrderOverviewSectionProps {
   handleOpenOrderExport: () => void;
   handleOpenGenericExport: (flow: 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock') => void;
   loadStockByProject: () => void;
+    openInventoryRequest?: { nonce: number; year: number } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +174,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   handleOpenOrderExport,
   handleOpenGenericExport,
   loadStockByProject,
+    openInventoryRequest,
 }) => {
   const [ipoMetric, setIpoMetric] = useState<DisplayMetric>('COUNT');
   const [tkbvMetric, setTkbvMetric] = useState<DisplayMetric>('COUNT');
@@ -203,6 +205,39 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   const openModalWithTrendReset = (opener: () => void) => {
     setTrendResetKey(k => k + 1);
     opener();
+  };
+
+    // ✅ MỚI: mở modal Nhập Kho theo cả năm khi có yêu cầu từ ngoài (ô "Thực hiện lũy kế").
+  // Bộ lọc ngày của modal đang dùng chung với "ngày báo cáo" của Tổng quan, nên lưu lại giá trị
+  // cũ và khôi phục khi đóng modal để các thẻ Tổng quan không bị đổi.
+  const [granularityRequest, setGranularityRequest] =
+    useState<{ nonce: number; value: 'day' | 'week' | 'month'; presetDays?: number } | null>(null);
+  const prevOverviewDatesRef = useRef<string[] | null>(null);
+
+  useEffect(() => {
+    if (!openInventoryRequest) return;
+    const start = new Date(openInventoryRequest.year, 0, 1).getTime();
+    const end = new Date(openInventoryRequest.year, 11, 31).getTime();
+    const datesInYear = unifiedDateOptions.filter(opt => {
+      const d = parseVNDate(opt);
+      return !!d && d.getTime() >= start && d.getTime() <= end;
+    });
+
+    if (prevOverviewDatesRef.current === null) prevOverviewDatesRef.current = overviewDateFilters;
+    setOverviewDateFilters(datesInYear);
+    setInventoryTab('chart');
+    setInventoryMetric('SUM');
+    setGranularityRequest({ nonce: openInventoryRequest.nonce, value: 'month', presetDays: 365 });
+    openModalWithTrendReset(() => setIsInventoryDetailModalOpen(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openInventoryRequest?.nonce]);
+
+  const closeInventoryModal = () => {
+    setIsInventoryDetailModalOpen(false);
+    if (prevOverviewDatesRef.current !== null) {
+      setOverviewDateFilters(prevOverviewDatesRef.current);
+      prevOverviewDatesRef.current = null;
+    }
   };
 
   // ✅ MỚI: giá trị congTrinh/xuong ĐANG ACTIVE trong TrendFilterContext, đổ ra từ
@@ -286,7 +321,8 @@ const periodLabel = overviewDateFilters.length > 1
       defaultXuong={filters.xuong[0] || ''}          // MỚI
       defaultCongTrinh={filters.congTrinh[0] || ''}  // MỚI
       resetKey={trendResetKey}    
-      viewProjectWhitelist={viewProjectWhitelist}                     // MỚI
+      viewProjectWhitelist={viewProjectWhitelist} 
+        granularityRequest={granularityRequest}                    // MỚI
     >
     {/* ✅ MỚI: cầu nối đọc congTrinh/xuong đang active trong context ra ngoài, để tab
         "Chi tiết dữ liệu" (bên ngoài phạm vi hook context) biết và tự refetch/tính key */}
@@ -1091,8 +1127,8 @@ const periodLabel = overviewDateFilters.length > 1
       <Download size={15} />
       <span>Xuất CSV</span>
     </button>
-    <button
-      onClick={() => setIsInventoryDetailModalOpen(false)}
+       <button
+      onClick={closeInventoryModal}
       className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
     >
       <X size={24} />
