@@ -19,3 +19,9 @@ build/
 # Editor
 .vscode/
 *.log
+
+# Rác hệ điều hành / công cụ
+desktop.ini
+Thumbs.db
+.DS_Store
+*.timestamp-*.mjs
