@@ -40,7 +40,7 @@ import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/compone
 import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
 import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
 import { filterByView, getProjectsForView } from './utils/viewDataConfig';
-
+import { ProductionDonutPanel } from './../Dashboard/components/shared/ProductionDonutPanel';
 interface ConstructionSampleUnitProps {
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
@@ -1157,7 +1157,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           projectMeta={projectMeta}
         />
 
-        <ContructionRevenueSection
+                <ContructionRevenueSection
           sectionRef={factoryRevenueRef}
           targetRevenue2026={targetRevenue2026}
           factoryRevenueStats={factoryRevenueStats}
@@ -1168,6 +1168,14 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           onFunnelItemClick={setActiveFunnelItem}
           onFunnelModalClose={() => setActiveFunnelItem(null)}
           onPivotValueClick={handleFunnelPivotValueClick}
+          sideContent={
+            <ProductionDonutPanel
+              data={productionData}
+              columns={productionColumns}
+              congTrinh={filters.congTrinh}
+              xuong={filters.xuong}
+            />
+          }
         />
 
         <PivotMaterialStatusSection

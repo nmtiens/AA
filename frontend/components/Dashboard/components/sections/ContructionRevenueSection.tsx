@@ -34,6 +34,8 @@ interface ContructionRevenueSectionProps {
   // để cha mở tiếp modal chi tiết lớp sau (vd. theo Hex). name=null khi bấm ở
   // dòng TỔNG CỘNG (xem tất cả các dòng trong bảng pivot hiện tại).
   onPivotValueClick?: (name: string | null, item: CustomFunnelItem | null) => void;
+    sideContent?: React.ReactNode;
+
 }
 
 let _measureCanvas: HTMLCanvasElement | null = null;
@@ -48,7 +50,9 @@ function measureTextWidth(text: string, font: string): number {
 
 const BAR_LABEL_FONT = 'bold 14px sans-serif';
 const BAR_LABEL_HORIZONTAL_PADDING = 16;
-
+// Màu thanh phễu (đồng bộ với phễu ở Dashboard)
+const FUNNEL_BAR_COLOR: Record<string, string> = { P001: '#1f2a44', P002: '#64748b', P022: '#16a34a' };
+const FUNNEL_DEFAULT_COLOR = '#2563eb';
 export const ContructionRevenueSection = ({
   sectionRef,
   targetRevenue2026,
@@ -60,6 +64,7 @@ export const ContructionRevenueSection = ({
   onFunnelItemClick,
   onFunnelModalClose,
   onPivotValueClick,
+  sideContent
 }: ContructionRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
@@ -173,46 +178,50 @@ export const ContructionRevenueSection = ({
 
   return (
     <>
-      <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
-        <div className="relative w-full flex-1 flex flex-col bg-slate-50/50 p-6 rounded-xl border border-slate-200">
-          <button
-            onClick={handleOpenOverallDetail}
-            className="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-100 font-medium text-xs border border-slate-200 transition-colors"
-            title="Xem bảng chi tiết"
-          >
-            <Eye size={14} /> Chi tiết
-          </button>
+          <div ref={sectionRef} className="scroll-mt-24 w-full grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+        {/* Phễu */}
+        <div className={`${sideContent ? 'xl:col-span-8' : 'xl:col-span-12'} bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col`}>
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
+                Tình trạng đơn hàng AATN
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Phân bổ theo công đoạn (BOP)
+                {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && ' · Đơn vị: Triệu đồng'}
+              </p>
+            </div>
+            <button
+              onClick={handleOpenOverallDetail}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs border border-slate-200 transition-colors shrink-0"
+              title="Xem bảng chi tiết"
+            >
+              <Eye size={14} /> Chi tiết
+            </button>
+          </div>
 
-          {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
-            <span className="absolute top-4 left-6 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-              Đơn vị: Triệu đồng
-            </span>
-          )}
-
-          <h3 className="font-serif text-xl md:text-2xl font-bold uppercase text-center mb-8 text-slate-800 tracking-wide">
-            TÌNH TRẠNG ĐƠN HÀNG AATN
-          </h3>
-
-          <div className="flex flex-row gap-[30px] w-full max-w-6xl mx-auto relative">
-            <div className="w-auto shrink-0 flex flex-col gap-3">
+          <div className="flex flex-row gap-4 w-full flex-1">
+            {/* Nhãn công đoạn */}
+            <div className="w-56 shrink-0 flex flex-col gap-2">
               {customFunnelData.map((item) => (
                 <div
                   key={`lbl-${item.id}`}
-                  className="h-10 text-right font-semibold text-slate-700 text-sm flex items-center justify-end whitespace-nowrap"
+                  className="flex-1 min-h-[36px] flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
                 >
-                  {item.name}
+                  <span title={item.name}>{item.name}</span>
                 </div>
               ))}
             </div>
 
-            <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-3 min-w-0">
+            {/* Thanh phễu */}
+            <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-2 min-w-0">
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
                 <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
                   <polygon
-                    points="-2,0 102,0 50,100"
+                    points="0,0 100,0 50,100"
                     fill="none"
-                    stroke="#ef4444"
-                    strokeWidth="2px"
+                    stroke="#fca5a5"
+                    strokeWidth="1.5px"
                     strokeDasharray="6 4"
                     vectorEffect="non-scaling-stroke"
                   />
@@ -221,20 +230,20 @@ export const ContructionRevenueSection = ({
 
               {customFunnelData.map((item) => {
                 const barLabel = formatBarLabel(item.value);
-                const tooltipValue = formatDetailValue(item.value); // ✅ đổi từ formatFunnelValue -> số chi tiết
+                const tooltipValue = formatDetailValue(item.value);
                 const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
                 const minWidthPercent = getMinWidthPercentForText(barLabel);
                 const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
 
                 return (
-                  <div key={`bar-${item.id}`} className="h-10 flex justify-center w-full relative z-20">
+                  <div key={`bar-${item.id}`} className="flex-1 min-h-[36px] flex items-stretch justify-center w-full relative z-20">
                     <div
                       onClick={() => handleBarClick(item)}
-                      className="h-full flex items-center justify-center rounded-sm transition-all duration-500 shadow-sm cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
-                      style={{ width: `${widthPercent}%`, backgroundColor: item.color }}
+                      className="flex items-center justify-center rounded transition-all duration-500 cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
+                      style={{ width: `${widthPercent}%`, backgroundColor: FUNNEL_BAR_COLOR[item.id] ?? FUNNEL_DEFAULT_COLOR }}
                       title={`${item.name}: ${tooltipValue} (bấm để xem chi tiết theo công trình)`}
                     >
-                      <span className="text-black font-bold text-sm whitespace-nowrap px-1">
+                      <span className="text-white font-semibold text-sm tabular-nums whitespace-nowrap px-1">
                         {barLabel}
                       </span>
                     </div>
@@ -244,6 +253,9 @@ export const ContructionRevenueSection = ({
             </div>
           </div>
         </div>
+
+        {/* 3 biểu đồ tròn — cùng chiều cao với phễu */}
+        {sideContent && <div className="xl:col-span-4 min-w-0 flex flex-col">{sideContent}</div>}
       </div>
 
       {/* Funnel Pivot Detail Modal */}

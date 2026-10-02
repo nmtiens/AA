@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FIVE_M_CATEGORIES, FIVE_M_LABELS, UNAUTHORIZED, fetchVuongMacList,
@@ -33,7 +33,12 @@ const VM_TEXT: Record<FiveMCategory, string> = {
 type Detail = { notes: Record<string, string | null>; items: VuongMacItem[] };
 type Counts = Record<string, { open: number; done: number }>;
 // Kết quả tìm hàng loạt: số mã đã tìm, số mã tìm thấy, số mã bị bỏ qua do quá giới hạn
-type BulkInfo = { total: number; found: number; skipped: number };
+type BulkInfo = {
+  total: number; found: number; skipped: number;
+  duplicates: { code: string; count: number }[];   // mã bị nhập lặp trong chuỗi dán vào
+  sameHex: { hex: string; codes: string[] }[];     // nhiều mã khác nhau cùng trỏ về 1 hex
+  entered: number;                                  // tổng số mã đã dán (tính cả trùng)
+};
 
 const BULK_LIMIT = 200;
 
@@ -52,6 +57,16 @@ const money = (v: unknown) =>
 // Tách nhiều mã theo dấu phẩy, chấm phẩy hoặc khoảng trắng
 const splitCodes = (s: string) =>
   Array.from(new Set(s.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean)));
+
+// Tìm các mã bị nhập lặp trong chuỗi dán vào (mã -> số lần xuất hiện, theo thứ tự xuất hiện đầu tiên)
+const findDuplicates = (s: string) => {
+  const count = new Map<string, number>();
+  s.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean)
+    .forEach(t => count.set(t, (count.get(t) ?? 0) + 1));
+  return Array.from(count.entries())
+    .filter(([, n]) => n > 1)
+    .map(([code, n]) => ({ code, count: n }));
+};
 
 // Tìm hàng loạt khi: có dấu phẩy, hoặc đa số các phần là dãy số >= 6 chữ số (và có ít nhất 2 dãy)
 // (mã hex 9 số, mã nhà máy 12 số). Một mã gõ sai/thừa dấu cách (vd "25 0301646") không làm hỏng cả lượt tìm.
@@ -201,10 +216,19 @@ export default function HexLookup() {
           r = orderByCodes(b.hits, used);
           miss = [...used.filter(c => c.length < 4), ...b.missing]
             .sort((x, y) => used.indexOf(x) - used.indexOf(y));
+                    const sameHex = r
+            .map(h => ({
+              hex: String(h.hex ?? ''),
+              codes: used.filter(c => c === String(h.hex ?? '') || c === String(h.maNhaMay ?? '')),
+            }))
+            .filter(x => x.codes.length > 1);
           info = {
             total: used.length,
             found: Math.max(0, used.length - miss.length),
             skipped: all.length - used.length,
+            duplicates: findDuplicates(raw),
+            sameHex,
+            entered: raw.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean).length,
           };
         } else {
           r = await searchHex(raw, '');
@@ -245,11 +269,39 @@ export default function HexLookup() {
     }
   }, []);
 
-  const toggle = (hex: string) => {
-    const opening = openHex !== hex;
-    setOpenHex(opening ? hex : null);
-    if (opening && !details[hex]) loadDetail(hex);
+  // Cửa sổ chi tiết: openHex = hex đang xem, idx = vị trí trong danh sách kết quả
+  const modalBodyRef = useRef<HTMLDivElement>(null);
+  const idx = openHex ? hits.findIndex(h => h.hex === openHex) : -1;
+
+  const openDetail = (hex: string) => {
+    setOpenHex(hex);
+    if (!details[hex]) loadDetail(hex);
   };
+
+  const go = (delta: number) => {
+    const n = idx + delta;
+    if (idx < 0 || n < 0 || n >= hits.length) return;
+    openDetail(hits[n].hex);
+  };
+
+  // Phím tắt: ← trước, → sau, Esc đóng (bỏ qua khi đang gõ chữ hoặc đang mở form thêm vướng mắc)
+  useEffect(() => {
+    if (!openHex) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (addFor) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'ArrowLeft') go(-1);
+      else if (e.key === 'ArrowRight') go(1);
+      else if (e.key === 'Escape') setOpenHex(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openHex, addFor, idx, hits]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Chuyển hex thì cuộn nội dung về đầu; tìm kiếm mới làm hex đang xem biến mất thì đóng cửa sổ
+  useEffect(() => { modalBodyRef.current?.scrollTo({ top: 0 }); }, [openHex]);
+  useEffect(() => { if (openHex && idx === -1) setOpenHex(null); }, [openHex, idx]);
 
   const goLogin = () => {
     sessionStorage.setItem('after_login', '/m?tab=lookup');
@@ -448,80 +500,169 @@ export default function HexLookup() {
                 ℹ️ Mỗi lần chỉ tìm tối đa {BULK_LIMIT} mã, đã bỏ qua {bulkInfo.skipped} mã cuối.
               </p>
             )}
+                        {bulkInfo.duplicates.length > 0 && (
+              <div className="rounded-lg bg-amber-100 p-3 text-sm text-amber-800">
+                <p className="font-medium">
+                  ⚠️ Có {bulkInfo.duplicates.length} mã bị nhập trùng, đã gộp thành 1 kết quả
+                  (đã dán {bulkInfo.entered} mã, còn {bulkInfo.total} mã khác nhau):
+                </p>
+                <p className="mt-1 max-h-24 overflow-y-auto break-words text-xs">
+                  {bulkInfo.duplicates.map(d => `${d.code} (×${d.count})`).join(', ')}
+                </p>
+              </div>
+            )}
+
+            {bulkInfo.sameHex.length > 0 && (
+              <div className="rounded-lg bg-amber-100 p-3 text-sm text-amber-800">
+                <p className="font-medium">
+                  ⚠️ {bulkInfo.sameHex.length} hex được nhập bằng nhiều mã khác nhau (hex và mã nhà máy cùng một dòng):
+                </p>
+                <ul className="mt-1 max-h-24 overflow-y-auto space-y-0.5 text-xs">
+                  {bulkInfo.sameHex.map(x => (
+                    <li key={x.hex}>Hex {x.hex}: {x.codes.join(' = ')}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
         {hint && <p className="py-12 text-center text-sm text-slate-400">{hint}</p>}
 
         {/* ===== ĐIỆN THOẠI: thẻ xếp dọc ===== */}
+             {/* ===== ĐIỆN THOẠI: thẻ xếp dọc, bấm để mở cửa sổ chi tiết ===== */}
         <div className="space-y-3 md:hidden">
-          {hits.map(h => {
-            const open = openHex === h.hex;
-            return (
-              <article
-                key={h.hex}
-                className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm ${open ? 'ring-2 ring-slate-300' : ''}`}
-              >
-                <button className="w-full text-left" onClick={() => toggle(h.hex)}>
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-slate-900">{h.hex}</p>
-                    {badges(h.hex)}
-                  </div>
-                  <p className="mt-0.5 text-xs text-slate-600">{h.congTrinh || '—'}{h.hangMuc ? ` · ${h.hangMuc}` : ''}</p>
-                  <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-400">
-                    {h.maNhaMay && <span>Mã NM {h.maNhaMay}</span>}
-                    {h.xuong && <span>Xưởng {h.xuong}</span>}
-                  </div>
-                </button>
-                {open && <div className="mt-3 border-t border-slate-200">{renderDetail(h)}</div>}
-              </article>
-            );
-          })}
+          {hits.map((h, i) => (
+            <article key={h.hex} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <button className="w-full text-left" onClick={() => openDetail(h.hex)}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-900">
+                    <span className="mr-2 text-xs font-medium tabular-nums text-slate-400">{i + 1}.</span>{h.hex}
+                  </p>
+                  {badges(h.hex)}
+                </div>
+                <p className="mt-0.5 text-xs text-slate-600">{h.congTrinh || '—'}{h.hangMuc ? ` · ${h.hangMuc}` : ''}</p>
+                <div className="flex flex-wrap gap-x-3 text-[11px] text-slate-400">
+                  {h.maNhaMay && <span>Mã NM {h.maNhaMay}</span>}
+                  {h.xuong && <span>Xưởng {h.xuong}</span>}
+                </div>
+              </button>
+            </article>
+          ))}
         </div>
 
-        {/* ===== MÁY TÍNH: bảng ngang, bấm dòng để mở chi tiết ngay bên dưới ===== */}
+        {/* ===== MÁY TÍNH: bảng ngang, bấm dòng để mở cửa sổ chi tiết ===== */}
         {hits.length > 0 && (
           <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
             <table className="w-full min-w-[900px] border-collapse text-left text-sm">
               <thead className="bg-slate-100 text-xs font-semibold uppercase text-slate-500">
                 <tr>
-                  {['Hex', 'Mã nhà máy', 'Công trình', 'Hạng mục', 'Xưởng', 'Tình trạng', 'Vướng mắc'].map(t => (
+                  {['STT', 'Hex', 'Mã nhà máy', 'Công trình', 'Hạng mục', 'Xưởng', 'Tình trạng', 'Vướng mắc'].map(t => (
                     <th key={t} className="whitespace-nowrap px-4 py-2.5">{t}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {hits.map(h => {
-                  const open = openHex === h.hex;
-                  return (
-                    <Fragment key={h.hex}>
-                      <tr
-                        onClick={() => toggle(h.hex)}
-                        className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${open ? 'bg-slate-100' : ''}`}
-                      >
-                        <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-slate-900">
-                          <span className="mr-2 inline-block w-3 text-slate-400">{open ? '▾' : '▸'}</span>{h.hex}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.maNhaMay || '—'}</td>
-                        <td className="px-4 py-2.5 text-slate-800">{h.congTrinh || '—'}</td>
-                        <td className="px-4 py-2.5 text-slate-600">{h.hangMuc || '—'}</td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.xuong || '—'}</td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.tinhTrang || '—'}</td>
-                        <td className="px-4 py-2.5">{badges(h.hex) ?? <span className="text-slate-300">—</span>}</td>
-                      </tr>
-                      {open && (
-                        <tr className="border-t border-slate-200 bg-white">
-                          <td colSpan={7} className="px-4 pb-4">{renderDetail(h)}</td>
-                        </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
+                {hits.map((h, i) => (
+                  <tr
+                    key={h.hex}
+                    onClick={() => openDetail(h.hex)}
+                    className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${openHex === h.hex ? 'bg-slate-100' : ''}`}
+                  >
+                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-slate-400">{i + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-slate-900">{h.hex}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.maNhaMay || '—'}</td>
+                    <td className="px-4 py-2.5 text-slate-800">{h.congTrinh || '—'}</td>
+                    <td className="px-4 py-2.5 text-slate-600">{h.hangMuc || '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.xuong || '—'}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{h.tinhTrang || '—'}</td>
+                    <td className="px-4 py-2.5">{badges(h.hex) ?? <span className="text-slate-300">—</span>}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
+
+    
       </main>
+
+           {openHex && idx >= 0 && (() => {
+        const h = hits[idx];
+        const arrowCls =
+          'absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full ' +
+          'border border-slate-200 bg-white text-lg text-slate-700 shadow-lg transition ' +
+          'hover:bg-slate-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white';
+
+        return createPortal(
+          <div
+            className="fixed inset-0 z-[55] flex items-end justify-center bg-black/40 md:items-center md:px-20 md:py-6"
+            onClick={() => setOpenHex(null)}
+          >
+            {/* Khung ngoài (relative) để đặt 2 nút tới/lui nằm ngoài hai mép cửa sổ */}
+            <div
+              className="relative w-full md:max-w-[1600px]"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => go(-1)}
+                disabled={idx <= 0}
+                title="Hex trước (←)"
+                aria-label="Hex trước"
+                className={`${arrowCls} left-2 md:-left-16`}
+              >
+                ◀
+              </button>
+              <button
+                type="button"
+                onClick={() => go(1)}
+                disabled={idx >= hits.length - 1}
+                title="Hex sau (→)"
+                aria-label="Hex sau"
+                className={`${arrowCls} right-2 md:-right-16`}
+              >
+                ▶
+              </button>
+
+              {/* Cửa sổ */}
+              <div className="flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl md:h-[90vh] md:max-h-none md:rounded-2xl">
+                {/* Thanh tiêu đề: số thứ tự, hex, đóng */}
+                <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-semibold text-slate-900">
+                      <span className="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium tabular-nums text-slate-600">
+                        {idx + 1}/{hits.length}
+                      </span>
+                      Hex {h.hex}
+                    </p>
+                    <p className="truncate text-xs text-slate-500">
+                      {h.congTrinh || '—'}{h.hangMuc ? ` · ${h.hangMuc}` : ''}
+                    </p>
+                  </div>
+
+                  {badges(h.hex)}
+                  <button
+                    type="button"
+                    onClick={() => setOpenHex(null)}
+                    aria-label="Đóng"
+                    title="Đóng (Esc)"
+                    className="px-2 text-xl leading-none text-slate-400 hover:text-slate-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Nội dung chi tiết */}
+                <div ref={modalBodyRef} className="flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                  {renderDetail(h)}
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
 
       {addFor && (
         <AddSheet

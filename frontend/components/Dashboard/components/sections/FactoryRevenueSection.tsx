@@ -215,28 +215,27 @@ export const FactoryRevenueSection = ({
 
   return (
     <>
-      <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b border-emerald-50 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-50 p-2 rounded-lg text-emerald-600">
-              <Target size={24} />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">TỔNG QUAN DOANH SỐ NHÀ MÁY (Năm 2026)</h3>
-              <p className="text-xs text-slate-500">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
-            </div>
+      <div ref={sectionRef} className="scroll-mt-24 w-full bg-white px-5 py-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+        <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100">
+          <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+            <Target size={18} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight text-slate-900 leading-tight">
+              Tổng quan doanh số nhà máy · Năm 2026
+            </h3>
+            <p className="text-xs text-slate-500 leading-tight mt-0.5">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
           </div>
         </div>
 
         {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-          {/* Cột trái: thanh tiến độ */}
-          <div className="lg:col-span-1 flex flex-col">
-            <div className="flex justify-between items-end mb-2">
-              <p className="text-xs font-bold text-slate-500 uppercase">Tiến độ tổng thể</p>
-              <span className="text-[10px] text-slate-400"></span>
-            </div>
-            <div ref={chartWrapperRef} className="h-[110px] w-full bg-slate-50 rounded-lg border border-slate-100 p-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+          {/* Cột trái: thanh tiến độ (nhãn nằm trong khung) */}
+          <div className="lg:col-span-1 relative">
+            <p className="absolute top-2.5 left-3 z-10 text-[11px] font-medium tracking-wide text-slate-500">
+              Tiến độ tổng thể (Tỷ)
+            </p>
+            <div ref={chartWrapperRef} className="h-[104px] w-full bg-slate-50 rounded-xl border border-slate-200 px-2">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   layout="vertical"
@@ -294,51 +293,51 @@ export const FactoryRevenueSection = ({
             </div>
           </div>
 
-          {/* Cột phải: 3 card — ngang hàng với thanh tiến độ */}
-          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:pt-[26px]">
+            {/* Cột phải: 3 card — tự cao bằng khung biểu đồ bên trái */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
             {/* Kế hoạch năm */}
-            <div className="p-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-lg border border-emerald-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-              <div className="flex items-center gap-1.5 mb-0.5 z-10">
-                <div className="p-1 bg-emerald-100 rounded text-emerald-600 shadow-sm"><Target size={18} /></div>
-                <p className="text-xs font-bold text-emerald-800 opacity-80 uppercase tracking-wide">Kế hoạch Năm</p>
+            <div className="px-4 py-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-100 flex flex-col justify-center relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Target size={15} /></div>
+                <p className="text-xs font-medium text-emerald-800 tracking-wide">Kế hoạch năm</p>
               </div>
-              <div className="z-10 flex items-baseline gap-1 pl-0.5">
-                <h4 className="text-3xl font-extrabold text-emerald-600 tracking-tight">{formatDecimal(targetRevenue2026)}</h4>
+              <div className="flex items-baseline gap-1.5 pl-0.5">
+                <h4 className="text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 leading-none">{formatDecimal(targetRevenue2026)}</h4>
                 <span className="text-xs font-medium text-emerald-500">Tỷ</span>
               </div>
             </div>
 
-            {/* Thực hiện lũy kế — BẤM ĐƯỢC: mở chi tiết Nhập kho theo năm */}
+            {/* Thực hiện lũy kế — bấm được: mở chi tiết Nhập kho theo năm */}
             <button
               type="button"
               onClick={onActualClick}
               disabled={!onActualClick}
               title="Bấm để xem chi tiết nhập kho theo năm"
-              className="p-3 bg-gradient-to-br from-blue-50 to-sky-50 rounded-lg border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group text-left w-full min-h-[110px] transition-all enabled:cursor-pointer enabled:hover:shadow-md enabled:hover:border-blue-300 enabled:active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="px-4 py-3 bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100 flex flex-col justify-center relative overflow-hidden group text-left w-full transition-all enabled:cursor-pointer enabled:hover:shadow-md enabled:hover:border-blue-300 enabled:active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
-              <span className="flex items-center gap-1.5 mb-0.5 z-10">
-                <span className="p-1 bg-blue-100 rounded text-blue-600 shadow-sm"><CheckCircle size={18} /></span>
-                <span className="text-xs font-bold text-blue-800 opacity-80 uppercase tracking-wide">Thực hiện Lũy kế</span>
+              <span className="flex items-center gap-2 mb-1">
+                <span className="p-1.5 bg-blue-100 rounded-lg text-blue-600"><CheckCircle size={15} /></span>
+                <span className="text-xs font-medium text-blue-800 tracking-wide">Thực hiện lũy kế</span>
               </span>
-              <span className="z-10 flex items-baseline gap-1 pl-0.5">
-                <span className="text-3xl font-extrabold text-blue-600 tracking-tight">{formatDecimal(factoryRevenueStats.actual)}</span>
+              <span className="flex items-baseline gap-1.5 pl-0.5">
+                <span className="text-3xl font-semibold tabular-nums tracking-tight text-blue-600 leading-none">{formatDecimal(factoryRevenueStats.actual)}</span>
                 <span className="text-xs font-medium text-blue-500">Tỷ</span>
               </span>
               {onActualClick && (
-                <span className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-medium text-blue-500 opacity-70 group-hover:opacity-100">
+                <span className="absolute top-2 right-3 inline-flex items-center gap-1 text-[10px] font-medium text-blue-500 opacity-70 group-hover:opacity-100">
                   <Eye size={12} /> Chi tiết
                 </span>
               )}
             </button>
 
             {/* Tỷ lệ đạt */}
-            <div className="p-3 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-lg border border-violet-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow min-h-[110px]">
-              <div className="flex items-center gap-1.5 mb-0.5 z-10">
-                <div className="p-1 bg-violet-100 rounded text-violet-600 shadow-sm"><Activity size={18} /></div>
-                <p className="text-xs font-bold text-violet-800 opacity-80 uppercase tracking-wide">Tỷ lệ Đạt</p>
+            <div className="px-4 py-3 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-xl border border-violet-100 flex flex-col justify-center relative overflow-hidden">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="p-1.5 bg-violet-100 rounded-lg text-violet-600"><Activity size={15} /></div>
+                <p className="text-xs font-medium text-violet-800 tracking-wide">Tỷ lệ đạt</p>
               </div>
-              <div className="z-10 flex items-baseline gap-1 pl-0.5">
-                <h4 className={`text-3xl font-extrabold tracking-tight ${factoryRevenueStats.percent >= 100 ? 'text-emerald-600' : factoryRevenueStats.percent >= 80 ? 'text-violet-600' : 'text-amber-600'}`}>
+              <div className="flex items-baseline gap-1 pl-0.5">
+                <h4 className={`text-3xl font-semibold tabular-nums tracking-tight leading-none ${factoryRevenueStats.percent >= 100 ? 'text-emerald-600' : factoryRevenueStats.percent >= 80 ? 'text-violet-600' : 'text-amber-600'}`}>
                   {formatDecimal(factoryRevenueStats.percent)}%
                 </h4>
               </div>
@@ -347,9 +346,9 @@ export const FactoryRevenueSection = ({
         </div>
 
         {/* ===== HÀNG DƯỚI: PHỄU TÌNH TRẠNG ĐƠN HÀNG AATN (trái) + CƠ CẤU (phải) ===== */}
-        <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-          {/* Phễu */}
-          <div className="xl:col-span-8 bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+          {/* Phễu — cao bằng cột bên phải, các thanh tự giãn đều */}
+          <div className="xl:col-span-8 bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col">
             <div className="flex items-start justify-between gap-3 mb-5">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
@@ -366,13 +365,13 @@ export const FactoryRevenueSection = ({
               </button>
             </div>
 
-            <div className="flex flex-row gap-4 w-full">
+            <div className="flex flex-row gap-4 w-full flex-1">
               {/* Nhãn công đoạn */}
               <div className="w-56 shrink-0 flex flex-col gap-2">
                 {customFunnelData.map((item) => (
                   <div
                     key={`lbl-${item.id}`}
-                    className="h-9 flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
+                    className="flex-1 min-h-[36px] flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
                   >
                     <span title={item.name}>{item.name}</span>
                   </div>
@@ -384,7 +383,7 @@ export const FactoryRevenueSection = ({
                 <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
                   <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
                     <polygon
-                      points="-2,0 102,0 50,100"
+                      points="0,0 100,0 50,100"
                       fill="none"
                       stroke="#fca5a5"
                       strokeWidth="1.5px"
@@ -401,9 +400,9 @@ export const FactoryRevenueSection = ({
                   const minWidthPx = getMinWidthPxForText(labelText);
 
                   return (
-                    <div key={`bar-${item.id}`} className="h-9 flex items-center justify-center w-full relative z-20">
+                    <div key={`bar-${item.id}`} className="flex-1 min-h-[36px] flex items-stretch justify-center w-full relative z-20">
                       <div
-                        className="h-full flex items-center justify-center rounded transition-all duration-500"
+                        className="flex items-center justify-center rounded transition-all duration-500"
                         style={{
                           width: `${widthPercent}%`,
                           minWidth: `${minWidthPx}px`,
@@ -423,8 +422,8 @@ export const FactoryRevenueSection = ({
             </div>
           </div>
 
-          {/* Nội dung bên phải (3 biểu đồ tròn) */}
-          {sideContent && <div className="xl:col-span-4 min-w-0">{sideContent}</div>}
+          {/* Nội dung bên phải (3 biểu đồ tròn) — cùng chiều cao với phễu */}
+          {sideContent && <div className="xl:col-span-4 min-w-0 flex flex-col">{sideContent}</div>}
         </div>
       </div>
 
