@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
 import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
+import { MONEY_UNIT_LABEL } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -27,10 +28,11 @@ interface InventoryDetailModalProps {
   columnKeys: InventoryDetailColumnKeys;
 }
 
-const money = (value: number) => formatSmartDecimal(value / 1000);
+// Giá trị gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
+const money = (value: number) => formatSmartDecimal(value);
 const quantity = (value: number) => formatSmartDecimal(value);
 
-const moneyTotal = (value: number) => formatDecimalFull(value / 1000);
+const moneyTotal = (value: number) => formatDecimalFull(value);
 const quantityTotal = (value: number) => formatDecimalFull(value);
 
 const PREVIEW_LIMIT = 100;
@@ -292,7 +294,7 @@ export const InventoryDetailModal = ({
   const exportColumns = [
     'STT', 'Mã Hex', 'Hạng Mục',
     ...(showProjectColumn ? ['Công Trình'] : []),
-    'Khu Vực SX', 'Ngày Nhập', 'Số Lượng Nhập Kho', 'Thành Tiền Nhập Kho (1000 VNĐ)', 'Ghi Chú Nhập Kho',
+    'Khu Vực SX', 'Ngày Nhập', 'Số Lượng Nhập Kho', 'Thành Tiền Nhập Kho (Triệu đồng)', 'Ghi Chú Nhập Kho',
   ];
 
   const exportFileName = `chi_tiet_nhap_kho_${(projectName ?? 'tat_ca_cong_trinh')
@@ -307,7 +309,7 @@ export const InventoryDetailModal = ({
       'Khu Vực SX': String(row[xuongKey] || ''),
       'Ngày Nhập': formatDateDisplay(row[dateKey]),
       'Số Lượng Nhập Kho': parseNumber(row[soLuongKey]),
-      'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
+      'Thành Tiền Nhập Kho (Triệu đồng)': parseNumber(row[thanhTienKey]),
       'Ghi Chú Nhập Kho': String(row[ghiChuKey] ?? ''),
     }));
     exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
@@ -369,7 +371,7 @@ export const InventoryDetailModal = ({
           <div>
             <h3 className="text-base font-semibold text-slate-800">Chi tiết Đã Nhập Kho P022</h3>
             <p className="mt-0.5 text-xs text-slate-500">
-              {projectName ?? 'Tất cả công trình'} · {filteredRows.length} dòng · Đơn vị tiền: 1,000 VNĐ
+              {projectName ?? 'Tất cả công trình'} · {filteredRows.length} dòng · Đơn vị tiền: {MONEY_UNIT_LABEL}
             </p>
           </div>
           <div className="flex items-center gap-3">

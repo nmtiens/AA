@@ -12,6 +12,7 @@ import {
 import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
 import { FORM_CATEGORIES } from './formCategories';
 import { searchHexBulk } from './hexBulkApi';
+import { MONEY_UNIT_LABEL } from '../../utils/money';
 
 // Các ô ghi chú giống bảng "Chi tiết theo Hex" trên desktop
 const NOTE_LABELS: [string, string][] = [
@@ -46,13 +47,13 @@ const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm';
 const btnPrimary = 'w-full rounded-lg bg-slate-800 py-2.5 text-sm font-medium text-white disabled:opacity-50';
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
 
-// Đơn vị: 1,000 VNĐ (giống desktop)
+// Giá trị tiền gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
 const toNum = (v: unknown) => {
   const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
 };
 const money = (v: unknown) =>
-  (toNum(v) / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+  toNum(v).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
 
 // Tách nhiều mã theo dấu phẩy, chấm phẩy hoặc khoảng trắng
 const splitCodes = (s: string) =>
@@ -343,7 +344,7 @@ export default function HexLookup() {
           <Field label="Trị giá đơn hàng tổng" value={money(h.triGia)} />
           <Field label="Thành tiền tính phiếu" value={money(h.thanhTienPhieu)} />
           <Field label="Thành tiền nhập kho" value={<span className="font-medium text-indigo-700">{money(h.thanhTienKho)}</span>} />
-          <p className="col-span-full text-[10px] text-slate-400">Đơn vị tiền: 1,000 VNĐ</p>
+          <p className="col-span-full text-[10px] text-slate-400">Đơn vị tiền: {MONEY_UNIT_LABEL}</p>
         </div>
 
         {d === 'loading' || !d ? (

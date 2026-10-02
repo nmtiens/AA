@@ -232,7 +232,9 @@ const updateUserSchema = z.object({
 // ============================================================================
 const TRIEU_TO_TY = 1_000;
 const TARGET_WORKSHOPS = ['2A', '3A', '4A', '5A', '8AB', '8C'];
-const DEFAULT_REVENUE_YEAR = new Date().getUTCFullYear();
+// Năm mặc định của /api/revenue tính MỖI LẦN GỌI theo giờ VN (trước đây cố định lúc
+// server khởi động, nên instance chạy qua giao thừa vẫn trả năm cũ).
+const currentVnYear = (): number => Number(vnDayKey(new Date()).slice(0, 4));
 
 app.get('/', (_req: Request, res: Response) => {
   res.send('Server Backend PostgreSQL đang hoạt động bình thường!');
@@ -726,6 +728,10 @@ const vnHourFormatter = new Intl.DateTimeFormat('en-GB', {
 });
 const vnDayKey = (d: Date): string => vnDayFormatter.format(d);
 const vnHour = (d: Date): number => Number(vnHourFormatter.format(d));
+// "Hôm nay" theo giờ VN, biểu diễn bằng 00:00 UTC của ngày đó — khớp cách các route
+// overview tính toán (toISOString().slice(0,10), getUTC*). Dùng thay cho new Date() khi
+// client không gửi ngày: tránh việc từ 0h-7h sáng giờ VN, "hôm nay" bị tính thành hôm qua.
+const vnTodayUtc = (): Date => new Date(`${vnDayKey(new Date())}T00:00:00Z`);
 
 // ============================================================================
 // [MỚI] MỞ RỘNG BẢNG table_versions CHO NHẬT KÝ CẬP NHẬT DỮ LIỆU
@@ -1058,6 +1064,8 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
     const cacheKey = JSON.stringify({
       dateFrom: req.query.dateFrom || null,
       dateTo: req.query.dateTo || null,
+      // Ngày "hôm nay" (giờ VN) nằm trong khoá cache: sang ngày mới thì số lũy kế tháng tính lại
+      today: vnDayKey(new Date()),
       date: req.query.date || null,
       dates: req.query.dates || null,
       congTrinh: congTrinhList,
@@ -1086,7 +1094,7 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
 
     const dateToDate = parseSafeDate(req.query.dateTo as string)
       || parseSafeDate(req.query.date as string)
-      || new Date();
+      || vnTodayUtc();
     const dateFromDate = parseSafeDate(req.query.dateFrom as string) || dateToDate;
 
     const dateToStr = dateToDate.toISOString().slice(0, 10);
@@ -1241,7 +1249,7 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       .map(d => d.toISOString().slice(0, 10));
     const useExplicitDates = explicitDates.length > 0;
 
-    const dateToRaw = parseSafeDate(req.query.dateTo as string) || parseSafeDate(req.query.date as string) || new Date();
+    const dateToRaw = parseSafeDate(req.query.dateTo as string) || parseSafeDate(req.query.date as string) || vnTodayUtc();
     const dateFromRaw = parseSafeDate(req.query.dateFrom as string) || dateToRaw;
     const dateToStr = dateToRaw.toISOString().slice(0, 10);
     const dateFromStr = dateFromRaw.toISOString().slice(0, 10);
@@ -1635,7 +1643,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     const yearParam = Number(req.params.year);
     const year = Number.isInteger(yearParam) && yearParam > 2000 && yearParam < 2100
       ? yearParam
-      : DEFAULT_REVENUE_YEAR;
+      : currentVnYear();
 
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;

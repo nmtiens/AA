@@ -4,7 +4,8 @@ import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { formatDecimal, parseNumber } from '../../utils/numberParsers';
+import { formatSmartDecimal, parseNumber } from '../../utils/numberParsers';
+import { MONEY_UNIT_LABEL } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
@@ -47,7 +48,8 @@ interface HexDetailModalProps {
 
 type NotesResponse = Record<string, Record<string, string | null>>;
 
-const money = (value: number) => formatDecimal(value / 1000);
+// Giá trị gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
+const money = (value: number) => formatSmartDecimal(value, 3);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
@@ -758,9 +760,9 @@ export const HexDetailModal = ({
     'BOP',
     'Tình Trạng',
     'Phân Loại Nhóm Sản Phẩm',
-    'Trị Giá Đơn Hàng Tổng (1000 VNĐ)',
-    'Thành Tiền Tính Phiếu (1000 VNĐ)',
-    'Thành Tiền Nhập Kho (1000 VNĐ)',
+    'Trị Giá Đơn Hàng Tổng (Triệu đồng)',
+    'Thành Tiền Tính Phiếu (Triệu đồng)',
+    'Thành Tiền Nhập Kho (Triệu đồng)',
     'Ghi Chú Đơn Hàng Tổng',
     'Ghi Chú Phiếu',
     'Tổng Hợp Ghi Chú Nhập Kho',
@@ -807,9 +809,9 @@ export const HexDetailModal = ({
       'BOP': String(row[bopKey] || ''),
       'Tình Trạng': String(row[tinhTrangKey] || ''),
       'Phân Loại Nhóm Sản Phẩm': String(row[phanLoaiNhomSanPhamKey] || ''),
-      'Trị Giá Đơn Hàng Tổng (1000 VNĐ)': parseNumber(row[triGiaDonHangTongKey]) / 1000,
-      'Thành Tiền Tính Phiếu (1000 VNĐ)': parseNumber(row[thanhTienTinhPhieuKey]) / 1000,
-      'Thành Tiền Nhập Kho (1000 VNĐ)': parseNumber(row[thanhTienNhapKhoKey]) / 1000,
+      'Trị Giá Đơn Hàng Tổng (Triệu đồng)': parseNumber(row[triGiaDonHangTongKey]),
+      'Thành Tiền Tính Phiếu (Triệu đồng)': parseNumber(row[thanhTienTinhPhieuKey]),
+      'Thành Tiền Nhập Kho (Triệu đồng)': parseNumber(row[thanhTienNhapKhoKey]),
       'Ghi Chú Đơn Hàng Tổng': fullNoteOf(row, ghiChuDonHangTongKey),
       'Ghi Chú Phiếu': fullNoteOf(row, ghiChuPhieuKey),
       'Tổng Hợp Ghi Chú Nhập Kho': fullNoteOf(row, ghiChuNhapKhoKey),
@@ -1063,7 +1065,7 @@ export const HexDetailModal = ({
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {projectName ?? 'Tất cả công trình'} · {filteredRows.length} hex ·{' '}
-                Đơn vị tiền: 1,000 VNĐ · Bấm vào ô ghi chú để xem đầy đủ
+                Đơn vị tiền: {MONEY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
               </p>
             </div>
             <div className="flex items-center gap-3">

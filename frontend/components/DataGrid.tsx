@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../types';
 import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Settings, Check, X, Filter, ChevronDown, XCircle, LayoutTemplate } from 'lucide-react';
 import { exportToCSV } from '../services/dataService';
+import { parseNumber } from './Dashboard/utils/numberParsers';
 
 interface DataGridProps {
   data: DataRow[];
@@ -19,24 +20,8 @@ const ROWS_PER_PAGE = 200;
 type AggregationType = 'NONE' | 'SUM' | 'COUNT' | 'DISTINCT_COUNT' | 'AVERAGE';
 
 // --- Helper Functions ---
-const parseNumber = (valStr: string | number | null | undefined): number => {
-  try {
-    if (valStr === null || valStr === undefined) return 0;
-    if (typeof valStr === 'number') return isNaN(valStr) ? 0 : valStr;
-    let s = String(valStr).trim().replace(/[^\d.,-]/g, '');
-    if (!s) return 0;
-    if ((s.match(/\./g) || []).length > 1) { s = s.replace(/\./g, '').replace(',', '.'); return parseFloat(s) || 0; }
-    if ((s.match(/,/g) || []).length > 1) { s = s.replace(/,/g, ''); return parseFloat(s) || 0; }
-    if (s.indexOf('.') !== -1 && s.indexOf(',') !== -1) {
-      if (s.lastIndexOf('.') < s.lastIndexOf(',')) { s = s.replace(/\./g, '').replace(',', '.'); } else { s = s.replace(/,/g, ''); }
-    } else if (s.indexOf('.') !== -1) {
-      const parts = s.split('.');
-      if (parts.length === 2 && parts[1].length === 3) { s = s.replace('.', ''); }
-    } else if (s.indexOf(',') !== -1) { s = s.replace(',', '.'); }
-    const res = parseFloat(s);
-    return isNaN(res) ? 0 : res;
-  } catch (e) { return 0; }
-};
+// Dùng chung hàm đọc số với Dashboard để dòng SUM/AVG của bảng khớp số liệu Dashboard.
+// (Hàm riêng cũ đọc "1,000" thành 1 trong khi Dashboard đọc thành 1000.)
 
 const formatAggregationValue = (value: number, type: AggregationType): string => {
   if (type === 'COUNT' || type === 'DISTINCT_COUNT') return value.toLocaleString('vi-VN');

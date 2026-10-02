@@ -150,7 +150,7 @@ const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   inventory: 'Tổng Giá Trị Đã Nhập Kho',
   notDeployed: 'Chưa Triển Khai (P001)',
   p002: 'Chưa Tính Phiếu (P002)',
-  onLine: 'Đang Trên Chuyền (P013->P021)',
+  onLine: 'Đang Trên Chuyền (P012->P021)',
   remaining: 'Tổng Giá Trị Đơn Hàng Còn Lại',
   cancelled: 'Tổng Giá Trị Đã Hủy',
   inventoryAfterExport: 'Tồn Kho Sau Xuất Kho',
@@ -171,14 +171,14 @@ const isHexDetailColumn = (
 // hex gốc, để bấm vào 1 con số trong bảng pivot của "Chi tiết dữ liệu Phễu"
 // mở tiếp được modal "Chi tiết theo Hex".
 // - P001 -> "notDeployed"; P002 -> "p002"
-// - P012 -> "remaining" lọc theo stage P012 (P012 không thuộc onLine)
-// - P013 -> P021, GCVT -> "onLine", lọc thêm theo đúng mã BOP đó
+// - P012 -> P021, GCVT -> "onLine", lọc thêm theo đúng mã BOP đó
+//   (P012 thuộc "Đang trên chuyền" — khớp ON_LINE_STAGES và view Luồng đỏ)
 // - P022 (TỒN KHO) lấy từ nguồn khác nên KHÔNG có hex gốc -> không mở modal.
 // ---------------------------------------------------------------------------
 const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: HexDetailColumn; stage: string | null }>> = {
   P001: { column: 'notDeployed', stage: null },
   P002: { column: 'p002', stage: 'P002' },
-  P012: { column: 'remaining', stage: 'P012' },
+  P012: { column: 'onLine', stage: 'P012' },
   P013: { column: 'onLine', stage: 'P013' },
   GCVT: { column: 'onLine', stage: 'GCVT' },
   P014: { column: 'onLine', stage: 'P014' },
@@ -862,7 +862,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           exported,
           notDeployed,
           p002: row.p002,          // Chưa tính phiếu P002
-          onLine: row.onLine,      // chỉ P013 -> P021
+          onLine: row.onLine,      // P012 -> P021
           // Giữ nguyên nghĩa cũ: chưa triển khai + toàn bộ đang sản xuất (kể cả P012)
           remaining: notDeployed + row.inProduction,
         };

@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
@@ -433,8 +433,29 @@ const MainLayout: React.FC = () => {
     }
   };
 
+  // Lượt đồng bộ đang chạy (nếu có). Đồng bộ được gọi từ 3 nơi: hẹn giờ 60s, khi quay lại
+  // tab, và nút "Làm mới" — không chặn thì có thể cùng lúc tải /api/all-data nhiều lần.
+  const syncInFlightRef = useRef<Promise<boolean> | null>(null);
+
   // Trả về true nếu đồng bộ thành công, false nếu có lỗi (dùng để báo cho người dùng khi bấm Làm mới)
   const checkAndSync = async (forceAll = false): Promise<boolean> => {
+    if (syncInFlightRef.current) {
+      // Lượt thường: dùng chung kết quả lượt đang chạy. "Làm mới" (forceAll): chờ xong rồi tải lại.
+      if (!forceAll) return syncInFlightRef.current;
+      await syncInFlightRef.current.catch(() => false);
+    }
+    const run = runSync(forceAll);
+    syncInFlightRef.current = run;
+    try {
+      return await run;
+    } finally {
+      if (syncInFlightRef.current === run) syncInFlightRef.current = null;
+    }
+  };
+
+  // Lưu ý: hàm này được hẹn giờ (setInterval) giữ lại từ lần render đầu, nên KHÔNG được đọc
+  // state trực tiếp (sẽ là giá trị cũ) — chỉ dùng setter, ref và cập nhật dạng hàm.
+  const runSync = async (forceAll: boolean): Promise<boolean> => {
     try {
       const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
       if (!verRes.ok) return false;
@@ -510,9 +531,11 @@ const MainLayout: React.FC = () => {
         }
       }
 
-      if (hasAnyUpdate || !lastUpdated) {
-        setLastUpdated(new Date());
-      }
+      // Trước đây đọc thẳng `lastUpdated` — trong setInterval giá trị này luôn là null (giá trị
+      // cũ), nên mỗi phút đều set lại và vẽ lại cả trang. Cập nhật dạng hàm: giữ nguyên object
+      // cũ khi không có gì mới => React bỏ qua, không render lại.
+      if (hasAnyUpdate) setLastUpdated(new Date());
+      else setLastUpdated(prev => prev ?? new Date());
       return ok;
     } catch (err) {
       console.error("Lỗi đồng bộ ngầm:", err);
@@ -638,13 +661,21 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const contextValue: MainLayoutContext = {
+  // Giữ nguyên object khi dữ liệu không đổi: các trang con (useOutletContext) chỉ render lại
+  // khi dữ liệu / trạng thái thật sự đổi, không phải mỗi lần MainLayout render (vd. gõ phím
+  // trong ô đổi mật khẩu, mở menu) — tránh DataGrid lọc/sắp xếp lại toàn bộ bảng.
+  const contextValue = useMemo<MainLayoutContext>(() => ({
     productionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
     orderData, orderColumns, inventoryData, inventoryColumns, tkbvData, tkbvColumns, pthspData, pthspColumns,
     analysisData, analysisColumns, yearlyPlanData, yearlyPlanColumns, exportData, exportColumns,
     stockData, stockColumns, attendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
     isGlobalLoading: loading
-  };
+  }), [
+    productionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
+    orderData, orderColumns, inventoryData, inventoryColumns, tkbvData, tkbvColumns, pthspData, pthspColumns,
+    analysisData, analysisColumns, yearlyPlanData, yearlyPlanColumns, exportData, exportColumns,
+    stockData, stockColumns, attendanceData, attendanceColumns, isCollapsed, loading,
+  ]);
 
   // ------------------------------------------------------------
   // MENU: chỉ hiện những mục người dùng có quyền

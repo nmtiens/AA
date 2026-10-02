@@ -4,6 +4,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
+import { MONEY_UNIT_LABEL } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -30,8 +31,9 @@ interface ExportDetailModalProps {
   columnKeys: ExportDetailColumnKeys;
 }
 
-const money = (value: number) => formatSmartDecimal(value / 1000);
-const moneyTotal = (value: number) => formatDecimalFull(value / 1000);
+// Giá trị gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
+const money = (value: number) => formatSmartDecimal(value);
+const moneyTotal = (value: number) => formatDecimalFull(value);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
@@ -516,7 +518,7 @@ export const ExportDetailModal = ({
   const exportColumns = [
     'STT', 'Mã Hex', 'Hạng Mục',
     ...(showProjectColumn ? ['Công Trình'] : []),
-    'Khu Vực SX', 'Ngày Xuất', 'Số Lượng Xuất Kho', 'Thành Tiền Xuất Kho (1000 VNĐ)',
+    'Khu Vực SX', 'Ngày Xuất', 'Số Lượng Xuất Kho', 'Thành Tiền Xuất Kho (Triệu đồng)',
     'Tổng Hợp Ghi Chú Xuất Kho',
   ];
 
@@ -534,7 +536,7 @@ export const ExportDetailModal = ({
       'Khu Vực SX': String(row[xuongKey] || ''),
       'Ngày Xuất': formatDateDisplay(row[dateKey]),
       'Số Lượng Xuất Kho': parseNumber(row[soLuongKey]),
-      'Thành Tiền Xuất Kho (1000 VNĐ)': parseNumber(row[thanhTienKey]) / 1000,
+      'Thành Tiền Xuất Kho (Triệu đồng)': parseNumber(row[thanhTienKey]),
       'Tổng Hợp Ghi Chú Xuất Kho': String(row[ghiChuXuatKhoKey] ?? ''),
     }));
     exportDetailRowsToCsv(exportFileName, exportColumns, exportRows);
@@ -611,7 +613,7 @@ export const ExportDetailModal = ({
               <h3 className="text-base font-semibold text-slate-800">Chi tiết Đã Xuất Kho P025</h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {projectName ?? 'Tất cả công trình'} · {filteredRows.length} dòng ·{' '}
-                Đơn vị tiền: 1,000 VNĐ · Bấm vào ô ghi chú để xem đầy đủ
+                Đơn vị tiền: {MONEY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
               </p>
             </div>
             <div className="flex items-center gap-3">

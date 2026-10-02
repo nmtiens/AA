@@ -7,8 +7,9 @@ import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnS
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
 
-// ✅ ĐỔI: "Đang trên chuyền" chỉ còn P013 -> P021 (P002 đã tách thành cột "Chưa tính phiếu P002").
-// Nếu P012 cũng thuộc "đang trên chuyền" thì thêm lại 'P012' vào đầu mảng này.
+// Công đoạn thuộc "Đang trên chuyền": P012 -> P021 (kể cả GCVT). Đã chốt P012 THUỘC
+// "đang trên chuyền". P002 tách riêng thành cột "Chưa tính phiếu P002".
+// Mảng này dùng chung cho Dashboard, Luồng đỏ, Căn mẫu — đổi ở đây là đổi mọi nơi.
 export const ON_LINE_STAGES = [
   'P012',
   'P013',

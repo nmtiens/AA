@@ -94,7 +94,7 @@ interface UsePivotTablesResult {
   // MỚI: bản "v2" của projectStatusSummary — dùng cho ProjectSummarySection_v2,
   // nguồn từ projectSummaryProductionData (không ăn Tình Trạng / Tình Trạng IPO).
   // ✅ MỚI: p002 = giá trị công đoạn P002 (cột "Chưa tính phiếu P002");
-  //         onLine = giá trị đang trên chuyền CHỈ từ ON_LINE_STAGES (P013 -> P021).
+  //         onLine = giá trị đang trên chuyền CHỈ từ ON_LINE_STAGES (P012 -> P021).
   projectStatusSummaryV2: {
     name: string; totalOrder: number; deployed: number; ticketed: number; inProduction: number;
     inventory: number; cancelled: number; p002: number; onLine: number;
@@ -121,7 +121,7 @@ interface UsePivotTablesResult {
     afterCancel: DataRow[];
     notDeployed: DataRow[];
     p002: DataRow[]; // ✅ MỚI: các dòng thuộc công đoạn P002 (đang sản xuất)
-    onLine: DataRow[]; // ✅ ĐỔI: chỉ P013 -> P021 (ON_LINE_STAGES)
+    onLine: DataRow[]; // ✅ ĐỔI: P012 -> P021 (ON_LINE_STAGES)
     remaining: DataRow[];
     inventory: DataRow[];
     cancelled: DataRow[];
@@ -150,7 +150,7 @@ function isInProductionRow(statusUpper: string): boolean {
   );
 }
 
-// ✅ MỚI: tập công đoạn "đang trên chuyền" (P013 -> P021), dùng chung cho mọi nơi.
+// ✅ MỚI: tập công đoạn "đang trên chuyền" (P012 -> P021), dùng chung cho mọi nơi.
 const ON_LINE_STAGE_SET = new Set<string>(ON_LINE_STAGES);
 
 // ---------------------------------------------------------------------------
@@ -350,7 +350,7 @@ export function usePivotTables({
   // MỚI: Project status summary — bản "v2" dùng cho ProjectSummarySection_v2.
   // Nguồn: projectSummaryData (chỉ ăn Công trình + Khu vực SX, KHÔNG ăn
   // Tình Trạng / Tình Trạng IPO) — logic tính toán giống hệt bản gốc ở trên.
-  // ✅ MỚI: tách p002 và onLine (P013 -> P021) — cùng điều kiện với
+  // ✅ MỚI: tách p002 và onLine (P012 -> P021) — cùng điều kiện với
   // onLineStageBreakdownV2 (dòng "đang sản xuất" + công đoạn lấy từ bopKey,
   // giá trị = thành tiền tính phiếu) nên hai nơi luôn khớp nhau.
   // -------------------------------------------------------------------------
@@ -417,7 +417,7 @@ export function usePivotTables({
 
   // -------------------------------------------------------------------------
   // Breakdown "Đang trên chuyền" theo từng mã BOP — bản gốc (legacy)
-  // (dùng ON_LINE_STAGES mới: P013 -> P021)
+  // (dùng ON_LINE_STAGES mới: P012 -> P021)
   // -------------------------------------------------------------------------
   const onLineStageBreakdown = useMemo<Record<string, Record<string, number>>>(() => {
     const breakdown: Record<string, Record<string, number>> = {};
@@ -554,7 +554,7 @@ export function usePivotTables({
   // -------------------------------------------------------------------------
   // MỚI: Chi tiết theo Hex — bản "v2", cùng nguồn với projectStatusSummaryV2
   // (dùng cho HexDetailModal mở từ bảng ProjectSummarySection_v2).
-  // ✅ MỚI: p002 (công đoạn P002) và onLine (chỉ P013 -> P021). "remaining"
+  // ✅ MỚI: p002 (công đoạn P002) và onLine (P012 -> P021). "remaining"
   // giữ nguyên = chưa triển khai + toàn bộ dòng đang sản xuất, để không sót
   // dòng nào (vd. P012) khi tách cột.
   // -------------------------------------------------------------------------

@@ -63592,7 +63592,7 @@ var updateUserSchema = external_exports.object({
 });
 var TRIEU_TO_TY = 1e3;
 var TARGET_WORKSHOPS = ["2A", "3A", "4A", "5A", "8AB", "8C"];
-var DEFAULT_REVENUE_YEAR = (/* @__PURE__ */ new Date()).getUTCFullYear();
+var currentVnYear = () => Number(vnDayKey(/* @__PURE__ */ new Date()).slice(0, 4));
 app.get("/", (_req, res) => {
   res.send("Server Backend PostgreSQL \u0111ang ho\u1EA1t \u0111\u1ED9ng b\xECnh th\u01B0\u1EDDng!");
 });
@@ -64076,6 +64076,7 @@ var vnHourFormatter = new Intl.DateTimeFormat("en-GB", {
 });
 var vnDayKey = (d) => vnDayFormatter.format(d);
 var vnHour = (d) => Number(vnHourFormatter.format(d));
+var vnTodayUtc = () => /* @__PURE__ */ new Date(`${vnDayKey(/* @__PURE__ */ new Date())}T00:00:00Z`);
 var DATA_AS_OF_DATE_COLUMN = {
   dht: "ngay_nhan_tu_pm",
   tkbv_full: "ngay_nhan",
@@ -64333,6 +64334,8 @@ app.get("/api/overview/summary", async (req, res) => {
     const cacheKey = JSON.stringify({
       dateFrom: req.query.dateFrom || null,
       dateTo: req.query.dateTo || null,
+      // Ngày "hôm nay" (giờ VN) nằm trong khoá cache: sang ngày mới thì số lũy kế tháng tính lại
+      today: vnDayKey(/* @__PURE__ */ new Date()),
       date: req.query.date || null,
       dates: req.query.dates || null,
       congTrinh: congTrinhList,
@@ -64352,7 +64355,7 @@ app.get("/api/overview/summary", async (req, res) => {
     const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
     const useExplicitDates = explicitDates.length > 0;
     const useAllTime = !hasDateTo && !hasDateFrom && !useExplicitDates;
-    const dateToDate = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || /* @__PURE__ */ new Date();
+    const dateToDate = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || vnTodayUtc();
     const dateFromDate = parseSafeDate(req.query.dateFrom) || dateToDate;
     const dateToStr = dateToDate.toISOString().slice(0, 10);
     const dateFromStr = dateFromDate.toISOString().slice(0, 10);
@@ -64478,7 +64481,7 @@ app.get("/api/overview/by-group", async (req, res) => {
     const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
     const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
     const useExplicitDates = explicitDates.length > 0;
-    const dateToRaw = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || /* @__PURE__ */ new Date();
+    const dateToRaw = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || vnTodayUtc();
     const dateFromRaw = parseSafeDate(req.query.dateFrom) || dateToRaw;
     const dateToStr = dateToRaw.toISOString().slice(0, 10);
     const dateFromStr = dateFromRaw.toISOString().slice(0, 10);
@@ -64798,7 +64801,7 @@ app.get("/api/stock/total-count", async (_req, res) => {
 app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
   try {
     const yearParam = Number(req.params.year);
-    const year = Number.isInteger(yearParam) && yearParam > 2e3 && yearParam < 2100 ? yearParam : DEFAULT_REVENUE_YEAR;
+    const year = Number.isInteger(yearParam) && yearParam > 2e3 && yearParam < 2100 ? yearParam : currentVnYear();
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
     const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
