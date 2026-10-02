@@ -16,14 +16,14 @@ import './index.css';
 import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal';
 import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
+import type { ConstructionViewId } from './components/Construction/ConstructionView';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const DataGrid = lazy(() => import('./components/DataGrid'));
 const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
-const ConstructionRedFlow = lazy(() => import('./components/Construction/ConstructionRedFlow'));
-const ConstructionSampleUnit = lazy(() => import('./components/Construction/ConstructionSampleUnit'));
+const ConstructionView = lazy(() => import('./components/Construction/ConstructionView'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
 const ConstructionOverview = lazy(() => import('./components/Construction/ConstructionOverview'));
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
@@ -97,8 +97,8 @@ const App: React.FC = () => {
 
                   {/* --- Nhóm Công trình --- */}
                   <Route path="/cong-trinh/tong-quan" element={<RequirePermission viewId="construction_overview"><ConstructionOverviewWrapper /></RequirePermission>} />
-                  <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionRedFlowWrapper /></RequirePermission>} />
-                  <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionSampleUnitWrapper /></RequirePermission>} />
+                  <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionViewWrapper viewId="luong-do" title="Công trình luồng đỏ" /></RequirePermission>} />
+                  <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionViewWrapper viewId="can-mau" title="Căn mẫu" /></RequirePermission>} />
                   <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
 
                   {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
@@ -178,20 +178,14 @@ const ConstructionOverviewWrapper = () => {
   return <ConstructionOverview data={context.productionData} columns={context.productionColumns} />;
 };
 
-const ConstructionRedFlowWrapper = () => {
+// Dùng chung 1 component cho 2 view Công trình. key={viewId} để chuyển giữa 2 view thì
+// component được tạo mới hoàn toàn (không giữ bộ lọc/dữ liệu đã lọc của view trước).
+const ConstructionViewWrapper = ({ viewId, title }: { viewId: ConstructionViewId; title: string }) => {
   const context = useOutletContext<MainLayoutContext>();
   const { user } = useAuth();
   const mappingReady = useViewMappingReady();
   if (!mappingReady) return <FullScreenLoader />;
-  return <ConstructionRedFlow {...context} currentUser={user?.username ?? ''} />;
-};
-
-const ConstructionSampleUnitWrapper = () => {
-  const context = useOutletContext<MainLayoutContext>();
-  const { user } = useAuth();
-  const mappingReady = useViewMappingReady();
-  if (!mappingReady) return <FullScreenLoader />;
-  return <ConstructionSampleUnit {...context} currentUser={user?.username ?? ''} />;
+  return <ConstructionView key={viewId} viewId={viewId} title={title} {...context} currentUser={user?.username ?? ''} />;
 };
 
 const ConstructionSetupWrapper = () => {

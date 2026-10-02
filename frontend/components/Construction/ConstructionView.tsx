@@ -16,10 +16,9 @@ import { usePivotTables } from './../Dashboard/hooks/usePivotTables';
 import { useExportFlows } from './../Dashboard/hooks/useExportFlows';
 import { PivotMaterialStatusSection } from './../Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './../Dashboard/components/sections/MaterialListSection';
-import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
 import { ProjectSummarySection_v2, type ProjectMeta } from './../Dashboard/components/sections/ProjectSummarySection_v2';
+import { ProjectSummarySection } from './../Dashboard/components/sections/ProjectSummarySection';
 import { PivotProjectSection } from './../Dashboard/components/sections/PivotProjectSection';
-import { ContructionRevenueSection, type CustomFunnelItem } from './../Dashboard/components/sections/ContructionRevenueSection';
 import { BottleneckSection } from './../Dashboard/components/sections/BottleneckSection';
 import { ProductionStatusSection } from './../Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './../Dashboard/components/sections/KhsxPlanActualSection';
@@ -30,18 +29,26 @@ import { OverviewExportScopeModal } from './../Dashboard/components/modals/Overv
 import { GenericExportScopeModal } from './../Dashboard/components/modals/GenericExportScopeModal';
 import { GenericExportColumnModal } from './../Dashboard/components/modals/GenericExportColumnModal';
 import { ProductionExportModal } from './../Dashboard/components/modals/ProductionExportModal';
+import { filterByView, getProjectsForView } from './utils/viewDataConfig';
+import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/components/modals/HexDetailModal';
+import { ConstructionRevenueSection, type CustomFunnelItem } from './../Dashboard/components/sections/ConstructionRevenueSection';
 import {
   OnLineStageDetailModal,
   TOTAL_STAGE,
   extractStage,
   type StageDetailRow,
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
-import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/components/modals/HexDetailModal';
 import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
 import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
-import { filterByView, getProjectsForView } from './utils/viewDataConfig';
 import { ProductionDonutPanel } from './../Dashboard/components/shared/ProductionDonutPanel';
-interface ConstructionSampleUnitProps {
+// Id của view trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
+export type ConstructionViewId = 'luong-do' | 'can-mau';
+
+interface ConstructionViewProps {
+  /** View đang hiển thị: dữ liệu được lọc theo danh sách công trình đã setup cho view này */
+  viewId: ConstructionViewId;
+  /** Tiêu đề trang, ví dụ "Công trình luồng đỏ", "Căn mẫu" */
+  title: string;
   productionData: DataRow[];
   productionColumns: ColumnDefinition[];
   materialData: DataRow[];
@@ -70,9 +77,6 @@ interface ConstructionSampleUnitProps {
   currentUser: string;
 }
 
-// Id của view này trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
-// Bản "Căn mẫu" — chỉ khác ConstructionRedFlow.tsx ở VIEW_ID này và tiêu đề hiển thị.
-const VIEW_ID = 'can-mau' as const;
 
 // ---------------------------------------------------------------------------
 // Các khối có thể ẩn/hiện (mặc định ẩn, bấm "Mở" để xem).
@@ -142,7 +146,7 @@ type HexDetailColumn =
   | 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine'
   | 'remaining' | 'cancelled'
   | 'p002'
-  | 'inventoryAfterExport';
+  | 'inventoryAfterExport';   // (chỉ để đủ key của Record, không bấm được)
 
 const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   totalOrder: 'Tổng Giá Trị Đơn Hàng',
@@ -167,12 +171,13 @@ const isHexDetailColumn = (
   (HEX_DETAIL_MODAL_COLUMNS as string[]).includes(column);
 
 // ---------------------------------------------------------------------------
-// Ánh xạ từ mã bước trong Phễu (BOP) sang cột/giai đoạn tương ứng trong dữ liệu
-// hex gốc, để bấm vào 1 con số trong bảng pivot của "Chi tiết dữ liệu Phễu"
-// mở tiếp được modal "Chi tiết theo Hex".
-// - P001 -> "notDeployed"; P002 -> "p002"
-// - P012 -> P021, GCVT -> "onLine", lọc thêm theo đúng mã BOP đó
-//   (P012 thuộc "Đang trên chuyền" — khớp ON_LINE_STAGES và view Luồng đỏ)
+// Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
+// cột/giai đoạn tương ứng trong dữ liệu hex gốc, để bấm vào 1 con số trong
+// bảng pivot của "Chi tiết dữ liệu Phễu" mở tiếp được modal "Chi tiết theo Hex".
+//
+// - P001 ứng với cột "notDeployed".
+// - P002 ứng với cột "p002".
+// - P012 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó.
 // - P022 (TỒN KHO) lấy từ nguồn khác nên KHÔNG có hex gốc -> không mở modal.
 // ---------------------------------------------------------------------------
 const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: HexDetailColumn; stage: string | null }>> = {
@@ -216,7 +221,12 @@ function resolveFunnelHexTarget(
   return { column: mapping.column, stage: mapping.stage, projectName: null };
 }
 
-const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
+// Dùng chung cho 2 view "Công trình luồng đỏ" và "Căn mẫu" (trước đây là 2 file gần như
+// giống hệt nhau và đã bắt đầu lệch nhau). Nơi dùng PHẢI đặt key={viewId} để đổi view thì
+// component được tạo mới (các useMemo lọc theo VIEW_ID không liệt kê viewId trong deps).
+const ConstructionView: React.FC<ConstructionViewProps> = ({
+  viewId,
+  title,
   productionData: rawProductionData,
   productionColumns,
   materialData: rawMaterialData,
@@ -242,8 +252,10 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   attendanceData,
   attendanceColumns,
   isSidebarCollapsed,
-  currentUser
+  currentUser,
 }) => {
+  const VIEW_ID = viewId;
+
   // viewProjectWhitelist phải nằm BÊN TRONG component (hook useMemo hợp lệ).
   const viewProjectWhitelist = useMemo(
     () => getProjectsForView(VIEW_ID),
@@ -358,8 +370,11 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
       : rows;
 
   // ------------------------------------------------------------------------------
-  // LỌC TOÀN BỘ DỮ LIỆU THEO DANH SÁCH CÔNG TRÌNH ĐÃ SETUP CHO VIEW "can-mau"
+  // LỌC TOÀN BỘ DỮ LIỆU THEO DANH SÁCH CÔNG TRÌNH ĐÃ SETUP CHO VIEW HIỆN TẠI (viewId)
   // + 2 filter Khách hàng / Khu vực dự án ở trên.
+  //
+  // stockData và attendanceData KHÔNG có cột công trình trong useColumnKeys hiện tại
+  // nên tạm thời giữ nguyên, chưa lọc theo view.
   // ------------------------------------------------------------------------------
   const productionData = useMemo(
     () => byMeta(viewProductionData, congTrinhKey),
@@ -455,6 +470,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
   const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
 
+  // Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
   const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
 
   useEffect(() => {
@@ -602,7 +618,6 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     expandedBops, setExpandedBops,
     bottleneckViewMode, setBottleneckViewMode,
 
-    calculateMetricValue,
     cardMetrics,
     projectStatusSummary,
     projectStatusSummaryV2,
@@ -759,7 +774,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
 
   // Gộp "Xuất kho" theo công trình từ exportData (đã filter theo view):
   // đếm số HEX DUY NHẤT (COUNT) hoặc tổng thành tiền (VALUE), chỉ tính các dòng
-  // có tinh_doi_voi_hang_tp = "TÍNH".
+  // có tinh_doi_voi_hang_tp = "TÍNH" (đối với hàng thành phẩm).
   const exportedByProject = useMemo(() => {
     const map = new Map<string, number>();
     if (!expCongTrinhKey) return map;
@@ -822,30 +837,8 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     return map;
   }, [inventoryData, invCongTrinhKey, invThanhTienKey, projectSummaryMetric]);
 
-  // Xem chi tiết theo Công trình khi bấm vào 1 bước funnel
-  const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
-
-  // P022. TỒN KHO lấy dữ liệu từ stockByProjectData -> cần fetch riêng khi chọn bước này.
-  useEffect(() => {
-    if (activeFunnelItem?.id === 'P022') {
-      loadStockByProject();
-    }
-  }, [activeFunnelItem, loadStockByProject]);
-
-  const activeFunnelPivotData = useMemo(() => {
-    if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> giữ tổng theo BOP như cũ
-
-    if (activeFunnelItem.id === 'P022') {
-      return {
-        data: stockByProjectData,
-        total: stockByProjectData.reduce((sum, r) => sum + r.value, 0),
-      };
-    }
-
-    return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
-  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
-
   // Adapter: chuyển projectStatusSummaryV2 sang kiểu của ProjectSummarySection_v2.
+  // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
   const projectOrderSummary = useMemo(
     () =>
       projectStatusSummaryV2.map(row => {
@@ -870,47 +863,6 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     [projectStatusSummaryV2, exportedByProject, inventoryByProject]
   );
 
-  // Modal "Đang trên chuyền": projectName = null nghĩa là bấm từ dòng TỔNG CỘNG.
-  const [onLineDetail, setOnLineDetail] = useState<{ open: boolean; projectName: string | null }>({
-    open: false,
-    projectName: null,
-  });
-
-  const [exportDetail, setExportDetail] = useState<{ open: boolean; projectName: string | null }>({
-    open: false,
-    projectName: null,
-  });
-  const [inventoryDetail, setInventoryDetail] = useState<{ open: boolean; projectName: string | null }>({
-    open: false,
-    projectName: null,
-  });
-
-  // Rows cho modal "Đang trên chuyền" — mỗi dòng là 1 KHU VỰC SẢN XUẤT.
-  // Bấm 1 công trình: chỉ lấy khu vực của công trình đó.
-  // Bấm TỔNG CỘNG: cộng dồn tất cả công trình theo khu vực.
-  const onLineStageRows = useMemo<StageDetailRow[]>(() => {
-    if (!onLineDetail.open) return [];
-
-    const projects = onLineDetail.projectName
-      ? [onLineDetail.projectName]
-      : Object.keys(onLineAreaBreakdownV2);
-
-    const merged: Record<string, Record<string, number>> = {};
-    projects.forEach(p => {
-      const areas = onLineAreaBreakdownV2[p.trim()] ?? {};
-      Object.entries(areas).forEach(([area, stages]) => {
-        if (!merged[area]) merged[area] = {};
-        Object.entries(stages).forEach(([stage, v]) => {
-          merged[area][stage] = (merged[area][stage] || 0) + v;
-        });
-      });
-    });
-
-    return Object.entries(merged)
-      .map(([name, values]) => ({ name, values }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
-  }, [onLineDetail, onLineAreaBreakdownV2]);
-
   // -------------------------------------------------------------------------
   // Chi tiết theo Hex cho bảng "Tình trạng đơn hàng theo Công trình" (v2).
   // projectName = null nghĩa là bấm từ dòng TỔNG CỘNG (xem tất cả công trình).
@@ -923,6 +875,21 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     stage: string | null;
     area?: string | null;
   }>({ open: false, column: null, projectName: null, stage: null });
+
+  const [onLineStageDetail, setOnLineStageDetail] = useState<{
+    open: boolean;
+    projectName: string | null;
+  }>({ open: false, projectName: null });
+
+  const [exportDetail, setExportDetail] = useState<{
+    open: boolean;
+    projectName: string | null;
+  }>({ open: false, projectName: null });
+
+  const [inventoryDetail, setInventoryDetail] = useState<{
+    open: boolean;
+    projectName: string | null;
+  }>({ open: false, projectName: null });
 
   const hexDetailRows = useMemo(() => {
     if (!hexDetail.open || !hexDetail.column) return [];
@@ -1014,11 +981,60 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
     setHexDetail({ open: true, column: target.column, projectName: target.projectName, stage: target.stage });
   };
 
+  // Rows cho modal "Đang trên chuyền" — mỗi dòng là 1 KHU VỰC SẢN XUẤT.
+  // Bấm 1 công trình: chỉ lấy khu vực của công trình đó.
+  // Bấm TỔNG CỘNG: cộng dồn tất cả công trình theo khu vực.
+  const onLineStageRows = useMemo<StageDetailRow[]>(() => {
+    if (!onLineStageDetail.open) return [];
+
+    const projects = onLineStageDetail.projectName
+      ? [onLineStageDetail.projectName]
+      : Object.keys(onLineAreaBreakdownV2);
+
+    const merged: Record<string, Record<string, number>> = {};
+    projects.forEach(p => {
+      const areas = onLineAreaBreakdownV2[p.trim()] ?? {};
+      Object.entries(areas).forEach(([area, stages]) => {
+        if (!merged[area]) merged[area] = {};
+        Object.entries(stages).forEach(([stage, v]) => {
+          merged[area][stage] = (merged[area][stage] || 0) + v;
+        });
+      });
+    });
+
+    return Object.entries(merged)
+      .map(([name, values]) => ({ name, values }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [onLineStageDetail, onLineAreaBreakdownV2]);
+
   // Trạng thái mở/ẩn của 5 khối có thể thu gọn (phải nằm TRƯỚC early return).
   const [openSections, setOpenSections] = useState<Record<SectionId, boolean>>(DEFAULT_OPEN_SECTIONS);
 
   const toggleSection = (id: SectionId) =>
     setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
+
+  useEffect(() => {
+    if (activeFunnelItem?.id === 'P022') {
+      loadStockByProject();
+    }
+  }, [activeFunnelItem, loadStockByProject]);
+
+  const activeFunnelPivotData = useMemo(() => {
+    if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> giữ tổng theo BOP như cũ
+
+    // P022. TỒN KHO không nằm trong filteredProductionData/bopKey như các bước
+    // khác -> lấy breakdown riêng từ stockByProjectData.
+    if (activeFunnelItem.id === 'P022') {
+      return {
+        data: stockByProjectData,
+        total: stockByProjectData.reduce((sum, r) => sum + r.value, 0),
+      };
+    }
+
+    return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
+  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
 
   // Chỉ hiện thông báo "chưa setup" khi KHÔNG đang lọc Khách hàng / Khu vực;
   // nếu đang lọc mà ra rỗng thì vẫn giữ thanh bộ lọc để người dùng xóa lọc.
@@ -1055,7 +1071,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4 w-full md:w-auto">
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Căn mẫu</h2>
+              <h2 className="text-xl font-bold text-slate-800">{title}</h2>
             </div>
           </div>
 
@@ -1064,7 +1080,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
             <div className="flex items-center gap-2 mr-1 text-slate-500">
               <Filter size={14} /> <span className="text-[10px] uppercase font-bold">Bộ lọc tổng:</span>
             </div>
-            {khachHangOptions.length > 0 && (
+               {khachHangOptions.length > 0 && (
               <DashboardFilter
                 label="Khách Hàng"
                 options={khachHangOptions}
@@ -1112,6 +1128,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
                 onChange={(vals) => setFilters(prev => ({ ...prev, tinhTrang: vals }))}
               />
             )}
+       
             {(hasActiveFilters || selKhachHang.length > 0 || selKhuVuc.length > 0) && (
               <button
                 onClick={() => { clearFilters(); setSelKhachHang([]); setSelKhuVuc([]); }}
@@ -1135,7 +1152,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           clickableColumns={['totalOrder', 'inventory', 'exported', 'notDeployed', 'p002', 'onLine', 'remaining']}
           onCellClick={({ projectName, column }) => {
             if (column === 'onLine') {
-              setOnLineDetail({ open: true, projectName });
+              setOnLineStageDetail({ open: true, projectName });
               return;
             }
             if (column === 'exported') {
@@ -1157,7 +1174,7 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
           projectMeta={projectMeta}
         />
 
-                <ContructionRevenueSection
+           <ConstructionRevenueSection
           sectionRef={factoryRevenueRef}
           targetRevenue2026={targetRevenue2026}
           factoryRevenueStats={factoryRevenueStats}
@@ -1341,16 +1358,16 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
       />
 
       <OnLineStageDetailModal
-        isOpen={onLineDetail.open}
-        onClose={() => setOnLineDetail(prev => ({ ...prev, open: false }))}
-        projectName={onLineDetail.projectName}
+        isOpen={onLineStageDetail.open}
+        onClose={() => setOnLineStageDetail(prev => ({ ...prev, open: false }))}
+        projectName={onLineStageDetail.projectName}
         metric={projectSummaryMetric === 'VALUE' ? 'VALUE' : 'COUNT'}
         rows={onLineStageRows}
         onValueClick={(areaName, stage) =>
           setHexDetail({
             open: true,
             column: 'onLine',
-            projectName: onLineDetail.projectName, // tên công trình lấy từ state
+            projectName: onLineStageDetail.projectName, // tên công trình lấy từ state
             stage,
             area: areaName,
           })
@@ -1450,4 +1467,4 @@ const ConstructionSampleUnit: React.FC<ConstructionSampleUnitProps> = ({
   );
 };
 
-export default ConstructionSampleUnit;
+export default ConstructionView;

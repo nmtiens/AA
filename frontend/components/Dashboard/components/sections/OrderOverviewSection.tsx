@@ -67,8 +67,8 @@ interface OrderOverviewSectionProps {
   hasAnyData: boolean;
 
   filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
-  // ✅ FIX: danh sách công trình đã setup cho view hiện tại (ConstructionRedFlow /
-  // ConstructionSampleUnit truyền vào; Dashboard tổng KHÔNG truyền -> undefined).
+  // ✅ FIX: danh sách công trình đã setup cho view hiện tại (ConstructionView
+  // truyền vào; Dashboard tổng KHÔNG truyền -> undefined).
   // Dùng để tính effectiveCongTrinh bên dưới, PHẢI GIỐNG HỆT công thức
   // getEffectiveCongTrinh() trong useOverviewSummary.ts, nếu không filterKey ở đây
   // sẽ lệch với key mà loadGroupAnalysis dùng để GHI cache, khiến
@@ -77,7 +77,7 @@ interface OrderOverviewSectionProps {
 
   // ✅ MỚI: khi true, hiển thị số liệu GIÁ TRỊ (chế độ SUM) ở dạng số đầy đủ (VNĐ)
   // thay vì rút gọn chia 1000 + đơn vị "Tỷ". Dùng cho các view theo công trình
-  // (ConstructionRedFlow "Công trình luồng đỏ", ConstructionSampleUnit "Căn mẫu")
+  // (ConstructionView: "Công trình luồng đỏ", "Căn mẫu")
   // vì giá trị ở các view này thường nhỏ, hiển thị "Tỷ" làm mất độ chính xác
   // (vd 1.6 Tỷ thay vì 1.600.000.000 VNĐ). Dashboard tổng không truyền prop này
   // -> mặc định false -> giữ nguyên hành vi cũ (chia 1000 + "Tỷ").

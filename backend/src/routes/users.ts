@@ -1,0 +1,176 @@
+import express from 'express';
+import bcrypt from 'bcrypt';
+import type { Request, Response } from 'express';
+import { pool } from '../db.js';
+import { authenticateJWT, requireRole } from '../server/auth.js';
+import { validateBody, createUserSchema, updateUserSchema } from '../server/validation.js';
+import { app } from '../server/app.js';
+
+// ============================================================================
+// USERS API — nay yêu cầu JWT + role ADMIN cho toàn bộ (trước đây public hoàn toàn)
+// (Giữ nguyên pool.query — CRUD nhỏ, không phải điểm nóng)
+// ============================================================================
+const usersRouter = express.Router();
+usersRouter.use(authenticateJWT, requireRole('ADMIN'));
+
+// --- LẤY DANH SÁCH USER (có phân trang) ---
+usersRouter.get('/', async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
+    const [countResult, result] = await Promise.all([
+      pool.query('SELECT COUNT(*) FROM users'),
+      pool.query(
+        `SELECT id, username, full_name, email, role, permissions,
+                msnv, department, note, is_active, created_at, updated_at
+         FROM users ORDER BY created_at DESC
+         LIMIT $1 OFFSET $2`,
+        [pageSize, offset]
+      ),
+    ]);
+
+    const users = result.rows.map(u => ({
+      id: u.id,
+      username: u.username,
+      fullName: u.full_name,
+      email: u.email,
+      role: u.role,
+      permissions: u.permissions || [],
+      msnv: u.msnv,
+      department: u.department,
+      note: u.note,
+      status: u.is_active ? 'ACTIVE' : 'INACTIVE',
+      createdAt: u.created_at,
+      updatedAt: u.updated_at,
+    }));
+
+    res.json({
+      success: true,
+      data: users,
+      pagination: { page, pageSize, total: Number(countResult.rows[0].count) },
+    });
+  } catch (error) {
+    console.error('Lỗi lấy danh sách user:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// --- THÊM USER MỚI ---
+usersRouter.post('/', validateBody(createUserSchema), async (req: Request, res: Response) => {
+  try {
+    const { username, password, fullName, email, role, permissions, msnv, department, note, status } = req.body;
+
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'Tên đăng nhập đã tồn tại' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const isActive = status !== 'INACTIVE';
+
+    const result = await pool.query(
+      `INSERT INTO users (username, password_hash, full_name, email, role, permissions, msnv, department, note, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active, created_at`,
+      [username, passwordHash, fullName, email || null, role || 'USER', permissions || [], msnv || null, department || null, note || null, isActive]
+    );
+
+    const u = result.rows[0];
+    res.json({
+      success: true,
+      message: 'Tạo user thành công',
+      data: {
+        id: u.id, username: u.username, fullName: u.full_name, email: u.email,
+        role: u.role, permissions: u.permissions || [], msnv: u.msnv,
+        department: u.department, note: u.note, status: u.is_active ? 'ACTIVE' : 'INACTIVE',
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi tạo user:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// --- CẬP NHẬT USER ---
+usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { password, fullName, email, role, permissions, msnv, department, note, status } = req.body;
+
+    const existing = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
+    }
+
+    const fields: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
+    const push = (col: string, val: any) => { fields.push(`${col} = $${idx}`); values.push(val); idx++; };
+
+    if (fullName !== undefined) push('full_name', fullName);
+    if (email !== undefined) push('email', email || null);
+    if (role !== undefined) push('role', role);
+    if (permissions !== undefined) push('permissions', permissions || []);
+    if (msnv !== undefined) push('msnv', msnv || null);
+    if (department !== undefined) push('department', department || null);
+    if (note !== undefined) push('note', note || null);
+    if (status !== undefined) push('is_active', status === 'ACTIVE');
+
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      push('password_hash', passwordHash);
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'Không có dữ liệu để cập nhật' });
+    }
+
+    fields.push(`updated_at = now()`);
+    values.push(id);
+
+    const result = await pool.query(
+      `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}
+       RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
+      values
+    );
+
+    const u = result.rows[0];
+    res.json({
+      success: true,
+      message: 'Cập nhật thành công',
+      data: {
+        id: u.id, username: u.username, fullName: u.full_name, email: u.email,
+        role: u.role, permissions: u.permissions || [], msnv: u.msnv,
+        department: u.department, note: u.note, status: u.is_active ? 'ACTIVE' : 'INACTIVE',
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi cập nhật user:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// --- XÓA USER ---
+usersRouter.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const target = await pool.query('SELECT username FROM users WHERE id = $1', [id]);
+    if (target.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
+    }
+    if (target.rows[0].username === 'admin') {
+      return res.status(403).json({ success: false, message: 'Không thể xóa tài khoản admin' });
+    }
+
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Xóa user thành công' });
+  } catch (error) {
+    console.error('Lỗi xóa user:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+app.use('/api/users', usersRouter);

@@ -1,0 +1,131 @@
+import type { Request, Response } from 'express';
+import { timedQuery } from '../db.js';
+import { TRIEU_TO_TY } from '../server/common.js';
+import { getRelevantVersions, trimCache, numericCol } from '../server/data.js';
+import { app } from '../server/app.js';
+
+// --- CACHE IN-MEMORY CHO /api/khsx-nhapkho/summary ---
+const khsxNhapKhoCache = new Map<string, { versions: Record<string, string>; payload: any }>();
+const KHSX_NHAPKHO_VERSION_KEYS = ['khsx', 'inventory'];
+
+// [ĐO TIMING] Endpoint tổng hợp phức tạp — 2 query chính (khQuery, thQuery).
+// Đơn vị trả ra: TỶ ĐỒNG (cả KH lẫn TH đều từ triệu -> tỷ, chia 1000).
+app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
+  try {
+    const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
+    if (!nam) return res.status(400).json({ error: 'Missing nam' });
+
+    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxVersions = await getRelevantVersions(KHSX_NHAPKHO_VERSION_KEYS);
+    const cachedKhsx = khsxNhapKhoCache.get(khsxCacheKey);
+    if (cachedKhsx && JSON.stringify(cachedKhsx.versions) === JSON.stringify(khsxVersions)) {
+      return res.json(cachedKhsx.payload);
+    }
+
+    const isWeek = mode === 'week';
+    const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
+
+    const normalize = (s: string) => s.trim().toUpperCase();
+    const congTrinhList = congTrinh ? congTrinh.split(',').map(normalize).filter(Boolean) : [];
+    const xuongList = xuong ? xuong.split(',').map(normalize).filter(Boolean) : [];
+
+    // ---------- KẾ HOẠCH (khsx) ----------
+    const khParams: any[] = [phanLoaiPattern, nam];
+    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint`;
+    if (thang) { khParams.push(thang); khWhere += ` AND thang = $${khParams.length}::bigint`; }
+    if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan = $${khParams.length}::double precision`; }
+    if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay = $${khParams.length}::double precision`; }
+    if (congTrinhList.length) { khParams.push(congTrinhList); khWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${khParams.length}::text[])`; }
+    if (xuongList.length) { khParams.push(xuongList); khWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${khParams.length}::text[])`; }
+
+    const khQuery = `
+      SELECT
+        TRIM(xuong_chinh) AS xuong,
+        TRIM(ten_cong_trinh) AS cong_trinh,
+        TRIM(ma_cong_trinh) AS ma_cong_trinh,
+        COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / ${TRIEU_TO_TY} AS gia_tri
+      FROM khsx
+      ${khWhere}
+      GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
+    `;
+    const khResult = await timedQuery(khQuery, khParams);
+
+    // ---------- THỰC HIỆN (nhap_kho) ----------
+    const thParams: any[] = [nam];
+    let thWhere = `WHERE nam = $1::bigint`;
+    if (thang) { thParams.push(thang); thWhere += ` AND thang = $${thParams.length}::bigint`; }
+    if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan = $${thParams.length}::bigint`; }
+    if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay = $${thParams.length}::bigint`; }
+    if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${thParams.length}::text[])`; }
+    if (xuongList.length) { thParams.push(xuongList); thWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${thParams.length}::text[])`; }
+
+    const thQuery = `
+      SELECT
+        TRIM(xuong_chinh) AS xuong,
+        TRIM(ten_cong_trinh) AS cong_trinh,
+        TRIM(ma_cong_trinh) AS ma_cong_trinh,
+        COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${TRIEU_TO_TY} AS gia_tri
+      FROM nhap_kho
+      ${thWhere}
+      GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
+    `;
+    const thResult = await timedQuery(thQuery, thParams);
+
+    // ---------- GỘP THEO XƯỞNG ----------
+    const xuongMap = new Map<string, { kh: number; th: number }>();
+    khResult.rows.forEach(r => {
+      const k = r.xuong || 'Chưa xác định';
+      const e = xuongMap.get(k) || { kh: 0, th: 0 };
+      e.kh += Number(r.gia_tri);
+      xuongMap.set(k, e);
+    });
+    thResult.rows.forEach(r => {
+      const k = r.xuong || 'Chưa xác định';
+      const e = xuongMap.get(k) || { kh: 0, th: 0 };
+      e.th += Number(r.gia_tri);
+      xuongMap.set(k, e);
+    });
+    const byXuong = Array.from(xuongMap.entries())
+      .map(([xuong, v]) => ({ xuong, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) }))
+      .sort((a, b) => a.xuong.localeCompare(b.xuong));
+
+    // ---------- GỘP THEO CÔNG TRÌNH (top 10) ----------
+    const ctMap = new Map<string, { code: string; kh: number; th: number }>();
+    khResult.rows.forEach(r => {
+      const k = r.cong_trinh || 'Chưa xác định';
+      const e = ctMap.get(k) || { code: r.ma_cong_trinh || '', kh: 0, th: 0 };
+      e.kh += Number(r.gia_tri);
+      if (r.ma_cong_trinh) e.code = r.ma_cong_trinh;
+      ctMap.set(k, e);
+    });
+    thResult.rows.forEach(r => {
+      const k = r.cong_trinh || 'Chưa xác định';
+      const e = ctMap.get(k) || { code: r.ma_cong_trinh || '', kh: 0, th: 0 };
+      e.th += Number(r.gia_tri);
+      if (r.ma_cong_trinh && !e.code) e.code = r.ma_cong_trinh;
+      ctMap.set(k, e);
+    });
+    const byCongTrinh = Array.from(ctMap.entries())
+      .map(([name, v]) => ({ name, code: v.code || name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) }))
+      .sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th))
+      .slice(0, 10);
+
+    const totalKh = byXuong.reduce((a, b) => a + b.kh, 0);
+    const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
+    const completionRate = totalKh > 0 ? (totalTh / totalKh) * 100 : 0;
+
+    const khsxPayload = {
+      totalKh: Number(totalKh.toFixed(2)),
+      totalTh: Number(totalTh.toFixed(2)),
+      completionRate: Number(completionRate.toFixed(1)),
+      byXuong,
+      byCongTrinh,
+    };
+    khsxNhapKhoCache.set(khsxCacheKey, { versions: khsxVersions, payload: khsxPayload });
+    trimCache(khsxNhapKhoCache);
+    res.json(khsxPayload);
+  } catch (error) {
+    console.error('Lỗi khsx-nhapkho/summary:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});

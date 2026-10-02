@@ -15,7 +15,7 @@
 //    lên backend (setProjectsForView) — tức là thứ tự trong mảng = độ ưu
 //    tiên, phần tử đầu tiên = ưu tiên cao nhất.
 //
-// ConstructionRedFlow.tsx và ConstructionSampleUnit.tsx vẫn dùng filterByView()
+// Construction/ConstructionView.tsx (luồng đỏ, căn mẫu) vẫn dùng filterByView()
 // để lọc material/order/khsx theo đúng tên đã chọn ở đây (không phụ thuộc thứ
 // tự), nên việc đổi Set -> mảng có thứ tự không ảnh hưởng tới các trang đó.
 

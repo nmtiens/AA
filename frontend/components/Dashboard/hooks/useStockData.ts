@@ -31,7 +31,7 @@ interface UseStockDataParams {
   filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
   // ✅ FIX: danh sách công trình đã setup cho view hiện tại (giống hệt tham số
   // cùng tên trong useOverviewSummary). Optional — Dashboard tổng không truyền,
-  // các trang theo view (ConstructionRedFlow/ConstructionSampleUnit) truyền vào.
+  // các trang theo view (ConstructionView) truyền vào.
   //
   // TRƯỚC ĐÂY: hook này gọi fetchStockDates/fetchStockByProject/fetchStockTotalCount
   // bằng filters.congTrinh THÔ, không hề biết tới whitelist của view. Khi user chưa

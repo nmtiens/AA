@@ -16,7 +16,7 @@ export interface PivotFunnelData {
   total: number;
 }
 
-interface ContructionRevenueSectionProps {
+interface ConstructionRevenueSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
   targetRevenue2026: number;
   factoryRevenueStats: { actual: number; percent: number; cancelled?: number };
@@ -53,7 +53,7 @@ const BAR_LABEL_HORIZONTAL_PADDING = 16;
 // Màu thanh phễu (đồng bộ với phễu ở Dashboard)
 const FUNNEL_BAR_COLOR: Record<string, string> = { P001: '#1f2a44', P002: '#64748b', P022: '#16a34a' };
 const FUNNEL_DEFAULT_COLOR = '#2563eb';
-export const ContructionRevenueSection = ({
+export const ConstructionRevenueSection = ({
   sectionRef,
   targetRevenue2026,
   factoryRevenueStats,
@@ -65,7 +65,7 @@ export const ContructionRevenueSection = ({
   onFunnelModalClose,
   onPivotValueClick,
   sideContent
-}: ContructionRevenueSectionProps) => {
+}: ConstructionRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
 
