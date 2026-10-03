@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { categoryOptions } from '../utils/filterMatch';
 import { DataRow } from '../../../types';
 import { formatDateToVN, parseVNDate } from '../utils/dateHelpers';
 
@@ -78,8 +79,9 @@ export function useDashboardOptions({
   const xuongOptions = useMemo(() => getUniqueOptions(productionData, xuongKey), [productionData, xuongKey]);
   const tinhTrangOptions = useMemo(() => getUniqueOptions(productionData, tinhTrangKey), [productionData, tinhTrangKey]);
   const tinhTrangIpoOptions = useMemo(() => getUniqueOptions(productionData, tinhTrangIpoKey), [productionData, tinhTrangIpoKey]);
-  const khachHangOptions = useMemo(() => getUniqueOptions(productionData, khachHangKey), [productionData, khachHangKey]);
-  const khuVucDuAnOptions = useMemo(() => getUniqueOptions(productionData, khuVucDuAnKey), [productionData, khuVucDuAnKey]);
+  // Có cả lựa chọn "(Chưa có)" để khớp với lát tương ứng trên biểu đồ "Cơ cấu đơn hàng"
+  const khachHangOptions = useMemo(() => categoryOptions(productionData, khachHangKey), [productionData, khachHangKey]);
+  const khuVucDuAnOptions = useMemo(() => categoryOptions(productionData, khuVucDuAnKey), [productionData, khuVucDuAnKey]);
   // --- KHSX time filter options ---
   const khsxNamOptions = useMemo(() => getUniqueOptions(khsxData, khsxNamKey), [khsxData, khsxNamKey]);
   const khsxThangOptions = useMemo(() => getUniqueOptions(khsxData, khsxThangKey), [khsxData, khsxThangKey]);

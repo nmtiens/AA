@@ -4,7 +4,8 @@ import { parseVNDate, diffDays } from './Dashboard/utils/dateHelpers';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
 import { fetchRevenue2026, type Revenue2026Data } from '../services/dataService';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
-import { ProductionDonutPanel } from './Dashboard/components/shared/ProductionDonutPanel';
+import { ProductionDonutPanel, type OrderMixSelection } from './Dashboard/components/shared/ProductionDonutPanel';
+import { categoryOptions } from './Dashboard/utils/filterMatch';
 import { useColumnKeys } from './Dashboard/hooks/useColumnKeys';
 import { useDashboardOptions } from './Dashboard/hooks/useDashboardOptions';
 import { useDashboardFilters } from './Dashboard/hooks/useDashboardFilters';
@@ -102,7 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const {
    hexKey, tinhTrangKey, tinhTrangIpoKey, valueKey, realValueKey, congTrinhKey,
-  khachHangKey, khuVucDuAnKey,
+  khachHangKey, khuVucDuAnKey, phanLoaiNhomSanPhamKey,
   xuongKey, hangMucKey, daysAtCurrentStageKey, bopKey, triGiaDonHangTongKey,
   thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
@@ -137,6 +138,7 @@ const {
   clearFilters,
   filteredProductionData,
   funnelProductionData,
+  crossFilterBaseData,
   filteredMaterialData,
   displayedMaterialData,
   selectedMaterialGroups,
@@ -151,9 +153,22 @@ const {
   tinhTrangIpoKey,
   khachHangKey,
   khuVucDuAnKey,
+  phanLoaiKey: phanLoaiNhomSanPhamKey,
   matCongTrinhKey,
   matNhomVtKey,
 });
+
+// Biểu đồ "Cơ cấu đơn hàng" đọc/ghi thẳng vào bộ lọc tổng: bấm 1 lát => cả trang lọc theo
+const orderMixSelection = useMemo<OrderMixSelection>(
+  () => ({ kv: filters.khuVucDuAn, kh: filters.khachHang, pl: filters.phanLoai }),
+  [filters.khuVucDuAn, filters.khachHang, filters.phanLoai]
+);
+const setOrderMixSelection = (next: OrderMixSelection) =>
+  setFilters(prev => ({ ...prev, khuVucDuAn: next.kv, khachHang: next.kh, phanLoai: next.pl }));
+const phanLoaiOptions = useMemo(
+  () => categoryOptions(productionData, phanLoaiNhomSanPhamKey),
+  [productionData, phanLoaiNhomSanPhamKey]
+);
 
 const {
   unifiedTimeFilters,
@@ -560,6 +575,14 @@ const handleContinueToOrderColumnStep = () => {
                 onChange={(vals) => setFilters(prev => ({ ...prev, khuVucDuAn: vals }))}
               />
             )}
+            {phanLoaiOptions.length > 0 && (
+              <DashboardFilter
+                label="Nhóm Sản Phẩm"
+                options={phanLoaiOptions}
+                selectedValues={filters.phanLoai}
+                onChange={(vals) => setFilters(prev => ({ ...prev, phanLoai: vals }))}
+              />
+            )}
             {congTrinhKey && (
               <DashboardFilter
                 label="Tên Công Trình"
@@ -618,10 +641,10 @@ const handleContinueToOrderColumnStep = () => {
   workshopMetric={workshopMetric}
   sideContent={
     <ProductionDonutPanel
-      data={productionData}
+      data={crossFilterBaseData}
       columns={productionColumns}
-      congTrinh={effectiveFilters.congTrinh}
-      xuong={effectiveFilters.xuong}
+      selection={orderMixSelection}
+      onSelectionChange={setOrderMixSelection}
     />
   }
   onActualClick={() =>

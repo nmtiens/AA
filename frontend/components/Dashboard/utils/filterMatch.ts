@@ -12,3 +12,29 @@ export const toFilterSet = (values: string[]): Set<string> | null => (values.len
  */
 export const matchesFilter = (set: Set<string> | null, row: DataRow, key: string | undefined): boolean =>
   set === null || (!!key && set.has(String(row[key] || '').trim()));
+
+// ---------------------------------------------------------------------------
+// Bộ lọc dạng "nhóm" (Khách hàng / Khu vực dự án / Nhóm sản phẩm): ô trống hoặc lỗi Excel (#N/A...)
+// được gom vào nhãn "(Chưa có)" — giống cách biểu đồ tròn "Cơ cấu đơn hàng" hiển thị, để bấm vào
+// lát "(Chưa có)" trên biểu đồ cũng lọc được cả trang.
+// ---------------------------------------------------------------------------
+export const NO_DATA_LABEL = '(Chưa có)';
+
+export const categoryValue = (v: unknown): string => {
+  const t = String(v ?? '').trim();
+  return !t || t.startsWith('#') ? NO_DATA_LABEL : t;
+};
+
+/** Như matchesFilter nhưng so theo categoryValue (ô trống khớp "(Chưa có)"). */
+export const matchesCategory = (set: Set<string> | null, row: DataRow, key: string | undefined): boolean =>
+  set === null || (!!key && set.has(categoryValue(row[key])));
+
+/** Danh sách lựa chọn cho bộ lọc nhóm: sắp theo ABC, "(Chưa có)" (nếu có) đứng cuối. */
+export const categoryOptions = (data: DataRow[], key: string | undefined): string[] => {
+  if (!key) return [];
+  const set = new Set<string>();
+  for (const row of data) set.add(categoryValue(row[key]));
+  const hasNoData = set.delete(NO_DATA_LABEL);
+  const list = Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  return hasNoData ? [...list, NO_DATA_LABEL] : list;
+};

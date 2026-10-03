@@ -9,7 +9,7 @@ import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { parseVNDate } from '../Dashboard/utils/dateHelpers';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
-import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN } from '../Dashboard/components/shared/ProductionDonutPanel';
+import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
@@ -152,14 +152,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
   }, [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 4. Biểu đồ tròn ----------
-  const donut = (k: FKey) => {
-    const m = new Map<string, number>();
-    for (const r of apply(k)) m.set(r[k], (m.get(r[k]) ?? 0) + (metric === 'count' ? 1 : r.total / UNIT));
-    return [...m.entries()].filter(([, v]) => v > 0).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  };
-  const kvData = useMemo(() => donut('kv'), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
-  const khData = useMemo(() => groupTopN(donut('kh'), TOP_CUSTOMERS, f.kh), [records, f, metric]); // eslint-disable-line react-hooks/exhaustive-deps
-  const plData = useMemo(() => donut('pl'), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
+  const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ct, r => r.total, metric);
+  const kvData = useMemo(() => orderMix(donut('kv')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
+  const khData = useMemo(() => orderMix(groupTopN(donut('kh'), TOP_CUSTOMERS, f.kh ? [f.kh] : [])), [records, f, metric]); // eslint-disable-line react-hooks/exhaustive-deps
+  const plData = useMemo(() => orderMix(donut('pl')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 5. Bảng theo PC và theo công trình ----------
   const pcTable = useMemo(() => {
@@ -421,11 +417,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
             <OrderMixCard
               metric={metric}
               onMetricChange={setMetric}
+              summary={{ cts: kpi.cts, items: kpi.items, totalTy: kpi.total / UNIT }}
               charts={[
-                { title: 'Theo khu vực', data: kvData, selected: f.kv, onSelect: n => toggle('kv', n) },
+                { title: 'Theo khu vực', data: kvData, selected: f.kv ? [f.kv] : [], onSelect: n => toggle('kv', n) },
                 // "Khác" là nhóm gộp các khách hàng nhỏ, không lọc được
-                { title: 'Theo khách hàng', data: khData, selected: f.kh, onSelect: n => n !== OTHERS && toggle('kh', n) },
-                { title: 'Theo nhóm sản phẩm', data: plData, selected: f.pl, onSelect: n => toggle('pl', n) },
+                { title: 'Theo khách hàng', data: khData, selected: f.kh ? [f.kh] : [], onSelect: n => n !== OTHERS && toggle('kh', n) },
+                { title: 'Theo nhóm sản phẩm', data: plData, selected: f.pl ? [f.pl] : [], onSelect: n => toggle('pl', n) },
               ]}
             />
           </div>

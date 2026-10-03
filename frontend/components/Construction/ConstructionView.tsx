@@ -40,7 +40,8 @@ import {
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
 import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
 import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
-import { ProductionDonutPanel } from './../Dashboard/components/shared/ProductionDonutPanel';
+import { ProductionDonutPanel, type OrderMixSelection } from './../Dashboard/components/shared/ProductionDonutPanel';
+import { categoryValue, categoryOptions } from './../Dashboard/utils/filterMatch';
 // Id của view trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
 export type ConstructionViewId = 'luong-do' | 'can-mau';
 
@@ -327,11 +328,10 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
       if (!acc.has(name)) acc.set(name, { bot: new Set(), khachHang: new Set(), khuVuc: new Set() });
       const e = acc.get(name)!;
       const bot = clean(row['bot_du_an']);
-      const kh = clean(row['khach_hang']);
-      const kv = clean(row['khu_vuc_du_an']);
       if (bot) e.bot.add(bot);
-      if (kh) e.khachHang.add(kh);
-      if (kv) e.khuVuc.add(kv);
+      // Ô trống gom vào "(Chưa có)" — khớp với lát tương ứng trên biểu đồ "Cơ cấu đơn hàng"
+      e.khachHang.add(categoryValue(row['khach_hang']));
+      e.khuVuc.add(categoryValue(row['khu_vuc_du_an']));
     });
 
     const out: Record<string, ProjectMeta> = {};
@@ -430,6 +430,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     filteredProductionData,
     funnelProductionData,
     projectSummaryProductionData,
+    crossFilterBaseData,
     filteredMaterialData,
     displayedMaterialData,
     selectedMaterialGroups,
@@ -442,9 +443,27 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     xuongKey,
     tinhTrangKey,
     tinhTrangIpoKey,
+    phanLoaiKey: phanLoaiNhomSanPhamKey,
+    // productionData ở trên đã lọc Khách hàng/Khu vực; biểu đồ cơ cấu cần bản chưa lọc để lọc chéo
+    crossFilterSourceData: viewProductionData,
     matCongTrinhKey,
     matNhomVtKey,
   });
+
+  // Biểu đồ "Cơ cấu đơn hàng" đọc/ghi thẳng vào bộ lọc tổng: bấm 1 lát => cả trang lọc theo
+  const orderMixSelection = useMemo<OrderMixSelection>(
+    () => ({ kv: selKhuVuc, kh: selKhachHang, pl: filters.phanLoai }),
+    [selKhuVuc, selKhachHang, filters.phanLoai]
+  );
+  const setOrderMixSelection = (next: OrderMixSelection) => {
+    setSelKhuVuc(next.kv);
+    setSelKhachHang(next.kh);
+    setFilters(prev => ({ ...prev, phanLoai: next.pl }));
+  };
+  const phanLoaiOptions = useMemo(
+    () => categoryOptions(viewProductionData, phanLoaiNhomSanPhamKey),
+    [viewProductionData, phanLoaiNhomSanPhamKey]
+  );
 
   const {
     unifiedTimeFilters,
@@ -1096,6 +1115,14 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
                 onChange={setSelKhuVuc}
               />
             )}
+            {phanLoaiOptions.length > 0 && (
+              <DashboardFilter
+                label="Nhóm Sản Phẩm"
+                options={phanLoaiOptions}
+                selectedValues={filters.phanLoai}
+                onChange={(vals) => setFilters(prev => ({ ...prev, phanLoai: vals }))}
+              />
+            )}
             {congTrinhKey && (
               <DashboardFilter
                 label="Tên Công Trình"
@@ -1187,10 +1214,10 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
           onPivotValueClick={handleFunnelPivotValueClick}
           sideContent={
             <ProductionDonutPanel
-              data={productionData}
+              data={crossFilterBaseData}
               columns={productionColumns}
-              congTrinh={filters.congTrinh}
-              xuong={filters.xuong}
+              selection={orderMixSelection}
+              onSelectionChange={setOrderMixSelection}
             />
           }
         />
