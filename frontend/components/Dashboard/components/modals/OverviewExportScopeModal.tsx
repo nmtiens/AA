@@ -73,7 +73,7 @@ export const OverviewExportScopeModal = ({
             <div className="p-2 bg-white/20 rounded-lg"><Download size={22} className="text-white" /></div>
             <div>
               <h3 className="text-lg font-bold text-white uppercase tracking-wider">Tùy Chọn Phạm Vi Xuất</h3>
-              <p className="text-[10px] text-emerald-100 font-medium">Báo cáo tổng hợp 6 chỉ số</p>
+              <p className="text-[0.625rem] text-emerald-100 font-medium">Báo cáo tổng hợp 6 chỉ số</p>
             </div>
           </div>
           <button

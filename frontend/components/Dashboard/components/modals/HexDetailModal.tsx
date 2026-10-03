@@ -240,7 +240,7 @@ export const NoteContent = ({ text }: { text: string }) => {
                 <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
                   {block.date}
                 </span>
-                <span className="text-[11px] text-slate-400">Cuộn trong khung để xem hết</span>
+                <span className="text-[0.6875rem] text-slate-400">Cuộn trong khung để xem hết</span>
               </div>
             )}
 
@@ -927,15 +927,15 @@ export const HexDetailModal = ({
         ) : (
           <div className="space-y-0.5">
             <span
-              className={`block break-words text-[11px] font-medium ${
+              className={`block break-words text-[0.6875rem] font-medium ${
                 latest.isResolved ? 'text-emerald-700' : VUONG_MAC_TEXT_STYLE[category]
               }`}
             >
               {truncateText(latest.content, 40)}
             </span>
-            {latest.isResolved && <span className="block text-[10px] text-emerald-500">✓ Đã xử lý</span>}
+            {latest.isResolved && <span className="block text-[0.625rem] text-emerald-500">✓ Đã xử lý</span>}
             {total > 1 && (
-              <span className={`block text-[10px] ${openList.length > 0 ? 'text-red-400' : 'text-slate-400'}`}>
+              <span className={`block text-[0.625rem] ${openList.length > 0 ? 'text-red-400' : 'text-slate-400'}`}>
                 +{total - 1} khác
               </span>
             )}
@@ -1184,7 +1184,7 @@ export const HexDetailModal = ({
                                   idx < FIVE_M_ORDER.length - 1 ? 'border-r border-red-100' : ''
                                 }`}
                               >
-                                <span className="inline-flex flex-col items-center justify-center gap-0.5 text-[10.5px] normal-case leading-tight">
+                                <span className="inline-flex flex-col items-center justify-center gap-0.5 text-[0.6562rem] normal-case leading-tight">
                                   <span className="whitespace-normal break-words">
                                     {FIVE_M_VI[cat]} ({FIVE_M_SHORT[cat]})
                                   </span>

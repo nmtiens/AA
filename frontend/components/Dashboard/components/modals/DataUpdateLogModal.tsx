@@ -268,7 +268,7 @@ export const DataUpdateLogModal: React.FC<Props> = ({
                     <td className="px-3 py-2 font-medium text-slate-700 align-top">
                       {row.label}
                       {row.isManual && (
-                        <span className="ml-1.5 text-[10px] font-normal text-slate-400">(thủ công)</span>
+                        <span className="ml-1.5 text-[0.625rem] font-normal text-slate-400">(thủ công)</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-slate-600 align-top whitespace-nowrap">

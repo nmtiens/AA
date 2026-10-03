@@ -48,7 +48,7 @@ export const OrderExportScopeModal = ({
             </div>
             <div>
               <h3 className="text-lg font-bold text-white uppercase tracking-wider">Tùy Chọn Phạm Vi Xuất</h3>
-              <p className="text-[10px] text-pink-100 font-medium">Bước 1/2: Chọn phạm vi dữ liệu xuất</p>
+              <p className="text-[0.625rem] text-pink-100 font-medium">Bước 1/2: Chọn phạm vi dữ liệu xuất</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-full transition-all text-white/90 hover:text-white cursor-pointer">

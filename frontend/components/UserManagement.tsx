@@ -265,7 +265,7 @@ const UserManagement: React.FC = () => {
                         <div>
                           <div className="font-medium text-slate-800">{user.fullName}</div>
                           <div className="text-xs text-slate-500">@{user.username}</div>
-                          {user.msnv && <div className="text-[10px] text-slate-400 font-mono">ID: {user.msnv}</div>}
+                          {user.msnv && <div className="text-[0.625rem] text-slate-400 font-mono">ID: {user.msnv}</div>}
                         </div>
                       </div>
                     </td>
@@ -282,7 +282,7 @@ const UserManagement: React.FC = () => {
                           <Briefcase size={12} /> {user.department}
                         </div>
                       ) : <span className="text-slate-300 text-xs">-</span>}
-                      {user.note && <div className="text-[10px] text-slate-400 mt-1 max-w-[150px] truncate" title={user.note}>{user.note}</div>}
+                      {user.note && <div className="text-[0.625rem] text-slate-400 mt-1 max-w-[150px] truncate" title={user.note}>{user.note}</div>}
                     </td>
                     <td className="px-6 py-4">
                       {user.role === 'ADMIN' ? (
@@ -312,7 +312,7 @@ const UserManagement: React.FC = () => {
                               <span
                                 key={group.id}
                                 title={title}
-                                className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] border border-slate-200"
+                                className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[0.625rem] border border-slate-200"
                               >
                                 {group.label} ({count}/{group.items.length})
                               </span>
@@ -501,7 +501,7 @@ const UserManagement: React.FC = () => {
                                 ? <MinusSquare size={18} className="text-wood-500 shrink-0" />
                                 : <Square size={18} className="text-slate-300 shrink-0" />}
                             <span className="text-sm font-bold text-slate-700">{group.label}</span>
-                            <span className="ml-auto text-[10px] text-slate-400">{checkedCount}/{group.items.length}</span>
+                            <span className="ml-auto text-[0.625rem] text-slate-400">{checkedCount}/{group.items.length}</span>
                           </div>
 
                           {/* Mục nhỏ */}

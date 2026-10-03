@@ -1,5 +1,6 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
+import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
@@ -74,6 +75,9 @@ const App: React.FC = () => {
           {isMobileEntry ? (
             <MobileApp />
           ) : (
+            <>
+            {/* Điện thoại mở ở chế độ "Trang web cho máy tính" => nhắc cách sửa */}
+            <DesktopModeHint />
             <HashRouter>
               <Routes>
                 <Route path="/login" element={<Login />} />
@@ -122,6 +126,7 @@ const App: React.FC = () => {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </HashRouter>
+            </>
           )}
         </Suspense>
       </AuthProvider>
@@ -704,7 +709,7 @@ const MainLayout: React.FC = () => {
           key={item.key}
           to={item.path}
           onClick={closeMobileSidebar}
-          className={`flex items-center py-1.5 px-3 rounded-md text-[13px] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
+          className={`flex items-center py-1.5 px-3 rounded-md text-[0.8125rem] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
         >
           <span className="whitespace-nowrap overflow-hidden">{item.label}</span>
         </Link>
@@ -736,7 +741,7 @@ const MainLayout: React.FC = () => {
   ${isCollapsed ? 'md:w-20' : 'md:w-64'}
 `}>
         <div className={`h-14 flex items-center bg-white border-b border-slate-200 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
-          <div className={`flex items-center gap-2.5 font-semibold text-slate-900 text-[15px] tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
+          <div className={`flex items-center gap-2.5 font-semibold text-slate-900 text-[0.9375rem] tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
             <AppLogo />
             <span>Operations Hub</span>
           </div>
@@ -755,7 +760,7 @@ const MainLayout: React.FC = () => {
             </div>
             <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
               <div className="text-sm text-slate-900 font-medium truncate w-40">{user.fullName}</div>
-              <div className="text-[11px] text-slate-500">
+              <div className="text-[0.6875rem] text-slate-500">
                 {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
               </div>
             </div>
@@ -835,7 +840,7 @@ const MainLayout: React.FC = () => {
                     key={view.id}
                     to={view.path}
                     onClick={closeMobileSidebar}
-                    className={`flex items-center gap-2.5 py-1.5 px-3 rounded-md text-[13px] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
+                    className={`flex items-center gap-2.5 py-1.5 px-3 rounded-md text-[0.8125rem] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
                   >
                     <div className="shrink-0">{ICON_MAP_SM[view.iconName || 'Table']}</div>
                     <span className="whitespace-nowrap overflow-hidden">{view.label}</span>
@@ -924,7 +929,7 @@ const MainLayout: React.FC = () => {
             </button>
           )}
 
-          <div className={`text-[10px] text-slate-400 text-center transition-all duration-300 pt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
+          <div className={`text-[0.625rem] text-slate-400 text-center transition-all duration-300 pt-2 ${isCollapsed ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}>
             Đã kết nối ngầm ({lastUpdated ? lastUpdated.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '--:--'})
           </div>
 

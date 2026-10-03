@@ -31,14 +31,14 @@ export const PivotProjectSection = ({
         <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
           <button
             onClick={() => setExcludeFabrics(false)}
-            className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${!excludeFabrics ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+            className={`flex items-center gap-1.5 px-2 py-1 text-[0.625rem] font-bold uppercase rounded-md transition-all ${!excludeFabrics ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
             title="Hiển thị tất cả hạng mục"
           >
             <CheckCircle size={12} /> Đủ hạng mục
           </button>
           <button
             onClick={() => setExcludeFabrics(true)}
-            className={`flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${excludeFabrics ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+            className={`flex items-center gap-1.5 px-2 py-1 text-[0.625rem] font-bold uppercase rounded-md transition-all ${excludeFabrics ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
             title="Loại bỏ Vải, Gối khỏi thống kê"
           >
             <MinusCircle size={12} /> Trừ Vải/Gối

@@ -183,7 +183,7 @@ export const FactoryRevenueSection = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
           {/* Cột trái: thanh tiến độ (nhãn nằm trong khung) */}
           <div className="lg:col-span-1 relative">
-            <p className="absolute top-2.5 left-3 z-10 text-[11px] font-medium tracking-wide text-slate-500">
+            <p className="absolute top-2.5 left-3 z-10 text-[0.6875rem] font-medium tracking-wide text-slate-500">
               Tiến độ tổng thể (Tỷ)
             </p>
             <div ref={chartWrapperRef} className="h-[104px] w-full bg-slate-50 rounded-xl border border-slate-200 px-2">
@@ -275,7 +275,7 @@ export const FactoryRevenueSection = ({
                 <span className="text-xs font-medium text-blue-500">Tỷ</span>
               </span>
               {onActualClick && (
-                <span className="absolute top-2 right-3 inline-flex items-center gap-1 text-[10px] font-medium text-blue-500 opacity-70 group-hover:opacity-100">
+                <span className="absolute top-2 right-3 inline-flex items-center gap-1 text-[0.625rem] font-medium text-blue-500 opacity-70 group-hover:opacity-100">
                   <Eye size={12} /> Chi tiết
                 </span>
               )}

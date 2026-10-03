@@ -530,12 +530,12 @@ const handleContinueToOrderColumnStep = () => {
       {/* Sticky Header & Filters */}
       <div className="sticky top-0 z-40 bg-wood-50/90 backdrop-blur border-b border-slate-200 px-4 py-3">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div>
+          <div className="flex items-center gap-4 w-full min-w-0 md:w-auto">
+            <div className="shrink-0">
               <h2 className="page-title">Tổng quan</h2>
             </div>
-            {/* Anchor Buttons */}
-            <div className="flex gap-2">
+            {/* Anchor Buttons — màn hẹp: 1 hàng, vuốt ngang (không đẩy trang rộng ra) */}
+            <div className="flex min-w-0 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:shrink-0 [&>button]:whitespace-nowrap">
               <button onClick={() => scrollToRef(factoryRevenueRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Doanh số nhà máy">
                 <Target size={14} className="text-slate-400" /> Doanh số
               </button>
@@ -557,7 +557,7 @@ const handleContinueToOrderColumnStep = () => {
           {/* Dashboard Filters */}
           <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
             <div className="flex items-center gap-2 mr-1 text-slate-500">
-              <Filter size={14} /> <span className="text-[10px] uppercase font-bold">Bộ lọc tổng:</span>
+              <Filter size={14} /> <span className="text-[0.625rem] uppercase font-bold">Bộ lọc tổng:</span>
             </div>
                         {khachHangKey && (
               <DashboardFilter

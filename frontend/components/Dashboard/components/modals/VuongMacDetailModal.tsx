@@ -437,7 +437,7 @@ export const VuongMacDetailModal = ({
     ? `Chỉ phòng ban ${deptNames} mới được thêm, sửa, xóa vướng mắc ở mục này`
     : 'Bạn không thuộc phòng ban được thao tác ở mục này';
   const lockedHint = (
-    <span title="Chỉ thành viên cùng phòng ban mới thao tác được" className="flex items-center gap-1 text-[11px] text-slate-400">
+    <span title="Chỉ thành viên cùng phòng ban mới thao tác được" className="flex items-center gap-1 text-[0.6875rem] text-slate-400">
       <Lock size={12} /> Chỉ xem
     </span>
   );
@@ -464,7 +464,7 @@ export const VuongMacDetailModal = ({
     ) : lockedHint;
 
   const statusPill = (done: boolean) => (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium ${done ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${done ? 'bg-emerald-500' : 'bg-red-500'}`} />
       {done ? 'Đã xử lý' : 'Đang tồn đọng'}
     </span>
@@ -488,7 +488,7 @@ export const VuongMacDetailModal = ({
             min={start || undefined} value={end} onChange={e => onEnd(e.target.value)} />
         </label>
       </div>
-      {invalid && <p className="text-[11px] text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+      {invalid && <p className="text-[0.6875rem] text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
     </div>
   );
 
@@ -613,7 +613,7 @@ export const VuongMacDetailModal = ({
               <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{badgeLabel}</span>
             </div>
             <p className="mt-0.5 truncate text-xs text-slate-500">{hexLabel}</p>
-            <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-medium">
+            <div className="mt-2 flex flex-wrap gap-2 text-[0.6875rem] font-medium">
               <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-red-600 ring-1 ring-red-100">{openCount} tồn đọng</span>
               <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-emerald-700 ring-1 ring-emerald-100">{doneCount} đã xử lý</span>
             </div>
@@ -688,7 +688,7 @@ export const VuongMacDetailModal = ({
               {timeline.map((entry, idx) => {
                 const showDay = idx === 0 || dayLabel(timeline[idx - 1].at) !== dayLabel(entry.at);
                 const dayDivider = showDay && (
-                  <div className="flex items-center gap-3 py-1 text-[11px] font-medium text-slate-400">
+                  <div className="flex items-center gap-3 py-1 text-[0.6875rem] font-medium text-slate-400">
                     <span className="h-px flex-1 bg-slate-200" />
                     {dayLabel(entry.at)}
                     <span className="h-px flex-1 bg-slate-200" />
@@ -741,9 +741,9 @@ export const VuongMacDetailModal = ({
                       className={`flex flex-col transition-opacity ${mine ? 'items-end' : 'items-start'} ${dim ? 'opacity-40' : ''}`}
                     >
                       {/* Người gửi + thời gian: nằm NGOÀI, phía trên bong bóng */}
-                      <div className="mb-1 flex items-center gap-1.5 px-1 text-[11px] text-slate-500">
+                      <div className="mb-1 flex items-center gap-1.5 px-1 text-[0.6875rem] text-slate-500">
                         {!mine && (
-                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[10px] font-semibold text-slate-600">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[0.625rem] font-semibold text-slate-600">
                             {initialOf(v.createdBy)}
                           </span>
                         )}
@@ -780,7 +780,7 @@ export const VuongMacDetailModal = ({
                         )}
 
                         {(v.handler || v.bot || v.solution || v.note || extCount > 0) && (
-                          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-[0.6875rem]">
                             {v.handler && (
                               <span className="rounded-full bg-white/80 px-2 py-0.5 text-slate-500 ring-1 ring-black/5">
                                 Xử lý: <span className="font-medium text-slate-800">{highlight(v.handler, q, isActive)}</span>
@@ -809,7 +809,7 @@ export const VuongMacDetailModal = ({
                           </div>
                         )}
                         {noteMatched && (
-                          <p className="mt-1.5 whitespace-pre-wrap break-words text-[11px] text-slate-600">
+                          <p className="mt-1.5 whitespace-pre-wrap break-words text-[0.6875rem] text-slate-600">
                             Ghi chú: {highlight(v.note!, q, isActive)}
                           </p>
                         )}
@@ -860,7 +860,7 @@ export const VuongMacDetailModal = ({
                   {STEPS.map((s, i) => (
                     <React.Fragment key={s}>
                       <li className={`flex items-center gap-1.5 text-xs ${i === step ? 'font-bold text-red-700' : i < step ? 'text-emerald-700' : 'text-slate-400'}`}>
-                        <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[11px] ${i === step ? 'border-red-500 bg-red-50' : i < step ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-white'}`}>
+                        <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[0.6875rem] ${i === step ? 'border-red-500 bg-red-50' : i < step ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 bg-white'}`}>
                           {i < step ? '✓' : i + 1}
                         </span>
                         <span className="hidden sm:inline">{s}</span>
@@ -956,7 +956,7 @@ export const VuongMacDetailModal = ({
                   <p className="text-xs font-semibold text-emerald-700">Nội dung đã xử lý</p>
                   <p className="mt-1 whitespace-pre-wrap break-words text-sm text-emerald-900">{detail.resolvedNote}</p>
                   {(detail.resolvedBy || detail.resolvedAt) && (
-                    <p className="mt-1.5 text-[11px] text-emerald-700/70">
+                    <p className="mt-1.5 text-[0.6875rem] text-emerald-700/70">
                       {[whoLabel(detail.resolvedBy), detail.resolvedAt ? fmtFull(detail.resolvedAt) : ''].filter(Boolean).join(' · ')}
                     </p>
                   )}
@@ -974,7 +974,7 @@ export const VuongMacDetailModal = ({
                         BOT: <span className="text-slate-400">{ex.oldBot || '—'}</span> → <span className="font-medium text-slate-700">{ex.bot}</span>
                       </p>
                       {ex.note && <p className="mt-0.5 whitespace-pre-wrap break-words text-xs text-slate-500">Ghi chú: {ex.note}</p>}
-                      <p className="mt-1 text-[11px] text-slate-400">{whoLabel(ex.createdBy)} · {fmtFull(ex.createdAt)}</p>
+                      <p className="mt-1 text-[0.6875rem] text-slate-400">{whoLabel(ex.createdBy)} · {fmtFull(ex.createdAt)}</p>
                     </div>
                   ))}
                 </div>
@@ -996,7 +996,7 @@ export const VuongMacDetailModal = ({
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-3">
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-semibold text-slate-800">Chi tiết vướng mắc</h4>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-500">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-0.5 text-[0.6875rem] font-medium text-slate-500">
                   <Trash2 size={11} /> Đã xóa
                 </span>
               </div>

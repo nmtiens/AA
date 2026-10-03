@@ -339,18 +339,18 @@ const periodLabel = overviewDateFilters.length > 1
             </h3>
             <p className="text-xs font-medium text-slate-500 mt-1">{getContextLabel()}</p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-slate-400">
+              <span className="text-[0.625rem] text-slate-400">
                 Dữ liệu từ nguồn Đơn hàng tổng & TKBV & PTHSP & Nhập Kho
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
+          <div className="flex max-w-full flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">CHẾ ĐỘ HIỂN THỊ:</span>
+              <span className="text-[0.625rem] font-bold text-slate-500 uppercase">CHẾ ĐỘ HIỂN THỊ:</span>
               <div className="flex items-center bg-white p-0.5 rounded border border-slate-200 shadow-sm mt-0.5">
                 <button
                   onClick={() => setOverviewMetric('COUNT')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-sm transition-all ${
+                  className={`px-2 py-0.5 text-[0.625rem] font-bold rounded-sm transition-all ${
                     overviewMetric === 'COUNT' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -359,7 +359,7 @@ const periodLabel = overviewDateFilters.length > 1
                 <div className="w-px h-2.5 bg-slate-200 mx-0.5"></div>
                 <button
                   onClick={() => setOverviewMetric('SUM')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-sm transition-all ${
+                  className={`px-2 py-0.5 text-[0.625rem] font-bold rounded-sm transition-all ${
                     overviewMetric === 'SUM' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -369,9 +369,9 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
             <div className="w-px h-8 bg-slate-200 mx-1"></div>
             <div className="flex flex-col items-end">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">BỘ LỌC NGÀY CHUNG (ALL):</span>
+              <span className="text-[0.625rem] font-bold text-slate-500 uppercase">BỘ LỌC NGÀY CHUNG (ALL):</span>
               {overviewDateRangeDisplay && (
-                <span className="text-[10px] text-indigo-600 font-semibold">{overviewDateRangeDisplay}</span>
+                <span className="text-[0.625rem] text-indigo-600 font-semibold">{overviewDateRangeDisplay}</span>
               )}
             </div>
             <DashboardFilter
@@ -429,7 +429,7 @@ const periodLabel = overviewDateFilters.length > 1
                 <p className="text-sm font-bold text-pink-800 opacity-80 uppercase tracking-wide">1. Đơn hàng mới (P001)</p>
               </div>
               <div className="z-10 flex flex-col items-start">
-                <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider opacity-70 mb-1 block">
+                <span className="text-[0.625rem] font-bold text-pink-500 uppercase tracking-wider opacity-70 mb-1 block">
                   Trong ngày
                 </span>
                 <div className="flex items-baseline gap-2">
@@ -490,7 +490,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </p>
               </div>
               <div className="z-10 flex flex-col items-start">
-                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider opacity-70 mb-1 block">
+                <span className="text-[0.625rem] font-bold text-blue-500 uppercase tracking-wider opacity-70 mb-1 block">
                   Trong ngày
                 </span>
                 <div className="flex items-baseline gap-2">
@@ -551,7 +551,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </p>
               </div>
               <div className="z-10 flex flex-col items-start">
-                <span className="text-[10px] font-bold text-purple-500 uppercase tracking-wider opacity-70 mb-1 block">
+                <span className="text-[0.625rem] font-bold text-purple-500 uppercase tracking-wider opacity-70 mb-1 block">
                   Trong ngày
                 </span>
                 <div className="flex items-baseline gap-2">
@@ -610,7 +610,7 @@ const periodLabel = overviewDateFilters.length > 1
                 <p className="text-sm font-bold text-teal-800 opacity-80 uppercase tracking-wide">4. Nhập kho (P022)</p>
               </div>
               <div className="z-10 flex flex-col items-start">
-                <span className="text-[10px] font-bold text-teal-500 uppercase tracking-wider opacity-70 mb-1 block">
+                <span className="text-[0.625rem] font-bold text-teal-500 uppercase tracking-wider opacity-70 mb-1 block">
                   Trong ngày
                 </span>
                 <div className="flex items-baseline gap-2">
@@ -671,7 +671,7 @@ const periodLabel = overviewDateFilters.length > 1
                 <p className="text-sm font-bold text-amber-800 opacity-80 uppercase tracking-wide">5. Xuất kho (P025)</p>
               </div>
               <div className="z-10 flex flex-col items-start">
-                <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider opacity-70 mb-1 block">
+                <span className="text-[0.625rem] font-bold text-amber-500 uppercase tracking-wider opacity-70 mb-1 block">
                   Trong ngày
                 </span>
                 <div className="flex items-baseline gap-2">
@@ -730,7 +730,7 @@ const periodLabel = overviewDateFilters.length > 1
                 <p className="text-sm font-bold text-slate-800 opacity-80 uppercase tracking-wide">6. Tồn kho</p>
               </div>
               <div className="z-10 flex flex-col items-start">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider opacity-70 mb-1 block">
+                <span className="text-[0.625rem] font-bold text-slate-500 uppercase tracking-wider opacity-70 mb-1 block">
                   Dữ liệu ngày:{' '}
                   {closestStockDate
                     ? `${closestStockDate.getDate().toString().padStart(2, '0')}/${(closestStockDate.getMonth() + 1)
@@ -751,7 +751,7 @@ const periodLabel = overviewDateFilters.length > 1
               </div>
               <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
                 <div className="flex justify-between items-center gap-2">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase leading-tight">
+                  <span className="text-[0.625rem] font-bold text-slate-600 uppercase leading-tight">
                     Giá trị tồn mới nhất (
                     {latestStockStats.date
                       ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1)
@@ -767,7 +767,7 @@ const periodLabel = overviewDateFilters.length > 1
                   </span>
                 </div>
                 <div className="flex justify-between items-center gap-2 mt-2">
-                  <span className="text-[9px] font-bold text-slate-500 uppercase leading-tight">
+                  <span className="text-[0.5625rem] font-bold text-slate-500 uppercase leading-tight">
                     Giá trị tồn mới nhất của tháng {latestUnifiedDate?.getMonth()} (
                     {latestStockStatsPrevMonth.date
                       ? `${latestStockStatsPrevMonth.date.getDate().toString().padStart(2, '0')}/${(

@@ -27,8 +27,17 @@
   .card { @apply bg-white border border-slate-200 rounded-xl shadow-sm; }
   .page-title { @apply text-lg font-semibold tracking-tight text-slate-900; }
   .section-title { @apply text-sm font-semibold text-slate-700; }
-  .kpi-label { @apply text-[11px] font-medium tracking-wide text-slate-500; }
+  .kpi-label { @apply text-[0.6875rem] font-medium tracking-wide text-slate-500; }
   .kpi-value { @apply text-xl font-semibold tabular-nums text-slate-900; }
+}
+
+/* Màn nhỏ (điện thoại / máy tính bảng dọc): cỡ chữ gốc lớn hơn một chút — cỡ chữ dùng rem nên
+   cả trang to theo; và không cho trang tràn ngang (tràn ngang làm trình duyệt điện thoại tự thu nhỏ
+   cả trang => chữ li ti). Bảng rộng vẫn cuộn ngang bên trong khung của nó.
+   App điện thoại (/m/) tự đặt cỡ chữ gốc bằng style riêng nên không bị ảnh hưởng. */
+@media (max-width: 767px) {
+  html { font-size: 17px; }
+  html, body { overflow-x: hidden; }
 }
 
 /* Thanh cuộn mảnh, nền trong suốt */

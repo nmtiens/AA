@@ -47,7 +47,7 @@ export const ProductionExportModal = ({
             </div>
             <div>
               <h3 className="text-xl font-bold text-white uppercase tracking-wider">Xuất Dữ Liệu Sản Xuất</h3>
-              <p className="text-[10px] text-wood-100 font-medium">Chọn các cột cần xuất ra file Excel (.xlsx)</p>
+              <p className="text-[0.625rem] text-wood-100 font-medium">Chọn các cột cần xuất ra file Excel (.xlsx)</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all text-white/90 hover:text-white">

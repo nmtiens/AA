@@ -223,7 +223,7 @@ const NoteContent = ({ text }: { text: string }) => {
                 <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
                   {block.date}
                 </span>
-                <span className="text-[11px] text-slate-400">Cuộn trong khung để xem hết</span>
+                <span className="text-[0.6875rem] text-slate-400">Cuộn trong khung để xem hết</span>
               </div>
             )}
             <div

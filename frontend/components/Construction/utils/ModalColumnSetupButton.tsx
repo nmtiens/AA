@@ -209,7 +209,7 @@ export const ModalColumnSetupButton: React.FC<Props> = ({
             })}
             {hiddenCols.length > 0 && (
               <>
-                <div className="mt-2 border-t border-slate-100 pt-2 text-[11px] font-semibold text-slate-400">Cột đang ẩn</div>
+                <div className="mt-2 border-t border-slate-100 pt-2 text-[0.6875rem] font-semibold text-slate-400">Cột đang ẩn</div>
                 {hiddenCols.map((c) => (
                   <label key={c.key} className="flex cursor-pointer items-center gap-2 px-2 py-1.5 hover:bg-slate-50">
                     <input type="checkbox" checked={false} onChange={() => toggle(c.key)} className="h-3.5 w-3.5" />
@@ -220,7 +220,7 @@ export const ModalColumnSetupButton: React.FC<Props> = ({
             )}
           </div>
           <div className="space-y-1.5 border-t border-slate-100 p-2">
-            <p className="px-1 text-[11px] text-slate-400">
+            <p className="px-1 text-[0.6875rem] text-slate-400">
               {frozenTotal > 0 ? `Đang ghim ${frozenTotal} cột đầu tiên.` : 'Không ghim cột nào.'}
             </p>
             <button

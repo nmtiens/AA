@@ -50,7 +50,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 hidden sm:inline-block">
+            <span className="text-[0.625rem] font-bold text-slate-500 uppercase tracking-wider px-2 hidden sm:inline-block">
               CHẾ ĐỘ XEM:
             </span>
             <button
@@ -192,12 +192,12 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                     </span>
                     <div>
                       <p className="text-xs font-bold text-slate-700">{item.name}</p>
-                      <p className="text-[10px] text-red-500 font-medium">Tồn đọng lâu</p>
+                      <p className="text-[0.625rem] text-red-500 font-medium">Tồn đọng lâu</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-lg font-bold text-red-600 block leading-none">{item.count}</span>
-                    <span className="text-[9px] text-slate-400 uppercase">items</span>
+                    <span className="text-[0.5625rem] text-slate-400 uppercase">items</span>
                   </div>
                 </div>
               ))}

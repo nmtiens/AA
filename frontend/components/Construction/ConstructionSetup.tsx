@@ -295,7 +295,7 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
               >
                 <ListFilter size={16} />
                 Chọn công trình
-                <span className="px-1.5 py-0.5 rounded bg-wood-600 text-white text-[11px] font-bold">
+                <span className="px-1.5 py-0.5 rounded bg-wood-600 text-white text-[0.6875rem] font-bold">
                   {selectedProjects.length}
                 </span>
                 <ChevronDown size={14} className={`transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />

@@ -407,7 +407,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                             </ScatterChart>
                         </ResponsiveContainer>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-2 text-center italic">
+                    <p className="text-[0.625rem] text-slate-400 mt-2 text-center italic">
                         *Bóng to = Tỉ lệ Tăng ca cao &bull; Màu nóng (Cam/Đỏ) = Năng suất giờ cao
                     </p>
                 </div>

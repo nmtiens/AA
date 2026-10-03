@@ -77,11 +77,11 @@ export const OrderExportColumnModal = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-bold text-white uppercase tracking-wider">Chọn Cột Xuất Dữ Liệu</h3>
-                <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full border border-white/30">
+                <span className="text-[0.625rem] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full border border-white/30">
                   {orderExportScope === 'FILTERED' ? 'Theo bộ lọc ngày' : orderExportScope === 'MTD' ? 'Lũy kế tháng' : 'Toàn bộ'}
                 </span>
               </div>
-              <p className="text-[10px] text-pink-100 font-medium">Bước 2/2: Chọn các cột cần xuất ra file CSV (.csv)</p>
+              <p className="text-[0.625rem] text-pink-100 font-medium">Bước 2/2: Chọn các cột cần xuất ra file CSV (.csv)</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all text-white/90 hover:text-white cursor-pointer">

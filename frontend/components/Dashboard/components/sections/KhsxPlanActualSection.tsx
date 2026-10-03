@@ -166,7 +166,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
           <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
             <div className="flex items-center gap-2 mr-2">
               <Filter size={14} className="text-slate-500" />
-              <span className="text-[10px] font-bold text-slate-500 uppercase">BỘ LỌC THỜI GIAN CHUNG:</span>
+              <span className="text-[0.625rem] font-bold text-slate-500 uppercase">BỘ LỌC THỜI GIAN CHUNG:</span>
             </div>
 
             <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
@@ -176,7 +176,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   setViewMode('YEAR');
                   setUnifiedTimeFilters((prev) => ({ ...prev, thang: [], tuan: [], ngay: [] }));
                 }}
-                className={`px-3 py-1 text-[10px] font-bold rounded ${
+                className={`px-3 py-1 text-[0.625rem] font-bold rounded ${
                   viewMode === 'YEAR' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
@@ -187,7 +187,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   setViewMode('MONTH');
                   setUnifiedTimeFilters((prev) => ({ ...prev, tuan: [], ngay: [] }));
                 }}
-                className={`px-3 py-1 text-[10px] font-bold rounded ${
+                className={`px-3 py-1 text-[0.625rem] font-bold rounded ${
                   viewMode === 'MONTH' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
@@ -203,7 +203,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                     return prev;
                   });
                 }}
-                className={`px-3 py-1 text-[10px] font-bold rounded ${
+                className={`px-3 py-1 text-[0.625rem] font-bold rounded ${
                   viewMode === 'WEEK' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
@@ -329,7 +329,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                 <h4 className="text-2xl lg:text-3xl font-bold text-orange-600 tracking-tight">
                   {formatDecimal(totalKhsxAmount)}
                 </h4>
-                <div className="mt-1 text-[10px] text-orange-800/60 italic">
+                <div className="mt-1 text-[0.625rem] text-orange-800/60 italic">
                   {`Chế độ xem: ${viewMode === 'MONTH' ? 'Theo Tháng' : 'Theo Tuần'}`}
                 </div>
               </div>
@@ -542,7 +542,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                                 <td className="px-4 py-3 font-bold text-slate-800">{formatDecimal(item.actualWeek)}</td>
                                 <td className="px-4 py-3">
                                   <span
-                                    className={`px-2 py-1 rounded font-bold text-[10px] inline-block w-16 text-center ${
+                                    className={`px-2 py-1 rounded font-bold text-[0.625rem] inline-block w-16 text-center ${
                                       percent >= 80
                                         ? 'bg-green-100 text-green-700'
                                         : percent >= 50
@@ -791,7 +791,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <td className="px-4 py-3 font-bold text-slate-800">{formatDecimal(item.actualWeek)}</td>
                           <td className="px-4 py-3">
                             <span
-                              className={`px-2 py-1 rounded font-bold text-[10px] inline-block w-16 text-center ${
+                              className={`px-2 py-1 rounded font-bold text-[0.625rem] inline-block w-16 text-center ${
                                 percent >= 80
                                   ? 'bg-green-100 text-green-700'
                                   : percent >= 50

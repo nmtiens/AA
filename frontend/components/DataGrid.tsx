@@ -93,7 +93,7 @@ const ExcelColumnFilter = ({
         className={`flex items-center justify-between w-full min-w-[160px] max-w-[200px] px-3 py-2 text-sm border rounded-lg bg-white hover:bg-slate-50 transition-colors ${activeCount > 0 ? 'border-wood-500 ring-1 ring-wood-200' : 'border-slate-200'}`}
       >
         <div className="flex flex-col items-start truncate mr-2">
-          <span className="text-[9px] text-black font-bold uppercase tracking-wider">{label}</span>
+          <span className="text-[0.5625rem] text-black font-bold uppercase tracking-wider">{label}</span>
           <span className="truncate font-medium text-slate-700 w-full text-left">
             {activeCount === 0 ? 'Tất cả' : `${activeCount} đã chọn`}
           </span>
@@ -532,7 +532,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                   <h4 className="font-bold text-sm text-slate-700">Hiển thị cột</h4>
                   <button
                     onClick={applyDefaultView}
-                    className="text-[10px] text-blue-600 hover:underline font-medium"
+                    className="text-[0.625rem] text-blue-600 hover:underline font-medium"
                   >
                     Mặc định
                   </button>
@@ -628,7 +628,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                     <td key={col.key} className="px-4 py-2 min-w-[120px]">
                       <div className="flex flex-col gap-1 w-full">
                         <select
-                          className="text-[10px] uppercase font-bold text-slate-500 bg-transparent border-none focus:ring-0 cursor-pointer p-0 w-full hover:text-wood-600 transition-colors"
+                          className="text-[0.625rem] uppercase font-bold text-slate-500 bg-transparent border-none focus:ring-0 cursor-pointer p-0 w-full hover:text-wood-600 transition-colors"
                           value={type}
                           onChange={(e) => setAggregationSettings(prev => ({ ...prev, [col.key]: e.target.value as AggregationType }))}
                         >

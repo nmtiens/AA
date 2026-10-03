@@ -64,11 +64,11 @@ const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = fal
   label: string; value: string; unit?: string; sub?: string; tone?: string; active?: boolean;
 }) => (
   <div className={`rounded-lg border px-3 py-2 ${active ? 'border-slate-900 bg-white ring-1 ring-slate-900' : 'border-slate-200 bg-slate-50'}`}>
-    <p className="text-[11px] text-slate-500">{label}</p>
+    <p className="text-[0.6875rem] text-slate-500">{label}</p>
     <p className={`text-xl font-semibold tabular-nums ${tone}`}>
       {value}{unit && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
     </p>
-    {sub && <p className="text-[10px] tabular-nums text-slate-400">{sub}</p>}
+    {sub && <p className="text-[0.625rem] tabular-nums text-slate-400">{sub}</p>}
   </div>
 );
 
@@ -382,7 +382,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       title="Bấm để xem chi tiết"
       className={`${cardCls} group px-4 py-3 text-left transition hover:border-slate-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}
     >
-      <p className="flex items-center justify-between text-[11px] font-medium tracking-wide text-slate-500">
+      <p className="flex items-center justify-between text-[0.6875rem] font-medium tracking-wide text-slate-500">
         {label}
         <ChevronRight size={13} className="text-slate-300 group-hover:text-slate-600" />
       </p>
@@ -450,12 +450,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               <button
                 key={k}
                 onClick={() => setKey(k, '')}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-white text-[11px] px-2.5 py-1 hover:bg-slate-700"
+                className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-white text-[0.6875rem] px-2.5 py-1 hover:bg-slate-700"
               >
                 {FILTER_LABEL[k]}: {display(k, f[k]!)} <X size={11} />
               </button>
             ))}
-            <button onClick={() => setF({})} className="text-[11px] text-slate-500 hover:text-slate-900 underline ml-1">
+            <button onClick={() => setF({})} className="text-[0.6875rem] text-slate-500 hover:text-slate-900 underline ml-1">
               Xóa tất cả bộ lọc
             </button>
           </div>
@@ -488,7 +488,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <div className={`${cardCls} p-4`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn giao (Tỷ)</p>
-                <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                <div className="flex items-center gap-3 text-[0.6875rem] text-slate-500">
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã hoàn thành</span>
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Còn SX</span>
                 </div>
@@ -674,11 +674,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <>
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
               <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{detail.eyebrow}</p>
+                <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">{detail.eyebrow}</p>
                 <h3 id="detail-title" className="text-lg font-semibold text-slate-900 truncate">{detail.title}</h3>
-                {detail.note && <p className="text-[11px] text-slate-500 mt-0.5">{detail.note}</p>}
+                {detail.note && <p className="text-[0.6875rem] text-slate-500 mt-0.5">{detail.note}</p>}
                 {filterSummary(detail.exclude) && (
-                  <p className="text-[11px] text-slate-500 mt-0.5">Theo bộ lọc: {filterSummary(detail.exclude)}</p>
+                  <p className="text-[0.6875rem] text-slate-500 mt-0.5">Theo bộ lọc: {filterSummary(detail.exclude)}</p>
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">

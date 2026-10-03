@@ -17,7 +17,7 @@ export const CompactStatCard = ({
 }) => (
   <div className={`${bg} rounded-lg p-3 border ${borderColor} flex flex-col justify-between h-full`}>
     <div className="flex justify-between items-start mb-2">
-      <span className={`text-[11px] font-medium ${textColor} opacity-80 tracking-wide`}>{title}</span>
+      <span className={`text-[0.6875rem] font-medium ${textColor} opacity-80 tracking-wide`}>{title}</span>
       {icon}
     </div>
     <div className={`font-semibold tabular-nums ${isParent ? 'text-xl' : 'text-lg'} ${textColor}`}>

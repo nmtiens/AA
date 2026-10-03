@@ -220,7 +220,7 @@ useEffect(() => {
                               </label>
                             )) : <div className="p-2 text-xs text-slate-400 text-center">Không tìm thấy</div>}
                           </div>
-                          <div className="p-2 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-between items-center text-[10px] text-slate-500">
+                          <div className="p-2 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-between items-center text-[0.625rem] text-slate-500">
                             <span>{selectedKeys.size} đã chọn</span>
                             <button onClick={() => setIsFilterOpen(false)} className="text-wood-600 font-bold hover:underline">Đóng</button>
                           </div>

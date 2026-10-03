@@ -129,7 +129,7 @@ export const GenericExportScopeModal = ({
             <div className="p-2 bg-white/20 rounded-lg"><Download size={22} className="text-white" /></div>
             <div>
               <h3 className="text-lg font-bold text-white uppercase tracking-wider">Tùy Chọn Phạm Vi Xuất</h3>
-              <p className="text-[10px] text-indigo-100 font-medium">Bước 1/2: {config.title}</p>
+              <p className="text-[0.625rem] text-indigo-100 font-medium">Bước 1/2: {config.title}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-full transition-all text-white/90 hover:text-white cursor-pointer">
@@ -190,7 +190,7 @@ export const GenericExportScopeModal = ({
                       </div>
 
                       <div className="flex justify-between items-center px-3 py-2 bg-slate-50 border-b border-slate-200">
-                        <span className="text-[11px] font-bold text-slate-500 uppercase">
+                        <span className="text-[0.6875rem] font-bold text-slate-500 uppercase">
                           {stockDateSearch
                             ? `${filteredStockDates.length}/${stockDates.length} mốc khớp`
                             : `${stockDates.length} mốc khả dụng`}
@@ -201,7 +201,7 @@ export const GenericExportScopeModal = ({
                             e.stopPropagation();
                             stockDateSearch ? toggleSelectAllFiltered() : toggleSelectAllStockDates();
                           }}
-                          className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                          className="text-[0.6875rem] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                         >
                           {(stockDateSearch ? allFilteredSelected : allStockDatesSelected)
                             ? <CheckSquare size={13} />
@@ -238,7 +238,7 @@ export const GenericExportScopeModal = ({
                                     {formatDisplayDate(sd.date)}
                                   </span>
                                 </span>
-                                <span className="text-[11px] text-slate-400">
+                                <span className="text-[0.6875rem] text-slate-400">
                                   {sd.count.toLocaleString('en-US')} mã
                                 </span>
                               </label>

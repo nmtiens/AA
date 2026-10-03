@@ -1097,7 +1097,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
           {/* Dashboard Filters */}
           <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
             <div className="flex items-center gap-2 mr-1 text-slate-500">
-              <Filter size={14} /> <span className="text-[10px] uppercase font-bold">Bộ lọc tổng:</span>
+              <Filter size={14} /> <span className="text-[0.625rem] uppercase font-bold">Bộ lọc tổng:</span>
             </div>
                {khachHangOptions.length > 0 && (
               <DashboardFilter

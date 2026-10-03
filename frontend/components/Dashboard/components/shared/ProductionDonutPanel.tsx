@@ -162,7 +162,7 @@ const MixTooltip: React.FC<{ active?: boolean; payload?: any[]; sum: number; met
         <dt className="text-slate-500">Hạng mục</dt><dd className="text-right text-slate-800">{fmtInt(d.items)}</dd>
         <dt className="text-slate-500">Giá trị</dt><dd className="text-right text-slate-800">{fmtTy(d.totalTy)} Tỷ</dd>
       </dl>
-      {d.name !== OTHERS && <p className="mt-1.5 text-[10px] text-slate-400">Bấm để lọc cả trang</p>}
+      {d.name !== OTHERS && <p className="mt-1.5 text-[0.625rem] text-slate-400">Bấm để lọc cả trang</p>}
     </div>
   );
 };
@@ -230,7 +230,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
               <span className={`${large ? 'text-base' : 'text-xs'} font-semibold tabular-nums text-slate-900 leading-tight`}>
                 {fmtMetric(picked.length ? pickedSum : sum, metric)}
               </span>
-              <span className="text-[10px] text-slate-500 leading-tight">
+              <span className="text-[0.625rem] text-slate-500 leading-tight">
                 {picked.length
                   ? `đã chọn · ${((pickedSum / (sum || 1)) * 100).toFixed(1)}%`
                   : metric === 'count' ? 'hạng mục' : 'tổng giá trị'}
@@ -246,7 +246,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                   type="button"
                   onClick={() => onSelect(d.name)}
                   title={`${d.name}: ${fmtInt(d.cts.size)} công trình · ${fmtInt(d.items)} hạng mục · ${fmtTy(d.totalTy)} Tỷ`}
-                  className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left ${large ? 'text-xs' : 'text-[11px]'} hover:bg-slate-50 ${selected.includes(d.name) ? 'bg-slate-100 font-semibold' : ''} ${isPicked(d.name) ? '' : 'opacity-50'} ${d.name === OTHERS ? 'cursor-default' : ''}`}
+                  className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left ${large ? 'text-xs' : 'text-[0.6875rem]'} hover:bg-slate-50 ${selected.includes(d.name) ? 'bg-slate-100 font-semibold' : ''} ${isPicked(d.name) ? '' : 'opacity-50'} ${d.name === OTHERS ? 'cursor-default' : ''}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: colorOf(d.name, i) }} />
                   <span className="truncate flex-1 text-slate-700">{d.name}</span>
@@ -455,7 +455,7 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
       {/* Dải tóm tắt phạm vi đang chọn — đổi ngay khi bấm vào lát */}
       {summary && (
         <div className={`mb-4 rounded-lg border px-3 py-2.5 ${picked.length ? 'border-blue-200 bg-blue-50/60' : 'border-slate-200 bg-slate-50'}`}>
-          <p className="text-[11px] text-slate-500 truncate" title={picked.join(' · ')}>
+          <p className="text-[0.6875rem] text-slate-500 truncate" title={picked.join(' · ')}>
             {picked.length
               ? <>Đang chọn: <span className="font-semibold text-slate-800">{picked.join(' · ')}</span></>
               : 'Tất cả (bấm vào biểu đồ để lọc)'}
@@ -467,9 +467,9 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
               { label: 'Giá trị', value: fmtTy(summary.totalTy), unit: 'Tỷ' },
             ].map(s => (
               <div key={s.label} className="px-1">
-                <p className="text-[10px] uppercase tracking-wide text-slate-500">{s.label}</p>
+                <p className="text-[0.625rem] uppercase tracking-wide text-slate-500">{s.label}</p>
                 <p className="text-base font-semibold tabular-nums text-slate-900 leading-tight">
-                  {s.value}{s.unit && <span className="ml-0.5 text-[11px] font-medium text-slate-400">{s.unit}</span>}
+                  {s.value}{s.unit && <span className="ml-0.5 text-[0.6875rem] font-medium text-slate-400">{s.unit}</span>}
                 </p>
               </div>
             ))}

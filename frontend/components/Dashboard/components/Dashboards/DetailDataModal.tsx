@@ -198,7 +198,7 @@ export default function DetailDataModal({
             <Eye size={16} style={{ color: accentColor }} />
             {title}
             {canGroup && (
-              <span className="text-[11px] font-normal text-slate-400">
+              <span className="text-[0.6875rem] font-normal text-slate-400">
                 ({groups.length.toLocaleString('vi-VN')} {GROUP_BY_COLUMN.toUpperCase()} · {rows.length.toLocaleString('vi-VN')} dòng)
               </span>
             )}
@@ -283,7 +283,7 @@ export default function DetailDataModal({
                               >
                                 {formatCellValue(g.merged[col])}
                                 {col === GROUP_BY_COLUMN && isMulti && (
-                                  <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-600 text-white shadow-sm">
+                                  <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[0.625rem] font-extrabold bg-indigo-600 text-white shadow-sm">
                                     x{g.rows.length}
                                   </span>
                                 )}
@@ -322,7 +322,7 @@ export default function DetailDataModal({
         {/* Thanh phân trang — chỉ hiện khi có dữ liệu */}
         {!loading && rows.length > 0 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 shrink-0 bg-white">
-            <span className="text-[11px] text-slate-500">
+            <span className="text-[0.6875rem] text-slate-500">
               {canGroup
                 ? <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} {GROUP_BY_COLUMN.toUpperCase()} ({rows.length.toLocaleString('vi-VN')} dòng gốc)</>
                 : <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} dòng</>
@@ -354,7 +354,7 @@ export default function DetailDataModal({
         )}
 
         {truncated && (
-          <div className="px-5 py-2 text-[11px] text-amber-600 bg-amber-50 border-t border-amber-100 shrink-0">
+          <div className="px-5 py-2 text-[0.6875rem] text-amber-600 bg-amber-50 border-t border-amber-100 shrink-0">
             Dữ liệu server đã bị giới hạn số dòng — vui lòng thu hẹp bộ lọc (khoảng ngày, xưởng, công trình...) để xem đầy đủ hơn.
           </div>
         )}

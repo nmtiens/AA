@@ -161,7 +161,7 @@ export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block break-all rounded-lg bg-slate-50 p-2 text-[11px] text-blue-600 underline hover:bg-slate-100 hover:text-blue-800"
+              className="block break-all rounded-lg bg-slate-50 p-2 text-[0.6875rem] text-blue-600 underline hover:bg-slate-100 hover:text-blue-800"
             >
               {url}
             </a>

@@ -283,7 +283,7 @@ export const ConstructionRevenueSection = ({
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
+                  <span className="text-[0.6875rem] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
                     Đơn vị: Triệu đồng
                   </span>
                 )}
