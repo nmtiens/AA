@@ -13,6 +13,7 @@ import {
 } from '../../services/vuongMacMobileApi';
 import HexLookup from './HexLookup';
 import PhotoPicker, { type PhotoItem } from './PhotoPicker';
+import HandlerPicker from './HandlerPicker';
 import { formCategoriesFor } from './formCategories';
 
 type VMItem = VuongMacRow;
@@ -144,22 +145,34 @@ const btnPrimary =
   'w-full rounded-full bg-slate-800 py-3 text-base font-medium text-white active:opacity-80 disabled:opacity-50';
 
 // Render ra document.body để không bị thanh menu dưới (z-20) hay khung cuộn cha che mất.
-// Màn hẹp: trượt từ dưới lên. Màn rộng (md+): hộp thoại giữa màn hình, rộng tối đa 4xl.
-function BottomSheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+// Màn hẹp: trượt từ dưới lên. Màn rộng (md+): hộp thoại giữa màn hình, rộng tối đa 3xl.
+// Tiêu đề và `footer` (nút lưu) luôn đứng yên, chỉ phần giữa cuộn — form dài vẫn thấy nút lưu.
+function BottomSheet({ title, onClose, children, footer }: {
+  title: string; onClose: () => void; children: ReactNode; footer?: ReactNode;
+}) {
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={onClose}>
       <div
-        className="max-h-[88dvh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+20px)] md:max-w-4xl md:rounded-3xl md:pb-5"
+        className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white md:max-h-[90dvh] md:max-w-3xl md:rounded-3xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300 md:hidden" />
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-medium text-slate-900">{title}</h2>
-          <button onClick={onClose} aria-label="Đóng" className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-500 active:bg-slate-100">
-            ✕
-          </button>
+        <div className="shrink-0 px-5 pt-3 md:pt-5">
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300 md:hidden" />
+          <div className="flex items-center justify-between pb-2">
+            <h2 className="text-lg font-medium text-slate-900">{title}</h2>
+            <button onClick={onClose} aria-label="Đóng" className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-500 active:bg-slate-100">
+              ✕
+            </button>
+          </div>
         </div>
-        {children}
+        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 ${footer ? 'pb-4' : 'pb-[calc(env(safe-area-inset-bottom)+20px)] md:pb-5'}`}>
+          {children}
+        </div>
+        {footer && (
+          <div className="shrink-0 border-t border-slate-100 bg-white px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-4">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body
@@ -852,8 +865,24 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
   };
 
   return (
-    <BottomSheet title={editing ? '✏️ Sửa vướng mắc' : '➕ Thêm vướng mắc'} onClose={onClose}>
-      <div className="grid gap-3 md:grid-cols-2">
+    <BottomSheet
+      title={editing ? '✏️ Sửa vướng mắc' : '➕ Thêm vướng mắc'}
+      onClose={onClose}
+      footer={
+        <>
+          {err && <p className="mb-2 text-sm text-red-600">{err}</p>}
+          {!canSubmit && !busy && (
+            <p className="mb-2 text-center text-xs text-slate-400">
+              {!editing && !picked ? 'Chọn HEX' : !content.trim() ? 'Nhập nội dung vướng mắc' : 'Kiểm tra lại thời gian BOT'} để lưu
+            </p>
+          )}
+          <button disabled={!canSubmit} onClick={submit} className={btnPrimary}>
+            {busy ? (photos.length ? 'Đang lưu và tải ảnh...' : 'Đang lưu...') : editing ? '💾 Lưu thay đổi' : '➕ Thêm vướng mắc'}
+          </button>
+        </>
+      }
+    >
+      <div className="grid gap-4 md:grid-cols-2">
         {/* HEX */}
         <div className="md:col-span-2">
           {editing ? (
@@ -907,16 +936,20 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
         {/* Loại */}
         <div className="md:col-span-2">
           <p className="mb-1 text-sm font-medium text-slate-700">🏷️ Loại</p>
-          <div className="flex flex-wrap gap-2">
+          {/* Lưới 2 cột (điện thoại) / 4 cột (màn rộng): bấm dễ, không tràn dòng */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {formCategoriesFor(row?.category).filter(c => isShownCat(c.value) || c.value === row?.category).map(c => (
               <button
                 type="button"
                 key={c.value}
-                title={c.hint}
                 onClick={() => setCategory(c.value)}
-                className={`rounded-full px-4 py-2 text-sm ${category === c.value ? 'bg-[#d3e3fd] font-medium text-slate-900' : 'border border-slate-300 text-slate-600'}`}
+                aria-pressed={category === c.value}
+                className={`rounded-2xl px-3 py-2 text-left ${category === c.value ? 'bg-[#d3e3fd] ring-1 ring-[#8ab4f8]' : 'border border-slate-200 active:bg-slate-50'}`}
               >
-                {catIcon(c.value)} {c.label}{catCode(c.value)}
+                <span className={`block text-sm ${category === c.value ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                  {catIcon(c.value)} {c.label}
+                </span>
+                {c.hint && <span className="block truncate text-xs text-slate-500">{c.hint}</span>}
               </button>
             ))}
           </div>
@@ -926,20 +959,21 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
           <textarea
             value={content}
             onChange={e => setContent(e.target.value)}
-            rows={4}
+            rows={3}
             maxLength={2000}
             placeholder="Mô tả vướng mắc đang gặp..."
             className={inputCls}
           />
         </LabeledField>
 
-        <LabeledField label="👤 Người xử lý">
-          <input value={handler} onChange={e => setHandler(e.target.value)} maxLength={200}
-            placeholder="Nhập tên người xử lý..." className={inputCls} />
-        </LabeledField>
+        {/* Không bọc trong <label>: bấm vào gợi ý không được làm focus nhảy về ô nhập */}
+        <div className="md:col-span-2">
+          <p className="mb-1 text-sm font-medium text-slate-700">👤 Người xử lý</p>
+          <HandlerPicker value={handler} onChange={setHandler} inputClassName={inputCls} />
+        </div>
 
-        {/* BOT: bắt đầu + kết thúc */}
-        <div className="space-y-2">
+        {/* BOT: bắt đầu + kết thúc — chiếm cả dòng để ô ngày giờ không bị cắt chữ */}
+        <div className="space-y-2 md:col-span-2">
           <p className="text-sm font-medium text-slate-700">
             ⏰ BOT{editing && row!.bot ? <span className="font-normal text-slate-500"> (hiện tại: {row!.bot})</span> : null}
           </p>
@@ -989,11 +1023,6 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
           <PhotoPicker value={photos} onChange={setPhotos} max={MAX_PHOTOS - keptIds.length} />
         </div>
       </div>
-
-      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
-      <button disabled={!canSubmit} onClick={submit} className={`${btnPrimary} mt-4`}>
-        {busy ? (photos.length ? 'Đang lưu và tải ảnh...' : 'Đang lưu...') : editing ? '💾 Lưu thay đổi' : '➕ Thêm vướng mắc'}
-      </button>
     </BottomSheet>
   );
 }

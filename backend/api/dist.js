@@ -66651,6 +66651,21 @@ app.get("/api/vuong-mac/xuong", authenticateJWT, async (_req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+app.get("/api/vuong-mac/handlers", authenticateJWT, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT DISTINCT TRIM(full_name) AS name
+       FROM users
+       WHERE is_active AND full_name IS NOT NULL AND TRIM(full_name) <> ''
+       ORDER BY 1`
+    );
+    res.set("Cache-Control", "private, max-age=300");
+    res.json(r.rows.map((row) => row.name));
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/handlers:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 var FACTORY_CODE_COL = "ma_nha_may";
 app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
   try {

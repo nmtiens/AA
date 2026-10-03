@@ -277,6 +277,22 @@ export const fetchHexSearch = async (q: string): Promise<HexHit[]> => {
   }
 };
 
+// Danh sách họ tên người xử lý (users.full_name). Gọi 1 lần mỗi phiên rồi dùng lại;
+// lỗi thì lần sau gọi lại.
+let handlerNamesPromise: Promise<string[]> | null = null;
+export const fetchHandlerNames = (): Promise<string[]> => {
+  if (!handlerNamesPromise) {
+    handlerNamesPromise = (async () => {
+      const r = await fetch('/api/vuong-mac/handlers', { headers: authHeaders() });
+      if (!r.ok) throw new Error(`Lỗi ${r.status}`);
+      const d = await r.json();
+      return Array.isArray(d) ? d.map(String) : [];
+    })();
+    handlerNamesPromise.catch(() => { handlerNamesPromise = null; });
+  }
+  return handlerNamesPromise;
+};
+
 // ---------------------------------------------------------------------------
 // [MỚI] Ảnh đính kèm
 // ---------------------------------------------------------------------------

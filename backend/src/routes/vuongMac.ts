@@ -622,6 +622,24 @@ app.get('/api/vuong-mac/xuong', authenticateJWT, async (_req: Request, res: Resp
   }
 });
 
+// Danh sách "Người xử lý" cho ô chọn: họ tên (users.full_name) của các tài khoản đang hoạt động.
+// Mọi người đã đăng nhập đều gọi được (API /api/users/* chỉ dành cho ADMIN) nên CHỈ trả về họ tên.
+app.get('/api/vuong-mac/handlers', authenticateJWT, async (_req: Request, res: Response) => {
+  try {
+    const r = await pool.query(
+      `SELECT DISTINCT TRIM(full_name) AS name
+       FROM users
+       WHERE is_active AND full_name IS NOT NULL AND TRIM(full_name) <> ''
+       ORDER BY 1`
+    );
+    res.set('Cache-Control', 'private, max-age=300');
+    res.json(r.rows.map(row => row.name as string));
+  } catch (error) {
+    console.error('Lỗi /api/vuong-mac/handlers:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Cột "mã nhà máy" (12 số) trong production_status_app. Đổi tên nếu cột thực tế khác.
 const FACTORY_CODE_COL = 'ma_nha_may';
 // Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)

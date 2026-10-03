@@ -11,6 +11,7 @@ import {
 } from '../../services/vuongMacMobileApi';
 import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
 import { FORM_CATEGORIES } from './formCategories';
+import HandlerPicker from './HandlerPicker';
 import { searchHexBulk } from './hexBulkApi';
 import { MONEY_UNIT_LABEL } from '../../utils/money';
 
@@ -737,11 +738,12 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
             placeholder="Mô tả vướng mắc đang gặp" className={`${inputCls} mt-1`} />
         </label>
 
-        <label className="block text-xs font-medium text-slate-600">
+        <div className="text-xs font-medium text-slate-600">
           Người xử lý <span className="text-red-500">*</span>
-          <input value={f.handler} maxLength={200} onChange={e => upd({ handler: e.target.value })}
-            placeholder="Ai sẽ xử lý?" className={`${inputCls} mt-1`} />
-        </label>
+          <div className="mt-1 font-normal">
+            <HandlerPicker value={f.handler} onChange={v => upd({ handler: v })} inputClassName={inputCls} optionClassName="text-sm" />
+          </div>
+        </div>
 
         <div className="space-y-1">
           <p className="text-xs font-medium text-slate-600">BOT <span className="text-red-500">*</span></p>
