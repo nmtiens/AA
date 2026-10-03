@@ -12,6 +12,7 @@ import {
 import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
 import { FORM_CATEGORIES } from './formCategories';
 import HandlerPicker from './HandlerPicker';
+import MentionTextarea from './MentionTextarea';
 import { searchHexBulk } from './hexBulkApi';
 import { MONEY_UNIT_LABEL } from '../../utils/money';
 
@@ -726,7 +727,7 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
           <div className="flex flex-wrap gap-2">
             {FORM_CATEGORIES.map(c => (
               <button key={c.value} type="button" title={c.hint} onClick={() => upd({ category: c.value })} className={chip(f.category === c.value)}>
-                {c.label}
+                {c.label} · {c.hint}
               </button>
             ))}
           </div>
@@ -734,7 +735,7 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
 
         <label className="block text-xs font-medium text-slate-600 md:col-span-2">
           Nội dung vướng mắc <span className="text-red-500">*</span>
-          <textarea rows={3} maxLength={2000} value={f.content} onChange={e => upd({ content: e.target.value })}
+          <MentionTextarea rows={3} maxLength={2000} value={f.content} onChange={v => upd({ content: v })}
             placeholder="Mô tả vướng mắc đang gặp" className={`${inputCls} mt-1`} />
         </label>
 
@@ -763,13 +764,13 @@ function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; 
 
         <label className="block text-xs font-medium text-slate-600">
           Giải pháp <span className="text-red-500">*</span>
-          <textarea rows={2} maxLength={2000} value={f.solution} onChange={e => upd({ solution: e.target.value })}
+          <MentionTextarea rows={2} maxLength={2000} value={f.solution} onChange={v => upd({ solution: v })}
             placeholder="Giải pháp dự kiến" className={`${inputCls} mt-1`} />
         </label>
 
         <label className="block text-xs font-medium text-slate-600">
           Ghi chú
-          <textarea rows={2} maxLength={2000} value={f.note} onChange={e => upd({ note: e.target.value })}
+          <MentionTextarea rows={2} maxLength={2000} value={f.note} onChange={v => upd({ note: v })}
             placeholder="Không bắt buộc" className={`${inputCls} mt-1`} />
         </label>
       </div>

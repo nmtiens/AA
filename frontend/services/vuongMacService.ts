@@ -242,10 +242,24 @@ export const fetchVuongMacAll = async (p: {
 // Mã lỗi khi chưa đăng nhập / token hết hạn — trang mobile dựa vào đây để hiện nút đăng nhập
 export const UNAUTHORIZED = 'UNAUTHORIZED';
 
+export interface VuongMacQuery {
+  status?: 'open' | 'resolved' | 'all';
+  category?: FiveMCategory | '';
+  q?: string;
+  page?: number;
+  /** '1' = việc của tôi (tôi là người xử lý hoặc người tạo) */
+  mine?: '1' | '';
+  /** Theo hạn BOT (chỉ vướng mắc chưa xử lý): quá hạn / còn ≤ 24 giờ */
+  due?: 'overdue' | 'soon' | '';
+  /** 'bot' = hạn BOT gần nhất lên đầu; mặc định mới tạo lên đầu */
+  sort?: 'bot' | '';
+  /** Ngày tạo từ / đến (YYYY-MM-DD, giờ Việt Nam) */
+  from?: string;
+  to?: string;
+}
+
 // Bản ném lỗi cho trang mobile: phân biệt "lỗi mạng/quyền" với "không có dữ liệu".
-export const fetchVuongMacAllStrict = async (p: {
-  status?: 'open' | 'resolved' | 'all'; category?: FiveMCategory | ''; q?: string; page?: number;
-}): Promise<{ data: VuongMacRow[]; total: number }> => {
+export const fetchVuongMacAllStrict = async (p: VuongMacQuery): Promise<{ data: VuongMacRow[]; total: number }> => {
   if (!getToken()) throw new Error(UNAUTHORIZED); // chưa có token thì khỏi gọi API
   const qs = new URLSearchParams();
   Object.entries(p).forEach(([k, v]) => v !== undefined && v !== '' && qs.set(k, String(v)));
@@ -275,6 +289,31 @@ export const fetchHexSearch = async (q: string): Promise<HexHit[]> => {
     console.error('fetchHexSearch error:', e);
     return [];
   }
+};
+
+// Số liệu màn "Tổng quan" của app mobile
+export interface VuongMacStats {
+  open: number;
+  overdue: number;
+  soon: number;
+  extended: number;
+  noBot: number;
+  mine: { open: number; overdue: number; soon: number };
+  byCategory: Partial<Record<FiveMCategory, number>>;
+  createdToday: number;
+  resolvedToday: number;
+  topProjects: { name: string; open: number; overdue: number }[];
+  fullName: string | null;
+  generatedAt: string;
+}
+
+export const fetchVuongMacStats = async (): Promise<VuongMacStats> => {
+  if (!getToken()) throw new Error(UNAUTHORIZED);
+  const r = await fetch('/api/vuong-mac/stats', { headers: authHeaders() });
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || d.error || `Lỗi ${r.status}`);
+  return d;
 };
 
 // Danh sách họ tên người xử lý (users.full_name). Gọi 1 lần mỗi phiên rồi dùng lại;

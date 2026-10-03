@@ -1,6 +1,6 @@
 // Đổi tên cache mỗi khi thay đổi cách cache: bước 'activate' bên dưới sẽ xoá mọi
 // cache cũ (kể cả cache của Workbox/vite-plugin-pwa từ các bản build trước).
-const CACHE = 'ops-hub-shell-v2';
+const CACHE = 'ops-hub-shell-v3';
 const SHELL = ['/', '/m/', '/index.html'];
 
 self.addEventListener('install', (event) => {
@@ -60,7 +60,7 @@ self.addEventListener('push', (event) => {
   } catch {
     d = { title: 'Vướng mắc', body: event.data ? event.data.text() : '' };
   }
-  event.waitUntil(
+  event.waitUntil(Promise.all([
     self.registration.showNotification(d.title || 'Vướng mắc', {
       body: d.body || '',
       tag: d.tag,
@@ -68,14 +68,17 @@ self.addEventListener('push', (event) => {
       data: d.target || {},
       icon: '/icons/192.png',
       badge: '/icons/192.png',
-    })
-  );
+    }),
+    // Báo cho app đang mở để cập nhật số trên chuông thông báo ngay
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((list) => list.forEach((c) => c.postMessage({ type: 'notif-new' }))),
+  ]));
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const t = event.notification.data || {};
-  const url = `/m/?id=${t.id ?? ''}`;
+  const url = `/m/?id=${t.id ?? ''}${t.hex ? `&hex=${encodeURIComponent(t.hex)}` : ''}`;
   event.waitUntil((async () => {
     const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     // CHỈ dùng tab đang ở trang mobile (/m). Không có thì mở cửa sổ mới,
@@ -83,7 +86,7 @@ self.addEventListener('notificationclick', (event) => {
     const target = list.find((c) => /^\/m(\/|$)/.test(new URL(c.url).pathname));
     if (target) {
       await target.focus();
-      target.postMessage({ type: 'open-vuong-mac', id: t.id });
+      target.postMessage({ type: 'open-vuong-mac', id: t.id, hex: t.hex });
       return;
     }
     await clients.openWindow(url);

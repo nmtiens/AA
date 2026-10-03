@@ -1,0 +1,61 @@
+import { getToken } from './userService';
+
+// Hộp thông báo + cài đặt thông báo (xem backend/src/routes/notifications.ts)
+
+export type NotifyKind =
+  | 'mention' | 'assigned' | 'resolved' | 'reopened' | 'extend'
+  | 'due60' | 'due15' | 'overdue' | 'new_in_dept';
+
+export interface AppNotification {
+  id: number;
+  kind: NotifyKind;
+  title: string;
+  body: string | null;
+  vuongMacId: number | null;
+  hex: string | null;
+  actor: string | null;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export const PREF_LABELS = {
+  mention:   { label: 'Có người tag tên tôi', hint: 'Khi ai đó gõ @Tên của bạn trong vướng mắc' },
+  assigned:  { label: 'Được giao xử lý', hint: 'Khi bạn được chọn làm người xử lý' },
+  status:    { label: 'Đã xử lý / mở lại', hint: 'Vướng mắc tôi tạo, tôi xử lý hoặc được tag' },
+  extend:    { label: 'Xin thêm thời gian', hint: 'Vướng mắc của phòng ban / tôi xử lý' },
+  due:       { label: 'Nhắc hạn BOT', hint: 'Còn 1 giờ, còn 15 phút và khi quá hạn' },
+  newInDept: { label: 'Vướng mắc mới trong phòng ban', hint: 'Mỗi khi đồng nghiệp tạo vướng mắc' },
+} as const;
+export type PrefKey = keyof typeof PREF_LABELS;
+export type NotifyPrefs = Record<PrefKey, boolean>;
+
+const headers = () => {
+  const t = getToken();
+  return { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+};
+
+const json = async (r: Response) => {
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || `Lỗi ${r.status}`);
+  return d;
+};
+
+export const fetchNotifications = async (before?: number): Promise<{
+  items: AppNotification[]; unread: number; hasMore: boolean; available: boolean;
+}> => {
+  const qs = before ? `?before=${before}` : '';
+  return json(await fetch(`/api/notifications${qs}`, { headers: headers() }));
+};
+
+export const fetchUnreadCount = async (): Promise<{ unread: number; available: boolean }> =>
+  json(await fetch('/api/notifications/unread-count', { headers: headers() }));
+
+/** Không truyền ids = đánh dấu đã đọc tất cả */
+export const markNotificationsRead = async (ids?: number[]) =>
+  json(await fetch('/api/notifications/read', { method: 'POST', headers: headers(), body: JSON.stringify(ids ? { ids } : {}) }));
+
+export const fetchNotifyPrefs = async (): Promise<{ prefs: NotifyPrefs; available: boolean }> =>
+  json(await fetch('/api/notifications/prefs', { headers: headers() }));
+
+export const saveNotifyPrefs = async (prefs: Partial<NotifyPrefs>): Promise<{ prefs: NotifyPrefs }> =>
+  json(await fetch('/api/notifications/prefs', { method: 'PUT', headers: headers(), body: JSON.stringify({ prefs }) }));

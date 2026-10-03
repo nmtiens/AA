@@ -444,7 +444,7 @@ export const VuongMacDetailModal = ({
 
   const myIds = [norm(currentUser), ...tokenIdentities()].filter(Boolean);
   const shortCode = (categoryLabel.match(/M\d+/g) ?? [categoryLabel]).join(' + '); // "Con Người (M1)" -> "M1"
-  const badgeLabel = /M5\b/.test(shortCode) ? shortCode : `${shortCode} + M5`; // "M2" -> "M2 + M5"
+  const badgeLabel = shortCode; // M1..M5 là 5 loại riêng (không còn ghép "+ M5")
   const openCount = items.filter(v => !v.isResolved).length;
   const doneCount = items.length - openCount;
 
@@ -847,7 +847,7 @@ export const VuongMacDetailModal = ({
               canAdd ? (
                 <button type="button" onClick={() => setWizardOpen(true)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-red-200 bg-red-50/40 py-3 text-sm font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-50">
-                  <Plus size={16} /> Thêm vướng mắc — {shortCode} + M5
+                  <Plus size={16} /> Thêm vướng mắc — {shortCode}
                 </button>
               ) : (
                 <div className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-center text-xs text-slate-500">

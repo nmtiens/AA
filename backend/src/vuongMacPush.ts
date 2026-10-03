@@ -3,6 +3,7 @@ import type { Express, RequestHandler } from 'express';
 import webpush from 'web-push';
 import { z } from 'zod';
 import { pool } from '../src/db.js';
+import { notify, idsByFullName, type NotifyKind } from './notifications.js';
 
 // ---------------------------------------------------------------------------
 // Đọc env LAZY (trong hàm), vì server chính gọi dotenv.config() SAU các import.
@@ -30,7 +31,7 @@ export function parseBotEnd(bot?: string | null): Date | null {
 // ---------------------------------------------------------------------------
 // Gửi push
 // ---------------------------------------------------------------------------
-interface PushPayload {
+export interface PushPayload {
   title: string;
   body: string;
   tag?: string;
@@ -44,7 +45,7 @@ async function runLimited<T>(items: T[], limit: number, fn: (x: T) => Promise<vo
   }));
 }
 
-async function sendToUsers(userIds: string[], payload: PushPayload) {
+export async function sendToUsers(userIds: string[], payload: PushPayload) {
   if (!pushEnabled || userIds.length === 0) return;
   const { rows } = await pool.query(
     'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])', [userIds]);
@@ -64,7 +65,7 @@ async function sendToUsers(userIds: string[], payload: PushPayload) {
 }
 
 // Người nhận: người tạo + thành viên cùng phòng ban với người tạo (đúng nhóm có quyền thao tác, xem canModifyVuongMac)
-async function recipientsFor(createdBy: string | null, createdDept: string | null, excludeUsername?: string) {
+export async function recipientsFor(createdBy: string | null, createdDept: string | null, excludeUsername?: string) {
   const r = await pool.query(
     `SELECT u.id::text AS id
        FROM users u
@@ -76,23 +77,6 @@ async function recipientsFor(createdBy: string | null, createdDept: string | nul
   return r.rows.map((x: any) => x.id as string);
 }
 
-const clip = (s: string, n = 100) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
-
-/** Gọi sau khi gia hạn thành công. Không bao giờ ném lỗi ra ngoài (không làm hỏng request chính). */
-export async function notifyExtension(
-  item: { id: number; hex: string; category: string; created_by: string | null; created_department: string | null },
-  actor: string, content: string,
-) {
-  try {
-    const ids = await recipientsFor(item.created_by, item.created_department, actor);
-    await sendToUsers(ids, {
-      title: `Có yêu cầu thêm thời gian — Hex ${item.hex}`,
-      body: clip(content),
-      tag: `extend-${item.id}`,
-      target: { hex: item.hex, category: item.category, id: item.id },
-    });
-  } catch (e) { console.error('[push] notifyExtension', e); }
-}
 
 // ---------------------------------------------------------------------------
 // Quét hạn BOT — gọi bởi cron (mỗi 1–5 phút)
@@ -110,7 +94,7 @@ const TITLE: Record<Kind, (hex: string) => string> = {
 
 export async function scanBotDeadlines() {
   const { rows } = await pool.query(
-    `SELECT vm.id, vm.hex, vm.category, vm.content, vm.bot_end, vm.created_by, u.department AS created_department
+    `SELECT vm.id, vm.hex, vm.category, vm.content, vm.bot_end, vm.created_by, vm.handler, u.department AS created_department
        FROM vuong_mac vm
        LEFT JOIN users u ON u.username = vm.created_by
       WHERE vm.is_resolved = false
@@ -129,12 +113,17 @@ export async function scanBotDeadlines() {
       `INSERT INTO vuong_mac_bot_notifications (vuong_mac_id, kind, bot_end) VALUES ($1,$2,$3)
        ON CONFLICT DO NOTHING RETURNING 1`, [it.id, kind, it.bot_end]);
     if (!ins.rowCount) continue;
-    await sendToUsers(await recipientsFor(it.created_by, it.created_department), {
+    // Người nhận: người xử lý + người tạo + cùng phòng ban người tạo; lưu cả vào hộp thông báo
+    const kindN: NotifyKind = kind;
+    await notify({ id: it.id, hex: it.hex, category: it.category }, [{
+      kind: kindN,
+      userIds: [
+        ...(await idsByFullName(it.handler)),
+        ...(await recipientsFor(it.created_by, it.created_department)),
+      ],
       title: TITLE[kind](it.hex),
-      body: clip(it.content),
-      tag: `due-${it.id}`,
-      target: { hex: it.hex, category: it.category, id: it.id },
-    });
+      body: it.content,
+    }]);
     notified++;
   }
   return { checked: rows.length, notified };

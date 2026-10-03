@@ -30449,7 +30449,7 @@ var require_subset = __commonJS({
         }
         return true;
       }
-      let higher, lower;
+      let higher, lower2;
       let hasDomLT, hasDomGT;
       let needDomLTPre = lt && !options.includePrerelease && lt.semver.prerelease.length ? lt.semver : false;
       let needDomGTPre = gt && !options.includePrerelease && gt.semver.prerelease.length ? gt.semver : false;
@@ -30481,8 +30481,8 @@ var require_subset = __commonJS({
             }
           }
           if (c.operator === "<" || c.operator === "<=") {
-            lower = lowerLT(lt, c, options);
-            if (lower === c && lower !== lt) {
+            lower2 = lowerLT(lt, c, options);
+            if (lower2 === c && lower2 !== lt) {
               return false;
             }
           } else if (lt.operator === "<=" && !c.test(lt.semver)) {
@@ -63377,6 +63377,153 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
+// src/notifications.ts
+var PREF_KEYS = ["mention", "assigned", "status", "extend", "due", "newInDept"];
+var DEFAULT_PREFS = {
+  mention: true,
+  assigned: true,
+  status: true,
+  extend: true,
+  due: true,
+  newInDept: false
+};
+var PREF_OF = {
+  mention: "mention",
+  assigned: "assigned",
+  resolved: "status",
+  reopened: "status",
+  extend: "extend",
+  due60: "due",
+  due15: "due",
+  overdue: "due",
+  new_in_dept: "newInDept"
+};
+var mergePrefs = (raw) => {
+  const out = { ...DEFAULT_PREFS };
+  if (raw && typeof raw === "object") {
+    for (const k of PREF_KEYS) if (typeof raw[k] === "boolean") out[k] = raw[k];
+  }
+  return out;
+};
+var isMissingSchema = (e) => e?.code === "42P01" || e?.code === "42703";
+var warnedMissing = false;
+var warnMissing = () => {
+  if (warnedMissing) return;
+  warnedMissing = true;
+  console.warn("[notify] Ch\u01B0a c\xF3 b\u1EA3ng notifications / c\u1ED9t users.notify_prefs \u2014 ch\u1EA1y backend/sql/2026-10-03_notifications.sql \u0111\u1EC3 b\u1EADt h\u1ED9p th\xF4ng b\xE1o");
+};
+var usersCache = null;
+async function activeUsers() {
+  if (usersCache && Date.now() - usersCache.at < 6e4) return usersCache.list;
+  let rows;
+  try {
+    rows = (await pool.query(
+      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, notify_prefs
+       FROM users WHERE is_active`
+    )).rows;
+  } catch (e) {
+    if (!isMissingSchema(e)) throw e;
+    warnMissing();
+    rows = (await pool.query(
+      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name FROM users WHERE is_active`
+    )).rows;
+  }
+  const list = rows.map((r) => ({
+    id: r.id,
+    username: r.username,
+    fullName: String(r.full_name).trim(),
+    prefs: mergePrefs(r.notify_prefs)
+  }));
+  usersCache = { at: Date.now(), list };
+  return list;
+}
+var invalidateUsersCache = () => {
+  usersCache = null;
+};
+var lower = (s) => s.toLocaleLowerCase("vi");
+var isWordChar = (ch) => !!ch && /[\p{L}\p{N}_]/u.test(ch);
+async function findMentionedIds(...texts) {
+  const text = lower(texts.filter(Boolean).join("\n"));
+  const out = /* @__PURE__ */ new Set();
+  if (!text.includes("@")) return out;
+  for (const u of await activeUsers()) {
+    if (!u.fullName) continue;
+    const needle = "@" + lower(u.fullName);
+    let i = text.indexOf(needle);
+    while (i !== -1) {
+      if (!isWordChar(text[i - 1]) && !isWordChar(text[i + needle.length])) {
+        out.add(u.id);
+        break;
+      }
+      i = text.indexOf(needle, i + 1);
+    }
+  }
+  return out;
+}
+async function idsByFullName(name) {
+  const n = lower((name ?? "").trim());
+  if (!n) return [];
+  return (await activeUsers()).filter((u) => lower(u.fullName) === n).map((u) => u.id);
+}
+async function idsByUsername(...usernames) {
+  const set2 = new Set(usernames.filter(Boolean));
+  return (await activeUsers()).filter((u) => set2.has(u.username)).map((u) => u.id);
+}
+var clip = (s, n = 140) => s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
+async function notify(vm, events, actorUsername) {
+  try {
+    const users = await activeUsers();
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const actorId = actorUsername ? users.find((u) => u.username === actorUsername)?.id : void 0;
+    const chosen = /* @__PURE__ */ new Map();
+    for (const ev of events) {
+      for (const id of ev.userIds) {
+        if (id === actorId || chosen.has(id)) continue;
+        const u = byId.get(id);
+        if (!u || !u.prefs[PREF_OF[ev.kind]]) continue;
+        chosen.set(id, ev);
+      }
+    }
+    if (chosen.size === 0) return;
+    const rows = [...chosen.entries()];
+    try {
+      await pool.query(
+        `INSERT INTO notifications (user_id, kind, title, body, vuong_mac_id, hex, actor)
+         SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::text[], $7::text[])`,
+        [
+          rows.map(([id]) => id),
+          rows.map(([, ev]) => ev.kind),
+          rows.map(([, ev]) => ev.title),
+          rows.map(([, ev]) => ev.body ? clip(ev.body, 500) : null),
+          rows.map(() => vm.id),
+          rows.map(() => vm.hex),
+          rows.map(() => actorUsername ?? null)
+        ]
+      );
+    } catch (e) {
+      if (isMissingSchema(e)) warnMissing();
+      else console.error("[notify] l\u01B0u th\xF4ng b\xE1o l\u1ED7i", e);
+    }
+    for (const ev of events) {
+      const ids = rows.filter(([, e]) => e === ev).map(([id]) => id);
+      if (ids.length === 0) continue;
+      await sendToUsers(ids, {
+        title: ev.title,
+        body: clip(ev.body ?? ""),
+        tag: `${ev.kind}-${vm.id}`,
+        target: { hex: vm.hex, category: vm.category, id: vm.id }
+      });
+    }
+  } catch (e) {
+    console.error("[notify] l\u1ED7i", e);
+  }
+}
+async function displayName(username) {
+  if (!username) return "Ai \u0111\xF3";
+  const u = (await activeUsers()).find((x) => x.username === username);
+  return u?.fullName || username;
+}
+
 // src/vuongMacPush.ts
 var pushEnabled = false;
 function initWebPush() {
@@ -63434,20 +63581,6 @@ async function recipientsFor(createdBy, createdDept, excludeUsername) {
   );
   return r.rows.map((x) => x.id);
 }
-var clip = (s, n = 100) => s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
-async function notifyExtension(item, actor, content) {
-  try {
-    const ids = await recipientsFor(item.created_by, item.created_department, actor);
-    await sendToUsers(ids, {
-      title: `C\xF3 y\xEAu c\u1EA7u th\xEAm th\u1EDDi gian \u2014 Hex ${item.hex}`,
-      body: clip(content),
-      tag: `extend-${item.id}`,
-      target: { hex: item.hex, category: item.category, id: item.id }
-    });
-  } catch (e) {
-    console.error("[push] notifyExtension", e);
-  }
-}
 var kindOf = (botEnd, now) => {
   const mins = (botEnd.getTime() - now.getTime()) / 6e4;
   return mins <= 0 ? "overdue" : mins <= 15 ? "due15" : mins <= 60 ? "due60" : null;
@@ -63459,7 +63592,7 @@ var TITLE = {
 };
 async function scanBotDeadlines() {
   const { rows } = await pool.query(
-    `SELECT vm.id, vm.hex, vm.category, vm.content, vm.bot_end, vm.created_by, u.department AS created_department
+    `SELECT vm.id, vm.hex, vm.category, vm.content, vm.bot_end, vm.created_by, vm.handler, u.department AS created_department
        FROM vuong_mac vm
        LEFT JOIN users u ON u.username = vm.created_by
       WHERE vm.is_resolved = false
@@ -63480,12 +63613,16 @@ async function scanBotDeadlines() {
       [it.id, kind, it.bot_end]
     );
     if (!ins.rowCount) continue;
-    await sendToUsers(await recipientsFor(it.created_by, it.created_department), {
+    const kindN = kind;
+    await notify({ id: it.id, hex: it.hex, category: it.category }, [{
+      kind: kindN,
+      userIds: [
+        ...await idsByFullName(it.handler),
+        ...await recipientsFor(it.created_by, it.created_department)
+      ],
       title: TITLE[kind](it.hex),
-      body: clip(it.content),
-      tag: `due-${it.id}`,
-      target: { hex: it.hex, category: it.category, id: it.id }
-    });
+      body: it.content
+    }]);
     notified++;
   }
   return { checked: rows.length, notified };
@@ -66162,13 +66299,23 @@ var isSameDept = (a, b) => {
   return x !== "" && x === normDept(b);
 };
 var getVuongMacActor = async (req) => {
-  const r = await pool.query("SELECT department FROM users WHERE id = $1", [req.user.id]);
+  const r = await pool.query("SELECT department, full_name FROM users WHERE id = $1", [req.user.id]);
   return {
     username: req.user.username,
     role: req.user.role,
-    department: r.rows[0]?.department ?? null
+    department: r.rows[0]?.department ?? null,
+    fullName: r.rows[0]?.full_name ?? null
   };
 };
+var isMine = (me2, handler, createdBy) => !!createdBy && createdBy === me2.username || !!me2.fullName && !!handler && handler.trim().toLowerCase() === me2.fullName.trim().toLowerCase();
+var DUE_SOON_MS = 24 * 60 * 60 * 1e3;
+var dueState = (bot, now = Date.now()) => {
+  const end = parseBotEnd(bot);
+  if (!end) return "none";
+  const left = end.getTime() - now;
+  return left < 0 ? "overdue" : left <= DUE_SOON_MS ? "soon" : "ok";
+};
+var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 var canModifyVuongMac = (actor, createdBy, createdDept) => actor.role === "ADMIN" || !!createdBy && createdBy === actor.username || isSameDept(actor.department, createdDept);
 var canAddToVuongMacThread = async (actor, hex3, category) => {
   if (actor.role === "ADMIN") return true;
@@ -66239,7 +66386,7 @@ app.post(
       if (!isJpeg(buf)) {
         return res.status(400).json({ success: false, message: "Ch\u1EC9 nh\u1EADn \u1EA3nh JPEG" });
       }
-      const me = await getVuongMacActor(req);
+      const me2 = await getVuongMacActor(req);
       const existing = await pool.query(
         `SELECT vm.created_by, u.department AS created_department
          FROM vuong_mac vm LEFT JOIN users u ON u.username = vm.created_by
@@ -66250,7 +66397,7 @@ app.post(
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+      if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
         return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n th\xEAm \u1EA3nh" });
       }
       const cnt = await pool.query("SELECT COUNT(*) FROM vuong_mac_photo WHERE vuong_mac_id = $1", [id]);
@@ -66260,7 +66407,7 @@ app.post(
       const r = await pool.query(
         `INSERT INTO vuong_mac_photo (vuong_mac_id, data, mime, size, created_by)
          VALUES ($1, $2, 'image/jpeg', $3, $4) RETURNING id`,
-        [id, buf, buf.length, me.username]
+        [id, buf, buf.length, me2.username]
       );
       res.json({ success: true, data: { id: r.rows[0].id } });
     } catch (error61) {
@@ -66287,7 +66434,7 @@ app.delete("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) =>
   try {
     const photoId = Number(req.params.photoId);
     if (!Number.isInteger(photoId)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
-    const me = await getVuongMacActor(req);
+    const me2 = await getVuongMacActor(req);
     const r = await pool.query(
       `SELECT vm.created_by, u.department AS created_department
        FROM vuong_mac_photo ph
@@ -66297,7 +66444,7 @@ app.delete("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) =>
       [photoId]
     );
     if (r.rows.length === 0) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
-    if (!canModifyVuongMac(me, r.rows[0].created_by, r.rows[0].created_department)) {
+    if (!canModifyVuongMac(me2, r.rows[0].created_by, r.rows[0].created_department)) {
       return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n x\xF3a \u1EA3nh" });
     }
     await pool.query("DELETE FROM vuong_mac_photo WHERE id = $1", [photoId]);
@@ -66337,7 +66484,15 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
     const q = String(req.query.q || "").trim();
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30));
-    const me = await getVuongMacActor(req);
+    const mine = req.query.mine === "1";
+    const due = String(req.query.due || "");
+    const sort = String(req.query.sort || "");
+    const from = String(req.query.from || "");
+    const to = String(req.query.to || "");
+    if (from && !DAY_RE.test(from) || to && !DAY_RE.test(to)) {
+      return res.status(400).json({ success: false, message: "Ng\xE0y kh\xF4ng h\u1EE3p l\u1EC7" });
+    }
+    const me2 = await getVuongMacActor(req);
     const conds = [];
     const params = [];
     if (status === "open") conds.push("b.is_resolved = FALSE");
@@ -66352,7 +66507,22 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       conds.push(`(b.content ILIKE $${n} OR b.handler ILIKE $${n} OR b.created_by ILIKE $${n}
                    OR b.hex ILIKE $${n} OR p.ten_cong_trinh ILIKE $${n})`);
     }
-    params.push(pageSize, (page - 1) * pageSize);
+    if (from) {
+      params.push(from);
+      conds.push(`b.created_at >= ($${params.length}::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`);
+    }
+    if (to) {
+      params.push(to);
+      conds.push(`b.created_at < (($${params.length}::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`);
+    }
+    if (mine) {
+      params.push(me2.username, me2.fullName ?? "");
+      const u = params.length - 1, n = params.length;
+      conds.push(`(b.created_by = $${u} OR ($${n} <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}))))`);
+    }
+    const byBot = due === "overdue" || due === "soon" || sort === "bot";
+    if (due === "overdue" || due === "soon") conds.push("b.is_resolved = FALSE");
+    if (!byBot) params.push(pageSize, (page - 1) * pageSize);
     const r = await timedQuery(
       `WITH base AS (${SELECT_VUONG_MAC_WITH_DEPT})
        SELECT b.*, p.ten_cong_trinh, p.ten_hang_muc, p.xuong_chinh,
@@ -66366,14 +66536,26 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
        ) p ON TRUE
        ${conds.length ? "WHERE " + conds.join(" AND ") : ""}
        ORDER BY b.is_resolved ASC, b.created_at DESC
-       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+       ${byBot ? "" : `LIMIT $${params.length - 1} OFFSET $${params.length}`}`,
       params
     );
+    let rows = r.rows;
+    let total = rows[0] ? Number(rows[0].total) : 0;
+    if (byBot) {
+      const now = Date.now();
+      if (due === "overdue" || due === "soon") rows = rows.filter((row) => dueState(row.bot, now) === due);
+      if (sort === "bot") {
+        const endOf = (row) => parseBotEnd(row.bot)?.getTime() ?? Number.POSITIVE_INFINITY;
+        rows = [...rows].sort((a, b) => Number(a.is_resolved) - Number(b.is_resolved) || endOf(a) - endOf(b));
+      }
+      total = rows.length;
+      rows = rows.slice((page - 1) * pageSize, page * pageSize);
+    }
     res.json({
       success: true,
-      total: r.rows[0] ? Number(r.rows[0].total) : 0,
-      data: r.rows.map((row) => ({
-        ...mapVuongMacRow(row, me),
+      total,
+      data: rows.map((row) => ({
+        ...mapVuongMacRow(row, me2),
         hex: row.hex,
         congTrinh: row.ten_cong_trinh,
         hangMuc: row.ten_hang_muc,
@@ -66385,6 +66567,77 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
+app.get("/api/vuong-mac/stats", authenticateJWT, async (req, res) => {
+  try {
+    const me2 = await getVuongMacActor(req);
+    const [openR, dayR] = await Promise.all([
+      // Vướng mắc chưa xử lý (ít dòng) — đọc BOT ở Node để biết quá hạn / sắp đến hạn
+      timedQuery(
+        `SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot,
+                EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
+                p.ten_cong_trinh
+         FROM vuong_mac vm
+         LEFT JOIN LATERAL (
+           SELECT ten_cong_trinh FROM production_status_app
+           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+         ) p ON TRUE
+         WHERE vm.is_resolved = FALSE`
+      ),
+      // Phát sinh / đã xử lý trong hôm nay (giờ Việt Nam)
+      timedQuery(
+        `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
+         SELECT
+           (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
+           (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today`
+      )
+    ]);
+    const now = Date.now();
+    const s = {
+      open: 0,
+      overdue: 0,
+      soon: 0,
+      extended: 0,
+      noBot: 0,
+      mine: { open: 0, overdue: 0, soon: 0 },
+      byCategory: {}
+    };
+    const projects = /* @__PURE__ */ new Map();
+    for (const row of openR.rows) {
+      const d = dueState(row.bot, now);
+      s.open++;
+      if (d === "overdue") s.overdue++;
+      else if (d === "soon") s.soon++;
+      else if (d === "none") s.noBot++;
+      if (row.has_ext) s.extended++;
+      s.byCategory[row.category] = (s.byCategory[row.category] ?? 0) + 1;
+      if (isMine(me2, row.handler, row.created_by)) {
+        s.mine.open++;
+        if (d === "overdue") s.mine.overdue++;
+        else if (d === "soon") s.mine.soon++;
+      }
+      const name = String(row.ten_cong_trinh ?? "").trim();
+      if (name) {
+        const e = projects.get(name) ?? { open: 0, overdue: 0 };
+        e.open++;
+        if (d === "overdue") e.overdue++;
+        projects.set(name, e);
+      }
+    }
+    const topProjects = [...projects.entries()].map(([name, e]) => ({ name, ...e })).sort((a, b) => b.overdue - a.overdue || b.open - a.open).slice(0, 5);
+    res.json({
+      success: true,
+      ...s,
+      createdToday: Number(dayR.rows[0]?.created_today ?? 0),
+      resolvedToday: Number(dayR.rows[0]?.resolved_today ?? 0),
+      topProjects,
+      fullName: me2.fullName,
+      generatedAt: new Date(now).toISOString()
+    });
+  } catch (e) {
+    console.error("L\u1ED7i /api/vuong-mac/stats:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
 app.post(
   "/api/vuong-mac",
   authenticateJWT,
@@ -66392,9 +66645,9 @@ app.post(
   async (req, res) => {
     try {
       const { hex: hex3, category, content, handler, bot, solution, note } = req.body;
-      const me = await getVuongMacActor(req);
-      const actor = me.username;
-      if (!await canAddToVuongMacThread(me, hex3, category)) {
+      const me2 = await getVuongMacActor(req);
+      const actor = me2.username;
+      if (!await canAddToVuongMacThread(me2, hex3, category)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban m\u1EDBi \u0111\u01B0\u1EE3c th\xEAm v\u01B0\u1EDBng m\u1EAFc v\xE0o m\u1EE5c n\xE0y" });
       }
       const row = await withTransaction(async (client) => {
@@ -66412,7 +66665,28 @@ app.post(
         );
         return inserted;
       });
-      res.json({ success: true, data: mapVuongMacRow(row, me, me.department) });
+      const who = await displayName(actor);
+      await notify({ id: row.id, hex: hex3, category }, [
+        {
+          kind: "mention",
+          userIds: await findMentionedIds(content, solution, note),
+          title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${hex3}`,
+          body: content
+        },
+        {
+          kind: "assigned",
+          userIds: await idsByFullName(handler),
+          title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${hex3}`,
+          body: content
+        },
+        {
+          kind: "new_in_dept",
+          userIds: await recipientsFor(actor, me2.department),
+          title: `V\u01B0\u1EDBng m\u1EAFc m\u1EDBi c\u1EE7a ${who} \u2014 HEX ${hex3}`,
+          body: content
+        }
+      ], actor);
+      res.json({ success: true, data: mapVuongMacRow(row, me2, me2.department) });
     } catch (error61) {
       console.error("L\u1ED7i t\u1EA1o vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
@@ -66426,8 +66700,8 @@ app.put(
   async (req, res) => {
     try {
       const { id } = req.params;
-      const me = await getVuongMacActor(req);
-      const actor = me.username;
+      const me2 = await getVuongMacActor(req);
+      const actor = me2.username;
       const existing = await pool.query(
         `SELECT vm.*, u.department AS created_department
          FROM vuong_mac vm
@@ -66439,7 +66713,7 @@ app.put(
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+      if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
       }
       const { category, content, isResolved, resolvedNote, handler, bot, solution, note } = req.body;
@@ -66493,7 +66767,41 @@ app.put(
         );
         return updated;
       });
-      res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
+      const who = await displayName(actor);
+      const sameName = (a, b) => (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+      const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
+      const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
+      const freshMentions = [...newMentions].filter((id2) => !oldMentions.has(id2));
+      const handlerChanged = handler !== void 0 && !!(handler ?? "").trim() && !sameName(handler, old.handler);
+      const reopening = isResolved === false && old.is_resolved;
+      const watchers = markingResolved || reopening ? [...await idsByUsername(row.created_by), ...await idsByFullName(row.handler), ...newMentions] : [];
+      await notify({ id: row.id, hex: row.hex, category: row.category }, [
+        {
+          kind: "mention",
+          userIds: freshMentions,
+          title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${row.hex}`,
+          body: markingResolved ? resolvedNoteClean : row.content
+        },
+        {
+          kind: "assigned",
+          userIds: handlerChanged ? await idsByFullName(handler) : [],
+          title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
+          body: row.content
+        },
+        {
+          kind: "resolved",
+          userIds: markingResolved ? watchers : [],
+          title: `${who} \u0111\xE3 x\u1EED l\xFD xong v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
+          body: resolvedNoteClean
+        },
+        {
+          kind: "reopened",
+          userIds: reopening ? watchers : [],
+          title: `${who} \u0111\xE3 m\u1EDF l\u1EA1i v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
+          body: row.content
+        }
+      ], actor);
+      res.json({ success: true, data: mapVuongMacRow(row, me2, old.created_department) });
     } catch (error61) {
       console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
@@ -66508,8 +66816,8 @@ app.post(
     try {
       const { id } = req.params;
       const { content, bot, note } = req.body;
-      const me = await getVuongMacActor(req);
-      const actor = me.username;
+      const me2 = await getVuongMacActor(req);
+      const actor = me2.username;
       const botEnd = parseBotEnd(bot);
       if (!botEnd) {
         return res.status(400).json({ success: false, message: 'BOT kh\xF4ng \u0111\xFAng \u0111\u1ECBnh d\u1EA1ng "HH:mm dd/MM/yyyy - HH:mm dd/MM/yyyy"' });
@@ -66525,7 +66833,7 @@ app.post(
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+      if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
       }
       if (old.is_resolved) {
@@ -66553,13 +66861,24 @@ app.post(
           [old.id, old.hex, old.category, old.content, detail, actor]
         );
       });
-      await notifyExtension(
-        { id: old.id, hex: old.hex, category: old.category, created_by: old.created_by, created_department: old.created_department },
-        actor,
-        content
-      );
+      const who = await displayName(actor);
+      await notify({ id: old.id, hex: old.hex, category: old.category }, [
+        {
+          kind: "mention",
+          userIds: await findMentionedIds(content, noteClean),
+          title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${old.hex}`,
+          body: content
+        },
+        {
+          kind: "extend",
+          userIds: [...await idsByFullName(old.handler), ...await recipientsFor(old.created_by, old.created_department)],
+          title: `${who} xin th\xEAm th\u1EDDi gian \u2014 HEX ${old.hex}`,
+          body: `${content}
+BOT m\u1EDBi: ${bot}`
+        }
+      ], actor);
       const fresh = await pool.query(`${SELECT_VUONG_MAC_WITH_DEPT} WHERE vm.id = $1`, [old.id]);
-      res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me) });
+      res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me2) });
     } catch (error61) {
       console.error("L\u1ED7i extend vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
@@ -66569,8 +66888,8 @@ app.post(
 app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
-    const me = await getVuongMacActor(req);
-    const actor = me.username;
+    const me2 = await getVuongMacActor(req);
+    const actor = me2.username;
     const existing = await pool.query(
       `SELECT vm.*, u.department AS created_department
        FROM vuong_mac vm
@@ -66582,7 +66901,7 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
     }
     const old = existing.rows[0];
-    if (!canModifyVuongMac(me, old.created_by, old.created_department)) {
+    if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
       return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c x\xF3a" });
     }
     const ext = await pool.query(
@@ -66592,7 +66911,7 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
     );
     const { canModify: _omit, ...snapshot } = mapVuongMacRow(
       { ...old, extensions: ext.rows },
-      me,
+      me2,
       old.created_department
     );
     await withTransaction(async (client) => {
@@ -66768,6 +67087,100 @@ app.post("/api/vuong-mac/hex-bulk", authenticateJWT, async (req, res) => {
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/hex-bulk:", error61);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// src/routes/notifications.ts
+var me = (req) => String(req.user.id);
+app.get("/api/notifications", async (req, res) => {
+  try {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
+    const before = Number(req.query.before) || null;
+    const [list, unread] = await Promise.all([
+      pool.query(
+        `SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
+         FROM notifications
+         WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2)
+         ORDER BY id DESC LIMIT $3`,
+        [me(req), before, limit + 1]
+      ),
+      pool.query("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL", [me(req)])
+    ]);
+    const rows = list.rows.slice(0, limit);
+    res.json({
+      success: true,
+      available: true,
+      unread: unread.rows[0].n,
+      hasMore: list.rows.length > limit,
+      items: rows.map((r) => ({
+        id: Number(r.id),
+        kind: r.kind,
+        title: r.title,
+        body: r.body,
+        vuongMacId: r.vuong_mac_id === null ? null : Number(r.vuong_mac_id),
+        hex: r.hex,
+        actor: r.actor,
+        createdAt: r.created_at,
+        readAt: r.read_at
+      }))
+    });
+  } catch (e) {
+    if (isMissingSchema(e)) return res.json({ success: true, available: false, unread: 0, hasMore: false, items: [] });
+    console.error("L\u1ED7i /api/notifications:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+app.get("/api/notifications/unread-count", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL", [me(req)]);
+    res.json({ success: true, available: true, unread: r.rows[0].n });
+  } catch (e) {
+    if (isMissingSchema(e)) return res.json({ success: true, available: false, unread: 0 });
+    console.error("L\u1ED7i /api/notifications/unread-count:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+var readSchema = external_exports.object({ ids: external_exports.array(external_exports.number().int().positive()).max(500).optional() });
+app.post("/api/notifications/read", validateBody(readSchema), async (req, res) => {
+  try {
+    const ids = req.body.ids;
+    if (ids && ids.length === 0) return res.json({ success: true });
+    await pool.query(
+      `UPDATE notifications SET read_at = now()
+       WHERE user_id = $1 AND read_at IS NULL AND ($2::bigint[] IS NULL OR id = ANY($2::bigint[]))`,
+      [me(req), ids ?? null]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    if (isMissingSchema(e)) return res.json({ success: true, available: false });
+    console.error("L\u1ED7i /api/notifications/read:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+app.get("/api/notifications/prefs", async (req, res) => {
+  try {
+    const r = await pool.query("SELECT notify_prefs FROM users WHERE id = $1", [req.user.id]);
+    res.json({ success: true, available: true, prefs: mergePrefs(r.rows[0]?.notify_prefs) });
+  } catch (e) {
+    if (isMissingSchema(e)) return res.json({ success: true, available: false, prefs: mergePrefs(null) });
+    console.error("L\u1ED7i /api/notifications/prefs:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+var prefsSchema = external_exports.object({
+  prefs: external_exports.object(Object.fromEntries(PREF_KEYS.map((k) => [k, external_exports.boolean().optional()])))
+});
+app.put("/api/notifications/prefs", validateBody(prefsSchema), async (req, res) => {
+  try {
+    const cur = await pool.query("SELECT notify_prefs FROM users WHERE id = $1", [req.user.id]);
+    const next = mergePrefs({ ...mergePrefs(cur.rows[0]?.notify_prefs), ...req.body.prefs });
+    await pool.query("UPDATE users SET notify_prefs = $1::jsonb WHERE id = $2", [JSON.stringify(next), req.user.id]);
+    invalidateUsersCache();
+    res.json({ success: true, available: true, prefs: next });
+  } catch (e) {
+    if (isMissingSchema(e)) return res.status(409).json({ success: false, available: false, message: "Ch\u01B0a b\u1EADt t\xEDnh n\u0103ng c\xE0i \u0111\u1EB7t th\xF4ng b\xE1o (c\u1EA7n ch\u1EA1y SQL)" });
+    console.error("L\u1ED7i PUT /api/notifications/prefs:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
 

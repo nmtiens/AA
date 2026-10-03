@@ -28,6 +28,7 @@ import '../src/routes/users.js';      // /api/users/*
 import '../src/routes/khsx.js';       // /api/khsx-nhapkho/summary
 import '../src/routes/trend.js';      // /api/trend*, /api/filters/*, /api/detail
 import '../src/routes/vuongMac.js';   // /api/vuong-mac/*
+import '../src/routes/notifications.js'; // /api/notifications/* (hộp thông báo + cài đặt)
 
 const PORT = process.env.PORT || 5000;
 

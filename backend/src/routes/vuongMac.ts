@@ -2,7 +2,8 @@ import express from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { pool, timedQuery, withTransaction } from '../db.js';
-import { parseBotEnd, notifyExtension } from '../vuongMacPush.js';
+import { parseBotEnd } from '../vuongMacPush.js';
+import { notify, findMentionedIds, idsByFullName, idsByUsername, recipientsFor, displayName } from '../notifications.js';
 import { authenticateJWT } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
 import { app } from '../server/app.js';
@@ -53,16 +54,37 @@ interface VuongMacActor {
   username: string;
   role: string;
   department: string | null;
+  /** Họ tên (users.full_name) — để lọc "việc của tôi" theo cột Người xử lý */
+  fullName: string | null;
 }
 
 const getVuongMacActor = async (req: Request): Promise<VuongMacActor> => {
-  const r = await pool.query('SELECT department FROM users WHERE id = $1', [req.user!.id]);
+  const r = await pool.query('SELECT department, full_name FROM users WHERE id = $1', [req.user!.id]);
   return {
     username: req.user!.username,
     role: req.user!.role,
     department: r.rows[0]?.department ?? null,
+    fullName: r.rows[0]?.full_name ?? null,
   };
 };
+
+// "Việc của tôi": tôi là người xử lý (so họ tên, không phân biệt hoa thường) hoặc tôi tạo
+const isMine = (me: VuongMacActor, handler: string | null, createdBy: string | null) =>
+  (!!createdBy && createdBy === me.username) ||
+  (!!me.fullName && !!handler && handler.trim().toLowerCase() === me.fullName.trim().toLowerCase());
+
+// Hạn BOT: "sắp đến hạn" = còn trong vòng 24 giờ
+const DUE_SOON_MS = 24 * 60 * 60 * 1000;
+type DueState = 'overdue' | 'soon' | 'ok' | 'none';
+const dueState = (bot: string | null, now = Date.now()): DueState => {
+  const end = parseBotEnd(bot);
+  if (!end) return 'none';
+  const left = end.getTime() - now;
+  return left < 0 ? 'overdue' : left <= DUE_SOON_MS ? 'soon' : 'ok';
+};
+
+// Ngày "YYYY-MM-DD" theo giờ Việt Nam -> điều kiện SQL trên created_at
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const canModifyVuongMac = (actor: VuongMacActor, createdBy: string | null, createdDept: string | null) =>
   actor.role === 'ADMIN' ||
@@ -267,6 +289,16 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
     const page = Math.max(1, Number(req.query.page) || 1);
     const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30));
 
+    // Bộ lọc mới cho app mobile
+    const mine = req.query.mine === '1';                                   // việc của tôi
+    const due = String(req.query.due || '');                               // overdue | soon
+    const sort = String(req.query.sort || '');                             // bot = hạn BOT gần nhất trước
+    const from = String(req.query.from || '');                             // ngày tạo từ (YYYY-MM-DD, giờ VN)
+    const to = String(req.query.to || '');                                 // ngày tạo đến
+    if ((from && !DAY_RE.test(from)) || (to && !DAY_RE.test(to))) {
+      return res.status(400).json({ success: false, message: 'Ngày không hợp lệ' });
+    }
+
     const me = await getVuongMacActor(req);
     const conds: string[] = [];
     const params: any[] = [];
@@ -283,7 +315,25 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
       conds.push(`(b.content ILIKE $${n} OR b.handler ILIKE $${n} OR b.created_by ILIKE $${n}
                    OR b.hex ILIKE $${n} OR p.ten_cong_trinh ILIKE $${n})`);
     }
-    params.push(pageSize, (page - 1) * pageSize);
+    if (from) {
+      params.push(from);
+      conds.push(`b.created_at >= ($${params.length}::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`);
+    }
+    if (to) {
+      params.push(to);
+      conds.push(`b.created_at < (($${params.length}::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`);
+    }
+    if (mine) {
+      params.push(me.username, me.fullName ?? '');
+      const u = params.length - 1, n = params.length;
+      conds.push(`(b.created_by = $${u} OR ($${n} <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}))))`);
+    }
+
+    // Lọc / sắp theo hạn BOT phải đọc BOT (dạng chữ) nên làm ở Node: lấy hết dòng khớp rồi tự phân trang.
+    // Chỉ áp cho vướng mắc CHƯA xử lý nên số dòng nhỏ.
+    const byBot = (due === 'overdue' || due === 'soon') || sort === 'bot';
+    if (due === 'overdue' || due === 'soon') conds.push('b.is_resolved = FALSE');
+    if (!byBot) params.push(pageSize, (page - 1) * pageSize);
 
     const r = await timedQuery(
       `WITH base AS (${SELECT_VUONG_MAC_WITH_DEPT})
@@ -298,14 +348,29 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
        ) p ON TRUE
        ${conds.length ? 'WHERE ' + conds.join(' AND ') : ''}
        ORDER BY b.is_resolved ASC, b.created_at DESC
-       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+       ${byBot ? '' : `LIMIT $${params.length - 1} OFFSET $${params.length}`}`,
       params
     );
 
+    let rows = r.rows;
+    let total = rows[0] ? Number(rows[0].total) : 0;
+    if (byBot) {
+      const now = Date.now();
+      if (due === 'overdue' || due === 'soon') rows = rows.filter(row => dueState(row.bot, now) === due);
+      if (sort === 'bot') {
+        // Chưa xử lý trước; trong đó hạn BOT sớm nhất trước, không có BOT xuống cuối
+        const endOf = (row: any) => parseBotEnd(row.bot)?.getTime() ?? Number.POSITIVE_INFINITY;
+        rows = [...rows].sort((a, b) =>
+          Number(a.is_resolved) - Number(b.is_resolved) || endOf(a) - endOf(b));
+      }
+      total = rows.length;
+      rows = rows.slice((page - 1) * pageSize, page * pageSize);
+    }
+
     res.json({
       success: true,
-      total: r.rows[0] ? Number(r.rows[0].total) : 0,
-      data: r.rows.map(row => ({
+      total,
+      data: rows.map(row => ({
         ...mapVuongMacRow(row, me),
         hex: row.hex,
         congTrinh: row.ten_cong_trinh,
@@ -315,6 +380,79 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
     });
   } catch (e) {
     console.error('Lỗi /api/vuong-mac/all:', e);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+});
+
+// Số liệu cho màn "Tổng quan" của app mobile
+app.get('/api/vuong-mac/stats', authenticateJWT, async (req: Request, res: Response) => {
+  try {
+    const me = await getVuongMacActor(req);
+    const [openR, dayR] = await Promise.all([
+      // Vướng mắc chưa xử lý (ít dòng) — đọc BOT ở Node để biết quá hạn / sắp đến hạn
+      timedQuery(
+        `SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot,
+                EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
+                p.ten_cong_trinh
+         FROM vuong_mac vm
+         LEFT JOIN LATERAL (
+           SELECT ten_cong_trinh FROM production_status_app
+           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+         ) p ON TRUE
+         WHERE vm.is_resolved = FALSE`
+      ),
+      // Phát sinh / đã xử lý trong hôm nay (giờ Việt Nam)
+      timedQuery(
+        `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
+         SELECT
+           (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
+           (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today`
+      ),
+    ]);
+
+    const now = Date.now();
+    const s = {
+      open: 0, overdue: 0, soon: 0, extended: 0, noBot: 0,
+      mine: { open: 0, overdue: 0, soon: 0 },
+      byCategory: {} as Record<string, number>,
+    };
+    const projects = new Map<string, { open: number; overdue: number }>();
+    for (const row of openR.rows) {
+      const d = dueState(row.bot, now);
+      s.open++;
+      if (d === 'overdue') s.overdue++;
+      else if (d === 'soon') s.soon++;
+      else if (d === 'none') s.noBot++;
+      if (row.has_ext) s.extended++;
+      s.byCategory[row.category] = (s.byCategory[row.category] ?? 0) + 1;
+      if (isMine(me, row.handler, row.created_by)) {
+        s.mine.open++;
+        if (d === 'overdue') s.mine.overdue++;
+        else if (d === 'soon') s.mine.soon++;
+      }
+      const name = String(row.ten_cong_trinh ?? '').trim();
+      if (name) {
+        const e = projects.get(name) ?? { open: 0, overdue: 0 };
+        e.open++; if (d === 'overdue') e.overdue++;
+        projects.set(name, e);
+      }
+    }
+    const topProjects = [...projects.entries()]
+      .map(([name, e]) => ({ name, ...e }))
+      .sort((a, b) => b.overdue - a.overdue || b.open - a.open)
+      .slice(0, 5);
+
+    res.json({
+      success: true,
+      ...s,
+      createdToday: Number(dayR.rows[0]?.created_today ?? 0),
+      resolvedToday: Number(dayR.rows[0]?.resolved_today ?? 0),
+      topProjects,
+      fullName: me.fullName,
+      generatedAt: new Date(now).toISOString(),
+    });
+  } catch (e) {
+    console.error('Lỗi /api/vuong-mac/stats:', e);
     res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
   }
 });
@@ -350,6 +488,17 @@ app.post(
         );
         return inserted;
       });
+
+      // Thông báo: người được tag > người xử lý > cùng phòng ban (mỗi người 1 thông báo)
+      const who = await displayName(actor);
+      await notify({ id: row.id, hex, category }, [
+        { kind: 'mention', userIds: await findMentionedIds(content, solution, note),
+          title: `${who} đã nhắc đến bạn — HEX ${hex}`, body: content },
+        { kind: 'assigned', userIds: await idsByFullName(handler),
+          title: `Bạn được giao xử lý vướng mắc — HEX ${hex}`, body: content },
+        { kind: 'new_in_dept', userIds: await recipientsFor(actor, me.department),
+          title: `Vướng mắc mới của ${who} — HEX ${hex}`, body: content },
+      ], actor);
 
       res.json({ success: true, data: mapVuongMacRow(row, me, me.department) });
     } catch (error) {
@@ -441,6 +590,30 @@ app.put(
         return updated;
       });
 
+      // Thông báo
+      const who = await displayName(actor);
+      const sameName = (a?: string | null, b?: string | null) =>
+        (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+      const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
+      const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
+      const freshMentions = [...newMentions].filter(id => !oldMentions.has(id));   // chỉ báo người MỚI được tag
+      const handlerChanged = handler !== undefined && !!(handler ?? '').trim() && !sameName(handler, old.handler);
+      const reopening = isResolved === false && old.is_resolved;
+      // Người quan tâm tới trạng thái: người tạo + người xử lý + những người được tag
+      const watchers = markingResolved || reopening
+        ? [...(await idsByUsername(row.created_by)), ...(await idsByFullName(row.handler)), ...newMentions]
+        : [];
+      await notify({ id: row.id, hex: row.hex, category: row.category }, [
+        { kind: 'mention', userIds: freshMentions, title: `${who} đã nhắc đến bạn — HEX ${row.hex}`,
+          body: markingResolved ? resolvedNoteClean : row.content },
+        { kind: 'assigned', userIds: handlerChanged ? await idsByFullName(handler) : [],
+          title: `Bạn được giao xử lý vướng mắc — HEX ${row.hex}`, body: row.content },
+        { kind: 'resolved', userIds: markingResolved ? watchers : [],
+          title: `${who} đã xử lý xong vướng mắc — HEX ${row.hex}`, body: resolvedNoteClean },
+        { kind: 'reopened', userIds: reopening ? watchers : [],
+          title: `${who} đã mở lại vướng mắc — HEX ${row.hex}`, body: row.content },
+      ], actor);
+
       res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
     } catch (error) {
       console.error('Lỗi sửa vuong-mac:', error);
@@ -511,11 +684,15 @@ app.post(
         );
       });
 
-      // Báo push (sau khi đã lưu xong) cho người tạo + cùng phòng ban (không chặn response, không ném lỗi)
-      await notifyExtension(
-  { id: old.id, hex: old.hex, category: old.category, created_by: old.created_by, created_department: old.created_department },
-  actor, content
-);
+      // Thông báo (sau khi đã lưu xong; không ném lỗi): người được tag, rồi người xử lý + người tạo + cùng phòng ban
+      const who = await displayName(actor);
+      await notify({ id: old.id, hex: old.hex, category: old.category }, [
+        { kind: 'mention', userIds: await findMentionedIds(content, noteClean),
+          title: `${who} đã nhắc đến bạn — HEX ${old.hex}`, body: content },
+        { kind: 'extend',
+          userIds: [...(await idsByFullName(old.handler)), ...(await recipientsFor(old.created_by, old.created_department))],
+          title: `${who} xin thêm thời gian — HEX ${old.hex}`, body: `${content}\nBOT mới: ${bot}` },
+      ], actor);
 
       const fresh = await pool.query(`${SELECT_VUONG_MAC_WITH_DEPT} WHERE vm.id = $1`, [old.id]);
       res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me) });

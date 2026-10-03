@@ -1,19 +1,13 @@
-import { FIVE_M_LABELS, type FiveMCategory } from '../../services/vuongMacService';
+import type { FiveMCategory } from '../../services/vuongMacService';
 
-// Giá trị lưu DB giữ nguyên (man/machine/material/method), chỉ đổi nhãn hiển thị.
-// Measurement (M5) không còn là lựa chọn riêng vì đã gộp vào mỗi nhóm.
+// 5M: mỗi loại 1 mã riêng M1..M5 (giá trị lưu DB giữ nguyên: man/machine/material/method/measurement).
 export const FORM_CATEGORIES: { value: FiveMCategory; label: string; hint: string }[] = [
-  { value: 'man',      label: 'M1+M5', hint: 'Man + Measurement' },
-  { value: 'machine',  label: 'M2+M5', hint: 'Machine + Measurement' },
-  { value: 'material', label: 'M3+M5', hint: 'Material + Measurement' },
-  { value: 'method',   label: 'M4+M5', hint: 'Method + Measurement' },
+  { value: 'man',         label: 'M1', hint: 'Con người' },
+  { value: 'machine',     label: 'M2', hint: 'Máy móc' },
+  { value: 'material',    label: 'M3', hint: 'Vật tư' },
+  { value: 'method',      label: 'M4', hint: 'Phương pháp' },
+  { value: 'measurement', label: 'M5', hint: 'Đo lường' },
 ];
 
-// Khi SỬA bản ghi cũ có category = measurement thì vẫn hiện thêm 1 chip để không mất dữ liệu
-export const formCategoriesFor = (current?: FiveMCategory) =>
-  current === 'measurement'
-    ? [
-        ...FORM_CATEGORIES,
-        { value: 'measurement' as FiveMCategory, label: FIVE_M_LABELS.measurement.split(' ')[0], hint: '' },
-      ]
-    : FORM_CATEGORIES;
+// Giữ tên hàm cũ cho các nơi đang gọi
+export const formCategoriesFor = (_current?: FiveMCategory) => FORM_CATEGORIES;
