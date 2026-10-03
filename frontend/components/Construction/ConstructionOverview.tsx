@@ -1,14 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
-import { Search, X } from 'lucide-react';
+import { Search, X, Filter, ChevronRight } from 'lucide-react';
+import { ModalShell } from '../shared/ModalShell';
+import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
+import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { parseVNDate } from '../Dashboard/utils/dateHelpers';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
+import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix, projectKeyResolver } from '../Dashboard/components/shared/ProductionDonutPanel';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
@@ -26,7 +30,12 @@ interface Rec {
   status: Status;
   total: number;      // trị giá đơn hàng (0 nếu hủy)
   done: number;       // giá trị đã nhập kho, tối đa = total
+  row: DataRow;       // dòng gốc — để mở cửa sổ danh sách HEX
+  ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
 }
+
+// Giống mặc định "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan
+const DEFAULT_IPO = ['01. ĐANG SẢN XUẤT'];
 
 const NO_DATA = '(Chưa có)';
 const NO_MONTH = 'none';
@@ -50,15 +59,57 @@ const monthLabel = (key: string) => {
   return `T${m}/${y}`;
 };
 
+// Ô số liệu trong cửa sổ chi tiết PC
+const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = false }: {
+  label: string; value: string; unit?: string; sub?: string; tone?: string; active?: boolean;
+}) => (
+  <div className={`rounded-lg border px-3 py-2 ${active ? 'border-slate-900 bg-white ring-1 ring-slate-900' : 'border-slate-200 bg-slate-50'}`}>
+    <p className="text-[11px] text-slate-500">{label}</p>
+    <p className={`text-xl font-semibold tabular-nums ${tone}`}>
+      {value}{unit && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
+    </p>
+    {sub && <p className="text-[10px] tabular-nums text-slate-400">{sub}</p>}
+  </div>
+);
+
+// Mô tả 1 cửa sổ chi tiết (cấp 1)
+type DetailFocus = 'items' | 'total' | 'done' | 'remain';
+interface DetailSpec {
+  eyebrow: string;          // dòng nhỏ phía trên tiêu đề, vd. "Chỉ số", "Tháng hạn giao", "Người phụ trách (PC)"
+  title: string;
+  /** Bộ lọc của trang được BỎ QUA khi lấy dòng (giống cách ô/cột/bảng đó được tính) */
+  exclude?: FKey;
+  /** Điều kiện dòng thuộc con số đã bấm */
+  pred: (r: Rec) => boolean;
+  /** Chỉ số đang xem — được tô đậm và dùng để sắp xếp danh sách công trình */
+  focus: DetailFocus;
+  /** Có giá trị => hiện nút "Lọc cả trang theo …" */
+  filter?: { key: FKey; value: string };
+  /** Giải thích cách tính, hiện dưới tiêu đề */
+  note?: string;
+}
+
+/** Tối đa số HEX cho nút "Xem tất cả HEX" (cửa sổ HEX hiển thị toàn bộ dòng, không phân trang) */
+const MAX_HEX_ALL = 3000;
+
 const isNotStarted = (status: string) => STATUS_GROUPS.CHUA_THE_SX.some(s => status.includes(s));
 
 interface Props {
   data: DataRow[];
   columns: ColumnDefinition[];
+  /** Tài khoản đang đăng nhập (ghi chú / vướng mắc trong cửa sổ HEX) */
+  currentUser?: string;
 }
 
-const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
+const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '' }) => {
+  // Cửa sổ chi tiết (cấp 1): ô KPI / cột tháng / PC — liệt kê công trình; bấm công trình mở HEX (cấp 2)
+  const [detail, setDetail] = useState<DetailSpec | null>(null);
+  const [detailSearch, setDetailSearch] = useState('');
+  // Cửa sổ danh sách HEX: ct = công trình (null = mọi công trình trong cửa sổ chi tiết);
+  // inDetail = lấy trong phạm vi cửa sổ chi tiết đang mở, ngược lại theo dòng bảng công trình
+  const [hexScope, setHexScope] = useState<{ ct: string | null; inDetail: boolean } | null>(null);
   const [f, setF] = useState<Filters>({});
+  const [ipoSel, setIpoSel] = useState<string[]>(DEFAULT_IPO);
   const [metric, setMetric] = useState<'count' | 'value'>('count'); // cho 3 biểu đồ tròn
   const [ctSearch, setCtSearch] = useState('');
 
@@ -67,7 +118,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
   const activeKeys = (Object.keys(f) as FKey[]).filter(k => f[k]);
 
   // ---------- 1. Chuẩn hoá từng dòng 1 lần ----------
-  const records = useMemo<Rec[]>(() => {
+  const allRecords = useMemo<Rec[]>(() => {
     const key = (target: string, fallback: string) => findColumnKey(columns, target) || fallback;
     const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, 'ten_cong_trinh');
     const pmK = key('ten_pm', 'ten_pm');
@@ -114,13 +165,44 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
       const cancelled = status === 'HỦY';
       out.push({
         ct, ctKey: projectKey(row), pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
+        ipo: String(row[ipoK] ?? '').trim(),
         month, status,
         total: cancelled ? 0 : totalRaw,
         done: cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw),
+        row,
       });
     }
+
+    // Tên hiển thị của 1 công trình = cách viết xuất hiện nhiều nhất trong các dòng cùng khoá
+    // (mã công trình -> tên chuẩn). Gán lại `ct` để MỌI danh sách / bộ lọc / số đếm trên trang
+    // cùng gom theo 1 khoá — tránh cảnh ô "Công trình" ra 387 mà danh sách lại 402 dòng.
+    const nameCount = new Map<string, Map<string, number>>();
+    for (const r of out) {
+      let m = nameCount.get(r.ctKey);
+      if (!m) { m = new Map(); nameCount.set(r.ctKey, m); }
+      m.set(r.ct, (m.get(r.ct) ?? 0) + 1);
+    }
+    const displayName = new Map<string, string>();
+    nameCount.forEach((m, k) => {
+      let best = '', bestN = -1;
+      m.forEach((n, name) => { if (n > bestN || (n === bestN && name < best)) { best = name; bestN = n; } });
+      displayName.set(k, best);
+    });
+    for (const r of out) r.ct = displayName.get(r.ctKey) ?? r.ct;
     return out;
   }, [data, columns]);
+
+  // Bộ lọc Tình trạng IPO — giống "Bộ lọc tổng" ở trang Tổng quan (mặc định: đang sản xuất),
+  // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
+  const ipoOptions = useMemo(
+    () => [...new Set(allRecords.map(r => r.ipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
+    [allRecords]
+  );
+  const records = useMemo(() => {
+    if (ipoSel.length === 0) return allRecords;
+    const set = new Set(ipoSel);
+    return allRecords.filter(r => set.has(r.ipo));
+  }, [allRecords, ipoSel]);
 
   // Lọc chéo: mỗi biểu đồ bỏ qua bộ lọc của chính nó để vẫn đổi được lựa chọn
   const apply = (exclude?: FKey) =>
@@ -183,18 +265,100 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     return [...m.values()].sort((a, b) => b.total - a.total || b.items - a.items);
   }, [records, f, ctSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Danh sách cho các ô chọn (lấy từ toàn bộ dữ liệu)
+  // ---------- 6. Cửa sổ HEX của 1 công trình ----------
+  // Cùng phạm vi với dòng bảng đã bấm: áp mọi bộ lọc đang chọn (trừ lọc công trình) — số HEX = cột "Mục"
+  // ---------- 7. Cửa sổ chi tiết (KPI / tháng hạn giao / PC) ----------
+  // Dòng thuộc cửa sổ = đúng tập dòng đã tạo ra con số vừa bấm: apply(exclude) rồi lọc theo pred.
+  // Nhờ vậy tổng trong cửa sổ luôn bằng đúng số trên ô/cột đã bấm.
+  const detailRows = useMemo(
+    () => (detail ? apply(detail.exclude).filter(detail.pred) : []),
+    [detail, records, f] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const detailData = useMemo(() => {
+    if (!detail) return null;
+    const cts = new Set<string>();
+    let total = 0, done = 0;
+    const m = new Map<string, { name: string; pms: Set<string>; items: number; total: number; done: number }>();
+    for (const r of detailRows) {
+      cts.add(r.ctKey); total += r.total; done += r.done;
+      const e = m.get(r.ct) ?? { name: r.ct, pms: new Set<string>(), items: 0, total: 0, done: 0 };
+      e.pms.add(r.pm); e.items++; e.total += r.total; e.done += r.done;
+      m.set(r.ct, e);
+    }
+    // Sắp theo đúng chỉ số đang xem
+    const metricOf = (p: { items: number; total: number; done: number }) =>
+      detail.focus === 'items' ? p.items : detail.focus === 'done' ? p.done : detail.focus === 'remain' ? p.total - p.done : p.total;
+    const projects = [...m.values()].sort((a, b) => metricOf(b) - metricOf(a) || b.items - a.items);
+    return { cts: cts.size, items: detailRows.length, total, done, remain: total - done, projects };
+  }, [detail, detailRows]);
+
+  const detailProjects = useMemo(() => {
+    const q = detailSearch.trim().toLowerCase();
+    const list = detailData?.projects ?? [];
+    return q ? list.filter(p => p.name.toLowerCase().includes(q)) : list;
+  }, [detailData, detailSearch]);
+
+  const openDetail = (spec: DetailSpec) => { setDetailSearch(''); setDetail(spec); };
+
+  // Cột tháng hạn giao: đúng tập dòng của cột (mọi bộ lọc trừ "Hạn giao", tháng = cột đã bấm)
+  const openMonthDetail = (key?: string) => {
+    if (!key) return;
+    openDetail({
+      eyebrow: 'Tháng hạn giao', title: monthLabel(key), exclude: 'month',
+      pred: r => r.month === key, focus: 'remain', filter: { key: 'month', value: key },
+      note: 'Cột xanh = đã hoàn thành, cột cam = còn SX (theo ngày cần giao).',
+    });
+  };
+
+  // Mở từ cửa sổ chi tiết: lấy trong phạm vi cửa sổ đó; mở từ bảng công trình: mọi bộ lọc (trừ lọc công trình)
+  const hexRows = useMemo(() => {
+    if (!hexScope) return [];
+    const { ct, inDetail } = hexScope;
+    const base = inDetail ? detailRows : apply('ct');
+    return (ct === null ? base : base.filter(r => r.ct === ct)).map(r => r.row);
+  }, [hexScope, detailRows, records, f]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Esc: cửa sổ HEX (cấp 2) tự đóng trước; chỉ khi không có nó mới đóng cửa sổ chi tiết
+  useEffect(() => {
+    if (!detail || hexScope) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetail(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [detail, hexScope]);
+  const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => {
+    const key = (target: string) => findColumnKey(columns, target) || target;
+    return {
+      hexKey: key(TARGET_COLUMN_NAMES.HEX),
+      congTrinhKey: key(TARGET_COLUMN_NAMES.CONG_TRINH),
+      hangMucKey: key(TARGET_COLUMN_NAMES.TEN_HANG_MUC),
+      xuongKey: key(TARGET_COLUMN_NAMES.XUONG),
+      bopKey: key(TARGET_COLUMN_NAMES.BOP),
+      tinhTrangKey: key(TARGET_COLUMN_NAMES.TINH_TRANG),
+      phanLoaiNhomSanPhamKey: key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM),
+      triGiaDonHangTongKey: key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG),
+      thanhTienTinhPhieuKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU),
+      thanhTienNhapKhoKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO),
+    };
+  }, [columns]);
+
+  // Danh sách cho các ô chọn (lấy từ toàn bộ dữ liệu, không phụ thuộc bộ lọc IPO)
   const options = useMemo(() => {
-    const uniq = (pick: (r: Rec) => string) => [...new Set(records.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
+    const uniq = (pick: (r: Rec) => string) => [...new Set(allRecords.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
     return {
       ct: uniq(r => r.ct), pm: uniq(r => r.pm), kv: uniq(r => r.kv),
-      month: [...new Set(records.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : a.localeCompare(b))),
+      month: [...new Set(allRecords.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : a.localeCompare(b))),
     };
-  }, [records]);
+  }, [allRecords]);
 
   const display = (k: FKey, v: string) => (k === 'month' ? monthLabel(v) : v);
+  // Mô tả bộ lọc đang áp dụng (cho cửa sổ chi tiết / file Excel); `skip` = bộ lọc được bỏ qua
+  const filterSummary = (skip?: FKey) => [
+    ...(ipoSel.length ? [`Tình trạng IPO: ${ipoSel.join(', ')}`] : []),
+    ...activeKeys.filter(k => k !== skip).map(k => `${FILTER_LABEL[k]}: ${display(k, f[k]!)}`),
+  ].join(' · ');
 
-  if (records.length === 0) {
+  if (allRecords.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-slate-500">
         Chưa có dữ liệu sản xuất để lập báo cáo.
@@ -208,13 +372,24 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     'focus:outline-none focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600';
   const cardCls = 'bg-white border border-slate-200 rounded-xl shadow-sm';
 
-  const Kpi = ({ label, value, unit, tone = 'text-slate-900' }: { label: string; value: string; unit?: string; tone?: string }) => (
-    <div className={`${cardCls} px-4 py-3`}>
-      <p className="text-[11px] font-medium tracking-wide text-slate-500">{label}</p>
+  // Ô KPI bấm được: mở cửa sổ chi tiết đúng tập dòng tạo ra con số đó
+  const Kpi = ({ label, value, unit, tone = 'text-slate-900', spec }: {
+    label: string; value: string; unit?: string; tone?: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
+  }) => (
+    <button
+      type="button"
+      onClick={() => openDetail({ eyebrow: 'Chỉ số', title: label, ...spec })}
+      title="Bấm để xem chi tiết"
+      className={`${cardCls} group px-4 py-3 text-left transition hover:border-slate-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}
+    >
+      <p className="flex items-center justify-between text-[11px] font-medium tracking-wide text-slate-500">
+        {label}
+        <ChevronRight size={13} className="text-slate-300 group-hover:text-slate-600" />
+      </p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${tone}`}>
         {value}{unit && <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span>}
       </p>
-    </div>
+    </button>
   );
 
   return (
@@ -224,9 +399,16 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-slate-900">Báo cáo tiến độ công trình</h2>
-            <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm vào cột, biểu đồ tròn hoặc dòng bảng để lọc chéo</p>
+            <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết</p>
           </div>
-                  <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định đang sản xuất */}
+            <DashboardFilter
+              label="Tình Trạng IPO"
+              options={ipoOptions}
+              selectedValues={ipoSel}
+              onChange={setIpoSel}
+            />
             <SearchableSelect
               value={f.ct ?? ''}
               onChange={v => setKey('ct', v)}
@@ -283,13 +465,21 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
       <div className="p-4 md:p-6 space-y-4">
         {/* KPI */}
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
-          <Kpi label="Công trình" value={fmtInt(kpi.cts)} />
-          <Kpi label="Tổng số mục" value={fmtInt(kpi.items)} />
-          <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600" />
-          <Kpi label="Hạng mục chưa hoàn thành" value={fmtInt(kpi.open)} />
-          <Kpi label="Tổng giá trị" value={fmtTy(kpi.total)} unit="Tỷ" />
-          <Kpi label="Giá trị hoàn thành" value={fmtTy(kpi.done)} unit="Tỷ" tone="text-emerald-600" />
-          <Kpi label="Giá trị còn SX" value={fmtTy(kpi.remain)} unit="Tỷ" tone="text-amber-600" />
+          {/* Mỗi ô: pred = đúng điều kiện đã dùng để tính con số trong khối KPI ở trên */}
+          <Kpi label="Công trình" value={fmtInt(kpi.cts)}
+               spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm theo mã công trình).' }} />
+          <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
+               spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
+          <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600"
+               spec={{ pred: r => r.status === 'HỦY', focus: 'items', note: 'Hạng mục có Tình trạng IPO = HỦY (không tính giá trị).' }} />
+          <Kpi label="Hạng mục chưa hoàn thành" value={fmtInt(kpi.open)}
+               spec={{ pred: r => r.status !== 'HỦY' && r.status !== 'HOÀN THÀNH', focus: 'items', note: 'Không tính đơn đã HOÀN THÀNH và đơn HỦY.' }} />
+          <Kpi label="Tổng giá trị" value={fmtTy(kpi.total)} unit="Tỷ"
+               spec={{ pred: r => r.status !== 'HỦY', focus: 'total', note: 'Tổng trị giá đơn hàng, không tính đơn hủy.' }} />
+          <Kpi label="Giá trị hoàn thành" value={fmtTy(kpi.done)} unit="Tỷ" tone="text-emerald-600"
+               spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
+          <Kpi label="Giá trị còn SX" value={fmtTy(kpi.remain)} unit="Tỷ" tone="text-amber-600"
+               spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho.' }} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -313,10 +503,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
                       cursor={{ fill: 'rgba(148,163,184,0.12)' }}
                       formatter={(v: number, name: string) => [`${v.toLocaleString('en-US', { maximumFractionDigits: 2 })} Tỷ`, name === 'done' ? 'Đã hoàn thành' : 'Còn SX']}
                     />
-                    <Bar dataKey="done" stackId="a" fill={COLOR_DONE} cursor="pointer" onClick={(d: any) => toggle('month', d.key ?? d.payload?.key)}>
+                    <Bar dataKey="done" stackId="a" fill={COLOR_DONE} cursor="pointer" onClick={(d: any) => openMonthDetail(d.key ?? d.payload?.key)}>
                       {monthData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
                     </Bar>
-                    <Bar dataKey="remain" stackId="a" fill={COLOR_REMAIN} radius={[3, 3, 0, 0]} cursor="pointer" onClick={(d: any) => toggle('month', d.key ?? d.payload?.key)}>
+                    <Bar dataKey="remain" stackId="a" fill={COLOR_REMAIN} radius={[3, 3, 0, 0]} cursor="pointer" onClick={(d: any) => openMonthDetail(d.key ?? d.payload?.key)}>
                       {monthData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
                     </Bar>
                   </BarChart>
@@ -338,9 +528,27 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {pcTable.map(r => (
-                      <tr key={r.name} onClick={() => toggle('pc', r.name)}
-                          className={`cursor-pointer hover:bg-slate-50 ${f.pc === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="px-4 py-1.5 text-slate-800">{r.name}</td>
+                      <tr key={r.name} onClick={() => openDetail({
+                            eyebrow: 'Người phụ trách (PC)', title: r.name, exclude: 'pc',
+                            pred: rec => rec.pc === r.name, focus: 'total', filter: { key: 'pc', value: r.name },
+                          })}
+                          title="Bấm để xem các công trình PC đang quản lý"
+                          className={`group cursor-pointer hover:bg-slate-50 ${f.pc === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
+                        <td className="px-4 py-1.5 text-slate-800">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="truncate group-hover:text-blue-700 group-hover:underline">{r.name}</span>
+                            {/* Lọc chéo theo PC (tách riêng để bấm dòng là mở chi tiết PC) */}
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); toggle('pc', r.name); }}
+                              title={f.pc === r.name ? 'Bỏ lọc PC này' : 'Lọc cả trang theo PC này'}
+                              aria-label="Lọc theo PC"
+                              className={`shrink-0 rounded p-0.5 hover:bg-slate-200 ${f.pc === r.name ? 'text-blue-600' : 'text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                            >
+                              <Filter size={12} />
+                            </button>
+                          </div>
+                        </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{r.cts.size}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
                         <td className="px-4 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
@@ -388,9 +596,24 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
                     const pct = r.total > 0 ? Math.min(100, (r.done / r.total) * 100) : 0;
                     const pms = [...r.pms];
                     return (
-                      <tr key={r.name} onClick={() => toggle('ct', r.name)}
-                          className={`cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="px-4 py-1.5 text-slate-800 max-w-[260px] truncate" title={r.name}>{r.name}</td>
+                      <tr key={r.name} onClick={() => setHexScope({ ct: r.name, inDetail: false })}
+                          title="Bấm để xem danh sách HEX của công trình"
+                          className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
+                        <td className="px-4 py-1.5 text-slate-800 max-w-[280px]">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="truncate group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
+                            {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở HEX) */}
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); toggle('ct', r.name); }}
+                              title={f.ct === r.name ? 'Bỏ lọc công trình này' : 'Lọc cả trang theo công trình này'}
+                              aria-label="Lọc theo công trình"
+                              className={`shrink-0 rounded p-0.5 hover:bg-slate-200 ${f.ct === r.name ? 'text-blue-600' : 'text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                            >
+                              <Filter size={12} />
+                            </button>
+                          </div>
+                        </td>
                         <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap" title={pms.join(', ')}>
                           {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
                         </td>
@@ -421,6 +644,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
               metric={metric}
               onMetricChange={setMetric}
               summary={{ cts: kpi.cts, items: kpi.items, totalTy: kpi.total / UNIT }}
+              onExport={() => exportOrderMixExcel({
+                fileName: `co_cau_don_hang_cong_trinh_${new Date().toISOString().slice(0, 10)}`,
+                scopeLabel: filterSummary() || 'Tất cả',
+                byDim: { kv: apply('kv'), kh: apply('kh'), pl: apply('pl') },
+                scopeRows: rowsAll,
+                columns,
+              })}
               charts={[
                 { title: 'Theo khu vực', data: kvData, selected: f.kv ? [f.kv] : [], onSelect: n => toggle('kv', n) },
                 // "Khác" là nhóm gộp các khách hàng nhỏ, không lọc được
@@ -431,6 +661,157 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
           </div>
         </div>
       </div>
+      {/* Cấp 1: cửa sổ chi tiết (ô KPI / cột tháng / PC) — bấm 1 công trình mở cửa sổ HEX (cấp 2) */}
+      <ModalShell
+        open={detail !== null && detailData !== null}
+        onClose={() => setDetail(null)}
+        closeOnEsc={false}
+        labelledBy="detail-title"
+        overlayClassName="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 p-4"
+        panelClassName="w-full max-w-6xl max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
+      >
+        {detail && detailData && (
+          <>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{detail.eyebrow}</p>
+                <h3 id="detail-title" className="text-lg font-semibold text-slate-900 truncate">{detail.title}</h3>
+                {detail.note && <p className="text-[11px] text-slate-500 mt-0.5">{detail.note}</p>}
+                {filterSummary(detail.exclude) && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">Theo bộ lọc: {filterSummary(detail.exclude)}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {detail.filter && (
+                  <button
+                    onClick={() => { setKey(detail.filter!.key, detail.filter!.value); setDetail(null); }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <Filter size={13} /> Lọc cả trang theo mục này
+                  </button>
+                )}
+                <button
+                  onClick={() => setHexScope({ ct: null, inDetail: true })}
+                  disabled={detailData.items === 0 || detailData.items > MAX_HEX_ALL}
+                  title={detailData.items > MAX_HEX_ALL
+                    ? `Quá nhiều (${fmtInt(detailData.items)} HEX) — chọn 1 công trình bên dưới để xem HEX`
+                    : 'Xem toàn bộ HEX trong cửa sổ này'}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  Xem tất cả HEX ({fmtInt(detailData.items)})
+                </button>
+                <button onClick={() => setDetail(null)} aria-label="Đóng"
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Số liệu tổng — ô đang xem được tô viền */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-5 py-4">
+              <PcStat label="Công trình" value={fmtInt(detailData.cts)} />
+              <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} />
+              <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} />
+              <PcStat
+                label="Đã hoàn thành" value={fmtTy(detailData.done)} unit="Tỷ" tone="text-emerald-600"
+                active={detail.focus === 'done'}
+                sub={`${(detailData.total > 0 ? (detailData.done / detailData.total) * 100 : 0).toFixed(1)}% tổng giá trị`}
+              />
+              <PcStat label="Còn SX" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 px-5 pb-2">
+              <p className="text-xs font-semibold text-slate-700">
+                Danh sách công trình ({fmtInt(detailProjects.length)})
+                <span className="font-normal text-slate-400"> · bấm 1 dòng để xem danh sách HEX</span>
+              </p>
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  data-autofocus
+                  value={detailSearch} onChange={e => setDetailSearch(e.target.value)} placeholder="Tìm công trình..."
+                  className="h-8 w-52 rounded-lg border border-slate-300 pl-8 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar px-5 pb-5">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                  <tr>
+                    <th className="text-right font-medium px-2 py-2 w-10">STT</th>
+                    <th className="text-left font-medium px-2 py-2">Tên công trình</th>
+                    <th className="text-left font-medium px-2 py-2">PM</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'items' ? 'text-slate-900' : ''}`}>Hạng mục</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'total' ? 'text-slate-900' : ''}`}>Tổng GT (Tỷ)</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'done' ? 'text-slate-900' : ''}`}>Hoàn thành (Tỷ)</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'remain' ? 'text-slate-900' : ''}`}>Còn SX (Tỷ)</th>
+                    <th className="text-left font-medium px-2 py-2 w-32">% hoàn thành</th>
+                    <th className="w-6" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {detailProjects.map((p, i) => {
+                    const pct = p.total > 0 ? Math.min(100, (p.done / p.total) * 100) : 0;
+                    const pms = [...p.pms];
+                    const strong = (k: DetailFocus) => (detail.focus === k ? 'font-semibold text-slate-900' : '');
+                    return (
+                      <tr key={p.name} onClick={() => setHexScope({ ct: p.name, inDetail: true })}
+                          className="group cursor-pointer hover:bg-blue-50/60">
+                        <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
+                        <td className="px-2 py-1.5 text-slate-800 max-w-[320px] truncate group-hover:text-blue-700" title={p.name}>{p.name}</td>
+                        <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap" title={pms.join(', ')}>
+                          {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
+                        </td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('items')}`}>{fmtInt(p.items)}</td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('total')}`}>{fmtTy(p.total)}</td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('done')}`}>{fmtTy(p.done)}</td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('remain')}`}>{fmtTy(p.total - p.done)}</td>
+                        <td className="px-2 py-1.5">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                              <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-9 text-right tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td className="px-1 text-slate-300 group-hover:text-blue-600"><ChevronRight size={14} /></td>
+                      </tr>
+                    );
+                  })}
+                  {detailProjects.length === 0 && (
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                  )}
+                </tbody>
+                {detailProjects.length > 0 && (
+                  <tfoot className="sticky bottom-0 bg-slate-50 font-semibold text-slate-800">
+                    <tr>
+                      <td />
+                      <td className="px-2 py-2">Tổng cộng</td>
+                      <td />
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtInt(detailProjects.reduce((s, p) => s + p.items, 0))}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.total, 0))}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.done, 0))}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.total - p.done, 0))}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </>
+        )}
+      </ModalShell>
+
+      <HexDetailModal
+        isOpen={hexScope !== null}
+        onClose={() => setHexScope(null)}
+        title={hexScope?.inDetail && detail ? `Danh sách HEX · ${detail.title}` : 'Danh sách HEX'}
+        projectName={hexScope?.ct ?? null}
+        rows={hexRows}
+        columnKeys={hexColumnKeys}
+        currentUser={currentUser}
+      />
     </div>
   );
 };

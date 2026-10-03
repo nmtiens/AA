@@ -176,7 +176,8 @@ const useViewMappingReady = () => {
 
 const ConstructionOverviewWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
-  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} />;
+  const { user } = useAuth();
+  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''} />;
 };
 
 // Dùng chung 1 component cho 2 view Công trình. key={viewId} để chuyển giữa 2 view thì

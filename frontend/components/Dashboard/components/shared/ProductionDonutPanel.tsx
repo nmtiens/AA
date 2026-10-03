@@ -4,6 +4,8 @@ import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../../../type
 import { findColumnKey } from '../../utils/columnKeyResolver';
 import { parseNumber } from '../../utils/numberParsers';
 import { categoryValue, NO_DATA_LABEL } from '../../utils/filterMatch';
+import { exportOrderMixExcel, type MixExportRec } from '../../utils/orderMixExport';
+import { Download, Loader2 } from 'lucide-react';
 
 // Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
@@ -17,6 +19,7 @@ interface Rec {
   /** Khoá đếm công trình (mã -> tên chuẩn), xem projectKeyResolver */
   ct: string;
   kv: string; kh: string; pl: string; total: number;
+  row: DataRow;  // dòng gốc — cho file xuất Excel
 }
 
 const PALETTE = ['#1f2a44', '#2563eb', '#60a5fa', '#94a3b8', '#d97706', '#16a34a', '#a78bfa', '#cbd5e1'];
@@ -300,6 +303,7 @@ export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, selection
         ct,
         kv: categoryValue(row[kvK]), kh: categoryValue(row[khK]), pl: categoryValue(row[plK]),
         total: cancelled ? 0 : parseNumber(row[totK]),
+        row,
       });
     }
     return out;
@@ -332,11 +336,25 @@ export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, selection
 
   const hasSel = selection.kv.length + selection.kh.length + selection.pl.length > 0;
 
+  const handleExport = () => {
+    const toExport = (rs: Rec[]): MixExportRec[] =>
+      rs.map(r => ({ ctKey: r.ct, kv: r.kv, kh: r.kh, pl: r.pl, total: r.total, row: r.row }));
+    const picked = [...selection.kv, ...selection.kh, ...selection.pl];
+    return exportOrderMixExcel({
+      fileName: `co_cau_don_hang_${new Date().toISOString().slice(0, 10)}`,
+      scopeLabel: picked.length ? picked.join(' · ') : 'Tất cả (theo bộ lọc tổng của trang)',
+      byDim: { kv: toExport(matching('kv')), kh: toExport(matching('kh')), pl: toExport(matching('pl')) },
+      scopeRows: toExport(matching()),
+      columns,
+    });
+  };
+
   return (
     <OrderMixCard
       metric={metric}
       onMetricChange={setMetric}
       onClear={hasSel ? () => onSelectionChange({ kv: [], kh: [], pl: [] }) : undefined}
+      onExport={handleExport}
       summary={summary}
       charts={[
         { title: 'Theo khu vực', data: kvData, selected: selection.kv, onSelect: n => toggle('kv', n) },
@@ -367,19 +385,34 @@ interface OrderMixCardProps {
   charts: OrderMixChart[];
   /** Số công trình / hạng mục / giá trị của phạm vi đang chọn (khớp mọi lát đã chọn) */
   summary?: MixSummary;
+  /** Có giá trị => hiện nút "Xuất Excel" (có thể trả Promise để hiện trạng thái đang xuất) */
+  onExport?: () => void | Promise<void>;
   className?: string;
   /** Biểu đồ tròn cỡ lớn (mặc định). false = bản gọn cho chỗ hẹp */
   large?: boolean;
 }
 
 export const OrderMixCard: React.FC<OrderMixCardProps> = ({
-  metric, onMetricChange, onClear, charts, summary, className = 'flex-1', large = true,
+  metric, onMetricChange, onClear, charts, summary, onExport, className = 'flex-1', large = true,
 }) => {
   const picked = charts.flatMap(c => c.selected ?? []);
+  const [exporting, setExporting] = useState(false);
+  const runExport = async () => {
+    if (!onExport || exporting) return;
+    setExporting(true);
+    try {
+      await onExport();
+    } catch (err) {
+      console.error('Lỗi xuất Excel cơ cấu đơn hàng:', err);
+      alert('Không xuất được file Excel, vui lòng thử lại.');
+    } finally {
+      setExporting(false);
+    }
+  };
   return (
     <div className={`${className} flex flex-col bg-white rounded-xl border border-slate-200 p-5 shadow-sm min-h-0`}>
       {/* Tiêu đề: cùng kiểu với thẻ phễu bên trái */}
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
             Cơ cấu đơn hàng
@@ -390,6 +423,18 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
           {onClear && (
             <button onClick={onClear} className="text-xs text-slate-500 hover:text-slate-900 underline">
               Bỏ lọc
+            </button>
+          )}
+          {onExport && (
+            <button
+              type="button"
+              onClick={runExport}
+              disabled={exporting}
+              title="Xuất Excel: tóm tắt, cơ cấu theo khu vực / khách hàng / nhóm SP và danh sách hạng mục của phạm vi đang chọn"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60"
+            >
+              {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
             </button>
           )}
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
