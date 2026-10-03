@@ -63546,13 +63546,15 @@ async function runLimited(items, limit, fn) {
     while (i < items.length) await fn(items[i++]);
   }));
 }
+var isPushEnabled = () => pushEnabled;
 async function sendToUsers(userIds, payload) {
-  if (!pushEnabled || userIds.length === 0) return;
+  if (!pushEnabled || userIds.length === 0) return { sent: 0, failed: 0, devices: 0 };
   const { rows } = await pool.query(
     "SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])",
     [userIds]
   );
   const body = JSON.stringify(payload);
+  let sent = 0, failed = 0;
   await runLimited(rows, 5, async (s) => {
     try {
       await import_web_push.default.sendNotification(
@@ -63560,7 +63562,9 @@ async function sendToUsers(userIds, payload) {
         body,
         { TTL: 3600, urgency: "high" }
       );
+      sent++;
     } catch (err) {
+      failed++;
       if (err?.statusCode === 404 || err?.statusCode === 410) {
         await pool.query("DELETE FROM push_subscriptions WHERE id = $1", [s.id]);
       } else {
@@ -63568,6 +63572,7 @@ async function sendToUsers(userIds, payload) {
       }
     }
   });
+  return { sent, failed, devices: rows.length };
 }
 async function recipientsFor(createdBy, createdDept, excludeUsername) {
   const r = await pool.query(
@@ -67180,6 +67185,81 @@ app.put("/api/notifications/prefs", validateBody(prefsSchema), async (req, res) 
   } catch (e) {
     if (isMissingSchema(e)) return res.status(409).json({ success: false, available: false, message: "Ch\u01B0a b\u1EADt t\xEDnh n\u0103ng c\xE0i \u0111\u1EB7t th\xF4ng b\xE1o (c\u1EA7n ch\u1EA1y SQL)" });
     console.error("L\u1ED7i PUT /api/notifications/prefs:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+var safeCount = async (sql, params = []) => {
+  try {
+    return Number((await pool.query(sql, params)).rows[0]?.n ?? 0);
+  } catch (e) {
+    if (isMissingSchema(e)) return null;
+    throw e;
+  }
+};
+app.get("/api/notifications/diagnose", async (req, res) => {
+  try {
+    const uid = me(req);
+    const [user, mySubs, inboxMine, inboxAll7d, prefs] = await Promise.all([
+      pool.query("SELECT full_name FROM users WHERE id = $1", [req.user.id]),
+      safeCount("SELECT COUNT(*) AS n FROM push_subscriptions WHERE user_id = $1", [uid]),
+      safeCount("SELECT COUNT(*) AS n FROM notifications WHERE user_id = $1", [uid]),
+      safeCount(`SELECT COUNT(*) AS n FROM notifications WHERE created_at > now() - interval '7 days'`),
+      pool.query("SELECT notify_prefs FROM users WHERE id = $1", [req.user.id]).then((r) => r.rows[0]?.notify_prefs ?? null).catch(() => void 0)
+    ]);
+    let lastBotScan = null;
+    try {
+      lastBotScan = (await pool.query("SELECT MAX(notified_at) AS t FROM vuong_mac_bot_notifications")).rows[0]?.t ?? null;
+    } catch {
+    }
+    res.json({
+      success: true,
+      server: {
+        vapid: isPushEnabled(),
+        // đủ VAPID_PUBLIC_KEY / PRIVATE_KEY / SUBJECT
+        cronSecret: !!process.env.CRON_SECRET,
+        inboxTable: inboxMine !== null,
+        // đã chạy SQL tạo bảng notifications
+        prefsColumn: prefs !== void 0
+        // đã có cột users.notify_prefs
+      },
+      me: {
+        fullName: user.rows[0]?.full_name ?? null,
+        devices: mySubs ?? 0,
+        // số thiết bị đã bật thông báo đẩy
+        inboxCount: inboxMine ?? 0,
+        prefs: mergePrefs(prefs ?? null)
+      },
+      system: {
+        notifications7d: inboxAll7d,
+        // tổng thông báo đã tạo 7 ngày qua (mọi người)
+        lastBotScan
+        // lần gần nhất cron nhắc hạn BOT gửi được thông báo
+      }
+    });
+  } catch (e) {
+    console.error("L\u1ED7i /api/notifications/diagnose:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+app.post("/api/notifications/test", async (req, res) => {
+  try {
+    const uid = me(req);
+    const title = "Th\xF4ng b\xE1o th\u1EED";
+    const body = "N\u1EBFu b\u1EA1n th\u1EA5y th\xF4ng b\xE1o n\xE0y th\xEC th\xF4ng b\xE1o \u0111\xE3 ho\u1EA1t \u0111\u1ED9ng.";
+    let savedToInbox = false;
+    try {
+      await pool.query(
+        `INSERT INTO notifications (user_id, kind, title, body, actor) VALUES ($1, 'test', $2, $3, $4)`,
+        [uid, title, body, req.user.username]
+      );
+      savedToInbox = true;
+    } catch (e) {
+      if (!isMissingSchema(e)) throw e;
+    }
+    const push = await sendToUsers([uid], { title, body, tag: `test-${Date.now()}`, target: { hex: "", category: "", id: 0 } });
+    res.json({ success: true, savedToInbox, pushEnabled: isPushEnabled(), ...push });
+  } catch (e) {
+    console.error("L\u1ED7i /api/notifications/test:", e);
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });

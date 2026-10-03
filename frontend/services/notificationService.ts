@@ -59,3 +59,17 @@ export const fetchNotifyPrefs = async (): Promise<{ prefs: NotifyPrefs; availabl
 
 export const saveNotifyPrefs = async (prefs: Partial<NotifyPrefs>): Promise<{ prefs: NotifyPrefs }> =>
   json(await fetch('/api/notifications/prefs', { method: 'PUT', headers: headers(), body: JSON.stringify({ prefs }) }));
+
+// ---------------- Kiểm tra vì sao không nhận được thông báo ----------------
+export interface NotifyDiagnose {
+  server: { vapid: boolean; cronSecret: boolean; inboxTable: boolean; prefsColumn: boolean };
+  me: { fullName: string | null; devices: number; inboxCount: number; prefs: NotifyPrefs };
+  system: { notifications7d: number | null; lastBotScan: string | null };
+}
+
+export const fetchNotifyDiagnose = async (): Promise<NotifyDiagnose> =>
+  json(await fetch('/api/notifications/diagnose', { headers: headers() }));
+
+export const sendTestNotification = async (): Promise<{
+  savedToInbox: boolean; pushEnabled: boolean; sent: number; failed: number; devices: number;
+}> => json(await fetch('/api/notifications/test', { method: 'POST', headers: headers() }));

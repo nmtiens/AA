@@ -69,13 +69,13 @@ export default function MentionTextarea({ value, onChange, className, rows = 3, 
       />
       {matches.length > 0 && (
         <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-lg">
-          <li className="px-4 pb-1 pt-1.5 text-xs text-slate-400">Tag tên — người được tag sẽ nhận thông báo</li>
+          <li className="px-4 pb-1 pt-1.5 text-sm text-slate-400">Tag tên — người được tag sẽ nhận thông báo</li>
           {matches.map(n => (
             <li key={n}>
               <button
                 type="button"
                 onMouseDown={e => { e.preventDefault(); pick(n); }}
-                className="block w-full px-4 py-2.5 text-left text-sm text-slate-800 active:bg-slate-100"
+                className="block w-full px-4 py-2.5 text-left text-base text-slate-800 active:bg-slate-100"
               >
                 @{n}
               </button>

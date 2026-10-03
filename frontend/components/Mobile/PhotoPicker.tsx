@@ -85,8 +85,8 @@ export default function PhotoPicker({ value, onChange, max = 5 }: Props) {
       <input ref={camRef} type="file" accept="image/*" capture="environment" hidden onChange={e => add(e.target.files)} />
       <input ref={galRef} type="file" accept="image/*" multiple hidden onChange={e => add(e.target.files)} />
 
-      {busy && <p className="text-sm text-slate-500">Đang xử lý ảnh...</p>}
-      {err && <p className="text-sm text-red-600">{err}</p>}
+      {busy && <p className="text-base text-slate-500">Đang xử lý ảnh...</p>}
+      {err && <p className="text-base text-red-600">{err}</p>}
 
       {value.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
@@ -105,7 +105,7 @@ export default function PhotoPicker({ value, onChange, max = 5 }: Props) {
           ))}
         </div>
       )}
-      <p className="text-xs text-slate-400">{value.length}/{max} ảnh</p>
+      <p className="text-sm text-slate-400">{value.length}/{max} ảnh</p>
     </div>
   );
 }

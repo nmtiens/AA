@@ -22,7 +22,7 @@ export const btnSecondary =
   'rounded-full border border-slate-300 bg-white px-4 py-2.5 text-base text-slate-700 active:bg-slate-100 disabled:opacity-40';
 
 export const chipCls = (on: boolean) =>
-  `shrink-0 rounded-full px-4 py-2 text-sm ${on ? 'bg-slate-900 font-medium text-white' : 'border border-slate-300 bg-white text-slate-600 active:bg-slate-100'}`;
+  `shrink-0 rounded-full px-4 py-2 text-base ${on ? 'bg-slate-900 font-medium text-white' : 'border border-slate-300 bg-white text-slate-600 active:bg-slate-100'}`;
 
 // ---------------- Thời gian ----------------
 export const pad = (n: number) => String(n).padStart(2, '0');
@@ -114,7 +114,7 @@ export function LabeledField({ label, required, children, className = '' }: {
   label: string; required?: boolean; children: ReactNode; className?: string;
 }) {
   return (
-    <label className={`block text-sm font-medium text-slate-700 ${className}`}>
+    <label className={`block text-base font-medium text-slate-700 ${className}`}>
       {label}{required && <span className="text-red-500"> *</span>}
       <div className="mt-1 font-normal">{children}</div>
     </label>
@@ -197,7 +197,7 @@ export function MobileLogin({ onSuccess }: { onSuccess: () => void }) {
         <div className="mb-6 text-center">
           <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-3xl text-white">📋</div>
           <h1 className="text-2xl font-semibold text-slate-900">Vướng mắc sản xuất</h1>
-          <p className="mt-1 text-sm text-slate-500">Đăng nhập bằng tài khoản Operations Hub</p>
+          <p className="mt-1 text-base text-slate-500">Đăng nhập bằng tài khoản Operations Hub</p>
         </div>
         <form onSubmit={submit} className={`${CARD} space-y-3 p-5`}>
           <LabeledField label="Tài khoản">
@@ -224,13 +224,13 @@ export function MobileLogin({ onSuccess }: { onSuccess: () => void }) {
               <button
                 type="button"
                 onClick={() => setShowPw(v => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-sm text-slate-500 active:bg-slate-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-base text-slate-500 active:bg-slate-100"
               >
                 {showPw ? 'Ẩn' : 'Hiện'}
               </button>
             </div>
           </LabeledField>
-          {err && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{err}</p>}
+          {err && <p className="rounded-xl bg-red-50 px-3 py-2 text-base text-red-700">{err}</p>}
           <button type="submit" disabled={busy} className={btnPrimary}>
             {busy ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
@@ -285,11 +285,11 @@ export function InstallBanner({ force = false }: { force?: boolean }) {
   };
 
   if (installed) {
-    return force ? <p className="text-sm text-emerald-700">✓ Đang dùng bản đã cài trên điện thoại</p> : null;
+    return force ? <p className="text-base text-emerald-700">✓ Đang dùng bản đã cài trên điện thoại</p> : null;
   }
   // Android: chỉ hiện khi trình duyệt cho phép cài. iPhone: luôn hiện kèm hướng dẫn.
   if ((!force && dismissed) || (!evt && !isIOS())) {
-    return force ? <p className="text-sm text-slate-500">Mở trang này bằng Chrome (Android) hoặc Safari (iPhone) để cài.</p> : null;
+    return force ? <p className="text-base text-slate-500">Mở trang này bằng Chrome (Android) hoặc Safari (iPhone) để cài.</p> : null;
   }
 
   return (
@@ -297,16 +297,16 @@ export function InstallBanner({ force = false }: { force?: boolean }) {
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-xl">📲</div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-slate-900">Cài ứng dụng lên điện thoại</p>
-          <p className="text-xs text-slate-600">Mở nhanh từ màn hình chính, nhận thông báo nhắc hạn BOT</p>
+          <p className="text-base font-medium text-slate-900">Cài ứng dụng lên điện thoại</p>
+          <p className="text-sm text-slate-600">Mở nhanh từ màn hình chính, nhận thông báo nhắc hạn BOT</p>
         </div>
-        <button onClick={install} className="shrink-0 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white active:opacity-80">
+        <button onClick={install} className="shrink-0 rounded-full bg-slate-900 px-4 py-2 text-base font-medium text-white active:opacity-80">
           Cài đặt
         </button>
         {!force && <button onClick={dismiss} aria-label="Ẩn" className="shrink-0 px-1 text-slate-500">✕</button>}
       </div>
       {showIOS && (
-        <p className="mt-3 rounded-xl bg-white/70 p-3 text-xs text-slate-700">
+        <p className="mt-3 rounded-xl bg-white/70 p-3 text-sm text-slate-700">
           Bấm nút <b>Chia sẻ</b> (hình vuông có mũi tên lên) ở thanh dưới của Safari, rồi chọn <b>Thêm vào Màn hình chính</b>.
           Lưu ý: phải mở bằng Safari, không mở trong Zalo hay Messenger.
         </p>
@@ -319,7 +319,7 @@ export function InstallBanner({ force = false }: { force?: boolean }) {
 export function Toast({ text }: { text: string }) {
   if (!text) return null;
   return createPortal(
-    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] left-1/2 z-[90] max-w-[90vw] -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-base text-white shadow-lg">
       {text}
     </div>,
     document.body

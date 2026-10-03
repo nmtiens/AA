@@ -45,16 +45,23 @@ async function runLimited<T>(items: T[], limit: number, fn: (x: T) => Promise<vo
   }));
 }
 
-export async function sendToUsers(userIds: string[], payload: PushPayload) {
-  if (!pushEnabled || userIds.length === 0) return;
+/** Đủ khoá VAPID để gửi thông báo đẩy chưa (dùng cho màn "Kiểm tra thông báo") */
+export const isPushEnabled = () => pushEnabled;
+
+/** Gửi đẩy tới mọi thiết bị đã đăng ký của các user. Trả về số thiết bị gửi được / lỗi. */
+export async function sendToUsers(userIds: string[], payload: PushPayload): Promise<{ sent: number; failed: number; devices: number }> {
+  if (!pushEnabled || userIds.length === 0) return { sent: 0, failed: 0, devices: 0 };
   const { rows } = await pool.query(
     'SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ANY($1::text[])', [userIds]);
   const body = JSON.stringify(payload);
+  let sent = 0, failed = 0;
   await runLimited(rows, 5, async (s: any) => {
     try {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, { TTL: 3600, urgency: 'high' });
+      sent++;
     } catch (err: any) {
+      failed++;
       if (err?.statusCode === 404 || err?.statusCode === 410) {
         await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [s.id]); // thiết bị đã gỡ/hết hạn
       } else {
@@ -62,6 +69,7 @@ export async function sendToUsers(userIds: string[], payload: PushPayload) {
       }
     }
   });
+  return { sent, failed, devices: rows.length };
 }
 
 // Người nhận: người tạo + thành viên cùng phòng ban với người tạo (đúng nhóm có quyền thao tác, xem canModifyVuongMac)

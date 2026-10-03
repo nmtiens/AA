@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { pushSupported, isPushOn, enablePush, disablePush } from '../../services/vuongMacMobileApi';
 import { BG, CARD, InstallBanner, initials } from './mobileUi';
+import NotifyDiagnostics from './NotifyDiagnostics';
 
 // ============================================================================
 // Màn "Tài khoản": thông tin người dùng, cỡ chữ, thông báo nhắc hạn BOT, cài app,
@@ -77,7 +78,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
         </div>
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold text-slate-900">{name || '—'}</p>
-          <p className="truncate text-sm text-slate-500">
+          <p className="truncate text-base text-slate-500">
             {user?.username}{user?.department ? ` · ${user.department}` : ''}{user?.role === 'ADMIN' ? ' · Quản trị' : ''}
           </p>
         </div>
@@ -85,13 +86,13 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
 
       {/* Cỡ chữ */}
       <section className={`${CARD} p-4`}>
-        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800"><Type size={16} /> Cỡ chữ</p>
+        <p className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800"><Type size="1em" /> Cỡ chữ</p>
         <div className="grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1">
           {sizeLabels.map((l, i) => (
             <button
               key={l}
               onClick={() => onSizeChange(i)}
-              className={`rounded-full py-2 text-sm ${sizeIdx === i ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-full py-2 text-base ${sizeIdx === i ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               {l}
             </button>
@@ -103,11 +104,11 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
       <section className={`${CARD} p-4`}>
         <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-            {pushOn ? <Bell size={18} /> : <BellOff size={18} />}
+            {pushOn ? <Bell size="1.125em" /> : <BellOff size="1.125em" />}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-800">Thông báo trên điện thoại</p>
-            <p className="text-xs text-slate-500">
+            <p className="text-base font-semibold text-slate-800">Thông báo trên điện thoại</p>
+            <p className="text-sm text-slate-500">
               {pushSupported() ? 'Hiện thông báo kể cả khi đang không mở app' : 'Thiết bị / trình duyệt này chưa hỗ trợ thông báo'}
             </p>
           </div>
@@ -117,16 +118,16 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
 
       {/* Loại thông báo muốn nhận */}
       <section className={`${CARD} p-4`}>
-        <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-slate-800"><BellRing size={16} /> Nhận thông báo khi</p>
+        <p className="mb-1 flex items-center gap-2 text-base font-semibold text-slate-800"><BellRing size="1em" /> Nhận thông báo khi</p>
         {!prefsAvailable ? (
-          <p className="text-xs text-amber-700">Máy chủ chưa bật cài đặt thông báo (cần chạy file SQL). Hiện đang dùng mặc định.</p>
+          <p className="text-sm text-amber-700">Máy chủ chưa bật cài đặt thông báo (cần chạy file SQL). Hiện đang dùng mặc định.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {(Object.keys(PREF_LABELS) as PrefKey[]).map(k => (
               <li key={k} className="flex items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-800">{PREF_LABELS[k].label}</p>
-                  <p className="text-xs text-slate-500">{PREF_LABELS[k].hint}</p>
+                  <p className="text-base text-slate-800">{PREF_LABELS[k].label}</p>
+                  <p className="text-sm text-slate-500">{PREF_LABELS[k].hint}</p>
                 </div>
                 <Switch on={!!prefs?.[k]} disabled={!prefs} onClick={() => togglePref(k)} label={PREF_LABELS[k].label} />
               </li>
@@ -135,19 +136,21 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
         )}
       </section>
 
+      <NotifyDiagnostics />
+
       {/* Cài app */}
       <section className={`${CARD} p-4`}>
-        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800"><Smartphone size={16} /> Ứng dụng</p>
+        <p className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800"><Smartphone size="1em" /> Ứng dụng</p>
         <InstallBanner force />
       </section>
 
       {/* Bản máy tính + đăng xuất */}
       <section className={`${CARD} divide-y divide-slate-100`}>
-        <a href="/" className="flex items-center gap-3 p-4 text-sm text-slate-800 active:bg-slate-50">
-          <Monitor size={18} className="text-slate-500" /> Mở bản đầy đủ (máy tính)
+        <a href="/" className="flex items-center gap-3 p-4 text-base text-slate-800 active:bg-slate-50">
+          <Monitor size="1.125em" className="text-slate-500" /> Mở bản đầy đủ (máy tính)
         </a>
-        <button onClick={doLogout} className="flex w-full items-center gap-3 p-4 text-left text-sm text-red-600 active:bg-red-50">
-          <LogOut size={18} /> Đăng xuất
+        <button onClick={doLogout} className="flex w-full items-center gap-3 p-4 text-left text-base text-red-600 active:bg-red-50">
+          <LogOut size="1.125em" /> Đăng xuất
         </button>
       </section>
     </div>

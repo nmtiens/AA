@@ -22,9 +22,9 @@ export function BellButton({ unread, onClick }: { unread: number; onClick: () =>
       aria-label={unread ? `Thông báo, ${unread} chưa đọc` : 'Thông báo'}
       className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm active:bg-slate-100"
     >
-      <Bell size={18} />
+      <Bell size="1.125em" />
       {unread > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs font-semibold text-white">
           {unread > 99 ? '99+' : unread}
         </span>
       )}
@@ -93,20 +93,20 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
       title="Thông báo"
       onClose={onClose}
       headerExtra={unread > 0 && (
-        <button onClick={readAll} className="mr-1 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm text-slate-600 active:bg-slate-100">
-          <CheckCheck size={16} /> Đọc hết
+        <button onClick={readAll} className="mr-1 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-base text-slate-600 active:bg-slate-100">
+          <CheckCheck size="1em" /> Đọc hết
         </button>
       )}
     >
       {!available && (
-        <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
+        <p className="rounded-2xl bg-amber-50 p-3 text-base text-amber-800">
           Hộp thông báo chưa được bật trên máy chủ (cần chạy file SQL tạo bảng thông báo). Thông báo đẩy trên điện thoại vẫn hoạt động nếu đã bật.
         </p>
       )}
-      {error && <p className="mb-2 rounded-2xl bg-red-50 p-3 text-sm text-red-700">⚠️ {error}</p>}
+      {error && <p className="mb-2 rounded-2xl bg-red-50 p-3 text-base text-red-700">⚠️ {error}</p>}
 
       {available && !loading && items.length === 0 && !error && (
-        <div className="py-14 text-center text-sm text-slate-400">
+        <div className="py-14 text-center text-base text-slate-400">
           <p className="mb-2 text-4xl">🔔</p>
           Chưa có thông báo nào.
         </div>
@@ -115,7 +115,7 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
       <div className="space-y-4">
         {groups.map(g => (
           <section key={g.title}>
-            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">{g.title}</p>
+            <p className="mb-1.5 text-sm font-semibold uppercase tracking-wide text-slate-400">{g.title}</p>
             <ul className="space-y-1.5">
               {g.list.map(n => (
                 <li key={n.id}>
@@ -127,9 +127,9 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
                       {KIND_ICON[n.kind] ?? '🔔'}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className={`block text-sm leading-snug ${n.readAt ? 'text-slate-700' : 'font-semibold text-slate-900'}`}>{n.title}</span>
-                      {n.body && <span className="mt-0.5 line-clamp-2 block text-sm text-slate-500">{n.body}</span>}
-                      <span className="mt-0.5 block text-xs text-slate-400">{fmtAgo(n.createdAt)}</span>
+                      <span className={`block text-base leading-snug ${n.readAt ? 'text-slate-700' : 'font-semibold text-slate-900'}`}>{n.title}</span>
+                      {n.body && <span className="mt-0.5 line-clamp-2 block text-base text-slate-500">{n.body}</span>}
+                      <span className="mt-0.5 block text-sm text-slate-400">{fmtAgo(n.createdAt)}</span>
                     </span>
                     {!n.readAt && <span className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-blue-600" />}
                   </button>
@@ -140,11 +140,11 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
         ))}
       </div>
 
-      {loading && <p className="py-4 text-center text-sm text-slate-400">Đang tải...</p>}
+      {loading && <p className="py-4 text-center text-base text-slate-400">Đang tải...</p>}
       {hasMore && !loading && (
         <button
           onClick={() => load(items[items.length - 1]?.id)}
-          className="mt-3 w-full rounded-full border border-slate-300 bg-white py-3 text-sm text-slate-700 active:bg-slate-100"
+          className="mt-3 w-full rounded-full border border-slate-300 bg-white py-3 text-base text-slate-700 active:bg-slate-100"
         >
           Xem thông báo cũ hơn
         </button>

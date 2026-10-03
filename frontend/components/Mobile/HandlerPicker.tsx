@@ -70,7 +70,7 @@ export default function HandlerPicker({ value, onChange, inputClassName, optionC
           ))}
         </ul>
       )}
-      {loadErr && <p className="mt-1 text-xs text-slate-400">Không tải được danh sách tài khoản — có thể nhập tên trực tiếp.</p>}
+      {loadErr && <p className="mt-1 text-sm text-slate-400">Không tải được danh sách tài khoản — có thể nhập tên trực tiếp.</p>}
     </div>
   );
 }

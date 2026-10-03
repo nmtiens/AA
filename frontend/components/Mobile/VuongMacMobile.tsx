@@ -37,7 +37,8 @@ type Sheet =
   | { type: 'create' }
   | null;
 
-const TEXT_SIZES = [16, 18, 20, 22];
+// Cỡ chữ gốc (px) — mọi kích thước dùng rem/em nên to/nhỏ theo; mặc định "Vừa" = 19px cho dễ đọc trên điện thoại
+const TEXT_SIZES = [17, 19, 21, 24];
 const SIZE_LABELS = ['Nhỏ', 'Vừa', 'Lớn', 'Rất lớn'];
 const DEFAULT_SIZE_IDX = 1;
 const MAX_PHOTOS = 5;
@@ -71,7 +72,7 @@ function AuthImg({ id, className, onClick }: { id: number; className?: string; o
   }, [id]);
 
   if (failed) {
-    return <div className={`flex items-center justify-center bg-slate-100 text-xs text-slate-400 ${className ?? ''}`}>Lỗi ảnh</div>;
+    return <div className={`flex items-center justify-center bg-slate-100 text-sm text-slate-400 ${className ?? ''}`}>Lỗi ảnh</div>;
   }
   if (!url) return <div className={`animate-pulse bg-slate-200 ${className ?? ''}`} />;
   return <img src={url} alt="" onClick={onClick} className={className} />;
@@ -84,7 +85,7 @@ function PhotoLightbox({ ids, start, onClose }: { ids: number[]; start: number; 
   return createPortal(
     <div className="fixed inset-0 z-[80] flex flex-col bg-black/95">
       <div className="flex items-center justify-between px-4 pb-2 pt-[calc(env(safe-area-inset-top)+8px)] text-white">
-        <span className="text-sm">{idx + 1}/{ids.length}{zoom ? '' : ' · bấm ảnh để phóng to'}</span>
+        <span className="text-base">{idx + 1}/{ids.length}{zoom ? '' : ' · bấm ảnh để phóng to'}</span>
         <button onClick={onClose} aria-label="Đóng" className="flex h-11 w-11 items-center justify-center rounded-full text-xl active:bg-white/20">✕</button>
       </div>
       <div className={`relative min-h-0 flex-1 ${zoom ? 'overflow-auto' : 'flex items-center justify-center overflow-hidden'}`}>
@@ -119,21 +120,21 @@ function VMCard({ v, onOpen }: { v: VMItem; onOpen: () => void }) {
     >
       <span className={`absolute inset-y-0 left-0 w-1.5 ${st.bar}`} />
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${st.pill}`}>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium ${st.pill}`}>
           {st.icon} {st.label}
         </span>
-        {cd && <span className={`shrink-0 text-xs font-medium ${cd.cls}`}>{cd.text}</span>}
+        {cd && <span className={`shrink-0 text-sm font-medium ${cd.cls}`}>{cd.text}</span>}
       </div>
       <p className="line-clamp-2 text-base font-semibold leading-snug text-slate-900">{v.congTrinh || `HEX ${v.hex}`}</p>
-      <p className="mt-0.5 truncate text-sm text-slate-500">
+      <p className="mt-0.5 truncate text-base text-slate-500">
         HEX {v.hex}{v.hangMuc ? ` · ${v.hangMuc}` : ''}
       </p>
       <p className="mt-1.5 line-clamp-2 text-base text-slate-700">{v.content}</p>
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
         <span>{catIcon(v.category)} {CAT_CODE[v.category] ?? FIVE_M_LABELS[v.category]}</span>
         {v.handler && (
           <span className="inline-flex items-center gap-1">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-[9px] font-semibold text-slate-700">{initials(v.handler)}</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">{initials(v.handler)}</span>
             {v.handler}
           </span>
         )}
@@ -151,7 +152,7 @@ function FilterSheet({ f, set, onClose, onReset }: {
 }) {
   const Section = ({ title, children }: { title: string; children: ReactNode }) => (
     <div className="space-y-2">
-      <p className="text-sm font-semibold text-slate-800">{title}</p>
+      <p className="text-base font-semibold text-slate-800">{title}</p>
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
@@ -189,11 +190,11 @@ function FilterSheet({ f, set, onClose, onReset }: {
         </Section>
         {f.dateMode === 'custom' && (
           <div className="grid grid-cols-2 gap-2">
-            <label className="block text-xs text-slate-500">
+            <label className="block text-sm text-slate-500">
               Từ ngày
               <input type="date" value={f.dateFrom} max={f.dateTo || undefined} onChange={e => set({ dateFrom: e.target.value })} className={`${inputCls} mt-1 !py-2`} />
             </label>
-            <label className="block text-xs text-slate-500">
+            <label className="block text-sm text-slate-500">
               Đến ngày
               <input type="date" value={f.dateTo} min={f.dateFrom || undefined} onChange={e => set({ dateTo: e.target.value })} className={`${inputCls} mt-1 !py-2`} />
             </label>
@@ -240,8 +241,8 @@ function DetailSheet({ v, onClose, onAction, onViewPhotos, onReopen, flash }: {
       body: (
         <>
           <p>{e.content}</p>
-          <p className="text-xs text-slate-500">BOT: {e.oldBot || '—'} → <b>{e.bot}</b></p>
-          {e.note && <p className="text-xs text-slate-500">📝 {e.note}</p>}
+          <p className="text-sm text-slate-500">BOT: {e.oldBot || '—'} → <b>{e.bot}</b></p>
+          {e.note && <p className="text-sm text-slate-500">📝 {e.note}</p>}
         </>
       ),
     })),
@@ -251,31 +252,31 @@ function DetailSheet({ v, onClose, onAction, onViewPhotos, onReopen, flash }: {
     }] : []),
   ];
 
-  const iconBtn = 'flex flex-1 flex-col items-center gap-1 rounded-2xl py-2 text-xs text-slate-600 active:bg-slate-100';
+  const iconBtn = 'flex flex-1 flex-col items-center gap-1 rounded-2xl py-2 text-sm text-slate-600 active:bg-slate-100';
 
   return (
     <BottomSheet
-      title={<span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${st.pill}`}>{st.icon} {st.label}</span>}
-      headerExtra={cd && <span className={`mr-2 text-sm font-medium ${cd.cls}`}>{cd.text}</span>}
+      title={<span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-base font-medium ${st.pill}`}>{st.icon} {st.label}</span>}
+      headerExtra={cd && <span className={`mr-2 text-base font-medium ${cd.cls}`}>{cd.text}</span>}
       onClose={onClose}
       footer={
         <div className="space-y-2">
           {v.canModify && !v.isResolved && (
             <div className="flex gap-2">
               <button onClick={() => onAction('resolve')} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 py-3 text-base font-medium text-white active:opacity-80">
-                <CheckCircle2 size={18} /> Đã xử lý
+                <CheckCircle2 size="1.125em" /> Đã xử lý
               </button>
               <button onClick={() => onAction('extend')} className="flex flex-1 items-center justify-center gap-2 rounded-full bg-amber-500 py-3 text-base font-medium text-white active:opacity-80">
-                <Hourglass size={18} /> Thêm thời gian
+                <Hourglass size="1.125em" /> Thêm thời gian
               </button>
             </div>
           )}
           <div className="flex">
-            {v.canModify && <button onClick={() => onAction('edit')} className={iconBtn}><Pencil size={18} />Sửa</button>}
-            <button onClick={() => onAction('log')} className={iconBtn}><History size={18} />Nhật ký</button>
-            <button onClick={share} className={iconBtn}><Share2 size={18} />Chia sẻ</button>
-            {v.canModify && v.isResolved && <button onClick={onReopen} className={iconBtn}><RotateCcw size={18} />Mở lại</button>}
-            {v.canModify && <button onClick={() => onAction('delete')} className={`${iconBtn} !text-red-600`}><Trash2 size={18} />Xóa</button>}
+            {v.canModify && <button onClick={() => onAction('edit')} className={iconBtn}><Pencil size="1.125em" />Sửa</button>}
+            <button onClick={() => onAction('log')} className={iconBtn}><History size="1.125em" />Nhật ký</button>
+            <button onClick={share} className={iconBtn}><Share2 size="1.125em" />Chia sẻ</button>
+            {v.canModify && v.isResolved && <button onClick={onReopen} className={iconBtn}><RotateCcw size="1.125em" />Mở lại</button>}
+            {v.canModify && <button onClick={() => onAction('delete')} className={`${iconBtn} !text-red-600`}><Trash2 size="1.125em" />Xóa</button>}
           </div>
         </div>
       }
@@ -283,37 +284,37 @@ function DetailSheet({ v, onClose, onAction, onViewPhotos, onReopen, flash }: {
       <div className="space-y-4 text-base text-slate-700">
         <div>
           <p className="text-lg font-semibold leading-snug text-slate-900">{v.congTrinh || `HEX ${v.hex}`}</p>
-          <p className="text-sm text-slate-500">
+          <p className="text-base text-slate-500">
             HEX {v.hex}{v.hangMuc ? ` · ${v.hangMuc}` : ''}{v.xuong ? ` · Xưởng ${v.xuong}` : ''}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="grid grid-cols-2 gap-2 text-base">
           <Info label="Loại" value={`${catIcon(v.category)} ${catLabel(v.category)}`} />
           <Info label="Người xử lý" value={v.handler || '—'} />
           <Info label="BOT" value={v.bot || 'Chưa có'} wide />
         </div>
 
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">Nội dung vướng mắc</p>
+          <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">Nội dung vướng mắc</p>
           <p className="whitespace-pre-line">{v.content}</p>
         </div>
         {v.solution && (
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">💡 Giải pháp</p>
+            <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">💡 Giải pháp</p>
             <p className="whitespace-pre-line">{v.solution}</p>
           </div>
         )}
         {v.note && (
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">📝 Ghi chú</p>
+            <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">📝 Ghi chú</p>
             <p className="whitespace-pre-line">{v.note}</p>
           </div>
         )}
 
         {photoIds.length > 0 && (
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-400">📷 Ảnh ({photoIds.length})</p>
+            <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-400">📷 Ảnh ({photoIds.length})</p>
             <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
               {photoIds.map((pid, i) => (
                 <AuthImg key={pid} id={pid} onClick={() => onViewPhotos(i)} className="aspect-square w-full rounded-2xl object-cover" />
@@ -324,21 +325,21 @@ function DetailSheet({ v, onClose, onAction, onViewPhotos, onReopen, flash }: {
 
         {/* Mốc thời gian */}
         <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Diễn biến</p>
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-400">Diễn biến</p>
           <ol className="relative space-y-4 border-l-2 border-slate-100 pl-5">
             {timeline.map((t, i) => (
               <li key={i} className="relative">
                 <span className={`absolute -left-[27px] top-1.5 h-3 w-3 rounded-full ring-4 ring-white ${t.dot}`} />
-                <p className="text-sm font-medium text-slate-800">{t.title}</p>
-                <p className="text-xs text-slate-400">{fmtShort(t.at)}{t.by ? ` · ${t.by}` : ''}</p>
-                {t.body && <div className="mt-1 space-y-0.5 text-sm text-slate-700">{t.body}</div>}
+                <p className="text-base font-medium text-slate-800">{t.title}</p>
+                <p className="text-sm text-slate-400">{fmtShort(t.at)}{t.by ? ` · ${t.by}` : ''}</p>
+                {t.body && <div className="mt-1 space-y-0.5 text-base text-slate-700">{t.body}</div>}
               </li>
             ))}
           </ol>
           {/* Chỉ hiện khi thực sự có sửa sau lúc tạo (lệch hơn 1 phút) */}
           {v.updatedAt && v.updatedBy && v.createdAt &&
             new Date(v.updatedAt).getTime() - new Date(v.createdAt).getTime() > 60_000 && (
-            <p className="mt-3 text-xs text-slate-400">Sửa lần cuối {fmtShort(v.updatedAt)} · {v.updatedBy}</p>
+            <p className="mt-3 text-sm text-slate-400">Sửa lần cuối {fmtShort(v.updatedAt)} · {v.updatedBy}</p>
           )}
         </div>
       </div>
@@ -349,7 +350,7 @@ function DetailSheet({ v, onClose, onAction, onViewPhotos, onReopen, flash }: {
 function Info({ label, value, wide }: { label: string; value: ReactNode; wide?: boolean }) {
   return (
     <div className={`rounded-2xl bg-slate-50 px-3 py-2 ${wide ? 'col-span-2' : ''}`}>
-      <p className="text-xs text-slate-400">{label}</p>
+      <p className="text-sm text-slate-400">{label}</p>
       <p className="break-words font-medium text-slate-800">{value}</p>
     </div>
   );
@@ -448,7 +449,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-slate-900">Vướng mắc</h1>
-            <p className="text-xs text-slate-500">{loading ? 'Đang tải...' : `${total} mục${rows.length < total ? ` · đã tải ${rows.length}` : ''}`}</p>
+            <p className="text-sm text-slate-500">{loading ? 'Đang tải...' : `${total} mục${rows.length < total ? ` · đã tải ${rows.length}` : ''}`}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -456,7 +457,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
               aria-label="Làm mới"
               className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm active:bg-slate-100"
             >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size="1.125em" className={loading ? 'animate-spin' : ''} />
             </button>
             {bell}
           </div>
@@ -464,7 +465,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
 
         <div className="flex gap-2">
           <div className="relative min-w-0 flex-1">
-            <SearchIcon size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <SearchIcon size="1.125em" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={qInput}
               onChange={e => setQInput(e.target.value)}
@@ -474,7 +475,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
             {qInput && (
               <button onClick={() => { setQInput(''); setFilters({ q: '' }); }} aria-label="Xóa tìm kiếm"
                 className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 active:bg-slate-100">
-                <XIcon size={16} />
+                <XIcon size="1em" />
               </button>
             )}
           </div>
@@ -483,9 +484,9 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
             aria-label="Bộ lọc"
             className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm active:bg-slate-100"
           >
-            <SlidersHorizontal size={18} />
+            <SlidersHorizontal size="1.125em" />
             {chips.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-[10px] font-semibold text-white">{chips.length}</span>
+              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-xs font-semibold text-white">{chips.length}</span>
             )}
           </button>
         </div>
@@ -496,7 +497,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
             <button
               key={s}
               onClick={() => setFilters({ status: s, ...(s !== 'open' ? { due: '' as const } : {}) })}
-              className={`rounded-full py-2 text-sm ${filters.status === s ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-full py-2 text-base ${filters.status === s ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}
             >
               {{ open: 'Tồn đọng', resolved: 'Đã xử lý', all: 'Tất cả' }[s]}
             </button>
@@ -508,8 +509,8 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
           <div className={`-mx-4 flex gap-2 overflow-x-auto px-4 ${NO_SCROLLBAR}`}>
             {chips.map(c => (
               <button key={c.key} onClick={() => setFilters(c.clear)}
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-xs text-white active:opacity-80">
-                {c.label} <XIcon size={12} />
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-900 px-3 py-1.5 text-sm text-white active:opacity-80">
+                {c.label} <XIcon size="0.75em" />
               </button>
             ))}
           </div>
@@ -519,7 +520,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
       <main className="space-y-2.5 px-4">
         {error && (
           <div className="space-y-3 rounded-2xl bg-white p-4">
-            <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">⚠️ {error}</p>
+            <p className="rounded-xl bg-red-50 p-3 text-base text-red-700">⚠️ {error}</p>
             <button onClick={reload} className={btnPrimary}>Thử lại</button>
           </div>
         )}
@@ -531,12 +532,12 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
         ))}
 
         {!loading && rows.length === 0 && !error && (
-          <div className="px-6 py-16 text-center text-sm text-slate-400">
+          <div className="px-6 py-16 text-center text-base text-slate-400">
             <p className="mb-2 text-4xl">📭</p>
             Không có vướng mắc nào khớp bộ lọc.
             {chips.length > 0 && (
               <button onClick={() => setFilters({ mine: false, due: '', cat: '', dateMode: 'all', sort: '' })}
-                className="mt-3 block w-full text-sm font-medium text-slate-700 underline">
+                className="mt-3 block w-full text-base font-medium text-slate-700 underline">
                 Bỏ các bộ lọc phụ
               </button>
             )}
@@ -547,7 +548,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
           <button
             disabled={loading}
             onClick={() => loadPage(page + 1, false)}
-            className="w-full rounded-full border border-slate-300 bg-white py-3 text-sm text-slate-700 active:bg-slate-100 disabled:opacity-50"
+            className="w-full rounded-full border border-slate-300 bg-white py-3 text-base text-slate-700 active:bg-slate-100 disabled:opacity-50"
           >
             {loading ? 'Đang tải...' : `Tải thêm (${rows.length}/${total})`}
           </button>
@@ -561,7 +562,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
           aria-label="Thêm vướng mắc"
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg active:opacity-80"
         >
-          <Plus size={26} />
+          <Plus size="1.625em" />
         </button>,
         document.body
       )}
@@ -719,9 +720,9 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
       onClose={onClose}
       footer={
         <>
-          {err && <p className="mb-2 text-sm text-red-600">{err}</p>}
+          {err && <p className="mb-2 text-base text-red-600">{err}</p>}
           {!canSubmit && !busy && (
-            <p className="mb-2 text-center text-xs text-slate-400">
+            <p className="mb-2 text-center text-sm text-slate-400">
               {!editing && !picked ? 'Chọn HEX' : !content.trim() ? 'Nhập nội dung vướng mắc' : 'Kiểm tra lại thời gian BOT'} để lưu
             </p>
           )}
@@ -731,21 +732,21 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
         </>
       }
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* HEX */}
         <div className="md:col-span-2">
           {editing ? (
-            <p className="rounded-2xl bg-slate-100 p-3 text-sm text-slate-600">
+            <p className="rounded-2xl bg-slate-100 p-3 text-base text-slate-600">
               📍 HEX {row!.hex}{row!.congTrinh ? ` · ${row!.congTrinh}` : ''}
             </p>
           ) : picked ? (
             <div className="flex items-start justify-between gap-2 rounded-2xl bg-[#d3e3fd] p-3">
-              <div className="min-w-0 text-sm text-slate-800">
+              <div className="min-w-0 text-base text-slate-800">
                 <p className="font-medium">📍 HEX {picked.hex}</p>
                 <p className="truncate">{picked.congTrinh}{picked.hangMuc ? ` · ${picked.hangMuc}` : ''}</p>
-                {picked.xuong && <p className="text-xs text-slate-600">Xưởng {picked.xuong}</p>}
+                {picked.xuong && <p className="text-sm text-slate-600">Xưởng {picked.xuong}</p>}
               </div>
-              <button type="button" onClick={() => { setPicked(null); setHexQ(''); }} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm text-slate-700 active:bg-slate-100">
+              <button type="button" onClick={() => { setPicked(null); setHexQ(''); }} className="shrink-0 rounded-full bg-white px-3 py-1.5 text-base text-slate-700 active:bg-slate-100">
                 Đổi
               </button>
             </div>
@@ -759,7 +760,7 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
                   className={inputCls}
                 />
               </LabeledField>
-              {searching && <p className="mt-2 text-sm text-slate-400">Đang tìm...</p>}
+              {searching && <p className="mt-2 text-base text-slate-400">Đang tìm...</p>}
               {hits.length > 0 && (
                 <div className="mt-2 max-h-56 overflow-y-auto rounded-2xl border border-slate-200">
                   {hits.map(h => (
@@ -769,14 +770,14 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
                       onClick={() => setPicked(h)}
                       className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0 active:bg-slate-100"
                     >
-                      <p className="text-sm font-medium text-slate-900">HEX {h.hex} · {h.congTrinh}</p>
-                      <p className="truncate text-xs text-slate-500">{h.hangMuc}{h.xuong ? ` · Xưởng ${h.xuong}` : ''}</p>
+                      <p className="text-base font-medium text-slate-900">HEX {h.hex} · {h.congTrinh}</p>
+                      <p className="truncate text-sm text-slate-500">{h.hangMuc}{h.xuong ? ` · Xưởng ${h.xuong}` : ''}</p>
                     </button>
                   ))}
                 </div>
               )}
               {!searching && hexQ.trim().length >= 2 && hits.length === 0 && (
-                <p className="mt-2 text-sm text-slate-400">Không tìm thấy HEX phù hợp.</p>
+                <p className="mt-2 text-base text-slate-400">Không tìm thấy HEX phù hợp.</p>
               )}
             </div>
           )}
@@ -784,7 +785,7 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
 
         {/* Loại */}
         <div className="md:col-span-2">
-          <p className="mb-1 text-sm font-medium text-slate-700">🏷️ Loại</p>
+          <p className="mb-1 text-base font-medium text-slate-700">🏷️ Loại</p>
           {/* Lưới 2 cột (điện thoại) / 4 cột (màn rộng): bấm dễ, không tràn dòng */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {formCategoriesFor(row?.category).map(c => (
@@ -795,10 +796,10 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
                 aria-pressed={category === c.value}
                 className={`rounded-2xl px-3 py-2 text-left ${category === c.value ? 'bg-[#d3e3fd] ring-1 ring-[#8ab4f8]' : 'border border-slate-200 active:bg-slate-50'}`}
               >
-                <span className={`block text-sm ${category === c.value ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                <span className={`block text-base ${category === c.value ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
                   {catIcon(c.value)} {c.label}
                 </span>
-                {c.hint && <span className="block truncate text-xs text-slate-500">{c.hint}</span>}
+                {c.hint && <span className="block truncate text-sm text-slate-500">{c.hint}</span>}
               </button>
             ))}
           </div>
@@ -817,27 +818,27 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
 
         {/* Không bọc trong <label>: bấm vào gợi ý không được làm focus nhảy về ô nhập */}
         <div className="md:col-span-2">
-          <p className="mb-1 text-sm font-medium text-slate-700">👤 Người xử lý</p>
+          <p className="mb-1 text-base font-medium text-slate-700">👤 Người xử lý</p>
           <HandlerPicker value={handler} onChange={setHandler} inputClassName={inputCls} />
         </div>
 
         {/* BOT: bắt đầu + kết thúc — chiếm cả dòng để ô ngày giờ không bị cắt chữ */}
         <div className="space-y-2 md:col-span-2">
-          <p className="text-sm font-medium text-slate-700">
+          <p className="text-base font-medium text-slate-700">
             ⏰ BOT{editing && row!.bot ? <span className="font-normal text-slate-500"> (hiện tại: {row!.bot})</span> : null}
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="block text-xs text-slate-500">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="block text-sm text-slate-500">
               Bắt đầu
-              <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className={`${inputCls} mt-1`} />
+              <input type="datetime-local" style={{ minWidth: 0 }} value={start} onChange={e => setStart(e.target.value)} className={`${inputCls} mt-1`} />
             </label>
-            <label className="block text-xs text-slate-500">
+            <label className="block text-sm text-slate-500">
               Kết thúc
-              <input type="datetime-local" min={start || undefined} value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
+              <input type="datetime-local" style={{ minWidth: 0 }} min={start || undefined} value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
             </label>
           </div>
-          {botInvalid && <p className="text-sm text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
-          {newBot && !botInvalid && <p className="text-sm text-slate-500">BOT: {newBot}</p>}
+          {botInvalid && <p className="text-base text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+          {newBot && !botInvalid && <p className="text-base text-slate-500">BOT: {newBot}</p>}
         </div>
 
         <LabeledField label="💡 Giải pháp">
@@ -851,7 +852,7 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
 
         {/* Ảnh */}
         <div className="space-y-2 md:col-span-2">
-          <p className="text-sm font-medium text-slate-700">📷 Ảnh đính kèm</p>
+          <p className="text-base font-medium text-slate-700">📷 Ảnh đính kèm</p>
           {keptIds.length > 0 && (
             <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
               {keptIds.map(pid => (
@@ -885,7 +886,7 @@ function ResolveSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => vo
     onDone);
   return (
     <BottomSheet title="✅ Đánh dấu đã xử lý" onClose={onClose}>
-      <p className="mb-3 line-clamp-2 text-sm text-slate-500">{row.content}</p>
+      <p className="mb-3 line-clamp-2 text-base text-slate-500">{row.content}</p>
       <LabeledField label="Nội dung đã xử lý" required>
         <MentionTextarea
           value={note}
@@ -896,7 +897,7 @@ function ResolveSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => vo
           className={inputCls}
         />
       </LabeledField>
-      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      {err && <p className="mt-2 text-base text-red-600">{err}</p>}
       <button disabled={busy || !note.trim()} onClick={submit} className={`${btnPrimary} mt-4`}>
         {busy ? 'Đang lưu...' : 'Xác nhận đã xử lý'}
       </button>
@@ -921,8 +922,8 @@ function ExtendSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => voi
     onDone);
   return (
     <BottomSheet title="⏳ Cần thêm thời gian" onClose={onClose}>
-      <p className="mb-3 text-sm text-slate-500">⏰ BOT hiện tại: {row.bot || '—'}</p>
-      <div className="grid gap-3 md:grid-cols-2">
+      <p className="mb-3 text-base text-slate-500">⏰ BOT hiện tại: {row.bot || '—'}</p>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <LabeledField label="Lý do cần thêm thời gian" required className="md:col-span-2">
           <MentionTextarea
             value={content}
@@ -935,26 +936,26 @@ function ExtendSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => voi
         </LabeledField>
 
         <div className="space-y-2 md:col-span-2">
-          <p className="text-sm font-medium text-slate-700">⏰ BOT mới <span className="text-red-500">*</span></p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <label className="block text-xs text-slate-500">
+          <p className="text-base font-medium text-slate-700">⏰ BOT mới <span className="text-red-500">*</span></p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="block text-sm text-slate-500">
               Bắt đầu
-              <input type="datetime-local" value={start} onChange={e => setStart(e.target.value)} className={`${inputCls} mt-1`} />
+              <input type="datetime-local" style={{ minWidth: 0 }} value={start} onChange={e => setStart(e.target.value)} className={`${inputCls} mt-1`} />
             </label>
-            <label className="block text-xs text-slate-500">
+            <label className="block text-sm text-slate-500">
               Kết thúc
-              <input type="datetime-local" min={start || undefined} value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
+              <input type="datetime-local" style={{ minWidth: 0 }} min={start || undefined} value={end} onChange={e => setEnd(e.target.value)} className={`${inputCls} mt-1`} />
             </label>
           </div>
-          {botInvalid && <p className="text-sm text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
-          {newBot && !botInvalid && <p className="text-sm text-slate-500">BOT mới: {newBot}</p>}
+          {botInvalid && <p className="text-base text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
+          {newBot && !botInvalid && <p className="text-base text-slate-500">BOT mới: {newBot}</p>}
         </div>
 
         <LabeledField label="📝 Ghi chú" className="md:col-span-2">
           <MentionTextarea value={note} onChange={setNote} rows={2} maxLength={2000} placeholder="Nhập ghi chú thêm..." className={inputCls} />
         </LabeledField>
       </div>
-      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      {err && <p className="mt-2 text-base text-red-600">{err}</p>}
       <button disabled={busy || !content.trim() || !end || botInvalid} onClick={submit} className={`${btnPrimary} mt-4`}>
         {busy ? 'Đang gửi...' : 'Gửi yêu cầu'}
       </button>
@@ -969,8 +970,8 @@ function DeleteSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => voi
   return (
     <BottomSheet title="🗑️ Xóa vướng mắc?" onClose={onClose}>
       <p className="text-base text-slate-800">{row.content}</p>
-      <p className="mt-2 text-sm text-slate-500">Lịch sử gia hạn và ảnh đính kèm cũng sẽ bị xóa. Thao tác này không hoàn tác được.</p>
-      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+      <p className="mt-2 text-base text-slate-500">Lịch sử gia hạn và ảnh đính kèm cũng sẽ bị xóa. Thao tác này không hoàn tác được.</p>
+      {err && <p className="mt-2 text-base text-red-600">{err}</p>}
       <div className="mt-4 flex gap-3">
         <button onClick={onClose} className="flex-1 rounded-full border border-slate-300 py-3 text-base active:bg-slate-100">Hủy</button>
         <button disabled={busy} onClick={submit} className="flex-1 rounded-full bg-red-600 py-3 text-base font-medium text-white active:opacity-80 disabled:opacity-50">
@@ -987,20 +988,20 @@ function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
   const actionIcon: Record<string, string> = { CREATE: '🆕', UPDATE: '✏️', DELETE: '🗑️' };
   return (
     <BottomSheet title={`📜 Nhật ký · HEX ${row.hex}`} onClose={onClose}>
-      {!logs && <p className="text-sm text-slate-400">Đang tải...</p>}
-      <div className="grid gap-2 md:grid-cols-2">
+      {!logs && <p className="text-base text-slate-400">Đang tải...</p>}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {logs?.map(l => (
-          <div key={l.id} className="rounded-2xl bg-slate-100 p-3 text-sm">
+          <div key={l.id} className="rounded-2xl bg-slate-100 p-3 text-base">
             <p className="font-medium text-slate-800">
               {actionIcon[l.action] ?? '•'} {{ CREATE: 'Tạo mới', UPDATE: 'Cập nhật', DELETE: 'Xóa' }[l.action] ?? l.action} · {l.actor}
             </p>
             {l.contentAfter && <p className="text-slate-600">{l.contentAfter}</p>}
             {l.detail && <p className="whitespace-pre-line text-slate-500">{l.detail}</p>}
-            <p className="text-xs text-slate-400">🕒 {fmtTime(l.actedAt)}</p>
+            <p className="text-sm text-slate-400">🕒 {fmtTime(l.actedAt)}</p>
           </div>
         ))}
       </div>
-      {logs && logs.length === 0 && <p className="text-sm text-slate-400">Chưa có nhật ký.</p>}
+      {logs && logs.length === 0 && <p className="text-base text-slate-400">Chưa có nhật ký.</p>}
     </BottomSheet>
   );
 }
@@ -1101,10 +1102,10 @@ export default function VuongMacMobile() {
   const openCreate = () => { setTab('list'); setCreateNonce(n => n + 1); };
 
   const NAV: { id: Tab; label: string; icon: ReactNode }[] = [
-    { id: 'home', label: 'Tổng quan', icon: <LayoutDashboard size={22} /> },
-    { id: 'list', label: 'Vướng mắc', icon: <ClipboardList size={22} /> },
-    { id: 'lookup', label: 'Tra cứu HEX', icon: <SearchIcon size={22} /> },
-    { id: 'account', label: 'Tài khoản', icon: <UserRound size={22} /> },
+    { id: 'home', label: 'Tổng quan', icon: <LayoutDashboard size="1.375em" /> },
+    { id: 'list', label: 'Vướng mắc', icon: <ClipboardList size="1.375em" /> },
+    { id: 'lookup', label: 'Tra cứu HEX', icon: <SearchIcon size="1.375em" /> },
+    { id: 'account', label: 'Tài khoản', icon: <UserRound size="1.375em" /> },
   ];
 
   return (
@@ -1156,7 +1157,7 @@ export default function VuongMacMobile() {
                 key={n.id}
                 onClick={() => setTab(n.id)}
                 aria-current={on ? 'page' : undefined}
-                className={`flex flex-1 flex-col items-center gap-0.5 pb-2 pt-2 text-[11px] ${on ? 'font-semibold text-slate-900' : 'text-slate-500'}`}
+                className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 whitespace-nowrap pb-2 pt-2 text-[0.6875rem] ${on ? 'font-semibold text-slate-900' : 'text-slate-500'}`}
               >
                 <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${on ? 'bg-slate-900 text-white' : ''}`}>
                   {n.icon}
