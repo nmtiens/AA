@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
 import { Search, X } from 'lucide-react';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
@@ -9,17 +9,18 @@ import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { parseVNDate } from '../Dashboard/utils/dateHelpers';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
+import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN } from '../Dashboard/components/shared/ProductionDonutPanel';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
 // ============================================================
 
 type Status = 'HOÀN THÀNH' | 'CÓ PHIẾU SX' | 'CHƯA TKSX' | 'CẦN XỬ LÝ' | 'TẠM NGƯNG' | 'HỦY';
-type FKey = 'ct' | 'pm' | 'pc' | 'kv' | 'pl' | 'month' | 'status';
+type FKey = 'ct' | 'pm' | 'pc' | 'kv' | 'kh' | 'pl' | 'month';
 type Filters = Partial<Record<FKey, string | undefined>>;
 
 interface Rec {
-  ct: string; pm: string; pc: string; kv: string; pl: string;
+  ct: string; pm: string; pc: string; kv: string; kh: string; pl: string;
   month: string;      // 'YYYY-MM' hoặc 'none'
   status: Status;
   total: number;      // trị giá đơn hàng (0 nếu hủy)
@@ -30,18 +31,9 @@ const NO_DATA = '(Chưa có)';
 const NO_MONTH = 'none';
 
 const FILTER_LABEL: Record<FKey, string> = {
-  ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', pl: 'Nhóm SP', month: 'Hạn giao', status: 'Tình trạng',
+  ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', kh: 'Khách hàng', pl: 'Nhóm SP', month: 'Hạn giao',
 };
 
-const STATUS_COLOR: Record<Status, string> = {
-  'HOÀN THÀNH': '#16a34a',
-  'CÓ PHIẾU SX': '#2563eb',
-  'CHƯA TKSX': '#94a3b8',
-  'CẦN XỬ LÝ': '#d97706',
-  'TẠM NGƯNG': '#a78bfa',
-  'HỦY': '#dc2626',
-};
-const PALETTE = ['#1f2a44', '#2563eb', '#60a5fa', '#94a3b8', '#d97706', '#16a34a', '#a78bfa', '#cbd5e1'];
 const COLOR_DONE = '#16a34a';
 const COLOR_REMAIN = '#f59e0b';
 // Giá trị gốc tính theo triệu đồng (khớp backend TRIEU_TO_TY) => Tỷ = giá trị gốc / 1,000
@@ -80,6 +72,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     const pmK = key('ten_pm', 'ten_pm');
     const pcK = key('ten_pc', 'ten_pc');
     const kvK = key('khu_vuc', 'khu_vuc');
+    const khK = key('khach_hang', 'khach_hang');
     const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, 'phan_loai_nhom_san_pham');
     const dlK = findColumnKey(columns, 'ngay_can_giao') || findColumnKey(columns, 'ngay_can') || 'ngay_can_giao';
     const stK = key(TARGET_COLUMN_NAMES.TINH_TRANG, 'tinh_trang');
@@ -117,7 +110,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
 
       const cancelled = status === 'HỦY';
       out.push({
-        ct, pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), pl: txt(row[plK]),
+        ct, pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
         month, status,
         total: cancelled ? 0 : totalRaw,
         done: cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw),
@@ -165,7 +158,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     return [...m.entries()].filter(([, v]) => v > 0).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   };
   const kvData = useMemo(() => donut('kv'), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
-  const stData = useMemo(() => donut('status'), [records, f, metric]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const khData = useMemo(() => groupTopN(donut('kh'), TOP_CUSTOMERS, f.kh), [records, f, metric]); // eslint-disable-line react-hooks/exhaustive-deps
   const plData = useMemo(() => donut('pl'), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 5. Bảng theo PC và theo công trình ----------
@@ -224,53 +217,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
       </p>
     </div>
   );
-
-  const Donut = ({
-    title, data, k, colorOf,
-  }: { title: string; data: { name: string; value: number }[]; k: FKey; colorOf: (name: string, i: number) => string }) => {
-    const sum = data.reduce((s, d) => s + d.value, 0) || 1;
-    return (
-      <div className={`${cardCls} p-4`}>
-        <p className="text-xs font-semibold text-slate-700 mb-2">{title}</p>
-        {data.length === 0 ? (
-          <p className="text-xs text-slate-400 py-6 text-center">Không có dữ liệu</p>
-        ) : (
-          <div className="flex items-center gap-3">
-            <div className="w-28 h-28 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data} dataKey="value" nameKey="name" innerRadius={30} outerRadius={52}
-                    paddingAngle={1} stroke="none" onClick={(d: any) => toggle(k, d.name)}
-                  >
-                    {data.map((d, i) => (
-                      <Cell key={d.name} fill={colorOf(d.name, i)} cursor="pointer"
-                            opacity={f[k] && f[k] !== d.name ? 0.25 : 1} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => (metric === 'count' ? fmtInt(v) : `${fmtTy(v * UNIT)} Tỷ`)} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <ul className="flex-1 min-w-0 space-y-1">
-              {data.slice(0, 6).map((d, i) => (
-                <li key={d.name}>
-                  <button
-                    onClick={() => toggle(k, d.name)}
-                    className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left text-[11px] hover:bg-slate-50 ${f[k] === d.name ? 'bg-slate-100 font-semibold' : ''}`}
-                  >
-                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: colorOf(d.name, i) }} />
-                    <span className="truncate flex-1 text-slate-700">{d.name}</span>
-                    <span className="tabular-nums text-slate-500">{((d.value / sum) * 100).toFixed(1)}%</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
@@ -470,24 +416,18 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
             </div>
           </div>
 
-          {/* Cột phải: 3 biểu đồ tròn */}
-          <div className="xl:col-span-3 space-y-4">
-            <div className="flex items-center justify-end">
-              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-[11px]">
-                {(['count', 'value'] as const).map(m => (
-                  <button
-                    key={m}
-                    onClick={() => setMetric(m)}
-                    className={`px-2.5 py-1 rounded-md font-medium ${metric === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
-                  >
-                    {m === 'count' ? 'Số mục' : 'Giá trị'}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <Donut title="Theo khu vực" data={kvData} k="kv" colorOf={(_, i) => PALETTE[i % PALETTE.length]} />
-            <Donut title="Theo tình trạng" data={stData} k="status" colorOf={(n, i) => STATUS_COLOR[n as Status] ?? PALETTE[i % PALETTE.length]} />
-            <Donut title="Theo nhóm sản phẩm" data={plData} k="pl" colorOf={(_, i) => PALETTE[i % PALETTE.length]} />
+          {/* Cột phải: thẻ "Cơ cấu đơn hàng" dùng chung với Tổng quan / Luồng đỏ / Căn mẫu */}
+          <div className="xl:col-span-3 flex flex-col">
+            <OrderMixCard
+              metric={metric}
+              onMetricChange={setMetric}
+              charts={[
+                { title: 'Theo khu vực', data: kvData, selected: f.kv, onSelect: n => toggle('kv', n) },
+                // "Khác" là nhóm gộp các khách hàng nhỏ, không lọc được
+                { title: 'Theo khách hàng', data: khData, selected: f.kh, onSelect: n => n !== OTHERS && toggle('kh', n) },
+                { title: 'Theo nhóm sản phẩm', data: plData, selected: f.pl, onSelect: n => toggle('pl', n) },
+              ]}
+            />
           </div>
         </div>
       </div>

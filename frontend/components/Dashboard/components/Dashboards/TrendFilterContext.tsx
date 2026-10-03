@@ -38,8 +38,8 @@ interface TrendFilterState {
   // "Bộ lọc ngày chung" bên ngoài modal (overviewDateFilters), khi ở chế độ controlled.
   // '' nếu: không ở chế độ controlled, hoặc chưa chọn ngày nào (nghĩa là "toàn bộ
   // thời gian" — không phải là danh sách ngày rời rạc, nên không gửi tham số 'dates').
-  // Mọi chart con (TrendChart, ByXuongChart, ByCongTrinhChart, TrendByDvtChart,
-  // TrendByPhanLoaiChart) và mọi lời gọi /api/detail PHẢI gửi kèm tham số này
+  // Mọi chart con (TrendChart, ByXuongChart, ByCongTrinhChart, TrendByCategoryChart)
+  // và mọi lời gọi /api/detail PHẢI gửi kèm tham số này
   // (khi khác rỗng) để tôn trọng ĐÚNG các ngày đã chọn, thay vì suy diễn thành
   // khoảng liên tục [min, max] như dateFrom/dateTo vẫn làm.
   selectedDatesCsv: string;

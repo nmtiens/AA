@@ -1,4 +1,4 @@
-import { Pool, types, QueryResultRow } from 'pg';
+import { Pool, types, QueryResultRow, PoolClient } from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -125,6 +125,27 @@ export async function timedQuery<T extends QueryResultRow = any>(
     throw err;
   } finally {
     releaseHeavy?.();
+  }
+}
+
+/**
+ * Chạy nhiều câu lệnh GHI trong 1 transaction: lỗi ở bất kỳ bước nào => hoàn tác tất cả.
+ * Dùng cho thao tác nhiều bước (vd. xoá vướng mắc + ghi nhật ký) để không bao giờ
+ * xảy ra cảnh bước 1 thành công còn bước 2 thất bại.
+ * Trong `fn` phải dùng `client.query`, KHÔNG dùng pool.query (sẽ chạy ngoài transaction).
+ */
+export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
   }
 }
 

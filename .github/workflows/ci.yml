@@ -1,0 +1,51 @@
+# Kiểm tra tự động mỗi lần push / mở pull request:
+# - frontend: kiểm tra kiểu TypeScript + build Vite
+# - backend:  kiểm tra kiểu TypeScript + đảm bảo backend/api/dist.js đã được đóng gói lại
+#   (Vercel chạy backend từ dist.js, quên đóng gói thì code mới không lên production)
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Kiểm tra kiểu TypeScript
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Kiểm tra kiểu TypeScript
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: dist.js phải khớp với mã nguồn backend
+        run: |
+          npm run build:bundle
+          if ! git diff --quiet -- api/dist.js; then
+            echo "::error file=backend/api/dist.js::dist.js chưa được đóng gói lại sau khi sửa backend. Chạy 'npm run build:bundle --prefix backend' rồi commit file backend/api/dist.js."
+            exit 1
+          fi

@@ -657,6 +657,7 @@ app.get('/api/detail', async (req: Request, res: Response) => {
 
     // Chiều thời gian
     if (dimension === 'period') {
+      if (!parseSafeDate(value)) return res.status(400).json({ error: 'Invalid period value' });
       const { start, end } = getPeriodRangeFromKey(value, granularity);
       if (isStock && granularity !== 'day') {
         // [SNAPSHOT FIX] Khớp đúng cách /api/trend tính cột tuần/tháng: chỉ lấy

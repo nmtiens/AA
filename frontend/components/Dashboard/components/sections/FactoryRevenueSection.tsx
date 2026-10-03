@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { Target, CheckCircle, Activity, Eye, X } from 'lucide-react';
 import { CheckpointTriangle } from '../shared/CheckpointTriangle';
+import { ModalShell } from '../../../shared/ModalShell';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
 
@@ -378,22 +379,22 @@ export const FactoryRevenueSection = ({
       </div>
 
       {/* Funnel Pivot Detail Modal */}
-      {isFunnelPivotModalOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
-          onClick={() => setIsFunnelPivotModalOpen(false)}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <ModalShell
+        open={isFunnelPivotModalOpen}
+        onClose={() => setIsFunnelPivotModalOpen(false)}
+        labelledBy="factory-funnel-detail-title"
+        overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
+        panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"
+      >
             <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">Chi tiết dữ liệu Phễu</h2>
+                <h2 id="factory-funnel-detail-title" className="text-lg font-bold text-slate-800">Chi tiết dữ liệu Phễu</h2>
                 <p className="text-xs text-slate-500 mt-1">Phân tích giá trị theo BOP</p>
               </div>
               <button
+                type="button"
                 onClick={() => setIsFunnelPivotModalOpen(false)}
+                aria-label="Đóng"
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X size={20} />
@@ -440,9 +441,7 @@ export const FactoryRevenueSection = ({
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </ModalShell>
     </>
   );
 };

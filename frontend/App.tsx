@@ -17,6 +17,7 @@ import { InstallMobileAppModal } from './components/Dashboard/components/modals/
 import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
 import type { ConstructionViewId } from './components/Construction/ConstructionView';
+import { ModalShell } from './components/shared/ModalShell';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
@@ -507,7 +508,8 @@ const MainLayout: React.FC = () => {
 
       // Nếu có bảng cần cập nhật -> gọi /api/all-data MỘT LẦN thay vì N lần riêng lẻ
       if (toUpdate.length > 0) {
-        const allData = await fetchAllDataFromServer();
+        // Chỉ tải các bảng cần cập nhật (đổi phiên bản / chưa có cache), không tải lại cả 12 bảng
+        const allData = await fetchAllDataFromServer(toUpdate.map(cfg => cfg.endpoint));
         if (!allData) ok = false;
         if (allData) {
           for (const cfg of toUpdate) {
@@ -956,57 +958,63 @@ const MainLayout: React.FC = () => {
       </main>
 
       {/* Change Password Modal */}
-      {isChangePasswordOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
-              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                <Key className="text-slate-500" size={16} />
-                Đổi mật khẩu
-              </h3>
-              <button onClick={() => setIsChangePasswordOpen(false)} className="text-slate-400 hover:text-slate-700">
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleChangePassword} className="p-6 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1.5">Mật khẩu cũ</label>
-                <input type="password" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600 outline-none" value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1.5">Mật khẩu mới</label>
-                <input type="password" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600 outline-none" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-              </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={() => setIsChangePasswordOpen(false)} className="flex-1 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy</button>
-                <button type="submit" disabled={isChangingPassword} className="flex-1 py-2 text-sm bg-wood-600 text-white rounded-lg hover:bg-wood-700 font-medium flex items-center justify-center gap-2 disabled:opacity-70">
-                  {isChangingPassword ? <Loader size={16} className="animate-spin" /> : <Check size={16} />} Xác nhận
-                </button>
-              </div>
-            </form>
-          </div>
+      <ModalShell
+        open={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        labelledBy="change-password-title"
+        closeOnBackdrop={false}
+        overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+        panelClassName="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 focus:outline-none"
+      >
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+          <h3 id="change-password-title" className="font-semibold text-slate-900 flex items-center gap-2">
+            <Key className="text-slate-500" size={16} />
+            Đổi mật khẩu
+          </h3>
+          <button type="button" onClick={() => setIsChangePasswordOpen(false)} aria-label="Đóng" className="text-slate-400 hover:text-slate-700">
+            <X size={18} />
+          </button>
         </div>
-      )}
+        <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+          <div>
+            <label htmlFor="old-password" className="text-xs font-medium text-slate-600 block mb-1.5">Mật khẩu cũ</label>
+            <input id="old-password" type="password" autoComplete="current-password" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600 outline-none" value={oldPassword} onChange={e => setOldPassword(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="new-password" className="text-xs font-medium text-slate-600 block mb-1.5">Mật khẩu mới</label>
+            <input id="new-password" type="password" autoComplete="new-password" className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600 outline-none" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+          </div>
+          <div className="pt-2 flex gap-3">
+            <button type="button" onClick={() => setIsChangePasswordOpen(false)} className="flex-1 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy</button>
+            <button type="submit" disabled={isChangingPassword} className="flex-1 py-2 text-sm bg-wood-600 text-white rounded-lg hover:bg-wood-700 font-medium flex items-center justify-center gap-2 disabled:opacity-70">
+              {isChangingPassword ? <Loader size={16} className="animate-spin" /> : <Check size={16} />} Xác nhận
+            </button>
+          </div>
+        </form>
+      </ModalShell>
 
       {/* Logout Confirmation Modal */}
-      {isLogoutConfirmOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 text-center">
-              <div className="w-11 h-11 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1.5">Xác nhận đăng xuất</h3>
-              <p className="text-sm text-slate-500 mb-6">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?</p>
+      <ModalShell
+        open={isLogoutConfirmOpen}
+        onClose={() => setIsLogoutConfirmOpen(false)}
+        labelledBy="logout-confirm-title"
+        overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
+        panelClassName="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200 focus:outline-none"
+      >
+        <div className="p-6 text-center">
+          <div className="w-11 h-11 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+          </div>
+          <h3 id="logout-confirm-title" className="text-base font-semibold text-slate-900 mb-1.5">Xác nhận đăng xuất</h3>
+          <p className="text-sm text-slate-500 mb-6">Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?</p>
 
-              <div className="flex gap-3">
-                <button onClick={() => setIsLogoutConfirmOpen(false)} className="flex-1 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy bỏ</button>
-                <button onClick={confirmLogout} className="flex-1 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Đăng xuất</button>
-              </div>
-            </div>
+          <div className="flex gap-3">
+            {/* Focus mặc định vào "Hủy bỏ" để lỡ bấm Enter không đăng xuất nhầm */}
+            <button type="button" data-autofocus onClick={() => setIsLogoutConfirmOpen(false)} className="flex-1 py-2 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium">Hủy bỏ</button>
+            <button type="button" onClick={confirmLogout} className="flex-1 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">Đăng xuất</button>
           </div>
         </div>
-      )}
+      </ModalShell>
 
       <InstallMobileAppModal isOpen={isInstallOpen} onClose={() => setIsInstallOpen(false)} />
       <DataUpdateLogModal isOpen={isLogOpen} onClose={() => setIsLogOpen(false)} />

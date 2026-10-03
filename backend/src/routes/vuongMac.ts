@@ -1,7 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { pool, timedQuery } from '../db.js';
+import { pool, timedQuery, withTransaction } from '../db.js';
 import { parseBotEnd, notifyExtension } from '../vuongMacPush.js';
 import { authenticateJWT } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
@@ -334,19 +334,22 @@ app.post(
         return res.status(403).json({ success: false, message: 'Chỉ thành viên cùng phòng ban mới được thêm vướng mắc vào mục này' });
       }
 
-      const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, bot_end, solution, note)
-         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9)
-         RETURNING ${VUONG_MAC_COLUMNS}`,
-        [hex, category, content, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null]
-      );
-      const row = result.rows[0];
-
-      await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
-         VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
-        [row.id, hex, category, content, actor]
-      );
+      // Thêm vướng mắc + ghi nhật ký trong 1 transaction (nhật ký lỗi thì không thêm)
+      const row = await withTransaction(async (client) => {
+        const result = await client.query(
+          `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, bot_end, solution, note)
+           VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9)
+           RETURNING ${VUONG_MAC_COLUMNS}`,
+          [hex, category, content, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null]
+        );
+        const inserted = result.rows[0];
+        await client.query(
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
+           VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
+          [inserted.id, hex, category, content, actor]
+        );
+        return inserted;
+      });
 
       res.json({ success: true, data: mapVuongMacRow(row, me, me.department) });
     } catch (error) {
@@ -420,19 +423,23 @@ app.put(
       }
 
       values.push(id);
-      const result = await pool.query(
-        `UPDATE vuong_mac SET ${fields.join(', ')} WHERE id = $${idx}
-         RETURNING ${VUONG_MAC_COLUMNS}`,
-        values
-      );
-      const row = result.rows[0];
-
       const detail = markingResolved ? `Đánh dấu đã xử lý: ${resolvedNoteClean}` : null;
-      await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
-        [row.id, row.hex, row.category, old.content, row.content, detail, actor]
-      );
+
+      // Cập nhật + ghi nhật ký trong 1 transaction
+      const row = await withTransaction(async (client) => {
+        const result = await client.query(
+          `UPDATE vuong_mac SET ${fields.join(', ')} WHERE id = $${idx}
+           RETURNING ${VUONG_MAC_COLUMNS}`,
+          values
+        );
+        const updated = result.rows[0];
+        await client.query(
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+           VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
+          [updated.id, updated.hex, updated.category, old.content, updated.content, detail, actor]
+        );
+        return updated;
+      });
 
       res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
     } catch (error) {
@@ -479,29 +486,32 @@ app.post(
       }
 
       const noteClean = (note ?? '').trim();
-
-      await pool.query(
-        `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [old.id, content, bot, old.bot || null, noteClean || null, actor]
-      );
-      await pool.query(
-        `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
-        [bot, botEnd, actor, old.id]
-      );
-
       const detail = [
         `Cần thêm thời gian: ${content}`,
         `BOT: ${old.bot || '—'} → ${bot}`,
         noteClean ? `Ghi chú: ${noteClean}` : null,
       ].filter(Boolean).join('\n');
-      await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-         VALUES ($1, $2, 'UPDATE', $3, $4, $4, $5, $6)`,
-        [old.id, old.hex, old.category, old.content, detail, actor]
-      );
 
-      // Báo push cho người tạo + cùng phòng ban (không chặn response, không ném lỗi)
+      // 3 bước (thêm gia hạn, đổi BOT, ghi nhật ký) trong 1 transaction: không còn cảnh
+      // đã thêm gia hạn nhưng BOT chưa đổi, hoặc đổi rồi mà không có nhật ký.
+      await withTransaction(async (client) => {
+        await client.query(
+          `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [old.id, content, bot, old.bot || null, noteClean || null, actor]
+        );
+        await client.query(
+          `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
+          [bot, botEnd, actor, old.id]
+        );
+        await client.query(
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+           VALUES ($1, $2, 'UPDATE', $3, $4, $4, $5, $6)`,
+          [old.id, old.hex, old.category, old.content, detail, actor]
+        );
+      });
+
+      // Báo push (sau khi đã lưu xong) cho người tạo + cùng phòng ban (không chặn response, không ném lỗi)
       await notifyExtension(
   { id: old.id, hex: old.hex, category: old.category, created_by: old.created_by, created_department: old.created_department },
   actor, content
@@ -548,12 +558,16 @@ app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Resp
       { ...old, extensions: ext.rows }, me, old.created_department
     );
 
-    await pool.query('DELETE FROM vuong_mac WHERE id = $1', [id]);
-    await pool.query(
-      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, snapshot, actor)
-       VALUES ($1, $2, 'DELETE', $3, $4, $5::jsonb, $6)`,
-      [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
-    );
+    // Xoá + ghi nhật ký (kèm bản chụp) trong 1 transaction. Trước đây 2 lệnh chạy rời: nếu ghi
+    // nhật ký lỗi thì vướng mắc VẪN bị xoá mà không còn bản lưu, người dùng lại nhận lỗi 500.
+    await withTransaction(async (client) => {
+      await client.query('DELETE FROM vuong_mac WHERE id = $1', [id]);
+      await client.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, snapshot, actor)
+         VALUES ($1, $2, 'DELETE', $3, $4, $5::jsonb, $6)`,
+        [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
+      );
+    });
 
     res.json({ success: true, message: 'Đã xóa vướng mắc' });
   } catch (error) {

@@ -11,8 +11,7 @@ import { DetailModalTable } from '../shared/DetailModalTable';
 import TrendChart from '../Dashboards/TrendChart';
 import ByXuongChart from '../Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
-import TrendByDvtChart from '../Dashboards/TrendByDvtChart';
-import TrendByPhanLoaiChart from '../Dashboards/TrendByPhanLoaiChart';
+import TrendByCategoryChart from '../Dashboards/TrendByCategoryChart';
 import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
 import { getYesterdayDateOption, parseVNDate } from '../../utils/dateHelpers';
@@ -852,8 +851,8 @@ const periodLabel = overviewDateFilters.length > 1
                     <TrendChart source="order" embedded displayMode={ipoMetric} />
                     <ByXuongChart source="order" displayMode={ipoMetric} />
                     <ByCongTrinhChart source="order" displayMode={ipoMetric} />
-                  <TrendByPhanLoaiChart source="order" displayMode={ipoMetric} embedded supportsPhanLoai />
-<TrendByDvtChart source="order" displayMode={ipoMetric} embedded supportsDvt />
+                  <TrendByCategoryChart kind="phanloai" source="order" displayMode={ipoMetric} embedded />
+<TrendByCategoryChart kind="dvt" source="order" displayMode={ipoMetric} embedded />
                   </div>
                 </>
               ) : (
@@ -949,8 +948,8 @@ const periodLabel = overviewDateFilters.length > 1
   <TrendChart source="tkbv" embedded displayMode={tkbvMetric} />
   <ByXuongChart source="tkbv" displayMode={tkbvMetric} />
   <ByCongTrinhChart source="tkbv" displayMode={tkbvMetric} />
-  <TrendByPhanLoaiChart source="tkbv" displayMode={tkbvMetric} embedded supportsPhanLoai />
-  <TrendByDvtChart source="tkbv" displayMode={tkbvMetric} embedded supportsDvt />
+  <TrendByCategoryChart kind="phanloai" source="tkbv" displayMode={tkbvMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="tkbv" displayMode={tkbvMetric} embedded />
 </div>
                 </>
               ) : (
@@ -1046,8 +1045,8 @@ const periodLabel = overviewDateFilters.length > 1
   <TrendChart source="pthsp" embedded displayMode={pthspMetric} />
   <ByXuongChart source="pthsp" displayMode={pthspMetric} />
   <ByCongTrinhChart source="pthsp" displayMode={pthspMetric} />
-  <TrendByPhanLoaiChart source="pthsp" displayMode={pthspMetric} embedded supportsPhanLoai />
-  <TrendByDvtChart source="pthsp" displayMode={pthspMetric} embedded supportsDvt />
+  <TrendByCategoryChart kind="phanloai" source="pthsp" displayMode={pthspMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="pthsp" displayMode={pthspMetric} embedded />
 </div>
                 </>
               ) : (
@@ -1144,8 +1143,8 @@ const periodLabel = overviewDateFilters.length > 1
   <TrendChart source="inventory" embedded displayMode={inventoryMetric} />
   <ByXuongChart source="inventory" displayMode={inventoryMetric} />
   <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
-  <TrendByPhanLoaiChart source="inventory" displayMode={inventoryMetric} embedded supportsPhanLoai />
-  <TrendByDvtChart source="inventory" displayMode={inventoryMetric} embedded supportsDvt />
+  <TrendByCategoryChart kind="phanloai" source="inventory" displayMode={inventoryMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="inventory" displayMode={inventoryMetric} embedded />
 </div>
                 </>
               ) : (
@@ -1242,8 +1241,8 @@ const periodLabel = overviewDateFilters.length > 1
   <TrendChart source="export" embedded displayMode={exportMetric} />
   <ByXuongChart source="export" displayMode={exportMetric} />
   <ByCongTrinhChart source="export" displayMode={exportMetric} />
-  <TrendByPhanLoaiChart source="export" displayMode={exportMetric} embedded supportsPhanLoai />
-  <TrendByDvtChart source="export" displayMode={exportMetric} embedded supportsDvt />
+  <TrendByCategoryChart kind="phanloai" source="export" displayMode={exportMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="export" displayMode={exportMetric} embedded />
 </div>
                 </>
               ) : (
@@ -1350,8 +1349,8 @@ const periodLabel = overviewDateFilters.length > 1
   <TrendChart source="stock" embedded displayMode={stockMetric} />
   <ByXuongChart source="stock" displayMode={stockMetric} />
   <ByCongTrinhChart source="stock" displayMode={stockMetric} />
-  <TrendByPhanLoaiChart source="stock" displayMode={stockMetric} embedded supportsPhanLoai />
-  <TrendByDvtChart source="stock" displayMode={stockMetric} embedded supportsDvt />
+  <TrendByCategoryChart kind="phanloai" source="stock" displayMode={stockMetric} embedded />
+  <TrendByCategoryChart kind="dvt" source="stock" displayMode={stockMetric} embedded />
 </div>
                 </>
               ) : (

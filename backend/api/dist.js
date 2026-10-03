@@ -19126,14 +19126,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto2.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22683,17 +22683,17 @@ var require_content_disposition = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input2, secret) {
       if ("string" != typeof input2) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input2.slice(0, input2.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input2);
-      return expectedBuffer.length === inputBuffer.length && crypto.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto2.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -27504,7 +27504,7 @@ var require_main = __commonJS({
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -27748,7 +27748,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto2.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error61) {
@@ -28067,14 +28067,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto2.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -28164,17 +28164,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto.createHmac("sha" + bits, secret);
+        var hmac = crypto2.createHmac("sha" + bits, secret);
         var sig = (hmac.update(thing), hmac.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto2 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto.timingSafeEqual(a, b);
+      return crypto2.timingSafeEqual(a, b);
     } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -28191,7 +28191,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto.createSign("RSA-SHA" + bits);
+        var signer = crypto2.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -28201,7 +28201,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto.createVerify("RSA-SHA" + bits);
+        var verifier = crypto2.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -28210,11 +28210,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto.createSign("RSA-SHA" + bits);
+        var signer = crypto2.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto2.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto2.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -28224,12 +28224,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto.createVerify("RSA-SHA" + bits);
+        var verifier = crypto2.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto2.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto2.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -35939,7 +35939,7 @@ var require_urlsafe_base64_helper = __commonJS({
 var require_vapid_helper = __commonJS({
   "node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     var asn1 = require_asn1();
     var jws = require_jws();
     var { URL: URL2 } = __require("url");
@@ -35966,7 +35966,7 @@ var require_vapid_helper = __commonJS({
       });
     }
     function generateVAPIDKeys() {
-      const curve = crypto.createECDH("prime256v1");
+      const curve = crypto2.createECDH("prime256v1");
       curve.generateKeys();
       let publicKeyBuffer = curve.getPublicKey();
       let privateKeyBuffer = curve.getPrivateKey();
@@ -36116,7 +36116,7 @@ var require_vapid_helper = __commonJS({
 var require_ece = __commonJS({
   "node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
     var PAD_SIZE = { "aes128gcm": 1, "aesgcm": 2 };
     var TAG_LENGTH = 16;
@@ -36143,7 +36143,7 @@ var require_ece = __commonJS({
       return b;
     }
     function HMAC_hash(key, input2) {
-      var hmac = crypto.createHmac("sha256", key);
+      var hmac = crypto2.createHmac("sha256", key);
       hmac.update(input2);
       return hmac.digest();
     }
@@ -36411,7 +36411,7 @@ var require_ece = __commonJS({
     function decryptRecord(key, counter, buffer, header, last) {
       keylog("decrypt", buffer);
       var nonce = generateNonce(key.nonce, counter);
-      var gcm = crypto.createDecipheriv(AES_GCM, key.key, nonce);
+      var gcm = crypto2.createDecipheriv(AES_GCM, key.key, nonce);
       gcm.setAuthTag(buffer.slice(buffer.length - TAG_LENGTH));
       var data = gcm.update(buffer.slice(0, buffer.length - TAG_LENGTH));
       data = Buffer.concat([data, gcm.final()]);
@@ -36459,7 +36459,7 @@ var require_ece = __commonJS({
       keylog("encrypt", buffer);
       pad = pad || 0;
       var nonce = generateNonce(key.nonce, counter);
-      var gcm = crypto.createCipheriv(AES_GCM, key.key, nonce);
+      var gcm = crypto2.createCipheriv(AES_GCM, key.key, nonce);
       var ciphertext = [];
       var padSize = PAD_SIZE[header.version];
       var padding = Buffer.alloc(pad + padSize);
@@ -36502,7 +36502,7 @@ var require_ece = __commonJS({
       }
       var header = parseParams(params);
       if (!header.salt) {
-        header.salt = crypto.randomBytes(KEY_LENGTH);
+        header.salt = crypto2.randomBytes(KEY_LENGTH);
       }
       var result;
       if (header.version === "aes128gcm") {
@@ -36567,7 +36567,7 @@ var require_ece = __commonJS({
 var require_encryption_helper = __commonJS({
   "node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
-    var crypto = __require("crypto");
+    var crypto2 = __require("crypto");
     var ece = require_ece();
     var encrypt = function(userPublicKey, userAuth, payload, contentEncoding) {
       if (!userPublicKey) {
@@ -36594,9 +36594,9 @@ var require_encryption_helper = __commonJS({
       if (typeof payload === "string" || payload instanceof String) {
         payload = Buffer.from(payload);
       }
-      const localCurve = crypto.createECDH("prime256v1");
+      const localCurve = crypto2.createECDH("prime256v1");
       const localPublicKey = localCurve.generateKeys();
-      const salt = crypto.randomBytes(16).toString("base64url");
+      const salt = crypto2.randomBytes(16).toString("base64url");
       const cipherText = ece.encrypt(payload, {
         version: contentEncoding,
         dh: userPublicKey,
@@ -38734,7 +38734,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
-    var crypto = require_utils5();
+    var crypto2 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function saslprep(password) {
       const nonAsciiSpace = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g;
@@ -38752,7 +38752,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto.randomBytes(18).toString("base64");
+      const clientNonce = crypto2.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
       return {
         mechanism,
@@ -38794,20 +38794,20 @@ var require_sasl = __commonJS({
         const peerCert = stream.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto.hashByName(hashName, peerCert);
+        const certHash = await crypto2.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto.deriveKey(saslprep(password), saltBytes, sv.iteration);
-      const clientKey = await crypto.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto.sha256(clientKey);
-      const clientSignature = await crypto.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto2.deriveKey(saslprep(password), saltBytes, sv.iteration);
+      const clientKey = await crypto2.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto2.sha256(clientKey);
+      const clientSignature = await crypto2.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto2.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto2.hmacSha256(serverKey, authMessage);
       session.message = "SASLResponse";
       session.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -41041,7 +41041,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults2 = require_defaults();
     var Connection2 = require_connection();
-    var crypto = require_utils5();
+    var crypto2 = require_utils5();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -41296,7 +41296,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto2.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -44325,7 +44325,7 @@ app.use((0, import_cors.default)({
     if (!origin || allowedOrigins.length === 0 && process.env.NODE_ENV !== "production" || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error("CORS: origin kh\xF4ng \u0111\u01B0\u1EE3c ph\xE9p"));
+    return callback(Object.assign(new Error("CORS: origin kh\xF4ng \u0111\u01B0\u1EE3c ph\xE9p"), { status: 403 }));
   },
   credentials: true
 }));
@@ -63355,6 +63355,21 @@ async function timedQuery(text, params, opts = {}) {
     releaseHeavy?.();
   }
 }
+async function withTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {
+    });
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 process.on("SIGINT", async () => {
   console.log("Closing PostgreSQL pool...");
   await pool.end();
@@ -64024,10 +64039,16 @@ var numericColQualified = (table, alias, col) => {
 };
 
 // src/routes/data.ts
-app.get("/api/all-data", async (_req, res) => {
+app.get("/api/all-data", async (req, res) => {
   try {
     const { payload } = await refreshAllDataCache();
-    res.json(payload);
+    const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
+    if (requested.length === 0) return res.json(payload);
+    const subset = {};
+    for (const key of requested) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) subset[key] = payload[key];
+    }
+    res.json(subset);
   } catch (error61) {
     console.error("L\u1ED7i khi fetch d\u1EEF li\u1EC7u:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -64667,6 +64688,7 @@ app.get("/api/stock/by-project", async (req, res) => {
   try {
     const { date: date5 } = req.query;
     if (!date5) return res.status(400).json({ error: "Missing date" });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date5) || !parseSafeDate(date5)) return res.status(400).json({ error: "Invalid date" });
     const filters = parseStockFilters(req);
     const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
     const conds = ["s.date_parsed = $1"];
@@ -64964,7 +64986,16 @@ app.post(
 );
 
 // src/routes/auth.ts
+import crypto from "node:crypto";
 import bcrypt from "bcrypt";
+var LOGIN_FAILED_MESSAGE = "Sai t\xEAn \u0111\u0103ng nh\u1EADp ho\u1EB7c m\u1EADt kh\u1EA9u, ho\u1EB7c t\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kh\xF3a";
+var dummyHashPromise = null;
+var getDummyHash = () => dummyHashPromise ??= bcrypt.hash(crypto.randomBytes(16).toString("hex"), 12);
+var safeEqual = (a, b) => {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+};
 app.post("/api/auth/login", loginLimiter, validateBody(loginSchema), async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -64974,12 +65005,9 @@ app.post("/api/auth/login", loginLimiter, validateBody(loginSchema), async (req,
       [username]
     );
     const user = result.rows[0];
-    if (!user || !user.is_active) {
-      return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n kh\xF4ng t\u1ED3n t\u1EA1i ho\u1EB7c \u0111\xE3 b\u1ECB kh\xF3a" });
-    }
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Sai t\xEAn \u0111\u0103ng nh\u1EADp ho\u1EB7c m\u1EADt kh\u1EA9u" });
+    const isMatch = await bcrypt.compare(password, user?.password_hash ?? await getDummyHash());
+    if (!user || !user.is_active || !isMatch) {
+      return res.status(401).json({ success: false, message: LOGIN_FAILED_MESSAGE });
     }
     const token = signAuthToken({ id: user.id, username: user.username, role: user.role });
     res.json({
@@ -65006,7 +65034,7 @@ app.post("/api/auth/forgot-password", otpRequestLimiter, validateBody(forgotPass
     const result = await pool.query("SELECT id FROM users WHERE email = $1", [email3]);
     const user = result.rows[0];
     if (user) {
-      const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
+      const otp = crypto.randomInt(1e5, 1e6).toString();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1e3);
       await pool.query(
         `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = now() WHERE id = $3`,
@@ -65030,7 +65058,7 @@ app.post("/api/auth/verify-otp", otpVerifyLimiter, validateBody(verifyOtpSchema)
       [email3]
     );
     const user = result.rows[0];
-    if (!user || user.otp_code !== otp) {
+    if (!user || !user.otp_code || !safeEqual(String(user.otp_code), otp)) {
       return res.status(400).json({ success: false, message: "M\xE3 OTP kh\xF4ng \u0111\xFAng" });
     }
     if (!user.otp_expires_at || new Date(user.otp_expires_at) < /* @__PURE__ */ new Date()) {
@@ -65975,6 +66003,7 @@ app.get("/api/detail", async (req, res) => {
     const params = [];
     const explicitDates = isStock ? [] : parseExplicitDates(req);
     if (dimension === "period") {
+      if (!parseSafeDate(value)) return res.status(400).json({ error: "Invalid period value" });
       const { start, end } = getPeriodRangeFromKey(value, granularity);
       if (isStock && granularity !== "day") {
         params.push(start, end);
@@ -66367,18 +66396,21 @@ app.post(
       if (!await canAddToVuongMacThread(me, hex3, category)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban m\u1EDBi \u0111\u01B0\u1EE3c th\xEAm v\u01B0\u1EDBng m\u1EAFc v\xE0o m\u1EE5c n\xE0y" });
       }
-      const result = await pool.query(
-        `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, bot_end, solution, note)
-         VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9)
-         RETURNING ${VUONG_MAC_COLUMNS}`,
-        [hex3, category, content, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null]
-      );
-      const row = result.rows[0];
-      await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
-         VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
-        [row.id, hex3, category, content, actor]
-      );
+      const row = await withTransaction(async (client) => {
+        const result = await client.query(
+          `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, bot_end, solution, note)
+           VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9)
+           RETURNING ${VUONG_MAC_COLUMNS}`,
+          [hex3, category, content, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null]
+        );
+        const inserted = result.rows[0];
+        await client.query(
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, actor)
+           VALUES ($1, $2, 'CREATE', $3, $4, $5)`,
+          [inserted.id, hex3, category, content, actor]
+        );
+        return inserted;
+      });
       res.json({ success: true, data: mapVuongMacRow(row, me, me.department) });
     } catch (error61) {
       console.error("L\u1ED7i t\u1EA1o vuong-mac:", error61);
@@ -66445,18 +66477,21 @@ app.put(
         }
       }
       values.push(id);
-      const result = await pool.query(
-        `UPDATE vuong_mac SET ${fields.join(", ")} WHERE id = $${idx}
-         RETURNING ${VUONG_MAC_COLUMNS}`,
-        values
-      );
-      const row = result.rows[0];
       const detail = markingResolved ? `\u0110\xE1nh d\u1EA5u \u0111\xE3 x\u1EED l\xFD: ${resolvedNoteClean}` : null;
-      await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-         VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
-        [row.id, row.hex, row.category, old.content, row.content, detail, actor]
-      );
+      const row = await withTransaction(async (client) => {
+        const result = await client.query(
+          `UPDATE vuong_mac SET ${fields.join(", ")} WHERE id = $${idx}
+           RETURNING ${VUONG_MAC_COLUMNS}`,
+          values
+        );
+        const updated = result.rows[0];
+        await client.query(
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+           VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
+          [updated.id, updated.hex, updated.category, old.content, updated.content, detail, actor]
+        );
+        return updated;
+      });
       res.json({ success: true, data: mapVuongMacRow(row, me, old.created_department) });
     } catch (error61) {
       console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
@@ -66496,25 +66531,27 @@ app.post(
         return res.status(400).json({ success: false, message: "V\u01B0\u1EDBng m\u1EAFc \u0111\xE3 x\u1EED l\xFD, kh\xF4ng th\u1EC3 xin th\xEAm th\u1EDDi gian" });
       }
       const noteClean = (note ?? "").trim();
-      await pool.query(
-        `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [old.id, content, bot, old.bot || null, noteClean || null, actor]
-      );
-      await pool.query(
-        `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
-        [bot, botEnd, actor, old.id]
-      );
       const detail = [
         `C\u1EA7n th\xEAm th\u1EDDi gian: ${content}`,
         `BOT: ${old.bot || "\u2014"} \u2192 ${bot}`,
         noteClean ? `Ghi ch\xFA: ${noteClean}` : null
       ].filter(Boolean).join("\n");
-      await pool.query(
-        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-         VALUES ($1, $2, 'UPDATE', $3, $4, $4, $5, $6)`,
-        [old.id, old.hex, old.category, old.content, detail, actor]
-      );
+      await withTransaction(async (client) => {
+        await client.query(
+          `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [old.id, content, bot, old.bot || null, noteClean || null, actor]
+        );
+        await client.query(
+          `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
+          [bot, botEnd, actor, old.id]
+        );
+        await client.query(
+          `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
+           VALUES ($1, $2, 'UPDATE', $3, $4, $4, $5, $6)`,
+          [old.id, old.hex, old.category, old.content, detail, actor]
+        );
+      });
       await notifyExtension(
         { id: old.id, hex: old.hex, category: old.category, created_by: old.created_by, created_department: old.created_department },
         actor,
@@ -66557,12 +66594,14 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
       me,
       old.created_department
     );
-    await pool.query("DELETE FROM vuong_mac WHERE id = $1", [id]);
-    await pool.query(
-      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, snapshot, actor)
-       VALUES ($1, $2, 'DELETE', $3, $4, $5::jsonb, $6)`,
-      [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
-    );
+    await withTransaction(async (client) => {
+      await client.query("DELETE FROM vuong_mac WHERE id = $1", [id]);
+      await client.query(
+        `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, snapshot, actor)
+         VALUES ($1, $2, 'DELETE', $3, $4, $5::jsonb, $6)`,
+        [old.id, old.hex, old.category, old.content, JSON.stringify(snapshot), actor]
+      );
+    });
     res.json({ success: true, message: "\u0110\xE3 x\xF3a v\u01B0\u1EDBng m\u1EAFc" });
   } catch (error61) {
     console.error("L\u1ED7i x\xF3a vuong-mac:", error61);
@@ -66726,6 +66765,9 @@ app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y endpoint" });
 });
 app.use((err, _req, res, _next) => {
+  if (err.status && err.status >= 400 && err.status < 500) {
+    return res.status(err.status).json({ success: false, message: err.message });
+  }
   console.error("L\u1ED7i kh\xF4ng \u0111\u01B0\u1EE3c x\u1EED l\xFD:", err);
   res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
 });

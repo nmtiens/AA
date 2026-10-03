@@ -122,6 +122,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   try {
     const { date } = req.query as { date: string };
     if (!date) return res.status(400).json({ error: 'Missing date' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !parseSafeDate(date)) return res.status(400).json({ error: 'Invalid date' });
 
     const filters = parseStockFilters(req);
     const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;

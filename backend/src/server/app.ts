@@ -22,7 +22,8 @@ app.use(cors({
     if (!origin || (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    return callback(new Error('CORS: origin không được phép'));
+    // status 403: error handler cuối (api/index.ts) trả 403 thay vì 500 "lỗi hệ thống"
+    return callback(Object.assign(new Error('CORS: origin không được phép'), { status: 403 }));
   },
   credentials: true,
 }));

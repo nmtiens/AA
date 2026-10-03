@@ -233,15 +233,26 @@ const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
   }));
 };
 
-// TẢI TOÀN BỘ 12 BẢNG TRONG 1 REQUEST DUY NHẤT — thay cho việc gọi 12 endpoint riêng lẻ
-export const fetchAllDataFromServer = async (): Promise<Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> | null> => {
+// Tải nhiều bảng trong 1 request /api/all-data.
+// endpoints: danh sách bảng cần tải (theo tên endpoint, vd 'production', 'yearly-plan');
+// không truyền => tải đủ 12 bảng. Kết quả chỉ chứa các bảng đã yêu cầu.
+export const fetchAllDataFromServer = async (
+  endpoints?: string[]
+): Promise<Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> | null> => {
   try {
-        const response = await fetch(`${API_BASE_URL}/all-data`, { cache: 'no-store' });
+    const keys = endpoints
+      ? Object.entries(ALL_DATA_ENDPOINT_MAP).filter(([, ep]) => endpoints.includes(ep)).map(([key]) => key)
+      : null;
+    if (keys && keys.length === 0) return {};
+    const query = keys ? `?tables=${encodeURIComponent(keys.join(','))}` : '';
+
+    const response = await fetch(`${API_BASE_URL}/all-data${query}`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`Failed to fetch all-data: ${response.statusText}`);
     const raw = await response.json();
 
     const result: Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> = {};
     Object.entries(ALL_DATA_ENDPOINT_MAP).forEach(([key, endpoint]) => {
+      if (keys && !keys.includes(key)) return;
       const rows: DataRow[] = raw[key] || [];
       result[endpoint] = { data: rows, columns: buildColumnsFromData(rows) };
     });

@@ -303,26 +303,44 @@ export const deleteVuongMacPhoto = async (photoId: number): Promise<void> => {
     const d = await r.json().catch(() => ({}));
     throw new Error(d.message || `Lỗi ${r.status}`);
   }
-  photoUrlCache.delete(photoId);
+  dropCachedPhoto(photoId);
 };
 
 // Ảnh cần token nên không dùng <img src="/api/..."> trực tiếp được:
 // fetch kèm token -> blob -> objectURL, có cache theo id.
+// Mỗi objectURL giữ nguyên blob ảnh trong RAM tới khi bị revoke, nên cache có giới hạn:
+// vượt PHOTO_CACHE_MAX thì bỏ ảnh dùng lâu nhất và revoke URL của nó (tránh đầy bộ nhớ
+// trên điện thoại khi lướt nhiều vướng mắc có ảnh).
+const PHOTO_CACHE_MAX = 60;
 const photoUrlCache = new Map<number, Promise<string>>();
+
+const dropCachedPhoto = (photoId: number) => {
+  const p = photoUrlCache.get(photoId);
+  if (!p) return;
+  photoUrlCache.delete(photoId);
+  p.then(url => URL.revokeObjectURL(url)).catch(() => {});
+};
 
 export const fetchVuongMacPhotoUrl = (photoId: number): Promise<string> => {
   let p = photoUrlCache.get(photoId);
-  if (!p) {
-    p = (async () => {
-      const token = getToken();
-      const r = await fetch(`/api/vuong-mac/photo/${photoId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!r.ok) throw new Error(`Lỗi ${r.status}`);
-      return URL.createObjectURL(await r.blob());
-    })();
+  if (p) {
+    // Đưa lên cuối Map = vừa dùng gần nhất
+    photoUrlCache.delete(photoId);
     photoUrlCache.set(photoId, p);
-    p.catch(() => photoUrlCache.delete(photoId));
+    return p;
+  }
+  p = (async () => {
+    const token = getToken();
+    const r = await fetch(`/api/vuong-mac/photo/${photoId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!r.ok) throw new Error(`Lỗi ${r.status}`);
+    return URL.createObjectURL(await r.blob());
+  })();
+  photoUrlCache.set(photoId, p);
+  p.catch(() => { if (photoUrlCache.get(photoId) === p) photoUrlCache.delete(photoId); });
+  while (photoUrlCache.size > PHOTO_CACHE_MAX) {
+    dropCachedPhoto(photoUrlCache.keys().next().value as number);
   }
   return p;
 };

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import type { Request, Response } from 'express';
 import { pool } from '../db.js';
@@ -9,6 +10,20 @@ import { app, loginLimiter, otpRequestLimiter, otpVerifyLimiter } from '../serve
 // AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES
 // (Giữ nguyên pool.query — không phải điểm nóng, không cần đo timing)
 // ============================================================================
+
+const LOGIN_FAILED_MESSAGE = 'Sai tên đăng nhập hoặc mật khẩu, hoặc tài khoản đã bị khóa';
+
+// Hash giả để so khớp khi tên đăng nhập không tồn tại (cùng cost 12 với mật khẩu thật nên
+// thời gian xử lý tương đương). Tạo 1 lần khi cần, không làm chậm lúc khởi động server.
+let dummyHashPromise: Promise<string> | null = null;
+const getDummyHash = () => (dummyHashPromise ??= bcrypt.hash(crypto.randomBytes(16).toString('hex'), 12));
+
+// So sánh 2 chuỗi theo thời gian cố định (không dừng sớm ở ký tự sai đầu tiên)
+const safeEqual = (a: string, b: string): boolean => {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+};
 
 // --- ĐĂNG NHẬP (nay phát hành JWT) ---
 app.post('/api/auth/login', loginLimiter, validateBody(loginSchema), async (req: Request, res: Response) => {
@@ -22,13 +37,13 @@ app.post('/api/auth/login', loginLimiter, validateBody(loginSchema), async (req:
     );
 
     const user = result.rows[0];
-    if (!user || !user.is_active) {
-      return res.status(401).json({ success: false, message: 'Tài khoản không tồn tại hoặc đã bị khóa' });
-    }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Sai tên đăng nhập hoặc mật khẩu' });
+    // Luôn chạy bcrypt.compare (với hash giả khi không có user) và trả CÙNG 1 thông báo cho
+    // mọi trường hợp thất bại: người ngoài không dò được tên đăng nhập nào có thật qua nội dung
+    // hay thời gian phản hồi.
+    const isMatch = await bcrypt.compare(password, user?.password_hash ?? (await getDummyHash()));
+    if (!user || !user.is_active || !isMatch) {
+      return res.status(401).json({ success: false, message: LOGIN_FAILED_MESSAGE });
     }
 
     const token = signAuthToken({ id: user.id, username: user.username, role: user.role });
@@ -62,7 +77,8 @@ app.post('/api/auth/forgot-password', otpRequestLimiter, validateBody(forgotPass
     const user = result.rows[0];
 
    if (user) {
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  // crypto.randomInt: bộ sinh số ngẫu nhiên an toàn (Math.random có thể đoán được)
+  const otp = crypto.randomInt(100000, 1000000).toString();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
   await pool.query(
@@ -94,7 +110,7 @@ app.post('/api/auth/verify-otp', otpVerifyLimiter, validateBody(verifyOtpSchema)
     );
     const user = result.rows[0];
 
-    if (!user || user.otp_code !== otp) {
+    if (!user || !user.otp_code || !safeEqual(String(user.otp_code), otp)) {
       return res.status(400).json({ success: false, message: 'Mã OTP không đúng' });
     }
     if (!user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {

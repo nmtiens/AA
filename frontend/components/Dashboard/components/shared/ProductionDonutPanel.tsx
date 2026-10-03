@@ -7,8 +7,8 @@ import { parseNumber } from '../../utils/numberParsers';
 // Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
 const NO_DATA = '(Chưa có)';
-const OTHERS = 'Khác';          // gộp các khách hàng nhỏ
-const TOP_CUSTOMERS = 6;        // số khách hàng hiển thị riêng, phần còn lại gộp vào "Khác"
+export const OTHERS = 'Khác';          // gộp các khách hàng nhỏ
+export const TOP_CUSTOMERS = 6;        // số khách hàng hiển thị riêng, phần còn lại gộp vào "Khác"
 
 type DKey = 'kv' | 'kh' | 'pl';
 
@@ -16,6 +16,17 @@ interface Rec { kv: string; kh: string; pl: string; total: number }
 
 const PALETTE = ['#1f2a44', '#2563eb', '#60a5fa', '#94a3b8', '#d97706', '#16a34a', '#a78bfa', '#cbd5e1'];
 const OTHERS_COLOR = '#64748b';
+export const pickMixColor = (name: string, i: number) => (name === OTHERS ? OTHERS_COLOR : PALETTE[i % PALETTE.length]);
+
+type MixItem = { name: string; value: number };
+
+/** Giữ top N (và luôn giữ mục đang chọn), phần còn lại gộp thành "Khác". `list` đã sắp giảm dần. */
+export const groupTopN = (list: MixItem[], topN: number, selected?: string): MixItem[] => {
+  if (list.length <= topN) return list;
+  const head = list.filter((d, i) => i < topN || d.name === selected);
+  const rest = list.filter(d => !head.includes(d)).reduce((s, d) => s + d.value, 0);
+  return rest > 0 ? [...head, { name: OTHERS, value: rest }] : head;
+};
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 
@@ -41,10 +52,12 @@ interface DonutProps {
   onSelect: (name: string) => void;
   colorOf: (name: string, index: number) => string;
   metric: 'count' | 'value';
+  /** Bản to hơn (dùng khi thẻ nằm trong cột rộng, không bị giới hạn chiều cao) */
+  large?: boolean;
 }
 
 // Khai báo ở module scope (không đặt trong component cha) để không bị mount lại mỗi lần render
-const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf, metric }) => (
+const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf, metric, large = false }) => (
   <div className="flex-1 flex flex-col min-h-0 py-3 first:pt-0 last:pb-0">
     <p className="text-xs font-semibold text-slate-700 mb-2">{title}</p>
     {data.length === 0 ? (
@@ -52,15 +65,15 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
     ) : (
       <div className="flex-1 flex items-center justify-between gap-4">
         {/* Biểu đồ tròn (có % ngay trên vòng) */}
-        <div className="w-36 h-36 shrink-0">
+        <div className={`${large ? "w-52 h-52" : "w-36 h-36"} shrink-0`}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={data}
                 dataKey="value"
                 nameKey="name"
-                innerRadius={38}
-                outerRadius={68}
+                innerRadius={large ? 56 : 38}
+                outerRadius={large ? 100 : 68}
                 paddingAngle={1}
                 stroke="none"
                 label={renderPercent}
@@ -85,13 +98,13 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
         </div>
 
         {/* Chú thích nằm sát mép phải */}
-        <ul className="w-44 shrink-0 space-y-0.5">
+        <ul className="w-44 min-w-0 shrink space-y-0.5">
           {data.slice(0, 8).map((d, i) => (
             <li key={d.name}>
               <button
                 type="button"
                 onClick={() => onSelect(d.name)}
-                className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left text-[11px] hover:bg-slate-50 ${selected === d.name ? 'bg-slate-100 font-semibold' : ''}`}
+                className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left ${large ? 'text-xs' : 'text-[11px]'} hover:bg-slate-50 ${selected === d.name ? 'bg-slate-100 font-semibold' : ''}`}
               >
                 <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: colorOf(d.name, i) }} />
                 <span className="truncate flex-1 text-slate-700" title={d.name}>{d.name}</span>
@@ -165,61 +178,87 @@ export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, congTrinh
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
-    if (!topN || list.length <= topN) return list;
-
-    // Giữ top N (và luôn giữ mục đang được chọn), phần còn lại gộp thành "Khác"
-    const head = list.filter((d, i) => i < topN || d.name === sel[k]);
-    const rest = list.filter(d => !head.includes(d)).reduce((s, d) => s + d.value, 0);
-    return rest > 0 ? [...head, { name: OTHERS, value: rest }] : head;
+    return topN ? groupTopN(list, topN, sel[k]) : list;
   };
 
   const kvData = useMemo(() => build('kv'), [records, sel, metric]);                  // eslint-disable-line react-hooks/exhaustive-deps
   const khData = useMemo(() => build('kh', TOP_CUSTOMERS), [records, sel, metric]);   // eslint-disable-line react-hooks/exhaustive-deps
   const plData = useMemo(() => build('pl'), [records, sel, metric]);                  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasSel = Object.values(sel).some(Boolean);
-  const pickColor = (name: string, i: number) => (name === OTHERS ? OTHERS_COLOR : PALETTE[i % PALETTE.length]);
-
   return (
-    <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 p-5 shadow-sm min-h-0">
-      {/* Tiêu đề: cùng kiểu với thẻ phễu bên trái */}
-      <div className="flex items-start justify-between gap-3 mb-5">
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
-            Cơ cấu đơn hàng
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">Theo khu vực, khách hàng, nhóm sản phẩm</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {hasSel && (
-            <button onClick={() => setSel({})} className="text-xs text-slate-500 hover:text-slate-900 underline">
-              Bỏ lọc
-            </button>
-          )}
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
-            {(['count', 'value'] as const).map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMetric(m)}
-                className={`px-3 py-1 rounded-md font-medium ${metric === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
-              >
-                {m === 'count' ? 'Số mục' : 'Giá trị'}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 3 biểu đồ chia đều chiều cao, ngăn cách bằng đường kẻ mảnh */}
-      <div className="flex-1 flex flex-col divide-y divide-slate-100 min-h-0">
-        <Donut title="Theo khu vực" data={kvData} selected={sel.kv} onSelect={n => toggle('kv', n)}
-               colorOf={pickColor} metric={metric} />
-        <Donut title="Theo khách hàng" data={khData} selected={sel.kh} onSelect={n => toggle('kh', n)}
-               colorOf={pickColor} metric={metric} />
-        <Donut title="Theo nhóm sản phẩm" data={plData} selected={sel.pl} onSelect={n => toggle('pl', n)}
-               colorOf={pickColor} metric={metric} />
-      </div>
-    </div>
+    <OrderMixCard
+      metric={metric}
+      onMetricChange={setMetric}
+      onClear={Object.values(sel).some(Boolean) ? () => setSel({}) : undefined}
+      charts={[
+        { title: 'Theo khu vực', data: kvData, selected: sel.kv, onSelect: n => toggle('kv', n) },
+        { title: 'Theo khách hàng', data: khData, selected: sel.kh, onSelect: n => toggle('kh', n) },
+        { title: 'Theo nhóm sản phẩm', data: plData, selected: sel.pl, onSelect: n => toggle('pl', n) },
+      ]}
+    />
   );
 };
+
+// ============================================================================
+// Thẻ "Cơ cấu đơn hàng" dùng chung (Tổng quan, Luồng đỏ, Căn mẫu, Báo cáo tiến độ công trình):
+// tiêu đề + nút Số mục/Giá trị + 3 biểu đồ tròn xếp dọc. Dữ liệu và lọc do nơi dùng tự tính.
+// ============================================================================
+export interface OrderMixChart {
+  title: string;
+  data: MixItem[];
+  selected?: string;
+  onSelect: (name: string) => void;
+  colorOf?: (name: string, index: number) => string;
+}
+
+interface OrderMixCardProps {
+  metric: 'count' | 'value';
+  onMetricChange: (m: 'count' | 'value') => void;
+  /** Có giá trị => hiện nút "Bỏ lọc" */
+  onClear?: () => void;
+  charts: OrderMixChart[];
+  className?: string;
+  /** Biểu đồ tròn cỡ lớn (mặc định). false = bản gọn cho chỗ hẹp */
+  large?: boolean;
+}
+
+export const OrderMixCard: React.FC<OrderMixCardProps> = ({ metric, onMetricChange, onClear, charts, className = 'flex-1', large = true }) => (
+  <div className={`${className} flex flex-col bg-white rounded-xl border border-slate-200 p-5 shadow-sm min-h-0`}>
+    {/* Tiêu đề: cùng kiểu với thẻ phễu bên trái */}
+    <div className="flex items-start justify-between gap-3 mb-5">
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
+          Cơ cấu đơn hàng
+        </h3>
+        <p className="text-xs text-slate-500 mt-0.5">Theo khu vực, khách hàng, nhóm sản phẩm</p>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {onClear && (
+          <button onClick={onClear} className="text-xs text-slate-500 hover:text-slate-900 underline">
+            Bỏ lọc
+          </button>
+        )}
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+          {(['count', 'value'] as const).map(m => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onMetricChange(m)}
+              className={`px-3 py-1 rounded-md font-medium ${metric === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              {m === 'count' ? 'Số mục' : 'Giá trị'}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* Các biểu đồ chia đều chiều cao, ngăn cách bằng đường kẻ mảnh */}
+    <div className="flex-1 flex flex-col divide-y divide-slate-100 min-h-0">
+      {charts.map(c => (
+        <Donut key={c.title} title={c.title} data={c.data} selected={c.selected} onSelect={c.onSelect}
+               colorOf={c.colorOf ?? pickMixColor} metric={metric} large={large} />
+      ))}
+    </div>
+  </div>
+);

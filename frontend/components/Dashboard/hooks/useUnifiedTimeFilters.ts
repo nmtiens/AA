@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toFilterSet, matchesFilter } from '../utils/filterMatch';
 import { DataRow } from '../../../types';
 import { getWeekNumber } from '../utils/dateHelpers';
 import { DashboardFiltersState } from './useDashboardFilters';
@@ -63,31 +64,33 @@ export function useUnifiedTimeFilters({
     setUnifiedTimeFilters(prev => ({ ...prev, tuan: [String(currentWeek)] }));
   }, []);
 
+  // Set tạo 1 lần mỗi khi bộ lọc đổi (danh sách công trình có thể dài hàng trăm phần tử khi
+  // lọc theo khách hàng / khu vực dự án), thay cho Array.includes trên từng dòng.
+  const congTrinhSet = useMemo(() => toFilterSet(filters.congTrinh), [filters.congTrinh]);
+  const xuongSet = useMemo(() => toFilterSet(filters.xuong), [filters.xuong]);
+
   const filteredInventoryData = useMemo(() => {
-    return inventoryData.filter(row => {
-      const matchGeneralCongTrinh = filters.congTrinh.length === 0 || (invCongTrinhKey && filters.congTrinh.includes(String(row[invCongTrinhKey] || '').trim()));
-      const matchGeneralXuong = filters.xuong.length === 0 || (invXuongKey && filters.xuong.includes(String(row[invXuongKey] || '').trim()));
-      const matchNam = unifiedTimeFilters.nam.length === 0 || (invNamKey && unifiedTimeFilters.nam.includes(String(row[invNamKey] || '').trim()));
-      const matchThang = unifiedTimeFilters.thang.length === 0 || (invThangKey && unifiedTimeFilters.thang.includes(String(row[invThangKey] || '').trim()));
+    const namSet = toFilterSet(unifiedTimeFilters.nam);
+    const thangSet = toFilterSet(unifiedTimeFilters.thang);
+    const tuanSet = viewMode === 'WEEK' ? toFilterSet(unifiedTimeFilters.tuan) : null;
+    const ngaySet = viewMode === 'WEEK' ? toFilterSet(unifiedTimeFilters.ngay) : null;
 
-      let matchTuan = true;
-      let matchNgay = true;
-      if (viewMode === 'WEEK') {
-        matchTuan = unifiedTimeFilters.tuan.length === 0 || (!!invTuanKey && unifiedTimeFilters.tuan.includes(String(row[invTuanKey] || '').trim()));
-        matchNgay = unifiedTimeFilters.ngay.length === 0 || (!!invNgayKey && unifiedTimeFilters.ngay.includes(String(row[invNgayKey] || '').trim()));
-      }
-
-      return matchGeneralCongTrinh && matchGeneralXuong && matchNam && matchThang && matchTuan && matchNgay;
-    });
-  }, [inventoryData, filters.congTrinh, filters.xuong, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, invTuanKey]);
+    return inventoryData.filter(row =>
+      matchesFilter(congTrinhSet, row, invCongTrinhKey) &&
+      matchesFilter(xuongSet, row, invXuongKey) &&
+      matchesFilter(namSet, row, invNamKey) &&
+      matchesFilter(thangSet, row, invThangKey) &&
+      matchesFilter(tuanSet, row, invTuanKey) &&
+      matchesFilter(ngaySet, row, invNgayKey)
+    );
+  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, invTuanKey]);
 
   const filteredAnalysisData = useMemo(() => {
-    return analysisData.filter(row => {
-      const matchCongTrinh = filters.congTrinh.length === 0 || (analysisCongTrinhKey && filters.congTrinh.includes(String(row[analysisCongTrinhKey] || '').trim()));
-      const matchXuong = filters.xuong.length === 0 || (analysisXuongKey && filters.xuong.includes(String(row[analysisXuongKey] || '').trim()));
-      return matchCongTrinh && matchXuong;
-    });
-  }, [analysisData, filters.congTrinh, filters.xuong, analysisCongTrinhKey, analysisXuongKey]);
+    return analysisData.filter(row =>
+      matchesFilter(congTrinhSet, row, analysisCongTrinhKey) &&
+      matchesFilter(xuongSet, row, analysisXuongKey)
+    );
+  }, [analysisData, congTrinhSet, xuongSet, analysisCongTrinhKey, analysisXuongKey]);
 
   return {
     unifiedTimeFilters,

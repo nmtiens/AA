@@ -4,8 +4,7 @@ import ByXuongChart from '../Dashboard/components/Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboard/components/Dashboards/ByCongTrinhChart';
 import { TrendFilterProvider } from '../Dashboard/components/Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboard/components/Dashboards/SharedDateFilterBar';
-import TrendByDvtChart from '../Dashboard/components/Dashboards/TrendByDvtChart';
-import TrendByPhanLoaiChart from '../Dashboard/components/Dashboards/TrendByPhanLoaiChart';
+import TrendByCategoryChart from '../Dashboard/components/Dashboards/TrendByCategoryChart';
 
 export type ChartSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 type DisplayMetric = 'COUNT' | 'SUM';
@@ -64,8 +63,8 @@ const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title }) => {
     <TrendChart source={source} embedded displayMode={displayMode} />
     <ByXuongChart source={source} displayMode={displayMode} />
     <ByCongTrinhChart source={source} displayMode={displayMode} />
-    <TrendByPhanLoaiChart source={source} displayMode={displayMode} embedded supportsPhanLoai />
-    <TrendByDvtChart source={source} displayMode={displayMode} embedded supportsDvt />
+    <TrendByCategoryChart kind="phanloai" source={source} displayMode={displayMode} embedded />
+    <TrendByCategoryChart kind="dvt" source={source} displayMode={displayMode} embedded />
   </div>
 </div>
     </TrendFilterProvider>

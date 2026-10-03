@@ -7,10 +7,19 @@ import { validateBody } from '../server/validation.js';
 import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, STOCK_TREND_CONFIG, ANALYSIS_TABLES } from '../server/data.js';
 import { app } from '../server/app.js';
 
-app.get('/api/all-data', async (_req: Request, res: Response) => {
+app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
     const { payload } = await refreshAllDataCache();
-    res.json(payload);
+    // ?tables=production,order: chỉ trả các bảng client cần (thường là bảng vừa đổi phiên bản),
+    // tránh tải lại cả 12 bảng (~51k dòng sản xuất) khi chỉ 1 bảng thay đổi.
+    // Không truyền => trả đủ 12 bảng như cũ (tương thích ngược với client cũ).
+    const requested = String(req.query.tables || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (requested.length === 0) return res.json(payload);
+    const subset: Record<string, unknown> = {};
+    for (const key of requested) {
+      if (Object.prototype.hasOwnProperty.call(payload, key)) subset[key] = payload[key];
+    }
+    res.json(subset);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
     res.status(500).json({ error: 'Internal Server Error' });

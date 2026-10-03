@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
 import { formatDecimal, formatNumber, formatDecimalFull } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
+import { ModalShell } from '../../../shared/ModalShell';
 
 export interface CustomFunnelItem {
   id: string;
@@ -237,16 +238,18 @@ export const ConstructionRevenueSection = ({
 
                 return (
                   <div key={`bar-${item.id}`} className="flex-1 min-h-[36px] flex items-stretch justify-center w-full relative z-20">
-                    <div
+                    <button
+                      type="button"
                       onClick={() => handleBarClick(item)}
-                      className="flex items-center justify-center rounded transition-all duration-500 cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
+                      className="flex items-center justify-center rounded transition-all duration-500 cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-slate-500"
                       style={{ width: `${widthPercent}%`, backgroundColor: FUNNEL_BAR_COLOR[item.id] ?? FUNNEL_DEFAULT_COLOR }}
                       title={`${item.name}: ${tooltipValue} (bấm để xem chi tiết theo công trình)`}
+                      aria-label={`${item.name}: ${tooltipValue}. Xem chi tiết theo công trình`}
                     >
                       <span className="text-white font-semibold text-sm tabular-nums whitespace-nowrap px-1">
                         {barLabel}
                       </span>
-                    </div>
+                    </button>
                   </div>
                 );
               })}
@@ -259,18 +262,19 @@ export const ConstructionRevenueSection = ({
       </div>
 
       {/* Funnel Pivot Detail Modal */}
-      {isFunnelPivotModalOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
-          onClick={closeModal}
-        >
-          <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* closeOnEsc={false}: bấm 1 con số trong bảng sẽ mở "Chi tiết theo Hex" ĐÈ LÊN modal này,
+          modal kia tự xử lý Esc — bật Esc ở đây thì 1 lần nhấn sẽ đóng cả 2. */}
+      <ModalShell
+        open={isFunnelPivotModalOpen}
+        onClose={closeModal}
+        closeOnEsc={false}
+        labelledBy="construction-funnel-detail-title"
+        overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
+        panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"
+      >
             <div className="flex justify-between items-start gap-4 p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-slate-800 truncate">
+                <h2 id="construction-funnel-detail-title" className="text-lg font-bold text-slate-800 truncate">
                   Chi tiết dữ liệu Phễu{selectedFunnelItem ? ` — ${selectedFunnelItem.name}` : ''}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
@@ -284,7 +288,9 @@ export const ConstructionRevenueSection = ({
                   </span>
                 )}
                 <button
+                  type="button"
                   onClick={closeModal}
+                  aria-label="Đóng"
                   className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   <X size={20} />
@@ -336,9 +342,7 @@ export const ConstructionRevenueSection = ({
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </ModalShell>
     </>
   );
 };

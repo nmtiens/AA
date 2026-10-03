@@ -44,7 +44,11 @@ app.use((_req: Request, res: Response) => {
 });
 
 // --- ERROR HANDLER TẬP TRUNG (bắt cả lỗi từ CORS callback) ---
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: Error & { status?: number }, _req: Request, res: Response, _next: NextFunction) => {
+  // Lỗi có chủ đích kèm status 4xx (vd. CORS từ chối origin -> 403): trả đúng mã, không log như lỗi hệ thống
+  if (err.status && err.status >= 400 && err.status < 500) {
+    return res.status(err.status).json({ success: false, message: err.message });
+  }
   console.error('Lỗi không được xử lý:', err);
   res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
 });
