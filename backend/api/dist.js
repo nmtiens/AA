@@ -63649,6 +63649,7 @@ var REPORT_COLUMNS = {
     "khach_hang",
     "khu_vuc_du_an",
     "ma_nha_may",
+    "ma_cong_trinh",
     // Báo cáo tiến độ công trình
     "ten_pm",
     "ten_pc",

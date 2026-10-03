@@ -9,7 +9,7 @@ import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { parseVNDate } from '../Dashboard/utils/dateHelpers';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
-import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
+import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix, projectKeyResolver } from '../Dashboard/components/shared/ProductionDonutPanel';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
@@ -21,6 +21,7 @@ type Filters = Partial<Record<FKey, string | undefined>>;
 
 interface Rec {
   ct: string; pm: string; pc: string; kv: string; kh: string; pl: string;
+  ctKey: string;      // khoá ĐẾM công trình: mã công trình -> tên chuẩn (xem projectKeyResolver)
   month: string;      // 'YYYY-MM' hoặc 'none'
   status: Status;
   total: number;      // trị giá đơn hàng (0 nếu hủy)
@@ -79,6 +80,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo');
     const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong');
     const invK = key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, 'thanh_tien_nhap_kho_luy_ke');
+    const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, 'ma_cong_trinh');
+    const projectKey = projectKeyResolver(data, maK, ctK);
 
       const txt = (v: unknown) => {
       const t = String(v ?? '').trim();
@@ -110,7 +113,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
 
       const cancelled = status === 'HỦY';
       out.push({
-        ct, pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
+        ct, ctKey: projectKey(row), pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
         month, status,
         total: cancelled ? 0 : totalRaw,
         done: cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw),
@@ -130,7 +133,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     const cts = new Set<string>();
     let cancelled = 0, open = 0, total = 0, done = 0;
     for (const r of rowsAll) {
-      cts.add(r.ct);
+      cts.add(r.ctKey);
       if (r.status === 'HỦY') cancelled++;
       else if (r.status !== 'HOÀN THÀNH') open++;
       total += r.total; done += r.done;
@@ -152,7 +155,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
   }, [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 4. Biểu đồ tròn ----------
-  const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ct, r => r.total, metric);
+  const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ctKey, r => r.total, metric);
   const kvData = useMemo(() => orderMix(donut('kv')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
   const khData = useMemo(() => orderMix(groupTopN(donut('kh'), TOP_CUSTOMERS, f.kh ? [f.kh] : [])), [records, f, metric]); // eslint-disable-line react-hooks/exhaustive-deps
   const plData = useMemo(() => orderMix(donut('pl')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
@@ -162,7 +165,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns }) => {
     const m = new Map<string, { name: string; cts: Set<string>; items: number; total: number }>();
     for (const r of apply('pc')) {
       const e = m.get(r.pc) ?? { name: r.pc, cts: new Set<string>(), items: 0, total: 0 };
-      e.cts.add(r.ct); e.items++; e.total += r.total;
+      e.cts.add(r.ctKey); e.items++; e.total += r.total;
       m.set(r.pc, e);
     }
     return [...m.values()].sort((a, b) => b.total - a.total || b.items - a.items);

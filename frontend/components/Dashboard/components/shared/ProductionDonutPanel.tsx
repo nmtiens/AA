@@ -13,7 +13,11 @@ export const TOP_CUSTOMERS = 6;        // số khách hàng hiển thị riêng,
 type DKey = 'kv' | 'kh' | 'pl';
 type Metric = 'count' | 'value';
 
-interface Rec { ct: string; kv: string; kh: string; pl: string; total: number }
+interface Rec {
+  /** Khoá đếm công trình (mã -> tên chuẩn), xem projectKeyResolver */
+  ct: string;
+  kv: string; kh: string; pl: string; total: number;
+}
 
 const PALETTE = ['#1f2a44', '#2563eb', '#60a5fa', '#94a3b8', '#d97706', '#16a34a', '#a78bfa', '#cbd5e1'];
 const OTHERS_COLOR = '#64748b';
@@ -57,6 +61,32 @@ export function aggregateMix<R>(
     e.value += metric === 'count' ? 1 : ty;
   }
   return [...m.values()].filter(d => d.value > 0).sort((a, b) => b.value - a.value);
+}
+
+/**
+ * Khoá dùng để ĐẾM công trình: theo mã công trình, xoá trùng, rồi map về 1 tên chuẩn.
+ * - 1 mã có thể có nhiều cách viết tên (vd. "MARRIOT…" / "MARRIOTT…") => lấy tên xuất hiện nhiều nhất.
+ * - Hàng xuất khẩu mỗi đơn 1 mã (ARHAUS có hàng trăm mã EM…) nhưng cùng 1 tên => vẫn chỉ tính 1 công trình.
+ * Dòng không có mã thì dùng chính tên. Kết quả viết HOA để không đếm trùng do khác hoa/thường, khoảng trắng.
+ */
+export function projectKeyResolver(rows: DataRow[], maKey: string, tenKey: string): (row: DataRow) => string {
+  const norm = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+  const counts = new Map<string, Map<string, number>>(); // mã -> (tên -> số dòng)
+  for (const row of rows) {
+    const ma = norm(row[maKey]);
+    const ten = norm(row[tenKey]);
+    if (!ma || !ten) continue;
+    let m = counts.get(ma);
+    if (!m) { m = new Map(); counts.set(ma, m); }
+    m.set(ten, (m.get(ten) ?? 0) + 1);
+  }
+  const canonical = new Map<string, string>();
+  counts.forEach((m, ma) => {
+    let best = '', bestN = -1;
+    m.forEach((n, ten) => { if (n > bestN || (n === bestN && ten < best)) { best = ten; bestN = n; } });
+    canonical.set(ma, best);
+  });
+  return (row: DataRow) => canonical.get(norm(row[maKey])) ?? norm(row[tenKey]);
 }
 
 /** Tóm tắt (số công trình / hạng mục / giá trị) của 1 tập dòng. */
@@ -257,11 +287,13 @@ export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, selection
     const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo');
     const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong');
     const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, 'ten_cong_trinh');
+    const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, 'ma_cong_trinh');
+    const projectKey = projectKeyResolver(data, maK, ctK);
 
     const out: Rec[] = [];
     for (const row of data) {
-      const ct = String(row[ctK] ?? '').trim();
-      if (!ct) continue;
+      if (!String(row[ctK] ?? '').trim()) continue;
+      const ct = projectKey(row);
       // Đơn hủy không tính giá trị (vẫn được đếm ở chế độ "Số mục")
       const cancelled = String(row[ipoK] ?? '').toUpperCase().includes('HỦY');
       out.push({
