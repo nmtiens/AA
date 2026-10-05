@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
+import { FunnelCard } from '../shared/FunnelCard';
 import { CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
 import { formatDecimal, formatNumber, formatDecimalFull } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
@@ -39,21 +40,6 @@ interface ConstructionRevenueSectionProps {
 
 }
 
-let _measureCanvas: HTMLCanvasElement | null = null;
-function measureTextWidth(text: string, font: string): number {
-  if (typeof document === 'undefined') return text.length * 7;
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  if (!ctx) return text.length * 7;
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
-const BAR_LABEL_FONT = 'bold 14px sans-serif';
-const BAR_LABEL_HORIZONTAL_PADDING = 16;
-// Màu thanh phễu (đồng bộ với phễu ở Dashboard)
-const FUNNEL_BAR_COLOR: Record<string, string> = { P001: '#1f2a44', P002: '#64748b', P022: '#16a34a' };
-const FUNNEL_DEFAULT_COLOR = '#2563eb';
 export const ConstructionRevenueSection = ({
   sectionRef,
   targetRevenue2026,
@@ -69,21 +55,6 @@ export const ConstructionRevenueSection = ({
 }: ConstructionRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
-
-  const funnelBarsRef = useRef<HTMLDivElement>(null);
-  const [funnelBarsWidth, setFunnelBarsWidth] = useState(0);
-
-  useEffect(() => {
-    const el = funnelBarsRef.current;
-    if (!el) return;
-    setFunnelBarsWidth(el.clientWidth);
-    const observer = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect?.width;
-      if (w) setFunnelBarsWidth(w);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   const cancelledValue = factoryRevenueStats.cancelled ?? 0;
 
@@ -146,12 +117,6 @@ export const ConstructionRevenueSection = ({
     onFunnelModalClose?.(); // báo cha reset về dữ liệu tổng
   };
 
-  const getMinWidthPercentForText = (text: string): number => {
-    if (!funnelBarsWidth) return 0;
-    const textPx = measureTextWidth(text, BAR_LABEL_FONT) + BAR_LABEL_HORIZONTAL_PADDING;
-    return (textPx / funnelBarsWidth) * 100;
-  };
-
   // Ô số trong bảng pivot: hiển thị số làm tròn, rê chuột vào sẽ thấy số chi tiết.
   // Nếu cha có truyền onPivotValueClick thì hiển thị dạng nút bấm được
   // (giống style ở OnLineStageDetailModal / HexDetailModal),
@@ -180,85 +145,17 @@ export const ConstructionRevenueSection = ({
   return (
     <>
           <div ref={sectionRef} className="scroll-mt-24 w-full grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-        {/* Phễu */}
-        <div className={`${sideContent ? 'xl:col-span-8' : 'xl:col-span-12'} bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col`}>
-          {/* Tiêu đề căn giữa (cột trái trống cân với nút "Chi tiết" bên phải) */}
-          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 mb-6">
-            <span aria-hidden />
-            <div className="text-center">
-              <h3 className="text-lg md:text-xl font-bold uppercase tracking-wide text-slate-800">
-                Tình trạng đơn hàng AATN
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">
-                Phân bổ theo công đoạn (BOP)
-                {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && ' · Đơn vị: Triệu đồng'}
-              </p>
-            </div>
-            <button
-              onClick={handleOpenOverallDetail}
-              className="justify-self-end flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs border border-slate-200 transition-colors shrink-0"
-              title="Xem bảng chi tiết"
-            >
-              <Eye size={14} /> Chi tiết
-            </button>
-          </div>
-
-          {/* Phễu gọn: thanh cao cố định (không giãn theo khung), bề ngang giới hạn, nằm giữa khung */}
-          <div className="flex flex-row gap-4 w-full max-w-5xl mx-auto my-auto">
-            {/* Nhãn công đoạn */}
-            <div className="w-48 shrink-0 flex flex-col gap-1.5">
-              {customFunnelData.map((item) => (
-                <div
-                  key={`lbl-${item.id}`}
-                  className="h-8 flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
-                >
-                  <span title={item.name}>{item.name}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Thanh phễu */}
-            <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-1.5 min-w-0">
-              <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
-                <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
-                  <polygon
-                    points="0,0 100,0 50,100"
-                    fill="none"
-                    stroke="#fca5a5"
-                    strokeWidth="1.5px"
-                    strokeDasharray="6 4"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                </svg>
-              </div>
-
-              {customFunnelData.map((item) => {
-                const barLabel = formatBarLabel(item.value);
-                const tooltipValue = formatDetailValue(item.value);
-                const baseWidthPercent = item.value === 0 ? 6 : item.percentage;
-                const minWidthPercent = getMinWidthPercentForText(barLabel);
-                const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
-
-                return (
-                  <div key={`bar-${item.id}`} className="h-8 flex items-stretch justify-center w-full relative z-20">
-                    <button
-                      type="button"
-                      onClick={() => handleBarClick(item)}
-                      className="flex items-center justify-center rounded transition-all duration-500 cursor-pointer hover:brightness-95 hover:ring-2 hover:ring-offset-1 hover:ring-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-slate-500"
-                      style={{ width: `${widthPercent}%`, backgroundColor: FUNNEL_BAR_COLOR[item.id] ?? FUNNEL_DEFAULT_COLOR }}
-                      title={`${item.name}: ${tooltipValue} (bấm để xem chi tiết theo công trình)`}
-                      aria-label={`${item.name}: ${tooltipValue}. Xem chi tiết theo công trình`}
-                    >
-                      <span className="text-white font-semibold text-sm tabular-nums whitespace-nowrap px-1">
-                        {barLabel}
-                      </span>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        {/* Phễu (thẻ dùng chung với trang Tổng quan) */}
+        <FunnelCard
+          className={sideContent ? 'xl:col-span-8' : 'xl:col-span-12'}
+          subtitle="Phân bổ theo công đoạn (BOP)"
+          unit={workshopMetric === 'COUNT_HEX' ? 'Hạng mục' : useDetailedNumbers ? 'Triệu đồng' : 'Tỷ đồng'}
+          items={customFunnelData}
+          barLabel={item => formatBarLabel(item.value)}
+          barTitle={item => `${item.name}: ${formatDetailValue(item.value)}`}
+          onBarClick={handleBarClick}
+          onDetail={handleOpenOverallDetail}
+        />
 
         {/* 3 biểu đồ tròn — cùng chiều cao với phễu */}
         {sideContent && <div className="xl:col-span-4 min-w-0 flex flex-col">{sideContent}</div>}

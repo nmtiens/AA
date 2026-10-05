@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../../../types';
 import { findColumnKey } from '../../utils/columnKeyResolver';
 import { parseNumber } from '../../utils/numberParsers';
 import { categoryValue, NO_DATA_LABEL } from '../../utils/filterMatch';
 import { exportOrderMixExcel, type MixExportRec } from '../../utils/orderMixExport';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, XCircle } from 'lucide-react';
 
 // Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
@@ -35,7 +35,7 @@ const fmtMetric = (v: number, metric: Metric) => (metric === 'count' ? fmtInt(v)
 // ============================================================================
 export interface MixItem {
   name: string;
-  /** Giá trị vẽ lát: số mục hoặc Tỷ, tuỳ chế độ */
+  /** Giá trị vẽ lát: số hạng mục hoặc Tỷ, tuỳ chế độ */
   value: number;
   items: number;      // số hạng mục
   totalTy: number;    // tổng giá trị (Tỷ)
@@ -133,20 +133,51 @@ export const orderMix = (list: MixItem[]): MixItem[] => {
   return [...head, ...tail];
 };
 
-// Nhãn % hiển thị ngay trên vòng tròn (bỏ qua lát dưới 5% cho khỏi chật)
+// ---------------------------------------------------------------------------
+// Nhãn % cho MỌI lát: lát đủ lớn => chữ trắng nằm trong lát; lát nhỏ => chữ nằm ngoài vòng,
+// có đường nối vào đúng lát. Nhãn ngoài mỗi bên được giãn đều để không chồng lên nhau.
+// ---------------------------------------------------------------------------
 const RAD = Math.PI / 180;
-const renderPercent = (p: any) => {
-  const { cx, cy, midAngle, innerRadius, outerRadius, percent } = p;
-  if (!percent || percent < 0.05) return null;
-  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + r * Math.cos(-midAngle * RAD);
-  const y = cy + r * Math.sin(-midAngle * RAD);
-  return (
-    <text x={x} y={y} fill="#ffffff" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {`${(percent * 100).toFixed(0)}%`}
-    </text>
-  );
-};
+const INSIDE_MIN = 0.06;      // lát từ 6% trở lên ghi bên trong
+
+interface SliceLabel { inside: boolean; text: string; mid: number; x: number; y: number; side: 1 | -1 }
+
+/** Tính vị trí nhãn cho từng lát — khớp cách Recharts chia góc (bắt đầu 12 giờ, theo chiều kim đồng hồ). */
+function layoutSliceLabels(
+  values: number[], cx: number, cy: number, inner: number, outer: number, height: number, padAngle: number,
+): SliceLabel[] {
+  const sum = values.reduce((a, b) => a + b, 0) || 1;
+  const n = values.filter(v => v > 0).length;
+  const usable = 360 - (n > 1 ? n * padAngle : 0);
+  let start = 90;
+  const out: SliceLabel[] = values.map(v => {
+    const ang = (usable * v) / sum;
+    const mid = start - ang / 2;
+    start -= ang + (n > 1 ? padAngle : 0);
+    const pct = (v / sum) * 100;
+    const text = pct > 0 && pct < 1 ? '<1%' : `${pct.toFixed(0)}%`;
+    const cos = Math.cos(mid * RAD), sin = -Math.sin(mid * RAD);
+    if (pct / 100 >= INSIDE_MIN) {
+      const r = inner + (outer - inner) / 2;
+      return { inside: true, text, mid, x: cx + r * cos, y: cy + r * sin, side: cos >= 0 ? 1 : -1 };
+    }
+    const r = outer + 14;
+    return { inside: false, text, mid, x: cx + r * cos, y: cy + r * sin, side: cos >= 0 ? 1 : -1 };
+  });
+  // Giãn nhãn ngoài theo chiều dọc ở mỗi bên (cách nhau tối thiểu GAP px, không ra khỏi khung)
+  const GAP = 12;
+  for (const side of [1, -1] as const) {
+    const list = out.filter(l => !l.inside && l.side === side).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < list.length; i++) list[i].y = Math.max(list[i].y, list[i - 1].y + GAP);
+    const overflow = list.length ? list[list.length - 1].y - (height - 6) : 0;
+    if (overflow > 0) {
+      list[list.length - 1].y -= overflow;
+      for (let i = list.length - 2; i >= 0; i--) list[i].y = Math.min(list[i].y, list[i + 1].y - GAP);
+    }
+    list.forEach(l => { l.y = Math.max(6, l.y); l.x = cx + side * (outer + 18); });
+  }
+  return out;
+}
 
 // Tooltip: đủ 3 chỉ số của lát đang trỏ
 const MixTooltip: React.FC<{ active?: boolean; payload?: any[]; sum: number; metric: Metric }> = ({ active, payload, sum, metric }) => {
@@ -155,7 +186,7 @@ const MixTooltip: React.FC<{ active?: boolean; payload?: any[]; sum: number; met
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg min-w-[180px]">
       <p className="font-semibold text-slate-900 mb-1">
-        {d.name} <span className="font-normal text-slate-500">· {((d.value / (sum || 1)) * 100).toFixed(1)}% {metric === 'count' ? 'số mục' : 'giá trị'}</span>
+        {d.name} <span className="font-normal text-slate-500">· {((d.value / (sum || 1)) * 100).toFixed(1)}% {metric === 'count' ? 'hạng mục' : 'giá trị'}</span>
       </p>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 tabular-nums">
         <dt className="text-slate-500">Công trình</dt><dd className="text-right text-slate-800">{fmtInt(d.cts.size)}</dd>
@@ -182,6 +213,42 @@ interface DonutProps {
 // Khai báo ở module scope (không đặt trong component cha) để không bị mount lại mỗi lần render
 const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf, metric, large = false }) => {
   const sum = data.reduce((s, d) => s + d.value, 0);
+  // Khung vẽ rộng hơn vòng tròn để có chỗ cho nhãn ngoài
+  const W = large ? 272 : 200, H = large ? 224 : 168;
+  const OUTER = large ? 86 : 62, INNER = large ? 50 : 36, PAD = 1;
+  const labels = useMemo(
+    () => layoutSliceLabels(data.map(d => d.value), W / 2, H / 2, INNER, OUTER, H, PAD),
+    [data, W, H, INNER, OUTER],
+  );
+  const renderLabel = (p: any) => {
+    const l = labels[p.index];
+    if (!l) return null;
+    const dim = selected.length > 0 && !selected.includes(data[p.index]?.name);
+    if (l.inside) {
+      return (
+        <text x={l.x} y={l.y} fill="#ffffff" textAnchor="middle" dominantBaseline="central"
+              fontSize={large ? 11 : 10} fontWeight={600} opacity={dim ? 0.5 : 1} pointerEvents="none">
+          {l.text}
+        </text>
+      );
+    }
+    // Đường nối: mép lát -> ra ngoài -> ngang tới nhãn
+    const cx = W / 2, cy = H / 2;
+    const cos = Math.cos(l.mid * RAD), sin = -Math.sin(l.mid * RAD);
+    const p1 = [cx + (OUTER + 1) * cos, cy + (OUTER + 1) * sin];
+    const p2 = [cx + (OUTER + 8) * cos, cy + (OUTER + 8) * sin];
+    const p3 = [l.x - l.side * 3, l.y];
+    return (
+      <g opacity={dim ? 0.4 : 1} pointerEvents="none">
+        <polyline points={`${p1.join(',')} ${p2.join(',')} ${p3.join(',')}`} fill="none" stroke={p.fill} strokeWidth={1} />
+        <circle cx={p1[0]} cy={p1[1]} r={1.5} fill={p.fill} />
+        <text x={l.x} y={l.y} textAnchor={l.side === 1 ? 'start' : 'end'} dominantBaseline="central"
+              fontSize={large ? 10.5 : 9.5} fontWeight={600} fill="#334155">
+          {l.text}
+        </text>
+      </g>
+    );
+  };
   const picked = data.filter(d => selected.includes(d.name));
   const pickedSum = picked.reduce((s, d) => s + d.value, 0);
   const isPicked = (n: string) => selected.length === 0 || selected.includes(n);
@@ -194,20 +261,22 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
       ) : (
         <div className="flex-1 flex items-center justify-between gap-4">
           {/* Biểu đồ tròn: chạy theo chiều kim đồng hồ từ 12 giờ, cùng thứ tự với chú thích */}
-          <div className={`relative ${large ? 'w-52 h-52' : 'w-36 h-36'} shrink-0`}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+          {/* [&_*]:outline-none: bỏ khung đen trình duyệt vẽ quanh lát vừa bấm */}
+          <div className="relative shrink-0 [&_*]:outline-none" style={{ width: W, height: H }}>
+              <PieChart width={W} height={H}>
                 <Pie
                   data={data}
                   dataKey="value"
                   nameKey="name"
+                  cx={W / 2}
+                  cy={H / 2}
                   startAngle={90}
                   endAngle={-270}
-                  innerRadius={large ? 56 : 38}
-                  outerRadius={large ? 100 : 68}
-                  paddingAngle={1}
+                  innerRadius={INNER}
+                  outerRadius={OUTER}
+                  paddingAngle={PAD}
                   stroke="none"
-                  label={renderPercent}
+                  label={renderLabel}
                   labelLine={false}
                   isAnimationActive={false}
                   onClick={(d: any) => onSelect(d.name)}
@@ -223,7 +292,6 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                 </Pie>
                 <Tooltip content={<MixTooltip sum={sum} metric={metric} />} wrapperStyle={{ zIndex: 20 }} />
               </PieChart>
-            </ResponsiveContainer>
 
             {/* Giữa vòng: tổng, hoặc phần đang chọn + tỷ lệ */}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -238,8 +306,8 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
             </div>
           </div>
 
-          {/* Chú thích: đủ mọi lát, cùng thứ tự với vòng tròn, kèm % */}
-          <ul className={`flex-1 min-w-0 max-w-[16rem] space-y-0.5 overflow-y-auto custom-scrollbar ${large ? 'max-h-52' : 'max-h-36'}`}>
+          {/* Chú thích: đủ mọi lát, cùng thứ tự với vòng tròn, kèm số hạng mục / giá trị (Tỷ) theo chế độ đang xem */}
+          <ul className={`flex-1 min-w-0 max-w-[16rem] space-y-0.5 overflow-y-auto custom-scrollbar ${large ? 'max-h-56' : 'max-h-40'}`}>
             {data.map((d, i) => (
               <li key={d.name}>
                 <button
@@ -250,7 +318,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                 >
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: colorOf(d.name, i) }} />
                   <span className="truncate flex-1 text-slate-700">{d.name}</span>
-                  <span className="tabular-nums text-slate-500">{((d.value / (sum || 1)) * 100).toFixed(1)}%</span>
+                  <span className="tabular-nums text-slate-600">{metric === 'count' ? fmtInt(d.value) : fmtTy(d.value)}</span>
                 </button>
               </li>
             ))}
@@ -274,13 +342,23 @@ interface Props {
   selection: OrderMixSelection;
   /** Bấm lát/chú thích -> trang cập nhật bộ lọc tổng => phễu, bảng, KPI... cùng đổi theo */
   onSelectionChange: (next: OrderMixSelection) => void;
+  /**
+   * Chế độ Hạng mục / Giá trị do trang giữ (để phễu "Tình trạng đơn hàng AATN" đổi cùng lúc).
+   * Không truyền => thẻ tự giữ trạng thái riêng.
+   */
+  metric?: Metric;
+  onMetricChange?: (m: Metric) => void;
 }
 
 const recCt = (r: Rec) => r.ct;
 const recTotal = (r: Rec) => r.total;
 
-export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, selection, onSelectionChange }) => {
-  const [metric, setMetric] = useState<Metric>('count');
+export const ProductionDonutPanel: React.FC<Props> = ({
+  data, columns, selection, onSelectionChange, metric: metricProp, onMetricChange,
+}) => {
+  const [metricState, setMetricState] = useState<Metric>('count');
+  const metric = metricProp ?? metricState;
+  const setMetric = (m: Metric) => { setMetricState(m); onMetricChange?.(m); };
 
   const records = useMemo<Rec[]>(() => {
     const key = (target: string, fallback: string) => findColumnKey(columns, target) || fallback;
@@ -297,7 +375,7 @@ export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, selection
     for (const row of data) {
       if (!String(row[ctK] ?? '').trim()) continue;
       const ct = projectKey(row);
-      // Đơn hủy không tính giá trị (vẫn được đếm ở chế độ "Số mục")
+      // Đơn hủy không tính giá trị (vẫn được đếm ở chế độ "Hạng mục")
       const cancelled = String(row[ipoK] ?? '').toUpperCase().includes('HỦY');
       out.push({
         ct,
@@ -367,7 +445,7 @@ export const ProductionDonutPanel: React.FC<Props> = ({ data, columns, selection
 
 // ============================================================================
 // Thẻ "Cơ cấu đơn hàng" dùng chung (Tổng quan, Luồng đỏ, Căn mẫu, Báo cáo tiến độ công trình):
-// tiêu đề + nút Số mục/Giá trị + dải tóm tắt + 3 biểu đồ tròn xếp dọc. Dữ liệu và lọc do nơi dùng tự tính.
+// tiêu đề + nút Hạng mục/Giá trị + dải tóm tắt + 3 biểu đồ tròn xếp dọc. Dữ liệu và lọc do nơi dùng tự tính.
 // ============================================================================
 export interface OrderMixChart {
   title: string;
@@ -380,7 +458,7 @@ export interface OrderMixChart {
 interface OrderMixCardProps {
   metric: Metric;
   onMetricChange: (m: Metric) => void;
-  /** Có giá trị => hiện nút "Bỏ lọc" */
+  /** Có giá trị => hiện nút X "Bỏ lọc" */
   onClear?: () => void;
   charts: OrderMixChart[];
   /** Số công trình / hạng mục / giá trị của phạm vi đang chọn (khớp mọi lát đã chọn) */
@@ -415,14 +493,19 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
-            Cơ cấu đơn hàng
+            Nhóm đơn hàng
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">Theo khu vực, khách hàng, nhóm sản phẩm</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {onClear && (
-            <button onClick={onClear} className="text-xs text-slate-500 hover:text-slate-900 underline">
-              Bỏ lọc
+            <button
+              onClick={onClear}
+              title="Bỏ lọc"
+              aria-label="Bỏ lọc"
+              className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              <XCircle size={18} />
             </button>
           )}
           {onExport && (
@@ -445,7 +528,7 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
                 onClick={() => onMetricChange(m)}
                 className={`px-3 py-1 rounded-md font-medium ${metric === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
               >
-                {m === 'count' ? 'Số mục' : 'Giá trị'}
+                {m === 'count' ? 'Hạng mục' : 'Giá trị'}
               </button>
             ))}
           </div>

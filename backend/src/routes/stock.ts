@@ -170,6 +170,57 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   }
 });
 
+// Chi tiết TỪNG MÃ tồn kho tại 1 ngày (bấm số "P022. TỒN KHO" ở phễu).
+// project = 1 công trình (bỏ trống = mọi công trình trong phạm vi lọc congTrinh / xuong).
+// Kèm hạng mục / xưởng / nhóm SP lấy từ production_status_app theo mã ID SAP.
+const STOCK_ITEMS_LIMIT = 5000;
+app.get('/api/stock/items', async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query as { date: string };
+    if (!date) return res.status(400).json({ error: 'Missing date' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !parseSafeDate(date)) return res.status(400).json({ error: 'Invalid date' });
+    const project = String(req.query.project || '').trim().toUpperCase();
+    const filters = parseStockFilters(req);
+
+    const conds: string[] = ['s.date_parsed = $1'];
+    const params: any[] = [date];
+    if (project) {
+      params.push(project === 'CHƯA XÁC ĐỊNH' ? '' : project);
+      conds.push(`UPPER(TRIM(COALESCE(s.ten_cong_trinh, ''))) = $${params.length}`);
+    } else if (filters.congTrinh.length) {
+      params.push(filters.congTrinh);
+      conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
+    }
+    if (filters.xuong.length) {
+      params.push(filters.xuong);
+      conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
+    }
+    params.push(STOCK_ITEMS_LIMIT + 1);
+
+    const r = await timedQuery(
+      `SELECT s.hex::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
+              p.ten_hang_muc, p.xuong_chinh, p.phan_loai_nhom_san_pham,
+              ${numericColQualified('ton_kho', 's', 'gia_tri')} AS gia_tri
+       FROM ton_kho s
+       LEFT JOIN LATERAL (
+         SELECT ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
+         FROM production_status_app
+         WHERE ma_id_sap::text = s.ma_id_sap::text
+         ORDER BY updated_at DESC NULLS LAST LIMIT 1
+       ) p ON TRUE
+       WHERE ${conds.join(' AND ')}
+       ORDER BY gia_tri DESC NULLS LAST
+       LIMIT $${params.length}`,
+      params
+    );
+    const truncated = r.rows.length > STOCK_ITEMS_LIMIT;
+    res.json({ rows: r.rows.slice(0, STOCK_ITEMS_LIMIT).map(row => ({ ...row, gia_tri: Number(row.gia_tri) || 0 })), truncated });
+  } catch (error) {
+    console.error('Lỗi stock/items:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 const STOCK_EXPORT_LABELS: Record<string, string> = {
   id: 'ID',

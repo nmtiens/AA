@@ -20,7 +20,12 @@ import { PivotMaterialStatusSection } from './Dashboard/components/sections/Pivo
 import { MaterialListSection } from './Dashboard/components/sections/MaterialListSection';
 import { ProjectSummarySection } from './Dashboard/components/sections/ProjectSummarySection';
 import { PivotProjectSection } from './Dashboard/components/sections/PivotProjectSection';
-import { FactoryRevenueSection } from './Dashboard/components/sections/FactoryRevenueSection';
+import { FactoryRevenueSection, type CustomFunnelItem } from './Dashboard/components/sections/FactoryRevenueSection';
+import { HexDetailModal, type HexDetailColumnKeys } from './Dashboard/components/modals/HexDetailModal';
+import { TOTAL_STAGE, extractStage } from './Dashboard/components/modals/OnLineStageDetailModal';
+import { resolveFunnelHexTarget, FUNNEL_HEX_COLUMN_LABELS, type FunnelHexColumn } from './Dashboard/utils/funnelHexTarget';
+import { useAuth } from '../context/AuthContext';
+import { StockItemsModal } from './Dashboard/components/modals/StockItemsModal';
 import { BottleneckSection } from './Dashboard/components/sections/BottleneckSection';
 import { ProductionStatusSection } from './Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './Dashboard/components/sections/KhsxPlanActualSection';
@@ -320,6 +325,7 @@ const {
 const {
   stockDates,
   stockByProjectData,
+  stockScopeCongTrinh,
   loadStockByProject, 
   latestStockDateAvailable,
   closestStockDate,
@@ -353,6 +359,8 @@ const {
   pivotWorkshopData,
   pivotFunnelData,
   customFunnelData,
+  funnelBreakdownByBop,
+  hexRowsByColumnV2,
   pivotProjectData,
   pivotMaterialSummary,
   pivotMaterialStatusData,
@@ -499,6 +507,62 @@ const handleContinueToOrderColumnStep = () => {
     fullTarget: targetRevenue2026,
   }], [factoryRevenueStats.actual, targetRevenue2026]);
 
+  // ---------------------------------------------------------------------------
+  // Phễu "Tình trạng đơn hàng AATN" bấm được (giống Luồng đỏ / Căn mẫu):
+  // bấm 1 thanh -> bảng chi tiết THEO CÔNG TRÌNH của bước đó (P022 lấy tồn kho theo công trình);
+  // bấm 1 con số -> danh sách HEX đúng cột / công đoạn.
+  // ---------------------------------------------------------------------------
+  const { user } = useAuth();
+  const [activeFunnelItem, setActiveFunnelItem] = useState<CustomFunnelItem | null>(null);
+
+  useEffect(() => {
+    if (activeFunnelItem?.id === 'P022') loadStockByProject();
+  }, [activeFunnelItem, loadStockByProject]);
+
+  const activeFunnelPivotData = useMemo(() => {
+    if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> tổng theo BOP
+    if (activeFunnelItem.id === 'P022') {
+      return { data: stockByProjectData, total: stockByProjectData.reduce((sum, r) => sum + r.value, 0) };
+    }
+    return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
+  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
+
+  const [stockItems, setStockItems] = useState<{ open: boolean; projectName: string | null }>({ open: false, projectName: null });
+  const [funnelHex, setFunnelHex] = useState<{
+    open: boolean; column: FunnelHexColumn | null; projectName: string | null; stage: string | null;
+  }>({ open: false, column: null, projectName: null, stage: null });
+
+  const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
+    // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
+    if (item?.id === 'P022' || (!item && name === 'P022')) {
+      setStockItems({ open: true, projectName: item ? name : null });
+      return;
+    }
+    const target = resolveFunnelHexTarget(name, item?.id ?? null);
+    if (!target) return; // vd. bước P022 (Tồn kho) không có dữ liệu hex gốc
+    setFunnelHex({ open: true, ...target });
+  };
+
+  const funnelHexRows = useMemo(() => {
+    if (!funnelHex.open || !funnelHex.column) return [];
+    let source = hexRowsByColumnV2[funnelHex.column] ?? [];
+    if (funnelHex.projectName && congTrinhKey) {
+      source = source.filter(row => String(row[congTrinhKey] || '').trim() === funnelHex.projectName);
+    }
+    if (funnelHex.stage && funnelHex.stage !== TOTAL_STAGE && bopKey) {
+      source = source.filter(row => extractStage(row[bopKey]) === funnelHex.stage);
+    }
+    return source;
+  }, [funnelHex, hexRowsByColumnV2, congTrinhKey, bopKey]);
+
+  const funnelHexColumnKeys: HexDetailColumnKeys = useMemo(() => ({
+    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+  }), [
+    hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
+    phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
+  ]);
+
   if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
@@ -637,14 +701,20 @@ const handleContinueToOrderColumnStep = () => {
   targetRevenue2026={targetRevenue2026}
   factoryRevenueStats={factoryRevenueStats}
   customFunnelData={customFunnelData}
-  pivotFunnelData={pivotFunnelData}
+  pivotFunnelData={activeFunnelPivotData}
   workshopMetric={workshopMetric}
+  onFunnelItemClick={setActiveFunnelItem}
+  onFunnelModalClose={() => setActiveFunnelItem(null)}
+  onPivotValueClick={handleFunnelPivotValueClick}
   sideContent={
     <ProductionDonutPanel
       data={crossFilterBaseData}
       columns={productionColumns}
       selection={orderMixSelection}
       onSelectionChange={setOrderMixSelection}
+      // Nút Hạng mục / Giá trị dùng chung với phễu bên cạnh
+      metric={workshopMetric === 'COUNT_HEX' ? 'count' : 'value'}
+      onMetricChange={m => setWorkshopMetric(m === 'count' ? 'COUNT_HEX' : 'SUM_GT_DON_HANG')}
     />
   }
   onActualClick={() =>
@@ -840,6 +910,29 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      setGenericExportSelectedColumns={setGenericExportSelectedColumns}
      onConfirmExport={handleGenericExportConfirm}
    />
+
+      {/* Danh sách HEX khi bấm 1 con số trong bảng chi tiết của phễu */}
+      <HexDetailModal
+        isOpen={funnelHex.open}
+        onClose={() => setFunnelHex(prev => ({ ...prev, open: false }))}
+        title={funnelHex.column
+          ? FUNNEL_HEX_COLUMN_LABELS[funnelHex.column] + (funnelHex.stage && funnelHex.stage !== TOTAL_STAGE ? ` – ${funnelHex.stage}` : '')
+          : ''}
+        projectName={funnelHex.projectName}
+        rows={funnelHexRows}
+        columnKeys={funnelHexColumnKeys}
+        currentUser={user?.username ?? ''}
+      />
+
+      {/* Danh sách mã tồn kho khi bấm số của bước "P022. TỒN KHO" */}
+      <StockItemsModal
+        open={stockItems.open}
+        onClose={() => setStockItems(s => ({ ...s, open: false }))}
+        date={closestStockDate ?? null}
+        projectName={stockItems.projectName}
+        congTrinh={stockScopeCongTrinh}
+        xuong={filters.xuong}
+      />
     </div>
   );
 };

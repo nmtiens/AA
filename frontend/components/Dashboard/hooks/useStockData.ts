@@ -53,6 +53,8 @@ interface UseStockDataResult {
   latestStockStatsPrevMonth: StockStatsResult;
   stockOverviewCardValue: number;
   loadStockByProject: () => void;
+  /** Danh sách công trình đang dùng để lọc tồn kho (đã giao với whitelist của view nếu có) */
+  stockScopeCongTrinh: string[];
   stockTotalCount: number; // tổng số dòng thật (COUNT(*)) — ĐÃ scope theo view nếu có
 }
 
@@ -198,6 +200,7 @@ const loadStockByProject = useCallback(() => {
  return {
     stockDates,
     stockByProjectData,
+    stockScopeCongTrinh: effectiveCongTrinh,
     latestStockDateAvailable,
     closestStockDate,
     mtdStockData,

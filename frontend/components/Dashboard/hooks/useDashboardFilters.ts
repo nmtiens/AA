@@ -29,6 +29,12 @@ interface UseDashboardFiltersParams {
    * dữ liệu CHƯA lọc Khách hàng/Khu vực (vì productionData của trang đó đã lọc sẵn 2 tiêu chí này).
    */
   crossFilterSourceData?: DataRow[];
+  /**
+   * Khách hàng / Khu vực dự án đang chọn khi trang tự giữ 2 bộ lọc này ngoài `filters`
+   * (trang Luồng đỏ / Căn mẫu). Dùng để lọc dữ liệu sản xuất THEO TỪNG HẠNG MỤC.
+   */
+  rowKhachHang?: string[];
+  rowKhuVucDuAn?: string[];
 
   matCongTrinhKey: string | undefined;
   matNhomVtKey: string | undefined;
@@ -70,6 +76,8 @@ export function useDashboardFilters({
   khuVucDuAnKey,
   phanLoaiKey,
   crossFilterSourceData,
+  rowKhachHang,
+  rowKhuVucDuAn,
   matCongTrinhKey,
   matNhomVtKey,
 }: UseDashboardFiltersParams) {
@@ -132,15 +140,25 @@ export function useDashboardFilters({
   const tinhTrangIpoSet = useMemo(() => toFilterSet(filters.tinhTrangIpo), [filters.tinhTrangIpo]);
   const phanLoaiSet = useMemo(() => toFilterSet(filters.phanLoai), [filters.phanLoai]);
 
+  // Lọc Khách hàng / Khu vực dự án THEO TỪNG HẠNG MỤC cho dữ liệu sản xuất (phễu, bảng, danh sách HEX
+  // khớp đúng số hạng mục của biểu đồ tròn "Nhóm đơn hàng"). Các phần lấy từ API (nhập/xuất/tồn kho...)
+  // vẫn lọc theo công trình qua effectiveFilters.congTrinh.
+  const rowKhSet = useMemo(() => toFilterSet(rowKhachHang ?? filters.khachHang), [rowKhachHang, filters.khachHang]);
+  const rowKvSet = useMemo(() => toFilterSet(rowKhuVucDuAn ?? filters.khuVucDuAn), [rowKhuVucDuAn, filters.khuVucDuAn]);
+  const khRowKey = khachHangKey ?? 'khach_hang';
+  const kvRowKey = khuVucDuAnKey ?? 'khu_vuc_du_an';
+
   const filteredProductionData = useMemo(() => {
     return productionData.filter(row =>
       matchesFilter(congTrinhSet, row, congTrinhKey) &&
       matchesFilter(xuongSet, row, xuongKey) &&
       matchesFilter(tinhTrangSet, row, tinhTrangKey) &&
       matchesFilter(tinhTrangIpoSet, row, tinhTrangIpoKey) &&
-      matchesCategory(phanLoaiSet, row, phanLoaiKey)
+      matchesCategory(phanLoaiSet, row, phanLoaiKey) &&
+      matchesCategory(rowKhSet, row, khRowKey) &&
+      matchesCategory(rowKvSet, row, kvRowKey)
     );
-  }, [productionData, congTrinhSet, xuongSet, tinhTrangSet, tinhTrangIpoSet, phanLoaiSet, congTrinhKey, xuongKey, tinhTrangKey, tinhTrangIpoKey, phanLoaiKey]);
+  }, [productionData, congTrinhSet, xuongSet, tinhTrangSet, tinhTrangIpoSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, tinhTrangKey, tinhTrangIpoKey, phanLoaiKey, khRowKey, kvRowKey]);
 
   // Dữ liệu cho biểu đồ "Cơ cấu đơn hàng": áp mọi bộ lọc tổng TRỪ Khách hàng / Khu vực dự án /
   // Nhóm sản phẩm — 3 tiêu chí này do chính biểu đồ lọc chéo (mỗi vòng tròn bỏ qua lựa chọn của
@@ -162,9 +180,11 @@ export function useDashboardFilters({
       matchesFilter(congTrinhSet, row, congTrinhKey) &&
       matchesFilter(xuongSet, row, xuongKey) &&
       matchesCategory(phanLoaiSet, row, phanLoaiKey) &&
+      matchesCategory(rowKhSet, row, khRowKey) &&
+      matchesCategory(rowKvSet, row, kvRowKey) &&
       !!tinhTrangIpoKey && String(row[tinhTrangIpoKey] || '').trim() === FUNNEL_FIXED_TINH_TRANG_IPO
     );
-  }, [productionData, congTrinhSet, xuongSet, phanLoaiSet, congTrinhKey, xuongKey, phanLoaiKey, tinhTrangIpoKey]);
+  }, [productionData, congTrinhSet, xuongSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
 
   // Dataset riêng cho bảng "Tình trạng đơn hàng theo Công trình" (v2) — CHỈ ăn Công trình
   // (+ Khách hàng/Khu vực dự án) + Khu vực SX + Nhóm SP, KHÔNG áp dụng Tình Trạng / Tình Trạng IPO.
@@ -172,9 +192,11 @@ export function useDashboardFilters({
     return productionData.filter(row =>
       matchesFilter(congTrinhSet, row, congTrinhKey) &&
       matchesFilter(xuongSet, row, xuongKey) &&
-      matchesCategory(phanLoaiSet, row, phanLoaiKey)
+      matchesCategory(phanLoaiSet, row, phanLoaiKey) &&
+      matchesCategory(rowKhSet, row, khRowKey) &&
+      matchesCategory(rowKvSet, row, kvRowKey)
     );
-  }, [productionData, congTrinhSet, xuongSet, phanLoaiSet, congTrinhKey, xuongKey, phanLoaiKey]);
+  }, [productionData, congTrinhSet, xuongSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey]);
 
   const filteredMaterialData = useMemo(() => {
     return materialData.filter(row => matchesFilter(congTrinhSet, row, matCongTrinhKey));

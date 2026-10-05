@@ -42,6 +42,8 @@ import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/c
 import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
 import { ProductionDonutPanel, type OrderMixSelection } from './../Dashboard/components/shared/ProductionDonutPanel';
 import { categoryValue, categoryOptions } from './../Dashboard/utils/filterMatch';
+import { resolveFunnelHexTarget } from './../Dashboard/utils/funnelHexTarget';
+import { StockItemsModal } from './../Dashboard/components/modals/StockItemsModal';
 // Id của view trong bảng setup (xem CONFIGURABLE_VIEWS trong viewDataConfig.ts).
 export type ConstructionViewId = 'luong-do' | 'can-mau';
 
@@ -171,56 +173,7 @@ const isHexDetailColumn = (
 ): column is Exclude<HexDetailColumn, 'inventory'> =>
   (HEX_DETAIL_MODAL_COLUMNS as string[]).includes(column);
 
-// ---------------------------------------------------------------------------
-// Ánh xạ từ mã bước trong Phễu (BOP: P001, P002... đến P021/GCVT) sang
-// cột/giai đoạn tương ứng trong dữ liệu hex gốc, để bấm vào 1 con số trong
-// bảng pivot của "Chi tiết dữ liệu Phễu" mở tiếp được modal "Chi tiết theo Hex".
-//
-// - P001 ứng với cột "notDeployed".
-// - P002 ứng với cột "p002".
-// - P012 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó.
-// - P022 (TỒN KHO) lấy từ nguồn khác nên KHÔNG có hex gốc -> không mở modal.
-// ---------------------------------------------------------------------------
-const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: HexDetailColumn; stage: string | null }>> = {
-  P001: { column: 'notDeployed', stage: null },
-  P002: { column: 'p002', stage: 'P002' },
-  P012: { column: 'onLine', stage: 'P012' },
-  P013: { column: 'onLine', stage: 'P013' },
-  GCVT: { column: 'onLine', stage: 'GCVT' },
-  P014: { column: 'onLine', stage: 'P014' },
-  P016: { column: 'onLine', stage: 'P016' },
-  P018: { column: 'onLine', stage: 'P018' },
-  P020: { column: 'onLine', stage: 'P020' },
-  P021: { column: 'onLine', stage: 'P021' },
-};
-
-/**
- * Xác định (column, stage, projectName) cần dùng cho HexDetailModal khi bấm
- * vào 1 con số trong bảng pivot của Phễu.
- * - Nếu đã chọn 1 bước funnel cụ thể (item != null): bảng đang hiển thị theo
- *   CÔNG TRÌNH -> `name` = tên công trình (hoặc null = dòng TỔNG CỘNG).
- * - Nếu chưa chọn bước nào (item == null): bảng đang hiển thị TỔNG theo BOP
- *   -> `name` CHÍNH LÀ mã BOP (hoặc null = dòng TỔNG CỘNG, xem tất cả).
- */
-function resolveFunnelHexTarget(
-  name: string | null,
-  item: CustomFunnelItem | null
-): { column: HexDetailColumn; stage: string | null; projectName: string | null } | null {
-  if (item) {
-    if (item.id === 'P022') return null; // Tồn kho: không có dữ liệu hex gốc
-    const mapping = FUNNEL_TO_HEX_TARGET[item.id];
-    if (!mapping) return null;
-    return { column: mapping.column, stage: mapping.stage, projectName: name };
-  }
-  if (name === null) {
-    // Dòng TỔNG CỘNG của bảng theo BOP -> xem tất cả, không lọc thêm.
-    return { column: 'totalOrder', stage: null, projectName: null };
-  }
-  if (name === 'P022') return null;
-  const mapping = FUNNEL_TO_HEX_TARGET[name];
-  if (!mapping) return null;
-  return { column: mapping.column, stage: mapping.stage, projectName: null };
-}
+// Ánh xạ bước phễu -> cột/công đoạn HEX: xem Dashboard/utils/funnelHexTarget.ts (dùng chung với Tổng quan)
 
 // Dùng chung cho 2 view "Công trình luồng đỏ" và "Căn mẫu" (trước đây là 2 file gần như
 // giống hệt nhau và đã bắt đầu lệch nhau). Nơi dùng PHẢI đặt key={viewId} để đổi view thì
@@ -446,6 +399,9 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     phanLoaiKey: phanLoaiNhomSanPhamKey,
     // productionData ở trên đã lọc Khách hàng/Khu vực; biểu đồ cơ cấu cần bản chưa lọc để lọc chéo
     crossFilterSourceData: viewProductionData,
+    // Lọc theo từng hạng mục (khớp số của biểu đồ tròn) cho phễu / bảng / danh sách HEX
+    rowKhachHang: selKhachHang,
+    rowKhuVucDuAn: selKhuVuc,
     matCongTrinhKey,
     matNhomVtKey,
   });
@@ -609,6 +565,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   const {
     stockDates,
     stockByProjectData,
+    stockScopeCongTrinh,
     loadStockByProject,
     latestStockDateAvailable,
     closestStockDate,
@@ -895,6 +852,8 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     area?: string | null;
   }>({ open: false, column: null, projectName: null, stage: null });
 
+  const [stockItems, setStockItems] = useState<{ open: boolean; projectName: string | null }>({ open: false, projectName: null });
+
   const [onLineStageDetail, setOnLineStageDetail] = useState<{
     open: boolean;
     projectName: string | null;
@@ -995,7 +954,12 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   // Bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở HexDetailModal
   // đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và resolveFunnelHexTarget).
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
-    const target = resolveFunnelHexTarget(name, item);
+    // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
+    if (item?.id === 'P022' || (!item && name === 'P022')) {
+      setStockItems({ open: true, projectName: item ? name : null });
+      return;
+    }
+    const target = resolveFunnelHexTarget(name, item?.id ?? null);
     if (!target) return; // vd. bước P022 (Tồn kho) không có dữ liệu hex gốc
     setHexDetail({ open: true, column: target.column, projectName: target.projectName, stage: target.stage });
   };
@@ -1218,6 +1182,9 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
               columns={productionColumns}
               selection={orderMixSelection}
               onSelectionChange={setOrderMixSelection}
+              // Nút Hạng mục / Giá trị dùng chung với phễu bên cạnh
+              metric={workshopMetric === 'COUNT_HEX' ? 'count' : 'value'}
+              onMetricChange={m => setWorkshopMetric(m === 'count' ? 'COUNT_HEX' : 'SUM_GT_DON_HANG')}
             />
           }
         />
@@ -1382,6 +1349,16 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
         rows={hexDetailRows}
         columnKeys={hexDetailColumnKeys}
         currentUser={currentUser}
+      />
+
+      {/* Danh sách mã tồn kho khi bấm số của bước "P022. TỒN KHO" */}
+      <StockItemsModal
+        open={stockItems.open}
+        onClose={() => setStockItems(s => ({ ...s, open: false }))}
+        date={closestStockDate ?? null}
+        projectName={stockItems.projectName}
+        congTrinh={stockScopeCongTrinh}
+        xuong={filters.xuong}
       />
 
       <OnLineStageDetailModal

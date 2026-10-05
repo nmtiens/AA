@@ -410,6 +410,20 @@ export const fetchStockByProject = async (
   }
 };
 
+/** Chi tiết từng mã tồn kho tại 1 ngày; project = 1 công trình (bỏ trống = mọi công trình trong phạm vi lọc) */
+export const fetchStockItems = async (
+  dateISO: string,
+  project: string | null,
+  opts?: OverviewFilterOpts
+): Promise<{ rows: Record<string, any>[]; truncated: boolean }> => {
+  const params = new URLSearchParams({ date: dateISO });
+  if (project) params.set('project', project);
+  appendFilterParams(params, opts);
+  const r = await fetch(`${API_BASE_URL}/stock/items?${params.toString()}`, { signal: opts?.signal });
+  if (!r.ok) throw new Error(`Lỗi ${r.status}`);
+  return r.json();
+};
+
 export const fetchRevenue2026 = async (year?: string | number): Promise<Revenue2026Data | null> => {
   try {
     const url = year

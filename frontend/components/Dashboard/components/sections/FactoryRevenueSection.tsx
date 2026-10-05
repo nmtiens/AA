@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { FunnelCard } from '../shared/FunnelCard';
 import {
   XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
   BarChart, Bar, LabelList, ReferenceLine, Label,
@@ -10,9 +11,6 @@ import { formatDecimal, formatNumber } from '../../utils/numberParsers';
 import type { MetricType } from '../../types';
 
 const QUARTER_COLOR = '#ef4444';
-// Màu thanh phễu (đồng bộ style tối giản): đầu phễu navy, giữa xanh dương, đáy (tồn kho) xanh lá
-const FUNNEL_BAR_COLOR: Record<string, string> = { P001: '#1f2a44', P002: '#64748b', P022: '#16a34a' };
-const FUNNEL_DEFAULT_COLOR = '#2563eb';
 
 interface FactoryRevenueChartRow {
   name: string;
@@ -54,6 +52,14 @@ interface FactoryRevenueSectionProps {
   sideContent?: React.ReactNode;
   /** Bấm vào ô "Thực hiện lũy kế" -> mở chi tiết Nhập kho theo năm */
   onActualClick?: () => void;
+  /**
+   * Bấm 1 thanh phễu (giống Luồng đỏ / Căn mẫu): cha đổi pivotFunnelData sang bảng THEO CÔNG TRÌNH
+   * của bước đó; đóng cửa sổ thì cha trả về tổng theo BOP. Không truyền => thanh không bấm được.
+   */
+  onFunnelItemClick?: (item: CustomFunnelItem) => void;
+  onFunnelModalClose?: () => void;
+  /** Bấm 1 con số trong bảng chi tiết (name = công trình / mã BOP, null = dòng Tổng cộng) */
+  onPivotValueClick?: (name: string | null, item: CustomFunnelItem | null) => void;
 }
 
 // ---- Helpers đo & xếp hàng nhãn quý (giữ nguyên như cũ) ----
@@ -91,8 +97,40 @@ export const FactoryRevenueSection = ({
   workshopMetric,
   sideContent,
   onActualClick,
+  onFunnelItemClick,
+  onFunnelModalClose,
+  onPivotValueClick,
 }: FactoryRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
+  // Bước phễu đang xem chi tiết (null = bảng tổng theo BOP)
+  const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
+
+  const openOverallDetail = () => { setSelectedFunnelItem(null); setIsFunnelPivotModalOpen(true); };
+  const handleBarClick = (item: CustomFunnelItem) => {
+    setSelectedFunnelItem(item);
+    onFunnelItemClick?.(item);
+    setIsFunnelPivotModalOpen(true);
+  };
+  const closeFunnelModal = () => {
+    setIsFunnelPivotModalOpen(false);
+    setSelectedFunnelItem(null);
+    onFunnelModalClose?.();
+  };
+  // Ô số trong bảng: bấm được (mở danh sách HEX) khi cha có truyền onPivotValueClick
+  const renderPivotValue = (value: number, name: string | null) => {
+    const text = formatNumber(value, workshopMetric);
+    if (!onPivotValueClick || value === 0) return <span className={value === 0 ? 'text-slate-300' : ''}>{text}</span>;
+    return (
+      <button
+        type="button"
+        onClick={() => onPivotValueClick(name, selectedFunnelItem)}
+        className="text-slate-800 hover:text-emerald-700 hover:underline font-semibold"
+        title="Bấm để xem danh sách HEX"
+      >
+        {text}
+      </button>
+    );
+  };
 
   const chartWrapperRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(0);
@@ -109,12 +147,6 @@ export const FactoryRevenueSection = ({
     return () => observer.disconnect();
   }, []);
 
-  // ---- Phễu: bề rộng tối thiểu của thanh để nhãn số luôn nằm vừa bên trong ----
-  const funnelBarWrapperRef = useRef<HTMLDivElement>(null);
-  const FUNNEL_BASE_FONT_SIZE = 14;
-  const FUNNEL_LABEL_HORIZONTAL_PADDING = 16;
-  const getMinWidthPxForText = (text: string): number =>
-    measureTextWidth(text, `bold ${FUNNEL_BASE_FONT_SIZE}px sans-serif`) + FUNNEL_LABEL_HORIZONTAL_PADDING;
 
   const domainMax = useMemo(() => {
     const maxStack = factoryRevenueChartData.reduce(
@@ -298,80 +330,18 @@ export const FactoryRevenueSection = ({
 
         {/* ===== HÀNG DƯỚI: PHỄU TÌNH TRẠNG ĐƠN HÀNG AATN (trái) + CƠ CẤU (phải) ===== */}
         <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-          {/* Phễu — cao bằng cột bên phải, các thanh tự giãn đều */}
-          <div className="xl:col-span-8 bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col">
-            <div className="flex items-start justify-between gap-3 mb-5">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
-                  Tình trạng đơn hàng AATN
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Phân bổ theo công đoạn (BOP)</p>
-              </div>
-              <button
-                onClick={() => setIsFunnelPivotModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs border border-slate-200 transition-colors shrink-0"
-                title="Xem bảng chi tiết"
-              >
-                <Eye size={14} /> Chi tiết
-              </button>
-            </div>
-
-            <div className="flex flex-row gap-4 w-full flex-1">
-              {/* Nhãn công đoạn */}
-              <div className="w-56 shrink-0 flex flex-col gap-2">
-                {customFunnelData.map((item) => (
-                  <div
-                    key={`lbl-${item.id}`}
-                    className="flex-1 min-h-[36px] flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
-                  >
-                    <span title={item.name}>{item.name}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Thanh phễu */}
-              <div ref={funnelBarWrapperRef} className="flex-1 relative flex flex-col gap-2 min-w-0">
-                <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
-                  <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
-                    <polygon
-                      points="0,0 100,0 50,100"
-                      fill="none"
-                      stroke="#fca5a5"
-                      strokeWidth="1.5px"
-                      strokeDasharray="6 4"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  </svg>
-                </div>
-
-                {customFunnelData.map((item) => {
-                  const displayValue = Math.round(item.value / 1000);
-                  const widthPercent = displayValue === 0 ? 6 : item.percentage;
-                  const labelText = displayValue.toLocaleString('en-US');
-                  const minWidthPx = getMinWidthPxForText(labelText);
-
-                  return (
-                    <div key={`bar-${item.id}`} className="flex-1 min-h-[36px] flex items-stretch justify-center w-full relative z-20">
-                      <div
-                        className="flex items-center justify-center rounded transition-all duration-500"
-                        style={{
-                          width: `${widthPercent}%`,
-                          minWidth: `${minWidthPx}px`,
-                          flexShrink: 0,
-                          backgroundColor: FUNNEL_BAR_COLOR[item.id] ?? FUNNEL_DEFAULT_COLOR,
-                        }}
-                        title={`${item.name}: ${formatNumber(item.value, workshopMetric)}`}
-                      >
-                        <span className="text-white font-semibold text-sm tabular-nums whitespace-nowrap px-1">
-                          {labelText}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          {/* Phễu (thẻ dùng chung với Luồng đỏ / Căn mẫu): cao bằng cột bên phải, hàng tự giãn đều */}
+          <FunnelCard
+            className={sideContent ? 'xl:col-span-8' : 'xl:col-span-12'}
+            subtitle="Phân bổ theo công đoạn (BOP)"
+            unit={workshopMetric === 'COUNT_HEX' ? 'Hạng mục' : 'Tỷ đồng'}
+            items={customFunnelData}
+            // Giá trị gốc là triệu đồng -> /1000 = Tỷ; chế độ đếm HEX thì giữ nguyên số lượng
+            barLabel={item => (workshopMetric === 'COUNT_HEX' ? item.value : Math.round(item.value / 1000)).toLocaleString('en-US')}
+            barTitle={item => `${item.name}: ${formatNumber(item.value, workshopMetric)}`}
+            onBarClick={onFunnelItemClick ? handleBarClick : undefined}
+            onDetail={openOverallDetail}
+          />
 
           {/* Nội dung bên phải (3 biểu đồ tròn) — cùng chiều cao với phễu */}
           {sideContent && <div className="xl:col-span-4 min-w-0 flex flex-col">{sideContent}</div>}
@@ -379,21 +349,28 @@ export const FactoryRevenueSection = ({
       </div>
 
       {/* Funnel Pivot Detail Modal */}
+      {/* closeOnEsc={false}: bấm 1 con số sẽ mở danh sách HEX ĐÈ LÊN cửa sổ này; cửa sổ HEX tự xử lý Esc */}
       <ModalShell
         open={isFunnelPivotModalOpen}
-        onClose={() => setIsFunnelPivotModalOpen(false)}
+        onClose={closeFunnelModal}
+        closeOnEsc={!onPivotValueClick}
         labelledBy="factory-funnel-detail-title"
         overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
         panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"
       >
             <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
               <div>
-                <h2 id="factory-funnel-detail-title" className="text-lg font-bold text-slate-800">Chi tiết dữ liệu Phễu</h2>
-                <p className="text-xs text-slate-500 mt-1">Phân tích giá trị theo BOP</p>
+                <h2 id="factory-funnel-detail-title" className="text-lg font-bold text-slate-800">
+                  Chi tiết dữ liệu Phễu{selectedFunnelItem ? ` — ${selectedFunnelItem.name}` : ''}
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  {selectedFunnelItem ? 'Phân tích giá trị theo Công trình' : 'Phân tích giá trị theo BOP'}
+                  {onPivotValueClick && ' · bấm con số để xem danh sách HEX'}
+                </p>
               </div>
               <button
                 type="button"
-                onClick={() => setIsFunnelPivotModalOpen(false)}
+                onClick={closeFunnelModal}
                 aria-label="Đóng"
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
@@ -406,7 +383,9 @@ export const FactoryRevenueSection = ({
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">BOP</th>
+                        <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">
+                          {selectedFunnelItem ? 'Công trình' : 'BOP'}
+                        </th>
                         <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">Giá Trị</th>
                       </tr>
                     </thead>
@@ -417,10 +396,10 @@ export const FactoryRevenueSection = ({
                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold">
                               {index + 1}
                             </span>
-                            <span className="truncate max-w-[200px]" title={item.name}>{item.name}</span>
+                            <span className="break-words" title={item.name}>{item.name}</span>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-800">
-                            {formatNumber(item.value, workshopMetric)}
+                            {renderPivotValue(item.value, item.name)}
                           </td>
                         </tr>
                       ))}
@@ -429,7 +408,7 @@ export const FactoryRevenueSection = ({
                       <tr>
                         <td className="px-4 py-3 text-left uppercase text-slate-700">Tổng Cộng</td>
                         <td className="px-4 py-3 text-right text-slate-800 text-base">
-                          {formatNumber(pivotFunnelData.total, workshopMetric)}
+                          {renderPivotValue(pivotFunnelData.total, null)}
                         </td>
                       </tr>
                     </tfoot>
