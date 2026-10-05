@@ -12,6 +12,8 @@ export interface PrGroup {
   hexes: string[];        // hex trong bộ lọc mà PR này mua cho
   hangMuc: string[];
   nhomVt: string[];
+  maNhaMay: string[];     // mã nhà máy khớp các hex trong bộ lọc
+  itemNotes: string[];    // Item note PR (không trùng)
   statusCounts: [string, number][];
   prTotalHexes: number | null; // tổng số hex của PR trên toàn bộ vật tư
   prTotalLines: number | null;
@@ -46,6 +48,8 @@ export const buildPrGroups = (rows: MaterialRow[], hangMucByHex: Record<string, 
       hexes,
       hangMuc: uniq(hexes.map(h => hangMucByHex[h])),
       nhomVt: uniq(g.rows.map(r => r.nhom_vt)),
+      maNhaMay: uniq(g.rows.flatMap(r => r.matched_codes)),
+      itemNotes: uniq(g.rows.map(r => r.item_note_pr?.trim())),
       statusCounts: [...g.status.entries()].sort((a, b) => a[0].localeCompare(b[0], 'vi')),
       prTotalHexes: g.rows[0]?.pr_total_hexes ?? null,
       prTotalLines: g.rows[0]?.pr_total_lines ?? null,
@@ -55,7 +59,7 @@ export const buildPrGroups = (rows: MaterialRow[], hangMucByHex: Record<string, 
 
 type PrSortKey = 'prKey' | 'ngayPr' | 'hexCount' | 'prTotalHexes' | 'lines' | 'missingLines' | 'hangMucCount';
 
-const COLS: { key: PrSortKey | 'status' | 'nhomVt' | 'hangMuc' | 'hexList'; label: string; width: number; num?: boolean }[] = [
+const COLS: { key: PrSortKey | 'status' | 'nhomVt' | 'hangMuc' | 'hexList' | 'maNhaMay' | 'itemNotes'; label: string; width: number; num?: boolean }[] = [
   { key: 'prKey', label: 'Số PR', width: 115 },
   { key: 'ngayPr', label: 'Ngày PR', width: 90 },
   { key: 'hexCount', label: 'Số hex (trong bộ lọc)', width: 90, num: true },
@@ -67,6 +71,8 @@ const COLS: { key: PrSortKey | 'status' | 'nhomVt' | 'hangMuc' | 'hexList'; labe
   { key: 'nhomVt', label: 'Nhóm VT', width: 160 },
   { key: 'hangMuc', label: 'Hạng mục', width: 260 },
   { key: 'hexList', label: 'Mã Hex', width: 110 },
+  { key: 'maNhaMay', label: 'Mã nhà máy', width: 125 },
+  { key: 'itemNotes', label: 'Item note PR', width: 280 },
 ];
 
 const COLLAPSE_LIMIT = 3;
@@ -149,7 +155,7 @@ export const MaterialPrTable = ({
         <tr>
           <th className="border-b border-r border-emerald-200 bg-emerald-50 px-2 py-3 text-center">STT</th>
           {COLS.map(c => {
-            const sortable = !['status', 'nhomVt', 'hangMuc', 'hexList'].includes(c.key);
+            const sortable = !['status', 'nhomVt', 'hangMuc', 'hexList', 'maNhaMay', 'itemNotes'].includes(c.key);
             return (
               <th
                 key={c.key}
@@ -232,6 +238,12 @@ export const MaterialPrTable = ({
             <td className="whitespace-pre-line border-b border-r border-slate-100 px-2 py-2 align-top font-medium text-slate-700">
               {collapsible(g, g.hexes)}
             </td>
+            <td className="whitespace-pre-line border-b border-r border-slate-100 px-2 py-2 align-top text-slate-600">
+              {collapsible(g, g.maNhaMay)}
+            </td>
+            <td className="whitespace-pre-line break-words border-b border-r border-slate-100 px-2 py-2 align-top text-slate-600">
+              {collapsible(g, g.itemNotes)}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -256,4 +268,6 @@ export const prGroupsToCsvRows = (groups: PrGroup[]) =>
     'Nhóm VT': g.nhomVt.join('; '),
     'Hạng mục': g.hangMuc.join('; '),
     'Mã Hex': g.hexes.join(', '),
+    'Mã nhà máy': g.maNhaMay.join(', '),
+    'Item note PR': g.itemNotes.join('; '),
   }));

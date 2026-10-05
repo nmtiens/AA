@@ -118,8 +118,10 @@ app.post('/api/production/notes', async (req: Request, res: Response) => {
 // hex 9 số. Nên tách mọi dãy số: dãy 13 số -> bỏ 4 số đầu; dãy 9 số -> chính là hex.
 // Ô nhiều mã = 1 vật tư mua gộp cho nhiều hạng mục. Mỗi dòng vật tư trả về 1 lần, kèm
 // các hex + mã nhà máy KHỚP danh sách hỏi (matched_codes) và tổng số mã trong ô gộp (total_codes).
-// Hex không khớp được vật tư nào: lấy vật tư CHƯA có mã nhà máy chỉ định (ô trống / không có
-// dãy 9 hoặc 13 số) của cùng công trình (production.ma_cong_trinh = vat_tu.trackingno).
+// Nếu ô ma_nha_may KHÔNG có mã thì lấy mã 13 số ghi trong item_note_pr (nhiều dòng chỉ ghi mã ở
+// đó, vd "1005260612414_Nhôm tấm 3*1200*3000"); code_source cho biết mã lấy từ cột nào.
+// Hex không khớp được vật tư nào: lấy vật tư CHƯA có mã nhà máy chỉ định (cả 2 cột đều không
+// có mã) của cùng công trình (production.ma_cong_trinh = vat_tu.trackingno).
 // body.mode: 'matched' (mặc định) -> { rows } | 'unassigned' -> { rows } | 'unassigned-count' -> { lines, prs }
 //            | 'hex-counts' -> { [hex]: số dòng vật tư khớp theo mã nhà máy }
 const MATERIAL_BY_HEX_COLUMNS = [
@@ -131,12 +133,28 @@ const MATERIAL_BY_HEX_COLUMNS = [
   'team_pr_note', 'item_note_pr', 'ghi_chu_kho',
 ];
 
-// Tách mọi mã trong ô ma_nha_may thành (id dòng vật tư, mã, hex)
-const MATERIAL_CODES_CTE = `m AS (
-  SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex
-  FROM vat_tu v, REGEXP_SPLIT_TO_TABLE(v.ma_nha_may, '[^0-9]+') AS t
-  WHERE v.ma_nha_may IS NOT NULL AND LENGTH(t) IN (9, 13)
+// Ô ma_nha_may có mã: có dãy đúng 9 hoặc 13 số. Item note PR: chỉ nhận dãy đúng 13 số
+// (dãy 9 số trong ghi chú dễ là số khác, không phải hex).
+const RE_FACTORY_CODE = `'(^|[^0-9])([0-9]{9}|[0-9]{13})([^0-9]|$)'`;
+const RE_NOTE_CODE = `'(^|[^0-9])[0-9]{13}([^0-9]|$)'`;
+
+// Tách mọi mã của dòng vật tư thành (id, mã, hex, nguồn). extraWhere: điều kiện thêm trên v.
+const materialCodesCte = (extraWhere = '') => `m AS (
+  SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex, src.source
+  FROM vat_tu v
+  CROSS JOIN LATERAL (
+    SELECT CASE
+      WHEN v.ma_nha_may ~ ${RE_FACTORY_CODE} THEN 'ma_nha_may'
+      WHEN v.item_note_pr ~ ${RE_NOTE_CODE} THEN 'item_note_pr'
+    END AS source
+  ) src
+  CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(
+    CASE src.source WHEN 'ma_nha_may' THEN v.ma_nha_may ELSE v.item_note_pr END, '[^0-9]+'
+  ) AS t
+  WHERE src.source IS NOT NULL ${extraWhere}
+    AND (LENGTH(t) = 13 OR (src.source = 'ma_nha_may' AND LENGTH(t) = 9))
 )`;
+const MATERIAL_CODES_CTE = materialCodesCte();
 
 // Vật tư chưa có mã nhà máy, thuộc công trình của các hex KHÔNG khớp được vật tư nào
 const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
@@ -148,8 +166,8 @@ const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
 ), u AS (
   SELECT v.*
   FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
-  WHERE v.ma_nha_may IS NULL
-     OR v.ma_nha_may !~ '(^|[^0-9])([0-9]{9}|[0-9]{13})([^0-9]|$)'
+  WHERE NOT COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
+    AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
 )`;
 
 app.post('/api/material/by-hex', async (req: Request, res: Response) => {
@@ -205,7 +223,8 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
          SELECT id,
                 ARRAY_AGG(DISTINCT hex ORDER BY hex) FILTER (WHERE hex = ANY($1::text[])) AS hexes,
                 ARRAY_AGG(DISTINCT code ORDER BY code) FILTER (WHERE hex = ANY($1::text[])) AS matched_codes,
-                COUNT(DISTINCT code)::int AS total_codes
+                COUNT(DISTINCT code)::int AS total_codes,
+                MAX(source) AS code_source
          FROM m
          GROUP BY id
          HAVING BOOL_OR(hex = ANY($1::text[]))
@@ -216,7 +235,7 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
          WHERE v2.so_pr IS NOT NULL
          GROUP BY v2.so_pr
        )
-       SELECT hit.hexes, hit.matched_codes, hit.total_codes,
+       SELECT hit.hexes, hit.matched_codes, hit.total_codes, hit.code_source,
               pr.pr_total_hexes, pr.pr_total_lines, ${selectCols}
        FROM hit JOIN vat_tu v ON v.id = hit.id
        LEFT JOIN pr ON pr.so_pr = v.so_pr
@@ -256,18 +275,14 @@ app.post('/api/material/pr-hexes', async (req: Request, res: Response) => {
 
     const reasonSelect = Object.entries(PR_REASON_COLUMNS).map(([k, expr]) => `${expr} AS ${k}`).join(', ');
     const r = await timedQuery(
-      `WITH m AS (
-         SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex
-         FROM vat_tu v, REGEXP_SPLIT_TO_TABLE(v.ma_nha_may, '[^0-9]+') AS t
-         WHERE v.so_pr = $1 AND v.ma_nha_may IS NOT NULL AND LENGTH(t) IN (9, 13)
-       ), p AS (
+      `WITH ${materialCodesCte('AND v.so_pr = $1')}, p AS (
          SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ma_cong_trinh, ${reasonSelect}
          FROM production_status_app
          WHERE hex::text IN (SELECT hex FROM m)
        )
        SELECT DISTINCT ON (v.pr_line, m.hex)
               v.pr_line, v.ten_vat_tu, v.trang_thai, v.dvt, v.so_luong_yeu_cau, v.so_luong_con_lai,
-              m.hex, m.code AS ma_nha_may, (p.hex IS NOT NULL) AS in_production,
+              m.hex, m.code AS ma_nha_may, m.source AS code_source, (p.hex IS NOT NULL) AS in_production,
               p.ten_hang_muc, p.ma_cong_trinh, ${Object.keys(PR_REASON_COLUMNS).map(k => `p.${k}`).join(', ')}
        FROM vat_tu v
        JOIN m ON m.id = v.id

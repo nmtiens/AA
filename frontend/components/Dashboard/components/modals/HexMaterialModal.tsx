@@ -15,6 +15,8 @@ export interface MaterialRow {
   matched_codes: string[];
   /** Tổng số mã trong ô mã nhà máy gốc — > 1 nghĩa là vật tư mua gộp cho nhiều hạng mục */
   total_codes: number;
+  /** Mã lấy từ cột nào: 'ma_nha_may' hoặc 'item_note_pr' (khi ô mã nhà máy trống) */
+  code_source?: 'ma_nha_may' | 'item_note_pr' | null;
   /** Tổng số hex / dòng vật tư của PR này trên toàn bộ dữ liệu (không chỉ hex đang xem) */
   pr_total_hexes?: number | null;
   pr_total_lines?: number | null;
@@ -325,7 +327,7 @@ export const HexMaterialModal = ({
             <p className="mt-0.5 text-xs text-slate-500">
               {isUnassigned
                 ? 'Hex không khớp được vật tư theo mã nhà máy → lấy vật tư cùng mã công trình có ô mã nhà máy trống / không có mã'
-                : `${hexes.length} hex · map qua mã nhà máy (bỏ 4 số đầu = mã hex; 1 ô có nhiều mã thì tách từng mã)`}
+                : `${hexes.length} hex · map qua mã nhà máy (bỏ 4 số đầu = mã hex; 1 ô có nhiều mã thì tách từng mã; ô trống thì lấy mã trong Item note PR)`}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -498,6 +500,14 @@ export const HexMaterialModal = ({
                               title="Vật tư này mua gộp cho nhiều hạng mục — số lượng là của cả đơn mua gộp"
                             >
                               Mua gộp {r.total_codes} mã
+                            </div>
+                          )}
+                          {c.key === 'ma_nha_may' && r.code_source === 'item_note_pr' && (
+                            <div
+                              className="mt-0.5 text-[0.625rem] italic text-sky-600"
+                              title="Ô Mã nhà máy trống — mã được lấy từ cột Item note PR"
+                            >
+                              lấy từ Item note PR
                             </div>
                           )}
                         </td>

@@ -64297,11 +64297,24 @@ var MATERIAL_BY_HEX_COLUMNS = [
   "item_note_pr",
   "ghi_chu_kho"
 ];
-var MATERIAL_CODES_CTE = `m AS (
-  SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex
-  FROM vat_tu v, REGEXP_SPLIT_TO_TABLE(v.ma_nha_may, '[^0-9]+') AS t
-  WHERE v.ma_nha_may IS NOT NULL AND LENGTH(t) IN (9, 13)
+var RE_FACTORY_CODE = `'(^|[^0-9])([0-9]{9}|[0-9]{13})([^0-9]|$)'`;
+var RE_NOTE_CODE = `'(^|[^0-9])[0-9]{13}([^0-9]|$)'`;
+var materialCodesCte = (extraWhere = "") => `m AS (
+  SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex, src.source
+  FROM vat_tu v
+  CROSS JOIN LATERAL (
+    SELECT CASE
+      WHEN v.ma_nha_may ~ ${RE_FACTORY_CODE} THEN 'ma_nha_may'
+      WHEN v.item_note_pr ~ ${RE_NOTE_CODE} THEN 'item_note_pr'
+    END AS source
+  ) src
+  CROSS JOIN LATERAL REGEXP_SPLIT_TO_TABLE(
+    CASE src.source WHEN 'ma_nha_may' THEN v.ma_nha_may ELSE v.item_note_pr END, '[^0-9]+'
+  ) AS t
+  WHERE src.source IS NOT NULL ${extraWhere}
+    AND (LENGTH(t) = 13 OR (src.source = 'ma_nha_may' AND LENGTH(t) = 9))
 )`;
+var MATERIAL_CODES_CTE = materialCodesCte();
 var UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
   SELECT DISTINCT UPPER(TRIM(p.ma_cong_trinh)) AS code
   FROM production_status_app p
@@ -64311,8 +64324,8 @@ var UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
 ), u AS (
   SELECT v.*
   FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
-  WHERE v.ma_nha_may IS NULL
-     OR v.ma_nha_may !~ '(^|[^0-9])([0-9]{9}|[0-9]{13})([^0-9]|$)'
+  WHERE NOT COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
+    AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
 )`;
 app.post("/api/material/by-hex", async (req, res) => {
   try {
@@ -64362,7 +64375,8 @@ app.post("/api/material/by-hex", async (req, res) => {
          SELECT id,
                 ARRAY_AGG(DISTINCT hex ORDER BY hex) FILTER (WHERE hex = ANY($1::text[])) AS hexes,
                 ARRAY_AGG(DISTINCT code ORDER BY code) FILTER (WHERE hex = ANY($1::text[])) AS matched_codes,
-                COUNT(DISTINCT code)::int AS total_codes
+                COUNT(DISTINCT code)::int AS total_codes,
+                MAX(source) AS code_source
          FROM m
          GROUP BY id
          HAVING BOOL_OR(hex = ANY($1::text[]))
@@ -64373,7 +64387,7 @@ app.post("/api/material/by-hex", async (req, res) => {
          WHERE v2.so_pr IS NOT NULL
          GROUP BY v2.so_pr
        )
-       SELECT hit.hexes, hit.matched_codes, hit.total_codes,
+       SELECT hit.hexes, hit.matched_codes, hit.total_codes, hit.code_source,
               pr.pr_total_hexes, pr.pr_total_lines, ${selectCols}
        FROM hit JOIN vat_tu v ON v.id = hit.id
        LEFT JOIN pr ON pr.so_pr = v.so_pr
@@ -64403,18 +64417,14 @@ app.post("/api/material/pr-hexes", async (req, res) => {
     if (inFilterHexes.length > 5e3) return res.status(400).json({ error: "Too many hexes" });
     const reasonSelect = Object.entries(PR_REASON_COLUMNS).map(([k, expr]) => `${expr} AS ${k}`).join(", ");
     const r = await timedQuery(
-      `WITH m AS (
-         SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex
-         FROM vat_tu v, REGEXP_SPLIT_TO_TABLE(v.ma_nha_may, '[^0-9]+') AS t
-         WHERE v.so_pr = $1 AND v.ma_nha_may IS NOT NULL AND LENGTH(t) IN (9, 13)
-       ), p AS (
+      `WITH ${materialCodesCte("AND v.so_pr = $1")}, p AS (
          SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ma_cong_trinh, ${reasonSelect}
          FROM production_status_app
          WHERE hex::text IN (SELECT hex FROM m)
        )
        SELECT DISTINCT ON (v.pr_line, m.hex)
               v.pr_line, v.ten_vat_tu, v.trang_thai, v.dvt, v.so_luong_yeu_cau, v.so_luong_con_lai,
-              m.hex, m.code AS ma_nha_may, (p.hex IS NOT NULL) AS in_production,
+              m.hex, m.code AS ma_nha_may, m.source AS code_source, (p.hex IS NOT NULL) AS in_production,
               p.ten_hang_muc, p.ma_cong_trinh, ${Object.keys(PR_REASON_COLUMNS).map((k) => `p.${k}`).join(", ")}
        FROM vat_tu v
        JOIN m ON m.id = v.id
