@@ -64181,17 +64181,67 @@ var numericColQualified = (table, alias, col) => {
   return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
 };
 
+// src/server/permissions.ts
+var PERMISSION_CACHE_TTL_MS = 6e4;
+var permissionCache = /* @__PURE__ */ new Map();
+var loadPermissions = async (userId) => {
+  const key = String(userId);
+  const hit = permissionCache.get(key);
+  if (hit && Date.now() - hit.at < PERMISSION_CACHE_TTL_MS) return hit.perms;
+  const r = await pool.query(
+    `SELECT permissions, is_active FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  const perms = new Set(row && row.is_active && Array.isArray(row.permissions) ? row.permissions : []);
+  permissionCache.set(key, { perms, at: Date.now() });
+  if (permissionCache.size > 1e3) {
+    const oldest = permissionCache.keys().next().value;
+    if (oldest !== void 0) permissionCache.delete(oldest);
+  }
+  return perms;
+};
+var userHasPermission = async (req, permission) => {
+  if (!req.user) return false;
+  if (req.user.role === "ADMIN") return true;
+  try {
+    return (await loadPermissions(req.user.id)).has(permission);
+  } catch (error61) {
+    console.error("L\u1ED7i \u0111\u1ECDc quy\u1EC1n ng\u01B0\u1EDDi d\xF9ng:", error61);
+    return false;
+  }
+};
+var MATERIAL_PRICE_PERMISSION = "materials_view_price";
+var MATERIAL_PRICE_COLUMNS = ["thanh_tien", "don_gia", "nha_cung_cap"];
+var strippedCache = /* @__PURE__ */ new WeakMap();
+var stripMaterialPriceColumns = (rows) => {
+  if (!Array.isArray(rows)) return rows;
+  const cached2 = strippedCache.get(rows);
+  if (cached2) return cached2;
+  const out = rows.map((row) => {
+    const copy = { ...row };
+    MATERIAL_PRICE_COLUMNS.forEach((c) => {
+      delete copy[c];
+    });
+    return copy;
+  });
+  strippedCache.set(rows, out);
+  return out;
+};
+
 // src/routes/data.ts
 app.get("/api/all-data", async (req, res) => {
   try {
     const { payload } = await refreshAllDataCache();
     const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
-    if (requested.length === 0) return res.json(payload);
-    const subset = {};
-    for (const key of requested) {
-      if (Object.prototype.hasOwnProperty.call(payload, key)) subset[key] = payload[key];
+    const keys = requested.length === 0 ? Object.keys(payload) : requested;
+    const canSeePrice = !keys.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+    const out = {};
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
+      out[key] = key === "material" && !canSeePrice ? stripMaterialPriceColumns(payload[key]) : payload[key];
     }
-    res.json(subset);
+    res.json(out);
   } catch (error61) {
     console.error("L\u1ED7i khi fetch d\u1EEF li\u1EC7u:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -64215,6 +64265,9 @@ apiRoutes.forEach(({ path, table }) => {
   app.get(path, async (req, res) => {
     const { updated_after } = req.query;
     const data = await fetchTableData(table, updated_after);
+    if (table === "vat_tu" && !await userHasPermission(req, MATERIAL_PRICE_PERMISSION)) {
+      return res.json(stripMaterialPriceColumns(data));
+    }
     res.json(data);
   });
 });

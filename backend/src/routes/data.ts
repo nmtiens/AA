@@ -6,6 +6,7 @@ import { authenticateJWT, requireRole } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
 import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, STOCK_TREND_CONFIG, ANALYSIS_TABLES } from '../server/data.js';
 import { app } from '../server/app.js';
+import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
 
 app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
@@ -14,12 +15,16 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     // tránh tải lại cả 12 bảng (~51k dòng sản xuất) khi chỉ 1 bảng thay đổi.
     // Không truyền => trả đủ 12 bảng như cũ (tương thích ngược với client cũ).
     const requested = String(req.query.tables || '').split(',').map(s => s.trim()).filter(Boolean);
-    if (requested.length === 0) return res.json(payload);
-    const subset: Record<string, unknown> = {};
-    for (const key of requested) {
-      if (Object.prototype.hasOwnProperty.call(payload, key)) subset[key] = payload[key];
+    const keys = requested.length === 0 ? Object.keys(payload) : requested;
+    // Vật tư: bỏ cột giá/NCC nếu user không có quyền "Xem Giá/NCC" (payload là cache dùng
+    // chung -> không sửa trực tiếp, chỉ thay bản đã cắt trong object trả về).
+    const canSeePrice = !keys.includes('material') || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+    const out: Record<string, unknown> = {};
+    for (const key of keys) {
+      if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
+      out[key] = key === 'material' && !canSeePrice ? stripMaterialPriceColumns(payload[key]) : payload[key];
     }
-    res.json(subset);
+    res.json(out);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -46,6 +51,9 @@ apiRoutes.forEach(({ path, table }) => {
   app.get(path, async (req: Request, res: Response) => {
     const { updated_after } = req.query;
     const data = await fetchTableData(table, updated_after as string);
+    if (table === 'vat_tu' && !(await userHasPermission(req, MATERIAL_PRICE_PERMISSION))) {
+      return res.json(stripMaterialPriceColumns(data));
+    }
     res.json(data);
   });
 });
