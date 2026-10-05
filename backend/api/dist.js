@@ -64366,9 +64366,17 @@ app.post("/api/material/by-hex", async (req, res) => {
          FROM m
          GROUP BY id
          HAVING BOOL_OR(hex = ANY($1::text[]))
+       ), pr AS (
+         -- T\u1ED5ng s\u1ED1 hex / d\xF2ng c\u1EE7a m\u1ED7i PR tr\xEAn TO\xC0N B\u1ED8 v\u1EADt t\u01B0 (kh\xF4ng ch\u1EC9 c\xE1c hex \u0111ang xem)
+         SELECT v2.so_pr, COUNT(DISTINCT m.hex)::int AS pr_total_hexes, COUNT(DISTINCT m.id)::int AS pr_total_lines
+         FROM m JOIN vat_tu v2 ON v2.id = m.id
+         WHERE v2.so_pr IS NOT NULL
+         GROUP BY v2.so_pr
        )
-       SELECT hit.hexes, hit.matched_codes, hit.total_codes, ${selectCols}
+       SELECT hit.hexes, hit.matched_codes, hit.total_codes,
+              pr.pr_total_hexes, pr.pr_total_lines, ${selectCols}
        FROM hit JOIN vat_tu v ON v.id = hit.id
+       LEFT JOIN pr ON pr.so_pr = v.so_pr
        ORDER BY hit.hexes[1], v.so_pr NULLS LAST, v.pr_line NULLS LAST`,
       [hexes],
       { timeoutMs: 2e4 }
@@ -64376,6 +64384,62 @@ app.post("/api/material/by-hex", async (req, res) => {
     res.json({ rows: r.rows });
   } catch (error61) {
     console.error("L\u1ED7i /api/material/by-hex:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var PR_REASON_COLUMNS = {
+  tinh_trang_ipo: "tinh_trang_ipo",
+  ten_pc: "ten_pc",
+  ten_pm: "ten_pm",
+  khu_vuc_du_an: "khu_vuc_du_an",
+  ten_cong_trinh: "ten_cong_trinh",
+  thang_can_giao: `COALESCE(TO_CHAR(ngay_can_giao, 'MM/YYYY'), '')`
+};
+app.post("/api/material/pr-hexes", async (req, res) => {
+  try {
+    const pr = Number(req.body?.pr);
+    if (!Number.isFinite(pr) || pr <= 0) return res.status(400).json({ error: "Invalid PR" });
+    const inFilterHexes = Array.isArray(req.body?.inFilterHexes) ? req.body.inFilterHexes.map((h) => String(h).trim()).filter(Boolean) : [];
+    if (inFilterHexes.length > 5e3) return res.status(400).json({ error: "Too many hexes" });
+    const reasonSelect = Object.entries(PR_REASON_COLUMNS).map(([k, expr]) => `${expr} AS ${k}`).join(", ");
+    const r = await timedQuery(
+      `WITH m AS (
+         SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex
+         FROM vat_tu v, REGEXP_SPLIT_TO_TABLE(v.ma_nha_may, '[^0-9]+') AS t
+         WHERE v.so_pr = $1 AND v.ma_nha_may IS NOT NULL AND LENGTH(t) IN (9, 13)
+       ), p AS (
+         SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ma_cong_trinh, ${reasonSelect}
+         FROM production_status_app
+         WHERE hex::text IN (SELECT hex FROM m)
+       )
+       SELECT DISTINCT ON (v.pr_line, m.hex)
+              v.pr_line, v.ten_vat_tu, v.trang_thai, v.dvt, v.so_luong_yeu_cau, v.so_luong_con_lai,
+              m.hex, m.code AS ma_nha_may, (p.hex IS NOT NULL) AS in_production,
+              p.ten_hang_muc, p.ma_cong_trinh, ${Object.keys(PR_REASON_COLUMNS).map((k) => `p.${k}`).join(", ")}
+       FROM vat_tu v
+       JOIN m ON m.id = v.id
+       LEFT JOIN p ON p.hex = m.hex
+       WHERE v.so_pr = $1
+       ORDER BY v.pr_line, m.hex`,
+      [pr],
+      { timeoutMs: 2e4 }
+    );
+    const filterValues = {};
+    if (inFilterHexes.length > 0) {
+      const f = await timedQuery(
+        `SELECT ${Object.entries(PR_REASON_COLUMNS).map(([k, expr]) => `ARRAY_AGG(DISTINCT COALESCE(${expr}, '')) AS ${k}`).join(", ")}
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])`,
+        [inFilterHexes],
+        { timeoutMs: 2e4 }
+      );
+      Object.keys(PR_REASON_COLUMNS).forEach((k) => {
+        filterValues[k] = f.rows[0]?.[k] ?? [];
+      });
+    }
+    res.json({ rows: r.rows, filterValues });
+  } catch (error61) {
+    console.error("L\u1ED7i /api/material/pr-hexes:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

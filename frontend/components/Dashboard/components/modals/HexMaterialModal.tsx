@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Search, X, Download, ChevronUp, ChevronDown, ChevronsUpDown, Package } from 'lucide-react';
 import { formatSmartDecimal } from '../../utils/numberParsers';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
+import { MaterialPrTable, buildPrGroups, prGroupsToCsvRows } from './MaterialPrTable';
+import { PrHexDetailModal } from './PrHexDetailModal';
 
 // Vật tư liên quan đến các hạng mục (hex). Bảng vat_tu không có hex trực tiếp:
 // backend map bằng mã nhà máy bỏ 4 số đầu (xem /api/material/by-hex).
@@ -13,6 +15,9 @@ export interface MaterialRow {
   matched_codes: string[];
   /** Tổng số mã trong ô mã nhà máy gốc — > 1 nghĩa là vật tư mua gộp cho nhiều hạng mục */
   total_codes: number;
+  /** Tổng số hex / dòng vật tư của PR này trên toàn bộ dữ liệu (không chỉ hex đang xem) */
+  pr_total_hexes?: number | null;
+  pr_total_lines?: number | null;
   ma_nha_may: string | null;
   /** Chỉ có ở dòng "chưa có mã nhà máy chỉ định" (map theo mã công trình) */
   trackingno?: string | null;
@@ -133,12 +138,18 @@ export const HexMaterialModal = ({
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [sort, setSort] = useState<{ key: ColDef['key']; dir: SortDir } | null>(null);
+  // 'line': mỗi dòng 1 dòng vật tư; 'pr': gom theo số PR (1 PR mua cho bao nhiêu hex)
+  const [groupBy, setGroupBy] = useState<'line' | 'pr'>('line');
+  const byPr = groupBy === 'pr' && !isUnassigned;
+  // PR đang mở popup "mua cho những hex nào"
+  const [prDetail, setPrDetail] = useState<string | null>(null);
+  const viewingHexSet = useMemo(() => new Set(hexes), [hexes]);
 
   const hexKey = useMemo(() => [...hexes].sort().join(','), [hexes]);
 
   useEffect(() => {
     if (!isOpen) {
-      setSearch(''); setStatusFilter(''); setOnlyMissing(false); setSort(null);
+      setSearch(''); setStatusFilter(''); setOnlyMissing(false); setSort(null); setGroupBy('line'); setPrDetail(null);
       return;
     }
     if (hexes.length === 0) { setRows([]); return; }
@@ -263,7 +274,16 @@ export const HexMaterialModal = ({
     return v == null ? '' : String(v);
   };
 
+  const prCountShown = useMemo(
+    () => (byPr ? new Set(filtered.map(r => r.so_pr)).size : 0),
+    [byPr, filtered]
+  );
+
   const handleExport = () => {
+    if (byPr) {
+      downloadCsvFile(`vat_tu_theo_pr_${title}.csv`, rowsToCsvString(prGroupsToCsvRows(buildPrGroups(filtered, hangMucByHex))));
+      return;
+    }
     const out = sorted.map((r, i) => {
       const o: Record<string, string | number> = { STT: i + 1 };
       columns.forEach(c => {
@@ -346,6 +366,22 @@ export const HexMaterialModal = ({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-3">
+          {!isUnassigned && (
+            <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 text-xs font-semibold">
+              {([['line', 'Theo dòng vật tư'], ['pr', 'Theo PR']] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setGroupBy(k)}
+                  className={`px-3 py-1.5 transition-colors ${
+                    groupBy === k ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="relative w-full max-w-xs">
             <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -370,7 +406,9 @@ export const HexMaterialModal = ({
             <input type="checkbox" checked={onlyMissing} onChange={e => setOnlyMissing(e.target.checked)} />
             Chỉ dòng còn thiếu
           </label>
-          <span className="ml-auto text-xs text-slate-500">{sorted.length} dòng</span>
+          <span className="ml-auto text-xs text-slate-500">
+            {byPr ? `${prCountShown} PR · ${sorted.length} dòng` : `${sorted.length} dòng`}
+          </span>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-5 pb-4 custom-scrollbar">
@@ -378,6 +416,13 @@ export const HexMaterialModal = ({
             <div className="p-8 text-center text-sm text-slate-400">Đang tải vật tư...</div>
           ) : error ? (
             <div className="p-8 text-center text-sm text-red-500">Không tải được dữ liệu vật tư.</div>
+          ) : byPr && sorted.length > 0 ? (
+            <MaterialPrTable
+              rows={filtered}
+              hangMucByHex={hangMucByHex}
+              onOpenPr={(pr) => { setGroupBy('line'); setSearch(pr); setSort(null); }}
+              onOpenPrHexes={setPrDetail}
+            />
           ) : sorted.length === 0 ? (
             <div className="mt-3 rounded-lg bg-slate-50 p-8 text-center text-slate-500">
               {stats.lines > 0
@@ -465,6 +510,12 @@ export const HexMaterialModal = ({
           )}
         </div>
       </div>
+      <PrHexDetailModal
+        isOpen={prDetail !== null}
+        onClose={() => setPrDetail(null)}
+        pr={prDetail ?? ''}
+        viewingHexes={viewingHexSet}
+      />
     </div>,
     document.body
   );
