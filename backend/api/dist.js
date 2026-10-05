@@ -44319,6 +44319,7 @@ var requireWarmupSecret = (req, res, next) => {
 // src/server/app.ts
 var app = (0, import_express.default)();
 app.set("trust proxy", 1);
+app.set("case sensitive routing", true);
 app.use(helmet());
 app.use((0, import_cors.default)({
   origin: (origin, callback) => {
@@ -44373,8 +44374,9 @@ var PUBLIC_API_PATHS = /* @__PURE__ */ new Set([
 ]);
 var PUBLIC_API_PREFIXES = ["/api/cron/"];
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS" || !req.path.startsWith("/api/")) return next();
-  if (PUBLIC_API_PATHS.has(req.path) || PUBLIC_API_PREFIXES.some((p) => req.path.startsWith(p))) return next();
+  const path = req.path.toLowerCase();
+  if (req.method === "OPTIONS" || !path.startsWith("/api/")) return next();
+  if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateJWT(req, res, next);
 });
 

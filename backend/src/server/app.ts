@@ -16,6 +16,9 @@ export const app = express();
 // MIDDLEWARE HẠ TẦNG: helmet, CORS whitelist, compression, rate limit chung
 // ============================================================================
 app.set('trust proxy', 1); // cần thiết khi chạy sau proxy/CDN (Vercel...) để rate-limit theo IP thật hoạt động đúng
+// Route phân biệt hoa thường: mặc định Express coi /API/x = /api/x, trong khi middleware
+// đăng nhập bên dưới so khớp '/api/' -> /API/... từng lọt qua mà không cần token.
+app.set('case sensitive routing', true);
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {
@@ -81,8 +84,11 @@ export const PUBLIC_API_PATHS = new Set([
 export const PUBLIC_API_PREFIXES = ['/api/cron/'];
 
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.method === 'OPTIONS' || !req.path.startsWith('/api/')) return next();
-  if (PUBLIC_API_PATHS.has(req.path) || PUBLIC_API_PREFIXES.some(p => req.path.startsWith(p))) return next();
+  // So khớp không phân biệt hoa thường: /API/..., /Api/... cũng phải qua đăng nhập
+  // (router con như express.Router() mặc định vẫn khớp không phân biệt hoa thường).
+  const path = req.path.toLowerCase();
+  if (req.method === 'OPTIONS' || !path.startsWith('/api/')) return next();
+  if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
   return authenticateJWT(req, res, next);
 });
 
