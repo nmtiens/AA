@@ -182,32 +182,35 @@ export const ConstructionRevenueSection = ({
           <div ref={sectionRef} className="scroll-mt-24 w-full grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
         {/* Phễu */}
         <div className={`${sideContent ? 'xl:col-span-8' : 'xl:col-span-12'} bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col`}>
-          <div className="flex items-start justify-between gap-3 mb-5">
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
+          {/* Tiêu đề căn giữa (cột trái trống cân với nút "Chi tiết" bên phải) */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-3 mb-6">
+            <span aria-hidden />
+            <div className="text-center">
+              <h3 className="text-lg md:text-xl font-bold uppercase tracking-wide text-slate-800">
                 Tình trạng đơn hàng AATN
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-sm text-slate-500 mt-1">
                 Phân bổ theo công đoạn (BOP)
                 {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && ' · Đơn vị: Triệu đồng'}
               </p>
             </div>
             <button
               onClick={handleOpenOverallDetail}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs border border-slate-200 transition-colors shrink-0"
+              className="justify-self-end flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-600 rounded-lg hover:bg-slate-50 font-medium text-xs border border-slate-200 transition-colors shrink-0"
               title="Xem bảng chi tiết"
             >
               <Eye size={14} /> Chi tiết
             </button>
           </div>
 
-          <div className="flex flex-row gap-4 w-full flex-1">
+          {/* Phễu gọn: thanh cao cố định (không giãn theo khung), bề ngang giới hạn, nằm giữa khung */}
+          <div className="flex flex-row gap-4 w-full max-w-5xl mx-auto my-auto">
             {/* Nhãn công đoạn */}
-            <div className="w-56 shrink-0 flex flex-col gap-2">
+            <div className="w-48 shrink-0 flex flex-col gap-1.5">
               {customFunnelData.map((item) => (
                 <div
                   key={`lbl-${item.id}`}
-                  className="flex-1 min-h-[36px] flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
+                  className="h-8 flex items-center justify-end text-right text-xs font-medium leading-tight text-slate-600"
                 >
                   <span title={item.name}>{item.name}</span>
                 </div>
@@ -215,7 +218,7 @@ export const ConstructionRevenueSection = ({
             </div>
 
             {/* Thanh phễu */}
-            <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-2 min-w-0">
+            <div ref={funnelBarsRef} className="flex-1 relative flex flex-col gap-1.5 min-w-0">
               <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-30">
                 <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100" className="overflow-visible">
                   <polygon
@@ -237,7 +240,7 @@ export const ConstructionRevenueSection = ({
                 const widthPercent = Math.min(100, Math.max(baseWidthPercent, minWidthPercent));
 
                 return (
-                  <div key={`bar-${item.id}`} className="flex-1 min-h-[36px] flex items-stretch justify-center w-full relative z-20">
+                  <div key={`bar-${item.id}`} className="h-8 flex items-stretch justify-center w-full relative z-20">
                     <button
                       type="button"
                       onClick={() => handleBarClick(item)}
