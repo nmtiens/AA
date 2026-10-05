@@ -112,6 +112,117 @@ app.post('/api/production/notes', async (req: Request, res: Response) => {
   }
 });
 
+// Vật tư theo danh sách hex. Bảng vat_tu không có cột hex: mã nhà máy = 4 số đầu + hex
+// (vd 1002250607396 -> hex 250607396). 1 ô ma_nha_may có thể chứa NHIỀU mã, cách nhau
+// bằng dấu cách/phẩy, có khi kèm chữ ("1007260102622, HỦY ĐIỀU CHỈNH...") hoặc ghi thẳng
+// hex 9 số. Nên tách mọi dãy số: dãy 13 số -> bỏ 4 số đầu; dãy 9 số -> chính là hex.
+// Ô nhiều mã = 1 vật tư mua gộp cho nhiều hạng mục. Mỗi dòng vật tư trả về 1 lần, kèm
+// các hex + mã nhà máy KHỚP danh sách hỏi (matched_codes) và tổng số mã trong ô gộp (total_codes).
+// Hex không khớp được vật tư nào: lấy vật tư CHƯA có mã nhà máy chỉ định (ô trống / không có
+// dãy 9 hoặc 13 số) của cùng công trình (production.ma_cong_trinh = vat_tu.trackingno).
+// body.mode: 'matched' (mặc định) -> { rows } | 'unassigned' -> { rows } | 'unassigned-count' -> { lines, prs }
+//            | 'hex-counts' -> { [hex]: số dòng vật tư khớp theo mã nhà máy }
+const MATERIAL_BY_HEX_COLUMNS = [
+  'ma_nha_may', 'trang_thai', 'trang_thai_sap', 'tinh_trang_pr', 'nguoi_yeu_cau',
+  'so_pr', 'pr_line', 'ngay_pr', 'ma_vat_tu_sap', 'ten_vat_tu', 'nhom_vt', 'dvt',
+  'so_luong_yeu_cau', 'so_luong_da_nhan_sap', 'so_luong_con_lai',
+  'ngay_can_vat_tu', 'so_po', 'tinh_trang_po', 'ghi_chu_tinh_trang_po',
+  'ngay_du_kien_giao_hang_pmh_nhap', 'ngay_thuc_te_ve', 'ngay_ve', 'sl_hang_ve_thuc_te',
+  'team_pr_note', 'item_note_pr', 'ghi_chu_kho',
+];
+
+// Tách mọi mã trong ô ma_nha_may thành (id dòng vật tư, mã, hex)
+const MATERIAL_CODES_CTE = `m AS (
+  SELECT v.id, t AS code, CASE WHEN LENGTH(t) = 13 THEN SUBSTRING(t FROM 5) ELSE t END AS hex
+  FROM vat_tu v, REGEXP_SPLIT_TO_TABLE(v.ma_nha_may, '[^0-9]+') AS t
+  WHERE v.ma_nha_may IS NOT NULL AND LENGTH(t) IN (9, 13)
+)`;
+
+// Vật tư chưa có mã nhà máy, thuộc công trình của các hex KHÔNG khớp được vật tư nào
+const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
+  SELECT DISTINCT UPPER(TRIM(p.ma_cong_trinh)) AS code
+  FROM production_status_app p
+  WHERE p.hex::text = ANY($1::text[])
+    AND COALESCE(TRIM(p.ma_cong_trinh), '') <> ''
+    AND NOT EXISTS (SELECT 1 FROM m WHERE m.hex = p.hex::text)
+), u AS (
+  SELECT v.*
+  FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
+  WHERE v.ma_nha_may IS NULL
+     OR v.ma_nha_may !~ '(^|[^0-9])([0-9]{9}|[0-9]{13})([^0-9]|$)'
+)`;
+
+app.post('/api/material/by-hex', async (req: Request, res: Response) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes)
+      ? req.body.hexes.map((h: unknown) => String(h).trim()).filter(Boolean)
+      : [];
+    const mode = String(req.body?.mode || 'matched');
+    if (hexes.length > 5000) return res.status(400).json({ error: 'Too many hexes' });
+    if (hexes.length === 0) {
+      return res.json(mode === 'unassigned-count' ? { lines: 0, prs: 0 } : mode === 'hex-counts' ? {} : { rows: [] });
+    }
+
+    if (mode === 'hex-counts') {
+      const c = await timedQuery(
+        `WITH ${MATERIAL_CODES_CTE}
+         SELECT hex, COUNT(DISTINCT id)::int AS n FROM m WHERE hex = ANY($1::text[]) GROUP BY hex`,
+        [hexes],
+        { timeoutMs: 20000 }
+      );
+      const out: Record<string, number> = {};
+      c.rows.forEach((row: { hex: string; n: number }) => { out[row.hex] = row.n; });
+      return res.json(out);
+    }
+
+    if (mode === 'unassigned-count') {
+      const c = await timedQuery(
+        `WITH ${UNASSIGNED_CTE}
+         SELECT COUNT(*)::int AS lines, COUNT(DISTINCT so_pr)::int AS prs FROM u`,
+        [hexes],
+        { timeoutMs: 20000 }
+      );
+      return res.json(c.rows[0] ?? { lines: 0, prs: 0 });
+    }
+
+    const selectCols = MATERIAL_BY_HEX_COLUMNS.map(c => `v."${c}"`).join(', ');
+
+    if (mode === 'unassigned') {
+      const u = await timedQuery(
+        `WITH ${UNASSIGNED_CTE}
+         SELECT v.trackingno, v.ten_cong_trinh, ${selectCols}
+         FROM u AS v
+         ORDER BY v.trackingno, v.so_pr NULLS LAST, v.pr_line NULLS LAST
+         LIMIT 20000`,
+        [hexes],
+        { timeoutMs: 20000 }
+      );
+      return res.json({ rows: u.rows });
+    }
+
+    const r = await timedQuery(
+      `WITH ${MATERIAL_CODES_CTE}, hit AS (
+         SELECT id,
+                ARRAY_AGG(DISTINCT hex ORDER BY hex) FILTER (WHERE hex = ANY($1::text[])) AS hexes,
+                ARRAY_AGG(DISTINCT code ORDER BY code) FILTER (WHERE hex = ANY($1::text[])) AS matched_codes,
+                COUNT(DISTINCT code)::int AS total_codes
+         FROM m
+         GROUP BY id
+         HAVING BOOL_OR(hex = ANY($1::text[]))
+       )
+       SELECT hit.hexes, hit.matched_codes, hit.total_codes, ${selectCols}
+       FROM hit JOIN vat_tu v ON v.id = hit.id
+       ORDER BY hit.hexes[1], v.so_pr NULLS LAST, v.pr_line NULLS LAST`,
+      [hexes],
+      { timeoutMs: 20000 }
+    );
+    res.json({ rows: r.rows });
+  } catch (error) {
+    console.error('Lỗi /api/material/by-hex:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // --- API KIỂM TRA PHIÊN BẢN ---
 app.get('/api/check-versions', async (_req: Request, res: Response) => {
   try {

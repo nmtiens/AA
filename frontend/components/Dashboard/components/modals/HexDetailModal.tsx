@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Package,
 } from 'lucide-react';
 import { formatSmartDecimal, parseNumber } from '../../utils/numberParsers';
 import { MONEY_UNIT_LABEL } from '../../../../utils/money';
@@ -17,6 +17,7 @@ import {
   type FiveMCategory,
 } from '../../../../services/vuongMacService';
 import { VuongMacDetailModal } from './VuongMacDetailModal';
+import { HexMaterialModal, type MaterialViewMode } from './HexMaterialModal';
 
 export interface HexDetailColumnKeys {
   hexKey: string;
@@ -465,6 +466,14 @@ export const HexDetailModal = ({
     label: string;
   } | null>(null);
   const [fullNoteText, setFullNoteText] = useState<string | null>(null);
+  // Xem vật tư: null = đóng; hexes = danh sách hex cần xem (1 hex hoặc cả danh sách đang lọc)
+  const [materialView, setMaterialView] = useState<{ hexes: string[]; title: string; mode: MaterialViewMode } | null>(null);
+  // Tổng vật tư cùng công trình nhưng chưa có mã nhà máy chỉ định (cho các hex không khớp được vật tư)
+  const [unassignedCount, setUnassignedCount] = useState<{ lines: number; prs: number } | null>(null);
+  // Số dòng vật tư (map theo mã nhà máy) của từng hex; null = đang tải
+  const [materialCountByHex, setMaterialCountByHex] = useState<Record<string, number> | null>(null);
+  // Mặc định chỉ hiện hex đã map được vật tư; bỏ tích để xem đủ danh sách
+  const [onlyWithMaterial, setOnlyWithMaterial] = useState(true);
 
   const hexList = useMemo(
     () => Array.from(new Set(rows.map(r => String(r[hexKey] || '')).filter(Boolean))),
@@ -477,6 +486,7 @@ export const HexDetailModal = ({
       setSort(null);
       setSelectedNote(null);
       setFullNoteText(null);
+      setMaterialView(null);
       setVuongMacDetail({ open: false, hex: '', label: '', category: 'man', categoryLabel: '' });
       return;
     }
@@ -492,6 +502,27 @@ export const HexDetailModal = ({
       .then((r): Promise<NotesResponse> => (r.ok ? r.json() : Promise.resolve({})))
       .then(setNotesMap)
       .catch(() => { /* bỏ qua lỗi mạng: ô ghi chú hiện "—" */ });
+    return () => ctrl.abort();
+  }, [isOpen, hexList]);
+
+  useEffect(() => {
+    setUnassignedCount(null);
+    setMaterialCountByHex(null);
+    if (!isOpen) { setOnlyWithMaterial(true); return; }
+    if (hexList.length === 0) return;
+    const ctrl = new AbortController();
+    const post = (mode: string) => fetch('/api/material/by-hex', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hexes: hexList, mode }),
+      signal: ctrl.signal,
+    }).then(r => (r.ok ? r.json() : null));
+    post('unassigned-count')
+      .then(d => { if (d) setUnassignedCount({ lines: Number(d.lines) || 0, prs: Number(d.prs) || 0 }); })
+      .catch(() => { /* lỗi mạng: nút hiện "…" */ });
+    post('hex-counts')
+      .then(d => setMaterialCountByHex(d && typeof d === 'object' ? d : {}))
+      .catch(e => { if (e?.name !== 'AbortError') setMaterialCountByHex({}); });
     return () => ctrl.abort();
   }, [isOpen, hexList]);
 
@@ -511,11 +542,12 @@ export const HexDetailModal = ({
       if (e.key !== 'Escape') return;
       if (selectedNote) return;
       if (vuongMacDetail.open) return;
+      if (materialView) return;
       onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, selectedNote, vuongMacDetail.open]);
+  }, [isOpen, onClose, selectedNote, vuongMacDetail.open, materialView]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -626,6 +658,18 @@ export const HexDetailModal = ({
 
   const showProjectColumn = projectName === null;
 
+  const { hangMucByHex, congTrinhByHex } = useMemo(() => {
+    const hm: Record<string, string> = {};
+    const ct: Record<string, string> = {};
+    rows.forEach(r => {
+      const h = String(r[hexKey] || '');
+      if (!h) return;
+      if (!hm[h]) hm[h] = String(r[hangMucKey] || '');
+      if (!ct[h]) ct[h] = String(r[congTrinhKey] || '');
+    });
+    return { hangMucByHex: hm, congTrinhByHex: ct };
+  }, [rows, hexKey, hangMucKey, congTrinhKey]);
+
   // ==== Setup cột hiển thị (chỉ Admin) ====
   const [cfgVersion, setCfgVersion] = useState(0);
 
@@ -672,16 +716,25 @@ export const HexDetailModal = ({
   const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
   const showRedEdge = lastColIsVuongMac && scrolledToEnd;
 
+  const hexWithMaterialCount = useMemo(
+    () => (materialCountByHex ? hexList.filter(h => (materialCountByHex[h] || 0) > 0).length : null),
+    [materialCountByHex, hexList]
+  );
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(row => {
+    // Lọc "chỉ hex có vật tư" chỉ áp dụng khi đã tải xong số vật tư
+    const base = onlyWithMaterial && materialCountByHex
+      ? rows.filter(row => (materialCountByHex[String(row[hexKey] || '')] || 0) > 0)
+      : rows;
+    if (!q) return base;
+    return base.filter(row => {
       const hex = String(row[hexKey] || '').toLowerCase();
       const hangMuc = String(row[hangMucKey] || '').toLowerCase();
       const status = String(row[tinhTrangKey] || '').toLowerCase();
       return hex.includes(q) || hangMuc.includes(q) || status.includes(q);
     });
-  }, [rows, search, hexKey, hangMucKey, tinhTrangKey]);
+  }, [rows, search, hexKey, hangMucKey, tinhTrangKey, onlyWithMaterial, materialCountByHex]);
 
   const indexedRows = useMemo(
     () => filteredRows.map((row, i) => ({ row, stt: i + 1 })),
@@ -1069,6 +1122,34 @@ export const HexDetailModal = ({
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMaterialView({
+                  hexes: Array.from(new Set(filteredRows.map(r => String(r[hexKey] || '')).filter(Boolean))),
+                  title,
+                  mode: 'matched',
+                })}
+                disabled={filteredRows.length === 0}
+                title="Xem vật tư của các hex đang hiển thị (map qua mã nhà máy)"
+                className="flex items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-50 px-3.5 py-1.5 text-xs font-bold text-amber-700 shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Package size={15} />
+                <span>Vật tư</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaterialView({ hexes: hexList, title, mode: 'unassigned' })}
+                disabled={!unassignedCount || unassignedCount.lines === 0}
+                title="Vật tư cùng công trình (theo mã công trình) nhưng chưa ghi mã nhà máy cho hạng mục nào — tính cho các hex không khớp được vật tư theo mã nhà máy"
+                className="flex items-center gap-1.5 rounded-lg border border-rose-400 bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-700 shadow-sm transition-all hover:bg-rose-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <span>Chưa có mã nhà máy chỉ định</span>
+                <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[0.6875rem] text-white">
+                  {unassignedCount === null
+                    ? '…'
+                    : `${unassignedCount.lines.toLocaleString('vi-VN')} dòng · ${unassignedCount.prs} PR`}
+                </span>
+              </button>
               <ModalColumnSetupButton
                 modalId="modal_hex_detail"
                 allColumns={OPTIONAL_COLUMNS}
@@ -1095,8 +1176,8 @@ export const HexDetailModal = ({
             </div>
           </div>
 
-          <div className="shrink-0 border-b border-slate-100 px-5 py-3 mb-2">
-            <div className="relative max-w-xs">
+          <div className="mb-2 flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-100 px-5 py-3">
+            <div className="relative w-full max-w-xs">
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
@@ -1106,6 +1187,17 @@ export const HexDetailModal = ({
                 className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-xs focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300"
               />
             </div>
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+              <input
+                type="checkbox"
+                checked={onlyWithMaterial}
+                onChange={(e) => setOnlyWithMaterial(e.target.checked)}
+              />
+              Chỉ hex có vật tư
+              <span className="text-slate-400">
+                ({hexWithMaterialCount === null ? 'đang kiểm tra…' : `${hexWithMaterialCount} / ${hexList.length} hex`})
+              </span>
+            </label>
           </div>
 
           {filteredRows.length > 0 ? (
@@ -1232,7 +1324,27 @@ export const HexDetailModal = ({
                               style={fzStyle(frozen.get('hex'))}
                               className={`${fzClass(frozen.get('hex'))} border-r border-slate-100 bg-white group-hover:bg-slate-50 px-3 py-2.5 text-left align-top font-medium text-slate-700`}
                             >
-                              {String(row[hexKey] || '—')}
+                              {row[hexKey] && materialCountByHex && !materialCountByHex[String(row[hexKey])] ? (
+                                String(row[hexKey])
+                              ) : row[hexKey] ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setMaterialView({
+                                    hexes: [String(row[hexKey])],
+                                    title: `Hex ${String(row[hexKey])}`,
+                                    mode: 'matched',
+                                  })}
+                                  title="Bấm để xem vật tư của hex này"
+                                  className="text-left text-amber-700 hover:underline"
+                                >
+                                  {String(row[hexKey])}
+                                  {materialCountByHex?.[String(row[hexKey])] ? (
+                                    <span className="ml-1 rounded bg-amber-50 px-1 text-[0.625rem] font-semibold text-amber-600">
+                                      {materialCountByHex[String(row[hexKey])]} VT
+                                    </span>
+                                  ) : null}
+                                </button>
+                              ) : '—'}
                             </td>
                             {orderedCols.map((key) =>
                               applyFrozen(
@@ -1326,7 +1438,9 @@ export const HexDetailModal = ({
           ) : (
             <div className="min-h-0 flex-1 overflow-auto p-5">
               <div className="rounded-lg bg-slate-50 p-8 text-center text-slate-500">
-                Không có dữ liệu hex phù hợp để hiển thị.
+                {onlyWithMaterial && hexWithMaterialCount === 0
+                  ? 'Không có hex nào map được vật tư theo mã nhà máy — bỏ tích "Chỉ hex có vật tư" để xem đủ danh sách.'
+                  : 'Không có dữ liệu hex phù hợp để hiển thị.'}
               </div>
             </div>
           )}
@@ -1370,6 +1484,16 @@ export const HexDetailModal = ({
           </div>
         </div>
       )}
+
+      <HexMaterialModal
+        isOpen={materialView !== null}
+        onClose={() => setMaterialView(null)}
+        title={materialView?.title ?? ''}
+        hexes={materialView?.hexes ?? []}
+        mode={materialView?.mode ?? 'matched'}
+        hangMucByHex={hangMucByHex}
+        congTrinhByHex={congTrinhByHex}
+      />
 
       {/* Popup CRUD + log Vướng Mắc — khóa cứng đúng hex + đúng loại 5M. */}
       <VuongMacDetailModal

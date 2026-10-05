@@ -25,3 +25,5 @@ desktop.ini
 Thumbs.db
 .DS_Store
 *.timestamp-*.mjs
+# Snapshot/screenshot do playwright-cli tạo khi chạy
+.playwright-cli/

@@ -36,6 +36,66 @@
       "sourceType": "github",
       "skillPath": "skills/minimalist-skill/SKILL.md",
       "computedHash": "7e88897e0371184e97a82b8d9ef080323c13f21eb067b58ef71eb05173a08ac2"
+    },
+    "ant": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ant/SKILL.md",
+      "computedHash": "8d9ce15e8de08209b93f941bc3e13069fb87a898488972d88a08d7df958d5f6c"
+    },
+    "clean": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/clean/SKILL.md",
+      "computedHash": "59a1f05e704cfb6c9f499cb5bbd91cbba0968d19552abedd603cae68711cd94e"
+    },
+    "corporate": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/corporate/SKILL.md",
+      "computedHash": "84addda125c6868ad567fff1e227c8b4b2789bb1f239972499e00964bde37fa4"
+    },
+    "enterprise": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/enterprise/SKILL.md",
+      "computedHash": "e65c906bc06be4a789422acfee2b9cae38c0f78f982a8c13e9b12d9610314b2a"
+    },
+    "minimal": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/minimal/SKILL.md",
+      "computedHash": "3f3f8a5d05860487f9f1e73896e300230714e938cb4d1439c946073072fa45d0"
+    },
+    "playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "skillPath": "skills/playwright-cli/SKILL.md",
+      "computedHash": "d4983e06b5daae441e48604b4b813a0c38784f3d87ea58f8391d2b5ffeb803fd"
+    },
+    "professional": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/professional/SKILL.md",
+      "computedHash": "41fb7b580a8f5ffa96b222a8e57d6b2f82d374960b6adc5352b99647e2e16827"
+    },
+    "shadcn": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "6f4c3d5a3cdb12d81a5767948549ba498c2bb7ef65c791c132ee01b2257feebf"
+    },
+    "stitch": {
+      "source": "bergside/awesome-design-skills",
+      "sourceType": "github",
+      "skillPath": "skills/stitch/SKILL.md",
+      "computedHash": "90c19dc598df320245e224d22a5c9110f654cd2d8ecd1e9dbb26e8936ecd5afb"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "d8e7d3afe37dcc8a97b99ffb5afdb4d0919ae0092ea8b68f44eb201f035e33ac"
     }
   }
 }
