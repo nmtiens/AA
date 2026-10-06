@@ -16,6 +16,7 @@ import {
   type FiveMCategory,
 } from '../../../../services/vuongMacService';
 import { getToken } from '../../../../services/userService';
+import { PhotoThumbs, PhotoViewer } from '../../../shared/VuongMacPhoto';
 
 // VuongMacItem có thêm handler?, bot?, solution?, note?, resolvedNote?, extensions?, createdDepartment?, canModify? (xem vuongMacService)
 type ChatItem = VuongMacItem;
@@ -216,6 +217,8 @@ export const VuongMacDetailModal = ({
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  // Trình xem ảnh đính kèm (ảnh gửi từ app điện thoại)
+  const [photoViewer, setPhotoViewer] = useState<{ ids: number[]; idx: number } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -779,6 +782,12 @@ export const VuongMacDetailModal = ({
                           </p>
                         )}
 
+                        {!!v.photos?.length && editingId !== v.id && (
+                          <div className="mt-2.5">
+                            <PhotoThumbs ids={v.photos} onOpen={(i) => setPhotoViewer({ ids: v.photos ?? [], idx: i })} />
+                          </div>
+                        )}
+
                         {(v.handler || v.bot || v.solution || v.note || extCount > 0) && (
                           <div className="mt-2 flex flex-wrap gap-1.5 text-[0.6875rem]">
                             {v.handler && (
@@ -932,6 +941,17 @@ export const VuongMacDetailModal = ({
               <div className={`whitespace-pre-wrap break-words rounded-xl border p-4 text-sm leading-relaxed ${detail.isResolved ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-900'}`}>
                 {highlight(detail.content, q, false)}
               </div>
+              {!!detail.photos?.length && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold text-slate-600">Ảnh đính kèm ({detail.photos.length})</p>
+                  <PhotoThumbs
+                    ids={detail.photos}
+                    max={detail.photos.length}
+                    size="h-24 w-24"
+                    onOpen={(i) => setPhotoViewer({ ids: detail.photos ?? [], idx: i })}
+                  />
+                </div>
+              )}
               <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-2.5 text-sm">
                 {([
                   ['Người gửi', detail.createdBy],
@@ -987,6 +1007,10 @@ export const VuongMacDetailModal = ({
             )}
           </div>
         </div>
+      )}
+
+      {photoViewer && (
+        <PhotoViewer ids={photoViewer.ids} start={photoViewer.idx} onClose={() => setPhotoViewer(null)} />
       )}
 
       {/* ===== Cửa sổ xem chi tiết vướng mắc đã xóa ===== */}

@@ -7,13 +7,14 @@ import {
 import {
   FIVE_M_LABELS, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, extendVuongMac,
   deleteVuongMac, fetchVuongMacLog, createVuongMacStrict, uploadVuongMacPhoto, deleteVuongMacPhoto,
-  fetchVuongMacPhotoUrl, fetchHexSearch,
+  fetchHexSearch,
   type VuongMacRow, type VuongMacLogEntry, type FiveMCategory, type HexHit,
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import { parseBotEnd, botStart, nowFmt, fmtLocalInput } from '../../services/vuongMacMobileApi';
 import HexLookup from './HexLookup';
 import PhotoPicker, { type PhotoItem } from './PhotoPicker';
+import { AuthImg } from '../shared/VuongMacPhoto';
 import HandlerPicker from './HandlerPicker';
 import MobileHome from './MobileHome';
 import MobileAccount from './MobileAccount';
@@ -59,24 +60,8 @@ const botTextToLocalInput = (s?: string | null) => {
   return m ? `${m[5]}-${pad(+m[4])}-${pad(+m[3])}T${pad(+m[1])}:${m[2]}` : '';
 };
 
-// ---------------- Ảnh đính kèm: hiển thị + xem phóng to ----------------
-// Ảnh cần token nên tải bằng fetch -> objectURL (xem fetchVuongMacPhotoUrl)
-function AuthImg({ id, className, onClick }: { id: number; className?: string; onClick?: () => void }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let alive = true;
-    setUrl(null); setFailed(false);
-    fetchVuongMacPhotoUrl(id).then(u => alive && setUrl(u)).catch(() => alive && setFailed(true));
-    return () => { alive = false; };
-  }, [id]);
-
-  if (failed) {
-    return <div className={`flex items-center justify-center bg-slate-100 text-sm text-slate-400 ${className ?? ''}`}>Lỗi ảnh</div>;
-  }
-  if (!url) return <div className={`animate-pulse bg-slate-200 ${className ?? ''}`} />;
-  return <img src={url} alt="" onClick={onClick} className={className} />;
-}
+// ---------------- Ảnh đính kèm: xem phóng to ----------------
+// AuthImg (tải ảnh có token -> objectURL) dùng chung với web: components/shared/VuongMacPhoto.tsx
 
 function PhotoLightbox({ ids, start, onClose }: { ids: number[]; start: number; onClose: () => void }) {
   const [idx, setIdx] = useState(start);
