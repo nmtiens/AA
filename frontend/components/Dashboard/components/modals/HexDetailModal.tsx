@@ -472,8 +472,8 @@ export const HexDetailModal = ({
   const [unassignedCount, setUnassignedCount] = useState<{ lines: number; prs: number } | null>(null);
   // Số dòng vật tư (map theo mã nhà máy) của từng hex; null = đang tải
   const [materialCountByHex, setMaterialCountByHex] = useState<Record<string, number> | null>(null);
-  // Mặc định chỉ hiện hex đã map được vật tư; bỏ tích để xem đủ danh sách
-  const [onlyWithMaterial, setOnlyWithMaterial] = useState(true);
+  // Mặc định hiện ĐỦ hex (khớp số ở bảng ngoài); tích để chỉ xem hex đã map được vật tư
+  const [onlyWithMaterial, setOnlyWithMaterial] = useState(false);
 
   const hexList = useMemo(
     () => Array.from(new Set(rows.map(r => String(r[hexKey] || '')).filter(Boolean))),
@@ -508,7 +508,7 @@ export const HexDetailModal = ({
   useEffect(() => {
     setUnassignedCount(null);
     setMaterialCountByHex(null);
-    if (!isOpen) { setOnlyWithMaterial(true); return; }
+    if (!isOpen) { setOnlyWithMaterial(false); return; }
     if (hexList.length === 0) return;
     const ctrl = new AbortController();
     const post = (mode: string) => fetch('/api/material/by-hex', {

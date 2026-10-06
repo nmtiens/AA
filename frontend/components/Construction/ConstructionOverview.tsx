@@ -117,6 +117,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const setKey = (k: FKey, v: string) => setF(p => ({ ...p, [k]: v || undefined }));
   const activeKeys = (Object.keys(f) as FKey[]).filter(k => f[k]);
 
+  // Đã nhập kho đủ trị giá đơn hàng (dùng chung cho ô KPI và popup chi tiết)
+  const isStocked = (r: Rec) => r.status !== 'HỦY' && r.total > 0 && r.done >= r.total;
+
   // ---------- 1. Chuẩn hoá từng dòng 1 lần ----------
   const allRecords = useMemo<Rec[]>(() => {
     const key = (target: string, fallback: string) => findColumnKey(columns, target) || fallback;
@@ -211,16 +214,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const rowsAll = useMemo(() => apply(), [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- 2. KPI ----------
+  // Hạng mục "đã nhập kho" = đã nhập kho ĐỦ trị giá đơn hàng (cùng nguồn với giá trị đã nhập kho);
+  // còn lại (chưa nhập hoặc mới nhập 1 phần) là "chưa nhập kho". Đơn HỦY tính riêng.
   const kpi = useMemo(() => {
     const cts = new Set<string>();
-    let cancelled = 0, open = 0, total = 0, done = 0;
+    let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0;
     for (const r of rowsAll) {
       cts.add(r.ctKey);
       if (r.status === 'HỦY') cancelled++;
-      else if (r.status !== 'HOÀN THÀNH') open++;
+      else if (isStocked(r)) stocked++;
+      else { notStocked++; if (r.done > 0) partial++; }
       total += r.total; done += r.done;
     }
-    return { cts: cts.size, items: rowsAll.length, cancelled, open, total, done, remain: total - done };
+    return { cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, total, done, remain: total - done };
   }, [rowsAll]);
 
   // ---------- 3. Cột chồng theo tháng hạn giao ----------
@@ -307,7 +313,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     openDetail({
       eyebrow: 'Tháng hạn giao', title: monthLabel(key), exclude: 'month',
       pred: r => r.month === key, focus: 'remain', filter: { key: 'month', value: key },
-      note: 'Cột xanh = đã hoàn thành, cột cam = còn SX (theo ngày cần giao).',
+      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (theo ngày cần giao).',
     });
   };
 
@@ -373,8 +379,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const cardCls = 'bg-white border border-slate-200 rounded-xl shadow-sm';
 
   // Ô KPI bấm được: mở cửa sổ chi tiết đúng tập dòng tạo ra con số đó
-  const Kpi = ({ label, value, unit, tone = 'text-slate-900', spec }: {
-    label: string; value: string; unit?: string; tone?: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
+  const Kpi = ({ label, value, unit, tone = 'text-slate-900', sub, spec }: {
+    label: string; value: string; unit?: string; tone?: string; sub?: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
   }) => (
     <button
       type="button"
@@ -389,6 +395,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${tone}`}>
         {value}{unit && <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span>}
       </p>
+      {sub && <p className="mt-0.5 text-[0.6875rem] text-slate-400">{sub}</p>}
     </button>
   );
 
@@ -464,7 +471,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
       <div className="p-4 md:p-6 space-y-4">
         {/* KPI */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
           {/* Mỗi ô: pred = đúng điều kiện đã dùng để tính con số trong khối KPI ở trên */}
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
                spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm theo mã công trình).' }} />
@@ -472,13 +479,16 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
           <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600"
                spec={{ pred: r => r.status === 'HỦY', focus: 'items', note: 'Hạng mục có Tình trạng IPO = HỦY (không tính giá trị).' }} />
-          <Kpi label="Hạng mục chưa hoàn thành" value={fmtInt(kpi.open)}
-               spec={{ pred: r => r.status !== 'HỦY' && r.status !== 'HOÀN THÀNH', focus: 'items', note: 'Không tính đơn đã HOÀN THÀNH và đơn HỦY.' }} />
+          <Kpi label="Hạng mục đã nhập kho" value={fmtInt(kpi.stocked)} tone="text-emerald-600"
+               spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá đơn hàng (không tính đơn hủy).' }} />
+          <Kpi label="Hạng mục chưa nhập kho" value={fmtInt(kpi.notStocked)} tone="text-amber-600"
+               sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần` : undefined}
+               spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
           <Kpi label="Tổng giá trị" value={fmtTy(kpi.total)} unit="Tỷ"
                spec={{ pred: r => r.status !== 'HỦY', focus: 'total', note: 'Tổng trị giá đơn hàng, không tính đơn hủy.' }} />
-          <Kpi label="Giá trị hoàn thành" value={fmtTy(kpi.done)} unit="Tỷ" tone="text-emerald-600"
+          <Kpi label="Giá trị đã nhập kho" value={fmtTy(kpi.done)} unit="Tỷ" tone="text-emerald-600"
                spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
-          <Kpi label="Giá trị còn SX" value={fmtTy(kpi.remain)} unit="Tỷ" tone="text-amber-600"
+          <Kpi label="Giá trị chưa nhập kho" value={fmtTy(kpi.remain)} unit="Tỷ" tone="text-amber-600"
                spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho.' }} />
         </div>
 
@@ -489,8 +499,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn giao (Tỷ)</p>
                 <div className="flex items-center gap-3 text-[0.6875rem] text-slate-500">
-                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã hoàn thành</span>
-                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Còn SX</span>
+                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã nhập kho</span>
+                  <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
                 </div>
               </div>
               <div className="h-56">
@@ -501,7 +511,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                     <Tooltip
                       cursor={{ fill: 'rgba(148,163,184,0.12)' }}
-                      formatter={(v: number, name: string) => [`${v.toLocaleString('en-US', { maximumFractionDigits: 2 })} Tỷ`, name === 'done' ? 'Đã hoàn thành' : 'Còn SX']}
+                      formatter={(v: number, name: string) => [`${v.toLocaleString('en-US', { maximumFractionDigits: 2 })} Tỷ`, name === 'done' ? 'Đã nhập kho' : 'Chưa nhập kho']}
                     />
                     <Bar dataKey="done" stackId="a" fill={COLOR_DONE} cursor="pointer" onClick={(d: any) => openMonthDetail(d.key ?? d.payload?.key)}>
                       {monthData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
@@ -713,11 +723,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} />
               <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} />
               <PcStat
-                label="Đã hoàn thành" value={fmtTy(detailData.done)} unit="Tỷ" tone="text-emerald-600"
+                label="Đã nhập kho" value={fmtTy(detailData.done)} unit="Tỷ" tone="text-emerald-600"
                 active={detail.focus === 'done'}
                 sub={`${(detailData.total > 0 ? (detailData.done / detailData.total) * 100 : 0).toFixed(1)}% tổng giá trị`}
               />
-              <PcStat label="Còn SX" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
+              <PcStat label="Chưa nhập kho" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
             </div>
 
             <div className="flex items-center justify-between gap-3 px-5 pb-2">
@@ -744,8 +754,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <th className="text-left font-medium px-2 py-2">PM</th>
                     <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'items' ? 'text-slate-900' : ''}`}>Hạng mục</th>
                     <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'total' ? 'text-slate-900' : ''}`}>Tổng GT (Tỷ)</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'done' ? 'text-slate-900' : ''}`}>Hoàn thành (Tỷ)</th>
-                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'remain' ? 'text-slate-900' : ''}`}>Còn SX (Tỷ)</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'done' ? 'text-slate-900' : ''}`}>Đã nhập kho (Tỷ)</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'remain' ? 'text-slate-900' : ''}`}>Chưa nhập kho (Tỷ)</th>
                     <th className="text-left font-medium px-2 py-2 w-32">% hoàn thành</th>
                     <th className="w-6" />
                   </tr>
