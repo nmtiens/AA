@@ -208,14 +208,29 @@ app.post(
   }
 );
 
-// Lấy 1 ảnh (cần token nên client fetch -> blob -> objectURL)
+// Lấy 1 ảnh (cần token nên client fetch -> blob -> objectURL).
+// Quyền xem ảnh = quyền xem vướng mắc: mọi tài khoản ĐANG HOẠT ĐỘNG (danh sách vướng mắc
+// không lọc phòng ban). Chỉ trả ảnh thuộc vướng mắc còn tồn tại; tài khoản đã bị khoá thì
+// không xem được dù token cũ còn hạn.
 app.get('/api/vuong-mac/photo/:photoId', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const photoId = Number(req.params.photoId);
-    if (!Number.isInteger(photoId)) return res.status(400).json({ error: 'Invalid id' });
-    const r = await pool.query('SELECT data, mime FROM vuong_mac_photo WHERE id = $1', [photoId]);
+    if (!Number.isInteger(photoId) || photoId <= 0) return res.status(400).json({ error: 'Invalid id' });
+
+    const active = await pool.query('SELECT 1 FROM users WHERE id = $1 AND is_active', [req.user!.id]);
+    if (active.rows.length === 0) return res.status(403).json({ error: 'Tài khoản không còn hoạt động' });
+
+    const r = await pool.query(
+      `SELECT ph.data
+       FROM vuong_mac_photo ph
+       JOIN vuong_mac vm ON vm.id = ph.vuong_mac_id
+       WHERE ph.id = $1`,
+      [photoId]
+    );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    res.setHeader('Content-Type', r.rows[0].mime || 'image/jpeg');
+    // Upload chỉ nhận JPEG (kiểm tra magic bytes) -> luôn trả image/jpeg, không tin cột mime
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
     res.send(r.rows[0].data);
   } catch (error) {
