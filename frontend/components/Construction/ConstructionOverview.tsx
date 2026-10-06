@@ -9,10 +9,11 @@ import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { parseVNDate } from '../Dashboard/utils/dateHelpers';
+import { deadlineOf, resolveDeadlineKeys } from '../../utils/productionMetrics';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
+import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix, projectKeyResolver } from '../Dashboard/components/shared/ProductionDonutPanel';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
@@ -41,7 +42,7 @@ const NO_DATA = '(Chưa có)';
 const NO_MONTH = 'none';
 
 const FILTER_LABEL: Record<FKey, string> = {
-  ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', kh: 'Khách hàng', pl: 'Nhóm SP', month: 'Hạn giao',
+  ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', kh: 'Khách hàng', pl: 'Nhóm SP', month: 'Tháng hạn',
 };
 
 const COLOR_DONE = '#16a34a';
@@ -108,6 +109,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // Cửa sổ danh sách HEX: ct = công trình (null = mọi công trình trong cửa sổ chi tiết);
   // inDetail = lấy trong phạm vi cửa sổ chi tiết đang mở, ngược lại theo dòng bảng công trình
   const [hexScope, setHexScope] = useState<{ ct: string | null; inDetail: boolean } | null>(null);
+  // Tổng quan 1 công trình (BOT / BOP / BOM) — mở khi bấm 1 dòng trong bảng công trình
+  // inDetail = mở từ cửa sổ chi tiết (vd PC): chỉ tính các dòng trong phạm vi cửa sổ đó
+  const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
+  const healthCt = health?.ct ?? null;
   const [f, setF] = useState<Filters>({});
   const [ipoSel, setIpoSel] = useState<string[]>(DEFAULT_IPO);
   const [metric, setMetric] = useState<'count' | 'value'>('count'); // cho 3 biểu đồ tròn
@@ -126,10 +131,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, 'ten_cong_trinh');
     const pmK = key('ten_pm', 'ten_pm');
     const pcK = key('ten_pc', 'ten_pc');
-    const kvK = key('khu_vuc', 'khu_vuc');
+    const kvK = key('khu_vuc_du_an', 'khu_vuc_du_an');
     const khK = key('khach_hang', 'khach_hang');
     const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, 'phan_loai_nhom_san_pham');
-    const dlK = findColumnKey(columns, 'ngay_can_giao') || findColumnKey(columns, 'ngay_can') || 'ngay_can_giao';
+    const dlKeys = resolveDeadlineKeys(columns);
     const stK = key(TARGET_COLUMN_NAMES.TINH_TRANG, 'tinh_trang');
     const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo');
     const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong');
@@ -162,7 +167,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       else if (STATUS_GROUPS.CHUA_THE_SX.some(s => st.includes(s))) status = 'CHƯA TKSX';
       else status = 'CÓ PHIẾU SX';
 
-      const d = parseVNDate(row[dlK] as any);
+      // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng → ngày cần giao (quy tắc chung)
+      const d = deadlineOf(row, dlKeys).date;
       const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : NO_MONTH;
 
       const cancelled = status === 'HỦY';
@@ -307,11 +313,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const openDetail = (spec: DetailSpec) => { setDetailSearch(''); setDetail(spec); };
 
-  // Cột tháng hạn giao: đúng tập dòng của cột (mọi bộ lọc trừ "Hạn giao", tháng = cột đã bấm)
+  // Cột tháng hạn giao: đúng tập dòng của cột (mọi bộ lọc trừ "Tháng hạn", tháng = cột đã bấm)
   const openMonthDetail = (key?: string) => {
     if (!key) return;
     openDetail({
-      eyebrow: 'Tháng hạn giao', title: monthLabel(key), exclude: 'month',
+      eyebrow: 'Tháng hạn (KH nhập kho → cần giao)', title: monthLabel(key), exclude: 'month',
       pred: r => r.month === key, focus: 'remain', filter: { key: 'month', value: key },
       note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (theo ngày cần giao).',
     });
@@ -325,13 +331,42 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     return (ct === null ? base : base.filter(r => r.ct === ct)).map(r => r.row);
   }, [hexScope, detailRows, records, f]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const healthScopeRecs = () =>
+    !health ? [] : (health.inDetail ? detailRows : apply('ct')).filter(r => r.ct === health.ct);
+
+  // Dòng của công trình đang xem tổng quan: cùng phạm vi với dòng bảng công trình (mọi bộ lọc trừ lọc công trình)
+  const healthRows = useMemo(
+    () => (health ? healthScopeRecs().map(r => r.row) : []),
+    [health, detailRows, records, f] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const healthPm = useMemo(() => {
+    if (!health) return '';
+    const pms = [...new Set(healthScopeRecs().map(r => r.pm))];
+    return pms.slice(0, 3).join(', ') + (pms.length > 3 ? ` +${pms.length - 3}` : '');
+  }, [health, detailRows, records, f]); // eslint-disable-line react-hooks/exhaustive-deps
+  const healthKeys = useMemo<ProjectHealthKeys>(() => {
+    const key = (target: string, fallback: string) => findColumnKey(columns, target) || fallback;
+    return {
+      hexKey: key(TARGET_COLUMN_NAMES.HEX, 'hex'),
+      hangMucKey: key(TARGET_COLUMN_NAMES.TEN_HANG_MUC, 'ten_hang_muc'),
+      bopKey: key(TARGET_COLUMN_NAMES.BOP, 'bop'),
+      tinhTrangKey: key(TARGET_COLUMN_NAMES.TINH_TRANG, 'tinh_trang'),
+      ipoKey: key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo'),
+      triGiaKey: key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong'),
+      nhapKhoKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, 'thanh_tien_nhap_kho_luy_ke'),
+      khnkTuanKey: findColumnKey(columns, 'ngay_khnk_tuan') || 'ngay_khnk_tuan',
+      khnkThangKey: findColumnKey(columns, 'ngay_khnk_thang') || 'ngay_khnk_thang',
+      ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || 'ngay_can_giao',
+    };
+  }, [columns]);
+
   // Esc: cửa sổ HEX (cấp 2) tự đóng trước; chỉ khi không có nó mới đóng cửa sổ chi tiết
   useEffect(() => {
-    if (!detail || hexScope) return;
+    if (!detail || hexScope || health) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetail(null); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [detail, hexScope]);
+  }, [detail, hexScope, health]);
   const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => {
     const key = (target: string) => findColumnKey(columns, target) || target;
     return {
@@ -345,6 +380,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       triGiaDonHangTongKey: key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG),
       thanhTienTinhPhieuKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU),
       thanhTienNhapKhoKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO),
+      ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || findColumnKey(columns, 'ngay_can') || 'ngay_can_giao',
     };
   }, [columns]);
 
@@ -444,7 +480,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               value={f.month ?? ''}
               onChange={v => setKey('month', v)}
               options={options.month.map(o => ({ code: o, name: monthLabel(o) }))}
-              allLabel="Hạn giao: Tất cả"
+              allLabel="Tháng hạn: Tất cả"
               widthClass="w-40"
               className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
             />
@@ -497,7 +533,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div className="xl:col-span-4 space-y-4">
             <div className={`${cardCls} p-4`}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn giao (Tỷ)</p>
+                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng → ngày cần giao</span></p>
                 <div className="flex items-center gap-3 text-[0.6875rem] text-slate-500">
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã nhập kho</span>
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
@@ -606,8 +642,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     const pct = r.total > 0 ? Math.min(100, (r.done / r.total) * 100) : 0;
                     const pms = [...r.pms];
                     return (
-                      <tr key={r.name} onClick={() => setHexScope({ ct: r.name, inDetail: false })}
-                          title="Bấm để xem danh sách HEX của công trình"
+                      <tr key={r.name} onClick={() => setHealth({ ct: r.name, inDetail: false })}
+                          title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
                         <td className="px-4 py-1.5 text-slate-800 max-w-[280px]">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -733,7 +769,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <div className="flex items-center justify-between gap-3 px-5 pb-2">
               <p className="text-xs font-semibold text-slate-700">
                 Danh sách công trình ({fmtInt(detailProjects.length)})
-                <span className="font-normal text-slate-400"> · bấm 1 dòng để xem danh sách HEX</span>
+                <span className="font-normal text-slate-400"> · bấm 1 dòng để xem tổng quan BOT · BOP · BOM</span>
               </p>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -766,7 +802,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     const pms = [...p.pms];
                     const strong = (k: DetailFocus) => (detail.focus === k ? 'font-semibold text-slate-900' : '');
                     return (
-                      <tr key={p.name} onClick={() => setHexScope({ ct: p.name, inDetail: true })}
+                      <tr key={p.name} onClick={() => setHealth({ ct: p.name, inDetail: true })}
                           className="group cursor-pointer hover:bg-blue-50/60">
                         <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
                         <td className="px-2 py-1.5 text-slate-800 max-w-[320px] truncate group-hover:text-blue-700" title={p.name}>{p.name}</td>
@@ -812,6 +848,17 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </>
         )}
       </ModalShell>
+
+      <ProjectHealthModal
+        isOpen={health !== null}
+        onClose={() => setHealth(null)}
+        projectName={healthCt ?? ''}
+        rows={healthRows}
+        keys={healthKeys}
+        pmText={healthPm}
+        escEnabled={hexScope === null}
+        onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail })}
+      />
 
       <HexDetailModal
         isOpen={hexScope !== null}

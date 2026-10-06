@@ -258,7 +258,7 @@ export const OnLineStageDetailModal = ({
             </h3>
             <p className="mt-0.5 text-xs text-slate-500">
               {projectName ?? 'Tất cả công trình'} · {label} ·{' '}
-              {metric === 'COUNT' ? 'Hạng mục (Items)' : '1,000 VNĐ'}
+              {metric === 'COUNT' ? 'Hạng mục (Items)' : 'Tỷ đồng'}
             </p>
           </div>
           <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import type { MaterialRow } from './HexMaterialModal';
+import { isMaterialMissing } from '../../../../utils/productionMetrics';
 
 // Gom các dòng vật tư theo số PR: 1 PR mua cho bao nhiêu hex / hạng mục.
 export interface PrGroup {
@@ -44,7 +45,7 @@ export const buildPrGroups = (rows: MaterialRow[], hangMucByHex: Record<string, 
       ngayPr: dates[0] ?? null,
       nguoiYeuCau: uniq(g.rows.map(r => r.nguoi_yeu_cau)),
       lines: g.rows.length,
-      missingLines: g.rows.filter(r => Number(r.so_luong_con_lai) > 0).length,
+      missingLines: g.rows.filter(isMaterialMissing).length,
       hexes,
       hangMuc: uniq(hexes.map(h => hangMucByHex[h])),
       nhomVt: uniq(g.rows.map(r => r.nhom_vt)),

@@ -63797,7 +63797,9 @@ var REPORT_COLUMNS = {
     // Báo cáo tiến độ công trình
     "ten_pm",
     "ten_pc",
-    "ngay_can_giao"
+    "ngay_can_giao",
+    "ngay_khnk_thang",
+    "ngay_khnk_tuan"
   ],
   vat_tu: [
     "trang_thai",

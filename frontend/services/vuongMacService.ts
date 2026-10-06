@@ -90,16 +90,25 @@ const authHeaders = () => {
   };
 };
 
+const VUONG_MAC_LIST_BATCH = 2000;
+
 export const fetchVuongMacList = async (hexes: string[]): Promise<Record<string, VuongMacItem[]>> => {
   try {
     if (hexes.length === 0) return {};
-    const r = await fetch('/api/vuong-mac/list', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ hexes }),
-    });
-    if (!r.ok) throw new Error('fetch failed');
-    const data: Record<string, VuongMacItem[]> = await r.json();
+    // Server nhận tối đa 2000 hex/lần -> chia lô (trước đây quá 2000 thì lỗi 400 và trả rỗng âm thầm)
+    const unique = [...new Set(hexes)];
+    const chunks: string[][] = [];
+    for (let i = 0; i < unique.length; i += VUONG_MAC_LIST_BATCH) chunks.push(unique.slice(i, i + VUONG_MAC_LIST_BATCH));
+    const parts = await Promise.all(chunks.map(async chunk => {
+      const r = await fetch('/api/vuong-mac/list', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ hexes: chunk }),
+      });
+      if (!r.ok) throw new Error('fetch failed');
+      return (await r.json()) as Record<string, VuongMacItem[]>;
+    }));
+    const data: Record<string, VuongMacItem[]> = Object.assign({}, ...parts);
     // Mới nhất lên đầu: nơi hiển thị "nội dung mới nhất" (vd. ô trong bảng) lấy phần tử đầu tiên.
     // Modal chat tự sắp xếp lại cũ -> mới nên không bị ảnh hưởng.
     Object.values(data).forEach(list =>

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Activity, Hash, DollarSign } from 'lucide-react';
 import { formatNumber, formatDecimalFull } from '../../utils/numberParsers';
+import { projectMatchKey } from '../../../../utils/productionMetrics';
 
 export interface ProjectStatusRow {
   name: string;
@@ -14,6 +15,8 @@ export interface ProjectStatusRow {
   p002?: number;
   /** Còn lại - Đang trên chuyền P012 -> P021 (không gồm P002) */
   onLine: number;
+  /** Còn lại - đã ở P022 / P025 nhưng nhập kho chưa đủ trị giá đơn hàng */
+  shortfall?: number;
   remaining: number;       // Còn lại - Tổng
 }
 
@@ -27,6 +30,7 @@ export type ProjectSummaryColumn =
   | 'notDeployed'
   | 'p002'
   | 'onLine'
+  | 'shortfall'
   | 'remaining';
 
 export interface ProjectSummaryCellClick {
@@ -70,6 +74,7 @@ const NUMERIC_KEYS: ProjectSummaryColumn[] = [
   'notDeployed',
   'p002',
   'onLine',
+  'shortfall',
   'remaining',
 ];
 
@@ -97,7 +102,7 @@ export const ProjectSummarySection_v2 = ({
   const hasPriority = !!priorityOrder && priorityOrder.length > 0;
 
   const metaOf = (name: string): ProjectMeta | undefined =>
-    projectMeta?.[name.trim().toUpperCase()];
+    projectMeta?.[projectMatchKey(name)];
 
   // Sắp xếp lại theo thứ tự ưu tiên (nếu có) + tính rank từng dòng.
   const { orderedRows, rankByName } = useMemo(() => {
@@ -105,12 +110,12 @@ export const ProjectSummarySection_v2 = ({
       return { orderedRows: projectStatusSummary, rankByName: new Map<string, number>() };
     }
     const rankMap = new Map<string, number>();
-    priorityOrder!.forEach((name, idx) => rankMap.set(name.trim(), idx));
+    priorityOrder!.forEach((name, idx) => { const k = projectMatchKey(name); if (!rankMap.has(k)) rankMap.set(k, idx); });
 
     const withRank = projectStatusSummary.map((row, originalIndex) => ({
       row,
       originalIndex,
-      rank: rankMap.has(row.name.trim()) ? rankMap.get(row.name.trim())! : Number.POSITIVE_INFINITY,
+      rank: rankMap.get(projectMatchKey(row.name)) ?? Number.POSITIVE_INFINITY,
     }));
     withRank.sort((a, b) => {
       if (a.rank !== b.rank) return a.rank - b.rank;
@@ -124,6 +129,7 @@ export const ProjectSummarySection_v2 = ({
   const getValue = (row: ProjectStatusRow, key: ProjectSummaryColumn): number => {
     if (key === 'inventoryAfterExport') return row.inventory - row.exported;
     if (key === 'p002') return row.p002 ?? 0;
+    if (key === 'shortfall') return row.shortfall ?? 0;
     return row[key];
   };
 
@@ -175,7 +181,7 @@ export const ProjectSummarySection_v2 = ({
             </button>
           </div>
           <span className="text-xs text-slate-500 italic hidden sm:block">
-            Đơn vị: {projectSummaryMetric === 'COUNT' ? 'Hạng mục (Items)' : 'Triệu đồng'}
+            Đơn vị: {projectSummaryMetric === 'COUNT' ? 'Hạng mục (Items)' : 'Tỷ đồng'}
           </span>
         </div>
       </div>
@@ -184,7 +190,7 @@ export const ProjectSummarySection_v2 = ({
         <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
           <table className="w-full text-xs min-w-[1370px] border-separate border-spacing-0">
             <thead className="text-slate-800 font-bold uppercase tracking-tight">
-              {/* Hàng 1: các cột đơn (rowSpan=2) + nhóm "Còn lại" (colSpan=4) */}
+              {/* Hàng 1: các cột đơn (rowSpan=2) + nhóm "Còn lại" (colSpan=5) */}
               <tr>
                 {hasPriority && (
                   <th
@@ -207,21 +213,27 @@ export const ProjectSummarySection_v2 = ({
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Nhập Kho <br />P022</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Xuất Kho <br />P025</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Tồn Kho Sau <br />Xuất Kho</th>
-                <th colSpan={4} className={`${thBase} top-0 h-9 py-0 bg-emerald-100`}>
+                <th colSpan={5} className={`${thBase} top-0 h-9 py-0 bg-emerald-100`}>
                   Tổng {label} Đơn Hàng Còn Lại
                 </th>
               </tr>
-              {/* Hàng 2: 4 cột con của nhóm "Còn lại" */}
+              {/* Hàng 2: 5 cột con của nhóm "Còn lại" */}
               <tr>
                 <th className={`${thBase} top-9 py-3`}>Chưa Triển Khai <br />P001</th>
                 <th className={`${thBase} top-9 py-3`}>Chưa Tính Phiếu <br />P002</th>
                 <th className={`${thBase} top-9 py-3`}>Đang Trên Chuyền <br />{'P012->P021'}</th>
+                <th
+                  className={`${thBase} top-9 py-3`}
+                  title="Hạng mục đã ở công đoạn P022 / P025 nhưng giá trị nhập kho chưa đủ trị giá đơn hàng"
+                >
+                  Nhập Kho Chưa Đủ <br />P022–P025
+                </th>
                 <th className={`${thBase} top-9 py-3 font-extrabold text-slate-900`}>Tổng</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-50">
               {orderedRows.map((row, idx) => {
-                const rank = hasPriority ? rankByName.get(row.name.trim()) : undefined;
+                const rank = hasPriority ? rankByName.get(projectMatchKey(row.name)) : undefined;
                 return (
                   <tr key={idx} className="hover:brightness-95 transition-colors group">
                     {hasPriority && (
@@ -248,6 +260,7 @@ export const ProjectSummarySection_v2 = ({
                     <td className={`${tdNumeric} text-slate-500`}>{renderValue(row.notDeployed, 'notDeployed', row.name)}</td>
                     <td className={`${tdNumeric} text-slate-500`}>{renderValue(getValue(row, 'p002'), 'p002', row.name)}</td>
                     <td className={`${tdNumeric} text-slate-600`}>{renderValue(row.onLine, 'onLine', row.name)}</td>
+                    <td className={`${tdNumeric} text-slate-500`}>{renderValue(getValue(row, 'shortfall'), 'shortfall', row.name)}</td>
                     <td className={`${tdNumeric} font-bold text-slate-900`}>{renderValue(row.remaining, 'remaining', row.name)}</td>
                   </tr>
                 );
@@ -272,6 +285,7 @@ export const ProjectSummarySection_v2 = ({
                 <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('notDeployed'), 'notDeployed', null)}</td>
                 <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('p002'), 'p002', null)}</td>
                 <td className="px-3 py-3 text-center">{renderValue(total('onLine'), 'onLine', null)}</td>
+                <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('shortfall'), 'shortfall', null)}</td>
                 <td className="px-3 py-3 text-center text-slate-900">{renderValue(total('remaining'), 'remaining', null)}</td>
               </tr>
             </tfoot>

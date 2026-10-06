@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { userService, getToken } from '../services/userService';
 import { AUTH_EXPIRED_EVENT } from '../services/authFetch';
+import { claimDataCache, clearDataCache } from '../services/dataService';
 import { useToast } from './ToastContext';
 
 interface AuthContextType {
@@ -64,6 +65,12 @@ useEffect(() => {
     try {
       const result = await userService.getMe();
       if (result.success && result.user) {
+        // Quyền / vai trò đổi (vd. bị thu quyền xem giá vật tư) -> bỏ cache dữ liệu cũ; lần đồng bộ
+        // kế tiếp sẽ tải lại theo quyền mới.
+        const accessKey = (u: any) => JSON.stringify([u?.username, u?.role, [...(u?.permissions ?? [])].sort()]);
+        let prevAccess = '';
+        try { prevAccess = accessKey(JSON.parse(storedUser)); } catch { /* bỏ qua */ }
+        if (prevAccess !== accessKey(result.user)) await clearDataCache();
         setUser(result.user);
         // Ghi đè lại storage với dữ liệu mới, giữ nguyên loại storage đang dùng (local/session)
         const userStr = JSON.stringify(result.user);
@@ -115,6 +122,7 @@ useEffect(() => {
       const result = await userService.login(username, password);
 
       if (result.success && result.user && result.token) {
+        await claimDataCache(result.user.username);
         setUser(result.user);
 
         try {
@@ -148,6 +156,7 @@ useEffect(() => {
   const logout = () => {
     setUser(null);
     clearAllStorage();
+    void clearDataCache();
     showToast('Đã đăng xuất', 'info');
   };
 

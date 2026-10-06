@@ -8,6 +8,7 @@
 
 import { DataRow } from '../../../types';
 import { fetchViewProjectMapping, saveViewProjectMapping as apiSaveViewProjectMapping } from '../../../services/dataService';
+import { projectMatchKey } from '../../../utils/productionMetrics';
 
 export interface ViewDefinition {
   id: string;
@@ -76,9 +77,11 @@ export function filterByView(
   viewId: string
 ): DataRow[] {
   if (!congTrinhKey) return [];
-  const allowed = new Set(getProjectsForView(viewId));
+  // So theo tên chuẩn (mã công trình -> 1 tên), không phân biệt hoa/thường, khoảng trắng: công trình
+  // đã chọn bằng 1 cách viết khác vẫn khớp dữ liệu sản xuất / nhập kho / xuất kho.
+  const allowed = new Set(getProjectsForView(viewId).map(projectMatchKey));
   if (allowed.size === 0) return [];
-  return data.filter((row) => allowed.has(String(row[congTrinhKey] || '')));
+  return data.filter((row) => allowed.has(projectMatchKey(row[congTrinhKey])));
 }
 
 export function collectUniqueProjects(

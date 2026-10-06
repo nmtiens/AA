@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
+import { canonicalizeProjectNames } from './utils/productionMetrics';
 // Prefetch + gate cho mapping "view -> danh sách công trình"
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
 // Prefetch cho cấu hình "bảng -> danh sách cột được phép / mặc định hiện"
@@ -666,14 +667,21 @@ const MainLayout: React.FC = () => {
   // Giữ nguyên object khi dữ liệu không đổi: các trang con (useOutletContext) chỉ render lại
   // khi dữ liệu / trạng thái thật sự đổi, không phải mỗi lần MainLayout render (vd. gõ phím
   // trong ô đổi mật khẩu, mở menu) — tránh DataGrid lọc/sắp xếp lại toàn bộ bảng.
+  // Tên công trình chuẩn theo mã (1 mã có thể có nhiều cách viết tên) — làm 1 lần ở đây để mọi
+  // trang (Tổng quan, Luồng đỏ, Báo cáo tiến độ, bảng dữ liệu) gom cùng 1 công trình giống nhau.
+  const canonicalProductionData = useMemo(
+    () => canonicalizeProjectNames(productionData, productionColumns),
+    [productionData, productionColumns]
+  );
+
   const contextValue = useMemo<MainLayoutContext>(() => ({
-    productionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
+    productionData: canonicalProductionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
     orderData, orderColumns, inventoryData, inventoryColumns, tkbvData, tkbvColumns, pthspData, pthspColumns,
     analysisData, analysisColumns, yearlyPlanData, yearlyPlanColumns, exportData, exportColumns,
     stockData, stockColumns, attendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
     isGlobalLoading: loading
   }), [
-    productionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
+    canonicalProductionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
     orderData, orderColumns, inventoryData, inventoryColumns, tkbvData, tkbvColumns, pthspData, pthspColumns,
     analysisData, analysisColumns, yearlyPlanData, yearlyPlanColumns, exportData, exportColumns,
     stockData, stockColumns, attendanceData, attendanceColumns, isCollapsed, loading,

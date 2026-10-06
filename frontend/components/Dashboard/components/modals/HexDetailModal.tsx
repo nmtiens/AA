@@ -8,6 +8,7 @@ import { formatSmartDecimal, parseNumber } from '../../utils/numberParsers';
 import { MONEY_UNIT_LABEL } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
+import { deadlineOf as deadlineOfRow, DEADLINE_SOURCE_LABEL, type DeadlineKeys } from '../../../../utils/productionMetrics';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
@@ -35,7 +36,12 @@ export interface HexDetailColumnKeys {
   ghiChuXuatKhoKey?: string;
   ghiChuDonHangTongKey?: string;
   ghiChuPhieuKey?: string;
+  /** Cột ngày cần giao — để sắp hex "chưa tìm thấy vật tư" theo hạn giao. Không truyền thì tự dò tên cột. */
+  ngayCanGiaoKey?: string;
 }
+
+// Lọc theo vật tư: tất cả | hex có vật tư | hex chưa tìm thấy vật tư (map theo mã nhà máy)
+type MaterialFilter = 'all' | 'with' | 'without';
 
 interface HexDetailModalProps {
   isOpen: boolean;
@@ -275,7 +281,7 @@ export const NoteContent = ({ text }: { text: string }) => {
   );
 };
 
-const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method'];
+const FIVE_M_ORDER: FiveMCategory[] = ['man', 'machine', 'material', 'method', 'measurement'];
 const FIVE_M_SHORT: Record<FiveMCategory, string> = {
   man: 'M1',
   machine: 'M2',
@@ -472,8 +478,8 @@ export const HexDetailModal = ({
   const [unassignedCount, setUnassignedCount] = useState<{ lines: number; prs: number } | null>(null);
   // Số dòng vật tư (map theo mã nhà máy) của từng hex; null = đang tải
   const [materialCountByHex, setMaterialCountByHex] = useState<Record<string, number> | null>(null);
-  // Mặc định hiện ĐỦ hex (khớp số ở bảng ngoài); tích để chỉ xem hex đã map được vật tư
-  const [onlyWithMaterial, setOnlyWithMaterial] = useState(false);
+  // Mặc định hiện ĐỦ hex (khớp số ở bảng ngoài)
+  const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
 
   const hexList = useMemo(
     () => Array.from(new Set(rows.map(r => String(r[hexKey] || '')).filter(Boolean))),
@@ -508,7 +514,7 @@ export const HexDetailModal = ({
   useEffect(() => {
     setUnassignedCount(null);
     setMaterialCountByHex(null);
-    if (!isOpen) { setOnlyWithMaterial(false); return; }
+    if (!isOpen) { setMaterialFilter('all'); return; }
     if (hexList.length === 0) return;
     const ctrl = new AbortController();
     const post = (mode: string) => fetch('/api/material/by-hex', {
@@ -716,6 +722,21 @@ export const HexDetailModal = ({
   const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
   const showRedEdge = lastColIsVuongMac && scrolledToEnd;
 
+  // Ngày hạn (quy tắc chung): KH nhập kho tuần → KH nhập kho tháng → ngày cần giao.
+  // Khoá ngày cần giao: ưu tiên khoá được truyền vào, không thì dò theo tên cột trong dữ liệu.
+  const deadlineKeys = useMemo<DeadlineKeys | null>(() => {
+    const sample = rows[0];
+    if (!sample) return null;
+    const keys = Object.keys(sample);
+    const ngayCanGiaoKey = columnKeys.ngayCanGiaoKey || (keys.find(k => /ngay[_\s]*can[_\s]*giao/i.test(k)) ?? '');
+    const dk: DeadlineKeys = { khnkTuanKey: 'ngay_khnk_tuan', khnkThangKey: 'ngay_khnk_thang', ngayCanGiaoKey };
+    return [dk.khnkTuanKey, dk.khnkThangKey, ngayCanGiaoKey].some(k => k && keys.includes(k)) ? dk : null;
+  }, [columnKeys.ngayCanGiaoKey, rows]);
+  const hasDeadline = deadlineKeys !== null;
+  const deadlineInfo = (row: DataRow) => (deadlineKeys ? deadlineOfRow(row, deadlineKeys) : null);
+  const deadlineOf = (row: DataRow): Date | null => deadlineInfo(row)?.date ?? null;
+  const todayStart = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
+
   const hexWithMaterialCount = useMemo(
     () => (materialCountByHex ? hexList.filter(h => (materialCountByHex[h] || 0) > 0).length : null),
     [materialCountByHex, hexList]
@@ -724,9 +745,16 @@ export const HexDetailModal = ({
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     // Lọc "chỉ hex có vật tư" chỉ áp dụng khi đã tải xong số vật tư
-    const base = onlyWithMaterial && materialCountByHex
-      ? rows.filter(row => (materialCountByHex[String(row[hexKey] || '')] || 0) > 0)
-      : rows;
+    const hasMat = (row: DataRow) => (materialCountByHex?.[String(row[hexKey] || '')] || 0) > 0;
+    let base = rows;
+    if (materialFilter !== 'all' && materialCountByHex) {
+      base = rows.filter(row => (materialFilter === 'with' ? hasMat(row) : !hasMat(row)));
+      // Hex chưa tìm thấy vật tư: gấp nhất (ngày cần giao sớm nhất) lên đầu, không có ngày xếp cuối
+      if (materialFilter === 'without' && hasDeadline) {
+        const t = (row: DataRow) => deadlineOf(row)?.getTime() ?? Number.POSITIVE_INFINITY;
+        base = [...base].sort((a, b) => t(a) - t(b));
+      }
+    }
     if (!q) return base;
     return base.filter(row => {
       const hex = String(row[hexKey] || '').toLowerCase();
@@ -734,7 +762,8 @@ export const HexDetailModal = ({
       const status = String(row[tinhTrangKey] || '').toLowerCase();
       return hex.includes(q) || hangMuc.includes(q) || status.includes(q);
     });
-  }, [rows, search, hexKey, hangMucKey, tinhTrangKey, onlyWithMaterial, materialCountByHex]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, search, hexKey, hangMucKey, tinhTrangKey, materialFilter, materialCountByHex, deadlineKeys]);
 
   const indexedRows = useMemo(
     () => filteredRows.map((row, i) => ({ row, stt: i + 1 })),
@@ -1187,17 +1216,37 @@ export const HexDetailModal = ({
                 className="w-full rounded-lg border border-slate-200 py-1.5 pl-8 pr-3 text-xs focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-300"
               />
             </div>
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
-              <input
-                type="checkbox"
-                checked={onlyWithMaterial}
-                onChange={(e) => setOnlyWithMaterial(e.target.checked)}
-              />
-              Chỉ hex có vật tư
-              <span className="text-slate-400">
-                ({hexWithMaterialCount === null ? 'đang kiểm tra…' : `${hexWithMaterialCount} / ${hexList.length} hex`})
+            <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 text-xs font-medium">
+              {([
+                ['all', 'Tất cả', hexList.length],
+                ['with', 'Có vật tư', hexWithMaterialCount],
+                ['without', 'Chưa tìm thấy vật tư', hexWithMaterialCount === null ? null : hexList.length - hexWithMaterialCount],
+              ] as [MaterialFilter, string, number | null][]).map(([k, label, n]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => { setMaterialFilter(k); if (k === 'without') setSort(null); }}
+                  disabled={k !== 'all' && hexWithMaterialCount === null}
+                  title={k === 'without'
+                    ? 'Hex không gắn được dòng vật tư nào theo mã nhà máy — sắp theo ngày cần giao, gấp nhất lên đầu'
+                    : undefined}
+                  className={`px-3 py-1.5 transition-colors disabled:cursor-wait disabled:opacity-60 ${
+                    materialFilter === k
+                      ? (k === 'without' ? 'bg-red-600 text-white' : 'bg-slate-800 text-white')
+                      : 'bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {label} <span className="opacity-70">({n === null ? '…' : n.toLocaleString('vi-VN')})</span>
+                </button>
+              ))}
+            </div>
+            {materialFilter === 'without' && (
+              <span className="text-xs text-slate-500">
+                {hasDeadline
+                  ? <>Sắp theo hạn (KH nhập kho tuần → tháng → ngày cần giao) — gấp nhất lên đầu · <span className="font-semibold text-red-600">chữ đỏ</span> = đã quá hạn</>
+                  : 'Không có cột ngày kế hoạch / cần giao để sắp xếp'}
               </span>
-            </label>
+            )}
           </div>
 
           {filteredRows.length > 0 ? (
@@ -1345,6 +1394,21 @@ export const HexDetailModal = ({
                                   ) : null}
                                 </button>
                               ) : '—'}
+                              {materialFilter === 'without' && hasDeadline && (() => {
+                                const info = deadlineInfo(row);
+                                const d = info?.date;
+                                if (!d || !info?.source) return <div className="mt-0.5 text-[0.625rem] font-normal text-slate-400">Chưa có hạn</div>;
+                                const late = d.getTime() < todayStart;
+                                return (
+                                  <div
+                                    title={`${DEADLINE_SOURCE_LABEL[info.source]}${late ? ' — đã quá hạn' : ''}`}
+                                    className={`mt-0.5 whitespace-nowrap text-[0.625rem] ${late ? 'font-semibold text-red-600' : 'font-normal text-slate-500'}`}
+                                  >
+                                    Hạn: {d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    <span className="ml-1 font-normal text-slate-400">({info.source})</span>
+                                  </div>
+                                );
+                              })()}
                             </td>
                             {orderedCols.map((key) =>
                               applyFrozen(
@@ -1438,9 +1502,11 @@ export const HexDetailModal = ({
           ) : (
             <div className="min-h-0 flex-1 overflow-auto p-5">
               <div className="rounded-lg bg-slate-50 p-8 text-center text-slate-500">
-                {onlyWithMaterial && hexWithMaterialCount === 0
-                  ? 'Không có hex nào map được vật tư theo mã nhà máy — bỏ tích "Chỉ hex có vật tư" để xem đủ danh sách.'
-                  : 'Không có dữ liệu hex phù hợp để hiển thị.'}
+                {materialFilter === 'with' && hexWithMaterialCount === 0
+                  ? 'Không có hex nào map được vật tư theo mã nhà máy — chọn "Tất cả" để xem đủ danh sách.'
+                  : materialFilter === 'without'
+                    ? 'Mọi hex đều đã tìm thấy vật tư.'
+                    : 'Không có dữ liệu hex phù hợp để hiển thị.'}
               </div>
             </div>
           )}

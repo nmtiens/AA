@@ -60,9 +60,20 @@ const resolveColumnLabel = (header: string): string => {
 export const API_BASE_URL = '/api';
 
 // KHỞI TẠO INDEXED-DB TỐI ƯU
+// Cache chỉ tải lại khi "phiên bản dữ liệu" trên server đổi; thêm/bớt CỘT ở backend
+// (REPORT_COLUMNS) thì phiên bản không đổi -> phải tăng số tên DB để mọi máy tải lại 1 lần.
+// V8: thêm ngay_khnk_tuan / ngay_khnk_thang (BOT theo kế hoạch nhập kho).
+const CACHE_DB_NAME = 'OpsHub_Database_V8';
+const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7'];
+let oldCachesCleared = false;
+
 const initDB = (): Promise<IDBDatabase> => {
+  if (!oldCachesCleared) {
+    oldCachesCleared = true;
+    OLD_CACHE_DB_NAMES.forEach(name => { try { indexedDB.deleteDatabase(name); } catch { /* bỏ qua */ } });
+  }
   return new Promise((resolve, reject) => {
- const request = indexedDB.open('OpsHub_Database_V7', 1);
+ const request = indexedDB.open(CACHE_DB_NAME, 1);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains('ops_cache')) {
@@ -136,6 +147,34 @@ export const saveToCache = async (endpoint: string, version: string, result: any
   } catch (e) {
     console.error(`Lỗi lưu Cache [${endpoint}]:`, e);
   }
+};
+
+// XOÁ TOÀN BỘ CACHE DỮ LIỆU (đăng xuất / đổi người dùng): dữ liệu đã lọc theo quyền của người
+// trước (vd. cột giá vật tư) không được để lại cho người sau trên cùng máy.
+// Xoá nội dung kho thay vì xoá cả DB vì các kết nối IndexedDB đang mở sẽ chặn deleteDatabase.
+const CACHE_OWNER_KEY = 'ops_cache_owner';
+
+export const clearDataCache = async (): Promise<void> => {
+  try { localStorage.removeItem(CACHE_OWNER_KEY); } catch { /* bỏ qua */ }
+  try {
+    const db = await initDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction('ops_cache', 'readwrite');
+      tx.objectStore('ops_cache').clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (e) {
+    console.error('Lỗi xoá Cache:', e);
+  }
+};
+
+/** Gọi khi đăng nhập: cache thuộc người khác thì xoá trước khi dùng. */
+export const claimDataCache = async (username: string): Promise<void> => {
+  let owner: string | null = null;
+  try { owner = localStorage.getItem(CACHE_OWNER_KEY); } catch { /* bỏ qua */ }
+  if (owner !== username) await clearDataCache();
+  try { localStorage.setItem(CACHE_OWNER_KEY, username); } catch { /* bỏ qua */ }
 };
 
 // TẢI TRỰC TIẾP TỪ SERVER

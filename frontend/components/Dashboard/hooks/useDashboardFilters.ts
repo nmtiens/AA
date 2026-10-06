@@ -50,10 +50,6 @@ const DEFAULT_FILTERS: DashboardFiltersState = {
   phanLoai: [],
 };
 
-// Cố định Tình Trạng IPO dùng riêng cho biểu đồ Funnel "TÌNH TRẠNG ĐƠN HÀNG AATN"
-// (KHÔNG phụ thuộc vào lựa chọn của người dùng ở ô "Tình Trạng IPO").
-const FUNNEL_FIXED_TINH_TRANG_IPO = '01. ĐANG SẢN XUẤT';
-
 // Khi lọc Khách hàng / Khu vực dự án mà không có công trình nào khớp: mảng công trình rỗng
 // nghĩa là "không lọc" nên phải dùng 1 giá trị giả để mọi nơi trả về kết quả rỗng.
 const NO_MATCH_PROJECT = '__KHONG_CO_CONG_TRINH__';
@@ -173,8 +169,8 @@ export function useDashboardFilters({
     );
   }, [crossFilterSourceData, productionData, explicitCongTrinhSet, xuongSet, tinhTrangSet, tinhTrangIpoSet, congTrinhKey, xuongKey, tinhTrangKey, tinhTrangIpoKey]);
 
-  // Dataset riêng cho biểu đồ "TÌNH TRẠNG ĐƠN HÀNG AATN" (funnel) — LUÔN cố định
-  // Tình Trạng IPO = "01. ĐANG SẢN XUẤT", chỉ ăn Công trình (+ Khách hàng/Khu vực dự án) + Khu vực SX + Nhóm SP.
+  // Dataset cho phễu "TÌNH TRẠNG ĐƠN HÀNG AATN" — theo bộ lọc Tình trạng IPO của trang (mặc định
+  // 01. ĐANG SẢN XUẤT) như mọi khối khác; không áp ô "Tình trạng" vì phễu chính là phân bổ theo tình trạng.
   const funnelProductionData = useMemo(() => {
     return productionData.filter(row =>
       matchesFilter(congTrinhSet, row, congTrinhKey) &&
@@ -182,21 +178,22 @@ export function useDashboardFilters({
       matchesCategory(phanLoaiSet, row, phanLoaiKey) &&
       matchesCategory(rowKhSet, row, khRowKey) &&
       matchesCategory(rowKvSet, row, kvRowKey) &&
-      !!tinhTrangIpoKey && String(row[tinhTrangIpoKey] || '').trim() === FUNNEL_FIXED_TINH_TRANG_IPO
+      matchesFilter(tinhTrangIpoSet, row, tinhTrangIpoKey)
     );
-  }, [productionData, congTrinhSet, xuongSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
+  }, [productionData, congTrinhSet, xuongSet, tinhTrangIpoSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
 
-  // Dataset riêng cho bảng "Tình trạng đơn hàng theo Công trình" (v2) — CHỈ ăn Công trình
-  // (+ Khách hàng/Khu vực dự án) + Khu vực SX + Nhóm SP, KHÔNG áp dụng Tình Trạng / Tình Trạng IPO.
+  // Dataset cho bảng "Tình trạng đơn hàng theo Công trình" (v2) — theo Tình trạng IPO của trang;
+  // không áp ô "Tình trạng" vì bảng tự chia cột theo tình trạng/công đoạn.
   const projectSummaryProductionData = useMemo(() => {
     return productionData.filter(row =>
       matchesFilter(congTrinhSet, row, congTrinhKey) &&
       matchesFilter(xuongSet, row, xuongKey) &&
       matchesCategory(phanLoaiSet, row, phanLoaiKey) &&
       matchesCategory(rowKhSet, row, khRowKey) &&
-      matchesCategory(rowKvSet, row, kvRowKey)
+      matchesCategory(rowKvSet, row, kvRowKey) &&
+      matchesFilter(tinhTrangIpoSet, row, tinhTrangIpoKey)
     );
-  }, [productionData, congTrinhSet, xuongSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey]);
+  }, [productionData, congTrinhSet, xuongSet, tinhTrangIpoSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
 
   const filteredMaterialData = useMemo(() => {
     return materialData.filter(row => matchesFilter(congTrinhSet, row, matCongTrinhKey));

@@ -5,6 +5,7 @@ import { formatSmartDecimal } from '../../utils/numberParsers';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
 import { MaterialPrTable, buildPrGroups, prGroupsToCsvRows } from './MaterialPrTable';
 import { PrHexDetailModal } from './PrHexDetailModal';
+import { isMaterialMissing } from '../../../../utils/productionMetrics';
 
 // Vật tư liên quan đến các hạng mục (hex). Bảng vat_tu không có hex trực tiếp:
 // backend map bằng mã nhà máy bỏ 4 số đầu (xem /api/material/by-hex).
@@ -219,7 +220,7 @@ export const HexMaterialModal = ({
     const q = search.trim().toLowerCase();
     return (rows || []).filter(r => {
       if (statusFilter && (r.trang_thai || '(Trống)') !== statusFilter) return false;
-      if (onlyMissing && !(Number(r.so_luong_con_lai) > 0)) return false;
+      if (onlyMissing && !isMaterialMissing(r)) return false;
       if (!q) return true;
       return [
         ...r.hexes, ...r.hexes.map(h => hangMucByHex[h]), r.ma_nha_may, r.ten_cong_trinh, r.trackingno, r.ten_vat_tu, r.item_note_pr, fmtCode(r.ma_vat_tu_sap),
@@ -248,7 +249,7 @@ export const HexMaterialModal = ({
     const all = rows || [];
     const hexWithMaterial = new Set(all.flatMap(r => r.hexes)).size;
     const prCount = new Set(all.map(r => r.so_pr).filter(v => v != null)).size;
-    const missing = all.filter(r => Number(r.so_luong_con_lai) > 0).length;
+    const missing = all.filter(isMaterialMissing).length;
     const projectCount = new Set(all.map(r => r.trackingno).filter(Boolean)).size;
     return { lines: all.length, hexWithMaterial, prCount, missing, projectCount };
   }, [rows]);
@@ -462,7 +463,7 @@ export const HexMaterialModal = ({
               </thead>
               <tbody>
                 {sorted.map((r, i) => {
-                  const missing = Number(r.so_luong_con_lai) > 0;
+                  const missing = isMaterialMissing(r);
                   return (
                     <tr key={`${r.hexes[0]}-${r.so_pr}-${r.pr_line}-${i}`} className="hover:bg-slate-50">
                       <td className="border-b border-r border-slate-100 px-2 py-2 text-center align-top font-semibold text-slate-500">{i + 1}</td>

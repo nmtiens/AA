@@ -30,6 +30,7 @@ import { GenericExportScopeModal } from './../Dashboard/components/modals/Generi
 import { GenericExportColumnModal } from './../Dashboard/components/modals/GenericExportColumnModal';
 import { ProductionExportModal } from './../Dashboard/components/modals/ProductionExportModal';
 import { filterByView, getProjectsForView } from './utils/viewDataConfig';
+import { projectMatchKey } from '../../utils/productionMetrics';
 import { HexDetailModal, type HexDetailColumnKeys } from './../Dashboard/components/modals/HexDetailModal';
 import { ConstructionRevenueSection, type CustomFunnelItem } from './../Dashboard/components/sections/ConstructionRevenueSection';
 import {
@@ -39,7 +40,6 @@ import {
   type StageDetailRow,
 } from './../Dashboard/components/modals/OnLineStageDetailModal';
 import { ExportDetailModal, type ExportDetailColumnKeys } from './../Dashboard/components/modals/ExportDetailModal';
-import { InventoryDetailModal, type InventoryDetailColumnKeys } from './../Dashboard/components/modals/InventoryDetailModal';
 import { ProductionDonutPanel, type OrderMixSelection } from './../Dashboard/components/shared/ProductionDonutPanel';
 import { categoryValue, categoryOptions } from './../Dashboard/utils/filterMatch';
 import { resolveFunnelHexTarget } from './../Dashboard/utils/funnelHexTarget';
@@ -149,6 +149,7 @@ type HexDetailColumn =
   | 'totalOrder' | 'afterCancel' | 'inventory' | 'notDeployed' | 'onLine'
   | 'remaining' | 'cancelled'
   | 'p002'
+  | 'shortfall'
   | 'inventoryAfterExport';   // (chỉ để đủ key của Record, không bấm được)
 
 const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
@@ -158,19 +159,19 @@ const HEX_COLUMN_LABELS: Record<HexDetailColumn, string> = {
   notDeployed: 'Chưa Triển Khai (P001)',
   p002: 'Chưa Tính Phiếu (P002)',
   onLine: 'Đang Trên Chuyền (P012->P021)',
+  shortfall: 'Nhập Kho Chưa Đủ (P022–P025)',
   remaining: 'Tổng Giá Trị Đơn Hàng Còn Lại',
   cancelled: 'Tổng Giá Trị Đã Hủy',
   inventoryAfterExport: 'Tồn Kho Sau Xuất Kho',
 };
 
-// Cột "inventory" xử lý riêng (mở InventoryDetailModal) nên không nằm ở đây.
-const HEX_DETAIL_MODAL_COLUMNS: Exclude<HexDetailColumn, 'inventory'>[] = [
-  'totalOrder', 'notDeployed', 'p002', 'onLine', 'remaining',
+const HEX_DETAIL_MODAL_COLUMNS: HexDetailColumn[] = [
+  'totalOrder', 'inventory', 'notDeployed', 'p002', 'onLine', 'shortfall', 'remaining',
 ];
 
 const isHexDetailColumn = (
   column: string
-): column is Exclude<HexDetailColumn, 'inventory'> =>
+): column is HexDetailColumn =>
   (HEX_DETAIL_MODAL_COLUMNS as string[]).includes(column);
 
 // Ánh xạ bước phễu -> cột/công đoạn HEX: xem Dashboard/utils/funnelHexTarget.ts (dùng chung với Tổng quan)
@@ -269,14 +270,14 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     [rawProductionData, congTrinhKey]
   );
 
-  // Gom BOT / Khách hàng / Khu vực dự án theo công trình (key = tên công trình viết HOA)
+  // Gom BOT / Khách hàng / Khu vực dự án theo công trình (key = projectMatchKey: tên chuẩn viết HOA)
   const projectMeta = useMemo<Record<string, ProjectMeta>>(() => {
     const acc = new Map<string, { bot: Set<string>; khachHang: Set<string>; khuVuc: Set<string> }>();
     if (!congTrinhKey) return {};
     const clean = (v: unknown) => String(v ?? '').trim();
 
     viewProductionData.forEach(row => {
-      const name = clean(row[congTrinhKey]).toUpperCase();
+      const name = projectMatchKey(row[congTrinhKey]);
       if (!name) return;
       if (!acc.has(name)) acc.set(name, { bot: new Set(), khachHang: new Set(), khuVuc: new Set() });
       const e = acc.get(name)!;
@@ -319,7 +320,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
 
   const byMeta = (rows: DataRow[], key?: string): DataRow[] =>
     allowedProjects && key
-      ? rows.filter(r => allowedProjects.has(String(r[key] ?? '').trim().toUpperCase()))
+      ? rows.filter(r => allowedProjects.has(projectMatchKey(r[key])))
       : rows;
 
   // ------------------------------------------------------------------------------
@@ -370,7 +371,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   // (priorityOrder của bảng v2 vẫn dùng viewProjectWhitelist gốc để STT không đổi.)
   const effectiveWhitelist = useMemo(
     () => allowedProjects
-      ? viewProjectWhitelist.filter(p => allowedProjects.has(p.trim().toUpperCase()))
+      ? viewProjectWhitelist.filter(p => allowedProjects.has(projectMatchKey(p)))
       : viewProjectWhitelist,
     [viewProjectWhitelist, allowedProjects]
   );
@@ -751,6 +752,17 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   // Gộp "Xuất kho" theo công trình từ exportData (đã filter theo view):
   // đếm số HEX DUY NHẤT (COUNT) hoặc tổng thành tiền (VALUE), chỉ tính các dòng
   // có tinh_doi_voi_hang_tp = "TÍNH" (đối với hàng thành phẩm).
+  // Chỉ tính xuất kho của các HEX thuộc phạm vi bảng (cùng bộ lọc Tình trạng IPO / xưởng / nhóm SP
+  // với cột Tổng / Đã nhập kho) — trước đây lấy cả hạng mục đã HOÀN THÀNH nên "Tồn kho sau xuất" bị âm.
+  const scopeHexSet = useMemo(
+    () => new Set(projectSummaryProductionData.map(r => String(r[hexKey] ?? '').trim()).filter(Boolean)),
+    [projectSummaryProductionData, hexKey]
+  );
+  const inScopeExport = (row: DataRow) => {
+    const hex = String(row['hex'] ?? '').trim();
+    return !hex || scopeHexSet.has(hex);
+  };
+
   const exportedByProject = useMemo(() => {
     const map = new Map<string, number>();
     if (!expCongTrinhKey) return map;
@@ -759,10 +771,11 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     if (isCount) {
       const hexSetByProject = new Map<string, Set<string>>();
       exportData.forEach(row => {
-        const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+        const name = projectMatchKey(row[expCongTrinhKey]);
         if (!name) return;
         const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
         if (tinh !== 'TÍNH') return;
+        if (!inScopeExport(row)) return;
         const hex = String(row['hex'] || '').trim();
         if (!hex) return;
         if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
@@ -771,47 +784,18 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
       hexSetByProject.forEach((set, name) => map.set(name, set.size));
     } else {
       exportData.forEach(row => {
-        const name = String(row[expCongTrinhKey] || '').trim().toUpperCase();
+        const name = projectMatchKey(row[expCongTrinhKey]);
         if (!name) return;
         const tinh = String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase();
         if (tinh !== 'TÍNH') return;
+        if (!inScopeExport(row)) return;
         const raw = parseNumber(row[expThanhTienKey]);
         map.set(name, (map.get(name) || 0) + raw / 1000);
       });
     }
 
     return map;
-  }, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric]);
-
-  // Gộp "Nhập kho" theo công trình từ inventoryData (bảng nhap_kho) để khớp
-  // đúng với InventoryDetailModal khi bấm vào xem chi tiết.
-  const inventoryByProject = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!invCongTrinhKey) return map;
-    const isCount = projectSummaryMetric === 'COUNT';
-
-    if (isCount) {
-      const hexSetByProject = new Map<string, Set<string>>();
-      inventoryData.forEach(row => {
-        const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
-        if (!name) return;
-        const hex = String(row['hex'] || '').trim();
-        if (!hex) return;
-        if (!hexSetByProject.has(name)) hexSetByProject.set(name, new Set());
-        hexSetByProject.get(name)!.add(hex);
-      });
-      hexSetByProject.forEach((set, name) => map.set(name, set.size));
-    } else {
-      inventoryData.forEach(row => {
-        const name = String(row[invCongTrinhKey] || '').trim().toUpperCase();
-        if (!name) return;
-        const raw = parseNumber(row[invThanhTienKey]);
-        map.set(name, (map.get(name) || 0) + raw / 1000);
-      });
-    }
-
-    return map;
-  }, [inventoryData, invCongTrinhKey, invThanhTienKey, projectSummaryMetric]);
+  }, [exportData, expCongTrinhKey, expThanhTienKey, projectSummaryMetric, scopeHexSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Adapter: chuyển projectStatusSummaryV2 sang kiểu của ProjectSummarySection_v2.
   // Phải đặt TRƯỚC early return bên dưới vì đây là hook.
@@ -819,24 +803,26 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     () =>
       projectStatusSummaryV2.map(row => {
         const cancelled = row.cancelled;
-        const exported = exportedByProject.get(row.name.trim().toUpperCase()) || 0;
-        const inventory = inventoryByProject.get(row.name.trim().toUpperCase()) || 0;
+        const exported = exportedByProject.get(projectMatchKey(row.name)) || 0;
         const notDeployed = row.notDeployed;
         return {
           name: row.name,
           totalOrder: row.totalOrder,
           cancelled,
-          afterCancel: row.totalOrder - cancelled,
-          inventory,
+          afterCancel: row.totalOrder, // tổng đơn hàng đã không tính đơn hủy
+          // Đã nhập kho = tổng min(nhập kho lũy kế, trị giá) từng hạng mục (bảng sản xuất) —
+          // cùng nguồn với cột còn lại nên Tổng = Đã nhập kho + Còn lại.
+          inventory: row.inventory,
           exported,
           notDeployed,
           p002: row.p002,          // Chưa tính phiếu P002
           onLine: row.onLine,      // P012 -> P021
-          // Giữ nguyên nghĩa cũ: chưa triển khai + toàn bộ đang sản xuất (kể cả P012)
-          remaining: notDeployed + row.inProduction,
+          shortfall: row.shortfall, // P022 / P025 nhưng nhập kho chưa đủ
+          // Tổng còn lại = tổng 4 cột con = trị giá - đã nhập kho của từng hạng mục (không tính đơn hủy)
+          remaining: row.remaining,
         };
       }),
-    [projectStatusSummaryV2, exportedByProject, inventoryByProject]
+    [projectStatusSummaryV2, exportedByProject]
   );
 
   // -------------------------------------------------------------------------
@@ -860,11 +846,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   }>({ open: false, projectName: null });
 
   const [exportDetail, setExportDetail] = useState<{
-    open: boolean;
-    projectName: string | null;
-  }>({ open: false, projectName: null });
-
-  const [inventoryDetail, setInventoryDetail] = useState<{
     open: boolean;
     projectName: string | null;
   }>({ open: false, projectName: null });
@@ -918,38 +899,15 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
 
     const base = exportDetail.projectName
       ? exportData.filter(
-          row => String(row[expCongTrinhKey] || '').trim().toUpperCase() === exportDetail.projectName!.trim().toUpperCase()
+          row => projectMatchKey(row[expCongTrinhKey]) === projectMatchKey(exportDetail.projectName)
         )
       : exportData; // dòng TỔNG CỘNG -> xem tất cả công trình
 
     // Lọc thêm theo tinh_doi_voi_hang_tp = "TÍNH" để khớp đúng cách card đang đếm
     return base.filter(
-      row => String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase() === 'TÍNH'
+      row => String(row['tinh_doi_voi_hang_tp'] || '').trim().toUpperCase() === 'TÍNH' && inScopeExport(row)
     );
-  }, [exportDetail, exportData, expCongTrinhKey]);
-
-  const inventoryDetailColumnKeys: InventoryDetailColumnKeys = useMemo(
-    () => ({
-      hexKey: 'hex',
-      hangMucKey: 'ten_hang_muc',
-      congTrinhKey: invCongTrinhKey,
-      xuongKey: invXuongKey,
-      dateKey: invDateKey,
-      thanhTienKey: invThanhTienKey,
-      ghiChuKey: 'ghi_chu',
-      soLuongKey: 'so_luong_nhap_kho',
-    }),
-    [invCongTrinhKey, invXuongKey, invDateKey, invThanhTienKey]
-  );
-
-  const inventoryDetailRows = useMemo(() => {
-    if (!inventoryDetail.open || !invCongTrinhKey) return [];
-    if (!inventoryDetail.projectName) return inventoryData; // TỔNG CỘNG -> xem tất cả
-    const target = inventoryDetail.projectName.trim().toUpperCase();
-    return inventoryData.filter(
-      row => String(row[invCongTrinhKey] || '').trim().toUpperCase() === target
-    );
-  }, [inventoryDetail, inventoryData, invCongTrinhKey]);
+  }, [exportDetail, exportData, expCongTrinhKey, scopeHexSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bấm vào số trong bảng pivot của "Chi tiết dữ liệu Phễu" -> mở HexDetailModal
   // đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và resolveFunnelHexTarget).
@@ -1140,7 +1098,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
           sectionRef={projectSummaryRef}
           projectStatusSummary={projectOrderSummary}
           priorityOrder={viewProjectWhitelist}
-          clickableColumns={['totalOrder', 'inventory', 'exported', 'notDeployed', 'p002', 'onLine', 'remaining']}
+          clickableColumns={['totalOrder', 'inventory', 'exported', 'notDeployed', 'p002', 'onLine', 'shortfall', 'remaining']}
           onCellClick={({ projectName, column }) => {
             if (column === 'onLine') {
               setOnLineStageDetail({ open: true, projectName });
@@ -1148,12 +1106,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
             }
             if (column === 'exported') {
               setExportDetail({ open: true, projectName });
-              return;
-            }
-            // Cột "inventory" (Đã Nhập Kho P022) mở InventoryDetailModal, lấy dữ liệu
-            // thật từ bảng nhap_kho (inventoryData) — cùng nguồn với số đang hiển thị.
-            if (column === 'inventory') {
-              setInventoryDetail({ open: true, projectName });
               return;
             }
             if (isHexDetailColumn(column)) {
@@ -1384,14 +1336,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
         projectName={exportDetail.projectName}
         rows={exportDetailRows}
         columnKeys={exportDetailColumnKeys}
-      />
-
-      <InventoryDetailModal
-        isOpen={inventoryDetail.open}
-        onClose={() => setInventoryDetail(prev => ({ ...prev, open: false }))}
-        projectName={inventoryDetail.projectName}
-        rows={inventoryDetailRows}
-        columnKeys={inventoryDetailColumnKeys}
       />
 
       <ProductionExportModal
