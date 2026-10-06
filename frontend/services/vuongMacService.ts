@@ -179,6 +179,31 @@ export const updateVuongMac = async (
   }
 };
 
+// Như updateVuongMac nhưng ném lỗi kèm LÝ DO từ server (hết phiên -> UNAUTHORIZED,
+// không có quyền, dữ liệu sai, lỗi hệ thống...) để màn hình báo đúng nguyên nhân.
+export const updateVuongMacStrict = async (
+  id: number,
+  patch: Parameters<typeof updateVuongMac>[1]
+): Promise<VuongMacItem> => {
+  let r: Response;
+  try {
+    r = await fetch(`/api/vuong-mac/${id}`, {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify(patch),
+    });
+  } catch {
+    throw new Error('Không kết nối được máy chủ, kiểm tra mạng rồi thử lại');
+  }
+  if (r.status === 401) throw new Error(UNAUTHORIZED);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.success) {
+    if (r.status === 413) throw new Error('Dữ liệu gửi lên quá lớn');
+    throw new Error(d.message || d.error || `Không lưu được (lỗi ${r.status})`);
+  }
+  return d.data as VuongMacItem;
+};
+
 // "Cần thêm thời gian": ghi nhận nội dung + BOT mới + ghi chú
 export const extendVuongMac = async (
   id: number,

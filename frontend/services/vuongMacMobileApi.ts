@@ -47,6 +47,19 @@ const b64 = (s: string) => {
   return Uint8Array.from(raw, c => c.charCodeAt(0));
 };
 
+/** Tên đăng nhập của người đang dùng app (đọc từ payload JWT; không xác thực, chỉ để hiển thị). */
+export const currentUsername = (): string => {
+  try {
+    const t = getToken();
+    if (!t) return '';
+    const bytes = b64(t.split('.')[1]);
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    return String(payload.username ?? '').trim();
+  } catch {
+    return '';
+  }
+};
+
 export const pushSupported = () =>
   'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 

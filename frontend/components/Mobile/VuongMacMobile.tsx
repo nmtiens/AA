@@ -5,13 +5,13 @@ import {
   Share2, History, Pencil, Trash2, RotateCcw, CheckCircle2, Hourglass, X as XIcon,
 } from 'lucide-react';
 import {
-  FIVE_M_LABELS, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, extendVuongMac,
+  FIVE_M_LABELS, fetchVuongMacAllStrict, UNAUTHORIZED, updateVuongMac, updateVuongMacStrict, extendVuongMac,
   deleteVuongMac, fetchVuongMacLog, createVuongMacStrict, uploadVuongMacPhoto, deleteVuongMacPhoto,
   fetchHexSearch,
   type VuongMacRow, type VuongMacLogEntry, type FiveMCategory, type HexHit,
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
-import { parseBotEnd, botStart, nowFmt, fmtLocalInput } from '../../services/vuongMacMobileApi';
+import { parseBotEnd, botStart, nowFmt, fmtLocalInput, currentUsername } from '../../services/vuongMacMobileApi';
 import HexLookup from './HexLookup';
 import PhotoPicker, { type PhotoItem } from './PhotoPicker';
 import { AuthImg } from '../shared/VuongMacPhoto';
@@ -665,7 +665,7 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
           note: note.trim(),
         };
         if (newBot && newBot !== row.bot) patch.bot = newBot;
-        must(await updateVuongMac(row.id, patch), 'Không lưu được (kiểm tra quyền hoặc kết nối)');
+        await updateVuongMacStrict(row.id, patch);
         id = row.id;
       } else {
         const created = await createVuongMacStrict(picked!.hex, category, content.trim(), {
@@ -674,7 +674,9 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
         id = created.id;
       }
     } catch (e: any) {
-      setErr(e.message || 'Có lỗi xảy ra');
+      setErr(e.message === UNAUTHORIZED
+        ? 'Phiên đăng nhập đã hết hạn — đăng nhập lại rồi thử lại'
+        : (e.message || 'Có lỗi xảy ra'));
       setBusy(false);
       return;
     }
@@ -865,9 +867,13 @@ function FormSheet({ row, onClose, onDone }: { row?: VMItem; onClose: () => void
 function ResolveSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => void; onDone: () => void }) {
   const [note, setNote] = useState('');
   const { busy, err, submit } = useSubmit(
-    async () => must(
-      await updateVuongMac(row.id, { isResolved: true, resolvedNote: note.trim() }),
-      'Không lưu được (kiểm tra quyền hoặc kết nối)'),
+    async () => {
+      try {
+        return await updateVuongMacStrict(row.id, { isResolved: true, resolvedNote: note.trim() });
+      } catch (e: any) {
+        throw new Error(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn — đăng nhập lại rồi thử lại' : e.message);
+      }
+    },
     onDone);
   return (
     <BottomSheet title="✅ Đánh dấu đã xử lý" onClose={onClose}>
@@ -967,26 +973,102 @@ function DeleteSheet({ row, onClose, onDone }: { row: VMItem; onClose: () => voi
   );
 }
 
+// Nhật ký dạng khung chat: cũ ở trên, mới ở dưới (tự cuộn xuống cuối);
+// thao tác của mình bên phải, của người khác bên trái.
+const LOG_ACTION: Record<string, { icon: string; label: string }> = {
+  CREATE: { icon: '🆕', label: 'Tạo mới' },
+  UPDATE: { icon: '✏️', label: 'Cập nhật' },
+  DELETE: { icon: '🗑️', label: 'Xóa' },
+};
+
+const logDayLabel = (iso: string) => {
+  const d = new Date(iso);
+  const key = (x: Date) => x.toDateString();
+  const today = new Date();
+  const yest = new Date(); yest.setDate(today.getDate() - 1);
+  if (key(d) === key(today)) return 'Hôm nay';
+  if (key(d) === key(yest)) return 'Hôm qua';
+  return d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+const logTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
 function LogSheet({ row, onClose }: { row: VMItem; onClose: () => void }) {
   const [logs, setLogs] = useState<VMLog[] | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const me = currentUsername().toLowerCase();
+
   useEffect(() => { fetchVuongMacLog(row.hex).then(setLogs); }, [row.hex]);
-  const actionIcon: Record<string, string> = { CREATE: '🆕', UPDATE: '✏️', DELETE: '🗑️' };
+
+  // Cũ -> mới (giống khung chat)
+  const sorted = (logs ?? []).slice().sort(
+    (x, y) => new Date(x.actedAt).getTime() - new Date(y.actedAt).getTime() || x.id - y.id
+  );
+
+  // Có dữ liệu thì cuộn xuống tin mới nhất
+  useEffect(() => {
+    if (sorted.length) endRef.current?.scrollIntoView({ block: 'end' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logs]);
+
   return (
     <BottomSheet title={`📜 Nhật ký · HEX ${row.hex}`} onClose={onClose}>
       {!logs && <p className="text-base text-slate-400">Đang tải...</p>}
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {logs?.map(l => (
-          <div key={l.id} className="rounded-2xl bg-slate-100 p-3 text-base">
-            <p className="font-medium text-slate-800">
-              {actionIcon[l.action] ?? '•'} {{ CREATE: 'Tạo mới', UPDATE: 'Cập nhật', DELETE: 'Xóa' }[l.action] ?? l.action} · {l.actor}
-            </p>
-            {l.contentAfter && <p className="text-slate-600">{l.contentAfter}</p>}
-            {l.detail && <p className="whitespace-pre-line text-slate-500">{l.detail}</p>}
-            <p className="text-sm text-slate-400">🕒 {fmtTime(l.actedAt)}</p>
-          </div>
-        ))}
-      </div>
       {logs && logs.length === 0 && <p className="text-base text-slate-400">Chưa có nhật ký.</p>}
+
+      <div className="space-y-3 pb-1">
+        {sorted.map((l, i) => {
+          const mine = !!me && (l.actor ?? '').trim().toLowerCase() === me;
+          const act = LOG_ACTION[l.action] ?? { icon: '•', label: l.action };
+          const body = l.action === 'DELETE' ? (l.contentBefore || l.contentAfter) : l.contentAfter;
+          const cat = l.category ? FIVE_M_LABELS[l.category] : '';
+          const showDay = i === 0 || logDayLabel(sorted[i - 1].actedAt) !== logDayLabel(l.actedAt);
+          return (
+            <div key={l.id}>
+              {showDay && (
+                <div className="my-2 flex items-center gap-3 text-sm text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  {logDayLabel(l.actedAt)}
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+              )}
+              <div className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                {!mine && (
+                  <div className="mb-1 flex items-center gap-1.5 px-1 text-sm text-slate-500">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+                      {(l.actor || '?').trim().charAt(0).toUpperCase()}
+                    </span>
+                    <span className="font-medium text-slate-700">{l.actor || 'Không rõ'}</span>
+                  </div>
+                )}
+                <div
+                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-base ${
+                    mine
+                      ? 'rounded-br-md bg-wood-600 text-white'
+                      : 'rounded-bl-md bg-slate-100 text-slate-800'
+                  }`}
+                >
+                  <p className={`text-sm font-semibold ${mine ? 'text-white/80' : 'text-slate-500'}`}>
+                    {act.icon} {act.label}{cat ? ` · ${cat}` : ''}
+                  </p>
+                  {body && (
+                    <p className={`mt-0.5 whitespace-pre-line break-words ${l.action === 'DELETE' ? 'line-through opacity-70' : ''}`}>
+                      {body}
+                    </p>
+                  )}
+                  {l.detail && (
+                    <p className={`mt-1 whitespace-pre-line break-words text-sm ${mine ? 'text-white/75' : 'text-slate-500'}`}>
+                      {l.detail}
+                    </p>
+                  )}
+                </div>
+                <span className="mt-0.5 px-1 text-xs text-slate-400">{logTime(l.actedAt)}</span>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={endRef} />
+      </div>
     </BottomSheet>
   );
 }
