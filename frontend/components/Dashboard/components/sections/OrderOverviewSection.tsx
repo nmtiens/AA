@@ -8,6 +8,7 @@ import {
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { DisplayModeToggle } from '../shared/DisplayModeToggle';
 import { DetailModalTable } from '../shared/DetailModalTable';
+import YearPlanTable from '../Dashboards/YearPlanTable';
 import TrendChart from '../Dashboards/TrendChart';
 import ByXuongChart from '../Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
@@ -1134,9 +1135,17 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="p-6">
   <TrendChart source="inventory" embedded displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
   <ByXuongChart source="inventory" displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
-  <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
-  <TrendByCategoryChart kind="phanloai" source="inventory" displayMode={inventoryMetric} embedded />
-  <TrendByCategoryChart kind="dvt" source="inventory" displayMode={inventoryMetric} embedded />
+  {inventoryPlanOverlay ? (
+    // Mở từ ô "Kế hoạch năm": kế hoạch năm không chia theo công trình / nhóm SP / ĐVT
+    // -> thay 3 biểu đồ đó bằng bảng KH – TH phân cấp Năm / 6 tháng / Quý / Tháng
+    <YearPlanTable />
+  ) : (
+    <>
+      <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
+      <TrendByCategoryChart kind="phanloai" source="inventory" displayMode={inventoryMetric} embedded />
+      <TrendByCategoryChart kind="dvt" source="inventory" displayMode={inventoryMetric} embedded />
+    </>
+  )}
 </div>
                 </>
               ) : (
