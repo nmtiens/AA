@@ -48,6 +48,13 @@ const WORK_STEPS: { key: string; label: string; flag?: string }[] = [
 ];
 
 // "11/06/2026 # Đơn giá: … # SL NK: 20 # TT NK: 524.8 # ghi chú" -> các lần nhập kho
+// Số trong ghi chú nhập kho viết kiểu EN: dấu chấm là thập phân ("TT NK: 334.644" = 334,644 triệu),
+// không dùng parseNumber (hiểu "334.644" là 334 nghìn) — bỏ dấu phẩy ngăn nghìn nếu có.
+const noteNumber = (v: string) => {
+  const n = Number(String(v).replace(/,/g, '').replace(/[^\d.\-]/g, ''));
+  return Number.isFinite(n) ? n : NaN;
+};
+
 const parseStockIn = (text: unknown) =>
   String(text ?? '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
     const parts = l.split('#').map(p => p.trim());
@@ -123,7 +130,10 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       { key: 'sx', title: 'Sản xuất (P013 → P021)', stage: 'P013–P021', date: null, note: stage && cur >= 3 && cur <= 9 ? `Đang ở ${stage} · ${row.tinh_trang ?? ''}` : '', st: state(3, 9) },
       {
         key: 'nk', title: 'Nhập kho', stage: 'P022', date: firstIn, date2: lastIn,
-        note: `${fmtNum(qtyIn, 3)} / ${fmtNum(qtyOrder, 3)} ${row.dvt ?? ''}${full ? ' · đủ' : ''}`,
+        // Số lượng + giá trị đã nhập / trị giá đơn hàng (tỷ); đơn HỦY không tính giá trị
+        note: `${fmtNum(qtyIn, 3)} / ${fmtNum(qtyOrder, 3)} ${row.dvt ?? ''}`
+          + (cancelled ? '' : ` · ${fmtTy(valDone)} / ${fmtTy(total)} tỷ`)
+          + (full ? ' · đủ' : ''),
         st: full ? 'done' as const : qtyIn > 0 ? 'current' as const : state(10, 11),
       },
     ];
@@ -355,7 +365,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                             <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
                             <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{s.date}</td>
                             <td className="px-3 py-1.5 text-right tabular-nums">{s.qty || '—'}</td>
-                            <td className="px-3 py-1.5 text-right tabular-nums">{s.value ? fmtTy(parseNumber(s.value)) : '—'}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums">{s.value ? fmtTy(noteNumber(s.value)) : '—'}</td>
                             <td className="px-3 py-1.5 text-slate-600">{s.note}</td>
                           </tr>
                         ))}

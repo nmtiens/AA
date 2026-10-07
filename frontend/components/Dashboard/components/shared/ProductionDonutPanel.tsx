@@ -135,22 +135,60 @@ export const orderMix = (list: MixItem[]): MixItem[] => {
 };
 
 // ---------------------------------------------------------------------------
-// Nhãn % cho MỌI lát: lát đủ lớn => chữ trắng nằm trong lát; lát nhỏ => chữ nằm ngoài vòng,
-// có đường nối vào đúng lát. Nhãn ngoài mỗi bên được giãn đều để không chồng lên nhau.
+// Nhãn % cho MỌI lát: lát đủ lớn => chữ trắng nằm trong lát; lát nhỏ => chữ ngoài vòng có đường nối.
+// Chống chồng chéo:
+//   - nhãn ở vùng TRÊN / DƯỚI vòng xếp thành 1 hàng ngang (giãn theo chiều ngang),
+//   - nhãn ở 2 BÊN xếp thành cột dọc (giãn theo chiều dọc),
+//   giữ đúng thứ tự các lát => các đường nối không cắt nhau.
 // ---------------------------------------------------------------------------
 const RAD = Math.PI / 180;
 const INSIDE_MIN = 0.06;      // lát từ 6% trở lên ghi bên trong
+// Vòng bắt đầu ở 3 giờ: lát nhỏ (cuối danh sách) nằm ngay trên 3 giờ => nhãn xếp cột dọc bên phải,
+// nằm ngang đúng lát. Bắt đầu 12 giờ thì lát nhỏ dồn ở đỉnh, hàng nhãn ngang phải giãn lệch khỏi lát.
+const START_ANGLE = 0;
 
-interface SliceLabel { inside: boolean; text: string; mid: number; x: number; y: number; side: 1 | -1 }
+type LabelZone = 'inside' | 'top' | 'bottom' | 'side';
+interface SliceLabel { zone: LabelZone; text: string; mid: number; x: number; y: number; side: 1 | -1 }
 
-/** Tính vị trí nhãn cho từng lát — khớp cách Recharts chia góc (bắt đầu 12 giờ, theo chiều kim đồng hồ). */
+/**
+ * Giãn các vị trí (đã sắp tăng dần) để cách nhau tối thiểu `gap`, mỗi cụm nhãn sát nhau được
+ * CĂN GIỮA vào trung bình vị trí lý tưởng của nó (không đẩy lệch về 1 phía), rồi kẹp trong [lo, hi].
+ */
+function spreadCentered(ideal: number[], gap: number, lo: number, hi: number): number[] {
+  type Cluster = { start: number; ids: number[]; sum: number };
+  const clusters: Cluster[] = [];
+  const place = (c: Cluster) => {
+    const k = c.ids.length;
+    c.start = c.sum / k - ((k - 1) * gap) / 2;
+    c.start = Math.min(Math.max(c.start, lo), hi - (k - 1) * gap);
+  };
+  ideal.forEach((v, i) => {
+    let c: Cluster = { start: v, ids: [i], sum: v };
+    place(c);
+    // Gộp với cụm trước khi chồng lên nhau, lặp tới khi hết chồng
+    while (clusters.length) {
+      const prev = clusters[clusters.length - 1];
+      if (prev.start + prev.ids.length * gap <= c.start) break;
+      clusters.pop();
+      c = { start: 0, ids: [...prev.ids, ...c.ids], sum: prev.sum + c.sum };
+      place(c);
+    }
+    clusters.push(c);
+  });
+  const out = new Array<number>(ideal.length);
+  clusters.forEach(c => c.ids.forEach((id, j) => { out[id] = c.start + j * gap; }));
+  return out;
+}
+
+/** Tính vị trí nhãn cho từng lát — khớp cách Recharts chia góc (bắt đầu 3 giờ, theo chiều kim đồng hồ). */
 function layoutSliceLabels(
-  values: number[], cx: number, cy: number, inner: number, outer: number, height: number, padAngle: number,
+  values: number[], cx: number, cy: number, inner: number, outer: number, width: number, height: number, padAngle: number,
 ): SliceLabel[] {
   const sum = values.reduce((a, b) => a + b, 0) || 1;
   const n = values.filter(v => v > 0).length;
   const usable = 360 - (n > 1 ? n * padAngle : 0);
-  let start = 90;
+  let start = START_ANGLE;
+  const ROW = 0.8;    // |sin| lớn hơn => thuộc vùng trên / dưới (gần đỉnh / đáy), còn lại xếp cột 2 bên
   const out: SliceLabel[] = values.map(v => {
     const ang = (usable * v) / sum;
     const mid = start - ang / 2;
@@ -158,24 +196,38 @@ function layoutSliceLabels(
     const pct = (v / sum) * 100;
     const text = pct > 0 && pct < 1 ? '<1%' : `${pct.toFixed(0)}%`;
     const cos = Math.cos(mid * RAD), sin = -Math.sin(mid * RAD);
+    const side: 1 | -1 = cos >= 0 ? 1 : -1;
     if (pct / 100 >= INSIDE_MIN) {
       const r = inner + (outer - inner) / 2;
-      return { inside: true, text, mid, x: cx + r * cos, y: cy + r * sin, side: cos >= 0 ? 1 : -1 };
+      return { zone: 'inside', text, mid, x: cx + r * cos, y: cy + r * sin, side };
     }
     const r = outer + 14;
-    return { inside: false, text, mid, x: cx + r * cos, y: cy + r * sin, side: cos >= 0 ? 1 : -1 };
+    const zone: LabelZone = sin < -ROW ? 'top' : sin > ROW ? 'bottom' : 'side';
+    return { zone, text, mid, x: cx + r * cos, y: cy + r * sin, side };
   });
-  // Giãn nhãn ngoài theo chiều dọc ở mỗi bên (cách nhau tối thiểu GAP px, không ra khỏi khung)
-  const GAP = 12;
+
+  // Hàng ngang trên / dưới: cùng 1 độ cao, giãn ngang tối thiểu HGAP, không ra khỏi khung
+  const HGAP = 24, EDGE = 14;
+  for (const zone of ['top', 'bottom'] as const) {
+    const row = out.filter(l => l.zone === zone).sort((a, b) => a.x - b.x);
+    if (!row.length) continue;
+    const y = zone === 'top' ? Math.max(8, cy - outer - 16) : Math.min(height - 8, cy + outer + 16);
+    const xs = spreadCentered(row.map(l => l.x), HGAP, EDGE, width - EDGE);
+    row.forEach((l, i) => { l.x = xs[i]; l.y = y; });
+  }
+
+  // Cột 2 bên: giãn dọc tối thiểu VGAP, không ra khỏi khung
+  const VGAP = 13;   // > chiều cao chữ để không đè
   for (const side of [1, -1] as const) {
-    const list = out.filter(l => !l.inside && l.side === side).sort((a, b) => a.y - b.y);
-    for (let i = 1; i < list.length; i++) list[i].y = Math.max(list[i].y, list[i - 1].y + GAP);
-    const overflow = list.length ? list[list.length - 1].y - (height - 6) : 0;
-    if (overflow > 0) {
-      list[list.length - 1].y -= overflow;
-      for (let i = list.length - 2; i >= 0; i--) list[i].y = Math.min(list[i].y, list[i + 1].y - GAP);
-    }
-    list.forEach(l => { l.y = Math.max(6, l.y); l.x = cx + side * (outer + 18); });
+    const list = out.filter(l => l.zone === 'side' && l.side === side).sort((a, b) => a.y - b.y);
+    const ys = spreadCentered(list.map(l => l.y), VGAP, 6, height - 6);
+    // Nhãn bám theo vòng tròn (ngay ngoài mép vòng ở đúng độ cao của nhãn), không kéo ra 1 cột thẳng
+    const R = outer + 10;
+    list.forEach((l, i) => {
+      l.y = ys[i];
+      const dy = l.y - cy;
+      l.x = cx + side * (Math.sqrt(Math.max(R * R - dy * dy, 0)) + 4);
+    });
   }
   return out;
 }
@@ -218,14 +270,14 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
   const W = large ? 272 : 200, H = large ? 224 : 168;
   const OUTER = large ? 86 : 62, INNER = large ? 50 : 36, PAD = 1;
   const labels = useMemo(
-    () => layoutSliceLabels(data.map(d => d.value), W / 2, H / 2, INNER, OUTER, H, PAD),
+    () => layoutSliceLabels(data.map(d => d.value), W / 2, H / 2, INNER, OUTER, W, H, PAD),
     [data, W, H, INNER, OUTER],
   );
   const renderLabel = (p: any) => {
     const l = labels[p.index];
     if (!l) return null;
     const dim = selected.length > 0 && !selected.includes(data[p.index]?.name);
-    if (l.inside) {
+    if (l.zone === 'inside') {
       return (
         <text x={l.x} y={l.y} fill="#ffffff" textAnchor="middle" dominantBaseline="central"
               fontSize={large ? 11 : 10} fontWeight={600} opacity={dim ? 0.5 : 1} pointerEvents="none">
@@ -233,17 +285,21 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
         </text>
       );
     }
-    // Đường nối: mép lát -> ra ngoài -> ngang tới nhãn
-    const cx = W / 2, cy = H / 2;
-    const cos = Math.cos(l.mid * RAD), sin = -Math.sin(l.mid * RAD);
-    const p1 = [cx + (OUTER + 1) * cos, cy + (OUTER + 1) * sin];
-    const p2 = [cx + (OUTER + 8) * cos, cy + (OUTER + 8) * sin];
-    const p3 = [l.x - l.side * 3, l.y];
+    // Đường nối: mép lát -> ra ngoài -> tới nhãn (hàng trên/dưới: tới mép chữ; 2 bên: ngang tới chữ)
+    // Góc giữa lát lấy đúng từ Recharts (p.midAngle) => chấm luôn nằm TRÊN lát thật, kể cả lát rất mỏng
+    const cx = p.cx ?? W / 2, cy = p.cy ?? H / 2;
+    const midA = typeof p.midAngle === 'number' ? p.midAngle : l.mid;
+    const cos = Math.cos(midA * RAD), sin = -Math.sin(midA * RAD);
+    const p1 = [cx + (OUTER - 4) * cos, cy + (OUTER - 4) * sin];   // chấm nằm trong lát, sát mép ngoài
+    // 2 bên: nối thẳng mép lát -> chữ; trên / dưới: mép lát -> ra ngoài -> chân chữ
+    const p2 = [cx + (OUTER + 4) * cos, cy + (OUTER + 4) * sin];
+    const p3 = l.zone === 'side' ? [l.x - l.side * 2, l.y] : [l.x, l.y + (l.zone === 'top' ? 6 : -6)];
+    const anchor = l.zone === 'side' ? (l.side === 1 ? 'start' : 'end') : 'middle';
     return (
       <g opacity={dim ? 0.4 : 1} pointerEvents="none">
         <polyline points={`${p1.join(',')} ${p2.join(',')} ${p3.join(',')}`} fill="none" stroke={p.fill} strokeWidth={1} />
-        <circle cx={p1[0]} cy={p1[1]} r={1.5} fill={p.fill} />
-        <text x={l.x} y={l.y} textAnchor={l.side === 1 ? 'start' : 'end'} dominantBaseline="central"
+        <circle cx={p1[0]} cy={p1[1]} r={2} fill={p.fill} stroke="#ffffff" strokeWidth={0.75} />
+        <text x={l.x} y={l.y} textAnchor={anchor} dominantBaseline="central"
               fontSize={large ? 10.5 : 9.5} fontWeight={600} fill="#334155">
           {l.text}
         </text>
@@ -261,7 +317,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
         <p className="flex-1 flex items-center justify-center text-xs text-slate-400">Không có dữ liệu</p>
       ) : (
         <div className="flex-1 flex items-center justify-between gap-4">
-          {/* Biểu đồ tròn: chạy theo chiều kim đồng hồ từ 12 giờ, cùng thứ tự với chú thích */}
+          {/* Biểu đồ tròn: chạy theo chiều kim đồng hồ từ 3 giờ (các lát nhỏ cuối danh sách dồn về bên phải, nhãn xếp cột dọc ngang đúng lát), cùng thứ tự với chú thích */}
           {/* [&_*]:outline-none: bỏ khung đen trình duyệt vẽ quanh lát vừa bấm */}
           <div className="relative shrink-0 [&_*]:outline-none" style={{ width: W, height: H }}>
               <PieChart width={W} height={H}>
@@ -271,8 +327,8 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                   nameKey="name"
                   cx={W / 2}
                   cy={H / 2}
-                  startAngle={90}
-                  endAngle={-270}
+                  startAngle={START_ANGLE}
+                  endAngle={START_ANGLE - 360}
                   innerRadius={INNER}
                   outerRadius={OUTER}
                   paddingAngle={PAD}
