@@ -7,6 +7,11 @@ import {
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
 import { formatTy, trieuToTy } from '../../../../utils/money';
+import { fetchYearPlan } from '../../../../services/dataService';
+
+// Cột "Kế hoạch năm" (bảng khsx_nam) — chỉ hiện khi mở từ ô "Kế hoạch năm"
+const PLAN_COLOR = '#f59e0b';
+const PLAN_DARK = '#b45309';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
@@ -16,7 +21,7 @@ interface ApiXuongPoint {
   total: number;
   totalCount: number;
 }
-interface ChartPoint { xuong: string; periodKey: string; total: number; }
+interface ChartPoint { xuong: string; periodKey: string; total: number; plan?: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
@@ -85,9 +90,11 @@ interface TrendByXuongChartProps {
   source: TrendSource;
   embedded?: boolean;
   displayMode: DisplayMetric;
+  /** Vẽ thêm cột Kế hoạch năm (khsx_nam) của các tháng trong khoảng ngày — chế độ Giá trị */
+  planOverlay?: boolean;
 }
 
-export default function TrendByXuongChart({ source, embedded = false, displayMode }: TrendByXuongChartProps) {
+export default function TrendByXuongChart({ source, embedded = false, displayMode, planOverlay = false }: TrendByXuongChartProps) {
   const {
     dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
     hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI
@@ -163,13 +170,37 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
   }, [source, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
       hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
 
+  // Kế hoạch năm theo xưởng của các tháng nằm trong khoảng ngày đang xem (đơn vị Tỷ)
+  const showPlan = planOverlay && isMoney && source === 'inventory';
+  const [planByXuong, setPlanByXuong] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!planOverlay || !hasValidRange) { setPlanByXuong({}); return; }
+    let cancelled = false;
+    fetchYearPlan(dateFrom.slice(0, 7), dateTo.slice(0, 7), xuong || undefined).then(d => {
+      if (cancelled) return;
+      const m: Record<string, number> = {};
+      (d?.byXuong ?? []).forEach(p => { m[String(p.xuong).trim().toUpperCase()] = p.value; });
+      setPlanByXuong(m);
+    });
+    return () => { cancelled = true; };
+  }, [planOverlay, hasValidRange, dateFrom, dateTo, xuong]);
+
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
     const pickValue = (p: ApiXuongPoint) => (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total);
-    return raw
-      .map(p => ({ xuong: p.xuongName || p.xuongCode, periodKey: p.xuongCode, total: pickValue(p) }))
-      .sort((a, b) => b.total - a.total);
-  }, [raw, displayMode, hasValidRange]);
+    const rows: ChartPoint[] = raw.map(p => ({ xuong: p.xuongName || p.xuongCode, periodKey: p.xuongCode, total: pickValue(p) }));
+    if (showPlan) {
+      // Xưởng có kế hoạch mà chưa nhập kho vẫn hiện (thực hiện = 0)
+      const have = new Set(rows.map(r => String(r.periodKey).trim().toUpperCase()));
+      Object.keys(planByXuong).forEach(x => { if (!have.has(x)) rows.push({ xuong: x, periodKey: x, total: 0 }); });
+      rows.forEach(r => { r.plan = planByXuong[String(r.periodKey).trim().toUpperCase()] ?? 0; });
+    }
+    return rows.sort((a, b) => b.total - a.total);
+  }, [raw, displayMode, hasValidRange, showPlan, planByXuong]);
+  const planTotal = useMemo(
+    () => (showPlan ? chartData.reduce((s, p) => s + (p.plan ?? 0), 0) : 0),
+    [chartData, showPlan]
+  );
 
   const avgAll = useMemo(() => {
     if (chartData.length === 0) return 0;
@@ -296,6 +327,17 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
                   fill={theme.barDark}
                 />
               </Bar>
+              {showPlan && (
+                <Bar dataKey="plan" name="Kế hoạch năm (Tỷ đồng)" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
+                  <LabelList
+                    dataKey="plan"
+                    position="top"
+                    formatter={(v: number) => (v > 0 ? fmt(v) : '')}
+                    fontSize={embedded ? 9 : 10}
+                    fill={PLAN_DARK}
+                  />
+                </Bar>
+              )}
               {chartData.length > 0 && (
                 <ReferenceLine
                   y={avgAll}
@@ -336,6 +378,11 @@ export default function TrendByXuongChart({ source, embedded = false, displayMod
             }}
           >
             Tổng: {fmt(totalAll)}
+            {showPlan && (
+              <span style={{ color: PLAN_DARK }}>
+                {' '}· KH: {fmt(planTotal)} · Đạt {planTotal > 0 ? ((totalAll / planTotal) * 100).toFixed(1) : '0'}%
+              </span>
+            )}
           </div>
         )}
         {pinned && (

@@ -53,6 +53,8 @@ interface FactoryRevenueSectionProps {
   sideContent?: React.ReactNode;
   /** Bấm vào ô "Thực hiện lũy kế" -> mở chi tiết Nhập kho theo năm */
   onActualClick?: () => void;
+  /** Bấm ô "Kế hoạch năm": mở biểu đồ nhập kho kèm cột kế hoạch năm (khsx_nam) */
+  onPlanClick?: () => void;
   /**
    * Bấm 1 thanh phễu (giống Luồng đỏ / Căn mẫu): cha đổi pivotFunnelData sang bảng THEO CÔNG TRÌNH
    * của bước đó; đóng cửa sổ thì cha trả về tổng theo BOP. Không truyền => thanh không bấm được.
@@ -98,6 +100,7 @@ export const FactoryRevenueSection = ({
   workshopMetric,
   sideContent,
   onActualClick,
+  onPlanClick,
   onFunnelItemClick,
   onFunnelModalClose,
   onPivotValueClick,
@@ -279,17 +282,28 @@ export const FactoryRevenueSection = ({
 
             {/* Cột phải: 3 card — tự cao bằng khung biểu đồ bên trái */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Kế hoạch năm */}
-            <div className="px-4 py-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-100 flex flex-col justify-center relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Target size={15} /></div>
-                <p className="text-xs font-medium text-emerald-800 tracking-wide">Kế hoạch năm</p>
-              </div>
-              <div className="flex items-baseline gap-1.5 pl-0.5">
-                <h4 className="text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 leading-none">{formatTy(targetRevenue2026)}</h4>
+            {/* Kế hoạch năm — bấm được: mở biểu đồ nhập kho theo năm KÈM cột kế hoạch năm (khsx_nam) */}
+            <button
+              type="button"
+              onClick={onPlanClick}
+              disabled={!onPlanClick}
+              title="Bấm để xem nhập kho so với kế hoạch năm theo tháng / xưởng"
+              className="px-4 py-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border border-emerald-100 flex flex-col justify-center relative overflow-hidden group text-left w-full transition-all enabled:cursor-pointer enabled:hover:shadow-md enabled:hover:border-emerald-300 enabled:active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            >
+              <span className="flex items-center gap-2 mb-1">
+                <span className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Target size={15} /></span>
+                <span className="text-xs font-medium text-emerald-800 tracking-wide">Kế hoạch năm</span>
+              </span>
+              <span className="flex items-baseline gap-1.5 pl-0.5">
+                <span className="text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 leading-none">{formatTy(targetRevenue2026)}</span>
                 <span className="text-xs font-medium text-emerald-500">Tỷ</span>
-              </div>
-            </div>
+              </span>
+              {onPlanClick && (
+                <span className="absolute top-2 right-3 inline-flex items-center gap-1 text-[0.625rem] font-medium text-emerald-600 opacity-70 group-hover:opacity-100">
+                  <Eye size={12} /> Chi tiết
+                </span>
+              )}
+            </button>
 
             {/* Thực hiện lũy kế — bấm được: mở chi tiết Nhập kho theo năm */}
             <button

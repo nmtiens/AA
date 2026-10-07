@@ -605,4 +605,20 @@ export const saveTableColumnConfig = async (
     console.error('saveTableColumnConfig error:', e);
     return false;
   }
+};// Kế hoạch năm (khsx_nam, TỶ ĐỒNG) theo tháng / xưởng trong khoảng tháng [from, to] (YYYY-MM)
+export interface YearPlanData {
+  byMonth: { period: string; value: number }[];
+  byXuong: { xuong: string; value: number }[];
+}
+export const fetchYearPlan = async (from: string, to: string, xuong?: string): Promise<YearPlanData | null> => {
+  try {
+    const q = new URLSearchParams({ from, to });
+    if (xuong) q.set('xuong', xuong);
+    const r = await fetch(`${API_BASE_URL}/khsx-nam/plan?${q.toString()}`);
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchYearPlan error:', e);
+    return null;
+  }
 };

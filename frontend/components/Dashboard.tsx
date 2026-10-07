@@ -204,7 +204,7 @@ const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
 const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
 // Yêu cầu mở modal "Chi tiết Nhập Kho" theo cả năm (khi bấm ô "Thực hiện lũy kế").
 // nonce tăng mỗi lần bấm để OrderOverviewSection biết có yêu cầu mới.
-const [inventoryOpenRequest, setInventoryOpenRequest] = useState<{ nonce: number; year: number } | null>(null);
+const [inventoryOpenRequest, setInventoryOpenRequest] = useState<{ nonce: number; year: number; withPlan?: boolean } | null>(null);
 useEffect(() => {
   fetchRevenue2026(selectedRevenueYear).then(data => { if (data) setRevenue2026(data); });
 }, [selectedRevenueYear]);
@@ -721,6 +721,14 @@ const handleContinueToOrderColumnStep = () => {
     setInventoryOpenRequest(r => ({
       nonce: (r?.nonce ?? 0) + 1,
       year: Number(selectedRevenueYear) || new Date().getFullYear(),
+    }))
+  }
+  // Ô "Kế hoạch năm": cùng biểu đồ nhập kho theo năm, kèm cột kế hoạch năm
+  onPlanClick={() =>
+    setInventoryOpenRequest(r => ({
+      nonce: (r?.nonce ?? 0) + 1,
+      year: Number(selectedRevenueYear) || new Date().getFullYear(),
+      withPlan: true,
     }))
   }
 />

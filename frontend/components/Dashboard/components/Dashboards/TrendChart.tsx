@@ -7,13 +7,18 @@ import {
 import { useTrendFilter, Granularity } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
 import { formatTy, trieuToTy } from '../../../../utils/money';
+import { fetchYearPlan } from '../../../../services/dataService';
+
+// Cột "Kế hoạch năm" (bảng khsx_nam) — chỉ hiện khi mở từ ô "Kế hoạch năm"
+const PLAN_COLOR = '#f59e0b';
+const PLAN_DARK = '#b45309';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
 // [COUNT FIX] distinctTotalCount: số HEX DUY NHẤT trên CẢ KHOẢNG (server tính sẵn,
 // xem /api/trend). Optional vì nhánh 'stock' không trả field này.
 interface ApiPoint { period: string; total: number; totalCount: number; distinctTotalCount?: number; }
-interface TrendPoint { period: string; periodKey: string; total: number; }
+interface TrendPoint { period: string; periodKey: string; total: number; plan?: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
@@ -177,9 +182,11 @@ interface TrendChartProps {
   source: TrendSource;
   embedded?: boolean;
   displayMode: DisplayMetric;
+  /** Vẽ thêm cột Kế hoạch năm (khsx_nam) — chỉ khi xem theo Tháng, chế độ Giá trị */
+  planOverlay?: boolean;
 }
 
-export default function TrendChart({ source, embedded = false, displayMode }: TrendChartProps) {
+export default function TrendChart({ source, embedded = false, displayMode, planOverlay = false }: TrendChartProps) {
   const {
     granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai,
     hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv, // ✅ MỚI: selectedDatesCsv
@@ -264,11 +271,31 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
   }, [source, granularity, dateFrom, dateTo, xuong, congTrinh, dvt, phanLoai, hasValidRange,
       hasCtWhitelist, ctWhitelistCsv, selectedDatesCsv]);
 
+  // Kế hoạch năm theo tháng (đơn vị Tỷ) — chỉ tải khi được yêu cầu
+  const showPlan = planOverlay && isMoney && granularity === 'month' && source === 'inventory';
+  const [planByMonth, setPlanByMonth] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!planOverlay || !hasValidRange) { setPlanByMonth({}); return; }
+    let cancelled = false;
+    fetchYearPlan(dateFrom.slice(0, 7), dateTo.slice(0, 7), xuong || undefined).then(d => {
+      if (cancelled) return;
+      const m: Record<string, number> = {};
+      (d?.byMonth ?? []).forEach(p => { m[`${p.period}-01`] = p.value; });
+      setPlanByMonth(m);
+    });
+    return () => { cancelled = true; };
+  }, [planOverlay, hasValidRange, dateFrom, dateTo, xuong]);
+
   const chartData = useMemo(() => {
     if (!hasValidRange) return [];
     const points = isMoney ? raw.map(p => ({ ...p, total: trieuToTy(p.total) })) : raw;
-    return formatChartData(points, granularity, displayMode, dateFrom, dateTo, selectedDates);
-  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, selectedDates, isMoney]);
+    const data = formatChartData(points, granularity, displayMode, dateFrom, dateTo, selectedDates);
+    return showPlan ? data.map(p => ({ ...p, plan: planByMonth[p.periodKey] ?? 0 })) : data;
+  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, selectedDates, isMoney, showPlan, planByMonth]);
+  const planTotal = useMemo(
+    () => (showPlan ? chartData.reduce((s, p) => s + (p.plan ?? 0), 0) : 0),
+    [chartData, showPlan]
+  );
 
   const avgAll = useMemo(() => {
     const pointsForAvg = source === 'stock'
@@ -401,6 +428,18 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
                   fill={theme.barDark}
                 />
               </Bar>
+              {showPlan && (
+                <Bar dataKey="plan" name="Kế hoạch năm (Tỷ đồng)" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
+                  <LabelList
+                    dataKey="plan"
+                    position="top"
+                    offset={10}
+                    formatter={(v: number) => (v > 0 ? fmt(v) : '')}
+                    fontSize={embedded ? 9 : 10}
+                    fill={PLAN_DARK}
+                  />
+                </Bar>
+              )}
               {chartData.length > 0 && (
                 <ReferenceLine
                   y={avgAll}
@@ -443,6 +482,16 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
             }}
           >
             Tổng: {fmt(totalAll)}
+            {showPlan && (
+              <span style={{ color: PLAN_DARK }}>
+                {' '}· KH: {fmt(planTotal)} · Đạt {planTotal > 0 ? ((totalAll / planTotal) * 100).toFixed(1) : '0'}%
+              </span>
+            )}
+          </div>
+        )}
+        {planOverlay && !showPlan && chartData.length > 0 && !loading && (
+          <div className="absolute bottom-1 right-4 z-10 text-[0.6875rem] text-amber-700">
+            Cột Kế hoạch năm chỉ hiện khi xem theo Tháng, chế độ Giá trị
           </div>
         )}
 

@@ -110,7 +110,7 @@ interface OrderOverviewSectionProps {
   handleOpenOrderExport: () => void;
   handleOpenGenericExport: (flow: 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock') => void;
   loadStockByProject: () => void;
-    openInventoryRequest?: { nonce: number; year: number } | null;
+    openInventoryRequest?: { nonce: number; year: number; withPlan?: boolean } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,6 +208,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   const [granularityRequest, setGranularityRequest] =
     useState<{ nonce: number; value: 'day' | 'week' | 'month'; presetDays?: number } | null>(null);
   const prevOverviewDatesRef = useRef<string[] | null>(null);
+  const [inventoryPlanOverlay, setInventoryPlanOverlay] = useState(false);
 
   useEffect(() => {
     if (!openInventoryRequest) return;
@@ -223,12 +224,15 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     setInventoryTab('chart');
     setInventoryMetric('SUM');
     setGranularityRequest({ nonce: openInventoryRequest.nonce, value: 'month', presetDays: 365 });
+    // Cột kế hoạch năm chỉ hiện khi mở từ ô "Kế hoạch năm"
+    setInventoryPlanOverlay(!!openInventoryRequest.withPlan);
     openModalWithTrendReset(() => setIsInventoryDetailModalOpen(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openInventoryRequest?.nonce]);
 
   const closeInventoryModal = () => {
     setIsInventoryDetailModalOpen(false);
+    setInventoryPlanOverlay(false);
     if (prevOverviewDatesRef.current !== null) {
       setOverviewDateFilters(prevOverviewDatesRef.current);
       prevOverviewDatesRef.current = null;
@@ -1128,8 +1132,8 @@ const periodLabel = overviewDateFilters.length > 1
                 <>
                   <SharedDateFilterBar showProductFilters /> 
               <div className="p-6">
-  <TrendChart source="inventory" embedded displayMode={inventoryMetric} />
-  <ByXuongChart source="inventory" displayMode={inventoryMetric} />
+  <TrendChart source="inventory" embedded displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
+  <ByXuongChart source="inventory" displayMode={inventoryMetric} planOverlay={inventoryPlanOverlay} />
   <ByCongTrinhChart source="inventory" displayMode={inventoryMetric} />
   <TrendByCategoryChart kind="phanloai" source="inventory" displayMode={inventoryMetric} embedded />
   <TrendByCategoryChart kind="dvt" source="inventory" displayMode={inventoryMetric} embedded />

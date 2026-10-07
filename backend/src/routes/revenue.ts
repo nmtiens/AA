@@ -88,3 +88,47 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+// Kế hoạch năm (bảng khsx_nam, đơn vị TỶ ĐỒNG) theo tháng và theo xưởng, trong khoảng tháng
+// [from, to] (dạng YYYY-MM). Dùng để vẽ cột "Kế hoạch" cạnh biểu đồ nhập kho khi người dùng
+// bấm ô "Kế hoạch năm". ?xuong= (tuỳ chọn) lọc 1 xưởng như bộ lọc của biểu đồ.
+const YM_RE = /^(\d{4})-(\d{2})$/;
+app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
+  try {
+    const from = String(req.query.from || '');
+    const to = String(req.query.to || '');
+    const mf = from.match(YM_RE);
+    const mt = to.match(YM_RE);
+    if (!mf || !mt) return res.status(400).json({ error: 'from/to phải dạng YYYY-MM' });
+    const fromKey = Number(mf[1]) * 100 + Number(mf[2]);
+    const toKey = Number(mt[1]) * 100 + Number(mt[2]);
+    const params: any[] = [fromKey, toKey];
+    let where = `(nam::int * 100 + thang::int) BETWEEN $1 AND $2`;
+    const xuong = String(req.query.xuong || '').trim();
+    if (xuong) { params.push(xuong.toUpperCase()); where += ` AND UPPER(TRIM(xuong_chinh)) = $${params.length}`; }
+
+    const value = numericCol('khsx_nam', 'thanh_tien_ke_hoach');
+    const [byMonth, byXuong] = await Promise.all([
+      timedQuery(
+        `SELECT nam::int AS nam, thang::int AS thang, COALESCE(SUM(${value}), 0) AS value
+         FROM khsx_nam WHERE ${where} GROUP BY 1, 2 ORDER BY 1, 2`,
+        params
+      ),
+      timedQuery(
+        `SELECT TRIM(xuong_chinh) AS xuong, COALESCE(SUM(${value}), 0) AS value
+         FROM khsx_nam WHERE ${where} GROUP BY 1 ORDER BY 1`,
+        params
+      ),
+    ]);
+    res.json({
+      byMonth: byMonth.rows.map(r => ({
+        period: `${r.nam}-${String(r.thang).padStart(2, '0')}`,
+        value: Number(r.value),
+      })),
+      byXuong: byXuong.rows.map(r => ({ xuong: r.xuong, value: Number(r.value) })),
+    });
+  } catch (error) {
+    console.error('Lỗi khsx-nam/plan:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
