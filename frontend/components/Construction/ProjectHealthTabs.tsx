@@ -302,12 +302,15 @@ export const DWELL: { key: DwellKey; label: string; bar: string }[] = [
 const dwellOf = (v: string | null): DwellKey => dwellBucket(v);
 
 const NO_AREA = 'Chưa xác định';
-type BopSel = { stage: string; area?: string; status?: string; dwell?: string } | null;
+type BopSel = { stage: string; area?: string; status?: string } | null;
+// Lọc từ biểu đồ thời gian ở công đoạn (cộng thêm vào lọc của bảng)
+type DwellSel = { stage: string; dwell: string } | null;
 
 export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (hex: string) => void }) => {
   const [metric, setMetric] = useState<BopMetric>('remain');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState<BopSel>(null);
+  const [dwellSel, setDwellSel] = useState<DwellSel>(null);
   const [q, setQ] = useState('');
   const [sortBy, setSortBy] = useState<'deadline' | 'stage' | 'remain'>('deadline');
 
@@ -344,10 +347,18 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, metric]);
 
-  // Điểm nghẽn: số hạng mục theo thời gian ở công đoạn hiện tại
+  // Ô đang chọn ở bảng Công đoạn × Khu vực (công đoạn / tình trạng / khu vực)
+  const matchSel = (i: HexInfo) => !sel || (
+    stageOf(i) === sel.stage
+    && (sel.area === undefined || areaOf(i) === sel.area)
+    && (sel.status === undefined || (i.status || '(Trống)') === sel.status)
+  );
+
+  // Điểm nghẽn: số hạng mục theo thời gian ở công đoạn hiện tại — ăn theo ô đang chọn ở bảng trên
   const dwell = useMemo(() => {
     const m = new Map<string, Record<string, number>>();
     for (const i of open) {
+      if (!matchSel(i)) continue;
       const d = dwellOf(i.dwell);
       const s = stageOf(i);
       const e: Record<string, number> = m.get(s) ?? {};
@@ -361,17 +372,13 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
     const stuck = rows.filter(r => w4(r) > 0).sort((x, y) => w4(y) - w4(x));
     return { rows, stuck, stuckTotal: stuck.reduce((s, r) => s + w4(r), 0) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, sel]);
 
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
     return open
-      .filter(i => !sel || (
-        stageOf(i) === sel.stage
-        && (sel.area === undefined || areaOf(i) === sel.area)
-        && (sel.status === undefined || (i.status || '(Trống)') === sel.status)
-        && (sel.dwell === undefined || dwellOf(i.dwell) === sel.dwell)
-      ))
+      .filter(matchSel)
+      .filter(i => !dwellSel || (stageOf(i) === dwellSel.stage && dwellOf(i.dwell) === dwellSel.dwell))
       .filter(i => matchQ(i, ql))
       .sort((a, b) =>
         sortBy === 'deadline'
@@ -381,19 +388,27 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
             : b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, sel, q, sortBy]);
+  }, [open, sel, dwellSel, q, sortBy]);
 
   const toggle = (s: string) => setExpanded(prev => {
     const n = new Set(prev);
     if (n.has(s)) n.delete(s); else n.add(s);
     return n;
   });
-  const pick = (next: NonNullable<BopSel>) =>
+  // Đổi ô ở bảng => bỏ lọc thời gian cũ (biểu đồ thời gian vẽ lại theo ô mới)
+  const pick = (next: NonNullable<BopSel>) => {
     setSel(cur => (cur && JSON.stringify(cur) === JSON.stringify(next) ? null : next));
+    setDwellSel(null);
+  };
   const isSel = (next: NonNullable<BopSel>) => !!sel && JSON.stringify(sel) === JSON.stringify(next);
-  const selText = sel
-    ? [sel.stage, sel.status, sel.area, sel.dwell && DWELL.find(d => d.key === sel.dwell)?.label].filter(Boolean).join(' · ')
-    : '';
+  const pickDwell = (next: NonNullable<DwellSel>) =>
+    setDwellSel(cur => (cur && cur.stage === next.stage && cur.dwell === next.dwell ? null : next));
+  const isDwellSel = (next: NonNullable<DwellSel>) => !!dwellSel && dwellSel.stage === next.stage && dwellSel.dwell === next.dwell;
+  const hasFilter = !!sel || !!dwellSel;
+  const selText = [
+    ...(sel ? [sel.stage, sel.status, sel.area] : []),
+    ...(dwellSel ? [...(sel ? [] : [dwellSel.stage]), DWELL.find(d => d.key === dwellSel.dwell)?.label] : []),
+  ].filter(Boolean).join(' · ');
 
   const cell = (v: number | undefined, next: NonNullable<BopSel>, cls = '') => (
     <td
@@ -502,7 +517,10 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
       <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
         <div className="rounded-lg border border-slate-200 p-3">
           <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-xs font-semibold text-slate-700">Thời gian ở công đoạn hiện tại</p>
+            <p className="text-xs font-semibold text-slate-700">
+              Thời gian ở công đoạn hiện tại
+              {sel && <span className="ml-1 font-normal text-amber-700">· theo lọc: {[sel.stage, sel.status, sel.area].filter(Boolean).join(' · ')}</span>}
+            </p>
             {DWELL.map(d => (
               <span key={d.key} className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-500">
                 <span className={`h-2 w-2 rounded-sm ${d.bar}`} />{d.label}
@@ -517,14 +535,14 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
                   {DWELL.map(d => {
                     const v = r.c[d.key] ?? 0;
                     if (!v) return null;
-                    const next = { stage: r.stage, dwell: d.key };
+                    const next = { stage: r.stage, dwell: d.key as string };
                     return (
                       <button
                         key={d.key}
                         type="button"
-                        onClick={() => pick(next)}
+                        onClick={() => pickDwell(next)}
                         title={`${r.stage} · ${d.label}: ${v} hạng mục`}
-                        className={`${d.bar} flex items-center justify-center text-[0.625rem] font-semibold text-white hover:brightness-110 ${isSel(next) ? 'ring-2 ring-inset ring-slate-900' : ''}`}
+                        className={`${d.bar} flex items-center justify-center text-[0.625rem] font-semibold text-white hover:brightness-110 ${isDwellSel(next) ? 'ring-2 ring-inset ring-slate-900' : ''}`}
                         style={{ width: `${(v / r.n) * 100}%` }}
                       >
                         {v / r.n >= 0.06 ? v : ''}
@@ -547,8 +565,8 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
                 <button
                   key={r.stage}
                   type="button"
-                  onClick={() => pick(next)}
-                  className={`flex w-full items-center gap-2 rounded-lg border bg-white px-2.5 py-1.5 text-left text-xs hover:border-red-300 ${isSel(next) ? 'border-red-500' : 'border-red-100'}`}
+                  onClick={() => pickDwell(next)}
+                  className={`flex w-full items-center gap-2 rounded-lg border bg-white px-2.5 py-1.5 text-left text-xs hover:border-red-300 ${isDwellSel(next) ? 'border-red-500' : 'border-red-100'}`}
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 text-[0.625rem] font-bold text-red-600">{idx + 1}</span>
                   <span className="font-semibold text-slate-800">{r.stage}</span>
@@ -569,8 +587,8 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
       {/* 3. Danh sách hạng mục */}
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
-          <p className="text-xs font-semibold text-slate-700">{sel ? 'Hạng mục đang lọc' : 'Tất cả hạng mục chưa nhập kho đủ'}</p>
-          {sel && <Chip active onClick={() => setSel(null)}>{selText} ✕</Chip>}
+          <p className="text-xs font-semibold text-slate-700">{hasFilter ? 'Hạng mục đang lọc' : 'Tất cả hạng mục chưa nhập kho đủ'}</p>
+          {hasFilter && <Chip active onClick={() => { setSel(null); setDwellSel(null); }}>{selText} ✕</Chip>}
           <span className="text-[0.6875rem] text-slate-500">{fmtInt(list.length)} hạng mục</span>
           <SortPicker
             value={sortBy}
