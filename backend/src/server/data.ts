@@ -1,3 +1,4 @@
+import { parseNameList, expandProjectNames, normNameSql } from './projectAlias.js';
 import type { Request } from 'express';
 import { timedQuery } from '../db.js';
 import { runWithLimit } from './common.js';
@@ -164,12 +165,19 @@ export const notCancelledHexCond = (hexExpr: string): string =>
      SELECT hex::text FROM production_status_app
      WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HỦY%')`;
 
+// 1 công trình được chọn (?congTrinh=) -> so với mọi cách viết của cùng mã
+export const projectNameCondition = (colExpr: string, name: string, params: any[]): string => {
+  params.push(expandProjectNames([name]));
+  return `${normNameSql(colExpr)} = ANY($${params.length}::text[])`;
+};
+
 export const eqNormalized = (colExpr: string, paramIdx: number) =>
   `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
 
 export const hasCtWhitelist = (req: Request): boolean => req.query.ctWhitelist !== undefined;
+// Danh sách công trình của view: mở rộng thành mọi cách viết của cùng mã (server/projectAlias.ts)
 export const parseCtWhitelist = (req: Request): string[] =>
-  String(req.query.ctWhitelist || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  expandProjectNames(parseNameList(req.query.ctWhitelist));
 export const applyCtWhitelist = (
   req: Request,
   congTrinhColExpr: string | undefined,
@@ -179,7 +187,7 @@ export const applyCtWhitelist = (
   if (!hasCtWhitelist(req) || !congTrinhColExpr) return;
   const wl = parseCtWhitelist(req);
   params.push(wl);
-  conditions.push(`UPPER(TRIM(${congTrinhColExpr})) = ANY($${params.length}::text[])`);
+  conditions.push(`${normNameSql(congTrinhColExpr)} = ANY($${params.length}::text[])`);
 };
 
 // [JOIN DEDUP FIX] Một ma_id_sap/hex có thể khớp NHIỀU dòng trong

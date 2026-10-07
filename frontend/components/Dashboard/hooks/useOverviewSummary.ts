@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DataRow } from '../../../types';
+import { projectMatchKey } from '../../../utils/productionMetrics';
 import {
   fetchOverviewSummary,
   fetchOverviewByGroup,
@@ -129,7 +130,9 @@ export function useOverviewSummary({
       return filters.congTrinh;
     }
     if (filters.congTrinh.length > 0) {
-      return filters.congTrinh.filter(ct => viewProjectWhitelist.includes(ct));
+      // Giao với danh sách công trình của view theo tên chuẩn (whitelist có thể lưu cách viết khác)
+      const wl = new Set(viewProjectWhitelist.map(projectMatchKey));
+      return filters.congTrinh.filter(ct => wl.has(projectMatchKey(ct)));
     }
     return viewProjectWhitelist;
   };
@@ -297,9 +300,10 @@ export function useOverviewSummary({
       return [];
     }
 
+    const ctKeys = effectiveCongTrinh.length ? new Set(effectiveCongTrinh.map(projectMatchKey)) : null;
     return exportData.filter(row => {
       const dateMatch = overviewDateFilters.length === 0 || (expDateKey && overviewDateFilters.includes(formatDateToVN(row[expDateKey])));
-      const congTrinhMatch = effectiveCongTrinh.length === 0 || (expCongTrinhKey && effectiveCongTrinh.includes(String(row[expCongTrinhKey!] || '').trim()));
+      const congTrinhMatch = !ctKeys || (!!expCongTrinhKey && ctKeys.has(projectMatchKey(row[expCongTrinhKey])));
       const xuongMatch = filters.xuong.length === 0 || (expXuongKey && filters.xuong.includes(String(row[expXuongKey!] || '').trim()));
       return dateMatch && congTrinhMatch && xuongMatch;
     });

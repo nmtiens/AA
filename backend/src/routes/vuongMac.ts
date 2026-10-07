@@ -6,6 +6,7 @@ import { parseBotEnd } from '../vuongMacPush.js';
 import { notify, findMentionedIds, idsByFullName, idsByUsername, recipientsFor, displayName } from '../notifications.js';
 import { authenticateJWT } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
+import { expandWorkshops, workshopGroupOf } from '../server/workshopGroups.js';
 import { app } from '../server/app.js';
 
 const FIVE_M_CATEGORIES = ['man', 'machine', 'material', 'method', 'measurement'] as const;
@@ -807,7 +808,8 @@ app.get('/api/vuong-mac/xuong', authenticateJWT, async (_req: Request, res: Resp
        WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
        ORDER BY 1`
     );
-    res.json(r.rows.map(row => row.name as string));
+    // Tên xưởng ĐÃ GỘP (setup gộp xưởng), bỏ trùng
+    res.json([...new Set(r.rows.map(row => workshopGroupOf(row.name)).filter(Boolean))].sort());
   } catch (error) {
     console.error('Lỗi /api/vuong-mac/xuong:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -838,7 +840,7 @@ const FACTORY_CODE_COL = 'ma_nha_may';
 app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q || '').trim();
-    const xuongList = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const xuongList = expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
     if (q.length < 2 && xuongList.length === 0) return res.json([]);
 
     const conds: string[] = ['hex IS NOT NULL'];

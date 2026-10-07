@@ -271,6 +271,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
               <table className="w-full border-separate border-spacing-0 text-xs">
                 <thead className="font-bold uppercase tracking-tight text-slate-800">
                   <tr>
+                    <th className={`${th} w-10 text-right`}>STT</th>
                     <th className={th}>Công trình</th>
                     <th className={th}>PC</th>
                     <th className={`${th} text-right`}>Số hex</th>
@@ -279,7 +280,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                   </tr>
                 </thead>
                 <tbody>
-                  {byProject.map(g => {
+                  {byProject.map((g, idx) => {
                     const active = projectFilter === g.name;
                     return (
                       <tr
@@ -288,6 +289,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                         title="Bấm để lọc danh sách hex bên dưới theo công trình này"
                         className={`cursor-pointer ${active ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
                       >
+                        <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
                         <td className={`${td} font-medium text-slate-700`}>{g.name}</td>
                         <td className={`${td} text-slate-600`}>{[...g.pcs].join(', ') || '—'}</td>
                         <td className={`${td} text-right font-bold tabular-nums`}>{g.hexes.size}</td>
@@ -331,6 +333,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
               </div>
               <table className="w-full border-separate border-spacing-0 text-xs" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
+                  <col style={{ width: 44 }} />
                   <col style={{ width: 55 }} />
                   <col style={{ width: '15%' }} />
                   <col style={{ width: 110 }} />
@@ -343,6 +346,7 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                 </colgroup>
                 <thead className="sticky top-0 z-10 font-bold uppercase tracking-tight text-slate-800">
                   <tr>
+                    <th className={`${th} text-right`}>STT</th>
                     <th className={th}>PR line</th>
                     <th className={th}>Tên vật tư</th>
                     <th className={th}>Trạng thái</th>
@@ -355,11 +359,12 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(r => {
+                  {filtered.map((r, idx) => {
                     const inside = inFilter(r.hex);
                     const reasons = reasonsByHex.get(r.hex) ?? [];
                     return (
                       <tr key={`${r.pr_line}-${r.hex}`} className={inside ? 'bg-amber-50/60' : 'hover:bg-slate-50'}>
+                        <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
                         <td className={`${td} text-slate-500`}>{r.pr_line ?? ''}</td>
                         <td className={`${td} break-words text-slate-700`}>{r.ten_vat_tu}</td>
                         <td className={`${td} text-slate-600`}>{r.trang_thai}</td>

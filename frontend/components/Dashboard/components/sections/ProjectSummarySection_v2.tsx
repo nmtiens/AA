@@ -58,8 +58,8 @@ interface ProjectSummarySectionProps {
   clickableColumns?: ProjectSummaryColumn[];
   /**
    * Danh sách công trình theo đúng thứ tự ưu tiên đã setup ở trang
-   * "Setup dữ liệu theo View". Có prop này thì bảng sắp xếp lại theo thứ tự đó
-   * và thêm cột STT; công trình không có trong danh sách xếp xuống cuối.
+   * "Setup dữ liệu theo View". Có prop này thì bảng sắp xếp lại theo thứ tự đó;
+   * công trình không có trong danh sách xếp xuống cuối.
    */
   priorityOrder?: string[];
   /** Thông tin BOT theo công trình (key = tên công trình viết HOA). */
@@ -106,10 +106,10 @@ export const ProjectSummarySection_v2 = ({
   const metaOf = (name: string): ProjectMeta | undefined =>
     projectMeta?.[projectMatchKey(name)];
 
-  // Sắp xếp lại theo thứ tự ưu tiên (nếu có) + tính rank từng dòng.
-  const { orderedRows, rankByName } = useMemo(() => {
+  // Sắp xếp lại theo thứ tự ưu tiên (nếu có).
+  const orderedRows = useMemo(() => {
     if (!hasPriority) {
-      return { orderedRows: projectStatusSummary, rankByName: new Map<string, number>() };
+      return projectStatusSummary;
     }
     const rankMap = new Map<string, number>();
     priorityOrder!.forEach((name, idx) => { const k = projectMatchKey(name); if (!rankMap.has(k)) rankMap.set(k, idx); });
@@ -124,7 +124,7 @@ export const ProjectSummarySection_v2 = ({
       return a.originalIndex - b.originalIndex;
     });
 
-    return { orderedRows: withRank.map((w) => w.row), rankByName: rankMap };
+    return withRank.map((w) => w.row);
   }, [projectStatusSummary, priorityOrder, hasPriority]);
 
   // Giá trị của một cột (gồm các cột tính toán)
@@ -190,23 +190,21 @@ export const ProjectSummarySection_v2 = ({
 
       {projectStatusSummary.length > 0 ? (
         <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
-          <table className="w-full text-xs min-w-[1370px] border-separate border-spacing-0">
+          <table className="w-full text-xs min-w-[1418px] border-separate border-spacing-0">
             <thead className="text-slate-800 font-bold uppercase tracking-tight">
               {/* Hàng 1: các cột đơn (rowSpan=2) + nhóm "Còn lại" (colSpan=5) */}
               <tr>
-                {hasPriority && (
-                  <th
-                    rowSpan={2}
-                    style={{ width: STT_WIDTH, minWidth: STT_WIDTH }}
-                    className="px-1 py-3 text-center sticky left-0 top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 shadow-sm"
-                  >
-                    STT
-                  </th>
-                )}
                 <th
                   rowSpan={2}
-                  style={hasPriority ? { left: STT_WIDTH } : undefined}
-                  className={`px-3 py-3 text-left sticky ${hasPriority ? '' : 'left-0'} top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 min-w-[220px] shadow-sm`}
+                  style={{ width: STT_WIDTH, minWidth: STT_WIDTH }}
+                  className="px-1 py-3 text-center sticky left-0 top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 shadow-sm"
+                >
+                  STT
+                </th>
+                <th
+                  rowSpan={2}
+                  style={{ left: STT_WIDTH }}
+                  className={`px-3 py-3 text-left sticky top-0 bg-emerald-100 border-b border-r border-emerald-200 z-30 min-w-[220px] shadow-sm`}
                 >
                   Tên Công Trình
                 </th>
@@ -235,20 +233,18 @@ export const ProjectSummarySection_v2 = ({
             </thead>
             <tbody className="divide-y divide-emerald-50">
               {orderedRows.map((row, idx) => {
-                const rank = hasPriority ? rankByName.get(projectMatchKey(row.name)) : undefined;
                 return (
                   <tr key={idx} className="hover:brightness-95 transition-colors group">
-                    {hasPriority && (
-                      <td
-                        style={{ width: STT_WIDTH, minWidth: STT_WIDTH }}
-                        className="px-1 py-2.5 text-center font-bold text-slate-700 sticky left-0 z-10 border-r border-slate-100 bg-white"
-                      >
-                        {rank !== undefined ? rank + 1 : '–'}
-                      </td>
-                    )}
+                    {/* STT liên tục theo thứ tự đang hiển thị (đã xếp theo ưu tiên nếu có) */}
                     <td
-                      style={{ left: hasPriority ? STT_WIDTH : undefined }}
-                      className={`px-3 py-2.5 text-left font-medium text-slate-700 sticky ${hasPriority ? '' : 'left-0'} z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] bg-white`}
+                      style={{ width: STT_WIDTH, minWidth: STT_WIDTH }}
+                      className={`px-1 py-2.5 text-center tabular-nums sticky left-0 z-10 border-r border-slate-100 bg-white text-slate-400`}
+                    >
+                      {idx + 1}
+                    </td>
+                    <td
+                      style={{ left: STT_WIDTH }}
+                      className={`px-3 py-2.5 text-left font-medium text-slate-700 sticky z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] bg-white`}
                     >
                       {row.name}
                     </td>
@@ -270,12 +266,10 @@ export const ProjectSummarySection_v2 = ({
             </tbody>
             <tfoot className="bg-emerald-50 font-bold text-slate-800 border-t border-emerald-300 sticky bottom-0 z-20">
               <tr>
-                {hasPriority && (
-                  <td style={{ width: STT_WIDTH, minWidth: STT_WIDTH }} className="px-1 py-3 text-center sticky left-0 bg-emerald-50" />
-                )}
+                <td style={{ width: STT_WIDTH, minWidth: STT_WIDTH }} className="px-1 py-3 text-center sticky left-0 bg-emerald-50" />
                 <td
-                  style={hasPriority ? { left: STT_WIDTH } : undefined}
-                  className={`px-3 py-3 text-left sticky ${hasPriority ? '' : 'left-0'} bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}
+                  style={{ left: STT_WIDTH }}
+                  className={`px-3 py-3 text-left sticky bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]`}
                 >
                   TỔNG CỘNG
                 </td>

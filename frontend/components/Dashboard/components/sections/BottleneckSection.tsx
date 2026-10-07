@@ -168,6 +168,16 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
               </Bar>
+              <Bar dataKey="Chưa có số ngày" stackId="a" fill="#cbd5e1" barSize={30}>
+                <LabelList
+                  dataKey="Chưa có số ngày"
+                  position="center"
+                  fill="#475569"
+                  fontSize={10}
+                  fontWeight="bold"
+                  formatter={(v: any) => (v > 0 ? v : '')}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

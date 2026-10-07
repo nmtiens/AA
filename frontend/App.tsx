@@ -2,14 +2,15 @@
 import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
-import { canonicalizeProjectNames } from './utils/productionMetrics';
+import { canonicalizeProjectNames, canonicalizePersonNames } from './utils/productionMetrics';
+import { loadWorkshopGroups, canonicalizeWorkshops } from './utils/workshopGroups';
 // Prefetch + gate cho mapping "view -> danh sách công trình"
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
 // Prefetch cho cấu hình "bảng -> danh sách cột được phép / mặc định hiện"
@@ -30,6 +31,7 @@ const ConstructionView = lazy(() => import('./components/Construction/Constructi
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
 const ConstructionOverview = lazy(() => import('./components/Construction/ConstructionOverview'));
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
+const WorkshopGroupSetup = lazy(() => import('./components/Construction/WorkshopGroupSetup'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
@@ -123,6 +125,7 @@ const App: React.FC = () => {
                   {/* --- Hệ thống --- */}
                   <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
                   <Route path="/setup/cot-du-lieu" element={<RequirePermission viewId="table_column_setup"><TableColumnSetupWrapper /></RequirePermission>} />
+                  <Route path="/setup/gop-xuong" element={<WorkshopGroupSetupWrapper />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
@@ -240,6 +243,14 @@ const TableColumnSetupWrapper = () => {
     yearlyPlan: context.yearlyPlanColumns,
   };
   return <TableColumnSetup columnsByTable={columnsByTable} />;
+};
+
+// Setup gộp xưởng — chỉ ADMIN. Lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang.
+const WorkshopGroupSetupWrapper = () => {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <FullScreenLoader />;
+  if (user?.role !== 'ADMIN') return <Navigate to="/" replace />;
+  return <WorkshopGroupSetup onSaved={() => window.dispatchEvent(new Event('workshop-groups-changed'))} />;
 };
 
 const YearlyPlanDataWrapper = () => {
@@ -396,6 +407,8 @@ const MainLayout: React.FC = () => {
   const [isLogOpen, setIsLogOpen] = useState(false);
   // Tăng sau mỗi lần "Làm mới" thủ công để trang hiện tại mount lại và gọi lại API
   const [refreshKey, setRefreshKey] = useState(0);
+  // Tăng khi setup gộp xưởng nạp xong / đổi -> gộp lại cột xưởng của dữ liệu đã tải
+  const [workshopGroupsVersion, setWorkshopGroupsVersion] = useState(0);
 
   const location = useLocation();
 
@@ -406,7 +419,15 @@ const MainLayout: React.FC = () => {
     if (!user) return;
     loadViewMapping();
     loadTableColumnConfig();
+    loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1));
   }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ADMIN vừa lưu setup gộp xưởng (cache đã cập nhật) -> gộp lại dữ liệu, các trang gọi lại API
+  useEffect(() => {
+    const onChanged = () => { setWorkshopGroupsVersion(v => v + 1); setRefreshKey(k => k + 1); };
+    window.addEventListener('workshop-groups-changed', onChanged);
+    return () => window.removeEventListener('workshop-groups-changed', onChanged);
+  }, []);
 
   const tableVersions = useRef<Record<string, string>>({});
   const dataLoadedRef = useRef<Record<string, boolean>>({});
@@ -649,6 +670,7 @@ const MainLayout: React.FC = () => {
         checkAndSync(true),
         loadViewMapping(),
         loadTableColumnConfig(),
+        loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
@@ -669,22 +691,40 @@ const MainLayout: React.FC = () => {
   // trong ô đổi mật khẩu, mở menu) — tránh DataGrid lọc/sắp xếp lại toàn bộ bảng.
   // Tên công trình chuẩn theo mã (1 mã có thể có nhiều cách viết tên) — làm 1 lần ở đây để mọi
   // trang (Tổng quan, Luồng đỏ, Báo cáo tiến độ, bảng dữ liệu) gom cùng 1 công trình giống nhau.
+  // Tên PM / PC cũng gom các cách viết của cùng 1 người (NGỌC SÁU / saudn -> ĐẶNG NGỌC SÁU).
   const canonicalProductionData = useMemo(
-    () => canonicalizeProjectNames(productionData, productionColumns),
-    [productionData, productionColumns]
+    () => canonicalizeWorkshops(
+      canonicalizePersonNames(canonicalizeProjectNames(productionData, productionColumns), productionColumns),
+      productionColumns
+    ),
+    [productionData, productionColumns, workshopGroupsVersion] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // Cột xưởng các bảng khác cũng theo setup gộp xưởng (bảng không có cột xưởng giữ nguyên)
+  /* eslint-disable react-hooks/exhaustive-deps */
+  const wgMaterialData = useMemo(() => canonicalizeWorkshops(materialData, materialColumns), [materialData, materialColumns, workshopGroupsVersion]);
+  const wgKhsxData = useMemo(() => canonicalizeWorkshops(khsxData, khsxColumns), [khsxData, khsxColumns, workshopGroupsVersion]);
+  const wgOrderData = useMemo(() => canonicalizeWorkshops(orderData, orderColumns), [orderData, orderColumns, workshopGroupsVersion]);
+  const wgInventoryData = useMemo(() => canonicalizeWorkshops(inventoryData, inventoryColumns), [inventoryData, inventoryColumns, workshopGroupsVersion]);
+  const wgTkbvData = useMemo(() => canonicalizeWorkshops(tkbvData, tkbvColumns), [tkbvData, tkbvColumns, workshopGroupsVersion]);
+  const wgPthspData = useMemo(() => canonicalizeWorkshops(pthspData, pthspColumns), [pthspData, pthspColumns, workshopGroupsVersion]);
+  const wgAnalysisData = useMemo(() => canonicalizeWorkshops(analysisData, analysisColumns), [analysisData, analysisColumns, workshopGroupsVersion]);
+  const wgYearlyPlanData = useMemo(() => canonicalizeWorkshops(yearlyPlanData, yearlyPlanColumns), [yearlyPlanData, yearlyPlanColumns, workshopGroupsVersion]);
+  const wgExportData = useMemo(() => canonicalizeWorkshops(exportData, exportColumns), [exportData, exportColumns, workshopGroupsVersion]);
+  const wgStockData = useMemo(() => canonicalizeWorkshops(stockData, stockColumns), [stockData, stockColumns, workshopGroupsVersion]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const contextValue = useMemo<MainLayoutContext>(() => ({
-    productionData: canonicalProductionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
-    orderData, orderColumns, inventoryData, inventoryColumns, tkbvData, tkbvColumns, pthspData, pthspColumns,
-    analysisData, analysisColumns, yearlyPlanData, yearlyPlanColumns, exportData, exportColumns,
-    stockData, stockColumns, attendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
+    productionData: canonicalProductionData, productionColumns, materialData: wgMaterialData, materialColumns,
+    khsxData: wgKhsxData, khsxColumns, orderData: wgOrderData, orderColumns, inventoryData: wgInventoryData, inventoryColumns,
+    tkbvData: wgTkbvData, tkbvColumns, pthspData: wgPthspData, pthspColumns, analysisData: wgAnalysisData, analysisColumns,
+    yearlyPlanData: wgYearlyPlanData, yearlyPlanColumns, exportData: wgExportData, exportColumns,
+    stockData: wgStockData, stockColumns, attendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
     isGlobalLoading: loading
   }), [
-    canonicalProductionData, productionColumns, materialData, materialColumns, khsxData, khsxColumns,
-    orderData, orderColumns, inventoryData, inventoryColumns, tkbvData, tkbvColumns, pthspData, pthspColumns,
-    analysisData, analysisColumns, yearlyPlanData, yearlyPlanColumns, exportData, exportColumns,
-    stockData, stockColumns, attendanceData, attendanceColumns, isCollapsed, loading,
+    canonicalProductionData, productionColumns, wgMaterialData, materialColumns, wgKhsxData, khsxColumns,
+    wgOrderData, orderColumns, wgInventoryData, inventoryColumns, wgTkbvData, tkbvColumns, wgPthspData, pthspColumns,
+    wgAnalysisData, analysisColumns, wgYearlyPlanData, yearlyPlanColumns, wgExportData, exportColumns,
+    wgStockData, stockColumns, attendanceData, attendanceColumns, isCollapsed, loading,
   ]);
 
   // ------------------------------------------------------------
@@ -890,6 +930,18 @@ const MainLayout: React.FC = () => {
               icon={<Columns size={18} />}
               label="Setup cột dữ liệu"
               active={location.pathname === '/setup/cot-du-lieu'}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
+
+          {/* Setup gộp xưởng - chỉ ADMIN */}
+          {user?.role === 'ADMIN' && (
+            <NavLink
+              to="/setup/gop-xuong"
+              icon={<Factory size={18} />}
+              label="Setup gộp xưởng"
+              active={location.pathname === '/setup/gop-xuong'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />

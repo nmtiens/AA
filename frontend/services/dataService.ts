@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { expandProjectNames } from '../utils/productionMetrics';
 import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
 import { getToken } from './userService';
 
@@ -365,7 +366,9 @@ interface OverviewFilterOpts {
 }
 
 const appendFilterParams = (params: URLSearchParams, opts?: OverviewFilterOpts) => {
-  if (opts?.congTrinh?.length) params.set('congTrinh', opts.congTrinh.join(','));
+  // Mở rộng thành mọi cách viết của cùng công trình (các bảng nhập/xuất/tồn kho có thể ghi tên khác)
+  // Ngăn bằng "|" vì tên công trình có thể chứa dấu phẩy (server đọc được cả 2 kiểu)
+  if (opts?.congTrinh?.length) params.set('congTrinh', expandProjectNames(opts.congTrinh).join('|') + '|');
   if (opts?.xuong?.length) params.set('xuong', opts.xuong.join(','));
   if (opts?.tinhTrang?.length) params.set('tinhTrang', opts.tinhTrang.join(','));
   if (opts?.tinhTrangIpo?.length) params.set('tinhTrangIpo', opts.tinhTrangIpo.join(','));
@@ -494,7 +497,7 @@ export async function fetchKhsxNhapKhoSummary(params: {
   if (params.thang) q.set('thang', params.thang);
   if (params.tuan) q.set('tuan', params.tuan);
   if (params.ngay) q.set('ngay', params.ngay);
-  if (params.congTrinh?.length) q.set('congTrinh', params.congTrinh.join(','));
+  if (params.congTrinh?.length) q.set('congTrinh', expandProjectNames(params.congTrinh).join('|') + '|');
   if (params.xuong?.length) q.set('xuong', params.xuong.join(','));
 
   try {
@@ -566,6 +569,46 @@ export const saveViewProjectMapping = async (
 };
 
 
+// ==================== SETUP GỘP XƯỞNG ====================
+
+export interface WorkshopCodeInfo { code: string; counts: Record<string, number>; total: number }
+export interface WorkshopGroupsDTO { mapping: Record<string, string>; codes?: WorkshopCodeInfo[] }
+
+/** Setup gộp xưởng (mã gốc -> xưởng gộp). withCodes: kèm các mã xưởng đang có trong dữ liệu. */
+export const fetchWorkshopGroups = async (withCodes: boolean): Promise<WorkshopGroupsDTO> => {
+  try {
+    const token = getToken();
+    const r = await fetch(`${API_BASE_URL}/workshop-groups${withCodes ? '?codes=1' : ''}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchWorkshopGroups error:', e);
+    return { mapping: {} };
+  }
+};
+
+/** Lưu toàn bộ setup gộp xưởng (chỉ ADMIN). */
+export const saveWorkshopGroups = async (
+  mapping: Record<string, string>
+): Promise<{ success: boolean; message?: string; mapping?: Record<string, string> }> => {
+  try {
+    const token = getToken();
+    const r = await fetch(`${API_BASE_URL}/workshop-groups`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ mapping }),
+    });
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) return { success: false, message: body?.message || 'Lưu thất bại' };
+    return body;
+  } catch (e) {
+    console.error('saveWorkshopGroups error:', e);
+    return { success: false, message: 'Không kết nối được máy chủ' };
+  }
+};
+
 // ==================== TABLE COLUMN CONFIG (Setup cột cho từng bảng) ====================
 
 export interface TableColumnConfigDTO {
@@ -605,7 +648,8 @@ export const saveTableColumnConfig = async (
     console.error('saveTableColumnConfig error:', e);
     return false;
   }
-};// Kế hoạch năm (khsx_nam, TỶ ĐỒNG) theo tháng / xưởng trong khoảng tháng [from, to] (YYYY-MM)
+};
+// Kế hoạch năm (khsx_nam, TỶ ĐỒNG) theo tháng / xưởng trong khoảng tháng [from, to] (YYYY-MM)
 export interface YearPlanData {
   byMonth: { period: string; value: number }[];
   byXuong: { xuong: string; value: number }[];
@@ -619,6 +663,24 @@ export const fetchYearPlan = async (from: string, to: string, xuong?: string): P
     return await r.json();
   } catch (e) {
     console.error('fetchYearPlan error:', e);
+    return null;
+  }
+};
+
+// Kế hoạch năm (khsx_nam) & thực hiện nhập kho theo tháng × xưởng của 1 năm (TỶ ĐỒNG)
+export interface YearPlanActualData {
+  year: number;
+  workshops: string[];
+  plan: { thang: number; xuong: string; value: number }[];
+  actual: { thang: number; xuong: string; value: number }[];
+}
+export const fetchYearPlanActual = async (year: number): Promise<YearPlanActualData | null> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/khsx-nam/plan-actual?year=${year}`);
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchYearPlanActual error:', e);
     return null;
   }
 };

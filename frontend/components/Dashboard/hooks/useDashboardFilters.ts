@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
-import { toFilterSet, matchesFilter, matchesCategory } from '../utils/filterMatch';
+import { toFilterSet, matchesFilter, matchesCategory, toProjectSet, matchesProject } from '../utils/filterMatch';
 
 export interface DashboardFiltersState {
   congTrinh: string[];
@@ -196,8 +196,10 @@ export function useDashboardFilters({
   }, [productionData, congTrinhSet, xuongSet, tinhTrangIpoSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
 
   const filteredMaterialData = useMemo(() => {
-    return materialData.filter(row => matchesFilter(congTrinhSet, row, matCongTrinhKey));
-  }, [materialData, congTrinhSet, matCongTrinhKey]);
+    // Vật tư ghi tên công trình riêng -> so theo tên chuẩn
+    const set = toProjectSet(effectiveCongTrinh);
+    return materialData.filter(row => matchesProject(set, row, matCongTrinhKey));
+  }, [materialData, effectiveCongTrinh, matCongTrinhKey]);
 
   const displayedMaterialData = useMemo(() => {
     if (selectedMaterialGroups.length === 0) return filteredMaterialData;

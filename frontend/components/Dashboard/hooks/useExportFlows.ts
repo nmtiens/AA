@@ -576,7 +576,8 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
       "4-7 Ngày": item['4-7 NGÀY'] || 0,
       "2 Tuần": item['2 tuần'] || 0,
       "3 Tuần": item['3 tuần'] || 0,
-      "Trên 4 Tuần": item['Từ 4 tuần trở lên'] || 0
+      "Từ 4 tuần trở lên": item['Từ 4 tuần trở lên'] || 0,
+      "Chưa có số ngày": item['Chưa có số ngày'] || 0
     }));
     exportToCSV(flatBottleneckData, `Bao_Cao_Diem_Nghen_${new Date().toISOString().split('T')[0]}.csv`);
   };

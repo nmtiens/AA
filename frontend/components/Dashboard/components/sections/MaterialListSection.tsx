@@ -62,7 +62,7 @@ const totalMaterialPages = Math.max(
         <table className="w-full text-xs text-left whitespace-nowrap">
           <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10">
             <tr>
-              <th className="px-3 py-2 border-b border-slate-200 text-center w-10">#</th>
+              <th className="px-3 py-2 border-b border-slate-200 text-center w-10">STT</th>
               {MATERIAL_LIST_COLUMNS.map((col, idx) => (
                 <th key={idx} className="px-3 py-2 border-b border-slate-200">
                   {MATERIAL_LIST_COLUMN_LABELS[col] || col}

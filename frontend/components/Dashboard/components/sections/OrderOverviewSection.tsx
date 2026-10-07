@@ -1077,7 +1077,7 @@ const periodLabel = overviewDateFilters.length > 1
       {/* Modal: Chi tiết Nhập Kho */}
       {isInventoryDetailModalOpen && (
         <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-2xl shadow-2xl w-[97%] max-w-none h-[94vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
   <div className="flex items-center gap-6">
     <div>

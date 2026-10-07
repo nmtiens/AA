@@ -172,6 +172,7 @@ useEffect(() => {
           <table className="w-full text-sm text-right relative border-collapse">
             <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs sticky top-0 z-20 shadow-sm">
               <tr>
+                <th className="w-12 pl-4 pr-2 py-3 text-right border-b border-slate-200 bg-slate-100">STT</th>
                 <th className="px-4 py-3 text-left border-b border-slate-200 bg-slate-100 min-w-[200px] z-30">
                   <div className="flex items-center justify-between">
                     <span
@@ -251,6 +252,7 @@ useEffect(() => {
             <tbody className="divide-y divide-slate-100">
               {sortedData.length > 0 ? sortedData.map((item, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                  <td className="pl-4 pr-2 py-3 text-right tabular-nums text-slate-400">{idx + 1}</td>
                   <td className="px-4 py-3 text-left font-medium text-slate-700">{item.name}</td>
                   <td className={`px-4 py-3 ${item.daily > 0 ? `${primaryColorClass} font-bold` : 'text-slate-300'}`}>
                     {item.daily > 0 ? formatValue(item.daily) : '-'}
@@ -260,11 +262,12 @@ useEffect(() => {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={3} className="p-8 text-center text-slate-400">Đã lọc hết dữ liệu.</td></tr>
+                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Đã lọc hết dữ liệu.</td></tr>
               )}
             </tbody>
             <tfoot className="bg-slate-100 font-bold text-slate-800 border-t border-slate-300 sticky bottom-0 z-20 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
               <tr>
+                <td className="bg-slate-100" />
                 <td className="px-4 py-3 text-left bg-slate-100">TỔNG CỘNG</td>
                 <td className={`px-4 py-3 bg-slate-100 ${primaryColorClass}`}>
                   {formatValue(totalDaily)}

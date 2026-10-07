@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { toFilterSet, matchesFilter } from '../utils/filterMatch';
+import { toFilterSet, matchesFilter, toProjectSet, matchesProject } from '../utils/filterMatch';
 import { DataRow } from '../../../types';
 import { getWeekNumber } from '../utils/dateHelpers';
 import { DashboardFiltersState } from './useDashboardFilters';
@@ -66,7 +66,8 @@ export function useUnifiedTimeFilters({
 
   // Set tạo 1 lần mỗi khi bộ lọc đổi (danh sách công trình có thể dài hàng trăm phần tử khi
   // lọc theo khách hàng / khu vực dự án), thay cho Array.includes trên từng dòng.
-  const congTrinhSet = useMemo(() => toFilterSet(filters.congTrinh), [filters.congTrinh]);
+  // Bảng nhập kho / phân tích KH-TH ghi tên công trình riêng -> so theo tên chuẩn
+  const congTrinhSet = useMemo(() => toProjectSet(filters.congTrinh), [filters.congTrinh]);
   const xuongSet = useMemo(() => toFilterSet(filters.xuong), [filters.xuong]);
 
   const filteredInventoryData = useMemo(() => {
@@ -76,7 +77,7 @@ export function useUnifiedTimeFilters({
     const ngaySet = viewMode === 'WEEK' ? toFilterSet(unifiedTimeFilters.ngay) : null;
 
     return inventoryData.filter(row =>
-      matchesFilter(congTrinhSet, row, invCongTrinhKey) &&
+      matchesProject(congTrinhSet, row, invCongTrinhKey) &&
       matchesFilter(xuongSet, row, invXuongKey) &&
       matchesFilter(namSet, row, invNamKey) &&
       matchesFilter(thangSet, row, invThangKey) &&
@@ -87,7 +88,7 @@ export function useUnifiedTimeFilters({
 
   const filteredAnalysisData = useMemo(() => {
     return analysisData.filter(row =>
-      matchesFilter(congTrinhSet, row, analysisCongTrinhKey) &&
+      matchesProject(congTrinhSet, row, analysisCongTrinhKey) &&
       matchesFilter(xuongSet, row, analysisXuongKey)
     );
   }, [analysisData, congTrinhSet, xuongSet, analysisCongTrinhKey, analysisXuongKey]);

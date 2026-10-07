@@ -6,6 +6,8 @@ import rateLimit from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import { allowedOrigins } from './config.js';
 import { authenticateJWT } from './auth.js';
+import { ensureProjectAliases } from './projectAlias.js';
+import { ensureWorkshopGroups } from './workshopGroups.js';
 
 // Instance Express dùng chung. Middleware hạ tầng + bắt buộc đăng nhập được gắn
 // NGAY khi module này được nạp, tức là TRƯỚC mọi route (các module trong src/routes/
@@ -90,5 +92,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === 'OPTIONS' || !path.startsWith('/api/')) return next();
   if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
   return authenticateJWT(req, res, next);
+});
+
+// Lọc theo tên công trình: nạp sẵn bảng "mọi cách viết tên của cùng mã" (làm mới 10 phút/lần).
+// Setup gộp xưởng: bảng nhỏ, nạp cho mọi API (làm mới 5 phút/lần, lưu xong nạp lại ngay).
+app.use(async (req: Request, _res: Response, next: NextFunction) => {
+  if (req.path.toLowerCase().startsWith('/api/')) {
+    try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ }
+  }
+  if (req.query.congTrinh || req.query.ctWhitelist) {
+    try { await ensureProjectAliases(); } catch { /* giữ bảng cũ */ }
+  }
+  next();
 });
 

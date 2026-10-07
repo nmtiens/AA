@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
 import { parseVNDate, diffDays } from './Dashboard/utils/dateHelpers';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
@@ -143,6 +144,7 @@ const {
   clearFilters,
   filteredProductionData,
   funnelProductionData,
+  projectSummaryProductionData,
   crossFilterBaseData,
   filteredMaterialData,
   displayedMaterialData,
@@ -371,6 +373,8 @@ const {
   filteredProductionData,
   filteredMaterialData,
   funnelProductionData, // THÊM
+  // Danh sách HEX khi bấm phễu / bảng công trình dùng cùng nguồn với phễu (không ăn ô Tình trạng)
+  projectSummaryProductionData,
   displayedMaterialData,
   stockDates,        // MỚI: thay cho stockData/stockDateKey/stockValueKey/stockSapIdKey
   closestStockDate,
@@ -472,25 +476,8 @@ const handleContinueToOrderColumnStep = () => {
     setIsOrderExportModalOpen(true);
   };
 
-  const getMaterialRowClassName = (row: DataRow): string => {
-    const status = String(row[matStatusSapKey] || '').toLowerCase();
-    if (status.includes('hủy')) return 'bg-gray-100 text-gray-500 italic';
-    if (status.includes('hoàn thành') || status.includes('đóng') || status.includes('xong')) return 'bg-green-100 text-green-800';
-    if (status.includes('mở') || status.includes('open') || !status) {
-      if (matEstDateKey) {
-        const dateStr = String(row[matEstDateKey] || '');
-        const date = parseVNDate(dateStr);
-        if (date) {
-          const diff = diffDays(date, new Date());
-          if (diff < 0) return 'bg-red-100 text-yellow-700 font-bold';
-          if (diff === 0) return 'bg-orange-200 text-orange-800 animate-pulse font-bold';
-          if (diff >= 1 && diff <= 5) return 'bg-yellow-50 text-slate-700';
-          if (diff > 5) return 'bg-yellow-200 text-slate-700';
-        }
-      }
-    }
-    return 'bg-white hover:bg-slate-50';
-  };
+  // Màu dòng vật tư theo trạng thái dòng PR (cùng quy tắc với tab BOM)
+  const getMaterialRowClassName = (row: DataRow): string => materialRowClass(row);
 
   const targetRevenue2026 = revenue2026?.targetRevenue2026 ?? 0;
   const quarterlyTargets = revenue2026?.quarterlyTargets ?? { q1: 0, q2: 0, q3: 0, q4: 0 };

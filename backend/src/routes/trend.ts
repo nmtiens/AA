@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
-import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
+import { workshopCondition, workshopGroupSql, workshopGroupOf } from '../server/workshopGroups.js';
 import { app } from '../server/app.js';
 
 // [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
@@ -45,13 +46,13 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     // [FILTER FIX] chuẩn hóa UPPER/TRIM
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
-      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
@@ -169,7 +170,9 @@ app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
       ORDER BY UPPER(TRIM(name)), name
     `;
     const r = await timedQuery(q);
-    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
+    // Trả tên xưởng ĐÃ GỘP (setup gộp xưởng), bỏ trùng
+    const groups = [...new Set(r.rows.map(row => workshopGroupOf(row.name)).filter(Boolean))].sort();
+    res.json(groups.map(name => ({ code: name, name })));
   } catch (error) {
     console.error('Lỗi filters/xuong:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -280,13 +283,13 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
 
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
-      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
@@ -313,7 +316,7 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     const q = `
       ${withClause}
       SELECT
-        COALESCE(NULLIF(TRIM(${xuongExpr}), ''), 'TỒN KHO KHÁC') AS xuong,
+        COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), 'TỒN KHO KHÁC') AS xuong,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}
@@ -374,13 +377,13 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
 
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
-      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
@@ -464,13 +467,13 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
 
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
-      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);  
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
@@ -552,13 +555,13 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
 
     if (xuong) {
       if (cfg.xuongCol) {
-        params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length));
+        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
       } else if (cfg.xuongViaProductionJoin) {
-        params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length));
+        conditions.push(workshopCondition('p.xuong_chinh', xuong, params));
       }
     }
     if (congTrinh && cfg.congTrinhCol) {
-      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
@@ -707,12 +710,12 @@ app.get('/api/detail', async (req: Request, res: Response) => {
         if (isUnknownValueLabel(value)) {
           conditions.push(emptyCond(colExpr));
         } else {
-          params.push(value); conditions.push(eqNormalized(colExpr, params.length));
+          conditions.push(workshopCondition(colExpr, value, params));
         }
       }
     } else if (xuong) {
-      if (cfg.xuongCol) { params.push(xuong); conditions.push(eqNormalized(colBare(cfg.xuongCol), params.length)); }
-      else if (cfg.xuongViaProductionJoin) { params.push(xuong); conditions.push(eqNormalized('p.xuong_chinh', params.length)); }
+      if (cfg.xuongCol) { conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params)); }
+      else if (cfg.xuongViaProductionJoin) { conditions.push(workshopCondition('p.xuong_chinh', xuong, params)); }
     }
 
     // Chiều công trình
@@ -723,7 +726,7 @@ app.get('/api/detail', async (req: Request, res: Response) => {
         params.push(value); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
       }
     } else if (congTrinh && cfg.congTrinhCol) {
-      params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)

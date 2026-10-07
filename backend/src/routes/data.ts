@@ -120,6 +120,44 @@ app.post('/api/production/notes', async (req: Request, res: Response) => {
   }
 });
 
+// Chi tiết 1 hạng mục (HEX) cho cửa sổ "Chi tiết hạng mục" (BOP × BOT): các mốc ngày, số lượng
+// theo công đoạn, lịch sử nhập kho, QC, ghi chú phiếu. Chỉ các cột cần hiển thị (không gồm đơn giá).
+const HEX_DETAIL_COLUMNS = [
+  'hex', 'ma_cong_trinh', 'ten_cong_trinh', 'ten_hang_muc', 'mo_ta_san_pham', 'ma_nha_may', 'ma_hang_muc_boq',
+  'phan_loai_nhom_san_pham', 'khu_vuc', 'xuong_chinh', 'xuong_phu_tro', 'ten_pm', 'ten_pc', 'dvt', 'nhom_ct',
+  'tinh_trang_ipo', 'tinh_trang', 'bop', 'so_ngay_cd_hien_tai',
+  'ngay_nhan_tu_pm', 'tinh_trang_trien_khai_ban_ve', 'ngay_trien_khai_ban_ve',
+  'tinh_trang_phieu', 'ngay_tinh_phieu', 'ngay_duyet_phieu', 'ghi_chu_phieu',
+  'ngay_khnk_tuan', 'sl_khnk_tuan', 'ngay_khnk_thang', 'sl_khnk_thang', 'ngay_can', 'ngay_can_giao', 'bot_du_an',
+  'so_luong_don_hang_tong', 'tri_gia_don_hang_tong', 'so_luong_tinh_phieu', 'thanh_tien_tinh_phieu',
+  'so_luong_nhap_kho_luy_ke', 'thanh_tien_nhap_kho_luy_ke', 'so_luong_xuat_kho_luy_ke', 'so_luong_ton_kho_hien_tai',
+  'so_luong_cong_doan_cts_da_giao', 'so_luong_cong_doan_may_da_giao', 'so_luong_cong_doan_moc_da_giao',
+  'so_luong_cong_doan_vecni_da_giao', 'so_luong_cong_doan_fitting_da_giao', 'so_luong_cong_doan_kim_loai_da_giao',
+  'so_luong_cong_doan_sofa_da_giao', 'so_luong_cong_doan_da_da_giao', 'so_luong_cong_doan_kinh_da_giao',
+  'so_luong_cong_doan_bao_bi_da_giao',
+  'co_vecni', 'co_sofa', 'co_kim_loai', 'co_kinh_da', 'co_gia_cong_ngoai', 'tinh_trang_gcn', 'ngay_du_kien_ve_gcn',
+  'tong_hop_ghi_chu_nhap_kho', 'tong_hop_thong_tin_qc', 'tong_hop_ghi_chu_xuat_kho', 'ghi_chu_don_hang_tong',
+  'updated_at',
+];
+
+app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
+  try {
+    const hex = String(req.params.hex || '').trim();
+    if (!/^\d{1,20}$/.test(hex)) return res.status(400).json({ error: 'Invalid hex' });
+    const cols = HEX_DETAIL_COLUMNS.map(c => (c === 'hex' ? 'hex::text AS hex' : `"${c}"`)).join(', ');
+    const r = await timedQuery(
+      `SELECT ${cols} FROM production_status_app WHERE hex::text = $1 ORDER BY updated_at DESC NULLS LAST LIMIT 1`,
+      [hex],
+      { timeoutMs: 15000 }
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json(r.rows[0]);
+  } catch (error) {
+    console.error('Lỗi /api/production/hex:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Vật tư theo danh sách hex. Bảng vat_tu không có cột hex: mã nhà máy = 4 số đầu + hex
 // (vd 1002250607396 -> hex 250607396). 1 ô ma_nha_may có thể chứa NHIỀU mã, cách nhau
 // bằng dấu cách/phẩy, có khi kèm chữ ("1007260102622, HỦY ĐIỀU CHỈNH...") hoặc ghi thẳng
@@ -269,7 +307,10 @@ const PR_REASON_COLUMNS: Record<string, string> = {
   ten_pm: 'ten_pm',
   khu_vuc_du_an: 'khu_vuc_du_an',
   ten_cong_trinh: 'ten_cong_trinh',
-  thang_can_giao: `COALESCE(TO_CHAR(ngay_can_giao, 'MM/YYYY'), '')`,
+  // Tháng hạn theo quy tắc chung: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao
+  thang_can_giao: `COALESCE(TO_CHAR(COALESCE(
+    CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END,
+    ngay_khnk_thang, ngay_can_giao), 'MM/YYYY'), '')`,
 };
 
 app.post('/api/material/pr-hexes', async (req: Request, res: Response) => {

@@ -1,8 +1,10 @@
+import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { TRIEU_TO_TY } from '../server/common.js';
 import { getRelevantVersions, trimCache, numericCol, notCancelledHexCond } from '../server/data.js';
 import { app } from '../server/app.js';
+import { workshopGroupSql, workshopCondition, workshopGroupsVersion } from '../server/workshopGroups.js';
 
 // --- CACHE IN-MEMORY CHO /api/khsx-nhapkho/summary ---
 const khsxNhapKhoCache = new Map<string, { versions: Record<string, string>; payload: any }>();
@@ -15,7 +17,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
     if (!nam) return res.status(400).json({ error: 'Missing nam' });
 
-    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong, wg: workshopGroupsVersion() });
     const khsxVersions = await getRelevantVersions(KHSX_NHAPKHO_VERSION_KEYS);
     const cachedKhsx = khsxNhapKhoCache.get(khsxCacheKey);
     if (cachedKhsx && JSON.stringify(cachedKhsx.versions) === JSON.stringify(khsxVersions)) {
@@ -26,7 +28,8 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
 
     const normalize = (s: string) => s.trim().toUpperCase();
-    const congTrinhList = congTrinh ? congTrinh.split(',').map(normalize).filter(Boolean) : [];
+    // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
+    const congTrinhList = expandProjectNames(parseNameList(congTrinh));
     const xuongList = xuong ? xuong.split(',').map(normalize).filter(Boolean) : [];
 
     // ---------- KẾ HOẠCH (khsx) ----------
@@ -36,18 +39,18 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     if (thang) { khParams.push(thang); khWhere += ` AND thang = $${khParams.length}::bigint`; }
     if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan = $${khParams.length}::double precision`; }
     if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay = $${khParams.length}::double precision`; }
-    if (congTrinhList.length) { khParams.push(congTrinhList); khWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${khParams.length}::text[])`; }
-    if (xuongList.length) { khParams.push(xuongList); khWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${khParams.length}::text[])`; }
+    if (congTrinhList.length) { khParams.push(congTrinhList); khWhere += ` AND ${normNameSql('ten_cong_trinh')} = ANY($${khParams.length}::text[])`; }
+    if (xuongList.length) khWhere += ` AND ${workshopCondition('xuong_chinh', xuongList, khParams)}`;
 
     const khQuery = `
       SELECT
-        TRIM(xuong_chinh) AS xuong,
+        ${workshopGroupSql('xuong_chinh')} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
         COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM khsx
       ${khWhere}
-      GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
+      GROUP BY 1, 2, 3
     `;
     const khResult = await timedQuery(khQuery, khParams);
 
@@ -58,18 +61,18 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     if (thang) { thParams.push(thang); thWhere += ` AND thang = $${thParams.length}::bigint`; }
     if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan = $${thParams.length}::bigint`; }
     if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay = $${thParams.length}::bigint`; }
-    if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND UPPER(TRIM(ten_cong_trinh)) = ANY($${thParams.length}::text[])`; }
-    if (xuongList.length) { thParams.push(xuongList); thWhere += ` AND UPPER(TRIM(xuong_chinh)) = ANY($${thParams.length}::text[])`; }
+    if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND ${normNameSql('ten_cong_trinh')} = ANY($${thParams.length}::text[])`; }
+    if (xuongList.length) thWhere += ` AND ${workshopCondition('xuong_chinh', xuongList, thParams)}`;
 
     const thQuery = `
       SELECT
-        TRIM(xuong_chinh) AS xuong,
+        ${workshopGroupSql('xuong_chinh')} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
         COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
-      GROUP BY TRIM(xuong_chinh), TRIM(ten_cong_trinh), TRIM(ma_cong_trinh)
+      GROUP BY 1, 2, 3
     `;
     const thResult = await timedQuery(thQuery, thParams);
 

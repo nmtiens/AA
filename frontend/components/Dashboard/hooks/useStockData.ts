@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
+import { projectMatchKey } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal, computeMtdRows } from '../utils/dateHelpers';
 import {
   fetchStockDates,
@@ -85,7 +86,9 @@ export function useStockData({
       return filters.congTrinh;
     }
     if (filters.congTrinh.length > 0) {
-      return filters.congTrinh.filter(ct => viewProjectWhitelist.includes(ct));
+      // Giao với danh sách công trình của view theo tên chuẩn (whitelist có thể lưu cách viết khác)
+      const wl = new Set(viewProjectWhitelist.map(projectMatchKey));
+      return filters.congTrinh.filter(ct => wl.has(projectMatchKey(ct)));
     }
     return viewProjectWhitelist;
   }, [filters.congTrinh, viewProjectWhitelist]);

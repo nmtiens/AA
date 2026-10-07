@@ -1,4 +1,5 @@
 import type { DataRow } from '../../../types';
+import { projectMatchKey } from '../../../utils/productionMetrics';
 
 // Dùng cho các bộ lọc nhiều lựa chọn chạy trên bảng lớn (vd ~51k dòng sản xuất):
 // tạo Set 1 lần mỗi khi bộ lọc đổi, thay vì Array.includes cho từng dòng.
@@ -12,6 +13,13 @@ export const toFilterSet = (values: string[]): Set<string> | null => (values.len
  */
 export const matchesFilter = (set: Set<string> | null, row: DataRow, key: string | undefined): boolean =>
   set === null || (!!key && set.has(String(row[key] || '').trim()));
+
+// Lọc theo CÔNG TRÌNH giữa các bảng: so theo tên chuẩn (không phân biệt hoa/thường, khoảng trắng,
+// tên phụ của cùng mã) — bảng nhập/xuất kho, vật tư… có thể ghi tên công trình khác cách viết.
+export const toProjectSet = (values: string[]): Set<string> | null =>
+  (values.length ? new Set(values.map(projectMatchKey)) : null);
+export const matchesProject = (set: Set<string> | null, row: DataRow, key: string | undefined): boolean =>
+  set === null || (!!key && set.has(projectMatchKey(row[key])));
 
 // ---------------------------------------------------------------------------
 // Bộ lọc dạng "nhóm" (Khách hàng / Khu vực dự án / Nhóm sản phẩm): ô trống hoặc lỗi Excel (#N/A...)

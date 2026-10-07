@@ -1,9 +1,11 @@
+import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
 import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified } from '../server/data.js';
 import { app, warmupLimiter } from '../server/app.js';
+import { expandWorkshops, workshopGroupsVersion } from '../server/workshopGroups.js';
 
 // --- CACHE IN-MEMORY CHO /api/stock/dates (theo bộ lọc tổng) ---
 // TRƯỚC: 1 biến module-level duy nhất (không phân biệt filter).
@@ -17,8 +19,10 @@ interface StockFilterParams {
   tinhTrangIpo: string[];
 }
 const parseStockFilters = (req: Request): StockFilterParams => ({
-  congTrinh: String(req.query.congTrinh || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
-  xuong: String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
+  // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
+  congTrinh: expandProjectNames(parseNameList(req.query.congTrinh)),
+  // Xưởng đã gộp -> mọi mã gốc (setup gộp xưởng)
+  xuong: expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean)),
   tinhTrang: String(req.query.tinhTrang || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
   tinhTrangIpo: String(req.query.tinhTrangIpo || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort(),
 });
@@ -26,7 +30,7 @@ const parseStockFilters = (req: Request): StockFilterParams => ({
 // [ĐO TIMING] Endpoint từng bị "pending" 25.39s trên production — điểm nóng số 2.
 const refreshStockDatesCache = async (filters: StockFilterParams) => {
   const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
-  const cacheKey = JSON.stringify(filters);
+  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion() });
   const versions = await getRelevantVersions(needsJoin ? ['stock', 'production'] : ['stock']);
 
   const cached = stockDatesCache.get(cacheKey);
@@ -38,7 +42,7 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
   const params: any[] = [];
   if (filters.congTrinh.length) {
     params.push(filters.congTrinh);
-    conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
+    conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);
   }
 
   // SỬA: thay LEFT JOIN trực tiếp trên toàn bộ lịch sử ton_kho (rất nặng, gây
@@ -131,7 +135,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const params: any[] = [date];
     if (filters.congTrinh.length) {
       params.push(filters.congTrinh);
-      conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
+      conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);
     }
 
     let cteClause = '';
@@ -189,7 +193,7 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
       conds.push(`UPPER(TRIM(COALESCE(s.ten_cong_trinh, ''))) = $${params.length}`);
     } else if (filters.congTrinh.length) {
       params.push(filters.congTrinh);
-      conds.push(`UPPER(TRIM(s.ten_cong_trinh)) = ANY($${params.length}::text[])`);
+      conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);
     }
     if (filters.xuong.length) {
       params.push(filters.xuong);

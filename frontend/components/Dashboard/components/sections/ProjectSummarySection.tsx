@@ -63,7 +63,8 @@ export const ProjectSummarySection = ({
           <table className="w-full text-xs text-right min-w-[1200px] border-separate border-spacing-0">
             <thead className="bg-emerald-100/50 text-slate-800 font-bold uppercase tracking-tight">
               <tr>
-                <th className="px-3 py-3 text-left sticky left-0 top-0 bg-emerald-100 border-b border-emerald-200 z-30 min-w-[220px] shadow-sm">Tên Công Trình</th>
+                <th className="w-12 min-w-[48px] px-1 py-3 text-center sticky left-0 top-0 bg-emerald-100 border-b border-emerald-200 z-30">STT</th>
+                <th className="px-3 py-3 text-left sticky left-12 top-0 bg-emerald-100 border-b border-emerald-200 z-30 min-w-[220px] shadow-sm">Tên Công Trình</th>
                 <th className="px-3 py-3 border-b border-emerald-200 sticky top-0 bg-emerald-50 z-20">Tổng {projectSummaryMetric === 'VALUE' ? 'Giá Trị' : 'Số Lượng'} <br />Đơn Hàng</th>
                 <th className="px-3 py-3 border-b border-emerald-200 sticky top-0 bg-emerald-50 z-20">Đã Triển Khai <br />Sản Xuất</th>
                 <th className="px-3 py-3 border-b border-emerald-200 sticky top-0 bg-emerald-50 z-20">Đã Tính Phiếu</th>
@@ -77,7 +78,8 @@ export const ProjectSummarySection = ({
             <tbody className="divide-y divide-emerald-50">
               {projectStatusSummary.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                  <td className="px-3 py-2.5 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{row.name}</td>
+                  <td className="w-12 min-w-[48px] px-1 py-2.5 text-center tabular-nums text-slate-400 sticky left-0 bg-white group-hover:bg-slate-50 z-10">{idx + 1}</td>
+                  <td className="px-3 py-2.5 text-left font-medium text-slate-700 sticky left-12 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{row.name}</td>
                   <td className="px-3 py-2.5 text-slate-800">{formatter(row.totalOrder)}</td>
                   <td className="px-3 py-2.5 text-slate-600">{formatter(row.deployed)}</td>
                   <td className="px-3 py-2.5 text-slate-600">{formatter(row.ticketed)}</td>
@@ -95,7 +97,8 @@ export const ProjectSummarySection = ({
             </tbody>
             <tfoot className="bg-emerald-50 font-bold text-slate-800 border-t border-emerald-300 sticky bottom-0 z-20">
               <tr>
-                <td className="px-3 py-3 text-left sticky left-0 bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">TỔNG CỘNG</td>
+                <td className="w-12 min-w-[48px] px-1 py-3 sticky left-0 bg-emerald-50" />
+                <td className="px-3 py-3 text-left sticky left-12 bg-emerald-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">TỔNG CỘNG</td>
                 <td className="px-3 py-3">{formatter(projectStatusSummary.reduce((a, b) => a + b.totalOrder, 0))}</td>
                 <td className="px-3 py-3">{formatter(projectStatusSummary.reduce((a, b) => a + b.deployed, 0))}</td>
                 <td className="px-3 py-3">{formatter(projectStatusSummary.reduce((a, b) => a + b.ticketed, 0))}</td>

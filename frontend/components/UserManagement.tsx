@@ -240,6 +240,7 @@ const UserManagement: React.FC = () => {
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead className="bg-slate-50 sticky top-0 z-10 text-xs font-semibold text-slate-500 uppercase tracking-wider">
               <tr>
+                <th className="w-14 pl-6 pr-2 py-4 border-b border-slate-100 text-right">STT</th>
                 <th className="px-6 py-4 border-b border-slate-100">User Info</th>
                 <th className="px-6 py-4 border-b border-slate-100">Liên hệ</th>
                 <th className="px-6 py-4 border-b border-slate-100">Phòng ban</th>
@@ -251,12 +252,13 @@ const UserManagement: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={7} className="p-8 text-center text-slate-400">Đang tải dữ liệu...</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-slate-400">Đang tải dữ liệu...</td></tr>
               ) : filteredUsers.length === 0 ? (
-                <tr><td colSpan={7} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào.</td></tr>
               ) : (
-                filteredUsers.map(user => (
+                filteredUsers.map((user, idx) => (
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
+                    <td className="pl-6 pr-2 py-4 text-right text-sm tabular-nums text-slate-400">{idx + 1}</td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-wood-100 flex items-center justify-center text-wood-700 font-bold text-sm">

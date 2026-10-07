@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { STATUS_GROUPS } from '../constants';
 import { parseNumber } from '../utils/numberParsers';
-import { doneValue, isCancelledIpo, remainValue } from '../../../utils/productionMetrics';
+import { doneValue, isCancelledIpo, isStocked, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import { ON_LINE_STAGES, P002_STAGE, extractStage } from '../components/modals/OnLineStageDetailModal';
 import {
@@ -239,9 +239,9 @@ export function usePivotTables({
   const bottleneckData = useMemo<BottleneckItem[]>(() => {
     if (!tinhTrangKey || !daysAtCurrentStageKey) return [];
 
+    // Nhóm thời gian dùng chung (utils/productionMetrics.dwellBucket): 4–7 tuần và "từ 8 tuần"
+    // đều vào "Từ 4 tuần trở lên"; "0"/trống vào "Chưa có số ngày" để công đoạn không bị mất cột.
     const agg: Record<string, BottleneckItem> = {};
-    const durationKeys = ['<3 NGÀY', '4-7 NGÀY', '2 tuần', '3 tuần', 'Từ 4 tuần trở lên'];
-
     filteredProductionData.forEach(row => {
       let status = '';
       if (bottleneckViewMode === 'BOP') {
@@ -250,25 +250,13 @@ export function usePivotTables({
       } else {
         status = String(row[tinhTrangKey] || '').trim();
       }
-
-      const duration = String(row[daysAtCurrentStageKey] || '').trim();
-
-      if (status && duration) {
-        if (!agg[status]) agg[status] = { name: status } as BottleneckItem;
-        durationKeys.forEach(k => {
-          if (agg[status][k] === undefined) agg[status][k] = 0;
-        });
-
-        let matchedKey = duration;
-        if (duration.toLowerCase().includes('<3 ngày')) matchedKey = '<3 NGÀY';
-        else if (duration.toLowerCase().includes('4-7 ngày')) matchedKey = '4-7 NGÀY';
-        else if (duration.toLowerCase().includes('2 tuần')) matchedKey = '2 tuần';
-        else if (duration.toLowerCase().includes('3 tuần')) matchedKey = '3 tuần';
-        else if (duration.toLowerCase().includes('4 tuần')) matchedKey = 'Từ 4 tuần trở lên';
-
-        const currentValue = agg[status][matchedKey] as number;
-        agg[status][matchedKey] = (currentValue || 0) + 1;
+      if (!status) return;
+      if (!agg[status]) {
+        agg[status] = { name: status } as BottleneckItem;
+        DWELL_KEYS.forEach(k => { agg[status][k] = 0; });
       }
+      const k = dwellBucket(row[daysAtCurrentStageKey]);
+      agg[status][k] = ((agg[status][k] as number) || 0) + 1;
     });
 
     return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
@@ -286,10 +274,7 @@ export function usePivotTables({
       } else {
         status = String(row[tinhTrangKey] || '').trim();
       }
-
-      const duration = String(row[daysAtCurrentStageKey] || '').trim();
-
-      if (status && duration.toLowerCase().includes('4 tuần')) {
+      if (status && dwellBucket(row[daysAtCurrentStageKey]) === DWELL_STUCK) {
         counts[status] = (counts[status] || 0) + 1;
       }
     });
@@ -326,14 +311,14 @@ export function usePivotTables({
   // -------------------------------------------------------------------------
   const projectStatusSummary = useMemo(() => {
     if (!congTrinhKey || !triGiaDonHangTongKey) return [];
-    const agg: Record<string, { totalOrder: number; deployed: number; ticketed: number; inProduction: number; inventory: number; }> = {};
+    const agg: Record<string, { totalOrder: number; deployed: number; ticketed: number; inProduction: number; inventory: number; remainingRaw: number; }> = {};
 
     const isCount = projectSummaryMetric === 'COUNT';
 
     filteredProductionData.forEach(row => {
       const ctName = String(row[congTrinhKey] || '').trim();
       if (!ctName) return;
-      if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0 };
+      if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0 };
       const status = String(row[tinhTrangKey] || '').toUpperCase();
       if (isCancelledRow(row)) return;
 
@@ -359,12 +344,18 @@ export function usePivotTables({
         agg[ctName].inProduction += valToAddTicket;
       }
 
-      const valToAddInventory = isCount ? (inventoryValRaw > 0 ? 1 : 0) : (inventoryValRaw / 1000);
+      // Đếm: "đã nhập kho" = nhập ĐỦ (cùng quy tắc isStocked với mọi view); giá trị: phần đã nhập
+      const valToAddInventory = isCount
+        ? (isStocked(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) ? 1 : 0)
+        : (inventoryValRaw / 1000);
       agg[ctName].inventory += valToAddInventory;
+      agg[ctName].remainingRaw += isCount
+        ? (remainValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) > 0 ? 1 : 0)
+        : remainValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) / 1000;
     });
     return Object.entries(agg).map(([name, data]) => ({
       name, ...data,
-      remaining: data.totalOrder - data.inventory,
+      remaining: data.remainingRaw,
       notDeployed: data.totalOrder - data.deployed,
       percentComplete: data.totalOrder > 0 ? (data.inventory / data.totalOrder) * 100 : 0,
     })).sort((a, b) => b.totalOrder - a.totalOrder);
@@ -412,7 +403,8 @@ export function usePivotTables({
 
       a.totalOrder += totalOrderVal;
       if (!status.includes('15. CHƯA TRIỂN KHAI')) a.deployed += totalOrderVal;
-      a.inventory += isCount ? (inventoryValRaw > 0 ? 1 : 0) : (inventoryValRaw / 1000);
+      // Đếm: "đã nhập kho" = nhập ĐỦ (isStocked) — hạng mục nhập 1 phần nằm ở "còn lại"
+      a.inventory += isCount ? (isStocked(totalOrderValRaw, inventoryValRaw) ? 1 : 0) : (inventoryValRaw / 1000);
 
       const remainRaw = totalOrderValRaw - inventoryValRaw;
       if (remainRaw <= 0) return;

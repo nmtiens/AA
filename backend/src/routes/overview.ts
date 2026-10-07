@@ -1,5 +1,7 @@
+import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
+import { expandWorkshops, workshopGroupSql, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { vnDayKey, vnTodayUtc } from '../server/common.js';
 import { parseSafeDate, getRelevantVersions, trimCache, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified, notCancelledHexCond } from '../server/data.js';
 import { app } from '../server/app.js';
@@ -12,13 +14,16 @@ const OVERVIEW_SUMMARY_VERSION_KEYS = ['order', 'tkbv', 'pthsp', 'inventory', 'e
 // [ĐO TIMING] Endpoint từng mất 34.71s trên Network tab — điểm nóng số 1.
 app.get('/api/overview/summary', async (req: Request, res: Response) => {
   try {
-    const congTrinhList = String(req.query.congTrinh || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
-    const xuongList = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
+    const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
+    // Xưởng đã gộp -> mọi mã gốc (setup gộp xưởng)
+    const xuongList = expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
     const tinhTrangList = String(req.query.tinhTrang || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
     const tinhTrangIpoList = String(req.query.tinhTrangIpo || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
     const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
 
     const cacheKey = JSON.stringify({
+      wg: workshopGroupsVersion(),
       dateFrom: req.query.dateFrom || null,
       dateTo: req.query.dateTo || null,
       // Ngày "hôm nay" (giờ VN) nằm trong khoá cache: sang ngày mới thì số lũy kế tháng tính lại
@@ -120,7 +125,7 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       if (cfg.hexCol) outerConds.push(notCancelledHexCond(colBare(cfg.hexCol)));
       if (congTrinhList.length && cfg.congTrinhCol) {
         allParams.push(congTrinhList);
-        outerConds.push(`UPPER(TRIM(${colBare(cfg.congTrinhCol)})) = ANY($${allParams.length}::text[])`);
+        outerConds.push(`${normNameSql(colBare(cfg.congTrinhCol))} = ANY($${allParams.length}::text[])`);
       }
       if (xuongList.length && cfg.xuongCol) {
         allParams.push(xuongList);
@@ -196,8 +201,10 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     if (!groupColRaw) return res.json([]);
     const groupCol = colBare(groupColRaw);
 
-    const congTrinhList = String(req.query.congTrinh || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
-    const xuongList = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
+    // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
+    const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
+    // Xưởng đã gộp -> mọi mã gốc (setup gộp xưởng)
+    const xuongList = expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
     const tinhTrangList = String(req.query.tinhTrang || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
     const tinhTrangIpoList = String(req.query.tinhTrangIpo || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean).sort();
     const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
@@ -244,7 +251,7 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     if (cfg.hexCol) extraConds.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (congTrinhList.length && cfg.congTrinhCol) {
       params.push(congTrinhList);
-      extraConds.push(`UPPER(TRIM(${colBare(cfg.congTrinhCol)})) = ANY($${params.length}::text[])`);
+      extraConds.push(`${normNameSql(colBare(cfg.congTrinhCol))} = ANY($${params.length}::text[])`);
     }
     if (xuongList.length && cfg.xuongCol) {
       params.push(xuongList);
@@ -270,7 +277,7 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 
        const q = `
       SELECT
-        COALESCE(NULLIF(TRIM(${groupCol}), ''), 'Chưa xác định') AS name,
+        COALESCE(NULLIF(${groupBy === 'congtrinh' ? `TRIM(${groupCol})` : workshopGroupSql(groupCol)}, ''), 'Chưa xác định') AS name,
         COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${mtdCond}) AS mtd_count,

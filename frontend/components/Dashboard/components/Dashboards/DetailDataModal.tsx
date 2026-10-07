@@ -249,6 +249,7 @@ export default function DetailDataModal({
             <table className="min-w-full text-xs border-collapse">
               <thead className="sticky top-0 bg-slate-50">
                 <tr>
+                  <th className="w-10 px-2 py-1.5 text-right border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap">STT</th>
                   {canGroup && <th className="w-6 border-b border-slate-200" />}
                   {/* ✅ Header lặp theo orderedColumns (đúng thứ tự + tập cột đã setup)
                       thay vì luôn lặp cố định theo toàn bộ columns gốc. */}
@@ -264,7 +265,7 @@ export default function DetailDataModal({
               </thead>
               <tbody>
                 {canGroup
-                  ? pagedGroups.map((g) => {
+                  ? pagedGroups.map((g, gi) => {
                       const isMulti = g.rows.length > 1;
                       const isOpen = expanded.has(g.key);
                       return (
@@ -278,6 +279,7 @@ export default function DetailDataModal({
                             }
                             onClick={() => isMulti && toggleGroup(g.key)}
                           >
+                            <td className="px-2 py-1 border-b border-slate-100 text-right tabular-nums text-slate-400">{(page - 1) * ROWS_PER_PAGE + gi + 1}</td>
                             <td className="px-1 py-1 border-b border-slate-100 text-slate-600">
                               {isMulti && (isOpen ? <ChevronDown size={14} strokeWidth={2.75} /> : <ChevronRightIcon size={14} strokeWidth={2.75} />)}
                             </td>
@@ -299,6 +301,7 @@ export default function DetailDataModal({
                           {isMulti && isOpen && g.rows.map((row, i) => (
                             <tr key={`${g.key}-${i}`} className="bg-indigo-50/20 text-slate-500">
                               <td className="border-b border-slate-100" />
+                              <td className="border-b border-slate-100" />
                               {/* ✅ Body (các dòng con khi mở nhóm) lặp theo orderedColumns. */}
                               {orderedColumns.map(col => (
                                 <td key={col} className="px-2 py-1 pl-4 border-b border-slate-100 whitespace-nowrap">
@@ -312,6 +315,7 @@ export default function DetailDataModal({
                     })
                   : pagedRows.map((row, i) => (
                       <tr key={i} className="odd:bg-white even:bg-slate-50/50 hover:bg-indigo-50/40">
+                        <td className="px-2 py-1 border-b border-slate-100 text-right tabular-nums text-slate-400">{(page - 1) * ROWS_PER_PAGE + i + 1}</td>
                         {/* ✅ Body (chế độ phẳng, không group) lặp theo orderedColumns. */}
                         {orderedColumns.map(col => (
                           <td key={col} className="px-2 py-1 border-b border-slate-100 whitespace-nowrap">

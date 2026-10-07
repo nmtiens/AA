@@ -1,0 +1,388 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, CalendarClock } from 'lucide-react';
+import { ModalShell } from '../shared/ModalShell';
+import { getToken } from '../../services/userService';
+import { parsePlanDate, deadlineOf, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE } from '../../utils/productionMetrics';
+import { parseNumber } from '../Dashboard/utils/numberParsers';
+import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
+import type { VuongMacItem } from '../../services/vuongMacService';
+import type { HexBom } from './ProjectHealthTabs';
+import { formatTrieuAsTy } from '../../utils/money';
+
+// ============================================================================
+// Chi tiết 1 hạng mục (HEX): BOP (đang ở công đoạn nào, tiến độ từng công đoạn) + BOT (các mốc
+// ngày & hạn) trên cùng 1 màn hình, kèm lịch sử nhập kho, QC, ghi chú phiếu, vật tư, vướng mắc.
+// Dữ liệu: GET /api/production/hex/:hex (bảng production_status_app).
+// ============================================================================
+
+type Row = Record<string, any>;
+
+const DAY = 86_400_000;
+const fmtDate = (d: Date | null) =>
+  d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+const fmtNum = (v: unknown, digits = 2) => {
+  const n = Number(v);
+  return v === null || v === undefined || v === '' || Number.isNaN(n) ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: digits });
+};
+const fmtTy = (trieu: unknown) => {
+  const n = Number(trieu);
+  return Number.isFinite(n) ? formatTrieuAsTy(n) : '—';
+};
+
+// Thứ tự công đoạn BOP để biết mốc nào đã qua / đang ở / chưa tới
+const STAGES = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'];
+const stageIdx = (s: string | null) => (s ? STAGES.indexOf(s) : -1);
+
+// Số lượng đã giao theo công đoạn sản xuất (cột so_luong_cong_doan_*_da_giao)
+const WORK_STEPS: { key: string; label: string; flag?: string }[] = [
+  { key: 'so_luong_cong_doan_cts_da_giao', label: 'CTS' },
+  { key: 'so_luong_cong_doan_may_da_giao', label: 'Máy' },
+  { key: 'so_luong_cong_doan_moc_da_giao', label: 'Mộc' },
+  { key: 'so_luong_cong_doan_kim_loai_da_giao', label: 'Kim loại', flag: 'co_kim_loai' },
+  { key: 'so_luong_cong_doan_vecni_da_giao', label: 'Vecni', flag: 'co_vecni' },
+  { key: 'so_luong_cong_doan_sofa_da_giao', label: 'Sofa', flag: 'co_sofa' },
+  { key: 'so_luong_cong_doan_da_da_giao', label: 'Đá', flag: 'co_kinh_da' },
+  { key: 'so_luong_cong_doan_kinh_da_giao', label: 'Kính', flag: 'co_kinh_da' },
+  { key: 'so_luong_cong_doan_fitting_da_giao', label: 'Fitting' },
+  { key: 'so_luong_cong_doan_bao_bi_da_giao', label: 'Bao bì' },
+];
+
+// "11/06/2026 # Đơn giá: … # SL NK: 20 # TT NK: 524.8 # ghi chú" -> các lần nhập kho
+const parseStockIn = (text: unknown) =>
+  String(text ?? '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+    const parts = l.split('#').map(p => p.trim());
+    const pick = (label: string) => parts.find(p => p.toUpperCase().startsWith(label))?.split(':').slice(1).join(':').trim() ?? '';
+    const note = parts.filter((p, i) => i > 0 && !/^(ĐƠN GIÁ|SL NK|TT NK)\s*:/i.test(p)).join(' · ');
+    return { date: parts[0], qty: pick('SL NK'), value: pick('TT NK'), note };
+  });
+
+interface Props {
+  hex: string | null;
+  onClose: () => void;
+  /** Phân tích vật tư của hạng mục (từ tab BOM), nếu đã có */
+  bom?: HexBom | null;
+  /** Vướng mắc đang mở của hạng mục (mọi loại) */
+  issues?: VuongMacItem[];
+  onOpenMaterial?: (hex: string) => void;
+  /** Tắt Esc khi đang có cửa sổ khác đè lên (vd. cửa sổ vật tư) */
+  escEnabled?: boolean;
+  /** Tên công trình / PM / PC đã chuẩn hoá ở dữ liệu trang (giống các view khác) */
+  names?: { project?: string; pm?: string; pc?: string };
+}
+
+export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, onOpenMaterial, escEnabled = true, names }) => {
+  const [row, setRow] = useState<Row | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
+
+  useEffect(() => {
+    setRow(null); setError(null);
+    if (!hex) return;
+    const ctrl = new AbortController();
+    fetch(`/api/production/hex/${encodeURIComponent(hex)}`, {
+      headers: { Authorization: `Bearer ${getToken() ?? ''}` },
+      signal: ctrl.signal,
+    })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(r.status === 404 ? 'Không tìm thấy hạng mục' : 'Không tải được dữ liệu'))))
+      .then(setRow)
+      .catch(e => { if (e.name !== 'AbortError') setError(e.message); });
+    return () => ctrl.abort();
+  }, [hex]);
+
+  const d = useMemo(() => {
+    if (!row) return null;
+    const stage = extractStage(row.bop);
+    const cur = stageIdx(stage);
+    const dl = deadlineOf(row, { khnkTuanKey: 'ngay_khnk_tuan', khnkThangKey: 'ngay_khnk_thang', ngayCanGiaoKey: 'ngay_can_giao' });
+    const qtyOrder = Number(row.so_luong_don_hang_tong) || 0;
+    const qtyTicket = Number(row.so_luong_tinh_phieu) || 0;
+    const qtyIn = Math.max(Number(row.so_luong_nhap_kho_luy_ke) || 0, 0);
+    const stockIn = parseStockIn(row.tong_hop_ghi_chu_nhap_kho);
+    const firstIn = stockIn.length ? parsePlanDate(stockIn[0].date) : null;
+    const lastIn = stockIn.length ? parsePlanDate(stockIn[stockIn.length - 1].date) : null;
+    // Giá trị: cùng quy tắc với mọi view (đã nhập = min(nhập kho lũy kế, trị giá); còn lại = trị giá − đã nhập)
+    const cancelled = isCancelledIpo(row.tinh_trang_ipo);
+    const total = parseNumber(row.tri_gia_don_hang_tong);
+    const valDone = doneValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
+    const valRemain = remainValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
+    const pctValue = total > 0 ? (valDone / total) * 100 : 0;
+    const full = total > 0 ? valRemain <= 0 : qtyOrder > 0 && qtyIn >= qtyOrder;
+
+    // Mốc BOP: trạng thái theo công đoạn hiện tại
+    const state = (fromIdx: number, toIdx: number, doneOverride?: boolean): 'done' | 'current' | 'todo' =>
+      doneOverride ? 'done' : cur > toIdx ? 'done' : cur >= fromIdx && cur <= toIdx ? 'current' : 'todo';
+    const milestones = [
+      { key: 'pm', title: 'Nhận đơn từ PM', stage: 'P001', date: parsePlanDate(row.ngay_nhan_tu_pm), note: '', st: state(0, 0) },
+      { key: 'bv', title: 'Triển khai bản vẽ', stage: 'P002', date: parsePlanDate(row.ngay_trien_khai_ban_ve), note: row.tinh_trang_trien_khai_ban_ve ?? '', st: state(1, 1) },
+      {
+        key: 'phieu', title: 'Tính phiếu / duyệt phiếu', stage: 'P012',
+        date: parsePlanDate(row.ngay_tinh_phieu), date2: parsePlanDate(row.ngay_duyet_phieu),
+        note: [row.tinh_trang_phieu, qtyTicket ? `SL tính phiếu ${fmtNum(qtyTicket, 3)} / ${fmtNum(qtyOrder, 3)}` : ''].filter(Boolean).join(' · '),
+        st: state(2, 2),
+      },
+      { key: 'sx', title: 'Sản xuất (P013 → P021)', stage: 'P013–P021', date: null, note: stage && cur >= 3 && cur <= 9 ? `Đang ở ${stage} · ${row.tinh_trang ?? ''}` : '', st: state(3, 9) },
+      {
+        key: 'nk', title: 'Nhập kho', stage: 'P022', date: firstIn, date2: lastIn,
+        note: `${fmtNum(qtyIn, 3)} / ${fmtNum(qtyOrder, 3)} ${row.dvt ?? ''}${full ? ' · đủ' : ''}`,
+        st: full ? 'done' as const : qtyIn > 0 ? 'current' as const : state(10, 11),
+      },
+    ];
+
+    // Mốc BOT (hạn): KH tuần → KH tháng → cần giao là hạn đang dùng; ngày cần, BOT dự án để tham khảo
+    const deadlines = [
+      { label: 'KH nhập kho tuần', date: dl.khnkTuan, used: dl.source === 'tuần', extra: row.sl_khnk_tuan ? `SL ${fmtNum(row.sl_khnk_tuan, 3)}` : '' },
+      { label: 'KH nhập kho tháng', date: dl.khnkThang, used: dl.source === 'tháng', extra: row.sl_khnk_thang ? `SL ${fmtNum(row.sl_khnk_thang, 3)}` : '' },
+      { label: 'Ngày cần giao', date: dl.canGiao, used: dl.source === 'cần giao', extra: '' },
+      { label: 'Ngày cần (PM)', date: parsePlanDate(row.ngay_can), used: false, extra: '' },
+      { label: 'BOT dự án', date: parsePlanDate(row.bot_du_an), used: false, extra: 'hạn chung công trình' },
+    ];
+    const days = dl.date ? Math.floor((dl.date.getTime() - today) / DAY) : null;
+    return { stage, cur, dl, days, qtyOrder, qtyTicket, qtyIn, full, stockIn, milestones, deadlines, valDone, valRemain, pctValue, cancelled };
+  }, [row, today]);
+
+  const dwell = row ? dwellBucket(row.so_ngay_cd_hien_tai) : null;
+  const openIssues = (issues ?? []).filter(v => !v.isResolved);
+
+  return (
+    <ModalShell
+      open={hex !== null}
+      onClose={onClose}
+      closeOnEsc={escEnabled}
+      labelledBy="hex-timeline-title"
+      overlayClassName="fixed inset-0 z-[9994] flex items-center justify-center bg-slate-900/50 p-4"
+      panelClassName="w-[92vw] max-w-[1400px] h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
+    >
+      <div onClick={e => e.stopPropagation()} className="flex min-h-0 flex-1 flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">Chi tiết hạng mục · BOP × BOT</p>
+            <h3 id="hex-timeline-title" className="text-lg font-semibold text-slate-900">
+              {hex}{row?.ten_hang_muc ? ` · ${row.ten_hang_muc}` : ''}
+            </h3>
+            {row && (
+              <p className="mt-0.5 text-[0.6875rem] text-slate-500">
+                {names?.project ?? row.ten_cong_trinh} · Xưởng {row.xuong_chinh ?? '—'} · PM {names?.pm || row.ten_pm || '—'} · PC {names?.pc || row.ten_pc || '—'}
+                {row.ma_hang_muc_boq ? ` · BOQ ${row.ma_hang_muc_boq}` : ''}
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {hex && onOpenMaterial && (
+              <button
+                type="button"
+                onClick={() => onOpenMaterial(hex)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
+              >
+                <Package size={14} /> Vật tư
+              </button>
+            )}
+            <button type="button" onClick={onClose} aria-label="Đóng" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
+          {error ? (
+            <p className="rounded-lg bg-red-50 p-6 text-center text-sm text-red-600">{error}</p>
+          ) : !row || !d ? (
+            <p className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-400">Đang tải…</p>
+          ) : (
+            <div className="space-y-5">
+              {/* Tóm tắt */}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                {[
+                  { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '' },
+                  {
+                    label: 'Hạn (BOT)', value: fmtDate(d.dl.date),
+                    sub: d.dl.source ? `${d.dl.source === 'cần giao' ? 'Ngày cần giao' : `KH nhập kho ${d.dl.source}`}${d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có ngày',
+                    tone: d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
+                  },
+                  {
+                    label: 'Ở công đoạn hiện tại', value: dwell === DWELL_NONE || !dwell ? 'Chưa có số ngày' : dwell, sub: dwell === DWELL_NONE ? '' : row.so_ngay_cd_hien_tai ?? '',
+                    tone: dwell === DWELL_STUCK ? 'text-red-600' : 'text-slate-900',
+                  },
+                  { label: 'Đơn hàng', value: `${fmtNum(d.qtyOrder, 3)} ${row.dvt ?? ''}`, sub: `${fmtTy(row.tri_gia_don_hang_tong)} tỷ` },
+                  { label: 'SL tính phiếu', value: fmtNum(d.qtyTicket, 3), sub: `${fmtTy(row.thanh_tien_tinh_phieu)} tỷ` },
+                  {
+                    label: 'Đã nhập kho', value: `${fmtNum(d.qtyIn, 3)} / ${fmtNum(d.qtyOrder, 3)}`,
+                    sub: d.cancelled ? 'Đơn HỦY — không tính giá trị' : `${d.pctValue.toFixed(0)}% giá trị · ${fmtTy(d.valDone)} tỷ · còn ${fmtTy(d.valRemain)} tỷ`,
+                    tone: d.full ? 'text-emerald-600' : 'text-slate-900',
+                  },
+                ].map(k => (
+                  <div key={k.label} className="rounded-lg border border-slate-200 px-3 py-2">
+                    <p className="text-[0.6875rem] text-slate-500">{k.label}</p>
+                    <p className={`text-base font-semibold tabular-nums ${k.tone ?? 'text-slate-900'}`}>{k.value}</p>
+                    <p className="truncate text-[0.6875rem] text-slate-400" title={k.sub}>{k.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+                {/* BOP — tiến trình */}
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="mb-3 text-xs font-semibold text-slate-700">Tiến trình (BOP) <span className="font-normal text-slate-400">· SL đã giao theo công đoạn / SL đơn hàng</span></p>
+                  <ol className="space-y-3">
+                    {d.milestones.map(m => {
+                      const Icon = m.st === 'done' ? CheckCircle2 : m.st === 'current' ? CircleDot : Circle;
+                      const color = m.st === 'done' ? 'text-emerald-600' : m.st === 'current' ? 'text-amber-600' : 'text-slate-300';
+                      return (
+                        <li key={m.key} className="flex gap-3">
+                          <Icon size={18} className={`mt-0.5 shrink-0 ${color}`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                              <span className={`text-sm font-semibold ${m.st === 'todo' ? 'text-slate-400' : 'text-slate-800'}`}>{m.title}</span>
+                              <span className="text-[0.6875rem] text-slate-400">{m.stage}</span>
+                              <span className="ml-auto text-xs tabular-nums text-slate-600">
+                                {m.date ? fmtDate(m.date) : ''}
+                                {'date2' in m && m.date2 && m.date2.getTime() !== m.date?.getTime() ? ` → ${fmtDate(m.date2)}` : ''}
+                              </span>
+                            </div>
+                            {m.note && <p className="text-xs text-slate-500">{m.note}</p>}
+                            {/* Sản xuất: SL đã giao theo từng công đoạn so với SL tính phiếu */}
+                            {m.key === 'sx' && (
+                              <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+                                {WORK_STEPS.filter(w => !w.flag || String(row[w.flag] ?? '').toLowerCase() === 'yes' || Number(row[w.key]) > 0).map(w => {
+                                  const done = Number(row[w.key]) || 0;
+                                  const base = d.qtyOrder || d.qtyTicket; // so với SL đơn hàng
+                                  const pct = base > 0 ? Math.min(100, (done / base) * 100) : 0;
+                                  return (
+                                    <div key={w.key} className="flex items-center gap-2 text-xs">
+                                      <span className="w-14 shrink-0 text-slate-600">{w.label}</span>
+                                      <div className="h-1.5 flex-1 rounded-full bg-slate-100">
+                                        <div className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : ''}`} style={{ width: `${pct}%` }} />
+                                      </div>
+                                      <span className="w-20 shrink-0 text-right tabular-nums text-slate-500">{fmtNum(done, 3)} / {fmtNum(base, 3)}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+
+                {/* BOT — các mốc hạn */}
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                      <CalendarClock size={14} /> Thời hạn (BOT)
+                      <span className="font-normal text-slate-400">· hạn dùng: KH tuần → KH tháng → cần giao</span>
+                    </p>
+                    <ul className="divide-y divide-slate-100 text-xs">
+                      {d.deadlines.map(x => {
+                        const dd = x.date ? Math.floor((x.date.getTime() - today) / DAY) : null;
+                        const late = dd !== null && dd < 0 && !d.full;
+                        return (
+                          <li key={x.label} className={`flex items-center gap-2 py-1.5 ${x.used ? 'font-semibold' : ''}`}>
+                            <span className={x.used ? 'text-slate-900' : 'text-slate-500'}>{x.label}</span>
+                            {x.used && <span className="rounded bg-slate-800 px-1.5 text-[0.625rem] font-medium text-white">đang dùng</span>}
+                            {x.extra && <span className="text-[0.6875rem] font-normal text-slate-400">{x.extra}</span>}
+                            <span className={`ml-auto tabular-nums ${!x.date ? 'text-slate-300' : late ? 'text-red-600' : 'text-slate-700'}`}>
+                              {fmtDate(x.date)}
+                              {dd !== null && <span className="ml-1 font-normal text-slate-400">({dd < 0 ? `-${-dd}` : `+${dd}`}d)</span>}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+
+                  {/* Vật tư + vướng mắc */}
+                  <div className="rounded-lg border border-slate-200 p-4 text-xs">
+                    <p className="mb-2 font-semibold text-slate-700">Vật tư & vướng mắc</p>
+                    {bom ? (
+                      <dl className="grid grid-cols-[1fr_auto] gap-y-1">
+                        <dt className="text-slate-500">Số dòng PR</dt><dd className="text-right tabular-nums">{bom.lines || '—'}</dd>
+                        <dt className="text-slate-500">Chưa mua / trễ hẹn / chưa tới hẹn</dt>
+                        <dd className="text-right tabular-nums">
+                          <span className="text-rose-600">{bom.byLine.notOrdered ?? 0}</span> / <span className="text-orange-600">{bom.byLine.late ?? 0}</span> / {bom.byLine.onTrack ?? 0}
+                        </dd>
+                        <dt className="text-slate-500">Ngày cần VT · dự kiến giao PMH</dt>
+                        <dd className="text-right tabular-nums">{fmtDate(bom.needDate)} · {fmtDate(bom.dueDate)}</dd>
+                      </dl>
+                    ) : <p className="text-slate-400">Đang tải vật tư…</p>}
+                    {bom && bom.lines === 0 && (
+                      <p className="mt-1 text-amber-700">Chưa tìm thấy dòng PR nào ghi mã nhà máy của hạng mục — xem "Chưa có mã nhà máy chỉ định" ở tab BOM.</p>
+                    )}
+                    <div className="mt-3 border-t border-slate-100 pt-2">
+                      {openIssues.length === 0 ? (
+                        <p className="text-slate-400">Không có vướng mắc đang mở.</p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {openIssues.map(v => (
+                            <li key={v.id} className="rounded-md bg-red-50 px-2.5 py-1.5 text-red-800">
+                              <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />
+                              <span className="whitespace-pre-line">{v.content}</span>
+                              <span className="block text-[0.6875rem] text-red-600/80">
+                                {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT ${new Date(v.bot).toLocaleDateString('vi-VN')}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lịch sử nhập kho */}
+              <div className="rounded-lg border border-slate-200">
+                <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
+                  Lịch sử nhập kho <span className="font-normal text-slate-400">· {d.stockIn.length} lần</span>
+                </p>
+                {d.stockIn.length === 0 ? (
+                  <p className="px-4 py-4 text-center text-xs text-slate-400">Chưa nhập kho.</p>
+                ) : (
+                  <div className="max-h-56 overflow-auto custom-scrollbar">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="w-10 px-3 py-1.5 text-right font-medium">STT</th>
+                          <th className="px-3 py-1.5 text-left font-medium">Ngày</th>
+                          <th className="px-3 py-1.5 text-right font-medium">SL nhập</th>
+                          <th className="px-3 py-1.5 text-right font-medium">Thành tiền (tỷ)</th>
+                          <th className="px-3 py-1.5 text-left font-medium">Ghi chú</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {d.stockIn.map((s, i) => (
+                          <tr key={i}>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
+                            <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{s.date}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums">{s.qty || '—'}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums">{s.value ? fmtTy(parseNumber(s.value)) : '—'}</td>
+                            <td className="px-3 py-1.5 text-slate-600">{s.note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Ghi chú phiếu, QC, mô tả */}
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  { title: 'Ghi chú phiếu', text: row.ghi_chu_phieu },
+                  { title: 'Thông tin QC', text: row.tong_hop_thong_tin_qc },
+                  { title: 'Mô tả sản phẩm', text: row.mo_ta_san_pham },
+                  { title: 'Ghi chú đơn hàng / xuất kho', text: [row.ghi_chu_don_hang_tong, row.tong_hop_ghi_chu_xuat_kho].filter(Boolean).join('\n') },
+                ].filter(b => String(b.text ?? '').trim()).map(b => (
+                  <div key={b.title} className="rounded-lg border border-slate-200 p-3">
+                    <p className="mb-1 text-xs font-semibold text-slate-700">{b.title}</p>
+                    <p className="max-h-48 overflow-auto whitespace-pre-line break-words text-xs text-slate-600 custom-scrollbar">{b.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </ModalShell>
+  );
+};

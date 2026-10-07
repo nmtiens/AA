@@ -139,7 +139,8 @@ export function TrendFilterProvider({
 
   const hasCtWhitelist = viewProjectWhitelist !== undefined;
   const ctWhitelistCsv = useMemo(
-    () => (viewProjectWhitelist ?? []).map(normalizeCT).join(','),
+    // Ngăn bằng "|": tên công trình có thể chứa dấu phẩy
+    () => (viewProjectWhitelist ?? []).map(normalizeCT).join('|') + '|', // luôn có "|" để server không tách theo dấu phẩy
     [viewProjectWhitelist]
   );
 

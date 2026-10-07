@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { formatTy } from '../../utils/money';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
@@ -16,6 +15,7 @@ import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelec
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
 import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix, projectKeyResolver } from '../Dashboard/components/shared/ProductionDonutPanel';
+import { formatTy, formatTrieuAsTy } from '../../utils/money';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
@@ -36,8 +36,8 @@ interface Rec {
   ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
 }
 
-// Giống mặc định "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan
-const DEFAULT_IPO = ['01. ĐANG SẢN XUẤT'];
+// Mặc định không lọc Tình trạng IPO: các ô KPI hiện tổng toàn bộ công trình, chỉ đổi khi người dùng chọn lọc
+const DEFAULT_IPO: string[] = [];
 
 const NO_DATA = '(Chưa có)';
 const NO_MONTH = 'none';
@@ -51,10 +51,7 @@ const COLOR_REMAIN = '#f59e0b';
 // Giá trị gốc tính theo triệu đồng (khớp backend TRIEU_TO_TY) => Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
-const fmtTy = (raw: number) => {
-  const t = raw / UNIT ;
-  return formatTy(t); // Tỷ, 2 chữ số thập phân (dùng chung toàn app)
-};
+const fmtTy = formatTrieuAsTy;
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có hạn';
   const [y, m] = key.split('-');
@@ -202,7 +199,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     return out;
   }, [data, columns]);
 
-  // Bộ lọc Tình trạng IPO — giống "Bộ lọc tổng" ở trang Tổng quan (mặc định: đang sản xuất),
+  // Bộ lọc Tình trạng IPO (mặc định: tất cả — hiện tổng toàn bộ công trình),
   // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
   const ipoOptions = useMemo(
     () => [...new Set(allRecords.map(r => r.ipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
@@ -320,7 +317,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     openDetail({
       eyebrow: 'Tháng hạn (KH nhập kho → cần giao)', title: monthLabel(key), exclude: 'month',
       pred: r => r.month === key, focus: 'remain', filter: { key: 'month', value: key },
-      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (theo ngày cần giao).',
+      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng → ngày cần giao).',
     });
   };
 
@@ -358,6 +355,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       khnkTuanKey: findColumnKey(columns, 'ngay_khnk_tuan') || 'ngay_khnk_tuan',
       khnkThangKey: findColumnKey(columns, 'ngay_khnk_thang') || 'ngay_khnk_thang',
       ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || 'ngay_can_giao',
+      xuongKey: key(TARGET_COLUMN_NAMES.XUONG, 'xuong_chinh'),
+      dwellKey: key(TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI, 'so_ngay_cd_hien_tai'),
     };
   }, [columns]);
 
@@ -446,7 +445,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định đang sản xuất */}
+            {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
             <DashboardFilter
               label="Tình Trạng IPO"
               options={ipoOptions}
@@ -531,7 +530,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
           {/* Cột trái: biểu đồ theo tháng + bảng theo PC */}
-          <div className="xl:col-span-4 space-y-4">
+          <div className="xl:col-span-3 space-y-4">
             <div className={`${cardCls} p-4`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng → ngày cần giao</span></p>
@@ -545,7 +544,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   <BarChart data={monthData} margin={{ top: 8, right: 4, left: -14, bottom: 0 }}>
                     <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatTy(v)} />
                     <Tooltip
                       cursor={{ fill: 'rgba(148,163,184,0.12)' }}
                       formatter={(v: number, name: string) => [`${formatTy(v)} Tỷ`, name === 'done' ? 'Đã nhập kho' : 'Chưa nhập kho']}
@@ -567,21 +566,23 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-slate-50 text-slate-500">
                     <tr>
-                      <th className="text-left font-medium px-4 py-2">Tên PC</th>
+                      <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
+                      <th className="text-left font-medium px-2 py-2">Tên PC</th>
                       <th className="text-right font-medium px-2 py-2">CT</th>
                       <th className="text-right font-medium px-2 py-2">Mục</th>
                       <th className="text-right font-medium px-4 py-2">Tổng GT (Tỷ)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {pcTable.map(r => (
+                    {pcTable.map((r, idx) => (
                       <tr key={r.name} onClick={() => openDetail({
                             eyebrow: 'Người phụ trách (PC)', title: r.name, exclude: 'pc',
                             pred: rec => rec.pc === r.name, focus: 'total', filter: { key: 'pc', value: r.name },
                           })}
                           title="Bấm để xem các công trình PC đang quản lý"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.pc === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="px-4 py-1.5 text-slate-800">
+                        <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                        <td className="px-2 py-1.5 text-slate-800">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="truncate group-hover:text-blue-700 group-hover:underline">{r.name}</span>
                             {/* Lọc chéo theo PC (tách riêng để bấm dòng là mở chi tiết PC) */}
@@ -604,7 +605,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   </tbody>
                   <tfoot className="sticky bottom-0 bg-slate-50 font-semibold text-slate-800">
                     <tr>
-                      <td className="px-4 py-2">Tổng cộng</td>
+                      <td />
+                      <td className="px-2 py-2">Tổng cộng</td>
                       <td className="px-2 py-2 text-right tabular-nums">{new Set(pcTable.flatMap(r => [...r.cts])).size}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{fmtInt(pcTable.reduce((s, r) => s + r.items, 0))}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
@@ -615,8 +617,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             </div>
           </div>
 
-          {/* Cột giữa: bảng công trình */}
-          <div className={`xl:col-span-5 ${cardCls} overflow-hidden flex flex-col`}>
+          {/* Cột giữa: danh sách công trình (rộng 6/12 cột, tên công trình hiện đầy đủ) */}
+          <div className={`xl:col-span-6 ${cardCls} overflow-hidden flex flex-col`}>
             <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
               <p className="text-xs font-semibold text-slate-700">Danh sách công trình ({fmtInt(ctTable.length)})</p>
               <div className="relative">
@@ -631,7 +633,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="text-left font-medium px-4 py-2">Tên công trình</th>
+                    <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
+                    <th className="text-left font-medium px-2 py-2">Tên công trình</th>
                     <th className="text-left font-medium px-2 py-2">PM</th>
                     <th className="text-right font-medium px-2 py-2">Mục</th>
                     <th className="text-right font-medium px-2 py-2">Tổng GT (Tỷ)</th>
@@ -639,16 +642,17 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {ctTable.map(r => {
+                  {ctTable.map((r, idx) => {
                     const pct = r.total > 0 ? Math.min(100, (r.done / r.total) * 100) : 0;
                     const pms = [...r.pms];
                     return (
                       <tr key={r.name} onClick={() => setHealth({ ct: r.name, inDetail: false })}
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="px-4 py-1.5 text-slate-800 max-w-[280px]">
+                        <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                        <td className="px-2 py-1.5 text-slate-800 min-w-[220px]">
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="truncate group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
+                            <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
                             {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở HEX) */}
                             <button
                               type="button"
@@ -678,7 +682,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     );
                   })}
                   {ctTable.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
                   )}
                 </tbody>
               </table>
