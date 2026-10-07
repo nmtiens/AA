@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Hash, DollarSign } from 'lucide-react';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { formatTy } from '../../../../utils/money';
 
 interface ProjectStatusRow {
   name: string;
@@ -27,7 +28,8 @@ export const ProjectSummarySection = ({
   projectSummaryMetric,
   setProjectSummaryMetric,
 }: ProjectSummarySectionProps) => {
-  const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatDecimal;
+  // Giá trị đã ở đơn vị Tỷ -> 2 chữ số thập phân
+  const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatTy;
 
   return (
     <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { runWithLimit, TRIEU_TO_TY, TARGET_WORKSHOPS, currentVnYear } from '../server/common.js';
+import { notCancelledHexCond } from '../server/data.js';
 import { numericCol } from '../server/data.js';
 import { app } from '../server/app.js';
 
@@ -37,7 +38,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
       () => timedQuery(`
         SELECT COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS total
         FROM nhap_kho
-        WHERE date_parsed BETWEEN $1 AND $2
+        WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond('hex')}
       `, [yearStart, yearEnd]),
 
       () => timedQuery(`
@@ -51,7 +52,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
         SELECT CASE WHEN xuong_chinh = ANY($1::text[]) THEN xuong_chinh ELSE 'KHÁC' END AS name,
                COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) AS actual
         FROM nhap_kho
-        WHERE date_parsed BETWEEN $2 AND $3
+        WHERE date_parsed BETWEEN $2 AND $3 AND ${notCancelledHexCond('hex')}
         GROUP BY 1
       `, [TARGET_WORKSHOPS, yearStart, yearEnd]),
     ], 2);

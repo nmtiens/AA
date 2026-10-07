@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { FunnelCard } from '../shared/FunnelCard';
 import { CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
-import { formatDecimal, formatNumber, formatDecimalFull } from '../../utils/numberParsers';
+import { formatNumber } from '../../utils/numberParsers';
+import { formatTrieuAsTy } from '../../../../utils/money';
 import type { MetricType } from '../../types';
 import { ModalShell } from '../../../shared/ModalShell';
 
@@ -25,7 +26,6 @@ interface ConstructionRevenueSectionProps {
   customFunnelData: CustomFunnelItem[];
   pivotFunnelData: PivotFunnelData | null;
   workshopMetric: MetricType;
-  useDetailedNumbers?: boolean;
   // MỚI: báo lên cha khi user bấm vào 1 thanh funnel, để cha đổi
   // pivotFunnelData sang breakdown theo công trình của đúng bước đó.
   onFunnelItemClick?: (item: CustomFunnelItem) => void;
@@ -47,7 +47,6 @@ export const ConstructionRevenueSection = ({
   customFunnelData,
   pivotFunnelData,
   workshopMetric,
-  useDetailedNumbers = false,
   onFunnelItemClick,
   onFunnelModalClose,
   onPivotValueClick,
@@ -58,46 +57,21 @@ export const ConstructionRevenueSection = ({
 
   const cancelledValue = factoryRevenueStats.cancelled ?? 0;
 
-  const formatRoundedNumber = (value: number): string => {
-  const absValue = Math.abs(value);
-  if (absValue < 1000) {
-    return value.toLocaleString('en-US', {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    });
-  }
-  return Math.round(value).toLocaleString('en-US');
-};
-
+  // Giá trị gốc là triệu đồng -> hiển thị Tỷ, 2 chữ số thập phân; đếm HEX giữ nguyên số lượng
   const formatFunnelValue = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
     }
-    if (useDetailedNumbers) {
-      return formatRoundedNumber(value);
-    }
-    return `${formatRoundedNumber(value / 1000)} Tỷ`;
+    return formatTrieuAsTy(value);
   };
 
-  const formatBarLabel = (value: number): string => {
-    if (workshopMetric === 'COUNT_HEX') {
-      return formatNumber(value, workshopMetric);
-    }
-    const displayValue = useDetailedNumbers ? value : value / 1000;
-    const rounded = formatRoundedNumber(displayValue);
-    return useDetailedNumbers ? rounded : `${rounded} Tỷ`;
-  };
+  const formatBarLabel = formatFunnelValue;
 
-  // ✅ MỚI: Số chi tiết (không làm tròn) — dùng cho tooltip khi rê chuột.
-  // Số hiển thị trên thanh / trong bảng vẫn làm tròn như cũ.
   const formatDetailValue = (value: number): string => {
     if (workshopMetric === 'COUNT_HEX') {
       return formatNumber(value, workshopMetric);
     }
-    if (useDetailedNumbers) {
-      return formatDecimalFull(value);
-    }
-    return `${formatDecimalFull(value / 1000)} Tỷ`;
+    return `${formatTrieuAsTy(value)} Tỷ`;
   };
 
   const handleOpenOverallDetail = () => {
@@ -149,7 +123,7 @@ export const ConstructionRevenueSection = ({
         <FunnelCard
           className={sideContent ? 'xl:col-span-8' : 'xl:col-span-12'}
           subtitle="Phân bổ theo công đoạn (BOP)"
-          unit={workshopMetric === 'COUNT_HEX' ? 'Hạng mục' : useDetailedNumbers ? 'Triệu đồng' : 'Tỷ đồng'}
+          unit={workshopMetric === 'COUNT_HEX' ? 'Hạng mục' : 'Tỷ đồng'}
           items={customFunnelData}
           barLabel={item => formatBarLabel(item.value)}
           barTitle={item => `${item.name}: ${formatDetailValue(item.value)}`}
@@ -182,9 +156,9 @@ export const ConstructionRevenueSection = ({
                 </p>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                {useDetailedNumbers && workshopMetric !== 'COUNT_HEX' && (
+                {workshopMetric !== 'COUNT_HEX' && (
                   <span className="text-[0.6875rem] font-semibold text-slate-400 uppercase tracking-wide whitespace-nowrap">
-                    Đơn vị: Triệu đồng
+                    Đơn vị: Tỷ đồng
                   </span>
                 )}
                 <button
@@ -206,7 +180,9 @@ export const ConstructionRevenueSection = ({
                         <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">
                           {selectedFunnelItem ? 'Công trình' : 'BOP'}
                         </th>
-                        <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">Giá Trị</th>
+                        <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">
+                          {workshopMetric === 'COUNT_HEX' ? 'Số hạng mục' : 'Giá trị (tỷ)'}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">

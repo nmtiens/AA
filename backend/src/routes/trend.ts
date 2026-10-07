@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
-import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
 import { app } from '../server/app.js';
 
 // [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
@@ -54,6 +54,8 @@ app.get('/api/trend', async (req: Request, res: Response) => {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
+    // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
+    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -287,6 +289,8 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
+    // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
+    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -379,6 +383,8 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
+    // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
+    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -467,6 +473,8 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);  
+    // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
+    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -553,6 +561,8 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
+    // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
+    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (dvt) {
       if (cfg.dvtCol) {
         params.push(dvt); conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
@@ -716,6 +726,8 @@ app.get('/api/detail', async (req: Request, res: Response) => {
       params.push(congTrinh); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
     }
     applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
+    // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
+    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     // Chiều ĐVT
     if (dimension === 'dvt') {
       const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : 'p.dvt';

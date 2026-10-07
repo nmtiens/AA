@@ -1,9 +1,10 @@
 import React from 'react';
+import { formatTy } from '../../../../../utils/money';
 
 export const YearlyPlanWorkshopTooltip = ({ active, payload, label }: any) => {
   const formatValue = (value: any) => {
     if (value === null || value === undefined) return '0';
-    return Number(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return formatTy(Number(value)); // đơn vị Tỷ
   };
 
   if (active && payload && payload.length) {

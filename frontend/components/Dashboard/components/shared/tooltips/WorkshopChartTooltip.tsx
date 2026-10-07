@@ -1,9 +1,10 @@
 import React from 'react';
+import { formatTy } from '../../../../../utils/money';
 
 export const WorkshopChartTooltip = ({ active, payload, label }: any) => {
   const formatValue = (value: any) => {
     if (value === null || value === undefined) return '0';
-    return Number(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return formatTy(Number(value)); // đơn vị Tỷ
   };
 
   if (active && payload && payload.length) {
@@ -18,11 +19,11 @@ export const WorkshopChartTooltip = ({ active, payload, label }: any) => {
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-4">
             <span className="text-xs text-emerald-600 font-medium">Kế hoạch:</span>
-            <span className="text-sm font-bold text-emerald-700">{formatValue(plan)}</span>
+            <span className="text-sm font-bold text-emerald-700">{formatValue(plan)} Tỷ</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-xs text-blue-600 font-medium">Thực hiện:</span>
-            <span className="text-sm font-bold text-blue-700">{formatValue(actual)}</span>
+            <span className="text-sm font-bold text-blue-700">{formatValue(actual)} Tỷ</span>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1 mt-1">
             <span className="text-xs text-slate-500 font-medium">% Đạt:</span>

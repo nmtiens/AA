@@ -25,7 +25,7 @@ const LABEL_OFFSET = 'left-[14rem] md:left-[20rem] lg:left-[22.5rem]';    // = c
 interface FunnelCardProps<T extends FunnelCardItem> {
   title?: string;
   subtitle: React.ReactNode;
-  /** Đơn vị của con số trên thanh, hiện ở góc trên bên trái (vd. "Triệu đồng", "Hạng mục") */
+  /** Đơn vị của con số trên thanh, hiện ở góc trên bên trái (vd. "Tỷ đồng", "Hạng mục") */
   unit?: string;
   items: T[];
   /** Chữ trên thanh */

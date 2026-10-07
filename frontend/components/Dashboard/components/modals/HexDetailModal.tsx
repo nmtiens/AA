@@ -5,10 +5,10 @@ import {
   ChevronLeft, ChevronRight, Package,
 } from 'lucide-react';
 import { formatSmartDecimal, parseNumber } from '../../utils/numberParsers';
-import { MONEY_UNIT_LABEL } from '../../../../utils/money';
+import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
-import { deadlineOf as deadlineOfRow, DEADLINE_SOURCE_LABEL, type DeadlineKeys } from '../../../../utils/productionMetrics';
+import { deadlineOf as deadlineOfRow, DEADLINE_SOURCE_LABEL, doneValue, isCancelledIpo, type DeadlineKeys } from '../../../../utils/productionMetrics';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 import { useFrozenColumns, applyFrozen, fzClass, fzStyle } from '../../../Construction/utils/useFrozenColumns';
@@ -55,8 +55,8 @@ interface HexDetailModalProps {
 
 type NotesResponse = Record<string, Record<string, string | null>>;
 
-// Giá trị gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
-const money = (value: number) => formatSmartDecimal(value, 3);
+// Giá trị gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
+const money = (value: number) => formatTrieuAsTy(value);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
@@ -383,9 +383,9 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   bop: { label: 'BOP', sortKey: 'bop' },
   tinhTrang: { label: 'Tình Trạng', sortKey: 'tinhTrang' },
   phanLoai: { label: <>Phân Loại <br />Nhóm SP</>, sortKey: 'phanLoai', align: 'right' },
-  triGia: { label: <>Trị Giá Đơn <br />Hàng Tổng</>, sortKey: 'triGia', align: 'right' },
-  thanhTienPhieu: { label: <>Thành Tiền <br />Tính Phiếu</>, sortKey: 'thanhTienPhieu', align: 'right' },
-  thanhTienKho: { label: <>Thành Tiền <br />Nhập Kho</>, sortKey: 'thanhTienKho', align: 'right' },
+  triGia: { label: <>Trị Giá Đơn <br />Hàng Tổng (tỷ)</>, sortKey: 'triGia', align: 'right' },
+  thanhTienPhieu: { label: <>Thành Tiền <br />Tính Phiếu (tỷ)</>, sortKey: 'thanhTienPhieu', align: 'right' },
+  thanhTienKho: { label: <>Thành Tiền <br />Nhập Kho (tỷ)</>, sortKey: 'thanhTienKho', align: 'right' },
   ghiChuDonHangTong: { label: <>Ghi Chú <br />Đơn Hàng Tổng</>, sortKey: 'ghiChuDonHangTong' },
   ghiChuPhieu: { label: <>Ghi Chú <br />Phiếu</>, sortKey: 'ghiChuPhieu' },
   ghiChuNhapKho: { label: <>Ghi Chú <br />Nhập Kho</>, sortKey: 'ghiChuNhapKho' },
@@ -686,9 +686,9 @@ export const HexDetailModal = ({
     { key: 'bop', label: 'BOP' },
     { key: 'tinhTrang', label: 'Tình Trạng' },
     { key: 'phanLoai', label: 'Phân Loại Nhóm Sản Phẩm' },
-    { key: 'triGia', label: 'Trị Giá Đơn Hàng Tổng' },
-    { key: 'thanhTienPhieu', label: 'Thành Tiền Tính Phiếu' },
-    { key: 'thanhTienKho', label: 'Thành Tiền Nhập Kho' },
+    { key: 'triGia', label: 'Trị Giá Đơn Hàng Tổng (tỷ)' },
+    { key: 'thanhTienPhieu', label: 'Thành Tiền Tính Phiếu (tỷ)' },
+    { key: 'thanhTienKho', label: 'Thành Tiền Nhập Kho (tỷ)' },
     { key: 'ghiChuDonHangTong', label: 'Ghi Chú Đơn Hàng Tổng' },
     { key: 'ghiChuPhieu', label: 'Ghi Chú Phiếu' },
     { key: 'ghiChuNhapKho', label: 'Tổng Hợp Ghi Chú Nhập Kho' },
@@ -822,9 +822,12 @@ export const HexDetailModal = ({
   const totals = useMemo(() => {
     return filteredRows.reduce(
       (acc, row) => {
-        acc.triGiaDonHangTong += parseNumber(row[triGiaDonHangTongKey]);
-        acc.thanhTienTinhPhieu += parseNumber(row[thanhTienTinhPhieuKey]);
-        acc.thanhTienNhapKho += parseNumber(row[thanhTienNhapKhoKey]);
+        // Tổng theo quy tắc chung: đơn HỦY = 0, đã nhập kho chặn trong [0, trị giá]
+        const cancelled = isCancelledIpo(row['tinh_trang_ipo']);
+        const tg = parseNumber(row[triGiaDonHangTongKey]);
+        acc.triGiaDonHangTong += cancelled ? 0 : tg;
+        acc.thanhTienTinhPhieu += cancelled ? 0 : parseNumber(row[thanhTienTinhPhieuKey]);
+        acc.thanhTienNhapKho += doneValue(tg, parseNumber(row[thanhTienNhapKhoKey]), cancelled);
         return acc;
       },
       { triGiaDonHangTong: 0, thanhTienTinhPhieu: 0, thanhTienNhapKho: 0 }
@@ -1147,7 +1150,7 @@ export const HexDetailModal = ({
               </h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {projectName ?? 'Tất cả công trình'} · {filteredRows.length} hex ·{' '}
-                Đơn vị tiền: {MONEY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
+                Đơn vị tiền: {TY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
               </p>
             </div>
             <div className="flex items-center gap-3">

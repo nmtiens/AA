@@ -14,7 +14,7 @@ import { FORM_CATEGORIES } from './formCategories';
 import HandlerPicker from './HandlerPicker';
 import MentionTextarea from './MentionTextarea';
 import { searchHexBulk } from './hexBulkApi';
-import { MONEY_UNIT_LABEL } from '../../utils/money';
+import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../utils/money';
 
 // Các ô ghi chú giống bảng "Chi tiết theo Hex" trên desktop
 const NOTE_LABELS: [string, string][] = [
@@ -49,13 +49,13 @@ const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base'
 const btnPrimary = 'w-full rounded-lg bg-slate-800 py-2.5 text-base font-medium text-white disabled:opacity-50';
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
 
-// Giá trị tiền gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
+// Giá trị tiền gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
 const toNum = (v: unknown) => {
   const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
 };
 const money = (v: unknown) =>
-  toNum(v).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+  formatTrieuAsTy(toNum(v));
 
 // Tách nhiều mã theo dấu phẩy, chấm phẩy hoặc khoảng trắng
 const splitCodes = (s: string) =>
@@ -346,7 +346,7 @@ export default function HexLookup() {
           <Field label="Trị giá đơn hàng tổng" value={money(h.triGia)} />
           <Field label="Thành tiền tính phiếu" value={money(h.thanhTienPhieu)} />
           <Field label="Thành tiền nhập kho" value={<span className="font-medium text-indigo-700">{money(h.thanhTienKho)}</span>} />
-          <p className="col-span-full text-xs text-slate-400">Đơn vị tiền: {MONEY_UNIT_LABEL}</p>
+          <p className="col-span-full text-xs text-slate-400">Đơn vị tiền: {TY_UNIT_LABEL}</p>
         </div>
 
         {d === 'loading' || !d ? (

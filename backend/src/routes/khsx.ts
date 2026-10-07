@@ -1,12 +1,12 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { TRIEU_TO_TY } from '../server/common.js';
-import { getRelevantVersions, trimCache, numericCol } from '../server/data.js';
+import { getRelevantVersions, trimCache, numericCol, notCancelledHexCond } from '../server/data.js';
 import { app } from '../server/app.js';
 
 // --- CACHE IN-MEMORY CHO /api/khsx-nhapkho/summary ---
 const khsxNhapKhoCache = new Map<string, { versions: Record<string, string>; payload: any }>();
-const KHSX_NHAPKHO_VERSION_KEYS = ['khsx', 'inventory'];
+const KHSX_NHAPKHO_VERSION_KEYS = ['khsx', 'inventory', 'production'];
 
 // [ĐO TIMING] Endpoint tổng hợp phức tạp — 2 query chính (khQuery, thQuery).
 // Đơn vị trả ra: TỶ ĐỒNG (cả KH lẫn TH đều từ triệu -> tỷ, chia 1000).
@@ -31,7 +31,8 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
 
     // ---------- KẾ HOẠCH (khsx) ----------
     const khParams: any[] = [phanLoaiPattern, nam];
-    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint`;
+    // Không tính hạng mục đã HỦY
+    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint AND ${notCancelledHexCond('hex')}`;
     if (thang) { khParams.push(thang); khWhere += ` AND thang = $${khParams.length}::bigint`; }
     if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan = $${khParams.length}::double precision`; }
     if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay = $${khParams.length}::double precision`; }
@@ -52,7 +53,8 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
 
     // ---------- THỰC HIỆN (nhap_kho) ----------
     const thParams: any[] = [nam];
-    let thWhere = `WHERE nam = $1::bigint`;
+    // Không tính hạng mục đã HỦY
+    let thWhere = `WHERE nam = $1::bigint AND ${notCancelledHexCond('hex')}`;
     if (thang) { thParams.push(thang); thWhere += ` AND thang = $${thParams.length}::bigint`; }
     if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan = $${thParams.length}::bigint`; }
     if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay = $${thParams.length}::bigint`; }

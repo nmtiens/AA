@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { DataRow } from '../../../../types';
 import { formatDecimal, formatInteger } from '../../utils/numberParsers';
+import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
 import { getWeekNumber } from '../../utils/dateHelpers';
 import { getWeekRange2026 } from '../../../../utils/dateUtils';
 import { DashboardFilter } from '../shared/DashboardFilter';
@@ -274,17 +275,17 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <BarChart data={yearlyPlan2026WorkshopChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
-                    <YAxis tickFormatter={(val) => formatDecimal(val)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <YAxis tickFormatter={(val) => formatTy(val)} tick={{ fontSize: 10, fill: '#64748b' }} />
                     <RechartsTooltip
                       formatter={(value: number, name: string) => [
-                        `${formatDecimal(value)} Tỷ`,
+                        `${formatTy(value)} Tỷ`,
                         name === 'plan' ? 'Kế hoạch' : 'Thực hiện',
                       ]}
                       cursor={{ fill: '#f8fafc' }}
                     />
                     <Legend verticalAlign="top" height={36} />
                     <Bar dataKey="plan" name="Kế hoạch (Tỷ)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30}>
-                      <LabelList dataKey="plan" position="top" formatter={(val: number) => (val > 0 ? formatDecimal(val) : '')} fontSize={10} fill="#059669" />
+                      <LabelList dataKey="plan" position="top" formatter={(val: number) => (val > 0 ? formatTy(val) : '')} fontSize={10} fill="#059669" />
                     </Bar>
                     <Bar dataKey="actual" name="Thực hiện (Tỷ)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
                       <LabelList
@@ -299,7 +300,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           const percent = plan > 0 ? (actual / plan) * 100 : 0;
                           return (
                             <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
-                              <tspan x={x + width / 2} dy="0">{formatDecimal(actual)}</tspan>
+                              <tspan x={x + width / 2} dy="0">{formatTy(actual)}</tspan>
                               <tspan x={x + width / 2} dy="12">({Math.round(percent)}%)</tspan>
                             </text>
                           );
@@ -324,10 +325,10 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <div className="p-1.5 bg-orange-100 rounded text-orange-600">
                     <Calendar size={18} />
                   </div>
-                  <p className="text-xs font-bold text-orange-800 opacity-70 uppercase">Tổng KH Sản Xuất</p>
+                  <p className="text-xs font-bold text-orange-800 opacity-70 uppercase">Tổng KH Sản Xuất (Tỷ)</p>
                 </div>
                 <h4 className="text-2xl lg:text-3xl font-bold text-orange-600 tracking-tight">
-                  {formatDecimal(totalKhsxAmount)}
+                  {formatTy(totalKhsxAmount)}
                 </h4>
                 <div className="mt-1 text-[0.625rem] text-orange-800/60 italic">
                   {`Chế độ xem: ${viewMode === 'MONTH' ? 'Theo Tháng' : 'Theo Tuần'}`}
@@ -372,10 +373,10 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
                     <Import size={18} />
                   </div>
-                  <p className="text-xs font-bold text-indigo-800 opacity-70 uppercase">Tổng Thực Hiện (NK)</p>
+                  <p className="text-xs font-bold text-indigo-800 opacity-70 uppercase">Tổng Thực Hiện (NK) (Tỷ)</p>
                 </div>
                 <h4 className="text-2xl lg:text-3xl font-bold text-indigo-600 tracking-tight">
-                  {formatDecimal(totalInventoryAmount)}
+                  {formatTy(totalInventoryAmount)}
                 </h4>
               </div>
             </div>
@@ -391,11 +392,11 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <BarChart data={combinedWorkshopData} margin={{ top: 35, right: 30, left: 10, bottom: 50 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10 }} interval={0} />
-                    <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
+                    <YAxis tickFormatter={formatTy} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<WorkshopChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
                     <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                      <LabelList position="top" formatter={formatDecimal} fontSize={10} fill="#059669" />
+                      <LabelList position="top" formatter={formatTy} fontSize={10} fill="#059669" />
                     </Bar>
                     <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
                       <LabelList
@@ -414,7 +415,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           return (
                             <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
                               <tspan x={x + width / 2} dy="0">
-                                {formatDecimal(actual)}
+                                {formatTy(actual)}
                               </tspan>
                               <tspan x={x + width / 2} dy="12">
                                 ({Math.round(percent)}%)
@@ -443,11 +444,11 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                       interval={0}
                       tickFormatter={(value) => (value.includes('_') ? value.split('_').pop() : value)}
                     />
-                    <YAxis tickFormatter={formatDecimal} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
+                    <YAxis tickFormatter={formatTy} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<ProjectChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
                     <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                      <LabelList position="top" formatter={formatDecimal} fontSize={10} fill="#059669" />
+                      <LabelList position="top" formatter={formatTy} fontSize={10} fill="#059669" />
                     </Bar>
                     <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
                       <LabelList
@@ -466,7 +467,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           return (
                             <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
                               <tspan x={x + width / 2} dy="0">
-                                {formatDecimal(actual)}
+                                {formatTy(actual)}
                               </tspan>
                               <tspan x={x + width / 2} dy="12">
                                 ({Math.round(percent)}%)
@@ -518,8 +519,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                             <th className="px-4 py-3 text-left sticky left-0 bg-wood-50 border-b border-wood-200 z-10 w-32">
                               Xưởng Chính
                             </th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Thành tiền Kế hoạch</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Nhập kho Tuần</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Thành tiền Kế hoạch (tỷ)</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Nhập kho Tuần (tỷ)</th>
                             <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Tỷ lệ (Tuần/KH)</th>
                             <th className="px-4 py-3 border-b border-wood-200 text-green-700 bg-green-50">ĐÚNG TIẾN ĐỘ</th>
                             <th className="px-4 py-3 border-b border-wood-200 text-red-700 bg-red-50">CHẬM TIẾN ĐỘ</th>
@@ -538,8 +539,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                                 <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">
                                   {item.name}
                                 </td>
-                                <td className="px-4 py-3 text-slate-600 font-bold">{formatDecimal(item.plan)}</td>
-                                <td className="px-4 py-3 font-bold text-slate-800">{formatDecimal(item.actualWeek)}</td>
+                                <td className="px-4 py-3 text-slate-600 font-bold">{formatTy(item.plan)}</td>
+                                <td className="px-4 py-3 font-bold text-slate-800">{formatTy(item.actualWeek)}</td>
                                 <td className="px-4 py-3">
                                   <span
                                     className={`px-2 py-1 rounded font-bold text-[0.625rem] inline-block w-16 text-center ${
@@ -553,9 +554,9 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                                     {formatDecimal(percent)}%
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 text-green-700 bg-green-50/30 font-bold">{formatDecimal(dungTienDo)}</td>
-                                <td className="px-4 py-3 text-red-700 bg-red-50/30 font-bold">{formatDecimal(chamTienDo)}</td>
-                                <td className="px-4 py-3 text-teal-700 bg-teal-50/30 font-bold">{formatDecimal(ngoaiKeHoach)}</td>
+                                <td className="px-4 py-3 text-green-700 bg-green-50/30 font-bold">{formatTy(dungTienDo)}</td>
+                                <td className="px-4 py-3 text-red-700 bg-red-50/30 font-bold">{formatTy(chamTienDo)}</td>
+                                <td className="px-4 py-3 text-teal-700 bg-teal-50/30 font-bold">{formatTy(ngoaiKeHoach)}</td>
                               </tr>
                             );
                           })}
@@ -563,9 +564,9 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                         <tfoot className="bg-wood-100 font-bold text-slate-800 border-t border-wood-300">
                           <tr>
                             <td className="px-4 py-3 text-left sticky left-0 bg-wood-100 z-10">TỔNG CỘNG</td>
-                            <td className="px-4 py-3">{formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
+                            <td className="px-4 py-3">{formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
                             <td className="px-4 py-3">
-                              {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
+                              {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
                             </td>
                             <td className="px-4 py-3">
                               {(() => {
@@ -576,15 +577,15 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                               })()}
                             </td>
                             <td className="px-4 py-3 text-green-800 bg-green-100/50">
-                              {formatDecimal(
+                              {formatTy(
                                 weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh + b.thucHienDungKh1Phan + b.nhapKhoTruocKh, 0)
                               )}
                             </td>
                             <td className="px-4 py-3 text-red-800 bg-red-100/50">
-                              {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0))}
+                              {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh + b.thucHienRotKh1Phan, 0))}
                             </td>
                             <td className="px-4 py-3 text-teal-800 bg-teal-100/50">
-                              {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0))}
+                              {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh + b.nhapKhoNgoaiKh, 0))}
                             </td>
                           </tr>
                         </tfoot>
@@ -648,10 +649,10 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ TĂNG CA</th>
                           <th className="px-2 py-3 border-b border-purple-200 text-orange-700">TỶ LỆ GIỜ TĂNG CA (%)</th>
                           <th className="px-2 py-3 border-b border-purple-200 text-purple-800 bg-purple-100/30">
-                            DOANH SỐ NHẬP KHO
+                            DOANH SỐ NHẬP KHO (TỶ)
                           </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 GIỜ</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 CÔNG NHÂN</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 GIỜ (TRIỆU)</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 CÔNG NHÂN (TRIỆU)</th>
                           <th className="px-2 py-3 border-b border-purple-200 text-orange-700">BÌNH QUÂN GIỜ CÔNG / 1 CÔNG NHÂN</th>
                         </tr>
                       </thead>
@@ -666,7 +667,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                             <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalHc)}</td>
                             <td className="px-2 py-3 text-slate-600">{formatDecimal(item.totalTc)}</td>
                             <td className="px-2 py-3 text-orange-600">{formatDecimal(item.overtimeRate)}%</td>
-                            <td className="px-2 py-3 text-purple-700 font-bold bg-purple-50/20">{formatDecimal(item.sales)}</td>
+                            <td className="px-2 py-3 text-purple-700 font-bold bg-purple-50/20">{formatTrieuAsTy(item.sales)}</td>
                             <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerHour)}</td>
                             <td className="px-2 py-3 text-blue-600 font-medium">{formatDecimal(item.salesPerWorker)}</td>
                             <td className="px-2 py-3 text-orange-600">{formatDecimal(item.hoursPerWorker)}</td>
@@ -705,7 +706,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                             return (
                               <>
                                 <td className="px-2 py-3 text-orange-800">{formatDecimal(avgOvertimeRate)}%</td>
-                                <td className="px-2 py-3 text-purple-900">{formatDecimal(totalSales)}</td>
+                                <td className="px-2 py-3 text-purple-900">{formatTrieuAsTy(totalSales)}</td>
                                 <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerHour)}</td>
                                 <td className="px-2 py-3 text-blue-800">{formatDecimal(avgSalesPerWorker)}</td>
                                 <td className="px-2 py-3 text-orange-800">{formatDecimal(avgHoursPerWorker)}</td>
@@ -759,8 +760,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                       <th className="px-4 py-3 text-left sticky left-0 bg-orange-50 border-b border-orange-200 z-30 w-32 shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
                         Xưởng Chính
                       </th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Thành tiền Kế hoạch</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Nhập kho Tuần</th>
+                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Thành tiền Kế hoạch (tỷ)</th>
+                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Nhập kho Tuần (tỷ)</th>
                       <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Tỷ lệ (Tuần/KH)</th>
                       <th className="px-4 py-3 border-b border-orange-200 text-green-700 bg-green-50">ĐÚNG KẾ HOẠCH</th>
                       <th className="px-4 py-3 border-b border-orange-200 text-blue-700 bg-blue-50">
@@ -787,8 +788,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <td className="px-4 py-3 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[1px_0_3px_rgba(0,0,0,0.05)]">
                             {item.name}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 font-bold">{formatDecimal(item.plan)}</td>
-                          <td className="px-4 py-3 font-bold text-slate-800">{formatDecimal(item.actualWeek)}</td>
+                          <td className="px-4 py-3 text-slate-600 font-bold">{formatTy(item.plan)}</td>
+                          <td className="px-4 py-3 font-bold text-slate-800">{formatTy(item.actualWeek)}</td>
                           <td className="px-4 py-3">
                             <span
                               className={`px-2 py-1 rounded font-bold text-[0.625rem] inline-block w-16 text-center ${
@@ -802,20 +803,20 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                               {formatDecimal(percent)}%
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-green-700 bg-green-50/30">{formatDecimal(item.dungKh)}</td>
+                          <td className="px-4 py-3 text-green-700 bg-green-50/30">{formatTy(item.dungKh)}</td>
                           <td className="px-4 py-3 text-blue-700 bg-blue-50/30">
-                            {formatDecimal(item.thucHienDungKh1Phan)}
+                            {formatTy(item.thucHienDungKh1Phan)}
                           </td>
-                          <td className="px-4 py-3 text-red-700 bg-red-50/30">{formatDecimal(item.rotKh)}</td>
+                          <td className="px-4 py-3 text-red-700 bg-red-50/30">{formatTy(item.rotKh)}</td>
                           <td className="px-4 py-3 text-orange-700 bg-orange-50/30">
-                            {formatDecimal(item.thucHienRotKh1Phan)}
+                            {formatTy(item.thucHienRotKh1Phan)}
                           </td>
                           <td className="px-4 py-3 text-purple-700 bg-purple-50/30">
-                            {formatDecimal(item.nhapKhoTruocKh)}
+                            {formatTy(item.nhapKhoTruocKh)}
                           </td>
-                          <td className="px-4 py-3 text-teal-700 bg-teal-50/30">{formatDecimal(item.vuotKh)}</td>
+                          <td className="px-4 py-3 text-teal-700 bg-teal-50/30">{formatTy(item.vuotKh)}</td>
                           <td className="px-4 py-3 text-gray-700 bg-gray-50/30">
-                            {formatDecimal(item.nhapKhoNgoaiKh)}
+                            {formatTy(item.nhapKhoNgoaiKh)}
                           </td>
                         </tr>
                       );
@@ -826,9 +827,9 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                       <td className="px-4 py-3 text-left sticky left-0 bg-orange-100 z-30 shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
                         TỔNG CỘNG
                       </td>
-                      <td className="px-4 py-3">{formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
+                      <td className="px-4 py-3">{formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.plan, 0))}</td>
                       <td className="px-4 py-3">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.actualWeek, 0))}
                       </td>
                       <td className="px-4 py-3">
                         {(() => {
@@ -839,25 +840,25 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                         })()}
                       </td>
                       <td className="px-4 py-3 text-green-800 bg-green-100/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.dungKh, 0))}
                       </td>
                       <td className="px-4 py-3 text-blue-800 bg-blue-100/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.thucHienDungKh1Phan, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.thucHienDungKh1Phan, 0))}
                       </td>
                       <td className="px-4 py-3 text-red-800 bg-red-100/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.rotKh, 0))}
                       </td>
                       <td className="px-4 py-3 text-orange-800 bg-orange-100/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.thucHienRotKh1Phan, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.thucHienRotKh1Phan, 0))}
                       </td>
                       <td className="px-4 py-3 text-purple-800 bg-purple-100/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.nhapKhoTruocKh, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.nhapKhoTruocKh, 0))}
                       </td>
                       <td className="px-4 py-3 text-teal-800 bg-teal-100/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.vuotKh, 0))}
                       </td>
                       <td className="px-4 py-3 text-gray-800 bg-gray-200/50">
-                        {formatDecimal(weeklyPlanVsActualData.reduce((a, b) => a + b.nhapKhoNgoaiKh, 0))}
+                        {formatTy(weeklyPlanVsActualData.reduce((a, b) => a + b.nhapKhoNgoaiKh, 0))}
                       </td>
                     </tr>
                   </tfoot>

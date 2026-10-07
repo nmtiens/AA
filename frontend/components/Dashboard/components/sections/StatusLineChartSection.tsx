@@ -32,17 +32,12 @@ export const StatusLineChartSection = ({
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
           <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
           <YAxis
-            tickFormatter={(val) => {
-              if (val >= 1000000000) return (val / 1000000000).toFixed(1) + 'B';
-              if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
-              if (val >= 1000) return (val / 1000).toFixed(0) + 'K';
-              return val;
-            }}
+            tickFormatter={(val: number) => formatNumber(val, chartMetric)}
             tick={{ fontSize: 10, fill: '#64748b' }}
             width={60}
           />
           <RechartsTooltip
-            formatter={(value: number) => [formatNumber(value, chartMetric), 'Giá trị']}
+            formatter={(value: number) => [formatNumber(value, chartMetric) + (chartMetric === 'COUNT_HEX' ? '' : ' Tỷ'), 'Giá trị']}
             labelStyle={{ color: '#334155', fontWeight: 600 }}
             contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
           />

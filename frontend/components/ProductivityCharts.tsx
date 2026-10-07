@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { Activity, BarChart2, PieChart, TrendingUp } from 'lucide-react';
 import { getWeekRange2026 } from '../utils/dateUtils';
+import { formatTrieuAsTy } from '../utils/money';
 
 interface ProductivityData {
     name: string;
@@ -30,10 +31,6 @@ interface ProductivityChartsProps {
         tuan: string[];
     };
 }
-
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
-};
 
 const formatNumber = (value: number) => {
     return new Intl.NumberFormat('vi-VN').format(value);
@@ -64,7 +61,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                     let valueDisplay = formatNumber(entry.value);
 
                     if (entry.name === 'Doanh số') {
-                        valueDisplay = `${formatDecimal(entry.value)} Triệu`;
+                        valueDisplay = `${formatTrieuAsTy(entry.value)} Tỷ`;
                     } else if (entry.name === 'Giờ Hành chính') {
                         valueDisplay = `${formatNumber(Math.round(entry.value))} Giờ`;
                     } else if (entry.name === 'Giờ Tăng ca') {
@@ -98,7 +95,7 @@ const Chart1Tooltip = ({ active, payload, label }: any) => {
                 <div className="flex items-center justify-between gap-4">
                     <span className="text-xs text-purple-600 font-medium">Doanh số:</span>
                     <span className="text-sm font-bold text-purple-700">
-                        {formatDecimal(data.sales / 1000)}
+                        {formatTrieuAsTy(data.sales)} Tỷ
                     </span>
                 </div>
             </div>
@@ -116,7 +113,7 @@ const Chart2Tooltip = ({ active, payload, label }: any) => {
                 <div className="flex items-center justify-between gap-4">
                     <span className="text-xs text-blue-600 font-medium">BQ DS/CN:</span>
                     <span className="text-sm font-bold text-blue-700">
-                        {formatDecimal(data.salesPerWorker)}
+                        {formatDecimal(data.salesPerWorker)} triệu
                     </span>
                 </div>
             </div>
@@ -128,7 +125,7 @@ const Chart2Tooltip = ({ active, payload, label }: any) => {
 // Custom Label for Sales Line (White background for readability)
 const CustomLineLabel = (props: any) => {
     const { x, y, value } = props;
-    const text = formatDecimal(value);
+    const text = formatTrieuAsTy(value); // doanh số gốc triệu -> Tỷ
 
     // Adjust y to position label above the point
     // Recharts passes x, y as the coordinate of the point.
@@ -271,9 +268,11 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     yAxisId="left"
                                     orientation="left"
                                     tick={{ fontSize: 10, fill: '#64748b' }}
-                                    label={{ value: 'Giờ công & Doanh số (Triệu)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#64748b', fontSize: 10 } }}
+                                    label={{ value: 'Giờ công', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#64748b', fontSize: 10 } }}
                                 />
                                 <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                {/* Trục ẩn riêng cho doanh số (nhãn hiển thị Tỷ) */}
+                                <YAxis yAxisId="sales" hide />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Legend verticalAlign="top" height={36} />
 
@@ -281,7 +280,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                 <Bar yAxisId="left" dataKey="totalTc" name="Giờ Tăng ca" stackId="a" fill="#F2994A" barSize={40} />
 
                                 <Line
-                                    yAxisId="left"
+                                    yAxisId="sales"
                                     type="monotone"
                                     dataKey="sales"
                                     name="Doanh số"
@@ -321,7 +320,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm animate-fade-in" style={{ animationDelay: '0.1s' }}>
                     <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-blue-500" />
-                        HIỆU QUẢ: BQ DOANH SỐ / 1 CÔNG NHÂN
+                        HIỆU QUẢ: BQ DOANH SỐ / 1 CÔNG NHÂN (TRIỆU)
                     </h3>
                     <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -376,7 +375,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     type="number"
                                     dataKey="sales"
                                     name="Doanh số"
-                                    tickFormatter={(val) => (val / 1000).toFixed(1)}
+                                    tickFormatter={(val: number) => formatTrieuAsTy(val)}
                                     tick={{ fontSize: 10, fill: '#64748b' }}
                                     label={{ value: 'Doanh Số Nhập Kho (Tỷ)', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#64748b', style: { textAnchor: 'middle' } }}
                                 />
@@ -389,9 +388,9 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                                 <div className="bg-white p-3 border border-slate-200 shadow-md rounded-md text-sm">
                                                     <p className="font-bold text-slate-800 mb-1">{d.name}</p>
                                                     <p className="text-slate-600">Quy mô: <span className="font-medium text-slate-800">{formatNumber(d.avgWorkers)} CN</span></p>
-                                                    <p className="text-slate-600">Doanh số: <span className="font-medium text-slate-800">{formatDecimal(d.sales / 1000)} Tỷ</span></p>
+                                                    <p className="text-slate-600">Doanh số: <span className="font-medium text-slate-800">{formatTrieuAsTy(d.sales)} Tỷ</span></p>
                                                     <p className="text-slate-600">Tỉ lệ Tăng ca: <span className="font-medium text-orange-600">{formatPercent(d.overtimeRate)}</span></p>
-                                                    <p className="text-blue-600 font-medium text-xs mt-1">NS: {formatCurrency(d.salesPerHour)}/giờ</p>
+                                                    <p className="text-blue-600 font-medium text-xs mt-1">NS: {formatDecimal(d.salesPerHour)} triệu/giờ</p>
                                                 </div>
                                             );
                                         }

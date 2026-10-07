@@ -1124,7 +1124,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
           customFunnelData={customFunnelData}
           pivotFunnelData={activeFunnelPivotData}
           workshopMetric={workshopMetric}
-          useDetailedNumbers={true}
           onFunnelItemClick={setActiveFunnelItem}
           onFunnelModalClose={() => setActiveFunnelItem(null)}
           onPivotValueClick={handleFunnelPivotValueClick}

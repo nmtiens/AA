@@ -6,6 +6,7 @@ import { parseNumber } from '../../utils/numberParsers';
 import { categoryValue, NO_DATA_LABEL } from '../../utils/filterMatch';
 import { exportOrderMixExcel, type MixExportRec } from '../../utils/orderMixExport';
 import { Download, Loader2, XCircle } from 'lucide-react';
+import { formatTy } from '../../../../utils/money';
 
 // Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
@@ -27,7 +28,7 @@ const OTHERS_COLOR = '#64748b';
 export const pickMixColor = (name: string, i: number) => (name === OTHERS ? OTHERS_COLOR : PALETTE[i % PALETTE.length]);
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
-const fmtTy = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: Math.abs(n) < 10 ? 2 : 1 });
+const fmtTy = formatTy;
 const fmtMetric = (v: number, metric: Metric) => (metric === 'count' ? fmtInt(v) : `${fmtTy(v)} Tỷ`);
 
 // ============================================================================

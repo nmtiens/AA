@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { vnDayKey, vnTodayUtc } from '../server/common.js';
-import { parseSafeDate, getRelevantVersions, trimCache, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified } from '../server/data.js';
+import { parseSafeDate, getRelevantVersions, trimCache, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified, notCancelledHexCond } from '../server/data.js';
 import { app } from '../server/app.js';
 
 // --- CACHE IN-MEMORY CHO /api/overview/summary ---
@@ -31,7 +31,8 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
       tinhTrangIpo: tinhTrangIpoList,
     });
      const overviewVersions = await getRelevantVersions(
-      needsRoleJoin ? [...OVERVIEW_SUMMARY_VERSION_KEYS, 'production'] : OVERVIEW_SUMMARY_VERSION_KEYS
+      // Luôn kèm production: lọc bỏ hạng mục HỦY dựa vào bảng sản xuất
+      [...OVERVIEW_SUMMARY_VERSION_KEYS, 'production']
     );
     const cachedOverview = overviewSummaryCache.get(cacheKey);
     if (cachedOverview && JSON.stringify(cachedOverview.versions) === JSON.stringify(overviewVersions)) {
@@ -115,6 +116,8 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
         allParams.push(outerLo, outerHi);
         outerConds.push(`${colBare('date_parsed')} BETWEEN $${allParams.length - 1} AND $${allParams.length}`);
       }
+      // Không tính hạng mục đã HỦY
+      if (cfg.hexCol) outerConds.push(notCancelledHexCond(colBare(cfg.hexCol)));
       if (congTrinhList.length && cfg.congTrinhCol) {
         allParams.push(congTrinhList);
         outerConds.push(`UPPER(TRIM(${colBare(cfg.congTrinhCol)})) = ANY($${allParams.length}::text[])`);
@@ -237,6 +240,8 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
     params.push(outerLo, outerHi);
 
     const extraConds: string[] = [];
+    // Không tính hạng mục đã HỦY
+    if (cfg.hexCol) extraConds.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (congTrinhList.length && cfg.congTrinhCol) {
       params.push(congTrinhList);
       extraConds.push(`UPPER(TRIM(${colBare(cfg.congTrinhCol)})) = ANY($${params.length}::text[])`);

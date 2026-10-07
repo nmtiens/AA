@@ -25,6 +25,7 @@ export const PivotProjectSection = ({
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-3">
       <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
         <LayoutList className="w-4 h-4 text-blue-500" />Chi tiết Giá trị (Công trình x Tình trạng)
+        {projectMetric !== 'COUNT_HEX' && <span className="font-medium text-xs text-slate-400">(Tỷ đồng)</span>}
       </h3>
       <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
         <MetricSwitcher current={projectMetric} onChange={setProjectMetric} />

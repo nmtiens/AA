@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatTy } from '../../utils/money';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
@@ -52,7 +53,7 @@ const UNIT = 1000;
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtTy = (raw: number) => {
   const t = raw / UNIT ;
-  return t.toLocaleString('en-US', { maximumFractionDigits: Math.abs(t) < 10 ? 2 : 1 });
+  return formatTy(t); // Tỷ, 2 chữ số thập phân (dùng chung toàn app)
 };
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có hạn';
@@ -547,7 +548,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                     <Tooltip
                       cursor={{ fill: 'rgba(148,163,184,0.12)' }}
-                      formatter={(v: number, name: string) => [`${v.toLocaleString('en-US', { maximumFractionDigits: 2 })} Tỷ`, name === 'done' ? 'Đã nhập kho' : 'Chưa nhập kho']}
+                      formatter={(v: number, name: string) => [`${formatTy(v)} Tỷ`, name === 'done' ? 'Đã nhập kho' : 'Chưa nhập kho']}
                     />
                     <Bar dataKey="done" stackId="a" fill={COLOR_DONE} cursor="pointer" onClick={(d: any) => openMonthDetail(d.key ?? d.payload?.key)}>
                       {monthData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}

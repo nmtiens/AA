@@ -1,4 +1,4 @@
-import { formatDecimal } from '../../utils/numberParsers.ts';
+import { formatTy } from '../../../../utils/money';
 export const WeeklyVennDiagram = ({
   totalPlan,
   totalActual,
@@ -25,7 +25,7 @@ export const WeeklyVennDiagram = ({
       <div className="text-center mb-4">
         <h3 className="text-lg font-bold text-slate-800">Mô phỏng Venn Diagram</h3>
         <p className="text-sm font-medium text-slate-600">
-          (Tổng KH: {formatDecimal(totalPlan)} - Tổng TH: {formatDecimal(totalActual)})
+          (Tổng KH: {formatTy(totalPlan)} - Tổng TH: {formatTy(totalActual)} · Tỷ đồng)
         </p>
       </div>
 
@@ -40,19 +40,19 @@ export const WeeklyVennDiagram = ({
         {/* Left Only: Rớt Kế Hoạch */}
         <text x={cx1 - 60} y={cy} textAnchor="middle" dominantBaseline="middle" className="text-sm font-bold fill-red-900 pointer-events-none">
           <tspan x={cx1 - 60} dy="-0.6em" fontSize="16" fontWeight="bold">Rớt Kế Hoạch</tspan>
-          <tspan x={cx1 - 60} dy="1.4em" fontSize="18" fontWeight="bold">{formatDecimal(leftOnly)}</tspan>
+          <tspan x={cx1 - 60} dy="1.4em" fontSize="18" fontWeight="bold">{formatTy(leftOnly)}</tspan>
         </text>
 
         {/* Intersection: Đúng Kế Hoạch */}
         <text x={(cx1 + cx2) / 2} y={cy} textAnchor="middle" dominantBaseline="middle" className="text-sm font-bold fill-white pointer-events-none drop-shadow-md">
           <tspan x={(cx1 + cx2) / 2} dy="-0.6em" fontSize="16" fontWeight="bold">Đúng Kế Hoạch</tspan>
-          <tspan x={(cx1 + cx2) / 2} dy="1.4em" fontSize="18" fontWeight="bold">{formatDecimal(intersection)}</tspan>
+          <tspan x={(cx1 + cx2) / 2} dy="1.4em" fontSize="18" fontWeight="bold">{formatTy(intersection)}</tspan>
         </text>
 
         {/* Right Only: Ngoài/Vượt */}
         <text x={cx2 + 60} y={cy} textAnchor="middle" dominantBaseline="middle" className="text-sm font-bold fill-blue-900 pointer-events-none">
           <tspan x={cx2 + 60} dy="-0.6em" fontSize="16" fontWeight="bold">Ngoài/Vượt</tspan>
-          <tspan x={cx2 + 60} dy="1.4em" fontSize="18" fontWeight="bold">{formatDecimal(rightOnly)}</tspan>
+          <tspan x={cx2 + 60} dy="1.4em" fontSize="18" fontWeight="bold">{formatTy(rightOnly)}</tspan>
         </text>
       </svg>
 

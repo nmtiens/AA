@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { formatTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
@@ -171,7 +172,7 @@ export const OnLineStageDetailModal = ({
 
   if (!isOpen) return null;
 
-  const formatter = metric === 'COUNT' ? formatNumber : formatDecimal;
+  const formatter = metric === 'COUNT' ? formatNumber : formatTy; // VALUE đã ở đơn vị Tỷ
   const label = metric === 'VALUE' ? 'Giá Trị' : 'Số Lượng';
 
   // Tổng luôn tính trên toàn bộ ON_LINE_STAGES (không phụ thuộc ẩn/hiện cột).

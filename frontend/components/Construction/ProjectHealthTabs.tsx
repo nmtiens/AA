@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { formatTrieuAsTy } from '../../utils/money';
 import { Search, Package, AlertTriangle } from 'lucide-react';
 import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { isMaterialMissing, type DeadlineSource } from '../../utils/productionMetrics';
@@ -33,7 +34,8 @@ export interface MaterialLine {
 
 const DAY = 86_400_000;
 const fmtInt = (n: number) => n.toLocaleString('vi-VN');
-const fmtTy = (trieu: number, digits = 1) => (trieu / 1000).toLocaleString('en-US', { maximumFractionDigits: digits });
+// Tỷ đồng: 2 chữ số thập phân (dùng chung toàn app)
+const fmtTy = (trieu: number, _digits = 2) => formatTrieuAsTy(trieu);
 const fmtDate = (d: Date | null) =>
   d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
@@ -489,8 +491,8 @@ const HexTable = ({ rows, extraHead, extraCells }: {
           <th className={`${th} text-left`}>KH tuần</th>
           <th className={`${th} text-left`}>KH tháng</th>
           <th className={`${th} text-left`}>Cần giao</th>
-          <th className={`${th} text-right`}>Trị giá (tr)</th>
-          <th className={`${th} text-right`}>Còn lại (tr)</th>
+          <th className={`${th} text-right`}>Trị giá (tỷ)</th>
+          <th className={`${th} text-right`}>Còn lại (tỷ)</th>
           {extraHead}
         </tr>
       </thead>
@@ -503,9 +505,9 @@ const HexTable = ({ rows, extraHead, extraCells }: {
             <PlanDateCell i={i} which="tuần" />
             <PlanDateCell i={i} which="tháng" />
             <PlanDateCell i={i} which="cần giao" />
-            <td className={`${td} text-right tabular-nums text-slate-600`}>{i.total.toLocaleString('en-US', { maximumFractionDigits: 1 })}</td>
+            <td className={`${td} text-right tabular-nums text-slate-600`}>{formatTrieuAsTy(i.total)}</td>
             <td className={`${td} text-right tabular-nums ${i.remain > 0 ? 'text-amber-700' : 'text-emerald-600'}`}>
-              {i.remain > 0 ? i.remain.toLocaleString('en-US', { maximumFractionDigits: 1 }) : '0'}
+              {formatTrieuAsTy(i.remain)}
             </td>
             {extraCells(i)}
           </tr>

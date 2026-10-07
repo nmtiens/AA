@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Activity, Hash, DollarSign } from 'lucide-react';
 import { formatNumber, formatDecimalFull } from '../../utils/numberParsers';
+import { formatTy } from '../../../../utils/money';
 import { projectMatchKey } from '../../../../utils/productionMetrics';
 
 export interface ProjectStatusRow {
@@ -96,7 +97,8 @@ export const ProjectSummarySection_v2 = ({
   priorityOrder,
   projectMeta,
 }: ProjectSummarySectionProps) => {
-  const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatDecimalFull;
+  // Giá trị đã ở đơn vị Tỷ -> 2 chữ số thập phân
+  const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatTy;
   const label = projectSummaryMetric === 'VALUE' ? 'Giá Trị' : 'Số Lượng';
 
   const hasPriority = !!priorityOrder && priorityOrder.length > 0;

@@ -8,6 +8,7 @@ import { Target, CheckCircle, Activity, Eye, X } from 'lucide-react';
 import { CheckpointTriangle } from '../shared/CheckpointTriangle';
 import { ModalShell } from '../../../shared/ModalShell';
 import { formatDecimal, formatNumber } from '../../utils/numberParsers';
+import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
 import type { MetricType } from '../../types';
 
 const QUARTER_COLOR = '#ef4444';
@@ -158,10 +159,10 @@ export const FactoryRevenueSection = ({
 
   const quarterDefs: QuarterDef[] = useMemo(() => (
     [
-      { key: 'q1', value: quarterlyTargets.q1, label: `Quí I: ${formatDecimal(quarterlyTargets.q1)}` },
-      { key: 'q2', value: quarterlyTargets.q2, label: `Quí II: ${formatDecimal(quarterlyTargets.q2)}` },
-      { key: 'q3', value: quarterlyTargets.q3, label: `Quí III: ${formatDecimal(quarterlyTargets.q3)}` },
-      { key: 'q4', value: quarterlyTargets.q4, label: `Quí IV: ${formatDecimal(quarterlyTargets.q4)}` },
+      { key: 'q1', value: quarterlyTargets.q1, label: `Quí I: ${formatTy(quarterlyTargets.q1)}` },
+      { key: 'q2', value: quarterlyTargets.q2, label: `Quí II: ${formatTy(quarterlyTargets.q2)}` },
+      { key: 'q3', value: quarterlyTargets.q3, label: `Quí III: ${formatTy(quarterlyTargets.q3)}` },
+      { key: 'q4', value: quarterlyTargets.q4, label: `Quí IV: ${formatTy(quarterlyTargets.q4)}` },
     ] as QuarterDef[]
   ).filter((q) => q.value > 0), [quarterlyTargets]);
 
@@ -231,14 +232,14 @@ export const FactoryRevenueSection = ({
                   <RechartsTooltip
                     cursor={{ fill: 'transparent' }}
                     formatter={(value: number, name: string) => {
-                      if (name === 'thucHien') return [formatDecimal(value) + ' Tỷ', 'Thực hiện (Lũy kế)'];
-                      if (name === 'conLai') return [formatDecimal(value) + ' Tỷ', 'Còn lại'];
+                      if (name === 'thucHien') return [formatTy(value) + ' Tỷ', 'Thực hiện (Lũy kế)'];
+                      if (name === 'conLai') return [formatTy(value) + ' Tỷ', 'Còn lại'];
                       return [value, name];
                     }}
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
                   />
                   <Bar dataKey="thucHien" stackId="a" fill="#3b82f6" radius={[4, 0, 0, 4]}>
-                    <LabelList dataKey="thucHien" position="center" fill="white" fontSize={10} fontWeight="bold" formatter={(val: number) => val > 0 ? formatDecimal(val) : ''} />
+                    <LabelList dataKey="thucHien" position="center" fill="white" fontSize={10} fontWeight="bold" formatter={(val: number) => val > 0 ? formatTy(val) : ''} />
                   </Bar>
                   <Bar dataKey="conLai" stackId="a" fill="#e2e8f0" radius={[0, 4, 4, 0]} />
 
@@ -250,25 +251,25 @@ export const FactoryRevenueSection = ({
                   {quarterlyTargets.q1 > 0 && (
                     <ReferenceLine x={quarterlyTargets.q1} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
                       <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                      <Label value={`Quý I: ${formatDecimal(quarterlyTargets.q1)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q1')} />
+                      <Label value={`Quý I: ${formatTy(quarterlyTargets.q1)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q1')} />
                     </ReferenceLine>
                   )}
                   {quarterlyTargets.q2 > 0 && (
                     <ReferenceLine x={quarterlyTargets.q2} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
                       <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                      <Label value={`Quý II: ${formatDecimal(quarterlyTargets.q2)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q2')} />
+                      <Label value={`Quý II: ${formatTy(quarterlyTargets.q2)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q2')} />
                     </ReferenceLine>
                   )}
                   {quarterlyTargets.q3 > 0 && (
                     <ReferenceLine x={quarterlyTargets.q3} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
                       <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                      <Label value={`Quý III: ${formatDecimal(quarterlyTargets.q3)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q3')} />
+                      <Label value={`Quý III: ${formatTy(quarterlyTargets.q3)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q3')} />
                     </ReferenceLine>
                   )}
                   {quarterlyTargets.q4 > 0 && (
                     <ReferenceLine x={quarterlyTargets.q4} stroke={QUARTER_COLOR} strokeDasharray="3 3" ifOverflow="visible">
                       <Label content={(props: any) => <CheckpointTriangle {...props} fill={QUARTER_COLOR} />} position="top" />
-                      <Label value={`Quý IV: ${formatDecimal(quarterlyTargets.q4)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q4')} />
+                      <Label value={`Quý IV: ${formatTy(quarterlyTargets.q4)}`} position="insideBottom" fill={QUARTER_COLOR} fontSize={12} fontWeight="bold" dy={getQuarterDy('q4')} />
                     </ReferenceLine>
                   )}
                 </BarChart>
@@ -285,7 +286,7 @@ export const FactoryRevenueSection = ({
                 <p className="text-xs font-medium text-emerald-800 tracking-wide">Kế hoạch năm</p>
               </div>
               <div className="flex items-baseline gap-1.5 pl-0.5">
-                <h4 className="text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 leading-none">{formatDecimal(targetRevenue2026)}</h4>
+                <h4 className="text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 leading-none">{formatTy(targetRevenue2026)}</h4>
                 <span className="text-xs font-medium text-emerald-500">Tỷ</span>
               </div>
             </div>
@@ -303,7 +304,7 @@ export const FactoryRevenueSection = ({
                 <span className="text-xs font-medium text-blue-800 tracking-wide">Thực hiện lũy kế</span>
               </span>
               <span className="flex items-baseline gap-1.5 pl-0.5">
-                <span className="text-3xl font-semibold tabular-nums tracking-tight text-blue-600 leading-none">{formatDecimal(factoryRevenueStats.actual)}</span>
+                <span className="text-3xl font-semibold tabular-nums tracking-tight text-blue-600 leading-none">{formatTy(factoryRevenueStats.actual)}</span>
                 <span className="text-xs font-medium text-blue-500">Tỷ</span>
               </span>
               {onActualClick && (
@@ -336,9 +337,9 @@ export const FactoryRevenueSection = ({
             subtitle="Phân bổ theo công đoạn (BOP)"
             unit={workshopMetric === 'COUNT_HEX' ? 'Hạng mục' : 'Tỷ đồng'}
             items={customFunnelData}
-            // Giá trị gốc là triệu đồng -> /1000 = Tỷ; chế độ đếm HEX thì giữ nguyên số lượng
-            barLabel={item => (workshopMetric === 'COUNT_HEX' ? item.value : Math.round(item.value / 1000)).toLocaleString('en-US')}
-            barTitle={item => `${item.name}: ${formatNumber(item.value, workshopMetric)}`}
+            // Giá trị gốc là triệu đồng -> Tỷ (2 số lẻ); chế độ đếm HEX thì giữ nguyên số lượng
+            barLabel={item => (workshopMetric === 'COUNT_HEX' ? item.value.toLocaleString('en-US') : formatTrieuAsTy(item.value))}
+            barTitle={item => `${item.name}: ${formatNumber(item.value, workshopMetric)}${workshopMetric === 'COUNT_HEX' ? '' : ' Tỷ'}`}
             onBarClick={onFunnelItemClick ? handleBarClick : undefined}
             onDetail={openOverallDetail}
           />
@@ -386,7 +387,9 @@ export const FactoryRevenueSection = ({
                         <th className="px-4 py-3 border-b border-slate-200 text-left font-bold text-slate-700 w-1/2">
                           {selectedFunnelItem ? 'Công trình' : 'BOP'}
                         </th>
-                        <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">Giá Trị</th>
+                        <th className="px-4 py-3 border-b border-slate-200 text-right font-bold text-slate-700 w-1/2">
+                          {workshopMetric === 'COUNT_HEX' ? 'Số hạng mục' : 'Giá trị (tỷ)'}
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">

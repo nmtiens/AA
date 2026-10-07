@@ -14,3 +14,15 @@ export const TRIEU_PER_TY = 1000;
 
 /** Đổi giá trị gốc (triệu đồng) sang tỷ đồng */
 export const trieuToTy = (value: number): number => value / TRIEU_PER_TY;
+
+/** Nhãn đơn vị hiển thị cho mọi giá trị tiền trên giao diện */
+export const TY_UNIT_LABEL = 'Tỷ đồng';
+
+/** Định dạng giá trị đã ở đơn vị tỷ đồng: luôn 2 chữ số thập phân (1,942.89) */
+export const formatTy = (ty: number): string => {
+  const v = Number.isFinite(ty) ? ty : 0;
+  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/** Định dạng giá trị gốc (triệu đồng) thành tỷ đồng, 2 chữ số thập phân */
+export const formatTrieuAsTy = (trieu: number): string => formatTy(trieuToTy(trieu));

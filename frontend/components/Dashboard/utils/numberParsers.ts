@@ -1,4 +1,5 @@
 import { MetricType } from '../types';
+import { formatTrieuAsTy } from '../../../utils/money';
 
 export const parseNumber = (valStr: string | number | null | undefined): number => {
   if (valStr === null || valStr === undefined) return 0;
@@ -68,10 +69,11 @@ export const formatInteger = (value: number): string => {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(Math.round(value));
 };
 
+// Chỉ số tiền (SUM_GT_*) có giá trị gốc là triệu đồng -> hiển thị Tỷ, 2 chữ số thập phân.
+// Không truyền metric / COUNT_HEX -> định dạng số đếm.
 export function formatNumber(value: number, metric?: MetricType): string {
-  if (metric === 'COUNT_HEX') return value.toLocaleString('en-US');
-  if (value >= 1_000_000_000) return (value / 1_000_000_000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' Tỷ';
-  if (value >= 1_000_000) return (value / 1).toLocaleString('en-US', { maximumFractionDigits: 0 }) + '';
+  if (metric === 'SUM_GT_CON_LAI' || metric === 'SUM_GT_DON_HANG') return formatTrieuAsTy(value);
+  if (!Number.isFinite(value)) return '0';
   return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 

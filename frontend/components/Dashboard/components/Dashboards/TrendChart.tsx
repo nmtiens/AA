@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter, Granularity } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { formatTy, trieuToTy } from '../../../../utils/money';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
@@ -113,17 +114,18 @@ function formatChartData(
 }
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
-  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới',    unitValue: 'Tổng trị giá (Triệu đồng)' },
-  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV',    unitValue: 'Tổng trị giá (Triệu đồng)' },
-  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu',       unitValue: 'Tổng trị giá (Triệu đồng)' },
-  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho',         unitValue: 'Tổng trị giá (Triệu đồng)' },
-  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho',         unitValue: 'Tổng trị giá (Triệu đồng)' },
-  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho',          unitValue: 'Tổng trị giá (Triệu đồng)' },
+  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới',    unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV',    unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu',       unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho',         unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho',         unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho',          unitValue: 'Tổng trị giá (Tỷ đồng)' },
 };
 
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
 
 interface PinnedPopoverProps {
+  money: boolean;
   x: number;
   y: number;
   containerWidth: number;
@@ -133,7 +135,7 @@ interface PinnedPopoverProps {
   onViewDetail: () => void;
   onClose: () => void;
 }
-function PinnedPopover({ x, y, containerWidth, label, value, unit, onViewDetail, onClose }: PinnedPopoverProps) {
+function PinnedPopover({ x, y, containerWidth, label, value, unit, money, onViewDetail, onClose }: PinnedPopoverProps) {
   const POPOVER_WIDTH = 220;
   const clampedLeft = Math.min(Math.max(x, POPOVER_WIDTH / 2 + 8), containerWidth - POPOVER_WIDTH / 2 - 8);
 
@@ -150,7 +152,7 @@ function PinnedPopover({ x, y, containerWidth, label, value, unit, onViewDetail,
     >
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 px-4 py-3 text-sm">
         <p className="text-slate-600">Kỳ: <span className="font-semibold text-slate-800">{label}</span></p>
-        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {formatDecimal(value)}</p>
+        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {money ? formatTy(value) : formatDecimal(value)}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
@@ -199,6 +201,10 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
 
   const theme = THEME[source];
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
+  // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
+  const isMoney = displayMode !== 'COUNT';
+  const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
+  const fmtShort = (v: number) => (isMoney ? formatTy(v) : formatShort(v));
   const isStock = source === 'stock';
 
   const hasValidRange = Boolean(dateFrom && dateTo);
@@ -260,8 +266,9 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
 
   const chartData = useMemo(() => {
     if (!hasValidRange) return [];
-    return formatChartData(raw, granularity, displayMode, dateFrom, dateTo, selectedDates);
-  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, selectedDates]);
+    const points = isMoney ? raw.map(p => ({ ...p, total: trieuToTy(p.total) })) : raw;
+    return formatChartData(points, granularity, displayMode, dateFrom, dateTo, selectedDates);
+  }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, selectedDates, isMoney]);
 
   const avgAll = useMemo(() => {
     const pointsForAvg = source === 'stock'
@@ -360,13 +367,13 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
               <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
               <YAxis
-                tickFormatter={formatDecimal}
+                tickFormatter={fmt}
                 tick={{ fontSize: 10, fill: '#64748b' }}
                 width={55}
                 domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
               />
               <RechartsTooltip
-                formatter={(v: number, name: string) => [formatDecimal(v), name]}
+                formatter={(v: number, name: string) => [fmt(v), name]}
                 labelFormatter={(l) => `Kỳ: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
@@ -389,7 +396,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
                   dataKey="total"
                   position="top"
                   offset={10}
-                  formatter={(v: number) => formatDecimal(v)}
+                  formatter={(v: number) => fmt(v)}
                   fontSize={embedded ? 9 : 10}
                   fill={theme.barDark}
                 />
@@ -402,7 +409,7 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB theo ngày: ${formatShort(avgAll)}`;
+                    const text = `TB theo ngày: ${fmtShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x + viewBox.width + 8}
@@ -435,12 +442,13 @@ export default function TrendChart({ source, embedded = false, displayMode }: Tr
               backgroundColor: `${theme.bar}1A`,
             }}
           >
-            Tổng: {formatDecimal(totalAll)}
+            Tổng: {fmt(totalAll)}
           </div>
         )}
 
         {pinned && (
           <PinnedPopover
+            money={isMoney}
             x={pinned.x}
             y={pinned.y}
             containerWidth={wrapWidth}

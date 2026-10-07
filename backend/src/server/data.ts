@@ -157,6 +157,13 @@ export const buildStockSnapshotCondition = (
 
 // [FILTER FIX] So khớp không phân biệt hoa/thường và khoảng trắng thừa — đồng bộ
 // với cách /api/overview/summary, /api/khsx-nhapkho/summary, /api/stock/* đã làm.
+// Loại dòng thuộc hạng mục ĐÃ HỦY (tinh_trang_ipo chứa "HỦY") — cùng quy tắc với giao diện
+// (đơn hủy không tính giá trị). Dòng không có hex (không nối được sản xuất) vẫn giữ.
+export const notCancelledHexCond = (hexExpr: string): string =>
+  `COALESCE(${hexExpr}::text, '') NOT IN (
+     SELECT hex::text FROM production_status_app
+     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HỦY%')`;
+
 export const eqNormalized = (colExpr: string, paramIdx: number) =>
   `UPPER(TRIM(${colExpr})) = UPPER(TRIM($${paramIdx}))`;
 
@@ -363,7 +370,8 @@ export const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
   tkbv:      { table: 'tkbv_full',  dateCol: 'ngay_nhan',       valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: 'hex' },
   pthsp:     { table: 'pthsp_full', dateCol: 'ngay_hoan_thanh', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: 'hex' },
   inventory: { table: 'nhap_kho',   dateCol: 'date',            valueCol: 'thanh_tien_nhap_kho',   hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: 'hex' },
-  export:    { table: 'xuat_kho',   dateCol: 'date',            valueCol: 'so_luong_xuat_kho',     hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: 'hex' },
+  // Xuất kho: giá trị (thành tiền, triệu đồng) như các nguồn khác — dòng đơn vị phụ (không "TÍNH") có thành tiền 0 nên không cộng trùng
+  export:    { table: 'xuat_kho',   dateCol: 'date',            valueCol: 'thanh_tien_xuat_kho',   hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1, joinProductionForFilters: true, productionJoinCol: 'hex' },
 };
 export const ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
 export const TREND_SOURCES = new Set([...Object.keys(ANALYSIS_TABLES), 'stock']);

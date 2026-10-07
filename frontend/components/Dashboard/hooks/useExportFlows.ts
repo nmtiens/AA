@@ -11,6 +11,10 @@ import {
   type OverviewSummary,
   type StockDateEntry,
 } from '../../../services/dataService';
+import { trieuToTy } from '../../../utils/money';
+
+// Giá trị gốc (triệu đồng) -> Tỷ, làm tròn 2 chữ số (khớp số trên màn hình)
+const toTy2 = (trieu: number) => Math.round(trieuToTy(trieu) * 100) / 100;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -229,25 +233,25 @@ export function useExportFlows({
       {
         "Chỉ số": "Đơn hàng mới (IPO)",
         "Số lượng (HEX)": overviewSummary?.order.mtd.count ?? 0,
-        "Giá trị (VND)": overviewSummary?.order.mtd.value ?? 0,
+        "Giá trị (Tỷ đồng)": toTy2(overviewSummary?.order.mtd.value ?? 0),
         "Ghi chú": "Dựa trên dữ liệu Đơn hàng tổng"
       },
       {
         "Chỉ số": "Đã triển khai BV",
         "Số lượng (HEX)": overviewSummary?.tkbv.mtd.count ?? 0,
-        "Giá trị (VND)": overviewSummary?.tkbv.mtd.value ?? 0,
+        "Giá trị (Tỷ đồng)": toTy2(overviewSummary?.tkbv.mtd.value ?? 0),
         "Ghi chú": "Dựa trên dữ liệu TKBV"
       },
       {
         "Chỉ số": "Đã tính phiếu",
         "Số lượng (HEX)": overviewSummary?.pthsp.mtd.count ?? 0,
-        "Giá trị (VND)": overviewSummary?.pthsp.mtd.value ?? 0,
+        "Giá trị (Tỷ đồng)": toTy2(overviewSummary?.pthsp.mtd.value ?? 0),
         "Ghi chú": "Dựa trên dữ liệu PTHSP"
       },
       {
         "Chỉ số": "Đã nhập kho",
         "Số lượng (Items)": overviewSummary?.inventory.mtd.count ?? 0,
-        "Giá trị (VND)": overviewSummary?.inventory.mtd.value ?? 0,
+        "Giá trị (Tỷ đồng)": toTy2(overviewSummary?.inventory.mtd.value ?? 0),
         "Ghi chú": "Dựa trên dữ liệu Nhập kho"
       }
     ];
@@ -366,14 +370,16 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
     const byXuong = groupAnalysisCache[`${key}-xuong-${filterKey}`] ?? [];
     const byCongTrinh = groupAnalysisCache[`${key}-congtrinh-${filterKey}`] ?? [];
 
-    const unitLabel = metric === 'COUNT' ? 'Số lượng' : 'Giá trị (VND)';
+    const isMoney = metric !== 'COUNT';
+    const unitLabel = metric === 'COUNT' ? 'Số lượng' : 'Giá trị (Tỷ đồng)';
+    const pick = (count: number, value: number) => (metric === 'COUNT' ? count : isMoney ? toTy2(value) : value);
 
     const mapRows = (rows: GroupAnalysisRow[], groupLabel: string) =>
       rows.map(r => ({
         "Phân loại": groupLabel,
         "Tên": r.name,
-        [`Trong ngày (${unitLabel})`]: metric === 'COUNT' ? r.dailyCount : r.dailyValue,
-        [`Lũy kế tháng (${unitLabel})`]: metric === 'COUNT' ? r.mtdCount : r.mtdValue,
+        [`Trong ngày (${unitLabel})`]: pick(r.dailyCount, r.dailyValue),
+        [`Lũy kế tháng (${unitLabel})`]: pick(r.mtdCount, r.mtdValue),
       }));
 
     const data = [...mapRows(byXuong, 'Theo Xưởng'), ...mapRows(byCongTrinh, 'Theo Công trình')];
@@ -395,10 +401,10 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
       alert("Không có dữ liệu tồn kho để xuất!");
       return;
     }
-    const unitLabel = stockMetric === 'COUNT' ? 'Số lượng' : 'Giá trị (VND)';
+    const unitLabel = stockMetric === 'COUNT' ? 'Số lượng' : 'Giá trị (Tỷ đồng)';
     const data = stockByProjectData.map(r => ({
       "Tên Công trình": r.name,
-      [unitLabel]: stockMetric === 'COUNT' ? r.count : r.value,
+      [unitLabel]: stockMetric === 'COUNT' ? r.count : toTy2(r.value),
     }));
     const dateStr = closestStockDate ? toISODateLocal(closestStockDate) : new Date().toISOString().split('T')[0];
     exportToCSV(data, `Ton_Kho_Theo_Cong_Trinh_${dateStr}.csv`);

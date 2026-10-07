@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
-import { MONEY_UNIT_LABEL } from '../../../../utils/money';
+import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -31,9 +31,9 @@ interface ExportDetailModalProps {
   columnKeys: ExportDetailColumnKeys;
 }
 
-// Giá trị gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
-const money = (value: number) => formatSmartDecimal(value);
-const moneyTotal = (value: number) => formatDecimalFull(value);
+// Giá trị gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
+const money = (value: number) => formatTrieuAsTy(value);
+const moneyTotal = (value: number) => formatTrieuAsTy(value);
 
 const PREVIEW_LIMIT = 100;
 const truncateText = (text: string, limit = PREVIEW_LIMIT) =>
@@ -271,7 +271,7 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   xuong: { label: 'Khu Vực SX', sortKey: 'xuong' },
   date: { label: 'Ngày Xuất', sortKey: 'date' },
   soLuong: { label: 'Số Lượng', sortKey: 'soLuong', align: 'right' },
-  thanhTien: { label: 'Thành Tiền', sortKey: 'thanhTien', align: 'right' },
+  thanhTien: { label: 'Thành Tiền (tỷ)', sortKey: 'thanhTien', align: 'right' },
   ghiChuXuatKho: { label: <>Ghi Chú <br />Xuất Kho</>, sortKey: 'ghiChuXuatKho' },
 };
 
@@ -398,7 +398,7 @@ export const ExportDetailModal = ({
     { key: 'xuong', label: 'Khu Vực SX' },
     { key: 'date', label: 'Ngày Xuất' },
     { key: 'soLuong', label: 'Số Lượng' },
-    { key: 'thanhTien', label: 'Thành Tiền' },
+    { key: 'thanhTien', label: 'Thành Tiền (tỷ)' },
     { key: 'ghiChuXuatKho', label: 'Ghi Chú Xuất Kho' },
   ], [showProjectColumn]);
 
@@ -613,7 +613,7 @@ export const ExportDetailModal = ({
               <h3 className="text-base font-semibold text-slate-800">Chi tiết Đã Xuất Kho P025</h3>
               <p className="mt-0.5 text-xs text-slate-500">
                 {projectName ?? 'Tất cả công trình'} · {filteredRows.length} dòng ·{' '}
-                Đơn vị tiền: {MONEY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
+                Đơn vị tiền: {TY_UNIT_LABEL} · Bấm vào ô ghi chú để xem đầy đủ
               </p>
             </div>
             <div className="flex items-center gap-3">

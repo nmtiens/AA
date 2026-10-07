@@ -52,7 +52,7 @@ export function StockItemsModal({ open, onClose, date, projectName, congTrinh, x
     <DetailDataModal
       open={open}
       onClose={onClose}
-      title={`Tồn kho ngày ${dateLabel}${projectName ? ` — ${projectName}` : ''} · Đơn vị: Triệu đồng`}
+      title={`Tồn kho ngày ${dateLabel}${projectName ? ` — ${projectName}` : ''} · Đơn vị: Tỷ đồng`}
       accentColor="#16a34a"
       rows={rows}
       columns={COLUMNS}

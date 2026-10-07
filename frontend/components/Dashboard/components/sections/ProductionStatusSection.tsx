@@ -11,6 +11,7 @@ import { CompactStatCard } from '../shared/CompactStatCard';
 import { MetricSwitcher } from '../shared/MetricSwitcher';
 import { YearlyPlanWorkshopTooltip } from '../shared/tooltips/YearlyPlanWorkshopTooltip';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { formatTrieuAsTy } from '../../../../utils/money';
 import type { MetricType, WorkshopPivotData } from '../../types';
 
 export interface CardMetrics {
@@ -79,12 +80,13 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
       <div>
         <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-wide">
           <Layers className="w-4 h-4 text-wood-500" /> 1. Phân tích Khả năng & Thành tiền
+          <span className="normal-case font-medium text-slate-400">(Tỷ đồng)</span>
         </h4>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-green-50/50 rounded-xl p-2 border border-green-100 flex flex-col gap-2">
             <CompactStatCard
               title="CÓ THỂ SẢN XUẤT"
-              value={formatNumber(cardMetrics.coTheSX)}
+              value={formatTrieuAsTy(cardMetrics.coTheSX)}
               icon={<CheckCircle className="w-5 h-5 text-green-600" />}
               bg="bg-green-50"
               borderColor="border-green-400"
@@ -94,7 +96,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
             <div className="grid grid-cols-3 gap-2">
               <CompactStatCard
                 title="VECNI + FITTING"
-                value={formatNumber(cardMetrics.vecniFitting)}
+                value={formatTrieuAsTy(cardMetrics.vecniFitting)}
                 icon={<div className="w-2 h-2 rounded-full bg-blue-500"></div>}
                 bg="bg-white"
                 borderColor="border-blue-200"
@@ -102,7 +104,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
               />
               <CompactStatCard
                 title="ĐANG TRÊN CHUYỀN"
-                value={formatNumber(cardMetrics.chuyenKhac)}
+                value={formatTrieuAsTy(cardMetrics.chuyenKhac)}
                 icon={<div className="w-2 h-2 rounded-full bg-indigo-500"></div>}
                 bg="bg-white"
                 borderColor="border-indigo-200"
@@ -110,7 +112,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
               />
               <CompactStatCard
                 title="CÓ PHIẾU CHƯA SX"
-                value={formatNumber(cardMetrics.coPhieuChuaSX)}
+                value={formatTrieuAsTy(cardMetrics.coPhieuChuaSX)}
                 icon={<div className="w-2 h-2 rounded-full bg-amber-500"></div>}
                 bg="bg-white"
                 borderColor="border-amber-200"
@@ -121,7 +123,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
           <div className="bg-red-50/50 rounded-xl p-2 border border-red-100 flex flex-col gap-2">
             <CompactStatCard
               title="CHƯA THỂ SẢN XUẤT"
-              value={formatNumber(cardMetrics.chuaTheSX)}
+              value={formatTrieuAsTy(cardMetrics.chuaTheSX)}
               icon={<CloseIcon className="w-5 h-5 text-red-600" />}
               bg="bg-red-50"
               borderColor="border-red-400"
@@ -131,7 +133,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
             <div className="grid grid-cols-2 gap-2">
               <CompactStatCard
                 title="VƯỚNG SL CHƯA REV"
-                value={formatNumber(cardMetrics.vuongSL)}
+                value={formatTrieuAsTy(cardMetrics.vuongSL)}
                 icon={<div className="w-2 h-2 rounded-full bg-orange-500"></div>}
                 bg="bg-white"
                 borderColor="border-orange-200"
@@ -139,7 +141,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
               />
               <CompactStatCard
                 title="CHƯA TRIỂN KHAI SX"
-                value={formatNumber(cardMetrics.chuaTrienKhai)}
+                value={formatTrieuAsTy(cardMetrics.chuaTrienKhai)}
                 icon={<div className="w-2 h-2 rounded-full bg-slate-400"></div>}
                 bg="bg-white"
                 borderColor="border-slate-300"
@@ -154,6 +156,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
           <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
             <TableIcon className="w-4 h-4 text-wood-500" /> 2. Chi tiết Giá trị (Tình Trạng x Khu vực sản xuất)
+            {workshopMetric !== 'COUNT_HEX' && <span className="normal-case font-medium text-slate-400">(Tỷ đồng)</span>}
           </h4>
           <MetricSwitcher current={workshopMetric} onChange={setWorkshopMetric} />
         </div>

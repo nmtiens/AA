@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { formatTrieuAsTy } from '../../utils/money';
 import { X, CalendarClock, Factory, Package, AlertTriangle, ListChecks, ArrowRight } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
@@ -72,7 +73,8 @@ const TONE: Record<Tone, { ring: string; text: string; dot: string }> = {
   slate: { ring: 'border-slate-200 bg-white', text: 'text-slate-900', dot: 'bg-slate-300' },
 };
 
-const fmtTy = (trieu: number) => (trieu / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 });
+// Tỷ đồng: 2 chữ số thập phân (dùng chung toàn app)
+const fmtTy = (trieu: number) => formatTrieuAsTy(trieu);
 const fmtInt = (n: number) => n.toLocaleString('vi-VN');
 const fmtDate = (d: Date | null) =>
   d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
@@ -425,7 +427,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
                       <PlanDateCell i={i} which="tháng" />
                       <PlanDateCell i={i} which="cần giao" />
                       <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                        {(i.remain / 1000).toLocaleString('en-US', { maximumFractionDigits: 3 })}
+                        {formatTrieuAsTy(i.remain)}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-wrap gap-1">

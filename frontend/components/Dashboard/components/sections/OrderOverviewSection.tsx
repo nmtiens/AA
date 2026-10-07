@@ -15,6 +15,7 @@ import TrendByCategoryChart from '../Dashboards/TrendByCategoryChart';
 import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
 import { getYesterdayDateOption, parseVNDate } from '../../utils/dateHelpers';
+import { formatTrieuAsTy } from '../../../../utils/money';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -74,12 +75,7 @@ interface OrderOverviewSectionProps {
   // toAnalysisItems(groupAnalysisCache[...]) luôn đọc phải mảng rỗng.
   viewProjectWhitelist?: string[];
 
-  // ✅ MỚI: khi true, hiển thị số liệu GIÁ TRỊ (chế độ SUM) ở dạng số đầy đủ (VNĐ)
-  // thay vì rút gọn chia 1000 + đơn vị "Tỷ". Dùng cho các view theo công trình
-  // (ConstructionView: "Công trình luồng đỏ", "Căn mẫu")
-  // vì giá trị ở các view này thường nhỏ, hiển thị "Tỷ" làm mất độ chính xác
-  // (vd 1.6 Tỷ thay vì 1.600.000.000 VNĐ). Dashboard tổng không truyền prop này
-  // -> mặc định false -> giữ nguyên hành vi cũ (chia 1000 + "Tỷ").
+  // Không còn dùng: mọi giá trị tiền đều hiển thị Tỷ, 2 chữ số thập phân
   useDetailedNumbers?: boolean;
 
   overviewMetric: DisplayMetric;
@@ -279,22 +275,8 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     isExportDetailModalOpen,
   ]);
 
-  // ✅ MỚI: helper format số GIÁ TRỊ (chế độ SUM) — thay thế cho các đoạn lặp lại
-  // "(value / 1000).toLocaleString(...)" + đơn vị 'Tỷ' rải rác khắp component.
-  // - useDetailedNumbers = false (mặc định, Dashboard tổng): giữ nguyên hành vi cũ,
-  //   chia 1000 và làm tròn 1 chữ số thập phân -> hiển thị dạng "1.6".
-  // - useDetailedNumbers = true (view luồng đỏ / căn mẫu): hiển thị số đầy đủ,
-  //   làm tròn số nguyên (VNĐ không có phần thập phân) -> "1,600,000,000".
-  // Đồng bộ với trang Tổng quan: value (đơn vị Triệu) / 1000 -> hiển thị "Tỷ"
-  // Áp dụng cho MỌI view (Dashboard tổng, Luồng đỏ, Căn mẫu).
- const formatValueNumber = (value: number): string => {
-    const inBillion = value / 1000;
-    const maxDigits = Math.abs(value) < 100 ? 3 : 1;
-    return inBillion.toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: maxDigits,
-    });
-  };
+  // value (triệu đồng) -> Tỷ, 2 chữ số thập phân (dùng chung toàn app)
+  const formatValueNumber = formatTrieuAsTy;
 
   const valueUnitLabel = 'Tỷ';
 
@@ -863,7 +845,8 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
+                    unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                    formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-pink-600"
                     secondaryColorClass="text-indigo-600"
                     defaultExcludedKeys={[]}
@@ -872,7 +855,8 @@ const periodLabel = overviewDateFilters.length > 1
                   <div className="border-t border-slate-200 pt-6">
                     <DetailModalTable
                       data={toAnalysisItems(groupAnalysisCache[`order-congtrinh-${filterKey}`] ?? [], ipoMetric)}
-                      unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
+                      unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                      formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       title="Chi tiết theo Công trình"
                       icon={Building2}
                       dateLabel={periodLabel}
@@ -960,7 +944,8 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={tkbvMetric === 'COUNT' ? '(SL Bản vẽ)' : '(Giá trị VND)'}
+                    unitLabel={tkbvMetric === 'COUNT' ? '(SL Bản vẽ)' : '(Tỷ đồng)'}
+                    formatValue={tkbvMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-blue-600"
                     secondaryColorClass="text-indigo-600"
                   />
@@ -972,7 +957,8 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Building2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={tkbvMetric === 'COUNT' ? '(SL Bản vẽ)' : '(Giá trị VND)'}
+                      unitLabel={tkbvMetric === 'COUNT' ? '(SL Bản vẽ)' : '(Tỷ đồng)'}
+                      formatValue={tkbvMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-blue-600"
                       secondaryColorClass="text-indigo-600"
                     />
@@ -1057,7 +1043,8 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={pthspMetric === 'COUNT' ? '(SL Phiếu)' : '(Giá trị VND)'}
+                    unitLabel={pthspMetric === 'COUNT' ? '(SL Phiếu)' : '(Tỷ đồng)'}
+                    formatValue={pthspMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-purple-600"
                     secondaryColorClass="text-fuchsia-600"
                   />
@@ -1069,7 +1056,8 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Building2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={pthspMetric === 'COUNT' ? '(SL Phiếu)' : '(Giá trị VND)'}
+                      unitLabel={pthspMetric === 'COUNT' ? '(SL Phiếu)' : '(Tỷ đồng)'}
+                      formatValue={pthspMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-purple-600"
                       secondaryColorClass="text-fuchsia-600"
                     />
@@ -1155,7 +1143,8 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={inventoryMetric === 'COUNT' ? '(SL Items)' : '(Giá trị VND)'}
+                    unitLabel={inventoryMetric === 'COUNT' ? '(SL Items)' : '(Tỷ đồng)'}
+                    formatValue={inventoryMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-teal-600"
                     secondaryColorClass="text-emerald-600"
                   />
@@ -1167,7 +1156,8 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Building2}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={inventoryMetric === 'COUNT' ? '(SL Items)' : '(Giá trị VND)'}
+                      unitLabel={inventoryMetric === 'COUNT' ? '(SL Items)' : '(Tỷ đồng)'}
+                      formatValue={inventoryMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                       primaryColorClass="text-teal-600"
                       secondaryColorClass="text-emerald-600"
                     />
@@ -1253,7 +1243,7 @@ const periodLabel = overviewDateFilters.length > 1
                     icon={Layers}
                     dateLabel={periodLabel}
                     mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                    unitLabel={exportMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
+                    unitLabel={exportMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
                     primaryColorClass="text-amber-600"
                     secondaryColorClass="text-orange-600"
                   />
@@ -1265,7 +1255,7 @@ const periodLabel = overviewDateFilters.length > 1
                       icon={Briefcase}
                       dateLabel={periodLabel}
                       mtdLabel={`LŨY KẾ THÁNG ${latestUnifiedDate ? `${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`}
-                      unitLabel={exportMetric === 'COUNT' ? '(SL HEX)' : '(Giá trị VND)'}
+                      unitLabel={exportMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
                       primaryColorClass="text-amber-700"
                       secondaryColorClass="text-orange-700"
                     />
@@ -1379,7 +1369,8 @@ const periodLabel = overviewDateFilters.length > 1
                             .padStart(2, '0')}/${latestStockStats.date.getFullYear()})`
                         : ''
                     }`}
-                    unitLabel={stockMetric === 'COUNT' ? '(SL Mã SAP)' : '(Giá trị VND)'}
+                    unitLabel={stockMetric === 'COUNT' ? '(SL Mã SAP)' : '(Tỷ đồng)'}
+                    formatValue={stockMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-slate-700"
                     secondaryColorClass="text-slate-900"
                   />

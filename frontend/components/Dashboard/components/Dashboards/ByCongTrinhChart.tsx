@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { formatTy, trieuToTy } from '../../../../utils/money';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
 
@@ -63,17 +64,18 @@ function WrappedYAxisTick(props: any) {
 }
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
-  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Tổng trị giá (Triệu đồng)' },
-  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Tổng trị giá (Triệu đồng)' },
-  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Tổng trị giá (Triệu đồng)' },
-  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
-  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
-  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Triệu đồng)' },
+  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
 };
 
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
 
 interface PinnedPopoverProps {
+  money: boolean;
   x: number;
   y: number;
   containerWidth: number;
@@ -84,7 +86,7 @@ interface PinnedPopoverProps {
   onViewDetail: () => void;
   onClose: () => void;
 }
-function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, unit, onViewDetail, onClose }: PinnedPopoverProps) {
+function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, unit, money, onViewDetail, onClose }: PinnedPopoverProps) {
   const POPOVER_WIDTH = 240;
   const POPOVER_HEIGHT_EST = 110;
   const clampedLeft = Math.min(Math.max(x, POPOVER_WIDTH / 2 + 8), containerWidth - POPOVER_WIDTH / 2 - 8);
@@ -103,7 +105,7 @@ function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, un
     >
       <div className="bg-white rounded-xl shadow-lg border border-slate-100 px-4 py-3 text-sm">
         <p className="text-slate-600">Công trình: <span className="font-semibold text-slate-800">{label}</span></p>
-        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {formatDecimal(value)}</p>
+        <p className="text-pink-600 font-semibold mt-0.5">{unit} : {money ? formatTy(value) : formatDecimal(value)}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
@@ -154,6 +156,10 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const theme = THEME[source];
   const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
+  // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
+  const isMoney = displayMode !== 'COUNT';
+  const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
+  const fmtShort = (v: number) => (isMoney ? formatTy(v) : formatShort(v));
   const isStock = source === 'stock';
 
   const hasValidRange = Boolean(dateFrom && dateTo);
@@ -211,7 +217,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const chartData = useMemo<ChartPoint[]>(() => {
     if (!hasValidRange) return [];
-    const pickValue = (p: ApiCongTrinhPoint) => (displayMode === 'COUNT' ? p.totalCount : p.total);
+    const pickValue = (p: ApiCongTrinhPoint) => (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total);
     return raw
       .map(p => ({
         congTrinh: p.congTrinhName || p.congTrinhCode,
@@ -231,7 +237,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const totalAll = useMemo(() => {
     if (!hasValidRange) return 0;
-    const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : p.total), 0);
+    const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total), 0);
     return Number(sum.toFixed(2));
   }, [raw, displayMode, hasValidRange]);
 
@@ -330,7 +336,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
               <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
               <XAxis
                 type="number"
-                tickFormatter={formatDecimal}
+                tickFormatter={fmt}
                 tick={{ fontSize: 10, fill: '#64748b' }}
               />
               <YAxis
@@ -341,7 +347,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                 tick={<WrappedYAxisTick maxCharsPerLine={maxCharsPerLine} fontSize={yAxisFontSize} />}
               />
               <RechartsTooltip
-                formatter={(v: number, name: string) => [formatDecimal(v), name]}
+                formatter={(v: number, name: string) => [fmt(v), name]}
                 labelFormatter={(l) => `Công trình: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
@@ -360,7 +366,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                     fill={pinned?.point.congTrinhCode === entry.congTrinhCode ? theme.barDark : theme.bar}
                   />
                 ))}
-                <LabelList dataKey="total" position="right" formatter={(v: number) => v > 0 ? formatDecimal(v) : ''} fontSize={embedded ? 9 : 10} fill={theme.barDark} />
+                <LabelList dataKey="total" position="right" formatter={(v: number) => v > 0 ? fmt(v) : ''} fontSize={embedded ? 9 : 10} fill={theme.barDark} />
               </Bar>
               {chartData.length > 0 && (
                 <ReferenceLine
@@ -370,7 +376,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB theo CT: ${formatShort(avgAll)}`;
+                    const text = `TB theo CT: ${fmtShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x}
@@ -400,11 +406,12 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
               backgroundColor: `${theme.bar}1A`,
             }}
           >
-            Tổng: {formatDecimal(totalAll)}
+            Tổng: {fmt(totalAll)}
           </div>
         )}
         {pinned && (
           <PinnedPopover
+            money={isMoney}
             x={pinned.x}
             y={pinned.y}
             containerWidth={wrapWidth}

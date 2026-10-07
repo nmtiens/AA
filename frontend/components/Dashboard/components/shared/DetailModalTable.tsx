@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnalysisItem } from '../../types';
 import { ArrowDown, ArrowUp, ArrowUpDown, Filter, Search, AlertCircle } from 'lucide-react';
 
+const defaultFormatValue = (value: number) => value.toLocaleString('en-US');
+
 export const DetailModalTable = ({
   data,
   title,
@@ -9,6 +11,7 @@ export const DetailModalTable = ({
   dateLabel,
   mtdLabel,
   unitLabel,
+  formatValue = defaultFormatValue,
   primaryColorClass,
   secondaryColorClass,
   defaultExcludedKeys = []
@@ -19,6 +22,8 @@ export const DetailModalTable = ({
   dateLabel: string;
   mtdLabel: string;
   unitLabel: string;
+  /** Định dạng ô số (mặc định: số đếm). Tiền truyền formatTrieuAsTy */
+  formatValue?: (value: number) => string;
   primaryColorClass: string;
   secondaryColorClass: string;
   defaultExcludedKeys?: string[];
@@ -248,10 +253,10 @@ useEffect(() => {
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3 text-left font-medium text-slate-700">{item.name}</td>
                   <td className={`px-4 py-3 ${item.daily > 0 ? `${primaryColorClass} font-bold` : 'text-slate-300'}`}>
-                    {item.daily > 0 ? item.daily.toLocaleString('en-US') : '-'}
+                    {item.daily > 0 ? formatValue(item.daily) : '-'}
                   </td>
                   <td className={`px-4 py-3 ${item.mtd > 0 ? `${secondaryColorClass} font-bold` : 'text-slate-300'}`}>
-                    {item.mtd > 0 ? item.mtd.toLocaleString('en-US') : '-'}
+                    {item.mtd > 0 ? formatValue(item.mtd) : '-'}
                   </td>
                 </tr>
               )) : (
@@ -262,10 +267,10 @@ useEffect(() => {
               <tr>
                 <td className="px-4 py-3 text-left bg-slate-100">TỔNG CỘNG</td>
                 <td className={`px-4 py-3 bg-slate-100 ${primaryColorClass}`}>
-                  {totalDaily.toLocaleString('en-US')}
+                  {formatValue(totalDaily)}
                 </td>
                 <td className={`px-4 py-3 bg-slate-100 ${secondaryColorClass}`}>
-                  {totalMtd.toLocaleString('en-US')}
+                  {formatValue(totalMtd)}
                 </td>
               </tr>
             </tfoot>

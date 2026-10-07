@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
 import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
-import { MONEY_UNIT_LABEL } from '../../../../utils/money';
+import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
 import { formatDateDisplay } from '../../utils/dateHelpers';
@@ -28,11 +28,11 @@ interface InventoryDetailModalProps {
   columnKeys: InventoryDetailColumnKeys;
 }
 
-// Giá trị gốc đã ở đơn vị triệu đồng (xem utils/money.ts) — hiển thị nguyên giá trị
-const money = (value: number) => formatSmartDecimal(value);
+// Giá trị gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
+const money = (value: number) => formatTrieuAsTy(value);
 const quantity = (value: number) => formatSmartDecimal(value);
 
-const moneyTotal = (value: number) => formatDecimalFull(value);
+const moneyTotal = (value: number) => formatTrieuAsTy(value);
 const quantityTotal = (value: number) => formatDecimalFull(value);
 
 const PREVIEW_LIMIT = 100;
@@ -64,7 +64,7 @@ const COLUMN_META: Record<OptionalColKey, { label: React.ReactNode; sortKey: Sor
   xuong: { label: 'Khu Vực SX', sortKey: 'xuong' },
   date: { label: 'Ngày Nhập', sortKey: 'date' },
   soLuong: { label: 'Số Lượng', sortKey: 'soLuong', align: 'right' },
-  thanhTien: { label: 'Thành Tiền', sortKey: 'thanhTien', align: 'right' },
+  thanhTien: { label: 'Thành Tiền (tỷ)', sortKey: 'thanhTien', align: 'right' },
   ghiChu: { label: <>Ghi Chú <br />Nhập Kho</>, sortKey: 'ghiChu' },
 };
 
@@ -179,7 +179,7 @@ export const InventoryDetailModal = ({
     { key: 'xuong', label: 'Khu Vực SX' },
     { key: 'date', label: 'Ngày Nhập' },
     { key: 'soLuong', label: 'Số Lượng' },
-    { key: 'thanhTien', label: 'Thành Tiền' },
+    { key: 'thanhTien', label: 'Thành Tiền (tỷ)' },
     { key: 'ghiChu', label: 'Ghi Chú Nhập Kho' },
   ], [showProjectColumn]);
 
@@ -371,7 +371,7 @@ export const InventoryDetailModal = ({
           <div>
             <h3 className="text-base font-semibold text-slate-800">Chi tiết Đã Nhập Kho P022</h3>
             <p className="mt-0.5 text-xs text-slate-500">
-              {projectName ?? 'Tất cả công trình'} · {filteredRows.length} dòng · Đơn vị tiền: {MONEY_UNIT_LABEL}
+              {projectName ?? 'Tất cả công trình'} · {filteredRows.length} dòng · Đơn vị tiền: {TY_UNIT_LABEL}
             </p>
           </div>
           <div className="flex items-center gap-3">

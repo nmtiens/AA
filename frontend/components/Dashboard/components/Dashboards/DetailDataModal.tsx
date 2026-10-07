@@ -3,6 +3,7 @@ import { Eye, X, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as Chevron
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
+import { formatTrieuAsTy } from '../../../../utils/money';
 
 const ROWS_PER_PAGE = 200;
 
@@ -39,9 +40,14 @@ interface GroupedRow {
   merged: Record<string, any>; // dòng đại diện đã gộp, dùng để hiển thị ở hàng cha
 }
 
-const formatColumnLabel = (col: string) => col.toUpperCase().replace(/_/g, ' ');
-const formatCellValue = (v: any) => {
+// Cột tiền (gốc triệu đồng) -> hiển thị Tỷ, 2 số lẻ. Xuất CSV vẫn giữ số gốc.
+const MONEY_COLUMN_RE = /^(tri_gia|thanh_tien|gia_tri)/;
+const isMoneyColumn = (col: string) => MONEY_COLUMN_RE.test(col);
+const formatColumnLabel = (col: string) =>
+  col.toUpperCase().replace(/_/g, ' ') + (isMoneyColumn(col) ? ' (TỶ)' : '');
+const formatCellValue = (v: any, col?: string) => {
   if (v === null || v === undefined) return '';
+  if (col && isMoneyColumn(col) && v !== '' && Number.isFinite(Number(v))) return formatTrieuAsTy(Number(v));
   if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
   return String(v);
 };
@@ -281,7 +287,7 @@ export default function DetailDataModal({
                                 key={col}
                                 className={`px-2 py-1 border-b border-slate-100 whitespace-nowrap ${isMulti ? 'font-bold text-slate-800' : ''}`}
                               >
-                                {formatCellValue(g.merged[col])}
+                                {formatCellValue(g.merged[col], col)}
                                 {col === GROUP_BY_COLUMN && isMulti && (
                                   <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[0.625rem] font-extrabold bg-indigo-600 text-white shadow-sm">
                                     x{g.rows.length}
@@ -296,7 +302,7 @@ export default function DetailDataModal({
                               {/* ✅ Body (các dòng con khi mở nhóm) lặp theo orderedColumns. */}
                               {orderedColumns.map(col => (
                                 <td key={col} className="px-2 py-1 pl-4 border-b border-slate-100 whitespace-nowrap">
-                                  {formatCellValue(row[col])}
+                                  {formatCellValue(row[col], col)}
                                 </td>
                               ))}
                             </tr>
@@ -309,7 +315,7 @@ export default function DetailDataModal({
                         {/* ✅ Body (chế độ phẳng, không group) lặp theo orderedColumns. */}
                         {orderedColumns.map(col => (
                           <td key={col} className="px-2 py-1 border-b border-slate-100 whitespace-nowrap">
-                            {formatCellValue(row[col])}
+                            {formatCellValue(row[col], col)}
                           </td>
                         ))}
                       </tr>
