@@ -4,6 +4,7 @@ import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
 import { parsePlanDate, deadlineOf, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE } from '../../utils/productionMetrics';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
+import { workshopGroupOf } from '../../utils/workshopGroups';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import type { HexBom } from './ProjectHealthTabs';
@@ -53,6 +54,14 @@ const WORK_STEPS: { key: string; label: string; flag?: string }[] = [
 const noteNumber = (v: string) => {
   const n = Number(String(v).replace(/,/g, '').replace(/[^\d.\-]/g, ''));
   return Number.isFinite(n) ? n : NaN;
+};
+
+// Xưởng theo setup gộp xưởng (giống mọi view); mã gốc khác tên gộp thì ghi kèm trong ngoặc
+const xuongText = (raw: unknown) => {
+  const r = String(raw ?? '').trim();
+  if (!r) return '—';
+  const g = workshopGroupOf(r);
+  return g.toUpperCase() === r.toUpperCase() ? r : `${g} (${r})`;
 };
 
 const parseStockIn = (text: unknown) =>
@@ -172,7 +181,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
             </h3>
             {row && (
               <p className="mt-0.5 text-[0.6875rem] text-slate-500">
-                {names?.project ?? row.ten_cong_trinh} · Xưởng {row.xuong_chinh ?? '—'} · PM {names?.pm || row.ten_pm || '—'} · PC {names?.pc || row.ten_pc || '—'}
+                {names?.project ?? row.ten_cong_trinh} · Xưởng {xuongText(row.xuong_chinh)} · PM {names?.pm || row.ten_pm || '—'} · PC {names?.pc || row.ten_pc || '—'}
                 {row.ma_hang_muc_boq ? ` · BOQ ${row.ma_hang_muc_boq}` : ''}
               </p>
             )}

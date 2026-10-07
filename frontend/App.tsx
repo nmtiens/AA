@@ -711,6 +711,7 @@ const MainLayout: React.FC = () => {
   const wgYearlyPlanData = useMemo(() => canonicalizeWorkshops(yearlyPlanData, yearlyPlanColumns), [yearlyPlanData, yearlyPlanColumns, workshopGroupsVersion]);
   const wgExportData = useMemo(() => canonicalizeWorkshops(exportData, exportColumns), [exportData, exportColumns, workshopGroupsVersion]);
   const wgStockData = useMemo(() => canonicalizeWorkshops(stockData, stockColumns), [stockData, stockColumns, workshopGroupsVersion]);
+  const wgAttendanceData = useMemo(() => canonicalizeWorkshops(attendanceData, attendanceColumns), [attendanceData, attendanceColumns, workshopGroupsVersion]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const contextValue = useMemo<MainLayoutContext>(() => ({
@@ -718,13 +719,13 @@ const MainLayout: React.FC = () => {
     khsxData: wgKhsxData, khsxColumns, orderData: wgOrderData, orderColumns, inventoryData: wgInventoryData, inventoryColumns,
     tkbvData: wgTkbvData, tkbvColumns, pthspData: wgPthspData, pthspColumns, analysisData: wgAnalysisData, analysisColumns,
     yearlyPlanData: wgYearlyPlanData, yearlyPlanColumns, exportData: wgExportData, exportColumns,
-    stockData: wgStockData, stockColumns, attendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
+    stockData: wgStockData, stockColumns, attendanceData: wgAttendanceData, attendanceColumns, isSidebarCollapsed: isCollapsed,
     isGlobalLoading: loading
   }), [
     canonicalProductionData, productionColumns, wgMaterialData, materialColumns, wgKhsxData, khsxColumns,
     wgOrderData, orderColumns, wgInventoryData, inventoryColumns, wgTkbvData, tkbvColumns, wgPthspData, pthspColumns,
     wgAnalysisData, analysisColumns, wgYearlyPlanData, yearlyPlanColumns, wgExportData, exportColumns,
-    wgStockData, stockColumns, attendanceData, attendanceColumns, isCollapsed, loading,
+    wgStockData, stockColumns, wgAttendanceData, attendanceColumns, isCollapsed, loading,
   ]);
 
   // ------------------------------------------------------------
