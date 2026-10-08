@@ -5,7 +5,7 @@ import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
 import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified } from '../server/data.js';
 import { app, warmupLimiter } from '../server/app.js';
-import { expandWorkshops, workshopGroupsVersion } from '../server/workshopGroups.js';
+import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
 
 // --- CACHE IN-MEMORY CHO /api/stock/dates (theo bộ lọc tổng) ---
 // TRƯỚC: 1 biến module-level duy nhất (không phân biệt filter).
@@ -58,12 +58,7 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
     if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
     if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
 
-    cteClause = `
-      WITH matched_ids AS (
-        SELECT DISTINCT ma_id_sap FROM production_status_app
-        WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(' AND ')}` : ''}
-      )
-    `;
+    cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
     joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
 
@@ -85,6 +80,18 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
   trimCache(stockDatesCache);
   return { payload, fromCache: false };
 };
+
+// Tập ma_id_sap thoả bộ lọc xưởng / tình trạng / IPO — xét DÒNG SẢN XUẤT MỚI NHẤT của mỗi mã
+// (giống biểu đồ tồn theo xưởng: buildMatchedProductionCTE). Trước đây xét mọi dòng nên 1 mã có
+// dòng ở nhiều xưởng bị tính vào mọi xưởng đó => tổng các xưởng khi lọc lớn hơn tổng thật.
+const matchedIdsSql = (pConds: string[]) => `
+  SELECT ma_id_sap FROM (
+    SELECT DISTINCT ON (ma_id_sap) ma_id_sap, xuong_chinh, tinh_trang, tinh_trang_ipo
+    FROM production_status_app
+    WHERE ma_id_sap IS NOT NULL
+    ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+  ) lp${pConds.length ? ` WHERE ${pConds.join(' AND ')}` : ''}
+`;
 
 app.get('/api/stock/dates', async (req: Request, res: Response) => {
   try {
@@ -146,12 +153,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
       if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
       if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
 
-      cteClause = `
-        WITH matched_ids AS (
-          SELECT DISTINCT ma_id_sap FROM production_status_app
-          WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(' AND ')}` : ''}
-        )
-      `;
+      cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
       joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
     }
 
@@ -202,17 +204,25 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
     params.push(STOCK_ITEMS_LIMIT + 1);
 
     const r = await timedQuery(
-      `SELECT s.hex::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
-              p.ten_hang_muc, p.xuong_chinh, p.phan_loai_nhom_san_pham,
-              ${numericColQualified('ton_kho', 's', 'gia_tri')} AS gia_tri
-       FROM ton_kho s
-       LEFT JOIN LATERAL (
-         SELECT ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
+      // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
+      // tồn => ~4k lần quét bảng sản xuất, vượt statement timeout khi không lọc công trình)
+      `WITH p AS (
+         SELECT DISTINCT ON (ma_id_sap) ma_id_sap::text AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
          FROM production_status_app
-         WHERE ma_id_sap::text = s.ma_id_sap::text
-         ORDER BY updated_at DESC NULLS LAST LIMIT 1
-       ) p ON TRUE
-       WHERE ${conds.join(' AND ')}
+         WHERE ma_id_sap IS NOT NULL
+         ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+       )
+       -- Nối xong rồi mới sắp + LIMIT (OFFSET 0 chặn đẩy LIMIT vào trong: không có nó Postgres chọn
+       -- nested loop so từng dòng tồn với ~30k mã => ~2–8s khi không lọc)
+       SELECT * FROM (
+         SELECT s.hex::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
+                p.ten_hang_muc, ${workshopGroupSql('p.xuong_chinh')} AS xuong_chinh, p.phan_loai_nhom_san_pham,
+                ${numericColQualified('ton_kho', 's', 'gia_tri')} AS gia_tri
+         FROM ton_kho s
+         LEFT JOIN p ON p.sap_id = s.ma_id_sap::text
+         WHERE ${conds.join(' AND ')}
+         OFFSET 0
+       ) x
        ORDER BY gia_tri DESC NULLS LAST
        LIMIT $${params.length}`,
       params

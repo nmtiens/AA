@@ -193,7 +193,8 @@ export const applyCtWhitelist = (
 // [JOIN DEDUP FIX] Một ma_id_sap/hex có thể khớp NHIỀU dòng trong
 // production_status_app (vd: 1 vật tư dùng cho nhiều hạng mục). LEFT JOIN trực
 // tiếp sẽ nhân dòng bảng chính lên N lần, làm SUM/COUNT bị thổi phồng sai.
-// Dedup bằng DISTINCT ON trước khi join. Đặt tên CTE là "p" để mọi chỗ tham
+// Dedup bằng DISTINCT ON trước khi join (trùng updated_at thì lấy id lớn nhất — cố định, không đổi
+// giữa các lần truy vấn; 1 mã có thể có nhiều dòng ở nhiều xưởng cùng thời điểm cập nhật). Đặt tên CTE là "p" để mọi chỗ tham
 // chiếu "p.xuong_chinh", "p.dvt", "p.phan_loai_nhom_san_pham"... không cần sửa.
 export const buildMatchedProductionCTE = (joinKey: string): string => `
   p AS (
@@ -201,7 +202,7 @@ export const buildMatchedProductionCTE = (joinKey: string): string => `
       "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
     FROM production_status_app
     WHERE "${joinKey}" IS NOT NULL
-    ORDER BY "${joinKey}", updated_at DESC NULLS LAST
+    ORDER BY "${joinKey}", updated_at DESC NULLS LAST, id DESC
   )
 `;
 

@@ -64157,7 +64157,7 @@ var buildMatchedProductionCTE = (joinKey) => `
       "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
     FROM production_status_app
     WHERE "${joinKey}" IS NOT NULL
-    ORDER BY "${joinKey}", updated_at DESC NULLS LAST
+    ORDER BY "${joinKey}", updated_at DESC NULLS LAST, id DESC
   )
 `;
 var fetchTableData = async (tableName, updatedAfter, strict = false) => {
@@ -65272,12 +65272,7 @@ var refreshStockDatesCache = async (filters) => {
       params.push(filters.tinhTrangIpo);
       pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
     }
-    cteClause = `
-      WITH matched_ids AS (
-        SELECT DISTINCT ma_id_sap FROM production_status_app
-        WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(" AND ")}` : ""}
-      )
-    `;
+    cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
     joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
   const q = `
@@ -65297,6 +65292,14 @@ var refreshStockDatesCache = async (filters) => {
   trimCache(stockDatesCache);
   return { payload, fromCache: false };
 };
+var matchedIdsSql = (pConds) => `
+  SELECT ma_id_sap FROM (
+    SELECT DISTINCT ON (ma_id_sap) ma_id_sap, xuong_chinh, tinh_trang, tinh_trang_ipo
+    FROM production_status_app
+    WHERE ma_id_sap IS NOT NULL
+    ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+  ) lp${pConds.length ? ` WHERE ${pConds.join(" AND ")}` : ""}
+`;
 app.get("/api/stock/dates", async (req, res) => {
   try {
     const { payload } = await refreshStockDatesCache(parseStockFilters(req));
@@ -65354,12 +65357,7 @@ app.get("/api/stock/by-project", async (req, res) => {
         params.push(filters.tinhTrangIpo);
         pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
       }
-      cteClause = `
-        WITH matched_ids AS (
-          SELECT DISTINCT ma_id_sap FROM production_status_app
-          WHERE ma_id_sap IS NOT NULL${pConds.length ? ` AND ${pConds.join(" AND ")}` : ""}
-        )
-      `;
+      cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
       joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
     }
     const q = `
@@ -65403,17 +65401,25 @@ app.get("/api/stock/items", async (req, res) => {
     }
     params.push(STOCK_ITEMS_LIMIT + 1);
     const r = await timedQuery(
-      `SELECT s.hex::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
-              p.ten_hang_muc, p.xuong_chinh, p.phan_loai_nhom_san_pham,
-              ${numericColQualified("ton_kho", "s", "gia_tri")} AS gia_tri
-       FROM ton_kho s
-       LEFT JOIN LATERAL (
-         SELECT ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
+      // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
+      // tồn => ~4k lần quét bảng sản xuất, vượt statement timeout khi không lọc công trình)
+      `WITH p AS (
+         SELECT DISTINCT ON (ma_id_sap) ma_id_sap::text AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
          FROM production_status_app
-         WHERE ma_id_sap::text = s.ma_id_sap::text
-         ORDER BY updated_at DESC NULLS LAST LIMIT 1
-       ) p ON TRUE
-       WHERE ${conds.join(" AND ")}
+         WHERE ma_id_sap IS NOT NULL
+         ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+       )
+       -- N\u1ED1i xong r\u1ED3i m\u1EDBi s\u1EAFp + LIMIT (OFFSET 0 ch\u1EB7n \u0111\u1EA9y LIMIT v\xE0o trong: kh\xF4ng c\xF3 n\xF3 Postgres ch\u1ECDn
+       -- nested loop so t\u1EEBng d\xF2ng t\u1ED3n v\u1EDBi ~30k m\xE3 => ~2\u20138s khi kh\xF4ng l\u1ECDc)
+       SELECT * FROM (
+         SELECT s.hex::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
+                p.ten_hang_muc, ${workshopGroupSql("p.xuong_chinh")} AS xuong_chinh, p.phan_loai_nhom_san_pham,
+                ${numericColQualified("ton_kho", "s", "gia_tri")} AS gia_tri
+         FROM ton_kho s
+         LEFT JOIN p ON p.sap_id = s.ma_id_sap::text
+         WHERE ${conds.join(" AND ")}
+         OFFSET 0
+       ) x
        ORDER BY gia_tri DESC NULLS LAST
        LIMIT $${params.length}`,
       params
