@@ -433,6 +433,8 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     }
     const rows = [...merged.entries()]
       .map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount }))
+      // Bỏ cột rỗng (giá trị 0, không HEX) — giống Tổng quan theo công trình
+      .filter(x => x.total !== 0 || x.totalCount > 0)
       .sort((a, b) => b.total - a.total);
     res.json(rows);
   } catch (error) {

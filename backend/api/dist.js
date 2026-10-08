@@ -66669,7 +66669,7 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       e.totalCount += Number(row.total_count);
       merged.set(name, e);
     }
-    const rows = [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount })).sort((a, b) => b.total - a.total);
+    const rows = [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount })).filter((x) => x.total !== 0 || x.totalCount > 0).sort((a, b) => b.total - a.total);
     res.json(rows);
   } catch (error61) {
     console.error("L\u1ED7i /api/trend-by-congtrinh:", error61);
