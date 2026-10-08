@@ -29,7 +29,6 @@ export const pickMixColor = (name: string, i: number) => (name === OTHERS ? OTHE
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtTy = formatTy;
-const fmtMetric = (v: number, metric: Metric) => (metric === 'count' ? fmtInt(v) : `${fmtTy(v)} Tỷ`);
 
 // ============================================================================
 // Gom dữ liệu cho 1 biểu đồ tròn
@@ -350,16 +349,26 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                 <Tooltip content={<MixTooltip sum={sum} metric={metric} />} wrapperStyle={{ zIndex: 20 }} />
               </PieChart>
 
-            {/* Giữa vòng: tổng, hoặc phần đang chọn + tỷ lệ */}
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className={`${large ? 'text-base' : 'text-xs'} font-semibold tabular-nums text-slate-900 leading-tight`}>
-                {fmtMetric(picked.length ? pickedSum : sum, metric)}
-              </span>
-              <span className="text-[0.625rem] text-slate-500 leading-tight">
-                {picked.length
-                  ? `đã chọn · ${((pickedSum / (sum || 1)) * 100).toFixed(1)}%`
-                  : metric === 'count' ? 'hạng mục' : 'tổng giá trị'}
-              </span>
+            {/* Giữa vòng: tổng, hoặc phần đang chọn + tỷ lệ. Đơn vị "Tỷ" xuống dòng dưới và cỡ chữ giảm theo
+                độ dài số — trước "1,959.19 Tỷ" rộng hơn lỗ giữa nên bị các lát che */}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center text-center" style={{ maxWidth: INNER * 2 - 6 }}>
+                {(() => {
+                  const v = picked.length ? pickedSum : sum;
+                  const txt = metric === 'count' ? fmtInt(v) : fmtTy(v);
+                  const size = txt.length <= 6 ? (large ? 16 : 12) : txt.length <= 8 ? (large ? 14 : 11) : (large ? 12 : 10);
+                  return (
+                    <span className="font-semibold tabular-nums text-slate-900 leading-tight" style={{ fontSize: size }}>
+                      {txt}
+                    </span>
+                  );
+                })()}
+                <span className="text-[0.625rem] text-slate-500 leading-tight">
+                  {picked.length
+                    ? `${metric === 'count' ? '' : 'Tỷ · '}đã chọn ${((pickedSum / (sum || 1)) * 100).toFixed(1)}%`
+                    : metric === 'count' ? 'hạng mục' : 'Tỷ'}
+                </span>
+              </div>
             </div>
           </div>
 

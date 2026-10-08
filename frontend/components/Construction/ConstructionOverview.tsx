@@ -42,7 +42,8 @@ interface Rec {
 }
 
 // Mặc định không lọc Tình trạng IPO: các ô KPI hiện tổng toàn bộ công trình, chỉ đổi khi người dùng chọn lọc
-const DEFAULT_IPO: string[] = [];
+// Mặc định chỉ xem hạng mục ĐANG SẢN XUẤT (khớp bộ lọc mặc định ở trang Tổng quan); chọn lại được ở bộ lọc
+const isDefaultIpo = (ipo: string) => /ĐANG SẢN XUẤT/i.test(ipo);
 
 const NO_DATA = '(Chưa có)';
 const NO_MONTH = 'none';
@@ -133,7 +134,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
   const healthCt = health?.ct ?? null;
   const [f, setF] = useState<Filters>({});
-  const [ipoSel, setIpoSel] = useState<string[]>(DEFAULT_IPO);
+  // null = chưa chọn gì => dùng mặc định (Đang sản xuất) khi đã có dữ liệu
+  const [ipoPicked, setIpoSel] = useState<string[] | null>(null);
   const [metric, setMetric] = useState<'count' | 'value'>('count'); // cho 3 biểu đồ tròn
   const [ctSearch, setCtSearch] = useState('');
 
@@ -229,12 +231,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     return out;
   }, [data, columns]);
 
-  // Bộ lọc Tình trạng IPO (mặc định: tất cả — hiện tổng toàn bộ công trình),
+  // Bộ lọc Tình trạng IPO (mặc định: Đang sản xuất — bỏ chọn hết = tất cả),
   // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
   const ipoOptions = useMemo(
     () => [...new Set(allRecords.map(r => r.ipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
     [allRecords]
   );
+  const ipoSel = useMemo(() => ipoPicked ?? ipoOptions.filter(isDefaultIpo), [ipoPicked, ipoOptions]);
   const records = useMemo(() => {
     if (ipoSel.length === 0) return allRecords;
     const set = new Set(ipoSel);

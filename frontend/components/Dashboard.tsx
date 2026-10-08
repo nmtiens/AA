@@ -305,6 +305,7 @@ const {
   totalKhsxAmount,
   weeklyKhFallback,
   totalInventoryAmount,
+  totalInventoryPlanAmount,
   completionRate,
   combinedWorkshopData,
   combinedProjectData,
@@ -793,6 +794,7 @@ const handleContinueToOrderColumnStep = () => {
   weeklyKhFallback={weeklyKhFallback}
   completionRate={completionRate}
   totalInventoryAmount={totalInventoryAmount}
+  totalInventoryPlanAmount={totalInventoryPlanAmount}
   combinedWorkshopData={combinedWorkshopData}
   combinedProjectData={combinedProjectData}
   weeklyPlanVsActualData={weeklyPlanVsActualData}

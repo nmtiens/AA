@@ -89,15 +89,24 @@ interface UseKhsxSummaryParams {
   invThanhTienKey: string;
 }
 
+// Tách TH: phần theo KH + phần ngoài KH (thPlan thiếu = server cũ => coi toàn bộ là theo KH)
+const splitTh = (r: { th: number; thPlan?: number }) => {
+  const plan = r.thPlan ?? r.th;
+  return { thValue: plan, thOutValue: Math.max(Number((r.th - plan).toFixed(2)), 0) };
+};
+
 interface UseKhsxSummaryResult {
   khsxSummary: KhsxNhapKhoSummary | null;
   totalKhsxAmount: number;
   /** Có giá trị khi xem theo tháng mà kỳ chưa có KH tháng nhưng đã có KH tuần */
   weeklyKhFallback?: number;
   totalInventoryAmount: number;
+  /** Nhập kho của hạng mục có trong KH cùng kỳ */
+  totalInventoryPlanAmount: number;
   completionRate: number;
-  combinedWorkshopData: { name: string; khValue: number; thValue: number }[];
-  combinedProjectData: { name: string; code: string; khValue: number; thValue: number }[];
+  // thValue = nhập kho theo KH, thOutValue = nhập kho ngoài KH (cộng lại = toàn bộ nhập kho kỳ)
+  combinedWorkshopData: { name: string; khValue: number; thValue: number; thOutValue: number }[];
+  combinedProjectData: { name: string; code: string; khValue: number; thValue: number; thOutValue: number }[];
   weeklyPlanVsActualData: WeeklyPlanVsActualRow[];
   productivityAnalysisData: ProductivityAnalysisRow[];
 }
@@ -188,15 +197,16 @@ export function useKhsxSummary({
   const totalKhsxAmount = khsxSummary?.totalKh ?? 0;
   const weeklyKhFallback = khsxSummary?.weeklyKhFallback;
   const totalInventoryAmount = khsxSummary?.totalTh ?? 0;
+  const totalInventoryPlanAmount = khsxSummary?.totalThPlan ?? 0;
   const completionRate = khsxSummary?.completionRate ?? 0;
 
   const combinedWorkshopData = useMemo(() =>
-    (khsxSummary?.byXuong ?? []).map(r => ({ name: r.xuong, khValue: r.kh, thValue: r.th })),
+    (khsxSummary?.byXuong ?? []).map(r => ({ name: r.xuong, khValue: r.kh, ...splitTh(r) })),
     [khsxSummary]
   );
 
   const combinedProjectData = useMemo(() =>
-    (khsxSummary?.byCongTrinh ?? []).map(r => ({ name: r.name, code: r.code, khValue: r.kh, thValue: r.th })),
+    (khsxSummary?.byCongTrinh ?? []).map(r => ({ name: r.name, code: r.code, khValue: r.kh, ...splitTh(r) })),
     [khsxSummary]
   );
 
@@ -387,6 +397,7 @@ export function useKhsxSummary({
     totalKhsxAmount,
     weeklyKhFallback,
     totalInventoryAmount,
+    totalInventoryPlanAmount,
     completionRate,
     combinedWorkshopData,
     combinedProjectData,

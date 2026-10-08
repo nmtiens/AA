@@ -550,6 +550,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     totalKhsxAmount,
     weeklyKhFallback,
     totalInventoryAmount,
+    totalInventoryPlanAmount,
     completionRate,
     combinedWorkshopData,
     combinedProjectData,
@@ -1239,6 +1240,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
             weeklyKhFallback={weeklyKhFallback}
             completionRate={completionRate}
             totalInventoryAmount={totalInventoryAmount}
+            totalInventoryPlanAmount={totalInventoryPlanAmount}
             combinedWorkshopData={combinedWorkshopData}
             combinedProjectData={combinedProjectData}
             weeklyPlanVsActualData={weeklyPlanVsActualData}

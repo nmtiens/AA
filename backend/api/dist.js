@@ -66357,50 +66357,69 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       thWhere += ` AND ${normNameSql("ten_cong_trinh")} = ANY($${thParams.length}::text[])`;
     }
     if (xuongList.length) thWhere += ` AND ${workshopCondition("xuong_chinh", xuongList, thParams)}`;
+    thParams.push(phanLoaiPattern, nam);
+    let planHexWhere = `UPPER(TRIM(phan_loai_kh)) LIKE $${thParams.length - 1} AND nam = $${thParams.length}::bigint AND hex IS NOT NULL`;
+    if (thang) {
+      thParams.push(thang);
+      planHexWhere += ` AND thang = $${thParams.length}::bigint`;
+    }
+    if (isWeek && tuan) {
+      thParams.push(tuan);
+      planHexWhere += ` AND tuan = $${thParams.length}::double precision`;
+    }
+    if (isWeek && ngay) {
+      thParams.push(ngay);
+      planHexWhere += ` AND ngay = $${thParams.length}::double precision`;
+    }
     const thQuery = `
+      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex FROM khsx WHERE ${planHexWhere})
       SELECT
         ${workshopGroupSql("xuong_chinh")} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
+        (hex::text IN (SELECT hex FROM plan_hex)) AS in_plan,
         COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
-      GROUP BY 1, 2, 3
+      GROUP BY 1, 2, 3, 4
     `;
     const thResult = await timedQuery(thQuery, thParams);
     const xuongMap = /* @__PURE__ */ new Map();
     khResult.rows.forEach((r) => {
       const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = xuongMap.get(k) || { kh: 0, th: 0 };
+      const e = xuongMap.get(k) || { kh: 0, th: 0, thPlan: 0 };
       e.kh += Number(r.gia_tri);
       xuongMap.set(k, e);
     });
     thResult.rows.forEach((r) => {
       const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = xuongMap.get(k) || { kh: 0, th: 0 };
+      const e = xuongMap.get(k) || { kh: 0, th: 0, thPlan: 0 };
       e.th += Number(r.gia_tri);
+      if (r.in_plan) e.thPlan += Number(r.gia_tri);
       xuongMap.set(k, e);
     });
-    const byXuong = Array.from(xuongMap.entries()).map(([xuong2, v]) => ({ xuong: xuong2, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) })).sort((a, b) => a.xuong.localeCompare(b.xuong));
+    const byXuong = Array.from(xuongMap.entries()).map(([xuong2, v]) => ({ xuong: xuong2, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)), thPlan: Number(v.thPlan.toFixed(2)) })).sort((a, b) => a.xuong.localeCompare(b.xuong));
     const ctMap = /* @__PURE__ */ new Map();
-    khResult.rows.forEach((r) => {
+    const ctEntry = (r) => {
       const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = ctMap.get(k) || { code: r.ma_cong_trinh || "", kh: 0, th: 0 };
-      e.kh += Number(r.gia_tri);
-      if (r.ma_cong_trinh) e.code = r.ma_cong_trinh;
+      const e = ctMap.get(k) || { codes: /* @__PURE__ */ new Set(), kh: 0, th: 0, thPlan: 0 };
+      if (r.ma_cong_trinh) e.codes.add(r.ma_cong_trinh);
       ctMap.set(k, e);
+      return e;
+    };
+    khResult.rows.forEach((r) => {
+      ctEntry(r).kh += Number(r.gia_tri);
     });
     thResult.rows.forEach((r) => {
-      const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = ctMap.get(k) || { code: r.ma_cong_trinh || "", kh: 0, th: 0 };
+      const e = ctEntry(r);
       e.th += Number(r.gia_tri);
-      if (r.ma_cong_trinh && !e.code) e.code = r.ma_cong_trinh;
-      ctMap.set(k, e);
+      if (r.in_plan) e.thPlan += Number(r.gia_tri);
     });
-    const byCongTrinh = Array.from(ctMap.entries()).map(([name, v]) => ({ name, code: v.code || name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) })).sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th)).slice(0, 10);
+    const byCongTrinh = Array.from(ctMap.entries()).map(([name, v]) => ({ name, code: v.codes.size === 1 ? [...v.codes][0] : name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)), thPlan: Number(v.thPlan.toFixed(2)) })).sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th)).slice(0, 10);
     const totalKh = [...xuongMap.values()].reduce((a, b) => a + b.kh, 0);
     const totalTh = [...xuongMap.values()].reduce((a, b) => a + b.th, 0);
-    const completionRate = totalKh > 0 ? totalTh / totalKh * 100 : 0;
+    const totalThPlan = [...xuongMap.values()].reduce((a, b) => a + b.thPlan, 0);
+    const completionRate = totalKh > 0 ? totalThPlan / totalKh * 100 : 0;
     let weeklyKhFallback;
     if (!isWeek && totalKh === 0) {
       const wkParams = [...khParams];
@@ -66415,6 +66434,7 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     const khsxPayload = {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
+      totalThPlan: Number(totalThPlan.toFixed(2)),
       completionRate: Number(completionRate.toFixed(1)),
       ...weeklyKhFallback !== void 0 ? { weeklyKhFallback } : {},
       byXuong,

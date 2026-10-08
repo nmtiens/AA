@@ -485,11 +485,13 @@ export const fetchRevenue2026 = async (year?: string | number): Promise<Revenue2
 export interface KhsxNhapKhoSummary {
   totalKh: number;
   totalTh: number;
+  /** Phần nhập kho của hạng mục CÓ trong KH cùng kỳ (tỷ lệ hoàn thành = totalThPlan / totalKh) */
+  totalThPlan: number;
   completionRate: number;
   /** Xem theo tháng mà kỳ chưa có KH tháng: tổng KH tuần cùng kỳ (để chú thích, không cộng vào KH) */
   weeklyKhFallback?: number;
-  byXuong: { xuong: string; kh: number; th: number }[];
-  byCongTrinh: { name: string; code: string; kh: number; th: number }[];
+  byXuong: { xuong: string; kh: number; th: number; thPlan: number }[];
+  byCongTrinh: { name: string; code: string; kh: number; th: number; thPlan: number }[];
 }
 
 export async function fetchKhsxNhapKhoSummary(params: {

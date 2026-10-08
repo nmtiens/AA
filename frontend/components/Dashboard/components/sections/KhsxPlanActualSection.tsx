@@ -32,10 +32,29 @@ export interface UnifiedTimeFilters {
 }
 
 
+const TH_PLAN_COLOR = '#3b82f6';
+const TH_OUT_COLOR = '#bfdbfe';
+
+// Nhãn trên đỉnh cột TH (theo KH + ngoài KH chồng nhau): chỉ % NK theo KH / KH — số tiền xem ở tooltip
+// (trước ghi cả số KH, tổng NK và % trên từng cột => chồng chéo khi cột sát nhau)
+const ThStackLabel = ({ x, y, width, item }: { x?: number; y?: number; width?: number; item?: { khValue: number; thValue: number; thOutValue: number } }) => {
+  if (!item || x === undefined || y === undefined || width === undefined) return null;
+  if (!(item.khValue > 0)) return null;
+  const percent = Math.round((item.thValue / item.khValue) * 100);
+  const color = percent >= 80 ? '#059669' : percent >= 50 ? '#d97706' : '#dc2626';
+  return (
+    <text x={x + width / 2} y={y - 5} fill={color} fontSize={10} fontWeight={700} textAnchor="middle">
+      {percent}%
+    </text>
+  );
+};
+
+// thValue = nhập kho theo KH (hạng mục có trong KH cùng kỳ), thOutValue = nhập kho ngoài KH
 export interface CombinedChartRow {
   name: string;
   khValue: number;
   thValue: number;
+  thOutValue: number;
   [key: string]: string | number;
 }
 
@@ -43,6 +62,7 @@ export interface CombinedProjectChartRow {
   code: string;
   khValue: number;
   thValue: number;
+  thOutValue: number;
   [key: string]: string | number;
 }
 
@@ -102,6 +122,8 @@ interface KhsxPlanActualSectionProps {
   weeklyKhFallback?: number;
   completionRate: number;
   totalInventoryAmount: number;
+  /** Nhập kho của hạng mục có trong KH cùng kỳ */
+  totalInventoryPlanAmount: number;
 
   combinedWorkshopData: CombinedChartRow[];
   combinedProjectData: CombinedProjectChartRow[];
@@ -136,6 +158,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
   weeklyKhFallback,
   completionRate,
   totalInventoryAmount,
+  totalInventoryPlanAmount,
   combinedWorkshopData,
   combinedProjectData,
   weeklyPlanVsActualData,
@@ -350,7 +373,12 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <div className="p-1.5 bg-teal-100 rounded text-teal-600">
                     <TrendingUp size={18} />
                   </div>
-                  <p className="text-xs font-bold text-teal-800 opacity-70 uppercase">Tỷ lệ Thực hiện / KH</p>
+                  <p
+                    className="text-xs font-bold text-teal-800 opacity-70 uppercase"
+                    title="Nhập kho của các hạng mục CÓ trong kế hoạch cùng kỳ ÷ tổng kế hoạch. Nhập kho của hạng mục ngoài kế hoạch không tính vào tỷ lệ."
+                  >
+                    Tỷ lệ NK theo KH / KH
+                  </p>
                 </div>
                 <div className="flex items-baseline gap-2 z-10">
                   <h4
@@ -389,6 +417,16 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                 <h4 className="text-2xl lg:text-3xl font-bold text-indigo-600 tracking-tight">
                   {formatTy(totalInventoryAmount)}
                 </h4>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem]">
+                  <span className="inline-flex items-center gap-1 text-indigo-800/80">
+                    <i className="h-2 w-2 rounded-sm" style={{ background: TH_PLAN_COLOR }} />
+                    Theo KH: <b className="tabular-nums">{formatTy(totalInventoryPlanAmount)}</b>
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-indigo-800/80">
+                    <i className="h-2 w-2 rounded-sm" style={{ background: TH_OUT_COLOR }} />
+                    Ngoài KH: <b className="tabular-nums">{formatTy(Math.max(totalInventoryAmount - totalInventoryPlanAmount, 0))}</b>
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -397,54 +435,29 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={inventorySectionRef}>
               <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
                 <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
-                  SO SÁNH: KH vs TH (Theo Xưởng)
+                  SO SÁNH: KH vs TH (Theo Xưởng) <span className="normal-case font-normal text-slate-400">· % = NK theo KH / KH · rê chuột xem số</span>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={combinedWorkshopData} margin={{ top: 35, right: 30, left: 10, bottom: 50 }}>
+                  <BarChart data={combinedWorkshopData} margin={{ top: 20, right: 30, left: 10, bottom: 50 }} barGap={3}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10 }} interval={0} />
                     <YAxis tickFormatter={formatTy} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<WorkshopChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
-                    <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                      <LabelList position="top" formatter={formatTy} fontSize={10} fill="#059669" />
-                    </Bar>
-                    <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
-                      <LabelList
-                        dataKey="thValue"
-                        position="top"
-                        content={(props: any) => {
-                          const { x, y, width, value, index } = props;
-                          const item = combinedWorkshopData[index as number];
-                          const plan = item?.khValue || 0;
-                          const actual = Number(value) || 0;
-
-                          if (actual <= 0) return null;
-
-                          const percent = plan > 0 ? (actual / plan) * 100 : 0;
-
-                          return (
-                            <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
-                              <tspan x={x + width / 2} dy="0">
-                                {formatTy(actual)}
-                              </tspan>
-                              <tspan x={x + width / 2} dy="12">
-                                ({Math.round(percent)}%)
-                              </tspan>
-                            </text>
-                          );
-                        }}
-                      />
+                    <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="thValue" name="NK theo KH" stackId="th" fill={TH_PLAN_COLOR} barSize={20} />
+                    <Bar dataKey="thOutValue" name="NK ngoài KH" stackId="th" fill={TH_OUT_COLOR} radius={[4, 4, 0, 0]} barSize={20}>
+                      <LabelList dataKey="thOutValue" position="top" content={(props: any) => <ThStackLabel {...props} item={combinedWorkshopData[props.index as number]} />} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
               <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
                 <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
-                  SO SÁNH: KH vs TH (Theo Công Trình - Top 10)
+                  SO SÁNH: KH vs TH (Theo Công Trình - Top 10) <span className="normal-case font-normal text-slate-400">· % = NK theo KH / KH</span>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={combinedProjectData} margin={{ top: 35, right: 30, left: 10, bottom: 80 }}>
+                  <BarChart data={combinedProjectData} margin={{ top: 20, right: 30, left: 10, bottom: 80 }} barGap={3}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis
                       dataKey="code"
@@ -458,35 +471,10 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                     <YAxis tickFormatter={formatTy} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<ProjectChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
-                    <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}>
-                      <LabelList position="top" formatter={formatTy} fontSize={10} fill="#059669" />
-                    </Bar>
-                    <Bar dataKey="thValue" name="Thực hiện (TH)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}>
-                      <LabelList
-                        dataKey="thValue"
-                        position="top"
-                        content={(props: any) => {
-                          const { x, y, width, value, index } = props;
-                          const item = combinedProjectData[index as number];
-                          const plan = item?.khValue || 0;
-                          const actual = Number(value) || 0;
-
-                          if (actual <= 0) return null;
-
-                          const percent = plan > 0 ? (actual / plan) * 100 : 0;
-
-                          return (
-                            <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
-                              <tspan x={x + width / 2} dy="0">
-                                {formatTy(actual)}
-                              </tspan>
-                              <tspan x={x + width / 2} dy="12">
-                                ({Math.round(percent)}%)
-                              </tspan>
-                            </text>
-                          );
-                        }}
-                      />
+                    <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
+                    <Bar dataKey="thValue" name="NK theo KH" stackId="th" fill={TH_PLAN_COLOR} barSize={20} />
+                    <Bar dataKey="thOutValue" name="NK ngoài KH" stackId="th" fill={TH_OUT_COLOR} radius={[4, 4, 0, 0]} barSize={20}>
+                      <LabelList dataKey="thOutValue" position="top" content={(props: any) => <ThStackLabel {...props} item={combinedProjectData[props.index as number]} />} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

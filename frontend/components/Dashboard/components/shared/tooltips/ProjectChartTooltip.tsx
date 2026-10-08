@@ -22,11 +22,15 @@ export const ProjectChartTooltip = ({ active, payload, label }: any) => {
             <span className="text-sm font-bold text-emerald-700">{formatValue(plan)} Tỷ</span>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-blue-600 font-medium">Thực hiện:</span>
+            <span className="text-xs text-blue-600 font-medium">NK theo KH:</span>
             <span className="text-sm font-bold text-blue-700">{formatValue(actual)} Tỷ</span>
           </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-xs text-blue-400 font-medium">NK ngoài KH:</span>
+            <span className="text-sm font-semibold text-blue-400">{formatValue(data.thOutValue || 0)} Tỷ</span>
+          </div>
           <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-1 mt-1">
-            <span className="text-xs text-slate-500 font-medium">% Đạt:</span>
+            <span className="text-xs text-slate-500 font-medium" title="NK theo KH ÷ Kế hoạch">% Đạt (theo KH):</span>
             <span className={`text-sm font-bold ${percent >= 80 ? 'text-emerald-600' : percent >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
               {percent.toLocaleString('en-US', { maximumFractionDigits: 1 })}%
             </span>
