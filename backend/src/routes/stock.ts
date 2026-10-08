@@ -1,4 +1,4 @@
-import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
+import { parseNameList, expandProjectNames, normNameSql, canonicalProjectName } from '../server/projectAlias.js';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
@@ -169,7 +169,16 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
       ORDER BY value DESC
     `;
     const r = await timedQuery(q, params);
-    res.json(r.rows.map(row => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
+    // Gộp các cách viết của cùng 1 công trình về tên chuẩn — khớp biểu đồ nhập / xuất kho theo công trình
+    const merged = new Map<string, { count: number; value: number }>();
+    for (const row of r.rows) {
+      const name = row.name === 'Chưa xác định' ? row.name : canonicalProjectName(row.name);
+      const e = merged.get(name) ?? { count: 0, value: 0 };
+      e.count += Number(row.count);
+      e.value += Number(row.value);
+      merged.set(name, e);
+    }
+    res.json([...merged.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value));
   } catch (error) {
     console.error('Lỗi stock/by-project:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -190,9 +199,12 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
 
     const conds: string[] = ['s.date_parsed = $1'];
     const params: any[] = [date];
-    if (project) {
-      params.push(project === 'CHƯA XÁC ĐỊNH' ? '' : project);
-      conds.push(`UPPER(TRIM(COALESCE(s.ten_cong_trinh, ''))) = $${params.length}`);
+    if (project === 'CHƯA XÁC ĐỊNH') {
+      conds.push(`TRIM(COALESCE(s.ten_cong_trinh, '')) = ''`);
+    } else if (project) {
+      // Tên chuẩn (dòng ở biểu đồ theo công trình) -> mọi cách viết của cùng công trình
+      params.push(expandProjectNames([project]));
+      conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);
     } else if (filters.congTrinh.length) {
       params.push(filters.congTrinh);
       conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);

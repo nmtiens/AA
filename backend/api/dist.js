@@ -44688,6 +44688,7 @@ app.use((req, res, next) => {
   if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateJWT(req, res, next);
 });
+var NEEDS_PROJECT_ALIASES = /^\/api\/(trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
 app.use(async (req, _res, next) => {
   if (req.path.toLowerCase().startsWith("/api/")) {
     try {
@@ -44695,7 +44696,7 @@ app.use(async (req, _res, next) => {
     } catch {
     }
   }
-  if (req.query.congTrinh || req.query.ctWhitelist) {
+  if (req.query.congTrinh || req.query.ctWhitelist || NEEDS_PROJECT_ALIASES.test(req.path)) {
     try {
       await ensureProjectAliases();
     } catch {
@@ -65535,7 +65536,15 @@ app.get("/api/stock/by-project", async (req, res) => {
       ORDER BY value DESC
     `;
     const r = await timedQuery(q, params);
-    res.json(r.rows.map((row) => ({ name: row.name, count: Number(row.count), value: Number(row.value) })));
+    const merged = /* @__PURE__ */ new Map();
+    for (const row of r.rows) {
+      const name = row.name === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.name : canonicalProjectName(row.name);
+      const e = merged.get(name) ?? { count: 0, value: 0 };
+      e.count += Number(row.count);
+      e.value += Number(row.value);
+      merged.set(name, e);
+    }
+    res.json([...merged.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value));
   } catch (error61) {
     console.error("L\u1ED7i stock/by-project:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -65551,9 +65560,11 @@ app.get("/api/stock/items", async (req, res) => {
     const filters = parseStockFilters(req);
     const conds = ["s.date_parsed = $1"];
     const params = [date5];
-    if (project) {
-      params.push(project === "CH\u01AFA X\xC1C \u0110\u1ECANH" ? "" : project);
-      conds.push(`UPPER(TRIM(COALESCE(s.ten_cong_trinh, ''))) = $${params.length}`);
+    if (project === "CH\u01AFA X\xC1C \u0110\u1ECANH") {
+      conds.push(`TRIM(COALESCE(s.ten_cong_trinh, '')) = ''`);
+    } else if (project) {
+      params.push(expandProjectNames([project]));
+      conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
     } else if (filters.congTrinh.length) {
       params.push(filters.congTrinh);
       conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
