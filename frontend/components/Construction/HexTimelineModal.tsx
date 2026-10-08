@@ -149,16 +149,17 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       },
     ];
 
-    // Mốc BOT (hạn): KH tuần → KH tháng → cần giao → ngày cần (PM) → BOT dự án (nguồn đầu tiên có ngày là hạn đang dùng)
+    // Mốc BOT (hạn): CHỈ KH tuần → KH tháng (KH đã đạt SL thì bỏ qua). Ngày cần giao / ngày cần (PM) / BOT dự án
+    // chỉ hiện để tham khảo, không tính hạn
     const slText = (v: unknown) => (v ? `SL ${fmtNum(v, 3)}` : '');
     const deadlines = [
       { label: 'KH nhập kho tuần', date: dl.khnkTuan, used: dl.source === 'tuần',
-        extra: [slText(row.sl_khnk_tuan), dl.tuanMet ? 'đã nhập đủ SL KH trong tuần' : ''].filter(Boolean).join(' · ') },
+        extra: [slText(row.sl_khnk_tuan), dl.tuanMet ? 'đã nhập đủ SL KH trong tuần' : ''].filter(Boolean).join(' · '), ref: false },
       { label: 'KH nhập kho tháng', date: dl.khnkThang, used: dl.source === 'tháng',
-        extra: [slText(row.sl_khnk_thang), dl.thangMet ? 'đã nhập đủ SL KH trong tháng' : ''].filter(Boolean).join(' · ') },
-      { label: 'Ngày cần giao', date: dl.canGiao, used: dl.source === 'cần giao', extra: '' },
-      { label: 'Ngày cần (PM)', date: dl.canPm, used: dl.source === 'cần PM', extra: '' },
-      { label: 'BOT dự án', date: dl.botDuAn, used: dl.source === 'BOT dự án', extra: 'hạn chung công trình' },
+        extra: [slText(row.sl_khnk_thang), dl.thangMet ? 'đã nhập đủ SL KH trong tháng' : ''].filter(Boolean).join(' · '), ref: false },
+      { label: 'Ngày cần giao', date: dl.canGiao, used: false, extra: 'tham khảo', ref: true },
+      { label: 'Ngày cần (PM)', date: dl.canPm, used: false, extra: 'tham khảo', ref: true },
+      { label: 'BOT dự án', date: dl.botDuAn, used: false, extra: 'tham khảo · hạn chung công trình', ref: true },
     ];
     const days = dl.date ? Math.floor((dl.date.getTime() - today) / DAY) : null;
     return { stage, cur, dl, days, qtyOrder, qtyTicket, qtyIn, full, stockIn, milestones, deadlines, valDone, valRemain, pctValue, cancelled };
@@ -237,7 +238,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '' },
                   {
                     label: 'Hạn (BOT)', value: fmtDate(d.dl.date),
-                    sub: d.dl.source ? `${d.dl.source === 'cần giao' ? 'Ngày cần giao' : `KH nhập kho ${d.dl.source}`}${d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có ngày',
+                    sub: d.dl.source ? `KH nhập kho ${d.dl.source}${d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
                     tone: d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
                   },
                   {
@@ -324,12 +325,12 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   <div className="rounded-lg border border-slate-200 p-4">
                     <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                       <CalendarClock size={14} /> Thời hạn (BOT)
-                      <span className="font-normal text-slate-400">· hạn dùng: KH tuần → KH tháng → cần giao → ngày cần (PM) → BOT dự án</span>
+                      <span className="font-normal text-slate-400">· hạn dùng: KH nhập kho tuần → KH nhập kho tháng (các ngày khác chỉ tham khảo)</span>
                     </p>
                     <ul className="divide-y divide-slate-100 text-xs">
                       {d.deadlines.map(x => {
                         const dd = x.date ? Math.floor((x.date.getTime() - today) / DAY) : null;
-                        const late = dd !== null && dd < 0 && !d.full;
+                        const late = !x.ref && dd !== null && dd < 0 && !d.full;
                         return (
                           <li key={x.label} className={`flex items-center gap-2 py-1.5 ${x.used ? 'font-semibold' : ''}`}>
                             <span className={x.used ? 'text-slate-900' : 'text-slate-500'}>{x.label}</span>

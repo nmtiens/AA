@@ -722,7 +722,7 @@ export const HexDetailModal = ({
   const lastColIsVuongMac = orderedCols[orderedCols.length - 1] === 'vuongMac';
   const showRedEdge = lastColIsVuongMac && scrolledToEnd;
 
-  // Ngày hạn (quy tắc chung): KH nhập kho tuần → KH nhập kho tháng → ngày cần giao.
+  // Ngày hạn (quy tắc chung): CHỈ KH nhập kho tuần → KH nhập kho tháng (ngày cần giao chỉ tham khảo).
   // Khoá ngày cần giao: ưu tiên khoá được truyền vào, không thì dò theo tên cột trong dữ liệu.
   const deadlineKeys = useMemo<DeadlineKeys | null>(() => {
     const sample = rows[0];
@@ -752,7 +752,7 @@ export const HexDetailModal = ({
     let base = rows;
     if (materialFilter !== 'all' && materialCountByHex) {
       base = rows.filter(row => (materialFilter === 'with' ? hasMat(row) : !hasMat(row)));
-      // Hex chưa tìm thấy vật tư: gấp nhất (ngày cần giao sớm nhất) lên đầu, không có ngày xếp cuối
+      // Hex chưa tìm thấy vật tư: gấp nhất (hạn KH nhập kho sớm nhất) lên đầu, không có ngày xếp cuối
       if (materialFilter === 'without' && hasDeadline) {
         const t = (row: DataRow) => deadlineOf(row)?.getTime() ?? Number.POSITIVE_INFINITY;
         base = [...base].sort((a, b) => t(a) - t(b));
@@ -1234,7 +1234,7 @@ export const HexDetailModal = ({
                   onClick={() => { setMaterialFilter(k); if (k === 'without') setSort(null); }}
                   disabled={k !== 'all' && hexWithMaterialCount === null}
                   title={k === 'without'
-                    ? 'Hex không gắn được dòng vật tư nào theo mã nhà máy — sắp theo ngày cần giao, gấp nhất lên đầu'
+                    ? 'Hex không gắn được dòng vật tư nào theo mã nhà máy — sắp theo hạn KH nhập kho, gấp nhất lên đầu'
                     : undefined}
                   className={`px-3 py-1.5 transition-colors disabled:cursor-wait disabled:opacity-60 ${
                     materialFilter === k
@@ -1249,7 +1249,7 @@ export const HexDetailModal = ({
             {materialFilter === 'without' && (
               <span className="text-xs text-slate-500">
                 {hasDeadline
-                  ? <>Sắp theo hạn (KH nhập kho tuần → tháng → ngày cần giao) — gấp nhất lên đầu · <span className="font-semibold text-red-600">chữ đỏ</span> = đã quá hạn</>
+                  ? <>Sắp theo hạn (KH nhập kho tuần → tháng) — gấp nhất lên đầu · <span className="font-semibold text-red-600">chữ đỏ</span> = đã quá hạn</>
                   : 'Không có cột ngày kế hoạch / cần giao để sắp xếp'}
               </span>
             )}

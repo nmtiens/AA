@@ -423,11 +423,11 @@ const PR_REASON_COLUMNS: Record<string, string> = {
   ten_pm: 'ten_pm',
   khu_vuc_du_an: 'khu_vuc_du_an',
   ten_cong_trinh: 'ten_cong_trinh',
-  // Tháng hạn theo quy tắc chung: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao → ngày cần (PM)
-  // → BOT dự án (utils/productionMetrics.deadlineOf; phần "KH kỳ đã đạt" chỉ áp ở giao diện)
+  // Tháng hạn theo quy tắc chung: CHỈ KH nhập kho tuần → KH nhập kho tháng
+  // (utils/productionMetrics.deadlineOf; phần "KH kỳ đã đạt" chỉ áp ở giao diện)
   thang_can_giao: `COALESCE(TO_CHAR(COALESCE(
     CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END,
-    ngay_khnk_thang, ngay_can_giao, ngay_can, bot_du_an), 'MM/YYYY'), '')`,
+    ngay_khnk_thang), 'MM/YYYY'), '')`,
 };
 
 app.post('/api/material/pr-hexes', async (req: Request, res: Response) => {

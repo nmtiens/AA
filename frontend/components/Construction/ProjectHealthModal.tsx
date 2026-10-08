@@ -3,7 +3,7 @@ import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListCheck
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, doneValue, remainValue, isCancelledIpo, isPlanDeadline, planAfterDue, isQtyComplete } from '../../utils/productionMetrics';
+import { deadlineOf, doneValue, remainValue, isCancelledIpo, planAfterDue, isQtyComplete } from '../../utils/productionMetrics';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
@@ -17,7 +17,7 @@ import { formatTrieuAsTy } from '../../utils/money';
 // ============================================================================
 // Tổng quan 1 công trình (tầng 1): 3 thẻ BOT (thời hạn) · BOP (công đoạn) · BOM (vật tư)
 // + danh sách "Cần xử lý ngay" = hạng mục quá hạn / sắp hạn MÀ còn vướng thêm vấn đề khác,
-//   và "Chú ý" = hạng mục chưa nhập kho đủ mà không có BOT (không có KH, ngày cần giao, ngày cần PM lẫn BOT dự án).
+//   và "Chú ý" = hạng mục chưa nhập kho đủ mà không có BOT (không có KH nhập kho tuần / tháng).
 // Cùng định nghĩa "còn lại" với bảng Tình trạng đơn hàng theo công trình:
 // còn lại = trị giá - đã nhập kho (không âm), phân cột theo công đoạn BOP; đơn HỦY không tính.
 // ============================================================================
@@ -38,9 +38,9 @@ export interface ProjectHealthKeys {
   khnkTuanKey: string;
   /** Kế hoạch nhập kho theo tháng (date) — dùng khi không có KH tuần */
   khnkThangKey: string;
-  /** Ngày cần giao — dùng khi không có cả KH tuần lẫn KH tháng */
+  /** Ngày cần giao — chỉ tham khảo (cờ "KH nhập kho sau ngày cần giao"), không tính hạn */
   ngayCanGiaoKey: string;
-  /** Ngày cần (PM) → BOT dự án: hạn cam kết tham khảo khi chưa có 3 nguồn trên */
+  /** Ngày cần (PM) / BOT dự án: chỉ tham khảo, không tính hạn */
   ngayCanKey?: string;
   botDuAnKey?: string;
 }
@@ -67,8 +67,6 @@ const FIVE_M_VI: Record<FiveMCategory, string> = {
   man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường',
 };
 const DAY = 86_400_000;
-// Nguồn hạn được xét cho "Cần xử lý ngay" (hạn theo KH + ngày cần giao; không gồm ngày cần PM / BOT dự án)
-const URGENT_SOURCES = new Set<string>(['tuần', 'tháng', 'cần giao']);
 
 const BUCKET_LABEL: Record<RemainBucket, string> = {
   notDeployed: 'Chưa triển khai',
@@ -131,7 +129,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       const remain = remainValue(total, nk);
       const stage = extractStage(row[keys.bopKey]);
       const status = String(row[keys.tinhTrangKey] ?? '').toUpperCase();
-      // BOT: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao (quy tắc chung toàn app)
+      // BOT: CHỈ KH nhập kho tuần → KH nhập kho tháng (quy tắc chung toàn app)
       const dl = deadlineOf(row, keys);
       const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = dl;
       // Chưa xong (đếm / tính hạn) = còn giá trị chưa nhập HOẶC trị giá 0 (chưa có giá), TRỪ hạng mục đã nhập
@@ -243,13 +241,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const dueSoon = open.filter(i => i.dueSoon);
     const dates = open.map(i => i.deadline).filter((d): d is Date => !!d).sort((a, b) => a.getTime() - b.getTime());
     const noDate = open.filter(i => !i.deadline).length;
-    // Quá hạn THEO KẾ HOẠCH (KH tuần / tháng đang chạy) vs CAM KẾT (cần giao / ngày cần PM / BOT dự án);
-    // cam kết quá > 90 ngày là hạn cũ chưa ai cập nhật KH
-    const overduePlan = overdue.filter(i => isPlanDeadline(i.deadlineSource)).length;
-    const overdueCommitOld = overdue.filter(i => !isPlanDeadline(i.deadlineSource) && i.deadline && (today - i.deadline.getTime()) / DAY > 90).length;
     return {
       overdue: overdue.length, overdueRemain: overdue.reduce((s, i) => s + i.remain, 0),
-      overduePlan, overdueCommit: overdue.length - overduePlan, overdueCommitOld,
       planAfterDue: open.filter(i => i.planAfterDue).length,
       dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate,
     };
@@ -312,9 +305,6 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const res: (HexInfo & { flags: string[] })[] = [];
     for (const i of items) {
       if (!i.open || !(i.overdue || i.dueSoon)) continue;
-      // Chỉ xét hạn theo KH (tuần / tháng) và ngày cần giao. Hạn tham khảo (ngày cần PM / BOT dự án) vẫn hiện
-      // ở tab BOT nhưng không đẩy vào danh sách cần xử lý — tránh ngập hạng mục P001 quá hạn cam kết cũ.
-      if (!URGENT_SOURCES.has(i.deadlineSource ?? '')) continue;
       const flags = flagsOf(i);
       if (flags.length === 0) continue;
       res.push({ ...i, flags });
@@ -326,7 +316,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, matCount, openIssues, issueCats, bomDetail]);
 
-  // Chú ý: hạng mục chưa nhập kho đủ mà KHÔNG có BOT (không có KH tuần, KH tháng lẫn ngày cần giao)
+  // Chú ý: hạng mục chưa nhập kho đủ mà KHÔNG có BOT (không có KH nhập kho tuần / tháng)
   const noBot = useMemo(() => {
     const res: (HexInfo & { flags: string[] })[] = [];
     for (const i of items) {
@@ -457,19 +447,11 @@ export const ProjectHealthModal: React.FC<Props> = ({
         {tab === 'overview' && <>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {/* BOT — thời hạn */}
-          <Card icon={CalendarClock} title="BOT" sub="KH nhập kho → cần giao → ngày cần PM → BOT dự án" tone={botTone} to="bot">
+          <Card icon={CalendarClock} title="BOT" sub="KH nhập kho tuần → tháng" tone={botTone} to="bot">
             <p className={`text-3xl font-semibold tabular-nums ${bot.overdue > 0 ? 'text-red-600' : 'text-slate-900'}`}>
               {fmtInt(bot.overdue)} <span className="text-sm font-medium text-slate-500">hạng mục quá hạn</span>
             </p>
             {bot.overdue > 0 && <p className="text-xs text-red-600">còn {fmtTy(bot.overdueRemain)} tỷ chưa nhập kho</p>}
-            {bot.overdue > 0 && (
-              <p className="mt-0.5 text-[0.6875rem] text-slate-600">
-                <span title="Quá ngày KH nhập kho tuần / tháng đang chạy" className="font-semibold text-red-600">{fmtInt(bot.overduePlan)} theo KH</span>
-                {' · '}
-                <span title="Không có KH đang chạy, quá ngày cần giao / ngày cần PM / BOT dự án">{fmtInt(bot.overdueCommit)} theo cam kết</span>
-                {bot.overdueCommitOld > 0 && <span className="text-slate-400" title="Hạn cũ chưa cập nhật KH"> ({fmtInt(bot.overdueCommitOld)} quá &gt; 90 ngày)</span>}
-              </p>
-            )}
             <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 text-xs">
               <dt className="text-slate-500">Sắp hạn (≤ {DUE_SOON_DAYS} ngày)</dt>
               <dd className={`text-right font-semibold tabular-nums ${bot.dueSoon ? 'text-amber-600' : 'text-slate-700'}`}>{fmtInt(bot.dueSoon)}</dd>
@@ -482,7 +464,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 <dd className="text-right font-semibold tabular-nums text-amber-600">{fmtInt(bot.planAfterDue)}</dd>
               </>}
               {bot.noDate > 0 && <>
-                <dt className="text-slate-500">Chưa có ngày (KH / cần giao / PM / BOT DA)</dt>
+                <dt className="text-slate-500">Chưa có KH nhập kho</dt>
                 <dd className="text-right tabular-nums text-slate-700">{fmtInt(bot.noDate)}</dd>
               </>}
             </dl>
@@ -584,10 +566,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
             ))}
             <span className="text-[0.6875rem] text-slate-500">
               {listTab === 'urgent'
-                ? <>Hạng mục quá hạn hoặc sắp hạn (≤ {DUE_SOON_DAYS} ngày) theo KH nhập kho tuần / tháng hoặc ngày cần giao — không xét hạn tham khảo ngày cần (PM) / BOT dự án — mà còn vướng: chưa triển khai / chưa tính phiếu, đã triển khai chưa thấy PR, có VT chưa mua / trễ hẹn giao, KH nhập kho sau ngày cần giao, hoặc có vướng mắc tồn đọng.</>
+                ? <>Hạng mục quá hạn hoặc sắp hạn (≤ {DUE_SOON_DAYS} ngày) theo KH nhập kho tuần / tháng mà còn vướng: chưa triển khai / chưa tính phiếu, đã triển khai chưa thấy PR, có VT chưa mua / trễ hẹn giao, KH nhập kho sau ngày cần giao, hoặc có vướng mắc tồn đọng.</>
                 : listTab === 'noBot'
-                  ? <>Hạng mục chưa nhập kho đủ mà chưa có BOT: không có KH nhập kho tuần, KH nhập kho tháng, ngày cần giao, ngày cần (PM) lẫn BOT dự án — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.</>
-                  : <>Hạng mục chưa nhập kho đủ, đã có BOT, không thuộc "Cần xử lý ngay": còn xa hạn (&gt; {DUE_SOON_DAYS} ngày), quá hạn / sắp hạn nhưng không vướng vấn đề nào, hoặc chỉ có hạn tham khảo (ngày cần PM / BOT dự án — chưa có KH, ngày cần giao). Sắp theo hạn gần nhất.</>}
+                  ? <>Hạng mục chưa nhập kho đủ mà chưa có BOT: không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL mà hạng mục chưa nhập kho đủ) — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.</>
+                  : <>Hạng mục chưa nhập kho đủ, đã có BOT, không thuộc "Cần xử lý ngay": còn xa hạn (&gt; {DUE_SOON_DAYS} ngày), hoặc quá hạn / sắp hạn nhưng không vướng vấn đề nào. Sắp theo hạn gần nhất.</>}
             </span>
           </div>
           {matCount === null || openIssues === null ? (

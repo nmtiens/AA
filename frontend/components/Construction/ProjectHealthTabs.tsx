@@ -4,7 +4,7 @@ import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
   materialLineState, isMaterialPending, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
-  isPlanDeadline, type DeadlineSource, type MaterialLineState, type MaterialLineFields,
+  type DeadlineSource, type MaterialLineState, type MaterialLineFields,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, summarizeNeeds, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
@@ -27,11 +27,11 @@ export interface HexInfo {
   total: number;               // triệu đồng
   inv: number;                 // đã nhập kho (triệu, đã chặn không vượt trị giá)
   remain: number;              // triệu đồng
-  deadline: Date | null;       // KH tuần → KH tháng → cần giao → ngày cần (PM) → BOT dự án (utils/productionMetrics)
+  deadline: Date | null;       // hạn = KH nhập kho tuần → KH nhập kho tháng (utils/productionMetrics)
   deadlineSource: DeadlineSource | null;
   khnkTuan: Date | null;       // ngay_khnk_tuan (để hiển thị riêng)
   khnkThang: Date | null;      // ngay_khnk_thang (để hiển thị riêng)
-  canGiao: Date | null;        // ngay_can_giao (để hiển thị riêng)
+  canGiao: Date | null;        // ngay_can_giao (chỉ tham khảo, không tính hạn)
   /** KH tuần / tháng của kỳ đã nhập đủ SL kế hoạch (không tính trễ theo KH đó) */
   khnkTuanMet?: boolean;
   khnkThangMet?: boolean;
@@ -107,59 +107,50 @@ const matchQ = (i: HexInfo, q: string) =>
   !q || i.hex.includes(q) || i.hangMuc.toLowerCase().includes(q) || (i.stage ?? '').toLowerCase().includes(q);
 
 // ============================================================================
-// BOT — KH nhập kho tuần → KH nhập kho tháng → ngày cần giao → ngày cần (PM) → BOT dự án
-// Quá hạn tách 2 loại: THEO KẾ HOẠCH (KH tuần / tháng — kế hoạch đang chạy, cần xử lý ngay) và
-// CAM KẾT (cần giao / ngày cần PM / BOT dự án — thường là hạn cũ đã trôi qua lâu, nhóm > 90 ngày tách riêng).
+// BOT — CHỈ KH nhập kho tuần → KH nhập kho tháng (ngày cần giao / ngày cần PM / BOT dự án chỉ tham khảo)
 // ============================================================================
-type BotGroup = 'overduePlan' | 'overdueCommit' | 'd14' | 'd30' | 'later' | 'none';
+type BotGroup = 'overdue' | 'd14' | 'd30' | 'later' | 'none';
 const BOT_GROUPS: { key: BotGroup; label: string; tone: 'red' | 'amber' | 'slate'; hint: string }[] = [
-  { key: 'overduePlan', label: 'Quá hạn theo KH', tone: 'red', hint: 'Đã qua ngày KH nhập kho tuần / tháng đang chạy mà chưa nhập kho đủ (KH kỳ đã nhập đủ SL thì không tính)' },
-  { key: 'overdueCommit', label: 'Quá hạn cam kết', tone: 'red', hint: 'Không có KH tuần / tháng đang chạy, đã qua ngày cần giao (hoặc ngày cần PM / BOT dự án) — thường là hạn cũ cần cập nhật lại KH' },
+  { key: 'overdue', label: 'Quá hạn KH', tone: 'red', hint: 'Đã qua ngày KH nhập kho tuần / tháng mà chưa nhập kho đủ (KH kỳ đã nhập đủ SL thì không tính)' },
   { key: 'd14', label: '≤ 14 ngày', tone: 'amber', hint: 'Hạn trong 14 ngày tới' },
   { key: 'd30', label: '15–30 ngày', tone: 'amber', hint: 'Hạn trong 15–30 ngày tới' },
   { key: 'later', label: 'Sau 30 ngày', tone: 'slate', hint: 'Hạn sau 30 ngày' },
-  { key: 'none', label: 'Chưa có ngày', tone: 'slate', hint: 'Không có KH, ngày cần giao, ngày cần (PM) lẫn BOT dự án' },
+  { key: 'none', label: 'Chưa có KH nhập kho', tone: 'slate', hint: 'Không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL mà hạng mục chưa nhập kho đủ)' },
 ];
-const isOverdueGroup = (g: BotGroup) => g === 'overduePlan' || g === 'overdueCommit';
-const OVERDUE_OLD_DAYS = 90;
-const SOURCE_SHORT: Record<DeadlineSource, string> = {
-  'tuần': 'KH tuần', 'tháng': 'KH tháng', 'cần giao': 'Cần giao', 'cần PM': 'Ngày cần PM', 'BOT dự án': 'BOT dự án',
-};
+const SOURCE_SHORT: Record<DeadlineSource, string> = { 'tuần': 'KH tuần', 'tháng': 'KH tháng' };
 
 export const BotTab = ({ items, today, openIssues, onHexClick }: {
   items: HexInfo[]; today: number; openIssues: Record<string, number> | null; onHexClick?: (hex: string) => void;
 }) => {
-  // 'overdue' = mọi loại quá hạn (bấm số quá hạn của 1 tháng); 'planAfterDue' = KH nhập kho sau ngày cần giao
-  const [group, setGroup] = useState<BotGroup | 'all' | 'overdue' | 'planAfterDue'>('all');
+  // 'planAfterDue' = KH nhập kho sau ngày cần giao
+  const [group, setGroup] = useState<BotGroup | 'all' | 'planAfterDue'>('all');
   const [month, setMonth] = useState<string | null>(null); // 'YYYY-MM' hoặc '~' (chưa có ngày)
   const [q, setQ] = useState('');
 
   const open = useMemo(() => items.filter(i => i.open), [items]);
   const monthOf = (i: HexInfo) =>
     i.deadline ? `${i.deadline.getFullYear()}-${String(i.deadline.getMonth() + 1).padStart(2, '0')}` : '~';
-  const monthLabel = (k: string) => (k === '~' ? 'Chưa có ngày' : `${k.slice(5)}/${k.slice(0, 4)}`);
+  const monthLabel = (k: string) => (k === '~' ? 'Chưa có KH nhập kho' : `${k.slice(5)}/${k.slice(0, 4)}`);
   const groupOf = (i: HexInfo): BotGroup => {
     if (!i.deadline) return 'none';
     const days = Math.floor((i.deadline.getTime() - today) / DAY);
-    if (days < 0) return isPlanDeadline(i.deadlineSource) ? 'overduePlan' : 'overdueCommit';
+    if (days < 0) return 'overdue';
     if (days <= 14) return 'd14';
     if (days <= 30) return 'd30';
     return 'later';
   };
   const inGroup = (i: HexInfo) =>
     group === 'all' ? true
-      : group === 'overdue' ? isOverdueGroup(groupOf(i))
-        : group === 'planAfterDue' ? !!i.planAfterDue
-          : groupOf(i) === group;
+      : group === 'planAfterDue' ? !!i.planAfterDue
+        : groupOf(i) === group;
   const counts = useMemo(() => {
     const c = Object.fromEntries(BOT_GROUPS.map(g => [g.key, { n: 0, remain: 0 }])) as Record<BotGroup, { n: number; remain: number }>;
     open.forEach(i => { const g = groupOf(i); c[g].n++; c[g].remain += i.remain; });
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, today]);
-  // Quá hạn cam kết > 90 ngày (hạn cũ) / KH nhập kho sau ngày cần giao
+  // KH nhập kho sau ngày cần giao
   const extra = useMemo(() => ({
-    commitOld: open.filter(i => groupOf(i) === 'overdueCommit' && i.deadline && (today - i.deadline.getTime()) / DAY > OVERDUE_OLD_DAYS).length,
     planAfterDue: open.filter(i => i.planAfterDue).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [open, today]);
@@ -187,7 +178,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
         {BOT_GROUPS.map(g => (
           <button
             key={g.key}
@@ -201,9 +192,6 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
               {fmtInt(counts[g.key].n)}
             </p>
             <p className="text-[0.625rem] text-slate-400">{fmtTy(counts[g.key].remain)} tỷ chưa nhập kho</p>
-            {g.key === 'overdueCommit' && extra.commitOld > 0 && (
-              <p className="text-[0.625rem] font-semibold text-red-500">{fmtInt(extra.commitOld)} quá &gt; {OVERDUE_OLD_DAYS} ngày (hạn cũ)</p>
-            )}
           </button>
         ))}
       </div>
@@ -219,7 +207,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
 
       <div>
         <p className="mb-1.5 text-xs font-semibold text-slate-700">
-          Theo tháng kế hoạch <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng → ngày cần giao → ngày cần (PM) → BOT dự án · bấm 1 tháng (hoặc số quá hạn) để lọc danh sách</span>
+          Theo tháng kế hoạch <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng · bấm 1 tháng (hoặc số quá hạn) để lọc danh sách</span>
         </p>
         <div className="overflow-auto rounded-lg border border-slate-200">
           <table className="w-full text-xs">
@@ -285,7 +273,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-slate-700">Hạng mục chưa nhập kho đủ</p>
           <span className="text-[0.6875rem] text-slate-500">
-            {group === 'all' ? 'tất cả nhóm' : group === 'overdue' ? 'Quá hạn' : group === 'planAfterDue' ? 'KH NK sau ngày cần giao' : BOT_GROUPS.find(g => g.key === group)?.label} · {fmtInt(list.length)} hạng mục · sắp theo ngày kế hoạch
+            {group === 'all' ? 'tất cả nhóm' : group === 'planAfterDue' ? 'KH NK sau ngày cần giao' : BOT_GROUPS.find(g => g.key === group)?.label} · {fmtInt(list.length)} hạng mục · sắp theo ngày kế hoạch
           </span>
           {month !== null && <Chip active onClick={() => setMonth(null)}>Tháng {monthLabel(month)} ✕</Chip>}
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục, công đoạn..." /></div>
@@ -437,7 +425,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
       .filter(i => matchQ(i, ql))
       .sort((a, b) =>
         sortBy === 'deadline'
-          // Hạn gần nhất lên trước (KH tuần → KH tháng → cần giao → ngày cần PM → BOT dự án); cùng hạn thì theo công đoạn
+          // Hạn gần nhất lên trước (KH nhập kho tuần → tháng); cùng hạn thì theo công đoạn
           ? timeOf(a.deadline) - timeOf(b.deadline) || stageRank(stageOf(a)) - stageRank(stageOf(b)) || b.remain - a.remain
           : sortBy === 'stage'
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
@@ -1359,13 +1347,11 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
   );
 };
 
-// Ô ngày kế hoạch: ngày đang dùng để tính BOT (KH tuần → KH tháng → cần giao → ngày cần PM → BOT dự án) in đậm,
-// đỏ nếu quá hạn / cam nếu sắp hạn; các ngày còn lại hiện mờ để tham khảo.
-export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource }) => {
-  // Cột "Cần giao": hạng mục không có ngày cần giao mà hạn lấy từ ngày cần (PM) / BOT dự án thì hiện ngày đó
-  const fallback = which === 'cần giao' && !i.canGiao && (i.deadlineSource === 'cần PM' || i.deadlineSource === 'BOT dự án');
-  const d = which === 'tuần' ? i.khnkTuan : which === 'tháng' ? i.khnkThang : fallback ? i.deadline : i.canGiao;
-  const used = i.deadlineSource === which || fallback;
+// Ô ngày kế hoạch: ngày đang dùng để tính BOT (KH nhập kho tuần → tháng) in đậm, đỏ nếu quá hạn / cam nếu sắp
+// hạn; ngày còn lại hiện mờ. Cột "Cần giao" chỉ để tham khảo (không tính hạn).
+export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource | 'cần giao' }) => {
+  const d = which === 'tuần' ? i.khnkTuan : which === 'tháng' ? i.khnkThang : i.canGiao;
+  const used = which !== 'cần giao' && i.deadlineSource === which;
   const met = (which === 'tuần' && i.khnkTuanMet) || (which === 'tháng' && i.khnkThangMet);
   const cls = !d ? 'text-slate-300'
     : !used ? 'text-slate-400'
@@ -1375,12 +1361,12 @@ export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource }
       className={`${td} whitespace-nowrap tabular-nums ${cls}`}
       title={!d ? undefined
         : met ? 'Đã nhập đủ SL kế hoạch trong kỳ — không tính trễ theo KH này'
-          : used ? `Ngày đang dùng để tính BOT${fallback ? ` (${i.deadlineSource === 'cần PM' ? 'ngày cần PM' : 'BOT dự án'} — chưa có ngày cần giao)` : ''}`
-            : 'Chỉ để tham khảo (ưu tiên KH tuần → KH tháng → cần giao → ngày cần PM → BOT dự án; KH kỳ đã nhập đủ SL thì bỏ qua)'}
+          : used ? 'Ngày đang dùng để tính BOT'
+            : which === 'cần giao' ? 'Ngày cần giao — chỉ tham khảo, không tính hạn (BOT chỉ theo KH nhập kho tuần / tháng)'
+              : 'Chỉ để tham khảo (ưu tiên KH tuần → KH tháng; KH kỳ đã nhập đủ SL thì bỏ qua)'}
     >
       {d ? fmtDate(d) : '—'}
       {met && <span className="ml-1 text-[0.625rem] font-normal text-emerald-600">✓ đạt</span>}
-      {fallback && <span className="ml-1 text-[0.625rem] font-normal text-slate-400">({i.deadlineSource === 'cần PM' ? 'PM' : 'BOT DA'})</span>}
     </td>
   );
 };

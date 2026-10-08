@@ -7,8 +7,8 @@
 //  • Còn lại của 1 hạng mục     = trị giá đơn hàng − đã nhập kho (≥ 0).
 //  • ĐẾM / tính hạn: hạng mục đã nhập đủ SỐ LƯỢNG đơn hàng coi là đã xong dù thành tiền nhập kho
 //    thấp hơn trị giá (lệch đơn giá / thành tiền NK = 0). Số tiền vẫn tính theo giá trị.
-//  • Ngày kế hoạch (BOT / quá hạn / biểu đồ theo tháng):
-//      KH nhập kho tuần → KH nhập kho tháng → ngày cần giao.
+//  • Ngày kế hoạch (BOT / quá hạn / biểu đồ theo tháng): CHỈ KH nhập kho tuần → KH nhập kho tháng.
+//    Ngày cần giao / ngày cần (PM) / BOT dự án chỉ để tham khảo, không tính hạn.
 //  • Công trình: gom theo MÃ công trình, hiển thị 1 tên chuẩn (cách viết nhiều dòng nhất).
 // ============================================================================
 import type { DataRow, ColumnDefinition } from '../types';
@@ -89,12 +89,11 @@ export const parsePlanDate = (v: unknown): Date | null => {
   return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
 };
 
-// Hạn (BOT) của 1 hạng mục, ưu tiên: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao →
-// ngày cần (PM) → BOT dự án. 2 nguồn đầu là hạn THEO KẾ HOẠCH (đang chạy), 3 nguồn sau là hạn CAM KẾT.
+// Hạn (BOT) của 1 hạng mục: CHỈ KH nhập kho tuần → KH nhập kho tháng. Ngày cần giao / ngày cần (PM) /
+// BOT dự án vẫn đọc ra để hiển thị tham khảo (và cờ "KH nhập kho sau ngày cần giao") nhưng không là hạn.
 // KH tuần / tháng mà số lượng nhập kho TRONG kỳ đã đạt SL kế hoạch (server tính: /api/production/plan-met)
 // thì bỏ qua KH đó (không tính trễ) — hạn chuyển sang nguồn tiếp theo.
-export type DeadlineSource = 'tuần' | 'tháng' | 'cần giao' | 'cần PM' | 'BOT dự án';
-export const isPlanDeadline = (s: DeadlineSource | null | undefined): boolean => s === 'tuần' || s === 'tháng';
+export type DeadlineSource = 'tuần' | 'tháng';
 
 export interface DeadlineKeys {
   khnkTuanKey: string;
@@ -155,18 +154,14 @@ export const deadlineOf = (row: DataRow, k: DeadlineKeys): Deadline => {
   const thangMet = !!hex && !!khnkThang && planMet.thang.has(hex);
   const tuan = tuanMet ? null : khnkTuan;
   const thang = thangMet ? null : khnkThang;
-  const date = tuan ?? thang ?? canGiao ?? canPm ?? botDuAn;
-  const source: DeadlineSource | null = tuan ? 'tuần' : thang ? 'tháng' : canGiao ? 'cần giao'
-    : canPm ? 'cần PM' : botDuAn ? 'BOT dự án' : null;
+  const date = tuan ?? thang;
+  const source: DeadlineSource | null = tuan ? 'tuần' : thang ? 'tháng' : null;
   return { date, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
 };
 
 export const DEADLINE_SOURCE_LABEL: Record<DeadlineSource, string> = {
   'tuần': 'KH nhập kho tuần',
   'tháng': 'KH nhập kho tháng',
-  'cần giao': 'Ngày cần giao',
-  'cần PM': 'Ngày cần (PM)',
-  'BOT dự án': 'BOT dự án',
 };
 
 /** Kế hoạch nhập kho (KH tuần / tháng đang dùng) muộn hơn ngày cần giao — biết trước sẽ giao trễ. */

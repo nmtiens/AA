@@ -191,7 +191,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       else if (STATUS_GROUPS.CHUA_THE_SX.some(s => st.includes(s))) status = 'CHƯA TKSX';
       else status = 'CÓ PHIẾU SX';
 
-      // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng → ngày cần giao (quy tắc chung)
+      // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng (quy tắc chung; không có KH => "Chưa có hạn")
       const d = deadlineOf(row, dlKeys).date;
       const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : NO_MONTH;
 
@@ -363,10 +363,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     // Cột gộp ("Trước …" / "Sau …"): gồm nhiều tháng nên không có nút lọc cả trang theo 1 tháng
     const isBucket = key.startsWith('<') || key.startsWith('>');
     openDetail({
-      eyebrow: 'Tháng hạn (KH nhập kho → cần giao → ngày cần PM → BOT dự án)', title: monthLabel(key), exclude: 'month',
+      eyebrow: 'Tháng hạn (KH nhập kho tuần → tháng)', title: monthLabel(key), exclude: 'month',
       pred: r => chartMonthBucket(r.month, monthRange.from, monthRange.to) === key, focus: 'remain',
       ...(isBucket ? {} : { filter: { key: 'month' as FKey, value: key } }),
-      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng → ngày cần giao → ngày cần PM → BOT dự án).',
+      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng; không có KH => Chưa có hạn).',
     });
   };
 
@@ -594,7 +594,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div className="xl:col-span-3 space-y-4">
             <div className={`${cardCls} p-4`}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng → ngày cần giao → ngày cần PM → BOT dự án</span></p>
+                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng</span></p>
                 <div className="flex items-center gap-3 text-[0.6875rem] text-slate-500">
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã nhập kho</span>
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
