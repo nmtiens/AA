@@ -66511,10 +66511,11 @@ app.get("/api/trend-by-xuong", async (req, res) => {
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
+    const noXuongLabel = isStock ? "T\u1ED2N KHO KH\xC1C" : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
     const q = `
       ${withClause}
       SELECT
-        COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), 'T\u1ED2N KHO KH\xC1C') AS xuong,
+        COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS xuong,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}

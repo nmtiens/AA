@@ -681,6 +681,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     exportColumns, exportData,
     stockColumns, stockData,
     productionColumns,
+    productionData: rawProductionData,
 
     orderDateKey,
     tkbvDateKey,

@@ -312,11 +312,13 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
 
     const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : 'p.xuong_chinh';
+    // Dòng không có xưởng: tồn kho = mã không khớp dòng sản xuất; nguồn khác = chưa ghi xưởng (giống Tổng quan)
+    const noXuongLabel = isStock ? 'TỒN KHO KHÁC' : 'Chưa xác định';
 
     const q = `
       ${withClause}
       SELECT
-        COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), 'TỒN KHO KHÁC') AS xuong,
+        COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS xuong,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}

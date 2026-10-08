@@ -432,6 +432,7 @@ const {
   exportColumns, exportData,
   stockColumns, stockData,
   productionColumns,
+  productionData,
 
   // MỚI: date keys để lọc theo tháng bất kỳ
   orderDateKey,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import JSZip from 'jszip';
 import { DataRow, ColumnDefinition } from '../../../types';
 import { ExportFlowType, BottleneckItem } from '../types';
@@ -12,6 +12,8 @@ import {
   type StockDateEntry,
 } from '../../../services/dataService';
 import { trieuToTy } from '../../../utils/money';
+import { isCancelledIpo } from '../../../utils/productionMetrics';
+import { findColumnKey } from '../utils/columnKeyResolver';
 
 // Giá trị gốc (triệu đồng) -> Tỷ, làm tròn 2 chữ số (khớp số trên màn hình)
 const toTy2 = (trieu: number) => Math.round(trieuToTy(trieu) * 100) / 100;
@@ -42,6 +44,8 @@ interface UseExportFlowsParams {
   stockColumns: ColumnDefinition[];
   stockData: DataRow[];
   productionColumns: ColumnDefinition[];
+  /** Dữ liệu sản xuất (đủ, chưa lọc) — để biết HEX nào đơn HỦY và bỏ khỏi file xuất */
+  productionData?: DataRow[];
 
   // MỚI: cần để lọc theo tháng bất kỳ khi xuất lũy kế tháng tùy chọn
   orderDateKey: string;
@@ -123,6 +127,7 @@ export function useExportFlows({
   exportColumns, exportData,
   stockColumns, stockData,
   productionColumns,
+  productionData,
 
   orderDateKey,
   tkbvDateKey,
@@ -158,6 +163,27 @@ export function useExportFlows({
 
   bottleneckData,
 }: UseExportFlowsParams) {
+  // HEX thuộc đơn HỦY: bỏ khỏi file xuất đơn hàng / TKBV / PTHSP / nhập kho / xuất kho — cùng quy tắc
+  // với số liệu trên trang (server loại HỦY ở mọi nguồn này)
+  const cancelledHexes = useMemo(() => {
+    const set = new Set<string>();
+    if (!productionData?.length) return set;
+    const hexKey = findColumnKey(productionColumns, 'hex') || 'hex';
+    const ipoKey = findColumnKey(productionColumns, 'tinh_trang_ipo') || 'tinh_trang_ipo';
+    for (const r of productionData) {
+      if (isCancelledIpo(r[ipoKey])) {
+        const h = String(r[hexKey] ?? '').trim();
+        if (h) set.add(h);
+      }
+    }
+    return set;
+  }, [productionData, productionColumns]);
+  const dropCancelled = (rows: DataRow[], columns: ColumnDefinition[]): DataRow[] => {
+    if (cancelledHexes.size === 0 || rows.length === 0) return rows;
+    const hexKey = findColumnKey(columns, 'hex') || 'hex';
+    return rows.filter(r => !cancelledHexes.has(String(r[hexKey] ?? '').trim()));
+  };
+
   const [selectedExportColumns, setSelectedExportColumns] = useState<string[]>([]);
   const [isProductionExportModalOpen, setIsProductionExportModalOpen] = useState(false);
   const [isOrderExportScopeModalOpen, setIsOrderExportScopeModalOpen] = useState(false);
@@ -324,6 +350,12 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
       suffix = 'Theo_Bo_Loc_Ngay';
       stockDatesToFetch = closestStockDate ? [toISODateLocal(closestStockDate)] : [];
     }
+
+    orderSrc = dropCancelled(orderSrc, orderColumns);
+    tkbvSrc = dropCancelled(tkbvSrc, tkbvColumns);
+    pthspSrc = dropCancelled(pthspSrc, pthspColumns);
+    invSrc = dropCancelled(invSrc, inventoryColumns);
+    expSrc = dropCancelled(expSrc, exportColumns);
 
     const zip = new JSZip();
 
@@ -545,6 +577,9 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
       sourceData = (config.filteredData && config.filteredData.length > 0) ? config.filteredData : config.rawData;
       suffix = 'Theo_Bo_Loc_Ngay';
     }
+    // Bỏ dòng thuộc đơn HỦY (tồn kho đã xử lý ở nhánh riêng phía trên)
+    const baseColumns = { tkbv: tkbvColumns, pthsp: pthspColumns, inventory: inventoryColumns, export: exportColumns }[genericExportFlow as 'tkbv' | 'pthsp' | 'inventory' | 'export'];
+    if (baseColumns) sourceData = dropCancelled(sourceData, baseColumns);
 
     if (!sourceData || sourceData.length === 0) {
       alert('Không có dữ liệu nào để xuất!');
