@@ -169,6 +169,16 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
     m.forEach((n, ten) => { if (n > bestN || (n === bestN && ten < best)) { best = ten; bestN = n; } });
     canonical.set(ma, best);
   });
+  // Tên -> các mã có dùng tên đó. Chốt theo TÊN: tên dùng cho nhiều mã (vd. tên khách xuất khẩu chung,
+  // hoặc ghi nhầm) thì không đổi / không gộp — chỉ gộp các cách viết chỉ thuộc đúng 1 mã (cùng quy tắc server).
+  const nameCodes = new Map<string, Set<string>>();
+  counts.forEach((m, ma) => m.forEach((_n, ten) => {
+    const k = normProjectName(ten);
+    let s = nameCodes.get(k);
+    if (!s) { s = new Set(); nameCodes.set(k, s); }
+    s.add(ma);
+  }));
+  const single = (ten: unknown) => (nameCodes.get(normProjectName(ten))?.size ?? 0) <= 1;
 
   // Bảng tên phụ -> tên chuẩn cho các bảng khác chỉ có TÊN công trình (nhập/xuất kho, danh sách
   // công trình của view...). Tên đang là tên chuẩn của 1 mã khác thì giữ nguyên, không đổi.
@@ -176,18 +186,21 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
   const alias = new Map<string, string>();
   counts.forEach((m, ma) => {
     const best = canonical.get(ma)!;
+    if (!single(best)) return;
     m.forEach((_n, ten) => {
       const k = normProjectName(ten);
-      if (ten !== best && !canonicalNames.has(k)) alias.set(k, best);
+      if (ten !== best && !canonicalNames.has(k) && single(ten)) alias.set(k, best);
     });
   });
   projectAlias = alias;
   const variants = new Map<string, Set<string>>();
   counts.forEach((m, ma) => {
-    const k = normProjectName(canonical.get(ma));
+    const best = canonical.get(ma)!;
+    if (!single(best)) return;
+    const k = normProjectName(best);
     let set = variants.get(k);
     if (!set) { set = new Set(); variants.set(k, set); }
-    m.forEach((_n, ten) => set!.add(ten));
+    m.forEach((_n, ten) => { if (single(ten)) set!.add(ten); });
   });
   projectVariants = variants;
 
@@ -195,6 +208,9 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
   const out = rows.map(row => {
     const name = canonical.get(normProjectName(row[maKey]));
     if (!name || row[tenKey] === name) return row;
+    // Chốt theo tên: không đổi tên dòng khi tên của dòng hoặc tên chuẩn dùng cho nhiều mã
+    const own = String(row[tenKey] ?? '').trim();
+    if (own && (!single(own) || !single(name))) return row;
     changed = true;
     return { ...row, [tenKey]: name };
   });

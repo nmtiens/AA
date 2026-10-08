@@ -128,8 +128,14 @@ export const canonicalProjectName = (raw: unknown): string => {
   const codes = nameToCodes.get(normName(display));
   if (!codes || codes.size !== 1) return display;
   const [code] = [...codes];
-  return canonicalByCode.get(code) ?? display;
+  const canon = canonicalByCode.get(code);
+  // Tên chuẩn của mã mà lại dùng cho nhiều mã (vd. tên khách) thì không gộp vào — chốt theo tên
+  if (!canon || !isSingleCodeName(canon)) return display;
+  return canon;
 };
+
+/** Tên chỉ thuộc đúng 1 mã công trình. Tên dùng cho nhiều mã (ghi nhầm / tên khách chung) => chốt theo tên. */
+const isSingleCodeName = (name: string): boolean => (nameToCodes.get(normName(name))?.size ?? 0) <= 1;
 
 /**
  * Mở rộng danh sách tên công trình (đã chuẩn hoá) thành mọi cách viết của cùng mã công trình.
@@ -141,7 +147,13 @@ export const expandProjectNames = (names: string[]): string[] => {
     const n = normName(raw);
     if (!n) continue;
     out.add(n);
-    nameToCodes.get(n)?.forEach(code => codeToNames.get(code)?.forEach(v => out.add(v)));
+    // Chốt theo TÊN: chỉ mở rộng khi tên thuộc đúng 1 mã, và chỉ thêm các cách viết cũng chỉ thuộc mã đó.
+    // Tên dùng cho nhiều mã (vd. GILSTEAD / ANDERSON cùng 1 mã đơn xuất khẩu, hoặc 1 lô ghi nhầm tên công
+    // trình khác) => lọc đúng theo tên, không kéo công trình khác vào.
+    const codes = nameToCodes.get(n);
+    if (!codes || codes.size !== 1) continue;
+    const [code] = [...codes];
+    codeToNames.get(code)?.forEach(v => { if (isSingleCodeName(v)) out.add(v); });
   }
   return [...out].sort();
 };

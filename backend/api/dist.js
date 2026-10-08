@@ -44540,15 +44540,23 @@ var canonicalProjectName = (raw) => {
   const codes = nameToCodes.get(normName(display));
   if (!codes || codes.size !== 1) return display;
   const [code] = [...codes];
-  return canonicalByCode.get(code) ?? display;
+  const canon = canonicalByCode.get(code);
+  if (!canon || !isSingleCodeName(canon)) return display;
+  return canon;
 };
+var isSingleCodeName = (name) => (nameToCodes.get(normName(name))?.size ?? 0) <= 1;
 var expandProjectNames = (names) => {
   const out = /* @__PURE__ */ new Set();
   for (const raw of names) {
     const n = normName(raw);
     if (!n) continue;
     out.add(n);
-    nameToCodes.get(n)?.forEach((code) => codeToNames.get(code)?.forEach((v) => out.add(v)));
+    const codes = nameToCodes.get(n);
+    if (!codes || codes.size !== 1) continue;
+    const [code] = [...codes];
+    codeToNames.get(code)?.forEach((v) => {
+      if (isSingleCodeName(v)) out.add(v);
+    });
   }
   return [...out].sort();
 };
