@@ -66891,7 +66891,7 @@ app.get("/api/detail", async (req, res) => {
     const cols = REPORT_COLUMNS[cfg.table] || [];
     if (cols.length === 0) return res.status(400).json({ error: "B\u1EA3ng kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3" });
     const selectClause = cols.map((c) => `${alias ? `${alias}.` : ""}"${c}"`).join(", ");
-    const DETAIL_LIMIT = 500;
+    const DETAIL_LIMIT = 5e3;
     const q = `
       ${withClause}
       SELECT ${selectClause}

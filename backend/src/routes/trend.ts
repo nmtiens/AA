@@ -765,7 +765,9 @@ app.get('/api/detail', async (req: Request, res: Response) => {
     if (cols.length === 0) return res.status(400).json({ error: 'Bảng không được hỗ trợ' });
     const selectClause = cols.map(c => `${alias ? `${alias}.` : ''}"${c}"`).join(', ');
 
-    const DETAIL_LIMIT = 500;
+    // Cửa sổ chi tiết tự chia trang (200 dòng/trang) => tải tối đa 5.000 dòng (trước 500: 1 xưởng
+    // trong 1 tháng đã vượt, danh sách bị cắt). Vượt mức này cửa sổ vẫn báo đã giới hạn.
+    const DETAIL_LIMIT = 5000;
     const q = `
       ${withClause}
       SELECT ${selectClause}
