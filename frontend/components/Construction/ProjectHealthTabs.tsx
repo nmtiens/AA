@@ -21,7 +21,9 @@ export interface HexInfo {
   status: string;              // cột Tình trạng (tinh_trang)
   area: string;                // khu vực sản xuất (xuong_chinh)
   dwell: string | null;        // thời gian ở công đoạn hiện tại (so_ngay_cd_hien_tai)
-  bucket: RemainBucket | null; // null = đã nhập kho đủ
+  bucket: RemainBucket | null; // nhóm của phần GIÁ TRỊ còn lại (null = không còn giá trị chưa nhập)
+  /** Còn phải theo dõi (đếm / tính hạn): chưa nhập đủ giá trị và chưa nhập đủ số lượng, hoặc trị giá 0 */
+  open: boolean;
   total: number;               // triệu đồng
   inv: number;                 // đã nhập kho (triệu, đã chặn không vượt trị giá)
   remain: number;              // triệu đồng
@@ -132,7 +134,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const [month, setMonth] = useState<string | null>(null); // 'YYYY-MM' hoặc '~' (chưa có ngày)
   const [q, setQ] = useState('');
 
-  const open = useMemo(() => items.filter(i => i.bucket), [items]);
+  const open = useMemo(() => items.filter(i => i.open), [items]);
   const monthOf = (i: HexInfo) =>
     i.deadline ? `${i.deadline.getFullYear()}-${String(i.deadline.getMonth() + 1).padStart(2, '0')}` : '~';
   const monthLabel = (k: string) => (k === '~' ? 'Chưa có ngày' : `${k.slice(5)}/${k.slice(0, 4)}`);
@@ -355,19 +357,22 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
   const [q, setQ] = useState('');
   const [sortBy, setSortBy] = useState<'deadline' | 'stage' | 'remain'>('deadline');
 
-  const open = useMemo(() => items.filter(i => i.bucket), [items]);
+  const open = useMemo(() => items.filter(i => i.open), [items]);
+  // Bảng Công đoạn × Khu vực: đếm = hạng mục còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (kể cả
+  // đã nhập đủ SL mà lệch tiền) — để tổng tiền khớp thẻ BOP
+  const pivotItems = useMemo(() => (metric === 'count' ? open : items.filter(i => i.open || i.remain > 0)), [items, open, metric]);
   const val = (i: HexInfo) => (metric === 'count' ? 1 : metric === 'remain' ? i.remain : i.total);
   const fmtV = (v: number) => (metric === 'count' ? fmtInt(v) : v ? fmtTy(v) : '-');
   const areaOf = (i: HexInfo) => i.area || NO_AREA;
   const stageOf = (i: HexInfo) => i.stage ?? '(Không rõ)';
 
   const pivot = useMemo(() => {
-    const areas = [...new Set(open.map(areaOf))].sort((a, b) => (a === NO_AREA ? 1 : b === NO_AREA ? -1 : a.localeCompare(b)));
+    const areas = [...new Set(pivotItems.map(areaOf))].sort((a, b) => (a === NO_AREA ? 1 : b === NO_AREA ? -1 : a.localeCompare(b)));
     type Row = { cells: Record<string, number>; total: number; n: number };
     const stages = new Map<string, Row & { statuses: Map<string, Row> }>();
     const colTot: Record<string, number> = {};
     let grand = 0;
-    for (const i of open) {
+    for (const i of pivotItems) {
       const v = val(i);
       const s = stageOf(i);
       const st = i.status || '(Trống)';
@@ -386,7 +391,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
       .map(([stage, r]) => ({ stage, ...r, statuses: [...r.statuses.entries()].sort((x, y) => x[0].localeCompare(y[0], 'vi')) }));
     return { areas, rows, colTot, grand };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, metric]);
+  }, [pivotItems, metric]);
 
   // Ô đang chọn ở bảng Công đoạn × Khu vực (công đoạn / tình trạng / khu vực)
   const matchSel = (i: HexInfo) => !sel || (
@@ -425,7 +430,8 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
 
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    return open
+    // Cùng tập hạng mục với bảng Công đoạn × Khu vực (bấm ô nào thì danh sách khớp đúng số của ô đó)
+    return pivotItems
       .filter(matchSel)
       .filter(i => !dwellSel || (stageOf(i) === dwellSel.stage && dwellOf(i.dwell) === dwellSel.dwell))
       .filter(i => matchQ(i, ql))
@@ -437,7 +443,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
             : b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, sel, dwellSel, q, sortBy]);
+  }, [pivotItems, sel, dwellSel, q, sortBy]);
 
   const toggle = (s: string) => setExpanded(prev => {
     const n = new Set(prev);
@@ -733,7 +739,7 @@ export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' |
   { key: 'ok', label: 'Đã về đủ (theo PR đã có)', tone: 'emerald', badge: 'bg-emerald-50 text-emerald-700',
     hint: 'Mọi dòng PR đã nối được đều đã về / CCLD / đã đóng / đã hủy — không khẳng định đủ toàn bộ BOM' },
   { key: 'stocked', label: 'Hạng mục đã nhập kho đủ', tone: 'slate', badge: 'bg-slate-100 text-slate-500',
-    hint: 'Hạng mục đã nhập kho đủ trị giá — vật tư không còn ảnh hưởng' },
+    hint: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng — vật tư không còn ảnh hưởng' },
 ];
 const BOM_META = Object.fromEntries(BOM_STATES.map(s => [s.key, s])) as Record<BomState, (typeof BOM_STATES)[number]>;
 
@@ -804,7 +810,7 @@ export function analyzeBom(
     const st = parseNvlStatus(nvlByHex?.[hex]);
     return st.length > 0 && !st.some(nvlLinePending);
   };
-  const openHex = new Set(items.filter(i => i.bucket).map(i => i.hex));
+  const openHex = new Set(items.filter(i => i.open).map(i => i.hex));
   type Acc = {
     byLine: Partial<Record<MaterialLineState, number>>; afterNeed: number;
     pr: number | null; needPending: number | null; needAll: number | null; due: number | null; arrived: number | null;
@@ -841,10 +847,14 @@ export function analyzeBom(
   for (const i of items) {
     if (seen.has(i.hex)) continue;
     seen.add(i.hex);
-    const e = perHex[i.hex];
-    const nLines = matCount[i.hex] ?? 0;
+    // Dòng PR đã HỦY không tính là có vật tư: hạng mục chỉ có dòng hủy xếp như chưa có PR (trước rơi vào
+    // "Đã về đủ")
+    const e0 = perHex[i.hex];
+    const nCancelled = e0?.byLine.cancelled ?? 0;
+    const e = e0 && Object.values(e0.byLine).reduce((s, n) => s + (n ?? 0), 0) > nCancelled ? e0 : undefined;
+    const nLines = e ? (matCount[i.hex] ?? 0) : 0;
     let state: BomState;
-    if (!i.bucket) state = 'stocked';
+    if (!i.open) state = 'stocked';
     else if (!(nLines > 0) || !e) {
       const beforeSx = i.bucket === 'p002' || i.stage === 'P012';
       state = i.bucket === 'notDeployed' ? 'noneNotDeployed'

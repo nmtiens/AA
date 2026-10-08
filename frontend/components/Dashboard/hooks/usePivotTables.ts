@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { STATUS_GROUPS } from '../constants';
 import { parseNumber } from '../utils/numberParsers';
-import { doneValue, isCancelledIpo, isStocked, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK } from '../../../utils/productionMetrics';
+import { doneValue, isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import { ON_LINE_STAGES, P002_STAGE, extractStage } from '../components/modals/OnLineStageDetailModal';
 import {
@@ -346,12 +346,14 @@ export function usePivotTables({
       }
 
       // Đếm: "đã nhập kho" = nhập ĐỦ (cùng quy tắc isStocked với mọi view); giá trị: phần đã nhập
+      // (đếm: nhập đủ số lượng cũng coi là đã nhập — isQtyComplete)
+      const stockedItem = isStocked(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey]), false, isQtyComplete(row));
       const valToAddInventory = isCount
-        ? (isStocked(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) ? 1 : 0)
+        ? (stockedItem ? 1 : 0)
         : (inventoryValRaw / 1000);
       agg[ctName].inventory += valToAddInventory;
       agg[ctName].remainingRaw += isCount
-        ? (remainValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) > 0 ? 1 : 0)
+        ? (!stockedItem && remainValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) > 0 ? 1 : 0)
         : remainValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) / 1000;
     });
     return Object.entries(agg).map(([name, data]) => ({
@@ -405,10 +407,13 @@ export function usePivotTables({
       a.totalOrder += totalOrderVal;
       if (!status.includes('15. CHƯA TRIỂN KHAI')) a.deployed += totalOrderVal;
       // Đếm: "đã nhập kho" = nhập ĐỦ (isStocked) — hạng mục nhập 1 phần nằm ở "còn lại"
-      a.inventory += isCount ? (isStocked(totalOrderValRaw, inventoryValRaw) ? 1 : 0) : (inventoryValRaw / 1000);
+      const qtyDone = isQtyComplete(row);
+      a.inventory += isCount ? (isStocked(totalOrderValRaw, inventoryValRaw, false, qtyDone) ? 1 : 0) : (inventoryValRaw / 1000);
 
       const remainRaw = totalOrderValRaw - inventoryValRaw;
       if (remainRaw <= 0) return;
+      // Đếm: hạng mục đã nhập đủ số lượng không tính là còn lại (giá trị vẫn tính phần lệch)
+      if (isCount && qtyDone) return;
       const remainVal = isCount ? 1 : remainRaw / 1000;
       const stage = bopKey ? extractStage(row[bopKey]) : null;
       a[remainBucketOf(status, stage)] += remainVal;
@@ -476,6 +481,7 @@ export function usePivotTables({
       const remainRaw = remainValue(
         parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
       if (remainRaw <= 0) return;
+      if (isCount && isQtyComplete(row)) return; // đếm: đủ số lượng = đã nhập kho
       const valToAdd = isCount ? 1 : remainRaw / 1000;
 
       if (!breakdown[ctName]) breakdown[ctName] = {};
@@ -514,6 +520,7 @@ export function usePivotTables({
       const remainRaw = remainValue(
         parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
       if (remainRaw <= 0) return;
+      if (isCount && isQtyComplete(row)) return; // đếm: đủ số lượng = đã nhập kho
       const valToAdd = isCount ? 1 : remainRaw / 1000;
 
       if (!breakdown[ctName]) breakdown[ctName] = {};

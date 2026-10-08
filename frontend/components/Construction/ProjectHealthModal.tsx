@@ -3,7 +3,7 @@ import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListCheck
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, doneValue, remainValue, isCancelledIpo, isPlanDeadline, planAfterDue } from '../../utils/productionMetrics';
+import { deadlineOf, doneValue, remainValue, isCancelledIpo, isPlanDeadline, planAfterDue, isQtyComplete } from '../../utils/productionMetrics';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
@@ -134,7 +134,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
       // BOT: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao (quy tắc chung toàn app)
       const dl = deadlineOf(row, keys);
       const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = dl;
-      const open = remain > 0;
+      // Chưa xong (đếm / tính hạn) = còn giá trị chưa nhập HOẶC trị giá 0 (chưa có giá), TRỪ hạng mục đã nhập
+      // đủ SỐ LƯỢNG (thành tiền NK lệch đơn giá / = 0). Khớp ô "Hạng mục chưa nhập kho" ở Báo cáo tiến độ.
+      const open = !isQtyComplete(row) && (remain > 0 || total <= 0);
       const t = deadline?.getTime();
       out.push({
         hex: String(row[keys.hexKey] ?? ''),
@@ -143,7 +145,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
         status: String(row[keys.tinhTrangKey] ?? '').trim(),
         area: String(row[keys.xuongKey] ?? '').trim(),
         dwell: String(row[keys.dwellKey] ?? '').trim() || null,
-        bucket: open ? remainBucketOf(status, stage) : null,
+        // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
+        bucket: open || remain > 0 ? remainBucketOf(status, stage) : null,
+        open,
         total,
         inv: doneValue(total, nk),
         remain,
@@ -234,7 +238,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
   // ---------- Tổng hợp 3 thẻ ----------
   const bot = useMemo(() => {
-    const open = items.filter(i => i.bucket);
+    const open = items.filter(i => i.open);
     const overdue = open.filter(i => i.overdue);
     const dueSoon = open.filter(i => i.dueSoon);
     const dates = open.map(i => i.deadline).filter((d): d is Date => !!d).sort((a, b) => a.getTime() - b.getTime());
@@ -256,7 +260,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const remain: Record<RemainBucket, number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0 };
     items.forEach(i => { if (i.bucket) remain[i.bucket] += i.remain; });
     const remainSum = Object.values(remain).reduce((s, v) => s + v, 0);
-    return { total, remain, remainSum, done: Math.max(total - remainSum, 0), stockedItems: items.filter(i => !i.bucket && i.total > 0).length };
+    return { total, remain, remainSum, done: Math.max(total - remainSum, 0), stockedItems: items.filter(i => !i.open).length };
   }, [items]);
 
   // Phân tích vật tư theo trạng thái dòng PR (dùng chung với tab BOM)
@@ -269,9 +273,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
   const bom = useMemo(() => {
     if (!matCount) return null;
-    const withMat = hexList.filter(h => (matCount[h] || 0) > 0).length;
+    // Có PR ghi mã (không tính hạng mục chỉ có dòng PR đã hủy) — cùng cách tính với tab BOM
+    const withMat = hexList.filter(h => (bomDetail?.byHex[h]?.lines ?? matCount[h] ?? 0) > 0).length;
     return { withMat, without: hexList.length - withMat };
-  }, [matCount, hexList]);
+  }, [matCount, hexList, bomDetail]);
 
   const openIssueTotal = useMemo(
     () => (openIssues ? Object.values(openIssues).reduce((s, n) => s + n, 0) : null),
@@ -306,7 +311,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const urgent = useMemo(() => {
     const res: (HexInfo & { flags: string[] })[] = [];
     for (const i of items) {
-      if (!i.bucket || !(i.overdue || i.dueSoon)) continue;
+      if (!i.open || !(i.overdue || i.dueSoon)) continue;
       // Chỉ xét hạn theo KH (tuần / tháng) và ngày cần giao. Hạn tham khảo (ngày cần PM / BOT dự án) vẫn hiện
       // ở tab BOT nhưng không đẩy vào danh sách cần xử lý — tránh ngập hạng mục P001 quá hạn cam kết cũ.
       if (!URGENT_SOURCES.has(i.deadlineSource ?? '')) continue;
@@ -325,7 +330,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const noBot = useMemo(() => {
     const res: (HexInfo & { flags: string[] })[] = [];
     for (const i of items) {
-      if (!i.bucket || i.deadline) continue;
+      if (!i.open || i.deadline) continue;
       res.push({ ...i, flags: flagsOf(i) });
     }
     return res.sort((a, b) =>
@@ -338,7 +343,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const inUrgent = new Set(urgent.map(i => i.hex));
     const res: (HexInfo & { flags: string[] })[] = [];
     for (const i of items) {
-      if (!i.bucket || !i.deadline || inUrgent.has(i.hex)) continue;
+      if (!i.open || !i.deadline || inUrgent.has(i.hex)) continue;
       res.push({ ...i, flags: flagsOf(i) });
     }
     return res.sort((a, b) => (a.deadline!.getTime() - b.deadline!.getTime()) || b.remain - a.remain);

@@ -63999,7 +63999,10 @@ var REPORT_COLUMNS = {
     "ngay_can",
     // Tổng quan công trình: giá trị đã xuất kho lũy kế / tồn kho hiện tại theo hạng mục
     "thanh_tien_xuat_kho_luy_ke",
-    "thanh_tien_ton_kho_hien_tai"
+    "thanh_tien_ton_kho_hien_tai",
+    // Hạng mục nhập đủ SỐ LƯỢNG coi là đã xong khi đếm / tính hạn (utils/productionMetrics.isQtyComplete)
+    "so_luong_don_hang_tong",
+    "so_luong_nhap_kho_luy_ke"
   ],
   vat_tu: [
     "trang_thai",

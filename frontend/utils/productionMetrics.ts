@@ -5,6 +5,8 @@
 //  • Đơn HỦY (cột Tình trạng IPO chứa "HỦY") không tính vào tổng / đã nhập / còn lại.
 //  • Đã nhập kho của 1 hạng mục = min(max(nhập kho lũy kế, 0), trị giá đơn hàng).
 //  • Còn lại của 1 hạng mục     = trị giá đơn hàng − đã nhập kho (≥ 0).
+//  • ĐẾM / tính hạn: hạng mục đã nhập đủ SỐ LƯỢNG đơn hàng coi là đã xong dù thành tiền nhập kho
+//    thấp hơn trị giá (lệch đơn giá / thành tiền NK = 0). Số tiền vẫn tính theo giá trị.
 //  • Ngày kế hoạch (BOT / quá hạn / biểu đồ theo tháng):
 //      KH nhập kho tuần → KH nhập kho tháng → ngày cần giao.
 //  • Công trình: gom theo MÃ công trình, hiển thị 1 tên chuẩn (cách viết nhiều dòng nhất).
@@ -34,12 +36,22 @@ export interface ProductionValueKeys {
   ipoKey: string;
 }
 
+/** Cột số lượng của bảng sản xuất (tên cột gốc) */
+export const QTY_ORDER_KEY = 'so_luong_don_hang_tong';
+export const QTY_IN_KEY = 'so_luong_nhap_kho_luy_ke';
+
+/** Đã nhập kho đủ SỐ LƯỢNG đơn hàng (SL đơn hàng > 0 và SL nhập kho lũy kế ≥ SL đơn hàng). */
+export const isQtyComplete = (row: DataRow): boolean => {
+  const order = parseNumber(row[QTY_ORDER_KEY]);
+  return order > 0 && parseNumber(row[QTY_IN_KEY]) >= order;
+};
+
 /**
- * Hạng mục "đã nhập kho đủ" (dùng cho mọi chỗ ĐẾM hạng mục): không HỦY, trị giá > 0 và không còn lại.
- * Hạng mục trị giá 0 không tính là đã nhập, cũng không tính là còn lại.
+ * Hạng mục "đã nhập kho đủ" (dùng cho mọi chỗ ĐẾM hạng mục): không HỦY và (trị giá > 0 và không còn lại,
+ * HOẶC đã nhập đủ số lượng — qtyDone). Hạng mục trị giá 0 chưa nhập đủ SL không tính là đã nhập.
  */
-export const isStocked = (total: number, nhapKho: number, cancelled = false): boolean =>
-  !cancelled && total > 0 && remainValue(total, nhapKho) <= 0;
+export const isStocked = (total: number, nhapKho: number, cancelled = false, qtyDone = false): boolean =>
+  !cancelled && ((total > 0 && remainValue(total, nhapKho) <= 0) || qtyDone);
 
 export const rowRemain = (row: DataRow, k: ProductionValueKeys): number =>
   remainValue(parseNumber(row[k.triGiaKey]), parseNumber(row[k.nhapKhoKey]), isCancelledIpo(row[k.ipoKey]));

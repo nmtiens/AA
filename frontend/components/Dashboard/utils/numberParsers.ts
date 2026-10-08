@@ -7,6 +7,9 @@ export const parseNumber = (valStr: string | number | null | undefined): number 
 
   let s = String(valStr).trim();
   if (!s) return 0;
+  // Dạng khoa học (vd "8e-06" — số double rất nhỏ ghi thành chuỗi): đọc thẳng, nếu không phần lọc ký tự
+  // bên dưới sẽ bỏ "e-" và hiểu nhầm thành 806
+  if (/^-?\d+(\.\d+)?e[+-]?\d+$/i.test(s)) return Number(s);
 
   // Lấy dấu âm/dương đầu tiên nếu có
   const isNegative = s.startsWith('-');

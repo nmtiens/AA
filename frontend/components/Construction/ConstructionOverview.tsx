@@ -9,7 +9,7 @@ import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, resolveDeadlineKeys } from '../../utils/productionMetrics';
+import { deadlineOf, resolveDeadlineKeys, isQtyComplete } from '../../utils/productionMetrics';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
@@ -37,6 +37,7 @@ interface Rec {
   exported: number;
   exportedRecorded: number; // xuất kho lũy kế ghi trong bảng xuất kho (thanh_tien_xuat_kho_luy_ke) — để tham khảo
   stock: number;      // giá trị tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) — khớp bảng tồn kho
+  qtyDone: boolean;   // đã nhập đủ số lượng đơn hàng (đếm là đã nhập kho dù thành tiền NK thấp hơn trị giá)
   row: DataRow;       // dòng gốc — để mở cửa sổ danh sách HEX
   ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
 }
@@ -143,8 +144,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const setKey = (k: FKey, v: string) => setF(p => ({ ...p, [k]: v || undefined }));
   const activeKeys = (Object.keys(f) as FKey[]).filter(k => f[k]);
 
-  // Đã nhập kho đủ trị giá đơn hàng (dùng chung cho ô KPI và popup chi tiết)
-  const isStocked = (r: Rec) => r.status !== 'HỦY' && r.total > 0 && r.done >= r.total;
+  // Đã nhập kho đủ trị giá đơn hàng HOẶC đủ số lượng (dùng chung cho ô KPI và popup chi tiết)
+  const isStocked = (r: Rec) => r.status !== 'HỦY' && ((r.total > 0 && r.done >= r.total) || r.qtyDone);
 
   // ---------- 1. Chuẩn hoá từng dòng 1 lần ----------
   const allRecords = useMemo<Rec[]>(() => {
@@ -208,6 +209,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         exported: Math.max(done - stock, 0),
         exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
         stock,
+        qtyDone: isQtyComplete(row),
         row,
       });
     }
@@ -567,7 +569,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600"
                spec={{ pred: r => r.status === 'HỦY', focus: 'items', note: 'Hạng mục có Tình trạng IPO = HỦY (trị giá vẫn tính vào Tổng giá trị — lọc Tình trạng IPO để bỏ).' }} />
           <Kpi label="Hạng mục đã nhập kho" value={fmtInt(kpi.stocked)} tone="text-emerald-600"
-               spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá đơn hàng (không tính đơn hủy).' }} />
+               spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng (không tính đơn hủy).' }} />
           <Kpi label="Hạng mục chưa nhập kho" value={fmtInt(kpi.notStocked)} tone="text-amber-600"
                sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần` : undefined}
                spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />

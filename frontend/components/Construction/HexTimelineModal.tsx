@@ -123,7 +123,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     const valDone = doneValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
     const valRemain = remainValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
     const pctValue = total > 0 ? (valDone / total) * 100 : 0;
-    const full = total > 0 ? valRemain <= 0 : qtyOrder > 0 && qtyIn >= qtyOrder;
+    // Đã nhập kho đủ: đủ trị giá HOẶC đủ số lượng (thành tiền NK có thể lệch đơn giá) — quy tắc chung
+    const full = (total > 0 && valRemain <= 0) || (qtyOrder > 0 && qtyIn >= qtyOrder);
 
     // Mốc BOP: trạng thái theo công đoạn hiện tại
     const state = (fromIdx: number, toIdx: number, doneOverride?: boolean): 'done' | 'current' | 'todo' =>
