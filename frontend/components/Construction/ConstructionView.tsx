@@ -548,6 +548,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   const {
     khsxSummary,
     totalKhsxAmount,
+    weeklyKhFallback,
     totalInventoryAmount,
     completionRate,
     combinedWorkshopData,
@@ -1235,6 +1236,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
             unifiedTuanOptions={unifiedTuanOptions}
             unifiedNgayOptions={unifiedNgayOptions}
             totalKhsxAmount={totalKhsxAmount}
+            weeklyKhFallback={weeklyKhFallback}
             completionRate={completionRate}
             totalInventoryAmount={totalInventoryAmount}
             combinedWorkshopData={combinedWorkshopData}

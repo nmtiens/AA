@@ -484,6 +484,8 @@ export interface KhsxNhapKhoSummary {
   totalKh: number;
   totalTh: number;
   completionRate: number;
+  /** Xem theo tháng mà kỳ chưa có KH tháng: tổng KH tuần cùng kỳ (để chú thích, không cộng vào KH) */
+  weeklyKhFallback?: number;
   byXuong: { xuong: string; kh: number; th: number }[];
   byCongTrinh: { name: string; code: string; kh: number; th: number }[];
 }

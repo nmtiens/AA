@@ -92,6 +92,8 @@ interface UseKhsxSummaryParams {
 interface UseKhsxSummaryResult {
   khsxSummary: KhsxNhapKhoSummary | null;
   totalKhsxAmount: number;
+  /** Có giá trị khi xem theo tháng mà kỳ chưa có KH tháng nhưng đã có KH tuần */
+  weeklyKhFallback?: number;
   totalInventoryAmount: number;
   completionRate: number;
   combinedWorkshopData: { name: string; khValue: number; thValue: number }[];
@@ -184,6 +186,7 @@ export function useKhsxSummary({
   }, [unifiedTimeFilters, viewMode, filters.congTrinh, filters.xuong]);
 
   const totalKhsxAmount = khsxSummary?.totalKh ?? 0;
+  const weeklyKhFallback = khsxSummary?.weeklyKhFallback;
   const totalInventoryAmount = khsxSummary?.totalTh ?? 0;
   const completionRate = khsxSummary?.completionRate ?? 0;
 
@@ -382,6 +385,7 @@ export function useKhsxSummary({
   return {
     khsxSummary,
     totalKhsxAmount,
+    weeklyKhFallback,
     totalInventoryAmount,
     completionRate,
     combinedWorkshopData,

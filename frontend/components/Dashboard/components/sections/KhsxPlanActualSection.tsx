@@ -98,6 +98,8 @@ interface KhsxPlanActualSectionProps {
   unifiedNgayOptions: string[];
 
   totalKhsxAmount: number;
+  /** Xem theo tháng mà kỳ chưa có KH tháng: tổng KH tuần cùng kỳ (chỉ để chú thích) */
+  weeklyKhFallback?: number;
   completionRate: number;
   totalInventoryAmount: number;
 
@@ -131,6 +133,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
   unifiedTuanOptions,
   unifiedNgayOptions,
   totalKhsxAmount,
+  weeklyKhFallback,
   completionRate,
   totalInventoryAmount,
   combinedWorkshopData,
@@ -333,6 +336,14 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                 <div className="mt-1 text-[0.625rem] text-orange-800/60 italic">
                   {`Chế độ xem: ${viewMode === 'MONTH' ? 'Theo Tháng' : 'Theo Tuần'}`}
                 </div>
+                {viewMode === 'MONTH' && weeklyKhFallback !== undefined && (
+                  <div
+                    className="mt-1.5 rounded-md bg-amber-100/70 px-2 py-1 text-[0.6875rem] font-medium text-amber-800"
+                    title="Kỳ đang xem chưa nhập kế hoạch THÁNG (bảng KHSX). Số dưới đây là tổng kế hoạch TUẦN trong cùng kỳ — chuyển sang 'Xem theo TUẦN' để so KH tuần với thực hiện."
+                  >
+                    Chưa có KH tháng · KH tuần: {formatTy(weeklyKhFallback)} tỷ
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl border border-teal-100 shadow-sm flex flex-col justify-center relative overflow-hidden">
                 <div className="flex items-center gap-2 mb-2 z-10">

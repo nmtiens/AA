@@ -66224,13 +66224,25 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       ctMap.set(k, e);
     });
     const byCongTrinh = Array.from(ctMap.entries()).map(([name, v]) => ({ name, code: v.code || name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) })).sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th)).slice(0, 10);
-    const totalKh = byXuong.reduce((a, b) => a + b.kh, 0);
-    const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
+    const totalKh = [...xuongMap.values()].reduce((a, b) => a + b.kh, 0);
+    const totalTh = [...xuongMap.values()].reduce((a, b) => a + b.th, 0);
     const completionRate = totalKh > 0 ? totalTh / totalKh * 100 : 0;
+    let weeklyKhFallback;
+    if (!isWeek && totalKh === 0) {
+      const wkParams = [...khParams];
+      wkParams[0] = "%TU\u1EA6N%";
+      const wk = await timedQuery(
+        `SELECT COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / ${TRIEU_TO_TY} AS v FROM khsx ${khWhere}`,
+        wkParams
+      );
+      const v = Number(wk.rows[0]?.v) || 0;
+      if (v > 0) weeklyKhFallback = Number(v.toFixed(2));
+    }
     const khsxPayload = {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
       completionRate: Number(completionRate.toFixed(1)),
+      ...weeklyKhFallback !== void 0 ? { weeklyKhFallback } : {},
       byXuong,
       byCongTrinh
     };

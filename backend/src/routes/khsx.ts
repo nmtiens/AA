@@ -115,14 +115,30 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       .sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th))
       .slice(0, 10);
 
-    const totalKh = byXuong.reduce((a, b) => a + b.kh, 0);
-    const totalTh = byXuong.reduce((a, b) => a + b.th, 0);
+    // Cộng từ số CHƯA làm tròn (byXuong đã làm tròn 2 số => cộng lại có thể lệch 0.01)
+    const totalKh = [...xuongMap.values()].reduce((a, b) => a + b.kh, 0);
+    const totalTh = [...xuongMap.values()].reduce((a, b) => a + b.th, 0);
     const completionRate = totalKh > 0 ? (totalTh / totalKh) * 100 : 0;
+
+    // Xem theo THÁNG mà kỳ đó chưa có KH tháng (vd. tháng mới, KH tháng chưa nhập) nhưng đã có KH tuần:
+    // trả thêm tổng KH tuần cùng bộ lọc để giao diện chú thích thay vì chỉ hiện 0.
+    let weeklyKhFallback: number | undefined;
+    if (!isWeek && totalKh === 0) {
+      const wkParams = [...khParams];
+      wkParams[0] = '%TUẦN%';
+      const wk = await timedQuery(
+        `SELECT COALESCE(SUM(${numericCol('khsx', 'thanh_tien_ke_hoach')}), 0) / ${TRIEU_TO_TY} AS v FROM khsx ${khWhere}`,
+        wkParams
+      );
+      const v = Number(wk.rows[0]?.v) || 0;
+      if (v > 0) weeklyKhFallback = Number(v.toFixed(2));
+    }
 
     const khsxPayload = {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
       completionRate: Number(completionRate.toFixed(1)),
+      ...(weeklyKhFallback !== undefined ? { weeklyKhFallback } : {}),
       byXuong,
       byCongTrinh,
     };

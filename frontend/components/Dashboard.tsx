@@ -303,6 +303,7 @@ const {
 const {
   khsxSummary,
   totalKhsxAmount,
+  weeklyKhFallback,
   totalInventoryAmount,
   completionRate,
   combinedWorkshopData,
@@ -789,6 +790,7 @@ const handleContinueToOrderColumnStep = () => {
   unifiedTuanOptions={unifiedTuanOptions}
   unifiedNgayOptions={unifiedNgayOptions}
   totalKhsxAmount={totalKhsxAmount}
+  weeklyKhFallback={weeklyKhFallback}
   completionRate={completionRate}
   totalInventoryAmount={totalInventoryAmount}
   combinedWorkshopData={combinedWorkshopData}
