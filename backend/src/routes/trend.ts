@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
 import { workshopCondition, workshopGroupSql, workshopGroupOf } from '../server/workshopGroups.js';
+import { canonicalProjectName } from '../server/projectAlias.js';
 import { app } from '../server/app.js';
 
 // [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
@@ -420,12 +421,19 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
       ORDER BY total_value DESC
     `;
     const r = await timedQuery(q, params);
-    const rows = r.rows.map(row => ({
-      congTrinhCode: row.cong_trinh,
-      congTrinhName: row.cong_trinh,
-      total: Number(row.total_value),
-      totalCount: Number(row.total_count),
-    }));
+    // Gộp các cách viết của cùng 1 công trình (cùng mã) thành 1 cột — khớp với khi lọc theo công trình
+    // (lọc mở rộng tên được chọn ra mọi cách viết của cùng mã, xem server/projectAlias.ts)
+    const merged = new Map<string, { total: number; totalCount: number }>();
+    for (const row of r.rows) {
+      const name = row.cong_trinh === 'Chưa xác định' ? row.cong_trinh : canonicalProjectName(row.cong_trinh);
+      const e = merged.get(name) ?? { total: 0, totalCount: 0 };
+      e.total += Number(row.total_value);
+      e.totalCount += Number(row.total_count);
+      merged.set(name, e);
+    }
+    const rows = [...merged.entries()]
+      .map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount }))
+      .sort((a, b) => b.total - a.total);
     res.json(rows);
   } catch (error) {
     console.error('Lỗi /api/trend-by-congtrinh:', error);

@@ -1,4 +1,4 @@
-import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
+import { parseNameList, expandProjectNames, normNameSql, canonicalProjectName } from '../server/projectAlias.js';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { TRIEU_TO_TY } from '../server/common.js';
@@ -96,15 +96,16 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
 
     // ---------- GỘP THEO CÔNG TRÌNH (top 10) ----------
     const ctMap = new Map<string, { code: string; kh: number; th: number }>();
+    // Gộp các cách viết của cùng 1 công trình (cùng mã) — cùng quy tắc biểu đồ / Tổng quan theo công trình
     khResult.rows.forEach(r => {
-      const k = r.cong_trinh || 'Chưa xác định';
+      const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : 'Chưa xác định';
       const e = ctMap.get(k) || { code: r.ma_cong_trinh || '', kh: 0, th: 0 };
       e.kh += Number(r.gia_tri);
       if (r.ma_cong_trinh) e.code = r.ma_cong_trinh;
       ctMap.set(k, e);
     });
     thResult.rows.forEach(r => {
-      const k = r.cong_trinh || 'Chưa xác định';
+      const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : 'Chưa xác định';
       const e = ctMap.get(k) || { code: r.ma_cong_trinh || '', kh: 0, th: 0 };
       e.th += Number(r.gia_tri);
       if (r.ma_cong_trinh && !e.code) e.code = r.ma_cong_trinh;

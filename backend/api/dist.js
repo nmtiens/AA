@@ -44448,6 +44448,7 @@ process.on("SIGINT", async () => {
 
 // src/server/projectAlias.ts
 var REFRESH_MS = 10 * 60 * 1e3;
+var ALIAS_MIN_HEX = 5;
 var normName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
 var normNameSql = (colExpr) => `UPPER(REGEXP_REPLACE(TRIM(COALESCE(${colExpr}::text, '')), '\\s+', ' ', 'g'))`;
 var parseNameList = (raw) => {
@@ -44458,6 +44459,7 @@ var parseNameList = (raw) => {
 var NAME_SOURCES = ["nhap_kho", "xuat_kho", "dht", "tkbv_full", "pthsp_full", "khsx", "phan_tich_kh_th", "ton_kho"];
 var nameToCodes = /* @__PURE__ */ new Map();
 var codeToNames = /* @__PURE__ */ new Map();
+var canonicalByCode = /* @__PURE__ */ new Map();
 var loadedAt = 0;
 var loading = null;
 var load = async () => {
@@ -44468,23 +44470,41 @@ var load = async () => {
     [NAME_SOURCES]
   );
   const tables = exist.rows.map((r2) => r2.table_name);
-  const parts = [
-    `SELECT code, ${normNameSql("ten_cong_trinh")} AS name FROM production_status_app p
-       CROSS JOIN LATERAL (SELECT UPPER(TRIM(p.ma_cong_trinh)) AS code) c`,
-    ...tables.map((t) => `SELECT pc.code, ${normNameSql("t.ten_cong_trinh")} AS name
-       FROM (SELECT DISTINCT hex::text AS hex, ten_cong_trinh FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL) t
-       JOIN pc ON pc.hex = t.hex`)
-  ];
+  const foreign = tables.map((t) => `SELECT ${normNameSql("t.ten_cong_trinh")} AS name, t.hex
+     FROM (SELECT DISTINCT hex::text AS hex, ten_cong_trinh FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL) t`);
   const r = await timedQuery(
-    `WITH pc AS (SELECT hex::text AS hex, UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
-                 WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '')
+    `WITH pc AS (SELECT DISTINCT hex::text AS hex, UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
+                 WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
+     prod AS (SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code, ${normNameSql("ten_cong_trinh")} AS name
+              FROM production_status_app WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
+     f AS (SELECT DISTINCT x.name, pc.code, x.hex FROM (${foreign.length ? foreign.join(" UNION ALL ") : "SELECT NULL::text AS name, NULL::text AS hex WHERE FALSE"}) x
+           JOIN pc ON pc.hex = x.hex),
+     w AS (SELECT name, code, COUNT(*) AS n FROM f GROUP BY 1, 2),
+     tot AS (SELECT name, SUM(n) AS total FROM w GROUP BY 1),
+     keep AS (
+       SELECT code, name FROM prod
+       UNION
+       SELECT w.code, w.name FROM w JOIN tot USING (name) WHERE w.n >= ${ALIAS_MIN_HEX} OR w.n * 2 >= tot.total
+     )
      SELECT code, ARRAY_AGG(DISTINCT name) AS names
-     FROM (${parts.join("\nUNION\n")}) x
+     FROM keep
      WHERE COALESCE(code, '') <> '' AND name <> ''
      GROUP BY code`,
     [],
     { timeoutMs: 6e4 }
   );
+  const canon = await timedQuery(
+    `SELECT DISTINCT ON (code) code, name FROM (
+       SELECT UPPER(TRIM(ma_cong_trinh)) AS code, REGEXP_REPLACE(TRIM(ten_cong_trinh), '\\s+', ' ', 'g') AS name, COUNT(*) AS n
+       FROM production_status_app
+       WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND COALESCE(TRIM(ten_cong_trinh), '') <> ''
+       GROUP BY 1, 2
+     ) x ORDER BY code, n DESC, name`,
+    [],
+    { timeoutMs: 6e4 }
+  );
+  const cbc = /* @__PURE__ */ new Map();
+  for (const row of canon.rows) cbc.set(row.code, row.name);
   const n2c = /* @__PURE__ */ new Map();
   const c2n = /* @__PURE__ */ new Map();
   for (const row of r.rows) {
@@ -44500,6 +44520,7 @@ var load = async () => {
   }
   nameToCodes = n2c;
   codeToNames = c2n;
+  canonicalByCode = cbc;
   loadedAt = Date.now();
 };
 var ensureProjectAliases = async () => {
@@ -44513,6 +44534,13 @@ var ensureProjectAliases = async () => {
     });
   }
   await loading;
+};
+var canonicalProjectName = (raw) => {
+  const display = String(raw ?? "").trim().replace(/\s+/g, " ");
+  const codes = nameToCodes.get(normName(display));
+  if (!codes || codes.size !== 1) return display;
+  const [code] = [...codes];
+  return canonicalByCode.get(code) ?? display;
 };
 var expandProjectNames = (names) => {
   const out = /* @__PURE__ */ new Set();
@@ -65215,14 +65243,19 @@ app.get("/api/overview/by-group", async (req, res) => {
       ORDER BY mtd_value DESC
     `;
     const r = await timedQuery(q, params);
+    const merged = /* @__PURE__ */ new Map();
+    for (const row of r.rows) {
+      const raw = row.name;
+      const name = groupBy === "congtrinh" && raw !== "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? canonicalProjectName(raw) : raw;
+      const e = merged.get(name) ?? { name, dailyCount: 0, dailyValue: 0, mtdCount: 0, mtdValue: 0 };
+      e.dailyCount += Number(row.daily_count);
+      e.dailyValue += Number(row.daily_value);
+      e.mtdCount += Number(row.mtd_count);
+      e.mtdValue += Number(row.mtd_value);
+      merged.set(name, e);
+    }
     res.json(
-      r.rows.map((row) => ({
-        name: row.name,
-        dailyCount: Number(row.daily_count),
-        dailyValue: Number(row.daily_value),
-        mtdCount: Number(row.mtd_count),
-        mtdValue: Number(row.mtd_value)
-      })).filter(
+      [...merged.values()].sort((a, b) => b.mtdValue - a.mtdValue).filter(
         (row) => row.dailyCount > 0 || row.dailyValue > 0 || row.mtdCount > 0 || row.mtdValue > 0
       )
     );
@@ -66210,14 +66243,14 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     const byXuong = Array.from(xuongMap.entries()).map(([xuong2, v]) => ({ xuong: xuong2, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)) })).sort((a, b) => a.xuong.localeCompare(b.xuong));
     const ctMap = /* @__PURE__ */ new Map();
     khResult.rows.forEach((r) => {
-      const k = r.cong_trinh || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+      const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
       const e = ctMap.get(k) || { code: r.ma_cong_trinh || "", kh: 0, th: 0 };
       e.kh += Number(r.gia_tri);
       if (r.ma_cong_trinh) e.code = r.ma_cong_trinh;
       ctMap.set(k, e);
     });
     thResult.rows.forEach((r) => {
-      const k = r.cong_trinh || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+      const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
       const e = ctMap.get(k) || { code: r.ma_cong_trinh || "", kh: 0, th: 0 };
       e.th += Number(r.gia_tri);
       if (r.ma_cong_trinh && !e.code) e.code = r.ma_cong_trinh;
@@ -66620,12 +66653,15 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       ORDER BY total_value DESC
     `;
     const r = await timedQuery(q, params);
-    const rows = r.rows.map((row) => ({
-      congTrinhCode: row.cong_trinh,
-      congTrinhName: row.cong_trinh,
-      total: Number(row.total_value),
-      totalCount: Number(row.total_count)
-    }));
+    const merged = /* @__PURE__ */ new Map();
+    for (const row of r.rows) {
+      const name = row.cong_trinh === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.cong_trinh : canonicalProjectName(row.cong_trinh);
+      const e = merged.get(name) ?? { total: 0, totalCount: 0 };
+      e.total += Number(row.total_value);
+      e.totalCount += Number(row.total_count);
+      merged.set(name, e);
+    }
+    const rows = [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount })).sort((a, b) => b.total - a.total);
     res.json(rows);
   } catch (error61) {
     console.error("L\u1ED7i /api/trend-by-congtrinh:", error61);

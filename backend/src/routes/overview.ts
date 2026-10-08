@@ -1,4 +1,4 @@
-import { parseNameList, expandProjectNames, normNameSql } from '../server/projectAlias.js';
+import { parseNameList, expandProjectNames, canonicalProjectName, normNameSql } from '../server/projectAlias.js';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { expandWorkshops, workshopGroupSql, workshopGroupsVersion } from '../server/workshopGroups.js';
@@ -289,15 +289,21 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       ORDER BY mtd_value DESC
     `;
     const r = await timedQuery(q, params);
+    // Theo công trình: gộp các cách viết của cùng 1 công trình (cùng mã) thành 1 dòng — khớp khi lọc
+    const merged = new Map<string, { name: string; dailyCount: number; dailyValue: number; mtdCount: number; mtdValue: number }>();
+    for (const row of r.rows) {
+      const raw = row.name as string;
+      const name = groupBy === 'congtrinh' && raw !== 'Chưa xác định' ? canonicalProjectName(raw) : raw;
+      const e = merged.get(name) ?? { name, dailyCount: 0, dailyValue: 0, mtdCount: 0, mtdValue: 0 };
+      e.dailyCount += Number(row.daily_count);
+      e.dailyValue += Number(row.daily_value);
+      e.mtdCount += Number(row.mtd_count);
+      e.mtdValue += Number(row.mtd_value);
+      merged.set(name, e);
+    }
     res.json(
-  r.rows
-    .map(row => ({
-      name: row.name as string,
-      dailyCount: Number(row.daily_count),
-      dailyValue: Number(row.daily_value),
-      mtdCount: Number(row.mtd_count),
-      mtdValue: Number(row.mtd_value),
-    }))
+  [...merged.values()]
+    .sort((a, b) => b.mtdValue - a.mtdValue)
     .filter(row =>
       row.dailyCount > 0 || row.dailyValue > 0 ||
       row.mtdCount > 0 || row.mtdValue > 0

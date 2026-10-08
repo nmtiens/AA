@@ -12,6 +12,8 @@ import { timedQuery } from '../db.js';
 // ============================================================================
 
 const REFRESH_MS = 10 * 60 * 1000;
+// Cặp (tên ở bảng khác, mã) có từ chừng này HEX trở lên thì giữ dù không chiếm đa số (vd. khách xuất khẩu nhiều mã)
+const ALIAS_MIN_HEX = 5;
 
 /** Chuẩn hoá tên phía Node: bỏ khoảng trắng thừa, viết hoa. */
 export const normName = (v: unknown): string => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
@@ -35,6 +37,9 @@ const NAME_SOURCES = ['nhap_kho', 'xuat_kho', 'dht', 'tkbv_full', 'pthsp_full', 
 
 let nameToCodes = new Map<string, Set<string>>();
 let codeToNames = new Map<string, Set<string>>();
+// Mã -> tên chuẩn (cách viết xuất hiện nhiều dòng nhất trong production_status_app; trùng thì theo ABC)
+// — cùng quy tắc frontend dùng để hiển thị tên công trình (utils/productionMetrics.canonicalizeProjectNames)
+let canonicalByCode = new Map<string, string>();
 let loadedAt = 0;
 let loading: Promise<void> | null = null;
 
@@ -46,24 +51,46 @@ const load = async () => {
     [NAME_SOURCES]
   );
   const tables: string[] = exist.rows.map((r: { table_name: string }) => r.table_name);
-  const parts = [
-    `SELECT code, ${normNameSql('ten_cong_trinh')} AS name FROM production_status_app p
-       CROSS JOIN LATERAL (SELECT UPPER(TRIM(p.ma_cong_trinh)) AS code) c`,
-    ...tables.map(t =>
-      `SELECT pc.code, ${normNameSql('t.ten_cong_trinh')} AS name
-       FROM (SELECT DISTINCT hex::text AS hex, ten_cong_trinh FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL) t
-       JOIN pc ON pc.hex = t.hex`),
-  ];
+  // Tên ở bảng khác nối với mã qua HEX. Vài dòng ghi nhầm tên (1 HEX của công trình A mang tên B) từng
+  // làm A và B bị gộp khi lọc => chỉ giữ cặp (tên, mã) khi: có trong chính bảng sản xuất, HOẶC mã chiếm
+  // ≥ 50% số HEX của tên đó, HOẶC có từ ALIAS_MIN_HEX HEX trở lên (bỏ các dòng ghi nhầm lẻ tẻ).
+  const foreign = tables.map(t =>
+    `SELECT ${normNameSql('t.ten_cong_trinh')} AS name, t.hex
+     FROM (SELECT DISTINCT hex::text AS hex, ten_cong_trinh FROM "${t}" WHERE hex IS NOT NULL AND ten_cong_trinh IS NOT NULL) t`);
   const r = await timedQuery(
-    `WITH pc AS (SELECT hex::text AS hex, UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
-                 WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '')
+    `WITH pc AS (SELECT DISTINCT hex::text AS hex, UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
+                 WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
+     prod AS (SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code, ${normNameSql('ten_cong_trinh')} AS name
+              FROM production_status_app WHERE COALESCE(TRIM(ma_cong_trinh), '') <> ''),
+     f AS (SELECT DISTINCT x.name, pc.code, x.hex FROM (${foreign.length ? foreign.join(' UNION ALL ') : 'SELECT NULL::text AS name, NULL::text AS hex WHERE FALSE'}) x
+           JOIN pc ON pc.hex = x.hex),
+     w AS (SELECT name, code, COUNT(*) AS n FROM f GROUP BY 1, 2),
+     tot AS (SELECT name, SUM(n) AS total FROM w GROUP BY 1),
+     keep AS (
+       SELECT code, name FROM prod
+       UNION
+       SELECT w.code, w.name FROM w JOIN tot USING (name) WHERE w.n >= ${ALIAS_MIN_HEX} OR w.n * 2 >= tot.total
+     )
      SELECT code, ARRAY_AGG(DISTINCT name) AS names
-     FROM (${parts.join('\nUNION\n')}) x
+     FROM keep
      WHERE COALESCE(code, '') <> '' AND name <> ''
      GROUP BY code`,
     [],
     { timeoutMs: 60000 }
   );
+  const canon = await timedQuery(
+    `SELECT DISTINCT ON (code) code, name FROM (
+       SELECT UPPER(TRIM(ma_cong_trinh)) AS code, REGEXP_REPLACE(TRIM(ten_cong_trinh), '\\s+', ' ', 'g') AS name, COUNT(*) AS n
+       FROM production_status_app
+       WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND COALESCE(TRIM(ten_cong_trinh), '') <> ''
+       GROUP BY 1, 2
+     ) x ORDER BY code, n DESC, name`,
+    [],
+    { timeoutMs: 60000 }
+  );
+  const cbc = new Map<string, string>();
+  for (const row of canon.rows as { code: string; name: string }[]) cbc.set(row.code, row.name);
+
   const n2c = new Map<string, Set<string>>();
   const c2n = new Map<string, Set<string>>();
   for (const row of r.rows as { code: string; names: string[] }[]) {
@@ -76,6 +103,7 @@ const load = async () => {
   }
   nameToCodes = n2c;
   codeToNames = c2n;
+  canonicalByCode = cbc;
   loadedAt = Date.now();
 };
 
@@ -88,6 +116,19 @@ export const ensureProjectAliases = async (): Promise<void> => {
       .finally(() => { loading = null; });
   }
   await loading;
+};
+
+/**
+ * Tên hiển thị chuẩn của 1 tên công trình: tên chỉ thuộc đúng 1 mã công trình => tên chuẩn của mã đó
+ * (gộp các cách viết của cùng công trình thành 1 cột / 1 dòng). Tên dùng chung cho nhiều mã (vd. khách
+ * xuất khẩu ARHAUS mỗi đơn 1 mã) hoặc không tìm thấy mã => giữ nguyên.
+ */
+export const canonicalProjectName = (raw: unknown): string => {
+  const display = String(raw ?? '').trim().replace(/\s+/g, ' ');
+  const codes = nameToCodes.get(normName(display));
+  if (!codes || codes.size !== 1) return display;
+  const [code] = [...codes];
+  return canonicalByCode.get(code) ?? display;
 };
 
 /**
