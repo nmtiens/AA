@@ -729,7 +729,10 @@ export const HexDetailModal = ({
     if (!sample) return null;
     const keys = Object.keys(sample);
     const ngayCanGiaoKey = columnKeys.ngayCanGiaoKey || (keys.find(k => /ngay[_\s]*can[_\s]*giao/i.test(k)) ?? '');
-    const dk: DeadlineKeys = { khnkTuanKey: 'ngay_khnk_tuan', khnkThangKey: 'ngay_khnk_thang', ngayCanGiaoKey };
+    const dk: DeadlineKeys = {
+      khnkTuanKey: 'ngay_khnk_tuan', khnkThangKey: 'ngay_khnk_thang', ngayCanGiaoKey,
+      ngayCanKey: 'ngay_can', botDuAnKey: 'bot_du_an', hexKey: columnKeys.hexKey || 'hex',
+    };
     return [dk.khnkTuanKey, dk.khnkThangKey, ngayCanGiaoKey].some(k => k && keys.includes(k)) ? dk : null;
   }, [columnKeys.ngayCanGiaoKey, rows]);
   const hasDeadline = deadlineKeys !== null;
@@ -1222,8 +1225,8 @@ export const HexDetailModal = ({
             <div className="inline-flex overflow-hidden rounded-lg border border-slate-200 text-xs font-medium">
               {([
                 ['all', 'Tất cả', hexList.length],
-                ['with', 'Có vật tư', hexWithMaterialCount],
-                ['without', 'Chưa tìm thấy vật tư', hexWithMaterialCount === null ? null : hexList.length - hexWithMaterialCount],
+                ['with', 'Có PR ghi mã HM', hexWithMaterialCount],
+                ['without', 'Chưa có PR ghi mã HM', hexWithMaterialCount === null ? null : hexList.length - hexWithMaterialCount],
               ] as [MaterialFilter, string, number | null][]).map(([k, label, n]) => (
                 <button
                   key={k}

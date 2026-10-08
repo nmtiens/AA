@@ -3,13 +3,13 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory } from 'lucide-react';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
-import { canonicalizeProjectNames, canonicalizePersonNames } from './utils/productionMetrics';
+import { canonicalizeProjectNames, canonicalizePersonNames, setPlanMet } from './utils/productionMetrics';
 import { loadWorkshopGroups, canonicalizeWorkshops } from './utils/workshopGroups';
 // Prefetch + gate cho mapping "view -> danh sách công trình"
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
@@ -409,6 +409,8 @@ const MainLayout: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   // Tăng khi setup gộp xưởng nạp xong / đổi -> gộp lại cột xưởng của dữ liệu đã tải
   const [workshopGroupsVersion, setWorkshopGroupsVersion] = useState(0);
+  // Tăng khi nạp xong danh sách "KH nhập kho đã đạt trong kỳ" -> các trang tính lại hạn (BOT)
+  const [planMetVersion, setPlanMetVersion] = useState(0);
 
   const location = useLocation();
 
@@ -420,6 +422,7 @@ const MainLayout: React.FC = () => {
     loadViewMapping();
     loadTableColumnConfig();
     loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1));
+    fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); });
   }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ADMIN vừa lưu setup gộp xưởng (cache đã cập nhật) -> gộp lại dữ liệu, các trang gọi lại API
@@ -671,6 +674,7 @@ const MainLayout: React.FC = () => {
         loadViewMapping(),
         loadTableColumnConfig(),
         loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
+        fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
@@ -693,11 +697,15 @@ const MainLayout: React.FC = () => {
   // trang (Tổng quan, Luồng đỏ, Báo cáo tiến độ, bảng dữ liệu) gom cùng 1 công trình giống nhau.
   // Tên PM / PC cũng gom các cách viết của cùng 1 người (NGỌC SÁU / saudn -> ĐẶNG NGỌC SÁU).
   const canonicalProductionData = useMemo(
-    () => canonicalizeWorkshops(
-      canonicalizePersonNames(canonicalizeProjectNames(productionData, productionColumns), productionColumns),
-      productionColumns
-    ),
-    [productionData, productionColumns, workshopGroupsVersion] // eslint-disable-line react-hooks/exhaustive-deps
+    () => {
+      const rows = canonicalizeWorkshops(
+        canonicalizePersonNames(canonicalizeProjectNames(productionData, productionColumns), productionColumns),
+        productionColumns
+      );
+      // Nạp xong "KH đã đạt" thì đổi tham chiếu mảng để mọi trang tính lại hạn (deadlineOf đọc bộ nhớ chung)
+      return planMetVersion > 0 ? rows.slice() : rows;
+    },
+    [productionData, productionColumns, workshopGroupsVersion, planMetVersion] // eslint-disable-line react-hooks/exhaustive-deps
   );
   // Cột xưởng các bảng khác cũng theo setup gộp xưởng (bảng không có cột xưởng giữ nguyên)
   /* eslint-disable react-hooks/exhaustive-deps */

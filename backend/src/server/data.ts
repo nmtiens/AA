@@ -13,6 +13,10 @@ export const REPORT_COLUMNS: Record<string, string[]> = {
   'tri_gia_don_hang_tong', 'thanh_tien_tinh_phieu', 'thanh_tien_nhap_kho_luy_ke', 'bot_du_an', 'khach_hang', 'khu_vuc_du_an', 'ma_nha_may', 'ma_cong_trinh',
   // Báo cáo tiến độ công trình
   'ten_pm', 'ten_pc', 'ngay_can_giao', 'ngay_khnk_thang', 'ngay_khnk_tuan',
+  // Hạn tham khảo khi chưa có KH / ngày cần giao (utils/productionMetrics.deadlineOf)
+  'ngay_can',
+  // Tổng quan công trình: giá trị đã xuất kho lũy kế / tồn kho hiện tại theo hạng mục
+  'thanh_tien_xuat_kho_luy_ke', 'thanh_tien_ton_kho_hien_tai',
 ],
   vat_tu: [
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',

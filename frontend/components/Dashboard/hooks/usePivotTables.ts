@@ -282,7 +282,8 @@ export function usePivotTables({
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+      // Lấy 6: P001 (chờ triển khai bản vẽ) được tách ra ô riêng ở BottleneckSection, còn lại top 5 sản xuất
+      .slice(0, 6);
   }, [filteredProductionData, tinhTrangKey, daysAtCurrentStageKey, bottleneckViewMode, bopKey]);
 
   // -------------------------------------------------------------------------

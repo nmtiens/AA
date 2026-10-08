@@ -64,8 +64,10 @@ export const API_BASE_URL = '/api';
 // Cache chỉ tải lại khi "phiên bản dữ liệu" trên server đổi; thêm/bớt CỘT ở backend
 // (REPORT_COLUMNS) thì phiên bản không đổi -> phải tăng số tên DB để mọi máy tải lại 1 lần.
 // V8: thêm ngay_khnk_tuan / ngay_khnk_thang (BOT theo kế hoạch nhập kho).
-const CACHE_DB_NAME = 'OpsHub_Database_V8';
-const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7'];
+// V9: thêm ngay_can (ngày cần PM — hạn tham khảo khi chưa có KH / ngày cần giao).
+// V10: thêm thanh_tien_xuat_kho_luy_ke / thanh_tien_ton_kho_hien_tai (Tổng quan công trình).
+const CACHE_DB_NAME = 'OpsHub_Database_V10';
+const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9'];
 let oldCachesCleared = false;
 
 const initDB = (): Promise<IDBDatabase> => {
@@ -570,6 +572,21 @@ export const saveViewProjectMapping = async (
   }
 };
 
+
+// ==================== KH NHẬP KHO ĐÃ ĐẠT TRONG KỲ ====================
+
+/** HEX đã nhập đủ SL KH tuần / tháng trong kỳ (không tính trễ theo KH đó) — xem productionMetrics.deadlineOf. */
+export const fetchPlanMet = async (): Promise<{ tuan: string[]; thang: string[] }> => {
+  try {
+    const token = getToken();
+    const r = await fetch(`${API_BASE_URL}/production/plan-met`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!r.ok) throw new Error('fetch failed');
+    return await r.json();
+  } catch (e) {
+    console.error('fetchPlanMet error:', e);
+    return { tuan: [], thang: [] };
+  }
+};
 
 // ==================== SETUP GỘP XƯỞNG ====================
 

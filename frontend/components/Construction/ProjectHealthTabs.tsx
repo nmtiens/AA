@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Package, AlertTriangle } from 'lucide-react';
+import { Search, Package, AlertTriangle, Download } from 'lucide-react';
 import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
   materialLineState, isMaterialPending, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
-  type DeadlineSource, type MaterialLineState, type MaterialLineFields,
+  isPlanDeadline, type DeadlineSource, type MaterialLineState, type MaterialLineFields,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
+import { parseNvlNeeds, parseNvlStatus, nvlLinePending, summarizeNeeds, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 
 // ============================================================================
 // Tầng 2 của "Tổng quan công trình": 3 tab chi tiết BOT · BOP · BOM.
@@ -24,11 +25,16 @@ export interface HexInfo {
   total: number;               // triệu đồng
   inv: number;                 // đã nhập kho (triệu, đã chặn không vượt trị giá)
   remain: number;              // triệu đồng
-  deadline: Date | null;       // KH nhập kho tuần → KH nhập kho tháng → ngày cần giao
+  deadline: Date | null;       // KH tuần → KH tháng → cần giao → ngày cần (PM) → BOT dự án (utils/productionMetrics)
   deadlineSource: DeadlineSource | null;
   khnkTuan: Date | null;       // ngay_khnk_tuan (để hiển thị riêng)
   khnkThang: Date | null;      // ngay_khnk_thang (để hiển thị riêng)
   canGiao: Date | null;        // ngay_can_giao (để hiển thị riêng)
+  /** KH tuần / tháng của kỳ đã nhập đủ SL kế hoạch (không tính trễ theo KH đó) */
+  khnkTuanMet?: boolean;
+  khnkThangMet?: boolean;
+  /** KH nhập kho đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ */
+  planAfterDue?: boolean;
   overdue: boolean;
   dueSoon: boolean;
 }
@@ -99,21 +105,30 @@ const matchQ = (i: HexInfo, q: string) =>
   !q || i.hex.includes(q) || i.hangMuc.toLowerCase().includes(q) || (i.stage ?? '').toLowerCase().includes(q);
 
 // ============================================================================
-// BOT — KH nhập kho tuần → KH nhập kho tháng → ngày cần giao
+// BOT — KH nhập kho tuần → KH nhập kho tháng → ngày cần giao → ngày cần (PM) → BOT dự án
+// Quá hạn tách 2 loại: THEO KẾ HOẠCH (KH tuần / tháng — kế hoạch đang chạy, cần xử lý ngay) và
+// CAM KẾT (cần giao / ngày cần PM / BOT dự án — thường là hạn cũ đã trôi qua lâu, nhóm > 90 ngày tách riêng).
 // ============================================================================
-type BotGroup = 'overdue' | 'd14' | 'd30' | 'later' | 'none';
-const BOT_GROUPS: { key: BotGroup; label: string; tone: 'red' | 'amber' | 'slate' }[] = [
-  { key: 'overdue', label: 'Quá hạn', tone: 'red' },
-  { key: 'd14', label: '≤ 14 ngày', tone: 'amber' },
-  { key: 'd30', label: '15–30 ngày', tone: 'amber' },
-  { key: 'later', label: 'Sau 30 ngày', tone: 'slate' },
-  { key: 'none', label: 'Chưa có ngày', tone: 'slate' },
+type BotGroup = 'overduePlan' | 'overdueCommit' | 'd14' | 'd30' | 'later' | 'none';
+const BOT_GROUPS: { key: BotGroup; label: string; tone: 'red' | 'amber' | 'slate'; hint: string }[] = [
+  { key: 'overduePlan', label: 'Quá hạn theo KH', tone: 'red', hint: 'Đã qua ngày KH nhập kho tuần / tháng đang chạy mà chưa nhập kho đủ (KH kỳ đã nhập đủ SL thì không tính)' },
+  { key: 'overdueCommit', label: 'Quá hạn cam kết', tone: 'red', hint: 'Không có KH tuần / tháng đang chạy, đã qua ngày cần giao (hoặc ngày cần PM / BOT dự án) — thường là hạn cũ cần cập nhật lại KH' },
+  { key: 'd14', label: '≤ 14 ngày', tone: 'amber', hint: 'Hạn trong 14 ngày tới' },
+  { key: 'd30', label: '15–30 ngày', tone: 'amber', hint: 'Hạn trong 15–30 ngày tới' },
+  { key: 'later', label: 'Sau 30 ngày', tone: 'slate', hint: 'Hạn sau 30 ngày' },
+  { key: 'none', label: 'Chưa có ngày', tone: 'slate', hint: 'Không có KH, ngày cần giao, ngày cần (PM) lẫn BOT dự án' },
 ];
+const isOverdueGroup = (g: BotGroup) => g === 'overduePlan' || g === 'overdueCommit';
+const OVERDUE_OLD_DAYS = 90;
+const SOURCE_SHORT: Record<DeadlineSource, string> = {
+  'tuần': 'KH tuần', 'tháng': 'KH tháng', 'cần giao': 'Cần giao', 'cần PM': 'Ngày cần PM', 'BOT dự án': 'BOT dự án',
+};
 
 export const BotTab = ({ items, today, openIssues, onHexClick }: {
   items: HexInfo[]; today: number; openIssues: Record<string, number> | null; onHexClick?: (hex: string) => void;
 }) => {
-  const [group, setGroup] = useState<BotGroup | 'all'>('all');
+  // 'overdue' = mọi loại quá hạn (bấm số quá hạn của 1 tháng); 'planAfterDue' = KH nhập kho sau ngày cần giao
+  const [group, setGroup] = useState<BotGroup | 'all' | 'overdue' | 'planAfterDue'>('all');
   const [month, setMonth] = useState<string | null>(null); // 'YYYY-MM' hoặc '~' (chưa có ngày)
   const [q, setQ] = useState('');
 
@@ -124,19 +139,28 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const groupOf = (i: HexInfo): BotGroup => {
     if (!i.deadline) return 'none';
     const days = Math.floor((i.deadline.getTime() - today) / DAY);
-    if (days < 0) return 'overdue';
+    if (days < 0) return isPlanDeadline(i.deadlineSource) ? 'overduePlan' : 'overdueCommit';
     if (days <= 14) return 'd14';
     if (days <= 30) return 'd30';
     return 'later';
   };
+  const inGroup = (i: HexInfo) =>
+    group === 'all' ? true
+      : group === 'overdue' ? isOverdueGroup(groupOf(i))
+        : group === 'planAfterDue' ? !!i.planAfterDue
+          : groupOf(i) === group;
   const counts = useMemo(() => {
-    const c: Record<BotGroup, { n: number; remain: number }> = {
-      overdue: { n: 0, remain: 0 }, d14: { n: 0, remain: 0 }, d30: { n: 0, remain: 0 }, later: { n: 0, remain: 0 }, none: { n: 0, remain: 0 },
-    };
+    const c = Object.fromEntries(BOT_GROUPS.map(g => [g.key, { n: 0, remain: 0 }])) as Record<BotGroup, { n: number; remain: number }>;
     open.forEach(i => { const g = groupOf(i); c[g].n++; c[g].remain += i.remain; });
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, today]);
+  // Quá hạn cam kết > 90 ngày (hạn cũ) / KH nhập kho sau ngày cần giao
+  const extra = useMemo(() => ({
+    commitOld: open.filter(i => groupOf(i) === 'overdueCommit' && i.deadline && (today - i.deadline.getTime()) / DAY > OVERDUE_OLD_DAYS).length,
+    planAfterDue: open.filter(i => i.planAfterDue).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [open, today]);
 
   // Tổng theo tháng kế hoạch (trị giá / đã nhập / còn lại) — mọi hạng mục, kể cả đã nhập đủ
   const byMonth = useMemo(() => {
@@ -154,18 +178,19 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
     return open
-      .filter(i => (group === 'all' || groupOf(i) === group) && (month === null || monthOf(i) === month) && matchQ(i, ql))
+      .filter(i => inGroup(i) && (month === null || monthOf(i) === month) && matchQ(i, ql))
       .sort((a, b) => (a.deadline?.getTime() ?? Infinity) - (b.deadline?.getTime() ?? Infinity) || b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, group, month, q, today]);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {BOT_GROUPS.map(g => (
           <button
             key={g.key}
             type="button"
+            title={g.hint}
             onClick={() => setGroup(group === g.key ? 'all' : g.key)}
             className={`rounded-lg border px-3 py-2 text-left transition ${group === g.key ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400'}`}
           >
@@ -174,13 +199,25 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
               {fmtInt(counts[g.key].n)}
             </p>
             <p className="text-[0.625rem] text-slate-400">{fmtTy(counts[g.key].remain)} tỷ chưa nhập kho</p>
+            {g.key === 'overdueCommit' && extra.commitOld > 0 && (
+              <p className="text-[0.625rem] font-semibold text-red-500">{fmtInt(extra.commitOld)} quá &gt; {OVERDUE_OLD_DAYS} ngày (hạn cũ)</p>
+            )}
           </button>
         ))}
       </div>
+      {extra.planAfterDue > 0 && (
+        <div className="-mt-2 flex flex-wrap items-center gap-2">
+          <span title="KH nhập kho tuần / tháng đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ, cần xem lại KH hoặc báo PM">
+            <Chip active={group === 'planAfterDue'} tone="amber" onClick={() => setGroup(group === 'planAfterDue' ? 'all' : 'planAfterDue')}>
+              <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />KH NK sau ngày cần giao ({fmtInt(extra.planAfterDue)})
+            </Chip>
+          </span>
+        </div>
+      )}
 
       <div>
         <p className="mb-1.5 text-xs font-semibold text-slate-700">
-          Theo tháng kế hoạch <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng → ngày cần giao · bấm 1 tháng (hoặc số quá hạn) để lọc danh sách</span>
+          Theo tháng kế hoạch <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng → ngày cần giao → ngày cần (PM) → BOT dự án · bấm 1 tháng (hoặc số quá hạn) để lọc danh sách</span>
         </p>
         <div className="overflow-auto rounded-lg border border-slate-200">
           <table className="w-full text-xs">
@@ -246,7 +283,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-slate-700">Hạng mục chưa nhập kho đủ</p>
           <span className="text-[0.6875rem] text-slate-500">
-            {group === 'all' ? 'tất cả nhóm' : BOT_GROUPS.find(g => g.key === group)?.label} · {fmtInt(list.length)} hạng mục · sắp theo ngày kế hoạch
+            {group === 'all' ? 'tất cả nhóm' : group === 'overdue' ? 'Quá hạn' : group === 'planAfterDue' ? 'KH NK sau ngày cần giao' : BOT_GROUPS.find(g => g.key === group)?.label} · {fmtInt(list.length)} hạng mục · sắp theo ngày kế hoạch
           </span>
           {month !== null && <Chip active onClick={() => setMonth(null)}>Tháng {monthLabel(month)} ✕</Chip>}
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục, công đoạn..." /></div>
@@ -255,12 +292,16 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
           rows={list}
           onHexClick={onHexClick}
           hexClickTitle="Xem chi tiết hạng mục (BOP × BOT)"
-          extraHead={<><th className={`${th} text-right`}>Số ngày</th><th className={`${th} text-right`}>Vướng mắc</th></>}
+          extraHead={<><th className={`${th} text-left`} title="Nguồn của hạn đang dùng">Nguồn hạn</th><th className={`${th} text-right`}>Số ngày</th><th className={`${th} text-right`}>Vướng mắc</th></>}
           extraCells={i => {
             const days = i.deadline ? Math.floor((i.deadline.getTime() - today) / DAY) : null;
             const vm = openIssues?.[i.hex] ?? 0;
             return (
               <>
+                <td className={`${td} whitespace-nowrap text-slate-600`}>
+                  {i.deadlineSource ? SOURCE_SHORT[i.deadlineSource] : '—'}
+                  {i.planAfterDue && <span className="ml-1 rounded bg-amber-100 px-1 text-[0.625rem] font-semibold text-amber-800" title="KH nhập kho muộn hơn ngày cần giao">sau cần giao</span>}
+                </td>
                 <td className={`${td} text-right tabular-nums ${days !== null && days < 0 ? 'font-semibold text-red-600' : days !== null && days <= 14 ? 'text-amber-600' : 'text-slate-500'}`}>
                   {days === null ? '—' : days}
                 </td>
@@ -369,8 +410,16 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
       .map(([stage, c]) => ({ stage, c, n: DWELL.reduce((s, d) => s + (c[d.key] ?? 0), 0) }))
       .sort((x, y) => stageRank(x.stage) - stageRank(y.stage) || x.stage.localeCompare(y.stage));
     const w4 = (r: { c: Record<string, number> }) => r.c[DWELL_STUCK] ?? 0;
-    const stuck = rows.filter(r => w4(r) > 0).sort((x, y) => w4(y) - w4(x));
-    return { rows, stuck, stuckTotal: stuck.reduce((s, r) => s + w4(r), 0) };
+    // P001 (chờ triển khai bản vẽ) tách khỏi top nghẽn SẢN XUẤT: nó thường chiếm gần hết số tồn ≥ 4 tuần
+    // và che mất nghẽn thật trong xưởng
+    const stuck = rows.filter(r => r.stage !== 'P001' && w4(r) > 0).sort((x, y) => w4(y) - w4(x));
+    const p001 = open.filter(i => matchSel(i) && stageOf(i) === 'P001' && dwellOf(i.dwell) === DWELL_STUCK);
+    return {
+      rows, stuck, stuckTotal: stuck.reduce((s, r) => s + w4(r), 0),
+      p001Stuck: p001.length,
+      p001Overdue: p001.filter(i => i.overdue).length,
+      p001NoDeadline: p001.filter(i => !i.deadline).length,
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, sel]);
 
@@ -382,7 +431,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
       .filter(i => matchQ(i, ql))
       .sort((a, b) =>
         sortBy === 'deadline'
-          // Hạn gần nhất lên trước (KH tuần → KH tháng → cần giao); cùng hạn thì theo công đoạn
+          // Hạn gần nhất lên trước (KH tuần → KH tháng → cần giao → ngày cần PM → BOT dự án); cùng hạn thì theo công đoạn
           ? timeOf(a.deadline) - timeOf(b.deadline) || stageRank(stageOf(a)) - stageRank(stageOf(b)) || b.remain - a.remain
           : sortBy === 'stage'
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
@@ -557,7 +606,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
           </div>
         </div>
         <div className="rounded-lg border border-red-200 bg-red-50/40 p-3">
-          <p className="mb-2 text-xs font-semibold text-red-700">Top điểm nghẽn (≥ 4 tuần)</p>
+          <p className="mb-2 text-xs font-semibold text-red-700" title="Công đoạn sản xuất có nhiều hạng mục tồn ≥ 4 tuần — không gồm P001 (chờ triển khai bản vẽ, xem ô bên dưới)">Top điểm nghẽn sản xuất (≥ 4 tuần)</p>
           <div className="space-y-1.5">
             {dwell.stuck.slice(0, 6).map((r, idx) => {
               const next = { stage: r.stage, dwell: DWELL_STUCK as string };
@@ -581,6 +630,30 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
               Tổng cảnh báo <span className="font-bold text-red-600">{fmtInt(dwell.stuckTotal)} hạng mục</span>
             </p>
           )}
+          {dwell.p001Stuck > 0 && (() => {
+            const next = { stage: 'P001', dwell: DWELL_STUCK as string };
+            return (
+              <button
+                type="button"
+                onClick={() => pickDwell(next)}
+                title="Hạng mục P001 (chưa triển khai bản vẽ) tồn ≥ 4 tuần — chờ thiết kế, không phải nghẽn trong xưởng. Bấm để lọc danh sách."
+                className={`mt-2 w-full rounded-lg border bg-white px-2.5 py-1.5 text-left text-xs hover:border-slate-400 ${isDwellSel(next) ? 'border-slate-700' : 'border-slate-200'}`}
+              >
+                <span className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">P001 · chờ triển khai bản vẽ ≥ 4 tuần</span>
+                  <span className="font-bold tabular-nums text-slate-800">{fmtInt(dwell.p001Stuck)}</span>
+                </span>
+                <span className="mt-0.5 block text-[0.6875rem] text-slate-500">
+                  <span className={dwell.p001Overdue ? 'font-semibold text-red-600' : ''}>{fmtInt(dwell.p001Overdue)} đã quá hạn</span>
+                  {' · '}{fmtInt(dwell.p001NoDeadline)} chưa có hạn
+                </span>
+              </button>
+            );
+          })()}
+          <p className="mt-2 text-[0.625rem] text-slate-400">
+            Số ngày ở công đoạn lấy từ nguồn dữ liệu sản xuất; với các công đoạn trên chuyền (từ P013) nguồn hầu như chỉ ghi
+            &lt; 3 ngày / 4–7 ngày nên chưa phản ánh hết thời gian tồn thực tế.
+          </p>
         </div>
       </div>
 
@@ -635,10 +708,20 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
 // ============================================================================
 
 // Trạng thái hạng mục = trạng thái "xấu nhất" trong các dòng vật tư của nó (thứ tự dưới đây)
-export type BomState = 'none' | 'notOrdered' | 'late' | 'onTrack' | 'arrived' | 'ok' | 'stocked';
+// Không có PR ghi mã hạng mục: tách theo đã / chưa triển khai (cùng quy tắc nhóm 'notDeployed' của BOP:
+// công đoạn P001 hoặc tình trạng 15. CHƯA TRIỂN KHAI). Đã triển khai thì tách tiếp:
+//  - noneBeforeSx: P002 / P012 (chưa sản xuất) và bảng sản xuất không ghi tình trạng mua hoặc còn dòng chờ
+//    => chưa kiểm chứng được vật tư, cần để ý
+//  - noneInSx: đã lên chuyền (từ P013), hoặc P002 / P012 mà tình trạng NVL ở bảng sản xuất đã về đủ
+//    => vật tư mua gộp theo công trình / tồn kho, không đáng lo
+export type BomState = 'noneBeforeSx' | 'noneInSx' | 'noneNotDeployed' | 'notOrdered' | 'late' | 'onTrack' | 'arrived' | 'ok' | 'stocked';
 export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' | 'emerald' | 'slate'; badge: string; hint: string }[] = [
-  { key: 'none', label: 'Chưa tìm thấy vật tư', tone: 'red', badge: 'bg-red-50 text-red-600',
-    hint: 'Không có dòng PR nào ghi mã nhà máy của hạng mục (xem nút "Chưa có mã nhà máy chỉ định")' },
+  { key: 'noneBeforeSx', label: 'Đã triển khai, chưa SX – chưa thấy PR', tone: 'red', badge: 'bg-red-50 text-red-600',
+    hint: 'P002 / P012 (chưa sản xuất), không có dòng PR nào ghi mã nhà máy của hạng mục và bảng sản xuất không ghi tình trạng mua (hoặc còn dòng chờ) — chưa kiểm chứng được vật tư: kiểm tra PR chung của công trình / định mức NVL' },
+  { key: 'noneInSx', label: 'Đang SX / NVL đủ – mua gộp, tồn kho', tone: 'slate', badge: 'bg-slate-100 text-slate-600',
+    hint: 'Không có PR ghi mã hạng mục nhưng đã lên chuyền (từ P013) hoặc bảng sản xuất ghi tình trạng mua đã về đủ — vật tư mua gộp theo công trình hoặc lấy từ tồn kho' },
+  { key: 'noneNotDeployed', label: 'Chưa triển khai (P001)', tone: 'slate', badge: 'bg-slate-100 text-slate-600',
+    hint: 'Hạng mục chưa triển khai bản vẽ (P001 / 15. CHƯA TRIỂN KHAI) nên chưa lên PR — bình thường' },
   { key: 'notOrdered', label: 'Có VT chưa mua', tone: 'red', badge: 'bg-rose-50 text-rose-700',
     hint: 'Ít nhất 1 dòng PR 1.CHƯA MUA (chưa có PO)' },
   { key: 'late', label: 'VT trễ hẹn giao', tone: 'amber', badge: 'bg-orange-50 text-orange-700',
@@ -712,8 +795,15 @@ const toDate = (t: number | null) => (t === null ? null : new Date(t));
 export function analyzeBom(
   items: HexInfo[], matCount: Record<string, number> | null, lines: MaterialLine[] | null, today: number,
   materialIssues: Record<string, VuongMacItem[]> | null = null,
+  /** Định mức + tình trạng NVL theo hạng mục (bảng sản xuất): tách hạng mục không có PR ghi mã */
+  nvlByHex: Record<string, NvlRaw> | null = null,
 ): BomAnalysis | null {
   if (!matCount || !lines) return null;
+  // Hạng mục không có PR ghi mã nhưng bảng sản xuất ghi tình trạng mua đã về đủ (có dòng, không dòng nào còn chờ)
+  const nvlDone = (hex: string) => {
+    const st = parseNvlStatus(nvlByHex?.[hex]);
+    return st.length > 0 && !st.some(nvlLinePending);
+  };
   const openHex = new Set(items.filter(i => i.bucket).map(i => i.hex));
   type Acc = {
     byLine: Partial<Record<MaterialLineState, number>>; afterNeed: number;
@@ -755,7 +845,11 @@ export function analyzeBom(
     const nLines = matCount[i.hex] ?? 0;
     let state: BomState;
     if (!i.bucket) state = 'stocked';
-    else if (!(nLines > 0) || !e) state = 'none';
+    else if (!(nLines > 0) || !e) {
+      const beforeSx = i.bucket === 'p002' || i.stage === 'P012';
+      state = i.bucket === 'notDeployed' ? 'noneNotDeployed'
+        : beforeSx && !nvlDone(i.hex) ? 'noneBeforeSx' : 'noneInSx';
+    }
     else state = (LINE_ORDER.find(k => (e.byLine[k] ?? 0) > 0) as BomState | undefined) ?? 'ok';
     const lateNeed = state !== 'stocked' && (e?.afterNeed ?? 0) > 0 ? e!.afterNeed : 0;
     if (lateNeed > 0) afterNeed++;
@@ -774,12 +868,231 @@ export function analyzeBom(
   return { byHex, counts, lineCounts, lineTotal, afterNeed, issueHexes, issueTotal };
 }
 
-export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMaterial, onOpenHex, today, materialIssues }: {
+// ============================================================================
+// VẬT TƯ CHUNG CỦA CÔNG TRÌNH: dòng PR thuộc công trình (trackingno = mã công trình) nhưng KHÔNG ghi
+// mã nhà máy => không gắn được hạng mục (~một nửa số dòng vật tư). Phân theo cùng trạng thái dòng PR.
+// Kèm danh sách "cần bổ sung mã nhà máy" (dòng còn chờ không mã + dòng ghi sai mã) để xuất cho team PR.
+// ============================================================================
+export interface ProjectMaterialLine extends MaterialLineFields {
+  kind: 'uncoded' | 'badCode';
+  bad_reason?: string | null;
+  trackingno?: string; ten_cong_trinh?: string;
+  ma_nha_may?: string; item_note_pr?: string; so_pr?: unknown; pr_line?: unknown;
+  ten_vat_tu?: string; nhom_vt?: string; dvt?: string; ma_vat_tu_sap?: unknown; nguoi_yeu_cau?: string;
+}
+
+export interface ProjectMaterialSummary {
+  lines: number;                                   // dòng không mã (không tính hủy)
+  byState: Record<MaterialLineState, number>;
+  badCode: number;                                 // dòng ghi sai mã nhà máy
+  toFix: number;                                   // dòng cần bổ sung mã (còn chờ không mã + sai mã)
+}
+
+const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'late', 'onTrack', 'arrived'];
+const lineStateLabel = (s: MaterialLineState) => LINE_STATES.find(x => x.key === s)?.label ?? s;
+
+export function summarizeProjectMaterial(rows: ProjectMaterialLine[] | null, today: number): ProjectMaterialSummary | null {
+  if (!rows) return null;
+  const byState = Object.fromEntries(LINE_STATES.map(s => [s.key, 0])) as Record<MaterialLineState, number>;
+  let lines = 0, badCode = 0, toFix = 0;
+  for (const r of rows) {
+    if (r.kind === 'badCode') { badCode++; toFix++; continue; }
+    const st = materialLineState(r, today);
+    byState[st]++;
+    if (st !== 'cancelled') lines++;
+    if (PENDING_STATES.includes(st)) toFix++;
+  }
+  return { lines, byState, badCode, toFix };
+}
+
+const xlsxDate = (v: unknown) => { const d = parsePlanDate(v); return d ? fmtDate(d) : ''; };
+
+/** Xuất Excel các dòng cần bổ sung mã nhà máy (gửi team PR). */
+async function exportToFixExcel(rows: ProjectMaterialLine[], today: number, fileTag: string) {
+  const XLSX = await import('xlsx');
+  const data = rows.map((r, i) => {
+    const st = r.kind === 'uncoded' ? materialLineState(r, today) : null;
+    return {
+      STT: i + 1,
+      'Mã công trình': r.trackingno ?? '',
+      'Tên công trình (vật tư)': r.ten_cong_trinh ?? '',
+      'Số PR': r.so_pr ?? '', 'PR line': r.pr_line ?? '',
+      'Ngày PR': xlsxDate(r.ngay_pr), 'Người yêu cầu': r.nguoi_yeu_cau ?? '',
+      'Mã VT SAP': r.ma_vat_tu_sap ?? '', 'Tên vật tư': r.ten_vat_tu ?? '', 'Nhóm VT': r.nhom_vt ?? '', 'ĐVT': r.dvt ?? '',
+      'SL yêu cầu': Number(r.so_luong_yeu_cau) || 0, 'SL còn lại': Number(r.so_luong_con_lai) || 0,
+      'Trạng thái': String(r.trang_thai ?? ''),
+      'Tình trạng': st ? lineStateLabel(st) : '',
+      'Ngày cần VT': xlsxDate(r.ngay_can_vat_tu), 'Dự kiến giao PMH': xlsxDate(r.ngay_du_kien_giao_hang_pmh_nhap),
+      'Mã nhà máy (đang ghi)': r.ma_nha_may ?? '', 'Item note PR': r.item_note_pr ?? '',
+      'Cần làm': r.kind === 'badCode' ? `Sửa mã nhà máy: ${r.bad_reason ?? ''}` : 'Bổ sung mã nhà máy (13 số) của hạng mục',
+    };
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [6, 14, 34, 12, 8, 12, 18, 14, 40, 22, 8, 10, 10, 14, 24, 12, 16, 24, 40, 44].map(wch => ({ wch }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Cần bổ sung mã NM');
+  XLSX.writeFile(wb, `vat_tu_can_bo_sung_ma_nha_may_${fileTag}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+export const ProjectMaterialSection = ({ rows, today, fileTag }: {
+  rows: ProjectMaterialLine[] | null; today: number; fileTag: string;
+}) => {
+  const [filter, setFilter] = useState<MaterialLineState | 'pending' | 'all' | 'badCode'>('pending');
+  const [q, setQ] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const sum = useMemo(() => summarizeProjectMaterial(rows, today), [rows, today]);
+
+  const enriched = useMemo(() => (rows ?? []).map(r => ({ r, st: r.kind === 'uncoded' ? materialLineState(r, today) : null })), [rows, today]);
+  const list = useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'onTrack', 'arrived', 'ccld', 'closedShort', 'done', 'cancelled'];
+    const need = (r: ProjectMaterialLine) => parsePlanDate(r.ngay_can_vat_tu)?.getTime() ?? Infinity;
+    return enriched
+      .filter(({ r, st }) => {
+        if (filter === 'badCode') { if (r.kind !== 'badCode') return false; }
+        else if (r.kind !== 'uncoded' || !st) return false;
+        else if (filter === 'pending') { if (!PENDING_STATES.includes(st)) return false; }
+        else if (filter !== 'all' && st !== filter) return false;
+        if (!ql) return true;
+        return [r.ten_vat_tu, r.nhom_vt, r.so_pr, r.trackingno, r.item_note_pr, r.team_pr_note]
+          .some(v => String(v ?? '').toLowerCase().includes(ql));
+      })
+      .sort((a, b) => (a.st ? RANK.indexOf(a.st) : 0) - (b.st ? RANK.indexOf(b.st) : 0) || need(a.r) - need(b.r));
+  }, [enriched, filter, q]);
+
+  const toFixRows = useMemo(
+    () => enriched.filter(({ r, st }) => r.kind === 'badCode' || (st && PENDING_STATES.includes(st))).map(x => x.r),
+    [enriched]
+  );
+  const runExport = async () => {
+    if (!toFixRows.length || exporting) return;
+    setExporting(true);
+    try { await exportToFixExcel(toFixRows, today, fileTag); }
+    catch (e) { console.error('Lỗi xuất Excel vật tư cần bổ sung mã:', e); alert('Không xuất được file Excel, vui lòng thử lại.'); }
+    finally { setExporting(false); }
+  };
+
+  const total = sum ? LINE_STATES.reduce((s, x) => s + sum.byState[x.key], 0) : 0;
+  const pendingN = sum ? PENDING_STATES.reduce((s, k) => s + sum.byState[k], 0) : 0;
+
+  return (
+    <div className="rounded-lg border border-violet-200 bg-violet-50/30 p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="text-xs font-semibold text-slate-700">
+          Vật tư chung của công trình{' '}
+          <span className="font-normal text-slate-500">
+            · PR không ghi mã nhà máy nên không gắn được hạng mục · {sum ? `${fmtInt(sum.lines)} dòng (không tính hủy)` : '…'}
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={runExport}
+          disabled={!toFixRows.length || exporting}
+          title="Xuất các dòng còn chờ (chưa mua / đang mua / kho báo về) chưa có mã nhà máy + các dòng ghi sai mã — gửi team PR bổ sung"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-violet-400 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Download size={13} />
+          {exporting ? 'Đang xuất…' : `Xuất Excel – cần bổ sung mã NM (${sum ? fmtInt(sum.toFix) : '…'})`}
+        </button>
+      </div>
+      {!sum ? (
+        <p className="py-4 text-center text-xs text-slate-400">Đang tải vật tư chung của công trình…</p>
+      ) : total === 0 && sum.badCode === 0 ? (
+        <p className="py-3 text-center text-xs text-slate-500">Mọi dòng PR của công trình đều đã ghi mã nhà máy.</p>
+      ) : (
+        <>
+          <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
+            {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
+              <div key={s.key} className={s.bar} style={{ width: `${(sum.byState[s.key] / Math.max(total, 1)) * 100}%` }} title={`${s.label}: ${sum.byState[s.key]}`} />
+            ))}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <Chip active={filter === 'pending'} tone="red" onClick={() => setFilter('pending')}>Còn chờ ({fmtInt(pendingN)})</Chip>
+            {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
+              <Chip key={s.key} active={filter === s.key} onClick={() => setFilter(s.key)}>
+                <span className={`mr-1 inline-block h-2 w-2 rounded-sm ${s.bar}`} />{s.label} ({fmtInt(sum.byState[s.key])})
+              </Chip>
+            ))}
+            <Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip>
+            {sum.badCode > 0 && (
+              <Chip active={filter === 'badCode'} tone="amber" onClick={() => setFilter('badCode')}>Ghi sai mã NM ({fmtInt(sum.badCode)})</Chip>
+            )}
+            <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm vật tư, PR, nhóm VT..." /></div>
+          </div>
+          <div className="mt-2 max-h-[45vh] overflow-auto rounded-lg border border-slate-200 bg-white custom-scrollbar">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
+                <tr>
+                  <th className={`${th} w-10 text-right`}>STT</th>
+                  <th className={`${th} text-left`}>Công trình</th>
+                  <th className={`${th} text-left`}>Số PR · line</th>
+                  <th className={`${th} text-left`}>Tên vật tư</th>
+                  <th className={`${th} text-left`}>Nhóm VT</th>
+                  <th className={`${th} text-right`}>SL YC</th>
+                  <th className={`${th} text-right`}>SL còn lại</th>
+                  <th className={`${th} text-left`}>Ngày PR</th>
+                  <th className={`${th} text-left`}>Ngày cần VT</th>
+                  <th className={`${th} text-left`}>Dự kiến giao PMH</th>
+                  <th className={`${th} text-left`}>Tình trạng</th>
+                  <th className={`${th} text-left`}>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {list.slice(0, 1000).map(({ r, st }, idx) => {
+                  const need = parsePlanDate(r.ngay_can_vat_tu);
+                  const due = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
+                  const meta = st ? LINE_STATES.find(x => x.key === st) : null;
+                  return (
+                    <tr key={`${String(r.so_pr)}-${String(r.pr_line)}-${idx}`} className="hover:bg-slate-50">
+                      <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
+                      <td className={`${td} whitespace-nowrap text-slate-600`} title={r.ten_cong_trinh}>{r.trackingno}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums text-slate-600`}>{String(r.so_pr ?? '—')} · {String(r.pr_line ?? '')}</td>
+                      <td className={`${td} max-w-[320px] truncate text-slate-800`} title={r.ten_vat_tu}>{r.ten_vat_tu}</td>
+                      <td className={`${td} whitespace-nowrap text-slate-500`}>{r.nhom_vt}</td>
+                      <td className={`${td} text-right tabular-nums`}>{Number(r.so_luong_yeu_cau) || '—'} <span className="text-slate-400">{r.dvt}</span></td>
+                      <td className={`${td} text-right tabular-nums font-semibold text-slate-700`}>{Number(r.so_luong_con_lai) || '—'}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums text-slate-500`}>{fmtDate(parsePlanDate(r.ngay_pr))}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums ${need && st && PENDING_STATES.includes(st) && need.getTime() < today ? 'font-semibold text-red-600' : 'text-slate-600'}`}>{fmtDate(need)}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums ${st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-600'}`}>{st === 'late' || st === 'onTrack' ? fmtDate(due) : '—'}</td>
+                      <td className={td}>
+                        {r.kind === 'badCode' ? (
+                          <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-800" title={r.bad_reason ?? ''}>Sai mã NM: {r.ma_nha_may}</span>
+                        ) : meta ? (
+                          <span className="inline-flex items-center gap-1 whitespace-nowrap text-slate-700"><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}</span>
+                        ) : null}
+                      </td>
+                      <td className={`${td} max-w-[260px] truncate text-slate-500`} title={[r.team_pr_note, r.item_note_pr].filter(Boolean).join(' · ')}>
+                        {[r.team_pr_note, r.item_note_pr].filter(Boolean).join(' · ') || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {list.length === 0 && <tr><td colSpan={12} className="px-3 py-6 text-center text-slate-400">Không có dòng phù hợp.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          {list.length > 1000 && <p className="mt-1 text-[0.6875rem] text-slate-500">Hiện 1.000 / {fmtInt(list.length)} dòng — lọc hoặc tìm để thu hẹp.</p>}
+          <p className="mt-1.5 text-[0.6875rem] text-slate-500">
+            Gắn theo mã công trình (TrackingNo) của PR. Muốn các dòng này hiện theo từng hạng mục ở bảng dưới, team PR cần ghi mã nhà máy
+            (13 số = 4 số đầu + HEX) vào cột Mã nhà máy hoặc Item note PR — dùng nút Xuất Excel để lấy danh sách.
+          </p>
+        </>
+      )}
+    </div>
+  );
+};
+
+export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex, projectTag, onOpenMaterial, onOpenHex, today, materialIssues }: {
   items: HexInfo[];
   matCount: Record<string, number> | null;
   materialLines: MaterialLine[] | null;
-  unassigned: { lines: number; prs: number } | null;
-  onOpenMaterial: (mode: 'matched' | 'unassigned') => void;
+  /** Vật tư chung của công trình (PR không ghi mã nhà máy / ghi sai mã) */
+  projectLines: ProjectMaterialLine[] | null;
+  /** Định mức + tình trạng NVL theo hạng mục từ bảng sản xuất (null = đang tải) */
+  nvlByHex: Record<string, NvlRaw> | null;
+  /** Dùng đặt tên file xuất Excel */
+  projectTag: string;
+  onOpenMaterial: (mode: 'matched') => void;
   onOpenHex: (hex: string) => void;
   today: number;
   materialIssues: Record<string, VuongMacItem[]> | null;
@@ -790,17 +1103,19 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
   const [q, setQ] = useState('');
 
   const bom = useMemo(
-    () => analyzeBom(items, matCount, materialLines, today, materialIssues),
-    [items, matCount, materialLines, today, materialIssues]
+    () => analyzeBom(items, matCount, materialLines, today, materialIssues, nvlByHex),
+    [items, matCount, materialLines, today, materialIssues, nvlByHex]
   );
+  const projectSum = useMemo(() => summarizeProjectMaterial(projectLines, today), [projectLines, today]);
 
   const list = useMemo(() => {
     if (!bom) return [];
     const ql = q.trim().toLowerCase();
     // Ưu tiên xử lý: trễ hẹn giao → chưa mua → đang mua chưa tới hẹn → chưa tìm thấy VT → kho báo về
     // → đã về đủ → hạng mục đã nhập kho đủ (không còn ảnh hưởng, luôn xếp cuối)
-    const PRIORITY: BomState[] = ['late', 'notOrdered', 'onTrack', 'none', 'arrived', 'ok', 'stocked'];
-    const rank = (i: HexInfo) => PRIORITY.indexOf(bom.byHex[i.hex]?.state ?? 'none');
+    // Chưa triển khai (P001) xếp sau 'đã về đủ' — chưa lên PR là bình thường
+    const PRIORITY: BomState[] = ['late', 'notOrdered', 'onTrack', 'noneBeforeSx', 'arrived', 'ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
+    const rank = (i: HexInfo) => PRIORITY.indexOf(bom.byHex[i.hex]?.state ?? 'noneBeforeSx');
     const pendingFirst = (i: HexInfo) => (rank(i) <= 2 ? 0 : rank(i) >= 5 ? 2 : 1);
     const need = (i: HexInfo) => bom.byHex[i.hex]?.needDate?.getTime() ?? Infinity;
     const seen = new Set<string>();
@@ -839,24 +1154,24 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
         >
           <Package size={14} /> Vật tư theo hạng mục / Theo PR
         </button>
-        <button
-          type="button"
-          onClick={() => onOpenMaterial('unassigned')}
-          disabled={!unassigned || unassigned.lines === 0}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Chưa có mã nhà máy chỉ định
-          <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[0.6875rem] text-white">
-            {unassigned === null ? '…' : `${fmtInt(unassigned.lines)} dòng · ${unassigned.prs} PR`}
-          </span>
-        </button>
       </div>
+
+      {/* Tóm tắt: 2 nhóm dòng PR tách rời nhau — có mã nhà máy (gắn hạng mục) / không mã (chung công trình) */}
+      <p className="text-xs text-slate-600">
+        <span className="font-semibold text-slate-800">Vật tư công trình:</span>{' '}
+        {bom ? fmtInt(bom.lineTotal) : '…'} dòng PR gắn hạng mục (có mã nhà máy, phục vụ hạng mục chưa nhập kho đủ)
+        {' + '}{projectSum ? fmtInt(projectSum.lines) : '…'} dòng chung của công trình (không mã, không tính hủy).
+        <span className="text-slate-400"> Hai nhóm không trùng nhau: 1 dòng PR hoặc có mã nhà máy, hoặc không.</span>
+      </p>
+
+      {/* A + C: vật tư chung của công trình (không gắn được hạng mục) + danh sách cần bổ sung mã nhà máy */}
+      <ProjectMaterialSection rows={projectLines} today={today} fileTag={projectTag} />
 
       {/* Phân bổ dòng PR theo trạng thái (chỉ dòng phục vụ hạng mục chưa nhập kho đủ) */}
       {bom && bom.lineTotal > 0 && (
         <div className="rounded-lg border border-slate-200 p-3">
           <p className="mb-2 text-xs font-semibold text-slate-700">
-            Dòng PR theo trạng thái{' '}
+            Dòng PR gắn hạng mục (có mã nhà máy){' '}
             <span className="font-normal text-slate-500">· {fmtInt(bom.lineTotal)} dòng phục vụ hạng mục chưa nhập kho đủ</span>
           </p>
           <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
@@ -882,6 +1197,7 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
       )}
 
       <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-slate-700">Hạng mục theo tình trạng vật tư:</span>
         <Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip>
         {BOM_STATES.map(s => (
           <span key={s.key} title={s.hint}>
@@ -955,6 +1271,7 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
             <th className={`${th} text-left`} title="Ngày dự kiến giao hàng PMH nhập muộn nhất của các dòng đang mua">Dự kiến giao PMH</th>
             <th className={`${th} text-left`} title="Posting date — ngày thực tế về muộn nhất">Thực tế về</th>
             <th className={`${th} text-right`} title="Vướng mắc M3 – Vật tư chưa xử lý (bấm để xem)">VM vật tư</th>
+            <th className={`${th} text-left`} title="Định mức vật tư của hạng mục và tình trạng mua do kế hoạch ghi ở bảng sản xuất — có cả vật tư mua gộp theo công trình (không cần PR ghi mã). Bấm HEX để xem đủ.">Định mức NVL (bảng SX)</th>
             <th className={`${th} text-left`}>Tình trạng vật tư</th>
           </>}
           extraCells={i => {
@@ -963,7 +1280,7 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
               const v = b?.byLine[k] ?? 0;
               return <td className={`${td} text-right tabular-nums ${v ? cls : 'text-slate-300'}`}>{v || '—'}</td>;
             };
-            const meta = BOM_META[b?.state ?? 'none'];
+            const meta = BOM_META[b?.state ?? 'noneBeforeSx'];
             const pending = !!b && (b.state === 'notOrdered' || b.state === 'late' || b.state === 'onTrack');
             const needLate = !!b && b.afterNeed > 0;
             const dueLate = pending && !!b?.dueDate && b.dueDate.getTime() < today;
@@ -995,12 +1312,31 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
                     </button>
                   ) : <span className="text-slate-300">—</span>}
                 </td>
+                {(() => {
+                  if (nvlByHex === null) return <td className={`${td} text-slate-300`}>…</td>;
+                  const raw = nvlByHex[i.hex];
+                  const needs = parseNvlNeeds(raw);
+                  const status = parseNvlStatus(raw);
+                  const pendingN = status.filter(nvlLinePending).length;
+                  if (!needs.length && !status.length) return <td className={`${td} text-slate-300`}>—</td>;
+                  const full = needs.map(n => `${NVL_GROUP_LABEL[n.group]}: ${n.name}${n.qty !== null ? ` ${Number(n.qty.toFixed(3))} ${n.dvt}` : ''}`).join('\n');
+                  return (
+                    <td className={`${td} max-w-[300px]`} title={full || undefined}>
+                      <span className="block truncate text-slate-600">{summarizeNeeds(needs) || '—'}</span>
+                      {status.length > 0 && (
+                        <span className={`text-[0.625rem] ${pendingN ? 'font-semibold text-amber-700' : 'text-emerald-700'}`}>
+                          {pendingN ? `${pendingN}/${status.length} dòng mua còn chờ` : `${status.length} dòng mua đã xong`}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })()}
                 <td className={td}>
                   <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${meta.badge}`} title={meta.hint}>
                     {meta.label}
                   </span>
                   {/* Chưa nối được PR nhưng người dùng đã báo vướng mắc vật tư */}
-                  {b?.state === 'none' && b.issues.length > 0 && (
+                  {(b?.state === 'noneBeforeSx' || b?.state === 'noneInSx' || b?.state === 'noneNotDeployed') && b.issues.length > 0 && (
                     <span className="ml-1 whitespace-nowrap rounded-full bg-red-600 px-1.5 py-0.5 text-[0.625rem] font-semibold text-white">có VM vật tư</span>
                   )}
                 </td>
@@ -1013,20 +1349,28 @@ export const BomTab = ({ items, matCount, materialLines, unassigned, onOpenMater
   );
 };
 
-// Ô ngày kế hoạch: ngày đang dùng để tính BOT (KH tuần → KH tháng → cần giao) in đậm,
+// Ô ngày kế hoạch: ngày đang dùng để tính BOT (KH tuần → KH tháng → cần giao → ngày cần PM → BOT dự án) in đậm,
 // đỏ nếu quá hạn / cam nếu sắp hạn; các ngày còn lại hiện mờ để tham khảo.
 export const PlanDateCell = ({ i, which }: { i: HexInfo; which: DeadlineSource }) => {
-  const d = which === 'tuần' ? i.khnkTuan : which === 'tháng' ? i.khnkThang : i.canGiao;
-  const used = i.deadlineSource === which;
+  // Cột "Cần giao": hạng mục không có ngày cần giao mà hạn lấy từ ngày cần (PM) / BOT dự án thì hiện ngày đó
+  const fallback = which === 'cần giao' && !i.canGiao && (i.deadlineSource === 'cần PM' || i.deadlineSource === 'BOT dự án');
+  const d = which === 'tuần' ? i.khnkTuan : which === 'tháng' ? i.khnkThang : fallback ? i.deadline : i.canGiao;
+  const used = i.deadlineSource === which || fallback;
+  const met = (which === 'tuần' && i.khnkTuanMet) || (which === 'tháng' && i.khnkThangMet);
   const cls = !d ? 'text-slate-300'
     : !used ? 'text-slate-400'
       : i.overdue ? 'font-semibold text-red-600' : i.dueSoon ? 'font-semibold text-amber-600' : 'font-semibold text-slate-700';
   return (
     <td
       className={`${td} whitespace-nowrap tabular-nums ${cls}`}
-      title={d ? (used ? 'Ngày đang dùng để tính BOT' : 'Chỉ để tham khảo (ưu tiên KH tuần → KH tháng → cần giao)') : undefined}
+      title={!d ? undefined
+        : met ? 'Đã nhập đủ SL kế hoạch trong kỳ — không tính trễ theo KH này'
+          : used ? `Ngày đang dùng để tính BOT${fallback ? ` (${i.deadlineSource === 'cần PM' ? 'ngày cần PM' : 'BOT dự án'} — chưa có ngày cần giao)` : ''}`
+            : 'Chỉ để tham khảo (ưu tiên KH tuần → KH tháng → cần giao → ngày cần PM → BOT dự án; KH kỳ đã nhập đủ SL thì bỏ qua)'}
     >
       {d ? fmtDate(d) : '—'}
+      {met && <span className="ml-1 text-[0.625rem] font-normal text-emerald-600">✓ đạt</span>}
+      {fallback && <span className="ml-1 text-[0.625rem] font-normal text-slate-400">({i.deadlineSource === 'cần PM' ? 'PM' : 'BOT DA'})</span>}
     </td>
   );
 };

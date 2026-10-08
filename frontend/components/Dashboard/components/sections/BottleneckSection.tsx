@@ -28,6 +28,12 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
   setBottleneckViewMode,
   handleExportBottlenecks,
 }) => {
+  // P001 / "15. CHƯA TRIỂN KHAI" = chờ triển khai bản vẽ: thường chiếm gần hết số tồn ≥ 4 tuần và che mất
+  // nghẽn thật trong xưởng => tách ra ô riêng, top chỉ gồm công đoạn / tình trạng sản xuất
+  const isDesignWait = (name: string) => /^P001(?![0-9])/i.test(name.trim()) || name.toUpperCase().includes('15. CHƯA TRIỂN KHAI');
+  const designWait = topBottlenecks.find(b => isDesignWait(b.name)) ?? null;
+  const prodBottlenecks = topBottlenecks.filter(b => !isDesignWait(b.name)).slice(0, 5);
+
   if (bottleneckData.length === 0) return null;
 
   return (
@@ -186,12 +192,12 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
         <div className="bg-red-50/50 rounded-xl p-5 border border-red-100 flex flex-col">
           <div className="flex items-center gap-2 mb-4 text-red-700">
             <Clock className="w-5 h-5" />
-            <h4 className="font-bold uppercase text-sm">Top Điểm Nghẽn (Trên 4 Tuần)</h4>
+            <h4 className="font-bold uppercase text-sm">Top Điểm Nghẽn Sản Xuất (Trên 4 Tuần)</h4>
           </div>
 
-          {topBottlenecks.length > 0 ? (
+          {prodBottlenecks.length > 0 ? (
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3">
-              {topBottlenecks.map((item, index) => (
+              {prodBottlenecks.map((item, index) => (
                 <div
                   key={index}
                   className="bg-white p-3 rounded-lg border border-red-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-shadow"
@@ -221,11 +227,20 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
 
           <div className="mt-4 pt-4 border-t border-red-200">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Tổng cảnh báo:</span>
+              <span className="text-slate-500">Tổng cảnh báo (sản xuất):</span>
               <span className="font-bold text-red-700">
-                {topBottlenecks.reduce((a, b) => a + b.count, 0)} items
+                {prodBottlenecks.reduce((a, b) => a + b.count, 0)} items
               </span>
             </div>
+            {designWait && (
+              <div
+                className="mt-2 flex justify-between items-center rounded-lg bg-white px-3 py-2 text-xs border border-slate-200"
+                title="Hạng mục chưa triển khai bản vẽ tồn ≥ 4 tuần — chờ thiết kế, không phải nghẽn trong xưởng (tách khỏi top nghẽn sản xuất)"
+              >
+                <span className="text-slate-600">{designWait.name} · chờ triển khai bản vẽ</span>
+                <span className="font-bold text-slate-800">{designWait.count} items</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

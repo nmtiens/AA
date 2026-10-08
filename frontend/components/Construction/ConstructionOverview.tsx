@@ -30,8 +30,13 @@ interface Rec {
   ctKey: string;      // khoá ĐẾM công trình: mã công trình -> tên chuẩn (xem projectKeyResolver)
   month: string;      // 'YYYY-MM' hoặc 'none'
   status: Status;
-  total: number;      // trị giá đơn hàng (0 nếu hủy)
-  done: number;       // giá trị đã nhập kho, tối đa = total
+  total: number;      // trị giá đơn hàng — GỒM cả đơn HỦY (khớp file gốc); muốn bỏ thì lọc Tình trạng IPO
+  done: number;       // giá trị đã nhập kho, tối đa = total (đơn HỦY = 0)
+  // Đã xuất / giao = đã nhập kho − tồn kho (không âm). Không lấy cột xuất kho lũy kế vì bảng xuất kho chỉ có
+  // dữ liệu từ 01/2025: hạng mục giao trước đó có xuất = 0 nhưng tồn = 0 => nhập − xuất ≠ tồn (lệch hàng trăm tỷ).
+  exported: number;
+  exportedRecorded: number; // xuất kho lũy kế ghi trong bảng xuất kho (thanh_tien_xuat_kho_luy_ke) — để tham khảo
+  stock: number;      // giá trị tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) — khớp bảng tồn kho
   row: DataRow;       // dòng gốc — để mở cửa sổ danh sách HEX
   ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
 }
@@ -54,9 +59,25 @@ const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtTy = formatTrieuAsTy;
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có hạn';
+  // Cột gộp của biểu đồ tháng hạn: "<YYYY-MM" = trước tháng đó, ">YYYY-MM" = sau tháng đó
+  if (key.startsWith('<') || key.startsWith('>')) {
+    const [y, m] = key.slice(1).split('-');
+    return `${key[0] === '<' ? 'Trước' : 'Sau'} T${m}/${y}`;
+  }
   const [y, m] = key.split('-');
   return `T${m}/${y}`;
 };
+
+// Biểu đồ tháng hạn chỉ hiện từng tháng trong khoảng [hiện tại − 6 tháng, hiện tại + 12 tháng];
+// tháng xa hơn gộp thành 1 cột "Trước …" / "Sau …" (dữ liệu có hạn từ 2022 → biểu đồ quá dài)
+const MONTHS_BACK = 6, MONTHS_AHEAD = 12;
+const monthKeyOffset = (offset: number) => {
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + offset);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+const chartMonthBucket = (month: string, from: string, to: string) =>
+  month === NO_MONTH ? NO_MONTH : month < from ? `<${from}` : month > to ? `>${to}` : month;
+const chartMonthOrder = (k: string) => (k === NO_MONTH ? 3 : k.startsWith('<') ? 0 : k.startsWith('>') ? 2 : 1);
 
 // Ô số liệu trong cửa sổ chi tiết PC
 const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = false }: {
@@ -72,7 +93,7 @@ const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = fal
 );
 
 // Mô tả 1 cửa sổ chi tiết (cấp 1)
-type DetailFocus = 'items' | 'total' | 'done' | 'remain';
+type DetailFocus = 'items' | 'total' | 'done' | 'remain' | 'exported' | 'stock';
 interface DetailSpec {
   eyebrow: string;          // dòng nhỏ phía trên tiêu đề, vd. "Chỉ số", "Tháng hạn giao", "Người phụ trách (PC)"
   title: string;
@@ -138,6 +159,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong');
     const invK = key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, 'thanh_tien_nhap_kho_luy_ke');
     const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, 'ma_cong_trinh');
+    const xkK = key('thanh_tien_xuat_kho_luy_ke', 'thanh_tien_xuat_kho_luy_ke');
+    const tkK = key('thanh_tien_ton_kho_hien_tai', 'thanh_tien_ton_kho_hien_tai');
     const projectKey = projectKeyResolver(data, maK, ctK);
 
       const txt = (v: unknown) => {
@@ -170,12 +193,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : NO_MONTH;
 
       const cancelled = status === 'HỦY';
+      const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
+      const stock = Math.max(parseNumber(row[tkK]), 0);
       out.push({
         ct, ctKey: projectKey(row), pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
         ipo: String(row[ipoK] ?? '').trim(),
         month, status,
-        total: cancelled ? 0 : totalRaw,
-        done: cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw),
+        // Trang có bộ lọc Tình trạng IPO => trị giá gồm cả HỦY (khớp tổng cột trị giá ở file gốc);
+        // người xem lọc IPO để bỏ HỦY khi cần
+        total: totalRaw,
+        done,
+        exported: Math.max(done - stock, 0),
+        exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
+        stock,
         row,
       });
     }
@@ -222,29 +252,39 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // còn lại (chưa nhập hoặc mới nhập 1 phần) là "chưa nhập kho". Đơn HỦY tính riêng.
   const kpi = useMemo(() => {
     const cts = new Set<string>();
-    let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0;
+    let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0;
+    let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho (theo đơn giá tồn) lớn hơn giá trị đã nhập
     for (const r of rowsAll) {
       cts.add(r.ctKey);
       if (r.status === 'HỦY') cancelled++;
       else if (isStocked(r)) stocked++;
       else { notStocked++; if (r.done > 0) partial++; }
-      total += r.total; done += r.done;
+      total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded;
+      if (r.stock > r.done + 0.001) { stockOver += r.stock - r.done; stockOverItems++; }
     }
-    return { cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, total, done, remain: total - done };
+    return {
+      cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, total, done, remain: total - done,
+      exported, stock, exportedRecorded, stockOver, stockOverItems,
+    };
   }, [rowsAll]);
 
   // ---------- 3. Cột chồng theo tháng hạn giao ----------
+  const monthRange = useMemo(() => ({ from: monthKeyOffset(-MONTHS_BACK), to: monthKeyOffset(MONTHS_AHEAD) }), []);
   const monthData = useMemo(() => {
     const m = new Map<string, { key: string; done: number; remain: number }>();
     for (const r of apply('month')) {
-      const e = m.get(r.month) ?? { key: r.month, done: 0, remain: 0 };
+      const key = chartMonthBucket(r.month, monthRange.from, monthRange.to);
+      const e = m.get(key) ?? { key, done: 0, remain: 0 };
       e.done += r.done; e.remain += r.total - r.done;
-      m.set(r.month, e);
+      m.set(key, e);
     }
     return [...m.values()]
-      .sort((a, b) => (a.key === NO_MONTH ? 1 : b.key === NO_MONTH ? -1 : a.key.localeCompare(b.key)))
+      .sort((a, b) => chartMonthOrder(a.key) - chartMonthOrder(b.key) || a.key.localeCompare(b.key))
       .map(e => ({ ...e, label: monthLabel(e.key), done: e.done / UNIT, remain: e.remain / UNIT }));
-  }, [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [records, f, monthRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Cột gộp "Trước …" / "Sau …" không vẽ trên biểu đồ (cột "Trước" gồm hạng mục cũ đã hoàn thành,
+  // lớn gấp nhiều lần các tháng gần đây => ép biểu đồ) — bỏ qua, chỉ vẽ trong khoảng.
+  const monthChartData = useMemo(() => monthData.filter(d => chartMonthOrder(d.key) % 2 === 1), [monthData]);
 
   // ---------- 4. Biểu đồ tròn ----------
   const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ctKey, r => r.total, metric);
@@ -288,19 +328,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const detailData = useMemo(() => {
     if (!detail) return null;
     const cts = new Set<string>();
-    let total = 0, done = 0;
-    const m = new Map<string, { name: string; pms: Set<string>; items: number; total: number; done: number }>();
+    let total = 0, done = 0, exported = 0, stock = 0;
+    const m = new Map<string, { name: string; pms: Set<string>; items: number; total: number; done: number; exported: number; stock: number }>();
     for (const r of detailRows) {
-      cts.add(r.ctKey); total += r.total; done += r.done;
-      const e = m.get(r.ct) ?? { name: r.ct, pms: new Set<string>(), items: 0, total: 0, done: 0 };
-      e.pms.add(r.pm); e.items++; e.total += r.total; e.done += r.done;
+      cts.add(r.ctKey); total += r.total; done += r.done; exported += r.exported; stock += r.stock;
+      const e = m.get(r.ct) ?? { name: r.ct, pms: new Set<string>(), items: 0, total: 0, done: 0, exported: 0, stock: 0 };
+      e.pms.add(r.pm); e.items++; e.total += r.total; e.done += r.done; e.exported += r.exported; e.stock += r.stock;
       m.set(r.ct, e);
     }
     // Sắp theo đúng chỉ số đang xem
-    const metricOf = (p: { items: number; total: number; done: number }) =>
-      detail.focus === 'items' ? p.items : detail.focus === 'done' ? p.done : detail.focus === 'remain' ? p.total - p.done : p.total;
+    const metricOf = (p: { items: number; total: number; done: number; exported: number; stock: number }) =>
+      detail.focus === 'items' ? p.items : detail.focus === 'done' ? p.done : detail.focus === 'remain' ? p.total - p.done
+        : detail.focus === 'exported' ? p.exported : detail.focus === 'stock' ? p.stock : p.total;
     const projects = [...m.values()].sort((a, b) => metricOf(b) - metricOf(a) || b.items - a.items);
-    return { cts: cts.size, items: detailRows.length, total, done, remain: total - done, projects };
+    return { cts: cts.size, items: detailRows.length, total, done, remain: total - done, exported, stock, projects };
   }, [detail, detailRows]);
 
   const detailProjects = useMemo(() => {
@@ -314,10 +355,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // Cột tháng hạn giao: đúng tập dòng của cột (mọi bộ lọc trừ "Tháng hạn", tháng = cột đã bấm)
   const openMonthDetail = (key?: string) => {
     if (!key) return;
+    // Cột gộp ("Trước …" / "Sau …"): gồm nhiều tháng nên không có nút lọc cả trang theo 1 tháng
+    const isBucket = key.startsWith('<') || key.startsWith('>');
     openDetail({
-      eyebrow: 'Tháng hạn (KH nhập kho → cần giao)', title: monthLabel(key), exclude: 'month',
-      pred: r => r.month === key, focus: 'remain', filter: { key: 'month', value: key },
-      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng → ngày cần giao).',
+      eyebrow: 'Tháng hạn (KH nhập kho → cần giao → ngày cần PM → BOT dự án)', title: monthLabel(key), exclude: 'month',
+      pred: r => chartMonthBucket(r.month, monthRange.from, monthRange.to) === key, focus: 'remain',
+      ...(isBucket ? {} : { filter: { key: 'month' as FKey, value: key } }),
+      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng → ngày cần giao → ngày cần PM → BOT dự án).',
     });
   };
 
@@ -355,6 +399,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       khnkTuanKey: findColumnKey(columns, 'ngay_khnk_tuan') || 'ngay_khnk_tuan',
       khnkThangKey: findColumnKey(columns, 'ngay_khnk_thang') || 'ngay_khnk_thang',
       ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || 'ngay_can_giao',
+      ngayCanKey: columns.find(c => c.key === 'ngay_can')?.key ?? 'ngay_can',
+      botDuAnKey: findColumnKey(columns, 'bot_du_an') || 'bot_du_an',
       xuongKey: key(TARGET_COLUMN_NAMES.XUONG, 'xuong_chinh'),
       dwellKey: key(TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI, 'so_ngay_cd_hien_tai'),
     };
@@ -389,7 +435,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const uniq = (pick: (r: Rec) => string) => [...new Set(allRecords.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
     return {
       ct: uniq(r => r.ct), pm: uniq(r => r.pm), kv: uniq(r => r.kv),
-      month: [...new Set(allRecords.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : a.localeCompare(b))),
+      month: [...new Set(allRecords.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : b.localeCompare(a))), // mới nhất trước
     };
   }, [allRecords]);
 
@@ -415,13 +461,15 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const cardCls = 'bg-white border border-slate-200 rounded-xl shadow-sm';
 
   // Ô KPI bấm được: mở cửa sổ chi tiết đúng tập dòng tạo ra con số đó
-  const Kpi = ({ label, value, unit, tone = 'text-slate-900', sub, spec }: {
+  const Kpi = ({ label, value, unit, tone = 'text-slate-900', sub, spec, hint }: {
     label: string; value: string; unit?: string; tone?: string; sub?: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
+    /** Giải thích cách tính (rê chuột) */
+    hint?: string;
   }) => (
     <button
       type="button"
       onClick={() => openDetail({ eyebrow: 'Chỉ số', title: label, ...spec })}
-      title="Bấm để xem chi tiết"
+      title={hint ? `${hint}\nBấm để xem chi tiết` : 'Bấm để xem chi tiết'}
       className={`${cardCls} group px-4 py-3 text-left transition hover:border-slate-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}
     >
       <p className="flex items-center justify-between text-[0.6875rem] font-medium tracking-wide text-slate-500">
@@ -507,25 +555,33 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
       <div className="p-4 md:p-6 space-y-4">
         {/* KPI */}
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 xl:grid-cols-10 gap-3">
           {/* Mỗi ô: pred = đúng điều kiện đã dùng để tính con số trong khối KPI ở trên */}
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
                spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm theo mã công trình).' }} />
           <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
                spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
           <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600"
-               spec={{ pred: r => r.status === 'HỦY', focus: 'items', note: 'Hạng mục có Tình trạng IPO = HỦY (không tính giá trị).' }} />
+               spec={{ pred: r => r.status === 'HỦY', focus: 'items', note: 'Hạng mục có Tình trạng IPO = HỦY (trị giá vẫn tính vào Tổng giá trị — lọc Tình trạng IPO để bỏ).' }} />
           <Kpi label="Hạng mục đã nhập kho" value={fmtInt(kpi.stocked)} tone="text-emerald-600"
                spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá đơn hàng (không tính đơn hủy).' }} />
           <Kpi label="Hạng mục chưa nhập kho" value={fmtInt(kpi.notStocked)} tone="text-amber-600"
                sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần` : undefined}
                spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
           <Kpi label="Tổng giá trị" value={fmtTy(kpi.total)} unit="Tỷ"
-               spec={{ pred: r => r.status !== 'HỦY', focus: 'total', note: 'Tổng trị giá đơn hàng, không tính đơn hủy.' }} />
+               spec={{ pred: () => true, focus: 'total', note: 'Tổng trị giá đơn hàng, gồm cả đơn hủy (khớp file gốc) — lọc Tình trạng IPO để bỏ hủy.' }} />
           <Kpi label="Giá trị đã nhập kho" value={fmtTy(kpi.done)} unit="Tỷ" tone="text-emerald-600"
                spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
           <Kpi label="Giá trị chưa nhập kho" value={fmtTy(kpi.remain)} unit="Tỷ" tone="text-amber-600"
-               spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho.' }} />
+               spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
+          <Kpi label="Đã xuất / giao" value={fmtTy(kpi.exported)} unit="Tỷ" tone="text-sky-700"
+               hint={`= Đã nhập kho − Tồn kho (theo từng hạng mục). Bảng xuất kho ghi ${fmtTy(kpi.exportedRecorded)} tỷ nhưng chỉ có dữ liệu từ 01/2025 — hạng mục giao trước đó không có số xuất.`}
+               spec={{ pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' }} />
+          <Kpi label="Tồn kho" value={fmtTy(kpi.stock)} unit="Tỷ" tone="text-violet-700"
+               hint={kpi.stockOverItems > 0
+                 ? `Tồn kho hiện tại (khớp bảng tồn kho). ${fmtInt(kpi.stockOverItems)} hạng mục có tồn kho tính theo đơn giá cao hơn giá trị đã nhập (lệch ${fmtTy(kpi.stockOver)} tỷ) nên Đã nhập ≈ Đã xuất / giao + Tồn kho.`
+                 : 'Tồn kho hiện tại (khớp bảng tồn kho). Đã nhập = Đã xuất / giao + Tồn kho.'}
+               spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất — khớp bảng tồn kho).' }} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -533,7 +589,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div className="xl:col-span-3 space-y-4">
             <div className={`${cardCls} p-4`}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng → ngày cần giao</span></p>
+                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng → ngày cần giao → ngày cần PM → BOT dự án</span></p>
                 <div className="flex items-center gap-3 text-[0.6875rem] text-slate-500">
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã nhập kho</span>
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
@@ -541,7 +597,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={monthData} margin={{ top: 8, right: 4, left: -14, bottom: 0 }}>
+                  <BarChart data={monthChartData} margin={{ top: 8, right: 4, left: -14, bottom: 0 }}>
                     <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatTy(v)} />
@@ -550,10 +606,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                       formatter={(v: number, name: string) => [`${formatTy(v)} Tỷ`, name === 'done' ? 'Đã nhập kho' : 'Chưa nhập kho']}
                     />
                     <Bar dataKey="done" stackId="a" fill={COLOR_DONE} cursor="pointer" onClick={(d: any) => openMonthDetail(d.key ?? d.payload?.key)}>
-                      {monthData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
+                      {monthChartData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
                     </Bar>
                     <Bar dataKey="remain" stackId="a" fill={COLOR_REMAIN} radius={[3, 3, 0, 0]} cursor="pointer" onClick={(d: any) => openMonthDetail(d.key ?? d.payload?.key)}>
-                      {monthData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
+                      {monthChartData.map(d => <Cell key={d.key} opacity={f.month && f.month !== d.key ? 0.25 : 1} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -760,7 +816,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             </div>
 
             {/* Số liệu tổng — ô đang xem được tô viền */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 px-5 py-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 px-5 py-4">
               <PcStat label="Công trình" value={fmtInt(detailData.cts)} />
               <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} />
               <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} />
@@ -770,6 +826,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 sub={`${(detailData.total > 0 ? (detailData.done / detailData.total) * 100 : 0).toFixed(1)}% tổng giá trị`}
               />
               <PcStat label="Chưa nhập kho" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
+              <PcStat label="Đã xuất / giao" value={fmtTy(detailData.exported)} unit="Tỷ" tone="text-sky-700" active={detail.focus === 'exported'} />
+              <PcStat label="Tồn kho" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} />
             </div>
 
             <div className="flex items-center justify-between gap-3 px-5 pb-2">
@@ -798,6 +856,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'total' ? 'text-slate-900' : ''}`}>Tổng GT (Tỷ)</th>
                     <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'done' ? 'text-slate-900' : ''}`}>Đã nhập kho (Tỷ)</th>
                     <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'remain' ? 'text-slate-900' : ''}`}>Chưa nhập kho (Tỷ)</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'exported' ? 'text-slate-900' : ''}`}>Đã xuất / giao (Tỷ)</th>
+                    <th className={`text-right font-medium px-2 py-2 ${detail.focus === 'stock' ? 'text-slate-900' : ''}`}>Tồn kho (Tỷ)</th>
                     <th className="text-left font-medium px-2 py-2 w-32">% hoàn thành</th>
                     <th className="w-6" />
                   </tr>
@@ -819,6 +879,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                         <td className={`px-2 py-1.5 text-right tabular-nums ${strong('total')}`}>{fmtTy(p.total)}</td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${strong('done')}`}>{fmtTy(p.done)}</td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${strong('remain')}`}>{fmtTy(p.total - p.done)}</td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('exported')}`}>{fmtTy(p.exported)}</td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${strong('stock')}`}>{fmtTy(p.stock)}</td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
@@ -832,7 +894,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     );
                   })}
                   {detailProjects.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                    <tr><td colSpan={11} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
                   )}
                 </tbody>
                 {detailProjects.length > 0 && (
@@ -845,6 +907,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                       <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.total, 0))}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.done, 0))}</td>
                       <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.total - p.done, 0))}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.exported, 0))}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{fmtTy(detailProjects.reduce((s, p) => s + p.stock, 0))}</td>
                       <td colSpan={2} />
                     </tr>
                   </tfoot>

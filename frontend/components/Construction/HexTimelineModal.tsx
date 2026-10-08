@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, CalendarClock } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
-import { parsePlanDate, deadlineOf, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE } from '../../utils/productionMetrics';
+import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE } from '../../utils/productionMetrics';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { workshopGroupOf } from '../../utils/workshopGroups';
+import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL } from '../../utils/nvlParse';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import type { HexBom } from './ProjectHealthTabs';
@@ -109,7 +110,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     if (!row) return null;
     const stage = extractStage(row.bop);
     const cur = stageIdx(stage);
-    const dl = deadlineOf(row, { khnkTuanKey: 'ngay_khnk_tuan', khnkThangKey: 'ngay_khnk_thang', ngayCanGiaoKey: 'ngay_can_giao' });
+    const dl = deadlineOf(row, RAW_DEADLINE_KEYS);
     const qtyOrder = Number(row.so_luong_don_hang_tong) || 0;
     const qtyTicket = Number(row.so_luong_tinh_phieu) || 0;
     const qtyIn = Math.max(Number(row.so_luong_nhap_kho_luy_ke) || 0, 0);
@@ -147,19 +148,39 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       },
     ];
 
-    // Mốc BOT (hạn): KH tuần → KH tháng → cần giao là hạn đang dùng; ngày cần, BOT dự án để tham khảo
+    // Mốc BOT (hạn): KH tuần → KH tháng → cần giao → ngày cần (PM) → BOT dự án (nguồn đầu tiên có ngày là hạn đang dùng)
+    const slText = (v: unknown) => (v ? `SL ${fmtNum(v, 3)}` : '');
     const deadlines = [
-      { label: 'KH nhập kho tuần', date: dl.khnkTuan, used: dl.source === 'tuần', extra: row.sl_khnk_tuan ? `SL ${fmtNum(row.sl_khnk_tuan, 3)}` : '' },
-      { label: 'KH nhập kho tháng', date: dl.khnkThang, used: dl.source === 'tháng', extra: row.sl_khnk_thang ? `SL ${fmtNum(row.sl_khnk_thang, 3)}` : '' },
+      { label: 'KH nhập kho tuần', date: dl.khnkTuan, used: dl.source === 'tuần',
+        extra: [slText(row.sl_khnk_tuan), dl.tuanMet ? 'đã nhập đủ SL KH trong tuần' : ''].filter(Boolean).join(' · ') },
+      { label: 'KH nhập kho tháng', date: dl.khnkThang, used: dl.source === 'tháng',
+        extra: [slText(row.sl_khnk_thang), dl.thangMet ? 'đã nhập đủ SL KH trong tháng' : ''].filter(Boolean).join(' · ') },
       { label: 'Ngày cần giao', date: dl.canGiao, used: dl.source === 'cần giao', extra: '' },
-      { label: 'Ngày cần (PM)', date: parsePlanDate(row.ngay_can), used: false, extra: '' },
-      { label: 'BOT dự án', date: parsePlanDate(row.bot_du_an), used: false, extra: 'hạn chung công trình' },
+      { label: 'Ngày cần (PM)', date: dl.canPm, used: dl.source === 'cần PM', extra: '' },
+      { label: 'BOT dự án', date: dl.botDuAn, used: dl.source === 'BOT dự án', extra: 'hạn chung công trình' },
     ];
     const days = dl.date ? Math.floor((dl.date.getTime() - today) / DAY) : null;
     return { stage, cur, dl, days, qtyOrder, qtyTicket, qtyIn, full, stockIn, milestones, deadlines, valDone, valRemain, pctValue, cancelled };
   }, [row, today]);
 
   const dwell = row ? dwellBucket(row.so_ngay_cd_hien_tai) : null;
+  // Định mức + tình trạng NVL từ bảng sản xuất
+  const nvl = useMemo(() => ({ needs: parseNvlNeeds(row), status: parseNvlStatus(row) }), [row]);
+
+  // Kiểm tra mốc ngày bất thường
+  const checks = useMemo(() => {
+    if (!row || !d) return null;
+    const pm = parsePlanDate(row.ngay_nhan_tu_pm);
+    const tk = parsePlanDate(row.ngay_trien_khai_ban_ve);
+    const ph = parsePlanDate(row.ngay_tinh_phieu);
+    const warnings: string[] = [];
+    if (pm && tk && tk < pm) warnings.push('Ngày triển khai bản vẽ trước ngày nhận đơn từ PM');
+    if (d.cur >= 2 && !tk) warnings.push('Đã qua triển khai bản vẽ nhưng chưa ghi ngày triển khai bản vẽ');
+    if (tk && ph && ph < tk) warnings.push('Ngày tính phiếu trước ngày triển khai bản vẽ');
+    if (d.dl.date && tk && d.dl.date < tk) warnings.push(`Hạn đang dùng (${fmtDate(d.dl.date)}) trước ngày triển khai bản vẽ — hạn không thực tế`);
+    if (planAfterDue(d.dl)) warnings.push('KH nhập kho muộn hơn ngày cần giao — biết trước sẽ giao trễ');
+    return { warnings };
+  }, [row, d]);
   const openIssues = (issues ?? []).filter(v => !v.isResolved);
 
   return (
@@ -238,6 +259,18 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                 ))}
               </div>
 
+              {/* Mốc ngày bất thường (chỉ hiện khi có) */}
+              {checks && checks.warnings.length > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs">
+                  <p className="mb-1.5 font-semibold text-slate-700">Kiểm tra mốc ngày</p>
+                  <ul className="space-y-1">
+                    {checks.warnings.map(w => (
+                      <li key={w} className="text-amber-800"><AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
                 {/* BOP — tiến trình */}
                 <div className="rounded-lg border border-slate-200 p-4">
@@ -290,7 +323,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   <div className="rounded-lg border border-slate-200 p-4">
                     <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                       <CalendarClock size={14} /> Thời hạn (BOT)
-                      <span className="font-normal text-slate-400">· hạn dùng: KH tuần → KH tháng → cần giao</span>
+                      <span className="font-normal text-slate-400">· hạn dùng: KH tuần → KH tháng → cần giao → ngày cần (PM) → BOT dự án</span>
                     </p>
                     <ul className="divide-y divide-slate-100 text-xs">
                       {d.deadlines.map(x => {
@@ -326,7 +359,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                       </dl>
                     ) : <p className="text-slate-400">Đang tải vật tư…</p>}
                     {bom && bom.lines === 0 && (
-                      <p className="mt-1 text-amber-700">Chưa tìm thấy dòng PR nào ghi mã nhà máy của hạng mục — xem "Chưa có mã nhà máy chỉ định" ở tab BOM.</p>
+                      <p className="mt-1 text-amber-700">Chưa có dòng PR nào ghi mã nhà máy của hạng mục — vật tư có thể mua gộp theo công trình (khối "Vật tư chung" ở tab BOM) hoặc lấy từ tồn kho. Xem định mức NVL bên dưới.</p>
                     )}
                     <div className="mt-3 border-t border-slate-100 pt-2">
                       {openIssues.length === 0 ? (
@@ -348,6 +381,82 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   </div>
                 </div>
               </div>
+
+              {/* Định mức + tình trạng NVL theo hạng mục (bảng sản xuất, kế hoạch cập nhật) */}
+              {(nvl.needs.length > 0 || nvl.status.length > 0 || row.co_gia_cong_ngoai) && (
+                <div className="rounded-lg border border-slate-200">
+                  <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
+                    Định mức & tình trạng NVL{' '}
+                    <span className="font-normal text-slate-400">
+                      · theo bảng sản xuất (kế hoạch cập nhật) — có cả vật tư mua gộp theo công trình, không cần PR ghi mã
+                    </span>
+                  </p>
+                  <div className="grid gap-0 lg:grid-cols-2 lg:divide-x divide-slate-100">
+                    <div className="p-3">
+                      <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">Định mức vật tư</p>
+                      {nvl.needs.length === 0 ? (
+                        <p className="text-xs text-slate-400">Chưa có định mức.</p>
+                      ) : (
+                        <table className="w-full text-xs">
+                          <tbody className="divide-y divide-slate-100">
+                            {nvl.needs.map((n, idx) => (
+                              <tr key={idx}>
+                                <td className="py-1 pr-2 text-[0.6875rem] text-slate-400 whitespace-nowrap">{NVL_GROUP_LABEL[n.group]}</td>
+                                <td className="py-1 pr-2 text-slate-800">{n.name}</td>
+                                <td className="py-1 text-right tabular-nums whitespace-nowrap text-slate-700">
+                                  {n.qty !== null ? Number(n.qty.toFixed(3)).toLocaleString('vi-VN') : '—'} <span className="text-slate-400">{n.dvt}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                    <div className="p-3">
+                      <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
+                        Tình trạng mua theo hạng mục
+                        {nvl.status.length > 0 && <span className="ml-1 font-normal normal-case text-slate-400">· {nvl.status.filter(nvlLinePending).length} dòng còn chờ / {nvl.status.length}</span>}
+                      </p>
+                      {nvl.status.length === 0 ? (
+                        <p className="text-xs text-slate-400">Kế hoạch chưa ghi tình trạng mua cho hạng mục này.</p>
+                      ) : (
+                        <ul className="max-h-56 space-y-1 overflow-auto pr-1 custom-scrollbar">
+                          {nvl.status.map((l, idx) => {
+                            const pending = nvlLinePending(l);
+                            const dueDate = parsePlanDate(l.due);
+                            const late = pending && !!dueDate && dueDate.getTime() < today;
+                            return (
+                              <li key={idx} className={`rounded-md px-2 py-1.5 text-xs ${pending ? (late ? 'bg-orange-50' : 'bg-amber-50/60') : 'bg-slate-50'}`}>
+                                <div className="flex items-start gap-2">
+                                  <span className="min-w-0 flex-1 font-medium text-slate-800">{l.name}</span>
+                                  <span className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold ${
+                                    !pending ? 'bg-emerald-100 text-emerald-700' : late ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {!pending ? (l.state || (/CCLD/i.test(l.note) ? 'CCLD' : 'Đã về')) : late ? 'Trễ hẹn' : (l.state || 'Còn chờ')}
+                                  </span>
+                                </div>
+                                <div className="mt-0.5 text-[0.6875rem] text-slate-500">
+                                  {l.source === 'gcn' ? 'Gia công ngoài · ' : ''}
+                                  KL {l.req ?? '—'} · đã về {l.got ?? '—'} · còn {l.left ?? '—'}
+                                  {l.due ? ` · dự kiến giao ${l.due}` : ''}
+                                  {l.note ? ` · ${l.note}` : ''}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {row.co_gia_cong_ngoai && (
+                        <p className="mt-2 text-[0.6875rem] text-slate-500">
+                          Gia công ngoài: <span className="font-semibold text-slate-700">{String(row.tinh_trang_gcn ?? '—')}</span>
+                          {row.ngay_du_kien_ve_gcn ? ` · dự kiến về ${String(row.ngay_du_kien_ve_gcn)}` : ''}
+                          {row.xuong_yeu_cau_gcn ? ` · xưởng yêu cầu ${String(row.xuong_yeu_cau_gcn)}` : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Lịch sử nhập kho */}
               <div className="rounded-lg border border-slate-200">

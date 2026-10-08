@@ -63993,7 +63993,12 @@ var REPORT_COLUMNS = {
     "ten_pc",
     "ngay_can_giao",
     "ngay_khnk_thang",
-    "ngay_khnk_tuan"
+    "ngay_khnk_tuan",
+    // Hạn tham khảo khi chưa có KH / ngày cần giao (utils/productionMetrics.deadlineOf)
+    "ngay_can",
+    // Tổng quan công trình: giá trị đã xuất kho lũy kế / tồn kho hiện tại theo hạng mục
+    "thanh_tien_xuat_kho_luy_ke",
+    "thanh_tien_ton_kho_hien_tai"
   ],
   vat_tu: [
     "trang_thai",
@@ -64591,6 +64596,18 @@ var HEX_DETAIL_COLUMNS = [
   "tong_hop_thong_tin_qc",
   "tong_hop_ghi_chu_xuat_kho",
   "ghi_chu_don_hang_tong",
+  // Định mức + tình trạng NVL theo hạng mục (bảng sản xuất) — xem PRODUCTION_NVL_COLUMNS
+  "nvl_go_tam_veneer_khac",
+  "nvl_kinh_da",
+  "nvl_sofa",
+  "nvl_vecni",
+  "nvl_kim_loai",
+  "tinh_trang_nvl_khac_item_by_item",
+  "tinh_trang_nvl_kinh_da_item_by_item",
+  "tinh_trang_nvl_sofa_item_by_item",
+  "tinh_trang_gcn_chua_ve",
+  "xuong_yeu_cau_gcn",
+  "trang_thai_gcn",
   "updated_at"
 ];
 app.get("/api/production/hex/:hex", async (req, res) => {
@@ -64610,6 +64627,58 @@ app.get("/api/production/hex/:hex", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+var PLAN_MET_TTL_MS = 10 * 60 * 1e3;
+var planMetCache = null;
+app.get("/api/production/plan-met", async (_req, res) => {
+  try {
+    if (!planMetCache || Date.now() - planMetCache.at > PLAN_MET_TTL_MS) {
+      const r = await timedQuery(
+        `WITH p AS (
+           SELECT DISTINCT ON (hex::text) hex::text AS hex,
+             CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
+             sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
+           FROM production_status_app
+           WHERE hex IS NOT NULL AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
+           ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
+         ), n AS (
+           SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
+           FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
+         )
+         SELECT p.hex,
+           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE((SELECT SUM(sl) FROM n WHERE n.hex = p.hex
+              AND n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
+           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE((SELECT SUM(sl) FROM n WHERE n.hex = p.hex
+              AND n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+         FROM p`,
+        [],
+        { timeoutMs: 3e4 }
+      );
+      const rows = r.rows;
+      planMetCache = {
+        at: Date.now(),
+        data: { tuan: rows.filter((x) => x.tuan_met).map((x) => x.hex), thang: rows.filter((x) => x.thang_met).map((x) => x.hex) }
+      };
+    }
+    res.json(planMetCache.data);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/production/plan-met:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var PRODUCTION_NVL_COLUMNS = [
+  "nvl_go_tam_veneer_khac",
+  "nvl_kinh_da",
+  "nvl_sofa",
+  "nvl_vecni",
+  "nvl_kim_loai",
+  "tinh_trang_nvl_khac_item_by_item",
+  "tinh_trang_nvl_kinh_da_item_by_item",
+  "tinh_trang_nvl_sofa_item_by_item",
+  "co_gia_cong_ngoai",
+  "tinh_trang_gcn",
+  "ngay_du_kien_ve_gcn",
+  "tinh_trang_gcn_chua_ve"
+];
 var MATERIAL_BY_HEX_COLUMNS = [
   "ma_nha_may",
   "trang_thai",
@@ -64676,6 +64745,22 @@ app.post("/api/material/by-hex", async (req, res) => {
     if (hexes.length === 0) {
       return res.json(mode === "unassigned-count" ? { lines: 0, prs: 0 } : mode === "hex-counts" ? {} : { rows: [] });
     }
+    if (mode === "nvl") {
+      const c = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${PRODUCTION_NVL_COLUMNS.map((x) => `"${x}"`).join(", ")}
+         FROM production_status_app WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC`,
+        [hexes],
+        { timeoutMs: 2e4 }
+      );
+      const out = {};
+      c.rows.forEach((row) => {
+        const { hex: hex3, ...rest } = row;
+        const v = Object.fromEntries(Object.entries(rest).filter(([, x]) => x !== null && String(x).trim() !== ""));
+        if (Object.keys(v).length) out[String(hex3)] = v;
+      });
+      return res.json(out);
+    }
     if (mode === "hex-counts") {
       const c = await timedQuery(
         `WITH ${MATERIAL_CODES_CTE}
@@ -64699,6 +64784,42 @@ app.post("/api/material/by-hex", async (req, res) => {
       return res.json(c.rows[0] ?? { lines: 0, prs: 0 });
     }
     const selectCols = MATERIAL_BY_HEX_COLUMNS.map((c) => `v."${c}"`).join(", ");
+    if (mode === "project-uncoded") {
+      const u = await timedQuery(
+        `WITH prj AS (
+           SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
+           WHERE hex::text = ANY($1::text[]) AND COALESCE(TRIM(ma_cong_trinh), '') <> ''
+         ), base AS (
+           SELECT v.id FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
+         ), ${materialCodesCte("AND v.id IN (SELECT id FROM base)")},
+         known AS (
+           SELECT DISTINCT m.id FROM m JOIN production_status_app p ON p.hex::text = m.hex
+         ), x AS (
+           SELECT v.id,
+             CASE
+               WHEN NOT COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
+                AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
+                AND NOT COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14})([^0-9]|$)', FALSE) THEN 'uncoded'
+               ELSE 'badCode'
+             END AS kind,
+             CASE
+               WHEN COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14})([^0-9]|$)', FALSE)
+                 THEN 'M\xE3 nh\xE0 m\xE1y sai \u0111\u1ED9 d\xE0i (ph\u1EA3i 13 s\u1ED1, ho\u1EB7c HEX 9 s\u1ED1)'
+               WHEN v.id IN (SELECT id FROM m) AND v.id NOT IN (SELECT id FROM known)
+                 THEN 'M\xE3 nh\xE0 m\xE1y kh\xF4ng kh\u1EDBp HEX n\xE0o trong b\u1EA3ng s\u1EA3n xu\u1EA5t'
+             END AS bad_reason
+           FROM vat_tu v WHERE v.id IN (SELECT id FROM base)
+         )
+         SELECT x.kind, x.bad_reason, v.trackingno, v.ten_cong_trinh, ${selectCols}
+         FROM x JOIN vat_tu v ON v.id = x.id
+         WHERE x.kind = 'uncoded' OR x.bad_reason IS NOT NULL
+         ORDER BY v.trackingno, v.so_pr NULLS LAST, v.pr_line NULLS LAST
+         LIMIT 20000`,
+        [hexes],
+        { timeoutMs: 3e4 }
+      );
+      return res.json({ rows: u.rows });
+    }
     if (mode === "unassigned") {
       const u = await timedQuery(
         `WITH ${UNASSIGNED_CTE}
@@ -64748,10 +64869,11 @@ var PR_REASON_COLUMNS = {
   ten_pm: "ten_pm",
   khu_vuc_du_an: "khu_vuc_du_an",
   ten_cong_trinh: "ten_cong_trinh",
-  // Tháng hạn theo quy tắc chung: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao
+  // Tháng hạn theo quy tắc chung: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao → ngày cần (PM)
+  // → BOT dự án (utils/productionMetrics.deadlineOf; phần "KH kỳ đã đạt" chỉ áp ở giao diện)
   thang_can_giao: `COALESCE(TO_CHAR(COALESCE(
     CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END,
-    ngay_khnk_thang, ngay_can_giao), 'MM/YYYY'), '')`
+    ngay_khnk_thang, ngay_can_giao, ngay_can, bot_du_an), 'MM/YYYY'), '')`
 };
 app.post("/api/material/pr-hexes", async (req, res) => {
   try {

@@ -77,19 +77,46 @@ export const parsePlanDate = (v: unknown): Date | null => {
   return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
 };
 
-export type DeadlineSource = 'tuần' | 'tháng' | 'cần giao';
+// Hạn (BOT) của 1 hạng mục, ưu tiên: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao →
+// ngày cần (PM) → BOT dự án. 2 nguồn đầu là hạn THEO KẾ HOẠCH (đang chạy), 3 nguồn sau là hạn CAM KẾT.
+// KH tuần / tháng mà số lượng nhập kho TRONG kỳ đã đạt SL kế hoạch (server tính: /api/production/plan-met)
+// thì bỏ qua KH đó (không tính trễ) — hạn chuyển sang nguồn tiếp theo.
+export type DeadlineSource = 'tuần' | 'tháng' | 'cần giao' | 'cần PM' | 'BOT dự án';
+export const isPlanDeadline = (s: DeadlineSource | null | undefined): boolean => s === 'tuần' || s === 'tháng';
 
 export interface DeadlineKeys {
   khnkTuanKey: string;
   khnkThangKey: string;
   ngayCanGiaoKey: string;
+  /** Ngày cần (PM) — tham khảo khi chưa có KH / ngày cần giao */
+  ngayCanKey?: string;
+  /** BOT dự án (hạn chung công trình) */
+  botDuAnKey?: string;
+  /** Để biết KH tuần / tháng của hạng mục đã đạt chưa */
+  hexKey?: string;
 }
 
 export const resolveDeadlineKeys = (columns: ColumnDefinition[]): DeadlineKeys => ({
   khnkTuanKey: findColumnKey(columns, 'ngay_khnk_tuan') || 'ngay_khnk_tuan',
   khnkThangKey: findColumnKey(columns, 'ngay_khnk_thang') || 'ngay_khnk_thang',
   ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || 'ngay_can_giao',
+  // So khớp ĐÚNG tên (findColumnKey dò chuỗi con sẽ nhận nhầm ngay_can_giao)
+  ngayCanKey: columns.find(c => c.key === 'ngay_can')?.key ?? 'ngay_can',
+  botDuAnKey: findColumnKey(columns, 'bot_du_an') || 'bot_du_an',
+  hexKey: findColumnKey(columns, 'hex') || 'hex',
 });
+
+/** Khoá cố định cho dữ liệu lấy thẳng từ bảng sản xuất (cửa sổ chi tiết hạng mục, danh sách HEX). */
+export const RAW_DEADLINE_KEYS: DeadlineKeys = {
+  khnkTuanKey: 'ngay_khnk_tuan', khnkThangKey: 'ngay_khnk_thang', ngayCanGiaoKey: 'ngay_can_giao',
+  ngayCanKey: 'ngay_can', botDuAnKey: 'bot_du_an', hexKey: 'hex',
+};
+
+// HEX đã đạt SL KH tuần / tháng trong kỳ (nạp 1 lần khi mở app — xem services/dataService.loadPlanMet)
+let planMet = { tuan: new Set<string>(), thang: new Set<string>() };
+export const setPlanMet = (d: { tuan: string[]; thang: string[] }) => {
+  planMet = { tuan: new Set(d.tuan), thang: new Set(d.thang) };
+};
 
 export interface Deadline {
   date: Date | null;
@@ -97,22 +124,43 @@ export interface Deadline {
   khnkTuan: Date | null;
   khnkThang: Date | null;
   canGiao: Date | null;
+  canPm: Date | null;
+  botDuAn: Date | null;
+  /** KH tuần / tháng của kỳ đã nhập đủ SL kế hoạch (không tính trễ theo KH đó) */
+  tuanMet: boolean;
+  thangMet: boolean;
 }
 
-/** Ngày kế hoạch của 1 hạng mục: KH tuần → KH tháng → ngày cần giao. */
+/** Hạn của 1 hạng mục — quy tắc chung toàn app (xem chú thích DeadlineSource). */
 export const deadlineOf = (row: DataRow, k: DeadlineKeys): Deadline => {
   const khnkTuan = parsePlanDate(row[k.khnkTuanKey]);
   const khnkThang = parsePlanDate(row[k.khnkThangKey]);
   const canGiao = parsePlanDate(row[k.ngayCanGiaoKey]);
-  const date = khnkTuan ?? khnkThang ?? canGiao;
-  const source: DeadlineSource | null = khnkTuan ? 'tuần' : khnkThang ? 'tháng' : canGiao ? 'cần giao' : null;
-  return { date, source, khnkTuan, khnkThang, canGiao };
+  const canPm = k.ngayCanKey ? parsePlanDate(row[k.ngayCanKey]) : null;
+  const botDuAn = k.botDuAnKey ? parsePlanDate(row[k.botDuAnKey]) : null;
+  const hex = k.hexKey ? String(row[k.hexKey] ?? '').trim() : '';
+  const tuanMet = !!hex && !!khnkTuan && planMet.tuan.has(hex);
+  const thangMet = !!hex && !!khnkThang && planMet.thang.has(hex);
+  const tuan = tuanMet ? null : khnkTuan;
+  const thang = thangMet ? null : khnkThang;
+  const date = tuan ?? thang ?? canGiao ?? canPm ?? botDuAn;
+  const source: DeadlineSource | null = tuan ? 'tuần' : thang ? 'tháng' : canGiao ? 'cần giao'
+    : canPm ? 'cần PM' : botDuAn ? 'BOT dự án' : null;
+  return { date, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
 };
 
 export const DEADLINE_SOURCE_LABEL: Record<DeadlineSource, string> = {
   'tuần': 'KH nhập kho tuần',
   'tháng': 'KH nhập kho tháng',
   'cần giao': 'Ngày cần giao',
+  'cần PM': 'Ngày cần (PM)',
+  'BOT dự án': 'BOT dự án',
+};
+
+/** Kế hoạch nhập kho (KH tuần / tháng đang dùng) muộn hơn ngày cần giao — biết trước sẽ giao trễ. */
+export const planAfterDue = (d: Deadline): boolean => {
+  const plan = (d.tuanMet ? null : d.khnkTuan) ?? (d.thangMet ? null : d.khnkThang);
+  return !!plan && !!d.canGiao && plan.getTime() > d.canGiao.getTime();
 };
 
 // ---------------------------------------------------------------------------

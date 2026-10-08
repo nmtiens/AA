@@ -3,12 +3,13 @@ import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListCheck
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, doneValue, remainValue, isCancelledIpo } from '../../utils/productionMetrics';
+import { deadlineOf, doneValue, remainValue, isCancelledIpo, isPlanDeadline, planAfterDue } from '../../utils/productionMetrics';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
-import { BotTab, BopTab, BomTab, analyzeBom, PlanDateCell, type HexInfo, type MaterialLine } from './ProjectHealthTabs';
+import type { NvlRaw } from '../../utils/nvlParse';
+import { BotTab, BopTab, BomTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
 import { formatTrieuAsTy } from '../../utils/money';
@@ -16,7 +17,7 @@ import { formatTrieuAsTy } from '../../utils/money';
 // ============================================================================
 // Tổng quan 1 công trình (tầng 1): 3 thẻ BOT (thời hạn) · BOP (công đoạn) · BOM (vật tư)
 // + danh sách "Cần xử lý ngay" = hạng mục quá hạn / sắp hạn MÀ còn vướng thêm vấn đề khác,
-//   và "Chú ý" = hạng mục chưa nhập kho đủ mà không có BOT (không có ngày KH / cần giao).
+//   và "Chú ý" = hạng mục chưa nhập kho đủ mà không có BOT (không có KH, ngày cần giao, ngày cần PM lẫn BOT dự án).
 // Cùng định nghĩa "còn lại" với bảng Tình trạng đơn hàng theo công trình:
 // còn lại = trị giá - đã nhập kho (không âm), phân cột theo công đoạn BOP; đơn HỦY không tính.
 // ============================================================================
@@ -39,6 +40,9 @@ export interface ProjectHealthKeys {
   khnkThangKey: string;
   /** Ngày cần giao — dùng khi không có cả KH tuần lẫn KH tháng */
   ngayCanGiaoKey: string;
+  /** Ngày cần (PM) → BOT dự án: hạn cam kết tham khảo khi chưa có 3 nguồn trên */
+  ngayCanKey?: string;
+  botDuAnKey?: string;
 }
 
 interface Props {
@@ -63,6 +67,8 @@ const FIVE_M_VI: Record<FiveMCategory, string> = {
   man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường',
 };
 const DAY = 86_400_000;
+// Nguồn hạn được xét cho "Cần xử lý ngay" (hạn theo KH + ngày cần giao; không gồm ngày cần PM / BOT dự án)
+const URGENT_SOURCES = new Set<string>(['tuần', 'tháng', 'cần giao']);
 
 const BUCKET_LABEL: Record<RemainBucket, string> = {
   notDeployed: 'Chưa triển khai',
@@ -126,7 +132,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
       const stage = extractStage(row[keys.bopKey]);
       const status = String(row[keys.tinhTrangKey] ?? '').toUpperCase();
       // BOT: KH nhập kho tuần → KH nhập kho tháng → ngày cần giao (quy tắc chung toàn app)
-      const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = deadlineOf(row, keys);
+      const dl = deadlineOf(row, keys);
+      const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = dl;
       const open = remain > 0;
       const t = deadline?.getTime();
       out.push({
@@ -145,6 +152,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
         khnkTuan,
         khnkThang,
         canGiao,
+        khnkTuanMet: dl.tuanMet,
+        khnkThangMet: dl.thangMet,
+        planAfterDue: open && planAfterDue(dl),
         overdue: open && t !== undefined && t < today,
         dueSoon: open && t !== undefined && t >= today && t - today <= DUE_SOON_DAYS * DAY,
       });
@@ -162,7 +172,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
   // ---------- Dữ liệu BOM + vướng mắc (gọi API khi mở) ----------
   const [matCount, setMatCount] = useState<Record<string, number> | null>(null);
   const [materialLines, setMaterialLines] = useState<MaterialLine[] | null>(null);
-  const [unassigned, setUnassigned] = useState<{ lines: number; prs: number } | null>(null);
+  // Vật tư chung của công trình: PR không ghi mã nhà máy (không gắn được hạng mục) + dòng ghi sai mã
+  const [projectLines, setProjectLines] = useState<ProjectMaterialLine[] | null>(null);
+  // Định mức + tình trạng NVL theo hạng mục (bảng sản xuất)
+  const [nvlByHex, setNvlByHex] = useState<Record<string, NvlRaw> | null>(null);
   const [openIssues, setOpenIssues] = useState<Record<string, number> | null>(null);
   // Vướng mắc M3 (Vật tư) chưa xử lý theo hex — dùng cho BOM
   const [materialIssues, setMaterialIssues] = useState<Record<string, VuongMacItem[]> | null>(null);
@@ -171,7 +184,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const [openIssueList, setOpenIssueList] = useState<Record<string, VuongMacItem[]>>({});
 
   useEffect(() => {
-    setMatCount(null); setMaterialLines(null); setUnassigned(null); setOpenIssues(null); setMaterialIssues(null);
+    setMatCount(null); setMaterialLines(null); setProjectLines(null); setNvlByHex(null); setOpenIssues(null); setMaterialIssues(null);
     if (!isOpen || hexList.length === 0) return;
     const ctrl = new AbortController();
     const token = getToken() ?? '';
@@ -194,7 +207,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
       }));
       setMaterialLines(list);
     }).catch(() => {});
-    post('unassigned-count').then(d => d && setUnassigned({ lines: Number(d.lines) || 0, prs: Number(d.prs) || 0 })).catch(() => {});
+    post('project-uncoded').then(d => setProjectLines(d?.rows ?? [])).catch(() => {});
+    post('nvl').then(d => setNvlByHex(d ?? {})).catch(() => {});
     fetchVuongMacList(hexList).then(map => {
       const o: Record<string, number> = {};
       const m3: Record<string, VuongMacItem[]> = {};
@@ -225,11 +239,17 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const dueSoon = open.filter(i => i.dueSoon);
     const dates = open.map(i => i.deadline).filter((d): d is Date => !!d).sort((a, b) => a.getTime() - b.getTime());
     const noDate = open.filter(i => !i.deadline).length;
+    // Quá hạn THEO KẾ HOẠCH (KH tuần / tháng đang chạy) vs CAM KẾT (cần giao / ngày cần PM / BOT dự án);
+    // cam kết quá > 90 ngày là hạn cũ chưa ai cập nhật KH
+    const overduePlan = overdue.filter(i => isPlanDeadline(i.deadlineSource)).length;
+    const overdueCommitOld = overdue.filter(i => !isPlanDeadline(i.deadlineSource) && i.deadline && (today - i.deadline.getTime()) / DAY > 90).length;
     return {
       overdue: overdue.length, overdueRemain: overdue.reduce((s, i) => s + i.remain, 0),
+      overduePlan, overdueCommit: overdue.length - overduePlan, overdueCommitOld,
+      planAfterDue: open.filter(i => i.planAfterDue).length,
       dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate,
     };
-  }, [items]);
+  }, [items, today]);
 
   const bop = useMemo(() => {
     const total = items.reduce((s, i) => s + i.total, 0);
@@ -241,9 +261,11 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
   // Phân tích vật tư theo trạng thái dòng PR (dùng chung với tab BOM)
   const bomDetail = useMemo(
-    () => analyzeBom(items, matCount, materialLines, today, materialIssues),
-    [items, matCount, materialLines, today, materialIssues]
+    () => analyzeBom(items, matCount, materialLines, today, materialIssues, nvlByHex),
+    [items, matCount, materialLines, today, materialIssues, nvlByHex]
   );
+
+  const projectMat = useMemo(() => summarizeProjectMaterial(projectLines, today), [projectLines, today]);
 
   const bom = useMemo(() => {
     if (!matCount) return null;
@@ -260,11 +282,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const flagsOf = (i: HexInfo): string[] => {
     const flags: string[] = [];
     if (i.bucket === 'notDeployed' || i.bucket === 'p002') flags.push(BUCKET_LABEL[i.bucket]);
-    // Chỉ cảnh báo vật tư khi hạng mục chưa bắt đầu sản xuất (P001 / P002 / P012 có phiếu chưa SX);
-    // đã lên chuyền thì vật tư đã có (có thể lấy từ tồn kho, không qua PR ghi mã nhà máy).
-    const beforeProduction = i.bucket === 'notDeployed' || i.bucket === 'p002' || i.stage === 'P012';
-    if (beforeProduction && matCount && !(matCount[i.hex] > 0)) flags.push('Chưa tìm thấy vật tư');
+    // Cùng nhóm đỏ của tab BOM: đã triển khai nhưng chưa sản xuất (P002 / P012), không có PR ghi mã và
+    // bảng sản xuất không ghi tình trạng mua đã về đủ. P001 (đã có cờ "Chưa triển khai") và hạng mục đã
+    // lên chuyền (vật tư mua gộp / tồn kho) không gắn cờ này.
     const mat = bomDetail?.byHex[i.hex]?.state;
+    if (mat === 'noneBeforeSx') flags.push('Đã triển khai, chưa SX – chưa thấy PR');
+    // KH nhập kho đang dùng muộn hơn ngày cần giao: biết trước sẽ giao trễ
+    if (i.planAfterDue) flags.push('KH NK sau ngày cần giao');
     if (mat === 'notOrdered') flags.push('Có VT chưa mua');
     else if (mat === 'late') flags.push('VT trễ hẹn giao');
     // Vướng mắc đang mở, ghi rõ loại (vd. "Vướng mắc M3 Vật tư ×2")
@@ -283,6 +307,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const res: (HexInfo & { flags: string[] })[] = [];
     for (const i of items) {
       if (!i.bucket || !(i.overdue || i.dueSoon)) continue;
+      // Chỉ xét hạn theo KH (tuần / tháng) và ngày cần giao. Hạn tham khảo (ngày cần PM / BOT dự án) vẫn hiện
+      // ở tab BOT nhưng không đẩy vào danh sách cần xử lý — tránh ngập hạng mục P001 quá hạn cam kết cũ.
+      if (!URGENT_SOURCES.has(i.deadlineSource ?? '')) continue;
       const flags = flagsOf(i);
       if (flags.length === 0) continue;
       res.push({ ...i, flags });
@@ -413,7 +440,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
             items={items}
             matCount={matCount}
             materialLines={materialLines}
-            unassigned={unassigned}
+            projectLines={projectLines}
+            nvlByHex={nvlByHex}
+            projectTag={projectName.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40)}
             onOpenMaterial={mode => openMaterial(mode)}
             onOpenHex={hex => openMaterial('matched', hex)}
             today={today}
@@ -423,11 +452,19 @@ export const ProjectHealthModal: React.FC<Props> = ({
         {tab === 'overview' && <>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {/* BOT — thời hạn */}
-          <Card icon={CalendarClock} title="BOT" sub="KH nhập kho → cần giao" tone={botTone} to="bot">
+          <Card icon={CalendarClock} title="BOT" sub="KH nhập kho → cần giao → ngày cần PM → BOT dự án" tone={botTone} to="bot">
             <p className={`text-3xl font-semibold tabular-nums ${bot.overdue > 0 ? 'text-red-600' : 'text-slate-900'}`}>
               {fmtInt(bot.overdue)} <span className="text-sm font-medium text-slate-500">hạng mục quá hạn</span>
             </p>
             {bot.overdue > 0 && <p className="text-xs text-red-600">còn {fmtTy(bot.overdueRemain)} tỷ chưa nhập kho</p>}
+            {bot.overdue > 0 && (
+              <p className="mt-0.5 text-[0.6875rem] text-slate-600">
+                <span title="Quá ngày KH nhập kho tuần / tháng đang chạy" className="font-semibold text-red-600">{fmtInt(bot.overduePlan)} theo KH</span>
+                {' · '}
+                <span title="Không có KH đang chạy, quá ngày cần giao / ngày cần PM / BOT dự án">{fmtInt(bot.overdueCommit)} theo cam kết</span>
+                {bot.overdueCommitOld > 0 && <span className="text-slate-400" title="Hạn cũ chưa cập nhật KH"> ({fmtInt(bot.overdueCommitOld)} quá &gt; 90 ngày)</span>}
+              </p>
+            )}
             <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 text-xs">
               <dt className="text-slate-500">Sắp hạn (≤ {DUE_SOON_DAYS} ngày)</dt>
               <dd className={`text-right font-semibold tabular-nums ${bot.dueSoon ? 'text-amber-600' : 'text-slate-700'}`}>{fmtInt(bot.dueSoon)}</dd>
@@ -435,8 +472,12 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <dd className="text-right tabular-nums text-slate-700">{fmtDate(bot.nearest)}</dd>
               <dt className="text-slate-500">Hạn cuối</dt>
               <dd className="text-right tabular-nums text-slate-700">{fmtDate(bot.last)}</dd>
+              {bot.planAfterDue > 0 && <>
+                <dt className="text-slate-500" title="KH nhập kho tuần / tháng đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ">KH nhập kho sau ngày cần giao</dt>
+                <dd className="text-right font-semibold tabular-nums text-amber-600">{fmtInt(bot.planAfterDue)}</dd>
+              </>}
               {bot.noDate > 0 && <>
-                <dt className="text-slate-500">Chưa có ngày KH / cần giao</dt>
+                <dt className="text-slate-500">Chưa có ngày (KH / cần giao / PM / BOT DA)</dt>
                 <dd className="text-right tabular-nums text-slate-700">{fmtInt(bot.noDate)}</dd>
               </>}
             </dl>
@@ -472,7 +513,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <>
                 <p className="text-3xl font-semibold tabular-nums text-slate-900">
                   {fmtInt(bom.withMat)}<span className="text-lg text-slate-400">/{fmtInt(hexList.length)}</span>
-                  <span className="ml-1 text-sm font-medium text-slate-500">hạng mục tìm thấy vật tư</span>
+                  <span className="ml-1 text-sm font-medium text-slate-500" title="Hạng mục có ít nhất 1 dòng PR ghi mã nhà máy của nó. Hạng mục còn lại: vật tư có thể ở PR chung của công trình (không mã), lấy từ tồn kho, hoặc chưa lên PR">hạng mục có PR ghi mã</span>
                 </p>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
                   <div className={`h-2 ${TONE[bomTone].dot}`} style={{ width: `${coverPct}%` }} />
@@ -486,9 +527,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <dd className="text-right font-semibold tabular-nums text-orange-600">{bomDetail ? fmtInt(bomDetail.counts.late) : '…'}</dd>
               <dt className="text-slate-500" title="Có dòng PR còn chờ sẽ về sau Ngày cần vật tư">Hạng mục có VT về sau ngày cần</dt>
               <dd className="text-right font-semibold tabular-nums text-red-600">{bomDetail ? fmtInt(bomDetail.afterNeed) : '…'}</dd>
-              <dt className="text-slate-500">Vật tư chưa có mã nhà máy</dt>
-              <dd className="text-right tabular-nums text-slate-700">
-                {unassigned === null ? '…' : `${fmtInt(unassigned.lines)} dòng · ${unassigned.prs} PR`}
+              <dt className="text-slate-500" title="PR thuộc công trình nhưng không ghi mã nhà máy => không gắn được hạng mục (xem tab BOM)">VT chung công trình (không mã)</dt>
+              <dd className={`text-right tabular-nums ${projectMat && (projectMat.byState.notOrdered + projectMat.byState.late) > 0 ? 'font-semibold text-rose-600' : 'text-slate-700'}`}>
+                {!projectMat ? '…' : `${fmtInt(projectMat.lines)} dòng · ${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.late)} trễ`}
               </dd>
               <dt className="text-slate-500" title="Vướng mắc loại M3 – Vật tư chưa xử lý (số vướng mắc · số hạng mục)">Vướng mắc vật tư (M3) đang mở</dt>
               <dd className={`text-right tabular-nums ${bomDetail?.issueTotal ? 'font-semibold text-red-600' : 'text-slate-700'}`}>
@@ -520,13 +561,17 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 type="button"
                 onClick={() => setListTab(k)}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  listTab === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  tone === 'red'
+                    ? (listTab === k ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100')
+                    : tone === 'amber'
+                      ? (listTab === k ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100')
+                      : (listTab === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100')
                 }`}
               >
                 <Icon size={15} className={listTab === k ? 'text-white' : tone === 'red' ? 'text-red-600' : tone === 'amber' ? 'text-amber-500' : 'text-slate-500'} />
                 {label}
                 <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
-                  listTab === k ? 'bg-white/20 text-white' : tone === 'red' ? 'bg-red-50 text-red-600' : tone === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600'
+                  listTab === k ? 'bg-white/20 text-white' : tone === 'red' ? 'bg-red-100 text-red-700' : tone === 'amber' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
                 }`}>
                   {k !== 'noBot' && (matCount === null || openIssues === null) ? '…' : fmtInt(n)}
                 </span>
@@ -534,10 +579,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
             ))}
             <span className="text-[0.6875rem] text-slate-500">
               {listTab === 'urgent'
-                ? <>Hạng mục quá hạn hoặc sắp hạn (KH nhập kho, không có thì ngày cần giao; ≤ {DUE_SOON_DAYS} ngày) mà còn vướng: chưa triển khai / chưa tính phiếu, chưa tìm thấy vật tư (khi chưa lên chuyền: P001 / P002 / P012), có VT chưa mua / trễ hẹn giao, hoặc có vướng mắc tồn đọng.</>
+                ? <>Hạng mục quá hạn hoặc sắp hạn (≤ {DUE_SOON_DAYS} ngày) theo KH nhập kho tuần / tháng hoặc ngày cần giao — không xét hạn tham khảo ngày cần (PM) / BOT dự án — mà còn vướng: chưa triển khai / chưa tính phiếu, đã triển khai chưa thấy PR, có VT chưa mua / trễ hẹn giao, KH nhập kho sau ngày cần giao, hoặc có vướng mắc tồn đọng.</>
                 : listTab === 'noBot'
-                  ? <>Hạng mục chưa nhập kho đủ mà chưa có BOT: không có KH nhập kho tuần, KH nhập kho tháng lẫn ngày cần giao — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.</>
-                  : <>Hạng mục chưa nhập kho đủ, đã có BOT, không thuộc "Cần xử lý ngay": còn xa hạn (&gt; {DUE_SOON_DAYS} ngày), hoặc quá hạn / sắp hạn nhưng không vướng vấn đề nào. Sắp theo hạn gần nhất.</>}
+                  ? <>Hạng mục chưa nhập kho đủ mà chưa có BOT: không có KH nhập kho tuần, KH nhập kho tháng, ngày cần giao, ngày cần (PM) lẫn BOT dự án — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.</>
+                  : <>Hạng mục chưa nhập kho đủ, đã có BOT, không thuộc "Cần xử lý ngay": còn xa hạn (&gt; {DUE_SOON_DAYS} ngày), quá hạn / sắp hạn nhưng không vướng vấn đề nào, hoặc chỉ có hạn tham khảo (ngày cần PM / BOT dự án — chưa có KH, ngày cần giao). Sắp theo hạn gần nhất.</>}
             </span>
           </div>
           {matCount === null || openIssues === null ? (
