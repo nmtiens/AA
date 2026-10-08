@@ -5,7 +5,7 @@ import { findColumnKey } from '../../utils/columnKeyResolver';
 import { parseNumber } from '../../utils/numberParsers';
 import { categoryValue, NO_DATA_LABEL } from '../../utils/filterMatch';
 import { exportOrderMixExcel, type MixExportRec } from '../../utils/orderMixExport';
-import { Download, Loader2, XCircle } from 'lucide-react';
+import { Download, Info, Loader2, XCircle } from 'lucide-react';
 import { formatTy } from '../../../../utils/money';
 
 // Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
@@ -405,13 +405,15 @@ interface Props {
    */
   metric?: Metric;
   onMetricChange?: (m: Metric) => void;
+  /** Bộ lọc phạm vi đang áp (vd. "Tình trạng IPO: 01. ĐANG SẢN XUẤT") — hiện ở dải tóm tắt */
+  scopeNote?: string;
 }
 
 const recCt = (r: Rec) => r.ct;
 const recTotal = (r: Rec) => r.total;
 
 export const ProductionDonutPanel: React.FC<Props> = ({
-  data, columns, selection, onSelectionChange, metric: metricProp, onMetricChange,
+  data, columns, selection, onSelectionChange, metric: metricProp, onMetricChange, scopeNote,
 }) => {
   const [metricState, setMetricState] = useState<Metric>('count');
   const metric = metricProp ?? metricState;
@@ -491,6 +493,7 @@ export const ProductionDonutPanel: React.FC<Props> = ({
       onClear={hasSel ? () => onSelectionChange({ kv: [], kh: [], pl: [] }) : undefined}
       onExport={handleExport}
       summary={summary}
+      scopeNote={scopeNote}
       charts={[
         { title: 'Theo khu vực', data: kvData, selected: selection.kv, onSelect: n => toggle('kv', n) },
         { title: 'Theo khách hàng', data: khData, selected: selection.kh, onSelect: n => toggle('kh', n) },
@@ -525,10 +528,19 @@ interface OrderMixCardProps {
   className?: string;
   /** Biểu đồ tròn cỡ lớn (mặc định). false = bản gọn cho chỗ hẹp */
   large?: boolean;
+  /** Bộ lọc phạm vi đang áp (vd. "Tình trạng IPO: 01. ĐANG SẢN XUẤT") — hiện ở dải tóm tắt */
+  scopeNote?: string;
 }
 
+// Giải thích phạm vi số liệu: KHÁC "Đơn hàng mới" (đơn nhận từ PM trong kỳ, bảng Đơn hàng tổng)
+const MIX_SCOPE_HELP =
+  'Tính trên các hạng mục đang theo dõi trong bảng sản xuất, theo bộ lọc tổng của trang '
+  + '(Tình trạng IPO, công trình, xưởng…) — KHÔNG lọc theo ngày.\n'
+  + 'Khác với "Đơn hàng mới (P001)": đó là đơn nhận từ PM trong khoảng ngày đang chọn (bảng Đơn hàng tổng), '
+  + 'nên hai con số không cần bằng nhau.';
+
 export const OrderMixCard: React.FC<OrderMixCardProps> = ({
-  metric, onMetricChange, onClear, charts, summary, onExport, className = 'flex-1', large = true,
+  metric, onMetricChange, onClear, charts, summary, onExport, className = 'flex-1', large = true, scopeNote,
 }) => {
   const picked = charts.flatMap(c => c.selected ?? []);
   const [exporting, setExporting] = useState(false);
@@ -552,7 +564,13 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
             Nhóm đơn hàng
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">Theo khu vực, khách hàng, nhóm sản phẩm</p>
+          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+            Hạng mục đang theo dõi · không theo ngày
+            <span title={MIX_SCOPE_HELP} aria-label={MIX_SCOPE_HELP} className="inline-flex cursor-help text-slate-400 hover:text-slate-600">
+              <Info size={13} />
+            </span>
+          </p>
+          <p className="text-[0.6875rem] text-slate-400">Theo khu vực, khách hàng, nhóm sản phẩm</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {onClear && (
@@ -600,6 +618,9 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
               ? <>Đang chọn: <span className="font-semibold text-slate-800">{picked.join(' · ')}</span></>
               : 'Tất cả (bấm vào biểu đồ để lọc)'}
           </p>
+          {scopeNote && (
+            <p className="text-[0.6875rem] text-slate-500 truncate" title={scopeNote}>{scopeNote}</p>
+          )}
           <div className="mt-1.5 grid grid-cols-3 divide-x divide-slate-200 text-center">
             {[
               { label: 'Công trình', value: fmtInt(summary.cts) },

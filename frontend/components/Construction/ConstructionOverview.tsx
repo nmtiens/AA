@@ -695,6 +695,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               metric={metric}
               onMetricChange={setMetric}
               summary={{ cts: kpi.cts, items: kpi.items, totalTy: kpi.total / UNIT }}
+              scopeNote={ipoSel.length ? `Tình trạng IPO: ${ipoSel.join(', ')}` : 'Tình trạng IPO: tất cả'}
               onExport={() => exportOrderMixExcel({
                 fileName: `co_cau_don_hang_cong_trinh_${new Date().toISOString().slice(0, 10)}`,
                 scopeLabel: filterSummary() || 'Tất cả',

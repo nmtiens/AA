@@ -4,6 +4,7 @@ import {
   Layers, Building2, Briefcase, XCircle as CloseIcon,
   TrendingUp,
   Table2,
+  Info,
 } from 'lucide-react';
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { DisplayModeToggle } from '../shared/DisplayModeToggle';
@@ -413,7 +414,18 @@ const periodLabel = overviewDateFilters.length > 1
                 <div className="p-2 bg-pink-100 rounded-lg text-pink-600 shadow-sm group-hover:scale-110 transition-transform">
                   <ShoppingCart size={20} />
                 </div>
-                <p className="text-sm font-bold text-pink-800 opacity-80 uppercase tracking-wide">1. Đơn hàng mới (P001)</p>
+                <div>
+                  <p className="text-sm font-bold text-pink-800 opacity-80 uppercase tracking-wide">1. Đơn hàng mới (P001)</p>
+                  <p className="text-[0.6875rem] text-pink-700/70 flex items-center gap-1">
+                    Nhận từ PM theo ngày
+                    <span
+                      title={'Đơn hàng có ngày nhận từ PM nằm trong ngày / tháng đang xem (bảng Đơn hàng tổng, không tính đơn HỦY).\nKhác thẻ "Nhóm đơn hàng": thẻ đó tính mọi hạng mục đang theo dõi theo bộ lọc Tình trạng IPO, không theo ngày.'}
+                      className="inline-flex cursor-help text-pink-400 hover:text-pink-700"
+                    >
+                      <Info size={12} />
+                    </span>
+                  </p>
+                </div>
               </div>
               <div className="z-10 flex flex-col items-start">
                 <span className="text-[0.625rem] font-bold text-pink-500 uppercase tracking-wider opacity-70 mb-1 block">
@@ -788,7 +800,7 @@ const periodLabel = overviewDateFilters.length > 1
         <ShoppingCart className="text-pink-600" size={20} />
         Chi tiết Đơn hàng mới (IPO)
       </h3>
-      <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn Đơn hàng tổng</p>
+      <p className="text-xs text-slate-500 mt-1">Đơn hàng nhận từ PM trong khoảng ngày đang chọn · nguồn Đơn hàng tổng (khác thẻ "Nhóm đơn hàng": hạng mục đang theo dõi, không theo ngày)</p>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-pink-200 rounded-lg p-1 shadow-sm">
       <button

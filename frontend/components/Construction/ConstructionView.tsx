@@ -1127,6 +1127,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
               // Nút Hạng mục / Giá trị dùng chung với phễu bên cạnh
               metric={workshopMetric === 'COUNT_HEX' ? 'count' : 'value'}
               onMetricChange={m => setWorkshopMetric(m === 'count' ? 'COUNT_HEX' : 'SUM_GT_DON_HANG')}
+              scopeNote={filters.tinhTrangIpo.length ? `Tình trạng IPO: ${filters.tinhTrangIpo.join(', ')}` : 'Tình trạng IPO: tất cả'}
             />
           }
         />
