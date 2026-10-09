@@ -998,11 +998,15 @@ export const BopTab = ({ items, onHexClick, extra, today }: {
           />
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục..." /></div>
         </div>
+        {/* Bảng BOP: gộp 3 cột KH tuần / KH tháng / Cần giao thành 1 cột "Hạn" (bảng 15 cột rộng 1.760px,
+            cột QC / GCN mới thêm rơi ra ngoài màn 1440) — chi tiết từng ngày xem ở tab BOT */}
         <HexTable
           rows={list}
+          planDates={false}
           onHexClick={onHexClick}
           hexClickTitle="Xem chi tiết hạng mục (BOP × BOT)"
           extraHead={<>
+            <th className={`${th} text-left`} title="Hạn đang dùng: KH nhập kho tuần → tháng (chi tiết ở tab BOT)">Hạn</th>
             <th className={`${th} text-left`}>Khu vực SX</th>
             <th className={`${th} text-left`}>Tình trạng</th>
             <th className={`${th} text-left`}>Ở công đoạn</th>
@@ -1023,6 +1027,10 @@ export const BopTab = ({ items, onHexClick, extra, today }: {
             const qm = QC_STATE_META[qs];
             return (
               <>
+                <td className={`${td} whitespace-nowrap tabular-nums ${!i.deadline ? 'text-slate-300' : i.overdue ? 'font-semibold text-red-600' : i.dueSoon ? 'font-semibold text-amber-600' : 'text-slate-600'}`}
+                    title={i.deadlineSource ? `KH nhập kho ${i.deadlineSource}` : 'Chưa có KH nhập kho tuần / tháng'}>
+                  {fmtDate(i.deadline)}
+                </td>
                 <td className={`${td} whitespace-nowrap text-slate-600`}>{i.area || '—'}</td>
                 <td className={`${td} whitespace-nowrap text-slate-600`}>{i.status || '—'}</td>
                 <td className={`${td} whitespace-nowrap`}>
@@ -1807,7 +1815,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
                 </button>
               ) : i.hex}
             </td>
-            <td className={`${td} max-w-[300px] truncate text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
+            <td className={`${td} max-w-[240px] truncate text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
             <td className={`${td} text-slate-600`}>{i.stage ?? '—'}</td>
             {planDates && <>
               <PlanDateCell i={i} which="tuần" />

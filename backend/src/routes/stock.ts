@@ -285,10 +285,15 @@ const STOCK_EXPORT_LABELS: Record<string, string> = {
   updated_at: 'CẬP NHẬT LÚC',
 };
 
+// Ô bắt đầu bằng = + - @ (hoặc tab / CR) bị Excel / LibreOffice hiểu là công thức (CSV injection): thêm dấu '
+// phía trước và luôn bọc trong dấu nháy kép. Số thuần (kể cả số âm) giữ nguyên để Excel vẫn đọc là số.
+const CSV_FORMULA_PREFIX = /^[=+\-@\t\r]/;
 const csvEscape = (value: any): string => {
   if (value === null || value === undefined) return '';
-  const str = String(value);
-  return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  let str = String(value);
+  const formulaLike = CSV_FORMULA_PREFIX.test(str) && !/^-?\d+(\.\d+)?$/.test(str);
+  if (formulaLike) str = `'${str}`;
+  return formulaLike || /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 };
 const stockExportLimiter = rateLimit({
   windowMs: 60 * 1000,

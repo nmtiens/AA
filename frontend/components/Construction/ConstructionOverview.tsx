@@ -555,7 +555,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       <p className={`mt-1 text-2xl font-semibold tabular-nums ${tone}`}>
         {value}{unit && <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span>}
       </p>
-      {sub && <p className="mt-0.5 text-[0.6875rem] text-slate-400">{sub}</p>}
+      {sub && <p className="mt-0.5 text-[0.6875rem] text-slate-500">{sub}</p>}
     </button>
   );
 
@@ -652,7 +652,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
       <div className="p-4 md:p-6 space-y-4">
         {/* KPI */}
-        <div className="grid grid-cols-2 md:grid-cols-5 xl:grid-cols-10 gap-3">
+        {/* 1280–1535px: 2 hàng × 5 ô (10 ô một hàng chỉ rộng ~100px, số bị cắt) */}
+        <div className="grid grid-cols-2 md:grid-cols-5 2xl:grid-cols-10 gap-3">
           {/* Mỗi ô: pred = đúng điều kiện đã dùng để tính con số trong khối KPI ở trên */}
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
                spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
@@ -712,13 +713,15 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </a>
         </div>
 
+        {/* 1280–1535px: trái 4 / giữa 8, thẻ Nhóm đơn hàng xuống hàng dưới (bảng công trình 9 cột cần ≥ 800px);
+            từ 1536px: 3 / 6 / 3 */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
           {/* Cột trái: biểu đồ theo tháng + bảng theo PC */}
-          <div className="xl:col-span-3 space-y-4">
+          <div className="xl:col-span-4 2xl:col-span-3 space-y-4">
             <div className={`${cardCls} p-4`}>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-400">· KH nhập kho tuần → tháng</span></p>
-                <div className="flex items-center gap-3 text-[0.6875rem] text-slate-500">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng</span></p>
+                <div className="flex items-center gap-3 whitespace-nowrap text-[0.6875rem] text-slate-500">
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã nhập kho</span>
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
                 </div>
@@ -760,14 +763,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <div className={`${cardCls} overflow-hidden`}>
               <p className="text-xs font-semibold text-slate-700 px-4 pt-3 pb-2">Theo người phụ trách (PC)</p>
               <div className="max-h-[340px] overflow-auto custom-scrollbar">
-                <table className="w-full text-xs">
+                <table className="w-full table-fixed text-xs">
                   <thead className="sticky top-0 bg-slate-50 text-slate-500">
                     <tr>
                       <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
                       <th className="text-left font-medium px-2 py-2">Tên PC</th>
-                      <th className="text-right font-medium px-2 py-2">CT</th>
-                      <th className="text-right font-medium px-2 py-2">Mục</th>
-                      <th className="text-right font-medium px-4 py-2">Tổng GT (Tỷ)</th>
+                      <th className="text-right font-medium px-2 py-2 w-10">CT</th>
+                      <th className="text-right font-medium px-2 py-2 w-14">Mục</th>
+                      <th className="text-right font-medium px-3 py-2 w-[4.5rem]" title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -815,7 +818,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
 
           {/* Cột giữa: danh sách công trình (rộng 6/12 cột, tên công trình hiện đầy đủ) */}
-          <div className={`xl:col-span-6 ${cardCls} overflow-hidden flex flex-col`}>
+          <div className={`xl:col-span-8 2xl:col-span-6 ${cardCls} overflow-hidden flex flex-col`}>
             <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
               <p className="text-xs font-semibold text-slate-700">Danh sách công trình ({fmtInt(ctTable.length)})</p>
               <div className="relative">
@@ -835,7 +838,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <th className="text-left font-medium px-2 py-2">PM</th>
                     <th className="text-right font-medium px-2 py-2">Mục</th>
                     <th className="text-right font-medium px-2 py-2">Tổng GT (Tỷ)</th>
-                    <th className="text-left font-medium px-2 py-2 w-32">Hoàn thành</th>
+                    <th className="text-left font-medium px-2 py-2 w-24">Hoàn thành</th>
                     <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT DA</th>
                     <th className="text-right font-medium px-2 py-2" title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
                     <th className="text-right font-medium pl-2 pr-4 py-2" title="Vướng mắc chưa xử lý xong (theo mã công trình)">VM</th>
@@ -851,7 +854,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
                         <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                        <td className="px-2 py-1.5 text-slate-800 min-w-[220px]">
+                        <td className="px-2 py-1.5 text-slate-800 min-w-[200px]">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
                             {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở HEX) */}
@@ -866,7 +869,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             </button>
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-slate-600 whitespace-nowrap" title={pms.join(', ')}>
+                        <td className="max-w-[120px] truncate px-2 py-1.5 text-slate-600 whitespace-nowrap" title={pms.join(', ')}>
                           {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
@@ -900,7 +903,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
 
           {/* Cột phải: thẻ "Cơ cấu đơn hàng" dùng chung với Tổng quan / Luồng đỏ / Căn mẫu */}
-          <div className="xl:col-span-3 flex flex-col">
+          <div className="xl:col-span-12 2xl:col-span-3 flex flex-col">
             <OrderMixCard
               metric={metric}
               onMetricChange={setMetric}

@@ -4,10 +4,15 @@ import { parseNumber } from './numberParsers';
 export const rowsToCsvString = (rows: Record<string, any>[]): string => {
   if (!rows || rows.length === 0) return '';
   const headers = Object.keys(rows[0]);
+  // Ô bắt đầu bằng = + - @ (hoặc tab / CR) bị Excel / LibreOffice hiểu là công thức (CSV injection): thêm dấu '
+  // phía trước và luôn bọc trong dấu nháy kép. Số thuần (kể cả số âm) giữ nguyên để Excel vẫn đọc là số.
+  // Cùng quy tắc với csvEscape ở backend/src/routes/stock.ts.
   const escapeCell = (val: any): string => {
     if (val === null || val === undefined) return '';
-    const s = String(val);
-    if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    let s = String(val);
+    const formulaLike = /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s);
+    if (formulaLike) s = `'${s}`;
+    if (formulaLike || s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
       return `"${s.replace(/"/g, '""')}"`;
     }
     return s;

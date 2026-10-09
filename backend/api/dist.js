@@ -66036,10 +66036,13 @@ var STOCK_EXPORT_LABELS = {
   ten_cong_trinh: "T\xCAN C\xD4NG TR\xCCNH",
   updated_at: "C\u1EACP NH\u1EACT L\xDAC"
 };
+var CSV_FORMULA_PREFIX = /^[=+\-@\t\r]/;
 var csvEscape = (value) => {
   if (value === null || value === void 0) return "";
-  const str = String(value);
-  return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+  let str = String(value);
+  const formulaLike = CSV_FORMULA_PREFIX.test(str) && !/^-?\d+(\.\d+)?$/.test(str);
+  if (formulaLike) str = `'${str}`;
+  return formulaLike || /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 };
 var stockExportLimiter = rate_limit_default({
   windowMs: 60 * 1e3,

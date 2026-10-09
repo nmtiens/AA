@@ -42,6 +42,18 @@ npm run dev --prefix backend
 npm run dev --prefix frontend
 ```
 
+## Tài liệu
+
+| Tài liệu | Dành cho |
+|---|---|
+| [Dựng môi trường phát triển](docs/huong-dan-dung-moi-truong.md) | người mới clone repo: .env, chạy SQL, chạy dev, lỗi thường gặp |
+| [Danh sách API](docs/tham-chieu-api.md) | tra nhanh 50+ endpoint, tham số, cache |
+| [Bảng dữ liệu](docs/tham-chieu-bang-du-lieu.md) | bảng ETL và bảng app tự quản, cột quan trọng, khoá nối |
+| [Quy tắc số liệu và kiến trúc](docs/giai-thich-so-lieu-va-kien-truc.md) | vì sao số ở các trang phải khớp nhau, luồng dữ liệu, đánh đổi |
+| [Quy trình vướng mắc](backend/sql/README_vuong_mac_quy_trinh.md) | trạng thái, quyền, API của app vướng mắc |
+
+Mẫu biến môi trường: `backend/.env.example`, `frontend/.env.example`.
+
 ## Quy ước quan trọng
 
 - **Đơn vị tiền:** mọi cột tiền trong DB lưu theo **triệu đồng** (xem `frontend/utils/money.ts`). Hiển thị "Tỷ" thì chia 1.000.

@@ -712,7 +712,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 );
               })}
             </div>
-            <p className="mt-2 text-[0.625rem] text-slate-400">
+            <p className="mt-2 text-[0.6875rem] text-slate-500">
               Theo cột tình trạng triển khai bản vẽ / phiếu ở bảng sản xuất (hạng mục đã vào sản xuất tính là đã qua). Bấm thẻ BOP để xem theo công đoạn.
             </p>
           </div>
