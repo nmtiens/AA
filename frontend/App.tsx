@@ -411,6 +411,10 @@ const MainLayout: React.FC = () => {
   const [workshopGroupsVersion, setWorkshopGroupsVersion] = useState(0);
   // Tăng khi nạp xong danh sách "KH nhập kho đã đạt trong kỳ" -> các trang tính lại hạn (BOT)
   const [planMetVersion, setPlanMetVersion] = useState(0);
+  // Bảng tên công trình của server đã nạp -> đổi tham chiếu dữ liệu các bảng để mọi bộ lọc theo công trình
+  // (Luồng đỏ / Căn mẫu…) tính lại (trước chỉ dữ liệu sản xuất tính lại: trang render trước khi bảng tên về thì
+  // thiếu dòng cho tới khi Làm mới)
+  const [aliasVersion, setAliasVersion] = useState(0);
 
   const location = useLocation();
 
@@ -424,7 +428,7 @@ const MainLayout: React.FC = () => {
     loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1));
     fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); });
     // Bảng tên công trình của server -> lọc theo công trình phía máy khớp server (đổi version để tính lại)
-    fetchProjectAliases().then(d => { setServerProjectAliases(d); setPlanMetVersion(v => v + 1); });
+    fetchProjectAliases().then(d => { setServerProjectAliases(d); setAliasVersion(v => v + 1); });
   }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ADMIN vừa lưu setup gộp xưởng (cache đã cập nhật) -> gộp lại dữ liệu, các trang gọi lại API
@@ -677,7 +681,7 @@ const MainLayout: React.FC = () => {
         loadTableColumnConfig(),
         loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
         fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
-        fetchProjectAliases().then(d => { setServerProjectAliases(d); setPlanMetVersion(v => v + 1); }),
+        fetchProjectAliases().then(d => { setServerProjectAliases(d); setAliasVersion(v => v + 1); }),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới
@@ -706,23 +710,24 @@ const MainLayout: React.FC = () => {
         productionColumns
       );
       // Nạp xong "KH đã đạt" thì đổi tham chiếu mảng để mọi trang tính lại hạn (deadlineOf đọc bộ nhớ chung)
-      return planMetVersion > 0 ? rows.slice() : rows;
+      return planMetVersion > 0 || aliasVersion > 0 ? rows.slice() : rows;
     },
-    [productionData, productionColumns, workshopGroupsVersion, planMetVersion] // eslint-disable-line react-hooks/exhaustive-deps
+    [productionData, productionColumns, workshopGroupsVersion, planMetVersion, aliasVersion] // eslint-disable-line react-hooks/exhaustive-deps
   );
   // Cột xưởng các bảng khác cũng theo setup gộp xưởng (bảng không có cột xưởng giữ nguyên)
   /* eslint-disable react-hooks/exhaustive-deps */
-  const wgMaterialData = useMemo(() => canonicalizeWorkshops(materialData, materialColumns), [materialData, materialColumns, workshopGroupsVersion]);
-  const wgKhsxData = useMemo(() => canonicalizeWorkshops(khsxData, khsxColumns), [khsxData, khsxColumns, workshopGroupsVersion]);
-  const wgOrderData = useMemo(() => canonicalizeWorkshops(orderData, orderColumns), [orderData, orderColumns, workshopGroupsVersion]);
-  const wgInventoryData = useMemo(() => canonicalizeWorkshops(inventoryData, inventoryColumns), [inventoryData, inventoryColumns, workshopGroupsVersion]);
-  const wgTkbvData = useMemo(() => canonicalizeWorkshops(tkbvData, tkbvColumns), [tkbvData, tkbvColumns, workshopGroupsVersion]);
-  const wgPthspData = useMemo(() => canonicalizeWorkshops(pthspData, pthspColumns), [pthspData, pthspColumns, workshopGroupsVersion]);
-  const wgAnalysisData = useMemo(() => canonicalizeWorkshops(analysisData, analysisColumns), [analysisData, analysisColumns, workshopGroupsVersion]);
-  const wgYearlyPlanData = useMemo(() => canonicalizeWorkshops(yearlyPlanData, yearlyPlanColumns), [yearlyPlanData, yearlyPlanColumns, workshopGroupsVersion]);
-  const wgExportData = useMemo(() => canonicalizeWorkshops(exportData, exportColumns), [exportData, exportColumns, workshopGroupsVersion]);
-  const wgStockData = useMemo(() => canonicalizeWorkshops(stockData, stockColumns), [stockData, stockColumns, workshopGroupsVersion]);
-  const wgAttendanceData = useMemo(() => canonicalizeWorkshops(attendanceData, attendanceColumns), [attendanceData, attendanceColumns, workshopGroupsVersion]);
+  const withAlias = (rows: DataRow[]) => (aliasVersion > 0 ? rows.slice() : rows);
+  const wgMaterialData = useMemo(() => withAlias(canonicalizeWorkshops(materialData, materialColumns)), [materialData, materialColumns, workshopGroupsVersion, aliasVersion]);
+  const wgKhsxData = useMemo(() => withAlias(canonicalizeWorkshops(khsxData, khsxColumns)), [khsxData, khsxColumns, workshopGroupsVersion, aliasVersion]);
+  const wgOrderData = useMemo(() => withAlias(canonicalizeWorkshops(orderData, orderColumns)), [orderData, orderColumns, workshopGroupsVersion, aliasVersion]);
+  const wgInventoryData = useMemo(() => withAlias(canonicalizeWorkshops(inventoryData, inventoryColumns)), [inventoryData, inventoryColumns, workshopGroupsVersion, aliasVersion]);
+  const wgTkbvData = useMemo(() => withAlias(canonicalizeWorkshops(tkbvData, tkbvColumns)), [tkbvData, tkbvColumns, workshopGroupsVersion, aliasVersion]);
+  const wgPthspData = useMemo(() => withAlias(canonicalizeWorkshops(pthspData, pthspColumns)), [pthspData, pthspColumns, workshopGroupsVersion, aliasVersion]);
+  const wgAnalysisData = useMemo(() => withAlias(canonicalizeWorkshops(analysisData, analysisColumns)), [analysisData, analysisColumns, workshopGroupsVersion, aliasVersion]);
+  const wgYearlyPlanData = useMemo(() => withAlias(canonicalizeWorkshops(yearlyPlanData, yearlyPlanColumns)), [yearlyPlanData, yearlyPlanColumns, workshopGroupsVersion, aliasVersion]);
+  const wgExportData = useMemo(() => withAlias(canonicalizeWorkshops(exportData, exportColumns)), [exportData, exportColumns, workshopGroupsVersion, aliasVersion]);
+  const wgStockData = useMemo(() => withAlias(canonicalizeWorkshops(stockData, stockColumns)), [stockData, stockColumns, workshopGroupsVersion, aliasVersion]);
+  const wgAttendanceData = useMemo(() => withAlias(canonicalizeWorkshops(attendanceData, attendanceColumns)), [attendanceData, attendanceColumns, workshopGroupsVersion, aliasVersion]);
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const contextValue = useMemo<MainLayoutContext>(() => ({

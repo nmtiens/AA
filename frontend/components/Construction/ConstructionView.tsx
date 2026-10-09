@@ -431,6 +431,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     filteredInventoryData,
     filteredAnalysisData,
   } = useUnifiedTimeFilters({
+    productionData: rawProductionData, productionColumns, inventoryColumns,
     inventoryData,
     analysisData,
     filters,

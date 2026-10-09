@@ -691,7 +691,17 @@ app.get('/api/detail', async (req: Request, res: Response) => {
     // Chiều thời gian
     if (dimension === 'period') {
       if (!parseSafeDate(value)) return res.status(400).json({ error: 'Invalid period value' });
-      const { start, end } = getPeriodRangeFromKey(value, granularity);
+      const range = getPeriodRangeFromKey(value, granularity);
+      // Cắt kỳ theo khoảng ngày đang xem (cột đầu / cuối của biểu đồ chỉ là 1 phần tuần / tháng) — trước lấy trọn
+      // kỳ nên chi tiết lớn hơn số trên cột
+      const iso = (d: Date) => d.toISOString().slice(0, 10);
+      const start = dateFrom && iso(dateFrom) > String(range.start).slice(0, 10) ? iso(dateFrom) : range.start;
+      const end = dateTo && iso(dateTo) < String(range.end).slice(0, 10) ? iso(dateTo) : range.end;
+      if (!isStock && explicitDates.length > 0) {
+        // Đang chọn các ngày rời rạc: chỉ những ngày đó trong kỳ (giống /api/trend)
+        params.push(explicitDates);
+        conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
+      }
       if (isStock && granularity !== 'day') {
         // [SNAPSHOT FIX] Khớp đúng cách /api/trend tính cột tuần/tháng: chỉ lấy
         // ĐÚNG 1 ngày đại diện (mới nhất trong kỳ) — không liệt kê cả tuần/tháng.
@@ -788,7 +798,7 @@ app.get('/api/detail', async (req: Request, res: Response) => {
 
     // Cửa sổ chi tiết tự chia trang (200 dòng/trang) => tải tối đa 5.000 dòng (trước 500: 1 xưởng
     // trong 1 tháng đã vượt, danh sách bị cắt). Vượt mức này cửa sổ vẫn báo đã giới hạn.
-    const DETAIL_LIMIT = 5000;
+    const DETAIL_LIMIT = 10000; // đủ 1 ảnh chụp tồn kho (~5.100 dòng) — 5000 cắt mất danh sách tồn kho
     const q = `
       ${withClause}
       SELECT ${selectClause}

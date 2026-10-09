@@ -44488,7 +44488,10 @@ var load = async () => {
      )
      SELECT code, ARRAY_AGG(DISTINCT name) AS names
      FROM keep
+     -- B\u1ECF t\xEAn r\xE1c (ch\u1EC9 g\u1ED3m s\u1ED1 / k\xFD t\u1EF1 gi\u1EEF ch\u1ED7 nh\u01B0 "0", "-", "#N/A", ho\u1EB7c < 3 k\xFD t\u1EF1): kh\xF4ng \u0111\u01B0\u1EE3c th\xE0nh
+     -- c\xE1ch vi\u1EBFt c\u1EE7a 1 c\xF4ng tr\xECnh (tr\u01B0\u1EDBc "0" \u1EDF nh\u1EADp kho b\u1ECB g\u1ED9p v\xE0o HYATT REGENCY NT PUBLIC)
      WHERE COALESCE(code, '') <> '' AND name <> ''
+       AND LENGTH(name) >= 3 AND name !~ '^[0-9[:punct:][:space:]]+$' AND name !~ '^#'
      GROUP BY code`,
     [],
     { timeoutMs: 6e4 }
@@ -64742,14 +64745,15 @@ var materialCodesCte = (extraWhere = "") => `m AS (
     AND (LENGTH(t) = 13 OR (src.source = 'ma_nha_may' AND LENGTH(t) = 9))
 )`;
 var MATERIAL_CODES_CTE = materialCodesCte();
-var prjCodesSql = (codeExpr) => `UNNEST(ARRAY[${codeExpr}, SUBSTRING(${codeExpr} FROM '-([0-9]{8,})$')])`;
+var prjCodesSql = (codeExpr) => `UNNEST(ARRAY[${codeExpr}, SUBSTRING(${codeExpr} FROM '-([0-9]{7,})$')])`;
 var UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
   SELECT DISTINCT c AS code
   FROM production_status_app p
   CROSS JOIN LATERAL ${prjCodesSql("UPPER(TRIM(p.ma_cong_trinh))")} AS c
   WHERE p.hex::text = ANY($1::text[])
     AND COALESCE(TRIM(p.ma_cong_trinh), '') <> ''
-    AND NOT EXISTS (SELECT 1 FROM m WHERE m.hex = p.hex::text)
+    AND NOT EXISTS (SELECT 1 FROM m JOIN vat_tu vv ON vv.id = m.id WHERE m.hex = p.hex::text
+                    AND UPPER(COALESCE(vv.trang_thai, '') || ' ' || COALESCE(vv.trang_thai_sap, '')) NOT LIKE '%H\u1EE6Y%')
     AND c IS NOT NULL
 ), u AS (
   SELECT v.*
@@ -64834,7 +64838,9 @@ app.post("/api/material/by-hex", async (req, res) => {
                 AND v.id NOT IN (SELECT id FROM known)
                  THEN 'M\xE3 nh\xE0 m\xE1y sai \u0111\u1ED9 d\xE0i (ph\u1EA3i 13 s\u1ED1, ho\u1EB7c HEX 9 s\u1ED1)'
                WHEN v.id IN (SELECT id FROM m) AND v.id NOT IN (SELECT id FROM known)
-                 THEN 'M\xE3 nh\xE0 m\xE1y kh\xF4ng kh\u1EDBp HEX n\xE0o trong b\u1EA3ng s\u1EA3n xu\u1EA5t'
+                 THEN CASE WHEN COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
+                   THEN 'M\xE3 nh\xE0 m\xE1y kh\xF4ng kh\u1EDBp HEX n\xE0o trong b\u1EA3ng s\u1EA3n xu\u1EA5t'
+                   ELSE 'M\xE3 13 s\u1ED1 \u1EDF Item note PR kh\xF4ng kh\u1EDBp HEX n\xE0o trong b\u1EA3ng s\u1EA3n xu\u1EA5t' END
              END AS bad_reason
            FROM vat_tu v WHERE v.id IN (SELECT id FROM base)
          )
@@ -65248,7 +65254,7 @@ app.get("/api/overview/summary", async (req, res) => {
         periodCond = `${colBare("date_parsed")} BETWEEN $P1 AND $P2`;
         mtdCond = `${colBare("date_parsed")} BETWEEN $P3 AND $P4`;
         lastMonthCond = `${colBare("date_parsed")} BETWEEN $P5 AND $P6`;
-        localParams = [dateFromStr, dateToStr, monthStart, monthEnd, prevMonthStart, prevMonthEnd];
+        localParams = [dateFromStr, dateToStr, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
       }
       const baseIdx = allParams.length;
       localParams.forEach((p) => allParams.push(p));
@@ -65398,7 +65404,7 @@ app.get("/api/overview/by-group", async (req, res) => {
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
       ${joinClause}
-      WHERE ${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx}${extraWhere}
+      WHERE ${periodCond === "TRUE" ? `(${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx} OR ${colBare("date_parsed")} IS NULL)` : `${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx}`}${extraWhere}
       GROUP BY 1
       ORDER BY mtd_value DESC
     `;
@@ -66428,13 +66434,19 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       thParams.push(ngayList);
       planHexWhere += ` AND ngay = ANY($${thParams.length}::double precision[])`;
     }
+    if (isWeek) thParams.push(Number(nam));
+    const yIdx = thParams.length;
+    const wkStart = `to_date(($${yIdx}::int)::text || '-' || ph.tuan::int::text, 'IYYY-IW')`;
+    const inPlanExpr = isWeek ? `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text
+           AND nhap_kho.date_parsed BETWEEN GREATEST(${wkStart}, make_date($${yIdx}::int, 1, 1))
+                                        AND LEAST(${wkStart} + 6, make_date($${yIdx}::int, 12, 31)))` : `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND ph.thang = nhap_kho.thang)`;
     const thQuery = `
-      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex FROM khsx WHERE ${planHexWhere})
+      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex, thang, tuan FROM khsx WHERE ${planHexWhere})
       SELECT
         ${workshopGroupSql("xuong_chinh")} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        (hex::text IN (SELECT hex FROM plan_hex)) AS in_plan,
+        (${inPlanExpr}) AS in_plan,
         COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}
@@ -67086,7 +67098,14 @@ app.get("/api/detail", async (req, res) => {
     const explicitDates = isStock ? [] : parseExplicitDates(req);
     if (dimension === "period") {
       if (!parseSafeDate(value)) return res.status(400).json({ error: "Invalid period value" });
-      const { start, end } = getPeriodRangeFromKey(value, granularity);
+      const range = getPeriodRangeFromKey(value, granularity);
+      const iso = (d) => d.toISOString().slice(0, 10);
+      const start = dateFrom && iso(dateFrom) > String(range.start).slice(0, 10) ? iso(dateFrom) : range.start;
+      const end = dateTo && iso(dateTo) < String(range.end).slice(0, 10) ? iso(dateTo) : range.end;
+      if (!isStock && explicitDates.length > 0) {
+        params.push(explicitDates);
+        conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
+      }
       if (isStock && granularity !== "day") {
         params.push(start, end);
         conditions.push(
@@ -67166,7 +67185,7 @@ app.get("/api/detail", async (req, res) => {
     const cols = REPORT_COLUMNS[cfg.table] || [];
     if (cols.length === 0) return res.status(400).json({ error: "B\u1EA3ng kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3" });
     const selectClause = cols.map((c) => `${alias ? `${alias}.` : ""}"${c}"`).join(", ");
-    const DETAIL_LIMIT = 5e3;
+    const DETAIL_LIMIT = 1e4;
     const q = `
       ${withClause}
       SELECT ${selectClause}

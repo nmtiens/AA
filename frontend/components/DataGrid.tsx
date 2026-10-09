@@ -384,6 +384,8 @@ const DataGrid: React.FC<DataGridProps> = ({
 
     // Ô trống (null / "") không tính — trước "undefined" / "" bị đếm là 1 giá trị và kéo trung bình xuống
     const filled = values.filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    // Trung bình chỉ tính ô có số (ô "-", "LẤY"… không phải 0)
+    const numericCells = filled.filter(v => typeof v === 'number' || /\d/.test(String(v)));
 
     if (type === 'DISTINCT_COUNT') {
       return new Set(filled.map(v => String(v).trim())).size;
@@ -391,7 +393,7 @@ const DataGrid: React.FC<DataGridProps> = ({
 
     // For Sum and Average, we need numbers
     if (type === 'SUM' || type === 'AVERAGE') {
-      const numbers = filled.map(v => parseNumber(v));
+      const numbers = (type === 'AVERAGE' ? numericCells : filled).map(v => parseNumber(v));
       const sum = numbers.reduce((a, b) => a + b, 0);
 
       if (type === 'SUM') return sum;

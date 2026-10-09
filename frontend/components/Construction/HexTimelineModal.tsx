@@ -180,7 +180,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     if (d.cur >= 2 && !tk) warnings.push('Đã qua triển khai bản vẽ nhưng chưa ghi ngày triển khai bản vẽ');
     if (tk && ph && ph < tk) warnings.push('Ngày tính phiếu trước ngày triển khai bản vẽ');
     if (d.dl.date && tk && d.dl.date < tk) warnings.push(`Hạn đang dùng (${fmtDate(d.dl.date)}) trước ngày triển khai bản vẽ — hạn không thực tế`);
-    if (planAfterDue(d.dl)) warnings.push('KH nhập kho muộn hơn ngày cần giao — biết trước sẽ giao trễ');
+    // Chỉ cảnh báo khi hạng mục chưa nhập kho đủ (giống cờ ở cửa sổ tổng quan công trình)
+    if (!d.full && planAfterDue(d.dl)) warnings.push('KH nhập kho muộn hơn ngày cần giao — biết trước sẽ giao trễ');
     return { warnings };
   }, [row, d]);
   const openIssues = (issues ?? []).filter(v => !v.isResolved);
@@ -238,7 +239,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '' },
                   {
                     label: 'Hạn (BOT)', value: fmtDate(d.dl.date),
-                    sub: d.dl.source ? `KH nhập kho ${d.dl.source}${d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
+                    sub: d.dl.source ? `KH nhập kho ${d.dl.source}${d.full ? ' · đã nhập kho đủ' : d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
                     tone: d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
                   },
                   {

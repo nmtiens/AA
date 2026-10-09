@@ -185,6 +185,7 @@ const {
   filteredInventoryData,
   filteredAnalysisData,
 } = useUnifiedTimeFilters({
+    productionData: productionData, productionColumns, inventoryColumns,
   inventoryData,
   analysisData,
  filters: effectiveFilters,

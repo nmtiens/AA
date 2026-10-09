@@ -107,7 +107,8 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
         periodCond = `${colBare('date_parsed')} BETWEEN $P1 AND $P2`;
         mtdCond = `${colBare('date_parsed')} BETWEEN $P3 AND $P4`;
         lastMonthCond = `${colBare('date_parsed')} BETWEEN $P5 AND $P6`;
-        localParams = [dateFromStr, dateToStr, monthStart, monthEnd, prevMonthStart, prevMonthEnd];
+        // Lũy kế tháng tính đến ngày xem (dateTo), không đến cuối tháng — khớp /overview/by-group và nhánh dates
+        localParams = [dateFromStr, dateToStr, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
       }
 
       const baseIdx = allParams.length;
@@ -288,7 +289,10 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
       ${joinClause}
-      WHERE ${colBare('date_parsed')} BETWEEN $${outerLoIdx} AND $${outerHiIdx}${extraWhere}
+      WHERE ${periodCond === 'TRUE'
+        // Toàn bộ thời gian: gồm cả dòng không có ngày (vd. đơn hàng thiếu ngày nhận từ PM) — giống /overview/summary
+        ? `(${colBare('date_parsed')} BETWEEN $${outerLoIdx} AND $${outerHiIdx} OR ${colBare('date_parsed')} IS NULL)`
+        : `${colBare('date_parsed')} BETWEEN $${outerLoIdx} AND $${outerHiIdx}`}${extraWhere}
       GROUP BY 1
       ORDER BY mtd_value DESC
     `;

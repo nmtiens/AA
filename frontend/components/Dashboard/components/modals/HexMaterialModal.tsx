@@ -5,7 +5,7 @@ import { formatSmartDecimal } from '../../utils/numberParsers';
 import { downloadCsvFile, rowsToCsvString } from '../../utils/csvExport';
 import { MaterialPrTable, buildPrGroups, prGroupsToCsvRows } from './MaterialPrTable';
 import { PrHexDetailModal } from './PrHexDetailModal';
-import { isMaterialMissing } from '../../../../utils/productionMetrics';
+import { isMaterialMissing, materialLineState } from '../../../../utils/productionMetrics';
 
 // Vật tư liên quan đến các hạng mục (hex). Bảng vat_tu không có hex trực tiếp:
 // backend map bằng mã nhà máy bỏ 4 số đầu (xem /api/material/by-hex).
@@ -247,11 +247,13 @@ export const HexMaterialModal = ({
 
   const stats = useMemo(() => {
     const all = rows || [];
-    const hexWithMaterial = new Set(all.flatMap(r => r.hexes)).size;
+    // "Hex có vật tư" không tính dòng PR đã HỦY — khớp số "N VT" ở danh sách HEX và tab BOM
+    const live = all.filter(r => materialLineState(r) !== 'cancelled');
+    const hexWithMaterial = new Set(live.flatMap(r => r.hexes)).size;
     const prCount = new Set(all.map(r => r.so_pr).filter(v => v != null)).size;
     const missing = all.filter(isMaterialMissing).length;
     const projectCount = new Set(all.map(r => r.trackingno).filter(Boolean)).size;
-    return { lines: all.length, hexWithMaterial, prCount, missing, projectCount };
+    return { lines: all.length, cancelled: all.length - live.length, hexWithMaterial, prCount, missing, projectCount };
   }, [rows]);
 
   // Dòng vật tư mua gộp có thể khớp hàng chục hex: mặc định ô nhiều giá trị chỉ hiện
@@ -354,7 +356,7 @@ export const HexMaterialModal = ({
 
         <div className="grid shrink-0 grid-cols-2 gap-3 px-5 pt-3 sm:grid-cols-4">
           {[
-            { label: 'Dòng vật tư', value: stats.lines, cls: 'text-slate-800' },
+            { label: stats.cancelled ? `Dòng vật tư (gồm ${stats.cancelled} hủy)` : 'Dòng vật tư', value: stats.lines, cls: 'text-slate-800' },
             isUnassigned
               ? { label: 'Công trình', value: stats.projectCount, cls: 'text-slate-800' }
               : { label: 'Hex có vật tư', value: `${stats.hexWithMaterial} / ${hexes.length}`, cls: 'text-slate-800' },

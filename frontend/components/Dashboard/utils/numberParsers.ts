@@ -7,6 +7,9 @@ export const parseNumber = (valStr: string | number | null | undefined): number 
 
   let s = String(valStr).trim();
   if (!s) return 0;
+  // Ô số bị ghi NGÀY ("2026-12-21 00:00:00" — lỗi file nguồn KHSX): không phải số => 0 (trước thành
+  // 20.261.221.000.000 làm tổng phình hàng nghìn lần)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) return 0;
   // Dạng khoa học (vd "8e-06" — số double rất nhỏ ghi thành chuỗi): đọc thẳng, nếu không phần lọc ký tự
   // bên dưới sẽ bỏ "e-" và hiểu nhầm thành 806
   if (/^-?\d+(\.\d+)?e[+-]?\d+$/i.test(s)) return Number(s);

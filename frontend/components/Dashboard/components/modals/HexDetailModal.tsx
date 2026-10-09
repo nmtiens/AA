@@ -424,6 +424,23 @@ const SortIcon = ({ active, dir }: { active: boolean; dir?: SortDir }) => {
   );
 };
 
+// Ghi chú theo hex — API nhận tối đa 2000 hex / lần => chia lô rồi gộp (trước gửi cả danh sách, quá 2000
+// thì nhận 400, ô ghi chú hiện "—" và file CSV mất ghi chú)
+const NOTES_CHUNK = 2000;
+async function fetchNotesChunked(hexes: string[], full: boolean, signal?: AbortSignal): Promise<NotesResponse> {
+  const out: NotesResponse = {};
+  for (let i = 0; i < hexes.length; i += NOTES_CHUNK) {
+    const r = await fetch('/api/production/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hexes: hexes.slice(i, i + NOTES_CHUNK), ...(full ? { full: true } : {}) }),
+      signal,
+    });
+    if (r.ok) Object.assign(out, await r.json());
+  }
+  return out;
+}
+
 export const HexDetailModal = ({
   isOpen,
   onClose,
@@ -499,13 +516,7 @@ export const HexDetailModal = ({
     if (hexList.length === 0) return;
     const ctrl = new AbortController();
     setNotesMap({});
-    fetch('/api/production/notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hexes: hexList }),
-      signal: ctrl.signal,
-    })
-      .then((r): Promise<NotesResponse> => (r.ok ? r.json() : Promise.resolve({})))
+    fetchNotesChunked(hexList, false, ctrl.signal)
       .then(setNotesMap)
       .catch(() => { /* bỏ qua lỗi mạng: ô ghi chú hiện "—" */ });
     return () => ctrl.abort();
@@ -868,12 +879,7 @@ export const HexDetailModal = ({
     let fullMap: NotesResponse = {};
     if (hexList.length > 0) {
       try {
-        const r = await fetch('/api/production/notes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hexes: hexList, full: true }),
-        });
-        if (r.ok) fullMap = await r.json();
+        fullMap = await fetchNotesChunked(hexList, true);
       } catch { /* xuất không kèm ghi chú nếu lỗi mạng */ }
     }
     const fullNoteOf = (row: DataRow, key: string) =>

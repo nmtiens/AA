@@ -88,13 +88,25 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     if (isWeek && tuanList.length) { thParams.push(tuanList); planHexWhere += ` AND tuan = ANY($${thParams.length}::double precision[])`; }
     if (isWeek && ngayList.length) { thParams.push(ngayList); planHexWhere += ` AND ngay = ANY($${thParams.length}::double precision[])`; }
 
+    // Ghép nhập kho với KH của ĐÚNG kỳ của ngày nhập (tháng của dòng nhập kho / tuần chứa ngày nhập) — chọn nhiều
+    // kỳ cùng lúc thì hạng mục có KH T8 mà nhập T9 không bị tính "theo KH" (trước lấy hợp HEX của mọi kỳ)
+    // Tham số năm chỉ thêm khi xem theo tuần (tham số thừa => Postgres báo lỗi)
+    if (isWeek) thParams.push(Number(nam));
+    const yIdx = thParams.length;
+    const wkStart = `to_date(($${yIdx}::int)::text || '-' || ph.tuan::int::text, 'IYYY-IW')`;
+    const inPlanExpr = isWeek
+      ? `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text
+           AND nhap_kho.date_parsed BETWEEN GREATEST(${wkStart}, make_date($${yIdx}::int, 1, 1))
+                                        AND LEAST(${wkStart} + 6, make_date($${yIdx}::int, 12, 31)))`
+      : `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND ph.thang = nhap_kho.thang)`;
+
     const thQuery = `
-      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex FROM khsx WHERE ${planHexWhere})
+      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex, thang, tuan FROM khsx WHERE ${planHexWhere})
       SELECT
         ${workshopGroupSql('xuong_chinh')} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
         TRIM(ma_cong_trinh) AS ma_cong_trinh,
-        (hex::text IN (SELECT hex FROM plan_hex)) AS in_plan,
+        (${inPlanExpr}) AS in_plan,
         COALESCE(SUM(${numericCol('nhap_kho', 'thanh_tien_nhap_kho')}), 0) / ${TRIEU_TO_TY} AS gia_tri
       FROM nhap_kho
       ${thWhere}

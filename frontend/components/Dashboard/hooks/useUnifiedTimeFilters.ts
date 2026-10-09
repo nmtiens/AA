@@ -3,6 +3,25 @@ import { toFilterSet, matchesFilter, toProjectSet, matchesProject } from '../uti
 import { DataRow } from '../../../types';
 import { getWeekNumber } from '../utils/dateHelpers';
 import { DashboardFiltersState } from './useDashboardFilters';
+import { ColumnDefinition } from '../../../types';
+import { findColumnKey } from '../utils/columnKeyResolver';
+import { isCancelledIpo, parsePlanDate } from '../../../utils/productionMetrics';
+
+// Thứ Hai của tuần ISO `week` thuộc năm ISO `year` (giờ địa phương)
+const isoWeekMonday = (year: number, week: number): Date => {
+  const jan4 = new Date(year, 0, 4);
+  const dow = (jan4.getDay() + 6) % 7; // 0 = Thứ Hai
+  return new Date(year, 0, 4 - dow + (week - 1) * 7);
+};
+// Ngày d thuộc tuần `week` của năm `year` theo cách đánh số của bảng KHSX: tuần ISO, cắt trong năm dương lịch
+// (29–31/12/2025 là tuần 53 của 2025, 01–04/01/2026 là tuần 1 của 2026) — giống /api/khsx-nhapkho/summary
+const inPlanWeek = (d: Date, year: number, week: number): boolean => {
+  const mon = isoWeekMonday(year, week);
+  const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+  const lo = mon < new Date(year, 0, 1) ? new Date(year, 0, 1) : mon;
+  const hi = sun > new Date(year, 11, 31) ? new Date(year, 11, 31) : sun;
+  return d >= lo && d <= hi;
+};
 
 export interface UnifiedTimeFiltersState {
   nam: string[];
@@ -29,6 +48,11 @@ interface UseUnifiedTimeFiltersParams {
 
   analysisCongTrinhKey: string | undefined;
   analysisXuongKey: string | undefined;
+
+  /** Để bỏ nhập kho của hạng mục HỦY (cùng quy tắc server) và lọc tuần theo NGÀY nhập kho */
+  productionData?: DataRow[];
+  productionColumns?: ColumnDefinition[];
+  inventoryColumns?: ColumnDefinition[];
 }
 
 /**
@@ -47,7 +71,21 @@ export function useUnifiedTimeFilters({
   invTuanKey,
   analysisCongTrinhKey,
   analysisXuongKey,
+  productionData,
+  productionColumns,
+  inventoryColumns,
 }: UseUnifiedTimeFiltersParams) {
+  // HEX thuộc đơn HỦY — nhập kho của chúng không tính (KHSX / tổng quan phía server đều bỏ)
+  const cancelledHexes = useMemo(() => {
+    const set = new Set<string>();
+    if (!productionData?.length) return set;
+    const hexK = (productionColumns && findColumnKey(productionColumns, 'hex')) || 'hex';
+    const ipoK = (productionColumns && findColumnKey(productionColumns, 'tinh_trang_ipo')) || 'tinh_trang_ipo';
+    for (const r of productionData) if (isCancelledIpo(r[ipoK])) set.add(String(r[hexK] ?? '').trim());
+    return set;
+  }, [productionData, productionColumns]);
+  const invHexKey = (inventoryColumns && findColumnKey(inventoryColumns, 'hex')) || 'hex';
+  const invDateKey = (inventoryColumns && inventoryColumns.find(c => c.key === 'date')?.key) || 'date';
 
   const [unifiedTimeFilters, setUnifiedTimeFilters] = useState<UnifiedTimeFiltersState>({
     nam: [new Date().getFullYear().toString()],
@@ -73,18 +111,27 @@ export function useUnifiedTimeFilters({
   const filteredInventoryData = useMemo(() => {
     const namSet = toFilterSet(unifiedTimeFilters.nam);
     const thangSet = toFilterSet(unifiedTimeFilters.thang);
-    const tuanSet = viewMode === 'WEEK' ? toFilterSet(unifiedTimeFilters.tuan) : null;
     const ngaySet = viewMode === 'WEEK' ? toFilterSet(unifiedTimeFilters.ngay) : null;
+    // Xem theo TUẦN đã chọn tuần: tuần tính theo NGÀY nhập kho (tuần ISO cắt trong năm, như bảng KHSX) và không
+    // lọc thêm tháng — khớp /api/khsx-nhapkho/summary (trước dùng cột tuần ISO thuần + lọc tháng: tuần giáp 2
+    // tháng chỉ ra 1 nửa, tuần 53/2025 ra 0)
+    const weeks = viewMode === 'WEEK' ? unifiedTimeFilters.tuan.map(Number).filter(n => n > 0) : [];
+    const years = unifiedTimeFilters.nam.map(Number).filter(n => n > 0);
+    const byDateWeek = weeks.length > 0 && years.length > 0;
+    const useThang = !byDateWeek;
 
-    return inventoryData.filter(row =>
-      matchesProject(congTrinhSet, row, invCongTrinhKey) &&
-      matchesFilter(xuongSet, row, invXuongKey) &&
-      matchesFilter(namSet, row, invNamKey) &&
-      matchesFilter(thangSet, row, invThangKey) &&
-      matchesFilter(tuanSet, row, invTuanKey) &&
-      matchesFilter(ngaySet, row, invNgayKey)
-    );
-  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, invTuanKey]);
+    return inventoryData.filter(row => {
+      if (cancelledHexes.size && cancelledHexes.has(String(row[invHexKey] ?? '').trim())) return false;
+      if (!(matchesProject(congTrinhSet, row, invCongTrinhKey) &&
+        matchesFilter(xuongSet, row, invXuongKey) &&
+        matchesFilter(namSet, row, invNamKey) &&
+        (!useThang || matchesFilter(thangSet, row, invThangKey)) &&
+        matchesFilter(ngaySet, row, invNgayKey))) return false;
+      if (!byDateWeek) return true;
+      const d = parsePlanDate(row[invDateKey]);
+      return !!d && years.some(y => weeks.some(w => inPlanWeek(d, y, w)));
+    });
+  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, cancelledHexes, invHexKey, invDateKey]);
 
   const filteredAnalysisData = useMemo(() => {
     return analysisData.filter(row =>

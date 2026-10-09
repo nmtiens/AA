@@ -1016,7 +1016,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
             ))}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <Chip active={filter === 'pending'} tone="red" onClick={() => setFilter('pending')}>Còn chờ ({fmtInt(pendingN)})</Chip>
+            <span title="Dòng chưa có hàng về kho: Chưa mua + Đang mua (trễ / chưa tới hẹn) + Kho báo về chờ nhập SAP — cần bổ sung mã nhà máy để gắn hạng mục"><Chip active={filter === 'pending'} tone="red" onClick={() => setFilter('pending')}>Còn chờ, kể cả kho báo về ({fmtInt(pendingN)})</Chip></span>
             {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
               <span key={s.key} title={s.hint}>
                 <Chip active={filter === s.key} onClick={() => setFilter(s.key)}>

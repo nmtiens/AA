@@ -73,7 +73,10 @@ const load = async () => {
      )
      SELECT code, ARRAY_AGG(DISTINCT name) AS names
      FROM keep
+     -- Bỏ tên rác (chỉ gồm số / ký tự giữ chỗ như "0", "-", "#N/A", hoặc < 3 ký tự): không được thành
+     -- cách viết của 1 công trình (trước "0" ở nhập kho bị gộp vào HYATT REGENCY NT PUBLIC)
      WHERE COALESCE(code, '') <> '' AND name <> ''
+       AND LENGTH(name) >= 3 AND name !~ '^[0-9[:punct:][:space:]]+$' AND name !~ '^#'
      GROUP BY code`,
     [],
     { timeoutMs: 60000 }

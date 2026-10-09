@@ -7,7 +7,7 @@
 //   "- MÉT VUỐNG SƠN # ĐVT: M2 # Tổng M2/1 SP: 14.385 # Tổng ĐM trên 1 SP: 14.385"
 //   => lấy số CUỐI dòng (theo nguyên liệu / ĐM trên 1 SP) làm khối lượng của vật tư đó.
 // Tình trạng (tinh_trang_nvl_*_item_by_item, tinh_trang_gcn_chua_ve) — các khối cách nhau dòng trống:
-//   "[Mở|Hoàn thành|Đóng - ]TÊN VT SAP: … | Ngày dự kiến giao hàng PMH nhập: dd/mm/yyyy | TEAM PR NOTE: …
+//   "[Mở|Hoàn thành|Đóng|Hủy - ]TÊN VT SAP: … | Ngày dự kiến giao hàng PMH nhập: dd/mm/yyyy | TEAM PR NOTE: …
 //    | KHỐI LƯỢNG YÊU CẦU: a | KHỐI LƯỢNG ĐÃ VỀ: b | KHỐI LƯỢNG CÒN LẠI: c"
 
 export type NvlGroup = 'go' | 'kinhDa' | 'sofa' | 'vecni' | 'kimLoai';
@@ -78,10 +78,10 @@ export function parseNvlStatus(raw: NvlRaw | undefined | null): NvlStatusLine[] 
     const text = String(raw[col] ?? '');
     if (!text.trim()) return;
     const inCol = new Map<string, NvlStatusLine[]>();
-    text.split(/\n\s*\n|\n(?=(?:Mở|Hoàn thành|Đóng)\s*-\s*TÊN VT SAP|TÊN VT SAP)/).forEach(block => {
+    text.split(/\n\s*\n|\n(?=(?:Mở|Hoàn thành|Đóng|Hủy)\s*-\s*TÊN VT SAP|TÊN VT SAP)/).forEach(block => {
       const b = block.trim();
       if (!b || !/TÊN VT SAP/i.test(b)) return;
-      const m = /^(Mở|Hoàn thành|Đóng)\s*-\s*/i.exec(b);
+      const m = /^(Mở|Hoàn thành|Đóng|Hủy)\s*-\s*/i.exec(b);
       const body = m ? b.slice(m[0].length) : b;
       const field = (label: RegExp) => body.split('|').map(p => p.trim()).find(p => label.test(p))?.split(':').slice(1).join(':').trim();
       const list = inCol.get(body) ?? [];
@@ -111,9 +111,9 @@ export function parseNvlStatus(raw: NvlRaw | undefined | null): NvlStatusLine[] 
   return [...byBody.values()].flat();
 }
 
-/** Dòng tình trạng còn chờ về (còn lại > 0, chưa đóng / hoàn thành, không phải CCLD). */
+/** Dòng tình trạng còn chờ về (còn lại > 0, chưa đóng / hoàn thành / hủy, không phải CCLD). */
 export const nvlLinePending = (l: NvlStatusLine): boolean =>
-  (l.left ?? 0) > 0 && !/^(Hoàn thành|Đóng)$/i.test(l.state) && !/CCLD|DONE/i.test(l.note);
+  (l.left ?? 0) > 0 && !/^(Hoàn thành|Đóng|Hủy)$/i.test(l.state) && !/CCLD|DONE/i.test(l.note);
 
 /** Rút gọn định mức để hiện trong 1 ô bảng: "Ván ép E2 C/A 9 LY 44 TAM · MDF … +2". */
 export function summarizeNeeds(needs: NvlNeed[], max = 2): string {

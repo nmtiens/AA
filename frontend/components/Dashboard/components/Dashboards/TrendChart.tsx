@@ -330,6 +330,9 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
         value: pinned.point.periodKey,
         granularity,
       });
+      // Khoảng ngày đang xem — cột đầu / cuối chỉ gồm phần kỳ nằm trong khoảng (khớp số trên cột)
+      params.set('dateFrom', dateFrom);
+      params.set('dateTo', dateTo);
       if (xuong) params.set('xuong', xuong);
       if (congTrinh) params.set('congTrinh', congTrinh);
       if (dvt) params.set('dvt', dvt);

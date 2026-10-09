@@ -262,10 +262,11 @@ const materialCodesCte = (extraWhere = '') => `m AS (
 )`;
 const MATERIAL_CODES_CTE = materialCodesCte();
 
-// Vật tư chưa có mã nhà máy, thuộc công trình của các hex KHÔNG khớp được vật tư nào
+// Vật tư chưa có mã nhà máy, thuộc công trình của các hex KHÔNG khớp được vật tư nào (còn hiệu lực: hex chỉ có
+// dòng PR đã HỦY tính như không có vật tư — khớp hex-counts / tab BOM)
 // Mã công trình để khớp vat_tu.trackingno: mã đầy đủ, VÀ số SO sau dấu "-" cuối của hàng xuất khẩu (bảng sản
 // xuất ghi "EM25-3290000003" / "DM26-3010000258", vat_tu chỉ ghi "3290000003")
-const prjCodesSql = (codeExpr: string) => `UNNEST(ARRAY[${codeExpr}, SUBSTRING(${codeExpr} FROM '-([0-9]{8,})$')])`;
+const prjCodesSql = (codeExpr: string) => `UNNEST(ARRAY[${codeExpr}, SUBSTRING(${codeExpr} FROM '-([0-9]{7,})$')])`;
 
 const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
   SELECT DISTINCT c AS code
@@ -273,7 +274,8 @@ const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
   CROSS JOIN LATERAL ${prjCodesSql('UPPER(TRIM(p.ma_cong_trinh))')} AS c
   WHERE p.hex::text = ANY($1::text[])
     AND COALESCE(TRIM(p.ma_cong_trinh), '') <> ''
-    AND NOT EXISTS (SELECT 1 FROM m WHERE m.hex = p.hex::text)
+    AND NOT EXISTS (SELECT 1 FROM m JOIN vat_tu vv ON vv.id = m.id WHERE m.hex = p.hex::text
+                    AND UPPER(COALESCE(vv.trang_thai, '') || ' ' || COALESCE(vv.trang_thai_sap, '')) NOT LIKE '%HỦY%')
     AND c IS NOT NULL
 ), u AS (
   SELECT v.*
@@ -376,7 +378,9 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
                 AND v.id NOT IN (SELECT id FROM known)
                  THEN 'Mã nhà máy sai độ dài (phải 13 số, hoặc HEX 9 số)'
                WHEN v.id IN (SELECT id FROM m) AND v.id NOT IN (SELECT id FROM known)
-                 THEN 'Mã nhà máy không khớp HEX nào trong bảng sản xuất'
+                 THEN CASE WHEN COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
+                   THEN 'Mã nhà máy không khớp HEX nào trong bảng sản xuất'
+                   ELSE 'Mã 13 số ở Item note PR không khớp HEX nào trong bảng sản xuất' END
              END AS bad_reason
            FROM vat_tu v WHERE v.id IN (SELECT id FROM base)
          )

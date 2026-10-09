@@ -313,7 +313,7 @@ export function usePivotTables({
   // -------------------------------------------------------------------------
   const projectStatusSummary = useMemo(() => {
     if (!congTrinhKey || !triGiaDonHangTongKey) return [];
-    const agg: Record<string, { totalOrder: number; deployed: number; ticketed: number; inProduction: number; inventory: number; remainingRaw: number; }> = {};
+    const agg: Record<string, { totalOrder: number; deployed: number; ticketed: number; inProduction: number; inventory: number; remainingRaw: number; notDeployedRaw: number; }> = {};
 
     const isCount = projectSummaryMetric === 'COUNT';
 
@@ -322,7 +322,7 @@ export function usePivotTables({
       if (!ctName) return;
       // Bỏ HỦY TRƯỚC khi tạo dòng (trước công trình chỉ toàn đơn HỦY vẫn hiện thành dòng 0)
       if (isCancelledRow(row)) return;
-      if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0 };
+      if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0, notDeployedRaw: 0 };
       const status = String(row[tinhTrangKey] || '').toUpperCase();
 
       const totalOrderValRaw = parseNumber(row[triGiaDonHangTongKey]);
@@ -356,6 +356,13 @@ export function usePivotTables({
           ? (!stockedItem && rowRemainRaw > 0 ? 1 : 0)
           : rowRemainRaw / 1000;
       }
+      // Chưa triển khai = phần CÒN LẠI của hạng mục P001 / "15. CHƯA TRIỂN KHAI" — cùng cách tính thanh P001 của
+      // phễu (trước = trị giá đầy đủ, lệch phần đã nhập kho của hạng mục tình trạng 15)
+      if (remainBucketOf(status, bopKey ? extractStage(row[bopKey]) : null) === 'notDeployed') {
+        agg[ctName].notDeployedRaw += isCount
+          ? (!stockedItem && rowRemainRaw > 0 ? 1 : 0)
+          : rowRemainRaw / 1000;
+      }
       const valToAddInventory = isCount
         ? (stockedItem ? 1 : 0)
         : (inventoryValRaw / 1000);
@@ -367,10 +374,10 @@ export function usePivotTables({
     return Object.entries(agg).map(([name, data]) => ({
       name, ...data,
       remaining: data.remainingRaw,
-      notDeployed: data.totalOrder - data.deployed,
+      notDeployed: data.notDeployedRaw,
       percentComplete: data.totalOrder > 0 ? (data.inventory / data.totalOrder) * 100 : 0,
     })).sort((a, b) => b.totalOrder - a.totalOrder);
-  }, [filteredProductionData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, projectSummaryMetric]);
+  }, [filteredProductionData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, projectSummaryMetric]);
 
   // -------------------------------------------------------------------------
   // MỚI: Project status summary — bản "v2" dùng cho ProjectSummarySection_v2.
@@ -597,6 +604,7 @@ export function usePivotTables({
     const cancelled: DataRow[] = [];
     const buckets: Record<RemainBucket, DataRow[]> = { notDeployed, p002, onLine, shortfall };
 
+    const isCountList = projectSummaryMetric === 'COUNT';
     if (congTrinhKey && tinhTrangKey) {
       projectSummaryData.forEach(row => {
         const ctName = String(row[congTrinhKey] || '').trim();
@@ -614,8 +622,12 @@ export function usePivotTables({
 
         const invVal = thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0;
         const totalVal = triGiaDonHangTongKey ? parseNumber(row[triGiaDonHangTongKey]) : 0;
-        if (doneValue(totalVal, invVal) > 0) inventory.push(row);
+        // Chế độ ĐẾM: danh sách khớp đúng số trong ô — "nhập kho" = hạng mục nhập đủ (giá trị hoặc số lượng),
+        // "còn lại" bỏ hạng mục đã nhập đủ số lượng. Chế độ giá trị: hạng mục có phần đã nhập / còn lại.
+        const stockedItem = isStocked(totalVal, invVal, false, isQtyComplete(row));
+        if (isCountList ? stockedItem : doneValue(totalVal, invVal) > 0) inventory.push(row);
         if (remainValue(totalVal, invVal) <= 0) return; // đã nhập kho đủ -> không còn lại
+        if (isCountList && stockedItem) return;
         const stage = bopKey ? extractStage(row[bopKey]) : null;
         buckets[remainBucketOf(status, stage)].push(row);
       });
@@ -633,7 +645,7 @@ export function usePivotTables({
       inventory,
       cancelled,
     };
-  }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
+  }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]);
 
   // -------------------------------------------------------------------------
   // Pivot: Workshop (Tình Trạng x Khu vực sản xuất)
@@ -720,6 +732,12 @@ export function usePivotTables({
   // Phễu = phần CÒN LẠI theo công đoạn: khi ĐẾM chỉ đếm hạng mục chưa nhập kho đủ (đủ giá trị hoặc đủ số
   // lượng thì bỏ) — khớp chế độ giá trị (hạng mục đã nhập đủ có giá trị còn lại 0)
   const funnelValue = (row: DataRow): number => {
+    // Giá trị còn lại theo quy tắc chung (trị giá − đã nhập, chặn [0, trị giá]) — không đọc thẳng cột
+    // gia_tri_don_hang_con_lai (sai khi nhập kho âm)
+    if (workshopMetric === 'SUM_GT_CON_LAI') {
+      if (isCancelledRow(row)) return 0;
+      return remainValue(parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
+    }
     if (workshopMetric !== 'COUNT_HEX') return calculateMetricValue(row, workshopMetric);
     if (isCancelledRow(row)) return 0;
     const total = parseNumber(row[triGiaDonHangTongKey]);
@@ -801,6 +819,15 @@ export function usePivotTables({
         total: totals[bop] || 0,
       };
     });
+    // Thanh gộp "P022/P025. Nhập kho chưa đủ" của phễu: chi tiết = cộng 2 công đoạn
+    const short: Record<string, number> = {};
+    ['P022', 'P025'].forEach(bop => Object.entries(agg[bop] ?? {}).forEach(([name, v]) => { short[name] = (short[name] || 0) + v; }));
+    if (Object.keys(short).length) {
+      result.P022_SHORT = {
+        data: Object.entries(short).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
+        total: (totals.P022 || 0) + (totals.P025 || 0),
+      };
+    }
 
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -837,6 +864,11 @@ export function usePivotTables({
       { id: 'P018', name: 'P018. Sơn - làm màu', value: getVal('P018'), color: '#a3e635' },
       { id: 'P020', name: 'P020. Lắp ráp hoàn thiện', value: getVal('P020'), color: '#a3e635' },
       { id: 'P021', name: 'P021. Đóng gói hoàn thành', value: getVal('P021'), color: '#a3e635' },
+      // Hạng mục đã ở P022 / P025 mà chưa nhập kho đủ (chỉ có khi bộ lọc IPO gồm HOÀN THÀNH…) — trước không có
+      // thanh nên tổng các thanh nhỏ hơn tổng phễu
+      ...(getVal('P022') + getVal('P025') > 0
+        ? [{ id: 'P022_SHORT', name: 'P022/P025. Nhập kho chưa đủ', value: getVal('P022') + getVal('P025'), color: '#c4b5fd' }]
+        : []),
       { id: 'P022', name: 'P022. TỒN KHO', value: p022Val, color: '#eab308' },
     ];
 

@@ -27,7 +27,7 @@ type Filters = Partial<Record<FKey, string | undefined>>;
 
 interface Rec {
   ct: string; pm: string; pc: string; kv: string; kh: string; pl: string;
-  ctKey: string;      // khoá ĐẾM công trình: mã công trình -> tên chuẩn (xem projectKeyResolver)
+  ctKey: string;      // khoá ĐẾM công trình: tên chuẩn (projectMatchKey, xem projectKeyResolver)
   month: string;      // 'YYYY-MM' hoặc 'none'
   status: Status;
   total: number;      // trị giá đơn hàng — GỒM cả đơn HỦY (khớp file gốc); muốn bỏ thì lọc Tình trạng IPO
@@ -60,7 +60,7 @@ const UNIT = 1000;
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtTy = formatTrieuAsTy;
 const monthLabel = (key: string) => {
-  if (key === NO_MONTH) return 'Chưa có hạn';
+  if (key === NO_MONTH) return 'Chưa có KH nhập kho';
   // Cột gộp của biểu đồ tháng hạn: "<YYYY-MM" = trước tháng đó, ">YYYY-MM" = sau tháng đó
   if (key.startsWith('<') || key.startsWith('>')) {
     const [y, m] = key.slice(1).split('-');
@@ -191,7 +191,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       else if (STATUS_GROUPS.CHUA_THE_SX.some(s => st.includes(s))) status = 'CHƯA TKSX';
       else status = 'CÓ PHIẾU SX';
 
-      // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng (quy tắc chung; không có KH => "Chưa có hạn")
+      // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng (quy tắc chung; không có KH => "Chưa có KH nhập kho")
       const d = deadlineOf(row, dlKeys).date;
       const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : NO_MONTH;
 
@@ -289,7 +289,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   }, [records, f, monthRange]); // eslint-disable-line react-hooks/exhaustive-deps
   // Cột gộp "Trước …" / "Sau …" không vẽ trên biểu đồ (cột "Trước" gồm hạng mục cũ đã hoàn thành,
   // lớn gấp nhiều lần các tháng gần đây => ép biểu đồ) — bỏ qua, chỉ vẽ trong khoảng.
-  // Cột "Chưa có hạn" (không có KH nhập kho) cũng không vẽ: KH chỉ có cho kỳ hiện tại nên nhóm này lớn gấp
+  // Nhóm "Chưa có KH nhập kho" cũng không vẽ: KH chỉ có cho kỳ hiện tại nên nhóm này lớn gấp
   // nhiều lần các tháng và ép biểu đồ — hiện thành 1 dòng bấm được phía trên biểu đồ.
   const monthChartData = useMemo(() => monthData.filter(d => d.key !== NO_MONTH && chartMonthOrder(d.key) % 2 === 1), [monthData]);
   const noMonthBucket = useMemo(() => monthData.find(d => d.key === NO_MONTH) ?? null, [monthData]);
@@ -369,7 +369,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       eyebrow: 'Tháng hạn (KH nhập kho tuần → tháng)', title: monthLabel(key), exclude: 'month',
       pred: r => chartMonthBucket(r.month, monthRange.from, monthRange.to) === key, focus: 'remain',
       ...(isBucket ? {} : { filter: { key: 'month' as FKey, value: key } }),
-      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng; không có KH => Chưa có hạn).',
+      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng; không có KH => Chưa có KH nhập kho).',
     });
   };
 
@@ -566,7 +566,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         <div className="grid grid-cols-2 md:grid-cols-5 xl:grid-cols-10 gap-3">
           {/* Mỗi ô: pred = đúng điều kiện đã dùng để tính con số trong khối KPI ở trên */}
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
-               spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm theo mã công trình).' }} />
+               spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
           <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
                spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
           <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600"

@@ -9,13 +9,14 @@
 // - P022 (TỒN KHO) lấy từ nguồn khác nên KHÔNG có hex gốc -> không mở danh sách HEX.
 // ---------------------------------------------------------------------------
 
-export type FunnelHexColumn = 'totalOrder' | 'notDeployed' | 'p002' | 'onLine';
+export type FunnelHexColumn = 'totalOrder' | 'notDeployed' | 'p002' | 'onLine' | 'shortfall';
 
 export const FUNNEL_HEX_COLUMN_LABELS: Record<FunnelHexColumn, string> = {
   totalOrder: 'Tổng Giá Trị Đơn Hàng',
   notDeployed: 'Chưa Triển Khai (P001)',
   p002: 'Chưa Tính Phiếu (P002)',
   onLine: 'Đang Trên Chuyền (P012->P021)',
+  shortfall: 'Nhập Kho Chưa Đủ (P022/P025)',
 };
 
 const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: FunnelHexColumn; stage: string | null }>> = {
@@ -29,6 +30,9 @@ const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: FunnelHexColumn; st
   P018: { column: 'onLine', stage: 'P018' },
   P020: { column: 'onLine', stage: 'P020' },
   P021: { column: 'onLine', stage: 'P021' },
+  // Thanh gộp P022/P025 chưa nhập kho đủ (phần còn lại của hạng mục đã tới tồn kho / giao)
+  P022_SHORT: { column: 'shortfall', stage: null },
+  P025: { column: 'shortfall', stage: 'P025' },
 };
 
 /**
