@@ -73,11 +73,23 @@ export const userService = {
 
   // --- QUẢN TRỊ USER (toàn bộ yêu cầu JWT + role ADMIN) ---
 
+  // API phân trang (tối đa 100 / trang) — lấy ĐỦ mọi trang (trước chỉ gọi trang 1 nên chỉ hiện 50 user)
   getUsers: async (): Promise<ApiResponse<User[]>> => {
-    return request<User[]>(`${API_BASE}/users`, {
-      method: 'GET',
-      headers: authHeaders(),
-    });
+    const PAGE_SIZE = 100;
+    const all: User[] = [];
+    for (let page = 1; page <= 100; page++) {
+      const res = await request<User[]>(`${API_BASE}/users?page=${page}&pageSize=${PAGE_SIZE}`, {
+        method: 'GET',
+        headers: authHeaders(),
+      });
+      if (!res.success || !Array.isArray(res.data)) return page === 1 ? res : { ...res, data: all };
+      all.push(...res.data);
+      const total = res.pagination?.total ?? all.length;
+      if (res.data.length < PAGE_SIZE || all.length >= total) {
+        return { ...res, data: all, pagination: { page: 1, pageSize: all.length, total } };
+      }
+    }
+    return { success: true, data: all };
   },
 
   addUser: async (userData: Partial<User> & { password: string }): Promise<ApiResponse<User>> => {
