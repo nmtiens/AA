@@ -64586,6 +64586,68 @@ var stripMaterialPriceColumns = (rows) => {
   return out;
 };
 
+// src/server/qc.ts
+var qcNum = (v) => {
+  const n = Number(String(v).replace(/[^\d.\-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+var qcStatus = (raw, fail) => {
+  const s = raw.trim().toLowerCase();
+  if (!s) return fail > 0 ? "unknown" : "approved";
+  if (s === "verified") return "approved";
+  return s;
+};
+var QC_BAD_STATUS = /* @__PURE__ */ new Set(["rejected", "flagged"]);
+var parseQcEntries = (text) => {
+  const s = String(text ?? "");
+  if (!s.trim()) return [];
+  const parts = s.split(/\n(?=\d{2}\/\d{2}\/\d{4}:\s*#)/).map((p) => p.trim()).filter(Boolean);
+  const out = [];
+  for (const p of parts) {
+    const m = p.match(/^(\d{2}\/\d{2}\/\d{4}):\s*#([\s\S]*)$/);
+    if (!m) continue;
+    const photos = (p.match(/https?:\/\//g) ?? []).length;
+    const fields = m[2].split("#").map((x) => x.trim());
+    const get = (label) => {
+      const f = fields.find((x) => x.toUpperCase().startsWith(label.toUpperCase()));
+      return f ? f.slice(label.length).replace(/^:/, "").trim() : "";
+    };
+    const fail = qcNum(get("SL L\u1ED7i"));
+    out.push({
+      date: m[1],
+      qc: get("QC"),
+      stage: get("C\xF4ng \u0111o\u1EA1n"),
+      status: qcStatus(get("Tr\u1EA1ng th\xE1i"), fail),
+      checked: qcNum(get("SL Ki\u1EC3m")),
+      pass: qcNum(get("SL \u0110\u1EA1t")),
+      fail,
+      note: get("Ghi ch\xFA").replace(/https?:\/\/\S+/g, "").trim(),
+      photos
+    });
+  }
+  return out;
+};
+var summarizeQc = (entries) => {
+  if (!entries.length) return null;
+  const seen = /* @__PURE__ */ new Map();
+  for (const e of entries) {
+    const k = `${e.date}|${e.stage}|${e.qc}|${e.checked}|${e.fail}`;
+    const prev = seen.get(k);
+    if (!prev || prev.status === "approved" && e.status !== "approved") seen.set(k, e);
+  }
+  const list = [...seen.values()];
+  let checked = 0, pass = 0, fail = 0, bad = 0;
+  for (const e of list) {
+    checked += e.checked;
+    pass += e.pass;
+    fail += e.fail;
+    if (e.fail > 0 || QC_BAD_STATUS.has(e.status)) bad++;
+  }
+  const key = (d) => d.slice(6, 10) + d.slice(3, 5) + d.slice(0, 2);
+  const last = [...list].sort((a, b) => key(b.date).localeCompare(key(a.date)))[0];
+  return { n: list.length, checked, pass, fail, bad, last: { date: last.date, stage: last.stage, status: last.status, fail: last.fail } };
+};
+
 // src/routes/data.ts
 import { createGzip } from "zlib";
 var ALL_DATA_GZIP_MAX = 8;
@@ -64777,66 +64839,6 @@ var HEX_EXTRA_COLUMNS = [
   "so_luong_ton_kho_hien_tai",
   "tong_hop_thong_tin_qc"
 ];
-var qcNum = (v) => {
-  const n = Number(String(v).replace(/[^\d.\-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-};
-var qcStatus = (raw, fail) => {
-  const s = raw.trim().toLowerCase();
-  if (!s) return fail > 0 ? "unknown" : "approved";
-  if (s === "verified") return "approved";
-  return s;
-};
-var QC_BAD_STATUS = /* @__PURE__ */ new Set(["rejected", "flagged"]);
-var parseQcEntries = (text) => {
-  const s = String(text ?? "");
-  if (!s.trim()) return [];
-  const parts = s.split(/\n(?=\d{2}\/\d{2}\/\d{4}:\s*#)/).map((p) => p.trim()).filter(Boolean);
-  const out = [];
-  for (const p of parts) {
-    const m = p.match(/^(\d{2}\/\d{2}\/\d{4}):\s*#([\s\S]*)$/);
-    if (!m) continue;
-    const photos = (p.match(/https?:\/\//g) ?? []).length;
-    const fields = m[2].split("#").map((x) => x.trim());
-    const get = (label) => {
-      const f = fields.find((x) => x.toUpperCase().startsWith(label.toUpperCase()));
-      return f ? f.slice(label.length).replace(/^:/, "").trim() : "";
-    };
-    const fail = qcNum(get("SL L\u1ED7i"));
-    out.push({
-      date: m[1],
-      qc: get("QC"),
-      stage: get("C\xF4ng \u0111o\u1EA1n"),
-      status: qcStatus(get("Tr\u1EA1ng th\xE1i"), fail),
-      checked: qcNum(get("SL Ki\u1EC3m")),
-      pass: qcNum(get("SL \u0110\u1EA1t")),
-      fail,
-      note: get("Ghi ch\xFA").replace(/https?:\/\/\S+/g, "").trim(),
-      photos
-    });
-  }
-  return out;
-};
-var summarizeQc = (entries) => {
-  if (!entries.length) return null;
-  const seen = /* @__PURE__ */ new Map();
-  for (const e of entries) {
-    const k = `${e.date}|${e.stage}|${e.qc}|${e.checked}|${e.fail}`;
-    const prev = seen.get(k);
-    if (!prev || prev.status === "approved" && e.status !== "approved") seen.set(k, e);
-  }
-  const list = [...seen.values()];
-  let checked = 0, pass = 0, fail = 0, bad = 0;
-  for (const e of list) {
-    checked += e.checked;
-    pass += e.pass;
-    fail += e.fail;
-    if (e.fail > 0 || QC_BAD_STATUS.has(e.status)) bad++;
-  }
-  const key = (d) => d.slice(6, 10) + d.slice(3, 5) + d.slice(0, 2);
-  const last = [...list].sort((a, b) => key(b.date).localeCompare(key(a.date)))[0];
-  return { n: list.length, checked, pass, fail, bad, last: { date: last.date, stage: last.stage, status: last.status, fail: last.fail } };
-};
 var hexExtraCache = createCache(30);
 var numOr0 = (v) => {
   const n = Number(v);

@@ -24,6 +24,8 @@ jobs:
       - run: npm ci
       - name: Kiểm tra kiểu TypeScript
         run: npx tsc --noEmit
+      - name: Test đơn vị (quy tắc số liệu, parser QC)
+        run: npm test
       - name: Build
         run: npm run build
 
@@ -42,6 +44,8 @@ jobs:
       - run: npm ci
       - name: Kiểm tra kiểu TypeScript
         run: npx tsc --noEmit -p tsconfig.json
+      - name: Test đơn vị (parser QC)
+        run: npm test
       - name: dist.js phải khớp với mã nguồn backend
         run: |
           npm run build:bundle

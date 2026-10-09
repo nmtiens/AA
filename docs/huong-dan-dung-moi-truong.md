@@ -71,7 +71,11 @@ Trước khi commit:
 ```bash
 npx --prefix frontend tsc --noEmit -p frontend
 npx --prefix backend tsc --noEmit -p backend
+npm test --prefix frontend
+npm test --prefix backend
 ```
+
+Test đơn vị nằm ở `frontend/utils/*.test.ts` (vitest) và `backend/test/*.test.ts` (node --test qua tsx); chúng bảo vệ quy tắc số liệu dùng chung và parser QC.
 
 Nếu sửa backend, đóng gói lại và commit `backend/api/dist.js` (CI sẽ chặn nếu quên):
 
