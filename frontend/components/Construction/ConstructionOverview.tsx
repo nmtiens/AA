@@ -17,6 +17,7 @@ import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/component
 import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix, projectKeyResolver } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
+import { fmtInt } from '../../utils/format';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
@@ -66,7 +67,6 @@ const COLOR_DONE = '#16a34a';
 const COLOR_REMAIN = '#f59e0b';
 // Giá trị gốc tính theo triệu đồng (khớp backend TRIEU_TO_TY) => Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
-const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtTy = formatTrieuAsTy;
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có KH nhập kho';

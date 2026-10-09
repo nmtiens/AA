@@ -3,7 +3,7 @@ import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, CalendarClo
 import { LinkLightbox } from '../shared/LinkLightbox';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
-import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE } from '../../utils/productionMetrics';
+import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE, stageIndex } from '../../utils/productionMetrics';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { workshopGroupOf } from '../../utils/workshopGroups';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL } from '../../utils/nvlParse';
@@ -11,6 +11,7 @@ import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailMo
 import type { VuongMacItem } from '../../services/vuongMacService';
 import type { HexBom } from './ProjectHealthTabs';
 import { formatTrieuAsTy } from '../../utils/money';
+import { fmtDate, DAY_MS as DAY } from '../../utils/format';
 import { parseQcEntries } from '../../utils/qcParse';
 import { QC_STATUS_VI } from '../../services/productionExtraService';
 
@@ -22,9 +23,6 @@ import { QC_STATUS_VI } from '../../services/productionExtraService';
 
 type Row = Record<string, any>;
 
-const DAY = 86_400_000;
-const fmtDate = (d: Date | null) =>
-  d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 const fmtNum = (v: unknown, digits = 2) => {
   const n = Number(v);
   return v === null || v === undefined || v === '' || Number.isNaN(n) ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: digits });
@@ -35,8 +33,6 @@ const fmtTy = (trieu: unknown) => {
 };
 
 // Thứ tự công đoạn BOP để biết mốc nào đã qua / đang ở / chưa tới
-const STAGES = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'];
-const stageIdx = (s: string | null) => (s ? STAGES.indexOf(s) : -1);
 
 // Số lượng đã giao theo công đoạn sản xuất (cột so_luong_cong_doan_*_da_giao)
 const WORK_STEPS: { key: string; label: string; flag?: string }[] = [
@@ -114,7 +110,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
   const d = useMemo(() => {
     if (!row) return null;
     const stage = extractStage(row.bop);
-    const cur = stageIdx(stage);
+    const cur = stageIndex(stage);
     const dl = deadlineOf(row, RAW_DEADLINE_KEYS);
     const qtyOrder = Number(row.so_luong_don_hang_tong) || 0;
     const qtyTicket = Number(row.so_luong_tinh_phieu) || 0;

@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { STATUS_META, PRIORITY_META, CAT_CODE, CAT_NAME, catIcon, fmtHours, fmtShort, fmtDay, dayKey, displayState, DISPLAY_META, botCountdown } from './model';
 import { DetailSheet, FormSheet, StatusPill, PriorityPill } from './sheets';
+import { BOP_STAGE_ORDER } from '../../utils/productionMetrics';
 
 // ============================================================================
 // MÀN QUẢN LÝ VƯỚNG MẮC (desktop, /vuong-mac — quyền "vuong_mac"):
@@ -152,7 +153,7 @@ export default function VuongMacManager() {
 
   const t = dash?.totals;
   const stages = useMemo(() => {
-    const base = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'];
+    const base: string[] = [...BOP_STAGE_ORDER];
     const extra = (dash?.byStage ?? []).map(x => x.name).filter(n => n !== 'Chưa rõ' && !base.includes(n)).sort();
     return [...base, ...extra];
   }, [dash]);

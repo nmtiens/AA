@@ -4,6 +4,7 @@ import {
   parsePlanDate, deadlineOf, planAfterDue, setPlanMet, RAW_DEADLINE_KEYS,
   materialLineState, isMaterialPending, dwellBucket, DWELL_STUCK, DWELL_NONE,
   canonicalizeProjectNames, canonicalProjectName, projectMatchKey, normProjectName,
+  BOP_STAGE_ORDER, stageIndex, stageRank,
 } from './productionMetrics';
 import type { ColumnDefinition, DataRow } from '../types';
 
@@ -169,5 +170,22 @@ describe('tên công trình chuẩn theo mã', () => {
     canonicalizeProjectNames(rows, columns);
     expect(canonicalProjectName('ARHAUS')).toBe('ARHAUS');
     expect(canonicalProjectName('ARHAUS LÔ 2')).toBe('ARHAUS LÔ 2');
+  });
+});
+
+describe('thứ tự công đoạn BOP', () => {
+  it('đủ 12 công đoạn theo thứ tự chuyền, GCVT sau P013', () => {
+    expect(BOP_STAGE_ORDER.length).toBe(12);
+    expect(stageIndex('P001')).toBe(0);
+    expect(stageIndex('GCVT')).toBe(stageIndex('P013') + 1);
+    expect(stageIndex('P025')).toBe(11);
+  });
+
+  it('công đoạn lạ / trống: stageIndex = -1, stageRank = 999 (xếp cuối)', () => {
+    expect(stageIndex('P999')).toBe(-1);
+    expect(stageIndex(null)).toBe(-1);
+    expect(stageRank('P999')).toBe(999);
+    expect(stageRank(undefined)).toBe(999);
+    expect(['P021', 'P001', 'XYZ', 'P012'].sort((a, b) => stageRank(a) - stageRank(b))).toEqual(['P001', 'P012', 'P021', 'XYZ']);
   });
 });

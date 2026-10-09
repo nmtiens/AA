@@ -3,7 +3,7 @@ import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListCheck
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, doneValue, remainValue, isCancelledIpo, planAfterDue, isQtyComplete, parsePlanDate } from '../../utils/productionMetrics';
+import { deadlineOf, doneValue, remainValue, isCancelledIpo, planAfterDue, isQtyComplete, parsePlanDate, stageRank } from '../../utils/productionMetrics';
 import { fetchHexExtra, gcnPending as isGcnPending, type HexExtra } from '../../services/productionExtraService';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
@@ -14,6 +14,7 @@ import { BotTab, BopTab, BomTab, analyzeBom, summarizeProjectMaterial, PlanDateC
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
 import { formatTrieuAsTy } from '../../utils/money';
+import { fmtInt, fmtDate, DAY_MS as DAY } from '../../utils/format';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, ReferenceLine } from 'recharts';
 
 // ============================================================================
@@ -83,13 +84,10 @@ const modeOf = (vals: string[]): string => {
   m.forEach((c, v) => { if (c > n) { best = v; n = c; } });
   return best;
 };
-const STAGE_ORDER = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'];
-const stageOrder = (s: string | null) => { const i = s ? STAGE_ORDER.indexOf(s) : -1; return i === -1 ? 999 : i; };
 // Tên ngắn 5M — giống form "Thêm vướng mắc"
 const FIVE_M_VI: Record<FiveMCategory, string> = {
   man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường',
 };
-const DAY = 86_400_000;
 
 const BUCKET_LABEL: Record<RemainBucket, string> = {
   notDeployed: 'Chưa triển khai',
@@ -114,9 +112,6 @@ const TONE: Record<Tone, { ring: string; text: string; dot: string }> = {
 
 // Tỷ đồng: luôn 2 chữ số thập phân — thống nhất với Báo cáo tiến độ
 const fmtTy = formatTrieuAsTy;
-const fmtInt = (n: number) => n.toLocaleString('vi-VN');
-const fmtDate = (d: Date | null) =>
-  d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
 
 export const ProjectHealthModal: React.FC<Props> = ({
@@ -356,8 +351,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
   // Luồng tiến độ: Nhận PM → Đã triển khai BV → Có phiếu → Lên chuyền → Nhập kho đủ (số hạng mục · trị giá)
   const funnel = useMemo(() => {
-    const p013 = STAGE_ORDER.indexOf('P013');
-    const onLine = (i: HexInfo) => !i.open || stageOrder(i.stage) >= p013;
+    const p013 = stageRank('P013');
+    const onLine = (i: HexInfo) => !i.open || stageRank(i.stage) >= p013;
     const hasBv = items.some(i => i.bvDone !== null && i.bvDone !== undefined);
     const hasPh = items.some(i => i.phieuDone !== null && i.phieuDone !== undefined);
     const step = (label: string, pred: (i: HexInfo) => boolean, has = true, hint = '') => {
@@ -451,7 +446,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       res.push({ ...i, flags: flagsOf(i) });
     }
     return res.sort((a, b) =>
-      stageOrder(a.stage) - stageOrder(b.stage) || b.remain - a.remain);
+      stageRank(a.stage) - stageRank(b.stage) || b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, matCount, openIssues, issueCats, bomDetail]);
   // Còn lại: hạng mục chưa nhập kho đủ, CÓ BOT nhưng không thuộc "Cần xử lý ngay"

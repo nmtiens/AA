@@ -4,9 +4,10 @@ import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
   materialLineState, isMaterialPending, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
-  type DeadlineSource, type MaterialLineState, type MaterialLineFields,
+  type DeadlineSource, type MaterialLineState, type MaterialLineFields, stageRank,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
+import { fmtInt, fmtDate, DAY_MS as DAY } from '../../utils/format';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, summarizeNeeds, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
 
@@ -69,12 +70,8 @@ export interface MaterialLine extends MaterialLineFields {
   hexes: string[];
 }
 
-const DAY = 86_400_000;
-const fmtInt = (n: number) => n.toLocaleString('vi-VN');
 // Tỷ đồng: luôn 2 chữ số thập phân — thống nhất với Báo cáo tiến độ
 const fmtTy = (trieu: number) => formatTrieuAsTy(trieu);
-const fmtDate = (d: Date | null) =>
-  d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
 const th = 'px-3 py-2 font-medium';
 const td = 'px-3 py-2';
@@ -408,8 +405,6 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
 // ============================================================================
 // BOP — công đoạn
 // ============================================================================
-const STAGE_ORDER = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'];
-const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i === -1 ? 999 : i; };
 
 // BOP — giống khối "Tình trạng sản xuất" (Công đoạn × Khu vực SX, mở rộng theo Tình trạng) và
 // "Báo cáo tỷ trọng điểm nghẽn" (thời gian ở công đoạn hiện tại) của trang Tổng quan, nhưng chỉ cho

@@ -359,6 +359,23 @@ export const isMaterialPending = (s: MaterialLineState) => s === 'notOrdered' ||
 export const isMaterialMissing = (r: MaterialLineFields): boolean => isMaterialPending(materialLineState(r));
 
 // ---------------------------------------------------------------------------
+// Thứ tự công đoạn BOP (cột bop, mã P0xx / GCVT) — dùng chung cho mọi chỗ sắp xếp / so sánh công đoạn.
+// Trước đây 5 file giữ 5 bản sao (1 bản thiếu P022/P025); thêm công đoạn mới chỉ sửa ở đây.
+// ---------------------------------------------------------------------------
+export const BOP_STAGE_ORDER = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'] as const;
+export type BopStage = typeof BOP_STAGE_ORDER[number];
+
+/** Vị trí trong thứ tự BOP; -1 nếu không có / không rõ (dùng khi cần phân biệt "chưa tới" với "không rõ"). */
+export const stageIndex = (stage: string | null | undefined): number =>
+  stage ? (BOP_STAGE_ORDER as readonly string[]).indexOf(stage) : -1;
+
+/** Hạng để sắp xếp: công đoạn lạ / trống xếp cuối (999). */
+export const stageRank = (stage: string | null | undefined): number => {
+  const i = stageIndex(stage);
+  return i === -1 ? 999 : i;
+};
+
+// ---------------------------------------------------------------------------
 // Thời gian ở công đoạn hiện tại (cột so_ngay_cd_hien_tai)
 // Giá trị gốc: "<3 NGÀY", "4-7 NGÀY", "2 TUẦN" … "7 TUẦN", "TỪ 8 TUẦN TRỞ LÊN", "0" / trống.
 // ---------------------------------------------------------------------------

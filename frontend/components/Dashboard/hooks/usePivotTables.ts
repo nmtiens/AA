@@ -5,6 +5,7 @@ import { parseNumber } from '../utils/numberParsers';
 import { doneValue, isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import { ON_LINE_STAGES, P002_STAGE, extractStage } from '../components/modals/OnLineStageDetailModal';
+import { BOP_STAGE_ORDER } from '../../../utils/productionMetrics';
 import {
   MetricType,
   BottleneckItem,
@@ -764,7 +765,7 @@ export function usePivotTables({
     });
 
 
-    const bopOrder = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021'];
+    const bopOrder: readonly string[] = BOP_STAGE_ORDER;
 
     return {
       data: Object.entries(agg)
