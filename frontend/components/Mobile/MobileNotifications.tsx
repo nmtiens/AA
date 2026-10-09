@@ -8,10 +8,12 @@ import { BottomSheet, fmtAgo, dayKey } from './mobileUi';
 const KIND_ICON: Record<NotifyKind, string> = {
   mention: '💬', assigned: '👤', resolved: '✅', reopened: '↩️', extend: '⏳',
   due60: '⌛', due15: '⌛', overdue: '⏰', new_in_dept: '🆕',
+  accepted: '🔧', closed: '🔒', comment: '💬', escalated: '🚨',
 };
 const KIND_BG: Record<NotifyKind, string> = {
   mention: 'bg-blue-100', assigned: 'bg-indigo-100', resolved: 'bg-emerald-100', reopened: 'bg-slate-100',
   extend: 'bg-amber-100', due60: 'bg-amber-100', due15: 'bg-amber-100', overdue: 'bg-red-100', new_in_dept: 'bg-slate-100',
+  accepted: 'bg-indigo-100', closed: 'bg-emerald-100', comment: 'bg-blue-100', escalated: 'bg-red-100',
 };
 
 /** Nút chuông có số chưa đọc */

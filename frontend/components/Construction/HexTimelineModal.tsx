@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, CalendarClock } from 'lucide-react';
+import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, CalendarClock, Image as ImageIcon } from 'lucide-react';
+import { LinkLightbox } from '../shared/LinkLightbox';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
 import { parsePlanDate, deadlineOf, RAW_DEADLINE_KEYS, planAfterDue, dwellBucket, doneValue, remainValue, isCancelledIpo, DWELL_STUCK, DWELL_NONE } from '../../utils/productionMetrics';
@@ -10,6 +11,8 @@ import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailMo
 import type { VuongMacItem } from '../../services/vuongMacService';
 import type { HexBom } from './ProjectHealthTabs';
 import { formatTrieuAsTy } from '../../utils/money';
+import { parseQcEntries } from '../../utils/qcParse';
+import { QC_STATUS_VI } from '../../services/productionExtraService';
 
 // ============================================================================
 // Chi tiết 1 hạng mục (HEX): BOP (đang ở công đoạn nào, tiến độ từng công đoạn) + BOT (các mốc
@@ -89,6 +92,8 @@ interface Props {
 
 export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, onOpenMaterial, escEnabled = true, names }) => {
   const [row, setRow] = useState<Row | null>(null);
+  // Xem ảnh QC ngay trong app (link Google Drive) — urls của 1 lần kiểm + ảnh đang xem
+  const [photoView, setPhotoView] = useState<{ urls: string[]; idx: number; title: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
 
@@ -129,23 +134,39 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     // Mốc BOP: trạng thái theo công đoạn hiện tại
     const state = (fromIdx: number, toIdx: number, doneOverride?: boolean): 'done' | 'current' | 'todo' =>
       doneOverride ? 'done' : cur > toIdx ? 'done' : cur >= fromIdx && cur <= toIdx ? 'current' : 'todo';
+    const pmDate = parsePlanDate(row.ngay_nhan_tu_pm);
+    const bvDate = parsePlanDate(row.ngay_trien_khai_ban_ve);
+    const phDate = parsePlanDate(row.ngay_tinh_phieu);
+    const qtyOut = Math.max(Number(row.so_luong_xuat_kho_luy_ke) || 0, 0);
+    const qtyStock = Math.max(Number(row.so_luong_ton_kho_hien_tai) || 0, 0);
+    // Số ngày giữa 2 mốc (hiện cạnh mốc sau) — thời gian chờ ở từng khâu
+    const gap = (a: Date | null, b: Date | null) => (a && b ? Math.round((b.getTime() - a.getTime()) / DAY) : null);
+    const gapText = (a: Date | null, b: Date | null, label: string) => { const g = gap(a, b); return g === null ? '' : `${label} ${g} ngày`; };
     const milestones = [
-      { key: 'pm', title: 'Nhận đơn từ PM', stage: 'P001', date: parsePlanDate(row.ngay_nhan_tu_pm), note: '', st: state(0, 0) },
-      { key: 'bv', title: 'Triển khai bản vẽ', stage: 'P002', date: parsePlanDate(row.ngay_trien_khai_ban_ve), note: row.tinh_trang_trien_khai_ban_ve ?? '', st: state(1, 1) },
+      { key: 'pm', title: 'Nhận đơn từ PM', stage: 'P001', date: pmDate, note: pmDate ? `${Math.floor((today - pmDate.getTime()) / DAY)} ngày trước` : '', gap: '', st: state(0, 0) },
+      { key: 'bv', title: 'Triển khai bản vẽ', stage: 'P002', date: bvDate, note: row.tinh_trang_trien_khai_ban_ve ?? '', gap: gapText(pmDate, bvDate, 'sau nhận PM'), st: state(1, 1) },
       {
         key: 'phieu', title: 'Tính phiếu / duyệt phiếu', stage: 'P012',
-        date: parsePlanDate(row.ngay_tinh_phieu), date2: parsePlanDate(row.ngay_duyet_phieu),
+        date: phDate, date2: parsePlanDate(row.ngay_duyet_phieu),
         note: [row.tinh_trang_phieu, qtyTicket ? `SL tính phiếu ${fmtNum(qtyTicket, 3)} / ${fmtNum(qtyOrder, 3)}` : ''].filter(Boolean).join(' · '),
+        gap: gapText(bvDate, phDate, 'sau triển khai BV'),
         st: state(2, 2),
       },
-      { key: 'sx', title: 'Sản xuất (P013 → P021)', stage: 'P013–P021', date: null, note: stage && cur >= 3 && cur <= 9 ? `Đang ở ${stage} · ${row.tinh_trang ?? ''}` : '', st: state(3, 9) },
+      { key: 'sx', title: 'Sản xuất (P013 → P021)', stage: 'P013–P021', date: null, note: stage && cur >= 3 && cur <= 9 ? `Đang ở ${stage} · ${row.tinh_trang ?? ''}` : '', gap: '', st: state(3, 9) },
       {
         key: 'nk', title: 'Nhập kho', stage: 'P022', date: firstIn, date2: lastIn,
         // Số lượng + giá trị đã nhập / trị giá đơn hàng (tỷ); đơn HỦY không tính giá trị
         note: `${fmtNum(qtyIn, 3)} / ${fmtNum(qtyOrder, 3)} ${row.dvt ?? ''}`
           + (cancelled ? '' : ` · ${fmtTy(valDone)} / ${fmtTy(total)} tỷ`)
           + (full ? ' · đủ' : ''),
+        gap: [gapText(phDate, firstIn, 'sau tính phiếu'), gapText(pmDate, lastIn, '· tổng từ PM')].filter(Boolean).join(' '),
         st: full ? 'done' as const : qtyIn > 0 ? 'current' as const : state(10, 11),
+      },
+      {
+        key: 'xk', title: 'Xuất kho / giao', stage: 'P025', date: null,
+        note: qtyOut > 0 || qtyStock > 0 ? `đã xuất ${fmtNum(qtyOut, 3)} · tồn kho ${fmtNum(qtyStock, 3)} ${row.dvt ?? ''}` : (qtyIn > 0 ? 'chưa xuất kho' : ''),
+        gap: '',
+        st: (qtyIn > 0 && qtyOut >= qtyIn && qtyStock <= 0) ? 'done' as const : qtyOut > 0 ? 'current' as const : 'todo' as const,
       },
     ];
 
@@ -185,12 +206,13 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     return { warnings };
   }, [row, d]);
   const openIssues = (issues ?? []).filter(v => !v.isResolved);
+  const qcEntries = useMemo(() => parseQcEntries(row?.tong_hop_thong_tin_qc), [row]);
 
   return (
     <ModalShell
       open={hex !== null}
       onClose={onClose}
-      closeOnEsc={escEnabled}
+      closeOnEsc={escEnabled && photoView === null}
       labelledBy="hex-timeline-title"
       overlayClassName="fixed inset-0 z-[9994] flex items-center justify-center bg-slate-900/50 p-4"
       panelClassName="w-[92vw] max-w-[1400px] h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
@@ -295,6 +317,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                               </span>
                             </div>
                             {m.note && <p className="text-xs text-slate-500">{m.note}</p>}
+                            {m.gap && <p className="text-[0.6875rem] text-slate-400">{m.gap}</p>}
                             {/* Sản xuất: SL đã giao theo từng công đoạn so với SL tính phiếu */}
                             {m.key === 'sx' && (
                               <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
@@ -496,11 +519,71 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                 )}
               </div>
 
-              {/* Ghi chú phiếu, QC, mô tả */}
+              {/* QC: bảng từng lần kiểm (parse từ cột tổng hợp QC) */}
+              {qcEntries.length > 0 && (
+                <div className="rounded-lg border border-slate-200">
+                  <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
+                    Kiểm tra QC <span className="font-normal text-slate-400">· {qcEntries.length} lần · {qcEntries.reduce((n, e) => n + e.fail, 0)} sản phẩm lỗi · mới nhất trước</span>
+                  </p>
+                  <div className="max-h-64 overflow-auto custom-scrollbar">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-slate-50 text-slate-500">
+                        <tr>
+                          <th className="px-3 py-1.5 text-left font-medium">Ngày</th>
+                          <th className="px-3 py-1.5 text-left font-medium">Công đoạn</th>
+                          <th className="px-3 py-1.5 text-left font-medium">Kết quả</th>
+                          <th className="px-3 py-1.5 text-right font-medium">Kiểm</th>
+                          <th className="px-3 py-1.5 text-right font-medium">Đạt</th>
+                          <th className="px-3 py-1.5 text-right font-medium">Lỗi</th>
+                          <th className="px-3 py-1.5 text-left font-medium">QC</th>
+                          <th className="px-3 py-1.5 text-left font-medium">Ghi chú</th>
+                          <th className="px-3 py-1.5 text-right font-medium">Ảnh</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {qcEntries.map((e, i) => {
+                          const bad = e.status === 'rejected' || e.status === 'flagged' || e.fail > 0;
+                          const wait = e.status === 'pending' || e.status === 'submitted';
+                          return (
+                            <tr key={i} className={bad ? 'bg-red-50/40' : ''}>
+                              <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{e.date}</td>
+                              <td className="max-w-[200px] truncate px-3 py-1.5 text-slate-600" title={e.stage}>{e.stage || '—'}</td>
+                              <td className="whitespace-nowrap px-3 py-1.5">
+                                <span className={`rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${bad ? 'bg-red-100 text-red-700' : wait ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-700'}`}>
+                                  {QC_STATUS_VI[e.status] ?? e.status}
+                                </span>
+                              </td>
+                              <td className="px-3 py-1.5 text-right tabular-nums">{fmtNum(e.checked, 3)}</td>
+                              <td className="px-3 py-1.5 text-right tabular-nums text-emerald-700">{fmtNum(e.pass, 3)}</td>
+                              <td className={`px-3 py-1.5 text-right tabular-nums ${e.fail > 0 ? 'font-semibold text-red-600' : 'text-slate-400'}`}>{fmtNum(e.fail, 3)}</td>
+                              <td className="whitespace-nowrap px-3 py-1.5 text-slate-600">{e.qc || '—'}</td>
+                              <td className="max-w-[320px] px-3 py-1.5 text-slate-600"><span className="line-clamp-2 whitespace-pre-line" title={e.note}>{e.note || '—'}</span></td>
+                              <td className="whitespace-nowrap px-3 py-1.5 text-right">
+                                {e.photos.length === 0 ? <span className="text-slate-300">—</span> : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPhotoView({ urls: e.photos, idx: 0, title: `QC ${e.date} · ${e.stage || ''}` })}
+                                    title="Xem ảnh QC ngay trong app"
+                                    className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[0.6875rem] font-semibold text-blue-700 hover:bg-blue-50"
+                                  >
+                                    <ImageIcon size={12} /> {e.photos.length} ảnh
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Ghi chú phiếu, mô tả (QC đã có bảng riêng; chỉ hiện nguyên văn khi không parse được) */}
               <div className="grid gap-4 lg:grid-cols-2">
                 {[
                   { title: 'Ghi chú phiếu', text: row.ghi_chu_phieu },
-                  { title: 'Thông tin QC', text: row.tong_hop_thong_tin_qc },
+                  { title: 'Thông tin QC', text: qcEntries.length ? '' : row.tong_hop_thong_tin_qc },
                   { title: 'Mô tả sản phẩm', text: row.mo_ta_san_pham },
                   { title: 'Ghi chú đơn hàng / xuất kho', text: [row.ghi_chu_don_hang_tong, row.tong_hop_ghi_chu_xuat_kho].filter(Boolean).join('\n') },
                 ].filter(b => String(b.text ?? '').trim()).map(b => (
@@ -514,6 +597,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
           )}
         </div>
       </div>
+      {photoView && <LinkLightbox urls={photoView.urls} start={photoView.idx} title={photoView.title} onClose={() => setPhotoView(null)} />}
     </ModalShell>
   );
 };

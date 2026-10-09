@@ -19,6 +19,9 @@ export const REPORT_COLUMNS: Record<string, string[]> = {
   'thanh_tien_xuat_kho_luy_ke', 'thanh_tien_ton_kho_hien_tai',
   // Hạng mục nhập đủ SỐ LƯỢNG coi là đã xong khi đếm / tính hạn (utils/productionMetrics.isQtyComplete)
   'so_luong_don_hang_tong', 'so_luong_nhap_kho_luy_ke',
+  // Báo cáo tiến độ công trình (bộ lọc nhóm CT / tình trạng dự án) + tổng quan 1 công trình
+  // (luồng triển khai BV → phiếu → chuyền → nhập kho, tuổi đơn từ ngày nhận PM). Cột ngắn, thêm ít dung lượng.
+  'nhom_ct', 'tinh_trang_du_an', 'ngay_nhan_tu_pm', 'tinh_trang_trien_khai_ban_ve', 'tinh_trang_phieu',
 ],
   vat_tu: [
   'trang_thai', 'trang_thai_sap', 'nguoi_tao', 'nguoi_yeu_cau',

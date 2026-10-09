@@ -2,14 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
-import { Search, X, Filter, ChevronRight } from 'lucide-react';
+import { Search, X, Filter, ChevronRight, AlertTriangle } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
 import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, resolveDeadlineKeys, isQtyComplete } from '../../utils/productionMetrics';
+import { deadlineOf, resolveDeadlineKeys, isQtyComplete, projectMatchKey } from '../../utils/productionMetrics';
+import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
@@ -22,11 +23,18 @@ import { formatTy, formatTrieuAsTy } from '../../utils/money';
 // ============================================================
 
 type Status = 'HOÀN THÀNH' | 'CÓ PHIẾU SX' | 'CHƯA TKSX' | 'CẦN XỬ LÝ' | 'TẠM NGƯNG' | 'HỦY';
-type FKey = 'ct' | 'pm' | 'pc' | 'kv' | 'kh' | 'pl' | 'month';
+type FKey = 'ct' | 'pm' | 'pc' | 'kv' | 'kh' | 'pl' | 'month' | 'nct' | 'tda';
 type Filters = Partial<Record<FKey, string | undefined>>;
 
 interface Rec {
   ct: string; pm: string; pc: string; kv: string; kh: string; pl: string;
+  nct: string;        // nhóm công trình (nhom_ct) — vd. "CỤM TÂY HỒ VIEW", "OUT TOP 33 CT"
+  tda: string;        // tình trạng dự án (tinh_trang_du_an) — SẢN XUẤT / ĐÓNG DỰ ÁN / CẦN XỬ LÝ
+  ma: string;         // mã công trình (khớp vướng mắc theo mã)
+  deadline: Date | null; // hạn = KH nhập kho tuần → tháng
+  open: boolean;      // còn phải theo dõi (chưa nhập đủ giá trị / số lượng, không hủy)
+  overdue: boolean;   // open và đã qua hạn
+  botDuAn: Date | null;  // BOT dự án (tham khảo)
   ctKey: string;      // khoá ĐẾM công trình: tên chuẩn (projectMatchKey, xem projectKeyResolver)
   month: string;      // 'YYYY-MM' hoặc 'none'
   status: Status;
@@ -51,6 +59,7 @@ const NO_MONTH = 'none';
 
 const FILTER_LABEL: Record<FKey, string> = {
   ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', kh: 'Khách hàng', pl: 'Nhóm SP', month: 'Tháng hạn',
+  nct: 'Nhóm CT', tda: 'Tình trạng dự án',
 };
 
 const COLOR_DONE = '#16a34a';
@@ -121,9 +130,33 @@ interface Props {
   columns: ColumnDefinition[];
   /** Tài khoản đang đăng nhập (ghi chú / vướng mắc trong cửa sổ HEX) */
   currentUser?: string;
+  /** Bảng nhập kho — nhịp nhập kho theo tuần + dự báo trong cửa sổ tổng quan công trình */
+  inventory?: DataRow[];
 }
 
-const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '' }) => {
+const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory }) => {
+  const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
+  // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
+  const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(null);
+  useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
+  const vmIndex = useMemo(() => {
+    const byMa = new Map<string, { open: number; overdue: number }>();
+    const byName = new Map<string, { open: number; overdue: number }>();
+    const add = (m: Map<string, { open: number; overdue: number }>, k: string, r: VmByProjectRow) => {
+      if (!k) return;
+      const e = m.get(k) ?? { open: 0, overdue: 0 };
+      e.open += r.open; e.overdue += r.overdue; m.set(k, e);
+    };
+    (vmRows ?? []).forEach(r => { add(byMa, r.ma.toUpperCase(), r); add(byName, projectMatchKey(r.ten), r); });
+    return { byMa, byName };
+  }, [vmRows]);
+  // Vướng mắc của 1 công trình: cộng theo các mã công trình của nó; không có mã khớp thì theo tên chuẩn
+  const vmOf = (mas: Set<string>, ctKey: string) => {
+    let open = 0, overdue = 0, hit = false;
+    mas.forEach(ma => { const e = vmIndex.byMa.get(ma); if (e) { hit = true; open += e.open; overdue += e.overdue; } });
+    if (!hit) { const e = vmIndex.byName.get(ctKey); if (e) { open = e.open; overdue = e.overdue; } }
+    return { open, overdue };
+  };
   // Cửa sổ chi tiết (cấp 1): ô KPI / cột tháng / PC — liệt kê công trình; bấm công trình mở HEX (cấp 2)
   const [detail, setDetail] = useState<DetailSpec | null>(null);
   const [detailSearch, setDetailSearch] = useState('');
@@ -164,6 +197,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, 'ma_cong_trinh');
     const xkK = key('thanh_tien_xuat_kho_luy_ke', 'thanh_tien_xuat_kho_luy_ke');
     const tkK = key('thanh_tien_ton_kho_hien_tai', 'thanh_tien_ton_kho_hien_tai');
+    const nctK = columns.find(c => c.key === 'nhom_ct')?.key ?? 'nhom_ct';
+    const tdaK = columns.find(c => c.key === 'tinh_trang_du_an')?.key ?? 'tinh_trang_du_an';
     const projectKey = projectKeyResolver(data, maK, ctK);
 
       const txt = (v: unknown) => {
@@ -192,14 +227,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       else status = 'CÓ PHIẾU SX';
 
       // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng (quy tắc chung; không có KH => "Chưa có KH nhập kho")
-      const d = deadlineOf(row, dlKeys).date;
+      const dl = deadlineOf(row, dlKeys);
+      const d = dl.date;
       const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : NO_MONTH;
 
       const cancelled = status === 'HỦY';
       const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
       const stock = Math.max(parseNumber(row[tkK]), 0);
+      const qtyDone = isQtyComplete(row);
+      // Cùng định nghĩa "còn theo dõi" với cửa sổ tổng quan công trình (ProjectHealthModal)
+      const open = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
       out.push({
         ct, ctKey: projectKey(row), pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
+        nct: txt(row[nctK]), tda: txt(row[tdaK]), ma: String(row[maK] ?? '').trim().toUpperCase(),
+        deadline: d, open, overdue: open && !!d && d.getTime() < today, botDuAn: dl.botDuAn,
         ipo: String(row[ipoK] ?? '').trim(),
         month, status,
         // Trang có bộ lọc Tình trạng IPO => trị giá gồm cả HỦY (khớp tổng cột trị giá ở file gốc);
@@ -209,7 +250,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         exported: Math.max(done - stock, 0),
         exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
         stock,
-        qtyDone: isQtyComplete(row),
+        qtyDone,
         row,
       });
     }
@@ -231,7 +272,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     });
     for (const r of out) r.ct = displayName.get(r.ctKey) ?? r.ct;
     return out;
-  }, [data, columns]);
+  }, [data, columns, today]);
 
   // Bộ lọc Tình trạng IPO (mặc định: Đang sản xuất — bỏ chọn hết = tất cả),
   // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
@@ -267,11 +308,21 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded;
       if (r.stock > r.done + 0.001) { stockOver += r.stock - r.done; stockOverItems++; }
     }
+    // Cảnh báo: quá hạn KH nhập kho / chưa có KH / qua BOT dự án (hạng mục còn theo dõi)
+    let overdue = 0, overdueRemain = 0, noPlan = 0, noPlanRemain = 0, pastBot = 0, pastBotRemain = 0;
+    for (const r of rowsAll) {
+      if (!r.open) continue;
+      const rem = r.total - r.done;
+      if (r.overdue) { overdue++; overdueRemain += rem; }
+      if (!r.deadline) { noPlan++; noPlanRemain += rem; }
+      if (r.botDuAn && r.botDuAn.getTime() < today) { pastBot++; pastBotRemain += rem; }
+    }
     return {
       cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, total, done, remain: total - done,
       exported, stock, exportedRecorded, stockOver, stockOverItems,
+      overdue, overdueRemain, noPlan, noPlanRemain, pastBot, pastBotRemain,
     };
-  }, [rowsAll]);
+  }, [rowsAll, today]);
 
   // ---------- 3. Cột chồng theo tháng hạn giao ----------
   const monthRange = useMemo(() => ({ from: monthKeyOffset(-MONTHS_BACK), to: monthKeyOffset(MONTHS_AHEAD) }), []);
@@ -313,15 +364,26 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const ctTable = useMemo(() => {
     const q = ctSearch.trim().toLowerCase();
-    const m = new Map<string, { name: string; pms: Set<string>; items: number; total: number; done: number }>();
+    type Row = { name: string; ctKey: string; pms: Set<string>; mas: Set<string>; items: number; total: number; done: number; open: number; overdue: number; botDates: string[] };
+    const m = new Map<string, Row>();
     for (const r of apply('ct')) {
       if (q && !r.ct.toLowerCase().includes(q)) continue;
-      const e = m.get(r.ct) ?? { name: r.ct, pms: new Set<string>(), items: 0, total: 0, done: 0 };
-      e.pms.add(r.pm); e.items++; e.total += r.total; e.done += r.done;
+      const e = m.get(r.ct) ?? { name: r.ct, ctKey: r.ctKey, pms: new Set<string>(), mas: new Set<string>(), items: 0, total: 0, done: 0, open: 0, overdue: 0, botDates: [] };
+      e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.items++; e.total += r.total; e.done += r.done;
+      if (r.open) e.open++; if (r.overdue) e.overdue++;
+      if (r.botDuAn) e.botDates.push(r.botDuAn.toISOString().slice(0, 10));
       m.set(r.ct, e);
     }
-    return [...m.values()].sort((a, b) => b.total - a.total || b.items - a.items);
-  }, [records, f, ctSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+    return [...m.values()].map(e => {
+      // BOT dự án: 1 ngày chung cho cả công trình (lấy ngày xuất hiện nhiều nhất)
+      const cnt = new Map<string, number>();
+      e.botDates.forEach(d => cnt.set(d, (cnt.get(d) ?? 0) + 1));
+      let best = '', n = -1; cnt.forEach((c, d) => { if (c > n) { best = d; n = c; } });
+      const botDuAn = best ? new Date(Number(best.slice(0, 4)), Number(best.slice(5, 7)) - 1, Number(best.slice(8, 10))) : null;
+      return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey) };
+    }).sort((a, b) => b.total - a.total || b.items - a.items);
+  }, [records, f, ctSearch, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  const vmTotal = useMemo(() => ctTable.reduce((s, r) => s + r.vm.open, 0), [ctTable]);
 
   // ---------- 6. Cửa sổ HEX của 1 công trình ----------
   // Cùng phạm vi với dòng bảng đã bấm: áp mọi bộ lọc đang chọn (trừ lọc công trình) — số HEX = cột "Mục"
@@ -411,6 +473,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       botDuAnKey: findColumnKey(columns, 'bot_du_an') || 'bot_du_an',
       xuongKey: key(TARGET_COLUMN_NAMES.XUONG, 'xuong_chinh'),
       dwellKey: key(TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI, 'so_ngay_cd_hien_tai'),
+      // So khớp ĐÚNG tên cột (findColumnKey dò chuỗi con có thể nhận nhầm)
+      nhanPmKey: columns.find(c => c.key === 'ngay_nhan_tu_pm')?.key ?? 'ngay_nhan_tu_pm',
+      bvStKey: columns.find(c => c.key === 'tinh_trang_trien_khai_ban_ve')?.key ?? 'tinh_trang_trien_khai_ban_ve',
+      phieuStKey: columns.find(c => c.key === 'tinh_trang_phieu')?.key ?? 'tinh_trang_phieu',
+      nhomCtKey: columns.find(c => c.key === 'nhom_ct')?.key ?? 'nhom_ct',
+      tinhTrangDaKey: columns.find(c => c.key === 'tinh_trang_du_an')?.key ?? 'tinh_trang_du_an',
     };
   }, [columns]);
 
@@ -442,7 +510,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const options = useMemo(() => {
     const uniq = (pick: (r: Rec) => string) => [...new Set(allRecords.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
     return {
-      ct: uniq(r => r.ct), pm: uniq(r => r.pm), kv: uniq(r => r.kv),
+      ct: uniq(r => r.ct), pm: uniq(r => r.pm), kv: uniq(r => r.kv), nct: uniq(r => r.nct), tda: uniq(r => r.tda),
       month: [...new Set(allRecords.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : b.localeCompare(a))), // mới nhất trước
     };
   }, [allRecords]);
@@ -540,6 +608,27 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               widthClass="w-40"
               className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
             />
+            {/* Nhóm CT (vd. "CỤM TÂY HỒ VIEW", "OUT TOP 33 CT") và tình trạng dự án — cột có từ 10/2026 */}
+            {options.nct.length > 1 && (
+              <SearchableSelect
+                value={f.nct ?? ''}
+                onChange={v => setKey('nct', v)}
+                options={options.nct.map(o => ({ code: o, name: o }))}
+                allLabel="Nhóm CT: Tất cả"
+                widthClass="w-44"
+                className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+              />
+            )}
+            {options.tda.length > 1 && (
+              <SearchableSelect
+                value={f.tda ?? ''}
+                onChange={v => setKey('tda', v)}
+                options={options.tda.map(o => ({ code: o, name: o }))}
+                allLabel="Dự án: Tất cả"
+                widthClass="w-40"
+                className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+              />
+            )}
           </div>
         </div>
 
@@ -590,6 +679,37 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                  ? `Tồn kho hiện tại (khớp bảng tồn kho). ${fmtInt(kpi.stockOverItems)} hạng mục có tồn kho tính theo đơn giá cao hơn giá trị đã nhập (lệch ${fmtTy(kpi.stockOver)} tỷ) nên Đã nhập ≈ Đã xuất / giao + Tồn kho.`
                  : 'Tồn kho hiện tại (khớp bảng tồn kho). Đã nhập = Đã xuất / giao + Tồn kho.'}
                spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất — khớp bảng tồn kho).' }} />
+        </div>
+
+        {/* Cảnh báo: hạng mục còn theo dõi (chưa nhập đủ, không hủy) theo hạn / KH / BOT dự án + vướng mắc đang mở */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Kpi label="Quá hạn KH nhập kho" value={fmtInt(kpi.overdue)} unit="mục" tone={kpi.overdue ? 'text-red-600' : 'text-slate-900'}
+               sub={`${fmtTy(kpi.overdueRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng (KH kỳ đã nhập đủ SL thì không tính)"
+               spec={{ pred: r => r.open && r.overdue, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ (giá trị / số lượng), đã qua KH nhập kho tuần → tháng.' }} />
+          <Kpi label="Chưa có KH nhập kho" value={fmtInt(kpi.noPlan)} unit="mục" tone={kpi.noPlan ? 'text-amber-600' : 'text-slate-900'}
+               sub={`${fmtTy(kpi.noPlanRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục chưa nhập kho đủ mà không có KH nhập kho tuần / tháng — không theo dõi được quá hạn"
+               spec={{ pred: r => r.open && !r.deadline, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ, không có KH nhập kho tuần / tháng (chưa lập BOT).' }} />
+          <Kpi label="Qua BOT dự án chưa xong" value={fmtInt(kpi.pastBot)} unit="mục" tone={kpi.pastBot ? 'text-red-600' : 'text-slate-900'}
+               sub={`${fmtTy(kpi.pastBotRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục chưa nhập kho đủ đã qua BOT dự án (hạn chung của công trình — tham khảo, không tính hạn từng hạng mục)"
+               spec={{ pred: r => r.open && !!r.botDuAn && r.botDuAn.getTime() < today, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ đã qua BOT dự án (tham khảo).' }} />
+          <a
+            href="#/vuong-mac"
+            title="Vướng mắc chưa xử lý xong của các công trình trong danh sách — bấm để mở màn quản lý vướng mắc"
+            className={`${cardCls} group px-4 py-3 text-left transition hover:border-slate-400 hover:shadow-md`}
+          >
+            <p className="flex items-center justify-between text-[0.6875rem] font-medium tracking-wide text-slate-500">
+              Vướng mắc đang mở <AlertTriangle size={13} className={vmTotal ? 'text-red-500' : 'text-slate-300'} />
+            </p>
+            <p className={`mt-1 text-2xl font-semibold tabular-nums ${vmTotal ? 'text-red-600' : 'text-slate-900'}`}>
+              {vmRows === null ? '…' : fmtInt(vmTotal)}<span className="ml-1 text-sm font-medium text-slate-400">vướng mắc</span>
+            </p>
+            <p className="mt-0.5 text-[0.6875rem] text-slate-400">
+              {vmRows === null ? 'Đang tải' : `${fmtInt(ctTable.filter(r => r.vm.open > 0).length)} công trình · ${fmtInt(ctTable.reduce((s, r) => s + r.vm.overdue, 0))} quá hạn BOT`}
+            </p>
+          </a>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
@@ -715,13 +835,17 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <th className="text-left font-medium px-2 py-2">PM</th>
                     <th className="text-right font-medium px-2 py-2">Mục</th>
                     <th className="text-right font-medium px-2 py-2">Tổng GT (Tỷ)</th>
-                    <th className="text-left font-medium px-4 py-2 w-32">Hoàn thành</th>
+                    <th className="text-left font-medium px-2 py-2 w-32">Hoàn thành</th>
+                    <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT DA</th>
+                    <th className="text-right font-medium px-2 py-2" title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
+                    <th className="text-right font-medium pl-2 pr-4 py-2" title="Vướng mắc chưa xử lý xong (theo mã công trình)">VM</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {ctTable.map((r, idx) => {
                     const pct = r.total > 0 ? Math.min(100, (r.done / r.total) * 100) : 0;
                     const pms = [...r.pms];
+                    const botLeft = r.botDuAn ? Math.floor((r.botDuAn.getTime() - today) / 86_400_000) : null;
                     return (
                       <tr key={r.name} onClick={() => setHealth({ ct: r.name, inDetail: false })}
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
@@ -747,7 +871,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
-                        <td className="px-4 py-1.5">
+                        <td className="px-2 py-1.5">
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
                               <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
@@ -755,11 +879,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             <span className="w-9 text-right tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
                           </div>
                         </td>
+                        <td className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${!r.botDuAn ? 'text-slate-300' : r.open === 0 ? 'text-emerald-600' : botLeft! < 0 ? 'font-semibold text-red-600' : botLeft! <= 30 ? 'text-amber-600' : 'text-slate-500'}`}
+                            title={r.botDuAn ? (r.open === 0 ? 'Đã nhập kho đủ' : botLeft! < 0 ? `Quá BOT dự án ${-botLeft!} ngày · còn ${fmtInt(r.open)} hạng mục` : `Còn ${botLeft} ngày · ${fmtInt(r.open)} hạng mục chưa xong`) : 'Chưa có BOT dự án'}>
+                          {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                        </td>
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '—'}</td>
+                        <td className={`pl-2 pr-4 py-1.5 text-right tabular-nums ${r.vm.open ? 'font-semibold text-red-600' : 'text-slate-300'}`}
+                            title={r.vm.open ? `${r.vm.open} vướng mắc đang mở · ${r.vm.overdue} quá hạn BOT` : undefined}>
+                          {vmRows === null ? '…' : r.vm.open || '—'}
+                        </td>
                       </tr>
                     );
                   })}
                   {ctTable.length === 0 && (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
                   )}
                 </tbody>
               </table>
@@ -949,6 +1082,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         pmText={healthPm}
         escEnabled={hexScope === null}
         onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail })}
+        inventory={inventory}
       />
 
       <HexDetailModal

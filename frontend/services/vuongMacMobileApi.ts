@@ -93,20 +93,8 @@ export async function disablePush() {
 }
 
 // ---------------- Tra cứu hex (dùng cho tab "Tra cứu" trên mobile) ----------------
-export interface HexHit {
-  hex: string;
-  congTrinh: string | null;
-maNhaMay?: string | null; 
-  hangMuc: string | null;
-  xuong: string | null;
-  // Các cột phụ giống bảng "Chi tiết theo Hex" trên desktop
-  bop?: string | null;
-  tinhTrang?: string | null;
-  phanLoai?: string | null;
-  triGia?: number | string | null;
-  thanhTienPhieu?: number | string | null;
-  thanhTienKho?: number | string | null;
-}
+export type { HexHit } from './vuongMacService';
+import type { HexHit } from './vuongMacService';
 
 async function getJson<T>(path: string): Promise<T> {
   if (!getToken()) throw new Error(UNAUTHORIZED);

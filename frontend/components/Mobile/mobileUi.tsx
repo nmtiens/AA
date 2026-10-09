@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
-import { parseBotEnd } from '../../services/vuongMacMobileApi';
 import type { VuongMacRow } from '../../services/vuongMacService';
 
 // ============================================================================
@@ -24,89 +23,16 @@ export const btnSecondary =
 export const chipCls = (on: boolean) =>
   `shrink-0 rounded-full px-4 py-2 text-base ${on ? 'bg-slate-900 font-medium text-white' : 'border border-slate-300 bg-white text-slate-600 active:bg-slate-100'}`;
 
-// ---------------- Thời gian ----------------
-export const pad = (n: number) => String(n).padStart(2, '0');
+// ---------------- Thời gian / loại 5M / trạng thái: dùng chung với web (components/VuongMac/model.ts) ----------------
+export {
+  pad, fmtTime, fmtShort, fmtSpan, fmtAgo, dayKey, catIcon, CAT_CODE, CAT_NAME, catLabel, botCountdown, initials,
+} from '../VuongMac/model';
+import { displayState, DISPLAY_META, type DisplayState } from '../VuongMac/model';
 
-export const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
-
-/** "HH:mm dd/MM/yyyy" — cùng định dạng với BOT */
-export const fmtShort = (s?: string | null) => {
-  if (!s) return '';
-  const d = new Date(s);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-};
-
-/** Khoảng thời gian dạng ngắn: "5 phút", "3 giờ", "2 ngày" */
-export const fmtSpan = (ms: number) => {
-  const m = Math.max(1, Math.round(Math.abs(ms) / 60000));
-  if (m < 60) return `${m} phút`;
-  const h = Math.round(m / 60);
-  if (h < 48) return `${h} giờ`;
-  return `${Math.round(h / 24)} ngày`;
-};
-
-/** "vừa xong", "5 phút trước", "2 ngày trước" */
-export const fmtAgo = (s?: string | null) => {
-  if (!s) return '';
-  const ms = Date.now() - new Date(s).getTime();
-  return ms < 60000 ? 'vừa xong' : `${fmtSpan(ms)} trước`;
-};
-
-export const dayKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-// ---------------- Loại vướng mắc (5M) ----------------
-const CAT_ICON: Record<string, string> = {
-  man: '👷', machine: '⚙️', material: '🪵', method: '📋', measurement: '📏',
-};
-export const catIcon = (c: string) => CAT_ICON[c] ?? '🏷️';
-// 5 loại riêng, mỗi loại 1 mã M1..M5
-export const CAT_CODE: Record<string, string> = { man: 'M1', machine: 'M2', material: 'M3', method: 'M4', measurement: 'M5' };
-export const CAT_NAME: Record<string, string> = {
-  man: 'Con người', machine: 'Máy móc', material: 'Vật tư', method: 'Phương pháp', measurement: 'Đo lường',
-};
-/** "M1 · Con người" */
-export const catLabel = (c: string) => (CAT_CODE[c] ? `${CAT_CODE[c]} · ${CAT_NAME[c]}` : c);
-
-// ---------------- Trạng thái + hạn BOT ----------------
-export type RowStatus = 'resolved' | 'overdue' | 'soon' | 'extended' | 'open';
-
-export const STATUS_STYLE: Record<RowStatus, { label: string; icon: string; pill: string; bar: string; dot: string }> = {
-  overdue:  { label: 'Quá hạn BOT',  icon: '⏰', pill: 'bg-red-100 text-red-700',         bar: 'bg-red-500',     dot: 'bg-red-500' },
-  soon:     { label: 'Sắp đến hạn',  icon: '⌛', pill: 'bg-amber-100 text-amber-800',     bar: 'bg-amber-500',   dot: 'bg-amber-500' },
-  extended: { label: 'Đã gia hạn',   icon: '🔁', pill: 'bg-yellow-100 text-yellow-800',   bar: 'bg-yellow-400',  dot: 'bg-yellow-400' },
-  open:     { label: 'Tồn đọng',     icon: '🚧', pill: 'bg-blue-100 text-blue-800',       bar: 'bg-blue-500',    dot: 'bg-blue-500' },
-  resolved: { label: 'Đã xử lý',     icon: '✓',  pill: 'bg-emerald-100 text-emerald-800', bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
-};
-
-const SOON_MS = 24 * 60 * 60 * 1000; // khớp backend: còn ≤ 24 giờ là "sắp đến hạn"
-
-// Ưu tiên: đã xử lý > quá hạn > sắp đến hạn > đã gia hạn > tồn đọng
-export const rowStatus = (v: VuongMacRow): RowStatus => {
-  if (v.isResolved) return 'resolved';
-  const end = parseBotEnd(v.bot);
-  const left = end ? end.getTime() - Date.now() : null;
-  if (left !== null && left < 0) return 'overdue';
-  if (left !== null && left <= SOON_MS) return 'soon';
-  if (v.extensions?.length) return 'extended';
-  return 'open';
-};
-
-/** "Quá hạn 2 ngày" / "Còn 3 giờ" — null nếu đã xử lý hoặc không có BOT */
-export const botCountdown = (v: VuongMacRow): { text: string; cls: string } | null => {
-  if (v.isResolved) return null;
-  const end = parseBotEnd(v.bot);
-  if (!end) return null;
-  const left = end.getTime() - Date.now();
-  if (left < 0) return { text: `Quá hạn ${fmtSpan(left)}`, cls: 'text-red-600' };
-  return { text: `Còn ${fmtSpan(left)}`, cls: left <= SOON_MS ? 'text-amber-700' : 'text-slate-500' };
-};
-
-/** Chữ cái đầu của tên (avatar) */
-export const initials = (name?: string | null) => {
-  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  return (parts.length === 1 ? parts[0][0] : parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-};
+/** Tên cũ: trạng thái hiển thị của 1 dòng (quy trình + hạn BOT) */
+export type RowStatus = DisplayState;
+export const STATUS_STYLE = DISPLAY_META;
+export const rowStatus = (v: VuongMacRow): RowStatus => displayState(v);
 
 // ---------------- Khung nhập liệu ----------------
 // Nhãn nằm NGOÀI ô nhập; bên trong ô chỉ để gợi ý nhập

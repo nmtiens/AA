@@ -8,6 +8,7 @@ import {
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, summarizeNeeds, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
+import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
 
 // ============================================================================
 // Tầng 2 của "Tổng quan công trình": 3 tab chi tiết BOT · BOP · BOM.
@@ -39,7 +40,30 @@ export interface HexInfo {
   planAfterDue?: boolean;
   overdue: boolean;
   dueSoon: boolean;
+  /** Ngày cần (PM) / BOT dự án — chỉ tham khảo, không tính hạn */
+  canPm?: Date | null;
+  botDuAn?: Date | null;
+  /** Ngày nhận đơn từ PM (tuổi đơn) */
+  receivedPm?: Date | null;
+  /** Tình trạng triển khai bản vẽ / phiếu (null = dữ liệu chưa có cột) */
+  bvDone?: boolean | null;
+  phieuDone?: boolean | null;
 }
+
+/** Số ngày từ ngày nhận PM tới hôm nay (tuổi đơn); null nếu không có ngày */
+export const ageDays = (i: HexInfo, today: number): number | null =>
+  i.receivedPm ? Math.floor((today - i.receivedPm.getTime()) / DAY) : null;
+export type AgeBucket = 'a30' | 'a90' | 'a90p' | 'none';
+export const ageBucketOf = (i: HexInfo, today: number): AgeBucket => {
+  const d = ageDays(i, today);
+  if (d === null) return 'none';
+  return d <= 30 ? 'a30' : d <= 90 ? 'a90' : 'a90p';
+};
+export const AGE_BUCKETS: { key: AgeBucket; label: string; tone: 'slate' | 'amber' | 'red' }[] = [
+  { key: 'a30', label: '≤ 30 ngày', tone: 'slate' },
+  { key: 'a90', label: '31–90 ngày', tone: 'amber' },
+  { key: 'a90p', label: '> 90 ngày', tone: 'red' },
+];
 
 export interface MaterialLine extends MaterialLineFields {
   hexes: string[];
@@ -119,6 +143,14 @@ const BOT_GROUPS: { key: BotGroup; label: string; tone: 'red' | 'amber' | 'slate
 ];
 const SOURCE_SHORT: Record<DeadlineSource, string> = { 'tuần': 'KH tuần', 'tháng': 'KH tháng' };
 
+// Mốc tham khảo (không tính hạn): hạng mục chưa nhập kho đủ đã qua ngày cần giao / BOT dự án / ngày cần (PM)
+type RefKey = 'canGiao' | 'botDuAn' | 'canPm';
+const REF_DEADLINES: { key: RefKey; label: string; hint: string; of: (i: HexInfo) => Date | null | undefined }[] = [
+  { key: 'canGiao', label: 'Qua ngày cần giao', hint: 'Đã qua Ngày cần giao mà chưa nhập kho đủ (tham khảo — hạn chính thức là KH nhập kho tuần / tháng)', of: i => i.canGiao },
+  { key: 'botDuAn', label: 'Qua BOT dự án', hint: 'Đã qua BOT dự án (hạn chung của công trình) mà chưa nhập kho đủ (tham khảo)', of: i => i.botDuAn },
+  { key: 'canPm', label: 'Qua ngày cần (PM)', hint: 'Đã qua Ngày cần do PM ghi mà chưa nhập kho đủ (tham khảo)', of: i => i.canPm },
+];
+
 export const BotTab = ({ items, today, openIssues, onHexClick }: {
   items: HexInfo[]; today: number; openIssues: Record<string, number> | null; onHexClick?: (hex: string) => void;
 }) => {
@@ -126,8 +158,24 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const [group, setGroup] = useState<BotGroup | 'all' | 'planAfterDue'>('all');
   const [month, setMonth] = useState<string | null>(null); // 'YYYY-MM' hoặc '~' (chưa có ngày)
   const [q, setQ] = useState('');
+  // Lọc thêm theo mốc tham khảo / tuổi đơn (cộng thêm vào lọc nhóm hạn)
+  const [ref, setRef] = useState<RefKey | null>(null);
+  const [age, setAge] = useState<AgeBucket | null>(null);
 
   const open = useMemo(() => items.filter(i => i.open), [items]);
+  const pastRef = (i: HexInfo, k: RefKey) => { const d = REF_DEADLINES.find(r => r.key === k)!.of(i); return !!d && d.getTime() < today; };
+  const refCounts = useMemo(() => {
+    const c: Record<RefKey, number> = { canGiao: 0, botDuAn: 0, canPm: 0 };
+    open.forEach(i => REF_DEADLINES.forEach(r => { if (pastRef(i, r.key)) c[r.key]++; }));
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, today]);
+  const ageCounts = useMemo(() => {
+    const c: Record<AgeBucket, { n: number; remain: number }> = { a30: { n: 0, remain: 0 }, a90: { n: 0, remain: 0 }, a90p: { n: 0, remain: 0 }, none: { n: 0, remain: 0 } };
+    open.forEach(i => { const b = ageBucketOf(i, today); c[b].n++; c[b].remain += i.remain; });
+    return c;
+  }, [open, today]);
+  const hasAge = ageCounts.none.n < open.length;
   const monthOf = (i: HexInfo) =>
     i.deadline ? `${i.deadline.getFullYear()}-${String(i.deadline.getMonth() + 1).padStart(2, '0')}` : '~';
   const monthLabel = (k: string) => (k === '~' ? 'Chưa có KH nhập kho' : `${k.slice(5)}/${k.slice(0, 4)}`);
@@ -172,9 +220,11 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
     const ql = q.trim().toLowerCase();
     return open
       .filter(i => inGroup(i) && (month === null || monthOf(i) === month) && matchQ(i, ql))
+      .filter(i => ref === null || pastRef(i, ref))
+      .filter(i => age === null || ageBucketOf(i, today) === age)
       .sort((a, b) => (a.deadline?.getTime() ?? Infinity) - (b.deadline?.getTime() ?? Infinity) || b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, group, month, q, today]);
+  }, [open, group, month, q, today, ref, age]);
 
   return (
     <div className="space-y-4">
@@ -204,6 +254,42 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
           </span>
         </div>
       )}
+
+      {/* Mốc tham khảo + tuổi đơn: 85% hạng mục đang sản xuất KHÔNG có KH nhập kho tuần / tháng nên chỉ nhìn BOT thì
+          không thấy gì — các mốc này giúp thấy hạng mục đã lố ngày cần giao / BOT dự án hoặc nằm quá lâu từ khi nhận PM */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-1.5 text-xs font-semibold text-slate-700">
+            Mốc tham khảo <span className="font-normal text-slate-500">· không tính hạn, chỉ để rà hạng mục chưa có KH nhập kho</span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {REF_DEADLINES.map(r => (
+              <span key={r.key} title={r.hint}>
+                <Chip active={ref === r.key} tone={refCounts[r.key] ? 'red' : 'slate'} onClick={() => setRef(ref === r.key ? null : r.key)}>
+                  {r.label} ({fmtInt(refCounts[r.key])})
+                </Chip>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-1.5 text-xs font-semibold text-slate-700">
+            Tuổi đơn <span className="font-normal text-slate-500">· số ngày từ ngày nhận PM tới nay, hạng mục chưa nhập kho đủ</span>
+          </p>
+          {hasAge ? (
+            <div className="flex flex-wrap gap-1.5">
+              {AGE_BUCKETS.map(b => (
+                <span key={b.key} title={`${fmtTy(ageCounts[b.key].remain)} tỷ chưa nhập kho`}>
+                  <Chip active={age === b.key} tone={ageCounts[b.key].n ? b.tone : 'slate'} onClick={() => setAge(age === b.key ? null : b.key)}>
+                    {b.label} ({fmtInt(ageCounts[b.key].n)})
+                  </Chip>
+                </span>
+              ))}
+              {ageCounts.none.n > 0 && <span className="self-center text-[0.6875rem] text-slate-400">· {fmtInt(ageCounts.none.n)} chưa có ngày nhận PM</span>}
+            </div>
+          ) : <p className="text-xs text-slate-400">Dữ liệu chưa có ngày nhận PM (sẽ có sau lần tải dữ liệu kế tiếp).</p>}
+        </div>
+      </div>
 
       <div>
         <p className="mb-1.5 text-xs font-semibold text-slate-700">
@@ -276,16 +362,26 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
             {group === 'all' ? 'tất cả nhóm' : group === 'planAfterDue' ? 'KH NK sau ngày cần giao' : BOT_GROUPS.find(g => g.key === group)?.label} · {fmtInt(list.length)} hạng mục · sắp theo ngày kế hoạch
           </span>
           {month !== null && <Chip active onClick={() => setMonth(null)}>Tháng {monthLabel(month)} ✕</Chip>}
+          {ref !== null && <Chip active tone="red" onClick={() => setRef(null)}>{REF_DEADLINES.find(r => r.key === ref)?.label} ✕</Chip>}
+          {age !== null && <Chip active onClick={() => setAge(null)}>Tuổi {AGE_BUCKETS.find(b => b.key === age)?.label} ✕</Chip>}
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục, công đoạn..." /></div>
         </div>
         <HexTable
           rows={list}
           onHexClick={onHexClick}
           hexClickTitle="Xem chi tiết hạng mục (BOP × BOT)"
-          extraHead={<><th className={`${th} text-left`} title="Nguồn của hạn đang dùng">Nguồn hạn</th><th className={`${th} text-right`}>Số ngày</th><th className={`${th} text-right`}>Vướng mắc</th></>}
+          extraHead={<>
+            <th className={`${th} text-left`} title="Nguồn của hạn đang dùng">Nguồn hạn</th>
+            <th className={`${th} text-right`}>Số ngày</th>
+            <th className={`${th} text-left`} title="BOT dự án — hạn chung của công trình (tham khảo)">BOT dự án</th>
+            <th className={`${th} text-right`} title="Số ngày từ ngày nhận PM tới nay">Tuổi</th>
+            <th className={`${th} text-right`}>Vướng mắc</th>
+          </>}
           extraCells={i => {
             const days = i.deadline ? Math.floor((i.deadline.getTime() - today) / DAY) : null;
             const vm = openIssues?.[i.hex] ?? 0;
+            const a = ageDays(i, today);
+            const pastDa = !!i.botDuAn && i.botDuAn.getTime() < today;
             return (
               <>
                 <td className={`${td} whitespace-nowrap text-slate-600`}>
@@ -294,6 +390,10 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
                 </td>
                 <td className={`${td} text-right tabular-nums ${days !== null && days < 0 ? 'font-semibold text-red-600' : days !== null && days <= 14 ? 'text-amber-600' : 'text-slate-500'}`}>
                   {days === null ? '—' : days}
+                </td>
+                <td className={`${td} whitespace-nowrap tabular-nums ${!i.botDuAn ? 'text-slate-300' : pastDa ? 'text-red-600' : 'text-slate-500'}`}>{fmtDate(i.botDuAn ?? null)}</td>
+                <td className={`${td} text-right tabular-nums ${a === null ? 'text-slate-300' : a > 90 ? 'font-semibold text-red-600' : a > 30 ? 'text-amber-600' : 'text-slate-500'}`} title={i.receivedPm ? `Nhận PM ${fmtDate(i.receivedPm)}` : undefined}>
+                  {a === null ? '—' : a}
                 </td>
                 <td className={`${td} text-right tabular-nums ${vm ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{openIssues === null ? '…' : vm || '—'}</td>
               </>
@@ -315,11 +415,18 @@ const stageRank = (s: string) => { const i = STAGE_ORDER.indexOf(s); return i ==
 // "Báo cáo tỷ trọng điểm nghẽn" (thời gian ở công đoạn hiện tại) của trang Tổng quan, nhưng chỉ cho
 // các hạng mục CÒN SẢN XUẤT (chưa nhập kho đủ) của công trình.
 type BopMetric = 'count' | 'remain' | 'total';
-const BOP_METRICS: { key: BopMetric; label: string }[] = [
-  { key: 'count', label: 'Số hạng mục' },
-  { key: 'remain', label: 'Còn lại (tỷ)' },
-  { key: 'total', label: 'Trị giá (tỷ)' },
+const BOP_METRICS: { key: BopMetric; label: string; hint: string }[] = [
+  { key: 'count', label: 'Số hạng mục', hint: 'Số hạng mục chưa nhập kho đủ' },
+  { key: 'remain', label: 'Còn lại (tỷ)', hint: 'Giá trị CHƯA nhập kho (trị giá − đã nhập) — khớp thẻ BOP' },
+  { key: 'total', label: 'Trị giá (tỷ)', hint: 'Trị giá đơn hàng ĐẦY ĐỦ của hạng mục, kể cả phần đã nhập kho (vd P021 thường đã nhập phần lớn)' },
 ];
+// Nhóm công đoạn — cùng tên / màu với thẻ BOP ở trang tổng quan công trình
+const BOP_GROUP: Record<RemainBucket, { label: string; dot: string }> = {
+  notDeployed: { label: 'Chưa triển khai', dot: 'bg-slate-400' },
+  p002: { label: 'Chưa tính phiếu', dot: 'bg-sky-400' },
+  onLine: { label: 'Đang trên chuyền', dot: 'bg-amber-400' },
+  shortfall: { label: 'Nhập kho chưa đủ', dot: 'bg-violet-400' },
+};
 
 // Thời gian ở công đoạn hiện tại — cùng nhóm với biểu đồ điểm nghẽn (utils/productionMetrics.dwellBucket)
 export const DWELL: { key: DwellKey; label: string; bar: string }[] = [
@@ -337,15 +444,95 @@ type BopSel = { stage: string; area?: string; status?: string } | null;
 // Lọc từ biểu đồ thời gian ở công đoạn (cộng thêm vào lọc của bảng)
 type DwellSel = { stage: string; dwell: string } | null;
 
-export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (hex: string) => void }) => {
+// Lọc thêm từ 3 khối sản lượng công đoạn / QC / gia công ngoài
+type ExtraSel = { kind: 'step'; key: StepKey } | { kind: 'qc'; st: 'bad' | 'wait' | 'ok' | 'none' } | { kind: 'gcn'; st: string | 'pending' } | null;
+const GCN_DONE = (st: string | null) => !gcnPending(st);
+
+export const BopTab = ({ items, onHexClick, extra, today }: {
+  items: HexInfo[]; onHexClick?: (hex: string) => void;
+  /** Thông tin thêm theo HEX (số lượng theo công đoạn SX, QC, gia công ngoài); null = đang tải */
+  extra?: Record<string, HexExtra> | null;
+  today?: number;
+}) => {
   const [metric, setMetric] = useState<BopMetric>('remain');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState<BopSel>(null);
   const [dwellSel, setDwellSel] = useState<DwellSel>(null);
+  const [extraSel, setExtraSel] = useState<ExtraSel>(null);
   const [q, setQ] = useState('');
   const [sortBy, setSortBy] = useState<'deadline' | 'stage' | 'remain'>('deadline');
 
   const open = useMemo(() => items.filter(i => i.open), [items]);
+  const ex = (i: HexInfo) => extra?.[i.hex];
+
+  // Sản lượng theo công đoạn sản xuất: hạng mục đang trên chuyền (P012 → P021, cùng nhóm "Đang trên chuyền" của BOP) chưa nhập kho đủ.
+  // Mỗi bước chỉ tính hạng mục áp dụng bước đó (có cờ Vecni / Sofa / Kim loại / Kính đá, hoặc đã có số giao).
+  const steps = useMemo(() => {
+    if (!extra) return null;
+    const onLine = open.filter(i => i.bucket === 'onLine');
+    const rows = STEPS.map(s => {
+      let items = 0, done = 0, qtyDone = 0, qtyOrder = 0;
+      for (const i of onLine) {
+        const e = ex(i);
+        if (!e) continue;
+        const applies = !s.flag || e.flags[s.flag] || e.steps[s.key] > 0;
+        if (!applies) continue;
+        const order = e.qtyTicket > 0 ? e.qtyTicket : 0;
+        items++;
+        qtyOrder += order;
+        qtyDone += Math.min(e.steps[s.key], order || e.steps[s.key]);
+        if (order > 0 && e.steps[s.key] >= order) done++;
+      }
+      return { ...s, items, done, qtyDone, qtyOrder, pct: qtyOrder > 0 ? Math.min(100, (qtyDone / qtyOrder) * 100) : 0 };
+    }).filter(r => r.items > 0);
+    return { onLine: onLine.length, rows };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, extra]);
+
+  // QC: hạng mục chưa nhập kho đủ có lần kiểm, theo trạng thái lần kiểm gần nhất
+  const qc = useMemo(() => {
+    if (!extra) return null;
+    const c = { none: 0, ok: 0, bad: 0, wait: 0, checks: 0, fail: 0 };
+    for (const i of open) {
+      const e = ex(i);
+      const st = qcStateOf(e?.qc);
+      c[st]++;
+      if (e?.qc) { c.checks += e.qc.n; c.fail += e.qc.fail; }
+    }
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, extra]);
+
+  // Gia công ngoài: hạng mục chưa nhập kho đủ có cờ gia công ngoài, theo tình trạng GCN
+  const gcn = useMemo(() => {
+    if (!extra) return null;
+    const by = new Map<string, number>();
+    let total = 0, pending = 0;
+    for (const i of open) {
+      const g = ex(i)?.gcn;
+      if (!g) continue;
+      total++;
+      const st = g.st ?? '(Chưa ghi tình trạng)';
+      by.set(st, (by.get(st) ?? 0) + 1);
+      if (!GCN_DONE(g.st)) pending++;
+    }
+    return { total, pending, by: [...by.entries()].sort((a, b) => a[0].localeCompare(b[0], 'vi')) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, extra]);
+
+  const matchExtra = (i: HexInfo): boolean => {
+    if (!extraSel) return true;
+    const e = ex(i);
+    if (extraSel.kind === 'step') {
+      if (!e || i.bucket !== 'onLine') return false;
+      const s = STEPS.find(x => x.key === extraSel.key)!;
+      const applies = !s.flag || e.flags[s.flag] || e.steps[s.key] > 0;
+      return applies && !(e.qtyTicket > 0 && e.steps[s.key] >= e.qtyTicket);
+    }
+    if (extraSel.kind === 'qc') return qcStateOf(e?.qc) === extraSel.st;
+    if (!e?.gcn) return false;
+    return extraSel.st === 'pending' ? !GCN_DONE(e.gcn.st) : (e.gcn.st ?? '(Chưa ghi tình trạng)') === extraSel.st;
+  };
   // Bảng Công đoạn × Khu vực: đếm = hạng mục còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (kể cả
   // đã nhập đủ SL mà lệch tiền) — để tổng tiền khớp thẻ BOP
   const pivotItems = useMemo(() => (metric === 'count' ? open : items.filter(i => i.open || i.remain > 0)), [items, open, metric]);
@@ -357,15 +544,22 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
   const pivot = useMemo(() => {
     const areas = [...new Set(pivotItems.map(areaOf))].sort((a, b) => (a === NO_AREA ? 1 : b === NO_AREA ? -1 : a.localeCompare(b)));
     type Row = { cells: Record<string, number>; total: number; n: number };
-    const stages = new Map<string, Row & { statuses: Map<string, Row> }>();
+    const stages = new Map<string, Row & { statuses: Map<string, Row>; bucket: RemainBucket | null }>();
+    // Nhóm giống thẻ BOP (Chưa triển khai / Chưa tính phiếu / Đang trên chuyền / Nhập kho chưa đủ) — dòng tổng nhóm
+    const groups = new Map<RemainBucket, Row>();
     const colTot: Record<string, number> = {};
     let grand = 0;
     for (const i of pivotItems) {
       const v = val(i);
       const s = stageOf(i);
+      if (i.bucket) {
+        const g: Row = groups.get(i.bucket) ?? { cells: {}, total: 0, n: 0 };
+        g.cells[areaOf(i)] = (g.cells[areaOf(i)] ?? 0) + v; g.total += v; g.n++;
+        groups.set(i.bucket, g);
+      }
       const st = i.status || '(Trống)';
       const a = areaOf(i);
-      const r: Row & { statuses: Map<string, Row> } = stages.get(s) ?? { cells: {}, total: 0, n: 0, statuses: new Map() };
+      const r: Row & { statuses: Map<string, Row>; bucket: RemainBucket | null } = stages.get(s) ?? { cells: {}, total: 0, n: 0, statuses: new Map(), bucket: i.bucket };
       r.cells[a] = (r.cells[a] ?? 0) + v; r.total += v; r.n++;
       const sr: Row = r.statuses.get(st) ?? { cells: {}, total: 0, n: 0 };
       sr.cells[a] = (sr.cells[a] ?? 0) + v; sr.total += v; sr.n++;
@@ -377,7 +571,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
     const rows = [...stages.entries()]
       .sort((x, y) => stageRank(x[0]) - stageRank(y[0]) || x[0].localeCompare(y[0]))
       .map(([stage, r]) => ({ stage, ...r, statuses: [...r.statuses.entries()].sort((x, y) => x[0].localeCompare(y[0], 'vi')) }));
-    return { areas, rows, colTot, grand };
+    return { areas, rows, colTot, grand, groups };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pivotItems, metric]);
 
@@ -422,6 +616,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
     return pivotItems
       .filter(matchSel)
       .filter(i => !dwellSel || (stageOf(i) === dwellSel.stage && dwellOf(i.dwell) === dwellSel.dwell))
+      .filter(matchExtra)
       .filter(i => matchQ(i, ql))
       .sort((a, b) =>
         sortBy === 'deadline'
@@ -431,7 +626,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
             : b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pivotItems, sel, dwellSel, q, sortBy]);
+  }, [pivotItems, sel, dwellSel, extraSel, q, sortBy, extra]);
 
   const toggle = (s: string) => setExpanded(prev => {
     const n = new Set(prev);
@@ -447,11 +642,19 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
   const pickDwell = (next: NonNullable<DwellSel>) =>
     setDwellSel(cur => (cur && cur.stage === next.stage && cur.dwell === next.dwell ? null : next));
   const isDwellSel = (next: NonNullable<DwellSel>) => !!dwellSel && dwellSel.stage === next.stage && dwellSel.dwell === next.dwell;
-  const hasFilter = !!sel || !!dwellSel;
+  const hasFilter = !!sel || !!dwellSel || !!extraSel;
+  const extraText = !extraSel ? ''
+    : extraSel.kind === 'step' ? `Chưa xong bước ${STEPS.find(x => x.key === extraSel.key)?.label}`
+      : extraSel.kind === 'qc' ? `QC: ${QC_STATE_META[extraSel.st].label}`
+        : extraSel.st === 'pending' ? 'GCN còn chờ NCC' : `GCN: ${extraSel.st}`;
   const selText = [
     ...(sel ? [sel.stage, sel.status, sel.area] : []),
     ...(dwellSel ? [...(sel ? [] : [dwellSel.stage]), DWELL.find(d => d.key === dwellSel.dwell)?.label] : []),
+    extraText,
   ].filter(Boolean).join(' · ');
+  const toggleExtra = (next: NonNullable<ExtraSel>) =>
+    setExtraSel(cur => (cur && JSON.stringify(cur) === JSON.stringify(next) ? null : next));
+  const isExtra = (next: NonNullable<ExtraSel>) => !!extraSel && JSON.stringify(extraSel) === JSON.stringify(next);
 
   const cell = (v: number | undefined, next: NonNullable<BopSel>, cls = '') => (
     <td
@@ -475,10 +678,17 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
           </p>
           <div className="ml-auto flex gap-1">
             {BOP_METRICS.map(m => (
-              <Chip key={m.key} active={metric === m.key} onClick={() => setMetric(m.key)}>{m.label}</Chip>
+              <span key={m.key} title={m.hint}>
+                <Chip active={metric === m.key} onClick={() => setMetric(m.key)}>{m.label}</Chip>
+              </span>
             ))}
           </div>
         </div>
+        {metric === 'total' && (
+          <p className="mb-1.5 rounded-md bg-amber-50 px-2 py-1 text-[0.6875rem] text-amber-800">
+            Đang xem <b>trị giá đầy đủ</b> của hạng mục (kể cả phần đã nhập kho) — vd P021 phần lớn đã nhập. Chọn <b>Còn lại (tỷ)</b> để khớp số trên thẻ BOP.
+          </p>
+        )}
         <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
@@ -496,10 +706,24 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pivot.rows.map(r => {
+              {pivot.rows.map((r, idx) => {
                 const isOpen = expanded.has(r.stage);
+                // Dòng tổng nhóm (khớp thẻ BOP) trước công đoạn đầu tiên của mỗi nhóm
+                const g = r.bucket && (idx === 0 || pivot.rows[idx - 1].bucket !== r.bucket) ? pivot.groups.get(r.bucket) : undefined;
                 return (
                   <React.Fragment key={r.stage}>
+                    {g && r.bucket && (
+                      <tr className="border-t-2 border-slate-200 bg-white">
+                        <td className={`${td} text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500`} colSpan={2}>
+                          <span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[r.bucket].dot}`} />
+                          {BOP_GROUP[r.bucket].label} <span className="font-normal normal-case text-slate-400">· {fmtInt(g.n)} hạng mục</span>
+                        </td>
+                        {pivot.areas.map(a => (
+                          <td key={a} className={`${td} text-right tabular-nums text-[0.6875rem] font-semibold text-slate-500`}>{g.cells[a] ? fmtV(g.cells[a]) : '-'}</td>
+                        ))}
+                        <td className={`${td} bg-slate-100 text-right tabular-nums text-[0.6875rem] font-semibold text-slate-600`}>{fmtV(g.total)}</td>
+                      </tr>
+                    )}
                     <tr className="bg-slate-50/60">
                       <td className={`${td} font-semibold text-slate-800`}>
                         <button type="button" onClick={() => toggle(r.stage)} className="inline-flex items-center gap-1.5 hover:text-slate-950">
@@ -513,7 +737,7 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
                           title={`Lọc danh sách: mọi hạng mục ở ${r.stage}`}
                           className={`rounded px-1 font-medium hover:bg-amber-50 hover:text-slate-900 hover:underline ${isSel({ stage: r.stage }) ? 'bg-amber-100 text-slate-900' : 'text-slate-600'}`}
                         >
-                          Tổng ({r.statuses.length})
+                          Tất cả · {r.statuses.length} tình trạng
                         </button>
                       </td>
                       {pivot.areas.map(a => <React.Fragment key={a}>{cell(r.cells[a], { stage: r.stage, area: a })}</React.Fragment>)}
@@ -651,11 +875,121 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
         </div>
       </div>
 
-      {/* 3. Danh sách hạng mục */}
+      {/* 3. Sản lượng theo công đoạn SX · QC · Gia công ngoài (dữ liệu thêm theo HEX) */}
+      <div className="grid gap-3 xl:grid-cols-[1.2fr_1fr_1fr]">
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-2 text-xs font-semibold text-slate-700">
+            Sản lượng theo công đoạn sản xuất{' '}
+            <span className="font-normal text-slate-500">
+              · {steps ? `${fmtInt(steps.onLine)} hạng mục trên chuyền (P012 → P021)` : '…'} · SL đã giao / SL tính phiếu · bấm 1 bước để lọc hạng mục chưa xong bước đó
+            </span>
+          </p>
+          {!steps ? (
+            <p className="py-3 text-center text-xs text-slate-400">Đang tải…</p>
+          ) : steps.rows.length === 0 ? (
+            <p className="py-3 text-center text-xs text-slate-400">Không có hạng mục trên chuyền.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {steps.rows.map(r => {
+                const next = { kind: 'step' as const, key: r.key };
+                return (
+                  <button
+                    key={r.key}
+                    type="button"
+                    onClick={() => toggleExtra(next)}
+                    title={`${r.label}: ${fmtInt(r.done)} / ${fmtInt(r.items)} hạng mục đã giao đủ bước này`}
+                    className={`flex w-full items-center gap-2 rounded px-1 text-left text-xs hover:bg-slate-50 ${isExtra(next) ? 'bg-amber-50 ring-1 ring-amber-300' : ''}`}
+                  >
+                    <span className="w-16 shrink-0 font-semibold text-slate-700">{r.label}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-2 rounded-full ${r.pct >= 100 ? 'bg-emerald-500' : r.pct >= 50 ? 'bg-amber-400' : 'bg-orange-400'}`} style={{ width: `${r.pct}%` }} />
+                    </div>
+                    <span className="w-12 shrink-0 text-right tabular-nums text-slate-700">{r.pct.toFixed(0)}%</span>
+                    <span className="w-24 shrink-0 text-right tabular-nums text-slate-500" title="Hạng mục đã giao đủ bước / hạng mục áp dụng">{fmtInt(r.done)}/{fmtInt(r.items)} HM</span>
+                  </button>
+                );
+              })}
+              <p className="pt-1 text-[0.625rem] text-slate-400">
+                Bước Kim loại / Vecni / Sofa / Đá / Kính chỉ tính hạng mục có cờ tương ứng. Số giao theo công đoạn do xưởng cập nhật ở bảng sản xuất.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-2 text-xs font-semibold text-slate-700">
+            QC <span className="font-normal text-slate-500">· theo lần kiểm gần nhất của hạng mục chưa nhập kho đủ</span>
+          </p>
+          {!qc ? <p className="py-3 text-center text-xs text-slate-400">Đang tải…</p> : (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                {(['bad', 'wait', 'ok', 'none'] as const).map(st => {
+                  const next = { kind: 'qc' as const, st };
+                  const tone = st === 'bad' ? 'text-red-600' : st === 'wait' ? 'text-amber-600' : st === 'ok' ? 'text-emerald-600' : 'text-slate-500';
+                  return (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => toggleExtra(next)}
+                      className={`rounded-lg border px-2.5 py-1.5 text-left transition ${isExtra(next) ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400'}`}
+                    >
+                      <p className="text-[0.6875rem] text-slate-500">{QC_STATE_META[st].label}</p>
+                      <p className={`text-lg font-semibold tabular-nums ${qc[st] ? tone : 'text-slate-400'}`}>{fmtInt(qc[st])}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[0.625rem] text-slate-400">
+                {fmtInt(qc.checks)} lần kiểm · {fmtInt(qc.fail)} sản phẩm lỗi ghi nhận. Chỉ hạng mục có QC ghi vào bảng sản xuất mới có số.
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-slate-200 p-3">
+          <p className="mb-2 text-xs font-semibold text-slate-700">
+            Gia công ngoài <span className="font-normal text-slate-500">· hạng mục chưa nhập kho đủ có cờ GCN</span>
+          </p>
+          {!gcn ? <p className="py-3 text-center text-xs text-slate-400">Đang tải…</p>
+            : gcn.total === 0 ? <p className="py-3 text-center text-xs text-slate-400">Không có hạng mục gia công ngoài.</p> : (
+              <>
+                <div className="mb-2 flex items-baseline gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleExtra({ kind: 'gcn', st: 'pending' })}
+                    className={`rounded-lg border px-2.5 py-1 text-left ${isExtra({ kind: 'gcn', st: 'pending' }) ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400'}`}
+                  >
+                    <span className={`text-lg font-semibold tabular-nums ${gcn.pending ? 'text-orange-600' : 'text-slate-700'}`}>{fmtInt(gcn.pending)}</span>
+                    <span className="ml-1 text-[0.6875rem] text-slate-500">còn chờ NCC / {fmtInt(gcn.total)}</span>
+                  </button>
+                </div>
+                <ul className="max-h-40 space-y-0.5 overflow-auto pr-1 text-xs custom-scrollbar">
+                  {gcn.by.map(([st, n]) => {
+                    const next = { kind: 'gcn' as const, st };
+                    return (
+                      <li key={st}>
+                        <button
+                          type="button"
+                          onClick={() => toggleExtra(next)}
+                          className={`flex w-full items-center justify-between rounded px-1.5 py-0.5 text-left hover:bg-slate-50 ${isExtra(next) ? 'bg-amber-50 font-semibold' : ''}`}
+                        >
+                          <span className={GCN_DONE(st) ? 'text-slate-500' : 'text-slate-700'}>{st}</span>
+                          <span className="tabular-nums">{fmtInt(n)}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
+        </div>
+      </div>
+
+      {/* 4. Danh sách hạng mục */}
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-slate-700">{hasFilter ? 'Hạng mục đang lọc' : 'Tất cả hạng mục chưa nhập kho đủ'}</p>
-          {hasFilter && <Chip active onClick={() => { setSel(null); setDwellSel(null); }}>{selText} ✕</Chip>}
+          {hasFilter && <Chip active onClick={() => { setSel(null); setDwellSel(null); setExtraSel(null); }}>{selText} ✕</Chip>}
           <span className="text-[0.6875rem] text-slate-500">{fmtInt(list.length)} hạng mục</span>
           <SortPicker
             value={sortBy}
@@ -672,9 +1006,21 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
             <th className={`${th} text-left`}>Khu vực SX</th>
             <th className={`${th} text-left`}>Tình trạng</th>
             <th className={`${th} text-left`}>Ở công đoạn</th>
+            <th className={`${th} text-left`} title="Số lượng đã giao theo công đoạn SX / SL tính phiếu (chỉ hạng mục trên chuyền)">Công đoạn SX</th>
+            <th className={`${th} text-left`} title="Lần kiểm QC gần nhất: trạng thái · công đoạn · ngày">QC</th>
+            <th className={`${th} text-left`} title="Tình trạng gia công ngoài">GCN</th>
           </>}
           extraCells={i => {
             const d = DWELL.find(x => x.key === dwellOf(i.dwell));
+            const e = ex(i);
+            const stepText = e && i.bucket === 'onLine' && e.qtyTicket > 0
+              ? STEPS.filter(s => !s.flag || e.flags[s.flag] || e.steps[s.key] > 0)
+                .map(s => `${s.label} ${Number(e.steps[s.key].toFixed(1))}/${Number(e.qtyTicket.toFixed(1))}`)
+              : [];
+            const stepDone = e && e.qtyTicket > 0 ? STEPS.filter(s => (!s.flag || e.flags[s.flag] || e.steps[s.key] > 0) && e.steps[s.key] >= e.qtyTicket).length : 0;
+            const stepAll = e && e.qtyTicket > 0 ? STEPS.filter(s => !s.flag || e.flags[s.flag] || e.steps[s.key] > 0).length : 0;
+            const qs = qcStateOf(e?.qc);
+            const qm = QC_STATE_META[qs];
             return (
               <>
                 <td className={`${td} whitespace-nowrap text-slate-600`}>{i.area || '—'}</td>
@@ -685,6 +1031,32 @@ export const BopTab = ({ items, onHexClick }: { items: HexInfo[]; onHexClick?: (
                       <span className={`h-2 w-2 rounded-sm ${d.bar}`} />{d.label}
                     </span>
                   ) : <span className="text-slate-300">—</span>}
+                </td>
+                <td className={`${td} whitespace-nowrap`} title={stepText.join(' · ') || undefined}>
+                  {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
+                    : stepText.length === 0 ? <span className="text-slate-300">—</span> : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="flex h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                          <span className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${stepAll ? (stepDone / stepAll) * 100 : 0}%` }} />
+                        </span>
+                        <span className="tabular-nums text-slate-600">{stepDone}/{stepAll} bước</span>
+                      </span>
+                    )}
+                </td>
+                <td className={`${td} whitespace-nowrap`}>
+                  {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
+                    : !e?.qc?.last ? <span className="text-slate-300">—</span> : (
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ${qm.badge}`}
+                            title={`${e.qc.n} lần kiểm · ${e.qc.fail} lỗi · gần nhất ${e.qc.last.date} ${e.qc.last.stage}`}>
+                        {QC_STATUS_VI[e.qc.last.status] ?? e.qc.last.status}{e.qc.last.fail > 0 ? ` · lỗi ${e.qc.last.fail}` : ''}
+                        <span className="font-normal text-slate-500">{e.qc.last.stage.split(' ')[0]}</span>
+                      </span>
+                    )}
+                </td>
+                <td className={`${td} max-w-[180px] truncate`} title={e?.gcn ? [e.gcn.st, e.gcn.note, e.gcn.due ? `dự kiến về ${e.gcn.due}` : ''].filter(Boolean).join(' · ') : undefined}>
+                  {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
+                    : !e?.gcn ? <span className="text-slate-300">—</span>
+                      : <span className={GCN_DONE(e.gcn.st) ? 'text-slate-500' : 'font-medium text-orange-700'}>{e.gcn.st ?? 'Chưa ghi tình trạng'}</span>}
                 </td>
               </>
             );

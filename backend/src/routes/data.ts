@@ -192,6 +192,146 @@ app.post('/api/production/notes', async (req: Request, res: Response) => {
   }
 });
 
+// ============================================================================
+// Thông tin thêm theo HEX cho cửa sổ Tổng quan công trình (BOP / BOT / BOM): số lượng đã giao theo
+// công đoạn sản xuất, tóm tắt QC (parse từ cột tổng hợp QC), gia công ngoài, mốc ngày triển khai / phiếu.
+// Không đưa vào /api/all-data vì cột QC nặng (nhiều link ảnh) và các cột này chỉ cần khi mở 1 công trình.
+// ============================================================================
+const HEX_EXTRA_COLUMNS = [
+  'ngay_nhan_tu_pm', 'ngay_trien_khai_ban_ve', 'tinh_trang_trien_khai_ban_ve',
+  'ngay_tinh_phieu', 'ngay_duyet_phieu', 'tinh_trang_phieu', 'so_luong_tinh_phieu',
+  'so_luong_cong_doan_cts_da_giao', 'so_luong_cong_doan_may_da_giao', 'so_luong_cong_doan_moc_da_giao',
+  'so_luong_cong_doan_kim_loai_da_giao', 'so_luong_cong_doan_vecni_da_giao', 'so_luong_cong_doan_sofa_da_giao',
+  'so_luong_cong_doan_da_da_giao', 'so_luong_cong_doan_kinh_da_giao', 'so_luong_cong_doan_fitting_da_giao',
+  'so_luong_cong_doan_bao_bi_da_giao',
+  'co_vecni', 'co_sofa', 'co_kim_loai', 'co_kinh_da',
+  'co_gia_cong_ngoai', 'tinh_trang_gcn', 'ngay_du_kien_ve_gcn', 'trang_thai_gcn', 'xuong_yeu_cau_gcn',
+  'so_luong_xuat_kho_luy_ke', 'so_luong_ton_kho_hien_tai',
+  'tong_hop_thong_tin_qc',
+];
+
+export interface QcEntry {
+  date: string; qc: string; stage: string; status: string;
+  checked: number; pass: number; fail: number; note: string; photos: number;
+}
+export interface QcSummary {
+  n: number;                 // số lần kiểm
+  checked: number; pass: number; fail: number;
+  bad: number;               // số lần kiểm có lỗi (SL lỗi > 0) hoặc bị từ chối / gắn cờ
+  last: { date: string; stage: string; status: string; fail: number } | null; // lần kiểm gần nhất
+}
+
+const qcNum = (v: string) => { const n = Number(String(v).replace(/[^\d.\-]/g, '')); return Number.isFinite(n) ? n : 0; };
+// Chuẩn hoá trạng thái QC: approved / APPROVED / verified → 'approved'; rỗng → 'approved' nếu không lỗi, ngược lại 'unknown'
+const qcStatus = (raw: string, fail: number): string => {
+  const s = raw.trim().toLowerCase();
+  if (!s) return fail > 0 ? 'unknown' : 'approved';
+  if (s === 'verified') return 'approved';
+  return s;
+};
+const QC_BAD_STATUS = new Set(['rejected', 'flagged']);
+
+/** Parse cột "Tổng hợp thông tin QC": mỗi lần kiểm bắt đầu bằng "dd/mm/yyyy:  # QC: … # Công đoạn: … # Trạng thái: …". */
+export const parseQcEntries = (text: unknown): QcEntry[] => {
+  const s = String(text ?? '');
+  if (!s.trim()) return [];
+  const parts = s.split(/\n(?=\d{2}\/\d{2}\/\d{4}:\s*#)/).map(p => p.trim()).filter(Boolean);
+  const out: QcEntry[] = [];
+  for (const p of parts) {
+    const m = p.match(/^(\d{2}\/\d{2}\/\d{4}):\s*#([\s\S]*)$/);
+    if (!m) continue;
+    const photos = (p.match(/https?:\/\//g) ?? []).length;
+    const fields = m[2].split('#').map(x => x.trim());
+    const get = (label: string) => {
+      const f = fields.find(x => x.toUpperCase().startsWith(label.toUpperCase()));
+      return f ? f.slice(label.length).replace(/^:/, '').trim() : '';
+    };
+    const fail = qcNum(get('SL Lỗi'));
+    out.push({
+      date: m[1], qc: get('QC'), stage: get('Công đoạn'), status: qcStatus(get('Trạng thái'), fail),
+      checked: qcNum(get('SL Kiểm')), pass: qcNum(get('SL Đạt')), fail,
+      note: get('Ghi chú').replace(/https?:\/\/\S+/g, '').trim(), photos,
+    });
+  }
+  return out;
+};
+
+export const summarizeQc = (entries: QcEntry[]): QcSummary | null => {
+  if (!entries.length) return null;
+  // Cùng ngày + công đoạn + QC + số lượng mà 1 dòng có trạng thái, dòng kia trống (bản ghi trùng) => giữ 1
+  const seen = new Map<string, QcEntry>();
+  for (const e of entries) {
+    const k = `${e.date}|${e.stage}|${e.qc}|${e.checked}|${e.fail}`;
+    const prev = seen.get(k);
+    if (!prev || (prev.status === 'approved' && e.status !== 'approved')) seen.set(k, e);
+  }
+  const list = [...seen.values()];
+  let checked = 0, pass = 0, fail = 0, bad = 0;
+  for (const e of list) {
+    checked += e.checked; pass += e.pass; fail += e.fail;
+    if (e.fail > 0 || QC_BAD_STATUS.has(e.status)) bad++;
+  }
+  // Lần kiểm gần nhất theo ngày (dd/mm/yyyy -> yyyymmdd)
+  const key = (d: string) => d.slice(6, 10) + d.slice(3, 5) + d.slice(0, 2);
+  const last = [...list].sort((a, b) => key(b.date).localeCompare(key(a.date)))[0];
+  return { n: list.length, checked, pass, fail, bad, last: { date: last.date, stage: last.stage, status: last.status, fail: last.fail } };
+};
+
+const hexExtraCache = createCache<unknown>(30);
+const numOr0 = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+const yes = (v: unknown) => String(v ?? '').trim().toLowerCase() === 'yes';
+
+app.post('/api/production/by-hex-extra', async (req: Request, res: Response) => {
+  try {
+    const hexes: string[] = Array.isArray(req.body?.hexes)
+      ? req.body.hexes.map((h: unknown) => String(h).trim()).filter(Boolean)
+      : [];
+    if (hexes.length === 0) return res.json({});
+    if (hexes.length > 4000) return res.status(400).json({ error: 'Too many hexes' });
+    const uniq = [...new Set(hexes)].sort();
+
+    const out = await cachedByVersions(hexExtraCache, hashKey(uniq), ['production'], async () => {
+      const cols = HEX_EXTRA_COLUMNS.map(c => `"${c}"`).join(', ');
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${cols}
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST`,
+        [uniq],
+        { timeoutMs: 30000 }
+      );
+      const map: Record<string, unknown> = {};
+      for (const row of r.rows) {
+        map[row.hex] = {
+          pm: row.ngay_nhan_tu_pm ?? null,
+          bv: row.ngay_trien_khai_ban_ve ?? null, bvSt: row.tinh_trang_trien_khai_ban_ve ?? null,
+          ph: row.ngay_tinh_phieu ?? null, dp: row.ngay_duyet_phieu ?? null, phSt: row.tinh_trang_phieu ?? null,
+          qtyTicket: numOr0(row.so_luong_tinh_phieu),
+          qtyOut: numOr0(row.so_luong_xuat_kho_luy_ke), qtyStock: numOr0(row.so_luong_ton_kho_hien_tai),
+          steps: {
+            cts: numOr0(row.so_luong_cong_doan_cts_da_giao), may: numOr0(row.so_luong_cong_doan_may_da_giao),
+            moc: numOr0(row.so_luong_cong_doan_moc_da_giao), kl: numOr0(row.so_luong_cong_doan_kim_loai_da_giao),
+            vecni: numOr0(row.so_luong_cong_doan_vecni_da_giao), sofa: numOr0(row.so_luong_cong_doan_sofa_da_giao),
+            da: numOr0(row.so_luong_cong_doan_da_da_giao), kinh: numOr0(row.so_luong_cong_doan_kinh_da_giao),
+            fit: numOr0(row.so_luong_cong_doan_fitting_da_giao), bb: numOr0(row.so_luong_cong_doan_bao_bi_da_giao),
+          },
+          flags: { vecni: yes(row.co_vecni), sofa: yes(row.co_sofa), kl: yes(row.co_kim_loai), kinhDa: yes(row.co_kinh_da) },
+          gcn: yes(row.co_gia_cong_ngoai)
+            ? { st: String(row.tinh_trang_gcn ?? '').trim() || null, due: String(row.ngay_du_kien_ve_gcn ?? '').trim() || null,
+                note: String(row.trang_thai_gcn ?? '').trim() || null, xuong: String(row.xuong_yeu_cau_gcn ?? '').trim() || null }
+            : null,
+          qc: summarizeQc(parseQcEntries(row.tong_hop_thong_tin_qc)),
+        };
+      }
+      return map;
+    });
+    res.json(out);
+  } catch (error) {
+    console.error('Lỗi /api/production/by-hex-extra:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Chi tiết 1 hạng mục (HEX) cho cửa sổ "Chi tiết hạng mục" (BOP × BOT): các mốc ngày, số lượng
 // theo công đoạn, lịch sử nhập kho, QC, ghi chú phiếu. Chỉ các cột cần hiển thị (không gồm đơn giá).
 const HEX_DETAIL_COLUMNS = [

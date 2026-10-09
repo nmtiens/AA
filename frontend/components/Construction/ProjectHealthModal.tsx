@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListChecks, ArrowRight } from 'lucide-react';
+import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListChecks, ArrowRight, TrendingUp } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, doneValue, remainValue, isCancelledIpo, planAfterDue, isQtyComplete } from '../../utils/productionMetrics';
+import { deadlineOf, doneValue, remainValue, isCancelledIpo, planAfterDue, isQtyComplete, parsePlanDate } from '../../utils/productionMetrics';
+import { fetchHexExtra, gcnPending as isGcnPending, type HexExtra } from '../../services/productionExtraService';
 import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
 import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
@@ -13,6 +14,7 @@ import { BotTab, BopTab, BomTab, analyzeBom, summarizeProjectMaterial, PlanDateC
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
 import { formatTrieuAsTy } from '../../utils/money';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, ReferenceLine } from 'recharts';
 
 // ============================================================================
 // Tổng quan 1 công trình (tầng 1): 3 thẻ BOT (thời hạn) · BOP (công đoạn) · BOM (vật tư)
@@ -43,6 +45,13 @@ export interface ProjectHealthKeys {
   /** Ngày cần (PM) / BOT dự án: chỉ tham khảo, không tính hạn */
   ngayCanKey?: string;
   botDuAnKey?: string;
+  /** Ngày nhận đơn từ PM (tuổi đơn), tình trạng triển khai bản vẽ / phiếu (luồng tiến độ) — cột có từ 10/2026 */
+  nhanPmKey?: string;
+  bvStKey?: string;
+  phieuStKey?: string;
+  /** Nhóm công trình / tình trạng dự án (hiện ở tiêu đề) */
+  nhomCtKey?: string;
+  tinhTrangDaKey?: string;
 }
 
 interface Props {
@@ -57,9 +66,23 @@ interface Props {
   onOpenHexList: () => void;
   /** Tắt Esc khi đang mở cửa sổ khác đè lên (để Esc chỉ đóng cửa sổ trên cùng) */
   escEnabled?: boolean;
+  /** Bảng nhập kho (toàn bộ) — để vẽ nhịp nhập kho theo tuần + dự báo của công trình */
+  inventory?: DataRow[];
 }
 
 const DUE_SOON_DAYS = 14;
+const WEEKS_SHOWN = 12;   // số tuần vẽ nhịp nhập kho
+const PACE_WEEKS = 8;     // số tuần đã qua dùng tính nhịp trung bình
+// Đầu tuần (thứ 2) theo giờ địa phương
+const weekStart = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
+// Giá trị xuất hiện nhiều nhất (bỏ rỗng)
+const modeOf = (vals: string[]): string => {
+  const m = new Map<string, number>();
+  vals.forEach(v => { if (v) m.set(v, (m.get(v) ?? 0) + 1); });
+  let best = '', n = -1;
+  m.forEach((c, v) => { if (c > n) { best = v; n = c; } });
+  return best;
+};
 const STAGE_ORDER = ['P001', 'P002', 'P012', 'P013', 'GCVT', 'P014', 'P016', 'P018', 'P020', 'P021', 'P022', 'P025'];
 const stageOrder = (s: string | null) => { const i = s ? STAGE_ORDER.indexOf(s) : -1; return i === -1 ? 999 : i; };
 // Tên ngắn 5M — giống form "Thêm vướng mắc"
@@ -97,7 +120,7 @@ const fmtDate = (d: Date | null) =>
 
 
 export const ProjectHealthModal: React.FC<Props> = ({
-  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, escEnabled = true,
+  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, escEnabled = true, inventory,
 }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   type Tab = 'overview' | 'bot' | 'bop' | 'bom';
@@ -136,7 +159,15 @@ export const ProjectHealthModal: React.FC<Props> = ({
       // đủ SỐ LƯỢNG (thành tiền NK lệch đơn giá / = 0). Khớp ô "Hạng mục chưa nhập kho" ở Báo cáo tiến độ.
       const open = !isQtyComplete(row) && (remain > 0 || total <= 0);
       const t = deadline?.getTime();
+      const bvSt = keys.bvStKey ? String(row[keys.bvStKey] ?? '').trim().toUpperCase() : '';
+      const phSt = keys.phieuStKey ? String(row[keys.phieuStKey] ?? '').trim().toUpperCase() : '';
       out.push({
+        canPm: dl.canPm,
+        botDuAn: dl.botDuAn,
+        receivedPm: keys.nhanPmKey ? parsePlanDate(row[keys.nhanPmKey]) : null,
+        // "ĐÃ TRIỂN KHAI" / "CHƯA TRIỂN KHAI"; phiếu: "CHƯA PHIẾU" / "CÓ PHIẾU HÀNG LOẠT" / "PHIẾU MẪU"…
+        bvDone: bvSt ? bvSt.startsWith('ĐÃ') : null,
+        phieuDone: phSt ? !phSt.startsWith('CHƯA') : null,
         hex: String(row[keys.hexKey] ?? ''),
         hangMuc: String(row[keys.hangMucKey] ?? ''),
         stage,
@@ -170,6 +201,60 @@ export const ProjectHealthModal: React.FC<Props> = ({
     items.forEach(i => { if (i.hex && !m[i.hex]) m[i.hex] = i.hangMuc; });
     return m;
   }, [items]);
+
+  // Thông tin cấp công trình: BOT dự án (1 ngày chung cho cả công trình), tình trạng dự án, nhóm CT, PC
+  const meta = useMemo(() => {
+    const str = (k?: string) => (k ? rows.map(r => String(r[k] ?? '').trim()) : []);
+    const botDates = items.map(i => i.botDuAn).filter((d): d is Date => !!d);
+    const bot = botDates.length ? parsePlanDate(modeOf(botDates.map(d => d.toISOString().slice(0, 10)))) : null;
+    const pcs = [...new Set(str('ten_pc').filter(Boolean))];
+    return {
+      botDuAn: bot,
+      tinhTrangDuAn: modeOf(str(keys.tinhTrangDaKey)),
+      nhomCt: modeOf(str(keys.nhomCtKey)),
+      pc: pcs.slice(0, 3).join(', ') + (pcs.length > 3 ? ` +${pcs.length - 3}` : ''),
+    };
+  }, [rows, items, keys.tinhTrangDaKey, keys.nhomCtKey]);
+
+  // Thông tin thêm theo HEX (SL theo công đoạn SX, QC, gia công ngoài) — tải khi mở
+  const [extra, setExtra] = useState<Record<string, HexExtra> | null>(null);
+  useEffect(() => {
+    setExtra(null);
+    if (!isOpen || hexList.length === 0) return;
+    const ctrl = new AbortController();
+    fetchHexExtra(hexList, ctrl.signal).then(setExtra).catch(() => { if (!ctrl.signal.aborted) setExtra({}); });
+    return () => ctrl.abort();
+  }, [isOpen, hexList]);
+
+  // Nhịp nhập kho theo tuần (bảng nhập kho, các HEX của công trình) + dự báo theo nhịp PACE_WEEKS tuần gần nhất
+  const weekly = useMemo(() => {
+    if (!inventory || !isOpen || hexList.length === 0) return null;
+    const hexSet = new Set(hexList);
+    const curWeek = weekStart(today);
+    const firstWeek = curWeek - (WEEKS_SHOWN - 1) * 7 * DAY;
+    const sums = new Map<number, { value: number; hexes: Set<string> }>();
+    for (let w = firstWeek; w <= curWeek; w += 7 * DAY) sums.set(w, { value: 0, hexes: new Set() });
+    for (const r of inventory) {
+      const h = String(r['hex'] ?? '').trim();
+      if (!hexSet.has(h)) continue;
+      const d = parsePlanDate(r['date']);
+      if (!d) continue;
+      const w = weekStart(d.getTime());
+      const e = sums.get(w);
+      if (!e) continue;
+      e.value += Math.max(parseNumber(r['thanh_tien_nhap_kho']), 0);
+      e.hexes.add(h);
+    }
+    const weeks = [...sums.entries()].map(([start, e]) => ({ start, value: e.value, hexes: e.hexes.size }));
+    // Nhịp = trung bình PACE_WEEKS tuần ĐÃ QUA (không tính tuần hiện tại đang dở)
+    const past = weeks.filter(w => w.start < curWeek).slice(-PACE_WEEKS);
+    const pace = past.length ? past.reduce((s, w) => s + w.value, 0) / past.length : 0;
+    const chart = weeks.map(w => {
+      const d = new Date(w.start);
+      return { ...w, cur: w.start === curWeek, label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, full: fmtDate(d) };
+    });
+    return { weeks, chart, pace, paceWeeks: past.length };
+  }, [inventory, isOpen, hexList, today]);
 
   // ---------- Dữ liệu BOM + vướng mắc (gọi API khi mở) ----------
   const [matCount, setMatCount] = useState<Record<string, number> | null>(null);
@@ -256,6 +341,38 @@ export const ProjectHealthModal: React.FC<Props> = ({
     return { total, remain, remainSum, done: Math.max(total - remainSum, 0), stockedItems: items.filter(i => !i.open).length };
   }, [items]);
 
+  // Dự báo: còn lại / nhịp => số tuần cần; so với BOT dự án; nhịp cần có để kịp BOT dự án
+  const forecast = useMemo(() => {
+    if (!weekly) return null;
+    const remain = bop.remainSum;
+    const weeksNeeded = weekly.pace > 0 ? remain / weekly.pace : null;
+    const finish = weeksNeeded !== null ? new Date(today + Math.ceil(weeksNeeded) * 7 * DAY) : null;
+    const bot = meta.botDuAn;
+    const weeksLeft = bot ? Math.max((bot.getTime() - today) / (7 * DAY), 0) : null;
+    const needPace = weeksLeft !== null && weeksLeft > 0 ? remain / weeksLeft : null;
+    const lateWeeks = finish && bot ? Math.ceil((finish.getTime() - bot.getTime()) / (7 * DAY)) : null;
+    return { remain, weeksNeeded, finish, weeksLeft, needPace, lateWeeks };
+  }, [weekly, bop.remainSum, meta.botDuAn, today]);
+
+  // Luồng tiến độ: Nhận PM → Đã triển khai BV → Có phiếu → Lên chuyền → Nhập kho đủ (số hạng mục · trị giá)
+  const funnel = useMemo(() => {
+    const p013 = STAGE_ORDER.indexOf('P013');
+    const onLine = (i: HexInfo) => !i.open || stageOrder(i.stage) >= p013;
+    const hasBv = items.some(i => i.bvDone !== null && i.bvDone !== undefined);
+    const hasPh = items.some(i => i.phieuDone !== null && i.phieuDone !== undefined);
+    const step = (label: string, pred: (i: HexInfo) => boolean, has = true, hint = '') => {
+      const list = has ? items.filter(pred) : [];
+      return { label, n: has ? list.length : null, value: list.reduce((s, i) => s + i.total, 0), hint };
+    };
+    return [
+      step('Nhận từ PM', () => true, true, 'Mọi hạng mục của công trình (không tính đơn hủy)'),
+      step('Đã triển khai BV', i => !!i.bvDone || onLine(i), hasBv, 'Tình trạng triển khai bản vẽ = ĐÃ TRIỂN KHAI (hoặc đã lên chuyền / nhập kho)'),
+      step('Có phiếu SX', i => !!i.phieuDone || onLine(i), hasPh, 'Tình trạng phiếu ≠ CHƯA PHIẾU (hoặc đã lên chuyền / nhập kho)'),
+      step('Vào sản xuất', onLine, true, 'Công đoạn từ P013 trở đi (đã qua tính phiếu P012), hoặc đã nhập kho đủ'),
+      step('Nhập kho đủ', i => !i.open, true, 'Đã nhập đủ trị giá hoặc đủ số lượng đơn hàng'),
+    ];
+  }, [items]);
+
   // Phân tích vật tư theo trạng thái dòng PR (dùng chung với tab BOM)
   const bomDetail = useMemo(
     () => analyzeBom(items, matCount, materialLines, today, materialIssues, nvlByHex),
@@ -274,6 +391,11 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const openIssueTotal = useMemo(
     () => (openIssues ? Object.values(openIssues).reduce((s, n) => s + n, 0) : null),
     [openIssues]
+  );
+  // Gia công ngoài còn chờ NCC (hạng mục chưa nhập kho đủ)
+  const gcnPending = useMemo(
+    () => (extra ? items.filter(i => i.open && extra[i.hex]?.gcn && isGcnPending(extra[i.hex]!.gcn!.st)).length : 0),
+    [extra, items]
   );
 
   // ---------- Vấn đề của 1 hạng mục (dùng chung cho "Cần xử lý ngay" và "Chú ý") ----------
@@ -389,8 +511,19 @@ export const ProjectHealthModal: React.FC<Props> = ({
           <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">Tổng quan công trình</p>
           <h3 id="health-title" className="truncate text-lg font-semibold text-slate-900">{projectName}</h3>
           <p className="mt-0.5 text-[0.6875rem] text-slate-500">
-            {pmText ? `PM: ${pmText} · ` : ''}{fmtInt(hexList.length)} hạng mục · Tổng {fmtTy(bop.total)} tỷ (không tính đơn hủy, theo bộ lọc trang)
+            {pmText ? `PM: ${pmText} · ` : ''}{meta.pc ? `PC: ${meta.pc} · ` : ''}{fmtInt(hexList.length)} hạng mục · Tổng {fmtTy(bop.total)} tỷ (không tính đơn hủy, theo bộ lọc trang)
+            {meta.nhomCt ? ` · Nhóm: ${meta.nhomCt}` : ''}{meta.tinhTrangDuAn ? ` · Dự án: ${meta.tinhTrangDuAn}` : ''}
           </p>
+          {meta.botDuAn && (() => {
+            const left = Math.floor((meta.botDuAn.getTime() - today) / DAY);
+            const openN = items.filter(i => i.open).length;
+            const tone = openN === 0 ? 'text-emerald-700' : left < 0 ? 'text-red-600' : left <= 30 ? 'text-amber-600' : 'text-slate-700';
+            return (
+              <p className={`mt-0.5 text-xs font-semibold ${tone}`} title="BOT dự án: hạn chung của công trình (tham khảo, không tính hạn từng hạng mục)">
+                BOT dự án {fmtDate(meta.botDuAn)}{openN === 0 ? ' · đã nhập kho đủ' : left < 0 ? ` · đã quá ${-left} ngày, còn ${fmtInt(openN)} hạng mục` : ` · còn ${left} ngày, ${fmtInt(openN)} hạng mục chưa xong`}
+              </p>
+            );
+          })()}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <button
@@ -434,7 +567,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
         {tab === 'bot' && <BotTab items={items} today={today} openIssues={openIssues} onHexClick={setTimelineHex} />}
-        {tab === 'bop' && <BopTab items={items} onHexClick={setTimelineHex} />}
+        {tab === 'bop' && <BopTab items={items} onHexClick={setTimelineHex} extra={extra} today={today} />}
         {tab === 'bom' && (
           <BomTab
             items={items}
@@ -523,6 +656,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <dd className={`text-right tabular-nums ${projectMat && (projectMat.byState.notOrdered + projectMat.byState.late) > 0 ? 'font-semibold text-rose-600' : 'text-slate-700'}`}>
                 {!projectMat ? '…' : `${fmtInt(projectMat.lines)} dòng · ${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.late)} trễ`}
               </dd>
+              <dt className="text-slate-500" title="Hạng mục chưa nhập kho đủ có gia công ngoài mà NCC chưa giao xong (tình trạng GCN chưa HOÀN THÀNH / HỦY) — xem tab BOP">Gia công ngoài còn chờ NCC</dt>
+              <dd className={`text-right tabular-nums ${gcnPending ? 'font-semibold text-orange-600' : 'text-slate-700'}`}>
+                {extra === null ? '…' : `${fmtInt(gcnPending)} HM`}
+              </dd>
               <dt className="text-slate-500" title="Vướng mắc loại M3 – Vật tư chưa xử lý (số vướng mắc · số hạng mục)">Vướng mắc vật tư (M3) đang mở</dt>
               <dd className={`text-right tabular-nums ${bomDetail?.issueTotal ? 'font-semibold text-red-600' : 'text-slate-700'}`}>
                 {!bomDetail || materialIssues === null ? '…' : `${fmtInt(bomDetail.issueTotal)} · ${fmtInt(bomDetail.issueHexes)} HM`}
@@ -540,6 +677,113 @@ export const ProjectHealthModal: React.FC<Props> = ({
           </Card>
         </div>
 
+        {/* Luồng tiến độ + nhịp nhập kho / dự báo */}
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1.15fr]">
+          {/* Phễu ngang: mỗi bước 1 dòng, thanh = % hạng mục so với bước đầu */}
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Luồng tiến độ</p>
+              <p className="text-[0.6875rem] text-slate-400">số hạng mục đã qua từng bước · % so với tổng · trị giá (tỷ)</p>
+            </div>
+            <div className="mt-3 space-y-2">
+              {funnel.map((f, idx) => {
+                const base = funnel[0].n || 1;
+                const pct = f.n === null ? 0 : (f.n / base) * 100;
+                const last = idx === funnel.length - 1;
+                const bar = last ? 'bg-emerald-500' : idx === 0 ? 'bg-slate-700' : 'bg-sky-500';
+                return (
+                  <div key={f.label} className="grid grid-cols-[112px_1fr_152px] items-center gap-2 text-xs" title={f.hint}>
+                    <span className="truncate text-slate-600">{f.label}</span>
+                    <div className="h-5 overflow-hidden rounded bg-slate-100">
+                      {f.n !== null && (
+                        <div className={`flex h-5 items-center rounded ${bar}`} style={{ width: `${Math.max(pct, f.n > 0 ? 1.5 : 0)}%` }}>
+                          {pct >= 18 && <span className="px-2 text-[0.6875rem] font-semibold text-white">{pct.toFixed(0)}%</span>}
+                        </div>
+                      )}
+                    </div>
+                    <span className="whitespace-nowrap text-right tabular-nums">
+                      {f.n === null ? <span className="text-slate-400">chưa có cột</span> : <>
+                        <span className="font-semibold text-slate-900">{fmtInt(f.n)}</span>
+                        {pct < 18 && <span className="ml-1 text-slate-500">{pct.toFixed(0)}%</span>}
+                        <span className="ml-1.5 text-slate-400">{fmtTy(f.value)} tỷ</span>
+                      </>}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[0.625rem] text-slate-400">
+              Theo cột tình trạng triển khai bản vẽ / phiếu ở bảng sản xuất (hạng mục đã vào sản xuất tính là đã qua). Bấm thẻ BOP để xem theo công đoạn.
+            </p>
+          </div>
+
+          {/* Nhịp nhập kho: biểu đồ cột theo tuần + đường nhịp trung bình + dự báo */}
+          <div className="rounded-xl border border-slate-200 p-4">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                <TrendingUp size={14} /> Nhịp nhập kho {WEEKS_SHOWN} tuần
+              </p>
+              <p className="flex flex-wrap items-center gap-x-2 text-[0.6875rem] text-slate-400">
+                {weekly && weekly.pace > 0 && (
+                  <span className="inline-flex items-center gap-1 font-medium text-amber-700">
+                    <span className="inline-block w-4 border-t-2 border-dashed border-amber-500" />
+                    TB {formatTrieuAsTy(weekly.pace)} tỷ/tuần
+                  </span>
+                )}
+                <span>tỷ / tuần · theo bảng nhập kho · tuần hiện tại đang dở (nhạt)</span>
+              </p>
+            </div>
+            {!weekly ? (
+              <p className="py-6 text-center text-xs text-slate-400">Chưa có bảng nhập kho để tính nhịp.</p>
+            ) : (
+              <div className="mt-2 grid gap-3 md:grid-cols-[1fr_230px]">
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weekly.chart} margin={{ top: 14, right: 6, left: -18, bottom: 0 }} barCategoryGap="22%">
+                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={0} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatTrieuAsTy(v)} width={48} />
+                      <Tooltip
+                        cursor={{ fill: 'rgba(148,163,184,0.12)' }}
+                        labelFormatter={(_l: unknown, p: any[]) => (p?.[0]?.payload ? `Tuần từ ${p[0].payload.full}${p[0].payload.cur ? ' (đang dở)' : ''}` : '')}
+                        formatter={(v: number, _n: string, p: any) => [`${formatTrieuAsTy(v)} tỷ · ${p.payload.hexes} hạng mục`, 'Nhập kho']}
+                      />
+                      <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                        {weekly.chart.map(w => <Cell key={w.start} fill={w.cur ? '#bae6fd' : '#0ea5e9'} />)}
+                      </Bar>
+                      {/* Đường nhịp TB vẽ SAU cột (nằm trên cột); nhãn đưa lên chú thích phía trên — nhãn trong vùng
+                          vẽ bị cột che */}
+                      {weekly.pace > 0 && (
+                        <ReferenceLine y={weekly.pace} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 3" ifOverflow="extendDomain" />
+                      )}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                {forecast && (
+                  <dl className="grid grid-cols-[1fr_auto] content-start gap-x-2 gap-y-1.5 text-xs">
+                    <dt className="text-slate-500">Nhịp TB {weekly.paceWeeks} tuần qua</dt>
+                    <dd className="text-right font-semibold tabular-nums text-slate-800">{fmtTy(weekly.pace)} tỷ/tuần</dd>
+                    <dt className="text-slate-500">Còn chưa nhập kho</dt>
+                    <dd className="text-right tabular-nums text-amber-700">{fmtTy(forecast.remain)} tỷ</dd>
+                    {forecast.remain > 0 && <>
+                      <dt className="text-slate-500" title="Còn lại ÷ nhịp trung bình — ước tính thô, giả định nhịp không đổi">Ước xong theo nhịp</dt>
+                      <dd className={`text-right font-semibold tabular-nums ${forecast.lateWeeks !== null && forecast.lateWeeks > 0 ? 'text-red-600' : 'text-slate-800'}`}>
+                        {forecast.finish ? <>{fmtDate(forecast.finish)}<span className="block text-[0.625rem] font-normal text-slate-400">~{Math.ceil(forecast.weeksNeeded!)} tuần</span></> : 'không ước được'}
+                      </dd>
+                      {forecast.weeksLeft !== null && <>
+                        <dt className="text-slate-500">Cần để kịp BOT dự án<span className="block text-[0.625rem] text-slate-400">còn {forecast.weeksLeft.toFixed(0)} tuần</span></dt>
+                        <dd className={`text-right tabular-nums ${forecast.needPace !== null && forecast.needPace > weekly.pace ? 'font-semibold text-red-600' : 'text-emerald-700'}`}>
+                          {forecast.needPace === null ? 'đã qua BOT' : `${fmtTy(forecast.needPace)} tỷ/tuần`}
+                          {forecast.lateWeeks !== null && forecast.lateWeeks > 0 && forecast.needPace !== null && <span className="block text-[0.625rem] font-normal">trễ ~{forecast.lateWeeks} tuần</span>}
+                        </dd>
+                      </>}
+                    </>}
+                  </dl>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         {/* Cần xử lý ngay · Chú ý (không có BOT) · Còn lại */}
         <div className="mt-5">
           <div className="mb-2 flex flex-wrap items-center gap-2">

@@ -36,6 +36,8 @@ const WorkshopGroupSetup = lazy(() => import('./components/Construction/Workshop
 const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
 const HexLookup = lazy(() => import('./components/Mobile/HexLookup'));
+// Màn quản lý vướng mắc sản xuất (desktop) — dùng chung sheet chi tiết với app điện thoại
+const VuongMacManager = lazy(() => import('./components/VuongMac/VuongMacManager'));
 
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
@@ -88,6 +90,7 @@ const App: React.FC = () => {
                   {/* --- Tổng quan --- */}
                   <Route path="/" element={<RequirePermission viewId="dashboard"><DashboardWrapper /></RequirePermission>} />
                   <Route path="/tra-cuu-hex" element={<RequirePermission viewId="hex_lookup"><HexLookupWrapper /></RequirePermission>} />
+                  <Route path="/vuong-mac" element={<RequirePermission viewId="vuong_mac"><VuongMacManager /></RequirePermission>} />
 
                   {/* --- Nhóm Dữ liệu --- */}
                   <Route path="/list" element={<RequirePermission viewId="production"><DataGridWrapper type="production" /></RequirePermission>} />
@@ -186,7 +189,7 @@ const useViewMappingReady = () => {
 const ConstructionOverviewWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { user } = useAuth();
-  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''} />;
+  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''} inventory={context.inventoryData} />;
 };
 
 // Dùng chung 1 component cho 2 view Công trình. key={viewId} để chuyển giữa 2 view thì
@@ -344,7 +347,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'Shield': <Shield size={18} />, 'Calendar': <Calendar size={18} />, 'ShoppingCart': <ShoppingCart size={18} />,
   'Import': <Import size={18} />, 'FileText': <FileText size={18} />, 'ClipboardList': <ClipboardList size={18} />,
   'TrendingUp': <TrendingUp size={18} />, 'CalendarRange': <CalendarRange size={18} />, 'Export': <Upload size={18} />,
-  'Clock': <Clock size={18} />, 'Search': <Search size={18} />
+  'Clock': <Clock size={18} />, 'Search': <Search size={18} />, 'AlertTriangle': <AlertTriangle size={18} />
 };
 
 // Icon nhỏ hơn dùng cho các mục con trong nhóm gộp
@@ -357,7 +360,7 @@ const ICON_MAP_SM: Record<string, React.ReactNode> = {
 };
 
 // Các viewId luôn hiển thị riêng lẻ, không gộp vào nhóm "Dữ liệu"
-const STANDALONE_VIEW_IDS = ['dashboard', 'hex_lookup', 'users'];
+const STANDALONE_VIEW_IDS = ['dashboard', 'hex_lookup', 'vuong_mac', 'users'];
 
 const AppLogo = () => (
   <div className="w-8 h-8 rounded-lg bg-wood-600 flex items-center justify-center text-white shrink-0"><TrendingUp size={16} strokeWidth={2.25} /></div>
@@ -749,6 +752,7 @@ const MainLayout: React.FC = () => {
   // ------------------------------------------------------------
   const dashboardView = APP_VIEWS.find(v => v.id === 'dashboard' && hasPermission(v.id));
   const hexLookupView = APP_VIEWS.find(v => v.id === 'hex_lookup' && hasPermission(v.id));
+  const vuongMacView = APP_VIEWS.find(v => v.id === 'vuong_mac' && hasPermission(v.id));
   const usersView = APP_VIEWS.find(v => v.id === 'users' && hasPermission(v.id));
 
   const visibleConstructionItems = CONSTRUCTION_SUB_ITEMS.filter(i => hasPermission(i.permId));
@@ -871,6 +875,19 @@ const MainLayout: React.FC = () => {
             >
               {renderSubLinks(visibleConstructionItems)}
             </NavGroup>
+          )}
+
+          {/* Vướng mắc sản xuất (quản lý) */}
+          {vuongMacView && (
+            <NavLink
+              key={vuongMacView.id}
+              to={vuongMacView.path}
+              icon={ICON_MAP[vuongMacView.iconName || 'Table']}
+              label={vuongMacView.label}
+              active={location.pathname === vuongMacView.path}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
           )}
 
           {/* Nhóm Quản trị (Biểu đồ) */}

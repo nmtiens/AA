@@ -25,6 +25,8 @@ const LOG_STYLE: Record<VuongMacLogEntry['action'], { label: string; dot: string
   CREATE: { label: 'Thêm', dot: 'bg-emerald-500', badge: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
   UPDATE: { label: 'Sửa', dot: 'bg-amber-500', badge: 'border-amber-200 bg-amber-50 text-amber-700' },
   DELETE: { label: 'Xóa', dot: 'bg-red-500', badge: 'border-red-200 bg-red-50 text-red-700' },
+  STATUS: { label: 'Trạng thái', dot: 'bg-indigo-500', badge: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
+  COMMENT: { label: 'Bình luận', dot: 'bg-blue-500', badge: 'border-blue-200 bg-blue-50 text-blue-700' },
 };
 type LogFilter = 'ALL' | VuongMacLogEntry['action'];
 
@@ -502,6 +504,8 @@ export const VuongMacDetailModal = ({
       CREATE: logs.filter(l => l.action === 'CREATE').length,
       UPDATE: logs.filter(l => l.action === 'UPDATE').length,
       DELETE: logs.filter(l => l.action === 'DELETE').length,
+      STATUS: logs.filter(l => l.action === 'STATUS').length,
+      COMMENT: logs.filter(l => l.action === 'COMMENT').length,
     };
     const list = logFilter === 'ALL' ? logs : logs.filter(l => l.action === logFilter);
     const groups: { day: string; entries: VuongMacLogEntry[] }[] = [];
@@ -517,6 +521,8 @@ export const VuongMacDetailModal = ({
       { key: 'CREATE', label: 'Thêm' },
       { key: 'UPDATE', label: 'Sửa' },
       { key: 'DELETE', label: 'Xóa' },
+      { key: 'STATUS', label: 'Trạng thái' },
+      { key: 'COMMENT', label: 'Bình luận' },
     ];
 
     return (

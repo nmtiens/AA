@@ -13,7 +13,9 @@ import { sendToUsers, recipientsFor } from './vuongMacPush.js';
 
 export type NotifyKind =
   | 'mention' | 'assigned' | 'resolved' | 'reopened' | 'extend'
-  | 'due60' | 'due15' | 'overdue' | 'new_in_dept';
+  | 'due60' | 'due15' | 'overdue' | 'new_in_dept'
+  // Quy trình mới (2026-10-10): nhận xử lý, xác nhận đóng, bình luận, leo thang khi quá hạn lâu
+  | 'accepted' | 'closed' | 'comment' | 'escalated';
 
 export const PREF_KEYS = ['mention', 'assigned', 'status', 'extend', 'due', 'newInDept'] as const;
 export type PrefKey = typeof PREF_KEYS[number];
@@ -27,6 +29,7 @@ export const DEFAULT_PREFS: NotifyPrefs = {
 const PREF_OF: Record<NotifyKind, PrefKey> = {
   mention: 'mention', assigned: 'assigned', resolved: 'status', reopened: 'status', extend: 'extend',
   due60: 'due', due15: 'due', overdue: 'due', new_in_dept: 'newInDept',
+  accepted: 'status', closed: 'status', comment: 'mention', escalated: 'due',
 };
 
 export const mergePrefs = (raw: unknown): NotifyPrefs => {
@@ -49,7 +52,7 @@ const warnMissing = () => {
 // ---------------------------------------------------------------------------
 // Danh sách người dùng đang hoạt động (cache 60 giây — dùng cho tag tên & người xử lý)
 // ---------------------------------------------------------------------------
-interface UserLite { id: string; username: string; fullName: string; prefs: NotifyPrefs }
+interface UserLite { id: string; username: string; fullName: string; role: string; prefs: NotifyPrefs }
 let usersCache: { at: number; list: UserLite[] } | null = null;
 
 async function activeUsers(): Promise<UserLite[]> {
@@ -57,16 +60,16 @@ async function activeUsers(): Promise<UserLite[]> {
   let rows: any[];
   try {
     rows = (await pool.query(
-      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, notify_prefs
+      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, role, notify_prefs
        FROM users WHERE is_active`)).rows;
   } catch (e) {
     if (!isMissingSchema(e)) throw e;
     warnMissing();
     rows = (await pool.query(
-      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name FROM users WHERE is_active`)).rows;
+      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, role FROM users WHERE is_active`)).rows;
   }
   const list = rows.map(r => ({
-    id: r.id, username: r.username, fullName: String(r.full_name).trim(), prefs: mergePrefs(r.notify_prefs),
+    id: r.id, username: r.username, fullName: String(r.full_name).trim(), role: String(r.role ?? ''), prefs: mergePrefs(r.notify_prefs),
   }));
   usersCache = { at: Date.now(), list };
   return list;
@@ -104,6 +107,11 @@ export async function idsByFullName(name?: string | null): Promise<string[]> {
   const n = lower((name ?? '').trim());
   if (!n) return [];
   return (await activeUsers()).filter(u => lower(u.fullName) === n).map(u => u.id);
+}
+
+/** Tài khoản ADMIN đang hoạt động — nhận thông báo leo thang khi vướng mắc quá hạn lâu */
+export async function adminIds(): Promise<string[]> {
+  return (await activeUsers()).filter(u => u.role === 'ADMIN').map(u => u.id);
 }
 
 export async function idsByUsername(...usernames: (string | null | undefined)[]): Promise<string[]> {

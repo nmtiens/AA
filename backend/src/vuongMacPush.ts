@@ -3,7 +3,7 @@ import type { Express, RequestHandler } from 'express';
 import webpush from 'web-push';
 import { z } from 'zod';
 import { pool } from '../src/db.js';
-import { notify, idsByFullName, type NotifyKind } from './notifications.js';
+import { notify, idsByFullName, adminIds, type NotifyKind } from './notifications.js';
 
 // ---------------------------------------------------------------------------
 // Đọc env LAZY (trong hàm), vì server chính gọi dotenv.config() SAU các import.
@@ -134,7 +134,48 @@ export async function scanBotDeadlines() {
     }]);
     notified++;
   }
-  return { checked: rows.length, notified };
+  const escalated = await escalateOverdue();
+  return { checked: rows.length, notified, escalated };
+}
+
+// ---------------------------------------------------------------------------
+// LEO THANG: quá hạn BOT hơn 24 giờ mà vẫn chưa xử lý và chưa báo quản lý => báo Admin + người xử lý
+// + phòng ban người tạo, ghi escalated_at để không báo lại. Cần cột escalated_at (file SQL quy trình
+// 2026-10-10); chưa chạy SQL thì bỏ qua êm.
+// ---------------------------------------------------------------------------
+const ESCALATE_AFTER_HOURS = 24;
+async function escalateOverdue(): Promise<number> {
+  let rows: any[];
+  try {
+    rows = (await pool.query(
+      `SELECT vm.id, vm.hex, vm.category, vm.content, vm.handler, vm.created_by, u.department AS created_department
+         FROM vuong_mac vm
+         LEFT JOIN users u ON u.username = vm.created_by
+        WHERE vm.is_resolved = false AND vm.escalated_at IS NULL AND vm.bot_end IS NOT NULL
+          AND vm.bot_end <= now() - make_interval(hours => $1)
+          AND vm.bot_end >= now() - interval '30 days'
+        ORDER BY vm.bot_end LIMIT 50`, [ESCALATE_AFTER_HOURS])).rows;
+  } catch (e: any) {
+    if (e?.code !== '42703') console.error('[escalate] lỗi', e);
+    return 0;
+  }
+  let n = 0;
+  for (const it of rows) {
+    const upd = await pool.query('UPDATE vuong_mac SET escalated_at = now() WHERE id = $1 AND escalated_at IS NULL', [it.id]);
+    if (!upd.rowCount) continue;
+    await notify({ id: it.id, hex: it.hex, category: it.category }, [{
+      kind: 'escalated',
+      userIds: [
+        ...(await adminIds()),
+        ...(await idsByFullName(it.handler)),
+        ...(await recipientsFor(it.created_by, it.created_department)),
+      ],
+      title: `Quá hạn BOT hơn ${ESCALATE_AFTER_HOURS} giờ, chưa xử lý — Hex ${it.hex}`,
+      body: it.content,
+    }]);
+    n++;
+  }
+  return n;
 }
 
 // ---------------------------------------------------------------------------

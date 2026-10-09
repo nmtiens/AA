@@ -68,8 +68,9 @@ export const API_BASE_URL = '/api';
 // V10: thêm thanh_tien_xuat_kho_luy_ke / thanh_tien_ton_kho_hien_tai (Tổng quan công trình).
 // V11: thêm so_luong_don_hang_tong / so_luong_nhap_kho_luy_ke (nhập đủ số lượng = đã nhập kho khi đếm).
 // V12: thêm phan_tich_kh_th.nam.
-const CACHE_DB_NAME = 'OpsHub_Database_V12';
-const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9', 'OpsHub_Database_V10', 'OpsHub_Database_V11'];
+// V13 (2026-10-10): thêm cột nhom_ct / tinh_trang_du_an / ngay_nhan_tu_pm / tinh_trang_trien_khai_ban_ve / tinh_trang_phieu vào bảng sản xuất
+const CACHE_DB_NAME = 'OpsHub_Database_V13';
+const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9', 'OpsHub_Database_V10', 'OpsHub_Database_V11', 'OpsHub_Database_V12'];
 let oldCachesCleared = false;
 
 const initDB = (): Promise<IDBDatabase> => {

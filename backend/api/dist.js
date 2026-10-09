@@ -63606,7 +63606,11 @@ var PREF_OF = {
   due60: "due",
   due15: "due",
   overdue: "due",
-  new_in_dept: "newInDept"
+  new_in_dept: "newInDept",
+  accepted: "status",
+  closed: "status",
+  comment: "mention",
+  escalated: "due"
 };
 var mergePrefs = (raw) => {
   const out = { ...DEFAULT_PREFS };
@@ -63628,20 +63632,21 @@ async function activeUsers() {
   let rows;
   try {
     rows = (await pool.query(
-      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, notify_prefs
+      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, role, notify_prefs
        FROM users WHERE is_active`
     )).rows;
   } catch (e) {
     if (!isMissingSchema(e)) throw e;
     warnMissing();
     rows = (await pool.query(
-      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name FROM users WHERE is_active`
+      `SELECT id::text AS id, username, COALESCE(full_name, '') AS full_name, role FROM users WHERE is_active`
     )).rows;
   }
   const list = rows.map((r) => ({
     id: r.id,
     username: r.username,
     fullName: String(r.full_name).trim(),
+    role: String(r.role ?? ""),
     prefs: mergePrefs(r.notify_prefs)
   }));
   usersCache = { at: Date.now(), list };
@@ -63674,6 +63679,9 @@ async function idsByFullName(name) {
   const n = lower((name ?? "").trim());
   if (!n) return [];
   return (await activeUsers()).filter((u) => lower(u.fullName) === n).map((u) => u.id);
+}
+async function adminIds() {
+  return (await activeUsers()).filter((u) => u.role === "ADMIN").map((u) => u.id);
 }
 async function idsByUsername(...usernames) {
   const set2 = new Set(usernames.filter(Boolean));
@@ -63840,7 +63848,44 @@ async function scanBotDeadlines() {
     }]);
     notified++;
   }
-  return { checked: rows.length, notified };
+  const escalated = await escalateOverdue();
+  return { checked: rows.length, notified, escalated };
+}
+var ESCALATE_AFTER_HOURS = 24;
+async function escalateOverdue() {
+  let rows;
+  try {
+    rows = (await pool.query(
+      `SELECT vm.id, vm.hex, vm.category, vm.content, vm.handler, vm.created_by, u.department AS created_department
+         FROM vuong_mac vm
+         LEFT JOIN users u ON u.username = vm.created_by
+        WHERE vm.is_resolved = false AND vm.escalated_at IS NULL AND vm.bot_end IS NOT NULL
+          AND vm.bot_end <= now() - make_interval(hours => $1)
+          AND vm.bot_end >= now() - interval '30 days'
+        ORDER BY vm.bot_end LIMIT 50`,
+      [ESCALATE_AFTER_HOURS]
+    )).rows;
+  } catch (e) {
+    if (e?.code !== "42703") console.error("[escalate] l\u1ED7i", e);
+    return 0;
+  }
+  let n = 0;
+  for (const it of rows) {
+    const upd = await pool.query("UPDATE vuong_mac SET escalated_at = now() WHERE id = $1 AND escalated_at IS NULL", [it.id]);
+    if (!upd.rowCount) continue;
+    await notify({ id: it.id, hex: it.hex, category: it.category }, [{
+      kind: "escalated",
+      userIds: [
+        ...await adminIds(),
+        ...await idsByFullName(it.handler),
+        ...await recipientsFor(it.created_by, it.created_department)
+      ],
+      title: `Qu\xE1 h\u1EA1n BOT h\u01A1n ${ESCALATE_AFTER_HOURS} gi\u1EDD, ch\u01B0a x\u1EED l\xFD \u2014 Hex ${it.hex}`,
+      body: it.content
+    }]);
+    n++;
+  }
+  return n;
 }
 var subscribeSchema = external_exports.object({
   subscription: external_exports.object({
@@ -64029,7 +64074,14 @@ var REPORT_COLUMNS = {
     "thanh_tien_ton_kho_hien_tai",
     // Hạng mục nhập đủ SỐ LƯỢNG coi là đã xong khi đếm / tính hạn (utils/productionMetrics.isQtyComplete)
     "so_luong_don_hang_tong",
-    "so_luong_nhap_kho_luy_ke"
+    "so_luong_nhap_kho_luy_ke",
+    // Báo cáo tiến độ công trình (bộ lọc nhóm CT / tình trạng dự án) + tổng quan 1 công trình
+    // (luồng triển khai BV → phiếu → chuyền → nhập kho, tuổi đơn từ ngày nhận PM). Cột ngắn, thêm ít dung lượng.
+    "nhom_ct",
+    "tinh_trang_du_an",
+    "ngay_nhan_tu_pm",
+    "tinh_trang_trien_khai_ban_ve",
+    "tinh_trang_phieu"
   ],
   vat_tu: [
     "trang_thai",
@@ -64691,6 +64743,161 @@ app.post("/api/production/notes", async (req, res) => {
     res.json(out);
   } catch (error61) {
     console.error("L\u1ED7i /api/production/notes:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var HEX_EXTRA_COLUMNS = [
+  "ngay_nhan_tu_pm",
+  "ngay_trien_khai_ban_ve",
+  "tinh_trang_trien_khai_ban_ve",
+  "ngay_tinh_phieu",
+  "ngay_duyet_phieu",
+  "tinh_trang_phieu",
+  "so_luong_tinh_phieu",
+  "so_luong_cong_doan_cts_da_giao",
+  "so_luong_cong_doan_may_da_giao",
+  "so_luong_cong_doan_moc_da_giao",
+  "so_luong_cong_doan_kim_loai_da_giao",
+  "so_luong_cong_doan_vecni_da_giao",
+  "so_luong_cong_doan_sofa_da_giao",
+  "so_luong_cong_doan_da_da_giao",
+  "so_luong_cong_doan_kinh_da_giao",
+  "so_luong_cong_doan_fitting_da_giao",
+  "so_luong_cong_doan_bao_bi_da_giao",
+  "co_vecni",
+  "co_sofa",
+  "co_kim_loai",
+  "co_kinh_da",
+  "co_gia_cong_ngoai",
+  "tinh_trang_gcn",
+  "ngay_du_kien_ve_gcn",
+  "trang_thai_gcn",
+  "xuong_yeu_cau_gcn",
+  "so_luong_xuat_kho_luy_ke",
+  "so_luong_ton_kho_hien_tai",
+  "tong_hop_thong_tin_qc"
+];
+var qcNum = (v) => {
+  const n = Number(String(v).replace(/[^\d.\-]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+var qcStatus = (raw, fail) => {
+  const s = raw.trim().toLowerCase();
+  if (!s) return fail > 0 ? "unknown" : "approved";
+  if (s === "verified") return "approved";
+  return s;
+};
+var QC_BAD_STATUS = /* @__PURE__ */ new Set(["rejected", "flagged"]);
+var parseQcEntries = (text) => {
+  const s = String(text ?? "");
+  if (!s.trim()) return [];
+  const parts = s.split(/\n(?=\d{2}\/\d{2}\/\d{4}:\s*#)/).map((p) => p.trim()).filter(Boolean);
+  const out = [];
+  for (const p of parts) {
+    const m = p.match(/^(\d{2}\/\d{2}\/\d{4}):\s*#([\s\S]*)$/);
+    if (!m) continue;
+    const photos = (p.match(/https?:\/\//g) ?? []).length;
+    const fields = m[2].split("#").map((x) => x.trim());
+    const get = (label) => {
+      const f = fields.find((x) => x.toUpperCase().startsWith(label.toUpperCase()));
+      return f ? f.slice(label.length).replace(/^:/, "").trim() : "";
+    };
+    const fail = qcNum(get("SL L\u1ED7i"));
+    out.push({
+      date: m[1],
+      qc: get("QC"),
+      stage: get("C\xF4ng \u0111o\u1EA1n"),
+      status: qcStatus(get("Tr\u1EA1ng th\xE1i"), fail),
+      checked: qcNum(get("SL Ki\u1EC3m")),
+      pass: qcNum(get("SL \u0110\u1EA1t")),
+      fail,
+      note: get("Ghi ch\xFA").replace(/https?:\/\/\S+/g, "").trim(),
+      photos
+    });
+  }
+  return out;
+};
+var summarizeQc = (entries) => {
+  if (!entries.length) return null;
+  const seen = /* @__PURE__ */ new Map();
+  for (const e of entries) {
+    const k = `${e.date}|${e.stage}|${e.qc}|${e.checked}|${e.fail}`;
+    const prev = seen.get(k);
+    if (!prev || prev.status === "approved" && e.status !== "approved") seen.set(k, e);
+  }
+  const list = [...seen.values()];
+  let checked = 0, pass = 0, fail = 0, bad = 0;
+  for (const e of list) {
+    checked += e.checked;
+    pass += e.pass;
+    fail += e.fail;
+    if (e.fail > 0 || QC_BAD_STATUS.has(e.status)) bad++;
+  }
+  const key = (d) => d.slice(6, 10) + d.slice(3, 5) + d.slice(0, 2);
+  const last = [...list].sort((a, b) => key(b.date).localeCompare(key(a.date)))[0];
+  return { n: list.length, checked, pass, fail, bad, last: { date: last.date, stage: last.stage, status: last.status, fail: last.fail } };
+};
+var hexExtraCache = createCache(30);
+var numOr0 = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+var yes = (v) => String(v ?? "").trim().toLowerCase() === "yes";
+app.post("/api/production/by-hex-extra", async (req, res) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h).trim()).filter(Boolean) : [];
+    if (hexes.length === 0) return res.json({});
+    if (hexes.length > 4e3) return res.status(400).json({ error: "Too many hexes" });
+    const uniq = [...new Set(hexes)].sort();
+    const out = await cachedByVersions(hexExtraCache, hashKey(uniq), ["production"], async () => {
+      const cols = HEX_EXTRA_COLUMNS.map((c) => `"${c}"`).join(", ");
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${cols}
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST`,
+        [uniq],
+        { timeoutMs: 3e4 }
+      );
+      const map2 = {};
+      for (const row of r.rows) {
+        map2[row.hex] = {
+          pm: row.ngay_nhan_tu_pm ?? null,
+          bv: row.ngay_trien_khai_ban_ve ?? null,
+          bvSt: row.tinh_trang_trien_khai_ban_ve ?? null,
+          ph: row.ngay_tinh_phieu ?? null,
+          dp: row.ngay_duyet_phieu ?? null,
+          phSt: row.tinh_trang_phieu ?? null,
+          qtyTicket: numOr0(row.so_luong_tinh_phieu),
+          qtyOut: numOr0(row.so_luong_xuat_kho_luy_ke),
+          qtyStock: numOr0(row.so_luong_ton_kho_hien_tai),
+          steps: {
+            cts: numOr0(row.so_luong_cong_doan_cts_da_giao),
+            may: numOr0(row.so_luong_cong_doan_may_da_giao),
+            moc: numOr0(row.so_luong_cong_doan_moc_da_giao),
+            kl: numOr0(row.so_luong_cong_doan_kim_loai_da_giao),
+            vecni: numOr0(row.so_luong_cong_doan_vecni_da_giao),
+            sofa: numOr0(row.so_luong_cong_doan_sofa_da_giao),
+            da: numOr0(row.so_luong_cong_doan_da_da_giao),
+            kinh: numOr0(row.so_luong_cong_doan_kinh_da_giao),
+            fit: numOr0(row.so_luong_cong_doan_fitting_da_giao),
+            bb: numOr0(row.so_luong_cong_doan_bao_bi_da_giao)
+          },
+          flags: { vecni: yes(row.co_vecni), sofa: yes(row.co_sofa), kl: yes(row.co_kim_loai), kinhDa: yes(row.co_kinh_da) },
+          gcn: yes(row.co_gia_cong_ngoai) ? {
+            st: String(row.tinh_trang_gcn ?? "").trim() || null,
+            due: String(row.ngay_du_kien_ve_gcn ?? "").trim() || null,
+            note: String(row.trang_thai_gcn ?? "").trim() || null,
+            xuong: String(row.xuong_yeu_cau_gcn ?? "").trim() || null
+          } : null,
+          qc: summarizeQc(parseQcEntries(row.tong_hop_thong_tin_qc))
+        };
+      }
+      return map2;
+    });
+    res.json(out);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/production/by-hex-extra:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -67355,6 +67562,8 @@ cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.quer
 // src/routes/vuongMac.ts
 var import_express3 = __toESM(require_express2(), 1);
 var FIVE_M_CATEGORIES = ["man", "machine", "material", "method", "measurement"];
+var VM_STATUSES = ["open", "doing", "done", "closed"];
+var PRIORITIES = ["normal", "high", "urgent"];
 var vuongMacCreateSchema = external_exports.object({
   hex: external_exports.string().min(1),
   category: external_exports.enum(FIVE_M_CATEGORIES),
@@ -67362,13 +67571,19 @@ var vuongMacCreateSchema = external_exports.object({
   handler: external_exports.string().max(200).optional().nullable(),
   bot: external_exports.string().max(200).optional().nullable(),
   solution: external_exports.string().max(2e3).optional().nullable(),
-  note: external_exports.string().max(2e3).optional().nullable()
+  note: external_exports.string().max(2e3).optional().nullable(),
+  priority: external_exports.enum(PRIORITIES).optional()
 });
 var vuongMacUpdateSchema = external_exports.object({
   category: external_exports.enum(FIVE_M_CATEGORIES).optional(),
   content: external_exports.string().min(1).max(2e3).optional(),
+  // Cũ: isResolved true = báo xong (done), false = mở lại
   isResolved: external_exports.boolean().optional(),
   resolvedNote: external_exports.string().max(2e3).optional().nullable(),
+  // Mới: đổi trạng thái theo quy trình + ghi chú kèm (bắt buộc khi báo xong / mở lại)
+  status: external_exports.enum(VM_STATUSES).optional(),
+  statusNote: external_exports.string().max(2e3).optional().nullable(),
+  priority: external_exports.enum(PRIORITIES).optional(),
   handler: external_exports.string().max(200).optional().nullable(),
   bot: external_exports.string().max(200).optional().nullable(),
   solution: external_exports.string().max(2e3).optional().nullable(),
@@ -67379,7 +67594,8 @@ var vuongMacExtendSchema = external_exports.object({
   bot: external_exports.string().trim().min(1).max(200),
   note: external_exports.string().max(2e3).optional().nullable()
 });
-var VUONG_MAC_COLUMN_LIST = [
+var commentSchema = external_exports.object({ content: external_exports.string().trim().min(1).max(2e3) });
+var BASE_COLUMN_LIST = [
   "id",
   "hex",
   "category",
@@ -67397,70 +67613,56 @@ var VUONG_MAC_COLUMN_LIST = [
   "resolved_by",
   "resolved_at"
 ];
-var VUONG_MAC_COLUMNS = VUONG_MAC_COLUMN_LIST.join(", ");
-var VUONG_MAC_COLUMNS_VM = VUONG_MAC_COLUMN_LIST.map((c) => `vm.${c}`).join(", ");
-var normDept = (d) => (d ?? "").trim().toLowerCase();
-var isSameDept = (a, b) => {
-  const x = normDept(a);
-  return x !== "" && x === normDept(b);
-};
-var getVuongMacActor = async (req) => {
-  const r = await pool.query("SELECT department, full_name FROM users WHERE id = $1", [req.user.id]);
-  return {
-    username: req.user.username,
-    role: req.user.role,
-    department: r.rows[0]?.department ?? null,
-    fullName: r.rows[0]?.full_name ?? null
-  };
-};
-var isMine = (me2, handler, createdBy) => !!createdBy && createdBy === me2.username || !!me2.fullName && !!handler && handler.trim().toLowerCase() === me2.fullName.trim().toLowerCase();
-var DUE_SOON_MS = 24 * 60 * 60 * 1e3;
-var dueState = (bot, now = Date.now()) => {
-  const end = parseBotEnd(bot);
-  if (!end) return "none";
-  const left = end.getTime() - now;
-  return left < 0 ? "overdue" : left <= DUE_SOON_MS ? "soon" : "ok";
-};
-var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-var canModifyVuongMac = (actor, createdBy, createdDept) => actor.role === "ADMIN" || !!createdBy && createdBy === actor.username || isSameDept(actor.department, createdDept);
-var canAddToVuongMacThread = async (actor, hex3, category) => {
-  if (actor.role === "ADMIN") return true;
-  const r = await pool.query(
-    `SELECT vm.created_by, u.department AS created_department
-     FROM vuong_mac vm
-     LEFT JOIN users u ON u.username = vm.created_by
-     WHERE vm.hex = $1 AND vm.category = $2`,
-    [hex3, category]
-  );
-  if (r.rows.length === 0) return true;
-  return r.rows.some(
-    (row) => row.created_by === actor.username || isSameDept(actor.department, row.created_department)
-  );
-};
-var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null) => ({
-  id: row.id,
-  category: row.category,
-  content: row.content,
-  isResolved: row.is_resolved,
-  createdBy: row.created_by,
-  createdAt: row.created_at,
-  updatedBy: row.updated_by,
-  updatedAt: row.updated_at,
-  handler: row.handler,
-  bot: row.bot,
-  solution: row.solution,
-  note: row.note,
-  resolvedNote: row.resolved_note,
-  resolvedBy: row.resolved_by,
-  resolvedAt: row.resolved_at,
-  extensions: Array.isArray(row.extensions) ? row.extensions : [],
-  photos: Array.isArray(row.photos) ? row.photos : [],
-  // danh sách id ảnh
-  createdDepartment,
-  canModify: canModifyVuongMac(actor, row.created_by, createdDepartment)
-});
-var SELECT_VUONG_MAC_WITH_DEPT = `
-  SELECT ${VUONG_MAC_COLUMNS_VM}, u.department AS created_department,
+var WORKFLOW_COLUMN_LIST = [
+  "status",
+  "priority",
+  "stage",
+  "xuong",
+  "ten_cong_trinh",
+  "ma_cong_trinh",
+  "ten_hang_muc",
+  "accepted_at",
+  "accepted_by",
+  "closed_at",
+  "closed_by",
+  "escalated_at"
+];
+var WORKFLOW_SQL_HINT = "M\xE1y ch\u1EE7 ch\u01B0a ch\u1EA1y file SQL backend/sql/2026-10-10_vuong_mac_quy_trinh.sql \u2014 thao t\xE1c n\xE0y c\u1EA7n c\u1ED9t quy tr\xECnh m\u1EDBi";
+var workflowReady = null;
+var workflowCheckedAt = 0;
+async function hasWorkflowSchema() {
+  if (workflowReady === true) return true;
+  if (workflowReady !== null && Date.now() - workflowCheckedAt < 6e4) return workflowReady;
+  try {
+    const r = await pool.query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = 'vuong_mac' AND column_name = 'escalated_at'`
+    );
+    workflowReady = r.rows.length > 0;
+  } catch {
+    workflowReady = false;
+  }
+  workflowCheckedAt = Date.now();
+  return workflowReady;
+}
+var vmCols = (ready, alias = "vm") => [
+  ...BASE_COLUMN_LIST.map((c) => `${alias}.${c}`),
+  ...WORKFLOW_COLUMN_LIST.map((c) => ready ? `${alias}.${c}` : `NULL AS ${c}`)
+].join(", ");
+var PRODUCTION_LATERAL = `
+  LEFT JOIN LATERAL (
+    SELECT ten_cong_trinh, ten_hang_muc, xuong_chinh, ma_cong_trinh, bop, tinh_trang, tinh_trang_ipo,
+           ten_pc, ten_pm, ngay_khnk_tuan, ngay_khnk_thang, ngay_can_giao
+    FROM production_status_app
+    WHERE hex::text = vm.hex
+    ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
+  ) p ON TRUE`;
+var PRODUCTION_COLS = `
+  p.ten_cong_trinh AS p_ten_cong_trinh, p.ten_hang_muc AS p_ten_hang_muc, p.xuong_chinh AS p_xuong_chinh,
+  p.ma_cong_trinh AS p_ma_cong_trinh, p.bop AS p_bop, p.tinh_trang AS p_tinh_trang, p.tinh_trang_ipo AS p_tinh_trang_ipo,
+  p.ten_pc AS p_ten_pc, p.ten_pm AS p_ten_pm, p.ngay_khnk_tuan AS p_khnk_tuan, p.ngay_khnk_thang AS p_khnk_thang,
+  p.ngay_can_giao AS p_ngay_can_giao`;
+var selectVm = (ready, withProduction) => `
+  SELECT ${vmCols(ready)}, u.department AS created_department,
     COALESCE((
       SELECT json_agg(json_build_object(
                'id', e.id, 'content', e.content, 'bot', e.bot, 'oldBot', e.old_bot,
@@ -67472,9 +67674,135 @@ var SELECT_VUONG_MAC_WITH_DEPT = `
       SELECT json_agg(ph.id ORDER BY ph.id)
       FROM vuong_mac_photo ph WHERE ph.vuong_mac_id = vm.id
     ), '[]'::json) AS photos
+    ${withProduction ? `, ${PRODUCTION_COLS}` : ""}
   FROM vuong_mac vm
   LEFT JOIN users u ON u.username = vm.created_by
-`;
+  ${withProduction ? PRODUCTION_LATERAL : ""}`;
+var normDept = (d) => (d ?? "").trim().toLowerCase();
+var isSameDept = (a, b) => {
+  const x = normDept(a);
+  return x !== "" && x === normDept(b);
+};
+var sameName = (a, b) => (a ?? "").trim().toLowerCase() !== "" && (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+var getVuongMacActor = async (req) => {
+  const r = await pool.query("SELECT department, full_name FROM users WHERE id = $1", [req.user.id]);
+  return {
+    username: req.user.username,
+    role: req.user.role,
+    department: r.rows[0]?.department ?? null,
+    fullName: r.rows[0]?.full_name ?? null
+  };
+};
+var isHandler = (me2, handler) => !!handler && (sameName(handler, me2.fullName) || sameName(handler, me2.username));
+var permsOf = (me2, createdBy, createdDept, handler) => {
+  const admin = me2.role === "ADMIN";
+  const reporterSide = admin || !!createdBy && createdBy === me2.username || isSameDept(me2.department, createdDept);
+  const handlerSide = reporterSide || isHandler(me2, handler);
+  return { edit: handlerSide, work: handlerSide, close: reporterSide, delete: reporterSide };
+};
+var canModifyVuongMac = (me2, createdBy, createdDept, handler = null) => permsOf(me2, createdBy, createdDept, handler).edit;
+var canAddToVuongMacThread = async (actor, hex3, category) => {
+  if (actor.role === "ADMIN") return true;
+  const r = await pool.query(
+    `SELECT vm.created_by, vm.handler, u.department AS created_department
+     FROM vuong_mac vm
+     LEFT JOIN users u ON u.username = vm.created_by
+     WHERE vm.hex = $1 AND vm.category = $2`,
+    [hex3, category]
+  );
+  if (r.rows.length === 0) return true;
+  return r.rows.some(
+    (row) => row.created_by === actor.username || isSameDept(actor.department, row.created_department) || isHandler(actor, row.handler)
+  );
+};
+var DUE_SOON_MS = 24 * 60 * 60 * 1e3;
+var dueState = (bot, now = Date.now()) => {
+  const end = parseBotEnd(bot);
+  if (!end) return "none";
+  const left = end.getTime() - now;
+  return left < 0 ? "overdue" : left <= DUE_SOON_MS ? "soon" : "ok";
+};
+var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+var planDate = (tuan, thang) => {
+  const t = String(tuan ?? "").match(/^\d{4}-\d{2}-\d{2}/);
+  if (t) return t[0];
+  const m = String(thang ?? "").match(/^\d{4}-\d{2}-\d{2}/);
+  return m ? m[0] : null;
+};
+var stageOf = (bop) => String(bop ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/)?.[1] ?? null;
+var statusOf = (row) => VM_STATUSES.includes(row.status) ? row.status : row.is_resolved ? "closed" : "open";
+var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null) => {
+  const perms = permsOf(actor, row.created_by, createdDepartment, row.handler);
+  const hasProd = "p_ten_cong_trinh" in row;
+  const rawCt = hasProd ? row.p_ten_cong_trinh ?? row.ten_cong_trinh : row.ten_cong_trinh;
+  return {
+    id: row.id,
+    hex: row.hex,
+    category: row.category,
+    content: row.content,
+    isResolved: row.is_resolved,
+    status: statusOf(row),
+    priority: PRIORITIES.includes(row.priority) ? row.priority : "normal",
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedBy: row.updated_by,
+    updatedAt: row.updated_at,
+    handler: row.handler,
+    bot: row.bot,
+    solution: row.solution,
+    note: row.note,
+    resolvedNote: row.resolved_note,
+    resolvedBy: row.resolved_by,
+    resolvedAt: row.resolved_at,
+    acceptedAt: row.accepted_at ?? null,
+    acceptedBy: row.accepted_by ?? null,
+    closedAt: row.closed_at ?? null,
+    closedBy: row.closed_by ?? null,
+    escalatedAt: row.escalated_at ?? null,
+    extensions: Array.isArray(row.extensions) ? row.extensions : [],
+    photos: Array.isArray(row.photos) ? row.photos : [],
+    // danh sách id ảnh
+    createdDepartment,
+    // Công đoạn / xưởng LÚC BÁO (cột lưu) — công đoạn hiện tại lấy ở bop
+    stage: row.stage ?? (hasProd ? stageOf(row.p_bop) : null),
+    xuong: workshopGroupOf(row.xuong ?? (hasProd ? row.p_xuong_chinh : null)) || null,
+    congTrinh: rawCt ? canonicalProjectName(rawCt) : null,
+    maCongTrinh: (hasProd ? row.p_ma_cong_trinh : null) ?? row.ma_cong_trinh ?? null,
+    hangMuc: (hasProd ? row.p_ten_hang_muc : null) ?? row.ten_hang_muc ?? null,
+    // Thông tin sản xuất hiện tại (chỉ khi truy vấn có nối bảng sản xuất)
+    bop: hasProd ? row.p_bop ?? null : void 0,
+    tinhTrang: hasProd ? row.p_tinh_trang ?? null : void 0,
+    tinhTrangIpo: hasProd ? row.p_tinh_trang_ipo ?? null : void 0,
+    pc: hasProd ? row.p_ten_pc ?? null : void 0,
+    pm: hasProd ? row.p_ten_pm ?? null : void 0,
+    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang) : void 0,
+    ngayCanGiao: hasProd ? row.p_ngay_can_giao ?? null : void 0,
+    perms,
+    canModify: perms.edit
+  };
+};
+var fetchOne = async (id, me2) => {
+  const ready = await hasWorkflowSchema();
+  const r = await pool.query(`${selectVm(ready, true)} WHERE vm.id = $1`, [id]);
+  return r.rows[0] ? mapVuongMacRow(r.rows[0], me2) : null;
+};
+var productionOfHex = async (hex3) => {
+  const r = await pool.query(
+    `SELECT bop, xuong_chinh, ten_cong_trinh, ma_cong_trinh, ten_hang_muc
+     FROM production_status_app WHERE hex::text = $1
+     ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1`,
+    [hex3]
+  );
+  const p = r.rows[0];
+  if (!p) return null;
+  return {
+    stage: stageOf(p.bop),
+    xuong: workshopGroupOf(p.xuong_chinh) || null,
+    tenCongTrinh: p.ten_cong_trinh ?? null,
+    maCongTrinh: p.ma_cong_trinh ?? null,
+    tenHangMuc: p.ten_hang_muc ?? null
+  };
+};
 var MAX_PHOTOS_PER_ITEM = 5;
 var isJpeg = (b) => b.length > 3 && b[0] === 255 && b[1] === 216 && b[2] === 255;
 app.post(
@@ -67494,7 +67822,7 @@ app.post(
       }
       const me2 = await getVuongMacActor(req);
       const existing = await pool.query(
-        `SELECT vm.created_by, u.department AS created_department
+        `SELECT vm.created_by, vm.handler, u.department AS created_department
          FROM vuong_mac vm LEFT JOIN users u ON u.username = vm.created_by
          WHERE vm.id = $1`,
         [id]
@@ -67503,7 +67831,7 @@ app.post(
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
+      if (!canModifyVuongMac(me2, old.created_by, old.created_department, old.handler)) {
         return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n th\xEAm \u1EA3nh" });
       }
       const cnt = await pool.query("SELECT COUNT(*) FROM vuong_mac_photo WHERE vuong_mac_id = $1", [id]);
@@ -67551,7 +67879,7 @@ app.delete("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) =>
     if (!Number.isInteger(photoId)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
     const me2 = await getVuongMacActor(req);
     const r = await pool.query(
-      `SELECT vm.created_by, u.department AS created_department
+      `SELECT vm.created_by, vm.handler, u.department AS created_department
        FROM vuong_mac_photo ph
        JOIN vuong_mac vm ON vm.id = ph.vuong_mac_id
        LEFT JOIN users u ON u.username = vm.created_by
@@ -67559,7 +67887,7 @@ app.delete("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) =>
       [photoId]
     );
     if (r.rows.length === 0) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
-    if (!canModifyVuongMac(me2, r.rows[0].created_by, r.rows[0].created_department)) {
+    if (!canModifyVuongMac(me2, r.rows[0].created_by, r.rows[0].created_department, r.rows[0].handler)) {
       return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n x\xF3a \u1EA3nh" });
     }
     await pool.query("DELETE FROM vuong_mac_photo WHERE id = $1", [photoId]);
@@ -67575,8 +67903,9 @@ app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
     if (hexes.length === 0) return res.json({});
     if (hexes.length > 2e3) return res.status(400).json({ error: "Too many hexes" });
     const actor = await getVuongMacActor(req);
+    const ready = await hasWorkflowSchema();
     const r = await timedQuery(
-      `${SELECT_VUONG_MAC_WITH_DEPT}
+      `${selectVm(ready, false)}
        WHERE vm.hex = ANY($1::text[])
        ORDER BY vm.hex, vm.created_at ASC`,
       [hexes]
@@ -67592,25 +67921,50 @@ app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+app.get("/api/vuong-mac/item/:id", authenticateJWT, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
+    const me2 = await getVuongMacActor(req);
+    const row = await fetchOne(id, me2);
+    if (!row) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc (c\xF3 th\u1EC3 \u0111\xE3 b\u1ECB xo\xE1)" });
+    res.json({ success: true, data: row });
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/item:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
 app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
   try {
     const status = String(req.query.status || "open");
+    const stList = String(req.query.st || "").split(",").map((s) => s.trim()).filter((s) => VM_STATUSES.includes(s));
     const category = String(req.query.category || "");
     const q = String(req.query.q || "").trim();
     const page = Math.max(1, Number(req.query.page) || 1);
-    const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 30));
-    const mine = req.query.mine === "1";
+    const pageSize = Math.min(200, Math.max(1, Number(req.query.pageSize) || 30));
+    const mine = String(req.query.mine || "");
     const due = String(req.query.due || "");
     const sort = String(req.query.sort || "");
     const from = String(req.query.from || "");
     const to = String(req.query.to || "");
+    const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    const congTrinh = String(req.query.congTrinh || "").trim();
+    const handler = String(req.query.handler || "").trim();
+    const stage = String(req.query.stage || "").trim().toUpperCase();
+    const priority = String(req.query.priority || "").trim();
     if (from && !DAY_RE.test(from) || to && !DAY_RE.test(to)) {
       return res.status(400).json({ success: false, message: "Ng\xE0y kh\xF4ng h\u1EE3p l\u1EC7" });
     }
     const me2 = await getVuongMacActor(req);
+    const ready = await hasWorkflowSchema();
     const conds = [];
     const params = [];
-    if (status === "open") conds.push("b.is_resolved = FALSE");
+    const statusExpr = ready ? "b.status" : `(CASE WHEN b.is_resolved THEN 'closed' ELSE 'open' END)`;
+    if (stList.length) {
+      const mapped = ready ? stList : [...new Set(stList.map((s) => s === "doing" ? "open" : s === "done" ? "closed" : s))];
+      params.push(mapped);
+      conds.push(`${statusExpr} = ANY($${params.length}::text[])`);
+    } else if (status === "open") conds.push("b.is_resolved = FALSE");
     else if (status === "resolved") conds.push("b.is_resolved = TRUE");
     if (FIVE_M_CATEGORIES.includes(category)) {
       params.push(category);
@@ -67620,7 +67974,8 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       params.push(`%${q}%`);
       const n = params.length;
       conds.push(`(b.content ILIKE $${n} OR b.handler ILIKE $${n} OR b.created_by ILIKE $${n}
-                   OR b.hex ILIKE $${n} OR p.ten_cong_trinh ILIKE $${n})`);
+                   OR b.hex ILIKE $${n} OR COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${n}
+                   OR COALESCE(b.p_ten_hang_muc, b.ten_hang_muc) ILIKE $${n})`);
     }
     if (from) {
       params.push(from);
@@ -67630,29 +67985,52 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       params.push(to);
       conds.push(`b.created_at < (($${params.length}::date + 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')`);
     }
-    if (mine) {
-      params.push(me2.username, me2.fullName ?? "");
-      const u = params.length - 1, n = params.length;
-      conds.push(`(b.created_by = $${u} OR ($${n} <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}))))`);
+    const creatorCond = () => {
+      params.push(me2.username);
+      return `b.created_by = $${params.length}`;
+    };
+    const handlerCond = () => {
+      params.push(me2.fullName ?? "");
+      const n = params.length;
+      return `($${n}::text <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}::text)))`;
+    };
+    if (mine === "assignee") conds.push(handlerCond());
+    else if (mine === "reporter") conds.push(creatorCond());
+    else if (mine === "confirm") conds.push(`${creatorCond()} AND ${statusExpr} = 'done'`);
+    else if (mine) conds.push(`(${creatorCond()} OR ${handlerCond()})`);
+    if (xuongList.length) {
+      params.push(xuongList);
+      conds.push(`UPPER(TRIM(COALESCE(${ready ? "b.xuong, " : ""}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
+    }
+    if (congTrinh) {
+      params.push(`%${congTrinh}%`);
+      conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+    }
+    if (handler) {
+      params.push(handler);
+      conds.push(`LOWER(TRIM(b.handler)) = LOWER(TRIM($${params.length}))`);
+    }
+    if (stage && ready) {
+      params.push(stage);
+      conds.push(`b.stage = $${params.length}`);
+    }
+    if (priority && ready && PRIORITIES.includes(priority)) {
+      params.push(priority);
+      conds.push(`b.priority = $${params.length}`);
     }
     const byBot = due === "overdue" || due === "soon" || sort === "bot";
     if (due === "overdue" || due === "soon") conds.push("b.is_resolved = FALSE");
     if (!byBot) params.push(pageSize, (page - 1) * pageSize);
+    const orderBy = sort === "oldest" ? "b.is_resolved ASC, b.created_at ASC" : sort === "priority" && ready ? `b.is_resolved ASC, CASE b.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 ELSE 2 END, b.created_at DESC` : "b.is_resolved ASC, b.created_at DESC";
     const r = await timedQuery(
-      `WITH base AS (${SELECT_VUONG_MAC_WITH_DEPT})
-       SELECT b.*, p.ten_cong_trinh, p.ten_hang_muc, p.xuong_chinh,
-              COUNT(*) OVER() AS total
+      `WITH base AS (${selectVm(ready, true)})
+       SELECT b.*, COUNT(*) OVER() AS total
        FROM base b
-       LEFT JOIN LATERAL (
-         SELECT ten_cong_trinh, ten_hang_muc, xuong_chinh
-         FROM production_status_app
-         WHERE hex::text = b.hex
-         ORDER BY updated_at DESC NULLS LAST LIMIT 1
-       ) p ON TRUE
        ${conds.length ? "WHERE " + conds.join(" AND ") : ""}
-       ORDER BY b.is_resolved ASC, b.created_at DESC
+       ORDER BY ${orderBy}
        ${byBot ? "" : `LIMIT $${params.length - 1} OFFSET $${params.length}`}`,
-      params
+      params,
+      { timeoutMs: 2e4 }
     );
     let rows = r.rows;
     let total = rows[0] ? Number(rows[0].total) : 0;
@@ -67669,13 +68047,10 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
     res.json({
       success: true,
       total,
-      data: rows.map((row) => ({
-        ...mapVuongMacRow(row, me2),
-        hex: row.hex,
-        congTrinh: row.ten_cong_trinh,
-        hangMuc: row.ten_hang_muc,
-        xuong: row.xuong_chinh
-      }))
+      page,
+      pageSize,
+      workflow: ready,
+      data: rows.map((row) => mapVuongMacRow(row, me2))
     });
   } catch (e) {
     console.error("L\u1ED7i /api/vuong-mac/all:", e);
@@ -67685,71 +68060,299 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
 app.get("/api/vuong-mac/stats", authenticateJWT, async (req, res) => {
   try {
     const me2 = await getVuongMacActor(req);
+    const ready = await hasWorkflowSchema();
     const [openR, dayR] = await Promise.all([
-      // Vướng mắc chưa xử lý (ít dòng) — đọc BOT ở Node để biết quá hạn / sắp đến hạn
+      // Vướng mắc chưa đóng (ít dòng) — đọc BOT ở Node để biết quá hạn / sắp đến hạn
       timedQuery(
-        `SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot,
+        `SELECT vm.id, vm.category, vm.handler, vm.created_by, vm.bot, vm.is_resolved, vm.created_at,
+                ${ready ? "vm.status, vm.priority, vm.xuong, vm.escalated_at, vm.ten_cong_trinh," : `NULL AS status, NULL AS priority, NULL AS xuong, NULL AS escalated_at, NULL AS ten_cong_trinh,`}
                 EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext,
-                p.ten_cong_trinh
+                p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh
          FROM vuong_mac vm
          LEFT JOIN LATERAL (
-           SELECT ten_cong_trinh FROM production_status_app
+           SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
            WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
          ) p ON TRUE
-         WHERE vm.is_resolved = FALSE`
+         WHERE ${ready ? `vm.status <> 'closed'` : "vm.is_resolved = FALSE"}`
       ),
-      // Phát sinh / đã xử lý trong hôm nay (giờ Việt Nam)
+      // Phát sinh / đã xử lý / đã đóng trong hôm nay (giờ Việt Nam)
       timedQuery(
         `WITH d AS (SELECT (date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh') AS start)
          SELECT
            (SELECT COUNT(*) FROM vuong_mac, d WHERE created_at >= d.start) AS created_today,
-           (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today`
+           (SELECT COUNT(*) FROM vuong_mac, d WHERE is_resolved AND resolved_at >= d.start) AS resolved_today
+           ${ready ? `, (SELECT COUNT(*) FROM vuong_mac, d WHERE closed_at >= d.start) AS closed_today` : ", 0 AS closed_today"}`
       )
     ]);
     const now = Date.now();
     const s = {
       open: 0,
+      doing: 0,
+      waiting: 0,
       overdue: 0,
       soon: 0,
       extended: 0,
       noBot: 0,
-      mine: { open: 0, overdue: 0, soon: 0 },
-      byCategory: {}
+      urgent: 0,
+      escalated: 0,
+      mine: { open: 0, overdue: 0, soon: 0, doing: 0, waiting: 0, reported: 0 },
+      byCategory: {},
+      byStatus: { open: 0, doing: 0, done: 0 }
     };
     const projects = /* @__PURE__ */ new Map();
+    const xuongs = /* @__PURE__ */ new Map();
     for (const row of openR.rows) {
+      const st = statusOf(row);
       const d = dueState(row.bot, now);
+      const active = st === "open" || st === "doing";
+      s.byStatus[st] = (s.byStatus[st] ?? 0) + 1;
+      if (st === "done") s.waiting++;
+      const creator = row.created_by === me2.username;
+      const handlerMe = isHandler(me2, row.handler);
+      if (creator && st !== "closed") s.mine.reported++;
+      if (creator && st === "done") s.mine.waiting++;
+      if (!active) continue;
       s.open++;
+      if (st === "doing") s.doing++;
       if (d === "overdue") s.overdue++;
       else if (d === "soon") s.soon++;
       else if (d === "none") s.noBot++;
       if (row.has_ext) s.extended++;
+      if (row.priority === "urgent") s.urgent++;
+      if (row.escalated_at) s.escalated++;
       s.byCategory[row.category] = (s.byCategory[row.category] ?? 0) + 1;
-      if (isMine(me2, row.handler, row.created_by)) {
+      if (handlerMe || creator && !row.handler) {
         s.mine.open++;
+        if (st === "doing") s.mine.doing++;
         if (d === "overdue") s.mine.overdue++;
         else if (d === "soon") s.mine.soon++;
       }
-      const name = String(row.ten_cong_trinh ?? "").trim();
+      const name = String(row.p_ten_cong_trinh ?? row.ten_cong_trinh ?? "").trim();
       if (name) {
-        const e = projects.get(name) ?? { open: 0, overdue: 0 };
+        const k = canonicalProjectName(name);
+        const e = projects.get(k) ?? { open: 0, overdue: 0 };
         e.open++;
         if (d === "overdue") e.overdue++;
-        projects.set(name, e);
+        projects.set(k, e);
+      }
+      const x = workshopGroupOf(row.xuong ?? row.p_xuong_chinh ?? "");
+      if (x) {
+        const e = xuongs.get(x) ?? { open: 0, overdue: 0 };
+        e.open++;
+        if (d === "overdue") e.overdue++;
+        xuongs.set(x, e);
       }
     }
     const topProjects = [...projects.entries()].map(([name, e]) => ({ name, ...e })).sort((a, b) => b.overdue - a.overdue || b.open - a.open).slice(0, 5);
+    const byXuong = [...xuongs.entries()].map(([name, e]) => ({ name, ...e })).sort((a, b) => b.overdue - a.overdue || b.open - a.open);
     res.json({
       success: true,
+      workflow: ready,
       ...s,
       createdToday: Number(dayR.rows[0]?.created_today ?? 0),
       resolvedToday: Number(dayR.rows[0]?.resolved_today ?? 0),
+      closedToday: Number(dayR.rows[0]?.closed_today ?? 0),
       topProjects,
+      byXuong,
       fullName: me2.fullName,
       generatedAt: new Date(now).toISOString()
     });
   } catch (e) {
     console.error("L\u1ED7i /api/vuong-mac/stats:", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+var hoursBetween = (a, b) => {
+  const x = a ? new Date(String(a)).getTime() : NaN, y = b ? new Date(String(b)).getTime() : NaN;
+  return Number.isFinite(x) && Number.isFinite(y) && y >= x ? (y - x) / 36e5 : null;
+};
+var avg = (xs) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length * 10) / 10 : null;
+var vnDay = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(d);
+app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
+  try {
+    const ready = await hasWorkflowSchema();
+    const today = vnDay(/* @__PURE__ */ new Date());
+    const to = DAY_RE.test(String(req.query.to || "")) ? String(req.query.to) : today;
+    const defFrom = /* @__PURE__ */ new Date(`${to}T00:00:00+07:00`);
+    defFrom.setDate(defFrom.getDate() - 29);
+    const from = DAY_RE.test(String(req.query.from || "")) ? String(req.query.from) : vnDay(defFrom);
+    const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    const weekStart = /* @__PURE__ */ new Date(`${to}T00:00:00+07:00`);
+    weekStart.setDate(weekStart.getDate() - (weekStart.getDay() + 6) % 7 - 7 * 11);
+    const seriesFrom = vnDay(weekStart);
+    const lo = from < seriesFrom ? from : seriesFrom;
+    const r = await timedQuery(
+      `SELECT vm.id, vm.hex, vm.category, vm.content, vm.handler, vm.created_by, vm.created_at, vm.bot, vm.is_resolved,
+              vm.resolved_at, vm.updated_at,
+              ${ready ? "vm.status, vm.priority, vm.stage, vm.xuong, vm.ten_cong_trinh, vm.accepted_at, vm.closed_at, vm.escalated_at," : "NULL AS status, NULL AS priority, NULL AS stage, NULL AS xuong, NULL AS ten_cong_trinh, NULL AS accepted_at, vm.resolved_at AS closed_at, NULL AS escalated_at,"}
+              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh, p.bop AS p_bop
+       FROM vuong_mac vm
+       LEFT JOIN LATERAL (
+         SELECT ten_cong_trinh, xuong_chinh, bop FROM production_status_app
+         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+       ) p ON TRUE
+       WHERE ${ready ? `vm.status <> 'closed'` : "vm.is_resolved = FALSE"}
+          OR vm.created_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+          OR vm.resolved_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
+          ${ready ? `OR vm.closed_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')` : ""}`,
+      [lo],
+      { timeoutMs: 2e4 }
+    );
+    const now = Date.now();
+    const inPeriod = (ts) => {
+      const d = ts ? vnDay(new Date(String(ts))) : "";
+      return !!d && d >= from && d <= to;
+    };
+    const newAgg = () => ({ open: 0, doing: 0, waiting: 0, overdue: 0, soon: 0, created: 0, done: 0, closed: 0, doneHours: [] });
+    const group = (m, k) => {
+      let e = m.get(k);
+      if (!e) {
+        e = newAgg();
+        m.set(k, e);
+      }
+      return e;
+    };
+    const byCategory = /* @__PURE__ */ new Map(), byXuong = /* @__PURE__ */ new Map(), byStage = /* @__PURE__ */ new Map(), byHandler = /* @__PURE__ */ new Map(), byProject = /* @__PURE__ */ new Map();
+    const totals = newAgg();
+    let noBot = 0, escalated = 0, urgent = 0, extendedActive = 0;
+    const acceptHours = [], doneHours = [], closeHours = [];
+    const aging = { d1: 0, d3: 0, d7: 0, d14: 0, more: 0 };
+    const weeks = /* @__PURE__ */ new Map();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i * 7);
+      weeks.set(vnDay(d), { start: vnDay(d), created: 0, done: 0, closed: 0 });
+    }
+    const weekKeyOf = (ts) => {
+      if (!ts) return null;
+      const d = /* @__PURE__ */ new Date(`${vnDay(new Date(String(ts)))}T00:00:00+07:00`);
+      d.setDate(d.getDate() - (d.getDay() + 6) % 7);
+      const k = vnDay(d);
+      return weeks.has(k) ? k : null;
+    };
+    const oldest = [];
+    for (const row of r.rows) {
+      const st = statusOf(row);
+      const xuong = workshopGroupOf(row.xuong ?? row.p_xuong_chinh ?? "") || "Ch\u01B0a r\xF5";
+      if (xuongList.length && !xuongList.includes(xuong) && !xuongList.includes(String(row.p_xuong_chinh ?? "").toUpperCase().trim())) continue;
+      const stage = row.stage ?? stageOf(row.p_bop) ?? "Ch\u01B0a r\xF5";
+      const project = row.p_ten_cong_trinh || row.ten_cong_trinh ? canonicalProjectName(row.p_ten_cong_trinh ?? row.ten_cong_trinh) : "Ch\u01B0a r\xF5";
+      const handlerName = String(row.handler ?? "").trim() || "Ch\u01B0a giao";
+      const groups = [
+        totals,
+        group(byCategory, row.category),
+        group(byXuong, xuong),
+        group(byStage, stage),
+        group(byHandler, handlerName),
+        group(byProject, project)
+      ];
+      const active = st === "open" || st === "doing";
+      const d = active ? dueState(row.bot, now) : "none";
+      if (active) {
+        for (const g of groups) {
+          g.open++;
+          if (st === "doing") g.doing++;
+          if (d === "overdue") g.overdue++;
+          else if (d === "soon") g.soon++;
+        }
+        if (d === "none") noBot++;
+        if (row.escalated_at) escalated++;
+        if (row.priority === "urgent") urgent++;
+        const ageH = hoursBetween(row.created_at, (/* @__PURE__ */ new Date()).toISOString()) ?? 0;
+        if (ageH <= 24) aging.d1++;
+        else if (ageH <= 72) aging.d3++;
+        else if (ageH <= 168) aging.d7++;
+        else if (ageH <= 336) aging.d14++;
+        else aging.more++;
+        oldest.push({
+          id: row.id,
+          hex: row.hex,
+          content: row.content,
+          handler: row.handler,
+          status: st,
+          priority: row.priority ?? "normal",
+          createdAt: row.created_at,
+          bot: row.bot,
+          due: d,
+          xuong,
+          project,
+          ageHours: Math.round(ageH),
+          escalated: !!row.escalated_at
+        });
+      } else if (st === "done") {
+        for (const g of groups) g.waiting++;
+      }
+      if (inPeriod(row.created_at)) for (const g of groups) g.created++;
+      if (row.is_resolved && inPeriod(row.resolved_at)) {
+        for (const g of groups) g.done++;
+        const h = hoursBetween(row.created_at, row.resolved_at);
+        if (h !== null) {
+          doneHours.push(h);
+          for (const g of groups) g.doneHours.push(h);
+        }
+      }
+      if (st === "closed" && inPeriod(row.closed_at)) {
+        for (const g of groups) g.closed++;
+        const h = hoursBetween(row.created_at, row.closed_at);
+        if (h !== null) closeHours.push(h);
+      }
+      if (row.accepted_at && inPeriod(row.accepted_at)) {
+        const h = hoursBetween(row.created_at, row.accepted_at);
+        if (h !== null) acceptHours.push(h);
+      }
+      const wc = weekKeyOf(row.created_at);
+      if (wc) weeks.get(wc).created++;
+      const wd = row.is_resolved ? weekKeyOf(row.resolved_at) : null;
+      if (wd) weeks.get(wd).done++;
+      const wz = st === "closed" ? weekKeyOf(row.closed_at) : null;
+      if (wz) weeks.get(wz).closed++;
+    }
+    const out = (m, limit) => [...m.entries()].map(([name, g]) => ({
+      name,
+      open: g.open,
+      doing: g.doing,
+      waiting: g.waiting,
+      overdue: g.overdue,
+      soon: g.soon,
+      created: g.created,
+      done: g.done,
+      closed: g.closed,
+      avgDoneHours: avg(g.doneHours)
+    })).sort((a, b) => b.overdue - a.overdue || b.open - a.open || b.created - a.created).slice(0, limit ?? 999);
+    oldest.sort((a, b) => Number(b.due === "overdue") - Number(a.due === "overdue") || b.ageHours - a.ageHours);
+    res.json({
+      success: true,
+      workflow: ready,
+      period: { from, to },
+      generatedAt: new Date(now).toISOString(),
+      totals: {
+        open: totals.open,
+        doing: totals.doing,
+        waiting: totals.waiting,
+        overdue: totals.overdue,
+        soon: totals.soon,
+        noBot,
+        escalated,
+        urgent,
+        extended: extendedActive,
+        created: totals.created,
+        done: totals.done,
+        closed: totals.closed,
+        avgAcceptHours: avg(acceptHours),
+        avgDoneHours: avg(doneHours),
+        avgCloseHours: avg(closeHours)
+      },
+      byCategory: out(byCategory),
+      byXuong: out(byXuong),
+      byStage: out(byStage),
+      byHandler: out(byHandler, 30),
+      byProject: out(byProject, 15),
+      aging,
+      weekly: [...weeks.values()],
+      oldest: oldest.slice(0, 20)
+    });
+  } catch (e) {
+    console.error("L\u1ED7i /api/vuong-mac/dashboard:", e);
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
@@ -67759,18 +68362,38 @@ app.post(
   validateBody(vuongMacCreateSchema),
   async (req, res) => {
     try {
-      const { hex: hex3, category, content, handler, bot, solution, note } = req.body;
+      const { hex: hex3, category, content, handler, bot, solution, note, priority } = req.body;
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
       if (!await canAddToVuongMacThread(me2, hex3, category)) {
         return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban m\u1EDBi \u0111\u01B0\u1EE3c th\xEAm v\u01B0\u1EDBng m\u1EAFc v\xE0o m\u1EE5c n\xE0y" });
       }
+      const ready = await hasWorkflowSchema();
+      const prod = ready ? await productionOfHex(String(hex3)) : null;
+      const hasHandler = !!(handler ?? "").trim();
       const row = await withTransaction(async (client) => {
+        const cols = ["hex", "category", "content", "created_by", "updated_by", "handler", "bot", "bot_end", "solution", "note"];
+        const vals = [hex3, category, content, actor, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null];
+        if (ready) {
+          cols.push("status", "priority", "stage", "xuong", "ten_cong_trinh", "ma_cong_trinh", "ten_hang_muc");
+          vals.push(
+            hasHandler ? "doing" : "open",
+            priority ?? "normal",
+            prod?.stage ?? null,
+            prod?.xuong ?? null,
+            prod?.tenCongTrinh ?? null,
+            prod?.maCongTrinh ?? null,
+            prod?.tenHangMuc ?? null
+          );
+          if (hasHandler) {
+            cols.push("accepted_at", "accepted_by");
+            vals.push(/* @__PURE__ */ new Date(), actor);
+          }
+        }
         const result = await client.query(
-          `INSERT INTO vuong_mac (hex, category, content, created_by, updated_by, handler, bot, bot_end, solution, note)
-           VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8, $9)
-           RETURNING ${VUONG_MAC_COLUMNS}`,
-          [hex3, category, content, actor, handler || null, bot || null, parseBotEnd(bot), solution || null, note || null]
+          `INSERT INTO vuong_mac (${cols.join(", ")}) VALUES (${vals.map((_, i) => `$${i + 1}`).join(", ")})
+           RETURNING id, hex`,
+          vals
         );
         const inserted = result.rows[0];
         await client.query(
@@ -67801,13 +68424,14 @@ app.post(
           body: content
         }
       ], actor);
-      res.json({ success: true, data: mapVuongMacRow(row, me2, me2.department) });
+      res.json({ success: true, data: await fetchOne(row.id, me2) });
     } catch (error61) {
       console.error("L\u1ED7i t\u1EA1o vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
     }
   }
 );
+var STATUS_LABEL = { open: "M\u1EDBi", doing: "\u0110ang x\u1EED l\xFD", done: "\u0110\xE3 x\u1EED l\xFD", closed: "\u0110\xE3 \u0111\xF3ng" };
 app.put(
   "/api/vuong-mac/:id",
   authenticateJWT,
@@ -67817,6 +68441,7 @@ app.put(
       const { id } = req.params;
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
+      const ready = await hasWorkflowSchema();
       const existing = await pool.query(
         `SELECT vm.*, u.department AS created_department
          FROM vuong_mac vm
@@ -67828,15 +68453,18 @@ app.put(
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
-        return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
+      const perms = permsOf(me2, old.created_by, old.created_department, old.handler);
+      if (!perms.edit) {
+        return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi t\u1EA1o, ng\u01B0\u1EDDi x\u1EED l\xFD, c\xF9ng ph\xF2ng ban ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c thao t\xE1c" });
       }
-      const { category, content, isResolved, resolvedNote, handler, bot, solution, note } = req.body;
-      const resolvedNoteClean = (resolvedNote ?? "").trim();
-      const markingResolved = isResolved === true && !old.is_resolved;
-      if (markingResolved && !resolvedNoteClean) {
-        return res.status(400).json({ success: false, message: "Vui l\xF2ng nh\u1EADp n\u1ED9i dung \u0111\xE3 x\u1EED l\xFD" });
+      const { category, content, isResolved, resolvedNote, statusNote, priority, handler, bot, solution, note } = req.body;
+      const noteClean = String(statusNote ?? resolvedNote ?? "").trim();
+      const cur = statusOf(old);
+      let target = req.body.status;
+      if (!target && isResolved !== void 0) {
+        target = isResolved ? cur === "closed" ? "closed" : "done" : old.accepted_at ? "doing" : "open";
       }
+      if (target === cur) target = void 0;
       const fields = ["updated_by = $1", "updated_at = now()"];
       const values = [actor];
       let idx = 2;
@@ -67845,84 +68473,199 @@ app.put(
         values.push(val);
         idx++;
       };
+      const logs = [];
+      const events = [];
+      const who = await displayName(actor);
+      const watchers = async (handlerName, ...texts) => [
+        ...await idsByUsername(old.created_by),
+        ...await idsByFullName(handlerName ?? old.handler),
+        ...await findMentionedIds(...texts)
+      ];
       if (category !== void 0) push("category", category);
       if (content !== void 0) push("content", content);
-      if (handler !== void 0) push("handler", handler || null);
+      let newHandler;
+      if (handler !== void 0) {
+        newHandler = (handler ?? "").trim() || null;
+        push("handler", newHandler);
+      }
       if (bot !== void 0) {
         push("bot", bot || null);
         push("bot_end", parseBotEnd(bot));
       }
       if (solution !== void 0) push("solution", solution || null);
       if (note !== void 0) push("note", note || null);
-      if (isResolved !== void 0) {
-        push("is_resolved", isResolved);
-        if (isResolved) {
-          if (markingResolved) {
-            push("resolved_note", resolvedNoteClean);
+      if (priority !== void 0 && priority !== old.priority) {
+        if (!ready) return res.status(409).json({ success: false, message: WORKFLOW_SQL_HINT });
+        push("priority", priority);
+        logs.push(`\u01AFu ti\xEAn: ${old.priority ?? "normal"} \u2192 ${priority}`);
+      }
+      if (target) {
+        const needReady = target === "doing" || target === "closed";
+        if (needReady && !ready) return res.status(409).json({ success: false, message: WORKFLOW_SQL_HINT });
+        const allowed = {
+          open: ["doing", "done", "closed"],
+          doing: ["open", "done", "closed"],
+          done: ["doing", "open", "closed"],
+          closed: ["doing", "open"]
+        };
+        if (!allowed[cur].includes(target)) {
+          return res.status(400).json({ success: false, message: `Kh\xF4ng chuy\u1EC3n \u0111\u01B0\u1EE3c t\u1EEB "${STATUS_LABEL[cur]}" sang "${STATUS_LABEL[target]}"` });
+        }
+        const reopening = (cur === "done" || cur === "closed") && (target === "doing" || target === "open");
+        if ((target === "closed" || reopening) && !perms.close) {
+          return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi b\xE1o (ho\u1EB7c c\xF9ng ph\xF2ng ban ng\u01B0\u1EDDi b\xE1o / Admin) m\u1EDBi x\xE1c nh\u1EADn \u0111\xF3ng hay m\u1EDF l\u1EA1i \u0111\u01B0\u1EE3c" });
+        }
+        if ((target === "done" || target === "doing") && !reopening && !perms.work) {
+          return res.status(403).json({ success: false, message: "B\u1EA1n kh\xF4ng ph\u1EA3i ng\u01B0\u1EDDi x\u1EED l\xFD c\u1EE7a v\u01B0\u1EDBng m\u1EAFc n\xE0y" });
+        }
+        if ((target === "done" || reopening || target === "closed" && cur !== "done") && !noteClean) {
+          return res.status(400).json({
+            success: false,
+            message: target === "done" ? "Vui l\xF2ng nh\u1EADp n\u1ED9i dung \u0111\xE3 x\u1EED l\xFD" : reopening ? "Vui l\xF2ng ghi l\xFD do m\u1EDF l\u1EA1i" : "Vui l\xF2ng ghi l\xFD do \u0111\xF3ng"
+          });
+        }
+        if (ready) push("status", target);
+        if (target === "doing" && cur === "open") {
+          push("accepted_at", /* @__PURE__ */ new Date());
+          push("accepted_by", actor);
+          const effHandler = newHandler !== void 0 ? newHandler : old.handler;
+          if (!effHandler && me2.fullName) {
+            newHandler = me2.fullName;
+            push("handler", me2.fullName);
+          }
+          logs.push(`Nh\u1EADn x\u1EED l\xFD${noteClean ? `: ${noteClean}` : ""}`);
+          events.push({
+            kind: "accepted",
+            userIds: await idsByUsername(old.created_by),
+            title: `${who} \u0111\xE3 nh\u1EADn x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${old.hex}`,
+            body: old.content
+          });
+        } else if (target === "open" && cur === "doing") {
+          push("accepted_at", null);
+          push("accepted_by", null);
+          logs.push(`Tr\u1EA3 l\u1EA1i, ch\u01B0a x\u1EED l\xFD${noteClean ? `: ${noteClean}` : ""}`);
+        } else if (target === "done") {
+          push("is_resolved", true);
+          push("resolved_note", noteClean);
+          push("resolved_by", actor);
+          fields.push("resolved_at = now()");
+          if (ready && !old.accepted_at) {
+            push("accepted_at", /* @__PURE__ */ new Date());
+            push("accepted_by", actor);
+          }
+          logs.push(`\u0110\xE1nh d\u1EA5u \u0111\xE3 x\u1EED l\xFD: ${noteClean}`);
+          events.push({
+            kind: "resolved",
+            userIds: await watchers(newHandler, noteClean),
+            title: `${who} \u0111\xE3 x\u1EED l\xFD xong v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${old.hex}, ch\u1EDD x\xE1c nh\u1EADn`,
+            body: noteClean
+          });
+        } else if (target === "closed") {
+          push("is_resolved", true);
+          if (!old.is_resolved) {
+            push("resolved_note", noteClean || "\u0110\xF3ng tr\u1EF1c ti\u1EBFp");
             push("resolved_by", actor);
             fields.push("resolved_at = now()");
           }
-        } else {
+          push("closed_at", /* @__PURE__ */ new Date());
+          push("closed_by", actor);
+          logs.push(`X\xE1c nh\u1EADn \u0111\xF3ng${noteClean ? `: ${noteClean}` : ""}`);
+          events.push({
+            kind: "closed",
+            userIds: await watchers(newHandler, noteClean),
+            title: `${who} \u0111\xE3 x\xE1c nh\u1EADn \u0111\xF3ng v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${old.hex}`,
+            body: noteClean || old.content
+          });
+        } else if (reopening) {
+          push("is_resolved", false);
           fields.push("resolved_note = NULL", "resolved_by = NULL", "resolved_at = NULL");
+          if (ready) {
+            push("closed_at", null);
+            push("closed_by", null);
+          }
+          if (target === "open" && ready) {
+            push("accepted_at", null);
+            push("accepted_by", null);
+          }
+          logs.push(`M\u1EDF l\u1EA1i: ${noteClean}`);
+          events.push({
+            kind: "reopened",
+            userIds: await watchers(newHandler, noteClean),
+            title: `${who} \u0111\xE3 m\u1EDF l\u1EA1i v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${old.hex}`,
+            body: noteClean
+          });
         }
       }
+      if (fields.length === 2 && logs.length === 0) {
+        return res.status(400).json({ success: false, message: "Kh\xF4ng c\xF3 g\xEC \u0111\u1EC3 l\u01B0u" });
+      }
       values.push(id);
-      const detail = markingResolved ? `\u0110\xE1nh d\u1EA5u \u0111\xE3 x\u1EED l\xFD: ${resolvedNoteClean}` : null;
+      const detail = logs.length ? logs.join("\n") : null;
+      const action = target && ready ? "STATUS" : "UPDATE";
       const row = await withTransaction(async (client) => {
         const result = await client.query(
-          `UPDATE vuong_mac SET ${fields.join(", ")} WHERE id = $${idx}
-           RETURNING ${VUONG_MAC_COLUMNS}`,
+          `UPDATE vuong_mac SET ${fields.join(", ")} WHERE id = $${idx} RETURNING id, hex, category, content, handler, solution, note, resolved_note`,
           values
         );
         const updated = result.rows[0];
         await client.query(
           `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_before, content_after, detail, actor)
-           VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7)`,
-          [updated.id, updated.hex, updated.category, old.content, updated.content, detail, actor]
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [updated.id, updated.hex, action, updated.category, old.content, updated.content, detail, actor]
         );
         return updated;
       });
-      const who = await displayName(actor);
-      const sameName = (a, b) => (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
       const oldMentions = await findMentionedIds(old.content, old.solution, old.note, old.resolved_note);
       const newMentions = await findMentionedIds(row.content, row.solution, row.note, row.resolved_note);
-      const freshMentions = [...newMentions].filter((id2) => !oldMentions.has(id2));
-      const handlerChanged = handler !== void 0 && !!(handler ?? "").trim() && !sameName(handler, old.handler);
-      const reopening = isResolved === false && old.is_resolved;
-      const watchers = markingResolved || reopening ? [...await idsByUsername(row.created_by), ...await idsByFullName(row.handler), ...newMentions] : [];
+      const freshMentions = [...newMentions].filter((uid) => !oldMentions.has(uid));
+      const handlerChanged = newHandler !== void 0 && !!newHandler && !sameName(newHandler, old.handler);
       await notify({ id: row.id, hex: row.hex, category: row.category }, [
-        {
-          kind: "mention",
-          userIds: freshMentions,
-          title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${row.hex}`,
-          body: markingResolved ? resolvedNoteClean : row.content
-        },
+        { kind: "mention", userIds: freshMentions, title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${row.hex}`, body: noteClean || row.content },
         {
           kind: "assigned",
-          userIds: handlerChanged ? await idsByFullName(handler) : [],
+          userIds: handlerChanged ? await idsByFullName(newHandler) : [],
           title: `B\u1EA1n \u0111\u01B0\u1EE3c giao x\u1EED l\xFD v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
           body: row.content
         },
-        {
-          kind: "resolved",
-          userIds: markingResolved ? watchers : [],
-          title: `${who} \u0111\xE3 x\u1EED l\xFD xong v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
-          body: resolvedNoteClean
-        },
-        {
-          kind: "reopened",
-          userIds: reopening ? watchers : [],
-          title: `${who} \u0111\xE3 m\u1EDF l\u1EA1i v\u01B0\u1EDBng m\u1EAFc \u2014 HEX ${row.hex}`,
-          body: row.content
-        }
+        ...events
       ], actor);
-      res.json({ success: true, data: mapVuongMacRow(row, me2, old.created_department) });
+      res.json({ success: true, data: await fetchOne(row.id, me2) });
     } catch (error61) {
       console.error("L\u1ED7i s\u1EEDa vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
     }
   }
 );
+app.post("/api/vuong-mac/:id/comment", authenticateJWT, validateBody(commentSchema), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
+    const me2 = await getVuongMacActor(req);
+    const old = (await pool.query("SELECT id, hex, category, content, handler, created_by FROM vuong_mac WHERE id = $1", [id])).rows[0];
+    if (!old) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
+    const content = String(req.body.content).trim();
+    const ready = await hasWorkflowSchema();
+    const r = await pool.query(
+      `INSERT INTO vuong_mac_log (vuong_mac_id, hex, action, category, content_after, detail, actor)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, acted_at`,
+      [old.id, old.hex, ready ? "COMMENT" : "UPDATE", old.category, ready ? content : old.content, ready ? null : `B\xECnh lu\u1EADn: ${content}`, me2.username]
+    );
+    const who = await displayName(me2.username);
+    await notify({ id: old.id, hex: old.hex, category: old.category }, [
+      { kind: "mention", userIds: await findMentionedIds(content), title: `${who} \u0111\xE3 nh\u1EAFc \u0111\u1EBFn b\u1EA1n \u2014 HEX ${old.hex}`, body: content },
+      {
+        kind: "comment",
+        userIds: [...await idsByUsername(old.created_by), ...await idsByFullName(old.handler)],
+        title: `${who} b\xECnh lu\u1EADn \u2014 HEX ${old.hex}`,
+        body: content
+      }
+    ], me2.username);
+    res.json({ success: true, data: { id: r.rows[0].id, actedAt: r.rows[0].acted_at, actor: me2.username, content } });
+  } catch (error61) {
+    console.error("L\u1ED7i b\xECnh lu\u1EADn vuong-mac:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
 app.post(
   "/api/vuong-mac/:id/extend",
   authenticateJWT,
@@ -67948,8 +68691,8 @@ app.post(
         return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
       }
       const old = existing.rows[0];
-      if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
-        return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c thao t\xE1c" });
+      if (!permsOf(me2, old.created_by, old.created_department, old.handler).work) {
+        return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi x\u1EED l\xFD, ng\u01B0\u1EDDi t\u1EA1o, c\xF9ng ph\xF2ng ban ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c thao t\xE1c" });
       }
       if (old.is_resolved) {
         return res.status(400).json({ success: false, message: "V\u01B0\u1EDBng m\u1EAFc \u0111\xE3 x\u1EED l\xFD, kh\xF4ng th\u1EC3 xin th\xEAm th\u1EDDi gian" });
@@ -67992,8 +68735,7 @@ app.post(
 BOT m\u1EDBi: ${bot}`
         }
       ], actor);
-      const fresh = await pool.query(`${SELECT_VUONG_MAC_WITH_DEPT} WHERE vm.id = $1`, [old.id]);
-      res.json({ success: true, data: mapVuongMacRow(fresh.rows[0], me2) });
+      res.json({ success: true, data: await fetchOne(old.id, me2) });
     } catch (error61) {
       console.error("L\u1ED7i extend vuong-mac:", error61);
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
@@ -68016,15 +68758,15 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y v\u01B0\u1EDBng m\u1EAFc" });
     }
     const old = existing.rows[0];
-    if (!canModifyVuongMac(me2, old.created_by, old.created_department)) {
-      return res.status(403).json({ success: false, message: "Ch\u1EC9 th\xE0nh vi\xEAn c\xF9ng ph\xF2ng ban v\u1EDBi ng\u01B0\u1EDDi t\u1EA1o (ho\u1EB7c Admin) \u0111\u01B0\u1EE3c x\xF3a" });
+    if (!permsOf(me2, old.created_by, old.created_department, old.handler).delete) {
+      return res.status(403).json({ success: false, message: "Ch\u1EC9 ng\u01B0\u1EDDi t\u1EA1o, c\xF9ng ph\xF2ng ban ng\u01B0\u1EDDi t\u1EA1o ho\u1EB7c Admin \u0111\u01B0\u1EE3c x\xF3a" });
     }
     const ext = await pool.query(
       `SELECT id, content, bot, old_bot AS "oldBot", note, created_by AS "createdBy", created_at AS "createdAt"
        FROM vuong_mac_extension WHERE vuong_mac_id = $1 ORDER BY created_at, id`,
       [old.id]
     );
-    const { canModify: _omit, ...snapshot } = mapVuongMacRow(
+    const { canModify: _omit, perms: _p, ...snapshot } = mapVuongMacRow(
       { ...old, extensions: ext.rows },
       me2,
       old.created_department
@@ -68046,13 +68788,14 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
 app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
   try {
     const { hex: hex3 } = req.params;
+    const id = Number(req.query.id) || null;
     const r = await timedQuery(
       `SELECT id, vuong_mac_id, hex, action, category, content_before, content_after, detail, snapshot, actor, acted_at
        FROM vuong_mac_log
-       WHERE hex = $1
+       WHERE hex = $1 AND ($2::int IS NULL OR vuong_mac_id = $2)
        ORDER BY acted_at DESC
        LIMIT 500`,
-      [hex3]
+      [hex3, id]
     );
     res.json(r.rows.map((row) => ({
       id: row.id,
@@ -68068,6 +68811,44 @@ app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
     })));
   } catch (error61) {
     console.error("L\u1ED7i l\u1EA5y log vuong-mac:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var vmByProjectMemo = null;
+var vmByProjectInflight = null;
+var VM_BY_PROJECT_TTL_MS = 6e4;
+app.get("/api/vuong-mac/by-project", authenticateJWT, async (_req, res) => {
+  try {
+    if (vmByProjectMemo && Date.now() - vmByProjectMemo.at < VM_BY_PROJECT_TTL_MS) return res.json(vmByProjectMemo.value);
+    if (!vmByProjectInflight) {
+      vmByProjectInflight = (async () => {
+        const r = await timedQuery(
+          `SELECT COALESCE(NULLIF(TRIM(p.ma_cong_trinh), ''), '') AS ma,
+                  COALESCE(NULLIF(TRIM(p.ten_cong_trinh), ''), '') AS ten,
+                  COUNT(*)::int AS open,
+                  COUNT(*) FILTER (WHERE vm.bot_end IS NOT NULL AND vm.bot_end < NOW())::int AS overdue
+           FROM vuong_mac vm
+           ${PRODUCTION_LATERAL}
+           WHERE vm.is_resolved = FALSE
+           GROUP BY 1, 2`,
+          [],
+          { timeoutMs: 2e4 }
+        );
+        const value = r.rows.map((row) => ({
+          ma: String(row.ma),
+          ten: canonicalProjectName(String(row.ten)),
+          open: Number(row.open),
+          overdue: Number(row.overdue)
+        }));
+        vmByProjectMemo = { at: Date.now(), value };
+        return value;
+      })().finally(() => {
+        vmByProjectInflight = null;
+      });
+    }
+    res.json(await vmByProjectInflight);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/by-project:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -68100,7 +68881,46 @@ app.get("/api/vuong-mac/handlers", authenticateJWT, async (_req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+app.get("/api/vuong-mac/people", authenticateJWT, async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT TRIM(full_name) AS name, COALESCE(TRIM(department), '') AS department
+       FROM users WHERE is_active AND full_name IS NOT NULL AND TRIM(full_name) <> ''
+       ORDER BY 2, 1`
+    );
+    res.set("Cache-Control", "private, max-age=300");
+    res.json(r.rows);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/vuong-mac/people:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 var FACTORY_CODE_COL = "ma_nha_may";
+var HEX_HIT_COLS = `hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
+                ten_cong_trinh, ten_hang_muc, xuong_chinh, ma_cong_trinh, ten_pc, ten_pm,
+                bop, tinh_trang, tinh_trang_ipo, phan_loai_nhom_san_pham,
+                tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke,
+                ngay_khnk_tuan, ngay_khnk_thang, ngay_can_giao`;
+var mapHexHit = (row) => ({
+  hex: row.hex,
+  maNhaMay: row.ma_nha_may,
+  congTrinh: row.ten_cong_trinh ? canonicalProjectName(row.ten_cong_trinh) : row.ten_cong_trinh,
+  maCongTrinh: row.ma_cong_trinh,
+  hangMuc: row.ten_hang_muc,
+  xuong: workshopGroupOf(row.xuong_chinh) || row.xuong_chinh,
+  pc: row.ten_pc,
+  pm: row.ten_pm,
+  bop: row.bop,
+  stage: stageOf(row.bop),
+  tinhTrang: row.tinh_trang,
+  tinhTrangIpo: row.tinh_trang_ipo,
+  phanLoai: row.phan_loai_nhom_san_pham,
+  triGia: row.tri_gia_don_hang_tong,
+  thanhTienPhieu: row.thanh_tien_tinh_phieu,
+  thanhTienKho: row.thanh_tien_nhap_kho_luy_ke,
+  deadline: planDate(row.ngay_khnk_tuan, row.ngay_khnk_thang),
+  ngayCanGiao: row.ngay_can_giao ?? null
+});
 app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
@@ -68120,11 +68940,7 @@ app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
     }
     const r = await timedQuery(
       `SELECT * FROM (
-         SELECT DISTINCT ON (hex::text)
-                hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
-                ten_cong_trinh, ten_hang_muc, xuong_chinh,
-                bop, tinh_trang, phan_loai_nhom_san_pham,
-                tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke
+         SELECT DISTINCT ON (hex::text) ${HEX_HIT_COLS}
          FROM production_status_app
          WHERE ${conds.join(" AND ")}
          ORDER BY hex::text, updated_at DESC NULLS LAST
@@ -68133,19 +68949,7 @@ app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
        LIMIT 50`,
       params
     );
-    res.json(r.rows.map((row) => ({
-      hex: row.hex,
-      maNhaMay: row.ma_nha_may,
-      congTrinh: row.ten_cong_trinh,
-      hangMuc: row.ten_hang_muc,
-      xuong: row.xuong_chinh,
-      bop: row.bop,
-      tinhTrang: row.tinh_trang,
-      phanLoai: row.phan_loai_nhom_san_pham,
-      triGia: row.tri_gia_don_hang_tong,
-      thanhTienPhieu: row.thanh_tien_tinh_phieu,
-      thanhTienKho: row.thanh_tien_nhap_kho_luy_ke
-    })));
+    res.json(r.rows.map(mapHexHit));
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/hex-search:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -68165,11 +68969,7 @@ app.post("/api/vuong-mac/hex-bulk", authenticateJWT, async (req, res) => {
       xuongCond = `AND UPPER(TRIM(xuong_chinh)) = ANY($2::text[])`;
     }
     const r = await timedQuery(
-      `SELECT DISTINCT ON (hex::text)
-              hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
-              ten_cong_trinh, ten_hang_muc, xuong_chinh,
-              bop, tinh_trang, phan_loai_nhom_san_pham,
-              tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke
+      `SELECT DISTINCT ON (hex::text) ${HEX_HIT_COLS}
        FROM production_status_app
        WHERE hex IS NOT NULL
          AND (TRIM(hex::text) = ANY($1::text[]) OR TRIM(${FACTORY_CODE_COL}::text) = ANY($1::text[]))
@@ -68184,19 +68984,7 @@ app.post("/api/vuong-mac/hex-bulk", authenticateJWT, async (req, res) => {
       if (row.ma_nha_may) found.add(String(row.ma_nha_may).trim());
     });
     res.json({
-      hits: r.rows.map((row) => ({
-        hex: row.hex,
-        maNhaMay: row.ma_nha_may,
-        congTrinh: row.ten_cong_trinh,
-        hangMuc: row.ten_hang_muc,
-        xuong: row.xuong_chinh,
-        bop: row.bop,
-        tinhTrang: row.tinh_trang,
-        phanLoai: row.phan_loai_nhom_san_pham,
-        triGia: row.tri_gia_don_hang_tong,
-        thanhTienPhieu: row.thanh_tien_tinh_phieu,
-        thanhTienKho: row.thanh_tien_nhap_kho_luy_ke
-      })),
+      hits: r.rows.map(mapHexHit),
       missing: codes.filter((c) => !found.has(c))
     });
   } catch (error61) {

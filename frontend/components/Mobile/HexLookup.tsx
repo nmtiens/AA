@@ -5,15 +5,10 @@ import {
   type FiveMCategory, type VuongMacItem,
 } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
-import {
-  searchHex, fetchHexNotes, createVuongMacStrict, fmtLocalInput,
-  type HexHit,
-} from '../../services/vuongMacMobileApi';
+import { searchHex, fetchHexNotes, type HexHit } from '../../services/vuongMacMobileApi';
 import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
-import { FORM_CATEGORIES } from './formCategories';
-import HandlerPicker from './HandlerPicker';
-import MentionTextarea from './MentionTextarea';
 import { searchHexBulk } from './hexBulkApi';
+import { FormSheet, StatusPill } from '../VuongMac/sheets';
 import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../utils/money';
 
 // Các ô ghi chú giống bảng "Chi tiết theo Hex" trên desktop
@@ -46,7 +41,6 @@ type BulkInfo = {
 const BULK_LIMIT = 200;
 
 const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base';
-const btnPrimary = 'w-full rounded-lg bg-slate-800 py-2.5 text-base font-medium text-white disabled:opacity-50';
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
 
 // Giá trị tiền gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
@@ -98,25 +92,6 @@ const orderByCodes = (hits: HexHit[], codes: string[]) => {
     .map(x => x.h);
 };
 
-function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  // Render ra document.body để không bị thanh menu dưới (z-20) hay khung cuộn cha che mất
-  return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] md:max-w-4xl md:rounded-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <button onClick={onClose} className="px-2 text-slate-400">✕</button>
-        </div>
-        {children}
-      </div>
-    </div>,
-    document.body
-  );
-}
-
 function Field({ label, value, className = '' }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className={className}>
@@ -167,7 +142,7 @@ function NoteCell({ text }: { text: string }) {
 function VmItemCard({ v }: { v: VuongMacItem }) {
   return (
     <div className={`rounded-lg border p-2 ${v.isResolved ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
-      <p className="text-xs text-slate-500">{v.isResolved ? 'Đã xử lý' : 'Đang tồn đọng'}</p>
+      <div className="mb-1"><StatusPill v={v} /></div>
       <p className="whitespace-pre-wrap break-words">{v.content}</p>
       <p className="mt-1 text-xs text-slate-500">
         {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT: ${v.bot} · ` : ''}{v.createdBy} · {fmtTime(v.createdAt)}
@@ -176,8 +151,10 @@ function VmItemCard({ v }: { v: VuongMacItem }) {
   );
 }
 
-export default function HexLookup() {
-  const [q, setQ] = useState('');
+export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
+  const [q, setQ] = useState(presetQ);
+  // Mở từ nơi khác với mã có sẵn (vd. nút "Tra cứu" trong chi tiết vướng mắc)
+  useEffect(() => { if (presetQ) setQ(presetQ); }, [presetQ]);
   const [hits, setHits] = useState<HexHit[]>([]);
   const [missing, setMissing] = useState<string[]>([]);
   const [bulkInfo, setBulkInfo] = useState<BulkInfo | null>(null);
@@ -668,10 +645,10 @@ export default function HexLookup() {
       })()}
 
       {addFor && (
-        <AddSheet
-          hit={addFor}
+        <FormSheet
+          preset={addFor}
           onClose={() => setAddFor(null)}
-          onDone={() => { const hex = addFor.hex; setAddFor(null); flash('Đã gửi vướng mắc'); loadDetail(hex); }}
+          onDone={(_item, msg) => { const hex = addFor.hex; setAddFor(null); flash(msg); loadDetail(hex); }}
         />
       )}
 
@@ -682,105 +659,5 @@ export default function HexLookup() {
         document.body
       )}
     </div>
-  );
-}
-
-// ---------------- Form thêm vướng mắc ----------------
-function AddSheet({ hit, onClose, onDone }: { hit: HexHit; onClose: () => void; onDone: () => void }) {
-  const [f, setF] = useState({
-    category: 'man' as FiveMCategory, content: '', handler: '', botStart: '', botEnd: '', solution: '', note: '',
-  });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const upd = (patch: Partial<typeof f>) => setF(p => ({ ...p, ...patch }));
-
-  const botInvalid = !!(f.botStart && f.botEnd && f.botEnd < f.botStart);
-  const valid = !!(f.content.trim() && f.handler.trim() && f.botStart && f.botEnd && !botInvalid && f.solution.trim());
-
-  const submit = async () => {
-    if (!valid) return;
-    setBusy(true); setErr('');
-    try {
-      await createVuongMacStrict(hit.hex, f.category, f.content.trim(), {
-        handler: f.handler.trim(),
-        bot: `${fmtLocalInput(f.botStart)} - ${fmtLocalInput(f.botEnd)}`,
-        solution: f.solution.trim(),
-        note: f.note.trim(),
-      });
-      onDone();
-    } catch (e: any) {
-      setErr(e.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại' : (e.message || 'Có lỗi xảy ra'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const chip = (on: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1 text-sm ${on ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`;
-
-  return (
-    <Sheet title={`Thêm vướng mắc · ${hit.hex}`} onClose={onClose}>
-      <p className="mb-3 text-sm text-slate-500">{hit.congTrinh || '—'}{hit.hangMuc ? ` · ${hit.hangMuc}` : ''}</p>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div className="md:col-span-2">
-          <p className="mb-1 text-sm font-medium text-slate-600">Loại</p>
-          <div className="flex flex-wrap gap-2">
-            {FORM_CATEGORIES.map(c => (
-              <button key={c.value} type="button" title={c.hint} onClick={() => upd({ category: c.value })} className={chip(f.category === c.value)}>
-                {c.label} · {c.hint}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <label className="block text-sm font-medium text-slate-600 md:col-span-2">
-          Nội dung vướng mắc <span className="text-red-500">*</span>
-          <MentionTextarea rows={3} maxLength={2000} value={f.content} onChange={v => upd({ content: v })}
-            placeholder="Mô tả vướng mắc đang gặp" className={`${inputCls} mt-1`} />
-        </label>
-
-        <div className="text-sm font-medium text-slate-600">
-          Người xử lý <span className="text-red-500">*</span>
-          <div className="mt-1 font-normal">
-            <HandlerPicker value={f.handler} onChange={v => upd({ handler: v })} inputClassName={inputCls} optionClassName="text-base" />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-600">BOT <span className="text-red-500">*</span></p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <label className="block text-xs text-slate-500">
-              Bắt đầu
-              <input type="datetime-local" style={{ minWidth: 0 }} value={f.botStart} onChange={e => upd({ botStart: e.target.value })} className={`${inputCls} mt-1`} />
-            </label>
-            <label className="block text-xs text-slate-500">
-              Kết thúc
-              <input type="datetime-local" style={{ minWidth: 0 }} min={f.botStart || undefined} value={f.botEnd}
-                onChange={e => upd({ botEnd: e.target.value })} className={`${inputCls} mt-1`} />
-            </label>
-          </div>
-          {botInvalid && <p className="text-xs text-red-600">Thời gian kết thúc phải sau thời gian bắt đầu.</p>}
-        </div>
-
-        <label className="block text-sm font-medium text-slate-600">
-          Giải pháp <span className="text-red-500">*</span>
-          <MentionTextarea rows={2} maxLength={2000} value={f.solution} onChange={v => upd({ solution: v })}
-            placeholder="Giải pháp dự kiến" className={`${inputCls} mt-1`} />
-        </label>
-
-        <label className="block text-sm font-medium text-slate-600">
-          Ghi chú
-          <MentionTextarea rows={2} maxLength={2000} value={f.note} onChange={v => upd({ note: v })}
-            placeholder="Không bắt buộc" className={`${inputCls} mt-1`} />
-        </label>
-      </div>
-
-      {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
-      <div className="sticky bottom-0 -mx-4 mt-3 bg-white px-4 pb-1 pt-2">
-        <button disabled={!valid || busy} onClick={submit} className={btnPrimary}>
-          {busy ? 'Đang gửi...' : 'Gửi vướng mắc'}
-        </button>
-      </div>
-    </Sheet>
   );
 }

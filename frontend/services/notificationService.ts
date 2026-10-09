@@ -4,7 +4,8 @@ import { getToken } from './userService';
 
 export type NotifyKind =
   | 'mention' | 'assigned' | 'resolved' | 'reopened' | 'extend'
-  | 'due60' | 'due15' | 'overdue' | 'new_in_dept';
+  | 'due60' | 'due15' | 'overdue' | 'new_in_dept'
+  | 'accepted' | 'closed' | 'comment' | 'escalated';
 
 export interface AppNotification {
   id: number;
@@ -19,11 +20,11 @@ export interface AppNotification {
 }
 
 export const PREF_LABELS = {
-  mention:   { label: 'Có người tag tên tôi', hint: 'Khi ai đó gõ @Tên của bạn trong vướng mắc' },
+  mention:   { label: 'Có người tag tên tôi / bình luận', hint: 'Khi ai đó gõ @Tên của bạn hoặc bình luận vào vướng mắc của bạn' },
   assigned:  { label: 'Được giao xử lý', hint: 'Khi bạn được chọn làm người xử lý' },
-  status:    { label: 'Đã xử lý / mở lại', hint: 'Vướng mắc tôi tạo, tôi xử lý hoặc được tag' },
+  status:    { label: 'Nhận xử lý / đã xử lý / đóng / mở lại', hint: 'Vướng mắc tôi tạo, tôi xử lý hoặc được tag' },
   extend:    { label: 'Xin thêm thời gian', hint: 'Vướng mắc của phòng ban / tôi xử lý' },
-  due:       { label: 'Nhắc hạn BOT', hint: 'Còn 1 giờ, còn 15 phút và khi quá hạn' },
+  due:       { label: 'Nhắc hạn BOT', hint: 'Còn 1 giờ, còn 15 phút, khi quá hạn và khi quá hạn hơn 24 giờ (báo quản lý)' },
   newInDept: { label: 'Vướng mắc mới trong phòng ban', hint: 'Mỗi khi đồng nghiệp tạo vướng mắc' },
 } as const;
 export type PrefKey = keyof typeof PREF_LABELS;
