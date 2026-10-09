@@ -3,8 +3,13 @@ import { timedQuery } from '../db.js';
 import { runWithLimit, TRIEU_TO_TY, TARGET_WORKSHOPS, currentVnYear } from '../server/common.js';
 import { notCancelledHexCond } from '../server/data.js';
 import { numericCol } from '../server/data.js';
+import { createCache, cachedByVersions } from '../server/cache.js';
 import { app } from '../server/app.js';
-import { workshopGroupSql, workshopCondition } from '../server/workshopGroups.js';
+import { workshopGroupSql, workshopCondition, workshopGroupsVersion } from '../server/workshopGroups.js';
+
+// Cache theo phiên bản bảng (server/cache.ts): kế hoạch năm chỉ đổi khi khsx_nam / nhap_kho / sản xuất đổi
+const revenueCache = createCache<unknown>(20);
+const REVENUE_VERSION_KEYS = ['yearlyPlan', 'inventory', 'production'];
 
 // Trả về: kế hoạch năm, quý, thực hiện, theo xưởng.
 // Trước đây năm 2026 bị hardcode trong SQL — giờ nhận qua path param ?/:year, mặc định năm hiện tại.
@@ -20,6 +25,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
       ? yearParam
       : currentVnYear();
 
+    const payload = await cachedByVersions(revenueCache, `revenue|${year}`, REVENUE_VERSION_KEYS, async () => {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
 
@@ -72,7 +78,7 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => (a.name === 'KHÁC' ? 1 : b.name === 'KHÁC' ? -1 : a.name.localeCompare(b.name)));
 
-    res.json({
+    return {
       year,
       targetRevenue2026: targetTotal,
       quarterlyTargets: {
@@ -83,7 +89,9 @@ app.get(['/api/revenue', '/api/revenue/:year'], async (req: Request, res: Respon
       },
       actual: { value: actualTotal, percent: targetTotal > 0 ? (actualTotal / targetTotal) * 100 : 0 },
       byWorkshop,
-    });
+    };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error) {
     console.error('Lỗi revenue:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -103,6 +111,7 @@ app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
     if (!mf || !mt) return res.status(400).json({ error: 'from/to phải dạng YYYY-MM' });
     const fromKey = Number(mf[1]) * 100 + Number(mf[2]);
     const toKey = Number(mt[1]) * 100 + Number(mt[2]);
+    const payload = await cachedByVersions(revenueCache, `plan|${fromKey}|${toKey}|${req.query.xuong || ''}`, ['yearlyPlan'], async () => {
     const params: any[] = [fromKey, toKey];
     let where = `(nam::int * 100 + thang::int) BETWEEN $1 AND $2`;
     const xuong = String(req.query.xuong || '').trim();
@@ -121,13 +130,15 @@ app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
         params
       ),
     ]);
-    res.json({
+    return {
       byMonth: byMonth.rows.map(r => ({
         period: `${r.nam}-${String(r.thang).padStart(2, '0')}`,
         value: Number(r.value),
       })),
       byXuong: byXuong.rows.map(r => ({ xuong: r.xuong, value: Number(r.value) })),
-    });
+    };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error) {
     console.error('Lỗi khsx-nam/plan:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -140,6 +151,7 @@ app.get('/api/khsx-nam/plan', async (req: Request, res: Response) => {
 app.get('/api/khsx-nam/plan-actual', async (req: Request, res: Response) => {
   try {
     const year = Number(req.query.year) || currentVnYear();
+    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}`, REVENUE_VERSION_KEYS, async () => {
     const yearStart = `${year}-01-01`;
     const yearEnd = `${year}-12-31`;
     const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql('xuong_chinh')}, ''), 'KHÁC')`;
@@ -166,7 +178,9 @@ app.get('/api/khsx-nam/plan-actual', async (req: Request, res: Response) => {
     const main = TARGET_WORKSHOPS.filter(w => seen.has(w));
     const rest = [...seen].filter(w => !TARGET_WORKSHOPS.includes(w) && w !== 'KHÁC').sort();
     const workshops = [...main, ...rest, ...(seen.has('KHÁC') ? ['KHÁC'] : [])];
-    res.json({ year, workshops, plan: p, actual: a });
+    return { year, workshops, plan: p, actual: a };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error) {
     console.error('Lỗi khsx-nam/plan-actual:', error);
     res.status(500).json({ error: 'Internal Server Error' });

@@ -168,10 +168,18 @@ export const buildStockSnapshotCondition = (
 // với cách /api/overview/summary, /api/khsx-nhapkho/summary, /api/stock/* đã làm.
 // Loại dòng thuộc hạng mục ĐÃ HỦY (tinh_trang_ipo chứa "HỦY") — cùng quy tắc với giao diện
 // (đơn hủy không tính giá trị). Dòng không có hex (không nối được sản xuất) vẫn giữ.
-export const notCancelledHexCond = (hexExpr: string): string =>
-  `COALESCE(${hexExpr}::text, '') NOT IN (
-     SELECT hex::text FROM production_status_app
-     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HỦY%')`;
+// Tập HEX đã HỦY (dùng làm CTE khi 1 câu lệnh cần tham chiếu nhiều lần — Postgres tính 1 lần).
+// Cột đặt tên `cx_hex` (không phải `hex`): biểu thức hexExpr của bảng ngoài thường là `hex` không có tiền tố
+// bảng; nếu bảng con cũng có cột `hex` thì bên trong NOT EXISTS, `hex` sẽ bị gán cho bảng con (cx.hex = cx.hex
+// luôn đúng => loại sạch mọi dòng).
+export const CANCELLED_HEX_SQL = `SELECT DISTINCT hex::text AS cx_hex FROM production_status_app
+     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HỦY%'`;
+// NOT EXISTS thay cho NOT IN (subquery): Postgres làm hash anti-join (quét bảng sản xuất 1 lần, băm rồi
+// dò), trong khi NOT IN phải băm trong work_mem và rơi về quét lặp khi tập HỦY lớn (đo trên dev: nhanh 2x).
+// Dòng hex NULL: so sánh NULL không khớp => vẫn giữ (giống COALESCE(..., '') NOT IN trước đây).
+// `cte`: tên CTE đã chứa tập HỦY (cột `cx_hex` text) nếu câu lệnh đã khai báo CANCELLED_HEX_SQL.
+export const notCancelledHexCond = (hexExpr: string, cte?: string): string =>
+  `NOT EXISTS (SELECT 1 FROM ${cte ?? `(${CANCELLED_HEX_SQL})`} cx WHERE cx.cx_hex = ${hexExpr}::text)`;
 
 // 1 công trình được chọn (?congTrinh=) -> so với mọi cách viết của cùng mã
 export const projectNameCondition = (colExpr: string, name: string, params: any[]): string => {
@@ -267,19 +275,31 @@ export const TABLE_TO_VERSION_KEY: Record<string, string> = {
 // [ĐO TIMING] Được gọi bởi /api/check-versions — request xuất hiện dày đặc nhất
 // trong log (poll mỗi 60s + mount + visibilitychange). Đổi sang timedQuery để
 // xem đây có phải nguồn gây tranh chấp connection hay không.
-export const getVersions = async () => {
-  // MỚI: thêm ORDER BY table_name — nếu không có, Postgres không đảm bảo thứ tự row,
-  // khiến object `out` có thể có thứ tự key khác nhau giữa 2 lần gọi dù giá trị giống
-  // hệt nhau. refreshAllDataCache() so sánh cache bằng JSON.stringify(versions), nên
-  // thứ tự key khác nhau -> cache bị coi là stale oan -> query lại toàn bộ /api/all-data
-  // không cần thiết.
-  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
-  const out: Record<string, string> = {};
-  result.rows.forEach(row => {
-    const key = TABLE_TO_VERSION_KEY[row.table_name];
-    if (key) out[key] = row.last_updated;
-  });
-  return out;
+// Mở 1 trang, giao diện bắn ~15 request cùng lúc và mỗi request đều hỏi phiên bản bảng để kiểm tra
+// cache => gộp lại: giữ kết quả 3 giây và các lần gọi đồng thời dùng chung 1 query.
+const VERSIONS_TTL_MS = 3000;
+let versionsMemo: { at: number; value: Record<string, string> } | null = null;
+let versionsInflight: Promise<Record<string, string>> | null = null;
+
+export const getVersions = async (): Promise<Record<string, string>> => {
+  if (versionsMemo && Date.now() - versionsMemo.at < VERSIONS_TTL_MS) return versionsMemo.value;
+  if (versionsInflight) return versionsInflight;
+  versionsInflight = (async () => {
+    try {
+      // ORDER BY table_name: thứ tự key cố định để JSON.stringify(versions) so sánh được giữa 2 lần gọi
+      const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+      const out: Record<string, string> = {};
+      result.rows.forEach(row => {
+        const key = TABLE_TO_VERSION_KEY[row.table_name];
+        if (key) out[key] = row.last_updated;
+      });
+      versionsMemo = { at: Date.now(), value: out };
+      return out;
+    } finally {
+      versionsInflight = null;
+    }
+  })();
+  return versionsInflight;
 };
 
 // Lấy version của 1 tập con các bảng (dùng cho cache theo endpoint)
@@ -306,6 +326,8 @@ export const trimCache = (cache: Map<string, any>) => {
 // Upstash Redis (REST API, hợp với serverless).
 let cachedData: any = null;
 let cachedVersions: Record<string, string> | null = null;
+// Nhiều request /api/all-data tới khi cache rỗng (cold start, nhiều tab) => chỉ nạp 1 lần
+let allDataInflight: Promise<{ payload: any; versions: Record<string, string>; fromCache: boolean }> | null = null;
 
 
 // Hàm riêng cho ton_kho trong /api/all-data: chỉ lấy snapshot NGÀY MỚI NHẤT,
@@ -327,34 +349,42 @@ export const fetchLatestStockSnapshot = async () => {
     return [];
   }
 };
-export const refreshAllDataCache = async () => {
+export const refreshAllDataCache = async (): Promise<{ payload: any; versions: Record<string, string>; fromCache: boolean }> => {
   const versions = await getVersions();
-  if (cachedData && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
-    return { payload: cachedData, fromCache: true };
+  if (cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
+    return { payload: cachedData, versions: cachedVersions, fromCache: true };
   }
+  if (allDataInflight) return allDataInflight;
 
-  // 'ton_kho' tách riêng: chỉ lấy snapshot ngày mới nhất (xem fetchLatestStockSnapshot),
-  // các bảng còn lại vẫn lấy đầy đủ như cũ.
-  const otherTables = TABLES.filter(t => t !== 'ton_kho');
+  allDataInflight = (async () => {
+    try {
+      // 'ton_kho' tách riêng: chỉ lấy snapshot ngày mới nhất (xem fetchLatestStockSnapshot),
+      // các bảng còn lại vẫn lấy đầy đủ như cũ.
+      const otherTables = TABLES.filter(t => t !== 'ton_kho');
 
-  const [
-    production, material, khsx, order, inventory,
-    tkbv, pthsp, analysis, yearlyPlan, exportData,
-    attendance,
-  ] = await runWithLimit(
-  otherTables.map(t => () => fetchTableData(t, undefined, true)),
-    2
-  );
-  const stock = await fetchLatestStockSnapshot();
+      const [
+        production, material, khsx, order, inventory,
+        tkbv, pthsp, analysis, yearlyPlan, exportData,
+        attendance,
+      ] = await runWithLimit(
+        otherTables.map(t => () => fetchTableData(t, undefined, true)),
+        2
+      );
+      const stock = await fetchLatestStockSnapshot();
 
-  const payload = {
-    production, material, khsx, order, inventory,
-    tkbv, pthsp, analysis, yearlyPlan, export: exportData,
-    attendance, stock,
-  };
-  cachedData = payload;
-  cachedVersions = versions;
-  return { payload, fromCache: false };
+      const payload = {
+        production, material, khsx, order, inventory,
+        tkbv, pthsp, analysis, yearlyPlan, export: exportData,
+        attendance, stock,
+      };
+      cachedData = payload;
+      cachedVersions = versions;
+      return { payload, versions, fromCache: false };
+    } finally {
+      allDataInflight = null;
+    }
+  })();
+  return allDataInflight;
 };
 
 export interface TrendTableConfig {

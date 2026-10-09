@@ -5,13 +5,66 @@ import { runWithLimit, GRACE_UNTIL_HOUR, vnDayKey, vnHour } from '../server/comm
 import { authenticateJWT, requireRole } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
 import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, STOCK_TREND_CONFIG, ANALYSIS_TABLES } from '../server/data.js';
+import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
 import { listProjectAliases } from '../server/projectAlias.js';
+import { createGzip } from 'zlib';
+
+// ============================================================================
+// /api/all-data: ~150 MB JSON (12 bảng). Trước đây mỗi request đều JSON.stringify + gzip lại toàn bộ
+// (3–4 giây CPU dù dữ liệu đã cache). Giờ nén 1 lần cho mỗi (phiên bản dữ liệu, bộ bảng, quyền xem giá)
+// và trả thẳng buffer gzip đã nén (compression middleware bỏ qua khi đã có Content-Encoding).
+// Nén theo từng bảng (stringify từng mảng rồi ghi vào luồng gzip) để không phải giữ cả chuỗi 150 MB.
+// ============================================================================
+const ALL_DATA_GZIP_MAX = 8;
+let allDataGzipVkey = '';
+const allDataGzip = new Map<string, Buffer>();
+const allDataGzipInflight = new Map<string, Promise<Buffer>>();
+
+const gzipJsonObject = (out: Record<string, unknown>): Promise<Buffer> => new Promise((resolve, reject) => {
+  const gz = createGzip();
+  const chunks: Buffer[] = [];
+  gz.on('data', c => chunks.push(c));
+  gz.on('end', () => resolve(Buffer.concat(chunks)));
+  gz.on('error', reject);
+  const keys = Object.keys(out);
+  let i = 0;
+  const next = () => {
+    if (i >= keys.length) { gz.end(keys.length ? '}' : '{}'); return; }
+    const k = keys[i];
+    const piece = `${i === 0 ? '{' : ','}${JSON.stringify(k)}:${JSON.stringify(out[k] ?? null)}`;
+    i++;
+    if (gz.write(piece)) setImmediate(next); else gz.once('drain', next);
+  };
+  next();
+});
+
+const getAllDataGzip = (vkey: string, gzKey: string, out: Record<string, unknown>): Promise<Buffer> => {
+  if (vkey !== allDataGzipVkey) { allDataGzip.clear(); allDataGzipInflight.clear(); allDataGzipVkey = vkey; }
+  const hit = allDataGzip.get(gzKey);
+  if (hit) return Promise.resolve(hit);
+  let p = allDataGzipInflight.get(gzKey);
+  if (!p) {
+    p = gzipJsonObject(out).then(buf => {
+      if (allDataGzipVkey === vkey) {
+        allDataGzip.set(gzKey, buf);
+        while (allDataGzip.size > ALL_DATA_GZIP_MAX) {
+          const oldest = allDataGzip.keys().next().value;
+          if (oldest === undefined) break;
+          allDataGzip.delete(oldest);
+        }
+      }
+      return buf;
+    }).finally(() => { if (allDataGzipInflight.get(gzKey) === p) allDataGzipInflight.delete(gzKey); });
+    allDataGzipInflight.set(gzKey, p);
+  }
+  return p;
+};
 
 app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
-    const { payload } = await refreshAllDataCache();
+    const { payload, versions } = await refreshAllDataCache();
     // ?tables=production,order: chỉ trả các bảng client cần (thường là bảng vừa đổi phiên bản),
     // tránh tải lại cả 12 bảng (~51k dòng sản xuất) khi chỉ 1 bảng thay đổi.
     // Không truyền => trả đủ 12 bảng như cũ (tương thích ngược với client cũ).
@@ -25,10 +78,22 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
       if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
       out[key] = key === 'material' && !canSeePrice ? stripMaterialPriceColumns(payload[key]) : payload[key];
     }
-    res.json(out);
+    // Client không nhận gzip (hiếm): trả JSON thường như cũ
+    if (!req.acceptsEncodings('gzip')) return res.json(out);
+
+    const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(',')}|${canSeePrice ? 1 : 0}`, out);
+    res.status(200).set({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Encoding': 'gzip',
+      'Content-Length': String(buf.length),
+      'Vary': 'Accept-Encoding',
+      'Cache-Control': 'no-store',
+    });
+    res.end(buf);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });
+    else res.end();
   }
 });
 
@@ -87,32 +152,38 @@ const NOTE_COLUMNS = [
 const NOTE_PREVIEW_CHARS = 101; // 100 ký tự + 1 để client biết có bị cắt để thêm "..."
 
 // Lấy ghi chú theo danh sách hex. full=false: chỉ 101 ký tự đầu (cho bảng); full=true: nguyên văn (cho xuất CSV)
+// Cùng trang HEX mở lại / lật trang qua lại => trả ghi chú đã lấy khi bảng sản xuất chưa đổi phiên bản
+const notesCache = createCache<unknown>(30);
+
 app.post('/api/production/notes', async (req: Request, res: Response) => {
   try {
-    const hexes = Array.isArray(req.body?.hexes)
+    const hexes: string[] = Array.isArray(req.body?.hexes)
       ? req.body.hexes.map((h: unknown) => String(h)).filter(Boolean)
       : [];
     if (hexes.length === 0) return res.json({});
     if (hexes.length > 2000) return res.status(400).json({ error: 'Too many hexes' });
     const full = req.body?.full === true;
 
-    const selectCols = NOTE_COLUMNS
-      .map(c => full ? `"${c}"` : `LEFT("${c}"::text, ${NOTE_PREVIEW_CHARS}) AS "${c}"`)
-      .join(', ');
+    const out = await cachedByVersions(notesCache, `${full ? 'full' : 'preview'}|${hashKey([...new Set(hexes)].sort())}`, ['production'], async () => {
+      const selectCols = NOTE_COLUMNS
+        .map(c => full ? `"${c}"` : `LEFT("${c}"::text, ${NOTE_PREVIEW_CHARS}) AS "${c}"`)
+        .join(', ');
 
-    const r = await timedQuery(
-      `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${selectCols}
-       FROM production_status_app
-       WHERE hex::text = ANY($1::text[])
-       ORDER BY hex::text, updated_at DESC NULLS LAST`,
-      [hexes],
-      { timeoutMs: 20000 }
-    );
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${selectCols}
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST`,
+        [hexes],
+        { timeoutMs: 20000 }
+      );
 
-    const out: Record<string, Record<string, string | null>> = {};
-    r.rows.forEach(row => {
-      const { hex, ...rest } = row;
-      out[hex] = rest;
+      const map: Record<string, Record<string, string | null>> = {};
+      r.rows.forEach(row => {
+        const { hex, ...rest } = row;
+        map[hex] = rest;
+      });
+      return map;
     });
     res.json(out);
   } catch (error) {
@@ -167,8 +238,8 @@ app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
 // tháng chứa ngày KH tháng) ≥ số lượng KH. KH kỳ đã đạt thì không tính trễ theo KH đó — hạn chuyển sang
 // nguồn tiếp theo (utils/productionMetrics.deadlineOf). Không dùng lũy kế (gồm cả lần nhập trước kỳ).
 // Hạng mục nhập kho theo giá trị (SL nhập = 0) không xét được => coi như chưa đạt.
-const PLAN_MET_TTL_MS = 10 * 60 * 1000;
-let planMetCache: { at: number; data: { tuan: string[]; thang: string[] } } | null = null;
+// Cache theo phiên bản bảng sản xuất + nhập kho (trước giữ 10 phút cố định => sau ETL vẫn trả số cũ)
+const planMetCache = createCache<{ tuan: string[]; thang: string[] }>(1);
 // Tên phụ -> tên chuẩn công trình (xem server/projectAlias.listProjectAliases)
 app.get('/api/project-aliases', (_req: Request, res: Response) => {
   res.json(listProjectAliases());
@@ -176,7 +247,9 @@ app.get('/api/project-aliases', (_req: Request, res: Response) => {
 
 app.get('/api/production/plan-met', async (_req: Request, res: Response) => {
   try {
-    if (!planMetCache || Date.now() - planMetCache.at > PLAN_MET_TTL_MS) {
+    const data = await cachedByVersions(planMetCache, 'plan-met', ['production', 'inventory'], async () => {
+      // Nối p với n theo hex rồi gộp 1 lần (hash join). Trước dùng 2 subquery tương quan `(SELECT SUM(sl)
+      // FROM n WHERE n.hex = p.hex AND ...)` cho TỪNG hạng mục => quét lại CTE n hàng nghìn lần.
       const r = await timedQuery(
         `WITH p AS (
            SELECT DISTINCT ON (hex::text) hex::text AS hex,
@@ -190,21 +263,19 @@ app.get('/api/production/plan-met', async (_req: Request, res: Response) => {
            FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
          )
          SELECT p.hex,
-           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE((SELECT SUM(sl) FROM n WHERE n.hex = p.hex
-              AND n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
-           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE((SELECT SUM(sl) FROM n WHERE n.hex = p.hex
-              AND n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
-         FROM p`,
+           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+              n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
+           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+              n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+         FROM p LEFT JOIN n ON n.hex = p.hex
+         GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
         [],
         { timeoutMs: 30000 }
       );
       const rows = r.rows as { hex: string; tuan_met: boolean; thang_met: boolean }[];
-      planMetCache = {
-        at: Date.now(),
-        data: { tuan: rows.filter(x => x.tuan_met).map(x => x.hex), thang: rows.filter(x => x.thang_met).map(x => x.hex) },
-      };
-    }
-    res.json(planMetCache.data);
+      return { tuan: rows.filter(x => x.tuan_met).map(x => x.hex), thang: rows.filter(x => x.thang_met).map(x => x.hex) };
+    });
+    res.json(data);
   } catch (error) {
     console.error('Lỗi /api/production/plan-met:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -284,9 +355,13 @@ const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
     AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
 )`;
 
+// Cùng danh sách HEX (vd. mở lại tổng quan 1 công trình, đổi tab) => trả kết quả đã tính khi vật tư /
+// sản xuất chưa đổi phiên bản. Khoá = mode + sha1(danh sách hex đã sắp).
+const materialByHexCache = createCache<unknown>(24);
+
 app.post('/api/material/by-hex', async (req: Request, res: Response) => {
   try {
-    const hexes = Array.isArray(req.body?.hexes)
+    const hexes: string[] = Array.isArray(req.body?.hexes)
       ? req.body.hexes.map((h: unknown) => String(h).trim()).filter(Boolean)
       : [];
     const mode = String(req.body?.mode || 'matched');
@@ -296,7 +371,17 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
     if (hexes.length === 0) {
       return res.json(mode === 'unassigned-count' ? { lines: 0, prs: 0 } : mode === 'hex-counts' ? {} : { rows: [] });
     }
+    const cacheKey = `${mode}|${hashKey([...new Set(hexes)].sort())}`;
+    const result = await cachedByVersions(materialByHexCache, cacheKey, ['material', 'production'], () => computeMaterialByHex(hexes, mode));
+    res.json(result);
+  } catch (error) {
+    console.error('Lỗi /api/material/by-hex:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
+const computeMaterialByHex = async (hexes: string[], mode: string): Promise<unknown> => {
+  {
     // Định mức + tình trạng NVL theo hạng mục từ bảng sản xuất (kế hoạch cập nhật): dùng cho hạng mục
     // không có PR ghi mã (vật tư mua gộp theo công trình) — vẫn biết hạng mục cần vật tư gì.
     if (mode === 'nvl') {
@@ -314,7 +399,7 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
         const v = Object.fromEntries(Object.entries(rest).filter(([, x]) => x !== null && String(x).trim() !== ''));
         if (Object.keys(v).length) out[String(hex)] = v;
       });
-      return res.json(out);
+      return out;
     }
 
     if (mode === 'hex-counts') {
@@ -332,7 +417,7 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
       );
       const out: Record<string, number> = {};
       c.rows.forEach((row: { hex: string; n: number }) => { out[row.hex] = row.n; });
-      return res.json(out);
+      return out;
     }
 
     if (mode === 'unassigned-count') {
@@ -342,7 +427,7 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
         [hexes],
         { timeoutMs: 20000 }
       );
-      return res.json(c.rows[0] ?? { lines: 0, prs: 0 });
+      return c.rows[0] ?? { lines: 0, prs: 0 };
     }
 
     const selectCols = MATERIAL_BY_HEX_COLUMNS.map(c => `v."${c}"`).join(', ');
@@ -390,9 +475,9 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
          ORDER BY v.trackingno, v.so_pr NULLS LAST, v.pr_line NULLS LAST
          LIMIT 20000`,
         [hexes],
-        { timeoutMs: 30000 }
+        { timeoutMs: 30000, workMemMb: 32 }
       );
-      return res.json({ rows: u.rows });
+      return { rows: u.rows };
     }
 
     if (mode === 'unassigned') {
@@ -405,24 +490,29 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
         [hexes],
         { timeoutMs: 20000 }
       );
-      return res.json({ rows: u.rows });
+      return { rows: u.rows };
     }
 
+    // matched: chỉ gộp các dòng vật tư CÓ mã khớp (hit_ids) và chỉ đếm tổng PR của các PR liên quan —
+    // trước GROUP BY toàn bộ bảng mã rồi mới lọc bằng HAVING, và đếm tổng cho MỌI PR trong bảng
     const r = await timedQuery(
-      `WITH ${MATERIAL_CODES_CTE}, hit AS (
-         SELECT id,
-                ARRAY_AGG(DISTINCT hex ORDER BY hex) FILTER (WHERE hex = ANY($1::text[])) AS hexes,
-                ARRAY_AGG(DISTINCT code ORDER BY code) FILTER (WHERE hex = ANY($1::text[])) AS matched_codes,
-                COUNT(DISTINCT code)::int AS total_codes,
-                MAX(source) AS code_source
-         FROM m
-         GROUP BY id
-         HAVING BOOL_OR(hex = ANY($1::text[]))
+      `WITH ${MATERIAL_CODES_CTE}, hit_ids AS (
+         SELECT DISTINCT id FROM m WHERE hex = ANY($1::text[])
+       ), hit AS (
+         SELECT m.id,
+                ARRAY_AGG(DISTINCT m.hex ORDER BY m.hex) FILTER (WHERE m.hex = ANY($1::text[])) AS hexes,
+                ARRAY_AGG(DISTINCT m.code ORDER BY m.code) FILTER (WHERE m.hex = ANY($1::text[])) AS matched_codes,
+                COUNT(DISTINCT m.code)::int AS total_codes,
+                MAX(m.source) AS code_source
+         FROM m JOIN hit_ids h ON h.id = m.id
+         GROUP BY m.id
+       ), hit_prs AS (
+         SELECT DISTINCT v3.so_pr FROM vat_tu v3 JOIN hit_ids h ON h.id = v3.id WHERE v3.so_pr IS NOT NULL
        ), pr AS (
          -- Tổng số hex / dòng của mỗi PR trên TOÀN BỘ vật tư (không chỉ các hex đang xem)
          SELECT v2.so_pr, COUNT(DISTINCT m.hex)::int AS pr_total_hexes, COUNT(DISTINCT m.id)::int AS pr_total_lines
          FROM m JOIN vat_tu v2 ON v2.id = m.id
-         WHERE v2.so_pr IS NOT NULL
+         WHERE v2.so_pr IN (SELECT so_pr FROM hit_prs)
          GROUP BY v2.so_pr
        )
        SELECT hit.hexes, hit.matched_codes, hit.total_codes, hit.code_source,
@@ -431,14 +521,11 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
        LEFT JOIN pr ON pr.so_pr = v.so_pr
        ORDER BY hit.hexes[1], v.so_pr NULLS LAST, v.pr_line NULLS LAST`,
       [hexes],
-      { timeoutMs: 20000 }
+      { timeoutMs: 20000, workMemMb: 32 }
     );
-    res.json({ rows: r.rows });
-  } catch (error) {
-    console.error('Lỗi /api/material/by-hex:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return { rows: r.rows };
   }
-});
+};
 
 // Chi tiết 1 PR: PR đó mua cho những hex nào (trên toàn bộ dữ liệu), mỗi hex thuộc
 // hạng mục / công trình / PC nào. Mỗi dòng = 1 cặp (dòng vật tư của PR, hex).

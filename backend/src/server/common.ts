@@ -49,3 +49,25 @@ export const vnHour = (d: Date): number => Number(vnHourFormatter.format(d));
 // overview tính toán (toISOString().slice(0,10), getUTC*). Dùng thay cho new Date() khi
 // client không gửi ngày: tránh việc từ 0h-7h sáng giờ VN, "hôm nay" bị tính thành hôm qua.
 export const vnTodayUtc = (): Date => new Date(`${vnDayKey(new Date())}T00:00:00Z`);
+
+// ----------------------------------------------------------------------------
+// Tuần ISO -> khoảng ngày, cắt trong năm dương lịch (cùng cách bảng KHSX đánh số tuần: 29–31/12/2025 là
+// tuần 53 của 2025, 01–04/01/2026 là tuần 1 của 2026). Tính ở Node thay vì to_date('IYYY-IW') cho TỪNG
+// dòng nhập kho trong SQL (trước mất ~3s khi xem KHSX theo tuần).
+// Trả null khi tuần không có ngày nào trong năm (vd. tuần 53 của năm chỉ có 52 tuần).
+// ----------------------------------------------------------------------------
+const isoDateStr = (d: Date) => d.toISOString().slice(0, 10);
+export const isoWeekRangeInYear = (year: number, week: number): { start: string; end: string } | null => {
+  if (!Number.isInteger(year) || !Number.isInteger(week) || week < 1 || week > 53) return null;
+  // Thứ Hai của tuần ISO 1 = thứ Hai của tuần chứa ngày 4/1
+  const jan4 = Date.UTC(year, 0, 4);
+  const dow = (new Date(jan4).getUTCDay() + 6) % 7; // Thứ Hai = 0
+  const monday = jan4 - dow * 86_400_000 + (week - 1) * 7 * 86_400_000;
+  const sunday = monday + 6 * 86_400_000;
+  const yStart = Date.UTC(year, 0, 1);
+  const yEnd = Date.UTC(year, 11, 31);
+  const start = Math.max(monday, yStart);
+  const end = Math.min(sunday, yEnd);
+  if (start > end) return null;
+  return { start: isoDateStr(new Date(start)), end: isoDateStr(new Date(end)) };
+};

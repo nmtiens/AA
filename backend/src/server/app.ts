@@ -21,6 +21,9 @@ app.set('trust proxy', 1); // cần thiết khi chạy sau proxy/CDN (Vercel...)
 // Route phân biệt hoa thường: mặc định Express coi /API/x = /api/x, trong khi middleware
 // đăng nhập bên dưới so khớp '/api/' -> /API/... từng lọt qua mà không cần token.
 app.set('case sensitive routing', true);
+// Không tính ETag: Express băm (md5) toàn bộ body mỗi response để sinh ETag — với /api/all-data (hàng trăm
+// MB JSON) tốn hàng trăm ms CPU mà giao diện gọi với cache: 'no-store' nên không bao giờ dùng 304.
+app.set('etag', false);
 app.use(helmet());
 app.use(cors({
   origin: (origin, callback) => {

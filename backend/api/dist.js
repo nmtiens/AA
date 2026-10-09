@@ -44392,10 +44392,11 @@ async function timedQuery(text, params, opts = {}) {
     const t1 = Date.now();
     try {
       let result;
-      if (opts.timeoutMs) {
+      if (opts.timeoutMs || opts.workMemMb) {
         await client.query("BEGIN");
         try {
-          await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+          if (opts.timeoutMs) await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+          if (opts.workMemMb) await client.query(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
           result = await client.query(text, params);
           await client.query("COMMIT");
         } catch (e) {
@@ -44536,7 +44537,7 @@ var ensureProjectAliases = async () => {
       loading = null;
     });
   }
-  await loading;
+  if (loadedAt === 0) await loading;
 };
 var canonicalProjectName = (raw) => {
   const display = String(raw ?? "").trim().replace(/\s+/g, " ");
@@ -44640,6 +44641,7 @@ var expandWorkshops = (list) => {
 var app = (0, import_express.default)();
 app.set("trust proxy", 1);
 app.set("case sensitive routing", true);
+app.set("etag", false);
 app.use(helmet());
 app.use((0, import_cors.default)({
   origin: (origin, callback) => {
@@ -63932,6 +63934,20 @@ var vnHourFormatter = new Intl.DateTimeFormat("en-GB", {
 var vnDayKey = (d) => vnDayFormatter.format(d);
 var vnHour = (d) => Number(vnHourFormatter.format(d));
 var vnTodayUtc = () => /* @__PURE__ */ new Date(`${vnDayKey(/* @__PURE__ */ new Date())}T00:00:00Z`);
+var isoDateStr = (d) => d.toISOString().slice(0, 10);
+var isoWeekRangeInYear = (year, week) => {
+  if (!Number.isInteger(year) || !Number.isInteger(week) || week < 1 || week > 53) return null;
+  const jan4 = Date.UTC(year, 0, 4);
+  const dow = (new Date(jan4).getUTCDay() + 6) % 7;
+  const monday = jan4 - dow * 864e5 + (week - 1) * 7 * 864e5;
+  const sunday = monday + 6 * 864e5;
+  const yStart = Date.UTC(year, 0, 1);
+  const yEnd = Date.UTC(year, 11, 31);
+  const start = Math.max(monday, yStart);
+  const end = Math.min(sunday, yEnd);
+  if (start > end) return null;
+  return { start: isoDateStr(new Date(start)), end: isoDateStr(new Date(end)) };
+};
 
 // src/server/validation.ts
 var validateBody = (schema) => (req, res, next) => {
@@ -64193,9 +64209,9 @@ var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, p
   }
   return `${dateColExpr} = (SELECT MAX(${rawDateCol}) FROM ${table})`;
 };
-var notCancelledHexCond = (hexExpr) => `COALESCE(${hexExpr}::text, '') NOT IN (
-     SELECT hex::text FROM production_status_app
-     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%')`;
+var CANCELLED_HEX_SQL = `SELECT DISTINCT hex::text AS cx_hex FROM production_status_app
+     WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%'`;
+var notCancelledHexCond = (hexExpr, cte) => `NOT EXISTS (SELECT 1 FROM ${cte ?? `(${CANCELLED_HEX_SQL})`} cx WHERE cx.cx_hex = ${hexExpr}::text)`;
 var projectNameCondition = (colExpr, name, params) => {
   params.push(expandProjectNames([name]));
   return `${normNameSql(colExpr)} = ANY($${params.length}::text[])`;
@@ -64265,14 +64281,27 @@ var TABLE_TO_VERSION_KEY = {
   diem_danh: "attendance",
   ton_kho: "stock"
 };
+var VERSIONS_TTL_MS = 3e3;
+var versionsMemo = null;
+var versionsInflight = null;
 var getVersions = async () => {
-  const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
-  const out = {};
-  result.rows.forEach((row) => {
-    const key = TABLE_TO_VERSION_KEY[row.table_name];
-    if (key) out[key] = row.last_updated;
-  });
-  return out;
+  if (versionsMemo && Date.now() - versionsMemo.at < VERSIONS_TTL_MS) return versionsMemo.value;
+  if (versionsInflight) return versionsInflight;
+  versionsInflight = (async () => {
+    try {
+      const result = await timedQuery(`SELECT table_name, last_updated FROM table_versions ORDER BY table_name`);
+      const out = {};
+      result.rows.forEach((row) => {
+        const key = TABLE_TO_VERSION_KEY[row.table_name];
+        if (key) out[key] = row.last_updated;
+      });
+      versionsMemo = { at: Date.now(), value: out };
+      return out;
+    } finally {
+      versionsInflight = null;
+    }
+  })();
+  return versionsInflight;
 };
 var getRelevantVersions = async (keys) => {
   const all = await getVersions();
@@ -64290,6 +64319,7 @@ var trimCache = (cache) => {
 };
 var cachedData = null;
 var cachedVersions = null;
+var allDataInflight = null;
 var fetchLatestStockSnapshot = async () => {
   try {
     const cols = REPORT_COLUMNS.ton_kho;
@@ -64308,44 +64338,52 @@ var fetchLatestStockSnapshot = async () => {
 };
 var refreshAllDataCache = async () => {
   const versions = await getVersions();
-  if (cachedData && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
-    return { payload: cachedData, fromCache: true };
+  if (cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions)) {
+    return { payload: cachedData, versions: cachedVersions, fromCache: true };
   }
-  const otherTables = TABLES.filter((t) => t !== "ton_kho");
-  const [
-    production,
-    material,
-    khsx,
-    order,
-    inventory,
-    tkbv,
-    pthsp,
-    analysis,
-    yearlyPlan,
-    exportData,
-    attendance
-  ] = await runWithLimit(
-    otherTables.map((t) => () => fetchTableData(t, void 0, true)),
-    2
-  );
-  const stock = await fetchLatestStockSnapshot();
-  const payload = {
-    production,
-    material,
-    khsx,
-    order,
-    inventory,
-    tkbv,
-    pthsp,
-    analysis,
-    yearlyPlan,
-    export: exportData,
-    attendance,
-    stock
-  };
-  cachedData = payload;
-  cachedVersions = versions;
-  return { payload, fromCache: false };
+  if (allDataInflight) return allDataInflight;
+  allDataInflight = (async () => {
+    try {
+      const otherTables = TABLES.filter((t) => t !== "ton_kho");
+      const [
+        production,
+        material,
+        khsx,
+        order,
+        inventory,
+        tkbv,
+        pthsp,
+        analysis,
+        yearlyPlan,
+        exportData,
+        attendance
+      ] = await runWithLimit(
+        otherTables.map((t) => () => fetchTableData(t, void 0, true)),
+        2
+      );
+      const stock = await fetchLatestStockSnapshot();
+      const payload = {
+        production,
+        material,
+        khsx,
+        order,
+        inventory,
+        tkbv,
+        pthsp,
+        analysis,
+        yearlyPlan,
+        export: exportData,
+        attendance,
+        stock
+      };
+      cachedData = payload;
+      cachedVersions = versions;
+      return { payload, versions, fromCache: false };
+    } finally {
+      allDataInflight = null;
+    }
+  })();
+  return allDataInflight;
 };
 var STOCK_TREND_CONFIG = {
   table: "ton_kho",
@@ -64409,6 +64447,45 @@ var numericColQualified = (table, alias, col) => {
   return generated ? `${alias}."${generated}"` : numericExprQualified(`${alias}."${col}"`);
 };
 
+// src/server/cache.ts
+import { createHash as createHash2 } from "crypto";
+var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
+async function cachedByVersions(cache, key, versionKeys, compute, extraVersion = "") {
+  const versions = await getRelevantVersions(versionKeys);
+  const vkey = `${JSON.stringify(versions)}|${extraVersion}`;
+  const hit = cache.map.get(key);
+  if (hit && hit.vkey === vkey) return hit.payload;
+  const flightKey = `${key}|${vkey}`;
+  const pending = cache.inflight.get(flightKey);
+  if (pending) return pending;
+  const p = (async () => {
+    try {
+      const payload = await compute();
+      cache.map.delete(key);
+      cache.map.set(key, { vkey, payload });
+      while (cache.map.size > cache.max) {
+        const oldest = cache.map.keys().next().value;
+        if (oldest === void 0) break;
+        cache.map.delete(oldest);
+      }
+      return payload;
+    } finally {
+      cache.inflight.delete(flightKey);
+    }
+  })();
+  cache.inflight.set(flightKey, p);
+  return p;
+}
+var hashKey = (value) => createHash2("sha1").update(JSON.stringify(value)).digest("hex");
+var queryKey = (query, names) => {
+  const o = {};
+  for (const n of names) {
+    const v = query[n];
+    if (v !== void 0 && v !== null && String(v) !== "") o[n] = String(v);
+  }
+  return JSON.stringify(o);
+};
+
 // src/server/permissions.ts
 var PERMISSION_CACHE_TTL_MS = 6e4;
 var permissionCache = /* @__PURE__ */ new Map();
@@ -64458,9 +64535,62 @@ var stripMaterialPriceColumns = (rows) => {
 };
 
 // src/routes/data.ts
+import { createGzip } from "zlib";
+var ALL_DATA_GZIP_MAX = 8;
+var allDataGzipVkey = "";
+var allDataGzip = /* @__PURE__ */ new Map();
+var allDataGzipInflight = /* @__PURE__ */ new Map();
+var gzipJsonObject = (out) => new Promise((resolve, reject) => {
+  const gz = createGzip();
+  const chunks = [];
+  gz.on("data", (c) => chunks.push(c));
+  gz.on("end", () => resolve(Buffer.concat(chunks)));
+  gz.on("error", reject);
+  const keys = Object.keys(out);
+  let i = 0;
+  const next = () => {
+    if (i >= keys.length) {
+      gz.end(keys.length ? "}" : "{}");
+      return;
+    }
+    const k = keys[i];
+    const piece = `${i === 0 ? "{" : ","}${JSON.stringify(k)}:${JSON.stringify(out[k] ?? null)}`;
+    i++;
+    if (gz.write(piece)) setImmediate(next);
+    else gz.once("drain", next);
+  };
+  next();
+});
+var getAllDataGzip = (vkey, gzKey, out) => {
+  if (vkey !== allDataGzipVkey) {
+    allDataGzip.clear();
+    allDataGzipInflight.clear();
+    allDataGzipVkey = vkey;
+  }
+  const hit = allDataGzip.get(gzKey);
+  if (hit) return Promise.resolve(hit);
+  let p = allDataGzipInflight.get(gzKey);
+  if (!p) {
+    p = gzipJsonObject(out).then((buf) => {
+      if (allDataGzipVkey === vkey) {
+        allDataGzip.set(gzKey, buf);
+        while (allDataGzip.size > ALL_DATA_GZIP_MAX) {
+          const oldest = allDataGzip.keys().next().value;
+          if (oldest === void 0) break;
+          allDataGzip.delete(oldest);
+        }
+      }
+      return buf;
+    }).finally(() => {
+      if (allDataGzipInflight.get(gzKey) === p) allDataGzipInflight.delete(gzKey);
+    });
+    allDataGzipInflight.set(gzKey, p);
+  }
+  return p;
+};
 app.get("/api/all-data", async (req, res) => {
   try {
-    const { payload } = await refreshAllDataCache();
+    const { payload, versions } = await refreshAllDataCache();
     const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
     const canSeePrice = !keys.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
@@ -64469,10 +64599,20 @@ app.get("/api/all-data", async (req, res) => {
       if (!Object.prototype.hasOwnProperty.call(payload, key)) continue;
       out[key] = key === "material" && !canSeePrice ? stripMaterialPriceColumns(payload[key]) : payload[key];
     }
-    res.json(out);
+    if (!req.acceptsEncodings("gzip")) return res.json(out);
+    const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(",")}|${canSeePrice ? 1 : 0}`, out);
+    res.status(200).set({
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Encoding": "gzip",
+      "Content-Length": String(buf.length),
+      "Vary": "Accept-Encoding",
+      "Cache-Control": "no-store"
+    });
+    res.end(buf);
   } catch (error61) {
     console.error("L\u1ED7i khi fetch d\u1EEF li\u1EC7u:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
+    if (!res.headersSent) res.status(500).json({ error: "Internal Server Error" });
+    else res.end();
   }
 });
 var apiRoutes = [
@@ -64524,25 +64664,29 @@ var NOTE_COLUMNS = [
   "ghi_chu_phieu"
 ];
 var NOTE_PREVIEW_CHARS = 101;
+var notesCache = createCache(30);
 app.post("/api/production/notes", async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h)).filter(Boolean) : [];
     if (hexes.length === 0) return res.json({});
     if (hexes.length > 2e3) return res.status(400).json({ error: "Too many hexes" });
     const full = req.body?.full === true;
-    const selectCols = NOTE_COLUMNS.map((c) => full ? `"${c}"` : `LEFT("${c}"::text, ${NOTE_PREVIEW_CHARS}) AS "${c}"`).join(", ");
-    const r = await timedQuery(
-      `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${selectCols}
-       FROM production_status_app
-       WHERE hex::text = ANY($1::text[])
-       ORDER BY hex::text, updated_at DESC NULLS LAST`,
-      [hexes],
-      { timeoutMs: 2e4 }
-    );
-    const out = {};
-    r.rows.forEach((row) => {
-      const { hex: hex3, ...rest } = row;
-      out[hex3] = rest;
+    const out = await cachedByVersions(notesCache, `${full ? "full" : "preview"}|${hashKey([...new Set(hexes)].sort())}`, ["production"], async () => {
+      const selectCols = NOTE_COLUMNS.map((c) => full ? `"${c}"` : `LEFT("${c}"::text, ${NOTE_PREVIEW_CHARS}) AS "${c}"`).join(", ");
+      const r = await timedQuery(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${selectCols}
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[])
+         ORDER BY hex::text, updated_at DESC NULLS LAST`,
+        [hexes],
+        { timeoutMs: 2e4 }
+      );
+      const map2 = {};
+      r.rows.forEach((row) => {
+        const { hex: hex3, ...rest } = row;
+        map2[hex3] = rest;
+      });
+      return map2;
     });
     res.json(out);
   } catch (error61) {
@@ -64644,14 +64788,13 @@ app.get("/api/production/hex/:hex", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-var PLAN_MET_TTL_MS = 10 * 60 * 1e3;
-var planMetCache = null;
+var planMetCache = createCache(1);
 app.get("/api/project-aliases", (_req, res) => {
   res.json(listProjectAliases());
 });
 app.get("/api/production/plan-met", async (_req, res) => {
   try {
-    if (!planMetCache || Date.now() - planMetCache.at > PLAN_MET_TTL_MS) {
+    const data = await cachedByVersions(planMetCache, "plan-met", ["production", "inventory"], async () => {
       const r = await timedQuery(
         `WITH p AS (
            SELECT DISTINCT ON (hex::text) hex::text AS hex,
@@ -64665,21 +64808,19 @@ app.get("/api/production/plan-met", async (_req, res) => {
            FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
          )
          SELECT p.hex,
-           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE((SELECT SUM(sl) FROM n WHERE n.hex = p.hex
-              AND n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
-           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE((SELECT SUM(sl) FROM n WHERE n.hex = p.hex
-              AND n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
-         FROM p`,
+           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+              n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
+           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+              n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+         FROM p LEFT JOIN n ON n.hex = p.hex
+         GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
         [],
         { timeoutMs: 3e4 }
       );
       const rows = r.rows;
-      planMetCache = {
-        at: Date.now(),
-        data: { tuan: rows.filter((x) => x.tuan_met).map((x) => x.hex), thang: rows.filter((x) => x.thang_met).map((x) => x.hex) }
-      };
-    }
-    res.json(planMetCache.data);
+      return { tuan: rows.filter((x) => x.tuan_met).map((x) => x.hex), thang: rows.filter((x) => x.thang_met).map((x) => x.hex) };
+    });
+    res.json(data);
   } catch (error61) {
     console.error("L\u1ED7i /api/production/plan-met:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -64761,6 +64902,7 @@ var UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
   WHERE NOT COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
     AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
 )`;
+var materialByHexCache = createCache(24);
 app.post("/api/material/by-hex", async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h).trim()).filter(Boolean) : [];
@@ -64769,6 +64911,16 @@ app.post("/api/material/by-hex", async (req, res) => {
     if (hexes.length === 0) {
       return res.json(mode === "unassigned-count" ? { lines: 0, prs: 0 } : mode === "hex-counts" ? {} : { rows: [] });
     }
+    const cacheKey = `${mode}|${hashKey([...new Set(hexes)].sort())}`;
+    const result = await cachedByVersions(materialByHexCache, cacheKey, ["material", "production"], () => computeMaterialByHex(hexes, mode));
+    res.json(result);
+  } catch (error61) {
+    console.error("L\u1ED7i /api/material/by-hex:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var computeMaterialByHex = async (hexes, mode) => {
+  {
     if (mode === "nvl") {
       const c = await timedQuery(
         `SELECT DISTINCT ON (hex::text) hex::text AS hex, ${PRODUCTION_NVL_COLUMNS.map((x) => `"${x}"`).join(", ")}
@@ -64783,7 +64935,7 @@ app.post("/api/material/by-hex", async (req, res) => {
         const v = Object.fromEntries(Object.entries(rest).filter(([, x]) => x !== null && String(x).trim() !== ""));
         if (Object.keys(v).length) out[String(hex3)] = v;
       });
-      return res.json(out);
+      return out;
     }
     if (mode === "hex-counts") {
       const c = await timedQuery(
@@ -64800,7 +64952,7 @@ app.post("/api/material/by-hex", async (req, res) => {
       c.rows.forEach((row) => {
         out[row.hex] = row.n;
       });
-      return res.json(out);
+      return out;
     }
     if (mode === "unassigned-count") {
       const c = await timedQuery(
@@ -64809,7 +64961,7 @@ app.post("/api/material/by-hex", async (req, res) => {
         [hexes],
         { timeoutMs: 2e4 }
       );
-      return res.json(c.rows[0] ?? { lines: 0, prs: 0 });
+      return c.rows[0] ?? { lines: 0, prs: 0 };
     }
     const selectCols = MATERIAL_BY_HEX_COLUMNS.map((c) => `v."${c}"`).join(", ");
     if (mode === "project-uncoded") {
@@ -64850,9 +65002,9 @@ app.post("/api/material/by-hex", async (req, res) => {
          ORDER BY v.trackingno, v.so_pr NULLS LAST, v.pr_line NULLS LAST
          LIMIT 20000`,
         [hexes],
-        { timeoutMs: 3e4 }
+        { timeoutMs: 3e4, workMemMb: 32 }
       );
-      return res.json({ rows: u.rows });
+      return { rows: u.rows };
     }
     if (mode === "unassigned") {
       const u = await timedQuery(
@@ -64864,23 +65016,26 @@ app.post("/api/material/by-hex", async (req, res) => {
         [hexes],
         { timeoutMs: 2e4 }
       );
-      return res.json({ rows: u.rows });
+      return { rows: u.rows };
     }
     const r = await timedQuery(
-      `WITH ${MATERIAL_CODES_CTE}, hit AS (
-         SELECT id,
-                ARRAY_AGG(DISTINCT hex ORDER BY hex) FILTER (WHERE hex = ANY($1::text[])) AS hexes,
-                ARRAY_AGG(DISTINCT code ORDER BY code) FILTER (WHERE hex = ANY($1::text[])) AS matched_codes,
-                COUNT(DISTINCT code)::int AS total_codes,
-                MAX(source) AS code_source
-         FROM m
-         GROUP BY id
-         HAVING BOOL_OR(hex = ANY($1::text[]))
+      `WITH ${MATERIAL_CODES_CTE}, hit_ids AS (
+         SELECT DISTINCT id FROM m WHERE hex = ANY($1::text[])
+       ), hit AS (
+         SELECT m.id,
+                ARRAY_AGG(DISTINCT m.hex ORDER BY m.hex) FILTER (WHERE m.hex = ANY($1::text[])) AS hexes,
+                ARRAY_AGG(DISTINCT m.code ORDER BY m.code) FILTER (WHERE m.hex = ANY($1::text[])) AS matched_codes,
+                COUNT(DISTINCT m.code)::int AS total_codes,
+                MAX(m.source) AS code_source
+         FROM m JOIN hit_ids h ON h.id = m.id
+         GROUP BY m.id
+       ), hit_prs AS (
+         SELECT DISTINCT v3.so_pr FROM vat_tu v3 JOIN hit_ids h ON h.id = v3.id WHERE v3.so_pr IS NOT NULL
        ), pr AS (
          -- T\u1ED5ng s\u1ED1 hex / d\xF2ng c\u1EE7a m\u1ED7i PR tr\xEAn TO\xC0N B\u1ED8 v\u1EADt t\u01B0 (kh\xF4ng ch\u1EC9 c\xE1c hex \u0111ang xem)
          SELECT v2.so_pr, COUNT(DISTINCT m.hex)::int AS pr_total_hexes, COUNT(DISTINCT m.id)::int AS pr_total_lines
          FROM m JOIN vat_tu v2 ON v2.id = m.id
-         WHERE v2.so_pr IS NOT NULL
+         WHERE v2.so_pr IN (SELECT so_pr FROM hit_prs)
          GROUP BY v2.so_pr
        )
        SELECT hit.hexes, hit.matched_codes, hit.total_codes, hit.code_source,
@@ -64889,14 +65044,11 @@ app.post("/api/material/by-hex", async (req, res) => {
        LEFT JOIN pr ON pr.so_pr = v.so_pr
        ORDER BY hit.hexes[1], v.so_pr NULLS LAST, v.pr_line NULLS LAST`,
       [hexes],
-      { timeoutMs: 2e4 }
+      { timeoutMs: 2e4, workMemMb: 32 }
     );
-    res.json({ rows: r.rows });
-  } catch (error61) {
-    console.error("L\u1ED7i /api/material/by-hex:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
+    return { rows: r.rows };
   }
-});
+};
 var PR_REASON_COLUMNS = {
   tinh_trang_ipo: "tinh_trang_ipo",
   ten_pc: "ten_pc",
@@ -65179,17 +65331,31 @@ app.delete(
 );
 
 // src/routes/overview.ts
-var overviewSummaryCache = /* @__PURE__ */ new Map();
-var OVERVIEW_SUMMARY_VERSION_KEYS = ["order", "tkbv", "pthsp", "inventory", "export"];
+var overviewSummaryCache = createCache(50);
+var overviewByGroupCache = createCache(80);
+var OVERVIEW_SUMMARY_VERSION_KEYS = ["order", "tkbv", "pthsp", "inventory", "export", "production"];
+var splitUpper = (v) => String(v || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+var buildRoleFilter = (tinhTrangList, tinhTrangIpoList, params, joinCols) => {
+  if (!tinhTrangList.length && !tinhTrangIpoList.length) return null;
+  const conds = [];
+  if (tinhTrangList.length) {
+    params.push(tinhTrangList);
+    conds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
+  }
+  if (tinhTrangIpoList.length) {
+    params.push(tinhTrangIpoList);
+    conds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+  }
+  const ctes = [...new Set(joinCols)].map((col) => `role_${col} AS (SELECT DISTINCT "${col}"::text AS k FROM production_status_app WHERE "${col}" IS NOT NULL AND ${conds.join(" AND ")})`);
+  return { ctes, existsCond: (hexExpr, joinCol) => `EXISTS (SELECT 1 FROM role_${joinCol} rh WHERE rh.k = ${hexExpr}::text)` };
+};
 app.get("/api/overview/summary", async (req, res) => {
   try {
     const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
-    const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
-    const tinhTrangList = String(req.query.tinhTrang || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).sort();
-    const tinhTrangIpoList = String(req.query.tinhTrangIpo || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).sort();
-    const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
+    const xuongList = expandWorkshops(splitUpper(req.query.xuong));
+    const tinhTrangList = splitUpper(req.query.tinhTrang).sort();
+    const tinhTrangIpoList = splitUpper(req.query.tinhTrangIpo).sort();
     const cacheKey = JSON.stringify({
-      wg: workshopGroupsVersion(),
       dateFrom: req.query.dateFrom || null,
       dateTo: req.query.dateTo || null,
       // Ngày "hôm nay" (giờ VN) nằm trong khoá cache: sang ngày mới thì số lũy kế tháng tính lại
@@ -65201,96 +65367,83 @@ app.get("/api/overview/summary", async (req, res) => {
       tinhTrang: tinhTrangList,
       tinhTrangIpo: tinhTrangIpoList
     });
-    const overviewVersions = await getRelevantVersions(
-      // Luôn kèm production: lọc bỏ hạng mục HỦY dựa vào bảng sản xuất
-      [...OVERVIEW_SUMMARY_VERSION_KEYS, "production"]
-    );
-    const cachedOverview = overviewSummaryCache.get(cacheKey);
-    if (cachedOverview && JSON.stringify(cachedOverview.versions) === JSON.stringify(overviewVersions)) {
-      return res.json(cachedOverview.payload);
-    }
-    const hasDateTo = !!(req.query.dateTo || req.query.date);
-    const hasDateFrom = !!req.query.dateFrom;
-    const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
-    const useExplicitDates = explicitDates.length > 0;
-    const useAllTime = !hasDateTo && !hasDateFrom && !useExplicitDates;
-    const dateToDate = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || vnTodayUtc();
-    const dateFromDate = parseSafeDate(req.query.dateFrom) || dateToDate;
-    const dateToStr = dateToDate.toISOString().slice(0, 10);
-    const dateFromStr = dateFromDate.toISOString().slice(0, 10);
-    const monthStart = `${dateToStr.slice(0, 7)}-01`;
-    const monthEnd = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
-    const prevMonthRef = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() - 1, 1));
-    const prevMonthStart = prevMonthRef.toISOString().slice(0, 7) + "-01";
-    const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthRef.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
-    let outerLo = dateFromStr < monthStart ? dateFromStr : monthStart;
-    outerLo = prevMonthStart < outerLo ? prevMonthStart : outerLo;
-    let outerHi = dateToStr > monthEnd ? dateToStr : monthEnd;
-    if (useExplicitDates) {
-      const sorted = [...explicitDates].sort();
-      outerLo = sorted[0] < outerLo ? sorted[0] : outerLo;
-      outerHi = sorted[sorted.length - 1] > outerHi ? sorted[sorted.length - 1] : outerHi;
-    }
-    const subQueries = [];
-    const allParams = [];
-    Object.entries(ANALYSIS_TABLES).forEach(([key, cfg]) => {
-      const alias = "t";
-      const colBare = (name) => `${alias}.${name}`;
-      let periodCond;
-      let mtdCond;
-      let lastMonthCond;
-      let localParams;
-      if (useAllTime) {
-        periodCond = "TRUE";
-        mtdCond = `${colBare("date_parsed")} BETWEEN $P1 AND $P2`;
-        lastMonthCond = `${colBare("date_parsed")} BETWEEN $P3 AND $P4`;
-        localParams = [monthStart, dateToStr, prevMonthStart, prevMonthEnd];
-      } else if (useExplicitDates) {
-        periodCond = `${colBare("date_parsed")} = ANY($P1::date[])`;
-        mtdCond = `${colBare("date_parsed")} BETWEEN $P2 AND $P3`;
-        lastMonthCond = `${colBare("date_parsed")} BETWEEN $P4 AND $P5`;
-        localParams = [explicitDates, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
-      } else {
-        periodCond = `${colBare("date_parsed")} BETWEEN $P1 AND $P2`;
-        mtdCond = `${colBare("date_parsed")} BETWEEN $P3 AND $P4`;
-        lastMonthCond = `${colBare("date_parsed")} BETWEEN $P5 AND $P6`;
-        localParams = [dateFromStr, dateToStr, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
+    const overviewPayload = await cachedByVersions(overviewSummaryCache, cacheKey, OVERVIEW_SUMMARY_VERSION_KEYS, async () => {
+      const hasDateTo = !!(req.query.dateTo || req.query.date);
+      const hasDateFrom = !!req.query.dateFrom;
+      const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
+      const useExplicitDates = explicitDates.length > 0;
+      const useAllTime = !hasDateTo && !hasDateFrom && !useExplicitDates;
+      const dateToDate = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || vnTodayUtc();
+      const dateFromDate = parseSafeDate(req.query.dateFrom) || dateToDate;
+      const dateToStr = dateToDate.toISOString().slice(0, 10);
+      const dateFromStr = dateFromDate.toISOString().slice(0, 10);
+      const monthStart = `${dateToStr.slice(0, 7)}-01`;
+      const monthEnd = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+      const prevMonthRef = new Date(Date.UTC(dateToDate.getUTCFullYear(), dateToDate.getUTCMonth() - 1, 1));
+      const prevMonthStart = prevMonthRef.toISOString().slice(0, 7) + "-01";
+      const prevMonthEnd = new Date(Date.UTC(prevMonthRef.getUTCFullYear(), prevMonthRef.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+      let outerLo = dateFromStr < monthStart ? dateFromStr : monthStart;
+      outerLo = prevMonthStart < outerLo ? prevMonthStart : outerLo;
+      let outerHi = dateToStr > monthEnd ? dateToStr : monthEnd;
+      if (useExplicitDates) {
+        const sorted = [...explicitDates].sort();
+        outerLo = sorted[0] < outerLo ? sorted[0] : outerLo;
+        outerHi = sorted[sorted.length - 1] > outerHi ? sorted[sorted.length - 1] : outerHi;
       }
-      const baseIdx = allParams.length;
-      localParams.forEach((p) => allParams.push(p));
-      const remap = (cond) => cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
-      const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
-      const outerConds = [];
-      if (!useAllTime) {
-        allParams.push(outerLo, outerHi);
-        outerConds.push(`${colBare("date_parsed")} BETWEEN $${allParams.length - 1} AND $${allParams.length}`);
-      }
-      if (cfg.hexCol) outerConds.push(notCancelledHexCond(colBare(cfg.hexCol)));
-      if (congTrinhList.length && cfg.congTrinhCol) {
-        allParams.push(congTrinhList);
-        outerConds.push(`${normNameSql(colBare(cfg.congTrinhCol))} = ANY($${allParams.length}::text[])`);
-      }
-      if (xuongList.length && cfg.xuongCol) {
-        allParams.push(xuongList);
-        outerConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${allParams.length}::text[])`);
-      }
-      if (needsRoleJoin) {
-        const pConds = [
-          `p."${cfg.productionJoinCol || "hex"}"::text = ${colBare(cfg.hexCol)}::text`
-        ];
-        if (tinhTrangList.length) {
-          allParams.push(tinhTrangList);
-          pConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${allParams.length}::text[])`);
+      const subQueries = [];
+      const allParams = [];
+      const ctes = [`cancelled_hex AS (${CANCELLED_HEX_SQL})`];
+      const role = buildRoleFilter(
+        tinhTrangList,
+        tinhTrangIpoList,
+        allParams,
+        Object.values(ANALYSIS_TABLES).map((c) => c.productionJoinCol || "hex")
+      );
+      if (role) ctes.push(...role.ctes);
+      Object.entries(ANALYSIS_TABLES).forEach(([key, cfg]) => {
+        const alias = "t";
+        const colBare = (name) => `${alias}.${name}`;
+        let periodCond;
+        let mtdCond;
+        let lastMonthCond;
+        let localParams;
+        if (useAllTime) {
+          periodCond = "TRUE";
+          mtdCond = `${colBare("date_parsed")} BETWEEN $P1 AND $P2`;
+          lastMonthCond = `${colBare("date_parsed")} BETWEEN $P3 AND $P4`;
+          localParams = [monthStart, dateToStr, prevMonthStart, prevMonthEnd];
+        } else if (useExplicitDates) {
+          periodCond = `${colBare("date_parsed")} = ANY($P1::date[])`;
+          mtdCond = `${colBare("date_parsed")} BETWEEN $P2 AND $P3`;
+          lastMonthCond = `${colBare("date_parsed")} BETWEEN $P4 AND $P5`;
+          localParams = [explicitDates, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
+        } else {
+          periodCond = `${colBare("date_parsed")} BETWEEN $P1 AND $P2`;
+          mtdCond = `${colBare("date_parsed")} BETWEEN $P3 AND $P4`;
+          lastMonthCond = `${colBare("date_parsed")} BETWEEN $P5 AND $P6`;
+          localParams = [dateFromStr, dateToStr, monthStart, dateToStr, prevMonthStart, prevMonthEnd];
         }
-        if (tinhTrangIpoList.length) {
-          allParams.push(tinhTrangIpoList);
-          pConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${allParams.length}::text[])`);
+        const baseIdx = allParams.length;
+        localParams.forEach((p) => allParams.push(p));
+        const remap = (cond) => cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
+        const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
+        const outerConds = [];
+        if (!useAllTime) {
+          allParams.push(outerLo, outerHi);
+          outerConds.push(`${colBare("date_parsed")} BETWEEN $${allParams.length - 1} AND $${allParams.length}`);
         }
-        outerConds.push(`EXISTS (SELECT 1 FROM production_status_app p WHERE ${pConds.join(" AND ")})`);
-      }
-      const outerWhere = outerConds.length ? outerConds.join(" AND ") : "TRUE";
-      const joinClause = "";
-      subQueries.push(`
+        if (cfg.hexCol) outerConds.push(notCancelledHexCond(colBare(cfg.hexCol), "cancelled_hex"));
+        if (congTrinhList.length && cfg.congTrinhCol) {
+          allParams.push(congTrinhList);
+          outerConds.push(`${normNameSql(colBare(cfg.congTrinhCol))} = ANY($${allParams.length}::text[])`);
+        }
+        if (xuongList.length && cfg.xuongCol) {
+          allParams.push(xuongList);
+          outerConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${allParams.length}::text[])`);
+        }
+        if (role && cfg.hexCol) outerConds.push(role.existsCond(colBare(cfg.hexCol), cfg.productionJoinCol || "hex"));
+        const outerWhere = outerConds.length ? outerConds.join(" AND ") : "TRUE";
+        subQueries.push(`
         SELECT
           '${key}' AS source_key,
           ${countExpr} FILTER (WHERE ${remap(periodCond)}) AS period_count,
@@ -65300,23 +65453,22 @@ app.get("/api/overview/summary", async (req, res) => {
           ${countExpr} FILTER (WHERE ${remap(lastMonthCond)}) AS last_month_count,
           COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${remap(lastMonthCond)}), 0) / ${cfg.valueDivisor} AS last_month_value
         FROM ${cfg.table} ${alias}
-        ${joinClause}
         WHERE ${outerWhere}
       `);
-    });
-    const finalQuery = subQueries.join("\nUNION ALL\n");
-    const r = await timedQuery(finalQuery, allParams);
-    const results = {};
-    r.rows.forEach((row) => {
-      results[row.source_key] = {
-        daily: { count: Number(row.period_count), value: Number(row.period_value) },
-        mtd: { count: Number(row.mtd_count), value: Number(row.mtd_value) },
-        lastMonth: { count: Number(row.last_month_count), value: Number(row.last_month_value) }
-      };
-    });
-    const overviewPayload = { date: dateToStr, dateFrom: dateFromStr, ...results };
-    overviewSummaryCache.set(cacheKey, { versions: overviewVersions, payload: overviewPayload });
-    trimCache(overviewSummaryCache);
+      });
+      const finalQuery = `WITH ${ctes.join(",\n")}
+${subQueries.join("\nUNION ALL\n")}`;
+      const r = await timedQuery(finalQuery, allParams, { workMemMb: 32 });
+      const results = {};
+      r.rows.forEach((row) => {
+        results[row.source_key] = {
+          daily: { count: Number(row.period_count), value: Number(row.period_value) },
+          mtd: { count: Number(row.mtd_count), value: Number(row.mtd_value) },
+          lastMonth: { count: Number(row.last_month_count), value: Number(row.last_month_value) }
+        };
+      });
+      return { date: dateToStr, dateFrom: dateFromStr, ...results };
+    }, workshopGroupsVersion());
     res.json(overviewPayload);
   } catch (error61) {
     console.error("L\u1ED7i overview/summary:", error61);
@@ -65335,67 +65487,74 @@ app.get("/api/overview/by-group", async (req, res) => {
     if (!groupColRaw) return res.json([]);
     const groupCol = colBare(groupColRaw);
     const congTrinhList = expandProjectNames(parseNameList(req.query.congTrinh));
-    const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
-    const tinhTrangList = String(req.query.tinhTrang || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).sort();
-    const tinhTrangIpoList = String(req.query.tinhTrangIpo || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).sort();
-    const needsRoleJoin = tinhTrangList.length > 0 || tinhTrangIpoList.length > 0;
-    const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
-    const useExplicitDates = explicitDates.length > 0;
-    const dateToRaw = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || vnTodayUtc();
-    const dateFromRaw = parseSafeDate(req.query.dateFrom) || dateToRaw;
-    const dateToStr = dateToRaw.toISOString().slice(0, 10);
-    const dateFromStr = dateFromRaw.toISOString().slice(0, 10);
-    const refDateStr = useExplicitDates ? [...explicitDates].sort().slice(-1)[0] : dateToStr;
-    const monthStart = `${refDateStr.slice(0, 7)}-01`;
-    const params = [];
-    let periodCond;
-    if (req.query.allTime === "1" && !useExplicitDates) {
-      periodCond = "TRUE";
-    } else if (useExplicitDates) {
-      params.push(explicitDates);
-      periodCond = `${colBare("date_parsed")} = ANY($1::date[])`;
-    } else {
-      params.push(dateFromStr, dateToStr);
-      periodCond = `${colBare("date_parsed")} BETWEEN $1 AND $2`;
-    }
-    const monthStartIdx = params.length + 1;
-    const refDateIdx = params.length + 2;
-    params.push(monthStart, refDateStr);
-    const mtdCond = `${colBare("date_parsed")} BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
-    const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
-    const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
-    const outerLo = periodCond === "TRUE" ? "1900-01-01" : loCandidates.sort()[0];
-    const outerHi = hiCandidates.sort().slice(-1)[0];
-    const outerLoIdx = params.length + 1;
-    const outerHiIdx = params.length + 2;
-    params.push(outerLo, outerHi);
-    const extraConds = [];
-    if (cfg.hexCol) extraConds.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (congTrinhList.length && cfg.congTrinhCol) {
-      params.push(congTrinhList);
-      extraConds.push(`${normNameSql(colBare(cfg.congTrinhCol))} = ANY($${params.length}::text[])`);
-    }
-    if (xuongList.length && cfg.xuongCol) {
-      params.push(xuongList);
-      extraConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${params.length}::text[])`);
-    }
-    if (needsRoleJoin) {
-      const pConds = [
-        `p."${cfg.productionJoinCol || "hex"}"::text = ${colBare(cfg.hexCol)}::text`
-      ];
-      if (tinhTrangList.length) {
-        params.push(tinhTrangList);
-        pConds.push(`UPPER(TRIM(p.tinh_trang)) = ANY($${params.length}::text[])`);
+    const xuongList = expandWorkshops(splitUpper(req.query.xuong));
+    const tinhTrangList = splitUpper(req.query.tinhTrang).sort();
+    const tinhTrangIpoList = splitUpper(req.query.tinhTrangIpo).sort();
+    const cacheKey = JSON.stringify({
+      key,
+      groupBy,
+      dateFrom: req.query.dateFrom || null,
+      dateTo: req.query.dateTo || null,
+      date: req.query.date || null,
+      dates: req.query.dates || null,
+      allTime: req.query.allTime || null,
+      today: vnDayKey(/* @__PURE__ */ new Date()),
+      congTrinh: congTrinhList,
+      xuong: xuongList,
+      tinhTrang: tinhTrangList,
+      tinhTrangIpo: tinhTrangIpoList
+    });
+    const rows = await cachedByVersions(overviewByGroupCache, cacheKey, [key, "production"], async () => {
+      const explicitDates = String(req.query.dates || "").split(",").map((s) => parseSafeDate(s.trim())).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10));
+      const useExplicitDates = explicitDates.length > 0;
+      const dateToRaw = parseSafeDate(req.query.dateTo) || parseSafeDate(req.query.date) || vnTodayUtc();
+      const dateFromRaw = parseSafeDate(req.query.dateFrom) || dateToRaw;
+      const dateToStr = dateToRaw.toISOString().slice(0, 10);
+      const dateFromStr = dateFromRaw.toISOString().slice(0, 10);
+      const refDateStr = useExplicitDates ? [...explicitDates].sort().slice(-1)[0] : dateToStr;
+      const monthStart = `${refDateStr.slice(0, 7)}-01`;
+      const params = [];
+      let periodCond;
+      if (req.query.allTime === "1" && !useExplicitDates) {
+        periodCond = "TRUE";
+      } else if (useExplicitDates) {
+        params.push(explicitDates);
+        periodCond = `${colBare("date_parsed")} = ANY($1::date[])`;
+      } else {
+        params.push(dateFromStr, dateToStr);
+        periodCond = `${colBare("date_parsed")} BETWEEN $1 AND $2`;
       }
-      if (tinhTrangIpoList.length) {
-        params.push(tinhTrangIpoList);
-        pConds.push(`UPPER(TRIM(p.tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+      const monthStartIdx = params.length + 1;
+      const refDateIdx = params.length + 2;
+      params.push(monthStart, refDateStr);
+      const mtdCond = `${colBare("date_parsed")} BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
+      const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
+      const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
+      const outerLo = periodCond === "TRUE" ? "1900-01-01" : loCandidates.sort()[0];
+      const outerHi = hiCandidates.sort().slice(-1)[0];
+      const outerLoIdx = params.length + 1;
+      const outerHiIdx = params.length + 2;
+      params.push(outerLo, outerHi);
+      const ctes = [`cancelled_hex AS (${CANCELLED_HEX_SQL})`];
+      const extraConds = [];
+      if (cfg.hexCol) extraConds.push(notCancelledHexCond(colBare(cfg.hexCol), "cancelled_hex"));
+      if (congTrinhList.length && cfg.congTrinhCol) {
+        params.push(congTrinhList);
+        extraConds.push(`${normNameSql(colBare(cfg.congTrinhCol))} = ANY($${params.length}::text[])`);
       }
-      extraConds.push(`EXISTS (SELECT 1 FROM production_status_app p WHERE ${pConds.join(" AND ")})`);
-    }
-    const extraWhere = extraConds.length ? ` AND ${extraConds.join(" AND ")}` : "";
-    const joinClause = "";
-    const q = `
+      if (xuongList.length && cfg.xuongCol) {
+        params.push(xuongList);
+        extraConds.push(`UPPER(TRIM(${colBare(cfg.xuongCol)})) = ANY($${params.length}::text[])`);
+      }
+      const joinCol = cfg.productionJoinCol || "hex";
+      const role = buildRoleFilter(tinhTrangList, tinhTrangIpoList, params, [joinCol]);
+      if (role && cfg.hexCol) {
+        ctes.push(...role.ctes);
+        extraConds.push(role.existsCond(colBare(cfg.hexCol), joinCol));
+      }
+      const extraWhere = extraConds.length ? ` AND ${extraConds.join(" AND ")}` : "";
+      const q = `
+      WITH ${ctes.join(",\n")}
       SELECT
         COALESCE(NULLIF(${groupBy === "congtrinh" ? `TRIM(${groupCol})` : workshopGroupSql(groupCol)}, ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
         COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${periodCond}) AS daily_count,
@@ -65403,28 +65562,27 @@ app.get("/api/overview/by-group", async (req, res) => {
         COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
-      ${joinClause}
       WHERE ${periodCond === "TRUE" ? `(${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx} OR ${colBare("date_parsed")} IS NULL)` : `${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx}`}${extraWhere}
       GROUP BY 1
       ORDER BY mtd_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const merged = /* @__PURE__ */ new Map();
-    for (const row of r.rows) {
-      const raw = row.name;
-      const name = groupBy === "congtrinh" && raw !== "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? canonicalProjectName(raw) : raw;
-      const e = merged.get(name) ?? { name, dailyCount: 0, dailyValue: 0, mtdCount: 0, mtdValue: 0 };
-      e.dailyCount += Number(row.daily_count);
-      e.dailyValue += Number(row.daily_value);
-      e.mtdCount += Number(row.mtd_count);
-      e.mtdValue += Number(row.mtd_value);
-      merged.set(name, e);
-    }
-    res.json(
-      [...merged.values()].sort((a, b) => b.mtdValue - a.mtdValue).filter(
+      const r = await timedQuery(q, params, { workMemMb: 32 });
+      const merged = /* @__PURE__ */ new Map();
+      for (const row of r.rows) {
+        const raw = row.name;
+        const name = groupBy === "congtrinh" && raw !== "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? canonicalProjectName(raw) : raw;
+        const e = merged.get(name) ?? { name, dailyCount: 0, dailyValue: 0, mtdCount: 0, mtdValue: 0 };
+        e.dailyCount += Number(row.daily_count);
+        e.dailyValue += Number(row.daily_value);
+        e.mtdCount += Number(row.mtd_count);
+        e.mtdValue += Number(row.mtd_value);
+        merged.set(name, e);
+      }
+      return [...merged.values()].sort((a, b) => b.mtdValue - a.mtdValue).filter(
         (row) => row.dailyCount > 0 || row.dailyValue > 0 || row.mtdCount > 0 || row.mtdValue > 0
-      )
-    );
+      );
+    }, workshopGroupsVersion());
+    res.json(rows);
   } catch (error61) {
     console.error("L\u1ED7i overview/by-group:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -65433,6 +65591,9 @@ app.get("/api/overview/by-group", async (req, res) => {
 
 // src/routes/stock.ts
 var stockDatesCache = /* @__PURE__ */ new Map();
+var stockQueryCache = createCache(40);
+var stockItemsCache = createCache(10);
+var STOCK_VERSION_KEYS = ["stock", "production"];
 var parseStockFilters = (req) => ({
   // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
   congTrinh: expandProjectNames(parseNameList(req.query.congTrinh)),
@@ -65546,32 +65707,33 @@ app.get("/api/stock/by-project", async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date5) || !parseSafeDate(date5)) return res.status(400).json({ error: "Invalid date" });
     const filters = parseStockFilters(req);
     const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
-    const conds = ["s.date_parsed = $1"];
-    const params = [date5];
-    if (filters.congTrinh.length) {
-      params.push(filters.congTrinh);
-      conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
-    }
-    let cteClause = "";
-    let joinClause = "";
-    if (needsJoin) {
-      const pConds = [];
-      if (filters.xuong.length) {
-        params.push(filters.xuong);
-        pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
+    const rows = await cachedByVersions(stockQueryCache, `by-project|${date5}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
+      const conds = ["s.date_parsed = $1"];
+      const params = [date5];
+      if (filters.congTrinh.length) {
+        params.push(filters.congTrinh);
+        conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
       }
-      if (filters.tinhTrang.length) {
-        params.push(filters.tinhTrang);
-        pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
+      let cteClause = "";
+      let joinClause = "";
+      if (needsJoin) {
+        const pConds = [];
+        if (filters.xuong.length) {
+          params.push(filters.xuong);
+          pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
+        }
+        if (filters.tinhTrang.length) {
+          params.push(filters.tinhTrang);
+          pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
+        }
+        if (filters.tinhTrangIpo.length) {
+          params.push(filters.tinhTrangIpo);
+          pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+        }
+        cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
+        joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
       }
-      if (filters.tinhTrangIpo.length) {
-        params.push(filters.tinhTrangIpo);
-        pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
-      }
-      cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
-      joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
-    }
-    const q = `
+      const q = `
       ${cteClause}
       SELECT COALESCE(NULLIF(TRIM(s.ten_cong_trinh), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
@@ -65582,16 +65744,18 @@ app.get("/api/stock/by-project", async (req, res) => {
       GROUP BY 1
       ORDER BY value DESC
     `;
-    const r = await timedQuery(q, params);
-    const merged = /* @__PURE__ */ new Map();
-    for (const row of r.rows) {
-      const name = row.name === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.name : canonicalProjectName(row.name);
-      const e = merged.get(name) ?? { count: 0, value: 0 };
-      e.count += Number(row.count);
-      e.value += Number(row.value);
-      merged.set(name, e);
-    }
-    res.json([...merged.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value));
+      const r = await timedQuery(q, params);
+      const merged = /* @__PURE__ */ new Map();
+      for (const row of r.rows) {
+        const name = row.name === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.name : canonicalProjectName(row.name);
+        const e = merged.get(name) ?? { count: 0, value: 0 };
+        e.count += Number(row.count);
+        e.value += Number(row.value);
+        merged.set(name, e);
+      }
+      return [...merged.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value);
+    }, workshopGroupsVersion());
+    res.json(rows);
   } catch (error61) {
     console.error("L\u1ED7i stock/by-project:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -65605,26 +65769,27 @@ app.get("/api/stock/items", async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date5) || !parseSafeDate(date5)) return res.status(400).json({ error: "Invalid date" });
     const project = String(req.query.project || "").trim().toUpperCase();
     const filters = parseStockFilters(req);
-    const conds = ["s.date_parsed = $1"];
-    const params = [date5];
-    if (project === "CH\u01AFA X\xC1C \u0110\u1ECANH") {
-      conds.push(`TRIM(COALESCE(s.ten_cong_trinh, '')) = ''`);
-    } else if (project) {
-      params.push(expandProjectNames([project]));
-      conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
-    } else if (filters.congTrinh.length) {
-      params.push(filters.congTrinh);
-      conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
-    }
-    if (filters.xuong.length) {
-      params.push(filters.xuong);
-      conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
-    }
-    params.push(STOCK_ITEMS_LIMIT + 1);
-    const r = await timedQuery(
-      // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
-      // tồn => ~4k lần quét bảng sản xuất, vượt statement timeout khi không lọc công trình)
-      `WITH p AS (
+    const payload = await cachedByVersions(stockItemsCache, `items|${date5}|${project}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
+      const conds = ["s.date_parsed = $1"];
+      const params = [date5];
+      if (project === "CH\u01AFA X\xC1C \u0110\u1ECANH") {
+        conds.push(`TRIM(COALESCE(s.ten_cong_trinh, '')) = ''`);
+      } else if (project) {
+        params.push(expandProjectNames([project]));
+        conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
+      } else if (filters.congTrinh.length) {
+        params.push(filters.congTrinh);
+        conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
+      }
+      if (filters.xuong.length) {
+        params.push(filters.xuong);
+        conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
+      }
+      params.push(STOCK_ITEMS_LIMIT + 1);
+      const r = await timedQuery(
+        // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
+        // tồn => ~4k lần quét bảng sản xuất, vượt statement timeout khi không lọc công trình)
+        `WITH p AS (
          SELECT DISTINCT ON (ma_id_sap) ma_id_sap::text AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
          FROM production_status_app
          WHERE ma_id_sap IS NOT NULL
@@ -65643,10 +65808,13 @@ app.get("/api/stock/items", async (req, res) => {
        ) x
        ORDER BY gia_tri DESC NULLS LAST
        LIMIT $${params.length}`,
-      params
-    );
-    const truncated = r.rows.length > STOCK_ITEMS_LIMIT;
-    res.json({ rows: r.rows.slice(0, STOCK_ITEMS_LIMIT).map((row) => ({ ...row, gia_tri: Number(row.gia_tri) || 0 })), truncated });
+        params,
+        { workMemMb: 32 }
+      );
+      const truncated = r.rows.length > STOCK_ITEMS_LIMIT;
+      return { rows: r.rows.slice(0, STOCK_ITEMS_LIMIT).map((row) => ({ ...row, gia_tri: Number(row.gia_tri) || 0 })), truncated };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i stock/items:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -65731,10 +65899,13 @@ app.get("/api/stock/total-count", async (req, res) => {
   try {
     const filters = parseStockFilters(req);
     if (filters.congTrinh.length || filters.xuong.length) {
-      const params = [];
-      const conds = stockScopeConds(filters, params);
-      const rr = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho WHERE ${conds.join(" AND ")}`, params);
-      return res.json({ total: Number(rr.rows[0].total) });
+      const total2 = await cachedByVersions(stockQueryCache, `total-count|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
+        const params = [];
+        const conds = stockScopeConds(filters, params);
+        const rr = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho WHERE ${conds.join(" AND ")}`, params);
+        return Number(rr.rows[0].total);
+      }, workshopGroupsVersion());
+      return res.json({ total: total2 });
     }
     const verResult = await timedQuery(
       `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
@@ -65755,14 +65926,17 @@ app.get("/api/stock/total-count", async (req, res) => {
 });
 
 // src/routes/revenue.ts
+var revenueCache = createCache(20);
+var REVENUE_VERSION_KEYS = ["yearlyPlan", "inventory", "production"];
 app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
   try {
     const yearParam = Number(req.params.year);
     const year = Number.isInteger(yearParam) && yearParam > 2e3 && yearParam < 2100 ? yearParam : currentVnYear();
-    const yearStart = `${year}-01-01`;
-    const yearEnd = `${year}-12-31`;
-    const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
-      () => timedQuery(`
+    const payload = await cachedByVersions(revenueCache, `revenue|${year}`, REVENUE_VERSION_KEYS, async () => {
+      const yearStart = `${year}-01-01`;
+      const yearEnd = `${year}-12-31`;
+      const [planQ, actualQ, byWorkshopPlanQ, byWorkshopActualQ] = await runWithLimit([
+        () => timedQuery(`
         SELECT
           COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS total,
           COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")})
@@ -65773,48 +65947,50 @@ app.get(["/api/revenue", "/api/revenue/:year"], async (req, res) => {
             FILTER (WHERE NULLIF(regexp_replace(thang::text, '[^0-9]', '', 'g'), '')::int BETWEEN 1 AND 9), 0) AS q3
         FROM khsx_nam WHERE nam = $1::bigint
       `, [String(year)]),
-      () => timedQuery(`
+        () => timedQuery(`
         SELECT COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS total
         FROM nhap_kho
         WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
       `, [yearStart, yearEnd]),
-      () => timedQuery(`
+        () => timedQuery(`
         SELECT COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C') AS name,
                COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS plan
         FROM khsx_nam WHERE nam = $1::bigint
         GROUP BY 1
       `, [String(year)]),
-      () => timedQuery(`
+        () => timedQuery(`
         SELECT COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C') AS name,
                COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) AS actual
         FROM nhap_kho
         WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
         GROUP BY 1
       `, [yearStart, yearEnd])
-    ], 2);
-    const targetTotal = Number(planQ.rows[0].total);
-    const actualTotal = Number(actualQ.rows[0].total) / TRIEU_TO_TY;
-    const workshopMap = {};
-    byWorkshopPlanQ.rows.forEach((r) => {
-      workshopMap[r.name] = { plan: Number(r.plan), actual: 0 };
-    });
-    byWorkshopActualQ.rows.forEach((r) => {
-      if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
-      workshopMap[r.name].actual = Number(r.actual) / TRIEU_TO_TY;
-    });
-    const byWorkshop = Object.entries(workshopMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => a.name === "KH\xC1C" ? 1 : b.name === "KH\xC1C" ? -1 : a.name.localeCompare(b.name));
-    res.json({
-      year,
-      targetRevenue2026: targetTotal,
-      quarterlyTargets: {
-        q1: Number(planQ.rows[0].q1),
-        q2: Number(planQ.rows[0].q2),
-        q3: Number(planQ.rows[0].q3),
-        q4: targetTotal
-      },
-      actual: { value: actualTotal, percent: targetTotal > 0 ? actualTotal / targetTotal * 100 : 0 },
-      byWorkshop
-    });
+      ], 2);
+      const targetTotal = Number(planQ.rows[0].total);
+      const actualTotal = Number(actualQ.rows[0].total) / TRIEU_TO_TY;
+      const workshopMap = {};
+      byWorkshopPlanQ.rows.forEach((r) => {
+        workshopMap[r.name] = { plan: Number(r.plan), actual: 0 };
+      });
+      byWorkshopActualQ.rows.forEach((r) => {
+        if (!workshopMap[r.name]) workshopMap[r.name] = { plan: 0, actual: 0 };
+        workshopMap[r.name].actual = Number(r.actual) / TRIEU_TO_TY;
+      });
+      const byWorkshop = Object.entries(workshopMap).map(([name, v]) => ({ name, ...v })).sort((a, b) => a.name === "KH\xC1C" ? 1 : b.name === "KH\xC1C" ? -1 : a.name.localeCompare(b.name));
+      return {
+        year,
+        targetRevenue2026: targetTotal,
+        quarterlyTargets: {
+          q1: Number(planQ.rows[0].q1),
+          q2: Number(planQ.rows[0].q2),
+          q3: Number(planQ.rows[0].q3),
+          q4: targetTotal
+        },
+        actual: { value: actualTotal, percent: targetTotal > 0 ? actualTotal / targetTotal * 100 : 0 },
+        byWorkshop
+      };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i revenue:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -65830,30 +66006,33 @@ app.get("/api/khsx-nam/plan", async (req, res) => {
     if (!mf || !mt) return res.status(400).json({ error: "from/to ph\u1EA3i d\u1EA1ng YYYY-MM" });
     const fromKey = Number(mf[1]) * 100 + Number(mf[2]);
     const toKey = Number(mt[1]) * 100 + Number(mt[2]);
-    const params = [fromKey, toKey];
-    let where = `(nam::int * 100 + thang::int) BETWEEN $1 AND $2`;
-    const xuong = String(req.query.xuong || "").trim();
-    if (xuong) where += ` AND ${workshopCondition("xuong_chinh", xuong, params)}`;
-    const value = numericCol("khsx_nam", "thanh_tien_ke_hoach");
-    const [byMonth, byXuong] = await Promise.all([
-      timedQuery(
-        `SELECT nam::int AS nam, thang::int AS thang, COALESCE(SUM(${value}), 0) AS value
+    const payload = await cachedByVersions(revenueCache, `plan|${fromKey}|${toKey}|${req.query.xuong || ""}`, ["yearlyPlan"], async () => {
+      const params = [fromKey, toKey];
+      let where = `(nam::int * 100 + thang::int) BETWEEN $1 AND $2`;
+      const xuong = String(req.query.xuong || "").trim();
+      if (xuong) where += ` AND ${workshopCondition("xuong_chinh", xuong, params)}`;
+      const value = numericCol("khsx_nam", "thanh_tien_ke_hoach");
+      const [byMonth, byXuong] = await Promise.all([
+        timedQuery(
+          `SELECT nam::int AS nam, thang::int AS thang, COALESCE(SUM(${value}), 0) AS value
          FROM khsx_nam WHERE ${where} GROUP BY 1, 2 ORDER BY 1, 2`,
-        params
-      ),
-      timedQuery(
-        `SELECT ${workshopGroupSql("xuong_chinh")} AS xuong, COALESCE(SUM(${value}), 0) AS value
+          params
+        ),
+        timedQuery(
+          `SELECT ${workshopGroupSql("xuong_chinh")} AS xuong, COALESCE(SUM(${value}), 0) AS value
          FROM khsx_nam WHERE ${where} GROUP BY 1 ORDER BY 1`,
-        params
-      )
-    ]);
-    res.json({
-      byMonth: byMonth.rows.map((r) => ({
-        period: `${r.nam}-${String(r.thang).padStart(2, "0")}`,
-        value: Number(r.value)
-      })),
-      byXuong: byXuong.rows.map((r) => ({ xuong: r.xuong, value: Number(r.value) }))
-    });
+          params
+        )
+      ]);
+      return {
+        byMonth: byMonth.rows.map((r) => ({
+          period: `${r.nam}-${String(r.thang).padStart(2, "0")}`,
+          value: Number(r.value)
+        })),
+        byXuong: byXuong.rows.map((r) => ({ xuong: r.xuong, value: Number(r.value) }))
+      };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i khsx-nam/plan:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -65862,32 +66041,35 @@ app.get("/api/khsx-nam/plan", async (req, res) => {
 app.get("/api/khsx-nam/plan-actual", async (req, res) => {
   try {
     const year = Number(req.query.year) || currentVnYear();
-    const yearStart = `${year}-01-01`;
-    const yearEnd = `${year}-12-31`;
-    const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C')`;
-    const [plan, actual] = await Promise.all([
-      timedQuery(
-        `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
+    const payload = await cachedByVersions(revenueCache, `plan-actual|${year}`, REVENUE_VERSION_KEYS, async () => {
+      const yearStart = `${year}-01-01`;
+      const yearEnd = `${year}-12-31`;
+      const xuongExpr = `COALESCE(NULLIF(${workshopGroupSql("xuong_chinh")}, ''), 'KH\xC1C')`;
+      const [plan, actual] = await Promise.all([
+        timedQuery(
+          `SELECT thang::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol("khsx_nam", "thanh_tien_ke_hoach")}), 0) AS value
          FROM khsx_nam WHERE nam = $1::bigint GROUP BY 1, 2`,
-        [String(year)]
-      ),
-      timedQuery(
-        `SELECT EXTRACT(MONTH FROM date_parsed)::int AS thang, ${xuongExpr} AS xuong,
+          [String(year)]
+        ),
+        timedQuery(
+          `SELECT EXTRACT(MONTH FROM date_parsed)::int AS thang, ${xuongExpr} AS xuong,
                 COALESCE(SUM(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}), 0) / ${TRIEU_TO_TY} AS value
          FROM nhap_kho
          WHERE date_parsed BETWEEN $1 AND $2 AND ${notCancelledHexCond("hex")}
          GROUP BY 1, 2`,
-        [yearStart, yearEnd]
-      )
-    ]);
-    const map2 = (rows) => rows.map((r) => ({ thang: Number(r.thang), xuong: String(r.xuong), value: Number(r.value) }));
-    const p = map2(plan.rows), a = map2(actual.rows);
-    const seen = new Set([...p, ...a].map((r) => r.xuong).filter(Boolean));
-    const main = TARGET_WORKSHOPS.filter((w) => seen.has(w));
-    const rest = [...seen].filter((w) => !TARGET_WORKSHOPS.includes(w) && w !== "KH\xC1C").sort();
-    const workshops = [...main, ...rest, ...seen.has("KH\xC1C") ? ["KH\xC1C"] : []];
-    res.json({ year, workshops, plan: p, actual: a });
+          [yearStart, yearEnd]
+        )
+      ]);
+      const map2 = (rows) => rows.map((r) => ({ thang: Number(r.thang), xuong: String(r.xuong), value: Number(r.value) }));
+      const p = map2(plan.rows), a = map2(actual.rows);
+      const seen = new Set([...p, ...a].map((r) => r.xuong).filter(Boolean));
+      const main = TARGET_WORKSHOPS.filter((w) => seen.has(w));
+      const rest = [...seen].filter((w) => !TARGET_WORKSHOPS.includes(w) && w !== "KH\xC1C").sort();
+      const workshops = [...main, ...rest, ...seen.has("KH\xC1C") ? ["KH\xC1C"] : []];
+      return { year, workshops, plan: p, actual: a };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i khsx-nam/plan-actual:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -66347,46 +66529,42 @@ usersRouter.delete("/:id", async (req, res) => {
 app.use("/api/users", usersRouter);
 
 // src/routes/khsx.ts
-var khsxNhapKhoCache = /* @__PURE__ */ new Map();
+var khsxNhapKhoCache = createCache(50);
 var KHSX_NHAPKHO_VERSION_KEYS = ["khsx", "inventory", "production"];
 app.get("/api/khsx-nhapkho/summary", async (req, res) => {
   try {
     const { nam, thang, mode = "month", tuan, ngay, congTrinh, xuong } = req.query;
     if (!nam) return res.status(400).json({ error: "Missing nam" });
-    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong, wg: workshopGroupsVersion() });
-    const khsxVersions = await getRelevantVersions(KHSX_NHAPKHO_VERSION_KEYS);
-    const cachedKhsx = khsxNhapKhoCache.get(khsxCacheKey);
-    if (cachedKhsx && JSON.stringify(cachedKhsx.versions) === JSON.stringify(khsxVersions)) {
-      return res.json(cachedKhsx.payload);
-    }
-    const isWeek = mode === "week";
-    const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
-    const normalize = (s) => s.trim().toUpperCase();
-    const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
-    const thangList = numList(thang), tuanList = numList(tuan), ngayList = numList(ngay);
-    const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
-    const congTrinhList = expandProjectNames(parseNameList(congTrinh));
-    const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
-    const khParams = [phanLoaiPattern, nam];
-    let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint AND ${notCancelledHexCond("hex")}`;
-    if (useThang) {
-      khParams.push(thangList);
-      khWhere += ` AND thang = ANY($${khParams.length}::bigint[])`;
-    }
-    if (isWeek && tuanList.length) {
-      khParams.push(tuanList);
-      khWhere += ` AND tuan = ANY($${khParams.length}::double precision[])`;
-    }
-    if (isWeek && ngayList.length) {
-      khParams.push(ngayList);
-      khWhere += ` AND ngay = ANY($${khParams.length}::double precision[])`;
-    }
-    if (congTrinhList.length) {
-      khParams.push(congTrinhList);
-      khWhere += ` AND ${normNameSql("ten_cong_trinh")} = ANY($${khParams.length}::text[])`;
-    }
-    if (xuongList.length) khWhere += ` AND ${workshopCondition("xuong_chinh", xuongList, khParams)}`;
-    const khQuery = `
+    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxPayload = await cachedByVersions(khsxNhapKhoCache, khsxCacheKey, KHSX_NHAPKHO_VERSION_KEYS, async () => {
+      const isWeek = mode === "week";
+      const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
+      const normalize = (s) => s.trim().toUpperCase();
+      const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
+      const thangList = numList(thang), tuanList = numList(tuan), ngayList = numList(ngay);
+      const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
+      const congTrinhList = expandProjectNames(parseNameList(congTrinh));
+      const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
+      const khParams = [phanLoaiPattern, nam];
+      let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint AND ${notCancelledHexCond("hex")}`;
+      if (useThang) {
+        khParams.push(thangList);
+        khWhere += ` AND thang = ANY($${khParams.length}::bigint[])`;
+      }
+      if (isWeek && tuanList.length) {
+        khParams.push(tuanList);
+        khWhere += ` AND tuan = ANY($${khParams.length}::double precision[])`;
+      }
+      if (isWeek && ngayList.length) {
+        khParams.push(ngayList);
+        khWhere += ` AND ngay = ANY($${khParams.length}::double precision[])`;
+      }
+      if (congTrinhList.length) {
+        khParams.push(congTrinhList);
+        khWhere += ` AND ${normNameSql("ten_cong_trinh")} = ANY($${khParams.length}::text[])`;
+      }
+      if (xuongList.length) khWhere += ` AND ${workshopCondition("xuong_chinh", xuongList, khParams)}`;
+      const khQuery = `
       SELECT
         ${workshopGroupSql("xuong_chinh")} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
@@ -66396,52 +66574,55 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       ${khWhere}
       GROUP BY 1, 2, 3
     `;
-    const khResult = await timedQuery(khQuery, khParams);
-    const thParams = [nam];
-    let thWhere = `WHERE nam = $1::bigint AND ${notCancelledHexCond("hex")}`;
-    if (useThang) {
-      thParams.push(thangList);
-      thWhere += ` AND thang = ANY($${thParams.length}::bigint[])`;
-    }
-    if (isWeek && tuanList.length) {
-      thParams.push(Number(nam));
-      const y = `$${thParams.length}::int`;
-      thParams.push(tuanList);
-      const w = `to_date((${y})::text || '-' || wk::text, 'IYYY-IW')`;
-      thWhere += ` AND EXISTS (SELECT 1 FROM UNNEST($${thParams.length}::int[]) wk
-        WHERE date_parsed BETWEEN GREATEST(${w}, make_date(${y}, 1, 1)) AND LEAST(${w} + 6, make_date(${y}, 12, 31)))`;
-    }
-    if (isWeek && ngayList.length) {
-      thParams.push(ngayList);
-      thWhere += ` AND ngay = ANY($${thParams.length}::bigint[])`;
-    }
-    if (congTrinhList.length) {
-      thParams.push(congTrinhList);
-      thWhere += ` AND ${normNameSql("ten_cong_trinh")} = ANY($${thParams.length}::text[])`;
-    }
-    if (xuongList.length) thWhere += ` AND ${workshopCondition("xuong_chinh", xuongList, thParams)}`;
-    thParams.push(phanLoaiPattern, nam);
-    let planHexWhere = `UPPER(TRIM(phan_loai_kh)) LIKE $${thParams.length - 1} AND nam = $${thParams.length}::bigint AND hex IS NOT NULL`;
-    if (useThang) {
-      thParams.push(thangList);
-      planHexWhere += ` AND thang = ANY($${thParams.length}::bigint[])`;
-    }
-    if (isWeek && tuanList.length) {
-      thParams.push(tuanList);
-      planHexWhere += ` AND tuan = ANY($${thParams.length}::double precision[])`;
-    }
-    if (isWeek && ngayList.length) {
-      thParams.push(ngayList);
-      planHexWhere += ` AND ngay = ANY($${thParams.length}::double precision[])`;
-    }
-    if (isWeek) thParams.push(Number(nam));
-    const yIdx = thParams.length;
-    const wkStart = `to_date(($${yIdx}::int)::text || '-' || ph.tuan::int::text, 'IYYY-IW')`;
-    const inPlanExpr = isWeek ? `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text
-           AND nhap_kho.date_parsed BETWEEN GREATEST(${wkStart}, make_date($${yIdx}::int, 1, 1))
-                                        AND LEAST(${wkStart} + 6, make_date($${yIdx}::int, 12, 31)))` : `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND ph.thang = nhap_kho.thang)`;
-    const thQuery = `
-      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex, thang, tuan FROM khsx WHERE ${planHexWhere})
+      const khResult = await timedQuery(khQuery, khParams, { workMemMb: 32 });
+      const thParams = [nam];
+      let thWhere = `WHERE nam = $1::bigint AND ${notCancelledHexCond("hex")}`;
+      if (useThang) {
+        thParams.push(thangList);
+        thWhere += ` AND thang = ANY($${thParams.length}::bigint[])`;
+      }
+      if (isWeek && tuanList.length) {
+        const ranges = tuanList.map((w) => isoWeekRangeInYear(Number(nam), Math.trunc(w))).filter((r) => r !== null).map((r) => `[${r.start},${r.end}]`);
+        if (ranges.length) {
+          thParams.push(ranges);
+          thWhere += ` AND date_parsed <@ ANY($${thParams.length}::daterange[])`;
+        } else thWhere += " AND FALSE";
+      }
+      if (isWeek && ngayList.length) {
+        thParams.push(ngayList);
+        thWhere += ` AND ngay = ANY($${thParams.length}::bigint[])`;
+      }
+      if (congTrinhList.length) {
+        thParams.push(congTrinhList);
+        thWhere += ` AND ${normNameSql("ten_cong_trinh")} = ANY($${thParams.length}::text[])`;
+      }
+      if (xuongList.length) thWhere += ` AND ${workshopCondition("xuong_chinh", xuongList, thParams)}`;
+      thParams.push(phanLoaiPattern, nam);
+      let planHexWhere = `UPPER(TRIM(phan_loai_kh)) LIKE $${thParams.length - 1} AND nam = $${thParams.length}::bigint AND hex IS NOT NULL`;
+      if (useThang) {
+        thParams.push(thangList);
+        planHexWhere += ` AND thang = ANY($${thParams.length}::bigint[])`;
+      }
+      if (isWeek && tuanList.length) {
+        thParams.push(tuanList);
+        planHexWhere += ` AND tuan = ANY($${thParams.length}::double precision[])`;
+      }
+      if (isWeek && ngayList.length) {
+        thParams.push(ngayList);
+        planHexWhere += ` AND ngay = ANY($${thParams.length}::double precision[])`;
+      }
+      if (isWeek) thParams.push(Number(nam));
+      const yIdx = thParams.length;
+      const planHexCte = isWeek ? `plan_hex AS MATERIALIZED (
+           SELECT hex, thang,
+                  GREATEST(ws, make_date($${yIdx}::int, 1, 1)) AS ws,
+                  LEAST(ws + 6, make_date($${yIdx}::int, 12, 31)) AS we
+           FROM (SELECT DISTINCT hex::text AS hex, thang,
+                        to_date(($${yIdx}::int)::text || '-' || tuan::int::text, 'IYYY-IW') AS ws
+                 FROM khsx WHERE ${planHexWhere} AND tuan BETWEEN 1 AND 53) k)` : `plan_hex AS MATERIALIZED (SELECT DISTINCT hex::text AS hex, thang FROM khsx WHERE ${planHexWhere})`;
+      const inPlanExpr = isWeek ? `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND nhap_kho.date_parsed BETWEEN ph.ws AND ph.we)` : `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND ph.thang = nhap_kho.thang)`;
+      const thQuery = `
+      WITH ${planHexCte}
       SELECT
         ${workshopGroupSql("xuong_chinh")} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
@@ -66452,65 +66633,64 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
       ${thWhere}
       GROUP BY 1, 2, 3, 4
     `;
-    const thResult = await timedQuery(thQuery, thParams);
-    const xuongMap = /* @__PURE__ */ new Map();
-    khResult.rows.forEach((r) => {
-      const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = xuongMap.get(k) || { kh: 0, th: 0, thPlan: 0 };
-      e.kh += Number(r.gia_tri);
-      xuongMap.set(k, e);
-    });
-    thResult.rows.forEach((r) => {
-      const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = xuongMap.get(k) || { kh: 0, th: 0, thPlan: 0 };
-      e.th += Number(r.gia_tri);
-      if (r.in_plan) e.thPlan += Number(r.gia_tri);
-      xuongMap.set(k, e);
-    });
-    const byXuong = Array.from(xuongMap.entries()).map(([xuong2, v]) => ({ xuong: xuong2, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)), thPlan: Number(v.thPlan.toFixed(2)) })).sort((a, b) => a.xuong.localeCompare(b.xuong));
-    const ctMap = /* @__PURE__ */ new Map();
-    const ctEntry = (r) => {
-      const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-      const e = ctMap.get(k) || { codes: /* @__PURE__ */ new Set(), kh: 0, th: 0, thPlan: 0 };
-      if (r.ma_cong_trinh) e.codes.add(r.ma_cong_trinh);
-      ctMap.set(k, e);
-      return e;
-    };
-    khResult.rows.forEach((r) => {
-      ctEntry(r).kh += Number(r.gia_tri);
-    });
-    thResult.rows.forEach((r) => {
-      const e = ctEntry(r);
-      e.th += Number(r.gia_tri);
-      if (r.in_plan) e.thPlan += Number(r.gia_tri);
-    });
-    const byCongTrinh = Array.from(ctMap.entries()).map(([name, v]) => ({ name, code: v.codes.size === 1 ? [...v.codes][0] : name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)), thPlan: Number(v.thPlan.toFixed(2)) })).sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th)).slice(0, 10);
-    const totalKh = [...xuongMap.values()].reduce((a, b) => a + b.kh, 0);
-    const totalTh = [...xuongMap.values()].reduce((a, b) => a + b.th, 0);
-    const totalThPlan = [...xuongMap.values()].reduce((a, b) => a + b.thPlan, 0);
-    const completionRate = totalKh > 0 ? totalThPlan / totalKh * 100 : 0;
-    let weeklyKhFallback;
-    if (!isWeek && totalKh === 0) {
-      const wkParams = [...khParams];
-      wkParams[0] = "%TU\u1EA6N%";
-      const wk = await timedQuery(
-        `SELECT COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / ${TRIEU_TO_TY} AS v FROM khsx ${khWhere}`,
-        wkParams
-      );
-      const v = Number(wk.rows[0]?.v) || 0;
-      if (v > 0) weeklyKhFallback = Number(v.toFixed(2));
-    }
-    const khsxPayload = {
-      totalKh: Number(totalKh.toFixed(2)),
-      totalTh: Number(totalTh.toFixed(2)),
-      totalThPlan: Number(totalThPlan.toFixed(2)),
-      completionRate: Number(completionRate.toFixed(1)),
-      ...weeklyKhFallback !== void 0 ? { weeklyKhFallback } : {},
-      byXuong,
-      byCongTrinh
-    };
-    khsxNhapKhoCache.set(khsxCacheKey, { versions: khsxVersions, payload: khsxPayload });
-    trimCache(khsxNhapKhoCache);
+      const thResult = await timedQuery(thQuery, thParams, { workMemMb: 32 });
+      const xuongMap = /* @__PURE__ */ new Map();
+      khResult.rows.forEach((r) => {
+        const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+        const e = xuongMap.get(k) || { kh: 0, th: 0, thPlan: 0 };
+        e.kh += Number(r.gia_tri);
+        xuongMap.set(k, e);
+      });
+      thResult.rows.forEach((r) => {
+        const k = r.xuong || "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+        const e = xuongMap.get(k) || { kh: 0, th: 0, thPlan: 0 };
+        e.th += Number(r.gia_tri);
+        if (r.in_plan) e.thPlan += Number(r.gia_tri);
+        xuongMap.set(k, e);
+      });
+      const byXuong = Array.from(xuongMap.entries()).map(([xuong2, v]) => ({ xuong: xuong2, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)), thPlan: Number(v.thPlan.toFixed(2)) })).sort((a, b) => a.xuong.localeCompare(b.xuong));
+      const ctMap = /* @__PURE__ */ new Map();
+      const ctEntry = (r) => {
+        const k = r.cong_trinh ? canonicalProjectName(r.cong_trinh) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+        const e = ctMap.get(k) || { codes: /* @__PURE__ */ new Set(), kh: 0, th: 0, thPlan: 0 };
+        if (r.ma_cong_trinh) e.codes.add(r.ma_cong_trinh);
+        ctMap.set(k, e);
+        return e;
+      };
+      khResult.rows.forEach((r) => {
+        ctEntry(r).kh += Number(r.gia_tri);
+      });
+      thResult.rows.forEach((r) => {
+        const e = ctEntry(r);
+        e.th += Number(r.gia_tri);
+        if (r.in_plan) e.thPlan += Number(r.gia_tri);
+      });
+      const byCongTrinh = Array.from(ctMap.entries()).map(([name, v]) => ({ name, code: v.codes.size === 1 ? [...v.codes][0] : name, kh: Number(v.kh.toFixed(2)), th: Number(v.th.toFixed(2)), thPlan: Number(v.thPlan.toFixed(2)) })).sort((a, b) => Math.max(b.kh, b.th) - Math.max(a.kh, a.th)).slice(0, 10);
+      const totalKh = [...xuongMap.values()].reduce((a, b) => a + b.kh, 0);
+      const totalTh = [...xuongMap.values()].reduce((a, b) => a + b.th, 0);
+      const totalThPlan = [...xuongMap.values()].reduce((a, b) => a + b.thPlan, 0);
+      const completionRate = totalKh > 0 ? totalThPlan / totalKh * 100 : 0;
+      let weeklyKhFallback;
+      if (!isWeek && totalKh === 0) {
+        const wkParams = [...khParams];
+        wkParams[0] = "%TU\u1EA6N%";
+        const wk = await timedQuery(
+          `SELECT COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / ${TRIEU_TO_TY} AS v FROM khsx ${khWhere}`,
+          wkParams
+        );
+        const v = Number(wk.rows[0]?.v) || 0;
+        if (v > 0) weeklyKhFallback = Number(v.toFixed(2));
+      }
+      return {
+        totalKh: Number(totalKh.toFixed(2)),
+        totalTh: Number(totalTh.toFixed(2)),
+        totalThPlan: Number(totalThPlan.toFixed(2)),
+        completionRate: Number(completionRate.toFixed(1)),
+        ...weeklyKhFallback !== void 0 ? { weeklyKhFallback } : {},
+        byXuong,
+        byCongTrinh
+      };
+    }, workshopGroupsVersion());
     res.json(khsxPayload);
   } catch (error61) {
     console.error("L\u1ED7i khsx-nhapkho/summary:", error61);
@@ -66519,80 +66699,102 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
 });
 
 // src/routes/trend.ts
-app.get("/api/trend", async (req, res) => {
-  try {
-    const source = req.query.source;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
-    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    const isStock = source === "stock";
-    const granularity = req.query.granularity || "day";
-    const truncUnit = granularity === "week" ? "week" : granularity === "month" ? "month" : "day";
-    const dateFrom = parseSafeDate(req.query.dateFrom);
-    const dateTo = parseSafeDate(req.query.dateTo);
-    const explicitDates = isStock ? [] : parseExplicitDates(req);
-    const xuong = req.query.xuong || "";
-    const congTrinh = req.query.congTrinh || "";
-    const dvt = req.query.dvt || "";
-    const phanLoai = req.query.phanLoai || "";
-    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
-    const mainAlias = needsJoin ? "m" : "";
-    const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params = [];
-    if (isStock) {
-      if (dateFrom) {
-        params.push(dateFrom.toISOString().slice(0, 10));
-        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
-        if (dateTo) {
-          params.push(dateTo.toISOString().slice(0, 10));
-          conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
-        }
-      } else {
-        conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+var trendCache = createCache(120);
+var detailCache = createCache(10);
+var filterCache = createCache(8);
+var TREND_PARAMS = ["source", "granularity", "dateFrom", "dateTo", "dates", "xuong", "congTrinh", "dvt", "phanLoai", "ctWhitelist", "dimension", "value"];
+var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "production"];
+var BadRequest = class extends Error {
+  status = 400;
+};
+var cachedGet = (path, cache, versionKeysOf, compute) => {
+  app.get(path, async (req, res) => {
+    try {
+      const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
+      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion());
+      res.json(data);
+    } catch (error61) {
+      if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
+      console.error(`L\u1ED7i ${path}:`, error61);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  });
+};
+var sourceCfg = (req) => {
+  const source = String(req.query.source || "");
+  if (!TREND_SOURCES.has(source)) throw new BadRequest("Invalid source");
+  return { source, cfg: source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source], isStock: source === "stock" };
+};
+cachedGet("/api/trend", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
+  const { cfg, isStock } = sourceCfg(req);
+  const granularity = req.query.granularity || "day";
+  const truncUnit = granularity === "week" ? "week" : granularity === "month" ? "month" : "day";
+  const dateFrom = parseSafeDate(req.query.dateFrom);
+  const dateTo = parseSafeDate(req.query.dateTo);
+  const explicitDates = isStock ? [] : parseExplicitDates(req);
+  const xuong = req.query.xuong || "";
+  const congTrinh = req.query.congTrinh || "";
+  const dvt = req.query.dvt || "";
+  const phanLoai = req.query.phanLoai || "";
+  const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+  const needsPhanLoaiJoin = !!phanLoai;
+  const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+  const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+  const mainAlias = needsJoin ? "m" : "";
+  const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
+  const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+  const params = [];
+  if (isStock) {
+    if (dateFrom) {
+      params.push(dateFrom.toISOString().slice(0, 10));
+      conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+      if (dateTo) {
+        params.push(dateTo.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
       }
     } else {
-      applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
+      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     }
-    if (xuong) {
-      if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
-      } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
-      }
+  } else {
+    applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
+  }
+  if (xuong) {
+    if (cfg.xuongCol) {
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+    } else if (cfg.xuongViaProductionJoin) {
+      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
     }
-    if (congTrinh && cfg.congTrinhCol) {
-      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  if (congTrinh && cfg.congTrinhCol) {
+    conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
+  if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
+  if (dvt) {
+    if (cfg.dvtCol) {
+      params.push(dvt);
+      conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+    } else if (needsJoin) {
+      params.push(dvt);
+      conditions.push(eqNormalized("p.dvt", params.length));
     }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
-    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt);
-        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
-      } else if (needsJoin) {
-        params.push(dvt);
-        conditions.push(eqNormalized("p.dvt", params.length));
-      }
-    }
-    if (phanLoai && needsJoin) {
-      params.push(phanLoai);
-      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-    }
-    const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
-    const limit = granularity === "day" ? 15 : 12;
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
-    const cteList = [];
-    if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
-    const distinctTotalExpr = !isStock && cfg.hexCol ? `(SELECT ${countExpr} FROM ${cfg.table} ${mainAlias} ${joinClause} WHERE ${conditions.join(" AND ")})` : "NULL::bigint";
-    let q;
-    if (isStock && truncUnit !== "day") {
-      cteList.push(`
+  }
+  if (phanLoai && needsJoin) {
+    params.push(phanLoai);
+    conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+  }
+  const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
+  const limit = granularity === "day" ? 15 : 12;
+  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+  const valueColExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
+  const valueExpr = `SUM(${valueColExpr})`;
+  const joinKey = cfg.productionJoinCol || "hex";
+  const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+  const cteList = [];
+  if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
+  let q;
+  if (isStock && truncUnit !== "day") {
+    cteList.push(`
         period_dates AS (
           SELECT date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
                  MAX(${colBare(cfg.dateCol)}) AS snap_date
@@ -66602,7 +66804,7 @@ app.get("/api/trend", async (req, res) => {
           GROUP BY 1
         )
       `);
-      q = `
+    q = `
         WITH ${cteList.join(",\n")}
         SELECT
           pd.period AS period,
@@ -66617,15 +66819,38 @@ app.get("/api/trend", async (req, res) => {
         ORDER BY pd.period ${useDefaultLimit ? "DESC" : "ASC"}
         ${useDefaultLimit ? `LIMIT ${limit}` : ""}
       `;
-    } else {
-      const withClause = cteList.length ? `WITH ${cteList.join(",\n")}` : "";
-      q = `
+  } else if (!isStock && cfg.hexCol) {
+    cteList.push(`
+        base AS (
+          SELECT date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+                 ${colBare(cfg.hexCol)} AS hx,
+                 ${valueColExpr} AS v
+          FROM ${cfg.table} ${mainAlias}
+          ${joinClause}
+          WHERE ${conditions.join(" AND ")}
+        )
+      `);
+    q = `
+        WITH ${cteList.join(",\n")}
+        SELECT
+          period,
+          COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
+          COUNT(DISTINCT hx) AS total_count,
+          (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total_count
+        FROM base
+        GROUP BY 1
+        ORDER BY 1 ${useDefaultLimit ? "DESC" : "ASC"}
+        ${useDefaultLimit ? `LIMIT ${limit}` : ""}
+      `;
+  } else {
+    const withClause = cteList.length ? `WITH ${cteList.join(",\n")}` : "";
+    q = `
         ${withClause}
         SELECT
           date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
           COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
           ${countExpr} AS total_count,
-          ${distinctTotalExpr} AS distinct_total_count
+          NULL::bigint AS distinct_total_count
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(" AND ")}
@@ -66633,23 +66858,17 @@ app.get("/api/trend", async (req, res) => {
         ORDER BY 1 ${useDefaultLimit ? "DESC" : "ASC"}
         ${useDefaultLimit ? `LIMIT ${limit}` : ""}
       `;
-    }
-    const r = await timedQuery(q, params);
-    const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map((row) => ({
-      period: row.period,
-      total: Number(row.total_value),
-      totalCount: Number(row.total_count),
-      ...row.distinct_total_count != null ? { distinctTotalCount: Number(row.distinct_total_count) } : {}
-    }));
-    res.json(rows);
-  } catch (error61) {
-    console.error("L\u1ED7i /api/trend:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
   }
+  const r = await timedQuery(q, params, { workMemMb: 32 });
+  return (useDefaultLimit ? r.rows.reverse() : r.rows).map((row) => ({
+    period: row.period,
+    total: Number(row.total_value),
+    totalCount: Number(row.total_count),
+    ...row.distinct_total_count != null ? { distinctTotalCount: Number(row.distinct_total_count) } : {}
+  }));
 });
-app.get("/api/filters/xuong", async (_req, res) => {
-  try {
-    const q = `
+cachedGet("/api/filters/xuong", filterCache, () => ["khsx", "order", "inventory", "export", "tkbv", "pthsp", "production"], async () => {
+  const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
         SELECT xuong_chinh AS name FROM khsx WHERE xuong_chinh IS NOT NULL AND TRIM(xuong_chinh) <> ''
@@ -66668,17 +66887,12 @@ app.get("/api/filters/xuong", async (_req, res) => {
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-    const r = await timedQuery(q);
-    const groups = [...new Set(r.rows.map((row) => workshopGroupOf(row.name)).filter(Boolean))].sort();
-    res.json(groups.map((name) => ({ code: name, name })));
-  } catch (error61) {
-    console.error("L\u1ED7i filters/xuong:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q);
+  const groups = [...new Set(r.rows.map((row) => workshopGroupOf(row.name)).filter(Boolean))].sort();
+  return groups.map((name) => ({ code: name, name }));
 });
-app.get("/api/filters/cong-trinh", async (_req, res) => {
-  try {
-    const q = `
+cachedGet("/api/filters/cong-trinh", filterCache, () => ["khsx", "order", "inventory", "export", "tkbv", "pthsp", "stock"], async () => {
+  const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
         SELECT ten_cong_trinh AS name FROM khsx WHERE ten_cong_trinh IS NOT NULL AND TRIM(ten_cong_trinh) <> ''
@@ -66697,16 +66911,11 @@ app.get("/api/filters/cong-trinh", async (_req, res) => {
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-    const r = await timedQuery(q);
-    res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
-  } catch (error61) {
-    console.error("L\u1ED7i filters/cong-trinh:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q);
+  return r.rows.map((row) => ({ code: row.name, name: row.name }));
 });
-app.get("/api/filters/dvt", async (_req, res) => {
-  try {
-    const q = `
+cachedGet("/api/filters/dvt", filterCache, () => ["order", "stock"], async () => {
+  const q = `
       SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM dht
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       UNION
@@ -66714,89 +66923,74 @@ app.get("/api/filters/dvt", async (_req, res) => {
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       ORDER BY 1
     `;
-    const r = await timedQuery(q);
-    res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
-  } catch (error61) {
-    console.error("L\u1ED7i filters/dvt:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q);
+  return r.rows.map((row) => ({ code: row.name, name: row.name }));
 });
-app.get("/api/filters/phan-loai-nhom-san-pham", async (_req, res) => {
-  try {
-    const q = `
+cachedGet("/api/filters/phan-loai-nhom-san-pham", filterCache, () => ["production"], async () => {
+  const q = `
       SELECT DISTINCT TRIM(phan_loai_nhom_san_pham) AS name
       FROM production_status_app
       WHERE phan_loai_nhom_san_pham IS NOT NULL AND TRIM(phan_loai_nhom_san_pham) <> ''
       ORDER BY 1
     `;
-    const r = await timedQuery(q);
-    res.json(r.rows.map((row) => ({ code: row.name, name: row.name })));
-  } catch (error61) {
-    console.error("L\u1ED7i filters/phan-loai-nhom-san-pham:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q);
+  return r.rows.map((row) => ({ code: row.name, name: row.name }));
 });
-app.get("/api/trend-by-xuong", async (req, res) => {
-  try {
-    const source = req.query.source;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
-    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
-      return res.json([]);
+cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
+  const { cfg, isStock } = sourceCfg(req);
+  if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) return [];
+  const dateFrom = parseSafeDate(req.query.dateFrom);
+  const dateTo = parseSafeDate(req.query.dateTo);
+  const xuong = req.query.xuong || "";
+  const congTrinh = req.query.congTrinh || "";
+  const dvt = req.query.dvt || "";
+  const phanLoai = req.query.phanLoai || "";
+  const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+  const needsPhanLoaiJoin = !!phanLoai;
+  const needsXuongJoin = !!(cfg.xuongViaProductionJoin && !cfg.xuongCol);
+  const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+  const mainAlias = needsJoin ? "m" : "";
+  const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
+  const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+  const params = [];
+  if (isStock) {
+    conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+  } else {
+    applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+  }
+  if (xuong) {
+    if (cfg.xuongCol) {
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+    } else if (cfg.xuongViaProductionJoin) {
+      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
     }
-    const isStock = source === "stock";
-    const dateFrom = parseSafeDate(req.query.dateFrom);
-    const dateTo = parseSafeDate(req.query.dateTo);
-    const xuong = req.query.xuong || "";
-    const congTrinh = req.query.congTrinh || "";
-    const dvt = req.query.dvt || "";
-    const phanLoai = req.query.phanLoai || "";
-    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsXuongJoin = !!(cfg.xuongViaProductionJoin && !cfg.xuongCol);
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
-    const mainAlias = needsJoin ? "m" : "";
-    const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params = [];
-    if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
-    } else {
-      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+  }
+  if (congTrinh && cfg.congTrinhCol) {
+    conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
+  if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
+  if (dvt) {
+    if (cfg.dvtCol) {
+      params.push(dvt);
+      conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+    } else if (needsJoin) {
+      params.push(dvt);
+      conditions.push(eqNormalized("p.dvt", params.length));
     }
-    if (xuong) {
-      if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
-      } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
-      }
-    }
-    if (congTrinh && cfg.congTrinhCol) {
-      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
-    }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
-    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt);
-        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
-      } else if (needsJoin) {
-        params.push(dvt);
-        conditions.push(eqNormalized("p.dvt", params.length));
-      }
-    }
-    if (phanLoai && needsJoin) {
-      params.push(phanLoai);
-      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-    }
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
-    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
-    const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
-    const noXuongLabel = isStock ? "T\u1ED2N KHO KH\xC1C" : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-    const q = `
+  }
+  if (phanLoai && needsJoin) {
+    params.push(phanLoai);
+    conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+  }
+  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+  const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+  const joinKey = cfg.productionJoinCol || "hex";
+  const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+  const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
+  const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
+  const noXuongLabel = isStock ? "T\u1ED2N KHO KH\xC1C" : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+  const q = `
       ${withClause}
       SELECT
         COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS xuong,
@@ -66808,78 +67002,67 @@ app.get("/api/trend-by-xuong", async (req, res) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const rows = r.rows.map((row) => ({
-      xuongCode: row.xuong,
-      xuongName: row.xuong,
-      total: Number(row.total_value),
-      totalCount: Number(row.total_count)
-    }));
-    res.json(rows);
-  } catch (error61) {
-    console.error("L\u1ED7i /api/trend-by-xuong:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q, params, { workMemMb: 32 });
+  return r.rows.map((row) => ({
+    xuongCode: row.xuong,
+    xuongName: row.xuong,
+    total: Number(row.total_value),
+    totalCount: Number(row.total_count)
+  }));
 });
-app.get("/api/trend-by-congtrinh", async (req, res) => {
-  try {
-    const source = req.query.source;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
-    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.congTrinhCol) {
-      return res.json([]);
+cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
+  const { cfg, isStock } = sourceCfg(req);
+  if (!cfg.congTrinhCol) return [];
+  const dateFrom = parseSafeDate(req.query.dateFrom);
+  const dateTo = parseSafeDate(req.query.dateTo);
+  const xuong = req.query.xuong || "";
+  const congTrinh = req.query.congTrinh || "";
+  const dvt = req.query.dvt || "";
+  const phanLoai = req.query.phanLoai || "";
+  const needsDvtJoin = !!(dvt && !cfg.dvtCol);
+  const needsPhanLoaiJoin = !!phanLoai;
+  const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+  const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+  const mainAlias = needsJoin ? "m" : "";
+  const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
+  const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+  const params = [];
+  if (isStock) {
+    conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+  } else {
+    applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+  }
+  if (xuong) {
+    if (cfg.xuongCol) {
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+    } else if (cfg.xuongViaProductionJoin) {
+      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
     }
-    const isStock = source === "stock";
-    const dateFrom = parseSafeDate(req.query.dateFrom);
-    const dateTo = parseSafeDate(req.query.dateTo);
-    const xuong = req.query.xuong || "";
-    const congTrinh = req.query.congTrinh || "";
-    const dvt = req.query.dvt || "";
-    const phanLoai = req.query.phanLoai || "";
-    const needsDvtJoin = !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
-    const mainAlias = needsJoin ? "m" : "";
-    const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params = [];
-    if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
-    } else {
-      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+  }
+  if (congTrinh && cfg.congTrinhCol) {
+    conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
+  if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
+  if (dvt) {
+    if (cfg.dvtCol) {
+      params.push(dvt);
+      conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+    } else if (needsJoin) {
+      params.push(dvt);
+      conditions.push(eqNormalized("p.dvt", params.length));
     }
-    if (xuong) {
-      if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
-      } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
-      }
-    }
-    if (congTrinh && cfg.congTrinhCol) {
-      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
-    }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
-    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt);
-        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
-      } else if (needsJoin) {
-        params.push(dvt);
-        conditions.push(eqNormalized("p.dvt", params.length));
-      }
-    }
-    if (phanLoai && needsJoin) {
-      params.push(phanLoai);
-      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-    }
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
-    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
-    const q = `
+  }
+  if (phanLoai && needsJoin) {
+    params.push(phanLoai);
+    conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+  }
+  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+  const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+  const joinKey = cfg.productionJoinCol || "hex";
+  const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+  const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
+  const q = `
       ${withClause}
       SELECT
         COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
@@ -66891,79 +67074,70 @@ app.get("/api/trend-by-congtrinh", async (req, res) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const merged = /* @__PURE__ */ new Map();
-    for (const row of r.rows) {
-      const name = row.cong_trinh === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.cong_trinh : canonicalProjectName(row.cong_trinh);
-      const e = merged.get(name) ?? { total: 0, totalCount: 0 };
-      e.total += Number(row.total_value);
-      e.totalCount += Number(row.total_count);
-      merged.set(name, e);
-    }
-    const rows = [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount })).filter((x) => x.total !== 0 || x.totalCount > 0).sort((a, b) => b.total - a.total);
-    res.json(rows);
-  } catch (error61) {
-    console.error("L\u1ED7i /api/trend-by-congtrinh:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
+  const r = await timedQuery(q, params, { workMemMb: 32 });
+  const merged = /* @__PURE__ */ new Map();
+  for (const row of r.rows) {
+    const name = row.cong_trinh === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.cong_trinh : canonicalProjectName(row.cong_trinh);
+    const e = merged.get(name) ?? { total: 0, totalCount: 0 };
+    e.total += Number(row.total_value);
+    e.totalCount += Number(row.total_count);
+    merged.set(name, e);
   }
+  return [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount })).filter((x) => x.total !== 0 || x.totalCount > 0).sort((a, b) => b.total - a.total);
 });
-app.get("/api/trend-by-dvt", async (req, res) => {
-  try {
-    const source = req.query.source;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
-    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    const isStock = source === "stock";
-    const dateFrom = parseSafeDate(req.query.dateFrom);
-    const dateTo = parseSafeDate(req.query.dateTo);
-    const xuong = req.query.xuong || "";
-    const congTrinh = req.query.congTrinh || "";
-    const dvt = req.query.dvt || "";
-    const phanLoai = req.query.phanLoai || "";
-    const needsDvtJoin = !cfg.dvtCol;
-    const needsPhanLoaiJoin = !!phanLoai;
-    const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
-    const mainAlias = needsJoin ? "m" : "";
-    const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
-    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params = [];
-    if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
-    } else {
-      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
+  const { cfg, isStock } = sourceCfg(req);
+  const dateFrom = parseSafeDate(req.query.dateFrom);
+  const dateTo = parseSafeDate(req.query.dateTo);
+  const xuong = req.query.xuong || "";
+  const congTrinh = req.query.congTrinh || "";
+  const dvt = req.query.dvt || "";
+  const phanLoai = req.query.phanLoai || "";
+  const needsDvtJoin = !cfg.dvtCol;
+  const needsPhanLoaiJoin = !!phanLoai;
+  const needsXuongJoin = !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+  const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+  const mainAlias = needsJoin ? "m" : "";
+  const colBare = (name) => mainAlias ? `${mainAlias}.${name}` : name;
+  const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+  const params = [];
+  if (isStock) {
+    conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+  } else {
+    applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+  }
+  if (xuong) {
+    if (cfg.xuongCol) {
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+    } else if (cfg.xuongViaProductionJoin) {
+      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
     }
-    if (xuong) {
-      if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
-      } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
-      }
+  }
+  if (congTrinh && cfg.congTrinhCol) {
+    conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
+  if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
+  if (dvt) {
+    if (cfg.dvtCol) {
+      params.push(dvt);
+      conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+    } else if (needsJoin) {
+      params.push(dvt);
+      conditions.push(eqNormalized("p.dvt", params.length));
     }
-    if (congTrinh && cfg.congTrinhCol) {
-      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
-    }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
-    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt);
-        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
-      } else if (needsJoin) {
-        params.push(dvt);
-        conditions.push(eqNormalized("p.dvt", params.length));
-      }
-    }
-    if (phanLoai && needsJoin) {
-      params.push(phanLoai);
-      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-    }
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
-    const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
-    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
-    const dvtExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
-    const q = `
+  }
+  if (phanLoai && needsJoin) {
+    params.push(phanLoai);
+    conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+  }
+  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+  const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+  const joinKey = cfg.productionJoinCol || "hex";
+  const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+  const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
+  const dvtExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
+  const q = `
       ${withClause}
       SELECT
         COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS dvt,
@@ -66975,74 +67149,63 @@ app.get("/api/trend-by-dvt", async (req, res) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const rows = r.rows.map((row) => ({
-      dvtCode: row.dvt,
-      dvtName: row.dvt,
-      total: Number(row.total_value),
-      totalCount: Number(row.total_count)
-    }));
-    res.json(rows);
-  } catch (error61) {
-    console.error("L\u1ED7i /api/trend-by-dvt:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q, params, { workMemMb: 32 });
+  return r.rows.map((row) => ({
+    dvtCode: row.dvt,
+    dvtName: row.dvt,
+    total: Number(row.total_value),
+    totalCount: Number(row.total_count)
+  }));
 });
-app.get("/api/trend-by-phanloai", async (req, res) => {
-  try {
-    const source = req.query.source;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
-    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.joinProductionForFilters || !cfg.hexCol) {
-      return res.json([]);
+cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
+  const { cfg, isStock } = sourceCfg(req);
+  if (!cfg.joinProductionForFilters || !cfg.hexCol) return [];
+  const dateFrom = parseSafeDate(req.query.dateFrom);
+  const dateTo = parseSafeDate(req.query.dateTo);
+  const xuong = req.query.xuong || "";
+  const congTrinh = req.query.congTrinh || "";
+  const dvt = req.query.dvt || "";
+  const phanLoai = req.query.phanLoai || "";
+  const mainAlias = "m";
+  const colBare = (name) => `${mainAlias}.${name}`;
+  const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+  const params = [];
+  if (isStock) {
+    conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+  } else {
+    applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+  }
+  if (xuong) {
+    if (cfg.xuongCol) {
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+    } else if (cfg.xuongViaProductionJoin) {
+      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
     }
-    const isStock = source === "stock";
-    const dateFrom = parseSafeDate(req.query.dateFrom);
-    const dateTo = parseSafeDate(req.query.dateTo);
-    const xuong = req.query.xuong || "";
-    const congTrinh = req.query.congTrinh || "";
-    const dvt = req.query.dvt || "";
-    const phanLoai = req.query.phanLoai || "";
-    const mainAlias = "m";
-    const colBare = (name) => `${mainAlias}.${name}`;
-    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params = [];
-    if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+  }
+  if (congTrinh && cfg.congTrinhCol) {
+    conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
+  if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
+  if (dvt) {
+    if (cfg.dvtCol) {
+      params.push(dvt);
+      conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
     } else {
-      applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params);
+      params.push(dvt);
+      conditions.push(eqNormalized("p.dvt", params.length));
     }
-    if (xuong) {
-      if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
-      } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
-      }
-    }
-    if (congTrinh && cfg.congTrinhCol) {
-      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
-    }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
-    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt);
-        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
-      } else {
-        params.push(dvt);
-        conditions.push(eqNormalized("p.dvt", params.length));
-      }
-    }
-    if (phanLoai) {
-      params.push(phanLoai);
-      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-    }
-    const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
-    const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
-    const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text`;
-    const withClause = `WITH ${buildMatchedProductionCTE(joinKey)}`;
-    const q = `
+  }
+  if (phanLoai) {
+    params.push(phanLoai);
+    conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+  }
+  const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
+  const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
+  const joinKey = cfg.productionJoinCol || "hex";
+  const joinClause = `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text`;
+  const withClause = `WITH ${buildMatchedProductionCTE(joinKey)}`;
+  const q = `
       ${withClause}
       SELECT
         COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS phan_loai,
@@ -67054,139 +67217,127 @@ app.get("/api/trend-by-phanloai", async (req, res) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const rows = r.rows.map((row) => ({
-      phanLoaiCode: row.phan_loai,
-      phanLoaiName: row.phan_loai,
-      total: Number(row.total_value),
-      totalCount: Number(row.total_count)
-    }));
-    res.json(rows);
-  } catch (error61) {
-    console.error("L\u1ED7i /api/trend-by-phanloai:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q, params, { workMemMb: 32 });
+  return r.rows.map((row) => ({
+    phanLoaiCode: row.phan_loai,
+    phanLoaiName: row.phan_loai,
+    total: Number(row.total_value),
+    totalCount: Number(row.total_count)
+  }));
 });
 var DETAIL_DIMENSIONS = /* @__PURE__ */ new Set(["period", "xuong", "congtrinh", "dvt", "phanloai"]);
 var UNKNOWN_VALUE_LABELS = /* @__PURE__ */ new Set(["CH\u01AFA X\xC1C \u0110\u1ECANH", "T\u1ED2N KHO KH\xC1C"]);
 var isUnknownValueLabel = (v) => UNKNOWN_VALUE_LABELS.has(v.trim().toUpperCase());
-app.get("/api/detail", async (req, res) => {
-  try {
-    const source = req.query.source;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: "Invalid source" });
-    const dimension = req.query.dimension || "";
-    if (!DETAIL_DIMENSIONS.has(dimension)) return res.status(400).json({ error: "Invalid dimension" });
-    const value = (req.query.value || "").trim();
-    if (!value) return res.status(400).json({ error: "Missing value" });
-    const cfg = source === "stock" ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    const isStock = source === "stock";
-    const granularity = req.query.granularity || "day";
-    const xuong = req.query.xuong || "";
-    const congTrinh = req.query.congTrinh || "";
-    const dvt = req.query.dvt || "";
-    const phanLoai = req.query.phanLoai || "";
-    const dateFrom = parseSafeDate(req.query.dateFrom);
-    const dateTo = parseSafeDate(req.query.dateTo);
-    const needsDvtJoin = dimension === "dvt" ? !cfg.dvtCol : !!(dvt && !cfg.dvtCol);
-    const needsPhanLoaiJoin = dimension === "phanloai" || !!phanLoai;
-    const needsXuongJoin = dimension === "xuong" ? !cfg.xuongCol && !!cfg.xuongViaProductionJoin : !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
-    const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
-    const alias = needsJoin ? "m" : "";
-    const colBare = (name) => alias ? `${alias}.${name}` : name;
-    const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
-    const params = [];
-    const explicitDates = isStock ? [] : parseExplicitDates(req);
-    if (dimension === "period") {
-      if (!parseSafeDate(value)) return res.status(400).json({ error: "Invalid period value" });
-      const range = getPeriodRangeFromKey(value, granularity);
-      const iso = (d) => d.toISOString().slice(0, 10);
-      const start = dateFrom && iso(dateFrom) > String(range.start).slice(0, 10) ? iso(dateFrom) : range.start;
-      const end = dateTo && iso(dateTo) < String(range.end).slice(0, 10) ? iso(dateTo) : range.end;
-      if (!isStock && explicitDates.length > 0) {
-        params.push(explicitDates);
-        conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
-      }
-      if (isStock && granularity !== "day") {
-        params.push(start, end);
-        conditions.push(
-          `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
-        );
-      } else if (!isStock && granularity === "day" && explicitDates.length > 0) {
-        params.push(start, end);
-        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
-      } else {
-        params.push(start, end);
-        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
-      }
-    } else if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
+  const { cfg, isStock } = sourceCfg(req);
+  const dimension = req.query.dimension || "";
+  if (!DETAIL_DIMENSIONS.has(dimension)) throw new BadRequest("Invalid dimension");
+  const value = (req.query.value || "").trim();
+  if (!value) throw new BadRequest("Missing value");
+  const granularity = req.query.granularity || "day";
+  const xuong = req.query.xuong || "";
+  const congTrinh = req.query.congTrinh || "";
+  const dvt = req.query.dvt || "";
+  const phanLoai = req.query.phanLoai || "";
+  const dateFrom = parseSafeDate(req.query.dateFrom);
+  const dateTo = parseSafeDate(req.query.dateTo);
+  const needsDvtJoin = dimension === "dvt" ? !cfg.dvtCol : !!(dvt && !cfg.dvtCol);
+  const needsPhanLoaiJoin = dimension === "phanloai" || !!phanLoai;
+  const needsXuongJoin = dimension === "xuong" ? !cfg.xuongCol && !!cfg.xuongViaProductionJoin : !!(xuong && !cfg.xuongCol && cfg.xuongViaProductionJoin);
+  const needsJoin = !!(cfg.joinProductionForFilters && cfg.hexCol && (needsDvtJoin || needsPhanLoaiJoin || needsXuongJoin));
+  const alias = needsJoin ? "m" : "";
+  const colBare = (name) => alias ? `${alias}.${name}` : name;
+  const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
+  const params = [];
+  const explicitDates = isStock ? [] : parseExplicitDates(req);
+  if (dimension === "period") {
+    if (!parseSafeDate(value)) throw new BadRequest("Invalid period value");
+    const range = getPeriodRangeFromKey(value, granularity);
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const start = dateFrom && iso(dateFrom) > String(range.start).slice(0, 10) ? iso(dateFrom) : range.start;
+    const end = dateTo && iso(dateTo) < String(range.end).slice(0, 10) ? iso(dateTo) : range.end;
+    if (!isStock && explicitDates.length > 0) {
+      params.push(explicitDates);
+      conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
+    }
+    if (isStock && granularity !== "day") {
+      params.push(start, end);
+      conditions.push(
+        `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
+      );
     } else {
-      applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
+      params.push(start, end);
+      conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
     }
-    const emptyCond = (colExpr) => `(${colExpr} IS NULL OR TRIM(${colExpr}::text) = '')`;
-    if (dimension === "xuong") {
-      const colExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : cfg.xuongViaProductionJoin ? "p.xuong_chinh" : null;
-      if (colExpr) {
-        if (isUnknownValueLabel(value)) {
-          conditions.push(emptyCond(colExpr));
-        } else {
-          conditions.push(workshopCondition(colExpr, value, params));
-        }
-      }
-    } else if (xuong) {
-      if (cfg.xuongCol) {
-        conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
-      } else if (cfg.xuongViaProductionJoin) {
-        conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
-      }
-    }
-    if (dimension === "congtrinh" && cfg.congTrinhCol) {
-      if (isUnknownValueLabel(value)) {
-        conditions.push(emptyCond(colBare(cfg.congTrinhCol)));
-      } else {
-        conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), value, params));
-      }
-    } else if (congTrinh && cfg.congTrinhCol) {
-      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
-    }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
-    if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
-    if (dimension === "dvt") {
-      const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
+  } else if (isStock) {
+    conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+  } else {
+    applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
+  }
+  const emptyCond = (colExpr) => `(${colExpr} IS NULL OR TRIM(${colExpr}::text) = '')`;
+  if (dimension === "xuong") {
+    const colExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : cfg.xuongViaProductionJoin ? "p.xuong_chinh" : null;
+    if (colExpr) {
       if (isUnknownValueLabel(value)) {
         conditions.push(emptyCond(colExpr));
       } else {
-        params.push(value);
-        conditions.push(eqNormalized(colExpr, params.length));
-      }
-    } else if (dvt) {
-      if (cfg.dvtCol) {
-        params.push(dvt);
-        conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
-      } else if (needsJoin) {
-        params.push(dvt);
-        conditions.push(eqNormalized("p.dvt", params.length));
+        conditions.push(workshopCondition(colExpr, value, params));
       }
     }
-    if (dimension === "phanloai") {
-      if (isUnknownValueLabel(value)) {
-        conditions.push(emptyCond("p.phan_loai_nhom_san_pham"));
-      } else {
-        params.push(value);
-        conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-      }
-    } else if (phanLoai && needsJoin) {
-      params.push(phanLoai);
+  } else if (xuong) {
+    if (cfg.xuongCol) {
+      conditions.push(workshopCondition(colBare(cfg.xuongCol), xuong, params));
+    } else if (cfg.xuongViaProductionJoin) {
+      conditions.push(workshopCondition("p.xuong_chinh", xuong, params));
+    }
+  }
+  if (dimension === "congtrinh" && cfg.congTrinhCol) {
+    if (isUnknownValueLabel(value)) {
+      conditions.push(emptyCond(colBare(cfg.congTrinhCol)));
+    } else {
+      conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), value, params));
+    }
+  } else if (congTrinh && cfg.congTrinhCol) {
+    conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
+  }
+  applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : void 0, conditions, params);
+  if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
+  if (dimension === "dvt") {
+    const colExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
+    if (isUnknownValueLabel(value)) {
+      conditions.push(emptyCond(colExpr));
+    } else {
+      params.push(value);
+      conditions.push(eqNormalized(colExpr, params.length));
+    }
+  } else if (dvt) {
+    if (cfg.dvtCol) {
+      params.push(dvt);
+      conditions.push(eqNormalized(colBare(cfg.dvtCol), params.length));
+    } else if (needsJoin) {
+      params.push(dvt);
+      conditions.push(eqNormalized("p.dvt", params.length));
+    }
+  }
+  if (dimension === "phanloai") {
+    if (isUnknownValueLabel(value)) {
+      conditions.push(emptyCond("p.phan_loai_nhom_san_pham"));
+    } else {
+      params.push(value);
       conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
     }
-    const joinKey = cfg.productionJoinCol || "hex";
-    const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
-    const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
-    const cols = REPORT_COLUMNS[cfg.table] || [];
-    if (cols.length === 0) return res.status(400).json({ error: "B\u1EA3ng kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3" });
-    const selectClause = cols.map((c) => `${alias ? `${alias}.` : ""}"${c}"`).join(", ");
-    const DETAIL_LIMIT = 1e4;
-    const q = `
+  } else if (phanLoai && needsJoin) {
+    params.push(phanLoai);
+    conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+  }
+  const joinKey = cfg.productionJoinCol || "hex";
+  const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
+  const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
+  const cols = REPORT_COLUMNS[cfg.table] || [];
+  if (cols.length === 0) throw new BadRequest("B\u1EA3ng kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3");
+  const selectClause = cols.map((c) => `${alias ? `${alias}.` : ""}"${c}"`).join(", ");
+  const DETAIL_LIMIT = 1e4;
+  const q = `
       ${withClause}
       SELECT ${selectClause}
       FROM ${cfg.table} ${alias}
@@ -67195,14 +67346,10 @@ app.get("/api/detail", async (req, res) => {
       ORDER BY ${colBare(cfg.dateCol)} DESC
       LIMIT ${DETAIL_LIMIT + 1}
     `;
-    const r = await timedQuery(q, params);
-    const truncated = r.rows.length > DETAIL_LIMIT;
-    const rows = truncated ? r.rows.slice(0, DETAIL_LIMIT) : r.rows;
-    res.json({ rows, columns: cols, truncated });
-  } catch (error61) {
-    console.error("L\u1ED7i /api/detail:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+  const r = await timedQuery(q, params, { workMemMb: 32 });
+  const truncated = r.rows.length > DETAIL_LIMIT;
+  const rows = truncated ? r.rows.slice(0, DETAIL_LIMIT) : r.rows;
+  return { rows, columns: cols, truncated };
 });
 
 // src/routes/vuongMac.ts

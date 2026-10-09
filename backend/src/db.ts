@@ -78,6 +78,9 @@ export interface TimedQueryOptions {
   heavy?: boolean;
   /** Timeout riêng cho query này (ms). Mặc định dùng STATEMENT_TIMEOUT_MS */
   timeoutMs?: number;
+  /** work_mem riêng (MB) cho query gộp / sắp xếp lớn: work_mem mặc định của DB thấp (4MB) nên GROUP BY /
+   *  COUNT(DISTINCT) trên ~90k dòng phải sort ra đĩa. SET LOCAL chỉ có hiệu lực trong transaction này. */
+  workMemMb?: number;
 }
 
 export async function timedQuery<T extends QueryResultRow = any>(
@@ -94,11 +97,12 @@ export async function timedQuery<T extends QueryResultRow = any>(
     const t1 = Date.now();
     try {
       let result;
-      if (opts.timeoutMs) {
+      if (opts.timeoutMs || opts.workMemMb) {
         // SET LOCAL chỉ có hiệu lực trong transaction này -> an toàn với transaction-mode pooler
         await client.query('BEGIN');
         try {
-          await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+          if (opts.timeoutMs) await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+          if (opts.workMemMb) await client.query(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
           result = await client.query(text, params);
           await client.query('COMMIT');
         } catch (e) {

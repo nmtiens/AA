@@ -1278,7 +1278,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
           onHexClick={onOpenHex}
           hexClickTitle="Xem chi tiết vật tư của hạng mục này"
           extraHead={<>
-            <th className={`${th} text-right`} title="Số dòng PR (vật tư) đã nối được với hạng mục qua mã nhà máy / Item note PR — gồm mọi trạng thái: chưa mua, đang mua, đã nhận, CCLD, đã đóng, hủy">Số dòng PR</th>
+            <th className={`${th} text-right`} title="Số dòng PR (vật tư) đã nối được với hạng mục qua mã nhà máy / Item note PR — gồm mọi trạng thái còn hiệu lực: chưa mua, đang mua, đã nhận, CCLD, đã đóng (không tính dòng đã hủy)">Số dòng PR</th>
             <th className={`${th} text-right`} title="Dòng 1.CHƯA MUA">Chưa mua</th>
             <th className={`${th} text-right`} title="Đang mua, quá ngày dự kiến giao">Trễ hẹn</th>
             <th className={`${th} text-right`} title="Đang mua, chưa tới ngày dự kiến giao">Chưa tới hẹn</th>

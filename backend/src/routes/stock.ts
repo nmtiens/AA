@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
 import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified } from '../server/data.js';
+import { createCache, cachedByVersions } from '../server/cache.js';
 import { app, warmupLimiter } from '../server/app.js';
 import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
 
@@ -11,6 +12,11 @@ import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../ser
 // TRƯỚC: 1 biến module-level duy nhất (không phân biệt filter).
 // SAU: Map key theo bộ lọc, giống overviewSummaryCache/khsxNhapKhoCache.
 const stockDatesCache = new Map<string, { versions: Record<string, string>; payload: any }>();
+// /api/stock/by-project, /api/stock/items, /api/stock/total-count (có lọc): cache theo phiên bản tồn kho +
+// sản xuất (xem server/cache.ts). items trả tới 5.000 dòng => giữ ít entry hơn.
+const stockQueryCache = createCache<unknown>(40);
+const stockItemsCache = createCache<unknown>(10);
+const STOCK_VERSION_KEYS = ['stock', 'production'];
 
 interface StockFilterParams {
   congTrinh: string[];
@@ -152,6 +158,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const filters = parseStockFilters(req);
     const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
 
+    const rows = await cachedByVersions(stockQueryCache, `by-project|${date}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
     const conds: string[] = ['s.date_parsed = $1'];
     const params: any[] = [date];
     if (filters.congTrinh.length) {
@@ -192,7 +199,9 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
       e.value += Number(row.value);
       merged.set(name, e);
     }
-    res.json([...merged.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value));
+    return [...merged.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.value - a.value);
+    }, workshopGroupsVersion());
+    res.json(rows);
   } catch (error) {
     console.error('Lỗi stock/by-project:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -211,6 +220,7 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
     const project = String(req.query.project || '').trim().toUpperCase();
     const filters = parseStockFilters(req);
 
+    const payload = await cachedByVersions(stockItemsCache, `items|${date}|${project}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
     const conds: string[] = ['s.date_parsed = $1'];
     const params: any[] = [date];
     if (project === 'CHƯA XÁC ĐỊNH') {
@@ -251,10 +261,13 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
        ) x
        ORDER BY gia_tri DESC NULLS LAST
        LIMIT $${params.length}`,
-      params
+      params,
+      { workMemMb: 32 }
     );
     const truncated = r.rows.length > STOCK_ITEMS_LIMIT;
-    res.json({ rows: r.rows.slice(0, STOCK_ITEMS_LIMIT).map(row => ({ ...row, gia_tri: Number(row.gia_tri) || 0 })), truncated });
+    return { rows: r.rows.slice(0, STOCK_ITEMS_LIMIT).map(row => ({ ...row, gia_tri: Number(row.gia_tri) || 0 })), truncated };
+    }, workshopGroupsVersion());
+    res.json(payload);
   } catch (error) {
     console.error('Lỗi stock/items:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -370,10 +383,13 @@ app.get('/api/stock/total-count', async (req: Request, res: Response) => {
     // Có lọc công trình / xưởng: đếm đúng phạm vi (không cache) — trước luôn trả COUNT(*) cả bảng
     const filters = parseStockFilters(req);
     if (filters.congTrinh.length || filters.xuong.length) {
-      const params: any[] = [];
-      const conds = stockScopeConds(filters, params);
-      const rr = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho WHERE ${conds.join(' AND ')}`, params);
-      return res.json({ total: Number(rr.rows[0].total) });
+      const total = await cachedByVersions(stockQueryCache, `total-count|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
+        const params: any[] = [];
+        const conds = stockScopeConds(filters, params);
+        const rr = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho WHERE ${conds.join(' AND ')}`, params);
+        return Number(rr.rows[0].total);
+      }, workshopGroupsVersion());
+      return res.json({ total });
     }
     const verResult = await timedQuery(
       `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`

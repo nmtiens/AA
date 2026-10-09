@@ -283,12 +283,17 @@ export const ProjectHealthModal: React.FC<Props> = ({
     // Cùng nhóm đỏ của tab BOM: đã triển khai nhưng chưa sản xuất (P002 / P012), không có PR ghi mã và
     // bảng sản xuất không ghi tình trạng mua đã về đủ. P001 (đã có cờ "Chưa triển khai") và hạng mục đã
     // lên chuyền (vật tư mua gộp / tồn kho) không gắn cờ này.
-    const mat = bomDetail?.byHex[i.hex]?.state;
+    const b = bomDetail?.byHex[i.hex];
+    const mat = b?.state;
     if (mat === 'noneBeforeSx') flags.push('Đã triển khai, chưa SX – chưa thấy PR');
     // KH nhập kho đang dùng muộn hơn ngày cần giao: biết trước sẽ giao trễ
     if (i.planAfterDue) flags.push('KH NK sau ngày cần giao');
-    if (mat === 'notOrdered') flags.push('Có VT chưa mua');
-    else if (mat === 'late') flags.push('VT trễ hẹn giao');
+    // Xét theo TỪNG DÒNG PR (byLine) chứ không chỉ trạng thái "xấu nhất" của hạng mục: hạng mục vừa có dòng
+    // chưa mua vừa có dòng trễ hẹn thì hiện cả 2 cờ (trước chỉ hiện "Có VT chưa mua", cờ trễ hẹn bị che)
+    if (mat && mat !== 'stocked') {
+      if ((b?.byLine.notOrdered ?? 0) > 0) flags.push('Có VT chưa mua');
+      if ((b?.byLine.late ?? 0) > 0) flags.push('VT trễ hẹn giao');
+    }
     // Vướng mắc đang mở, ghi rõ loại (vd. "Vướng mắc M3 Vật tư ×2")
     if (openIssues && (openIssues[i.hex] || 0) > 0) {
       const cats = issueCats[i.hex] ?? {};

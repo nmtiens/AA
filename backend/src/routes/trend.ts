@@ -1,18 +1,53 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
-import { workshopCondition, workshopGroupSql, workshopGroupOf } from '../server/workshopGroups.js';
+import { workshopCondition, workshopGroupSql, workshopGroupOf, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { canonicalProjectName } from '../server/projectAlias.js';
+import { createCache, cachedByVersions, queryKey, type VersionedCache } from '../server/cache.js';
 import { app } from '../server/app.js';
 
-// [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
-app.get('/api/trend', async (req: Request, res: Response) => {
-  try {
-    const source = req.query.source as string;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
+// ============================================================================
+// CACHE: mọi API ở file này chỉ đọc, kết quả phụ thuộc (tham số query, phiên bản bảng nguồn + bảng sản
+// xuất, setup gộp xưởng). Bấm qua lại giữa các biểu đồ / mở lại trang => trả ngay kết quả cũ khi dữ liệu
+// chưa đổi (xem server/cache.ts).
+// ============================================================================
+const trendCache = createCache<unknown>(120);
+const detailCache = createCache<unknown>(10);   // tới 10.000 dòng / entry
+const filterCache = createCache<unknown>(8);
+const TREND_PARAMS = ['source', 'granularity', 'dateFrom', 'dateTo', 'dates', 'xuong', 'congTrinh', 'dvt', 'phanLoai', 'ctWhitelist', 'dimension', 'value'];
+const sourceVersionKeys = (source: string) => [source === 'stock' ? 'stock' : source, 'production'];
 
-    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    const isStock = source === 'stock';
+class BadRequest extends Error { status = 400; }
+
+/** Đăng ký route GET chỉ đọc có cache theo phiên bản bảng. compute ném BadRequest => 400. */
+const cachedGet = (
+  path: string,
+  cache: VersionedCache<unknown>,
+  versionKeysOf: (req: Request) => string[],
+  compute: (req: Request) => Promise<unknown>,
+) => {
+  app.get(path, async (req: Request, res: Response) => {
+    try {
+      const key = `${path}|${queryKey(req.query as Record<string, unknown>, TREND_PARAMS)}`;
+      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion());
+      res.json(data);
+    } catch (error) {
+      if (error instanceof BadRequest) return res.status(400).json({ error: error.message });
+      console.error(`Lỗi ${path}:`, error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+};
+
+const sourceCfg = (req: Request): { source: string; cfg: TrendTableConfig; isStock: boolean } => {
+  const source = String(req.query.source || '');
+  if (!TREND_SOURCES.has(source)) throw new BadRequest('Invalid source');
+  return { source, cfg: source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source], isStock: source === 'stock' };
+};
+
+// [ĐO TIMING] Dùng chung cho biểu đồ trend của mọi bảng lớn (dht, nhap_kho, xuat_kho, tkbv_full, pthsp_full, ton_kho).
+cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
+    const { cfg, isStock } = sourceCfg(req);
 
     const granularity = (req.query.granularity as string) || 'day';
     const truncUnit = granularity === 'week' ? 'week' : granularity === 'month' ? 'month' : 'day';
@@ -81,21 +116,15 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     const limit = granularity === 'day' ? 15 : 12;
 
     const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-    const valueExpr = needsJoin
-      ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`
-      : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+    const valueColExpr = needsJoin
+      ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
+      : numericCol(cfg.table, cfg.valueCol);
+    const valueExpr = `SUM(${valueColExpr})`;
     const joinKey = cfg.productionJoinCol || 'hex';
     const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text` : '';
 
     const cteList: string[] = [];
     if (needsJoin) cteList.push(buildMatchedProductionCTE(joinKey));
-
-    // [COUNT FIX] Số HEX DUY NHẤT trên CẢ KHOẢNG (không phải cộng dồn từng cột) —
-    // để badge "Tổng" ở client không đếm trùng 1 HEX xuất hiện ở nhiều kỳ khác nhau.
-    // Không áp dụng cho stock (snapshot, không có khái niệm "trùng theo ngày").
-    const distinctTotalExpr = (!isStock && cfg.hexCol)
-      ? `(SELECT ${countExpr} FROM ${cfg.table} ${mainAlias} ${joinClause} WHERE ${conditions.join(' AND ')})`
-      : 'NULL::bigint';
 
     let q: string;
     if (isStock && truncUnit !== 'day') {
@@ -124,6 +153,32 @@ app.get('/api/trend', async (req: Request, res: Response) => {
         ORDER BY pd.period ${useDefaultLimit ? 'DESC' : 'ASC'}
         ${useDefaultLimit ? `LIMIT ${limit}` : ''}
       `;
+    } else if (!isStock && cfg.hexCol) {
+      // [COUNT FIX] Số HEX DUY NHẤT trên CẢ KHOẢNG (không phải cộng dồn từng cột) — để badge "Tổng" ở client
+      // không đếm trùng 1 HEX xuất hiện ở nhiều kỳ. Các dòng khớp bộ lọc lấy 1 lần vào CTE `base` rồi vừa gộp
+      // theo kỳ vừa đếm tổng từ đó — trước đếm tổng bằng subquery quét lại bảng với cùng bộ lọc (2 lần quét).
+      cteList.push(`
+        base AS (
+          SELECT date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
+                 ${colBare(cfg.hexCol)} AS hx,
+                 ${valueColExpr} AS v
+          FROM ${cfg.table} ${mainAlias}
+          ${joinClause}
+          WHERE ${conditions.join(' AND ')}
+        )
+      `);
+      q = `
+        WITH ${cteList.join(',\n')}
+        SELECT
+          period,
+          COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
+          COUNT(DISTINCT hx) AS total_count,
+          (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total_count
+        FROM base
+        GROUP BY 1
+        ORDER BY 1 ${useDefaultLimit ? 'DESC' : 'ASC'}
+        ${useDefaultLimit ? `LIMIT ${limit}` : ''}
+      `;
     } else {
       const withClause = cteList.length ? `WITH ${cteList.join(',\n')}` : '';
       q = `
@@ -132,7 +187,7 @@ app.get('/api/trend', async (req: Request, res: Response) => {
           date_trunc('${truncUnit}', ${colBare(cfg.dateCol)})::date AS period,
           COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
           ${countExpr} AS total_count,
-          ${distinctTotalExpr} AS distinct_total_count
+          NULL::bigint AS distinct_total_count
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -141,24 +196,18 @@ app.get('/api/trend', async (req: Request, res: Response) => {
         ${useDefaultLimit ? `LIMIT ${limit}` : ''}
       `;
     }
-    const r = await timedQuery(q, params);
-    const rows = (useDefaultLimit ? r.rows.reverse() : r.rows).map(row => ({
+    const r = await timedQuery(q, params, { workMemMb: 32 });
+    return (useDefaultLimit ? r.rows.reverse() : r.rows).map(row => ({
       period: row.period,
       total: Number(row.total_value),
       totalCount: Number(row.total_count),
       ...(row.distinct_total_count != null ? { distinctTotalCount: Number(row.distinct_total_count) } : {}),
     }));
-    res.json(rows);
-  } catch (error) {
-    console.error('Lỗi /api/trend:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
 });
 
-// [ĐO TIMING] 4 route filters/* — đang mất 2-3.6s bất thường trong log dù query rất nhẹ.
+// [ĐO TIMING] 4 route filters/* — UNION ALL 7 bảng lớn (~1s), giờ cache theo phiên bản các bảng đó.
 // Danh sách các giá trị xưởng distinct, dùng cho dropdown filter
-app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
-  try {
+cachedGet('/api/filters/xuong', filterCache, () => ['khsx', 'order', 'inventory', 'export', 'tkbv', 'pthsp', 'production'], async () => {
     const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
@@ -181,16 +230,11 @@ app.get('/api/filters/xuong', async (_req: Request, res: Response) => {
     const r = await timedQuery(q);
     // Trả tên xưởng ĐÃ GỘP (setup gộp xưởng), bỏ trùng
     const groups = [...new Set(r.rows.map(row => workshopGroupOf(row.name)).filter(Boolean))].sort();
-    res.json(groups.map(name => ({ code: name, name })));
-  } catch (error) {
-    console.error('Lỗi filters/xuong:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+    return groups.map(name => ({ code: name, name }));
 });
 
 // Danh sách công trình distinct, dùng cho dropdown filter
-app.get('/api/filters/cong-trinh', async (_req: Request, res: Response) => {
-  try {
+cachedGet('/api/filters/cong-trinh', filterCache, () => ['khsx', 'order', 'inventory', 'export', 'tkbv', 'pthsp', 'stock'], async () => {
     const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
       FROM (
@@ -211,16 +255,11 @@ app.get('/api/filters/cong-trinh', async (_req: Request, res: Response) => {
       ORDER BY UPPER(TRIM(name)), name
     `;
     const r = await timedQuery(q);
-    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
-  } catch (error) {
-    console.error('Lỗi filters/cong-trinh:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+    return r.rows.map(row => ({ code: row.name, name: row.name }));
 });
 
 // Danh sách đơn vị tính (dvt) distinct từ dht — dùng cho dropdown filter Đơn hàng mới
-app.get('/api/filters/dvt', async (_req: Request, res: Response) => {
-  try {
+cachedGet('/api/filters/dvt', filterCache, () => ['order', 'stock'], async () => {
     const q = `
       SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM dht
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
@@ -230,16 +269,11 @@ app.get('/api/filters/dvt', async (_req: Request, res: Response) => {
       ORDER BY 1
     `;
     const r = await timedQuery(q);
-    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
-  } catch (error) {
-    console.error('Lỗi filters/dvt:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+    return r.rows.map(row => ({ code: row.name, name: row.name }));
 });
 
 // Danh sách phân loại nhóm sản phẩm distinct từ production_status_app — dùng cho dropdown filter
-app.get('/api/filters/phan-loai-nhom-san-pham', async (_req: Request, res: Response) => {
-  try {
+cachedGet('/api/filters/phan-loai-nhom-san-pham', filterCache, () => ['production'], async () => {
     const q = `
       SELECT DISTINCT TRIM(phan_loai_nhom_san_pham) AS name
       FROM production_status_app
@@ -247,24 +281,13 @@ app.get('/api/filters/phan-loai-nhom-san-pham', async (_req: Request, res: Respo
       ORDER BY 1
     `;
     const r = await timedQuery(q);
-    res.json(r.rows.map(row => ({ code: row.name, name: row.name })));
-  } catch (error) {
-    console.error('Lỗi filters/phan-loai-nhom-san-pham:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+    return r.rows.map(row => ({ code: row.name, name: row.name }));
 });
 
 // [ĐO TIMING] Trả về: tổng hợp theo XƯỞNG (không group theo thời gian) — dùng cho biểu đồ so sánh xưởng
-app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
-  try {
-    const source = req.query.source as string;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
-
-    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) {
-      return res.json([]);
-    }
-    const isStock = source === 'stock';
+cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
+    const { cfg, isStock } = sourceCfg(req);
+    if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) return [];
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -284,7 +307,7 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-        if (isStock) {
+    if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
@@ -336,31 +359,19 @@ app.get('/api/trend-by-xuong', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const rows = r.rows.map(row => ({
+    const r = await timedQuery(q, params, { workMemMb: 32 });
+    return r.rows.map(row => ({
       xuongCode: row.xuong,
       xuongName: row.xuong,
       total: Number(row.total_value),
       totalCount: Number(row.total_count),
     }));
-    res.json(rows);
-  } catch (error) {
-    console.error('Lỗi /api/trend-by-xuong:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
 });
 
 // [ĐO TIMING] Trả về: tổng hợp theo CÔNG TRÌNH (không group theo thời gian) — dùng cho biểu đồ so sánh công trình
-app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
-  try {
-    const source = req.query.source as string;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
-
-    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.congTrinhCol) {
-      return res.json([]);
-    }
-    const isStock = source === 'stock';
+cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
+    const { cfg, isStock } = sourceCfg(req);
+    if (!cfg.congTrinhCol) return [];
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -380,7 +391,7 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-        if (isStock) {
+    if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
@@ -428,7 +439,7 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
+    const r = await timedQuery(q, params, { workMemMb: 32 });
     // Gộp các cách viết của cùng 1 công trình (cùng mã) thành 1 cột — khớp với khi lọc theo công trình
     // (lọc mở rộng tên được chọn ra mọi cách viết của cùng mã, xem server/projectAlias.ts)
     const merged = new Map<string, { total: number; totalCount: number }>();
@@ -439,27 +450,17 @@ app.get('/api/trend-by-congtrinh', async (req: Request, res: Response) => {
       e.totalCount += Number(row.total_count);
       merged.set(name, e);
     }
-    const rows = [...merged.entries()]
+    return [...merged.entries()]
       .map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount }))
       // Bỏ cột rỗng (giá trị 0, không HEX) — giống Tổng quan theo công trình
       .filter(x => x.total !== 0 || x.totalCount > 0)
       .sort((a, b) => b.total - a.total);
-    res.json(rows);
-  } catch (error) {
-    console.error('Lỗi /api/trend-by-congtrinh:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
 });
 
 
 // [MỚI - ĐÃ SỬA JOIN] Trả về: tổng hợp theo ĐƠN VỊ TÍNH (DVT)
-app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
-  try {
-    const source = req.query.source as string;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
-
-    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    const isStock = source === 'stock';
+cachedGet('/api/trend-by-dvt', trendCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
+    const { cfg, isStock } = sourceCfg(req);
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -479,7 +480,7 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-        if (isStock) {
+    if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
@@ -495,7 +496,7 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
     if (congTrinh && cfg.congTrinhCol) {
       conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
     }
-    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);  
+    applyCtWhitelist(req, cfg.congTrinhCol ? colBare(cfg.congTrinhCol) : undefined, conditions, params);
     // Không tính hạng mục đã HỦY (tồn kho là hàng thực có trong kho -> giữ nguyên)
     if (cfg.hexCol && cfg !== STOCK_TREND_CONFIG) conditions.push(notCancelledHexCond(colBare(cfg.hexCol)));
     if (dvt) {
@@ -529,31 +530,19 @@ app.get('/api/trend-by-dvt', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const rows = r.rows.map(row => ({
+    const r = await timedQuery(q, params, { workMemMb: 32 });
+    return r.rows.map(row => ({
       dvtCode: row.dvt,
       dvtName: row.dvt,
       total: Number(row.total_value),
       totalCount: Number(row.total_count),
     }));
-    res.json(rows);
-  } catch (error) {
-    console.error('Lỗi /api/trend-by-dvt:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
 });
 
 // [MỚI - ĐÃ SỬA JOIN] Trả về: tổng hợp theo PHÂN LOẠI NHÓM SẢN PHẨM
-app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
-  try {
-    const source = req.query.source as string;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
-
-    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    if (!cfg.joinProductionForFilters || !cfg.hexCol) {
-      return res.json([]);
-    }
-    const isStock = source === 'stock';
+cachedGet('/api/trend-by-phanloai', trendCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
+    const { cfg, isStock } = sourceCfg(req);
+    if (!cfg.joinProductionForFilters || !cfg.hexCol) return [];
 
     const dateFrom = parseSafeDate(req.query.dateFrom as string);
     const dateTo = parseSafeDate(req.query.dateTo as string);
@@ -567,7 +556,7 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-        if (isStock) {
+    if (isStock) {
       conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
     } else {
       applyNonStockDateFilter(colBare(cfg.dateCol), parseExplicitDates(req), dateFrom, dateTo, conditions, params); // [DATES FIX]
@@ -593,10 +582,10 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
         params.push(dvt); conditions.push(eqNormalized('p.dvt', params.length));
       }
     }
-    if (phanLoai) {                                          // ← THÊM KHỐI NÀY
-     params.push(phanLoai);
-     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
-   }
+    if (phanLoai) {
+      params.push(phanLoai);
+      conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
+    }
 
     const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
     const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
@@ -616,18 +605,13 @@ app.get('/api/trend-by-phanloai', async (req: Request, res: Response) => {
       GROUP BY 1
       ORDER BY total_value DESC
     `;
-    const r = await timedQuery(q, params);
-    const rows = r.rows.map(row => ({
+    const r = await timedQuery(q, params, { workMemMb: 32 });
+    return r.rows.map(row => ({
       phanLoaiCode: row.phan_loai,
       phanLoaiName: row.phan_loai,
       total: Number(row.total_value),
       totalCount: Number(row.total_count),
     }));
-    res.json(rows);
-  } catch (error) {
-    console.error('Lỗi /api/trend-by-phanloai:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
 });
 
 // ============================================================================
@@ -648,19 +632,15 @@ const DETAIL_DIMENSIONS = new Set(['period', 'xuong', 'congtrinh', 'dvt', 'phanl
 const UNKNOWN_VALUE_LABELS = new Set(['CHƯA XÁC ĐỊNH', 'TỒN KHO KHÁC']);
 const isUnknownValueLabel = (v: string) => UNKNOWN_VALUE_LABELS.has(v.trim().toUpperCase());
 
-app.get('/api/detail', async (req: Request, res: Response) => {
-  try {
-    const source = req.query.source as string;
-    if (!TREND_SOURCES.has(source)) return res.status(400).json({ error: 'Invalid source' });
+cachedGet('/api/detail', detailCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
+    const { cfg, isStock } = sourceCfg(req);
 
     const dimension = (req.query.dimension as string) || '';
-    if (!DETAIL_DIMENSIONS.has(dimension)) return res.status(400).json({ error: 'Invalid dimension' });
+    if (!DETAIL_DIMENSIONS.has(dimension)) throw new BadRequest('Invalid dimension');
 
     const value = ((req.query.value as string) || '').trim();
-    if (!value) return res.status(400).json({ error: 'Missing value' });
+    if (!value) throw new BadRequest('Missing value');
 
-    const cfg: TrendTableConfig = source === 'stock' ? STOCK_TREND_CONFIG : ANALYSIS_TABLES[source];
-    const isStock = source === 'stock';
     const granularity = (req.query.granularity as string) || 'day';
 
     const xuong = (req.query.xuong as string) || '';
@@ -683,14 +663,13 @@ app.get('/api/detail', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    // Chiều thời gian
-      // [DATES FIX] Danh sách ngày rời rạc — dùng cho cả nhánh 'period' lẫn các
+    // [DATES FIX] Danh sách ngày rời rạc — dùng cho cả nhánh 'period' lẫn các
     // chiều khác (xưởng/công trình/ĐVT/phân loại), trừ stock (snapshot).
     const explicitDates = isStock ? [] : parseExplicitDates(req);
 
     // Chiều thời gian
     if (dimension === 'period') {
-      if (!parseSafeDate(value)) return res.status(400).json({ error: 'Invalid period value' });
+      if (!parseSafeDate(value)) throw new BadRequest('Invalid period value');
       const range = getPeriodRangeFromKey(value, granularity);
       // Cắt kỳ theo khoảng ngày đang xem (cột đầu / cuối của biểu đồ chỉ là 1 phần tuần / tháng) — trước lấy trọn
       // kỳ nên chi tiết lớn hơn số trên cột
@@ -709,14 +688,8 @@ app.get('/api/detail', async (req: Request, res: Response) => {
         conditions.push(
           `${colBare(cfg.dateCol)} = (SELECT MAX(${cfg.dateCol}) FROM ${cfg.table} WHERE ${cfg.dateCol} BETWEEN $${params.length - 1} AND $${params.length})`
         );
-      } else if (!isStock && granularity === 'day' && explicitDates.length > 0) {
-        // [DATES FIX] Bấm xem chi tiết 1 cột ngày: cột đó (value) đã LÀ 1 ngày cụ
-        // thể, nên chỉ cần khớp đúng ngày đó — không cần lọc thêm theo explicitDates
-        // (start/end đã đúng đúng 1 ngày rồi). Giữ điều kiện BETWEEN start/end như
-        // nhánh mặc định bên dưới cho nhất quán.
-        params.push(start, end);
-        conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
       } else {
+        // Cột ngày / tuần / tháng: khớp khoảng [start, end] (với ngày rời rạc, start = end = chính ngày đó)
         params.push(start, end);
         conditions.push(`${colBare(cfg.dateCol)} BETWEEN $${params.length - 1} AND $${params.length}`);
       }
@@ -793,11 +766,11 @@ app.get('/api/detail', async (req: Request, res: Response) => {
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
 
     const cols = REPORT_COLUMNS[cfg.table] || [];
-    if (cols.length === 0) return res.status(400).json({ error: 'Bảng không được hỗ trợ' });
+    if (cols.length === 0) throw new BadRequest('Bảng không được hỗ trợ');
     const selectClause = cols.map(c => `${alias ? `${alias}.` : ''}"${c}"`).join(', ');
 
-    // Cửa sổ chi tiết tự chia trang (200 dòng/trang) => tải tối đa 5.000 dòng (trước 500: 1 xưởng
-    // trong 1 tháng đã vượt, danh sách bị cắt). Vượt mức này cửa sổ vẫn báo đã giới hạn.
+    // Cửa sổ chi tiết tự chia trang (200 dòng/trang) => tải tối đa 10.000 dòng. Vượt mức này cửa sổ vẫn báo
+    // đã giới hạn (truncated).
     const DETAIL_LIMIT = 10000; // đủ 1 ảnh chụp tồn kho (~5.100 dòng) — 5000 cắt mất danh sách tồn kho
     const q = `
       ${withClause}
@@ -808,13 +781,9 @@ app.get('/api/detail', async (req: Request, res: Response) => {
       ORDER BY ${colBare(cfg.dateCol)} DESC
       LIMIT ${DETAIL_LIMIT + 1}
     `;
-    const r = await timedQuery(q, params);
+    const r = await timedQuery(q, params, { workMemMb: 32 });
     const truncated = r.rows.length > DETAIL_LIMIT;
     const rows = truncated ? r.rows.slice(0, DETAIL_LIMIT) : r.rows;
 
-    res.json({ rows, columns: cols, truncated });
-  } catch (error) {
-    console.error('Lỗi /api/detail:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
+    return { rows, columns: cols, truncated };
 });

@@ -110,7 +110,11 @@ const load = async () => {
   loadedAt = Date.now();
 };
 
-/** Nạp / làm mới bảng tên (tối đa 10 phút 1 lần). Lỗi thì giữ bảng cũ, không làm hỏng request. */
+/**
+ * Nạp / làm mới bảng tên (tối đa 10 phút 1 lần). Lỗi thì giữ bảng cũ, không làm hỏng request.
+ * Lần đầu (chưa có bảng) phải chờ nạp xong. Các lần làm mới sau chạy NỀN: request dùng bảng cũ ngay —
+ * trước đây cứ 10 phút lại có 1 request phải chờ ~2,5s nạp lại (2 query nặng nối 8 bảng qua HEX).
+ */
 export const ensureProjectAliases = async (): Promise<void> => {
   if (Date.now() - loadedAt < REFRESH_MS) return;
   if (!loading) {
@@ -118,7 +122,7 @@ export const ensureProjectAliases = async (): Promise<void> => {
       .catch(err => { console.error('Lỗi nạp bảng tên công trình:', err); loadedAt = Date.now() - REFRESH_MS + 60_000; })
       .finally(() => { loading = null; });
   }
-  await loading;
+  if (loadedAt === 0) await loading;
 };
 
 /**

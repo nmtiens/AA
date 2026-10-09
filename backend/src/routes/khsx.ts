@@ -1,13 +1,14 @@
 import { parseNameList, expandProjectNames, normNameSql, canonicalProjectName } from '../server/projectAlias.js';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
-import { TRIEU_TO_TY } from '../server/common.js';
-import { getRelevantVersions, trimCache, numericCol, notCancelledHexCond } from '../server/data.js';
+import { TRIEU_TO_TY, isoWeekRangeInYear } from '../server/common.js';
+import { numericCol, notCancelledHexCond } from '../server/data.js';
+import { createCache, cachedByVersions } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { workshopGroupSql, workshopCondition, workshopGroupsVersion } from '../server/workshopGroups.js';
 
-// --- CACHE IN-MEMORY CHO /api/khsx-nhapkho/summary ---
-const khsxNhapKhoCache = new Map<string, { versions: Record<string, string>; payload: any }>();
+// --- CACHE IN-MEMORY CHO /api/khsx-nhapkho/summary (theo phiên bản bảng, xem server/cache.ts) ---
+const khsxNhapKhoCache = createCache<unknown>(50);
 const KHSX_NHAPKHO_VERSION_KEYS = ['khsx', 'inventory', 'production'];
 
 // [ĐO TIMING] Endpoint tổng hợp phức tạp — 2 query chính (khQuery, thQuery).
@@ -17,13 +18,8 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const { nam, thang, mode = 'month', tuan, ngay, congTrinh, xuong } = req.query as Record<string, string>;
     if (!nam) return res.status(400).json({ error: 'Missing nam' });
 
-    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong, wg: workshopGroupsVersion() });
-    const khsxVersions = await getRelevantVersions(KHSX_NHAPKHO_VERSION_KEYS);
-    const cachedKhsx = khsxNhapKhoCache.get(khsxCacheKey);
-    if (cachedKhsx && JSON.stringify(cachedKhsx.versions) === JSON.stringify(khsxVersions)) {
-      return res.json(cachedKhsx.payload);
-    }
-
+    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxPayload = await cachedByVersions(khsxNhapKhoCache, khsxCacheKey, KHSX_NHAPKHO_VERSION_KEYS, async () => {
     const isWeek = mode === 'week';
     const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
 
@@ -57,7 +53,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       ${khWhere}
       GROUP BY 1, 2, 3
     `;
-    const khResult = await timedQuery(khQuery, khParams);
+    const khResult = await timedQuery(khQuery, khParams, { workMemMb: 32 });
 
     // ---------- THỰC HIỆN (nhap_kho) ----------
     const thParams: any[] = [nam];
@@ -67,13 +63,15 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     // Tuần: lấy theo NGÀY của tuần ISO, cắt trong năm dương lịch — khớp cách bảng KHSX đánh số (29–31/12/2025 là
     // tuần 53 của 2025, 01–04/01/2026 là tuần 1 của 2026). Cột nhap_kho.tuan là tuần ISO thuần nên trước đó
     // 29–31/12 bị tính vào "tuần 1" của năm cũ, lệch với KH.
+    // Khoảng ngày của từng tuần tính sẵn ở Node (common.isoWeekRangeInYear) rồi so bằng daterange[] —
+    // trước gọi to_date(...) cho từng dòng nhập kho × từng tuần (~3s)
     if (isWeek && tuanList.length) {
-      thParams.push(Number(nam));
-      const y = `$${thParams.length}::int`;
-      thParams.push(tuanList);
-      const w = `to_date((${y})::text || '-' || wk::text, 'IYYY-IW')`;
-      thWhere += ` AND EXISTS (SELECT 1 FROM UNNEST($${thParams.length}::int[]) wk
-        WHERE date_parsed BETWEEN GREATEST(${w}, make_date(${y}, 1, 1)) AND LEAST(${w} + 6, make_date(${y}, 12, 31)))`;
+      const ranges = tuanList
+        .map(w => isoWeekRangeInYear(Number(nam), Math.trunc(w)))
+        .filter((r): r is { start: string; end: string } => r !== null)
+        .map(r => `[${r.start},${r.end}]`);
+      if (ranges.length) { thParams.push(ranges); thWhere += ` AND date_parsed <@ ANY($${thParams.length}::daterange[])`; }
+      else thWhere += ' AND FALSE';
     }
     if (isWeek && ngayList.length) { thParams.push(ngayList); thWhere += ` AND ngay = ANY($${thParams.length}::bigint[])`; }
     if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND ${normNameSql('ten_cong_trinh')} = ANY($${thParams.length}::text[])`; }
@@ -93,15 +91,23 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     // Tham số năm chỉ thêm khi xem theo tuần (tham số thừa => Postgres báo lỗi)
     if (isWeek) thParams.push(Number(nam));
     const yIdx = thParams.length;
-    const wkStart = `to_date(($${yIdx}::int)::text || '-' || ph.tuan::int::text, 'IYYY-IW')`;
+    // Khoảng ngày của tuần KH tính 1 lần trong CTE plan_hex (ws..we, cắt trong năm) — trước to_date(...)
+    // được tính lại cho mỗi cặp (dòng nhập kho, dòng KH) trong EXISTS
+    const planHexCte = isWeek
+      ? `plan_hex AS MATERIALIZED (
+           SELECT hex, thang,
+                  GREATEST(ws, make_date($${yIdx}::int, 1, 1)) AS ws,
+                  LEAST(ws + 6, make_date($${yIdx}::int, 12, 31)) AS we
+           FROM (SELECT DISTINCT hex::text AS hex, thang,
+                        to_date(($${yIdx}::int)::text || '-' || tuan::int::text, 'IYYY-IW') AS ws
+                 FROM khsx WHERE ${planHexWhere} AND tuan BETWEEN 1 AND 53) k)`
+      : `plan_hex AS MATERIALIZED (SELECT DISTINCT hex::text AS hex, thang FROM khsx WHERE ${planHexWhere})`;
     const inPlanExpr = isWeek
-      ? `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text
-           AND nhap_kho.date_parsed BETWEEN GREATEST(${wkStart}, make_date($${yIdx}::int, 1, 1))
-                                        AND LEAST(${wkStart} + 6, make_date($${yIdx}::int, 12, 31)))`
+      ? `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND nhap_kho.date_parsed BETWEEN ph.ws AND ph.we)`
       : `EXISTS (SELECT 1 FROM plan_hex ph WHERE ph.hex = nhap_kho.hex::text AND ph.thang = nhap_kho.thang)`;
 
     const thQuery = `
-      WITH plan_hex AS (SELECT DISTINCT hex::text AS hex, thang, tuan FROM khsx WHERE ${planHexWhere})
+      WITH ${planHexCte}
       SELECT
         ${workshopGroupSql('xuong_chinh')} AS xuong,
         TRIM(ten_cong_trinh) AS cong_trinh,
@@ -112,7 +118,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       ${thWhere}
       GROUP BY 1, 2, 3, 4
     `;
-    const thResult = await timedQuery(thQuery, thParams);
+    const thResult = await timedQuery(thQuery, thParams, { workMemMb: 32 });
 
     // ---------- GỘP THEO XƯỞNG ----------
     const xuongMap = new Map<string, { kh: number; th: number; thPlan: number }>();
@@ -176,7 +182,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       if (v > 0) weeklyKhFallback = Number(v.toFixed(2));
     }
 
-    const khsxPayload = {
+    return {
       totalKh: Number(totalKh.toFixed(2)),
       totalTh: Number(totalTh.toFixed(2)),
       totalThPlan: Number(totalThPlan.toFixed(2)),
@@ -185,8 +191,7 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
       byXuong,
       byCongTrinh,
     };
-    khsxNhapKhoCache.set(khsxCacheKey, { versions: khsxVersions, payload: khsxPayload });
-    trimCache(khsxNhapKhoCache);
+    }, workshopGroupsVersion());
     res.json(khsxPayload);
   } catch (error) {
     console.error('Lỗi khsx-nhapkho/summary:', error);
