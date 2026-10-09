@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { DataRow } from '../../types';
 import { useToast } from '../../context/ToastContext';
+import { projectMatchKey } from '../../utils/productionMetrics';
 import {
   CONFIGURABLE_VIEWS,
   getProjectsForView,
@@ -85,8 +86,10 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     // đối chiếu với allProjects hiện tại, loại bỏ những công trình đã lưu
     // trước đó nhưng không còn tồn tại trong dữ liệu sản xuất hiện tại —
     // giữ nguyên THỨ TỰ đã lưu (chính là thứ tự ưu tiên).
-    const validProjectsSet = new Set(allProjects);
-    const cleaned = saved.filter((p) => validProjectsSet.has(p));
+    // So theo tên chuẩn (projectMatchKey) như filterByView: tên đã lưu là 1 cách viết khác của cùng công trình
+    // thì đổi về tên đang dùng thay vì âm thầm bỏ (lưu lại sẽ xoá công trình đó khỏi view)
+    const byKey = new Map(allProjects.map(p => [projectMatchKey(p), p] as const));
+    const cleaned = [...new Set(saved.map((p) => byKey.get(projectMatchKey(p))).filter((p): p is string => !!p))];
     setSelectedProjects(cleaned);
   }, [selectedViewId, allProjects]);
 

@@ -12,7 +12,7 @@ import {
   type StockDateEntry,
 } from '../../../services/dataService';
 import { trieuToTy } from '../../../utils/money';
-import { isCancelledIpo } from '../../../utils/productionMetrics';
+import { isCancelledIpo, expandProjectNames } from '../../../utils/productionMetrics';
 import { findColumnKey } from '../utils/columnKeyResolver';
 
 // Giá trị gốc (triệu đồng) -> Tỷ, làm tròn 2 chữ số (khớp số trên màn hình)
@@ -31,6 +31,8 @@ interface StockByProjectRowLike {
 }
 
 interface UseExportFlowsParams {
+  /** Phạm vi tồn kho của trang (công trình theo view + xưởng) — file CSV tồn kho xuất đúng phạm vi này */
+  stockScope?: { congTrinh: string[]; xuong: string[] };
   orderColumns: ColumnDefinition[];
   orderData: DataRow[];
   tkbvColumns: ColumnDefinition[];
@@ -162,7 +164,12 @@ export function useExportFlows({
   closestStockDate,
 
   bottleneckData,
+  stockScope,
 }: UseExportFlowsParams) {
+  const appendStockScope = (params: URLSearchParams) => {
+    if (stockScope?.congTrinh.length) params.set('congTrinh', expandProjectNames(stockScope.congTrinh).join('|') + '|');
+    if (stockScope?.xuong.length) params.set('xuong', stockScope.xuong.join(','));
+  };
   // HEX thuộc đơn HỦY: bỏ khỏi file xuất đơn hàng / TKBV / PTHSP / nhập kho / xuất kho — cùng quy tắc
   // với số liệu trên trang (server loại HỦY ở mọi nguồn này)
   const cancelledHexes = useMemo(() => {
@@ -311,6 +318,7 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
     if (effectiveStockColumns.length > 0) {
       params.set('cols', effectiveStockColumns.map(c => c.key).join(','));
     }
+    appendStockScope(params);
     const res = await fetch(`${API_BASE_URL}/stock/export/csv?${params.toString()}`);
     if (!res.ok) return '\uFEFFLỗi khi lấy dữ liệu tồn kho';
     return await res.arrayBuffer(); // giữ nguyên bytes gốc, không qua string trung gian
@@ -530,6 +538,7 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
       if (genericExportSelectedColumns.length > 0) {
         params.set('cols', genericExportSelectedColumns.join(','));
       }
+      appendStockScope(params);
 
       const url = `${API_BASE_URL}/stock/export/csv?${params.toString()}`;
 

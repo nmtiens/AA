@@ -226,7 +226,11 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 
         const params: any[] = [];
     let periodCond: string;
-    if (useExplicitDates) {
+    // allTime=1: thẻ đang xem "toàn bộ thời gian" (không lọc ngày) — cột trong kỳ tính mọi ngày, giống
+    // /overview/summary. Trước by-group lấy dateFrom = dateTo => cột trong kỳ chỉ là 1 ngày (lệch thẻ)
+    if (req.query.allTime === '1' && !useExplicitDates) {
+      periodCond = 'TRUE';
+    } else if (useExplicitDates) {
       params.push(explicitDates);
       periodCond = `${colBare('date_parsed')} = ANY($1::date[])`;
     } else {
@@ -240,7 +244,7 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 
     const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
     const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
-    const outerLo = loCandidates.sort()[0];
+    const outerLo = periodCond === 'TRUE' ? '1900-01-01' : loCandidates.sort()[0];
     const outerHi = hiCandidates.sort().slice(-1)[0];
     const outerLoIdx = params.length + 1;
     const outerHiIdx = params.length + 2;

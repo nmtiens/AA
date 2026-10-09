@@ -70,20 +70,22 @@ const STATUS_COLUMNS: [NvlStatusLine['source'], string][] = [
 export function parseNvlStatus(raw: NvlRaw | undefined | null): NvlStatusLine[] {
   if (!raw) return [];
   // Cùng 1 dòng PR có thể được ghi ở nhiều cột (vd. kính vừa ở "NVL khác" vừa ở "kính / đá", một nơi có
-  // tiền tố "Mở - ") => gộp theo nội dung (bỏ tiền tố), giữ bản có trạng thái.
-  const byBody = new Map<string, NvlStatusLine>();
+  // tiền tố "Mở - ") => chỉ gộp trùng GIỮA các cột (lấy số lần xuất hiện nhiều nhất trong 1 cột). Trong
+  // CÙNG 1 cột, các khối giống hệt nhau là các dòng PR thật khác nhau (cùng vật tư, cùng SL) — trước bị gộp
+  // nên số "dòng còn chờ" đếm thiếu.
+  const byBody = new Map<string, NvlStatusLine[]>();
   STATUS_COLUMNS.forEach(([source, col]) => {
     const text = String(raw[col] ?? '');
     if (!text.trim()) return;
+    const inCol = new Map<string, NvlStatusLine[]>();
     text.split(/\n\s*\n|\n(?=(?:Mở|Hoàn thành|Đóng)\s*-\s*TÊN VT SAP|TÊN VT SAP)/).forEach(block => {
       const b = block.trim();
       if (!b || !/TÊN VT SAP/i.test(b)) return;
       const m = /^(Mở|Hoàn thành|Đóng)\s*-\s*/i.exec(b);
       const body = m ? b.slice(m[0].length) : b;
-      const prev = byBody.get(body);
-      if (prev) { if (!prev.state && m) prev.state = m[1]; return; }
       const field = (label: RegExp) => body.split('|').map(p => p.trim()).find(p => label.test(p))?.split(':').slice(1).join(':').trim();
-      byBody.set(body, {
+      const list = inCol.get(body) ?? [];
+      list.push({
         source,
         state: m ? m[1] : '',
         name: field(/^TÊN VT SAP/i) ?? '',
@@ -93,9 +95,20 @@ export function parseNvlStatus(raw: NvlRaw | undefined | null): NvlStatusLine[] 
         got: num(field(/^KHỐI LƯỢNG ĐÃ VỀ/i)),
         left: num(field(/^KHỐI LƯỢNG CÒN LẠI/i)),
       });
+      inCol.set(body, list);
+    });
+    inCol.forEach((list, body) => {
+      const prev = byBody.get(body);
+      if (!prev) { byBody.set(body, list); return; }
+      // Đã có ở cột khác: giữ bản nhiều dòng hơn, bổ sung trạng thái còn trống
+      const keep = list.length > prev.length ? list : prev;
+      const other = keep === list ? prev : list;
+      const state = keep.find(l => l.state)?.state || other.find(l => l.state)?.state || '';
+      if (state) keep.forEach(l => { if (!l.state) l.state = state; });
+      byBody.set(body, keep);
     });
   });
-  return [...byBody.values()];
+  return [...byBody.values()].flat();
 }
 
 /** Dòng tình trạng còn chờ về (còn lại > 0, chưa đóng / hoàn thành, không phải CCLD). */

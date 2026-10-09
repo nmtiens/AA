@@ -289,7 +289,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   }, [records, f, monthRange]); // eslint-disable-line react-hooks/exhaustive-deps
   // Cột gộp "Trước …" / "Sau …" không vẽ trên biểu đồ (cột "Trước" gồm hạng mục cũ đã hoàn thành,
   // lớn gấp nhiều lần các tháng gần đây => ép biểu đồ) — bỏ qua, chỉ vẽ trong khoảng.
-  const monthChartData = useMemo(() => monthData.filter(d => chartMonthOrder(d.key) % 2 === 1), [monthData]);
+  // Cột "Chưa có hạn" (không có KH nhập kho) cũng không vẽ: KH chỉ có cho kỳ hiện tại nên nhóm này lớn gấp
+  // nhiều lần các tháng và ép biểu đồ — hiện thành 1 dòng bấm được phía trên biểu đồ.
+  const monthChartData = useMemo(() => monthData.filter(d => d.key !== NO_MONTH && chartMonthOrder(d.key) % 2 === 1), [monthData]);
+  const noMonthBucket = useMemo(() => monthData.find(d => d.key === NO_MONTH) ?? null, [monthData]);
 
   // ---------- 4. Biểu đồ tròn ----------
   const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ctKey, r => r.total, metric);
@@ -600,6 +603,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
                 </div>
               </div>
+              {noMonthBucket && (
+                <button
+                  type="button"
+                  onClick={() => openMonthDetail(NO_MONTH)}
+                  title="Hạng mục chưa có KH nhập kho tuần / tháng — bấm để xem chi tiết"
+                  className="mb-1 text-left text-[0.6875rem] text-slate-500 hover:text-slate-800 hover:underline"
+                >
+                  Chưa có KH nhập kho (không vẽ):{' '}
+                  <span className="tabular-nums" style={{ color: COLOR_DONE }}>{formatTy(noMonthBucket.done)}</span>
+                  {' · '}
+                  <span className="tabular-nums" style={{ color: COLOR_REMAIN }}>{formatTy(noMonthBucket.remain)}</span> tỷ
+                </button>
+              )}
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthChartData} margin={{ top: 8, right: 4, left: -14, bottom: 0 }}>

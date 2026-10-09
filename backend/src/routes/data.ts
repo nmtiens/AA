@@ -7,6 +7,7 @@ import { validateBody } from '../server/validation.js';
 import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, STOCK_TREND_CONFIG, ANALYSIS_TABLES } from '../server/data.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
+import { listProjectAliases } from '../server/projectAlias.js';
 
 app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
@@ -168,6 +169,11 @@ app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
 // Hạng mục nhập kho theo giá trị (SL nhập = 0) không xét được => coi như chưa đạt.
 const PLAN_MET_TTL_MS = 10 * 60 * 1000;
 let planMetCache: { at: number; data: { tuan: string[]; thang: string[] } } | null = null;
+// Tên phụ -> tên chuẩn công trình (xem server/projectAlias.listProjectAliases)
+app.get('/api/project-aliases', (_req: Request, res: Response) => {
+  res.json(listProjectAliases());
+});
+
 app.get('/api/production/plan-met', async (_req: Request, res: Response) => {
   try {
     if (!planMetCache || Date.now() - planMetCache.at > PLAN_MET_TTL_MS) {
@@ -257,12 +263,18 @@ const materialCodesCte = (extraWhere = '') => `m AS (
 const MATERIAL_CODES_CTE = materialCodesCte();
 
 // Vật tư chưa có mã nhà máy, thuộc công trình của các hex KHÔNG khớp được vật tư nào
+// Mã công trình để khớp vat_tu.trackingno: mã đầy đủ, VÀ số SO sau dấu "-" cuối của hàng xuất khẩu (bảng sản
+// xuất ghi "EM25-3290000003" / "DM26-3010000258", vat_tu chỉ ghi "3290000003")
+const prjCodesSql = (codeExpr: string) => `UNNEST(ARRAY[${codeExpr}, SUBSTRING(${codeExpr} FROM '-([0-9]{8,})$')])`;
+
 const UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
-  SELECT DISTINCT UPPER(TRIM(p.ma_cong_trinh)) AS code
+  SELECT DISTINCT c AS code
   FROM production_status_app p
+  CROSS JOIN LATERAL ${prjCodesSql('UPPER(TRIM(p.ma_cong_trinh))')} AS c
   WHERE p.hex::text = ANY($1::text[])
     AND COALESCE(TRIM(p.ma_cong_trinh), '') <> ''
     AND NOT EXISTS (SELECT 1 FROM m WHERE m.hex = p.hex::text)
+    AND c IS NOT NULL
 ), u AS (
   SELECT v.*
   FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
@@ -276,7 +288,9 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
       ? req.body.hexes.map((h: unknown) => String(h).trim()).filter(Boolean)
       : [];
     const mode = String(req.body?.mode || 'matched');
-    if (hexes.length > 5000) return res.status(400).json({ error: 'Too many hexes' });
+    // Đủ cho toàn bộ bảng sản xuất (~52k hex) — trước giới hạn 5000 nên mở danh sách HEX lớn từ dashboard thì
+    // API trả 400, giao diện im lặng hiện 0 vật tư
+    if (hexes.length > 60000) return res.status(400).json({ error: 'Too many hexes' });
     if (hexes.length === 0) {
       return res.json(mode === 'unassigned-count' ? { lines: 0, prs: 0 } : mode === 'hex-counts' ? {} : { rows: [] });
     }
@@ -302,9 +316,15 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
     }
 
     if (mode === 'hex-counts') {
+      // Không đếm dòng PR đã HỦY (cột trạng thái chung / trạng thái SAP) — khớp tab BOM
+      // (utils/productionMetrics.materialLineState: 'cancelled')
       const c = await timedQuery(
         `WITH ${MATERIAL_CODES_CTE}
-         SELECT hex, COUNT(DISTINCT id)::int AS n FROM m WHERE hex = ANY($1::text[]) GROUP BY hex`,
+         SELECT m.hex, COUNT(DISTINCT m.id)::int AS n
+         FROM m JOIN vat_tu v ON v.id = m.id
+         WHERE m.hex = ANY($1::text[])
+           AND UPPER(COALESCE(v.trang_thai, '') || ' ' || COALESCE(v.trang_thai_sap, '')) NOT LIKE '%HỦY%'
+         GROUP BY m.hex`,
         [hexes],
         { timeoutMs: 20000 }
       );
@@ -333,8 +353,9 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
     if (mode === 'project-uncoded') {
       const u = await timedQuery(
         `WITH prj AS (
-           SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
-           WHERE hex::text = ANY($1::text[]) AND COALESCE(TRIM(ma_cong_trinh), '') <> ''
+           SELECT DISTINCT c AS code FROM production_status_app
+           CROSS JOIN LATERAL ${prjCodesSql('UPPER(TRIM(ma_cong_trinh))')} AS c
+           WHERE hex::text = ANY($1::text[]) AND COALESCE(TRIM(ma_cong_trinh), '') <> '' AND c IS NOT NULL
          ), base AS (
            SELECT v.id FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
          ), ${materialCodesCte('AND v.id IN (SELECT id FROM base)')},
@@ -345,11 +366,14 @@ app.post('/api/material/by-hex', async (req: Request, res: Response) => {
              CASE
                WHEN NOT COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
                 AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
-                AND NOT COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14})([^0-9]|$)', FALSE) THEN 'uncoded'
+                AND NOT COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14,})([^0-9]|$)', FALSE) THEN 'uncoded'
                ELSE 'badCode'
              END AS kind,
              CASE
-               WHEN COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14})([^0-9]|$)', FALSE)
+               -- Dãy sai độ dài chỉ tính là lỗi khi dòng KHÔNG có mã hợp lệ nào (ô dài bị cắt ~1.023 ký tự để lại
+               -- 1 mã cụt ở cuối, các mã trước vẫn khớp hạng mục)
+               WHEN COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14,})([^0-9]|$)', FALSE)
+                AND v.id NOT IN (SELECT id FROM known)
                  THEN 'Mã nhà máy sai độ dài (phải 13 số, hoặc HEX 9 số)'
                WHEN v.id IN (SELECT id FROM m) AND v.id NOT IN (SELECT id FROM known)
                  THEN 'Mã nhà máy không khớp HEX nào trong bảng sản xuất'
@@ -437,7 +461,7 @@ app.post('/api/material/pr-hexes', async (req: Request, res: Response) => {
     const inFilterHexes: string[] = Array.isArray(req.body?.inFilterHexes)
       ? req.body.inFilterHexes.map((h: unknown) => String(h).trim()).filter(Boolean)
       : [];
-    if (inFilterHexes.length > 5000) return res.status(400).json({ error: 'Too many hexes' });
+    if (inFilterHexes.length > 60000) return res.status(400).json({ error: 'Too many hexes' });
 
     const reasonSelect = Object.entries(PR_REASON_COLUMNS).map(([k, expr]) => `${expr} AS ${k}`).join(', ');
     const r = await timedQuery(

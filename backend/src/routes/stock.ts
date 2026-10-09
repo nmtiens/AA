@@ -93,6 +93,20 @@ const matchedIdsSql = (pConds: string[]) => `
   ) lp${pConds.length ? ` WHERE ${pConds.join(' AND ')}` : ''}
 `;
 
+// Điều kiện phạm vi công trình / xưởng trên bảng ton_kho (không alias) — dùng cho CSV / đếm dòng
+const stockScopeConds = (filters: StockFilterParams, params: any[]): string[] => {
+  const conds: string[] = [];
+  if (filters.congTrinh.length) {
+    params.push(filters.congTrinh);
+    conds.push(`${normNameSql('ten_cong_trinh')} = ANY($${params.length}::text[])`);
+  }
+  if (filters.xuong.length) {
+    params.push(filters.xuong);
+    conds.push(`ma_id_sap::text IN (SELECT mi.ma_id_sap::text FROM (${matchedIdsSql([`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`])}) mi)`);
+  }
+  return conds;
+};
+
 app.get('/api/stock/dates', async (req: Request, res: Response) => {
   try {
     const { payload } = await refreshStockDatesCache(parseStockFilters(req));
@@ -305,6 +319,9 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
       whereClause = `WHERE date_parsed = ANY($1::date[])`;
       fileSuffix = dates.length === 1 ? `Moc_${dates[0]}` : `${dates.length}_Moc_Thoi_Gian`;
     }
+    // Phạm vi trang (công trình theo view / xưởng) — trước file luôn là toàn nhà máy
+    const scopeConds = stockScopeConds(parseStockFilters(req), params);
+    if (scopeConds.length) whereClause = `${whereClause ? `${whereClause} AND` : 'WHERE'} ${scopeConds.join(' AND ')}`;
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
@@ -348,8 +365,16 @@ app.get('/api/stock/export/csv', stockExportLimiter, async (req: Request, res: R
 let cachedStockTotalCount: number | null = null;
 let cachedStockTotalCountVersion: string | null = null;
 
-app.get('/api/stock/total-count', async (_req: Request, res: Response) => {
+app.get('/api/stock/total-count', async (req: Request, res: Response) => {
   try {
+    // Có lọc công trình / xưởng: đếm đúng phạm vi (không cache) — trước luôn trả COUNT(*) cả bảng
+    const filters = parseStockFilters(req);
+    if (filters.congTrinh.length || filters.xuong.length) {
+      const params: any[] = [];
+      const conds = stockScopeConds(filters, params);
+      const rr = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho WHERE ${conds.join(' AND ')}`, params);
+      return res.json({ total: Number(rr.rows[0].total) });
+    }
     const verResult = await timedQuery(
       `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
     );

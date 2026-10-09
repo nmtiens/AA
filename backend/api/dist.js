@@ -44544,6 +44544,14 @@ var canonicalProjectName = (raw) => {
   if (!canon || !isSingleCodeName(canon)) return display;
   return canon;
 };
+var listProjectAliases = () => {
+  const out = [];
+  nameToCodes.forEach((_codes, k) => {
+    const c = canonicalProjectName(k);
+    if (normName(c) !== k) out.push({ k, c });
+  });
+  return out;
+};
 var isSingleCodeName = (name) => (nameToCodes.get(normName(name))?.size ?? 0) <= 1;
 var expandProjectNames = (names) => {
   const out = /* @__PURE__ */ new Set();
@@ -44640,7 +44648,7 @@ app.use((0, import_cors.default)({
   credentials: true
 }));
 app.use((0, import_compression.default)());
-app.use(import_express.default.json({ limit: "1mb" }));
+app.use(import_express.default.json({ limit: "2mb" }));
 var globalLimiter = rate_limit_default({
   windowMs: 60 * 1e3,
   max: 300,
@@ -44688,7 +44696,7 @@ app.use((req, res, next) => {
   if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateJWT(req, res, next);
 });
-var NEEDS_PROJECT_ALIASES = /^\/api\/(trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
+var NEEDS_PROJECT_ALIASES = /^\/api\/(project-aliases|trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
 app.use(async (req, _res, next) => {
   if (req.path.toLowerCase().startsWith("/api/")) {
     try {
@@ -64107,6 +64115,8 @@ var REPORT_COLUMNS = {
     "thanh_tien_ke_hoach",
     "nhap_kho_tuan",
     "tuan",
+    // Năm — bảng KH-TH tuần lọc theo năm đang chọn (cùng số tuần ở 2 năm khác nhau không bị cộng lẫn)
+    "nam",
     "dung_ke_hoach",
     "thuc_hien_dung_ke_hoach_1_phan",
     "rot_ke_hoach",
@@ -64633,6 +64643,9 @@ app.get("/api/production/hex/:hex", async (req, res) => {
 });
 var PLAN_MET_TTL_MS = 10 * 60 * 1e3;
 var planMetCache = null;
+app.get("/api/project-aliases", (_req, res) => {
+  res.json(listProjectAliases());
+});
 app.get("/api/production/plan-met", async (_req, res) => {
   try {
     if (!planMetCache || Date.now() - planMetCache.at > PLAN_MET_TTL_MS) {
@@ -64729,12 +64742,15 @@ var materialCodesCte = (extraWhere = "") => `m AS (
     AND (LENGTH(t) = 13 OR (src.source = 'ma_nha_may' AND LENGTH(t) = 9))
 )`;
 var MATERIAL_CODES_CTE = materialCodesCte();
+var prjCodesSql = (codeExpr) => `UNNEST(ARRAY[${codeExpr}, SUBSTRING(${codeExpr} FROM '-([0-9]{8,})$')])`;
 var UNASSIGNED_CTE = `${MATERIAL_CODES_CTE}, prj AS (
-  SELECT DISTINCT UPPER(TRIM(p.ma_cong_trinh)) AS code
+  SELECT DISTINCT c AS code
   FROM production_status_app p
+  CROSS JOIN LATERAL ${prjCodesSql("UPPER(TRIM(p.ma_cong_trinh))")} AS c
   WHERE p.hex::text = ANY($1::text[])
     AND COALESCE(TRIM(p.ma_cong_trinh), '') <> ''
     AND NOT EXISTS (SELECT 1 FROM m WHERE m.hex = p.hex::text)
+    AND c IS NOT NULL
 ), u AS (
   SELECT v.*
   FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
@@ -64745,7 +64761,7 @@ app.post("/api/material/by-hex", async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? req.body.hexes.map((h) => String(h).trim()).filter(Boolean) : [];
     const mode = String(req.body?.mode || "matched");
-    if (hexes.length > 5e3) return res.status(400).json({ error: "Too many hexes" });
+    if (hexes.length > 6e4) return res.status(400).json({ error: "Too many hexes" });
     if (hexes.length === 0) {
       return res.json(mode === "unassigned-count" ? { lines: 0, prs: 0 } : mode === "hex-counts" ? {} : { rows: [] });
     }
@@ -64768,7 +64784,11 @@ app.post("/api/material/by-hex", async (req, res) => {
     if (mode === "hex-counts") {
       const c = await timedQuery(
         `WITH ${MATERIAL_CODES_CTE}
-         SELECT hex, COUNT(DISTINCT id)::int AS n FROM m WHERE hex = ANY($1::text[]) GROUP BY hex`,
+         SELECT m.hex, COUNT(DISTINCT m.id)::int AS n
+         FROM m JOIN vat_tu v ON v.id = m.id
+         WHERE m.hex = ANY($1::text[])
+           AND UPPER(COALESCE(v.trang_thai, '') || ' ' || COALESCE(v.trang_thai_sap, '')) NOT LIKE '%H\u1EE6Y%'
+         GROUP BY m.hex`,
         [hexes],
         { timeoutMs: 2e4 }
       );
@@ -64791,8 +64811,9 @@ app.post("/api/material/by-hex", async (req, res) => {
     if (mode === "project-uncoded") {
       const u = await timedQuery(
         `WITH prj AS (
-           SELECT DISTINCT UPPER(TRIM(ma_cong_trinh)) AS code FROM production_status_app
-           WHERE hex::text = ANY($1::text[]) AND COALESCE(TRIM(ma_cong_trinh), '') <> ''
+           SELECT DISTINCT c AS code FROM production_status_app
+           CROSS JOIN LATERAL ${prjCodesSql("UPPER(TRIM(ma_cong_trinh))")} AS c
+           WHERE hex::text = ANY($1::text[]) AND COALESCE(TRIM(ma_cong_trinh), '') <> '' AND c IS NOT NULL
          ), base AS (
            SELECT v.id FROM vat_tu v JOIN prj ON UPPER(TRIM(v.trackingno)) = prj.code
          ), ${materialCodesCte("AND v.id IN (SELECT id FROM base)")},
@@ -64803,11 +64824,14 @@ app.post("/api/material/by-hex", async (req, res) => {
              CASE
                WHEN NOT COALESCE(v.ma_nha_may ~ ${RE_FACTORY_CODE}, FALSE)
                 AND NOT COALESCE(v.item_note_pr ~ ${RE_NOTE_CODE}, FALSE)
-                AND NOT COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14})([^0-9]|$)', FALSE) THEN 'uncoded'
+                AND NOT COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14,})([^0-9]|$)', FALSE) THEN 'uncoded'
                ELSE 'badCode'
              END AS kind,
              CASE
-               WHEN COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14})([^0-9]|$)', FALSE)
+               -- D\xE3y sai \u0111\u1ED9 d\xE0i ch\u1EC9 t\xEDnh l\xE0 l\u1ED7i khi d\xF2ng KH\xD4NG c\xF3 m\xE3 h\u1EE3p l\u1EC7 n\xE0o (\xF4 d\xE0i b\u1ECB c\u1EAFt ~1.023 k\xFD t\u1EF1 \u0111\u1EC3 l\u1EA1i
+               -- 1 m\xE3 c\u1EE5t \u1EDF cu\u1ED1i, c\xE1c m\xE3 tr\u01B0\u1EDBc v\u1EABn kh\u1EDBp h\u1EA1ng m\u1EE5c)
+               WHEN COALESCE(v.ma_nha_may ~ '(^|[^0-9])([0-9]{10,12}|[0-9]{14,})([^0-9]|$)', FALSE)
+                AND v.id NOT IN (SELECT id FROM known)
                  THEN 'M\xE3 nh\xE0 m\xE1y sai \u0111\u1ED9 d\xE0i (ph\u1EA3i 13 s\u1ED1, ho\u1EB7c HEX 9 s\u1ED1)'
                WHEN v.id IN (SELECT id FROM m) AND v.id NOT IN (SELECT id FROM known)
                  THEN 'M\xE3 nh\xE0 m\xE1y kh\xF4ng kh\u1EDBp HEX n\xE0o trong b\u1EA3ng s\u1EA3n xu\u1EA5t'
@@ -64884,7 +64908,7 @@ app.post("/api/material/pr-hexes", async (req, res) => {
     const pr = Number(req.body?.pr);
     if (!Number.isFinite(pr) || pr <= 0) return res.status(400).json({ error: "Invalid PR" });
     const inFilterHexes = Array.isArray(req.body?.inFilterHexes) ? req.body.inFilterHexes.map((h) => String(h).trim()).filter(Boolean) : [];
-    if (inFilterHexes.length > 5e3) return res.status(400).json({ error: "Too many hexes" });
+    if (inFilterHexes.length > 6e4) return res.status(400).json({ error: "Too many hexes" });
     const reasonSelect = Object.entries(PR_REASON_COLUMNS).map(([k, expr]) => `${expr} AS ${k}`).join(", ");
     const r = await timedQuery(
       `WITH ${materialCodesCte("AND v.so_pr = $1")}, p AS (
@@ -65319,7 +65343,9 @@ app.get("/api/overview/by-group", async (req, res) => {
     const monthStart = `${refDateStr.slice(0, 7)}-01`;
     const params = [];
     let periodCond;
-    if (useExplicitDates) {
+    if (req.query.allTime === "1" && !useExplicitDates) {
+      periodCond = "TRUE";
+    } else if (useExplicitDates) {
       params.push(explicitDates);
       periodCond = `${colBare("date_parsed")} = ANY($1::date[])`;
     } else {
@@ -65332,7 +65358,7 @@ app.get("/api/overview/by-group", async (req, res) => {
     const mtdCond = `${colBare("date_parsed")} BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
     const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
     const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
-    const outerLo = loCandidates.sort()[0];
+    const outerLo = periodCond === "TRUE" ? "1900-01-01" : loCandidates.sort()[0];
     const outerHi = hiCandidates.sort().slice(-1)[0];
     const outerLoIdx = params.length + 1;
     const outerHiIdx = params.length + 2;
@@ -65467,6 +65493,18 @@ var matchedIdsSql = (pConds) => `
     ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
   ) lp${pConds.length ? ` WHERE ${pConds.join(" AND ")}` : ""}
 `;
+var stockScopeConds = (filters, params) => {
+  const conds = [];
+  if (filters.congTrinh.length) {
+    params.push(filters.congTrinh);
+    conds.push(`${normNameSql("ten_cong_trinh")} = ANY($${params.length}::text[])`);
+  }
+  if (filters.xuong.length) {
+    params.push(filters.xuong);
+    conds.push(`ma_id_sap::text IN (SELECT mi.ma_id_sap::text FROM (${matchedIdsSql([`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`])}) mi)`);
+  }
+  return conds;
+};
 app.get("/api/stock/dates", async (req, res) => {
   try {
     const { payload } = await refreshStockDatesCache(parseStockFilters(req));
@@ -65649,6 +65687,8 @@ app.get("/api/stock/export/csv", stockExportLimiter, async (req, res) => {
       whereClause = `WHERE date_parsed = ANY($1::date[])`;
       fileSuffix = dates.length === 1 ? `Moc_${dates[0]}` : `${dates.length}_Moc_Thoi_Gian`;
     }
+    const scopeConds = stockScopeConds(parseStockFilters(req), params);
+    if (scopeConds.length) whereClause = `${whereClause ? `${whereClause} AND` : "WHERE"} ${scopeConds.join(" AND ")}`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader(
       "Content-Disposition",
@@ -65681,8 +65721,15 @@ app.get("/api/stock/export/csv", stockExportLimiter, async (req, res) => {
 });
 var cachedStockTotalCount = null;
 var cachedStockTotalCountVersion = null;
-app.get("/api/stock/total-count", async (_req, res) => {
+app.get("/api/stock/total-count", async (req, res) => {
   try {
+    const filters = parseStockFilters(req);
+    if (filters.congTrinh.length || filters.xuong.length) {
+      const params = [];
+      const conds = stockScopeConds(filters, params);
+      const rr = await timedQuery(`SELECT COUNT(*) AS total FROM ton_kho WHERE ${conds.join(" AND ")}`, params);
+      return res.json({ total: Number(rr.rows[0].total) });
+    }
     const verResult = await timedQuery(
       `SELECT last_updated FROM table_versions WHERE table_name = 'ton_kho'`
     );
@@ -66309,21 +66356,24 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     const isWeek = mode === "week";
     const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
     const normalize = (s) => s.trim().toUpperCase();
+    const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
+    const thangList = numList(thang), tuanList = numList(tuan), ngayList = numList(ngay);
+    const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
     const congTrinhList = expandProjectNames(parseNameList(congTrinh));
     const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
     const khParams = [phanLoaiPattern, nam];
     let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint AND ${notCancelledHexCond("hex")}`;
-    if (thang) {
-      khParams.push(thang);
-      khWhere += ` AND thang = $${khParams.length}::bigint`;
+    if (useThang) {
+      khParams.push(thangList);
+      khWhere += ` AND thang = ANY($${khParams.length}::bigint[])`;
     }
-    if (isWeek && tuan) {
-      khParams.push(tuan);
-      khWhere += ` AND tuan = $${khParams.length}::double precision`;
+    if (isWeek && tuanList.length) {
+      khParams.push(tuanList);
+      khWhere += ` AND tuan = ANY($${khParams.length}::double precision[])`;
     }
-    if (isWeek && ngay) {
-      khParams.push(ngay);
-      khWhere += ` AND ngay = $${khParams.length}::double precision`;
+    if (isWeek && ngayList.length) {
+      khParams.push(ngayList);
+      khWhere += ` AND ngay = ANY($${khParams.length}::double precision[])`;
     }
     if (congTrinhList.length) {
       khParams.push(congTrinhList);
@@ -66343,17 +66393,21 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     const khResult = await timedQuery(khQuery, khParams);
     const thParams = [nam];
     let thWhere = `WHERE nam = $1::bigint AND ${notCancelledHexCond("hex")}`;
-    if (thang) {
-      thParams.push(thang);
-      thWhere += ` AND thang = $${thParams.length}::bigint`;
+    if (useThang) {
+      thParams.push(thangList);
+      thWhere += ` AND thang = ANY($${thParams.length}::bigint[])`;
     }
-    if (isWeek && tuan) {
-      thParams.push(tuan);
-      thWhere += ` AND tuan = $${thParams.length}::bigint`;
+    if (isWeek && tuanList.length) {
+      thParams.push(Number(nam));
+      const y = `$${thParams.length}::int`;
+      thParams.push(tuanList);
+      const w = `to_date((${y})::text || '-' || wk::text, 'IYYY-IW')`;
+      thWhere += ` AND EXISTS (SELECT 1 FROM UNNEST($${thParams.length}::int[]) wk
+        WHERE date_parsed BETWEEN GREATEST(${w}, make_date(${y}, 1, 1)) AND LEAST(${w} + 6, make_date(${y}, 12, 31)))`;
     }
-    if (isWeek && ngay) {
-      thParams.push(ngay);
-      thWhere += ` AND ngay = $${thParams.length}::bigint`;
+    if (isWeek && ngayList.length) {
+      thParams.push(ngayList);
+      thWhere += ` AND ngay = ANY($${thParams.length}::bigint[])`;
     }
     if (congTrinhList.length) {
       thParams.push(congTrinhList);
@@ -66362,17 +66416,17 @@ app.get("/api/khsx-nhapkho/summary", async (req, res) => {
     if (xuongList.length) thWhere += ` AND ${workshopCondition("xuong_chinh", xuongList, thParams)}`;
     thParams.push(phanLoaiPattern, nam);
     let planHexWhere = `UPPER(TRIM(phan_loai_kh)) LIKE $${thParams.length - 1} AND nam = $${thParams.length}::bigint AND hex IS NOT NULL`;
-    if (thang) {
-      thParams.push(thang);
-      planHexWhere += ` AND thang = $${thParams.length}::bigint`;
+    if (useThang) {
+      thParams.push(thangList);
+      planHexWhere += ` AND thang = ANY($${thParams.length}::bigint[])`;
     }
-    if (isWeek && tuan) {
-      thParams.push(tuan);
-      planHexWhere += ` AND tuan = $${thParams.length}::double precision`;
+    if (isWeek && tuanList.length) {
+      thParams.push(tuanList);
+      planHexWhere += ` AND tuan = ANY($${thParams.length}::double precision[])`;
     }
-    if (isWeek && ngay) {
-      thParams.push(ngay);
-      planHexWhere += ` AND ngay = $${thParams.length}::double precision`;
+    if (isWeek && ngayList.length) {
+      thParams.push(ngayList);
+      planHexWhere += ` AND ngay = ANY($${thParams.length}::double precision[])`;
     }
     const thQuery = `
       WITH plan_hex AS (SELECT DISTINCT hex::text AS hex FROM khsx WHERE ${planHexWhere})
@@ -66477,7 +66531,16 @@ app.get("/api/trend", async (req, res) => {
     const conditions = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params = [];
     if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+        if (dateTo) {
+          params.push(dateTo.toISOString().slice(0, 10));
+          conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`);
+        }
+      } else {
+        conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+      }
     } else {
       applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
     }
@@ -67062,8 +67125,7 @@ app.get("/api/detail", async (req, res) => {
       if (isUnknownValueLabel(value)) {
         conditions.push(emptyCond(colBare(cfg.congTrinhCol)));
       } else {
-        params.push(value);
-        conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+        conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), value, params));
       }
     } else if (congTrinh && cfg.congTrinhCol) {
       conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));
@@ -67933,7 +67995,7 @@ app.post("/api/vuong-mac/hex-bulk", authenticateJWT, async (req, res) => {
     const params = [codes];
     let xuongCond = "";
     if (xuongs.length) {
-      params.push(xuongs);
+      params.push(expandWorkshops(xuongs));
       xuongCond = `AND UPPER(TRIM(xuong_chinh)) = ANY($2::text[])`;
     }
     const r = await timedQuery(

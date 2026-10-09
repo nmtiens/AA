@@ -180,13 +180,32 @@ export const normProjectName = (v: unknown): string => String(v ?? '').trim().re
 let projectAlias = new Map<string, string>();
 // Tên chuẩn (khoá chuẩn hoá) -> mọi cách viết gốc của cùng công trình (để gửi lên API lọc các bảng khác)
 let projectVariants = new Map<string, Set<string>>();
+// Bảng tên của SERVER (gồm tên chỉ có ở bảng khác — khsx, phân tích KH/TH… — nối với mã qua HEX). Dùng khi
+// bảng tính từ dữ liệu sản xuất không biết tên đó => lọc phía máy khớp server (trước Luồng đỏ thiếu vài dòng).
+let serverAlias = new Map<string, string>();
+let serverVariants = new Map<string, Set<string>>();
+export const setServerProjectAliases = (list: { k: string; c: string }[]) => {
+  const a = new Map<string, string>();
+  const v = new Map<string, Set<string>>();
+  for (const { k, c } of list) {
+    a.set(k, c);
+    const ck = normProjectName(c);
+    let set = v.get(ck);
+    if (!set) { set = new Set(); v.set(ck, set); }
+    set.add(k);
+  }
+  serverAlias = a;
+  serverVariants = v;
+};
 
 /** Mở rộng danh sách tên công trình thành mọi cách viết đã biết (tên chuẩn + tên phụ của cùng mã). */
 export const expandProjectNames = (names: string[]): string[] => {
   const out = new Set<string>();
   for (const n of names) {
     out.add(n);
-    projectVariants.get(projectMatchKey(n))?.forEach(v => out.add(v));
+    const key = projectMatchKey(n);
+    projectVariants.get(key)?.forEach(v => out.add(v));
+    serverVariants.get(key)?.forEach(v => out.add(v));
   }
   return [...out];
 };
@@ -194,7 +213,8 @@ export const expandProjectNames = (names: string[]): string[] => {
 /** Tên chuẩn của 1 tên công trình bất kỳ (tên phụ của cùng mã -> tên chuẩn; không biết thì giữ nguyên). */
 export const canonicalProjectName = (name: unknown): string => {
   const t = String(name ?? '').trim().replace(/\s+/g, ' ');
-  return projectAlias.get(normProjectName(t)) ?? t;
+  const k = normProjectName(t);
+  return projectAlias.get(k) ?? serverAlias.get(k) ?? t;
 };
 
 /** Khoá so khớp công trình giữa các bảng: tên chuẩn, không phân biệt hoa/thường, khoảng trắng. */
@@ -311,12 +331,16 @@ export const isCcldLine = (r: MaterialLineFields): boolean =>
 const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
 export const materialLineState = (r: MaterialLineFields, today = todayStart()): MaterialLineState => {
+  // Trạng thái lấy theo cột trang_thai (đã quy về 4 trạng thái chung: 1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO /
+  // 4.HỦY) — không đọc tình trạng PO / tình trạng PR (vd "KHÔNG CẦN") để phân loại
   const st = String(r.trang_thai ?? '').toUpperCase();
   const sap = String(r.trang_thai_sap ?? '').toUpperCase();
   if (st.includes('HỦY') || sap.includes('HỦY')) return 'cancelled';
   if (!(Number(r.so_luong_con_lai) > 0)) return 'done';
-  if (isCcldLine(r)) return 'ccld';
+  // 3.ĐÃ NHẬP KHO / PR đã đóng xét TRƯỚC CCLD: trạng thái chung đã là "đã nhập kho" thì không xếp lại thành
+  // CCLD (trước 659 dòng 3.ĐÃ NHẬP KHO có ghi chú CCLD bị đưa về nhóm CCLD)
   if (sap.includes('ĐÓNG') || st.includes('ĐÃ NHẬP KHO') || sap.includes('HOÀN THÀNH')) return 'closedShort';
+  if (isCcldLine(r)) return 'ccld';
   if (st.includes('CHƯA MUA')) return 'notOrdered';
   const yc = Number(r.so_luong_yeu_cau);
   const khoBao = Number(r.sl_hang_ve_thuc_te);

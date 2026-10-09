@@ -226,8 +226,9 @@ export function usePivotTables({
   // riêng đơn HỦY tính 0 — cùng quy tắc với utils/productionMetrics.
   const isCancelledRow = (row: DataRow) => !!tinhTrangIpoKey && isCancelledIpo(row[tinhTrangIpoKey]);
   const calculateMetricValue = (row: DataRow, metric: MetricType): number => {
-    if (metric === 'COUNT_HEX') return 1;
+    // Đơn HỦY không tính cả khi ĐẾM (trước COUNT_HEX trả 1 trước khi xét HỦY => bỏ lọc IPO thì đếm cả HỦY)
     if (isCancelledRow(row)) return 0;
+    if (metric === 'COUNT_HEX') return 1;
     if (metric === 'SUM_GT_CON_LAI') return parseNumber(row[realValueKey]);
     if (metric === 'SUM_GT_DON_HANG') return parseNumber(row[valueKey]);
     return 0;
@@ -319,9 +320,10 @@ export function usePivotTables({
     filteredProductionData.forEach(row => {
       const ctName = String(row[congTrinhKey] || '').trim();
       if (!ctName) return;
+      // Bỏ HỦY TRƯỚC khi tạo dòng (trước công trình chỉ toàn đơn HỦY vẫn hiện thành dòng 0)
+      if (isCancelledRow(row)) return;
       if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0 };
       const status = String(row[tinhTrangKey] || '').toUpperCase();
-      if (isCancelledRow(row)) return;
 
       const totalOrderValRaw = parseNumber(row[triGiaDonHangTongKey]);
       const ticketValRaw = parseNumber(row[thanhTienTinhPhieuKey]);
@@ -341,13 +343,19 @@ export function usePivotTables({
         agg[ctName].ticketed += valToAddTicket;
       }
 
-      if (isInProductionRow(status)) {
-        agg[ctName].inProduction += valToAddTicket;
-      }
-
       // Đếm: "đã nhập kho" = nhập ĐỦ (cùng quy tắc isStocked với mọi view); giá trị: phần đã nhập
       // (đếm: nhập đủ số lượng cũng coi là đã nhập — isQtyComplete)
       const stockedItem = isStocked(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey]), false, isQtyComplete(row));
+      const rowRemainRaw = remainValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey]));
+
+      // Đang sản xuất = phần CÒN LẠI (trị giá − đã nhập) của hạng mục đã có phiếu — cùng cách tính cột
+      // "Đang SX" của bảng v2. Trước cộng thành tiền tính phiếu nên tính cả phần đã nhập kho (vd 1.009 tỷ
+      // trong khi phần còn lại đúng chỉ ~677 tỷ, lớn hơn cả cột Còn lại trừ Chưa triển khai)
+      if (isInProductionRow(status)) {
+        agg[ctName].inProduction += isCount
+          ? (!stockedItem && rowRemainRaw > 0 ? 1 : 0)
+          : rowRemainRaw / 1000;
+      }
       const valToAddInventory = isCount
         ? (stockedItem ? 1 : 0)
         : (inventoryValRaw / 1000);
@@ -709,6 +717,16 @@ export function usePivotTables({
   // Pivot: Funnel (BOP) — dùng funnelProductionData (theo Tình trạng IPO của trang,
   // KHÔNG ăn filters.tinhTrang) thay vì filteredProductionData.
   // -------------------------------------------------------------------------
+  // Phễu = phần CÒN LẠI theo công đoạn: khi ĐẾM chỉ đếm hạng mục chưa nhập kho đủ (đủ giá trị hoặc đủ số
+  // lượng thì bỏ) — khớp chế độ giá trị (hạng mục đã nhập đủ có giá trị còn lại 0)
+  const funnelValue = (row: DataRow): number => {
+    if (workshopMetric !== 'COUNT_HEX') return calculateMetricValue(row, workshopMetric);
+    if (isCancelledRow(row)) return 0;
+    const total = parseNumber(row[triGiaDonHangTongKey]);
+    const nk = thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0;
+    return isStocked(total, nk, false, isQtyComplete(row)) ? 0 : 1;
+  };
+
   const pivotFunnelData = useMemo(() => {
     if (!bopKey) return null;
 
@@ -721,7 +739,7 @@ export function usePivotTables({
       const w = String(row[xuongKey] || '').trim();
 
       if (s && w) {
-        const val = calculateMetricValue(row, workshopMetric);
+        const val = funnelValue(row);
         agg[bop] = (agg[bop] || 0) + val;
         total += val;
       }
@@ -745,7 +763,8 @@ export function usePivotTables({
         }),
       total,
     };
-  }, [funnelProductionData, bopKey, workshopMetric, valueKey, realValueKey, tinhTrangKey, xuongKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [funnelProductionData, bopKey, workshopMetric, valueKey, realValueKey, tinhTrangKey, xuongKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Breakdown theo Công trình cho TỪNG bước BOP — SỬA: dùng funnelProductionData
@@ -767,7 +786,7 @@ export function usePivotTables({
       if (!s || !w) return;
 
       const project = String(row[congTrinhKey] || 'Chưa xác định').trim();
-      const val = calculateMetricValue(row, workshopMetric);
+      const val = funnelValue(row);
 
       if (!agg[bop]) agg[bop] = {};
       agg[bop][project] = (agg[bop][project] || 0) + val;
@@ -784,7 +803,8 @@ export function usePivotTables({
     });
 
     return result;
-  }, [funnelProductionData, bopKey, congTrinhKey, tinhTrangKey, xuongKey, workshopMetric]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [funnelProductionData, bopKey, congTrinhKey, tinhTrangKey, xuongKey, workshopMetric, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Custom funnel data (bao gồm P022. TỒN KHO)
@@ -806,7 +826,8 @@ export function usePivotTables({
     }
 
     const funnelItems = [
-      { id: 'P001', name: 'P001. TỔNG ĐƠN HÀNG NHÀ MÁY CÒN LẠI', value: getVal('P001'), color: '#3b82f6' },
+      // Thanh P001 chỉ là phần chưa triển khai (công đoạn P001) — tổng còn lại = cộng các thanh P001…P021
+      { id: 'P001', name: 'P001. Chưa triển khai', value: getVal('P001'), color: '#3b82f6' },
       { id: 'P002', name: 'P002. Bản vẽ kỹ thuật', value: getVal('P002'), color: '#fdba74' },
       { id: 'P012', name: 'P012. Có phiếu chưa sản xuất', value: getVal('P012'), color: '#a3e635' },
       { id: 'P013', name: 'P013. Ra phôi sơ chế', value: getVal('P013'), color: '#a3e635' },

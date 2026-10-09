@@ -67,8 +67,9 @@ export const API_BASE_URL = '/api';
 // V9: thêm ngay_can (ngày cần PM — hạn tham khảo khi chưa có KH / ngày cần giao).
 // V10: thêm thanh_tien_xuat_kho_luy_ke / thanh_tien_ton_kho_hien_tai (Tổng quan công trình).
 // V11: thêm so_luong_don_hang_tong / so_luong_nhap_kho_luy_ke (nhập đủ số lượng = đã nhập kho khi đếm).
-const CACHE_DB_NAME = 'OpsHub_Database_V11';
-const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9', 'OpsHub_Database_V10'];
+// V12: thêm phan_tich_kh_th.nam.
+const CACHE_DB_NAME = 'OpsHub_Database_V12';
+const OLD_CACHE_DB_NAMES = ['OpsHub_Database_V7', 'OpsHub_Database_V8', 'OpsHub_Database_V9', 'OpsHub_Database_V10', 'OpsHub_Database_V11'];
 let oldCachesCleared = false;
 
 const initDB = (): Promise<IDBDatabase> => {
@@ -404,7 +405,7 @@ export const fetchOverviewSummary = async (
 export const fetchOverviewByGroup = async (
   key: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export',
   groupBy: 'xuong' | 'congtrinh',
-  dateParams: { datesISO?: string[]; dateFromISO?: string; dateToISO?: string } & OverviewFilterOpts
+  dateParams: { datesISO?: string[]; dateFromISO?: string; dateToISO?: string; allTime?: boolean } & OverviewFilterOpts
 ): Promise<GroupAnalysisRow[]> => {
   try {
     const q = new URLSearchParams({ key, groupBy });
@@ -412,6 +413,7 @@ export const fetchOverviewByGroup = async (
     else {
       if (dateParams.dateFromISO) q.set('dateFrom', dateParams.dateFromISO);
       if (dateParams.dateToISO) q.set('dateTo', dateParams.dateToISO);
+      if (dateParams.allTime) q.set('allTime', '1');
     }
     appendFilterParams(q, dateParams);
     const url = `${API_BASE_URL}/overview/by-group?${q.toString()}`;
@@ -579,6 +581,20 @@ export const saveViewProjectMapping = async (
 // ==================== KH NHẬP KHO ĐÃ ĐẠT TRONG KỲ ====================
 
 /** HEX đã nhập đủ SL KH tuần / tháng trong kỳ (không tính trễ theo KH đó) — xem productionMetrics.deadlineOf. */
+/** Bảng tên phụ -> tên chuẩn công trình của server (xem productionMetrics.setServerProjectAliases). */
+export const fetchProjectAliases = async (): Promise<{ k: string; c: string }[]> => {
+  try {
+    const token = getToken();
+    const r = await fetch(`${API_BASE_URL}/project-aliases`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!r.ok) throw new Error('fetch failed');
+    const d = await r.json();
+    return Array.isArray(d) ? d : [];
+  } catch (e) {
+    console.error('fetchProjectAliases error:', e);
+    return [];
+  }
+};
+
 export const fetchPlanMet = async (): Promise<{ tuan: string[]; thang: string[] }> => {
   try {
     const token = getToken();

@@ -3,13 +3,13 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory } from 'lucide-react';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
-import { canonicalizeProjectNames, canonicalizePersonNames, setPlanMet } from './utils/productionMetrics';
+import { canonicalizeProjectNames, canonicalizePersonNames, setPlanMet, setServerProjectAliases } from './utils/productionMetrics';
 import { loadWorkshopGroups, canonicalizeWorkshops } from './utils/workshopGroups';
 // Prefetch + gate cho mapping "view -> danh sách công trình"
 import { loadViewMapping, isViewMappingLoaded } from './components/Construction/utils/viewDataConfig';
@@ -423,6 +423,8 @@ const MainLayout: React.FC = () => {
     loadTableColumnConfig();
     loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1));
     fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); });
+    // Bảng tên công trình của server -> lọc theo công trình phía máy khớp server (đổi version để tính lại)
+    fetchProjectAliases().then(d => { setServerProjectAliases(d); setPlanMetVersion(v => v + 1); });
   }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ADMIN vừa lưu setup gộp xưởng (cache đã cập nhật) -> gộp lại dữ liệu, các trang gọi lại API
@@ -675,6 +677,7 @@ const MainLayout: React.FC = () => {
         loadTableColumnConfig(),
         loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
         fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
+        fetchProjectAliases().then(d => { setServerProjectAliases(d); setPlanMetVersion(v => v + 1); }),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới

@@ -903,7 +903,8 @@ app.post('/api/vuong-mac/hex-bulk', authenticateJWT, async (req: Request, res: R
     const params: any[] = [codes];
     let xuongCond = '';
     if (xuongs.length) {
-      params.push(xuongs);
+      // Xưởng đã gộp (setup gộp xưởng) -> mọi mã gốc, giống hex-search
+      params.push(expandWorkshops(xuongs));
       xuongCond = `AND UPPER(TRIM(xuong_chinh)) = ANY($2::text[])`;
     }
 

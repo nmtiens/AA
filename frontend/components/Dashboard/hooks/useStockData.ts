@@ -155,9 +155,12 @@ export function useStockData({
   const latestStockStats = useMemo<StockStatsResult>(() => {
     if (!latestUnifiedDate) return { count: 0, value: 0, date: null };
     const currentMonthRef = new Date(latestUnifiedDate.getFullYear(), latestUnifiedDate.getMonth(), 1);
+    // Ảnh chụp mới nhất trong tháng nhưng KHÔNG sau ngày đang lọc (stockDates xếp mới → cũ) — trước có thể
+    // lấy ngày sau ngày lọc, lệch số chính của thẻ (closestStockDate)
+    const limit = new Date(latestUnifiedDate.getFullYear(), latestUnifiedDate.getMonth(), latestUnifiedDate.getDate(), 23, 59, 59).getTime();
     const entry = stockDates.find(s => {
       const d = parseVNDate(s.date) || new Date(s.date);
-      return d.getFullYear() === currentMonthRef.getFullYear() && d.getMonth() === currentMonthRef.getMonth();
+      return d.getFullYear() === currentMonthRef.getFullYear() && d.getMonth() === currentMonthRef.getMonth() && d.getTime() <= limit;
     });
     if (!entry) return { count: 0, value: 0, date: null };
     const d = parseVNDate(entry.date) || new Date(entry.date);

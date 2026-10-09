@@ -44,11 +44,12 @@ export const parseNumber = (valStr: string | number | null | undefined): number 
   // 3. Chỉ có dấu chấm (VD: 1.000.000 chuẩn VN hoặc 12.5 chuẩn EN)
   else if (lastDot > -1) {
     const parts = s.split('.');
-    // Nếu có nhiều dấu chấm (1.000.000) hoặc dấu chấm duy nhất cách đuôi 3 số (123.456) -> Phân cách hàng ngàn chuẩn VN
-    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+    // Nhiều dấu chấm (1.000.000) -> phân cách hàng ngàn chuẩn VN. MỘT dấu chấm luôn là thập phân (12.5,
+    // 1.027): dữ liệu DB ghi số thập phân kiểu EN — trước coi "1.027" (3 số sau dấu chấm) là 1027 => cột
+    // text như thanh_tien_ke_hoach bị nhân 1000
+    if (parts.length > 2) {
       s = s.replace(/\./g, '');
     }
-    // Ngược lại giữ nguyên làm dấu thập phân (VD: 12.5 hoặc 12.50)
   }
 
   const result = Number.parseFloat(s);

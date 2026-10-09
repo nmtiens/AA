@@ -134,6 +134,19 @@ export const canonicalProjectName = (raw: unknown): string => {
   return canon;
 };
 
+/**
+ * Bảng tên phụ -> tên chuẩn (mọi tên đã biết, gồm tên chỉ xuất hiện ở bảng khác nối qua HEX) — gửi cho giao
+ * diện để lọc phía máy (utils/productionMetrics) khớp đúng như server.
+ */
+export const listProjectAliases = (): { k: string; c: string }[] => {
+  const out: { k: string; c: string }[] = [];
+  nameToCodes.forEach((_codes, k) => {
+    const c = canonicalProjectName(k);
+    if (normName(c) !== k) out.push({ k, c });
+  });
+  return out;
+};
+
 /** Tên chỉ thuộc đúng 1 mã công trình. Tên dùng cho nhiều mã (ghi nhầm / tên khách chung) => chốt theo tên. */
 const isSingleCodeName = (name: string): boolean => (nameToCodes.get(normName(name))?.size ?? 0) <= 1;
 

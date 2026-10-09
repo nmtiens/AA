@@ -28,6 +28,11 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const phanLoaiPattern = isWeek ? '%TUẦN%' : '%THÁNG%';
 
     const normalize = (s: string) => s.trim().toUpperCase();
+    // Bộ lọc thời gian cho chọn NHIỀU giá trị (ngăn bằng dấu phẩy) — trước chỉ lấy giá trị đầu
+    const numList = (v?: string) => String(v ?? '').split(',').map(x => Number(x.trim())).filter(x => Number.isFinite(x) && x > 0);
+    const thangList = numList(thang), tuanList = numList(tuan), ngayList = numList(ngay);
+    // Xem theo TUẦN đã chọn tuần: không lọc thêm tháng (tuần giáp 2 tháng bị cắt mất 1 phần, tuần ngoài tháng = 0)
+    const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
     // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
     const congTrinhList = expandProjectNames(parseNameList(congTrinh));
     const xuongList = xuong ? xuong.split(',').map(normalize).filter(Boolean) : [];
@@ -36,9 +41,9 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const khParams: any[] = [phanLoaiPattern, nam];
     // Không tính hạng mục đã HỦY
     let khWhere = `WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint AND ${notCancelledHexCond('hex')}`;
-    if (thang) { khParams.push(thang); khWhere += ` AND thang = $${khParams.length}::bigint`; }
-    if (isWeek && tuan) { khParams.push(tuan); khWhere += ` AND tuan = $${khParams.length}::double precision`; }
-    if (isWeek && ngay) { khParams.push(ngay); khWhere += ` AND ngay = $${khParams.length}::double precision`; }
+    if (useThang) { khParams.push(thangList); khWhere += ` AND thang = ANY($${khParams.length}::bigint[])`; }
+    if (isWeek && tuanList.length) { khParams.push(tuanList); khWhere += ` AND tuan = ANY($${khParams.length}::double precision[])`; }
+    if (isWeek && ngayList.length) { khParams.push(ngayList); khWhere += ` AND ngay = ANY($${khParams.length}::double precision[])`; }
     if (congTrinhList.length) { khParams.push(congTrinhList); khWhere += ` AND ${normNameSql('ten_cong_trinh')} = ANY($${khParams.length}::text[])`; }
     if (xuongList.length) khWhere += ` AND ${workshopCondition('xuong_chinh', xuongList, khParams)}`;
 
@@ -58,9 +63,19 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     const thParams: any[] = [nam];
     // Không tính hạng mục đã HỦY
     let thWhere = `WHERE nam = $1::bigint AND ${notCancelledHexCond('hex')}`;
-    if (thang) { thParams.push(thang); thWhere += ` AND thang = $${thParams.length}::bigint`; }
-    if (isWeek && tuan) { thParams.push(tuan); thWhere += ` AND tuan = $${thParams.length}::bigint`; }
-    if (isWeek && ngay) { thParams.push(ngay); thWhere += ` AND ngay = $${thParams.length}::bigint`; }
+    if (useThang) { thParams.push(thangList); thWhere += ` AND thang = ANY($${thParams.length}::bigint[])`; }
+    // Tuần: lấy theo NGÀY của tuần ISO, cắt trong năm dương lịch — khớp cách bảng KHSX đánh số (29–31/12/2025 là
+    // tuần 53 của 2025, 01–04/01/2026 là tuần 1 của 2026). Cột nhap_kho.tuan là tuần ISO thuần nên trước đó
+    // 29–31/12 bị tính vào "tuần 1" của năm cũ, lệch với KH.
+    if (isWeek && tuanList.length) {
+      thParams.push(Number(nam));
+      const y = `$${thParams.length}::int`;
+      thParams.push(tuanList);
+      const w = `to_date((${y})::text || '-' || wk::text, 'IYYY-IW')`;
+      thWhere += ` AND EXISTS (SELECT 1 FROM UNNEST($${thParams.length}::int[]) wk
+        WHERE date_parsed BETWEEN GREATEST(${w}, make_date(${y}, 1, 1)) AND LEAST(${w} + 6, make_date(${y}, 12, 31)))`;
+    }
+    if (isWeek && ngayList.length) { thParams.push(ngayList); thWhere += ` AND ngay = ANY($${thParams.length}::bigint[])`; }
     if (congTrinhList.length) { thParams.push(congTrinhList); thWhere += ` AND ${normNameSql('ten_cong_trinh')} = ANY($${thParams.length}::text[])`; }
     if (xuongList.length) thWhere += ` AND ${workshopCondition('xuong_chinh', xuongList, thParams)}`;
 
@@ -69,9 +84,9 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     // nên % trông gần đạt dù phần lớn nhập kho là hạng mục ngoài KH).
     thParams.push(phanLoaiPattern, nam);
     let planHexWhere = `UPPER(TRIM(phan_loai_kh)) LIKE $${thParams.length - 1} AND nam = $${thParams.length}::bigint AND hex IS NOT NULL`;
-    if (thang) { thParams.push(thang); planHexWhere += ` AND thang = $${thParams.length}::bigint`; }
-    if (isWeek && tuan) { thParams.push(tuan); planHexWhere += ` AND tuan = $${thParams.length}::double precision`; }
-    if (isWeek && ngay) { thParams.push(ngay); planHexWhere += ` AND ngay = $${thParams.length}::double precision`; }
+    if (useThang) { thParams.push(thangList); planHexWhere += ` AND thang = ANY($${thParams.length}::bigint[])`; }
+    if (isWeek && tuanList.length) { thParams.push(tuanList); planHexWhere += ` AND tuan = ANY($${thParams.length}::double precision[])`; }
+    if (isWeek && ngayList.length) { thParams.push(ngayList); planHexWhere += ` AND ngay = ANY($${thParams.length}::double precision[])`; }
 
     const thQuery = `
       WITH plan_hex AS (SELECT DISTINCT hex::text AS hex FROM khsx WHERE ${planHexWhere})

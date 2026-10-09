@@ -33,7 +33,8 @@ app.use(cors({
   credentials: true,
 }));
 app.use(compression()); // Nén gzip response — giảm 70-90% dung lượng JSON
-app.use(express.json({ limit: '1mb' }));
+// 2mb: /api/material/by-hex có thể gửi toàn bộ ~52k mã HEX
+app.use(express.json({ limit: '2mb' }));
 
 export const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -98,7 +99,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Setup gộp xưởng: bảng nhỏ, nạp cho mọi API (làm mới 5 phút/lần, lưu xong nạp lại ngay).
 // API gộp tên theo công trình (canonicalProjectName) cần bảng tên kể cả khi KHÔNG lọc công trình —
 // trước chỉ nạp khi có congTrinh nên vừa khởi động mà mở trang không lọc thì các cách viết không được gộp.
-const NEEDS_PROJECT_ALIASES = /^\/api\/(trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
+const NEEDS_PROJECT_ALIASES = /^\/api\/(project-aliases|trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   if (req.path.toLowerCase().startsWith('/api/')) {
     try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ }

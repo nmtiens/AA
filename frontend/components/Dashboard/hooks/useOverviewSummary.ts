@@ -377,16 +377,20 @@ export function useOverviewSummary({
 
     let datesISO: string[] | undefined;
     let dateToISO: string | undefined;
+    // Không lọc ngày => thẻ tổng quan tính "toàn bộ thời gian" => chi tiết theo nhóm cũng vậy (dateTo chỉ
+    // làm mốc lũy kế tháng)
+    let allTime = false;
     if (overviewDateFilters.length > 0) {
       datesISO = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null).map(d => toISODateLocal(d));
     } else if (overviewSummary?.date) {
       dateToISO = overviewSummary.date;
+      allTime = true;
     }
 
     const filterOpts = { congTrinh: effectiveCongTrinh, xuong: effectiveXuong };
     const [byXuong, byCongTrinh] = await Promise.all([
-      fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, ...filterOpts }),
-      fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, ...filterOpts }),
+      fetchOverviewByGroup(key, 'xuong', { datesISO, dateToISO, allTime, ...filterOpts }),
+      fetchOverviewByGroup(key, 'congtrinh', { datesISO, dateToISO, allTime, ...filterOpts }),
     ]);
     setGroupAnalysisCache(prev => ({ ...prev, [kW]: byXuong, [kP]: byCongTrinh }));
   };

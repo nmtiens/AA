@@ -7,6 +7,7 @@ import { categoryValue, NO_DATA_LABEL } from '../../utils/filterMatch';
 import { exportOrderMixExcel, type MixExportRec } from '../../utils/orderMixExport';
 import { Download, Info, Loader2, XCircle } from 'lucide-react';
 import { formatTy } from '../../../../utils/money';
+import { projectMatchKey } from '../../../../utils/productionMetrics';
 
 // Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
@@ -67,29 +68,13 @@ export function aggregateMix<R>(
 }
 
 /**
- * Khoá dùng để ĐẾM công trình: theo mã công trình, xoá trùng, rồi map về 1 tên chuẩn.
- * - 1 mã có thể có nhiều cách viết tên (vd. "MARRIOT…" / "MARRIOTT…") => lấy tên xuất hiện nhiều nhất.
- * - Hàng xuất khẩu mỗi đơn 1 mã (ARHAUS có hàng trăm mã EM…) nhưng cùng 1 tên => vẫn chỉ tính 1 công trình.
- * Dòng không có mã thì dùng chính tên. Kết quả viết HOA để không đếm trùng do khác hoa/thường, khoảng trắng.
+ * Khoá dùng để ĐẾM / gom công trình: tên chuẩn theo quy tắc chung (utils/productionMetrics.projectMatchKey —
+ * gộp các cách viết của cùng mã, tên dùng cho nhiều mã thì "chốt theo tên", vd. ARHAUS nhiều mã EM… vẫn là
+ * 1 công trình). Trước tự gom theo mã => gộp nhầm các tên khác nhau dùng chung 1 mã (STAR GRAND / START
+ * GRAND…, AKA / NHÀ XINH) và lệch với Luồng đỏ / tồn kho / server. maKey giữ để không đổi chỗ gọi.
  */
-export function projectKeyResolver(rows: DataRow[], maKey: string, tenKey: string): (row: DataRow) => string {
-  const norm = (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
-  const counts = new Map<string, Map<string, number>>(); // mã -> (tên -> số dòng)
-  for (const row of rows) {
-    const ma = norm(row[maKey]);
-    const ten = norm(row[tenKey]);
-    if (!ma || !ten) continue;
-    let m = counts.get(ma);
-    if (!m) { m = new Map(); counts.set(ma, m); }
-    m.set(ten, (m.get(ten) ?? 0) + 1);
-  }
-  const canonical = new Map<string, string>();
-  counts.forEach((m, ma) => {
-    let best = '', bestN = -1;
-    m.forEach((n, ten) => { if (n > bestN || (n === bestN && ten < best)) { best = ten; bestN = n; } });
-    canonical.set(ma, best);
-  });
-  return (row: DataRow) => canonical.get(norm(row[maKey])) ?? norm(row[tenKey]);
+export function projectKeyResolver(_rows: DataRow[], _maKey: string, tenKey: string): (row: DataRow) => string {
+  return (row: DataRow) => projectMatchKey(row[tenKey]);
 }
 
 /** Tóm tắt (số công trình / hạng mục / giá trị) của 1 tập dòng. */
@@ -442,13 +427,13 @@ export const ProductionDonutPanel: React.FC<Props> = ({
     const out: Rec[] = [];
     for (const row of data) {
       if (!String(row[ctK] ?? '').trim()) continue;
+      // Đơn HỦY không tính (cả số hạng mục lẫn giá trị) — quy tắc chung
+      if (String(row[ipoK] ?? '').toUpperCase().includes('HỦY')) continue;
       const ct = projectKey(row);
-      // Đơn hủy không tính giá trị (vẫn được đếm ở chế độ "Hạng mục")
-      const cancelled = String(row[ipoK] ?? '').toUpperCase().includes('HỦY');
       out.push({
         ct,
         kv: categoryValue(row[kvK]), kh: categoryValue(row[khK]), pl: categoryValue(row[plK]),
-        total: cancelled ? 0 : parseNumber(row[totK]),
+        total: parseNumber(row[totK]),
         row,
       });
     }

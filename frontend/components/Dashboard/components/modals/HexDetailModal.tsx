@@ -1450,7 +1450,10 @@ export const HexDetailModal = ({
                                   className={`${frozen.has('stt') ? 'sticky left-0 z-10' : ''} bg-emerald-100 px-3 py-3 text-left`}
                                   colSpan={pendingSpan}
                                 >
-                                  TỔNG CỘNG ({filteredRows.length} hex)
+                                  <span title="Tổng theo quy tắc chung: không tính đơn HỦY; thành tiền nhập kho mỗi hex chặn ≤ trị giá — nên có thể khác cộng tay các ô">
+                                    TỔNG CỘNG ({filteredRows.length} hex)
+                                    <span className="ml-1 text-[0.625rem] font-normal text-emerald-800/70">· không tính HỦY, NK ≤ trị giá</span>
+                                  </span>
                                 </td>
                               );
                               labelRendered = true;

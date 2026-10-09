@@ -731,15 +731,25 @@ export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' |
 ];
 const BOM_META = Object.fromEntries(BOM_STATES.map(s => [s.key, s])) as Record<BomState, (typeof BOM_STATES)[number]>;
 
-export const LINE_STATES: { key: MaterialLineState; label: string; bar: string }[] = [
-  { key: 'notOrdered', label: 'Chưa mua', bar: 'bg-rose-500' },
-  { key: 'late', label: 'Đang mua – trễ hẹn', bar: 'bg-orange-500' },
-  { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-amber-400' },
-  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-sky-400' },
-  { key: 'ccld', label: 'CCLD – lắp tại công trình', bar: 'bg-teal-400' },
-  { key: 'closedShort', label: 'PR đã đóng, chưa nhận đủ', bar: 'bg-violet-400' },
-  { key: 'done', label: 'Đã nhận đủ', bar: 'bg-emerald-500' },
-  { key: 'cancelled', label: 'Hủy', bar: 'bg-slate-300' },
+// Nhóm dòng PR — xếp theo cột Trạng thái chung (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) + SL còn lại
+// trên SAP (utils/productionMetrics.materialLineState). `hint` hiện khi rê chuột vào nhóm.
+export const LINE_STATES: { key: MaterialLineState; label: string; bar: string; hint: string }[] = [
+  { key: 'notOrdered', label: 'Chưa mua', bar: 'bg-rose-500',
+    hint: 'Trạng thái 1.CHƯA MUA — chưa có PO.' },
+  { key: 'late', label: 'Đang mua – trễ hẹn', bar: 'bg-orange-500',
+    hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) mà SAP chưa nhận đủ.' },
+  { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-amber-400',
+    hint: 'Trạng thái 2.ĐANG MUA, chưa tới Ngày dự kiến giao hàng (PMH nhập).' },
+  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-sky-400',
+    hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu — chỉ còn chờ SAP ghi nhập kho.' },
+  { key: 'ccld', label: 'CCLD – lắp tại công trình', bar: 'bg-teal-400',
+    hint: 'Dòng 1.CHƯA MUA / 2.ĐANG MUA là hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất.' },
+  { key: 'closedShort', label: 'PR đã đóng, chưa nhận đủ', bar: 'bg-violet-400',
+    hint: 'Trạng thái 3.ĐÃ NHẬP KHO nhưng PR đã ĐÓNG trên SAP khi SL còn lại > 0 (nhận 1 phần hoặc chưa nhận): dùng tồn kho, đóng PR thiếu, hàng CCLD… — không còn chờ hàng về.' },
+  { key: 'done', label: 'Đã nhận đủ', bar: 'bg-emerald-500',
+    hint: 'Trạng thái 3.ĐÃ NHẬP KHO và SL còn lại trên SAP = 0: SL đã nhận (SAP) ≥ SL yêu cầu (có dòng nhận dư).' },
+  { key: 'cancelled', label: 'Hủy', bar: 'bg-slate-300',
+    hint: 'Trạng thái 4.HỦY — không tính vào vật tư của hạng mục.' },
 ];
 
 export interface HexBom {
@@ -894,7 +904,8 @@ export function summarizeProjectMaterial(rows: ProjectMaterialLine[] | null, tod
   const byState = Object.fromEntries(LINE_STATES.map(s => [s.key, 0])) as Record<MaterialLineState, number>;
   let lines = 0, badCode = 0, toFix = 0;
   for (const r of rows) {
-    if (r.kind === 'badCode') { badCode++; toFix++; continue; }
+    // Dòng ghi sai mã: chỉ cần sửa khi còn chờ hàng (đã hủy / đã nhận đủ thì sửa mã không còn ý nghĩa)
+    if (r.kind === 'badCode') { badCode++; if (PENDING_STATES.includes(materialLineState(r, today))) toFix++; continue; }
     const st = materialLineState(r, today);
     byState[st]++;
     if (st !== 'cancelled') lines++;
@@ -959,8 +970,8 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
   }, [enriched, filter, q]);
 
   const toFixRows = useMemo(
-    () => enriched.filter(({ r, st }) => r.kind === 'badCode' || (st && PENDING_STATES.includes(st))).map(x => x.r),
-    [enriched]
+    () => enriched.filter(({ r, st }) => (r.kind === 'badCode' ? PENDING_STATES.includes(materialLineState(r, today)) : !!st && PENDING_STATES.includes(st))).map(x => x.r),
+    [enriched, today]
   );
   const runExport = async () => {
     if (!toFixRows.length || exporting) return;
@@ -1001,15 +1012,17 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
         <>
           <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
             {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
-              <div key={s.key} className={s.bar} style={{ width: `${(sum.byState[s.key] / Math.max(total, 1)) * 100}%` }} title={`${s.label}: ${sum.byState[s.key]}`} />
+              <div key={s.key} className={s.bar} style={{ width: `${(sum.byState[s.key] / Math.max(total, 1)) * 100}%` }} title={`${s.label}: ${sum.byState[s.key]} — ${s.hint}`} />
             ))}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <Chip active={filter === 'pending'} tone="red" onClick={() => setFilter('pending')}>Còn chờ ({fmtInt(pendingN)})</Chip>
             {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
-              <Chip key={s.key} active={filter === s.key} onClick={() => setFilter(s.key)}>
-                <span className={`mr-1 inline-block h-2 w-2 rounded-sm ${s.bar}`} />{s.label} ({fmtInt(sum.byState[s.key])})
-              </Chip>
+              <span key={s.key} title={s.hint}>
+                <Chip active={filter === s.key} onClick={() => setFilter(s.key)}>
+                  <span className={`mr-1 inline-block h-2 w-2 rounded-sm ${s.bar}`} />{s.label} ({fmtInt(sum.byState[s.key])})
+                </Chip>
+              </span>
             ))}
             <Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip>
             {sum.badCode > 0 && (
@@ -1056,7 +1069,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                         {r.kind === 'badCode' ? (
                           <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-800" title={r.bad_reason ?? ''}>Sai mã NM: {r.ma_nha_may}</span>
                         ) : meta ? (
-                          <span className="inline-flex items-center gap-1 whitespace-nowrap text-slate-700"><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}</span>
+                          <span className="inline-flex cursor-help items-center gap-1 whitespace-nowrap text-slate-700" title={meta.hint}><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}</span>
                         ) : null}
                       </td>
                       <td className={`${td} max-w-[260px] truncate text-slate-500`} title={[r.team_pr_note, r.item_note_pr].filter(Boolean).join(' · ')}>
@@ -1178,19 +1191,24 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
                 key={s.key}
                 className={s.bar}
                 style={{ width: `${(bom.lineCounts[s.key] / bom.lineTotal) * 100}%` }}
-                title={`${s.label}: ${bom.lineCounts[s.key]}`}
+                title={`${s.label}: ${bom.lineCounts[s.key]} — ${s.hint}`}
               />
             ))}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4 xl:grid-cols-4">
             {LINE_STATES.map(s => (
-              <div key={s.key} className="flex items-center gap-1.5">
+              <div key={s.key} className="flex cursor-help items-center gap-1.5" title={s.hint}>
                 <span className={`h-2 w-2 shrink-0 rounded-sm ${s.bar}`} />
-                <span className="truncate text-slate-600">{s.label}</span>
+                <span className="truncate text-slate-600 underline decoration-dotted decoration-slate-300 underline-offset-2">{s.label}</span>
                 <span className="ml-auto font-semibold tabular-nums text-slate-800">{fmtInt(bom.lineCounts[s.key])}</span>
               </div>
             ))}
           </div>
+          <p className="mt-2 text-[0.6875rem] text-slate-400">
+            Nhóm theo cột Trạng thái của PR (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) và SL còn lại trên SAP.
+            "Đã nhận đủ" = 3.ĐÃ NHẬP KHO và SL còn lại = 0; "PR đã đóng, chưa nhận đủ" = 3.ĐÃ NHẬP KHO nhưng PR đóng khi còn
+            thiếu (dùng tồn / đóng thiếu / CCLD). Còn chờ = Chưa mua + Đang mua (trễ / chưa tới hẹn). Rê chuột vào từng nhóm để xem chi tiết.
+          </p>
         </div>
       )}
 

@@ -62,6 +62,8 @@ export const REPORT_COLUMNS: Record<string, string[]> = {
   ],
   phan_tich_kh_th: [
  'xuong_chinh', 'ten_cong_trinh', 'thanh_tien_ke_hoach', 'nhap_kho_tuan', 'tuan',
+    // Năm — bảng KH-TH tuần lọc theo năm đang chọn (cùng số tuần ở 2 năm khác nhau không bị cộng lẫn)
+    'nam',
     'dung_ke_hoach', 'thuc_hien_dung_ke_hoach_1_phan', 'rot_ke_hoach', 'thuc_hien_rot_ke_hoach_1_phan',
     'nhap_kho_truoc_ke_hoach', 'vuot_ke_hoach', 'nhap_kho_ngoai_ke_hoach',
 

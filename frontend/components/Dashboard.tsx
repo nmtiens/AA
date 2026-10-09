@@ -427,6 +427,7 @@ const {
   handleExportBottlenecks,
   selectedExportMonth, setSelectedExportMonth,
 } = useExportFlows({
+    stockScope: { congTrinh: stockScopeCongTrinh, xuong: filters.xuong },
   orderColumns, orderData,
   tkbvColumns, tkbvData,
   pthspColumns, pthspData,

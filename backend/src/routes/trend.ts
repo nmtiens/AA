@@ -36,9 +36,17 @@ app.get('/api/trend', async (req: Request, res: Response) => {
     const conditions: string[] = [`${colBare(cfg.dateCol)} IS NOT NULL`];
     const params: any[] = [];
 
-    // [SNAPSHOT FIX]
+    // [SNAPSHOT FIX] Tồn kho là ảnh chụp: không có khoảng ngày => 1 ảnh mới nhất (≤ dateTo). Có khoảng ngày
+    // (dateFrom) => lấy mọi ảnh chụp trong khoảng; theo tuần / tháng thì period_dates bên dưới chọn ảnh CUỐI
+    // mỗi kỳ (trước luôn ép về 1 ngày nên biểu đồ xu hướng tồn kho chỉ có 1 cột)
     if (isStock) {
-      conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+      if (dateFrom) {
+        params.push(dateFrom.toISOString().slice(0, 10));
+        conditions.push(`${colBare(cfg.dateCol)} >= $${params.length}`);
+        if (dateTo) { params.push(dateTo.toISOString().slice(0, 10)); conditions.push(`${colBare(cfg.dateCol)} <= $${params.length}`); }
+      } else {
+        conditions.push(buildStockSnapshotCondition(cfg.table, colBare(cfg.dateCol), cfg.dateCol, dateTo, params));
+      }
     } else {
       // [DATES FIX] Ưu tiên danh sách ngày rời rạc nếu có
       applyNonStockDateFilter(colBare(cfg.dateCol), explicitDates, dateFrom, dateTo, conditions, params);
@@ -735,7 +743,8 @@ app.get('/api/detail', async (req: Request, res: Response) => {
       if (isUnknownValueLabel(value)) {
         conditions.push(emptyCond(colBare(cfg.congTrinhCol)));
       } else {
-        params.push(value); conditions.push(eqNormalized(colBare(cfg.congTrinhCol), params.length));
+        // Mọi cách viết của cùng công trình (cột bấm vào là tên chuẩn đã gộp) — trước chỉ so đúng tên
+        conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), value, params));
       }
     } else if (congTrinh && cfg.congTrinhCol) {
       conditions.push(projectNameCondition(colBare(cfg.congTrinhCol), congTrinh, params));

@@ -169,10 +169,12 @@ export function useKhsxSummary({
 
     const timer = setTimeout(() => {
       const nam = unifiedTimeFilters.nam[0] ?? new Date().getFullYear().toString();
-      const thang = unifiedTimeFilters.thang[0];
+      // Gửi MỌI giá trị đã chọn (API nhận danh sách) — trước chỉ lấy giá trị đầu nên lệch bảng năng suất
+      const join = (v: string[]) => (v.length ? v.join(',') : undefined);
+      const thang = join(unifiedTimeFilters.thang);
       const mode = viewMode === 'WEEK' ? 'week' : 'month';
-      const tuan = viewMode === 'WEEK' ? unifiedTimeFilters.tuan[0] : undefined;
-      const ngay = viewMode === 'WEEK' ? unifiedTimeFilters.ngay[0] : undefined;
+      const tuan = viewMode === 'WEEK' ? join(unifiedTimeFilters.tuan) : undefined;
+      const ngay = viewMode === 'WEEK' ? join(unifiedTimeFilters.ngay) : undefined;
 
       fetchKhsxNhapKhoSummary({
         nam, thang, mode, tuan, ngay,
@@ -222,7 +224,10 @@ export function useKhsxSummary({
 
     const map = new Map<string, WeeklyPlanVsActualRow>();
 
+    // Chỉ năm đang chọn (cột nam) — số tuần lặp lại mỗi năm
+    const namSel = unifiedTimeFilters.nam[0];
     filteredAnalysisData.forEach(row => {
+      if (namSel && row['nam'] !== undefined && row['nam'] !== null && String(row['nam']).trim() !== '' && String(row['nam']).trim() !== namSel) return;
       // Use Unified Time Filter (tuan)
       if (unifiedTimeFilters.tuan.length > 0 && analysisWeekKey) {
         const rowWeek = String(row[analysisWeekKey] || '').trim();
@@ -270,7 +275,7 @@ export function useKhsxSummary({
 
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [
-    filteredAnalysisData, analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey, unifiedTimeFilters.tuan, viewMode,
+    filteredAnalysisData, analysisXuongKey, analysisPlanKey, analysisActualKey, analysisWeekKey, unifiedTimeFilters.tuan, unifiedTimeFilters.nam, viewMode,
     analysisDungKhKey, analysisThucHienDungKh1PhanKey, analysisRotKhKey, analysisThucHienRotKh1PhanKey,
     analysisNhapKhoTruocKhKey, analysisVuotKhKey, analysisNhapKhoNgoaiKhKey,
   ]);
