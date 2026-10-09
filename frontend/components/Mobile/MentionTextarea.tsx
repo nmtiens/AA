@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { fetchHandlerNames } from '../../services/vuongMacService';
 
 // Bỏ dấu + viết thường để gõ "@ngoc" vẫn ra "NGUYỄN NGỌC YẾN"
@@ -42,6 +43,29 @@ export default function MentionTextarea({ value, onChange, className, rows = 3, 
   const q = query ? foldVi(query.text.trim()) : '';
   const matches = query ? names.filter(n => !q || foldVi(n).includes(q)).slice(0, 6) : [];
 
+  // Vị trí danh sách gợi ý: dùng position fixed theo toạ độ ô nhập để không bị khung cuộn / cửa sổ cắt mất
+  // (ô chat nằm sát đáy khung — trước danh sách mở xuống dưới nên bị cắt, trông như không tag được). Gần đáy
+  // màn hình thì mở lên trên.
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number } | null>(null);
+  // Đang gõ "@..." mà không có tên khớp: vẫn mở để báo, tránh trông như không tag được
+  const open = !!query && names.length > 0;
+  useEffect(() => {
+    if (!open) { setPos(null); return; }
+    const place = () => {
+      const el = ref.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const below = window.innerHeight - r.bottom;
+      setPos(below < 260 && r.top > below
+        ? { left: r.left, width: r.width, bottom: window.innerHeight - r.top + 4 }
+        : { left: r.left, width: r.width, top: r.bottom + 4 });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+  }, [open, value]);
+
   const pick = (name: string) => {
     if (!query) return;
     const el = ref.current;
@@ -67,9 +91,15 @@ export default function MentionTextarea({ value, onChange, className, rows = 3, 
         onBlur={() => setTimeout(() => setQuery(null), 150)}
         className={className}
       />
-      {matches.length > 0 && (
-        <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-lg">
+      {open && pos && createPortal(
+        <ul
+          style={{ position: 'fixed', left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom }}
+          className="z-[10050] max-h-56 overflow-y-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-lg"
+        >
           <li className="px-4 pb-1 pt-1.5 text-sm text-slate-400">Tag tên — người được tag sẽ nhận thông báo</li>
+          {matches.length === 0 && (
+            <li className="px-4 py-2 text-sm text-slate-500">Không có tên khớp "{query?.text}" — gõ một phần họ tên, không cần dấu</li>
+          )}
           {matches.map(n => (
             <li key={n}>
               <button
@@ -81,7 +111,8 @@ export default function MentionTextarea({ value, onChange, className, rows = 3, 
               </button>
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );
