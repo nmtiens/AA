@@ -48,8 +48,8 @@ interface UseOverviewSummaryParams {
   expXuongKey: string | undefined;
   filters: Pick<DashboardFiltersState, 'congTrinh' | 'xuong' | 'tinhTrang' | 'tinhTrangIpo'>;
   unifiedDateOptions: string[];
-  // ✅ FIX: optional — chỉ các trang theo VIEW (ConstructionView: luồng đỏ, căn mẫu)
-  // mới truyền tham số này. Trang Dashboard tổng KHÔNG truyền -> không được coi là lỗi,
+  // Optional — hiện không trang nào truyền (nhóm Luồng đỏ / Căn mẫu nằm trong Tổng quan
+  // công trình). Trang Dashboard tổng KHÔNG truyền -> không được coi là lỗi,
   // và KHÔNG được ép buộc, nếu không sẽ crash "Cannot read properties of undefined
   // (reading 'length')" ngay khi Dashboard tổng gọi hook này.
   viewProjectWhitelist?: string[];
@@ -252,10 +252,8 @@ export function useOverviewSummary({
   }, [overviewSummary]);
 
   // --- Dữ liệu lọc theo overviewDateFilters ---
-  // Các bảng này (orderData, tkbvData, ...) là dữ liệu ĐÃ được filterByView() lọc từ
-  // component cha (ConstructionView) trước khi truyền vào hook,
-  // nên các useMemo dưới đây không cần áp lại whitelist. Với Dashboard tổng (không scope
-  // theo view), dữ liệu truyền vào vốn không bị filterByView() nên cũng không cần áp gì thêm.
+  // Các bảng này (orderData, tkbvData, ...) không áp whitelist nhóm ở đây: nơi gọi tự lọc trước
+  // khi truyền vào (Dashboard tổng không scope theo nhóm nên không cần áp gì thêm).
   const filteredOrderData = useMemo(() => {
     if (overviewDateFilters.length === 0) return orderData;
     return orderData.filter(row => {

@@ -22,7 +22,7 @@ export const inPlanWeek = (d: Date, year: number, week: number): boolean => {
   return d >= lo && d <= hi;
 };
 // Số tuần của ngày d trong năm dương lịch của nó, cùng cách đánh số với inPlanWeek (tuần mặc định của bộ lọc).
-// Khác getWeekNumber (ISO thuần): 29–31/12/2025 là tuần 53 của 2025 (ISO ra tuần 1); 01–03/01/2027 (trước thứ Hai
+// Khác tuần ISO thuần: 29–31/12/2025 là tuần 53 của 2025 (ISO ra tuần 1); 01–03/01/2027 (trước thứ Hai
 // tuần ISO 1) ISO ra tuần 53 — ở đây chặn về tuần 1 của 2027 vì năm lọc mặc định là năm hiện tại.
 export const planWeekOf = (d: Date): number => {
   const year = d.getFullYear();

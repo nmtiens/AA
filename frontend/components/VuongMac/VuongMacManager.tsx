@@ -42,6 +42,10 @@ const DEFAULT_LIST: ListFilter = { tab: 'active', q: '', cat: '', handler: '', x
 // Giá trị người xử lý đặc biệt: vướng mắc chưa giao ai (handler rỗng) — backend hiểu `__none__`
 const HANDLER_NONE = '__none__';
 const NONE_LABEL = 'Chưa giao';
+// Nhóm "Chưa rõ" ở bảng công đoạn / công trình: công đoạn gửi nguyên 'Chưa rõ' (backend STAGE_UNKNOWN),
+// công trình gửi `__none__` (vướng mắc không xác định được công trình)
+const UNKNOWN_LABEL = 'Chưa rõ';
+const CT_NONE = '__none__';
 const PAGE = 50;
 
 export default function VuongMacManager() {
@@ -80,9 +84,12 @@ export default function VuongMacManager() {
   const set = (p: Partial<ListFilter>) => setF(x => ({ ...x, ...p }));
   // Bấm ô số / dòng ở các bảng nhóm => lọc danh sách rồi cuộn xuống danh sách (trước không có phản hồi gì)
   const listRef = useRef<HTMLDivElement>(null);
-  // Mang theo khu vực SX đang chọn ở số liệu (KPI / bảng nhóm tính theo xưởng đó) — trừ khi p tự đặt xuong
+  // Dựng bộ lọc MỚI từ mặc định (không dính lọc cũ: người xử lý, loại, tìm, "của tôi", ngày…) để số ở ô
+  // khớp số dòng danh sách; chỉ giữ khu vực SX đang chọn ở số liệu (KPI / bảng nhóm tính theo xưởng đó —
+  // trừ khi p tự đặt xuong) và cách sắp xếp
   const pick = (p: Partial<ListFilter>, label?: string) => {
-    set({ ...(xuong ? { xuong } : {}), ...p });
+    setF({ ...DEFAULT_LIST, sort: f.sort, ...(xuong ? { xuong } : {}), ...p });
+    setQInput('');
     setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     if (label) flash(`Đã lọc danh sách: ${label}`);
   };
@@ -93,7 +100,8 @@ export default function VuongMacManager() {
   const [detail, setDetail] = useState<VuongMacItem | null>(null);
   const [creating, setCreating] = useState(false);
   const [qInput, setQInput] = useState('');
-  useEffect(() => { const t = setTimeout(() => set({ q: qInput }), 400); return () => clearTimeout(t); }, [qInput]);
+  // Giữ nguyên object khi q không đổi (vd. pick vừa xoá ô tìm) => không tải lại danh sách thừa
+  useEffect(() => { const t = setTimeout(() => setF(x => (x.q === qInput ? x : { ...x, q: qInput })), 400); return () => clearTimeout(t); }, [qInput]);
 
   const query = useCallback((p: number, size = PAGE): VuongMacQuery => {
     const tab = LIST_TABS.find(t => t.key === f.tab)!;
@@ -161,7 +169,7 @@ export default function VuongMacManager() {
   const t = dash?.totals;
   const stages = useMemo(() => {
     const base: string[] = [...BOP_STAGE_ORDER];
-    const extra = (dash?.byStage ?? []).map(x => x.name).filter(n => n !== 'Chưa rõ' && !base.includes(n)).sort();
+    const extra = (dash?.byStage ?? []).map(x => x.name).filter(n => n !== UNKNOWN_LABEL && !base.includes(n)).sort();
     return [...base, ...extra];
   }, [dash]);
   const me = user ? { username: user.username, fullName: user.fullName } : undefined;
@@ -247,7 +255,7 @@ export default function VuongMacManager() {
           onPick={n => pick({ cat: n as FiveMCategory, tab: 'active' }, `${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`)} active={f.cat} />
         <GroupTable title="Theo khu vực sản xuất" rows={dash?.byXuong ?? []} onPick={n => pick({ xuong: n === f.xuong ? '' : n, tab: 'active' }, n === f.xuong ? 'bỏ lọc khu vực' : `khu vực ${n}`)} active={f.xuong} />
         <GroupTable title="Theo công đoạn lúc báo" rows={dash?.byStage ?? []} hint="Công đoạn (BOP) của hạng mục lúc báo vướng mắc — biết khâu nào hay vướng"
-          onPick={n => pick({ stage: n === f.stage || n === 'Chưa rõ' ? '' : n, tab: 'active' }, n === f.stage ? 'bỏ lọc công đoạn' : `công đoạn ${n}`)} active={f.stage} />
+          onPick={n => pick({ stage: n === f.stage ? '' : n, tab: 'active' }, n === f.stage ? 'bỏ lọc công đoạn' : `công đoạn ${n}`)} active={f.stage} />
         <GroupTable title="Theo người xử lý" rows={dash?.byHandler ?? []} onPick={n => {
             // "Chưa giao" = handler rỗng => lọc bằng giá trị đặc biệt (trước bỏ lọc nên hiện tất cả)
             const v = n === NONE_LABEL ? HANDLER_NONE : n;
@@ -255,8 +263,10 @@ export default function VuongMacManager() {
           }} active={f.handler === HANDLER_NONE ? NONE_LABEL : f.handler} showAvg />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <GroupTable title="Theo công trình (nhiều vướng mắc nhất)" rows={dash?.byProject ?? []} onPick={n => pick({ congTrinh: n === 'Chưa rõ' || n === f.congTrinh ? '' : n, tab: 'active' }, n === f.congTrinh ? 'bỏ lọc công trình' : `công trình ${n}`)}
-          active={f.congTrinh} />
+        <GroupTable title="Theo công trình (nhiều vướng mắc nhất)" rows={dash?.byProject ?? []} onPick={n => {
+            const v = n === UNKNOWN_LABEL ? CT_NONE : n;
+            pick({ congTrinh: v === f.congTrinh ? '' : v, tab: 'active' }, v === f.congTrinh ? 'bỏ lọc công trình' : `công trình ${n}`);
+          }} active={f.congTrinh === CT_NONE ? UNKNOWN_LABEL : f.congTrinh} />
         <Panel title="Cần xử lý ngay" sub="chưa xong, quá hạn lâu nhất / tuổi lớn nhất · bấm 1 dòng để mở chi tiết">
           <ul className="max-h-80 divide-y divide-slate-100 overflow-auto">
             {(dash?.oldest ?? []).map(o => (
@@ -314,13 +324,14 @@ export default function VuongMacManager() {
           <select value={f.stage} onChange={e => set({ stage: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1.5">
             <option value="">Mọi công đoạn</option>
             {stages.map(x => <option key={x} value={x}>{x}</option>)}
+            <option value={UNKNOWN_LABEL}>{UNKNOWN_LABEL}</option>
           </select>
           <input list="vm-handlers" value={f.handler === HANDLER_NONE ? NONE_LABEL : f.handler}
             onChange={e => set({ handler: e.target.value === NONE_LABEL ? HANDLER_NONE : e.target.value })} placeholder="Người xử lý" className="w-44 rounded-lg border border-slate-300 px-2 py-1.5" />
           <datalist id="vm-handlers"><option value={NONE_LABEL} />{handlers.map(h => <option key={h} value={h} />)}</datalist>
           {f.congTrinh && (
             <button onClick={() => set({ congTrinh: '' })} title="Bỏ lọc công trình" className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-1 text-xs text-white hover:bg-slate-700">
-              Công trình: {f.congTrinh} ×
+              Công trình: {f.congTrinh === CT_NONE ? UNKNOWN_LABEL : f.congTrinh} ×
             </button>
           )}
           <select value={f.mine} onChange={e => set({ mine: e.target.value as ListFilter['mine'] })} className="rounded-lg border border-slate-300 px-2 py-1.5">

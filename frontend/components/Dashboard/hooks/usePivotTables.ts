@@ -29,12 +29,6 @@ interface UsePivotTablesParams {
   // Dataset cho phễu "TÌNH TRẠNG ĐƠN HÀNG AATN" — theo Tình trạng IPO của trang, không ăn filters.tinhTrang.
   funnelProductionData: DataRow[];
 
-  // Dataset cho bảng "Tình trạng đơn hàng theo Công trình" (v2) —
-  // theo Công trình + Khu vực SX + Tình trạng IPO của trang, không ăn ô Tình trạng.
-  // Optional để không phá vỡ các nơi gọi cũ (vd. Dashboard.tsx không dùng bảng v2)
-  // — nếu không truyền, mặc định fallback về filteredProductionData như hành vi cũ.
-  projectSummaryProductionData?: DataRow[];
-
   filteredMaterialData: DataRow[];
   displayedMaterialData: DataRow[];
 
@@ -92,39 +86,13 @@ interface UsePivotTablesResult {
     name: string; totalOrder: number; deployed: number; ticketed: number; inProduction: number;
     inventory: number; remaining: number; notDeployed: number; percentComplete: number;
   }[];
-  // MỚI: bản "v2" của projectStatusSummary — dùng cho ProjectSummarySection_v2,
-  // nguồn từ projectSummaryProductionData (theo Tình trạng IPO của trang, không ăn ô Tình trạng).
-  // ✅ MỚI: p002 = giá trị công đoạn P002 (cột "Chưa tính phiếu P002");
-  //         onLine = giá trị đang trên chuyền CHỈ từ ON_LINE_STAGES (P012 -> P021).
-  projectStatusSummaryV2: {
-    name: string; totalOrder: number; deployed: number; ticketed: number; inProduction: number;
-    inventory: number; cancelled: number; p002: number; onLine: number; shortfall: number;
-    remaining: number; notDeployed: number; percentComplete: number;
-  }[];
-  onLineStageBreakdown: Record<string, Record<string, number>>;
-  // MỚI: bản "v2" của onLineStageBreakdown, cùng nguồn với projectStatusSummaryV2.
-  // Dạng: công trình -> công đoạn -> giá trị (chỉ các công đoạn trong ON_LINE_STAGES).
-  onLineStageBreakdownV2: Record<string, Record<string, number>>;
-  // ✅ MỚI: breakdown cho modal "Đang trên chuyền" theo KHU VỰC SẢN XUẤT.
-  // Dạng: công trình -> khu vực sản xuất -> công đoạn -> giá trị.
-  onLineAreaBreakdownV2: Record<string, Record<string, Record<string, number>>>;
-  hexRowsByColumn: {
+  /** Danh sách HEX cho phễu (cùng nguồn + nút Giá trị / Hạng mục của phễu), theo cột */
+  funnelHexRowsByColumn: {
     totalOrder: DataRow[];
     afterCancel: DataRow[];
     notDeployed: DataRow[];
-    onLine: DataRow[];
-    remaining: DataRow[];
-    inventory: DataRow[];
-  };
-  /** Danh sách HEX cho phễu (cùng nguồn + nút của phễu) — cùng cấu trúc hexRowsByColumnV2 */
-  funnelHexRowsByColumn: UsePivotTablesResult['hexRowsByColumnV2'];
-  // MỚI: bản "v2" của hexRowsByColumn, cùng nguồn với projectStatusSummaryV2.
-  hexRowsByColumnV2: {
-    totalOrder: DataRow[];
-    afterCancel: DataRow[];
-    notDeployed: DataRow[];
-    p002: DataRow[]; // ✅ MỚI: các dòng thuộc công đoạn P002 (đang sản xuất)
-    onLine: DataRow[]; // ✅ ĐỔI: P012 -> P021 (ON_LINE_STAGES)
+    p002: DataRow[]; // công đoạn P002
+    onLine: DataRow[]; // P012 -> P021 (ON_LINE_STAGES)
     shortfall: DataRow[]; // P022 / P025 nhưng nhập kho chưa đủ trị giá
     remaining: DataRow[];
     inventory: DataRow[];
@@ -142,8 +110,7 @@ interface UsePivotTablesResult {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers (module scope) — dùng chung cho projectStatusSummary.inProduction
-// VÀ onLineStageBreakdown, để 2 nơi này KHÔNG BAO GIỜ lệch nhau.
+// Helpers (module scope) — dùng cho projectStatusSummary.inProduction
 // ---------------------------------------------------------------------------
 
 function isInProductionRow(statusUpper: string): boolean {
@@ -191,7 +158,6 @@ const unknownProjectLast = (a: { name: string }, b: { name: string }) =>
 export function usePivotTables({
   filteredProductionData,
   funnelProductionData,
-  projectSummaryProductionData,
   filteredMaterialData,
   stockDates,
   closestStockDate,
@@ -214,10 +180,6 @@ export function usePivotTables({
   matSlDaNhanKey,
   matStatusKey,
 }: UsePivotTablesParams): UsePivotTablesResult {
-  // Fallback: nếu không truyền projectSummaryProductionData (vd. Dashboard.tsx
-  // gốc không dùng bảng v2), dùng lại filteredProductionData như hành vi cũ.
-  const projectSummaryData = projectSummaryProductionData ?? filteredProductionData;
-
   // -------------------------------------------------------------------------
   // State
   // -------------------------------------------------------------------------
@@ -394,213 +356,7 @@ export function usePivotTables({
   }, [filteredProductionData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, projectSummaryMetric]);
 
   // -------------------------------------------------------------------------
-  // MỚI: Project status summary — bản "v2" dùng cho ProjectSummarySection_v2.
-  // Nguồn: projectSummaryData (Công trình + Khu vực SX + Tình trạng IPO, KHÔNG ăn
-  // ô Tình trạng). Còn lại = trị giá − đã nhập kho từng hạng mục (utils/productionMetrics).
-  // ✅ MỚI: tách p002 và onLine (P012 -> P021) — cùng điều kiện với
-  // onLineStageBreakdownV2 (dòng "đang sản xuất" + công đoạn lấy từ bopKey,
-  // giá trị = thành tiền tính phiếu) nên hai nơi luôn khớp nhau.
-  // -------------------------------------------------------------------------
-  const projectStatusSummaryV2 = useMemo(() => {
-    if (!congTrinhKey || !triGiaDonHangTongKey) return [];
-    const agg: Record<string, {
-      totalOrder: number; deployed: number; ticketed: number; inProduction: number; inventory: number;
-      cancelled: number; notDeployed: number; p002: number; onLine: number; shortfall: number;
-    }> = {};
-
-    const isCount = projectSummaryMetric === 'COUNT';
-
-    projectSummaryData.forEach(row => {
-      const ctName = projectNameOf(row[congTrinhKey]);
-      if (!agg[ctName]) {
-        agg[ctName] = {
-          totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0,
-          cancelled: 0, notDeployed: 0, p002: 0, onLine: 0, shortfall: 0,
-        };
-      }
-      const a = agg[ctName];
-      const status = String(row[tinhTrangKey] || '').toUpperCase();
-      const statusIpo = String(row[tinhTrangIpoKey] || '').toUpperCase();
-
-      const totalOrderValRaw = parseNumber(row[triGiaDonHangTongKey]);
-      const inventoryValRaw = thanhTienNhapKhoKey ? doneValue(totalOrderValRaw, parseNumber(row[thanhTienNhapKhoKey])) : 0;
-      const totalOrderVal = isCount ? 1 : (totalOrderValRaw / 1000);
-
-      // Đơn HỦY: chỉ ghi nhận riêng, không tính vào tổng đơn hàng / còn lại
-      if (statusIpo.includes('HỦY')) {
-        a.cancelled += totalOrderVal;
-        return;
-      }
-
-      a.totalOrder += totalOrderVal;
-      if (!status.includes('15. CHƯA TRIỂN KHAI')) a.deployed += totalOrderVal;
-      // Đếm: "đã nhập kho" = nhập ĐỦ (isStocked) — hạng mục nhập 1 phần nằm ở "còn lại"
-      const qtyDone = isQtyComplete(row);
-      a.inventory += isCount ? (isStocked(totalOrderValRaw, inventoryValRaw, false, qtyDone) ? 1 : 0) : (inventoryValRaw / 1000);
-
-      const remainRaw = totalOrderValRaw - inventoryValRaw;
-      if (remainRaw <= 0) return;
-      // Đếm: hạng mục đã nhập đủ số lượng không tính là còn lại (giá trị vẫn tính phần lệch)
-      if (isCount && qtyDone) return;
-      const remainVal = isCount ? 1 : remainRaw / 1000;
-      const stage = bopKey ? extractStage(row[bopKey]) : null;
-      a[remainBucketOf(status, stage)] += remainVal;
-      if (isInProductionRow(status)) a.inProduction += remainVal;
-    });
-
-    return Object.entries(agg).map(([name, data]) => ({
-      name, ...data,
-      remaining: data.notDeployed + data.p002 + data.onLine + data.shortfall,
-      percentComplete: data.totalOrder > 0 ? (data.inventory / data.totalOrder) * 100 : 0,
-    })).sort((x, y) => unknownProjectLast(x, y) || y.totalOrder - x.totalOrder);
-  }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]);
-
-  // -------------------------------------------------------------------------
-  // Breakdown "Đang trên chuyền" theo từng mã BOP — bản gốc (legacy)
-  // (dùng ON_LINE_STAGES mới: P012 -> P021)
-  // -------------------------------------------------------------------------
-  const onLineStageBreakdown = useMemo<Record<string, Record<string, number>>>(() => {
-    const breakdown: Record<string, Record<string, number>> = {};
-    if (!congTrinhKey || !tinhTrangKey || !bopKey || !thanhTienTinhPhieuKey) return breakdown;
-
-    const isCount = projectSummaryMetric === 'COUNT';
-
-    filteredProductionData.forEach(row => {
-      const ctName = projectNameOf(row[congTrinhKey]);
-
-      const status = String(row[tinhTrangKey] || '').toUpperCase();
-      if (!isInProductionRow(status)) return;
-
-      const stage = extractStage(row[bopKey]);
-      if (!stage || !ON_LINE_STAGE_SET.has(stage)) return;
-
-      const ticketValRaw = parseNumber(row[thanhTienTinhPhieuKey]);
-      const valToAdd = isCount ? (ticketValRaw > 0 ? 1 : 0) : (ticketValRaw / 1000);
-
-      if (!breakdown[ctName]) breakdown[ctName] = {};
-      breakdown[ctName][stage] = (breakdown[ctName][stage] || 0) + valToAdd;
-    });
-
-    return breakdown;
-  }, [filteredProductionData, congTrinhKey, tinhTrangKey, bopKey, thanhTienTinhPhieuKey, projectSummaryMetric]);
-
-  // -------------------------------------------------------------------------
-  // MỚI: Breakdown "Đang trên chuyền" — bản "v2", cùng nguồn với
-  // projectStatusSummaryV2. Dạng: công trình -> công đoạn -> giá trị.
-  // -------------------------------------------------------------------------
-  const onLineStageBreakdownV2 = useMemo<Record<string, Record<string, number>>>(() => {
-    const breakdown: Record<string, Record<string, number>> = {};
-    if (!congTrinhKey || !tinhTrangKey || !bopKey || !triGiaDonHangTongKey) return breakdown;
-
-    const isCount = projectSummaryMetric === 'COUNT';
-
-    projectSummaryData.forEach(row => {
-      const ctName = projectNameOf(row[congTrinhKey]);
-
-      const status = String(row[tinhTrangKey] || '').toUpperCase();
-      if (String(row[tinhTrangIpoKey] || '').toUpperCase().includes('HỦY')) return;
-
-      const stage = extractStage(row[bopKey]);
-      if (!stage || remainBucketOf(status, stage) !== 'onLine') return;
-
-      // Cùng cách tính với cột "Đang trên chuyền": phần chưa nhập kho của hạng mục
-      const remainRaw = remainValue(
-        parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
-      if (remainRaw <= 0) return;
-      if (isCount && isQtyComplete(row)) return; // đếm: đủ số lượng = đã nhập kho
-      const valToAdd = isCount ? 1 : remainRaw / 1000;
-
-      if (!breakdown[ctName]) breakdown[ctName] = {};
-      breakdown[ctName][stage] = (breakdown[ctName][stage] || 0) + valToAdd;
-    });
-
-    return breakdown;
-  }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]);
-
-  // -------------------------------------------------------------------------
-  // ✅ MỚI: Breakdown "Đang trên chuyền" theo KHU VỰC SẢN XUẤT cho modal.
-  // Công trình -> Khu vực sản xuất -> Công đoạn -> giá trị.
-  // Cách dùng ở component cha (rows cho OnLineStageDetailModal):
-  //   - Bấm 1 công trình: areas = onLineAreaBreakdownV2[projectName]
-  //   - Bấm TỔNG CỘNG (null): gộp tất cả công trình theo khu vực.
-  // -------------------------------------------------------------------------
-  const onLineAreaBreakdownV2 = useMemo<Record<string, Record<string, Record<string, number>>>>(() => {
-    const breakdown: Record<string, Record<string, Record<string, number>>> = {};
-    if (!congTrinhKey || !tinhTrangKey || !bopKey || !triGiaDonHangTongKey) return breakdown;
-
-    const isCount = projectSummaryMetric === 'COUNT';
-
-    projectSummaryData.forEach(row => {
-      const ctName = projectNameOf(row[congTrinhKey]);
-
-      const status = String(row[tinhTrangKey] || '').toUpperCase();
-      if (String(row[tinhTrangIpoKey] || '').toUpperCase().includes('HỦY')) return;
-
-      const stage = extractStage(row[bopKey]);
-      if (!stage || remainBucketOf(status, stage) !== 'onLine') return;
-
-      const area = (xuongKey ? String(row[xuongKey] || '').trim() : '') || 'Chưa xác định';
-
-      // Cùng cách tính với cột "Đang trên chuyền": phần chưa nhập kho của hạng mục
-      const remainRaw = remainValue(
-        parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
-      if (remainRaw <= 0) return;
-      if (isCount && isQtyComplete(row)) return; // đếm: đủ số lượng = đã nhập kho
-      const valToAdd = isCount ? 1 : remainRaw / 1000;
-
-      if (!breakdown[ctName]) breakdown[ctName] = {};
-      if (!breakdown[ctName][area]) breakdown[ctName][area] = {};
-      breakdown[ctName][area][stage] = (breakdown[ctName][area][stage] || 0) + valToAdd;
-    });
-
-    return breakdown;
-  }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, xuongKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]);
-
-  // -------------------------------------------------------------------------
-  // Chi tiết theo Hex — bản gốc (legacy)
-  // -------------------------------------------------------------------------
-  const hexRowsByColumn = useMemo(() => {
-    const totalOrder: DataRow[] = [];
-    const notDeployed: DataRow[] = [];
-    const onLine: DataRow[] = [];
-    const inventory: DataRow[] = [];
-
-    if (congTrinhKey && tinhTrangKey) {
-      // Giữ cả hạng mục không có tên công trình (thuộc dòng 'Chưa xác định')
-      filteredProductionData.forEach(row => {
-        const status = String(row[tinhTrangKey] || '').toUpperCase();
-
-        totalOrder.push(row);
-
-        if (status.includes('15. CHƯA TRIỂN KHAI')) {
-          notDeployed.push(row);
-        } else if (isInProductionRow(status)) {
-          onLine.push(row);
-        }
-
-        if (thanhTienNhapKhoKey) {
-          const invVal = parseNumber(row[thanhTienNhapKhoKey]);
-          if (invVal !== 0) inventory.push(row);
-        }
-      });
-    }
-
-    return {
-      totalOrder,
-      afterCancel: totalOrder,
-      notDeployed,
-      onLine,
-      remaining: [...notDeployed, ...onLine],
-      inventory,
-    };
-  }, [filteredProductionData, congTrinhKey, tinhTrangKey, thanhTienNhapKhoKey]);
-
-  // -------------------------------------------------------------------------
-  // MỚI: Chi tiết theo Hex — bản "v2", cùng nguồn với projectStatusSummaryV2
-  // (dùng cho HexDetailModal mở từ bảng ProjectSummarySection_v2).
-  // ✅ MỚI: p002 (công đoạn P002) và onLine (P012 -> P021). "remaining"
-  // giữ nguyên = chưa triển khai + toàn bộ dòng đang sản xuất, để không sót
-  // dòng nào (vd. P012) khi tách cột.
+  // Danh sách HEX theo cột phễu (tổng / chưa triển khai / P002 / trên chuyền / nhập chưa đủ / đã nhập / hủy)
   // -------------------------------------------------------------------------
   // requireStatusArea: chỉ dòng có Tình trạng + Khu vực SX (đúng tập dòng phễu đếm)
   const buildHexRows = (sourceRows: DataRow[], isCountList: boolean, requireStatusArea = false) => {
@@ -655,11 +411,6 @@ export function usePivotTables({
       cancelled,
     };
   };
-  const hexRowsByColumnV2 = useMemo(
-    () => buildHexRows(projectSummaryData, projectSummaryMetric === 'COUNT'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]
-  );
   // Danh sách HEX khi bấm số của PHỄU: cùng nguồn (funnelProductionData) và cùng nút Giá trị / Hạng mục của phễu
   // (workshopMetric) — trước dùng bản của bảng công trình (nút khác) nên số dòng lệch số trong ô
   const funnelHexRowsByColumn = useMemo(
@@ -1003,12 +754,6 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
     calculateMetricValue,
     cardMetrics,
     projectStatusSummary,
-    projectStatusSummaryV2,
-    onLineStageBreakdown,
-    onLineStageBreakdownV2,
-    onLineAreaBreakdownV2,
-    hexRowsByColumn,
-    hexRowsByColumnV2,
     funnelHexRowsByColumn,
     pivotWorkshopData,
     pivotFunnelData,

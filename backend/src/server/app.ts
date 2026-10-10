@@ -5,7 +5,7 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import { allowedOrigins } from './config.js';
-import { authenticateJWT } from './auth.js';
+import { authenticateActiveUser } from './auth.js';
 import { ensureProjectAliases } from './projectAlias.js';
 import { ensureWorkshopGroups } from './workshopGroups.js';
 
@@ -78,7 +78,8 @@ export const warmupLimiter = rateLimit({
 
 // ============================================================================
 // BẮT BUỘC ĐĂNG NHẬP CHO MỌI ROUTE /api/*
-// Trừ các route đăng nhập / quên mật khẩu, và các route đã có khoá bí mật riêng
+// Token hợp lệ VÀ tài khoản còn tồn tại, đang hoạt động (theo DB, cache 60 giây) — khoá / xoá user
+// có hiệu lực với mọi API, không chỉ các route có requireRole. Trừ các route đăng nhập / quên mật khẩu, và các route đã có khoá bí mật riêng
 // (warmup: x-warmup-key, cron: CRON_SECRET). Phải đăng ký TRƯỚC mọi route bên dưới.
 // ============================================================================
 export const PUBLIC_API_PATHS = new Set([
@@ -95,20 +96,23 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
   if (req.method === 'OPTIONS' || !path.startsWith('/api/')) return next();
   if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
-  return authenticateJWT(req, res, next);
+  return authenticateActiveUser(req, res, next);
 });
 
 // Lọc theo tên công trình: nạp sẵn bảng "mọi cách viết tên của cùng mã" (làm mới 10 phút/lần, chạy nền).
 // Setup gộp xưởng: bảng nhỏ, nạp cho mọi API (làm mới 5 phút/lần, lưu xong nạp lại ngay).
-// Bảng tên nay cũng nạp cho MỌI API (trừ đăng nhập): trước chỉ nạp theo danh sách route (regex) nên route
-// mới / bị quên (vd. /api/detail?dimension=congtrinh, vướng mắc) lúc vừa khởi động không gộp các cách viết.
+// Bảng tên mặc định CHỜ nạp cho mọi API (route mới / bị quên vẫn gộp đúng các cách viết ngay khi vừa khởi động).
+// Riêng các route chắc chắn không dùng tên công trình (danh sách bỏ qua bên dưới) chỉ kích nạp nền, không chờ
+// — lần nạp đầu ~2-3 giây, không để đăng nhập / thông báo / người dùng... chờ theo.
 // Sau lần nạp đầu, ensureProjectAliases chỉ so mốc thời gian (làm mới nền) => không tốn thêm thời gian.
-const SKIP_PROJECT_ALIASES = /^\/api\/auth\//i;
+const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log)(\/|$)/i;
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
   if (path.startsWith('/api/')) {
     try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ }
-    if (!SKIP_PROJECT_ALIASES.test(path)) {
+    if (NO_WAIT_PROJECT_ALIASES.test(path)) {
+      ensureProjectAliases().catch(() => { /* giữ bảng cũ */ });
+    } else {
       try { await ensureProjectAliases(); } catch { /* giữ bảng cũ */ }
     }
   }

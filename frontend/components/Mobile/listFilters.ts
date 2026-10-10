@@ -86,7 +86,8 @@ export const activeChips = (f: ListFilters): { key: string; label: string; clear
   if (f.cat) out.push({ key: 'cat', label: `🏷️ ${CAT_CODE[f.cat] ?? f.cat}`, clear: { cat: '' } });
   if (f.priority) out.push({ key: 'priority', label: f.priority === 'urgent' ? '🔥 Khẩn' : '🔺 Ưu tiên cao', clear: { priority: '' } });
   if (f.xuong) out.push({ key: 'xuong', label: `🏭 ${f.xuong}`, clear: { xuong: '' } });
-  if (f.congTrinh) out.push({ key: 'congTrinh', label: `🏗️ ${f.congTrinh}`, clear: { congTrinh: '' } });
+  // `__none__` = vướng mắc không xác định được công trình => hiện "Chưa rõ"
+  if (f.congTrinh) out.push({ key: 'congTrinh', label: `🏗️ ${f.congTrinh === '__none__' ? 'Chưa rõ' : f.congTrinh}`, clear: { congTrinh: '' } });
   if (f.dateMode !== 'all') {
     const label = f.dateMode === 'custom'
       ? `📅 ${f.dateFrom || '…'} → ${f.dateTo || '…'}`

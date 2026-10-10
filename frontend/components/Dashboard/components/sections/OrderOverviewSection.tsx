@@ -69,8 +69,8 @@ interface OrderOverviewSectionProps {
   hasAnyData: boolean;
 
   filters: { congTrinh: string[]; xuong: string[]; tinhTrang: string[]; tinhTrangIpo: string[] };
-  // ✅ FIX: danh sách công trình đã setup cho view hiện tại (ConstructionView
-  // truyền vào; Dashboard tổng KHÔNG truyền -> undefined).
+  // Danh sách công trình đã setup cho nhóm (hiện không trang nào truyền — nhóm Luồng đỏ / Căn mẫu
+  // nằm trong Tổng quan công trình; Dashboard tổng KHÔNG truyền -> undefined).
   // Dùng để tính effectiveCongTrinh bên dưới, PHẢI GIỐNG HỆT công thức
   // getEffectiveCongTrinh() trong useOverviewSummary.ts, nếu không filterKey ở đây
   // sẽ lệch với key mà loadGroupAnalysis dùng để GHI cache, khiến

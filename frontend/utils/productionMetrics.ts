@@ -279,9 +279,18 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
   });
   projectVariants = variants;
 
+  // Mã không có dòng nào ghi tên (vd. CT19-023 — 54 hạng mục tên trống): dùng chính mã làm tên để các dòng
+  // vẫn thuộc 1 công trình khi lọc / đếm, không rơi vào "Chưa xác định" (dòng trống cả tên lẫn mã giữ nguyên).
+  const codeOnly = new Map<string, string>();
+  for (const row of rows) {
+    const ma = normProjectName(row[maKey]);
+    if (ma && !canonical.has(ma) && !codeOnly.has(ma)) codeOnly.set(ma, String(row[maKey]).trim().replace(/\s+/g, ' '));
+  }
+
   let changed = false;
   const out = rows.map(row => {
-    const name = canonical.get(normProjectName(row[maKey]));
+    const ma = normProjectName(row[maKey]);
+    const name = canonical.get(ma) ?? codeOnly.get(ma);
     if (!name || row[tenKey] === name) return row;
     // Chốt theo tên: không đổi tên dòng khi tên của dòng hoặc tên chuẩn dùng cho nhiều mã
     const own = String(row[tenKey] ?? '').trim();

@@ -180,6 +180,22 @@ describe('tên công trình chuẩn theo mã', () => {
     expect(canonicalProjectName('ARHAUS')).toBe('ARHAUS');
     expect(canonicalProjectName('ARHAUS LÔ 2')).toBe('ARHAUS LÔ 2');
   });
+
+  it('dòng tên trống có mã: điền tên chuẩn của mã; mã không có tên nào thì dùng chính mã; trống cả hai giữ nguyên', () => {
+    const rows: DataRow[] = [
+      { ma_cong_trinh: 'CT19-023', ten_cong_trinh: 'HYATT REGENCY NT PUBLIC' },
+      { ma_cong_trinh: 'CT19-023', ten_cong_trinh: '' },
+      { ma_cong_trinh: 'ct19-023 ', ten_cong_trinh: null },
+      { ma_cong_trinh: 'CT20-001', ten_cong_trinh: '  ' },
+      { ma_cong_trinh: '', ten_cong_trinh: '' },
+    ];
+    const out = canonicalizeProjectNames(rows, columns);
+    expect(out[1].ten_cong_trinh).toBe('HYATT REGENCY NT PUBLIC');
+    expect(out[2].ten_cong_trinh).toBe('HYATT REGENCY NT PUBLIC');
+    expect(out[3].ten_cong_trinh).toBe('CT20-001');
+    expect(out[4]).toBe(rows[4]);
+    expect(out[4].ten_cong_trinh).toBe('');
+  });
 });
 
 describe('thứ tự công đoạn BOP', () => {

@@ -8,14 +8,13 @@ import {
 } from 'lucide-react';
 import { formatDecimal, formatInteger } from '../../utils/numberParsers';
 import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
-import { getWeekNumber } from '../../utils/dateHelpers';
 import { getWeekRange2026 } from '../../../../utils/dateUtils';
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { WeeklyVennDiagram } from '../shared/WeeklyVennDiagram';
 import { ProjectChartTooltip } from '../shared/tooltips/ProjectChartTooltip';
 import { WorkshopChartTooltip } from '../shared/tooltips/WorkshopChartTooltip';
 import ProductivityCharts from '../../../ProductivityCharts';
-import type { ViewMode } from '../../hooks/useUnifiedTimeFilters';
+import { planWeekOf, type ViewMode } from '../../hooks/useUnifiedTimeFilters';
 // ---------------------------------------------------------------------------
 // Types (mirror the fields actually consumed below — verify against
 // useKhsxSummary's real return type and replace this block with an import
@@ -223,7 +222,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   setViewMode('WEEK');
                   setUnifiedTimeFilters((prev) => {
                     if (prev.tuan.length === 0) {
-                      return { ...prev, tuan: [String(getWeekNumber())] };
+                      return { ...prev, tuan: [String(planWeekOf(new Date()))] };
                     }
                     return prev;
                   });

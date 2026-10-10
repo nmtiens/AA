@@ -84,7 +84,7 @@ export function formatNumber(value: number, metric?: MetricType): string {
   return value.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
-// Hàm dành riêng cho 2 view "Luồng đỏ" và "Căn mẫu" — làm tròn 3 chữ số thập phân
+// Làm tròn 3 chữ số thập phân (chi tiết tồn kho)
 export const formatDecimalFull = (value: number): string => {
   if (!Number.isFinite(value)) return '0';
   return value.toLocaleString('en-US', {

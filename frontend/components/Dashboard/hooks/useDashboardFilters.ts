@@ -31,7 +31,7 @@ interface UseDashboardFiltersParams {
   crossFilterSourceData?: DataRow[];
   /**
    * Khách hàng / Khu vực dự án đang chọn khi trang tự giữ 2 bộ lọc này ngoài `filters`
-   * (trang Luồng đỏ / Căn mẫu). Dùng để lọc dữ liệu sản xuất THEO TỪNG HẠNG MỤC.
+   * (hiện không trang nào truyền). Dùng để lọc dữ liệu sản xuất THEO TỪNG HẠNG MỤC.
    */
   rowKhachHang?: string[];
   rowKhuVucDuAn?: string[];
@@ -182,19 +182,6 @@ export function useDashboardFilters({
     );
   }, [productionData, congTrinhSet, xuongSet, tinhTrangIpoSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
 
-  // Dataset cho bảng "Tình trạng đơn hàng theo Công trình" (v2) — theo Tình trạng IPO của trang;
-  // không áp ô "Tình trạng" vì bảng tự chia cột theo tình trạng/công đoạn.
-  const projectSummaryProductionData = useMemo(() => {
-    return productionData.filter(row =>
-      matchesFilter(congTrinhSet, row, congTrinhKey) &&
-      matchesFilter(xuongSet, row, xuongKey) &&
-      matchesCategory(phanLoaiSet, row, phanLoaiKey) &&
-      matchesCategory(rowKhSet, row, khRowKey) &&
-      matchesCategory(rowKvSet, row, kvRowKey) &&
-      matchesFilter(tinhTrangIpoSet, row, tinhTrangIpoKey)
-    );
-  }, [productionData, congTrinhSet, xuongSet, tinhTrangIpoSet, phanLoaiSet, rowKhSet, rowKvSet, congTrinhKey, xuongKey, phanLoaiKey, khRowKey, kvRowKey, tinhTrangIpoKey]);
-
   const filteredMaterialData = useMemo(() => {
     // Vật tư ghi tên công trình riêng -> so theo tên chuẩn
     const set = toProjectSet(effectiveCongTrinh);
@@ -227,7 +214,6 @@ export function useDashboardFilters({
 
     filteredProductionData,
     funnelProductionData,
-    projectSummaryProductionData,
     crossFilterBaseData,
     filteredMaterialData,
     displayedMaterialData,

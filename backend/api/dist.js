@@ -44536,13 +44536,16 @@ process.on("SIGINT", async () => {
 // src/server/permissions.ts
 var ACCESS_CACHE_TTL_MS = 6e4;
 var accessCache = /* @__PURE__ */ new Map();
+var NO_ACCESS = { active: false, role: "", perms: /* @__PURE__ */ new Set() };
+var accessKey = (userId) => String(Number(userId));
 var loadUserAccess = async (userId) => {
-  const key = String(userId);
+  if (!/^\d+$/.test(String(userId)) || !(Number(userId) > 0) || Number(userId) > 2147483647) return NO_ACCESS;
+  const key = accessKey(userId);
   const hit = accessCache.get(key);
   if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
   const r = await pool.query(
     `SELECT role, permissions, is_active FROM users WHERE id = $1`,
-    [userId]
+    [Number(userId)]
   );
   const row = r.rows[0];
   const active = !!row && row.is_active === true;
@@ -44559,7 +44562,7 @@ var loadUserAccess = async (userId) => {
   return access;
 };
 var invalidateUserAccess = (userId) => {
-  accessCache.delete(String(userId));
+  accessCache.delete(accessKey(userId));
 };
 var userHasPermission = async (req, permission) => {
   if (!req.user) return false;
@@ -44598,11 +44601,26 @@ var authenticateJWT = (req, res, next) => {
   if (!token) return res.status(401).json({ success: false, message: "Thi\u1EBFu token x\xE1c th\u1EF1c" });
   try {
     req.user = import_jsonwebtoken.default.verify(token, JWT_SECRET_SAFE);
-    next();
   } catch {
     return res.status(401).json({ success: false, message: "Token kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c \u0111\xE3 h\u1EBFt h\u1EA1n" });
   }
+  if (!isValidUserId(req.user?.id)) return res.status(401).json({ success: false, message: "Token kh\xF4ng h\u1EE3p l\u1EC7" });
+  next();
 };
+var isValidUserId = (v) => {
+  if (typeof v !== "number" && typeof v !== "string") return false;
+  const s = String(v);
+  return /^\d+$/.test(s) && Number(s) > 0 && Number(s) <= 2147483647;
+};
+var authenticateActiveUser = (req, res, next) => authenticateJWT(req, res, () => {
+  loadUserAccess(req.user.id).then((access) => {
+    if (!access.active) return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+    next();
+  }).catch((error61) => {
+    console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  });
+});
 var withCurrentAccess = (req, res, allowed, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: "Ch\u01B0a x\xE1c th\u1EF1c" });
   loadUserAccess(req.user.id).then((access) => {
@@ -44880,9 +44898,9 @@ app.use((req, res, next) => {
   const path = req.path.toLowerCase();
   if (req.method === "OPTIONS" || !path.startsWith("/api/")) return next();
   if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
-  return authenticateJWT(req, res, next);
+  return authenticateActiveUser(req, res, next);
 });
-var SKIP_PROJECT_ALIASES = /^\/api\/auth\//i;
+var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log)(\/|$)/i;
 app.use(async (req, _res, next) => {
   const path = req.path.toLowerCase();
   if (path.startsWith("/api/")) {
@@ -44890,7 +44908,10 @@ app.use(async (req, _res, next) => {
       await ensureWorkshopGroups();
     } catch {
     }
-    if (!SKIP_PROJECT_ALIASES.test(path)) {
+    if (NO_WAIT_PROJECT_ALIASES.test(path)) {
+      ensureProjectAliases().catch(() => {
+      });
+    } else {
       try {
         await ensureProjectAliases();
       } catch {
@@ -66784,12 +66805,13 @@ usersRouter.post("/", validateBody(createUserSchema), async (req, res) => {
 usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
   try {
     const { id } = req.params;
+    if (!isValidUserId(id)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
     const { password, fullName, email: email3, role, permissions, msnv, department, note, status } = req.body;
     const existing = await pool.query("SELECT id FROM users WHERE id = $1", [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y user" });
     }
-    if (String(existing.rows[0].id) === String(req.user.id)) {
+    if (Number(existing.rows[0].id) === Number(req.user.id)) {
       if (status !== void 0 && status !== "ACTIVE") {
         return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 kho\xE1 t\xE0i kho\u1EA3n c\u1EE7a ch\xEDnh m\xECnh" });
       }
@@ -66827,7 +66849,7 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
       values
     );
-    invalidateUserAccess(String(id));
+    invalidateUserAccess(String(Number(id)));
     const u = result.rows[0];
     res.json({
       success: true,
@@ -66853,7 +66875,8 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
 usersRouter.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    if (String(id) === String(req.user.id)) {
+    if (!isValidUserId(id)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
+    if (Number(id) === Number(req.user.id)) {
       return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 xo\xE1 t\xE0i kho\u1EA3n c\u1EE7a ch\xEDnh m\xECnh" });
     }
     const target = await pool.query("SELECT username FROM users WHERE id = $1", [id]);
@@ -66864,7 +66887,7 @@ usersRouter.delete("/:id", async (req, res) => {
       return res.status(403).json({ success: false, message: "Kh\xF4ng th\u1EC3 x\xF3a t\xE0i kho\u1EA3n admin" });
     }
     await pool.query("DELETE FROM users WHERE id = $1", [id]);
-    invalidateUserAccess(String(id));
+    invalidateUserAccess(String(Number(id)));
     res.json({ success: true, message: "X\xF3a user th\xE0nh c\xF4ng" });
   } catch (error61) {
     console.error("L\u1ED7i x\xF3a user:", error61);
@@ -67989,7 +68012,7 @@ app.use("/api/vuong-mac", (req, res, next) => {
     try {
       const r = await pool.query("SELECT is_active FROM users WHERE id = $1", [req.user.id]);
       if (r.rows[0]?.is_active !== true) {
-        res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+        res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
         return;
       }
       next();
@@ -68047,7 +68070,7 @@ app.post(
 var requireActiveUser = async (req, res, next) => {
   try {
     if (!(await loadUserAccess(req.user.id)).active) {
-      res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+      res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
       return;
     }
     next();
@@ -68061,7 +68084,7 @@ app.get("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) => {
     const photoId = Number(req.params.photoId);
     if (!Number.isInteger(photoId) || photoId <= 0) return res.status(400).json({ error: "Invalid id" });
     const active = await pool.query("SELECT 1 FROM users WHERE id = $1 AND is_active", [req.user.id]);
-    if (active.rows.length === 0) return res.status(403).json({ error: "T\xE0i kho\u1EA3n kh\xF4ng c\xF2n ho\u1EA1t \u0111\u1ED9ng" });
+    if (active.rows.length === 0) return res.status(401).json({ error: "T\xE0i kho\u1EA3n kh\xF4ng c\xF2n ho\u1EA1t \u0111\u1ED9ng" });
     const r = await pool.query(
       `SELECT ph.data
        FROM vuong_mac_photo ph
@@ -68142,6 +68165,7 @@ app.get("/api/vuong-mac/item/:id", authenticateJWT, requireActiveUser, async (re
 });
 var HANDLER_NONE = "__none__";
 var STAGE_UNKNOWN = "CH\u01AFA R\xD5";
+var PROJECT_NONE = "__none__";
 app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, res) => {
   try {
     const status = String(req.query.status || "open");
@@ -68155,7 +68179,9 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
     const sort = String(req.query.sort || "");
     const from = String(req.query.from || "");
     const to = String(req.query.to || "");
-    const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
+    const xuongRaw = String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+    const xuongNone = xuongRaw.some((x) => x === PROJECT_NONE.toUpperCase() || x === STAGE_UNKNOWN);
+    const xuongList = expandWorkshops(xuongRaw.filter((x) => x !== PROJECT_NONE.toUpperCase() && x !== STAGE_UNKNOWN));
     const congTrinh = String(req.query.congTrinh || "").trim();
     const handler = String(req.query.handler || "").trim();
     const stage = String(req.query.stage || "").trim().toUpperCase();
@@ -68209,11 +68235,20 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
     else if (mine === "reporter") conds.push(creatorCond());
     else if (mine === "confirm") conds.push(`${creatorCond()} AND ${statusExpr} = 'done'`);
     else if (mine) conds.push(`(${creatorCond()} OR ${handlerCond()})`);
-    if (xuongList.length) {
-      params.push(xuongList);
-      conds.push(`UPPER(TRIM(COALESCE(${ready ? "b.xuong, " : ""}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
+    if (xuongList.length || xuongNone) {
+      const xuongExpr = workshopGroupSql(`COALESCE(${ready ? "b.xuong, " : ""}b.p_xuong_chinh)`);
+      const ors = [];
+      if (xuongList.length) {
+        params.push(xuongList);
+        const n = params.length;
+        ors.push(`${xuongExpr} = ANY($${n}::text[])`, `UPPER(TRIM(COALESCE(b.p_xuong_chinh, ''))) = ANY($${n}::text[])`);
+      }
+      if (xuongNone) ors.push(`${xuongExpr} = ''`);
+      conds.push(`(${ors.join(" OR ")})`);
     }
-    if (congTrinh) {
+    const projectExpr = `COALESCE(NULLIF(TRIM(b.p_ten_cong_trinh), ''), b.ten_cong_trinh)`;
+    if (congTrinh === PROJECT_NONE) conds.push(`COALESCE(TRIM(${projectExpr}), '') = ''`);
+    else if (congTrinh) {
       let names = [];
       try {
         await ensureProjectAliases();
@@ -68223,10 +68258,10 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
       }
       if (names.length > 1) {
         params.push(names);
-        conds.push(`${normNameSql("COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh)")} = ANY($${params.length}::text[])`);
+        conds.push(`${normNameSql(projectExpr)} = ANY($${params.length}::text[])`);
       } else {
         params.push(`%${likeEsc(congTrinh)}%`);
-        conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+        conds.push(`${projectExpr} ILIKE $${params.length}`);
       }
     }
     if (handler === HANDLER_NONE) conds.push(`COALESCE(TRIM(b.handler), '') = ''`);
@@ -68235,7 +68270,7 @@ app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, re
       conds.push(`LOWER(TRIM(b.handler)) = LOWER(TRIM($${params.length}))`);
     }
     const stageExpr = `COALESCE(b.stage, substring(UPPER(TRIM(b.p_bop)) from '^(P[0-9]{3}|GCVT)'))`;
-    if (stage === STAGE_UNKNOWN) conds.push(`${stageExpr} IS NULL`);
+    if (stage === STAGE_UNKNOWN || stage === PROJECT_NONE.toUpperCase()) conds.push(`${stageExpr} IS NULL`);
     else if (stage) {
       params.push(stage);
       conds.push(`${stageExpr} = $${params.length}`);
@@ -68356,7 +68391,7 @@ app.get("/api/vuong-mac/stats", authenticateJWT, requireActiveUser, async (req, 
         if (d === "overdue") s.mine.overdue++;
         else if (d === "soon") s.mine.soon++;
       }
-      const name = String(row.p_ten_cong_trinh ?? row.ten_cong_trinh ?? "").trim();
+      const name = String(row.p_ten_cong_trinh ?? "").trim() || String(row.ten_cong_trinh ?? "").trim();
       if (name) {
         const k = canonicalProjectName(name);
         const e = projects.get(k) ?? { open: 0, overdue: 0 };
@@ -68470,7 +68505,8 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
       const xuong = workshopGroupOf(row.xuong ?? row.p_xuong_chinh ?? "") || "Ch\u01B0a r\xF5";
       if (xuongList.length && !xuongList.includes(xuong) && !xuongList.includes(String(row.p_xuong_chinh ?? "").toUpperCase().trim())) continue;
       const stage = row.stage ?? stageOf(row.p_bop) ?? "Ch\u01B0a r\xF5";
-      const project = row.p_ten_cong_trinh || row.ten_cong_trinh ? canonicalProjectName(row.p_ten_cong_trinh ?? row.ten_cong_trinh) : "Ch\u01B0a r\xF5";
+      const projectName = String(row.p_ten_cong_trinh ?? "").trim() || String(row.ten_cong_trinh ?? "").trim();
+      const project = projectName ? canonicalProjectName(projectName) : "Ch\u01B0a r\xF5";
       const hRaw = String(row.handler ?? "").trim();
       const hKey = hRaw.toLowerCase();
       if (hRaw && !handlerDisplay.has(hKey)) handlerDisplay.set(hKey, hRaw);
@@ -69148,7 +69184,7 @@ var HEX_HIT_COLS = `hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
                 bop, tinh_trang, tinh_trang_ipo, phan_loai_nhom_san_pham,
                 tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke,
                 ngay_khnk_tuan, ngay_khnk_thang, ngay_can_giao`;
-var mapHexHit = (row) => ({
+var mapHexHit = (row, met) => ({
   hex: row.hex,
   maNhaMay: row.ma_nha_may,
   congTrinh: row.ten_cong_trinh ? canonicalProjectName(row.ten_cong_trinh) : row.ten_cong_trinh,
@@ -69165,7 +69201,7 @@ var mapHexHit = (row) => ({
   triGia: row.tri_gia_don_hang_tong,
   thanhTienPhieu: row.thanh_tien_tinh_phieu,
   thanhTienKho: row.thanh_tien_nhap_kho_luy_ke,
-  deadline: planDate(row.ngay_khnk_tuan, row.ngay_khnk_thang),
+  deadline: planDate(row.ngay_khnk_tuan, row.ngay_khnk_thang, met),
   ngayCanGiao: row.ngay_can_giao ?? null
 });
 app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
@@ -69190,13 +69226,14 @@ app.get("/api/vuong-mac/hex-search", authenticateJWT, async (req, res) => {
          SELECT DISTINCT ON (hex::text) ${HEX_HIT_COLS}
          FROM production_status_app
          WHERE ${conds.join(" AND ")}
-         ORDER BY hex::text, updated_at DESC NULLS LAST
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
        ) t
        ORDER BY hex
        LIMIT 50`,
       params
     );
-    res.json(r.rows.map(mapHexHit));
+    const met = await planMetOf(r.rows.map((row) => row.hex));
+    res.json(r.rows.map((row) => mapHexHit(row, met.get(row.hex))));
   } catch (error61) {
     console.error("L\u1ED7i /api/vuong-mac/hex-search:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -69221,17 +69258,18 @@ app.post("/api/vuong-mac/hex-bulk", authenticateJWT, async (req, res) => {
        WHERE hex IS NOT NULL
          AND (TRIM(hex::text) = ANY($1::text[]) OR TRIM(${FACTORY_CODE_COL}::text) = ANY($1::text[]))
          ${xuongCond}
-       ORDER BY hex::text, updated_at DESC NULLS LAST
+       ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
        LIMIT 500`,
       params
     );
     const found = /* @__PURE__ */ new Set();
+    const met = await planMetOf(r.rows.map((row) => row.hex));
     r.rows.forEach((row) => {
       found.add(String(row.hex).trim());
       if (row.ma_nha_may) found.add(String(row.ma_nha_may).trim());
     });
     res.json({
-      hits: r.rows.map(mapHexHit),
+      hits: r.rows.map((row) => mapHexHit(row, met.get(row.hex))),
       missing: codes.filter((c) => !found.has(c))
     });
   } catch (error61) {

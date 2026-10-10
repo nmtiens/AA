@@ -80,6 +80,22 @@ const COLOR_REMAIN = '#f59e0b';
 const UNIT = 1000;
 const fmtTy = formatTrieuAsTy;
 const pctOf = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toFixed(v / total < 0.01 && v > 0 ? 1 : 0)}%` : '—');
+// Làm tròn triệu đồng về bội 10 (= 0,01 tỷ, đúng số hiển thị của fmtTy)
+const roundTy = (trieu: number) => Math.round(trieu / 10) * 10 + 0; // + 0: bỏ -0
+/** Chia `target` (đã làm tròn 0,01 tỷ) cho các phần theo phần dư lớn nhất => các ô con cộng đúng ô cha. */
+const apportionTy = (vals: number[], target: number): number[] => {
+  const units = vals.map(v => v / 10);
+  const base = units.map(Math.floor);
+  let diff = Math.round(target / 10) - base.reduce((a, b) => a + b, 0);
+  const order = units.map((u, i) => ({ i, frac: u - base[i] })).sort((a, b) => b.frac - a.frac);
+  for (let k = 0; diff !== 0 && order.length > 0; k++) {
+    // Thiếu: cộng cho phần dư lớn nhất trước; thừa: trừ từ phần dư nhỏ nhất trước
+    const o = diff > 0 ? order[k % order.length] : order[order.length - 1 - (k % order.length)];
+    base[o.i] += diff > 0 ? 1 : -1;
+    diff += diff > 0 ? -1 : 1;
+  }
+  return base.map(u => u * 10);
+};
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có KH nhập kho';
   // Cột gộp của biểu đồ tháng hạn: "<YYYY-MM" = trước tháng đó, ">YYYY-MM" = sau tháng đó
@@ -326,7 +342,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const kpi = useMemo(() => {
     const cts = new Set<string>();
     let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0;
-    let stockOver = 0, stockOverItems = 0; // hạng mục nhập/tồn vượt trị giá đơn hàng (tồn bị chặn ≤ đã nhập)
+    let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho vượt giá trị đã nhập (tồn bị chặn ≤ đã nhập)
     // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
     const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
     for (const r of rowsAll) {
@@ -676,6 +692,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     ...remainTiles.map(t => ({ key: t.key, label: t.label, v: kpi.remainBy[t.key], bar: t.bar })),
   ];
   const segTotal = valueSegments.reduce((a, x) => a + x.v, 0);
+  // Số HIỂN THỊ (làm tròn 0,01 tỷ) của các ô giá trị, cộng khớp tuyệt đối trên màn hình:
+  // Đã nhập = Đã xuất + Tồn; Tổng = Đã nhập + Chưa nhập; các ô con Chưa nhập chia theo phần dư lớn nhất.
+  const shownExported = roundTy(kpi.done) - roundTy(kpi.stock);
+  const shownRemain = roundTy(kpi.total) - roundTy(kpi.done);
+  const shownRemainBy = apportionTy(remainTiles.map(t => kpi.remainBy[t.key]), shownRemain);
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
@@ -823,27 +844,27 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
-              <Mini label="Đã nhập kho (P022)" value={kpi.done} tone="text-emerald-700" strong
+              <Mini label="Đã nhập kho (P022)" value={roundTy(kpi.done)} tone="text-emerald-700" strong
                     hint="Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng)."
                     spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <Mini label="Đã xuất / giao (P025)" value={kpi.exported} tone="text-sky-700" bar="bg-sky-500"
+                <Mini label="Đã xuất / giao (P025)" value={shownExported} tone="text-sky-700" bar="bg-sky-500"
                       hint={`= Đã nhập kho − Tồn kho (theo từng hạng mục). Bảng xuất kho ghi ${fmtTy(kpi.exportedRecorded)} tỷ nhưng chỉ có dữ liệu từ 01/2025 — hạng mục giao trước đó không có số xuất.`}
                       spec={{ pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' }} />
-                <Mini label="Tồn kho" value={kpi.stock} tone="text-violet-700" bar="bg-violet-500"
+                <Mini label="Tồn kho" value={roundTy(kpi.stock)} tone="text-violet-700" bar="bg-violet-500"
                       hint={kpi.stockOverItems > 0
-                        ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Đã nhập kho = Đã xuất / giao + Tồn kho. ${fmtInt(kpi.stockOverItems)} mục nhập/tồn vượt trị giá đơn hàng — phần tồn vượt ${fmtTy(kpi.stockOver)} tỷ không tính.`
+                        ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Đã nhập kho = Đã xuất / giao + Tồn kho. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
                         : 'Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0). Đã nhập kho = Đã xuất / giao + Tồn kho.'}
                       spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho; đơn hủy không tính.' }} />
               </div>
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
-              <Mini label="Chưa nhập kho" value={kpi.remain} tone="text-amber-700" strong
+              <Mini label="Chưa nhập kho" value={shownRemain} tone="text-amber-700" strong
                     hint="Trị giá đơn hàng − giá trị đã nhập kho, chia theo công đoạn BOP hiện tại của hạng mục."
                     spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
               <div className={`mt-2 grid gap-2 ${remainTiles.length > 3 ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
-                {remainTiles.map(t => (
-                  <Mini key={t.key} label={t.label} value={kpi.remainBy[t.key]} tone={t.tone} bar={t.bar} hint={t.hint}
+                {remainTiles.map((t, i) => (
+                  <Mini key={t.key} label={t.label} value={shownRemainBy[i]} tone={t.tone} bar={t.bar} hint={t.hint}
                         spec={{ pred: r => r.bucket === t.key && r.total - r.done > 0, focus: 'remain', note: t.hint }} />
                 ))}
               </div>

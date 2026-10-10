@@ -30,11 +30,33 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
   if (!token) return res.status(401).json({ success: false, message: 'Thiếu token xác thực' });
   try {
     req.user = jwt.verify(token, JWT_SECRET_SAFE) as AuthTokenPayload;
-    next();
   } catch {
     return res.status(401).json({ success: false, message: 'Token không hợp lệ hoặc đã hết hạn' });
   }
+  // id phải là số nguyên dương (users.id integer) — id lạ làm query ép kiểu lỗi 500
+  if (!isValidUserId(req.user?.id)) return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
+  next();
 };
+
+/** true nếu v là id user hợp lệ: số nguyên dương trong phạm vi integer Postgres (số hoặc chuỗi chữ số) */
+export const isValidUserId = (v: unknown): boolean => {
+  if (typeof v !== 'number' && typeof v !== 'string') return false;
+  const s = String(v);
+  return /^\d+$/.test(s) && Number(s) > 0 && Number(s) <= 2147483647;
+};
+
+// Kiểm token + tài khoản còn tồn tại và đang hoạt động (theo DB, cache 60 giây).
+// Dùng cho middleware chung /api/*: tài khoản bị khoá / đã xoá -> 401 dù token còn hạn.
+export const authenticateActiveUser = (req: Request, res: Response, next: NextFunction) =>
+  authenticateJWT(req, res, () => {
+    loadUserAccess(req.user!.id).then(access => {
+      if (!access.active) return res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
+      next();
+    }).catch(error => {
+      console.error('Lỗi kiểm tra tài khoản:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    });
+  });
 
 // Role / trạng thái lấy theo DB (cache 60 giây, xem permissions.loadUserAccess) — token còn hạn tới 8 giờ
 // sau khi tài khoản bị khoá / hạ quyền. Cập nhật req.user.role theo DB cho các bước sau.

@@ -8,7 +8,7 @@ import {
 } from '../notifications.js';
 import { authenticateJWT } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
-import { expandWorkshops, workshopGroupOf } from '../server/workshopGroups.js';
+import { expandWorkshops, workshopGroupOf, workshopGroupSql } from '../server/workshopGroups.js';
 import { canonicalProjectName, ensureProjectAliases, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 import { app } from '../server/app.js';
 import { userHasPermission, loadUserAccess } from '../server/permissions.js';
@@ -354,13 +354,13 @@ const isJpeg = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && 
 
 // Tải 1 ảnh lên (body = bytes JPEG thô, mỗi request 1 ảnh)
 // Thao tác GHI (tạo / sửa / bình luận / gia hạn / xoá…) yêu cầu tài khoản còn hoạt động: JWT còn hạn tới 8 giờ sau khi
-// tài khoản bị khoá. POST chỉ đọc (/list, /hex-bulk) và mọi GET bỏ qua.
+// tài khoản bị khoá. POST chỉ đọc (/list, /hex-bulk) và mọi GET bỏ qua. Khoá => 401 (frontend tự đăng xuất).
 app.use('/api/vuong-mac', (req: Request, res: Response, next: () => void) => {
   if (req.method === 'GET' || req.method === 'OPTIONS' || /^\/(list|hex-bulk)\/?$/i.test(req.path)) return next();
   authenticateJWT(req, res, async () => {
     try {
       const r = await pool.query('SELECT is_active FROM users WHERE id = $1', [req.user!.id]);
-      if (r.rows[0]?.is_active !== true) { res.status(403).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' }); return; }
+      if (r.rows[0]?.is_active !== true) { res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' }); return; }
       next();
     } catch (error) {
       console.error('Lỗi kiểm tra tài khoản vướng mắc:', error);
@@ -419,12 +419,12 @@ app.post(
   }
 );
 
-// GET đọc dữ liệu (/all, /stats, /item, /log): tài khoản đã khoá / không còn => 403 như /photo.
+// GET đọc dữ liệu (/all, /stats, /item, /log): tài khoản đã khoá / không còn => 401 (frontend tự đăng xuất) như /photo.
 // Dùng cache quyền 60 giây (permissions.loadUserAccess) — admin khoá tài khoản thì cache được xoá ngay.
 const requireActiveUser = async (req: Request, res: Response, next: () => void) => {
   try {
     if (!(await loadUserAccess(req.user!.id)).active) {
-      res.status(403).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
+      res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
       return;
     }
     next();
@@ -444,7 +444,7 @@ app.get('/api/vuong-mac/photo/:photoId', authenticateJWT, async (req: Request, r
     if (!Number.isInteger(photoId) || photoId <= 0) return res.status(400).json({ error: 'Invalid id' });
 
     const active = await pool.query('SELECT 1 FROM users WHERE id = $1 AND is_active', [req.user!.id]);
-    if (active.rows.length === 0) return res.status(403).json({ error: 'Tài khoản không còn hoạt động' });
+    if (active.rows.length === 0) return res.status(401).json({ error: 'Tài khoản không còn hoạt động' });
 
     const r = await pool.query(
       `SELECT ph.data
@@ -550,6 +550,8 @@ app.get('/api/vuong-mac/item/:id', authenticateJWT, requireActiveUser, async (re
 // ============================================================================
 const HANDLER_NONE = '__none__';
 const STAGE_UNKNOWN = 'CHƯA RÕ';
+// congTrinh=__none__ : không xác định được công trình (tên rỗng ở cả dòng sản xuất lẫn bản ghi) — nhóm "Chưa rõ" của dashboard
+const PROJECT_NONE = '__none__';
 app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'open');
@@ -564,7 +566,10 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
     const sort = String(req.query.sort || '');
     const from = String(req.query.from || '');
     const to = String(req.query.to || '');
-    const xuongList = expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
+    // xuong=__none__ (hoặc 'Chưa rõ'): không xác định được xưởng — nhóm "Chưa rõ" của dashboard byXuong
+    const xuongRaw = String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    const xuongNone = xuongRaw.some(x => x === PROJECT_NONE.toUpperCase() || x === STAGE_UNKNOWN);
+    const xuongList = expandWorkshops(xuongRaw.filter(x => x !== PROJECT_NONE.toUpperCase() && x !== STAGE_UNKNOWN));
     const congTrinh = String(req.query.congTrinh || '').trim();
     const handler = String(req.query.handler || '').trim();
     const stage = String(req.query.stage || '').trim().toUpperCase();
@@ -626,11 +631,23 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
     else if (mine === 'reporter') conds.push(creatorCond());
     else if (mine === 'confirm') conds.push(`${creatorCond()} AND ${statusExpr} = 'done'`);
     else if (mine) conds.push(`(${creatorCond()} OR ${handlerCond()})`);
-    if (xuongList.length) {
-      params.push(xuongList);
-      conds.push(`UPPER(TRIM(COALESCE(${ready ? 'b.xuong, ' : ''}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
+    if (xuongList.length || xuongNone) {
+      // Như dashboard: nhóm xưởng của (xưởng lưu lúc báo, không có thì xưởng dòng sản xuất) HOẶC xưởng dòng sản xuất khớp;
+      // "Chưa rõ" = nhóm xưởng rỗng
+      const xuongExpr = workshopGroupSql(`COALESCE(${ready ? 'b.xuong, ' : ''}b.p_xuong_chinh)`);
+      const ors: string[] = [];
+      if (xuongList.length) {
+        params.push(xuongList);
+        const n = params.length;
+        ors.push(`${xuongExpr} = ANY($${n}::text[])`, `UPPER(TRIM(COALESCE(b.p_xuong_chinh, ''))) = ANY($${n}::text[])`);
+      }
+      if (xuongNone) ors.push(`${xuongExpr} = ''`);
+      conds.push(`(${ors.join(' OR ')})`);
     }
-    if (congTrinh) {
+    // Tên công trình: dòng sản xuất trước, rỗng thì lấy tên lưu lúc báo (như dashboard byProject)
+    const projectExpr = `COALESCE(NULLIF(TRIM(b.p_ten_cong_trinh), ''), b.ten_cong_trinh)`;
+    if (congTrinh === PROJECT_NONE) conds.push(`COALESCE(TRIM(${projectExpr}), '') = ''`);
+    else if (congTrinh) {
       // Client gửi tên chuẩn (canonicalProjectName) => mở rộng ra mọi cách viết của cùng công trình, so khớp
       // chính xác (đã chuẩn hoá). Không mở rộng được (tên lạ / bảng tên lỗi) => giữ ILIKE '%tên%' như cũ.
       let names: string[] = [];
@@ -642,10 +659,10 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
       }
       if (names.length > 1) {
         params.push(names);
-        conds.push(`${normNameSql('COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh)')} = ANY($${params.length}::text[])`);
+        conds.push(`${normNameSql(projectExpr)} = ANY($${params.length}::text[])`);
       } else {
         params.push(`%${likeEsc(congTrinh)}%`);
-        conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+        conds.push(`${projectExpr} ILIKE $${params.length}`);
       }
     }
     // handler=__none__ : "Chưa giao" (chưa có người xử lý)
@@ -657,7 +674,7 @@ app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Re
     // Công đoạn như byStage của dashboard: cột lưu lúc báo, không có thì suy từ bop dòng sản xuất (stageOf);
     // "Chưa rõ" = không xác định được
     const stageExpr = `COALESCE(b.stage, substring(UPPER(TRIM(b.p_bop)) from '^(P[0-9]{3}|GCVT)'))`;
-    if (stage === STAGE_UNKNOWN) conds.push(`${stageExpr} IS NULL`);
+    if (stage === STAGE_UNKNOWN || stage === PROJECT_NONE.toUpperCase()) conds.push(`${stageExpr} IS NULL`);
     else if (stage) { params.push(stage); conds.push(`${stageExpr} = $${params.length}`); }
     if (priority && ready && (PRIORITIES as readonly string[]).includes(priority)) { params.push(priority); conds.push(`b.priority = $${params.length}`); }
 
@@ -782,7 +799,7 @@ app.get('/api/vuong-mac/stats', authenticateJWT, requireActiveUser, async (req: 
         if (d === 'overdue') s.mine.overdue++;
         else if (d === 'soon') s.mine.soon++;
       }
-      const name = String(row.p_ten_cong_trinh ?? row.ten_cong_trinh ?? '').trim();
+      const name = String(row.p_ten_cong_trinh ?? '').trim() || String(row.ten_cong_trinh ?? '').trim();
       if (name) {
         const k = canonicalProjectName(name);
         const e = projects.get(k) ?? { open: 0, overdue: 0 };
@@ -903,7 +920,9 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
       const xuong = workshopGroupOf(row.xuong ?? row.p_xuong_chinh ?? '') || 'Chưa rõ';
       if (xuongList.length && !xuongList.includes(xuong) && !xuongList.includes(String(row.p_xuong_chinh ?? '').toUpperCase().trim())) continue;
       const stage = row.stage ?? stageOf(row.p_bop) ?? 'Chưa rõ';
-      const project = row.p_ten_cong_trinh || row.ten_cong_trinh ? canonicalProjectName(row.p_ten_cong_trinh ?? row.ten_cong_trinh) : 'Chưa rõ';
+      // Tên dòng sản xuất trước, rỗng thì tên lưu lúc báo (khớp lọc congTrinh / __none__ của /all)
+      const projectName = String(row.p_ten_cong_trinh ?? '').trim() || String(row.ten_cong_trinh ?? '').trim();
+      const project = projectName ? canonicalProjectName(projectName) : 'Chưa rõ';
       const hRaw = String(row.handler ?? '').trim();
       const hKey = hRaw.toLowerCase();
       if (hRaw && !handlerDisplay.has(hKey)) handlerDisplay.set(hKey, hRaw);
@@ -1523,7 +1542,8 @@ const HEX_HIT_COLS = `hex::text AS hex, ${FACTORY_CODE_COL}::text AS ma_nha_may,
                 bop, tinh_trang, tinh_trang_ipo, phan_loai_nhom_san_pham,
                 tri_gia_don_hang_tong, thanh_tien_tinh_phieu, thanh_tien_nhap_kho_luy_ke,
                 ngay_khnk_tuan, ngay_khnk_thang, ngay_can_giao`;
-const mapHexHit = (row: any) => ({
+// met: KH kỳ đã đạt của HEX (planMetOf) — bỏ qua KH tuần/tháng đã nhập đủ, giống /all và /item
+const mapHexHit = (row: any, met?: PlanMet) => ({
   hex: row.hex,
   maNhaMay: row.ma_nha_may,
   congTrinh: row.ten_cong_trinh ? canonicalProjectName(row.ten_cong_trinh) : row.ten_cong_trinh,
@@ -1540,7 +1560,7 @@ const mapHexHit = (row: any) => ({
   triGia: row.tri_gia_don_hang_tong,
   thanhTienPhieu: row.thanh_tien_tinh_phieu,
   thanhTienKho: row.thanh_tien_nhap_kho_luy_ke,
-  deadline: planDate(row.ngay_khnk_tuan, row.ngay_khnk_thang),
+  deadline: planDate(row.ngay_khnk_tuan, row.ngay_khnk_thang, met),
   ngayCanGiao: row.ngay_can_giao ?? null,
 });
 
@@ -1569,13 +1589,14 @@ app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: 
          SELECT DISTINCT ON (hex::text) ${HEX_HIT_COLS}
          FROM production_status_app
          WHERE ${conds.join(' AND ')}
-         ORDER BY hex::text, updated_at DESC NULLS LAST
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
        ) t
        ORDER BY hex
        LIMIT 50`,
       params
     );
-    res.json(r.rows.map(mapHexHit));
+    const met = await planMetOf(r.rows.map(row => row.hex));
+    res.json(r.rows.map(row => mapHexHit(row, met.get(row.hex))));
   } catch (error) {
     console.error('Lỗi /api/vuong-mac/hex-search:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -1606,16 +1627,17 @@ app.post('/api/vuong-mac/hex-bulk', authenticateJWT, async (req: Request, res: R
        WHERE hex IS NOT NULL
          AND (TRIM(hex::text) = ANY($1::text[]) OR TRIM(${FACTORY_CODE_COL}::text) = ANY($1::text[]))
          ${xuongCond}
-       ORDER BY hex::text, updated_at DESC NULLS LAST
+       ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
        LIMIT 500`,
       params
     );
 
     const found = new Set<string>();
+    const met = await planMetOf(r.rows.map(row => row.hex));
     r.rows.forEach(row => { found.add(String(row.hex).trim()); if (row.ma_nha_may) found.add(String(row.ma_nha_may).trim()); });
 
     res.json({
-      hits: r.rows.map(mapHexHit),
+      hits: r.rows.map(row => mapHexHit(row, met.get(row.hex))),
       missing: codes.filter(c => !found.has(c)),
     });
   } catch (error) {

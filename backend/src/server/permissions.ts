@@ -20,13 +20,19 @@ export interface UserAccess {
 
 const accessCache = new Map<string, { access: UserAccess; at: number }>();
 
+const NO_ACCESS: UserAccess = { active: false, role: '', perms: new Set<string>() };
+// Khoá cache chuẩn hoá: '01' và 1 là cùng user
+const accessKey = (userId: string | number): string => String(Number(userId));
+
 export const loadUserAccess = async (userId: string | number): Promise<UserAccess> => {
-  const key = String(userId);
+  // id không phải số nguyên dương -> coi như không tồn tại (tránh query ép kiểu integer lỗi 500)
+  if (!/^\d+$/.test(String(userId)) || !(Number(userId) > 0) || Number(userId) > 2147483647) return NO_ACCESS;
+  const key = accessKey(userId);
   const hit = accessCache.get(key);
   if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
   const r = await pool.query(
     `SELECT role, permissions, is_active FROM users WHERE id = $1`,
-    [userId]
+    [Number(userId)]
   );
   const row = r.rows[0];
   const active = !!row && row.is_active === true;
@@ -44,7 +50,7 @@ export const loadUserAccess = async (userId: string | number): Promise<UserAcces
 };
 
 /** Xoá cache quyền của 1 user (sau khi admin đổi role / quyền / trạng thái / xoá) */
-export const invalidateUserAccess = (userId: string | number) => { accessCache.delete(String(userId)); };
+export const invalidateUserAccess = (userId: string | number) => { accessCache.delete(accessKey(userId)); };
 
 /** true nếu user của request có quyền `permission` (ADMIN luôn có). Tài khoản bị khoá / lỗi DB -> KHÔNG có quyền. */
 export const userHasPermission = async (req: Request, permission: string): Promise<boolean> => {

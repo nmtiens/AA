@@ -138,7 +138,6 @@ const {
   clearFilters,
   filteredProductionData,
   funnelProductionData,
-  projectSummaryProductionData,
   crossFilterBaseData,
   filteredMaterialData,
   displayedMaterialData,
@@ -356,8 +355,6 @@ const {
   filteredProductionData,
   filteredMaterialData,
   funnelProductionData, // THÊM
-  // Danh sách HEX khi bấm phễu / bảng công trình dùng cùng nguồn với phễu (không ăn ô Tình trạng)
-  projectSummaryProductionData,
   displayedMaterialData,
   stockDates,        // MỚI: thay cho stockData/stockDateKey/stockValueKey/stockSapIdKey
   closestStockDate,

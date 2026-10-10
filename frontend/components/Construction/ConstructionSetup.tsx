@@ -15,9 +15,8 @@
 //    lên backend (setProjectsForView) — tức là thứ tự trong mảng = độ ưu
 //    tiên, phần tử đầu tiên = ưu tiên cao nhất.
 //
-// Construction/ConstructionView.tsx (luồng đỏ, căn mẫu) vẫn dùng filterByView()
-// để lọc material/order/khsx theo đúng tên đã chọn ở đây (không phụ thuộc thứ
-// tự), nên việc đổi Set -> mảng có thứ tự không ảnh hưởng tới các trang đó.
+// Tổng quan công trình (nhóm Luồng đỏ / Căn mẫu) lọc theo đúng tên đã chọn ở đây
+// (so theo tên chuẩn, không phụ thuộc thứ tự).
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
@@ -86,7 +85,7 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
     // đối chiếu với allProjects hiện tại, loại bỏ những công trình đã lưu
     // trước đó nhưng không còn tồn tại trong dữ liệu sản xuất hiện tại —
     // giữ nguyên THỨ TỰ đã lưu (chính là thứ tự ưu tiên).
-    // So theo tên chuẩn (projectMatchKey) như filterByView: tên đã lưu là 1 cách viết khác của cùng công trình
+    // So theo tên chuẩn (projectMatchKey) như bộ lọc nhóm của Tổng quan công trình:tên đã lưu là 1 cách viết khác của cùng công trình
     // thì đổi về tên đang dùng thay vì âm thầm bỏ (lưu lại sẽ xoá công trình đó khỏi view)
     const byKey = new Map(allProjects.map(p => [projectMatchKey(p), p] as const));
     const cleaned = [...new Set(saved.map((p) => byKey.get(projectMatchKey(p))).filter((p): p is string => !!p))];
@@ -192,7 +191,7 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
   // xong. Nếu API lỗi (401 sai token, CORS, route /api không tới đúng
   // backend...), lỗi đó chỉ vào console.error — người dùng luôn thấy toast
   // "Đã lưu setup" dù dữ liệu chưa hề được lưu ở backend. Đây là lý do
-  // "lưu rồi" nhưng 2 trang Luồng đỏ/Căn mẫu vẫn rỗng.
+  // "lưu rồi" nhưng nhóm Luồng đỏ/Căn mẫu vẫn rỗng.
   // Sửa: await kết quả thật, chỉ báo thành công khi backend xác nhận OK,
   // báo lỗi rõ ràng khi thất bại để không còn "false positive".
   const handleSave = async () => {

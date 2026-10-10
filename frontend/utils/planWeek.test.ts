@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { planWeekOf, inPlanWeek } from '../components/Dashboard/hooks/useUnifiedTimeFilters';
 
 // Tuần mặc định của bộ lọc thời gian phải cùng cách đánh số với inPlanWeek / bảng KHSX
-// (tuần ISO cắt trong năm dương lịch), không phải tuần ISO thuần của getWeekNumber.
+// (tuần ISO cắt trong năm dương lịch), không phải tuần ISO thuần.
 describe('planWeekOf — tuần mặc định theo cách đánh số KHSX', () => {
   it('ngày thường trùng tuần ISO', () => {
     expect(planWeekOf(new Date(2026, 9, 10))).toBe(41); // 10/10/2026
