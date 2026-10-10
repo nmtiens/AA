@@ -259,7 +259,9 @@ export const fetchTableData = async (tableName: string, updatedAfter?: string, s
       values.push(validDate.toISOString());
     }
 
-    const result = await timedQuery(query, values);
+    // Đọc nguyên bảng (all-data): bảng lớn (nhập kho ~89k dòng) mất 3–6 giây khi DB đang tải nặng — mặc định
+    // 8 giây hay bị "canceling statement due to statement timeout" => cho 25 giây
+    const result = await timedQuery(query, values, { timeoutMs: 25000 });
     return result.rows;
   } catch (error) {
     console.error(`Lỗi truy vấn bảng ${tableName}:`, error);

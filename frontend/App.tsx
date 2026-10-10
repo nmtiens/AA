@@ -30,6 +30,8 @@ const ConstructionSetup = lazy(() => import('./components/Construction/Construct
 const ConstructionOverview = lazy(() => import('./components/Construction/ConstructionOverview'));
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
 const WorkshopGroupSetup = lazy(() => import('./components/Construction/WorkshopGroupSetup'));
+import type { SetupTab } from './components/Setup/DataSetupPage';
+const DataSetupPage = lazy(() => import('./components/Setup/DataSetupPage'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
@@ -105,7 +107,9 @@ const App: React.FC = () => {
                   {/* Luồng đỏ / Căn mẫu không còn là trang riêng: chọn nhóm ngay trong Tổng quan công trình (link cũ chuyển về đó) */}
                   <Route path="/cong-trinh/luong-do" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
                   <Route path="/cong-trinh/can-mau" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
-                  <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
+                  {/* Setup dữ liệu: 1 trang chung, chọn mục bằng thẻ (?tab=). Đường dẫn cũ của 3 trang setup chuyển về đúng thẻ */}
+                  <Route path="/setup" element={<DataSetupWrapper />} />
+                  <Route path="/cong-trinh/setup" element={<Navigate to="/setup?tab=nhom-cong-trinh" replace />} />
 
                   {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
                   {CHART_SUB_ITEMS.map(item => (
@@ -122,8 +126,8 @@ const App: React.FC = () => {
 
                   {/* --- Hệ thống --- */}
                   <Route path="/users" element={<RequirePermission viewId="users"><UserManagement /></RequirePermission>} />
-                  <Route path="/setup/cot-du-lieu" element={<RequirePermission viewId="table_column_setup"><TableColumnSetupWrapper /></RequirePermission>} />
-                  <Route path="/setup/gop-xuong" element={<WorkshopGroupSetupWrapper />} />
+                  <Route path="/setup/cot-du-lieu" element={<Navigate to="/setup?tab=cot-du-lieu" replace />} />
+                  <Route path="/setup/gop-xuong" element={<Navigate to="/setup?tab=gop-xuong" replace />} />
                 </Route>
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
@@ -211,6 +215,7 @@ const ConstructionSetupWrapper = () => {
     <ConstructionSetup
       productionData={context.productionData}
       congTrinhKey={congTrinhKey}
+      embedded
     />
   );
 };
@@ -233,15 +238,31 @@ const TableColumnSetupWrapper = () => {
     material: context.materialColumns,
     yearlyPlan: context.yearlyPlanColumns,
   };
-  return <TableColumnSetup columnsByTable={columnsByTable} />;
+  return <TableColumnSetup columnsByTable={columnsByTable} embedded />;
 };
 
-// Setup gộp xưởng — chỉ ADMIN. Lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang.
-const WorkshopGroupSetupWrapper = () => {
-  const { user, isLoading } = useAuth();
+// Trang chung Setup dữ liệu: mỗi thẻ hiện theo đúng quyền của trang setup cũ tương ứng
+//   Nhóm công trình (Luồng đỏ / Căn mẫu): quyền construction_setup · Cột dữ liệu: table_column_setup ·
+//   Gộp xưởng: chỉ ADMIN (lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang)
+const DataSetupWrapper = () => {
+  const { user, isLoading, hasPermission } = useAuth();
   if (isLoading) return <FullScreenLoader />;
-  if (user?.role !== 'ADMIN') return <Navigate to="/" replace />;
-  return <WorkshopGroupSetup onSaved={() => window.dispatchEvent(new Event('workshop-groups-changed'))} />;
+  if (!user) return <Navigate to="/login" replace />;
+  const tabs: SetupTab[] = [];
+  if (hasPermission('construction_setup')) tabs.push({
+    id: 'nhom-cong-trinh', label: 'Nhóm công trình', desc: 'Công trình thuộc nhóm Luồng đỏ / Căn mẫu',
+    icon: <Box size={16} />, render: () => <ConstructionSetupWrapper />,
+  });
+  if (hasPermission('table_column_setup')) tabs.push({
+    id: 'cot-du-lieu', label: 'Cột dữ liệu', desc: 'Cột được hiện & thứ tự cột từng bảng',
+    icon: <Columns size={16} />, render: () => <TableColumnSetupWrapper />,
+  });
+  if (user.role === 'ADMIN') tabs.push({
+    id: 'gop-xuong', label: 'Gộp xưởng', desc: 'Gộp mã xưởng nhỏ vào 1 xưởng (chỉ Admin)',
+    icon: <Factory size={16} />,
+    render: () => <WorkshopGroupSetup embedded onSaved={() => window.dispatchEvent(new Event('workshop-groups-changed'))} />,
+  });
+  return <DataSetupPage tabs={tabs} />;
 };
 
 const YearlyPlanDataWrapper = () => {
@@ -742,8 +763,7 @@ const MainLayout: React.FC = () => {
   const canSeeConstruction = hasPermission('construction_overview');
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
-  const canSeeSetup = hasPermission('construction_setup');
-  const canSeeColumnSetup = hasPermission('table_column_setup');
+  const canSeeAnySetup = hasPermission('construction_setup') || hasPermission('table_column_setup') || user?.role === 'ADMIN';
 
   const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
   const isGroupActive = groupedViews.some(v => v.path === location.pathname);
@@ -925,37 +945,13 @@ const MainLayout: React.FC = () => {
             />
           )}
 
-          {/* Setup dữ liệu (phân loại công trình) - thuộc nhóm quyền Công trình */}
-          {canSeeSetup && (
+          {/* Setup dữ liệu: 1 mục chung (nhóm công trình / cột dữ liệu / gộp xưởng — thẻ trong trang) */}
+          {canSeeAnySetup && (
             <NavLink
-              to="/cong-trinh/setup"
+              to="/setup"
               icon={<Settings size={18} />}
               label="Setup dữ liệu"
-              active={location.pathname === '/cong-trinh/setup'}
-              onClick={closeMobileSidebar}
-              collapsed={isCollapsed}
-            />
-          )}
-
-          {/* Setup cột dữ liệu - thuộc nhóm quyền Hệ thống */}
-          {canSeeColumnSetup && (
-            <NavLink
-              to="/setup/cot-du-lieu"
-              icon={<Columns size={18} />}
-              label="Setup cột dữ liệu"
-              active={location.pathname === '/setup/cot-du-lieu'}
-              onClick={closeMobileSidebar}
-              collapsed={isCollapsed}
-            />
-          )}
-
-          {/* Setup gộp xưởng - chỉ ADMIN */}
-          {user?.role === 'ADMIN' && (
-            <NavLink
-              to="/setup/gop-xuong"
-              icon={<Factory size={18} />}
-              label="Setup gộp xưởng"
-              active={location.pathname === '/setup/gop-xuong'}
+              active={location.pathname === '/setup'}
               onClick={closeMobileSidebar}
               collapsed={isCollapsed}
             />

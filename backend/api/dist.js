@@ -64511,7 +64511,7 @@ var fetchTableData = async (tableName, updatedAfter, strict = false) => {
       query += ` WHERE updated_at >= $1`;
       values.push(validDate.toISOString());
     }
-    const result = await timedQuery(query, values);
+    const result = await timedQuery(query, values, { timeoutMs: 25e3 });
     return result.rows;
   } catch (error61) {
     console.error(`L\u1ED7i truy v\u1EA5n b\u1EA3ng ${tableName}:`, error61);
@@ -66464,12 +66464,38 @@ app.get("/api/khsx-nam/plan-actual", async (req, res) => {
 var viewMappingSchema = external_exports.object({
   projects: external_exports.array(external_exports.string())
 });
+var SETTINGS_TTL_MS = 3e4;
+var settingsCache = /* @__PURE__ */ new Map();
+var readSetting = async (key, load3) => {
+  const hit = settingsCache.get(key);
+  if (hit && Date.now() - hit.at < SETTINGS_TTL_MS) return hit.value;
+  try {
+    let value;
+    try {
+      value = await load3();
+    } catch {
+      await new Promise((r) => setTimeout(r, 400));
+      value = await load3();
+    }
+    settingsCache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error61) {
+    if (hit) {
+      console.error(`L\u1ED7i \u0111\u1ECDc ${key} \u2014 tr\u1EA3 b\u1EA3n \u0111\xE3 l\u01B0u:`, error61);
+      return hit.value;
+    }
+    throw error61;
+  }
+};
 app.get("/api/view-project-mapping", async (_req, res) => {
   try {
-    const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
-    const mapping = {};
-    r.rows.forEach((row) => {
-      mapping[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
+    const mapping = await readSetting("view-project-mapping", async () => {
+      const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
+      const out = {};
+      r.rows.forEach((row) => {
+        out[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
+      });
+      return out;
     });
     res.json(mapping);
   } catch (error61) {
@@ -66493,6 +66519,7 @@ app.post(
          SET projects = EXCLUDED.projects, updated_at = now()`,
         [viewId, JSON.stringify(projects)]
       );
+      settingsCache.delete("view-project-mapping");
       res.json({ success: true, message: "\u0110\xE3 l\u01B0u setup" });
     } catch (error61) {
       console.error("L\u1ED7i view-project-mapping POST:", error61);
@@ -66562,13 +66589,16 @@ var tableColumnConfigSchema = external_exports.object({
 });
 app.get("/api/table-column-config", async (_req, res) => {
   try {
-    const r = await timedQuery(`SELECT table_id, allowed_columns, default_visible_columns FROM table_column_config`);
-    const result = {};
-    r.rows.forEach((row) => {
-      result[row.table_id] = {
-        allowedColumns: Array.isArray(row.allowed_columns) ? row.allowed_columns : [],
-        defaultVisibleColumns: Array.isArray(row.default_visible_columns) ? row.default_visible_columns : []
-      };
+    const result = await readSetting("table-column-config", async () => {
+      const r = await timedQuery(`SELECT table_id, allowed_columns, default_visible_columns FROM table_column_config`);
+      const out = {};
+      r.rows.forEach((row) => {
+        out[row.table_id] = {
+          allowedColumns: Array.isArray(row.allowed_columns) ? row.allowed_columns : [],
+          defaultVisibleColumns: Array.isArray(row.default_visible_columns) ? row.default_visible_columns : []
+        };
+      });
+      return out;
     });
     res.json(result);
   } catch (error61) {
@@ -66594,6 +66624,7 @@ app.post(
              updated_at = now()`,
         [tableId, JSON.stringify(allowedColumns), JSON.stringify(defaultVisibleColumns)]
       );
+      settingsCache.delete("table-column-config");
       res.json({ success: true, message: "\u0110\xE3 l\u01B0u setup c\u1ED9t" });
     } catch (error61) {
       console.error("L\u1ED7i table-column-config POST:", error61);

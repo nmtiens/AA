@@ -9,6 +9,8 @@ import { fetchWorkshopGroups, saveWorkshopGroups, WorkshopCodeInfo } from '../..
 import { applyWorkshopMapping, normWorkshop } from '../../utils/workshopGroups';
 
 interface Props {
+  /** Nằm trong trang chung Setup dữ liệu (thẻ): tiêu đề gọn, không icon lớn */
+  embedded?: boolean;
   /** Gọi sau khi lưu thành công để App gộp lại dữ liệu đã tải. */
   onSaved?: () => void;
 }
@@ -23,7 +25,7 @@ const TABLE_LABELS: Record<string, string> = {
 };
 const TABLE_ORDER = Object.keys(TABLE_LABELS);
 
-const WorkshopGroupSetup: React.FC<Props> = ({ onSaved }) => {
+const WorkshopGroupSetup: React.FC<Props> = ({ onSaved, embedded = false }) => {
   const { showToast } = useToast();
   const [codes, setCodes] = useState<WorkshopCodeInfo[]>([]);
   const [saved, setSaved] = useState<Record<string, string>>({});
@@ -99,13 +101,17 @@ const WorkshopGroupSetup: React.FC<Props> = ({ onSaved }) => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-wood-50">
-      <div className="px-6 py-5 bg-white border-b border-slate-200 flex items-center justify-between gap-3 shrink-0 flex-wrap">
+      <div className={`px-6 ${embedded ? 'py-3' : 'py-5'} bg-white border-b border-slate-200 flex items-center justify-between gap-3 shrink-0 flex-wrap`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
+          {!embedded && (
+            <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
             <Factory size={20} />
           </div>
+          )}
           <div>
-            <h1 className="text-lg font-bold text-slate-800">Setup gộp xưởng</h1>
+            {embedded
+              ? <h2 className="text-base font-bold text-slate-800">Gộp xưởng</h2>
+              : <h1 className="text-lg font-bold text-slate-800">Setup gộp xưởng</h1>}
             <p className="text-xs text-slate-500">Gộp các mã xưởng nhỏ phát sinh vào 1 xưởng — áp dụng cho mọi biểu đồ, bộ lọc, báo cáo</p>
           </div>
         </div>

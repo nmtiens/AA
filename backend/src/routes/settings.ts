@@ -15,13 +15,38 @@ const viewMappingSchema = z.object({
   projects: z.array(z.string()),
 });
 
+// Cấu hình nhỏ đọc lúc mở app (view-project-mapping, table-column-config): giữ trong bộ nhớ 30 giây, DB tạm lỗi
+// (vd pooler hết kết nối khi cả trang bắn ~20 request lúc đăng nhập) thì thử lại 1 lần, vẫn lỗi thì trả bản cũ
+// đã có — trước 2 API này hay trả 500 đúng lúc vừa đăng nhập. Lưu (POST) thì xoá bản nhớ.
+const SETTINGS_TTL_MS = 30_000;
+const settingsCache = new Map<string, { at: number; value: unknown }>();
+const readSetting = async <T>(key: string, load: () => Promise<T>): Promise<T> => {
+  const hit = settingsCache.get(key);
+  if (hit && Date.now() - hit.at < SETTINGS_TTL_MS) return hit.value as T;
+  try {
+    let value: T;
+    try { value = await load(); } catch {
+      await new Promise(r => setTimeout(r, 400));
+      value = await load();
+    }
+    settingsCache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    if (hit) { console.error(`Lỗi đọc ${key} — trả bản đã lưu:`, error); return hit.value as T; }
+    throw error;
+  }
+};
+
 // GET: public (mọi user cần đọc để lọc đúng dữ liệu view của họ, không cần đăng nhập admin)
 app.get('/api/view-project-mapping', async (_req: Request, res: Response) => {
   try {
-    const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
-    const mapping: Record<string, string[]> = {};
-    r.rows.forEach(row => {
-      mapping[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
+    const mapping = await readSetting('view-project-mapping', async () => {
+      const r = await timedQuery(`SELECT view_id, projects FROM view_project_mapping`);
+      const out: Record<string, string[]> = {};
+      r.rows.forEach(row => {
+        out[row.view_id] = Array.isArray(row.projects) ? row.projects : [];
+      });
+      return out;
     });
     res.json(mapping);
   } catch (error) {
@@ -48,6 +73,7 @@ app.post(
          SET projects = EXCLUDED.projects, updated_at = now()`,
         [viewId, JSON.stringify(projects)]
       );
+      settingsCache.delete('view-project-mapping');
 
       res.json({ success: true, message: 'Đã lưu setup' });
     } catch (error) {
@@ -148,13 +174,16 @@ const tableColumnConfigSchema = z.object({
 // GET: public (mọi user cần đọc để biết cột nào hiển thị, không cần đăng nhập admin)
 app.get('/api/table-column-config', async (_req: Request, res: Response) => {
   try {
-    const r = await timedQuery(`SELECT table_id, allowed_columns, default_visible_columns FROM table_column_config`);
-    const result: Record<string, { allowedColumns: string[]; defaultVisibleColumns: string[] }> = {};
-    r.rows.forEach(row => {
-      result[row.table_id] = {
-        allowedColumns: Array.isArray(row.allowed_columns) ? row.allowed_columns : [],
-        defaultVisibleColumns: Array.isArray(row.default_visible_columns) ? row.default_visible_columns : [],
-      };
+    const result = await readSetting('table-column-config', async () => {
+      const r = await timedQuery(`SELECT table_id, allowed_columns, default_visible_columns FROM table_column_config`);
+      const out: Record<string, { allowedColumns: string[]; defaultVisibleColumns: string[] }> = {};
+      r.rows.forEach(row => {
+        out[row.table_id] = {
+          allowedColumns: Array.isArray(row.allowed_columns) ? row.allowed_columns : [],
+          defaultVisibleColumns: Array.isArray(row.default_visible_columns) ? row.default_visible_columns : [],
+        };
+      });
+      return out;
     });
     res.json(result);
   } catch (error) {
@@ -183,6 +212,7 @@ app.post(
              updated_at = now()`,
         [tableId, JSON.stringify(allowedColumns), JSON.stringify(defaultVisibleColumns)]
       );
+      settingsCache.delete('table-column-config');
 
       res.json({ success: true, message: 'Đã lưu setup cột' });
     } catch (error) {

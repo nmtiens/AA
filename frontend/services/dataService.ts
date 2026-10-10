@@ -571,11 +571,18 @@ export const fetchStockForExport = async (dates?: string[]): Promise<DataRow[]> 
 
 export type ViewProjectMapping = Record<string, string[]>;
 
+// Cấu hình đọc lúc mở app: lỗi (thường 500 do DB tạm hết kết nối khi cả trang bắn nhiều request lúc đăng nhập)
+// thì thử lại 1 lần sau 1 giây — trả {} sớm khiến trang dùng cấu hình rỗng tới lần tải sau.
+const fetchJsonRetry = async (url: string) => {
+  let r = await fetch(url);
+  if (!r.ok && r.status >= 500) { await new Promise(res => setTimeout(res, 1000)); r = await fetch(url); }
+  if (!r.ok) throw new Error(`fetch failed (${r.status})`);
+  return r.json();
+};
+
 export const fetchViewProjectMapping = async (): Promise<ViewProjectMapping> => {
   try {
-    const r = await fetch(`${API_BASE_URL}/view-project-mapping`);
-    if (!r.ok) throw new Error('fetch failed');
-    return await r.json();
+    return await fetchJsonRetry(`${API_BASE_URL}/view-project-mapping`);
   } catch (e) {
     console.error('fetchViewProjectMapping error:', e);
     return {};
@@ -687,9 +694,7 @@ export type TableColumnConfigMap = Record<string, TableColumnConfigDTO>;
 
 export const fetchTableColumnConfig = async (): Promise<TableColumnConfigMap> => {
   try {
-    const r = await fetch(`${API_BASE_URL}/table-column-config`);
-    if (!r.ok) throw new Error('fetch failed');
-    return await r.json();
+    return await fetchJsonRetry(`${API_BASE_URL}/table-column-config`);
   } catch (e) {
     console.error('fetchTableColumnConfig error:', e);
     return {};

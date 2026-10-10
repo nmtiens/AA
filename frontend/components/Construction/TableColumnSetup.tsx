@@ -21,11 +21,13 @@ import {
 } from './utils/tableColumnConfig';
 
 interface TableColumnSetupProps {
+  /** Nằm trong trang chung Setup dữ liệu (thẻ): tiêu đề gọn, không icon lớn */
+  embedded?: boolean;
   // table id -> danh sách cột hiện có (lấy từ dữ liệu thực tế đang tải)
   columnsByTable: Record<string, ColumnDefinition[]>;
 }
 
-const TableColumnSetup: React.FC<TableColumnSetupProps> = ({ columnsByTable }) => {
+const TableColumnSetup: React.FC<TableColumnSetupProps> = ({ columnsByTable, embedded = false }) => {
   const { showToast } = useToast();
 
   const [configReady, setConfigReady] = useState(isTableColumnConfigLoaded());
@@ -221,13 +223,17 @@ useEffect(() => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-wood-50">
-      <div className="px-6 py-5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+      <div className={`px-6 ${embedded ? 'py-3' : 'py-5'} bg-white border-b border-slate-200 flex items-center justify-between shrink-0`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
+          {!embedded && (
+            <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
             <Settings2 size={20} />
           </div>
+          )}
           <div>
-            <h1 className="text-lg font-bold text-slate-800">Setup cột dữ liệu</h1>
+            {embedded
+              ? <h2 className="text-base font-bold text-slate-800">Cột dữ liệu</h2>
+              : <h1 className="text-lg font-bold text-slate-800">Setup cột dữ liệu</h1>}
             <p className="text-xs text-slate-500">Chọn cột được phép hiển thị, sắp xếp thứ tự & chọn cột mặc định hiện</p>
           </div>
         </div>

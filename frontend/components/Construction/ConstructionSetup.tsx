@@ -41,6 +41,8 @@ import {
 } from './utils/viewDataConfig';
 
 interface ConstructionSetupProps {
+  /** Nằm trong trang chung Setup dữ liệu (thẻ): tiêu đề gọn, không icon lớn */
+  embedded?: boolean;
   productionData: DataRow[];
   congTrinhKey: string; // tên cột công trình của productionData
 }
@@ -48,6 +50,7 @@ interface ConstructionSetupProps {
 const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
   productionData,
   congTrinhKey,
+  embedded = false,
 }) => {
   const { showToast } = useToast();
 
@@ -221,14 +224,18 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-wood-50">
-      <div className="px-6 py-5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
+      <div className={`px-6 ${embedded ? 'py-3' : 'py-5'} bg-white border-b border-slate-200 flex items-center justify-between shrink-0`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
+          {!embedded && (
+            <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
             <Settings2 size={20} />
           </div>
+          )}
           <div>
-            <h1 className="text-lg font-bold text-slate-800">Setup dữ liệu theo View</h1>
-            <p className="text-xs text-slate-500">Chọn công trình & sắp xếp độ ưu tiên cho từng view</p>
+            {embedded
+              ? <h2 className="text-base font-bold text-slate-800">Nhóm công trình</h2>
+              : <h1 className="text-lg font-bold text-slate-800">Setup dữ liệu theo View</h1>}
+            <p className="text-xs text-slate-500">Chọn công trình cho nhóm Luồng đỏ / Căn mẫu (nút chọn nhóm ở Tổng quan công trình) & sắp xếp độ ưu tiên</p>
           </div>
         </div>
         <button
@@ -246,13 +253,13 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
 
           {/* Chọn view */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <label className="text-xs font-bold text-slate-500 block mb-2">Chọn view cần setup dữ liệu</label>
+            <label className="text-xs font-bold text-slate-500 block mb-2">Chọn nhóm công trình cần setup</label>
             <div className="relative">
               <button
                 onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
                 className="w-full flex items-center justify-between px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:border-wood-400 transition-colors"
               >
-                <span>{selectedView?.label || 'Chọn view'}</span>
+                <span>{selectedView?.label || 'Chọn nhóm'}</span>
                 <ChevronDown size={16} className={`transition-transform ${isViewDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -272,7 +279,7 @@ const ConstructionSetup: React.FC<ConstructionSetupProps> = ({
               )}
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              Đã chọn <span className="font-semibold text-wood-600">{selectedProjects.length}</span> / {allProjects.length} công trình cho view này
+              Đã chọn <span className="font-semibold text-wood-600">{selectedProjects.length}</span> / {allProjects.length} công trình cho nhóm này
             </p>
           </div>
 
