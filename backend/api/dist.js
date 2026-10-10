@@ -44428,8 +44428,9 @@ var pool = new Pool({
   max: 3,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1e4,
-  // Giữ connection lâu hơn để tránh "connect storm" khi traffic tăng đột ngột
-  idleTimeoutMillis: 6e4,
+  // Trả connection rảnh về pooler sau 10 giây: trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
+  // instance cùng giữ chỗ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500.
+  idleTimeoutMillis: 1e4,
   connectionTimeoutMillis: 15e3,
   application_name: "vercel-backend",
   // Không đặt statement_timeout ở đây: pg gửi nó trong StartupMessage và

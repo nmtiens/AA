@@ -18,8 +18,9 @@ export const pool = new Pool({
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 
-  // Giữ connection lâu hơn để tránh "connect storm" khi traffic tăng đột ngột
-  idleTimeoutMillis: 60000,
+  // Trả connection rảnh về pooler sau 10 giây: trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
+  // instance cùng giữ chỗ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500.
+  idleTimeoutMillis: 10000,
 
   connectionTimeoutMillis: 15000,
 

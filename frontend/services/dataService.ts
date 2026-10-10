@@ -278,7 +278,13 @@ const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
   }));
 };
 
-const ALL_DATA_CONCURRENCY = 4;
+const ALL_DATA_CONCURRENCY = 2;
+const ALL_DATA_GROUP_MB = 3.5;
+// Dung lượng gzip ước lượng của từng bảng (đo 10/2026) — chỉ để chia nhóm request; bảng lạ coi 1 MB
+const ALL_DATA_EST_MB: Record<string, number> = {
+  production: 3.1, inventory: 3.4, material: 1.35, order: 1.3, export: 1.3,
+  pthsp: 0.5, tkbv: 0.4, khsx: 0.3, analysis: 0.1, stock: 0.05, attendance: 0.01, yearlyPlan: 0.01,
+};
 
 // Tải nhiều bảng qua /api/all-data (mỗi bảng 1 request, chạy song song).
 // endpoints: danh sách bảng cần tải (theo tên endpoint, vd 'production', 'yearly-plan');
@@ -292,22 +298,31 @@ export const fetchAllDataFromServer = async (
       : null;
     if (keys && keys.length === 0) return {};
 
-    // Mỗi bảng 1 request (tối đa ALL_DATA_CONCURRENCY request song song) rồi ghép lại. Gộp cả 10–12 bảng vào 1
-    // request thì phản hồi ~10 MB (đã nén) — vượt giới hạn ~4,5 MB của serverless function trên Vercel => 500
-    // (xảy ra khi ETL nạp lại làm mọi bảng đổi phiên bản cùng lúc). Từng bảng hiện ≤ ~3,4 MB.
+    // Chia các bảng thành vài nhóm, mỗi nhóm ≤ ALL_DATA_GROUP_MB (ước lượng theo dung lượng gzip đo được), mỗi
+    // nhóm 1 request, tối đa ALL_DATA_CONCURRENCY request song song:
+    //  - gộp cả 10–12 bảng vào 1 request => ~10 MB gzip, vượt giới hạn ~4,5 MB của serverless function Vercel => 500;
+    //  - mỗi bảng 1 request (12 request) => Vercel dựng nhiều instance, mỗi instance mở kết nối DB riêng => vượt
+    //    trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500.
     const wanted = keys ?? Object.keys(ALL_DATA_ENDPOINT_MAP);
+    const groups: string[][] = [];
+    const groupMb: number[] = [];
+    [...wanted].sort((a, b) => (ALL_DATA_EST_MB[b] ?? 1) - (ALL_DATA_EST_MB[a] ?? 1)).forEach(key => {
+      const mb = ALL_DATA_EST_MB[key] ?? 1;
+      const i = groupMb.findIndex(g => g + mb <= ALL_DATA_GROUP_MB);
+      if (i === -1) { groups.push([key]); groupMb.push(mb); } else { groups[i].push(key); groupMb[i] += mb; }
+    });
     const raw: Record<string, DataRow[]> = {};
     let next = 0;
     const worker = async () => {
-      while (next < wanted.length) {
-        const key = wanted[next++];
-        const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(key)}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`Failed to fetch all-data (${key}): ${response.status} ${response.statusText}`);
+      while (next < groups.length) {
+        const g = groups[next++];
+        const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(g.join(','))}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Failed to fetch all-data (${g.join(',')}): ${response.status} ${response.statusText}`);
         const part = await response.json();
-        raw[key] = part[key] || [];
+        g.forEach(key => { raw[key] = part[key] || []; });
       }
     };
-    await Promise.all(Array.from({ length: Math.min(ALL_DATA_CONCURRENCY, wanted.length) }, worker));
+    await Promise.all(Array.from({ length: Math.min(ALL_DATA_CONCURRENCY, groups.length) }, worker));
 
     const result: Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> = {};
     Object.entries(ALL_DATA_ENDPOINT_MAP).forEach(([key, endpoint]) => {
