@@ -1103,7 +1103,7 @@ export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' |
   { key: 'onTrack', label: 'Đang mua, chưa tới hẹn', tone: 'amber', badge: 'bg-amber-50 text-amber-700',
     hint: 'Còn dòng đang mua nhưng chưa tới Ngày dự kiến giao hàng PMH nhập' },
   { key: 'arrived', label: 'Kho đã báo về, chờ nhập SAP', tone: 'slate', badge: 'bg-sky-50 text-sky-700',
-    hint: 'Kho báo SL hàng về thực tế ≥ SL yêu cầu, SAP chưa ghi nhận' },
+    hint: 'Kho báo SL hàng về thực tế ≥ SL yêu cầu (và không quá 1,5 lần — lớn hơn coi là kho ghi khác đơn vị, vd. gỗ M3), SAP chưa ghi nhận' },
   { key: 'ok', label: 'Đã về đủ (theo PR đã có)', tone: 'emerald', badge: 'bg-emerald-50 text-emerald-700',
     hint: 'Mọi dòng PR đã nối được đều đã về / CCLD / đã đóng / đã hủy — không khẳng định đủ toàn bộ BOM' },
   { key: 'stocked', label: 'Hạng mục đã nhập kho đủ', tone: 'slate', badge: 'bg-slate-100 text-slate-500',
@@ -1115,7 +1115,7 @@ const BOM_META = Object.fromEntries(BOM_STATES.map(s => [s.key, s])) as Record<B
 // trên SAP (utils/productionMetrics.materialLineState). `hint` hiện khi rê chuột vào nhóm.
 export const LINE_STATES: { key: MaterialLineState; label: string; bar: string; hint: string }[] = [
   { key: 'notOrdered', label: 'Chưa mua', bar: 'bg-rose-500',
-    hint: 'Trạng thái 1.CHƯA MUA — chưa có PO.' },
+    hint: 'Trạng thái 1.CHƯA MUA — chưa có PO (kể cả dòng có ghi chú CCLD).' },
   { key: 'late', label: 'Đang mua – trễ hẹn', bar: 'bg-orange-500',
     hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) mà SAP chưa nhận đủ.' },
   { key: 'deferred', label: 'Đang mua – về theo nhu cầu SX', bar: 'bg-yellow-300',
@@ -1123,7 +1123,7 @@ export const LINE_STATES: { key: MaterialLineState; label: string; bar: string; 
   { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-amber-400',
     hint: 'Trạng thái 2.ĐANG MUA, chưa tới Ngày dự kiến giao hàng (PMH nhập).' },
   { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-sky-400',
-    hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu — chỉ còn chờ SAP ghi nhập kho.' },
+    hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu — chỉ còn chờ SAP ghi nhập kho. Số kho báo lớn hơn 1,5 lần SL yêu cầu bị bỏ qua (kho ghi khác đơn vị, vd. gỗ M3).' },
   { key: 'ccld', label: 'CCLD – lắp tại công trình', bar: 'bg-teal-400',
     hint: 'Dòng 2.ĐANG MUA là hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất. Dòng 1.CHƯA MUA dù ghi CCLD vẫn tính là Chưa mua (còn thiếu).' },
   { key: 'closedShort', label: 'PR đã đóng, chưa nhận đủ', bar: 'bg-violet-400',
@@ -1162,12 +1162,14 @@ const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'onTrack', 'defer
  * Dòng còn chờ sẽ về SAU Ngày cần vật tư:
  *  - chưa mua: đã qua ngày cần vật tư (chưa có PO thì không thể về kịp)
  *  - đang mua: max(ngày dự kiến giao, hôm nay) > ngày cần vật tư (đã trễ hẹn thì sớm nhất cũng là hôm nay)
+ *  - KHÔNG tính hàng "về theo nhu cầu SX / dùng tồn kho trước": cố ý cho về theo nhu cầu, ngày cần trên PR
+ *    không phải hạn thật (trước 96 hạng mục của CT24-066 bị báo "VT về sau ngày cần" chỉ vì nhóm này)
  */
 const lineAfterNeed = (l: MaterialLine, st: MaterialLineState, today: number): boolean => {
   const need = parsePlanDate(l.ngay_can_vat_tu)?.getTime();
   if (need === undefined) return false;
   if (st === 'notOrdered') return need < today;
-  if (st === 'late' || st === 'deferred' || st === 'onTrack') {
+  if (st === 'late' || st === 'onTrack') {
     const due = parsePlanDate(l.ngay_du_kien_giao_hang_pmh_nhap)?.getTime() ?? today;
     return Math.max(due, today) > need;
   }
@@ -1407,15 +1409,16 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
             ))}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-[0.6875rem] font-semibold text-slate-500" title="Mỗi số là số DÒNG PR (1 dòng = 1 Số PR · line), không phải số hạng mục hay số PR">Số dòng PR:</span>
             <span title="Dòng chưa có hàng về kho: Chưa mua + Đang mua (trễ / chưa tới hẹn) + Kho báo về chờ nhập SAP — cần bổ sung mã nhà máy để gắn hạng mục"><Chip active={filter === 'pending'} tone="red" onClick={() => setFilter('pending')}>Còn chờ, kể cả kho báo về ({fmtInt(pendingN)})</Chip></span>
             {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
-              <span key={s.key} title={s.hint}>
+              <span key={s.key} title={`${fmtInt(sum.byState[s.key])} dòng PR — ${s.hint}`}>
                 <Chip active={filter === s.key} onClick={() => setFilter(s.key)}>
                   <span className={`mr-1 inline-block h-2 w-2 rounded-sm ${s.bar}`} />{s.label} ({fmtInt(sum.byState[s.key])})
                 </Chip>
               </span>
             ))}
-            <Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip>
+            <span title={`${fmtInt(total)} dòng PR không mã nhà máy, gồm cả dòng hủy`}><Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip></span>
             {sum.badCode > 0 && (
               <Chip active={filter === 'badCode'} tone="amber" onClick={() => setFilter('badCode')}>Ghi sai mã NM ({fmtInt(sum.badCode)})</Chip>
             )}
@@ -1523,7 +1526,12 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
     // Chưa triển khai (P001) xếp sau 'đã về đủ' — chưa lên PR là bình thường
     const PRIORITY: BomState[] = ['late', 'notOrdered', 'onTrack', 'deferred', 'noneBeforeSx', 'arrived', 'ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
     const rank = (i: HexInfo) => PRIORITY.indexOf(bom.byHex[i.hex]?.state ?? 'noneBeforeSx');
-    const pendingFirst = (i: HexInfo) => (rank(i) <= 2 ? 0 : rank(i) >= 5 ? 2 : 1);
+    const PENDING_BOM: BomState[] = ['late', 'notOrdered', 'onTrack', 'deferred'];
+    const DONE_BOM: BomState[] = ['ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
+    const pendingFirst = (i: HexInfo) => {
+      const s = bom.byHex[i.hex]?.state ?? 'noneBeforeSx';
+      return PENDING_BOM.includes(s) ? 0 : DONE_BOM.includes(s) ? 2 : 1;
+    };
     const need = (i: HexInfo) => bom.byHex[i.hex]?.needDate?.getTime() ?? Infinity;
     const seen = new Set<string>();
     return items
@@ -1593,7 +1601,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
           </div>
           <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4 xl:grid-cols-4">
             {LINE_STATES.map(s => (
-              <div key={s.key} className="flex cursor-help items-center gap-1.5" title={s.hint}>
+              <div key={s.key} className="flex cursor-help items-center gap-1.5" title={`${fmtInt(bom.lineCounts[s.key])} dòng PR — ${s.hint}`}>
                 <span className={`h-2 w-2 shrink-0 rounded-sm ${s.bar}`} />
                 <span className="truncate text-slate-600 underline decoration-dotted decoration-slate-300 underline-offset-2">{s.label}</span>
                 <span className="ml-auto font-semibold tabular-nums text-slate-800">{fmtInt(bom.lineCounts[s.key])}</span>
@@ -1603,7 +1611,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
           <p className="mt-2 text-[0.6875rem] text-slate-400">
             Nhóm theo cột Trạng thái của PR (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) và SL còn lại trên SAP.
             "Đã nhận đủ" = 3.ĐÃ NHẬP KHO và SL còn lại = 0; "PR đã đóng, chưa nhận đủ" = 3.ĐÃ NHẬP KHO nhưng PR đóng khi còn
-            thiếu (dùng tồn / đóng thiếu / CCLD). Còn chờ = Chưa mua + Đang mua (trễ / chưa tới hẹn). Rê chuột vào từng nhóm để xem chi tiết.
+            thiếu (dùng tồn / đóng thiếu / CCLD). Còn chờ = Chưa mua + Đang mua (trễ / về theo nhu cầu SX / chưa tới hẹn). Rê chuột vào từng nhóm để xem chi tiết.
           </p>
         </div>
       )}
@@ -1618,7 +1626,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
             </Chip>
           </span>
         ))}
-        <span title="Có dòng PR còn chờ sẽ về sau Ngày cần vật tư (chưa mua mà đã qua ngày cần, hoặc ngày dự kiến giao / hôm nay sau ngày cần)">
+        <span title="Có dòng PR còn chờ sẽ về sau Ngày cần vật tư (chưa mua mà đã qua ngày cần, hoặc ngày dự kiến giao / hôm nay sau ngày cần) — không tính hàng về theo nhu cầu SX / dùng tồn kho trước">
           <Chip active={filter === 'afterNeed'} tone="red" onClick={() => setFilter('afterNeed')}>
             <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />VT về sau ngày cần ({bom ? fmtInt(bom.afterNeed) : '…'})
           </Chip>

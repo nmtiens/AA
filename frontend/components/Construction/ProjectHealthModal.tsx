@@ -380,6 +380,21 @@ export const ProjectHealthModal: React.FC<Props> = ({
     () => analyzeBom(items, matCount, materialLines, today, materialIssues, nvlByHex),
     [items, matCount, materialLines, today, materialIssues, nvlByHex]
   );
+  // Số hạng mục chưa nhập kho đủ có ≥ 1 dòng PR ở nhóm đó — đếm theo TỪNG DÒNG (byLine), không theo trạng thái
+  // xấu nhất: hạng mục vừa có VT chưa mua vừa có VT trễ hẹn trước bị bỏ khỏi số "trễ hẹn" (CT24-066: 213 thay vì 225)
+  const bomLineHexes = useMemo(() => {
+    const out = { late: 0, deferred: 0 };
+    if (!bomDetail) return out;
+    const seen = new Set<string>();
+    for (const i of items) {
+      if (!i.open || seen.has(i.hex)) continue;
+      seen.add(i.hex);
+      const b = bomDetail.byHex[i.hex]?.byLine;
+      if ((b?.late ?? 0) > 0) out.late++;
+      if ((b?.deferred ?? 0) > 0) out.deferred++;
+    }
+    return out;
+  }, [bomDetail, items]);
 
   const projectMat = useMemo(() => summarizeProjectMaterial(projectLines, today), [projectLines, today]);
 
@@ -650,13 +665,15 @@ export const ProjectHealthModal: React.FC<Props> = ({
             <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 text-xs">
               <dt className="text-slate-500" title="Hạng mục chưa nhập kho đủ có ít nhất 1 dòng PR 1.CHƯA MUA">Hạng mục có VT chưa mua</dt>
               <dd className="text-right font-semibold tabular-nums text-rose-600">{bomDetail ? fmtInt(bomDetail.counts.notOrdered) : '…'}</dd>
-              <dt className="text-slate-500" title="Đang mua, đã quá ngày dự kiến giao mà chưa về đủ">Hạng mục có VT trễ hẹn giao</dt>
-              <dd className="text-right font-semibold tabular-nums text-orange-600">{bomDetail ? fmtInt(bomDetail.counts.late) : '…'}</dd>
+              <dt className="text-slate-500" title="Hạng mục chưa nhập kho đủ có ít nhất 1 dòng PR đang mua đã quá ngày dự kiến giao mà chưa về đủ (kể cả hạng mục đồng thời có VT chưa mua)">Hạng mục có VT trễ hẹn giao</dt>
+              <dd className="text-right font-semibold tabular-nums text-orange-600">{bomDetail ? fmtInt(bomLineHexes.late) : '…'}</dd>
+              <dt className="text-slate-500" title="Hạng mục chưa nhập kho đủ có dòng PR quá ngày dự kiến giao nhưng ghi chú về theo nhu cầu SX / dùng tồn kho trước">Hạng mục có VT về theo nhu cầu SX</dt>
+              <dd className="text-right tabular-nums text-yellow-700">{bomDetail ? fmtInt(bomLineHexes.deferred) : '…'}</dd>
               <dt className="text-slate-500" title="Có dòng PR còn chờ sẽ về sau Ngày cần vật tư">Hạng mục có VT về sau ngày cần</dt>
               <dd className="text-right font-semibold tabular-nums text-red-600">{bomDetail ? fmtInt(bomDetail.afterNeed) : '…'}</dd>
               <dt className="text-slate-500" title="PR thuộc công trình nhưng không ghi mã nhà máy => không gắn được hạng mục (xem tab BOM)">VT chung công trình (không mã)</dt>
               <dd className={`text-right tabular-nums ${projectMat && (projectMat.byState.notOrdered + projectMat.byState.late) > 0 ? 'font-semibold text-rose-600' : 'text-slate-700'}`}>
-                {!projectMat ? '…' : `${fmtInt(projectMat.lines)} dòng · ${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.late)} trễ`}
+                {!projectMat ? '…' : `${fmtInt(projectMat.lines)} dòng · ${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.late)} trễ · ${fmtInt(projectMat.byState.deferred)} theo nhu cầu SX`}
               </dd>
               <dt className="text-slate-500" title="Hạng mục chưa nhập kho đủ có gia công ngoài mà NCC chưa giao xong (tình trạng GCN chưa HOÀN THÀNH / HỦY) — xem tab BOP">Gia công ngoài còn chờ NCC</dt>
               <dd className={`text-right tabular-nums ${gcnPending ? 'font-semibold text-orange-600' : 'text-slate-700'}`}>

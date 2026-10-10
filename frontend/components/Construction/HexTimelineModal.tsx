@@ -372,9 +372,9 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     {bom ? (
                       <dl className="grid grid-cols-[1fr_auto] gap-y-1">
                         <dt className="text-slate-500">Số dòng PR</dt><dd className="text-right tabular-nums">{bom.lines || '—'}</dd>
-                        <dt className="text-slate-500">Chưa mua / trễ hẹn / chưa tới hẹn</dt>
+                        <dt className="text-slate-500">Chưa mua / trễ hẹn / theo nhu cầu SX / chưa tới hẹn</dt>
                         <dd className="text-right tabular-nums">
-                          <span className="text-rose-600">{bom.byLine.notOrdered ?? 0}</span> / <span className="text-orange-600">{bom.byLine.late ?? 0}</span> / {bom.byLine.onTrack ?? 0}
+                          <span className="text-rose-600">{bom.byLine.notOrdered ?? 0}</span> / <span className="text-orange-600">{bom.byLine.late ?? 0}</span> / <span className="text-yellow-700">{bom.byLine.deferred ?? 0}</span> / {bom.byLine.onTrack ?? 0}
                         </dd>
                         <dt className="text-slate-500">Ngày cần VT · dự kiến giao PMH</dt>
                         <dd className="text-right tabular-nums">{fmtDate(bom.needDate)} · {fmtDate(bom.dueDate)}</dd>
