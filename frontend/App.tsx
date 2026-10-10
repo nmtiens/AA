@@ -22,12 +22,14 @@ import { DataUpdateLogModal } from './components/Dashboard/components/modals/Dat
 import { ModalShell } from './components/shared/ModalShell';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
-const Dashboard = lazy(() => import('./components/Dashboard'));
+const loadDashboardPage = () => import('./components/Dashboard');
+const Dashboard = lazy(loadDashboardPage);
 const DataGrid = lazy(() => import('./components/DataGrid'));
 const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
-const ConstructionOverview = lazy(() => import('./components/Construction/ConstructionOverview'));
+const loadConstructionPage = () => import('./components/Construction/ConstructionOverview');
+const ConstructionOverview = lazy(loadConstructionPage);
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
 const WorkshopGroupSetup = lazy(() => import('./components/Construction/WorkshopGroupSetup'));
 import type { SetupTab } from './components/Setup/DataSetupPage';
@@ -39,10 +41,11 @@ const HexLookup = lazy(() => import('./components/Mobile/HexLookup'));
 // Màn quản lý vướng mắc sản xuất (desktop) — dùng chung sheet chi tiết với app điện thoại
 const VuongMacManager = lazy(() => import('./components/VuongMac/VuongMacManager'));
 
-// Vòng chờ trong vùng nội dung (giữ menu)
-const ContentLoader = () => (
-  <div className="h-full flex items-center justify-center">
+// Vòng chờ trong vùng nội dung (giữ menu); label = đang làm bước nào (đọc dữ liệu đã lưu / tính số liệu...)
+const ContentLoader: React.FC<{ label?: string }> = ({ label }) => (
+  <div className="h-full flex flex-col items-center justify-center gap-3">
     <div className="w-7 h-7 border-[3px] border-slate-200 border-t-wood-600 rounded-full animate-spin"></div>
+    {label && <p className="text-sm text-slate-500">{label}</p>}
   </div>
 );
 
@@ -84,6 +87,11 @@ const tablesForPath = (path: string): string[] => {
   if (path === '/cong-trinh/tong-quan') return ['production', 'inventory'];
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
   return ALL_TABLE_ENDPOINTS;
+};
+// File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
+const preloadPageChunk = (path: string) => {
+  if (path === '/') loadDashboardPage();
+  else if (path === CONSTRUCTION_PATH) loadConstructionPage();
 };
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
@@ -425,6 +433,9 @@ const MainLayout: React.FC = () => {
   const [attendanceData, setAttendanceData] = useState<DataRow[]>([]); const [attendanceColumns, setAttendanceColumns] = useState<ColumnDefinition[]>([]);
 
   const [loading, setLoading] = useState(true);
+  // Lần đầu trang cần bảng chưa nạp: hiện vòng chờ có chữ (đang làm gì) thay cho trang trống / số 0 rồi đứng hình
+  // (tables = các bảng đang nạp: chỉ chặn trang cần tới chúng — chuyển sang trang khác giữa chừng vẫn hiện ngay)
+  const [loadStage, setLoadStage] = useState<{ label: string; tables: string[] } | null>(null);
   const [error] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -643,9 +654,19 @@ const MainLayout: React.FC = () => {
     fresh.forEach(e => activeTablesRef.current.add(e));
     if (fresh.length === 0) { setLoading(false); return; }
     setLoading(true);
+    const stage = (label: string) => setLoadStage({ label, tables: fresh });
+    // Chỉ xoá vòng chờ của lượt nạp này (lượt nạp khác của trang mới có thể đang chạy)
+    const clearStage = () => setLoadStage(s => (s?.tables === fresh ? null : s));
+    stage('Đang đọc dữ liệu đã lưu trên máy…');
+    preloadPageChunk(pathnameRef.current);
     const cached = await Promise.all(fresh.map(e => getCachedData(e)));
     // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
     await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
+    if (!mountedRef.current) return;
+    const missing = fresh.some((_, i) => !cached[i]?.data);
+    // Áp dữ liệu => trang tính toàn bộ số liệu (vài giây, màn hình đứng yên): vẽ chữ "Đang tính" trước rồi mới áp
+    stage(missing ? 'Đang tải dữ liệu từ máy chủ…' : 'Đang tính số liệu…');
+    await new Promise(r => setTimeout(r, 30));
     if (!mountedRef.current) return;
     fresh.forEach((e, i) => {
       const c = cached[i];
@@ -656,7 +677,9 @@ const MainLayout: React.FC = () => {
       }
     });
     setLoading(false);
-    await checkAndSync();
+    // Thiếu bảng trong cache (lần đầu dùng máy này / vừa xoá cache): giữ vòng chờ tới khi tải xong từ máy chủ
+    if (!missing) clearStage();
+    try { await checkAndSync(); } finally { if (missing && mountedRef.current) clearStage(); }
   };
   // Chuyển trang: nạp thêm bảng trang mới cần (bảng đã nạp giữ nguyên)
   useEffect(() => {
@@ -1082,9 +1105,11 @@ const MainLayout: React.FC = () => {
           /* HIỂN THỊ LUÔN OUTLET (Giao diện trang con), không chặn chờ data nữa.
              Tải file JS của trang (lazy): vòng chờ chỉ trong vùng nội dung, menu / khung giữ nguyên
              (trước dùng Suspense ngoài cùng => mỗi lần đổi trang cả màn hình thành vòng xoay) */
-          <Suspense fallback={<ContentLoader />}>
-            <Outlet key={refreshKey} context={contextValue} />
-          </Suspense>
+          loadStage && tablesForPath(location.pathname).some(t => loadStage.tables.includes(t)) ? <ContentLoader label={loadStage.label} /> : (
+            <Suspense fallback={<ContentLoader label="Đang mở trang…" />}>
+              <Outlet key={refreshKey} context={contextValue} />
+            </Suspense>
+          )
         )}
       </main>
 
