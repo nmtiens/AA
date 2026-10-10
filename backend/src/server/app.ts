@@ -108,7 +108,10 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // — lần nạp đầu ~2-3 giây, không để đăng nhập / thông báo / người dùng... chờ theo.
 // cron (quét hạn BOT) và warmup (cache all-data + stock/dates không lọc) không dùng tên công trình.
 // Sau lần nạp đầu, ensureProjectAliases chỉ so mốc thời gian (làm mới nền) => không tốn thêm thời gian.
-const PROJECT_ALIAS_WAIT_MS = 1500;
+// Không chờ bảng tên công trình: chờ (dù 1,5 giây) làm mọi API chậm thêm khi instance Vercel mới khởi động, trong
+// khi lần nạp đầu trên prod mất tới ~28 giây. Kết quả tính lúc chưa có bảng tên không bị giữ lâu: khoá cache
+// gồm projectAliasesVersion.
+const PROJECT_ALIAS_WAIT_MS = 0;
 const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup)(\/|$)/i;
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
@@ -120,11 +123,12 @@ app.use(async (req: Request, _res: Response, next: NextFunction) => {
       // Chờ tối đa PROJECT_ALIAS_WAIT_MS: trên Vercel lần nạp đầu của instance mới có lúc ~28 giây (query nối
       // 8 bảng qua HEX khi DB đang bận) => mọi API số liệu treo theo. Quá hạn thì chạy luôn (nạp tiếp ở nền) —
       // kết quả tính khi chưa có bảng tên không bị giữ lâu vì khoá cache gồm projectAliasesVersion (server/cache.ts).
+      // Đã nạp xong ít nhất 1 lần (instance ấm) => ensureProjectAliases chỉ so mốc thời gian, trả ngay. Instance mới:
+      // chỉ chờ PROJECT_ALIAS_WAIT_MS (mặc định 0 = không chờ, nạp nền).
       try {
-        await Promise.race([
-          ensureProjectAliases(),
-          new Promise(resolve => setTimeout(resolve, PROJECT_ALIAS_WAIT_MS)),
-        ]);
+        await (PROJECT_ALIAS_WAIT_MS > 0
+          ? Promise.race([ensureProjectAliases(), new Promise(resolve => setTimeout(resolve, PROJECT_ALIAS_WAIT_MS))])
+          : (ensureProjectAliases().catch(() => { /* giữ bảng cũ */ }), Promise.resolve()));
       } catch { /* giữ bảng cũ */ }
     }
   }

@@ -556,6 +556,8 @@ const MainLayout: React.FC = () => {
         // Chỉ tải các bảng cần cập nhật (đổi phiên bản / chưa có cache), không tải lại cả 12 bảng
         const allData = await fetchAllDataFromServer(toUpdate.map(cfg => cfg.endpoint));
         if (!allData) ok = false;
+        // Bảng thuộc nhóm tải lỗi không có trong kết quả: giữ phiên bản cũ => lần đồng bộ sau tự tải lại riêng bảng đó
+        if (allData && toUpdate.some(cfg => !allData[cfg.endpoint])) ok = false;
         if (allData) {
           for (const cfg of toUpdate) {
             const res = allData[cfg.endpoint];

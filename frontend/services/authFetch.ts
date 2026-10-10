@@ -15,8 +15,8 @@ const isSameOriginApi = (url: string): URL | null => {
 
 // Giới hạn số request /api/* chạy cùng lúc. Lúc đăng nhập / mở trang, giao diện bắn ~20 request một lượt; trên
 // Vercel mỗi request đang chạy thường cần 1 instance riêng, mỗi instance mở kết nối DB riêng => vượt trần pooler
-// ("no more connections allowed (max_client_conn)") => hàng loạt 500. Request thứ 7 trở đi xếp hàng chờ.
-const MAX_API_CONCURRENCY = 6;
+// ("no more connections allowed (max_client_conn)") => hàng loạt 500. Request thứ 9 trở đi xếp hàng chờ.
+const MAX_API_CONCURRENCY = 8;
 let apiActive = 0;
 const apiQueue: Array<() => void> = [];
 const acquireApiSlot = () => new Promise<void>(resolve => {

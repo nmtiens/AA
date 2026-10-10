@@ -44429,9 +44429,10 @@ var pool = new Pool({
   max: 2,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1e4,
-  // Trả connection rảnh về pooler sau 5 giây: trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
+  // Trả connection rảnh về pooler sau 30 giây (5 giây khiến gần như request nào cũng mở lại kết nối SSL mới,
+  // chậm thêm vài trăm ms; pooler đầy thoáng qua đã có thử lại ở connectWithRetry): trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
   // instance cùng giữ chỗ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500.
-  idleTimeoutMillis: 5e3,
+  idleTimeoutMillis: 3e4,
   connectionTimeoutMillis: 15e3,
   application_name: "vercel-backend",
   // Không đặt statement_timeout ở đây: pg gửi nó trong StartupMessage và
@@ -44925,7 +44926,7 @@ app.use((req, res, next) => {
   if (PUBLIC_API_PATHS.has(path.replace(/\/+$/, "")) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateActiveUser(req, res, next);
 });
-var PROJECT_ALIAS_WAIT_MS = 1500;
+var PROJECT_ALIAS_WAIT_MS = 0;
 var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup)(\/|$)/i;
 app.use(async (req, _res, next) => {
   const path = req.path.toLowerCase();
@@ -44939,10 +44940,8 @@ app.use(async (req, _res, next) => {
       });
     } else {
       try {
-        await Promise.race([
-          ensureProjectAliases(),
-          new Promise((resolve) => setTimeout(resolve, PROJECT_ALIAS_WAIT_MS))
-        ]);
+        await (PROJECT_ALIAS_WAIT_MS > 0 ? Promise.race([ensureProjectAliases(), new Promise((resolve) => setTimeout(resolve, PROJECT_ALIAS_WAIT_MS))]) : (ensureProjectAliases().catch(() => {
+        }), Promise.resolve()));
       } catch {
       }
     }

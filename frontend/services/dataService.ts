@@ -316,17 +316,26 @@ export const fetchAllDataFromServer = async (
     const worker = async () => {
       while (next < groups.length) {
         const g = groups[next++];
-        const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(g.join(','))}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(`Failed to fetch all-data (${g.join(',')}): ${response.status} ${response.statusText}`);
-        const part = await response.json();
-        g.forEach(key => { raw[key] = part[key] || []; });
+        // Nhóm lỗi thì bỏ qua (ghi log) — các nhóm khác vẫn trả về để lưu cache; trước 1 nhóm lỗi là bỏ cả kết quả,
+        // lần mở sau lại tải lại từ đầu ~10 MB
+        try {
+          const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(g.join(','))}`, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+          const part = await response.json();
+          g.forEach(key => { raw[key] = part[key] || []; });
+        } catch (e) {
+          console.error(`Error fetching /api/all-data (${g.join(',')}):`, e);
+        }
       }
     };
     await Promise.all(Array.from({ length: Math.min(ALL_DATA_CONCURRENCY, groups.length) }, worker));
 
+    if (Object.keys(raw).length === 0) return null; // không nhóm nào tải được
     const result: Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> = {};
     Object.entries(ALL_DATA_ENDPOINT_MAP).forEach(([key, endpoint]) => {
       if (keys && !keys.includes(key)) return;
+      // Bảng thuộc nhóm lỗi: không trả => App không lưu phiên bản mới, lần đồng bộ sau tự tải lại riêng bảng đó
+      if (!Object.prototype.hasOwnProperty.call(raw, key)) return;
       const rows: DataRow[] = raw[key] || [];
       result[endpoint] = { data: rows, columns: buildColumnsFromData(rows) };
     });
