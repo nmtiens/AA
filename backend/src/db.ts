@@ -48,6 +48,35 @@ pool.on('error', (err) => {
   console.error('Unexpected DB error on idle client:', err);
 });
 
+// Pooler (PgBouncer) báo đầy lúc mở kết nối — "no more connections allowed (max_client_conn)" / "too many
+// clients": thường chỉ thoáng qua khi nhiều instance Vercel cùng khởi động. Thử lại tối đa 4 lần (chờ tăng dần,
+// tổng ~3 giây) thay vì trả 500 ngay. Bọc pool.connect nên áp cho cả pool.query, timedQuery, withTransaction.
+const isPoolerFull = (err: unknown) =>
+  /max_client_conn|too many clients|remaining connection slots/i.test(String((err as Error)?.message ?? err));
+const CONNECT_RETRY_DELAYS_MS = [250, 500, 900, 1400];
+const rawConnect = pool.connect.bind(pool) as () => Promise<PoolClient>;
+const connectWithRetry = async (): Promise<PoolClient> => {
+  for (let i = 0; ; i++) {
+    try {
+      return await rawConnect();
+    } catch (err) {
+      if (!isPoolerFull(err) || i >= CONNECT_RETRY_DELAYS_MS.length) throw err;
+      await new Promise(r => setTimeout(r, CONNECT_RETRY_DELAYS_MS[i]));
+    }
+  }
+};
+// pg-pool gọi this.connect(cb) (kiểu callback) bên trong pool.query; code dự án gọi kiểu promise
+(pool as unknown as { connect: unknown }).connect = (cb?: (err: Error | undefined, client?: PoolClient, done?: PoolClient["release"]) => void) => {
+  if (typeof cb === 'function') {
+    connectWithRetry().then(
+      client => cb(undefined, client, client.release),
+      err => cb(err as Error),
+    );
+    return undefined;
+  }
+  return connectWithRetry();
+};
+
 // ============================================================================
 // Semaphore: giới hạn số query "nặng" chạy đồng thời trên mỗi instance,
 // để luôn còn connection trống cho các request nhẹ.

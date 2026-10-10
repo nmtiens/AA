@@ -44449,6 +44449,29 @@ pool.on("connect", (client) => {
 pool.on("error", (err) => {
   console.error("Unexpected DB error on idle client:", err);
 });
+var isPoolerFull = (err) => /max_client_conn|too many clients|remaining connection slots/i.test(String(err?.message ?? err));
+var CONNECT_RETRY_DELAYS_MS = [250, 500, 900, 1400];
+var rawConnect = pool.connect.bind(pool);
+var connectWithRetry = async () => {
+  for (let i = 0; ; i++) {
+    try {
+      return await rawConnect();
+    } catch (err) {
+      if (!isPoolerFull(err) || i >= CONNECT_RETRY_DELAYS_MS.length) throw err;
+      await new Promise((r) => setTimeout(r, CONNECT_RETRY_DELAYS_MS[i]));
+    }
+  }
+};
+pool.connect = (cb) => {
+  if (typeof cb === "function") {
+    connectWithRetry().then(
+      (client) => cb(void 0, client, client.release),
+      (err) => cb(err)
+    );
+    return void 0;
+  }
+  return connectWithRetry();
+};
 var Semaphore = class {
   constructor(max) {
     this.max = max;
