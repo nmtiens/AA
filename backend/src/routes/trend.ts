@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
 import { workshopCondition, workshopGroupSql, workshopGroupOf, workshopGroupsVersion } from '../server/workshopGroups.js';
-import { canonicalProjectName } from '../server/projectAlias.js';
+import { canonicalProjectName, normNameSql } from '../server/projectAlias.js';
 import { createCache, cachedByVersions, queryKey, type VersionedCache } from '../server/cache.js';
 import { app } from '../server/app.js';
 
@@ -433,13 +433,15 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
     const q = `
       ${withClause}
       SELECT
-        COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Chưa xác định') AS cong_trinh,
+        -- Gom theo tên đã chuẩn hoá (hoa/thường, khoảng trắng) như khi lọc / xem chi tiết: trước gom theo tên gốc
+        -- => "ABC X" và "abc x" thành 2 cột, bấm 1 cột thì chi tiết ra cả 2 (lớn hơn cột), HEX đếm 2 lần
+        COALESCE(NULLIF(MIN(TRIM(${colBare(cfg.congTrinhCol)})), ''), 'Chưa xác định') AS cong_trinh,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}
       ${joinClause}
       WHERE ${conditions.join(' AND ')}
-      GROUP BY 1
+      GROUP BY ${normNameSql(colBare(cfg.congTrinhCol))}
       ORDER BY total_value DESC
     `;
     const r = await timedQuery(q, params, { workMemMb: 32 });

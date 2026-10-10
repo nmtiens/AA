@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { formatDecimal, formatInteger } from '../../utils/numberParsers';
 import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
-import { getWeekRange2026 } from '../../../../utils/dateUtils';
+import { planWeekRange } from '../../../../utils/dateUtils';
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { WeeklyVennDiagram } from '../shared/WeeklyVennDiagram';
 import { ProjectChartTooltip } from '../shared/tooltips/ProjectChartTooltip';
@@ -495,7 +495,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           {(() => {
                             const w = parseInt(unifiedTimeFilters.tuan[0] || '0');
                             if (!w) return 'KẾ HOẠCH-THỰC HIỆN TUẦN';
-                            const { start, end } = getWeekRange2026(w);
+                            const { start, end } = planWeekRange(parseInt(unifiedTimeFilters.nam[0] || '') || new Date().getFullYear(), w);
                             const fmt = (d: Date) =>
                               `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
                             return `KẾ HOẠCH-THỰC HIỆN TUẦN ${w} (từ ${fmt(start)} đến ${fmt(end)})`;

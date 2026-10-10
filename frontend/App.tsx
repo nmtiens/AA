@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory } from 'lucide-react';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -90,8 +90,9 @@ const tablesForPath = (path: string): string[] => {
 };
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
-  if (path === '/') loadDashboardPage();
-  else if (path === CONSTRUCTION_PATH) loadConstructionPage();
+  // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazy() tự tải lại và báo lỗi nếu có
+  if (path === '/') loadDashboardPage().catch(() => {});
+  else if (path === CONSTRUCTION_PATH) loadConstructionPage().catch(() => {});
 };
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
@@ -435,7 +436,10 @@ const MainLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
   // Lần đầu trang cần bảng chưa nạp: hiện vòng chờ có chữ (đang làm gì) thay cho trang trống / số 0 rồi đứng hình
   // (tables = các bảng đang nạp: chỉ chặn trang cần tới chúng — chuyển sang trang khác giữa chừng vẫn hiện ngay)
-  const [loadStage, setLoadStage] = useState<{ label: string; tables: string[] } | null>(null);
+  // Nhiều lượt nạp có thể chạy cùng lúc (chuyển trang giữa chừng) => giữ danh sách, mỗi lượt tự xoá phần của mình
+  const [loadStages, setLoadStages] = useState<{ label: string; tables: string[] }[]>([]);
+  // Số lượt nạp bảng đang chạy: chỉ tắt trạng thái "đang tải" khi không còn lượt nạp / đồng bộ nào
+  const pendingLoadsRef = useRef(0);
   const [error] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -471,6 +475,11 @@ const MainLayout: React.FC = () => {
   // Lúc mở app: dữ liệu (đọc từ cache trình duyệt) chỉ áp vào trang SAU KHI 3 thứ nhỏ này về (tối đa
   // META_WAIT_MS) — mỗi thứ về sau dữ liệu đều làm mọi trang tính lại toàn bộ 1 lượt (trước 3 lượt / lần mở)
   const metaReadyRef = useRef<Promise<unknown>>(Promise.resolve());
+  // Bảng tên công trình: instance server mới có thể trả rỗng (chưa nạp xong) => thử lại sau 20 giây, tối đa 3 lần
+  const loadProjectAliases = (attempt = 0): Promise<void> => fetchProjectAliases().then(d => {
+    if (d.length > 0) { setServerProjectAliases(d); setAliasVersion(v => v + 1); return; }
+    if (attempt < 3) setTimeout(() => { if (mountedRef.current) void loadProjectAliases(attempt + 1); }, 20000);
+  });
   useEffect(() => {
     if (!user) return;
     loadViewMapping();
@@ -479,7 +488,7 @@ const MainLayout: React.FC = () => {
       loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
       fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
       // Bảng tên công trình của server -> lọc theo công trình phía máy khớp server (đổi version để tính lại)
-      fetchProjectAliases().then(d => { setServerProjectAliases(d); setAliasVersion(v => v + 1); }),
+      loadProjectAliases(),
     ]);
   }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -524,13 +533,20 @@ const MainLayout: React.FC = () => {
   // Lượt đồng bộ đang chạy (nếu có). Đồng bộ được gọi từ 3 nơi: hẹn giờ 60s, khi quay lại
   // tab, và nút "Làm mới" — không chặn thì có thể cùng lúc tải /api/all-data nhiều lần.
   const syncInFlightRef = useRef<Promise<boolean> | null>(null);
+  // Các bảng lượt đồng bộ gần nhất đã xét (để biết lượt đang chạy có gồm bảng trang mới cần hay không)
+  const syncCoveredRef = useRef<Set<string>>(new Set());
+  const settleLoading = () => { if (pendingLoadsRef.current === 0 && !syncInFlightRef.current) setLoading(false); };
 
   // Trả về true nếu đồng bộ thành công, false nếu có lỗi (dùng để báo cho người dùng khi bấm Làm mới)
   const checkAndSync = async (forceAll = false): Promise<boolean> => {
-    if (syncInFlightRef.current) {
-      // Lượt thường: dùng chung kết quả lượt đang chạy. "Làm mới" (forceAll): chờ xong rồi tải lại.
-      if (!forceAll) return syncInFlightRef.current;
-      await syncInFlightRef.current.catch(() => false);
+    // Lượt thường: dùng chung kết quả lượt đang chạy NẾU lượt đó đã xét mọi bảng đang dùng — trang vừa mở thêm
+    // bảng giữa chừng thì chờ xong rồi chạy lượt mới (trước bảng mới phải chờ tới lần hẹn giờ 60 giây).
+    // "Làm mới" (forceAll): chờ xong rồi tải lại.
+    let awaited: Promise<boolean> | null = null;
+    while (syncInFlightRef.current && syncInFlightRef.current !== awaited) {
+      awaited = syncInFlightRef.current;
+      const r = await awaited.catch(() => false);
+      if (!forceAll && [...activeTablesRef.current].every(t => syncCoveredRef.current.has(t))) return r;
     }
     const run = runSync(forceAll);
     syncInFlightRef.current = run;
@@ -538,18 +554,25 @@ const MainLayout: React.FC = () => {
       return await run;
     } finally {
       if (syncInFlightRef.current === run) syncInFlightRef.current = null;
+      settleLoading();
     }
   };
 
   // Lưu ý: hàm này được hẹn giờ (setInterval) giữ lại từ lần render đầu, nên KHÔNG được đọc
   // state trực tiếp (sẽ là giá trị cũ) — chỉ dùng setter, ref và cập nhật dạng hàm.
   const runSync = async (forceAll: boolean): Promise<boolean> => {
+    // Cache bị xoá (đăng xuất / đổi người dùng) trong lúc đang tải => bỏ kết quả lượt này: dữ liệu đã lọc theo
+    // quyền của người cũ không được ghi vào cache / áp cho người mới
+    const gen = getCacheGeneration();
+    const stale = () => !mountedRef.current || gen !== getCacheGeneration();
     try {
       if (activeTablesRef.current.size === 0) return true; // trang hiện tại không dùng bảng nào
       const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
       if (!verRes.ok) return false;
 
       const serverVersions = await verRes.json();
+      if (stale()) return false;
+      syncCoveredRef.current = new Set(activeTablesRef.current);
 
       // Danh sách endpoint + setter, dùng để biết bảng nào cần cập nhật
       const tableConfigs: { endpoint: string; verKey: string; setData: Function; setCols: Function }[] = [
@@ -605,6 +628,7 @@ const MainLayout: React.FC = () => {
       if (toUpdate.length > 0) {
         // Chỉ tải các bảng cần cập nhật (đổi phiên bản / chưa có cache), không tải lại cả 12 bảng
         const allData = await fetchAllDataFromServer(toUpdate.map(cfg => cfg.endpoint));
+        if (stale()) return false;
         if (!allData) ok = false;
         // Bảng thuộc nhóm tải lỗi không có trong kết quả: giữ phiên bản cũ => lần đồng bộ sau tự tải lại riêng bảng đó
         if (allData && toUpdate.some(cfg => !allData[cfg.endpoint])) ok = false;
@@ -615,7 +639,7 @@ const MainLayout: React.FC = () => {
               cfg.setData(res.data);
               cfg.setCols(res.columns);
               const serverVer = String(serverVersions[cfg.verKey] || '0');
-              await saveToCache(cfg.endpoint, serverVer, res);
+              await saveToCache(cfg.endpoint, serverVer, res, gen);
               tableVersions.current[cfg.endpoint] = serverVer;
               dataLoadedRef.current[cfg.endpoint] = true;
               hasAnyUpdate = true;
@@ -633,13 +657,16 @@ const MainLayout: React.FC = () => {
     } catch (err) {
       console.error("Lỗi đồng bộ ngầm:", err);
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
   const pathnameRef = useRef(location.pathname);
   pathnameRef.current = location.pathname;
+  // Vòng chờ của lượt nạp có bảng trang hiện tại cần (lượt mới nhất); trang không cần bảng đang nạp hiện ngay
+  const activeStage = (() => {
+    const need = tablesForPath(location.pathname);
+    return [...loadStages].reverse().find(st => st.tables.some(t => need.includes(t))) ?? null;
+  })();
   // Setter theo bảng — dùng khi áp cache cho các bảng vừa có trang cần
   const tableSetters: Record<string, [Function, Function]> = {
     production: [setProductionData, setProductionColumns], material: [setMaterialData, setMaterialColumns],
@@ -652,34 +679,41 @@ const MainLayout: React.FC = () => {
   const loadTables = async (endpoints: string[]) => {
     const fresh = endpoints.filter(e => !activeTablesRef.current.has(e));
     fresh.forEach(e => activeTablesRef.current.add(e));
-    if (fresh.length === 0) { setLoading(false); return; }
+    if (fresh.length === 0) { settleLoading(); return; }
+    pendingLoadsRef.current++;
     setLoading(true);
-    const stage = (label: string) => setLoadStage({ label, tables: fresh });
+    const stage = (label: string) => setLoadStages(list => [...list.filter(s => s.tables !== fresh), { label, tables: fresh }]);
     // Chỉ xoá vòng chờ của lượt nạp này (lượt nạp khác của trang mới có thể đang chạy)
-    const clearStage = () => setLoadStage(s => (s?.tables === fresh ? null : s));
-    stage('Đang đọc dữ liệu đã lưu trên máy…');
-    preloadPageChunk(pathnameRef.current);
-    const cached = await Promise.all(fresh.map(e => getCachedData(e)));
-    // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
-    await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
-    if (!mountedRef.current) return;
-    const missing = fresh.some((_, i) => !cached[i]?.data);
-    // Áp dữ liệu => trang tính toàn bộ số liệu (vài giây, màn hình đứng yên): vẽ chữ "Đang tính" trước rồi mới áp
-    stage(missing ? 'Đang tải dữ liệu từ máy chủ…' : 'Đang tính số liệu…');
-    await new Promise(r => setTimeout(r, 30));
-    if (!mountedRef.current) return;
-    fresh.forEach((e, i) => {
-      const c = cached[i];
-      if (c?.data) {
-        tableSetters[e][0](c.data);
-        tableSetters[e][1](c.columns);
-        dataLoadedRef.current[e] = true;
-      }
-    });
-    setLoading(false);
-    // Thiếu bảng trong cache (lần đầu dùng máy này / vừa xoá cache): giữ vòng chờ tới khi tải xong từ máy chủ
-    if (!missing) clearStage();
-    try { await checkAndSync(); } finally { if (missing && mountedRef.current) clearStage(); }
+    const clearStage = () => setLoadStages(list => list.filter(s => s.tables !== fresh));
+    try {
+      stage('Đang đọc dữ liệu đã lưu trên máy…');
+      preloadPageChunk(pathnameRef.current);
+      const cached = await Promise.all(fresh.map(e => getCachedData(e)));
+      // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
+      await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
+      if (!mountedRef.current) return;
+      const missing = fresh.some((_, i) => !cached[i]?.data);
+      // Áp dữ liệu => trang tính toàn bộ số liệu (vài giây, màn hình đứng yên): vẽ chữ "Đang tính" trước rồi mới áp
+      stage(missing ? 'Đang tải dữ liệu từ máy chủ…' : 'Đang tính số liệu…');
+      await new Promise(r => setTimeout(r, 30));
+      if (!mountedRef.current) return;
+      fresh.forEach((e, i) => {
+        const c = cached[i];
+        // Bảng đã được lượt đồng bộ khác tải bản mới trong lúc chờ => không đè bằng bản cache cũ vừa đọc
+        if (c?.data && !dataLoadedRef.current[e]) {
+          tableSetters[e][0](c.data);
+          tableSetters[e][1](c.columns);
+          dataLoadedRef.current[e] = true;
+        }
+      });
+      // Thiếu bảng trong cache (lần đầu dùng máy này / vừa xoá cache): giữ vòng chờ tới khi tải xong từ máy chủ
+      if (!missing) clearStage();
+      const ok = await checkAndSync();
+      if (missing && !ok && mountedRef.current) showToast('Chưa tải được dữ liệu, hệ thống sẽ tự thử lại sau ít phút', 'error');
+    } finally {
+      pendingLoadsRef.current--;
+      if (mountedRef.current) { clearStage(); settleLoading(); }
+    }
   };
   // Chuyển trang: nạp thêm bảng trang mới cần (bảng đã nạp giữ nguyên)
   useEffect(() => {
@@ -1105,7 +1139,7 @@ const MainLayout: React.FC = () => {
           /* HIỂN THỊ LUÔN OUTLET (Giao diện trang con), không chặn chờ data nữa.
              Tải file JS của trang (lazy): vòng chờ chỉ trong vùng nội dung, menu / khung giữ nguyên
              (trước dùng Suspense ngoài cùng => mỗi lần đổi trang cả màn hình thành vòng xoay) */
-          loadStage && tablesForPath(location.pathname).some(t => loadStage.tables.includes(t)) ? <ContentLoader label={loadStage.label} /> : (
+          activeStage ? <ContentLoader label={activeStage.label} /> : (
             <Suspense fallback={<ContentLoader label="Đang mở trang…" />}>
               <Outlet key={refreshKey} context={contextValue} />
             </Suspense>

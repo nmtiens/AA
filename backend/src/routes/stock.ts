@@ -188,13 +188,13 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
 
     const q = `
       ${cteClause}
-      SELECT COALESCE(NULLIF(TRIM(s.ten_cong_trinh), ''), 'Chưa xác định') AS name,
+      SELECT COALESCE(NULLIF(MIN(TRIM(s.ten_cong_trinh)), ''), 'Chưa xác định') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
       FROM ton_kho s
       ${joinClause}
       WHERE ${conds.join(' AND ')}
-      GROUP BY 1
+      GROUP BY ${normNameSql('s.ten_cong_trinh')} -- tên chuẩn hoá như khi lọc / xem chi tiết
       ORDER BY value DESC
     `;
     const r = await timedQuery(q, params);

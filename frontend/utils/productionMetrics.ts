@@ -365,15 +365,19 @@ export const materialLineState = (r: MaterialLineFields, today = todayStart()): 
   const st = String(r.trang_thai ?? '').toUpperCase();
   const sap = String(r.trang_thai_sap ?? '').toUpperCase();
   if (st.includes('HỦY') || sap.includes('HỦY')) return 'cancelled';
-  if (!(Number(r.so_luong_con_lai) > 0)) return 'done';
+  // SL còn lại trống: dòng 1.CHƯA MUA vẫn là chưa mua (trước thành "đã nhận đủ" => không tính thiếu); dòng khác như cũ.
+  // Đọc số bằng parseNumber như các chỗ khác (Number("1,200") = NaN => trước cũng thành "đã nhận đủ")
+  const conLai = r.so_luong_con_lai;
+  if (conLai == null || String(conLai).trim() === '') return st.includes('CHƯA MUA') ? 'notOrdered' : 'done';
+  if (!(parseNumber(conLai as string | number) > 0)) return 'done';
   // 3.ĐÃ NHẬP KHO / PR đã đóng xét TRƯỚC CCLD: trạng thái chung đã là "đã nhập kho" thì không xếp lại thành
   // CCLD (trước 659 dòng 3.ĐÃ NHẬP KHO có ghi chú CCLD bị đưa về nhóm CCLD)
   if (sap.includes('ĐÓNG') || st.includes('ĐÃ NHẬP KHO') || sap.includes('HOÀN THÀNH')) return 'closedShort';
   // Nhãn 1.CHƯA MUA xét TRƯỚC CCLD: dòng chưa mua vẫn tính là thiếu dù có ghi chú CCLD (~596 dòng)
   if (st.includes('CHƯA MUA')) return 'notOrdered';
   if (isCcldLine(r)) return 'ccld';
-  const yc = Number(r.so_luong_yeu_cau);
-  const khoBao = Number(r.sl_hang_ve_thuc_te);
+  const yc = parseNumber(r.so_luong_yeu_cau as string | number | null | undefined);
+  const khoBao = parseNumber(r.sl_hang_ve_thuc_te as string | number | null | undefined);
   // Kho báo về đủ. Bỏ qua số kho báo lớn bất thường (> 1,5 lần SL yêu cầu): kho ghi theo đơn vị khác
   // (vd. gỗ M3: PR 15 M3 mà kho ghi 7.249) — trước các dòng này bị xếp nhầm "kho báo về, chờ nhập SAP"
   if (yc > 0 && khoBao >= yc && khoBao <= yc * KHO_BAO_MAX_RATIO) return 'arrived';

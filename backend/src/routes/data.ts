@@ -8,7 +8,7 @@ import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
-import { listProjectAliases } from '../server/projectAlias.js';
+import { ensureProjectAliases, listProjectAliases } from '../server/projectAlias.js';
 import { parseQcEntries, summarizeQc } from '../server/qc.js';
 import { createGzip } from 'zlib';
 
@@ -297,7 +297,14 @@ app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
 // Cache theo phiên bản bảng sản xuất + nhập kho (trước giữ 10 phút cố định => sau ETL vẫn trả số cũ)
 const planMetCache = createCache<{ tuan: string[]; thang: string[] }>(1);
 // Tên phụ -> tên chuẩn công trình (xem server/projectAlias.listProjectAliases)
-app.get('/api/project-aliases', (_req: Request, res: Response) => {
+// Instance mới (bảng tên chưa nạp, middleware không chờ) => chờ nạp tối đa 10 giây rồi mới trả: trước trả ngay []
+// và giao diện chỉ hỏi 1 lần mỗi phiên => lọc theo công trình ở máy thiếu tên phụ tới khi "Làm mới".
+const PROJECT_ALIAS_ROUTE_WAIT_MS = 10000;
+app.get('/api/project-aliases', async (_req: Request, res: Response) => {
+  await Promise.race([
+    ensureProjectAliases().catch(() => { /* giữ bảng cũ */ }),
+    new Promise(resolve => setTimeout(resolve, PROJECT_ALIAS_ROUTE_WAIT_MS)),
+  ]);
   res.json(listProjectAliases());
 });
 

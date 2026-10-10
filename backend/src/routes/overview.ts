@@ -254,11 +254,13 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
 
       const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
       const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
-      const outerLo = periodCond === 'TRUE' ? '1900-01-01' : loCandidates.sort()[0];
-      const outerHi = hiCandidates.sort().slice(-1)[0];
-      const outerLoIdx = params.length + 1;
-      const outerHiIdx = params.length + 2;
-      params.push(outerLo, outerHi);
+      const allTime = periodCond === 'TRUE';
+      // Khoảng ngày bao ngoài để quét ít dòng; toàn bộ thời gian thì không chặn (xem WHERE bên dưới)
+      let outerWhere = 'TRUE';
+      if (!allTime) {
+        params.push(loCandidates.sort()[0], hiCandidates.sort().slice(-1)[0]);
+        outerWhere = `${colBare('date_parsed')} BETWEEN $${params.length - 1} AND $${params.length}`;
+      }
 
       const ctes: string[] = [`cancelled_hex AS (${CANCELLED_HEX_SQL})`];
       const extraConds: string[] = [];
@@ -281,17 +283,17 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       const q = `
       WITH ${ctes.join(',\n')}
       SELECT
-        COALESCE(NULLIF(${groupBy === 'congtrinh' ? `TRIM(${groupCol})` : workshopGroupSql(groupCol)}, ''), 'Chưa xác định') AS name,
+        -- Công trình: gom theo tên đã chuẩn hoá (hoa/thường, khoảng trắng) như khi lọc / xem chi tiết
+        COALESCE(NULLIF(${groupBy === 'congtrinh' ? `MIN(TRIM(${groupCol}))` : workshopGroupSql(groupCol)}, ''), 'Chưa xác định') AS name,
         COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
-      WHERE ${periodCond === 'TRUE'
-        // Toàn bộ thời gian: gồm cả dòng không có ngày (vd. đơn hàng thiếu ngày nhận từ PM) — giống /overview/summary
-        ? `(${colBare('date_parsed')} BETWEEN $${outerLoIdx} AND $${outerHiIdx} OR ${colBare('date_parsed')} IS NULL)`
-        : `${colBare('date_parsed')} BETWEEN $${outerLoIdx} AND $${outerHiIdx}`}${extraWhere}
-      GROUP BY 1
+      -- Toàn bộ thời gian: không chặn ngày — gồm dòng không có ngày (vd. đơn hàng thiếu ngày nhận từ PM) và dòng ngày
+      -- sau hôm nay, giống /overview/summary (trước chặn tới hôm nay => tổng thẻ lớn hơn tổng các dòng chia nhóm)
+      WHERE ${outerWhere}${extraWhere}
+      GROUP BY ${groupBy === 'congtrinh' ? normNameSql(groupCol) : '1'}
       ORDER BY mtd_value DESC
     `;
       const r = await timedQuery(q, params, { workMemMb: 32 });

@@ -570,10 +570,11 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
       sourceData = config.rawData;
       suffix = 'Toan_Bo';
     } else if (genericExportScope === 'MTD') {
-      sourceData = (config.mtdData && config.mtdData.length > 0) ? config.mtdData : config.rawData;
+      // Rỗng thì báo "không có dữ liệu" (trước lấy cả bảng => file theo ngày chứa mọi dòng từ 2023)
+      sourceData = config.mtdData ?? [];
       suffix = `Luy_Ke_Thang_T${latestUnifiedDate ? latestUnifiedDate.getMonth() + 1 : ''}`;
     } else {
-      sourceData = (config.filteredData && config.filteredData.length > 0) ? config.filteredData : config.rawData;
+      sourceData = config.filteredData ?? [];
       suffix = 'Theo_Bo_Loc_Ngay';
     }
     // Bỏ dòng thuộc đơn HỦY (tồn kho đã xử lý ở nhánh riêng phía trên)

@@ -44673,7 +44673,11 @@ import { createHash as createHash2 } from "crypto";
 var REFRESH_MS = 10 * 60 * 1e3;
 var ALIAS_MIN_HEX = 5;
 var normName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
-var normNameSql = (colExpr) => `UPPER(REGEXP_REPLACE(TRIM(COALESCE(${colExpr}::text, '')), '\\s+', ' ', 'g'))`;
+var normNameSql = (colExpr) => (
+  // Gộp khoảng trắng TRƯỚC rồi mới TRIM: TRIM của Postgres chỉ bỏ dấu cách, không bỏ tab / xuống dòng / NBSP như
+  // .trim() của JS (normName, giao diện) => tên "ABC\n" trước lệch 1 dấu cách cuối, lọc trên server không khớp
+  `UPPER(TRIM(REGEXP_REPLACE(COALESCE(${colExpr}::text, ''), '\\s+', ' ', 'g')))`
+);
 var parseNameList = (raw) => {
   const s = String(raw ?? "");
   if (!s) return [];
@@ -44723,11 +44727,12 @@ var load = async () => {
   );
   const canon = await timedQuery(
     `SELECT DISTINCT ON (code) code, name FROM (
-       SELECT UPPER(TRIM(ma_cong_trinh)) AS code, REGEXP_REPLACE(TRIM(ten_cong_trinh), '\\s+', ' ', 'g') AS name, COUNT(*) AS n
+       SELECT UPPER(TRIM(ma_cong_trinh)) AS code, TRIM(REGEXP_REPLACE(ten_cong_trinh, '\\s+', ' ', 'g')) AS name, COUNT(*) AS n
        FROM production_status_app
        WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND COALESCE(TRIM(ten_cong_trinh), '') <> ''
        GROUP BY 1, 2
-     ) x ORDER BY code, n DESC, name`,
+     ) x ORDER BY code, n DESC, name COLLATE "C"`,
+    // hoà số dòng: so theo mã ký tự như giao diện (canonicalizeProjectNames)
     [],
     { timeoutMs: 6e4 }
   );
@@ -65205,7 +65210,13 @@ app.get("/api/production/hex/:hex", async (req, res) => {
   }
 });
 var planMetCache = createCache(1);
-app.get("/api/project-aliases", (_req, res) => {
+var PROJECT_ALIAS_ROUTE_WAIT_MS = 1e4;
+app.get("/api/project-aliases", async (_req, res) => {
+  await Promise.race([
+    ensureProjectAliases().catch(() => {
+    }),
+    new Promise((resolve) => setTimeout(resolve, PROJECT_ALIAS_ROUTE_WAIT_MS))
+  ]);
   res.json(listProjectAliases());
 });
 app.get("/api/production/plan-met", async (_req, res) => {
@@ -65952,11 +65963,12 @@ app.get("/api/overview/by-group", async (req, res) => {
       const mtdCond = `${colBare("date_parsed")} BETWEEN $${monthStartIdx} AND $${refDateIdx}`;
       const loCandidates = useExplicitDates ? [monthStart, ...explicitDates] : [monthStart, dateFromStr];
       const hiCandidates = useExplicitDates ? [refDateStr, ...explicitDates] : [refDateStr, dateToStr];
-      const outerLo = periodCond === "TRUE" ? "1900-01-01" : loCandidates.sort()[0];
-      const outerHi = hiCandidates.sort().slice(-1)[0];
-      const outerLoIdx = params.length + 1;
-      const outerHiIdx = params.length + 2;
-      params.push(outerLo, outerHi);
+      const allTime = periodCond === "TRUE";
+      let outerWhere = "TRUE";
+      if (!allTime) {
+        params.push(loCandidates.sort()[0], hiCandidates.sort().slice(-1)[0]);
+        outerWhere = `${colBare("date_parsed")} BETWEEN $${params.length - 1} AND $${params.length}`;
+      }
       const ctes = [`cancelled_hex AS (${CANCELLED_HEX_SQL})`];
       const extraConds = [];
       if (cfg.hexCol) extraConds.push(notCancelledHexCond(colBare(cfg.hexCol), "cancelled_hex"));
@@ -65978,14 +65990,17 @@ app.get("/api/overview/by-group", async (req, res) => {
       const q = `
       WITH ${ctes.join(",\n")}
       SELECT
-        COALESCE(NULLIF(${groupBy === "congtrinh" ? `TRIM(${groupCol})` : workshopGroupSql(groupCol)}, ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
+        -- C\xF4ng tr\xECnh: gom theo t\xEAn \u0111\xE3 chu\u1EA9n ho\xE1 (hoa/th\u01B0\u1EDDng, kho\u1EA3ng tr\u1EAFng) nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt
+        COALESCE(NULLIF(${groupBy === "congtrinh" ? `MIN(TRIM(${groupCol}))` : workshopGroupSql(groupCol)}, ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
         COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
-      WHERE ${periodCond === "TRUE" ? `(${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx} OR ${colBare("date_parsed")} IS NULL)` : `${colBare("date_parsed")} BETWEEN $${outerLoIdx} AND $${outerHiIdx}`}${extraWhere}
-      GROUP BY 1
+      -- To\xE0n b\u1ED9 th\u1EDDi gian: kh\xF4ng ch\u1EB7n ng\xE0y \u2014 g\u1ED3m d\xF2ng kh\xF4ng c\xF3 ng\xE0y (vd. \u0111\u01A1n h\xE0ng thi\u1EBFu ng\xE0y nh\u1EADn t\u1EEB PM) v\xE0 d\xF2ng ng\xE0y
+      -- sau h\xF4m nay, gi\u1ED1ng /overview/summary (tr\u01B0\u1EDBc ch\u1EB7n t\u1EDBi h\xF4m nay => t\u1ED5ng th\u1EBB l\u1EDBn h\u01A1n t\u1ED5ng c\xE1c d\xF2ng chia nh\xF3m)
+      WHERE ${outerWhere}${extraWhere}
+      GROUP BY ${groupBy === "congtrinh" ? normNameSql(groupCol) : "1"}
       ORDER BY mtd_value DESC
     `;
       const r = await timedQuery(q, params, { workMemMb: 32 });
@@ -66149,13 +66164,13 @@ app.get("/api/stock/by-project", async (req, res) => {
       }
       const q = `
       ${cteClause}
-      SELECT COALESCE(NULLIF(TRIM(s.ten_cong_trinh), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
+      SELECT COALESCE(NULLIF(MIN(TRIM(s.ten_cong_trinh)), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
       FROM ton_kho s
       ${joinClause}
       WHERE ${conds.join(" AND ")}
-      GROUP BY 1
+      GROUP BY ${normNameSql("s.ten_cong_trinh")} -- t\xEAn chu\u1EA9n ho\xE1 nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt
       ORDER BY value DESC
     `;
       const r = await timedQuery(q, params);
@@ -67537,13 +67552,15 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
   const q = `
       ${withClause}
       SELECT
-        COALESCE(NULLIF(TRIM(${colBare(cfg.congTrinhCol)}), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
+        -- Gom theo t\xEAn \u0111\xE3 chu\u1EA9n ho\xE1 (hoa/th\u01B0\u1EDDng, kho\u1EA3ng tr\u1EAFng) nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt: tr\u01B0\u1EDBc gom theo t\xEAn g\u1ED1c
+        -- => "ABC X" v\xE0 "abc x" th\xE0nh 2 c\u1ED9t, b\u1EA5m 1 c\u1ED9t th\xEC chi ti\u1EBFt ra c\u1EA3 2 (l\u1EDBn h\u01A1n c\u1ED9t), HEX \u0111\u1EBFm 2 l\u1EA7n
+        COALESCE(NULLIF(MIN(TRIM(${colBare(cfg.congTrinhCol)})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}
       ${joinClause}
       WHERE ${conditions.join(" AND ")}
-      GROUP BY 1
+      GROUP BY ${normNameSql(colBare(cfg.congTrinhCol))}
       ORDER BY total_value DESC
     `;
   const r = await timedQuery(q, params, { workMemMb: 32 });

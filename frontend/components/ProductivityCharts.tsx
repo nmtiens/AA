@@ -5,7 +5,7 @@ import {
     ComposedChart, Line, ScatterChart, Scatter, ZAxis, ReferenceLine, LabelList, Cell, Label
 } from 'recharts';
 import { Activity, PieChart, TrendingUp } from 'lucide-react';
-import { getWeekRange2026 } from '../utils/dateUtils';
+import { planWeekRange } from '../utils/dateUtils';
 import { formatTrieuAsTy } from '../utils/money';
 
 interface ProductivityData {
@@ -185,7 +185,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
             if (!currentWeek) return '';
 
             const weekNum = parseInt(currentWeek);
-            const { start, end } = getWeekRange2026(weekNum);
+            const { start, end } = planWeekRange(Number(currentYear) || new Date().getFullYear(), weekNum);
 
             const fmtDate = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
             const fmtFullDate = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;

@@ -34,21 +34,31 @@ export async function loadWorkshopGroups(): Promise<Record<string, string>> {
 /** Cập nhật cache ngay sau khi ADMIN lưu. */
 export const applyWorkshopMapping = (mapping: Record<string, string>) => setMapping(mapping);
 
-/** Tên xưởng đã gộp của 1 mã gốc (mã không có trong setup giữ nguyên). */
+/** Tên xưởng đã gộp của 1 mã gốc. Mã không có trong setup: viết hoa, bỏ khoảng trắng thừa — như server
+ *  (UPPER(TRIM())), trước giữ nguyên chữ thường => "8ab" và "8AB" thành 2 xưởng ở máy, 1 xưởng trên server. */
 export const workshopGroupOf = (raw: unknown): string => {
-  const s = String(raw ?? '').trim();
-  return rawToGroup.get(normWorkshop(s)) ?? s;
+  const n = normWorkshop(raw);
+  return rawToGroup.get(n) ?? n;
 };
 
 /** Đổi cột xưởng của mọi dòng sang tên xưởng đã gộp. Dòng không đổi giữ nguyên object. */
 export function canonicalizeWorkshops(rows: DataRow[], columns: ColumnDefinition[]): DataRow[] {
-  if (rawToGroup.size === 0 || rows.length === 0) return rows;
+  if (rows.length === 0) return rows;
   const key = findColumnKey(columns, 'xuong_chinh');
   if (!key) return rows;
   let changed = false;
+  const groupOf = new Map<unknown, string>(); // vài chục mã xưởng / hàng trăm nghìn dòng
   const out = rows.map(row => {
-    const g = rawToGroup.get(normWorkshop(row[key]));
-    if (!g || row[key] === g) return row;
+    const v = row[key];
+    if (v == null || v === '') return row;
+    let g = groupOf.get(v);
+    if (g === undefined) {
+      const n = normWorkshop(v);
+      // Mã không có trong setup vẫn viết hoa / bỏ khoảng trắng thừa như server
+      g = rawToGroup.get(n) ?? n;
+      groupOf.set(v, g);
+    }
+    if (!g || v === g) return row;
     changed = true;
     return { ...row, [key]: g };
   });

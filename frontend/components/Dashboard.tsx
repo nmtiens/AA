@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { LazyRender } from './shared/LazyRender';
 import { collectCancelledHexes } from './Dashboard/utils/cancelledHexes';
+import { findColumnKey } from './Dashboard/utils/columnKeyResolver';
 import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
@@ -454,6 +455,17 @@ const {
   bottleneckData,
 });
 
+  // Xuất "Đơn hàng mới" (CSV riêng): bỏ dòng thuộc đơn HỦY như số trên thẻ và các file xuất khác.
+  // Chỉ tính khi đang mở hộp xuất (lọc ~100k dòng).
+  const orderExportOpen = isOrderExportScopeModalOpen || isOrderExportModalOpen;
+  const orderExportRows = useMemo(() => {
+    if (!orderExportOpen) return null;
+    const hexes = cancelledHexInfo.hexes;
+    const hexKey = findColumnKey(orderColumns, 'hex') || 'hex';
+    const drop = (rows: DataRow[]) => (hexes.size === 0 ? rows : rows.filter(r => !hexes.has(String(r[hexKey] ?? '').trim())));
+    return { all: drop(orderData), filtered: drop(filteredOrderData), mtd: drop(mtdOrderData) };
+  }, [orderExportOpen, cancelledHexInfo, orderColumns, orderData, filteredOrderData, mtdOrderData]);
+
   // Các section phía dưới vẽ khi cuộn tới (LazyRender). Bấm nút cuộn tới section thứ i trong danh sách vẽ-sau
   // => ép vẽ ngay mọi section từ đầu tới i (để vị trí đích không bị xô khi khung giữ chỗ phía trên đổi cao) rồi mới cuộn.
   const [forcedLazyUpTo, setForcedLazyUpTo] = useState(-1);
@@ -868,9 +880,9 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      onClose={() => setIsOrderExportScopeModalOpen(false)}
      orderExportScope={orderExportScope}
      setOrderExportScope={setOrderExportScope}
-     filteredOrderData={filteredOrderData}
-     mtdOrderData={mtdOrderData}
-     orderData={orderData}
+     filteredOrderData={orderExportRows?.filtered ?? []}
+     mtdOrderData={orderExportRows?.mtd ?? []}
+     orderData={orderExportRows?.all ?? []}
      latestUnifiedDate={latestUnifiedDate}
      overviewDateFilters={overviewDateFilters}
      onContinue={handleContinueToOrderColumnStep}
@@ -884,9 +896,9 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      effectiveOrderColumns={effectiveOrderColumns}
      selectedOrderExportColumns={selectedOrderExportColumns}
      setSelectedOrderExportColumns={setSelectedOrderExportColumns}
-     orderData={orderData}
-     filteredOrderData={filteredOrderData}
-     mtdOrderData={mtdOrderData}
+     orderData={orderExportRows?.all ?? []}
+     filteredOrderData={orderExportRows?.filtered ?? []}
+     mtdOrderData={orderExportRows?.mtd ?? []}
      latestUnifiedDate={latestUnifiedDate}
    />
        <OverviewExportScopeModal

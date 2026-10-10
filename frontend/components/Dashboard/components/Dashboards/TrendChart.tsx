@@ -23,8 +23,15 @@ interface TrendPoint { period: string; periodKey: string; total: number; plan?: 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
 
+// Ngày của kỳ theo phần "YYYY-MM-DD" (server trả nửa đêm UTC của ngày đó): new Date(chuỗi) hiểu là giờ UTC rồi
+// đọc theo giờ máy => máy ở múi giờ âm lùi 1 ngày, mọi cột thành 0. Đọc thẳng năm / tháng / ngày theo giờ máy.
+const localDate = (s: string): Date => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(s);
+};
+
 const formatLabel = (period: string, granularity: Granularity) => {
-  const d = new Date(period);
+  const d = localDate(period);
   if (granularity === 'month') return `Th${d.getMonth() + 1}/${d.getFullYear()}`;
   return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 };
@@ -49,7 +56,7 @@ function startOfMonth(d: Date): Date {
 }
 
 function periodKey(period: string, granularity: Granularity): string {
-  const d = new Date(period);
+  const d = localDate(period);
   if (granularity === 'week') return toISO(startOfWeekMonday(d));
   if (granularity === 'month') return toISO(startOfMonth(d));
   return toISO(d);
@@ -57,8 +64,8 @@ function periodKey(period: string, granularity: Granularity): string {
 
 function buildFullPeriodKeys(dateFrom: string, dateTo: string, granularity: Granularity): string[] {
   if (!dateFrom || !dateTo) return [];
-  const start = new Date(dateFrom);
-  const end = new Date(dateTo);
+  const start = localDate(dateFrom);
+  const end = localDate(dateTo);
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
 
   const keys: string[] = [];

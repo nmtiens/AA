@@ -20,7 +20,9 @@ const ALIAS_MIN_HEX = 5;
 export const normName = (v: unknown): string => String(v ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
 /** Chuẩn hoá tên phía SQL — khớp với normName. */
 export const normNameSql = (colExpr: string): string =>
-  `UPPER(REGEXP_REPLACE(TRIM(COALESCE(${colExpr}::text, '')), '\\s+', ' ', 'g'))`;
+  // Gộp khoảng trắng TRƯỚC rồi mới TRIM: TRIM của Postgres chỉ bỏ dấu cách, không bỏ tab / xuống dòng / NBSP như
+  // .trim() của JS (normName, giao diện) => tên "ABC\n" trước lệch 1 dấu cách cuối, lọc trên server không khớp
+  `UPPER(TRIM(REGEXP_REPLACE(COALESCE(${colExpr}::text, ''), '\\s+', ' ', 'g')))`;
 
 /**
  * Tách danh sách tên trong query string. Tên công trình có thể chứa dấu phẩy
@@ -87,11 +89,11 @@ const load = async () => {
   );
   const canon = await timedQuery(
     `SELECT DISTINCT ON (code) code, name FROM (
-       SELECT UPPER(TRIM(ma_cong_trinh)) AS code, REGEXP_REPLACE(TRIM(ten_cong_trinh), '\\s+', ' ', 'g') AS name, COUNT(*) AS n
+       SELECT UPPER(TRIM(ma_cong_trinh)) AS code, TRIM(REGEXP_REPLACE(ten_cong_trinh, '\\s+', ' ', 'g')) AS name, COUNT(*) AS n
        FROM production_status_app
        WHERE COALESCE(TRIM(ma_cong_trinh), '') <> '' AND COALESCE(TRIM(ten_cong_trinh), '') <> ''
        GROUP BY 1, 2
-     ) x ORDER BY code, n DESC, name`,
+     ) x ORDER BY code, n DESC, name COLLATE "C"`, // hoà số dòng: so theo mã ký tự như giao diện (canonicalizeProjectNames)
     [],
     { timeoutMs: 60000 }
   );

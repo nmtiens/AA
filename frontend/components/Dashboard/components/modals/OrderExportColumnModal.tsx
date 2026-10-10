@@ -40,10 +40,11 @@ export const OrderExportColumnModal = ({
       sourceData = orderData;
       suffix = 'Toan_Bo';
     } else if (orderExportScope === 'MTD') {
-      sourceData = (mtdOrderData && mtdOrderData.length > 0) ? mtdOrderData : orderData;
+      // Rỗng thì báo "không có dữ liệu" (trước lấy cả bảng => file lũy kế tháng chứa mọi dòng từ 2023)
+      sourceData = mtdOrderData;
       suffix = `Luy_Ke_Thang_T${latestUnifiedDate ? latestUnifiedDate.getMonth() + 1 : ''}`;
     } else {
-      sourceData = (filteredOrderData && filteredOrderData.length > 0) ? filteredOrderData : orderData;
+      sourceData = filteredOrderData;
       suffix = 'Theo_Bo_Loc_Ngay';
     }
 

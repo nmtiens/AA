@@ -2,6 +2,9 @@ import { DataRow } from '../../../types';
 export const parseVNDate = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
   const str = String(dateStr).trim();
+  // Chỉ có ngày "YYYY-MM-DD": đọc theo giờ máy (new Date(chuỗi) hiểu là nửa đêm UTC => máy ở múi giờ âm lùi 1 ngày)
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
   if (str.includes('T') || str.match(/^\d{4}-\d{2}-\d{2}/)) {
     const d = new Date(str);
     if (!isNaN(d.getTime())) return d;

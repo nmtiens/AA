@@ -6,21 +6,13 @@ import { ColumnDefinition } from '../../../types';
 import { findColumnKey } from '../utils/columnKeyResolver';
 import { parsePlanDate } from '../../../utils/productionMetrics';
 import type { CancelledHexInfo } from '../utils/cancelledHexes';
+import { isoWeekMonday, planWeekRange } from '../../../utils/dateUtils';
 
-// Thứ Hai của tuần ISO `week` thuộc năm ISO `year` (giờ địa phương)
-const isoWeekMonday = (year: number, week: number): Date => {
-  const jan4 = new Date(year, 0, 4);
-  const dow = (jan4.getDay() + 6) % 7; // 0 = Thứ Hai
-  return new Date(year, 0, 4 - dow + (week - 1) * 7);
-};
 // Ngày d thuộc tuần `week` của năm `year` theo cách đánh số của bảng KHSX: tuần ISO, cắt trong năm dương lịch
 // (29–31/12/2025 là tuần 53 của 2025, 01–04/01/2026 là tuần 1 của 2026) — giống /api/khsx-nhapkho/summary
 export const inPlanWeek = (d: Date, year: number, week: number): boolean => {
-  const mon = isoWeekMonday(year, week);
-  const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
-  const lo = mon < new Date(year, 0, 1) ? new Date(year, 0, 1) : mon;
-  const hi = sun > new Date(year, 11, 31) ? new Date(year, 11, 31) : sun;
-  return d >= lo && d <= hi;
+  const { start, end } = planWeekRange(year, week);
+  return d >= start && d <= end;
 };
 // Số tuần của ngày d trong năm dương lịch của nó, cùng cách đánh số với inPlanWeek (tuần mặc định của bộ lọc).
 // Khác tuần ISO thuần: 29–31/12/2025 là tuần 53 của 2025 (ISO ra tuần 1); 01–03/01/2027 (trước thứ Hai
@@ -83,9 +75,9 @@ export function useUnifiedTimeFilters({
   inventoryColumns,
 }: UseUnifiedTimeFiltersParams) {
   // HEX thuộc đơn HỦY — nhập kho của chúng không tính (KHSX / tổng quan phía server đều bỏ).
-  // Dòng nhập kho trống HEX bị bỏ khi có dòng HỦY trống HEX (giữ đúng hành vi cũ: tập cũ có chứa '')
+  // Dòng nhập kho trống HEX luôn giữ — cùng quy tắc server (CANCELLED_HEX_SQL chỉ xét hex khác rỗng); trước bị bỏ
+  // khi có dòng HỦY trống HEX => doanh số Năng suất thấp hơn KHSX TH cùng tuần / xưởng
   const cancelledHexes = cancelled?.hexes;
-  const cancelledBlank = cancelled?.hasBlankHex ?? false;
   const invHexKey = (inventoryColumns && findColumnKey(inventoryColumns, 'hex')) || 'hex';
   const invDateKey = (inventoryColumns && inventoryColumns.find(c => c.key === 'date')?.key) || 'date';
 
@@ -123,9 +115,9 @@ export function useUnifiedTimeFilters({
     const useThang = !byDateWeek;
 
     return inventoryData.filter(row => {
-      if (cancelledHexes && (cancelledHexes.size || cancelledBlank)) {
+      if (cancelledHexes?.size) {
         const h = String(row[invHexKey] ?? '').trim();
-        if (h ? cancelledHexes.has(h) : cancelledBlank) return false;
+        if (h && cancelledHexes.has(h)) return false;
       }
       if (!(matchesProject(congTrinhSet, row, invCongTrinhKey) &&
         matchesFilter(xuongSet, row, invXuongKey) &&
@@ -136,7 +128,7 @@ export function useUnifiedTimeFilters({
       const d = parsePlanDate(row[invDateKey]);
       return !!d && years.some(y => weeks.some(w => inPlanWeek(d, y, w)));
     });
-  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, cancelledHexes, cancelledBlank, invHexKey, invDateKey]);
+  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, cancelledHexes, invHexKey, invDateKey]);
 
   const filteredAnalysisData = useMemo(() => {
     return analysisData.filter(row =>

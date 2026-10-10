@@ -5,8 +5,8 @@ import { findColumnKey } from './columnKeyResolver';
 /**
  * HEX thuộc đơn HỦY (theo cột Tình trạng IPO của dữ liệu sản xuất) — tính 1 lần ở Dashboard, dùng chung cho
  * bộ lọc nhập kho (useUnifiedTimeFilters) và file xuất (useExportFlows).
- * `hexes` không chứa mã rỗng; `hasBlankHex` = có dòng HỦY mà ô HEX trống (bộ lọc nhập kho trước đây đưa ''
- * vào tập nên bỏ cả các dòng nhập kho trống HEX — giữ nguyên hành vi đó, file xuất thì không).
+ * `hexes` không chứa mã rỗng; `hasBlankHex` = có dòng HỦY mà ô HEX trống (chỉ để tham khảo: nhập kho trống HEX
+ * luôn được tính, cùng quy tắc server).
  */
 export interface CancelledHexInfo {
   hexes: Set<string>;

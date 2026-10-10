@@ -139,9 +139,15 @@ export const getCachedVersion = async (endpoint: string): Promise<string> => {
 };
 
 // LƯU DỮ LIỆU VÀO CACHE
-export const saveToCache = async (endpoint: string, version: string, result: any): Promise<void> => {
+// Tăng mỗi lần xoá cache (đăng xuất / đổi người dùng): lượt tải bắt đầu trước đó không được ghi đè vào cache mới
+let cacheGeneration = 0;
+export const getCacheGeneration = () => cacheGeneration;
+
+export const saveToCache = async (endpoint: string, version: string, result: any, generation?: number): Promise<void> => {
+  if (generation !== undefined && generation !== cacheGeneration) return;
   try {
     const db = await initDB();
+    if (generation !== undefined && generation !== cacheGeneration) return;
     return new Promise((resolve) => {
       const tx = db.transaction('ops_cache', 'readwrite');
       const store = tx.objectStore('ops_cache');
@@ -161,6 +167,7 @@ export const saveToCache = async (endpoint: string, version: string, result: any
 const CACHE_OWNER_KEY = 'ops_cache_owner';
 
 export const clearDataCache = async (): Promise<void> => {
+  cacheGeneration++;
   try { localStorage.removeItem(CACHE_OWNER_KEY); } catch { /* bỏ qua */ }
   try {
     const db = await initDB();
