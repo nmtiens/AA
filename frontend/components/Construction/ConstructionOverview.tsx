@@ -651,20 +651,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {/* Nhóm công trình: thay cho 2 trang riêng Luồng đỏ / Căn mẫu trước đây */}
-            <div className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Nhóm công trình">
-              {([null, ...CONFIGURABLE_VIEWS.map(v => v.id)] as (ProjectGroupId | null)[]).map(g => (
-                <button
-                  key={g ?? 'all'}
-                  type="button"
-                  onClick={() => { setGroup(g); setF({}); }}
-                  title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
-                  className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : 'text-slate-600 hover:bg-slate-100'}`}
-                >
-                  {g ? GROUP_SHORT[g] : 'Tất cả CT'}
-                </button>
-              ))}
-            </div>
             {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
             <DashboardFilter
               label="Tình Trạng IPO"
@@ -747,6 +733,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       </div>
 
       <div className="p-4 md:p-6 space-y-4">
+        {/* Nhóm công trình: thay cho 2 trang riêng Luồng đỏ / Căn mẫu trước đây */}
+        <div className="flex h-9 w-fit items-center rounded-lg border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Nhóm công trình">
+          {([null, ...CONFIGURABLE_VIEWS.map(v => v.id)] as (ProjectGroupId | null)[]).map(g => (
+            <button
+              key={g ?? 'all'}
+              type="button"
+              onClick={() => { setGroup(g); setF({}); }}
+              title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
+              className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              {g ? GROUP_SHORT[g] : 'Tất cả CT'}
+            </button>
+          ))}
+        </div>
         {group && groupSize === 0 && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
             Chưa có công trình nào được setup cho nhóm {GROUP_SHORT[group]}. Vào Công trình → Setup phân loại để chọn công trình.
