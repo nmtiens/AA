@@ -136,6 +136,9 @@ export const ProjectSummarySection_v2 = ({
 
   const total = (key: ProjectSummaryColumn) =>
     projectStatusSummary.reduce((acc, row) => acc + getValue(row, key), 0);
+  // Cột "Nhập kho chưa đủ P022–P025" chỉ hiện khi có giá trị (bộ lọc IPO gồm HOÀN THÀNH…): ẩn hẳn thì 3 cột
+  // còn lại không cộng ra Tổng. Với IPO Đang sản xuất cột luôn 0 nên ẩn.
+  const showShortfall = projectStatusSummary.some(r => (r.shortfall ?? 0) > 0);
 
   // Hiển thị số; nếu cột được phép bấm thì bọc thành nút để mở chi tiết
   const renderValue = (value: number, column: ProjectSummaryColumn, projectName: string | null) => {
@@ -191,8 +194,7 @@ export const ProjectSummarySection_v2 = ({
         <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
           <table className="w-full text-xs min-w-[1418px] border-separate border-spacing-0">
             <thead className="text-slate-800 font-bold uppercase tracking-tight">
-              {/* Hàng 1: các cột đơn (rowSpan=2) + nhóm "Còn lại" (colSpan=4). Cột "Nhập kho chưa đủ P022–P025" đã bỏ
-                  (luôn 0 ở các view lọc IPO Đang sản xuất); cột Tổng vẫn là toàn bộ phần còn lại */}
+              {/* Hàng 1: các cột đơn (rowSpan=2) + nhóm "Còn lại". Cột "Nhập kho chưa đủ P022–P025" chỉ hiện khi khác 0 */}
               <tr>
                 <th
                   rowSpan={2}
@@ -213,15 +215,20 @@ export const ProjectSummarySection_v2 = ({
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Nhập Kho <br />P022</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Xuất Kho <br />P025</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Tồn Kho Sau <br />Xuất Kho</th>
-                <th colSpan={4} className={`${thBase} top-0 h-9 py-0 bg-emerald-100`}>
+                <th colSpan={showShortfall ? 5 : 4} className={`${thBase} top-0 h-9 py-0 bg-emerald-100`}>
                   Tổng {label} Đơn Hàng Còn Lại
                 </th>
               </tr>
-              {/* Hàng 2: 4 cột con của nhóm "Còn lại" */}
+              {/* Hàng 2: các cột con của nhóm "Còn lại" */}
               <tr>
                 <th className={`${thBase} top-9 py-3`}>Chưa Triển Khai <br />P001</th>
                 <th className={`${thBase} top-9 py-3`}>Chưa Tính Phiếu <br />P002</th>
                 <th className={`${thBase} top-9 py-3`}>Đang Trên Chuyền <br />{'P012->P021'}</th>
+                {showShortfall && (
+                  <th className={`${thBase} top-9 py-3`} title="Hạng mục đã ở P022 / P025 nhưng giá trị nhập kho chưa đủ trị giá đơn hàng">
+                    Nhập Kho Chưa Đủ <br />P022–P025
+                  </th>
+                )}
                 <th className={`${thBase} top-9 py-3 font-extrabold text-slate-900`}>Tổng</th>
               </tr>
             </thead>
@@ -252,6 +259,7 @@ export const ProjectSummarySection_v2 = ({
                     <td className={`${tdNumeric} text-slate-500`}>{renderValue(row.notDeployed, 'notDeployed', row.name)}</td>
                     <td className={`${tdNumeric} text-slate-500`}>{renderValue(getValue(row, 'p002'), 'p002', row.name)}</td>
                     <td className={`${tdNumeric} text-slate-600`}>{renderValue(row.onLine, 'onLine', row.name)}</td>
+                    {showShortfall && <td className={`${tdNumeric} text-slate-500`}>{renderValue(getValue(row, 'shortfall'), 'shortfall', row.name)}</td>}
                     <td className={`${tdNumeric} font-bold text-slate-900`}>{renderValue(row.remaining, 'remaining', row.name)}</td>
                   </tr>
                 );
@@ -274,6 +282,7 @@ export const ProjectSummarySection_v2 = ({
                 <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('notDeployed'), 'notDeployed', null)}</td>
                 <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('p002'), 'p002', null)}</td>
                 <td className="px-3 py-3 text-center">{renderValue(total('onLine'), 'onLine', null)}</td>
+                {showShortfall && <td className="px-3 py-3 text-center text-slate-500">{renderValue(total('shortfall'), 'shortfall', null)}</td>}
                 <td className="px-3 py-3 text-center text-slate-900">{renderValue(total('remaining'), 'remaining', null)}</td>
               </tr>
             </tfoot>

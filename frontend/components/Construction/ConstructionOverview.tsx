@@ -370,7 +370,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       const e = m.get(r.ct) ?? { name: r.ct, ctKey: r.ctKey, pms: new Set<string>(), mas: new Set<string>(), items: 0, total: 0, done: 0, open: 0, overdue: 0, botDates: [] };
       e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.items++; e.total += r.total; e.done += r.done;
       if (r.open) e.open++; if (r.overdue) e.overdue++;
-      if (r.botDuAn) e.botDates.push(r.botDuAn.toISOString().slice(0, 10));
+      // Khoá ngày giờ địa phương (toISOString lùi 1 ngày ở +7)
+      if (r.botDuAn) e.botDates.push(`${r.botDuAn.getFullYear()}-${String(r.botDuAn.getMonth() + 1).padStart(2, '0')}-${String(r.botDuAn.getDate()).padStart(2, '0')}`);
       m.set(r.ct, e);
     }
     return [...m.values()].map(e => {
@@ -450,6 +451,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     () => (health ? healthScopeRecs().map(r => r.row) : []),
     [health, detailRows, records, f] // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // HEX không hủy của công trình, mọi Tình trạng IPO (không qua bộ lọc trang) — nhịp nhập kho trong cửa sổ
+  const healthPaceHexes = useMemo(() => {
+    if (!health) return [];
+    return allRecords
+      .filter(r => r.ct === health.ct && r.status !== 'HỦY')
+      .map(r => String(r.row['hex'] ?? '').trim())
+      .filter(Boolean);
+  }, [health, allRecords]);
   const healthPm = useMemo(() => {
     if (!health) return '';
     const pms = [...new Set(healthScopeRecs().map(r => r.pm))];
@@ -1081,6 +1090,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         escEnabled={hexScope === null}
         onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail })}
         inventory={inventory}
+        paceHexes={healthPaceHexes}
       />
 
       <HexDetailModal

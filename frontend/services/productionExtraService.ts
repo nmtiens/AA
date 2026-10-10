@@ -67,7 +67,8 @@ export const qcStateOf = (qc: QcSummary | null | undefined): QcState => {
   if (!qc || !qc.last) return 'none';
   const st = qc.last.status;
   if (st === 'rejected' || st === 'flagged' || qc.last.fail > 0) return 'bad';
-  if (st === 'pending' || st === 'submitted') return 'wait';
+  // Bản nháp chưa gửi duyệt cũng là "Chờ duyệt" (trước rơi vào "Đạt")
+  if (st === 'pending' || st === 'submitted' || st === 'draft') return 'wait';
   return 'ok';
 };
 export const QC_STATE_META: Record<QcState, { label: string; badge: string }> = {
@@ -77,7 +78,7 @@ export const QC_STATE_META: Record<QcState, { label: string; badge: string }> = 
   wait: { label: 'Chờ duyệt', badge: 'bg-amber-50 text-amber-700' },
 };
 export const QC_STATUS_VI: Record<string, string> = {
-  approved: 'Đạt', rejected: 'Từ chối', flagged: 'Gắn cờ', pending: 'Chờ duyệt', submitted: 'Đã gửi', unknown: '—',
+  approved: 'Đạt', rejected: 'Từ chối', flagged: 'Gắn cờ', pending: 'Chờ duyệt', submitted: 'Đã gửi', draft: 'Nháp', unknown: '—',
 };
 
 /** Gia công ngoài: "10. HOÀN THÀNH" / "12. HỦY" là xong; còn lại đang chờ NCC */

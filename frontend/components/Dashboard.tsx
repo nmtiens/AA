@@ -347,7 +347,7 @@ const {
   pivotFunnelData,
   customFunnelData,
   funnelBreakdownByBop,
-  hexRowsByColumnV2,
+  funnelHexRowsByColumn,
   pivotProjectData,
   pivotMaterialStatusData,
   bottleneckData,
@@ -498,7 +498,8 @@ const handleContinueToOrderColumnStep = () => {
 
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
     // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
-    if (item?.id === 'P022' || (!item && name === 'P022')) {
+    // (dòng "P022" khi chưa chọn thanh nào là hạng mục sản xuất P022 chưa nhập đủ — mở danh sách HEX, không phải tồn kho)
+    if (item?.id === 'P022') {
       setStockItems({ open: true, projectName: item ? name : null });
       return;
     }
@@ -509,7 +510,8 @@ const handleContinueToOrderColumnStep = () => {
 
   const funnelHexRows = useMemo(() => {
     if (!funnelHex.open || !funnelHex.column) return [];
-    let source = hexRowsByColumnV2[funnelHex.column] ?? [];
+    // Danh sách cho phễu: cùng nguồn + nút Giá trị / Hạng mục của phễu (khớp số trong ô)
+    let source = funnelHexRowsByColumn[funnelHex.column] ?? [];
     if (funnelHex.projectName && congTrinhKey) {
       source = source.filter(row => String(row[congTrinhKey] || '').trim() === funnelHex.projectName);
     }
@@ -517,7 +519,7 @@ const handleContinueToOrderColumnStep = () => {
       source = source.filter(row => extractStage(row[bopKey]) === funnelHex.stage);
     }
     return source;
-  }, [funnelHex, hexRowsByColumnV2, congTrinhKey, bopKey]);
+  }, [funnelHex, funnelHexRowsByColumn, congTrinhKey, bopKey]);
 
   const funnelHexColumnKeys: HexDetailColumnKeys = useMemo(() => ({
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,

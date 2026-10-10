@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { getRelevantVersions } from './data.js';
+import { projectAliasesVersion } from './projectAlias.js';
 
 // ============================================================================
 // CACHE KẾT QUẢ API THEO PHIÊN BẢN BẢNG (table_versions)
@@ -31,7 +32,8 @@ export async function cachedByVersions<T>(
   extraVersion = '',
 ): Promise<T> {
   const versions = await getRelevantVersions(versionKeys);
-  const vkey = `${JSON.stringify(versions)}|${extraVersion}`;
+  // Gắn cả phiên bản bảng tên công trình: các API gộp / mở rộng tên công trình phải tính lại khi bảng tên đổi
+  const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
   const hit = cache.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
 
@@ -62,12 +64,13 @@ export async function cachedByVersions<T>(
 export const hashKey = (value: unknown): string =>
   createHash('sha1').update(JSON.stringify(value)).digest('hex');
 
-/** Khoá cache từ các tham số query (chỉ lấy các tên được liệt kê, bỏ giá trị trống). */
+/** Khoá cache từ các tham số query (chỉ lấy các tên được liệt kê). Giữ cả tham số có mặt nhưng rỗng
+ * (vd. `ctWhitelist=` = "không công trình nào" khác hẳn với không gửi tham số). */
 export const queryKey = (query: Record<string, unknown>, names: string[]): string => {
   const o: Record<string, string> = {};
   for (const n of names) {
     const v = query[n];
-    if (v !== undefined && v !== null && String(v) !== '') o[n] = String(v);
+    if (v !== undefined && v !== null) o[n] = String(v);
   }
   return JSON.stringify(o);
 };

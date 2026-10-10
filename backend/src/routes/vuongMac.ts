@@ -11,6 +11,7 @@ import { validateBody } from '../server/validation.js';
 import { expandWorkshops, workshopGroupOf } from '../server/workshopGroups.js';
 import { canonicalProjectName } from '../server/projectAlias.js';
 import { app } from '../server/app.js';
+import { userHasPermission } from '../server/permissions.js';
 
 // ============================================================================
 // VƯỚNG MẮC SẢN XUẤT (5M) — QUY TRÌNH XỬ LÝ
@@ -92,7 +93,7 @@ export async function hasWorkflowSchema(): Promise<boolean> {
   if (workflowReady !== null && Date.now() - workflowCheckedAt < 60_000) return workflowReady;
   try {
     const r = await pool.query(
-      `SELECT 1 FROM information_schema.columns WHERE table_name = 'vuong_mac' AND column_name = 'escalated_at'`);
+      `SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'vuong_mac' AND column_name = 'escalated_at'`);
     workflowReady = r.rows.length > 0;
   } catch {
     workflowReady = false;
@@ -155,15 +156,18 @@ interface VuongMacActor {
   department: string | null;
   /** Họ tên (users.full_name) — để nhận ra "tôi là người xử lý" theo cột Người xử lý */
   fullName: string | null;
+  /** Tài khoản còn hoạt động (đã khoá / bị xoá => không được thao tác dù token còn hạn) */
+  active: boolean;
 }
 
 const getVuongMacActor = async (req: Request): Promise<VuongMacActor> => {
-  const r = await pool.query('SELECT department, full_name FROM users WHERE id = $1', [req.user!.id]);
+  const r = await pool.query('SELECT department, full_name, is_active FROM users WHERE id = $1', [req.user!.id]);
   return {
     username: req.user!.username,
     role: req.user!.role,
     department: r.rows[0]?.department ?? null,
     fullName: r.rows[0]?.full_name ?? null,
+    active: r.rows[0]?.is_active === true,
   };
 };
 
@@ -176,6 +180,8 @@ const isMine = (me: VuongMacActor, handler: string | null, createdBy: string | n
 
 export interface VmPerms { edit: boolean; work: boolean; close: boolean; delete: boolean }
 const permsOf = (me: VuongMacActor, createdBy: string | null, createdDept: string | null, handler: string | null): VmPerms => {
+  // Tài khoản đã khoá / không còn: không có quyền thao tác nào (JWT còn hạn tới 8 giờ)
+  if (!me.active) return { edit: false, work: false, close: false, delete: false };
   const admin = me.role === 'ADMIN';
   const reporterSide = admin || (!!createdBy && createdBy === me.username) || isSameDept(me.department, createdDept);
   const handlerSide = reporterSide || isHandler(me, handler);
@@ -304,6 +310,22 @@ const MAX_PHOTOS_PER_ITEM = 5;
 const isJpeg = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 
 // Tải 1 ảnh lên (body = bytes JPEG thô, mỗi request 1 ảnh)
+// Thao tác GHI (tạo / sửa / bình luận / gia hạn / xoá…) yêu cầu tài khoản còn hoạt động: JWT còn hạn tới 8 giờ sau khi
+// tài khoản bị khoá. POST chỉ đọc (/list, /hex-bulk) và mọi GET bỏ qua.
+app.use('/api/vuong-mac', (req: Request, res: Response, next: () => void) => {
+  if (req.method === 'GET' || req.method === 'OPTIONS' || /^\/(list|hex-bulk)\/?$/i.test(req.path)) return next();
+  authenticateJWT(req, res, async () => {
+    try {
+      const r = await pool.query('SELECT is_active FROM users WHERE id = $1', [req.user!.id]);
+      if (r.rows[0]?.is_active !== true) { res.status(403).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' }); return; }
+      next();
+    } catch (error) {
+      console.error('Lỗi kiểm tra tài khoản vướng mắc:', error);
+      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+    }
+  });
+});
+
 app.post(
   '/api/vuong-mac/:id/photos',
   authenticateJWT,
@@ -508,8 +530,10 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
       params.push(category);
       conds.push(`b.category = $${params.length}`);
     }
+    // Thoát ký tự đại diện % _ \ trong chữ tìm (như hex-search)
+    const likeEsc = (v: string) => v.replace(/[\\%_]/g, m => `\\${m}`);
     if (q) {
-      params.push(`%${q}%`);
+      params.push(`%${likeEsc(q)}%`);
       const n = params.length;
       conds.push(`(b.content ILIKE $${n} OR b.handler ILIKE $${n} OR b.created_by ILIKE $${n}
                    OR b.hex ILIKE $${n} OR COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${n}
@@ -540,7 +564,7 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
       conds.push(`UPPER(TRIM(COALESCE(${ready ? 'b.xuong, ' : ''}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
     }
     if (congTrinh) {
-      params.push(`%${congTrinh}%`);
+      params.push(`%${likeEsc(congTrinh)}%`);
       conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
     }
     if (handler) {
@@ -619,7 +643,7 @@ app.get('/api/vuong-mac/stats', authenticateJWT, async (req: Request, res: Respo
          FROM vuong_mac vm
          LEFT JOIN LATERAL (
            SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
-           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
          ) p ON TRUE
          WHERE ${ready ? `vm.status <> 'closed'` : 'vm.is_resolved = FALSE'}`
       ),
@@ -719,20 +743,23 @@ const hoursBetween = (a: unknown, b: unknown) => {
 };
 const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
 const vnDay = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(d);
+// Cộng ngày / thứ Hai đầu tuần trên CHUỖI ngày 'YYYY-MM-DD' bằng giờ UTC — không phụ thuộc múi giờ máy chủ (trước
+// dùng getDay()/setDate() theo giờ máy: chạy UTC như Vercel thì tuần bắt đầu thứ Ba, vướng mắc thứ Hai lệch tuần)
+const addDaysStr = (day: string, n: number) => { const d = new Date(`${day}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const mondayOf = (day: string) => { const d = new Date(`${day}T00:00:00Z`); return addDaysStr(day, -((d.getUTCDay() + 6) % 7)); };
 
 app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: Response) => {
   try {
+    // Bảng điều khiển quản lý: cần quyền "Vướng mắc sản xuất (quản lý)" như menu bản máy tính (/all, /stats để mở cho app)
+    if (!(await userHasPermission(req, 'vuong_mac'))) return res.status(403).json({ error: 'Không có quyền xem bảng điều khiển vướng mắc' });
     const ready = await hasWorkflowSchema();
     const today = vnDay(new Date());
     const to = DAY_RE.test(String(req.query.to || '')) ? String(req.query.to) : today;
-    const defFrom = new Date(`${to}T00:00:00+07:00`); defFrom.setDate(defFrom.getDate() - 29);
-    const from = DAY_RE.test(String(req.query.from || '')) ? String(req.query.from) : vnDay(defFrom);
+    const from = DAY_RE.test(String(req.query.from || '')) ? String(req.query.from) : addDaysStr(to, -29);
     const xuongList = expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
 
     // 12 tuần gần nhất (thứ Hai -> Chủ nhật) cho chuỗi theo tuần
-    const weekStart = new Date(`${to}T00:00:00+07:00`);
-    weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7) - 7 * 11);
-    const seriesFrom = vnDay(weekStart);
+    const seriesFrom = addDaysStr(mondayOf(to), -7 * 11);
     const lo = from < seriesFrom ? from : seriesFrom;
 
     const r = await timedQuery(
@@ -741,11 +768,12 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
               ${ready
                 ? 'vm.status, vm.priority, vm.stage, vm.xuong, vm.ten_cong_trinh, vm.accepted_at, vm.closed_at, vm.escalated_at,'
                 : 'NULL AS status, NULL AS priority, NULL AS stage, NULL AS xuong, NULL AS ten_cong_trinh, NULL AS accepted_at, vm.resolved_at AS closed_at, NULL AS escalated_at,'}
-              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh, p.bop AS p_bop
+              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh, p.bop AS p_bop,
+              EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext
        FROM vuong_mac vm
        LEFT JOIN LATERAL (
          SELECT ten_cong_trinh, xuong_chinh, bop FROM production_status_app
-         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
        ) p ON TRUE
        WHERE ${ready ? `vm.status <> 'closed'` : 'vm.is_resolved = FALSE'}
           OR vm.created_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
@@ -768,16 +796,16 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
     const aging = { d1: 0, d3: 0, d7: 0, d14: 0, more: 0 };
     const weeks = new Map<string, { start: string; created: number; done: number; closed: number }>();
     for (let i = 0; i < 12; i++) {
-      const d = new Date(weekStart); d.setDate(d.getDate() + i * 7);
-      weeks.set(vnDay(d), { start: vnDay(d), created: 0, done: 0, closed: 0 });
+      const k = addDaysStr(seriesFrom, i * 7);
+      weeks.set(k, { start: k, created: 0, done: 0, closed: 0 });
     }
     const weekKeyOf = (ts: unknown) => {
       if (!ts) return null;
-      const d = new Date(`${vnDay(new Date(String(ts)))}T00:00:00+07:00`);
-      d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-      const k = vnDay(d);
+      const k = mondayOf(vnDay(new Date(String(ts))));
       return weeks.has(k) ? k : null;
     };
+    // Người xử lý gộp không phân biệt hoa / thường (lọc handler= ở /all cũng vậy); hiện cách viết gặp đầu tiên
+    const handlerDisplay = new Map<string, string>();
     const oldest: any[] = [];
 
     for (const row of r.rows) {
@@ -786,7 +814,10 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
       if (xuongList.length && !xuongList.includes(xuong) && !xuongList.includes(String(row.p_xuong_chinh ?? '').toUpperCase().trim())) continue;
       const stage = row.stage ?? stageOf(row.p_bop) ?? 'Chưa rõ';
       const project = row.p_ten_cong_trinh || row.ten_cong_trinh ? canonicalProjectName(row.p_ten_cong_trinh ?? row.ten_cong_trinh) : 'Chưa rõ';
-      const handlerName = String(row.handler ?? '').trim() || 'Chưa giao';
+      const hRaw = String(row.handler ?? '').trim();
+      const hKey = hRaw.toLowerCase();
+      if (hRaw && !handlerDisplay.has(hKey)) handlerDisplay.set(hKey, hRaw);
+      const handlerName = hRaw ? handlerDisplay.get(hKey)! : 'Chưa giao';
       const groups = [totals, group(byCategory, row.category), group(byXuong, xuong), group(byStage, stage),
         group(byHandler, handlerName), group(byProject, project)];
       const active = st === 'open' || st === 'doing';
@@ -795,6 +826,7 @@ app.get('/api/vuong-mac/dashboard', authenticateJWT, async (req: Request, res: R
       if (active) {
         for (const g of groups) { g.open++; if (st === 'doing') g.doing++; if (d === 'overdue') g.overdue++; else if (d === 'soon') g.soon++; }
         if (d === 'none') noBot++;
+        if (row.has_ext) extendedActive++;
         if (row.escalated_at) escalated++;
         if (row.priority === 'urgent') urgent++;
         const ageH = hoursBetween(row.created_at, new Date().toISOString()) ?? 0;
@@ -934,6 +966,8 @@ app.put(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      // id phải là số nguyên (chữ => lỗi 22P02 của Postgres thành 500)
+      if (!/^\d+$/.test(String(id))) return res.status(400).json({ success: false, message: 'id không hợp lệ' });
       const me = await getVuongMacActor(req);
       const actor = me.username;
       const ready = await hasWorkflowSchema();
@@ -987,6 +1021,12 @@ app.put(
       if (bot !== undefined) {
         push('bot', bot || null);
         push('bot_end', parseBotEnd(bot));
+        // Đổi hạn: ghi lại hạn cũ (trước log trống, không biết đã dời từ đâu) và bỏ cờ leo thang để lần quá hạn
+        // mới vẫn được báo quản lý
+        if ((bot || null) !== (old.bot || null)) {
+          logs.push(`BOT: ${old.bot || '—'} → ${bot || '—'}`);
+          if (ready) push('escalated_at', null);
+        }
       }
       if (solution !== undefined) push('solution', solution || null);
       if (note !== undefined) push('note', note || null);
@@ -1143,6 +1183,8 @@ app.post(
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      // id phải là số nguyên (chữ => lỗi 22P02 của Postgres thành 500)
+      if (!/^\d+$/.test(String(id))) return res.status(400).json({ success: false, message: 'id không hợp lệ' });
       const { content, bot, note } = req.body;
       const me = await getVuongMacActor(req);
       const actor = me.username;
@@ -1178,6 +1220,7 @@ app.post(
         noteClean ? `Ghi chú: ${noteClean}` : null,
       ].filter(Boolean).join('\n');
 
+      const ready = await hasWorkflowSchema();
       // 3 bước (thêm gia hạn, đổi BOT, ghi nhật ký) trong 1 transaction
       await withTransaction(async (client) => {
         await client.query(
@@ -1186,7 +1229,8 @@ app.post(
           [old.id, content, bot, old.bot || null, noteClean || null, actor]
         );
         await client.query(
-          `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
+          // Gia hạn => bỏ cờ leo thang để lần quá hạn mới vẫn được báo quản lý
+          `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now()${ready ? ', escalated_at = NULL' : ''} WHERE id = $4`,
           [bot, botEnd, actor, old.id]
         );
         await client.query(
@@ -1217,6 +1261,8 @@ app.post(
 app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    // id phải là số nguyên (chữ => lỗi 22P02 của Postgres thành 500)
+    if (!/^\d+$/.test(String(id))) return res.status(400).json({ success: false, message: 'id không hợp lệ' });
     const me = await getVuongMacActor(req);
     const actor = me.username;
 

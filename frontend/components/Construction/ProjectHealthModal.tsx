@@ -69,6 +69,8 @@ interface Props {
   escEnabled?: boolean;
   /** Bảng nhập kho (toàn bộ) — để vẽ nhịp nhập kho theo tuần + dự báo của công trình */
   inventory?: DataRow[];
+  /** HEX không hủy của công trình, KHÔNG qua bộ lọc IPO — để tính nhịp nhập kho (sản lượng đã ra) */
+  paceHexes?: string[];
 }
 
 const DUE_SOON_DAYS = 14;
@@ -115,7 +117,7 @@ const fmtTy = formatTrieuAsTy;
 
 
 export const ProjectHealthModal: React.FC<Props> = ({
-  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, escEnabled = true, inventory,
+  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, escEnabled = true, inventory, paceHexes,
 }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   type Tab = 'overview' | 'bot' | 'bop' | 'bom';
@@ -201,7 +203,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
   const meta = useMemo(() => {
     const str = (k?: string) => (k ? rows.map(r => String(r[k] ?? '').trim()) : []);
     const botDates = items.map(i => i.botDuAn).filter((d): d is Date => !!d);
-    const bot = botDates.length ? parsePlanDate(modeOf(botDates.map(d => d.toISOString().slice(0, 10)))) : null;
+    // Khoá ngày theo giờ ĐỊA PHƯƠNG (toISOString đổi sang UTC => ở +7 lùi 1 ngày: BOT 30/10 hiện 29/10)
+    const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const bot = botDates.length ? parsePlanDate(modeOf(botDates.map(dayKey))) : null;
     const pcs = [...new Set(str('ten_pc').filter(Boolean))];
     return {
       botDuAn: bot,
@@ -224,7 +228,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
   // Nhịp nhập kho theo tuần (bảng nhập kho, các HEX của công trình) + dự báo theo nhịp PACE_WEEKS tuần gần nhất
   const weekly = useMemo(() => {
     if (!inventory || !isOpen || hexList.length === 0) return null;
-    const hexSet = new Set(hexList);
+    // Nhịp tính trên MỌI hạng mục không hủy của công trình (paceHexes), không theo bộ lọc IPO của trang: hạng mục
+    // vừa nhập đủ đã sang "02. HOÀN THÀNH" — chính là sản lượng đã ra (trước bị loại => nhịp thấp 40–60%)
+    const hexSet = new Set(paceHexes?.length ? paceHexes : hexList);
     const curWeek = weekStart(today);
     const firstWeek = curWeek - (WEEKS_SHOWN - 1) * 7 * DAY;
     const sums = new Map<number, { value: number; hexes: Set<string> }>();
@@ -249,7 +255,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       return { ...w, cur: w.start === curWeek, label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, full: fmtDate(d) };
     });
     return { weeks, chart, pace, paceWeeks: past.length };
-  }, [inventory, isOpen, hexList, today]);
+  }, [inventory, isOpen, hexList, paceHexes, today]);
 
   // ---------- Dữ liệu BOM + vướng mắc (gọi API khi mở) ----------
   const [matCount, setMatCount] = useState<Record<string, number> | null>(null);
@@ -352,7 +358,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
   // Luồng tiến độ: Nhận PM → Đã triển khai BV → Có phiếu → Lên chuyền → Nhập kho đủ (số hạng mục · trị giá)
   const funnel = useMemo(() => {
     const p013 = stageRank('P013');
-    const onLine = (i: HexInfo) => !i.open || stageRank(i.stage) >= p013;
+    // Công đoạn trống / lạ (rank 999) không tính là đã vào sản xuất
+    const onLine = (i: HexInfo) => !i.open || (!!i.stage && stageRank(i.stage) !== 999 && stageRank(i.stage) >= p013);
     const hasBv = items.some(i => i.bvDone !== null && i.bvDone !== undefined);
     const hasPh = items.some(i => i.phieuDone !== null && i.phieuDone !== undefined);
     const step = (label: string, pred: (i: HexInfo) => boolean, has = true, hint = '') => {
@@ -363,7 +370,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       step('Nhận từ PM', () => true, true, 'Mọi hạng mục của công trình (không tính đơn hủy)'),
       step('Đã triển khai BV', i => !!i.bvDone || onLine(i), hasBv, 'Tình trạng triển khai bản vẽ = ĐÃ TRIỂN KHAI (hoặc đã lên chuyền / nhập kho)'),
       step('Có phiếu SX', i => !!i.phieuDone || onLine(i), hasPh, 'Tình trạng phiếu ≠ CHƯA PHIẾU (hoặc đã lên chuyền / nhập kho)'),
-      step('Vào sản xuất', onLine, true, 'Công đoạn từ P013 trở đi (đã qua tính phiếu P012), hoặc đã nhập kho đủ'),
+      step('Vào sản xuất', onLine, true, 'Công đoạn từ P013 trở đi (đã bắt đầu gia công), hoặc đã nhập kho đủ — khác nhóm "Đang trên chuyền" của thẻ BOP (tính từ P012 có phiếu chưa SX)'),
       step('Nhập kho đủ', i => !i.open, true, 'Đã nhập đủ trị giá hoặc đủ số lượng đơn hàng'),
     ];
   }, [items]);

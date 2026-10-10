@@ -472,7 +472,9 @@ export const BopTab = ({ items, onHexClick, extra }: {
         if (!e) continue;
         const applies = !s.flag || e.flags[s.flag] || e.steps[s.key] > 0;
         if (!applies) continue;
-        const order = e.qtyTicket > 0 ? e.qtyTicket : 0;
+        // Hạng mục chưa có SL tính phiếu không tính vào % (trước cộng SL đã giao vào tử số nhưng mẫu số 0 => % bị thổi)
+        if (!(e.qtyTicket > 0)) continue;
+        const order = e.qtyTicket;
         items++;
         qtyOrder += order;
         qtyDone += Math.min(e.steps[s.key], order || e.steps[s.key]);
@@ -607,8 +609,9 @@ export const BopTab = ({ items, onHexClick, extra }: {
 
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    // Cùng tập hạng mục với bảng Công đoạn × Khu vực (bấm ô nào thì danh sách khớp đúng số của ô đó)
-    return pivotItems
+    // Cùng tập hạng mục với bảng Công đoạn × Khu vực (bấm ô nào thì danh sách khớp đúng số của ô đó); lọc theo thẻ
+    // QC / gia công ngoài / bước SX thì dùng tập hạng mục còn theo dõi như số đếm trên thẻ
+    return (extraSel ? open : pivotItems)
       .filter(matchSel)
       .filter(i => !dwellSel || (stageOf(i) === dwellSel.stage && dwellOf(i.dwell) === dwellSel.dwell))
       .filter(matchExtra)
@@ -621,7 +624,7 @@ export const BopTab = ({ items, onHexClick, extra }: {
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
             : b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pivotItems, sel, dwellSel, extraSel, q, sortBy, extra]);
+  }, [pivotItems, open, sel, dwellSel, extraSel, q, sortBy, extra]);
 
   const toggle = (s: string) => setExpanded(prev => {
     const n = new Set(prev);

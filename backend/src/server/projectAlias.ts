@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { timedQuery } from '../db.js';
 
 // ============================================================================
@@ -41,6 +42,9 @@ let codeToNames = new Map<string, Set<string>>();
 // — cùng quy tắc frontend dùng để hiển thị tên công trình (utils/productionMetrics.canonicalizeProjectNames)
 let canonicalByCode = new Map<string, string>();
 let loadedAt = 0;
+// Dấu vân tay nội dung bảng tên (đổi khi lần nạp ra kết quả khác) — gắn vào khoá cache các API dùng bảng tên
+let aliasVersion = '';
+export const projectAliasesVersion = (): string => aliasVersion;
 let loading: Promise<void> | null = null;
 
 const load = async () => {
@@ -107,6 +111,7 @@ const load = async () => {
   nameToCodes = n2c;
   codeToNames = c2n;
   canonicalByCode = cbc;
+  aliasVersion = createHash('sha1').update(JSON.stringify([r.rows, canon.rows])).digest('hex').slice(0, 12);
   loadedAt = Date.now();
 };
 

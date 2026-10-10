@@ -44431,6 +44431,9 @@ var requireWarmupSecret = (req, res, next) => {
   next();
 };
 
+// src/server/projectAlias.ts
+import { createHash as createHash2 } from "crypto";
+
 // node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
 var Client = import_lib.default.Client;
@@ -44577,6 +44580,8 @@ var nameToCodes = /* @__PURE__ */ new Map();
 var codeToNames = /* @__PURE__ */ new Map();
 var canonicalByCode = /* @__PURE__ */ new Map();
 var loadedAt = 0;
+var aliasVersion = "";
+var projectAliasesVersion = () => aliasVersion;
 var loading = null;
 var load = async () => {
   const exist = await timedQuery(
@@ -44640,6 +44645,7 @@ var load = async () => {
   nameToCodes = n2c;
   codeToNames = c2n;
   canonicalByCode = cbc;
+  aliasVersion = createHash2("sha1").update(JSON.stringify([r.rows, canon.rows])).digest("hex").slice(0, 12);
   loadedAt = Date.now();
 };
 var ensureProjectAliases = async () => {
@@ -63770,8 +63776,8 @@ async function activeUsers() {
 var invalidateUsersCache = () => {
   usersCache = null;
 };
-var lower = (s) => s.toLocaleLowerCase("vi");
-var isWordChar = (ch) => !!ch && /[\p{L}\p{N}_]/u.test(ch);
+var lower = (s) => s.normalize("NFC").replace(/\s+/g, " ").toLocaleLowerCase("vi");
+var isWordChar = (ch) => !!ch && /[\p{L}\p{M}\p{N}_]/u.test(ch);
 async function findMentionedIds(...texts) {
   const text = lower(texts.filter(Boolean).join("\n"));
   const out = /* @__PURE__ */ new Set();
@@ -64615,11 +64621,11 @@ var numericColQualified = (table, alias, col) => {
 };
 
 // src/server/cache.ts
-import { createHash as createHash2 } from "crypto";
+import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
 async function cachedByVersions(cache, key, versionKeys, compute, extraVersion = "") {
   const versions = await getRelevantVersions(versionKeys);
-  const vkey = `${JSON.stringify(versions)}|${extraVersion}`;
+  const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
   const hit = cache.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
   const flightKey = `${key}|${vkey}`;
@@ -64643,12 +64649,12 @@ async function cachedByVersions(cache, key, versionKeys, compute, extraVersion =
   cache.inflight.set(flightKey, p);
   return p;
 }
-var hashKey = (value) => createHash2("sha1").update(JSON.stringify(value)).digest("hex");
+var hashKey = (value) => createHash3("sha1").update(JSON.stringify(value)).digest("hex");
 var queryKey = (query, names) => {
   const o = {};
   for (const n of names) {
     const v = query[n];
-    if (v !== void 0 && v !== null && String(v) !== "") o[n] = String(v);
+    if (v !== void 0 && v !== null) o[n] = String(v);
   }
   return JSON.stringify(o);
 };
@@ -66710,7 +66716,7 @@ usersRouter.get("/", async (req, res) => {
       pool.query(
         `SELECT id, username, full_name, email, role, permissions,
                 msnv, department, note, is_active, created_at, updated_at
-         FROM users ORDER BY created_at DESC
+         FROM users ORDER BY created_at DESC, id DESC
          LIMIT $1 OFFSET $2`,
         [pageSize, offset]
       )
@@ -67755,7 +67761,7 @@ async function hasWorkflowSchema() {
   if (workflowReady !== null && Date.now() - workflowCheckedAt < 6e4) return workflowReady;
   try {
     const r = await pool.query(
-      `SELECT 1 FROM information_schema.columns WHERE table_name = 'vuong_mac' AND column_name = 'escalated_at'`
+      `SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'vuong_mac' AND column_name = 'escalated_at'`
     );
     workflowReady = r.rows.length > 0;
   } catch {
@@ -67805,16 +67811,18 @@ var isSameDept = (a, b) => {
 };
 var sameName = (a, b) => (a ?? "").trim().toLowerCase() !== "" && (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 var getVuongMacActor = async (req) => {
-  const r = await pool.query("SELECT department, full_name FROM users WHERE id = $1", [req.user.id]);
+  const r = await pool.query("SELECT department, full_name, is_active FROM users WHERE id = $1", [req.user.id]);
   return {
     username: req.user.username,
     role: req.user.role,
     department: r.rows[0]?.department ?? null,
-    fullName: r.rows[0]?.full_name ?? null
+    fullName: r.rows[0]?.full_name ?? null,
+    active: r.rows[0]?.is_active === true
   };
 };
 var isHandler = (me2, handler) => !!handler && (sameName(handler, me2.fullName) || sameName(handler, me2.username));
 var permsOf = (me2, createdBy, createdDept, handler) => {
+  if (!me2.active) return { edit: false, work: false, close: false, delete: false };
   const admin = me2.role === "ADMIN";
   const reporterSide = admin || !!createdBy && createdBy === me2.username || isSameDept(me2.department, createdDept);
   const handlerSide = reporterSide || isHandler(me2, handler);
@@ -67925,6 +67933,22 @@ var productionOfHex = async (hex3) => {
 };
 var MAX_PHOTOS_PER_ITEM = 5;
 var isJpeg = (b) => b.length > 3 && b[0] === 255 && b[1] === 216 && b[2] === 255;
+app.use("/api/vuong-mac", (req, res, next) => {
+  if (req.method === "GET" || req.method === "OPTIONS" || /^\/(list|hex-bulk)\/?$/i.test(req.path)) return next();
+  authenticateJWT(req, res, async () => {
+    try {
+      const r = await pool.query("SELECT is_active FROM users WHERE id = $1", [req.user.id]);
+      if (r.rows[0]?.is_active !== true) {
+        res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+        return;
+      }
+      next();
+    } catch (error61) {
+      console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n v\u01B0\u1EDBng m\u1EAFc:", error61);
+      res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    }
+  });
+});
 app.post(
   "/api/vuong-mac/:id/photos",
   authenticateJWT,
@@ -68090,8 +68114,9 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       params.push(category);
       conds.push(`b.category = $${params.length}`);
     }
+    const likeEsc = (v) => v.replace(/[\\%_]/g, (m) => `\\${m}`);
     if (q) {
-      params.push(`%${q}%`);
+      params.push(`%${likeEsc(q)}%`);
       const n = params.length;
       conds.push(`(b.content ILIKE $${n} OR b.handler ILIKE $${n} OR b.created_by ILIKE $${n}
                    OR b.hex ILIKE $${n} OR COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${n}
@@ -68123,7 +68148,7 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       conds.push(`UPPER(TRIM(COALESCE(${ready ? "b.xuong, " : ""}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
     }
     if (congTrinh) {
-      params.push(`%${congTrinh}%`);
+      params.push(`%${likeEsc(congTrinh)}%`);
       conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
     }
     if (handler) {
@@ -68191,7 +68216,7 @@ app.get("/api/vuong-mac/stats", authenticateJWT, async (req, res) => {
          FROM vuong_mac vm
          LEFT JOIN LATERAL (
            SELECT ten_cong_trinh, xuong_chinh FROM production_status_app
-           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+           WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
          ) p ON TRUE
          WHERE ${ready ? `vm.status <> 'closed'` : "vm.is_resolved = FALSE"}`
       ),
@@ -68288,28 +68313,35 @@ var hoursBetween = (a, b) => {
 };
 var avg = (xs) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length * 10) / 10 : null;
 var vnDay = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(d);
+var addDaysStr = (day, n) => {
+  const d = /* @__PURE__ */ new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+var mondayOf = (day) => {
+  const d = /* @__PURE__ */ new Date(`${day}T00:00:00Z`);
+  return addDaysStr(day, -((d.getUTCDay() + 6) % 7));
+};
 app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
   try {
+    if (!await userHasPermission(req, "vuong_mac")) return res.status(403).json({ error: "Kh\xF4ng c\xF3 quy\u1EC1n xem b\u1EA3ng \u0111i\u1EC1u khi\u1EC3n v\u01B0\u1EDBng m\u1EAFc" });
     const ready = await hasWorkflowSchema();
     const today = vnDay(/* @__PURE__ */ new Date());
     const to = DAY_RE.test(String(req.query.to || "")) ? String(req.query.to) : today;
-    const defFrom = /* @__PURE__ */ new Date(`${to}T00:00:00+07:00`);
-    defFrom.setDate(defFrom.getDate() - 29);
-    const from = DAY_RE.test(String(req.query.from || "")) ? String(req.query.from) : vnDay(defFrom);
+    const from = DAY_RE.test(String(req.query.from || "")) ? String(req.query.from) : addDaysStr(to, -29);
     const xuongList = expandWorkshops(String(req.query.xuong || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean));
-    const weekStart = /* @__PURE__ */ new Date(`${to}T00:00:00+07:00`);
-    weekStart.setDate(weekStart.getDate() - (weekStart.getDay() + 6) % 7 - 7 * 11);
-    const seriesFrom = vnDay(weekStart);
+    const seriesFrom = addDaysStr(mondayOf(to), -7 * 11);
     const lo = from < seriesFrom ? from : seriesFrom;
     const r = await timedQuery(
       `SELECT vm.id, vm.hex, vm.category, vm.content, vm.handler, vm.created_by, vm.created_at, vm.bot, vm.is_resolved,
               vm.resolved_at, vm.updated_at,
               ${ready ? "vm.status, vm.priority, vm.stage, vm.xuong, vm.ten_cong_trinh, vm.accepted_at, vm.closed_at, vm.escalated_at," : "NULL AS status, NULL AS priority, NULL AS stage, NULL AS xuong, NULL AS ten_cong_trinh, NULL AS accepted_at, vm.resolved_at AS closed_at, NULL AS escalated_at,"}
-              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh, p.bop AS p_bop
+              p.ten_cong_trinh AS p_ten_cong_trinh, p.xuong_chinh AS p_xuong_chinh, p.bop AS p_bop,
+              EXISTS (SELECT 1 FROM vuong_mac_extension e WHERE e.vuong_mac_id = vm.id) AS has_ext
        FROM vuong_mac vm
        LEFT JOIN LATERAL (
          SELECT ten_cong_trinh, xuong_chinh, bop FROM production_status_app
-         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST LIMIT 1
+         WHERE hex::text = vm.hex ORDER BY updated_at DESC NULLS LAST, id DESC LIMIT 1
        ) p ON TRUE
        WHERE ${ready ? `vm.status <> 'closed'` : "vm.is_resolved = FALSE"}
           OR vm.created_at >= ($1::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh')
@@ -68339,17 +68371,15 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
     const aging = { d1: 0, d3: 0, d7: 0, d14: 0, more: 0 };
     const weeks = /* @__PURE__ */ new Map();
     for (let i = 0; i < 12; i++) {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i * 7);
-      weeks.set(vnDay(d), { start: vnDay(d), created: 0, done: 0, closed: 0 });
+      const k = addDaysStr(seriesFrom, i * 7);
+      weeks.set(k, { start: k, created: 0, done: 0, closed: 0 });
     }
     const weekKeyOf = (ts) => {
       if (!ts) return null;
-      const d = /* @__PURE__ */ new Date(`${vnDay(new Date(String(ts)))}T00:00:00+07:00`);
-      d.setDate(d.getDate() - (d.getDay() + 6) % 7);
-      const k = vnDay(d);
+      const k = mondayOf(vnDay(new Date(String(ts))));
       return weeks.has(k) ? k : null;
     };
+    const handlerDisplay = /* @__PURE__ */ new Map();
     const oldest = [];
     for (const row of r.rows) {
       const st = statusOf(row);
@@ -68357,7 +68387,10 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
       if (xuongList.length && !xuongList.includes(xuong) && !xuongList.includes(String(row.p_xuong_chinh ?? "").toUpperCase().trim())) continue;
       const stage = row.stage ?? stageOf(row.p_bop) ?? "Ch\u01B0a r\xF5";
       const project = row.p_ten_cong_trinh || row.ten_cong_trinh ? canonicalProjectName(row.p_ten_cong_trinh ?? row.ten_cong_trinh) : "Ch\u01B0a r\xF5";
-      const handlerName = String(row.handler ?? "").trim() || "Ch\u01B0a giao";
+      const hRaw = String(row.handler ?? "").trim();
+      const hKey = hRaw.toLowerCase();
+      if (hRaw && !handlerDisplay.has(hKey)) handlerDisplay.set(hKey, hRaw);
+      const handlerName = hRaw ? handlerDisplay.get(hKey) : "Ch\u01B0a giao";
       const groups = [
         totals,
         group(byCategory, row.category),
@@ -68376,6 +68409,7 @@ app.get("/api/vuong-mac/dashboard", authenticateJWT, async (req, res) => {
           else if (d === "soon") g.soon++;
         }
         if (d === "none") noBot++;
+        if (row.has_ext) extendedActive++;
         if (row.escalated_at) escalated++;
         if (row.priority === "urgent") urgent++;
         const ageH = hoursBetween(row.created_at, (/* @__PURE__ */ new Date()).toISOString()) ?? 0;
@@ -68559,6 +68593,7 @@ app.put(
   async (req, res) => {
     try {
       const { id } = req.params;
+      if (!/^\d+$/.test(String(id))) return res.status(400).json({ success: false, message: "id kh\xF4ng h\u1EE3p l\u1EC7" });
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
       const ready = await hasWorkflowSchema();
@@ -68611,6 +68646,10 @@ app.put(
       if (bot !== void 0) {
         push("bot", bot || null);
         push("bot_end", parseBotEnd(bot));
+        if ((bot || null) !== (old.bot || null)) {
+          logs.push(`BOT: ${old.bot || "\u2014"} \u2192 ${bot || "\u2014"}`);
+          if (ready) push("escalated_at", null);
+        }
       }
       if (solution !== void 0) push("solution", solution || null);
       if (note !== void 0) push("note", note || null);
@@ -68793,6 +68832,7 @@ app.post(
   async (req, res) => {
     try {
       const { id } = req.params;
+      if (!/^\d+$/.test(String(id))) return res.status(400).json({ success: false, message: "id kh\xF4ng h\u1EE3p l\u1EC7" });
       const { content, bot, note } = req.body;
       const me2 = await getVuongMacActor(req);
       const actor = me2.username;
@@ -68823,6 +68863,7 @@ app.post(
         `BOT: ${old.bot || "\u2014"} \u2192 ${bot}`,
         noteClean ? `Ghi ch\xFA: ${noteClean}` : null
       ].filter(Boolean).join("\n");
+      const ready = await hasWorkflowSchema();
       await withTransaction(async (client) => {
         await client.query(
           `INSERT INTO vuong_mac_extension (vuong_mac_id, content, bot, old_bot, note, created_by)
@@ -68830,7 +68871,8 @@ app.post(
           [old.id, content, bot, old.bot || null, noteClean || null, actor]
         );
         await client.query(
-          `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
+          // Gia hạn => bỏ cờ leo thang để lần quá hạn mới vẫn được báo quản lý
+          `UPDATE vuong_mac SET bot = $1, bot_end = $2, updated_by = $3, updated_at = now()${ready ? ", escalated_at = NULL" : ""} WHERE id = $4`,
           [bot, botEnd, actor, old.id]
         );
         await client.query(
@@ -68865,6 +68907,7 @@ BOT m\u1EDBi: ${bot}`
 app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
   try {
     const { id } = req.params;
+    if (!/^\d+$/.test(String(id))) return res.status(400).json({ success: false, message: "id kh\xF4ng h\u1EE3p l\u1EC7" });
     const me2 = await getVuongMacActor(req);
     const actor = me2.username;
     const existing = await pool.query(

@@ -48,11 +48,14 @@ export function StockItemsModal({ open, onClose, date, projectName, congTrinh, x
   }, [open, dateISO, projectName, scopeKey, xuongKey]);
 
   const dateLabel = date ? date.toLocaleDateString('vi-VN') : '';
+  // Số trên phễu (chế độ Hạng mục) đếm MÃ ID SAP khác nhau; danh sách liệt kê từng DÒNG tồn (1 mã có thể nhiều lô)
+  const idCount = new Set(rows.map(r => String(r.ma_id_sap ?? ''))).size;
+  const countNote = rows.length ? ` · ${rows.length.toLocaleString('vi-VN')} dòng / ${idCount.toLocaleString('vi-VN')} mã` : '';
   return (
     <DetailDataModal
       open={open}
       onClose={onClose}
-      title={`Tồn kho ngày ${dateLabel}${projectName ? ` — ${projectName}` : ''} · Đơn vị: Tỷ đồng`}
+      title={`Tồn kho ngày ${dateLabel}${projectName ? ` — ${projectName}` : ''}${countNote} · Đơn vị: Tỷ đồng`}
       accentColor="#16a34a"
       rows={rows}
       columns={COLUMNS}

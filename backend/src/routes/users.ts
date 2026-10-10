@@ -25,7 +25,7 @@ usersRouter.get('/', async (req: Request, res: Response) => {
       pool.query(
         `SELECT id, username, full_name, email, role, permissions,
                 msnv, department, note, is_active, created_at, updated_at
-         FROM users ORDER BY created_at DESC
+         FROM users ORDER BY created_at DESC, id DESC
          LIMIT $1 OFFSET $2`,
         [pageSize, offset]
       ),

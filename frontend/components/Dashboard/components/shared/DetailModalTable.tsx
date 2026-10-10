@@ -268,7 +268,12 @@ useEffect(() => {
             <tfoot className="bg-slate-100 font-bold text-slate-800 border-t border-slate-300 sticky bottom-0 z-20 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
               <tr>
                 <td className="bg-slate-100" />
-                <td className="px-4 py-3 text-left bg-slate-100">TỔNG CỘNG</td>
+                <td
+                  className="px-4 py-3 text-left bg-slate-100"
+                  title="Cộng các dòng nhóm. Khi đếm hạng mục, 1 HEX ở nhiều nhóm (nhiều xưởng / nhiều cách ghi tên công trình) được đếm ở mỗi nhóm nên tổng có thể lớn hơn số trên thẻ; tổng giá trị luôn khớp."
+                >
+                  TỔNG CỘNG <span className="font-normal text-[0.625rem] text-slate-400">(cộng các nhóm)</span>
+                </td>
                 <td className={`px-4 py-3 bg-slate-100 ${primaryColorClass}`}>
                   {formatValue(totalDaily)}
                 </td>

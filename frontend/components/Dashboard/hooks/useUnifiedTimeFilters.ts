@@ -15,7 +15,7 @@ const isoWeekMonday = (year: number, week: number): Date => {
 };
 // Ngày d thuộc tuần `week` của năm `year` theo cách đánh số của bảng KHSX: tuần ISO, cắt trong năm dương lịch
 // (29–31/12/2025 là tuần 53 của 2025, 01–04/01/2026 là tuần 1 của 2026) — giống /api/khsx-nhapkho/summary
-const inPlanWeek = (d: Date, year: number, week: number): boolean => {
+export const inPlanWeek = (d: Date, year: number, week: number): boolean => {
   const mon = isoWeekMonday(year, week);
   const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
   const lo = mon < new Date(year, 0, 1) ? new Date(year, 0, 1) : mon;

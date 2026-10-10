@@ -116,6 +116,8 @@ interface UsePivotTablesResult {
     remaining: DataRow[];
     inventory: DataRow[];
   };
+  /** Danh sách HEX cho phễu (cùng nguồn + nút của phễu) — cùng cấu trúc hexRowsByColumnV2 */
+  funnelHexRowsByColumn: UsePivotTablesResult['hexRowsByColumnV2'];
   // MỚI: bản "v2" của hexRowsByColumn, cùng nguồn với projectStatusSummaryV2.
   hexRowsByColumnV2: {
     totalOrder: DataRow[];
@@ -593,7 +595,8 @@ export function usePivotTables({
   // giữ nguyên = chưa triển khai + toàn bộ dòng đang sản xuất, để không sót
   // dòng nào (vd. P012) khi tách cột.
   // -------------------------------------------------------------------------
-  const hexRowsByColumnV2 = useMemo(() => {
+  // requireStatusArea: chỉ dòng có Tình trạng + Khu vực SX (đúng tập dòng phễu đếm)
+  const buildHexRows = (sourceRows: DataRow[], isCountList: boolean, requireStatusArea = false) => {
     const totalOrder: DataRow[] = [];
     const afterCancel: DataRow[] = [];
     const notDeployed: DataRow[] = [];
@@ -604,11 +607,11 @@ export function usePivotTables({
     const cancelled: DataRow[] = [];
     const buckets: Record<RemainBucket, DataRow[]> = { notDeployed, p002, onLine, shortfall };
 
-    const isCountList = projectSummaryMetric === 'COUNT';
     if (congTrinhKey && tinhTrangKey) {
-      projectSummaryData.forEach(row => {
+      sourceRows.forEach(row => {
         const ctName = String(row[congTrinhKey] || '').trim();
         if (!ctName) return;
+        if (requireStatusArea && !(String(row[tinhTrangKey] || '').trim() && xuongKey && String(row[xuongKey] || '').trim())) return;
         const status = String(row[tinhTrangKey] || '').toUpperCase();
         const statusIpo = String(row[tinhTrangIpoKey] || '').toUpperCase();
 
@@ -645,7 +648,19 @@ export function usePivotTables({
       inventory,
       cancelled,
     };
-  }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]);
+  };
+  const hexRowsByColumnV2 = useMemo(
+    () => buildHexRows(projectSummaryData, projectSummaryMetric === 'COUNT'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]
+  );
+  // Danh sách HEX khi bấm số của PHỄU: cùng nguồn (funnelProductionData) và cùng nút Giá trị / Hạng mục của phễu
+  // (workshopMetric) — trước dùng bản của bảng công trình (nút khác) nên số dòng lệch số trong ô
+  const funnelHexRowsByColumn = useMemo(
+    () => buildHexRows(funnelProductionData, workshopMetric === 'COUNT_HEX', true),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [funnelProductionData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, xuongKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, workshopMetric]
+  );
 
   // -------------------------------------------------------------------------
   // Pivot: Workshop (Tình Trạng x Khu vực sản xuất)
@@ -734,11 +749,10 @@ export function usePivotTables({
   const funnelValue = (row: DataRow): number => {
     // Giá trị còn lại theo quy tắc chung (trị giá − đã nhập, chặn [0, trị giá]) — không đọc thẳng cột
     // gia_tri_don_hang_con_lai (sai khi nhập kho âm)
-    if (workshopMetric === 'SUM_GT_CON_LAI') {
+    if (workshopMetric !== 'COUNT_HEX') {
       if (isCancelledRow(row)) return 0;
       return remainValue(parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
     }
-    if (workshopMetric !== 'COUNT_HEX') return calculateMetricValue(row, workshopMetric);
     if (isCancelledRow(row)) return 0;
     const total = parseNumber(row[triGiaDonHangTongKey]);
     const nk = thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0;
@@ -981,6 +995,7 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
     onLineAreaBreakdownV2,
     hexRowsByColumn,
     hexRowsByColumnV2,
+    funnelHexRowsByColumn,
     pivotWorkshopData,
     pivotFunnelData,
     customFunnelData,

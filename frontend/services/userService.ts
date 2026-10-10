@@ -77,16 +77,20 @@ export const userService = {
   getUsers: async (): Promise<ApiResponse<User[]>> => {
     const PAGE_SIZE = 100;
     const all: User[] = [];
+    const seen = new Set<string>();
     for (let page = 1; page <= 100; page++) {
       const res = await request<User[]>(`${API_BASE}/users?page=${page}&pageSize=${PAGE_SIZE}`, {
         method: 'GET',
         headers: authHeaders(),
       });
       if (!res.success || !Array.isArray(res.data)) return page === 1 ? res : { ...res, data: all };
-      all.push(...res.data);
-      const total = res.pagination?.total ?? all.length;
-      if (res.data.length < PAGE_SIZE || all.length >= total) {
-        return { ...res, data: all, pagination: { page: 1, pageSize: all.length, total } };
+      // Gộp theo id (phòng trùng dòng giữa 2 trang khi có người dùng mới được thêm lúc đang tải).
+      // Chỉ dừng khi trang rỗng hoặc đã đủ tổng số — KHÔNG dựa vào "trang ít hơn PAGE_SIZE" vì server
+      // có thể giới hạn pageSize nhỏ hơn số xin (trước đây chỉ lấy được 50 người).
+      for (const u of res.data) if (!seen.has(String(u.id))) { seen.add(String(u.id)); all.push(u); }
+      const total = res.pagination?.total;
+      if (res.data.length === 0 || total === undefined || all.length >= total) {
+        return { ...res, data: all, pagination: { page: 1, pageSize: all.length, total: total ?? all.length } };
       }
     }
     return { success: true, data: all };

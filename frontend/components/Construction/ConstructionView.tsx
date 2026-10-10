@@ -595,6 +595,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     projectStatusSummaryV2,
     onLineAreaBreakdownV2,      // breakdown theo khu vực sản xuất
     hexRowsByColumnV2,
+    funnelHexRowsByColumn,
     pivotWorkshopData,
     pivotFunnelData,
     funnelBreakdownByBop,
@@ -796,6 +797,8 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     projectName: string | null;
     stage: string | null;
     area?: string | null;
+    /** Mở từ phễu: dùng danh sách cùng nguồn + nút của phễu */
+    fromFunnel?: boolean;
   }>({ open: false, column: null, projectName: null, stage: null });
 
   const [stockItems, setStockItems] = useState<{ open: boolean; projectName: string | null }>({ open: false, projectName: null });
@@ -812,7 +815,8 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
 
   const hexDetailRows = useMemo(() => {
     if (!hexDetail.open || !hexDetail.column) return [];
-    let source = hexRowsByColumnV2[hexDetail.column as keyof typeof hexRowsByColumnV2] ?? [];
+    const pool = hexDetail.fromFunnel ? funnelHexRowsByColumn : hexRowsByColumnV2;
+    let source = pool[hexDetail.column as keyof typeof pool] ?? [];
     if (hexDetail.projectName && congTrinhKey) {
       source = source.filter(row => String(row[congTrinhKey] || '').trim() === hexDetail.projectName);
     }
@@ -827,7 +831,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
       );
     }
     return source;
-  }, [hexDetail, hexRowsByColumnV2, congTrinhKey, bopKey, xuongKey]);
+  }, [hexDetail, hexRowsByColumnV2, funnelHexRowsByColumn, congTrinhKey, bopKey, xuongKey]);
 
   const hexDetailColumnKeys: HexDetailColumnKeys = useMemo(
     () => ({
@@ -873,13 +877,14 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   // đúng cột/giai đoạn tương ứng (xem FUNNEL_TO_HEX_TARGET và resolveFunnelHexTarget).
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
     // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
-    if (item?.id === 'P022' || (!item && name === 'P022')) {
+    // (dòng "P022" khi chưa chọn thanh nào là hạng mục sản xuất P022 chưa nhập đủ — mở danh sách HEX, không phải tồn kho)
+    if (item?.id === 'P022') {
       setStockItems({ open: true, projectName: item ? name : null });
       return;
     }
     const target = resolveFunnelHexTarget(name, item?.id ?? null);
     if (!target) return; // vd. bước P022 (Tồn kho) không có dữ liệu hex gốc
-    setHexDetail({ open: true, column: target.column, projectName: target.projectName, stage: target.stage });
+    setHexDetail({ open: true, column: target.column, projectName: target.projectName, stage: target.stage, fromFunnel: true });
   };
 
   // Rows cho modal "Đang trên chuyền" — mỗi dòng là 1 KHU VỰC SẢN XUẤT.

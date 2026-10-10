@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DataRow } from '../../../types';
 import { parseNumber } from '../utils/numberParsers';
 import { fetchKhsxNhapKhoSummary, type KhsxNhapKhoSummary } from '../../../services/dataService';
+import { inPlanWeek } from './useUnifiedTimeFilters';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -305,16 +306,28 @@ export function useKhsxSummary({
           if (!unifiedTimeFilters.nam.includes(rowNam)) return;
         }
 
-        // Filter by Month (Unified Filter)
-        if (unifiedTimeFilters.thang.length > 0 && attThangKey) {
-          const rowThang = String(row[attThangKey] || '').trim();
-          if (!unifiedTimeFilters.thang.includes(rowThang)) return;
-        }
+        // Xem theo TUẦN đã chọn tuần: tuần tính theo NGÀY (năm/tháng/ngày của dòng chấm công), không lọc thêm tháng
+        // — khớp phần doanh số nhập kho cùng bảng (trước lọc tháng => tuần giáp 2 tháng thiếu giờ công)
+        const weekByDate = viewMode === 'WEEK' && unifiedTimeFilters.tuan.length > 0 && !!attNamKey && !!attThangKey && !!attNgayKey;
+        if (weekByDate) {
+          const y = Number(row[attNamKey!]), m = Number(row[attThangKey!]), dd = Number(row[attNgayKey!]);
+          if (!(y > 0 && m > 0 && dd > 0)) return;
+          const d = new Date(y, m - 1, dd);
+          const years = unifiedTimeFilters.nam.map(Number).filter(n => n > 0);
+          const weeks = unifiedTimeFilters.tuan.map(Number).filter(n => n > 0);
+          if (!(years.length ? years : [y]).some(yy => weeks.some(w => inPlanWeek(d, yy, w)))) return;
+        } else {
+          // Filter by Month (Unified Filter)
+          if (unifiedTimeFilters.thang.length > 0 && attThangKey) {
+            const rowThang = String(row[attThangKey] || '').trim();
+            if (!unifiedTimeFilters.thang.includes(rowThang)) return;
+          }
 
-        // Filter by Week (Unified Filter)
-        if (unifiedTimeFilters.tuan.length > 0 && attTuanKey) {
-          const rowWeek = String(row[attTuanKey] || '').trim();
-          if (!unifiedTimeFilters.tuan.includes(rowWeek)) return;
+          // Filter by Week (Unified Filter)
+          if (unifiedTimeFilters.tuan.length > 0 && attTuanKey) {
+            const rowWeek = String(row[attTuanKey] || '').trim();
+            if (!unifiedTimeFilters.tuan.includes(rowWeek)) return;
+          }
         }
 
         // Filter by Day (Unified Filter)

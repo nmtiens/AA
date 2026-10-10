@@ -37,6 +37,11 @@ export default function MentionTextarea({ value, onChange, className, rows = 3, 
     const typed = before.slice(at + 1);
     // "@" phải đứng đầu dòng / sau khoảng trắng; đoạn gõ không xuống dòng và không quá dài
     if ((prev && !/\s/.test(prev)) || typed.includes('\n') || typed.length > 30) return setQuery(null);
+    // Tag đã xong ("@Họ Tên " rồi gõ tiếp) hoặc đã có dấu cách mà không còn tên nào khớp => đang gõ chữ
+    // thường, không mở lại danh sách gợi ý
+    const f = foldVi(typed);
+    if (names.some(n => f.startsWith(foldVi(n) + ' '))) return setQuery(null);
+    if (/\s/.test(typed) && !names.some(n => foldVi(n).includes(f.trim()))) return setQuery(null);
     setQuery({ start: at, text: typed });
   };
 

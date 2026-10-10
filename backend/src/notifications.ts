@@ -78,8 +78,11 @@ async function activeUsers(): Promise<UserLite[]> {
 /** Xoá cache sau khi ai đó đổi cài đặt thông báo */
 export const invalidateUsersCache = () => { usersCache = null; };
 
-const lower = (s: string) => s.toLocaleLowerCase('vi');
-const isWordChar = (ch: string | undefined) => !!ch && /[\p{L}\p{N}_]/u.test(ch);
+// Chuẩn hoá trước khi so: NFC (bộ gõ "Unicode tổ hợp" gửi dấu tách rời), khoảng trắng lạ (NBSP…) / nhiều dấu cách
+// thành 1 dấu cách, chữ thường — để "@Họ Tên" gõ tay vẫn khớp họ tên trong DB
+const lower = (s: string) => s.normalize('NFC').replace(/\s+/g, ' ').toLocaleLowerCase('vi');
+// Dấu tổ hợp (\p{M}) cũng tính là một phần của chữ khi xét ranh giới tên
+const isWordChar = (ch: string | undefined) => !!ch && /[\p{L}\p{M}\p{N}_]/u.test(ch);
 
 /**
  * Người được tag trong đoạn chữ: "@Họ Tên" khớp họ tên (users.full_name), không phân biệt hoa thường.
