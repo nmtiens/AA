@@ -44901,6 +44901,7 @@ app.use((req, res, next) => {
   if (PUBLIC_API_PATHS.has(path.replace(/\/+$/, "")) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateActiveUser(req, res, next);
 });
+var PROJECT_ALIAS_WAIT_MS = 1500;
 var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup)(\/|$)/i;
 app.use(async (req, _res, next) => {
   const path = req.path.toLowerCase();
@@ -44914,7 +44915,10 @@ app.use(async (req, _res, next) => {
       });
     } else {
       try {
-        await ensureProjectAliases();
+        await Promise.race([
+          ensureProjectAliases(),
+          new Promise((resolve) => setTimeout(resolve, PROJECT_ALIAS_WAIT_MS))
+        ]);
       } catch {
       }
     }
@@ -65999,7 +66003,7 @@ var parseStockFilters = (req) => ({
 });
 var refreshStockDatesCache = async (filters) => {
   const needsJoin = hasProductionFilter(filters);
-  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion() });
+  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion(), pa: projectAliasesVersion() });
   const versions = await getRelevantVersions(needsJoin ? ["stock", "production"] : ["stock"]);
   const cached2 = stockDatesCache.get(cacheKey);
   if (cached2 && JSON.stringify(cached2.versions) === JSON.stringify(versions)) {

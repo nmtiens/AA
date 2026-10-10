@@ -1,4 +1,4 @@
-import { parseNameList, expandProjectNames, normNameSql, canonicalProjectName } from '../server/projectAlias.js';
+import { parseNameList, expandProjectNames, normNameSql, canonicalProjectName, projectAliasesVersion } from '../server/projectAlias.js';
 import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
@@ -36,7 +36,8 @@ const parseStockFilters = (req: Request): StockFilterParams => ({
 // [ĐO TIMING] Endpoint từng bị "pending" 25.39s trên production — điểm nóng số 2.
 const refreshStockDatesCache = async (filters: StockFilterParams) => {
   const needsJoin = hasProductionFilter(filters);
-  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion() });
+  // pa: phiên bản bảng tên công trình — kết quả tính lúc instance mới chưa nạp xong bảng tên không bị giữ lại
+  const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion(), pa: projectAliasesVersion() });
   const versions = await getRelevantVersions(needsJoin ? ['stock', 'production'] : ['stock']);
 
   const cached = stockDatesCache.get(cacheKey);
