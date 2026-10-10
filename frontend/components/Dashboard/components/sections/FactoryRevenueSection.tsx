@@ -364,11 +364,9 @@ export const FactoryRevenueSection = ({
       </div>
 
       {/* Funnel Pivot Detail Modal */}
-      {/* closeOnEsc={false}: bấm 1 con số sẽ mở danh sách HEX ĐÈ LÊN cửa sổ này; cửa sổ HEX tự xử lý Esc */}
       <ModalShell
         open={isFunnelPivotModalOpen}
         onClose={closeFunnelModal}
-        closeOnEsc={!onPivotValueClick}
         labelledBy="factory-funnel-detail-title"
         overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
         panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"

@@ -66,22 +66,21 @@ export function PhotoThumbs({ ids, onOpen, max = 4, size = 'h-16 w-16' }: {
   );
 }
 
-/** Xem ảnh lớn trên web: ‹ › hoặc phím ←/→ để chuyển, Esc để đóng, mở ảnh gốc ở tab mới. */
+/** Xem ảnh lớn trên web: ‹ › hoặc phím ←/→ để chuyển, nút X để đóng, mở ảnh gốc ở tab mới. */
 export function PhotoViewer({ ids, start, onClose }: { ids: number[]; start: number; onClose: () => void }) {
   const [idx, setIdx] = useState(Math.min(Math.max(start, 0), ids.length - 1));
   const go = (d: number) => setIdx(i => (i + d + ids.length) % ids.length);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopImmediatePropagation(); onClose(); }
-      else if (e.key === 'ArrowLeft' && ids.length > 1) { e.preventDefault(); go(-1); }
+      if (e.key === 'ArrowLeft' && ids.length > 1) { e.preventDefault(); go(-1); }
       else if (e.key === 'ArrowRight' && ids.length > 1) { e.preventDefault(); go(1); }
     };
-    // capture: Esc chỉ đóng trình xem ảnh, không đóng luôn các popup phía sau
+    // Chỉ đóng bằng nút X — không đóng bằng Esc / bấm nền
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids.length, onClose]);
+  }, [ids.length]);
 
   const openOriginal = async () => {
     try { window.open(await fetchVuongMacPhotoUrl(ids[idx]), '_blank', 'noopener'); } catch { /* ảnh lỗi: bỏ qua */ }
@@ -93,7 +92,7 @@ export function PhotoViewer({ ids, start, onClose }: { ids: number[]; start: num
       className="fixed inset-0 z-[10010] flex flex-col bg-black/90"
       role="dialog"
       aria-modal="true"
-      onClick={(e) => { e.stopPropagation(); onClose(); }}
+      onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex shrink-0 items-center justify-between px-5 py-3 text-white" onClick={(e) => e.stopPropagation()}>

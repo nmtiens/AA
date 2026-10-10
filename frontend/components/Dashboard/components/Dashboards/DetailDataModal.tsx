@@ -192,7 +192,6 @@ export default function DetailDataModal({
   return (
     <div
       className="fixed inset-0 z-[999] bg-black/40 flex items-center justify-center p-4"
-      onClick={onClose}
     >
       {/* Cửa sổ to hơn: chiếm gần hết màn hình thay vì max-w-6xl cố định */}
       <div
@@ -234,7 +233,7 @@ export default function DetailDataModal({
               <Download size={15} />
               <span>Xuất CSV</span>
             </button>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+            <button onClick={onClose} aria-label="Đóng" className="text-slate-400 hover:text-slate-700">
               <X size={18} />
             </button>
           </div>

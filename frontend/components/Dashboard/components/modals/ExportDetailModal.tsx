@@ -334,18 +334,6 @@ export const ExportDetailModal = ({
     });
   }, [rows, hexKey, congTrinhKey, xuongKey, dateKey, soLuongKey, thanhTienKey]);
 
-  // Escape: chỉ đóng modal chính. Popup ghi chú CHỈ đóng bằng nút X.
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (selectedNote) return;
-      onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, selectedNote]);
-
   useEffect(() => {
     if (!isOpen) return;
     const measure = () => {

@@ -50,6 +50,7 @@ export function LabeledField({ label, required, children, className = '' }: {
 // Render ra document.body để không bị thanh menu dưới hay khung cuộn cha che mất.
 // Màn hẹp: trượt từ dưới lên. Màn rộng (md+): hộp thoại giữa màn hình.
 // Tiêu đề và `footer` luôn đứng yên, chỉ phần giữa cuộn.
+// Chỉ đóng bằng nút ✕ (hoặc nút ở footer) — chạm ra nền không đóng.
 export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
   title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; headerExtra?: ReactNode;
 }) {
@@ -61,7 +62,7 @@ export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
   }, []);
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center md:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center md:p-4">
       <div
         className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white md:max-h-[90dvh] md:max-w-3xl md:rounded-3xl"
         onClick={e => e.stopPropagation()}

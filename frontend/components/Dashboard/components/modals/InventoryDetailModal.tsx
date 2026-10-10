@@ -117,16 +117,8 @@ export const InventoryDetailModal = ({
       setSearch('');
       setSort(null);
       setSelectedNote(null);
-      return;
     }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (selectedNote) return;
-      onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, selectedNote]);
+  }, [isOpen]);
 
   const getNotePreview = useCallback(
     (row: DataRow): string => String(row[ghiChuKey] ?? ''),

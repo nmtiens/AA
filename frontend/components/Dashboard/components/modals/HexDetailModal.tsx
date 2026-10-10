@@ -552,20 +552,6 @@ export const HexDetailModal = ({
     fetchVuongMacList(hexList).then(setVuongMacMap);
   }, [isOpen, hexList, vuongMacDetail.open]);
 
-  // Escape: chỉ đóng modal chính.
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      if (selectedNote) return;
-      if (vuongMacDetail.open) return;
-      if (materialView) return;
-      onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose, selectedNote, vuongMacDetail.open, materialView]);
-
   useEffect(() => {
     if (!isOpen) return;
     const measure = () => {

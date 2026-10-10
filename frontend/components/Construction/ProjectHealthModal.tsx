@@ -65,8 +65,6 @@ interface Props {
   pmText?: string;
   /** Mở danh sách HEX đầy đủ (cửa sổ Chi tiết theo Hex — có Vật tư / Vướng mắc) */
   onOpenHexList: () => void;
-  /** Tắt Esc khi đang mở cửa sổ khác đè lên (để Esc chỉ đóng cửa sổ trên cùng) */
-  escEnabled?: boolean;
   /** Bảng nhập kho (toàn bộ) — để vẽ nhịp nhập kho theo tuần + dự báo của công trình */
   inventory?: DataRow[];
   /** HEX không hủy của công trình, KHÔNG qua bộ lọc IPO — để tính nhịp nhập kho (sản lượng đã ra) */
@@ -117,7 +115,7 @@ const fmtTy = formatTrieuAsTy;
 
 
 export const ProjectHealthModal: React.FC<Props> = ({
-  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, escEnabled = true, inventory, paceHexes,
+  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, inventory, paceHexes,
 }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   type Tab = 'overview' | 'bot' | 'bop' | 'bom';
@@ -516,9 +514,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
   return (
     <ModalShell
       open={isOpen}
-      // Đang ở tab chi tiết: Esc / bấm nền thì quay về Tổng quan; nút X vẫn đóng hẳn
-      onClose={() => (tab !== 'overview' ? setTab('overview') : onClose())}
-      closeOnEsc={escEnabled && materialMode === null && timelineHex === null}
+      // Chỉ đóng bằng nút X (không đóng khi bấm nền / Esc)
+      onClose={onClose}
       labelledBy="health-title"
       overlayClassName="fixed inset-0 z-[9992] flex items-center justify-center bg-slate-900/50 p-4"
       panelClassName="w-[97vw] h-[95vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
@@ -911,7 +908,6 @@ export const ProjectHealthModal: React.FC<Props> = ({
         bom={timelineHex ? bomDetail?.byHex[timelineHex] ?? null : null}
         issues={timelineHex ? openIssueList[timelineHex] ?? [] : []}
         onOpenMaterial={hex => openMaterial('matched', hex)}
-        escEnabled={materialMode === null}
         names={timelineNames}
       />
 

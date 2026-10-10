@@ -90,15 +90,6 @@ export const OnLineStageDetailModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
     const measure = () => {
       const el = bodyScrollRef.current;
       if (el) setScrollbarWidth(el.offsetWidth - el.clientWidth);
@@ -245,7 +236,6 @@ export const OnLineStageDetailModal = ({
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/50 p-4"
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
     >
       <div
         className="flex flex-col rounded-xl bg-white shadow-xl"

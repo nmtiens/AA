@@ -584,13 +584,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     };
   }, [columns]);
 
-  // Esc: cửa sổ HEX (cấp 2) tự đóng trước; chỉ khi không có nó mới đóng cửa sổ chi tiết
-  useEffect(() => {
-    if (!detail || hexScope || health) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDetail(null); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [detail, hexScope, health]);
   const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => {
     const key = (target: string) => findColumnKey(columns, target) || target;
     return {
@@ -1225,7 +1218,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       <ModalShell
         open={detail !== null && detailData !== null}
         onClose={() => setDetail(null)}
-        closeOnEsc={false}
         labelledBy="detail-title"
         overlayClassName="fixed inset-0 z-[9990] flex items-center justify-center bg-slate-900/50 p-4"
         panelClassName="w-full max-w-6xl max-h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
@@ -1378,7 +1370,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         rows={healthRows}
         keys={healthKeys}
         pmText={healthPm}
-        escEnabled={hexScope === null}
         onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail })}
         inventory={inventory}
         paceHexes={healthPaceHexes}

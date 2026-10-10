@@ -801,7 +801,8 @@ const MainLayout: React.FC = () => {
       </div>
 
       {isMobileSidebarOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 md:hidden" onClick={closeMobileSidebar} />
+        // Nền mờ chỉ để che trang; đóng menu bằng nút X (không đóng khi chạm nền)
+        <div className="fixed inset-0 bg-slate-900/40 z-50 md:hidden" />
       )}
 
       <aside className={`
@@ -819,7 +820,7 @@ const MainLayout: React.FC = () => {
           <button onClick={toggleDesktopSidebar} className={`hidden md:flex p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors ${isCollapsed ? 'mx-auto' : ''}`}>
             <Menu size={18} />
           </button>
-          <button onClick={closeMobileSidebar} className="md:hidden p-2 text-slate-400 hover:text-slate-700">
+          <button onClick={closeMobileSidebar} aria-label="Đóng" className="md:hidden p-2 text-slate-400 hover:text-slate-700">
             <X size={18} />
           </button>
         </div>
@@ -1038,7 +1039,6 @@ const MainLayout: React.FC = () => {
         open={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
         labelledBy="change-password-title"
-        closeOnBackdrop={false}
         overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
         panelClassName="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200 focus:outline-none"
       >
@@ -1077,7 +1077,10 @@ const MainLayout: React.FC = () => {
         overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
         panelClassName="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200 focus:outline-none"
       >
-        <div className="p-6 text-center">
+        <div className="relative p-6 text-center">
+          <button type="button" onClick={() => setIsLogoutConfirmOpen(false)} aria-label="Đóng" className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X size={18} />
+          </button>
           <div className="w-11 h-11 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="w-5 h-5 text-red-600" />
           </div>

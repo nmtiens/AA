@@ -264,7 +264,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
     openDetail(hits[n].hex);
   };
 
-  // Phím tắt: ← trước, → sau, Esc đóng (bỏ qua khi đang gõ chữ hoặc đang mở form thêm vướng mắc)
+  // Phím tắt: ← trước, → sau; chỉ đóng bằng nút ✕ (bỏ qua khi đang gõ chữ hoặc đang mở form thêm vướng mắc)
   useEffect(() => {
     if (!openHex) return;
     const onKey = (e: KeyboardEvent) => {
@@ -273,7 +273,6 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 'ArrowLeft') go(-1);
       else if (e.key === 'ArrowRight') go(1);
-      else if (e.key === 'Escape') setOpenHex(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -577,7 +576,6 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
         return createPortal(
           <div
             className="fixed inset-0 z-[55] flex items-end justify-center bg-black/40 md:items-center md:px-20 md:py-6"
-            onClick={() => setOpenHex(null)}
           >
             {/* Khung ngoài (relative) để đặt 2 nút tới/lui nằm ngoài hai mép cửa sổ */}
             <div
@@ -626,7 +624,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
                     type="button"
                     onClick={() => setOpenHex(null)}
                     aria-label="Đóng"
-                    title="Đóng (Esc)"
+                    title="Đóng"
                     className="px-2 text-xl leading-none text-slate-400 hover:text-slate-700"
                   >
                     ✕

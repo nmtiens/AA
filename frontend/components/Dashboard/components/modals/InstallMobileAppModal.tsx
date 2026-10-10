@@ -70,7 +70,6 @@ export const InstallMobileAppModal = ({ isOpen, onClose }: Props) => {
       className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/50 p-4"
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
     >
       <div
         className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl"

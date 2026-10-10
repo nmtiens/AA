@@ -366,7 +366,7 @@ const UserManagement: React.FC = () => {
               <h3 className="font-bold text-slate-800">
                 {editingUser ? 'Cập nhật Người dùng' : 'Thêm Người dùng mới'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => setIsModalOpen(false)} aria-label="Đóng" className="text-slate-400 hover:text-slate-600">
                 <X size={20} />
               </button>
             </div>

@@ -133,12 +133,9 @@ export const ConstructionRevenueSection = ({
       </div>
 
       {/* Funnel Pivot Detail Modal */}
-      {/* closeOnEsc={false}: bấm 1 con số trong bảng sẽ mở "Chi tiết theo Hex" ĐÈ LÊN modal này,
-          modal kia tự xử lý Esc — bật Esc ở đây thì 1 lần nhấn sẽ đóng cả 2. */}
       <ModalShell
         open={isFunnelPivotModalOpen}
         onClose={closeModal}
-        closeOnEsc={false}
         labelledBy="construction-funnel-detail-title"
         overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 sm:p-6"
         panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"

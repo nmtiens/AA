@@ -54,11 +54,11 @@ export function LinkLightbox({ urls, start = 0, title, onClose }: {
   const [idx, setIdx] = useState(Math.min(Math.max(start, 0), Math.max(urls.length - 1, 0)));
   const go = (d: number) => setIdx(i => (i + d + urls.length) % urls.length);
 
-  // Bắt phím ở pha capture để Esc / mũi tên không rơi xuống cửa sổ bên dưới
+  // Bắt phím ở pha capture để mũi tên không rơi xuống cửa sổ bên dưới.
+  // Chỉ đóng bằng nút X — không đóng bằng Esc / bấm nền.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
-      else if (e.key === 'ArrowLeft') { e.stopPropagation(); go(-1); }
+      if (e.key === 'ArrowLeft') { e.stopPropagation(); go(-1); }
       else if (e.key === 'ArrowRight') { e.stopPropagation(); go(1); }
     };
     window.addEventListener('keydown', h, true);
@@ -69,11 +69,11 @@ export function LinkLightbox({ urls, start = 0, title, onClose }: {
   if (urls.length === 0) return null;
   const url = urls[idx];
   return createPortal(
-    <div className="fixed inset-0 z-[10000] flex flex-col bg-black/90" onClick={onClose}>
+    <div className="fixed inset-0 z-[10000] flex flex-col bg-black/90" onClick={e => e.stopPropagation()}>
       <div className="flex items-center justify-between gap-3 px-4 py-2 text-white" onClick={e => e.stopPropagation()}>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold">{title ?? 'Ảnh'}</p>
-          <p className="text-xs text-white/60">{idx + 1} / {urls.length}{urls.length > 1 ? ' · phím ← → để chuyển' : ''} · Esc để đóng</p>
+          <p className="text-xs text-white/60">{idx + 1} / {urls.length}{urls.length > 1 ? ' · phím ← → để chuyển' : ''}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <a

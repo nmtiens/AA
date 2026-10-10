@@ -82,13 +82,11 @@ interface Props {
   /** Vướng mắc đang mở của hạng mục (mọi loại) */
   issues?: VuongMacItem[];
   onOpenMaterial?: (hex: string) => void;
-  /** Tắt Esc khi đang có cửa sổ khác đè lên (vd. cửa sổ vật tư) */
-  escEnabled?: boolean;
   /** Tên công trình / PM / PC đã chuẩn hoá ở dữ liệu trang (giống các view khác) */
   names?: { project?: string; pm?: string; pc?: string };
 }
 
-export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, onOpenMaterial, escEnabled = true, names }) => {
+export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, onOpenMaterial, names }) => {
   const [row, setRow] = useState<Row | null>(null);
   // Xem ảnh QC ngay trong app (link Google Drive) — urls của 1 lần kiểm + ảnh đang xem
   const [photoView, setPhotoView] = useState<{ urls: string[]; idx: number; title: string } | null>(null);
@@ -221,7 +219,6 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     <ModalShell
       open={hex !== null}
       onClose={onClose}
-      closeOnEsc={escEnabled && photoView === null}
       labelledBy="hex-timeline-title"
       overlayClassName="fixed inset-0 z-[9994] flex items-center justify-center bg-slate-900/50 p-4"
       panelClassName="w-[92vw] max-w-[1400px] h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"

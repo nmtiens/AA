@@ -1162,6 +1162,10 @@ export const VuongMacDetailModal = ({
                   Vướng mắc sẽ được thu gọn và đánh dấu "đã xóa" trong đoạn chat. Thao tác này được ghi lại trong log.
                 </p>
               </div>
+              <button type="button" disabled={deleting} onClick={() => setDeleteId(null)} aria-label="Đóng"
+                className="ml-auto self-start rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50">
+                <X size={18} />
+              </button>
             </div>
 
             <div className="mx-5 mt-3 max-h-28 overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-900">

@@ -4,7 +4,9 @@ import { createPortal } from 'react-dom';
 // Khung modal dùng chung, lo phần hỗ trợ bàn phím / trình đọc màn hình mà các modal tự viết
 // trước đây còn thiếu:
 // - role="dialog" + aria-modal + aria-labelledby (trình đọc màn hình đọc đúng tiêu đề)
-// - Esc để đóng
+// - Chỉ đóng bằng nút X / nút có chữ do nơi dùng đặt (mặc định KHÔNG đóng khi bấm ra nền
+//   hay nhấn Esc — tránh mất dữ liệu đang xem/nhập do lỡ tay). Bật lại được qua
+//   closeOnBackdrop / closeOnEsc = true nếu thật sự cần.
 // - Tab / Shift+Tab chỉ chạy vòng trong modal (không lọt ra trang phía sau)
 // - Mở: focus vào ô [data-autofocus] hoặc ô nhập đầu tiên; đóng: trả focus về chỗ cũ
 // Phần giao diện (nền mờ, khung) do nơi dùng quyết định qua overlayClassName / panelClassName.
@@ -24,18 +26,18 @@ interface ModalShellProps {
   overlayClassName: string;
   /** Lớp CSS của khung modal */
   panelClassName: string;
-  /** Bấm ra ngoài khung để đóng (mặc định có) */
+  /** Bấm ra ngoài khung để đóng (mặc định KHÔNG) */
   closeOnBackdrop?: boolean;
   /**
-   * Nhấn Esc để đóng (mặc định có). Tắt khi modal này có thể mở thêm 1 modal KHÁC đè lên
-   * mà modal kia tự xử lý Esc — nếu không 1 lần nhấn Esc sẽ đóng cả 2.
+   * Nhấn Esc để đóng (mặc định KHÔNG). Nếu bật, lưu ý modal có thể mở thêm 1 modal KHÁC
+   * đè lên — 1 lần nhấn Esc có thể đóng cả 2.
    */
   closeOnEsc?: boolean;
 }
 
 export function ModalShell({
   open, onClose, children, labelledBy, label, overlayClassName, panelClassName,
-  closeOnBackdrop = true, closeOnEsc = true,
+  closeOnBackdrop = false, closeOnEsc = false,
 }: ModalShellProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);

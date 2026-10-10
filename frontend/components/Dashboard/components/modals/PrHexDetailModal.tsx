@@ -84,14 +84,6 @@ export const PrHexDetailModal = ({ isOpen, onClose, pr, viewingHexes }: PrHexDet
     return () => ctrl.abort();
   }, [isOpen, pr, viewingHexes]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopImmediatePropagation(); onClose(); } };
-    // capture: đóng popup này trước, không để Escape đóng luôn popup vật tư phía sau
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [isOpen, onClose]);
-
   const all = rows || [];
   const inFilter = (h: string) => viewingHexes.has(h);
 
