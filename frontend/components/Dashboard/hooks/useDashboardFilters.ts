@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { toFilterSet, matchesFilter, matchesCategory, toProjectSet, matchesProject } from '../utils/filterMatch';
 
@@ -38,6 +38,12 @@ interface UseDashboardFiltersParams {
 
   matCongTrinhKey: string | undefined;
   matNhomVtKey: string | undefined;
+
+  /**
+   * true = mọi phần lọc / tính phía sau dùng bản `filters` hoãn (useDeferredValue): ô chọn bộ lọc đổi ngay,
+   * số liệu cập nhật ngay sau ở nền (isFilterPending = true trong lúc chờ). Kết quả cuối không đổi.
+   */
+  deferCalc?: boolean;
 }
 
 const DEFAULT_FILTERS: DashboardFiltersState = {
@@ -76,9 +82,14 @@ export function useDashboardFilters({
   rowKhuVucDuAn,
   matCongTrinhKey,
   matNhomVtKey,
+  deferCalc = false,
 }: UseDashboardFiltersParams) {
 
   const [filters, setFilters] = useState<DashboardFiltersState>(DEFAULT_FILTERS);
+  // Bộ lọc dùng để TÍNH (hoãn khi deferCalc); `filters` vẫn là giá trị mới nhất cho ô chọn trên giao diện
+  const deferredFilters = useDeferredValue(filters);
+  const appliedFilters = deferCalc ? deferredFilters : filters;
+  const isFilterPending = appliedFilters !== filters;
   const [selectedMaterialGroups, setSelectedMaterialGroups] = useState<string[]>([]);
 
   const clearFilters = () => {
@@ -98,10 +109,10 @@ export function useDashboardFilters({
   // Tập công trình thuộc các Khách hàng + Khu vực dự án đã chọn (null = không lọc theo 2 tiêu chí này)
   const scopedProjects = useMemo<Set<string> | null>(() => {
     if (!congTrinhKey) return null;
-    if (filters.khachHang.length === 0 && filters.khuVucDuAn.length === 0) return null;
+    if (appliedFilters.khachHang.length === 0 && appliedFilters.khuVucDuAn.length === 0) return null;
 
-    const khachHangSet = toFilterSet(filters.khachHang);
-    const khuVucDuAnSet = toFilterSet(filters.khuVucDuAn);
+    const khachHangSet = toFilterSet(appliedFilters.khachHang);
+    const khuVucDuAnSet = toFilterSet(appliedFilters.khuVucDuAn);
     const set = new Set<string>();
     for (const row of productionData) {
       const ct = String(row[congTrinhKey] || '').trim();
@@ -111,36 +122,36 @@ export function useDashboardFilters({
       set.add(ct);
     }
     return set;
-  }, [productionData, filters.khachHang, filters.khuVucDuAn, congTrinhKey, khachHangKey, khuVucDuAnKey]);
+  }, [productionData, appliedFilters.khachHang, appliedFilters.khuVucDuAn, congTrinhKey, khachHangKey, khuVucDuAnKey]);
 
   // Danh sách công trình thực sự áp dụng = (công trình đã chọn) giao (công trình thuộc khách hàng/khu vực)
   const effectiveCongTrinh = useMemo<string[]>(() => {
-    if (!scopedProjects) return filters.congTrinh;
-    const list = filters.congTrinh.length > 0
-      ? filters.congTrinh.filter(ct => scopedProjects.has(ct))
+    if (!scopedProjects) return appliedFilters.congTrinh;
+    const list = appliedFilters.congTrinh.length > 0
+      ? appliedFilters.congTrinh.filter(ct => scopedProjects.has(ct))
       : Array.from(scopedProjects);
     return list.length > 0 ? list : [NO_MATCH_PROJECT];
-  }, [scopedProjects, filters.congTrinh]);
+  }, [scopedProjects, appliedFilters.congTrinh]);
 
   // Bản `filters` dành cho các hook/section phía sau (chỉ khác ở congTrinh)
   const effectiveFilters = useMemo<DashboardFiltersState>(
-    () => ({ ...filters, congTrinh: effectiveCongTrinh }),
-    [filters, effectiveCongTrinh]
+    () => ({ ...appliedFilters, congTrinh: effectiveCongTrinh }),
+    [appliedFilters, effectiveCongTrinh]
   );
 
   // Tập giá trị lọc (Set) tạo 1 lần cho mỗi lần đổi bộ lọc, thay vì Array.includes cho
   // từng dòng (~51k dòng sản xuất × số giá trị đã chọn). null = không lọc theo tiêu chí đó.
   const congTrinhSet = useMemo(() => toFilterSet(effectiveCongTrinh), [effectiveCongTrinh]);
-  const xuongSet = useMemo(() => toFilterSet(filters.xuong), [filters.xuong]);
-  const tinhTrangSet = useMemo(() => toFilterSet(filters.tinhTrang), [filters.tinhTrang]);
-  const tinhTrangIpoSet = useMemo(() => toFilterSet(filters.tinhTrangIpo), [filters.tinhTrangIpo]);
-  const phanLoaiSet = useMemo(() => toFilterSet(filters.phanLoai), [filters.phanLoai]);
+  const xuongSet = useMemo(() => toFilterSet(appliedFilters.xuong), [appliedFilters.xuong]);
+  const tinhTrangSet = useMemo(() => toFilterSet(appliedFilters.tinhTrang), [appliedFilters.tinhTrang]);
+  const tinhTrangIpoSet = useMemo(() => toFilterSet(appliedFilters.tinhTrangIpo), [appliedFilters.tinhTrangIpo]);
+  const phanLoaiSet = useMemo(() => toFilterSet(appliedFilters.phanLoai), [appliedFilters.phanLoai]);
 
   // Lọc Khách hàng / Khu vực dự án THEO TỪNG HẠNG MỤC cho dữ liệu sản xuất (phễu, bảng, danh sách HEX
   // khớp đúng số hạng mục của biểu đồ tròn "Nhóm đơn hàng"). Các phần lấy từ API (nhập/xuất/tồn kho...)
   // vẫn lọc theo công trình qua effectiveFilters.congTrinh.
-  const rowKhSet = useMemo(() => toFilterSet(rowKhachHang ?? filters.khachHang), [rowKhachHang, filters.khachHang]);
-  const rowKvSet = useMemo(() => toFilterSet(rowKhuVucDuAn ?? filters.khuVucDuAn), [rowKhuVucDuAn, filters.khuVucDuAn]);
+  const rowKhSet = useMemo(() => toFilterSet(rowKhachHang ?? appliedFilters.khachHang), [rowKhachHang, appliedFilters.khachHang]);
+  const rowKvSet = useMemo(() => toFilterSet(rowKhuVucDuAn ?? appliedFilters.khuVucDuAn), [rowKhuVucDuAn, appliedFilters.khuVucDuAn]);
   const khRowKey = khachHangKey ?? 'khach_hang';
   const kvRowKey = khuVucDuAnKey ?? 'khu_vuc_du_an';
 
@@ -159,7 +170,7 @@ export function useDashboardFilters({
   // Dữ liệu cho biểu đồ "Cơ cấu đơn hàng": áp mọi bộ lọc tổng TRỪ Khách hàng / Khu vực dự án /
   // Nhóm sản phẩm — 3 tiêu chí này do chính biểu đồ lọc chéo (mỗi vòng tròn bỏ qua lựa chọn của
   // chính nó để vẫn thấy và đổi được các lát khác).
-  const explicitCongTrinhSet = useMemo(() => toFilterSet(filters.congTrinh), [filters.congTrinh]);
+  const explicitCongTrinhSet = useMemo(() => toFilterSet(appliedFilters.congTrinh), [appliedFilters.congTrinh]);
   const crossFilterBaseData = useMemo(() => {
     return (crossFilterSourceData ?? productionData).filter(row =>
       matchesFilter(explicitCongTrinhSet, row, congTrinhKey) &&
@@ -206,6 +217,8 @@ export function useDashboardFilters({
 
   return {
     filters,
+    appliedFilters,
+    isFilterPending,
     effectiveFilters,
     scopedProjects,
     setFilters,

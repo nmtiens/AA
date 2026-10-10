@@ -3,6 +3,7 @@ import { LayoutList, CheckCircle, MinusCircle } from 'lucide-react';
 import { ProjectPivotData, MetricType } from '../../types';
 import { formatNumber } from '../../utils/numberParsers';
 import { MetricSwitcher } from '../shared/MetricSwitcher';
+import { useRowLimit, ShowMoreRows } from '../shared/ShowMoreRows';
 
 interface PivotProjectSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
@@ -20,7 +21,13 @@ export const PivotProjectSection = ({
   setProjectMetric,
   excludeFabrics,
   setExcludeFabrics,
-}: PivotProjectSectionProps) => (
+}: PivotProjectSectionProps) => {
+  // Chỉ vẽ 50 dòng đầu (đúng thứ tự sắp xếp sẵn); dòng Tổng cộng vẫn lấy colTotals/grandTotal của TOÀN BỘ
+  const { limit, showMore, showAll } = useRowLimit();
+  const totalRows = pivotProjectData?.uniqueProjects.length ?? 0;
+  const visibleProjects = pivotProjectData ? pivotProjectData.uniqueProjects.slice(0, limit) : [];
+
+  return (
   <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-wood-100 flex flex-col">
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-3">
       <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
@@ -68,7 +75,7 @@ export const PivotProjectSection = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pivotProjectData.uniqueProjects.map((p: string) => (
+            {visibleProjects.map((p: string) => (
               <tr key={p} className="hover:bg-slate-50 transition-colors group">
                 <td className="px-3 py-2 text-left font-medium text-slate-700 sticky left-0 bg-white group-hover:bg-slate-50 z-10 whitespace-nowrap border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                   {p}
@@ -111,5 +118,9 @@ export const PivotProjectSection = ({
     ) : (
       <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">Không đủ dữ liệu để tạo bảng Pivot Công trình.</div>
     )}
+    {pivotProjectData && (
+      <ShowMoreRows shown={visibleProjects.length} total={totalRows} onMore={showMore} onAll={showAll} />
+    )}
   </div>
-);
+  );
+};

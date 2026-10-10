@@ -4,7 +4,8 @@ import { DataRow } from '../../../types';
 import { DashboardFiltersState } from './useDashboardFilters';
 import { ColumnDefinition } from '../../../types';
 import { findColumnKey } from '../utils/columnKeyResolver';
-import { isCancelledIpo, parsePlanDate } from '../../../utils/productionMetrics';
+import { parsePlanDate } from '../../../utils/productionMetrics';
+import type { CancelledHexInfo } from '../utils/cancelledHexes';
 
 // Thứ Hai của tuần ISO `week` thuộc năm ISO `year` (giờ địa phương)
 const isoWeekMonday = (year: number, week: number): Date => {
@@ -57,9 +58,9 @@ interface UseUnifiedTimeFiltersParams {
   analysisCongTrinhKey: string | undefined;
   analysisXuongKey: string | undefined;
 
-  /** Để bỏ nhập kho của hạng mục HỦY (cùng quy tắc server) và lọc tuần theo NGÀY nhập kho */
-  productionData?: DataRow[];
-  productionColumns?: ColumnDefinition[];
+  /** HEX thuộc đơn HỦY (tính 1 lần ở Dashboard) — để bỏ nhập kho của hạng mục HỦY (cùng quy tắc server) */
+  cancelled?: CancelledHexInfo;
+  /** Để lọc tuần theo NGÀY nhập kho */
   inventoryColumns?: ColumnDefinition[];
 }
 
@@ -78,19 +79,13 @@ export function useUnifiedTimeFilters({
   invNgayKey,
   analysisCongTrinhKey,
   analysisXuongKey,
-  productionData,
-  productionColumns,
+  cancelled,
   inventoryColumns,
 }: UseUnifiedTimeFiltersParams) {
-  // HEX thuộc đơn HỦY — nhập kho của chúng không tính (KHSX / tổng quan phía server đều bỏ)
-  const cancelledHexes = useMemo(() => {
-    const set = new Set<string>();
-    if (!productionData?.length) return set;
-    const hexK = (productionColumns && findColumnKey(productionColumns, 'hex')) || 'hex';
-    const ipoK = (productionColumns && findColumnKey(productionColumns, 'tinh_trang_ipo')) || 'tinh_trang_ipo';
-    for (const r of productionData) if (isCancelledIpo(r[ipoK])) set.add(String(r[hexK] ?? '').trim());
-    return set;
-  }, [productionData, productionColumns]);
+  // HEX thuộc đơn HỦY — nhập kho của chúng không tính (KHSX / tổng quan phía server đều bỏ).
+  // Dòng nhập kho trống HEX bị bỏ khi có dòng HỦY trống HEX (giữ đúng hành vi cũ: tập cũ có chứa '')
+  const cancelledHexes = cancelled?.hexes;
+  const cancelledBlank = cancelled?.hasBlankHex ?? false;
   const invHexKey = (inventoryColumns && findColumnKey(inventoryColumns, 'hex')) || 'hex';
   const invDateKey = (inventoryColumns && inventoryColumns.find(c => c.key === 'date')?.key) || 'date';
 
@@ -128,7 +123,10 @@ export function useUnifiedTimeFilters({
     const useThang = !byDateWeek;
 
     return inventoryData.filter(row => {
-      if (cancelledHexes.size && cancelledHexes.has(String(row[invHexKey] ?? '').trim())) return false;
+      if (cancelledHexes && (cancelledHexes.size || cancelledBlank)) {
+        const h = String(row[invHexKey] ?? '').trim();
+        if (h ? cancelledHexes.has(h) : cancelledBlank) return false;
+      }
       if (!(matchesProject(congTrinhSet, row, invCongTrinhKey) &&
         matchesFilter(xuongSet, row, invXuongKey) &&
         matchesFilter(namSet, row, invNamKey) &&
@@ -138,7 +136,7 @@ export function useUnifiedTimeFilters({
       const d = parsePlanDate(row[invDateKey]);
       return !!d && years.some(y => weeks.some(w => inPlanWeek(d, y, w)));
     });
-  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, cancelledHexes, invHexKey, invDateKey]);
+  }, [inventoryData, congTrinhSet, xuongSet, unifiedTimeFilters, viewMode, invCongTrinhKey, invXuongKey, invNamKey, invThangKey, invNgayKey, cancelledHexes, cancelledBlank, invHexKey, invDateKey]);
 
   const filteredAnalysisData = useMemo(() => {
     return analysisData.filter(row =>

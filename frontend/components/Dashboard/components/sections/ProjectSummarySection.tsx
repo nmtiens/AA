@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, Hash, DollarSign } from 'lucide-react';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
 import { formatTy } from '../../../../utils/money';
+import { useRowLimit, ShowMoreRows } from '../shared/ShowMoreRows';
 
 interface ProjectStatusRow {
   name: string;
@@ -30,6 +31,9 @@ export const ProjectSummarySection = ({
 }: ProjectSummarySectionProps) => {
   // Giá trị đã ở đơn vị Tỷ -> 2 chữ số thập phân
   const formatter = projectSummaryMetric === 'COUNT' ? formatNumber : formatTy;
+  // Chỉ vẽ 50 dòng đầu; dòng TỔNG CỘNG vẫn cộng trên toàn bộ projectStatusSummary
+  const { limit, showMore, showAll } = useRowLimit();
+  const visibleRows = projectStatusSummary.slice(0, limit);
 
   return (
     <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
@@ -76,7 +80,7 @@ export const ProjectSummarySection = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-emerald-50">
-              {projectStatusSummary.map((row, idx) => (
+              {visibleRows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors group">
                   <td className="w-12 min-w-[48px] px-1 py-2.5 text-center tabular-nums text-slate-400 sticky left-0 bg-white group-hover:bg-slate-50 z-10">{idx + 1}</td>
                   <td className="px-3 py-2.5 text-left font-medium text-slate-700 sticky left-12 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">{row.name}</td>
@@ -114,6 +118,7 @@ export const ProjectSummarySection = ({
       ) : (
         <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">Không có dữ liệu phù hợp để tính toán tổng quan đơn hàng.</div>
       )}
+      <ShowMoreRows shown={visibleRows.length} total={projectStatusSummary.length} onMore={showMore} onAll={showAll} />
     </div>
   );
 };

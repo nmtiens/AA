@@ -1,4 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
+import { LazyRender } from './shared/LazyRender';
+import { collectCancelledHexes } from './Dashboard/utils/cancelledHexes';
 import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
@@ -131,6 +134,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 const {
   filters,
+  appliedFilters,
+  isFilterPending,
   effectiveFilters,
   scopedProjects,
   setFilters,
@@ -156,7 +161,15 @@ const {
   phanLoaiKey: phanLoaiNhomSanPhamKey,
   matCongTrinhKey,
   matNhomVtKey,
+  // Đổi bộ lọc tổng: ô chọn phản hồi ngay, phần lọc/tính nặng chạy hoãn ở nền (kết quả cuối không đổi)
+  deferCalc: true,
 });
+
+// HEX thuộc đơn HỦY — tính 1 lần, dùng chung cho bộ lọc nhập kho và file xuất
+const cancelledHexInfo = useMemo(
+  () => collectCancelledHexes(productionData, productionColumns),
+  [productionData, productionColumns]
+);
 
 // Biểu đồ "Cơ cấu đơn hàng" đọc/ghi thẳng vào bộ lọc tổng: bấm 1 lát => cả trang lọc theo
 const orderMixSelection = useMemo<OrderMixSelection>(
@@ -178,7 +191,7 @@ const {
   filteredInventoryData,
   filteredAnalysisData,
 } = useUnifiedTimeFilters({
-    productionData: productionData, productionColumns, inventoryColumns,
+  cancelled: cancelledHexInfo, inventoryColumns,
   inventoryData,
   analysisData,
  filters: effectiveFilters,
@@ -397,7 +410,7 @@ const {
   handleExportBottlenecks,
   selectedExportMonth, setSelectedExportMonth,
 } = useExportFlows({
-    stockScope: { congTrinh: stockScopeCongTrinh, xuong: filters.xuong },
+    stockScope: { congTrinh: stockScopeCongTrinh, xuong: appliedFilters.xuong },
   orderColumns, orderData,
   tkbvColumns, tkbvData,
   pthspColumns, pthspData,
@@ -405,7 +418,7 @@ const {
   exportColumns, exportData,
   stockColumns, stockData,
   productionColumns,
-  productionData,
+  cancelled: cancelledHexInfo,
 
   // MỚI: date keys để lọc theo tháng bất kỳ
   orderDateKey,
@@ -441,7 +454,14 @@ const {
   bottleneckData,
 });
 
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+  // Các section phía dưới vẽ khi cuộn tới (LazyRender). Bấm nút cuộn tới section thứ i trong danh sách vẽ-sau
+  // => ép vẽ ngay mọi section từ đầu tới i (để vị trí đích không bị xô khi khung giữ chỗ phía trên đổi cao) rồi mới cuộn.
+  const [forcedLazyUpTo, setForcedLazyUpTo] = useState(-1);
+  const LAZY = { productionStatus: 0, bottleneck: 1, khsx: 2, projectSummary: 3, pivotProject: 4, pivotMaterialStatus: 5, materialList: 6 } as const;
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>, lazyIndex?: number) => {
+    if (lazyIndex !== undefined && lazyIndex > forcedLazyUpTo) {
+      flushSync(() => setForcedLazyUpTo(lazyIndex));
+    }
     if (ref.current) ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 const handleContinueToOrderColumnStep = () => {
@@ -573,13 +593,13 @@ const handleContinueToOrderColumnStep = () => {
               <button onClick={() => scrollToRef(orderOverviewRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tổng quan Đơn hàng">
                 <ShoppingCart size={14} className="text-slate-400" /> Tổng quan
               </button>
-              <button onClick={() => scrollToRef(productionStatusRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tình trạng sản xuất">
+              <button onClick={() => scrollToRef(productionStatusRef, LAZY.productionStatus)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tình trạng sản xuất">
                 <CheckCircle size={14} className="text-slate-400" /> Tình trạng sản xuất
               </button>
-              <button onClick={() => scrollToRef(bottleneckSectionRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Báo cáo Điểm nghẽn">
+              <button onClick={() => scrollToRef(bottleneckSectionRef, LAZY.bottleneck)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Báo cáo Điểm nghẽn">
                 <AlertTriangle size={14} className="text-slate-400" /> Điểm nghẽn
               </button>
-              <button onClick={() => scrollToRef(khsxSectionRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Kế hoạch & Nhập kho">
+              <button onClick={() => scrollToRef(khsxSectionRef, LAZY.khsx)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Kế hoạch & Nhập kho">
                 <BarChart2 size={14} className="text-slate-400" /> Kế hoạch-Thực hiện
               </button>
             </div>
@@ -659,7 +679,12 @@ const handleContinueToOrderColumnStep = () => {
         </div>
       </div>
 
-      <div className="px-4 md:px-8 space-y-6">
+      {/* Đang chờ số liệu theo bộ lọc mới (giá trị hoãn chưa kịp) -> làm mờ nhẹ khu vực số liệu */}
+      <div
+        className="px-4 md:px-8 space-y-6 transition-opacity duration-150"
+        style={isFilterPending ? { opacity: 0.55 } : undefined}
+        aria-busy={isFilterPending || undefined}
+      >
 
                      <FactoryRevenueSection
   sectionRef={factoryRevenueRef}
@@ -682,7 +707,7 @@ const handleContinueToOrderColumnStep = () => {
       // Nút Hạng mục / Giá trị dùng chung với phễu bên cạnh
       metric={workshopMetric === 'COUNT_HEX' ? 'count' : 'value'}
       onMetricChange={m => setWorkshopMetric(m === 'count' ? 'COUNT_HEX' : 'SUM_GT_DON_HANG')}
-      scopeNote={filters.tinhTrangIpo.length ? `Tình trạng IPO: ${filters.tinhTrangIpo.join(', ')}` : 'Tình trạng IPO: tất cả'}
+      scopeNote={appliedFilters.tinhTrangIpo.length ? `Tình trạng IPO: ${appliedFilters.tinhTrangIpo.join(', ')}` : 'Tình trạng IPO: tất cả'}
     />
   }
   onActualClick={() =>
@@ -707,7 +732,7 @@ const handleContinueToOrderColumnStep = () => {
   sectionRef={orderOverviewRef}
   isSidebarCollapsed={isSidebarCollapsed}
   hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
-   filters={filters}   // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
+   filters={appliedFilters}   // bộ lọc đã áp (hoãn) — khớp với số liệu đang hiện
   openInventoryRequest={inventoryOpenRequest}  // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
   overviewMetric={overviewMetric}
   setOverviewMetric={setOverviewMetric}
@@ -734,8 +759,10 @@ const handleContinueToOrderColumnStep = () => {
   getGroupAnalysisFilterKey={getGroupAnalysisFilterKey}
 />
 
+        {/* --- Từ đây trở xuống: vẽ khi cuộn tới (khung giữ chỗ giữ ref để nút cuộn vẫn tới đúng chỗ) --- */}
+        <LazyRender anchorRef={productionStatusRef} force={forcedLazyUpTo >= LAZY.productionStatus} minHeight={600} className="scroll-mt-24">
         <ProductionStatusSection
-  sectionRef={productionStatusRef}
+  sectionRef={null}
   pivotWorkshopRef={pivotWorkshopRef}
   cardMetrics={cardMetrics}
   pivotWorkshopData={pivotWorkshopData}
@@ -745,17 +772,21 @@ const handleContinueToOrderColumnStep = () => {
   setExpandedBops={setExpandedBops}
   handleExportProductionStatus={handleExportProductionStatus}
 />
+        </LazyRender>
+        <LazyRender anchorRef={bottleneckSectionRef} force={forcedLazyUpTo >= LAZY.bottleneck} minHeight={520} className="scroll-mt-24">
         <BottleneckSection
-          sectionRef={bottleneckSectionRef}
+          sectionRef={null}
           bottleneckData={bottleneckData}
           topBottlenecks={topBottlenecks}
           bottleneckViewMode={bottleneckViewMode}
           setBottleneckViewMode={setBottleneckViewMode}
           handleExportBottlenecks={handleExportBottlenecks}
         />
+        </LazyRender>
 
+        <LazyRender anchorRef={khsxSectionRef} force={forcedLazyUpTo >= LAZY.khsx} minHeight={1200} className="scroll-mt-24">
          <KhsxPlanActualSection
-  sectionRef={khsxSectionRef}
+  sectionRef={null}
   inventorySectionRef={inventorySectionRef}
   khsxDataLength={khsxData.length}
   inventoryDataLength={inventoryData.length}
@@ -779,27 +810,31 @@ const handleContinueToOrderColumnStep = () => {
 yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
   selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
 />
+        </LazyRender>
 
+        <LazyRender anchorRef={projectSummaryRef} force={forcedLazyUpTo >= LAZY.projectSummary} minHeight={700} className="scroll-mt-24">
           <ProjectSummarySection
-     sectionRef={projectSummaryRef}
+     sectionRef={null}
      projectStatusSummary={projectStatusSummary}
      projectSummaryMetric={projectSummaryMetric}
      setProjectSummaryMetric={setProjectSummaryMetric}
    />
+        </LazyRender>
 
+        <LazyRender anchorRef={pivotProjectRef} force={forcedLazyUpTo >= LAZY.pivotProject} minHeight={650} className="scroll-mt-24">
            <PivotProjectSection
-     sectionRef={pivotProjectRef}
+     sectionRef={null}
      pivotProjectData={pivotProjectData}
      projectMetric={projectMetric}
      setProjectMetric={setProjectMetric}
      excludeFabrics={excludeFabrics}
      setExcludeFabrics={setExcludeFabrics}
    />
+        </LazyRender>
 
-
-
+        <LazyRender anchorRef={pivotMaterialStatusRef} force={forcedLazyUpTo >= LAZY.pivotMaterialStatus} minHeight={600} className="scroll-mt-24">
    <PivotMaterialStatusSection
-  sectionRef={pivotMaterialStatusRef}   // ✅ đổi từ materialStatusRef
+  sectionRef={null}
   pivotMaterialStatusData={pivotMaterialStatusData}
   matStatusMetric={matStatusMetric}
   setMatStatusMetric={setMatStatusMetric}
@@ -807,12 +842,15 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
   setSelectedMaterialGroups={setSelectedMaterialGroups}
   toggleMaterialGroup={toggleMaterialGroup}
 />
+        </LazyRender>
 
+        <LazyRender anchorRef={materialListRef} force={forcedLazyUpTo >= LAZY.materialList} minHeight={750} className="scroll-mt-24">
            <MaterialListSection
-     sectionRef={materialListRef}
+     sectionRef={null}
      displayedMaterialData={displayedMaterialData}
      getMaterialRowClassName={getMaterialRowClassName}
    />
+        </LazyRender>
 
       </div>
 
@@ -909,7 +947,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
         date={closestStockDate ?? null}
         projectName={stockItems.projectName}
         congTrinh={stockScopeCongTrinh}
-        xuong={filters.xuong}
+        xuong={appliedFilters.xuong}
       />
     </div>
   );

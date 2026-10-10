@@ -2,6 +2,7 @@ import React from 'react';
 import { ListFilter, Hash, Calculator, CheckSquare, Square, XCircle as CloseIcon } from 'lucide-react';
 import { MaterialStatusPivotData } from '../../types';
 import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { useRowLimit, ShowMoreRows } from '../shared/ShowMoreRows';
 
 interface PivotMaterialStatusSectionProps {
   sectionRef: React.Ref<HTMLDivElement>;
@@ -22,7 +23,13 @@ export const PivotMaterialStatusSection = ({
   selectedMaterialGroups,
   setSelectedMaterialGroups,
   toggleMaterialGroup,
-}: PivotMaterialStatusSectionProps) => (
+}: PivotMaterialStatusSectionProps) => {
+  // Chỉ vẽ 50 nhóm đầu; dòng Tổng cộng vẫn lấy colTotals/grandTotal của TOÀN BỘ
+  const { limit, showMore, showAll } = useRowLimit();
+  const totalRows = pivotMaterialStatusData?.sortedGroups.length ?? 0;
+  const visibleGroups = pivotMaterialStatusData ? pivotMaterialStatusData.sortedGroups.slice(0, limit) : [];
+
+  return (
   <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
       <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
@@ -76,7 +83,7 @@ export const PivotMaterialStatusSection = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pivotMaterialStatusData.sortedGroups.map((group: string) => {
+            {visibleGroups.map((group: string) => {
               const isSelected = selectedMaterialGroups.includes(group);
               const stickyBg = isSelected ? 'bg-emerald-100' : 'bg-white group-hover:bg-slate-50';
               return (
@@ -135,6 +142,9 @@ export const PivotMaterialStatusSection = ({
       <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">Không có dữ liệu để tạo bảng trạng thái vật tư.</div>
     )}
     {pivotMaterialStatusData && (
+      <ShowMoreRows shown={visibleGroups.length} total={totalRows} onMore={showMore} onAll={showAll} />
+    )}
+    {pivotMaterialStatusData && (
       <p className="mt-2 text-[0.6875rem] text-slate-500">
         Cột theo Trạng thái chung của dòng PR. {matStatusMetric === 'COUNT_PR'
           ? '1 ô = số dòng PR (1 Số PR · line), không phải số hạng mục.'
@@ -145,4 +155,5 @@ export const PivotMaterialStatusSection = ({
       </p>
     )}
   </div>
-);
+  );
+};
