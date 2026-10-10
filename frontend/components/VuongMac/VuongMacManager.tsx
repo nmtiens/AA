@@ -230,10 +230,13 @@ export default function VuongMacManager() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="created" name="Báo mới" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="done" name="Xử lý xong" fill="#14b8a6" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="closed" name="Đã đóng" fill="#10b981" radius={[3, 3, 0, 0]} />
+                {/* Chữ chú thích màu mực (ô màu bên cạnh đã cho biết cột nào) */}
+                <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-slate-600">{v}</span>} />
+                {/* 3 màu tách hẳn nhau (kể cả người mù màu đỏ–lục): cam = vấn đề mới phát sinh, xanh lá sáng = xử lý xong,
+                    xám = đã đóng (đã kết thúc, không cần chú ý). Trước teal / xanh lá gần như trùng nhau */}
+                <Bar dataKey="created" name="Báo mới" fill="#f97316" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="done" name="Xử lý xong" fill="#22c55e" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="closed" name="Đã đóng" fill="#94a3b8" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
