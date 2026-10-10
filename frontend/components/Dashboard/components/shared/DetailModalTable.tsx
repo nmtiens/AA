@@ -114,7 +114,7 @@ useEffect(() => {
   }, [data, selectedKeys]);
 
   const sortedData = useMemo(() => {
-    let sortableItems = [...filteredData];
+    const sortableItems = [...filteredData];
     if (sortConfig.key) {
       sortableItems.sort((a, b) => {
         const valA = a[sortConfig.key];

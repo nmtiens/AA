@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react';
-import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { formatNumber } from '../../utils/numberParsers';
 import { formatTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';

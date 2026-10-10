@@ -4,7 +4,7 @@ import { pool, timedQuery } from '../db.js';
 import { runWithLimit, GRACE_UNTIL_HOUR, vnDayKey, vnHour } from '../server/common.js';
 import { authenticateJWT, requireRole } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
-import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, STOCK_TREND_CONFIG, ANALYSIS_TABLES } from '../server/data.js';
+import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache } from '../server/data.js';
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';

@@ -24,6 +24,8 @@ jobs:
       - run: npm ci
       - name: Kiểm tra kiểu TypeScript
         run: npx tsc --noEmit
+      - name: Lint (ESLint — lỗi mới chặn, cảnh báo không)
+        run: npm run lint
       - name: Test đơn vị (quy tắc số liệu, parser QC)
         run: npm test
       - name: Build
@@ -44,6 +46,8 @@ jobs:
       - run: npm ci
       - name: Kiểm tra kiểu TypeScript
         run: npx tsc --noEmit -p tsconfig.json
+      - name: Lint (ESLint)
+        run: npm run lint
       - name: Test đơn vị (parser QC)
         run: npm test
       - name: dist.js phải khớp với mã nguồn backend

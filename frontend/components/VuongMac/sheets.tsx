@@ -20,7 +20,7 @@ import { currentUsername } from '../../services/vuongMacMobileApi';
 import {
   STATUS_META, PRIORITY_META, DISPLAY_META, displayState, botCountdown, deadlineInfo, isActive, ageText,
   catIcon, catLabel, CAT_CODE, CAT_NAME, CAT_HINT, CAT_DEPT_KEYWORDS,
-  fmtShort, fmtDay, fmtAgo, BOT_PRESETS, botRangeText, dateToLocalInput, botTextToLocalInput, localInputToBot,
+  fmtShort, fmtDay, fmtAgo, BOT_PRESETS, dateToLocalInput, botTextToLocalInput, localInputToBot,
   loadRecentHex, pushRecentHex, initials,
 } from './model';
 
@@ -34,7 +34,6 @@ import {
 //   DeleteSheet, LogSheet, PhotoLightbox
 // ============================================================================
 
-const DAY = 86_400_000;
 const MAX_PHOTOS = 5;
 const authMsg = (e: any, fallback: string) =>
   e?.message === UNAUTHORIZED ? 'Phiên đăng nhập đã hết hạn — đăng nhập lại rồi thử lại' : (e?.message || fallback);

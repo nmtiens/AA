@@ -1,7 +1,7 @@
 ## Health Stack
 
 - typecheck: cd frontend && NODE_OPTIONS=--max-old-space-size=3072 npx tsc --noEmit -p . ; cd backend && npx tsc --noEmit -p .
-- lint: (chưa có — dự án không cài eslint/biome)
+- lint: cd frontend && npm run lint ; cd backend && npm run lint  (ESLint 9 flat config; lỗi chặn CI, cảnh báo `any`/exhaustive-deps chỉ nhắc)
 - test: cd frontend && npm test (vitest, utils/*.test.ts) ; cd backend && npm test (node --test qua tsx, test/*.test.ts)
 - deadcode: (chưa có — không cài knip)
 - shell: (không có shell script)

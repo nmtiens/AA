@@ -73,6 +73,8 @@ npx --prefix frontend tsc --noEmit -p frontend
 npx --prefix backend tsc --noEmit -p backend
 npm test --prefix frontend
 npm test --prefix backend
+npm run lint --prefix frontend
+npm run lint --prefix backend
 ```
 
 Test đơn vị nằm ở `frontend/utils/*.test.ts` (vitest) và `backend/test/*.test.ts` (node --test qua tsx); chúng bảo vệ quy tắc số liệu dùng chung và parser QC.

@@ -68,7 +68,6 @@ export function useUnifiedTimeFilters({
   invNamKey,
   invThangKey,
   invNgayKey,
-  invTuanKey,
   analysisCongTrinhKey,
   analysisXuongKey,
   productionData,

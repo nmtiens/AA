@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { pool, timedQuery, withTransaction } from '../db.js';
 import { parseBotEnd } from '../vuongMacPush.js';
 import {
-  notify, findMentionedIds, idsByFullName, idsByUsername, recipientsFor, displayName, adminIds,
+  notify, findMentionedIds, idsByFullName, idsByUsername, recipientsFor, displayName,
 } from '../notifications.js';
 import { authenticateJWT } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';

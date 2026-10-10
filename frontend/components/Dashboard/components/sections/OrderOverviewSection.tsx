@@ -147,7 +147,6 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   hasAnyData,
   filters,
   viewProjectWhitelist, // ✅ FIX
-  useDetailedNumbers = false, // ✅ MỚI
   overviewMetric,
   setOverviewMetric,
   getContextLabel,
@@ -445,7 +444,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-pink-200/60 w-full">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-pink-800 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
+                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
                   </span>
                   <span className="text-3xl font-extrabold text-pink-700">
                     {overviewMetric === 'COUNT'
@@ -506,7 +505,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-blue-200/60 w-full">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-blue-800 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
+                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
                   </span>
                   <span className="text-3xl font-extrabold text-blue-700">
                     {overviewMetric === 'COUNT'
@@ -567,7 +566,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-purple-200/60 w-full">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-purple-800 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
+                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
                   </span>
                   <span className="text-3xl font-extrabold text-purple-700">
                     {overviewMetric === 'COUNT'
@@ -627,7 +626,7 @@ const periodLabel = overviewDateFilters.length > 1
                              <div className="z-10 mt-3 pt-3 border-t border-teal-200/60 w-full">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-teal-800 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
+                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
                   </span>
                   <span className="text-3xl font-extrabold text-teal-700">
                     {overviewMetric === 'COUNT'
@@ -687,7 +686,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-amber-200/60 w-full">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-amber-800 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()! + 1}:
+                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
                   </span>
                   <span className="text-3xl font-extrabold text-amber-700">
                     {overviewMetric === 'COUNT'

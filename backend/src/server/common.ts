@@ -1,5 +1,3 @@
-import { pool } from '../db.js';
-
 // Giới hạn số query chạy song song, tránh 1 request xin quá nhiều connection
 // cùng lúc từ transaction-mode pooler (pool phía server rất nhỏ và dùng chung).
 export async function runWithLimit<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {

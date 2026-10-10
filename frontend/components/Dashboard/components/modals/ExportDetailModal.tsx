@@ -3,7 +3,7 @@ import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { formatSmartDecimal, formatDecimalFull, parseNumber } from '../../utils/numberParsers';
+import { parseNumber } from '../../utils/numberParsers';
 import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';

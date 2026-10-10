@@ -6,7 +6,7 @@ export const parseVNDate = (dateStr: string | null | undefined): Date | null => 
     const d = new Date(str);
     if (!isNaN(d.getTime())) return d;
   }
-  const parts = str.split(/[\/\-\.]/);
+  const parts = str.split(/[/.-]/);
   if (parts.length >= 3) {
     let year = parseInt(parts[2], 10);
     if (parts[0].length === 4) {
@@ -28,40 +28,40 @@ export const toISODateLocal = (d: Date): string => {
 };
 
 export const formatDateToVN = (dateInput: any): string => {
-  if (!dateInput) return '';
-  const d = parseVNDate(String(dateInput));
-  if (!d) return String(dateInput).trim();
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+  if (!dateInput) return '';
+  const d = parseVNDate(String(dateInput));
+  if (!d) return String(dateInput).trim();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 export const diffDays = (date1: Date, date2: Date): number => {
-  const d1 = new Date(date1); d1.setHours(0, 0, 0, 0);
-  const d2 = new Date(date2); d2.setHours(0, 0, 0, 0);
-  const diffTime = d1.getTime() - d2.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const d1 = new Date(date1); d1.setHours(0, 0, 0, 0);
+  const d2 = new Date(date2); d2.setHours(0, 0, 0, 0);
+  const diffTime = d1.getTime() - d2.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 };
 
 export const getDateRangeDisplay = (filters: string[], options: string[]) => {
-  const datesToUse = filters.length > 0 ? filters : options;
-  if (datesToUse.length === 0) return '';
-  const validDates = datesToUse.map(d => parseVNDate(d)).filter((d): d is Date => d !== null);
-  if (validDates.length === 0) return '';
-  const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
-  const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
-  const fmt = (d: Date) => `0${d.getDate()}`.slice(-2) + '/' + `0${d.getMonth() + 1}`.slice(-2) + '/' + d.getFullYear();
-  if (minDate.getTime() === maxDate.getTime()) return `(${fmt(minDate)})`;
-  return `(${fmt(minDate)} - ${fmt(maxDate)})`;
+  const datesToUse = filters.length > 0 ? filters : options;
+  if (datesToUse.length === 0) return '';
+  const validDates = datesToUse.map(d => parseVNDate(d)).filter((d): d is Date => d !== null);
+  if (validDates.length === 0) return '';
+  const minDate = new Date(Math.min(...validDates.map(d => d.getTime())));
+  const maxDate = new Date(Math.max(...validDates.map(d => d.getTime())));
+  const fmt = (d: Date) => `0${d.getDate()}`.slice(-2) + '/' + `0${d.getMonth() + 1}`.slice(-2) + '/' + d.getFullYear();
+  if (minDate.getTime() === maxDate.getTime()) return `(${fmt(minDate)})`;
+  return `(${fmt(minDate)} - ${fmt(maxDate)})`;
 };
 
 export const getWeekNumber = (d: Date = new Date()): number => {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  var weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return weekNo;
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return weekNo;
 };
 
 export const computeMtdRows = (

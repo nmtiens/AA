@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../types';
-import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Settings, Check, X, Filter, ChevronDown, XCircle, LayoutTemplate } from 'lucide-react';
+import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Check, Filter, ChevronDown, XCircle, LayoutTemplate } from 'lucide-react';
 import { exportToCSV } from '../services/dataService';
 import { parseNumber } from './Dashboard/utils/numberParsers';
 

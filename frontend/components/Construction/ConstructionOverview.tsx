@@ -123,7 +123,6 @@ interface DetailSpec {
 /** Tối đa số HEX cho nút "Xem tất cả HEX" (cửa sổ HEX hiển thị toàn bộ dòng, không phân trang) */
 const MAX_HEX_ALL = 3000;
 
-const isNotStarted = (status: string) => STATUS_GROUPS.CHUA_THE_SX.some(s => status.includes(s));
 
 interface Props {
   data: DataRow[];
@@ -530,10 +529,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     );
   }
 
-  // ---------- UI ----------
-  const selectCls =
-    'h-9 min-w-[150px] max-w-[220px] rounded-lg border border-slate-300 bg-white px-2.5 text-sm text-slate-700 ' +
-    'focus:outline-none focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600';
   const cardCls = 'bg-white border border-slate-200 rounded-xl shadow-sm';
 
   // Ô KPI bấm được: mở cửa sổ chi tiết đúng tập dòng tạo ra con số đó

@@ -4,7 +4,7 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     ComposedChart, Line, ScatterChart, Scatter, ZAxis, ReferenceLine, LabelList, Cell, Label
 } from 'recharts';
-import { Activity, BarChart2, PieChart, TrendingUp } from 'lucide-react';
+import { Activity, PieChart, TrendingUp } from 'lucide-react';
 import { getWeekRange2026 } from '../utils/dateUtils';
 import { formatTrieuAsTy } from '../utils/money';
 
@@ -86,23 +86,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-const Chart1Tooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-        const data = payload[0].payload;
-        return (
-            <div className="bg-white p-3 border border-slate-200 rounded-lg shadow-lg">
-                <p className="text-xs font-bold text-slate-700 mb-2">{label}</p>
-                <div className="flex items-center justify-between gap-4">
-                    <span className="text-xs text-purple-600 font-medium">Doanh số:</span>
-                    <span className="text-sm font-bold text-purple-700">
-                        {formatTrieuAsTy(data.sales)} Tỷ
-                    </span>
-                </div>
-            </div>
-        );
-    }
-    return null;
-};
 
 const Chart2Tooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -158,18 +141,18 @@ const CustomLineLabel = (props: any) => {
 };
 
 const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode = 'MONTH', filters }) => {
-    if (!data || data.length === 0) return null;
-
-    // Color Palettes
-    const COOL_PALETTE = ['#4338ca', '#3b82f6', '#0ea5e9', '#10b981', '#84cc16', '#eab308']; // Purple -> Green -> Yellow
     const WARM_PALETTE = ['#581c87', '#7e22ce', '#be185d', '#ef4444', '#f97316', '#eab308']; // Dark Purple -> Red -> Orange
 
     // Calculate Average for Chart 2 Reference Line
     const overallAvgSalesPerWorker = useMemo(() => {
-        const totalSales = data.reduce((sum, item) => sum + item.sales, 0);
-        const totalWorkers = data.reduce((sum, item) => sum + item.avgWorkers, 0);
+        const rows = data ?? [];
+        const totalSales = rows.reduce((sum, item) => sum + item.sales, 0);
+        const totalWorkers = rows.reduce((sum, item) => sum + item.avgWorkers, 0);
         return totalWorkers > 0 ? totalSales / totalWorkers : 0;
     }, [data]);
+
+    // Hook phải gọi trước mọi `return` sớm (quy tắc hooks) — trước đây return null đứng trên useMemo
+    if (!data || data.length === 0) return null;
 
     // Color Scale Logic for Chart 4
     const maxSalesPerHour = Math.max(...data.map(d => d.salesPerHour));

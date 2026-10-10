@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
-import { parseVNDate, diffDays } from './Dashboard/utils/dateHelpers';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
 import { fetchRevenue2026, type Revenue2026Data } from '../services/dataService';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
@@ -16,7 +15,6 @@ import { useKhsxSummary } from './Dashboard/hooks/useKhsxSummary';
 import { useStockData } from './Dashboard/hooks/useStockData';
 import { usePivotTables } from './Dashboard/hooks/usePivotTables';
 import { useExportFlows } from './Dashboard/hooks/useExportFlows';
-import { PivotMaterialSummarySection } from './Dashboard/components/sections/PivotMaterialSummarySection';
 import { PivotMaterialStatusSection } from './Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './Dashboard/components/sections/MaterialListSection';
 import { ProjectSummarySection } from './Dashboard/components/sections/ProjectSummarySection';
@@ -80,8 +78,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   tkbvColumns,
   pthspData,
   pthspColumns,
-  yearlyPlanData,
-  yearlyPlanColumns,
   analysisData,
   analysisColumns,
   exportData,
@@ -97,7 +93,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   const productionStatusRef = useRef<HTMLDivElement>(null);
   const pivotWorkshopRef = useRef<HTMLDivElement>(null);
   const pivotProjectRef = useRef<HTMLDivElement>(null);
-  const pivotMaterialRef = useRef<HTMLDivElement>(null);
   const pivotMaterialStatusRef = useRef<HTMLDivElement>(null);
   const materialListRef = useRef<HTMLDivElement>(null);
   const khsxSectionRef = useRef<HTMLDivElement>(null);
@@ -113,15 +108,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   xuongKey, hangMucKey, daysAtCurrentStageKey, bopKey, triGiaDonHangTongKey,
   thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
-  matStatusSapKey, matEstDateKey,
-  khsxXuongKey, khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
+  khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
   invThanhTienKey, invXuongKey, invCongTrinhKey, invNamKey, invThangKey,
   invNgayKey, invDateKey, invTuanKey,
-  expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey,
-  stockDateKey, stockValueKey, stockSapIdKey,
-  orderDateKey, orderValueKey, orderXuongKey, orderCongTrinhKey,
-  tkbvDateKey, tkbvValueKey, tkbvXuongKey, tkbvCongTrinhKey,
-  pthspDateKey, pthspValueKey, pthspXuongKey, pthspCongTrinhKey,
+  expDateKey, expXuongKey, expCongTrinhKey,
+  stockDateKey, 
+  orderDateKey, 
+  tkbvDateKey, 
+  pthspDateKey, 
   analysisXuongKey, analysisCongTrinhKey, analysisPlanKey, analysisActualKey,
   analysisWeekKey, analysisDungKhKey, analysisThucHienDungKh1PhanKey,
   analysisRotKhKey, analysisThucHienRotKh1PhanKey, analysisNhapKhoTruocKhKey,
@@ -199,7 +193,7 @@ const {
   analysisXuongKey,
 });
 const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
-const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
+const [stockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
 
 // Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
 // Biểu đồ "Phân bổ Kế hoạch theo Xưởng" CHỈ phụ thuộc vào năm này — không phụ thuộc
@@ -219,14 +213,6 @@ const {
    tinhTrangIpoOptions,
   khachHangOptions,
   khuVucDuAnOptions,
-  khsxNamOptions,
-  khsxThangOptions,
-  khsxNgayOptions,
-  khsxTuanOptions,
-  invNamOptions,
-  invThangOptions,
-  invNgayOptions,
-  invTuanOptions,
   unifiedNamOptions,
   unifiedThangOptions,
   unifiedNgayOptions,
@@ -302,7 +288,6 @@ const {
 });
 
 const {
-  khsxSummary,
   totalKhsxAmount,
   weeklyKhFallback,
   totalInventoryAmount,
@@ -332,7 +317,6 @@ const {
   stockByProjectData,
   stockScopeCongTrinh,
   loadStockByProject, 
-  latestStockDateAvailable,
   closestStockDate,
   mtdStockData,
   filteredStockDataForExport,
@@ -351,14 +335,12 @@ filters: effectiveFilters,
 const {
   workshopMetric, setWorkshopMetric,
   projectMetric, setProjectMetric,
-  chartMetric, setChartMetric,
   projectSummaryMetric, setProjectSummaryMetric,
   matStatusMetric, setMatStatusMetric,
   excludeFabrics, setExcludeFabrics,
   expandedBops, setExpandedBops,
   bottleneckViewMode, setBottleneckViewMode,
 
-  calculateMetricValue,
   cardMetrics,
   projectStatusSummary,
   pivotWorkshopData,
@@ -367,9 +349,7 @@ const {
   funnelBreakdownByBop,
   hexRowsByColumnV2,
   pivotProjectData,
-  pivotMaterialSummary,
   pivotMaterialStatusData,
-  lineChartData,
   bottleneckData,
   topBottlenecks,
 } = usePivotTables({
@@ -395,7 +375,7 @@ const {
   orderExportScope, setOrderExportScope,
   isOrderExportModalOpen, setIsOrderExportModalOpen,
   selectedOrderExportColumns, setSelectedOrderExportColumns,
-  genericExportFlow, setGenericExportFlow,
+  genericExportFlow, 
   genericExportScope, setGenericExportScope,
   isGenericExportScopeModalOpen, setIsGenericExportScopeModalOpen,
   isGenericExportColumnModalOpen, setIsGenericExportColumnModalOpen,
@@ -408,17 +388,9 @@ const {
   setSelectedStockExportDates,
 
   effectiveOrderColumns,
-  effectiveTkbvColumns,
-  effectivePthspColumns,
-  effectiveInventoryColumns,
-  effectiveExportDataColumns,
-  effectiveStockColumns,
 
-  handleExportOverviewSummary,
   handleOpenOverviewExport,
   handleOverviewExportConfirm,
-  handleExportGroupAnalysis,
-  handleExportStockDetail,
   handleExportProductionStatus,
   handleOpenOrderExport,
   getExportFlowConfig,

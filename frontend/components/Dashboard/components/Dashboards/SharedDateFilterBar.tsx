@@ -17,24 +17,6 @@ function formatDateVN(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-/** 'yyyy-mm-dd' của hôm nay */
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** 'yyyy-mm-dd' của n ngày trước hôm nay */
-/** 'yyyy-mm-dd' của n ngày trước hôm nay */
-function daysAgoISO(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-/** 'yyyy-mm-dd' của hôm qua (today - 1) */
-function yesterdayISO(): string {
-  return daysAgoISO(1);
-}
-
 /**
  * Input ngày luôn hiển thị đúng định dạng dd/mm/yyyy,
  * bất kể locale trình duyệt/hệ điều hành của người dùng.

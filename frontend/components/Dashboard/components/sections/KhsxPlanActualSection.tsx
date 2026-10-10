@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   Legend, ResponsiveContainer, BarChart, Bar, LabelList,
 } from 'recharts';
 import {
-  Filter, BarChart2, TableIcon as _TableIcon, Table as TableIcon,
+  Filter, BarChart2, Table as TableIcon,
   Calendar, TrendingUp, Import, Activity, X, XCircle as CloseIcon, Eye,
 } from 'lucide-react';
-import { DataRow } from '../../../../types';
 import { formatDecimal, formatInteger } from '../../utils/numberParsers';
 import { formatTy, formatTrieuAsTy } from '../../../../utils/money';
 import { getWeekNumber } from '../../utils/dateHelpers';

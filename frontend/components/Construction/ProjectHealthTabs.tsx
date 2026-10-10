@@ -210,7 +210,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
       m.set(key, e);
     });
     return [...m.values()].sort((a, b) => (a.key === '~' ? 1 : b.key === '~' ? -1 : a.key.localeCompare(b.key)));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [items]);
 
   const list = useMemo(() => {
@@ -443,7 +443,7 @@ type DwellSel = { stage: string; dwell: string } | null;
 type ExtraSel = { kind: 'step'; key: StepKey } | { kind: 'qc'; st: 'bad' | 'wait' | 'ok' | 'none' } | { kind: 'gcn'; st: string | 'pending' } | null;
 const GCN_DONE = (st: string | null) => !gcnPending(st);
 
-export const BopTab = ({ items, onHexClick, extra, today }: {
+export const BopTab = ({ items, onHexClick, extra }: {
   items: HexInfo[]; onHexClick?: (hex: string) => void;
   /** Thông tin thêm theo HEX (số lượng theo công đoạn SX, QC, gia công ngoài); null = đang tải */
   extra?: Record<string, HexExtra> | null;

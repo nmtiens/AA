@@ -1,12 +1,12 @@
 import {ColumnDefinition} from '../../../types';
 export const normalizeString = (str: string) => {
-  if (!str) return '';
-  return String(str)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]/g, ""); // Dành cho việc tìm key/cột trong DB
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]/g, ""); // Dành cho việc tìm key/cột trong DB
 };
 
 export const findColumnKey = (cols: ColumnDefinition[], target: string) => {

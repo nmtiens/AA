@@ -323,7 +323,7 @@ export const VuongMacDetailModal = ({
   // Gõ từ khóa mới -> nhảy tới kết quả mới nhất (cuối đoạn chat)
   useEffect(() => {
     setActiveIdx(matchIds.length ? matchIds.length - 1 : 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [q, matchIds.length]);
 
   // Cuộn tới kết quả đang chọn

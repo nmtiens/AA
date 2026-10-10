@@ -13,7 +13,7 @@ export interface QcEntry {
   photos: string[];  // link ảnh
 }
 
-const num = (v: string) => { const n = Number(String(v).replace(/[^\d.\-]/g, '')); return Number.isFinite(n) ? n : 0; };
+const num = (v: string) => { const n = Number(String(v).replace(/[^\d.-]/g, '')); return Number.isFinite(n) ? n : 0; };
 const normStatus = (raw: string, fail: number): string => {
   const s = raw.trim().toLowerCase();
   if (!s) return fail > 0 ? 'unknown' : 'approved';

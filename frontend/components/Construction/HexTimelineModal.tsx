@@ -52,7 +52,7 @@ const WORK_STEPS: { key: string; label: string; flag?: string }[] = [
 // Số trong ghi chú nhập kho viết kiểu EN: dấu chấm là thập phân ("TT NK: 334.644" = 334,644 triệu),
 // không dùng parseNumber (hiểu "334.644" là 334 nghìn) — bỏ dấu phẩy ngăn nghìn nếu có.
 const noteNumber = (v: string) => {
-  const n = Number(String(v).replace(/,/g, '').replace(/[^\d.\-]/g, ''));
+  const n = Number(String(v).replace(/,/g, '').replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) ? n : NaN;
 };
 

@@ -4,7 +4,7 @@ import {
   Search, X, ChevronUp, ChevronDown, ChevronsUpDown, Download,
   ChevronLeft, ChevronRight, Package,
 } from 'lucide-react';
-import { formatSmartDecimal, parseNumber } from '../../utils/numberParsers';
+import { parseNumber } from '../../utils/numberParsers';
 import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../../../utils/money';
 import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { DataRow } from '../../../../types';
@@ -596,7 +596,7 @@ export const HexDetailModal = ({
   useEffect(() => {
     if (!isOpen) return;
     handleBodyScroll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isOpen, rows, search, handleBodyScroll]);
 
   const getNotePreview = useCallback(

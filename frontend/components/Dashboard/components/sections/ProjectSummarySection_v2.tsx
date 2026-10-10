@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Activity, Hash, DollarSign } from 'lucide-react';
-import { formatNumber, formatDecimalFull } from '../../utils/numberParsers';
+import { formatNumber } from '../../utils/numberParsers';
 import { formatTy } from '../../../../utils/money';
 import { projectMatchKey } from '../../../../utils/productionMetrics';
 

@@ -117,7 +117,7 @@ export const getCachedData = async (endpoint: string): Promise<any> => {
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     });
-  } catch (err) {
+  } catch {
     return null;
   }
 };
@@ -133,7 +133,7 @@ export const getCachedVersion = async (endpoint: string): Promise<string> => {
       req.onsuccess = () => resolve(String(req.result || '0'));
       req.onerror = () => resolve('0');
     });
-  } catch (err) {
+  } catch {
     return '0';
   }
 };

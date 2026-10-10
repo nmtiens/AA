@@ -1,16 +1,12 @@
 import React from 'react';
-import {
-  XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
-  BarChart, Bar, LabelList, CartesianGrid, Legend,
-} from 'recharts';
+
 import {
   Activity, Download, Layers, CheckCircle, XCircle as CloseIcon,
-  Table as TableIcon, PlusSquare, MinusSquare, BarChart2,
+  Table as TableIcon, PlusSquare, MinusSquare,
 } from 'lucide-react';
 import { CompactStatCard } from '../shared/CompactStatCard';
 import { MetricSwitcher } from '../shared/MetricSwitcher';
-import { YearlyPlanWorkshopTooltip } from '../shared/tooltips/YearlyPlanWorkshopTooltip';
-import { formatNumber, formatDecimal } from '../../utils/numberParsers';
+import { formatNumber } from '../../utils/numberParsers';
 import { formatTrieuAsTy } from '../../../../utils/money';
 import type { MetricType, WorkshopPivotData } from '../../types';
 
@@ -22,12 +18,6 @@ export interface CardMetrics {
   chuaTheSX: number;
   vuongSL: number;
   chuaTrienKhai: number;
-}
-
-interface WorkshopRevenueRow {
-  name: string;
-  plan: number;
-  actual: number;
 }
 
 interface ProductionStatusSectionProps {

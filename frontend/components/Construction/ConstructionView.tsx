@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { materialRowClass } from './../Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../../types';
-import { parseVNDate, diffDays } from './../Dashboard/utils/dateHelpers';
 import { parseNumber } from './../Dashboard/utils/numberParsers';
 import { Filter, XCircle as CloseIcon, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { fetchRevenue2026, type Revenue2026Data } from '../../services/dataService';
@@ -197,8 +196,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   tkbvColumns,
   pthspData: rawPthspData,
   pthspColumns,
-  yearlyPlanData,
-  yearlyPlanColumns,
   analysisData: rawAnalysisData,
   analysisColumns,
   exportData: rawExportData,
@@ -237,15 +234,14 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     xuongKey, hangMucKey, daysAtCurrentStageKey, phanLoaiNhomSanPhamKey, bopKey, triGiaDonHangTongKey,
     thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
     matCongTrinhKey, matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
-    matStatusSapKey, matEstDateKey,
-    khsxXuongKey, khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
+    khsxCongTrinhKey, khsxNamKey, khsxThangKey, khsxNgayKey, khsxTuanKey,
     invThanhTienKey, invXuongKey, invCongTrinhKey, invNamKey, invThangKey,
     invNgayKey, invDateKey, invTuanKey,
     expThanhTienKey, expDateKey, expXuongKey, expCongTrinhKey, expSoLuongKey,
-    stockDateKey, stockValueKey, stockSapIdKey,
-    orderDateKey, orderValueKey, orderXuongKey, orderCongTrinhKey,
-    tkbvDateKey, tkbvValueKey, tkbvXuongKey, tkbvCongTrinhKey,
-    pthspDateKey, pthspValueKey, pthspXuongKey, pthspCongTrinhKey,
+    stockDateKey, 
+    orderDateKey, orderCongTrinhKey,
+    tkbvDateKey, tkbvCongTrinhKey,
+    pthspDateKey, pthspCongTrinhKey,
     analysisXuongKey, analysisCongTrinhKey, analysisPlanKey, analysisActualKey,
     analysisWeekKey, analysisDungKhKey, analysisThucHienDungKh1PhanKey,
     analysisRotKhKey, analysisThucHienRotKh1PhanKey, analysisNhapKhoTruocKhKey,
@@ -446,7 +442,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   });
 
   const [revenue2026, setRevenue2026] = useState<Revenue2026Data | null>(null);
-  const [stockMetric, setStockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
+  const [stockMetric] = useState<'COUNT' | 'SUM'>('COUNT');
 
   // Năm đang được chọn ở "LỌC NĂM" trong bộ lọc thống nhất (unifiedTimeFilters.nam).
   const selectedRevenueYear = unifiedTimeFilters.nam[0] || String(new Date().getFullYear());
@@ -460,14 +456,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     xuongOptions,
     tinhTrangOptions,
     tinhTrangIpoOptions,
-    khsxNamOptions,
-    khsxThangOptions,
-    khsxNgayOptions,
-    khsxTuanOptions,
-    invNamOptions,
-    invThangOptions,
-    invNgayOptions,
-    invTuanOptions,
     unifiedNamOptions,
     unifiedThangOptions,
     unifiedNgayOptions,
@@ -547,7 +535,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   );
 
   const {
-    khsxSummary,
     totalKhsxAmount,
     weeklyKhFallback,
     totalInventoryAmount,
@@ -578,7 +565,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     stockByProjectData,
     stockScopeCongTrinh,
     loadStockByProject,
-    latestStockDateAvailable,
     closestStockDate,
     mtdStockData,
     filteredStockDataForExport,
@@ -598,7 +584,6 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   const {
     workshopMetric, setWorkshopMetric,
     projectMetric, setProjectMetric,
-    chartMetric, setChartMetric,
     projectSummaryMetric, setProjectSummaryMetric,
     matStatusMetric, setMatStatusMetric,
     excludeFabrics, setExcludeFabrics,
@@ -608,19 +593,14 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     cardMetrics,
     projectStatusSummary,
     projectStatusSummaryV2,
-    onLineStageBreakdown,
-    onLineStageBreakdownV2,
     onLineAreaBreakdownV2,      // breakdown theo khu vực sản xuất
-    hexRowsByColumn,
     hexRowsByColumnV2,
     pivotWorkshopData,
     pivotFunnelData,
     funnelBreakdownByBop,
     customFunnelData,
     pivotProjectData,
-    pivotMaterialSummary,
     pivotMaterialStatusData,
-    lineChartData,
     bottleneckData,
     topBottlenecks,
   } = usePivotTables({
@@ -645,7 +625,7 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     orderExportScope, setOrderExportScope,
     isOrderExportModalOpen, setIsOrderExportModalOpen,
     selectedOrderExportColumns, setSelectedOrderExportColumns,
-    genericExportFlow, setGenericExportFlow,
+    genericExportFlow, 
     genericExportScope, setGenericExportScope,
     isGenericExportScopeModalOpen, setIsGenericExportScopeModalOpen,
     isGenericExportColumnModalOpen, setIsGenericExportColumnModalOpen,
@@ -657,17 +637,9 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
     setSelectedStockExportDates,
 
     effectiveOrderColumns,
-    effectiveTkbvColumns,
-    effectivePthspColumns,
-    effectiveInventoryColumns,
-    effectiveExportDataColumns,
-    effectiveStockColumns,
 
-    handleExportOverviewSummary,
     handleOpenOverviewExport,
     handleOverviewExportConfirm,
-    handleExportGroupAnalysis,
-    handleExportStockDetail,
     handleExportProductionStatus,
     handleOpenOrderExport,
     getExportFlowConfig,
@@ -730,19 +702,12 @@ const ConstructionView: React.FC<ConstructionViewProps> = ({
   const getMaterialRowClassName = (row: DataRow): string => materialRowClass(row);
 
   const targetRevenue2026 = revenue2026?.targetRevenue2026 ?? 0;
-  const quarterlyTargets = revenue2026?.quarterlyTargets ?? { q1: 0, q2: 0, q3: 0, q4: 0 };
   const factoryRevenueStats = {
     actual: revenue2026?.actual.value ?? 0,
     percent: revenue2026?.actual.percent ?? 0,
   };
   const yearlyPlan2026WorkshopChartData = revenue2026?.byWorkshop ?? [];
 
-  const factoryRevenueChartData = useMemo(() => [{
-    name: 'Năm 2026',
-    thucHien: factoryRevenueStats.actual,
-    conLai: Math.max(0, targetRevenue2026 - factoryRevenueStats.actual),
-    fullTarget: targetRevenue2026,
-  }], [factoryRevenueStats.actual, targetRevenue2026]);
 
   // Gộp "Xuất kho" theo công trình từ exportData (đã filter theo view):
   // đếm số HEX DUY NHẤT (COUNT) hoặc tổng thành tiền (VALUE), chỉ tính các dòng

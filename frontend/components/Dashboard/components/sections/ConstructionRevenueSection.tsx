@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FunnelCard } from '../shared/FunnelCard';
-import { CheckCircle, Activity, XCircle, Eye, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { formatNumber } from '../../utils/numberParsers';
 import { formatTrieuAsTy } from '../../../../utils/money';
 import type { MetricType } from '../../types';
@@ -42,8 +42,6 @@ interface ConstructionRevenueSectionProps {
 
 export const ConstructionRevenueSection = ({
   sectionRef,
-  targetRevenue2026,
-  factoryRevenueStats,
   customFunnelData,
   pivotFunnelData,
   workshopMetric,
@@ -55,7 +53,6 @@ export const ConstructionRevenueSection = ({
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   const [selectedFunnelItem, setSelectedFunnelItem] = useState<CustomFunnelItem | null>(null);
 
-  const cancelledValue = factoryRevenueStats.cancelled ?? 0;
 
   // Giá trị gốc là triệu đồng -> hiển thị Tỷ, 2 chữ số thập phân; đếm HEX giữ nguyên số lượng
   const formatFunnelValue = (value: number): string => {

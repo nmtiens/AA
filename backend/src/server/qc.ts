@@ -14,7 +14,7 @@ export interface QcSummary {
   last: { date: string; stage: string; status: string; fail: number } | null; // lần kiểm gần nhất
 }
 
-const qcNum = (v: string) => { const n = Number(String(v).replace(/[^\d.\-]/g, '')); return Number.isFinite(n) ? n : 0; };
+const qcNum = (v: string) => { const n = Number(String(v).replace(/[^\d.-]/g, '')); return Number.isFinite(n) ? n : 0; };
 // Chuẩn hoá trạng thái QC: approved / APPROVED / verified → 'approved'; rỗng → 'approved' nếu không lỗi, ngược lại 'unknown'
 const qcStatus = (raw: string, fail: number): string => {
   const s = raw.trim().toLowerCase();

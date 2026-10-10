@@ -137,7 +137,6 @@ export function useExportFlows({
   invDateKey,
   expDateKey,
 
-  stockDateKey,
   stockDates,
   stockTotalCount,
 
@@ -152,7 +151,6 @@ export function useExportFlows({
   filteredInventoryOverviewData,
   filteredExportOverviewData,
   filteredStockDataForExport,
-  mtdOrderData,
   mtdTkbvData,
   mtdPthspData,
   mtdInventoryData,
@@ -490,9 +488,10 @@ const fetchStockCsvContent = async (dates?: string[]): Promise<ArrayBuffer | str
           color: 'slate',
           displayCount: stockTotalCount,
         };
-      default:
+      default: {
         const _exhaustiveCheck: never = type;
         throw new Error(`Unhandled export flow type: ${_exhaustiveCheck}`);
+      }
     }
   };
 

@@ -182,7 +182,6 @@ export function usePivotTables({
   funnelProductionData,
   projectSummaryProductionData,
   filteredMaterialData,
-  displayedMaterialData,
   stockDates,
   closestStockDate,
 

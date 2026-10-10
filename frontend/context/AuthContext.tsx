@@ -145,7 +145,7 @@ useEffect(() => {
 
       showToast(result.message || 'Đăng nhập thất bại', 'error');
       return { success: false, message: result.message || 'Đăng nhập thất bại' };
-    } catch (error) {
+    } catch {
       showToast('Lỗi hệ thống', 'error');
       return { success: false, message: 'Lỗi hệ thống' };
     } finally {

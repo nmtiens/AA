@@ -80,6 +80,8 @@ npx --prefix frontend tsc --noEmit -p frontend
 npx --prefix backend tsc --noEmit -p backend
 npm test --prefix frontend     # vitest: quy tắc số liệu (utils/productionMetrics), parser QC
 npm test --prefix backend      # node --test: parser QC phía server
+npm run lint --prefix frontend # ESLint: biến/import không dùng, quy tắc hooks... (lỗi chặn CI)
+npm run lint --prefix backend
 ```
 
 Sửa quy tắc số liệu dùng chung (`frontend/utils/productionMetrics.ts`) thì sửa test đi kèm có chủ đích; CI chạy cả hai bộ test.

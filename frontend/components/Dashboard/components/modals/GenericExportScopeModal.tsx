@@ -199,7 +199,7 @@ export const GenericExportScopeModal = ({
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            stockDateSearch ? toggleSelectAllFiltered() : toggleSelectAllStockDates();
+                            if (stockDateSearch) toggleSelectAllFiltered(); else toggleSelectAllStockDates();
                           }}
                           className="text-[0.6875rem] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
                         >

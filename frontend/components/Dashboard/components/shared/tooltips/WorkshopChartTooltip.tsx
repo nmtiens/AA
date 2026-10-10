@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatTy } from '../../../../../utils/money';
 
-export const WorkshopChartTooltip = ({ active, payload, label }: any) => {
+export const WorkshopChartTooltip = ({ active, payload }: any) => {
   const formatValue = (value: any) => {
     if (value === null || value === undefined) return '0';
     return formatTy(Number(value)); // đơn vị Tỷ
