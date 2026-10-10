@@ -40,8 +40,11 @@ export const matchesCategory = (set: Set<string> | null, row: DataRow, key: stri
 /** Danh sách lựa chọn cho bộ lọc nhóm: sắp theo ABC, "(Chưa có)" (nếu có) đứng cuối. */
 export const categoryOptions = (data: DataRow[], key: string | undefined): string[] => {
   if (!key) return [];
+  // Gom giá trị thô trước rồi mới chuẩn hoá (vài trăm nghìn dòng chỉ vài trăm giá trị khác nhau)
+  const raw = new Set<unknown>();
+  for (const row of data) raw.add(row[key]);
   const set = new Set<string>();
-  for (const row of data) set.add(categoryValue(row[key]));
+  for (const v of raw) set.add(categoryValue(v));
   const hasNoData = set.delete(NO_DATA_LABEL);
   const list = Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
   return hasNoData ? [...list, NO_DATA_LABEL] : list;

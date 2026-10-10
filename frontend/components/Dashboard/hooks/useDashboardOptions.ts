@@ -35,10 +35,22 @@ interface UseDashboardOptionsParams {
   invDateKey: string | undefined;
 }
 
+/** Giá trị thô khác nhau của 1 cột (1 vòng, không tạo mảng trung gian) — vài trăm nghìn dòng chỉ còn vài nghìn giá trị */
+const distinctRaw = (data: DataRow[], key: string): Set<unknown> => {
+  const raw = new Set<unknown>();
+  for (const row of data) raw.add(row[key]);
+  return raw;
+};
+
 /** Lấy danh sách giá trị duy nhất (đã trim, bỏ rỗng, sort) của 1 cột trong 1 tập dữ liệu. */
 export const getUniqueOptions = (data: DataRow[], key: string | undefined): string[] => {
   if (!key) return [];
-  const set = new Set(data.map(d => String(d[key] || '').trim()).filter(Boolean));
+  // Gom giá trị thô trước rồi mới trim (kết quả như trước: trim từng dòng rồi gom)
+  const set = new Set<string>();
+  for (const v of distinctRaw(data, key)) {
+    const t = String(v || '').trim();
+    if (t) set.add(t);
+  }
   return Array.from(set).sort();
 };
 
@@ -130,17 +142,18 @@ export function useDashboardOptions({
   }, [khsxTuanOptions, invTuanOptions]);
 
   // --- Unified date options (Order + TKBV + PTHSP + Inventory), dùng cho bộ lọc "NGÀY BÁO CÁO" ---
+  // ~270 nghìn dòng nhưng chỉ vài nghìn ngày khác nhau: gom giá trị thô trước rồi mới đổi định dạng (trước đổi định
+  // dạng từng dòng ~200 ms); sắp xếp dùng thời điểm đã parse sẵn. Kết quả giữ nguyên như cũ.
   const unifiedDateOptions = useMemo(() => {
     const dates = new Set<string>();
     const addDates = (data: DataRow[], key: string | undefined) => {
       if (!key) return;
-      data.forEach(row => {
-        const val = row[key];
+      for (const val of distinctRaw(data, key)) {
         if (val) {
           const formatted = formatDateToVN(val);
           if (formatted) dates.add(formatted);
         }
-      });
+      }
     };
 
     addDates(orderData, orderDateKey);
@@ -148,10 +161,12 @@ export function useDashboardOptions({
     addDates(pthspData, pthspDateKey);
     addDates(inventoryData, invDateKey);
 
+    const time = new Map<string, number | null>();
+    for (const d of dates) time.set(d, parseVNDate(d)?.getTime() ?? null);
     return Array.from(dates).sort((a, b) => {
-      const dateA = parseVNDate(a);
-      const dateB = parseVNDate(b);
-      if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+      const ta = time.get(a) ?? null;
+      const tb = time.get(b) ?? null;
+      if (ta !== null && tb !== null) return tb - ta;
       return b.localeCompare(a);
     });
   }, [orderData, tkbvData, pthspData, inventoryData, orderDateKey, tkbvDateKey, pthspDateKey, invDateKey]);
