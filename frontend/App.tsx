@@ -39,6 +39,13 @@ const HexLookup = lazy(() => import('./components/Mobile/HexLookup'));
 // Màn quản lý vướng mắc sản xuất (desktop) — dùng chung sheet chi tiết với app điện thoại
 const VuongMacManager = lazy(() => import('./components/VuongMac/VuongMacManager'));
 
+// Vòng chờ trong vùng nội dung (giữ menu)
+const ContentLoader = () => (
+  <div className="h-full flex items-center justify-center">
+    <div className="w-7 h-7 border-[3px] border-slate-200 border-t-wood-600 rounded-full animate-spin"></div>
+  </div>
+);
+
 // Loading hiển thị trong lúc tải file JS của component
 const FullScreenLoader = () => (
   <div className="h-screen flex items-center justify-center bg-wood-50">
@@ -62,6 +69,22 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: strin
 const CONSTRUCTION_PATH = '/cong-trinh/tong-quan';
 // Lúc mở app chờ tối đa bấy nhiêu cho setup gộp xưởng / KH đã đạt / bảng tên công trình trước khi áp dữ liệu
 const META_WAIT_MS = 1500;
+
+// Bảng dữ liệu (tải đủ dòng về trình duyệt) mà từng trang cần — trang không có trong danh sách lấy số qua API
+// (Tra cứu HEX, Vướng mắc, Biểu đồ, Quản trị user) nên không phải chờ đọc / tải ~440 nghìn dòng. Trang lạ /
+// Tổng quan / Setup dữ liệu cần đủ 12 bảng. Bảng đã nạp thì giữ, chuyển trang chỉ nạp thêm bảng còn thiếu.
+const ALL_TABLE_ENDPOINTS = ['production', 'material', 'khsx', 'order', 'inventory', 'tkbv', 'pthsp', 'analysis', 'yearly-plan', 'export', 'stock', 'attendance'];
+const tablesForPath = (path: string): string[] => {
+  const one: Record<string, string> = {
+    '/list': 'production', '/yearly-plan': 'yearly-plan', '/orders': 'order', '/inventory': 'inventory', '/export': 'export',
+    '/stock': 'stock', '/attendance': 'attendance', '/khsx': 'khsx', '/analysis': 'analysis', '/tkbv': 'tkbv', '/pthsp': 'pthsp',
+    '/materials': 'material',
+  };
+  if (one[path]) return [one[path]];
+  if (path === '/cong-trinh/tong-quan') return ['production', 'inventory'];
+  if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
+  return ALL_TABLE_ENDPOINTS;
+};
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
   const isMobileEntry = window.location.pathname.startsWith('/m');
@@ -458,6 +481,8 @@ const MainLayout: React.FC = () => {
 
   const tableVersions = useRef<Record<string, string>>({});
   const initStartedRef = useRef(false);
+  // Bảng đang dùng (đã có trang cần) — đồng bộ ngầm / Làm mới chỉ tải các bảng này
+  const activeTablesRef = useRef<Set<string>>(new Set());
   // Còn gắn trên trang hay không — dùng ref (không dùng biến trong effect) vì init chỉ chạy 1 lần: StrictMode bản dev
   // huỷ + gắn lại effect ngay lúc khởi động, biến cục bộ của lượt đầu sẽ thành false dù component vẫn còn.
   const mountedRef = useRef(true);
@@ -509,6 +534,7 @@ const MainLayout: React.FC = () => {
   // state trực tiếp (sẽ là giá trị cũ) — chỉ dùng setter, ref và cập nhật dạng hàm.
   const runSync = async (forceAll: boolean): Promise<boolean> => {
     try {
+      if (activeTablesRef.current.size === 0) return true; // trang hiện tại không dùng bảng nào
       const verRes = await fetch('/api/check-versions', { cache: 'no-store' });
       if (!verRes.ok) return false;
 
@@ -530,11 +556,12 @@ const MainLayout: React.FC = () => {
         { endpoint: 'attendance', verKey: 'attendance', setData: setAttendanceData, setCols: setAttendanceColumns },
       ];
 
-      // Xác định bảng nào cần cập nhật (version đổi, hoặc forceAll, hoặc chưa từng load)
+      // Xác định bảng nào cần cập nhật (version đổi, hoặc forceAll, hoặc chưa từng load) — chỉ trong các bảng
+      // đang dùng; bảng chưa trang nào cần thì để tới lúc mở trang đó mới đọc / tải
       const toUpdate: typeof tableConfigs = [];
       const toApplyFromCache: typeof tableConfigs = [];
 
-      for (const cfg of tableConfigs) {
+      for (const cfg of tableConfigs.filter(c => activeTablesRef.current.has(c.endpoint))) {
         const serverVer = String(serverVersions[cfg.verKey] || '0');
         const localVer = forceAll ? '0' : String(await getCachedVersion(cfg.endpoint));
 
@@ -600,47 +627,49 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    const applyCache = (endpoint: string, cachedObj: any, setData: Function, setCols: Function) => {
-      if (cachedObj?.data) {
-        setData(cachedObj.data);
-        setCols(cachedObj.columns);
-        dataLoadedRef.current[endpoint] = true;
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
+  // Setter theo bảng — dùng khi áp cache cho các bảng vừa có trang cần
+  const tableSetters: Record<string, [Function, Function]> = {
+    production: [setProductionData, setProductionColumns], material: [setMaterialData, setMaterialColumns],
+    khsx: [setKhsxData, setKhsxColumns], order: [setOrderData, setOrderColumns], inventory: [setInventoryData, setInventoryColumns],
+    tkbv: [setTkbvData, setTkbvColumns], pthsp: [setPthspData, setPthspColumns], analysis: [setAnalysisData, setAnalysisColumns],
+    'yearly-plan': [setYearlyPlanData, setYearlyPlanColumns], export: [setExportData, setExportColumns],
+    stock: [setStockData, setStockColumns], attendance: [setAttendanceData, setAttendanceColumns],
+  };
+  // Nạp thêm các bảng trang cần mà chưa nạp: đọc cache trình duyệt (song song) -> áp 1 lần -> đồng bộ với server
+  const loadTables = async (endpoints: string[]) => {
+    const fresh = endpoints.filter(e => !activeTablesRef.current.has(e));
+    fresh.forEach(e => activeTablesRef.current.add(e));
+    if (fresh.length === 0) { setLoading(false); return; }
+    setLoading(true);
+    const cached = await Promise.all(fresh.map(e => getCachedData(e)));
+    // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
+    await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
+    if (!mountedRef.current) return;
+    fresh.forEach((e, i) => {
+      const c = cached[i];
+      if (c?.data) {
+        tableSetters[e][0](c.data);
+        tableSetters[e][1](c.columns);
+        dataLoadedRef.current[e] = true;
       }
-    };
+    });
+    setLoading(false);
+    await checkAndSync();
+  };
+  // Chuyển trang: nạp thêm bảng trang mới cần (bảng đã nạp giữ nguyên)
+  useEffect(() => {
+    if (!initStartedRef.current) return;
+    loadTables(tablesForPath(location.pathname));
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
     const init = async () => {
-      // Chạy 1 lần (StrictMode ở bản dev gọi effect 2 lần => đọc cache 12 bảng 2 lần song song)
+      // Chạy 1 lần (StrictMode ở bản dev gọi effect 2 lần => đọc cache 2 lần song song)
       if (initStartedRef.current) return;
       initStartedRef.current = true;
-      const [prod, mat, khsx, ord, inv, tkb, pth, ana, yrp, exp, stk, att] = await Promise.all([
-        getCachedData('production'), getCachedData('material'), getCachedData('khsx'),
-        getCachedData('order'), getCachedData('inventory'), getCachedData('tkbv'),
-        getCachedData('pthsp'), getCachedData('analysis'), getCachedData('yearly-plan'),
-        getCachedData('export'), getCachedData('stock'), getCachedData('attendance')
-      ]);
-
-      // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
-      await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
-      if (!mountedRef.current) return;
-
-      applyCache('production', prod, setProductionData, setProductionColumns);
-      applyCache('material', mat, setMaterialData, setMaterialColumns);
-      applyCache('khsx', khsx, setKhsxData, setKhsxColumns);
-      applyCache('order', ord, setOrderData, setOrderColumns);
-      applyCache('inventory', inv, setInventoryData, setInventoryColumns);
-      applyCache('tkbv', tkb, setTkbvData, setTkbvColumns);
-      applyCache('pthsp', pth, setPthspData, setPthspColumns);
-      applyCache('analysis', ana, setAnalysisData, setAnalysisColumns);
-      applyCache('yearly-plan', yrp, setYearlyPlanData, setYearlyPlanColumns);
-      applyCache('export', exp, setExportData, setExportColumns);
-      applyCache('stock', stk, setStockData, setStockColumns);
-      applyCache('attendance', att, setAttendanceData, setAttendanceColumns);
-
-      // Cho phép hiển thị khung trang luôn dù chưa có data
-      setLoading(false);
-
-      await checkAndSync();
+      await loadTables(tablesForPath(pathnameRef.current));
     };
 
     init();
@@ -1050,8 +1079,12 @@ const MainLayout: React.FC = () => {
             <button onClick={manualRefresh} className="mt-6 px-5 py-2 bg-wood-600 text-white text-sm font-medium rounded-lg hover:bg-wood-700 transition-colors">Thử lại</button>
           </div>
         ) : (
-          /* HIỂN THỊ LUÔN OUTLET (Giao diện trang con), không chặn chờ data nữa */
-          <Outlet key={refreshKey} context={contextValue} />
+          /* HIỂN THỊ LUÔN OUTLET (Giao diện trang con), không chặn chờ data nữa.
+             Tải file JS của trang (lazy): vòng chờ chỉ trong vùng nội dung, menu / khung giữ nguyên
+             (trước dùng Suspense ngoài cùng => mỗi lần đổi trang cả màn hình thành vòng xoay) */
+          <Suspense fallback={<ContentLoader />}>
+            <Outlet key={refreshKey} context={contextValue} />
+          </Suspense>
         )}
       </main>
 
