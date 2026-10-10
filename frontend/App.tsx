@@ -60,6 +60,8 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: strin
 ];
 
 const CONSTRUCTION_PATH = '/cong-trinh/tong-quan';
+// Lúc mở app chờ tối đa bấy nhiêu cho setup gộp xưởng / KH đã đạt / bảng tên công trình trước khi áp dữ liệu
+const META_WAIT_MS = 1500;
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
   const isMobileEntry = window.location.pathname.startsWith('/m');
@@ -432,14 +434,19 @@ const MainLayout: React.FC = () => {
   // Tải view-project-mapping + table-column-config sau khi đã đăng nhập (MainLayout chỉ
   // hiển thị nội dung khi có user). Không chặn render; các trang Công trình tự chờ qua
   // useViewMappingReady. Đăng nhập lại (user đổi) thì tải lại cho đúng tài khoản.
+  // Lúc mở app: dữ liệu (đọc từ cache trình duyệt) chỉ áp vào trang SAU KHI 3 thứ nhỏ này về (tối đa
+  // META_WAIT_MS) — mỗi thứ về sau dữ liệu đều làm mọi trang tính lại toàn bộ 1 lượt (trước 3 lượt / lần mở)
+  const metaReadyRef = useRef<Promise<unknown>>(Promise.resolve());
   useEffect(() => {
     if (!user) return;
     loadViewMapping();
     loadTableColumnConfig();
-    loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1));
-    fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); });
-    // Bảng tên công trình của server -> lọc theo công trình phía máy khớp server (đổi version để tính lại)
-    fetchProjectAliases().then(d => { setServerProjectAliases(d); setAliasVersion(v => v + 1); });
+    metaReadyRef.current = Promise.allSettled([
+      loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
+      fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
+      // Bảng tên công trình của server -> lọc theo công trình phía máy khớp server (đổi version để tính lại)
+      fetchProjectAliases().then(d => { setServerProjectAliases(d); setAliasVersion(v => v + 1); }),
+    ]);
   }, [user?.username]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ADMIN vừa lưu setup gộp xưởng (cache đã cập nhật) -> gộp lại dữ liệu, các trang gọi lại API
@@ -450,6 +457,11 @@ const MainLayout: React.FC = () => {
   }, []);
 
   const tableVersions = useRef<Record<string, string>>({});
+  const initStartedRef = useRef(false);
+  // Còn gắn trên trang hay không — dùng ref (không dùng biến trong effect) vì init chỉ chạy 1 lần: StrictMode bản dev
+  // huỷ + gắn lại effect ngay lúc khởi động, biến cục bộ của lượt đầu sẽ thành false dù component vẫn còn.
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const dataLoadedRef = useRef<Record<string, boolean>>({});
 
   // Tự mở nhóm menu chứa trang hiện tại
@@ -589,7 +601,6 @@ const MainLayout: React.FC = () => {
   };
 
   useEffect(() => {
-    let isMounted = true;
     const applyCache = (endpoint: string, cachedObj: any, setData: Function, setCols: Function) => {
       if (cachedObj?.data) {
         setData(cachedObj.data);
@@ -599,6 +610,9 @@ const MainLayout: React.FC = () => {
     };
 
     const init = async () => {
+      // Chạy 1 lần (StrictMode ở bản dev gọi effect 2 lần => đọc cache 12 bảng 2 lần song song)
+      if (initStartedRef.current) return;
+      initStartedRef.current = true;
       const [prod, mat, khsx, ord, inv, tkb, pth, ana, yrp, exp, stk, att] = await Promise.all([
         getCachedData('production'), getCachedData('material'), getCachedData('khsx'),
         getCachedData('order'), getCachedData('inventory'), getCachedData('tkbv'),
@@ -606,7 +620,9 @@ const MainLayout: React.FC = () => {
         getCachedData('export'), getCachedData('stock'), getCachedData('attendance')
       ]);
 
-      if (!isMounted) return;
+      // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
+      await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
+      if (!mountedRef.current) return;
 
       applyCache('production', prod, setProductionData, setProductionColumns);
       applyCache('material', mat, setMaterialData, setMaterialColumns);
@@ -638,7 +654,6 @@ const MainLayout: React.FC = () => {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      isMounted = false;
       clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -713,16 +728,20 @@ const MainLayout: React.FC = () => {
   // Tên công trình chuẩn theo mã (1 mã có thể có nhiều cách viết tên) — làm 1 lần ở đây để mọi
   // trang (Tổng quan, Luồng đỏ, Báo cáo tiến độ, bảng dữ liệu) gom cùng 1 công trình giống nhau.
   // Tên PM / PC cũng gom các cách viết của cùng 1 người (NGỌC SÁU / saudn -> ĐẶNG NGỌC SÁU).
+  // Gộp tên công trình / người / xưởng: nặng (~0,5–1 giây trên ~52k dòng) => chỉ chạy lại khi dữ liệu sản xuất hoặc
+  // setup gộp xưởng đổi. KH đã đạt / bảng tên server về chỉ cần đổi tham chiếu mảng để các trang tính lại hạn / lọc
+  // (trước gộp lại từ đầu mỗi lần => 3 lượt nặng mỗi lần mở app).
+  const canonicalProductionBase = useMemo(
+    () => canonicalizeWorkshops(
+      canonicalizePersonNames(canonicalizeProjectNames(productionData, productionColumns), productionColumns),
+      productionColumns
+    ),
+    [productionData, productionColumns, workshopGroupsVersion] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const canonicalProductionData = useMemo(
-    () => {
-      const rows = canonicalizeWorkshops(
-        canonicalizePersonNames(canonicalizeProjectNames(productionData, productionColumns), productionColumns),
-        productionColumns
-      );
-      // Nạp xong "KH đã đạt" thì đổi tham chiếu mảng để mọi trang tính lại hạn (deadlineOf đọc bộ nhớ chung)
-      return planMetVersion > 0 || aliasVersion > 0 ? rows.slice() : rows;
-    },
-    [productionData, productionColumns, workshopGroupsVersion, planMetVersion, aliasVersion] // eslint-disable-line react-hooks/exhaustive-deps
+    // Nạp xong "KH đã đạt" / bảng tên thì đổi tham chiếu mảng để mọi trang tính lại hạn (deadlineOf đọc bộ nhớ chung)
+    () => (planMetVersion > 0 || aliasVersion > 0 ? canonicalProductionBase.slice() : canonicalProductionBase),
+    [canonicalProductionBase, planMetVersion, aliasVersion]
   );
   // Cột xưởng các bảng khác cũng theo setup gộp xưởng (bảng không có cột xưởng giữ nguyên)
   /* eslint-disable react-hooks/exhaustive-deps */
