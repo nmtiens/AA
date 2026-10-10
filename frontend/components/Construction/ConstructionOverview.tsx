@@ -662,41 +662,58 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       className={`group w-full rounded-md px-2 py-1.5 text-left transition hover:bg-white hover:shadow-sm ${strong ? '' : 'border border-slate-200 bg-white/70'}`}
     >
       <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-slate-500">
-        {bar && <i className={`h-2 w-2 shrink-0 rounded-sm ${bar}`} />}
+        {bar && <i className={`h-2.5 w-2.5 shrink-0 rounded-sm ${bar}`} />}
         <span className="truncate">{label}</span>
         <ChevronRight size={12} className="ml-auto shrink-0 text-slate-300 group-hover:text-slate-600" />
       </p>
-      <p className={`${strong ? 'text-2xl' : 'text-lg'} font-semibold tabular-nums ${tone}`}>
+      <p className={`${strong ? 'text-2xl' : 'text-lg'} font-semibold tabular-nums ${strong ? tone : 'text-slate-900'}`}>
         {fmtTy(value)}<span className="ml-1 text-xs font-medium text-slate-400">Tỷ</span>
         <span className="ml-1.5 text-[0.6875rem] font-normal text-slate-400">{pctOf(value, kpi.total)}</span>
       </p>
     </button>
   );
 
-  // Phần chưa nhập kho theo công đoạn (P022–P025 nhập chưa đủ / đơn hủy chỉ hiện khi có số)
+  // Phần chưa nhập kho theo công đoạn, giữ thứ tự cột của bảng công trình: P001 -> P002 -> Trên chuyền
+  // (cùng thứ tự với thanh tỷ trọng). Màu cùng 1 họ xám / cam theo độ "gần xong": xám = chưa triển khai,
+  // càng đậm càng gần nhập kho. Đơn hủy tách màu đỏ nhạt.
+  // P022–P025 nhập chưa đủ / đơn hủy chỉ hiện khi có số.
   const remainTiles = ([
-    { key: 'notDeployed', label: 'Chưa triển khai (P001)', tone: 'text-slate-700', bar: 'bg-slate-400',
+    { key: 'notDeployed', label: 'Chưa triển khai (P001)', bar: 'bg-slate-300', ink: 'text-slate-800',
       hint: 'Phần chưa nhập kho của hạng mục ở P001 / 15. CHƯA TRIỂN KHAI.' },
-    { key: 'p002', label: 'Chưa tính phiếu (P002)', tone: 'text-orange-700', bar: 'bg-orange-300',
+    { key: 'p002', label: 'Chưa tính phiếu (P002)', bar: 'bg-amber-300', ink: 'text-amber-950',
       hint: 'Phần chưa nhập kho của hạng mục ở P002 (bản vẽ kỹ thuật, chưa tính phiếu).' },
-    { key: 'onLine', label: 'Đang trên chuyền (P012→P021)', tone: 'text-amber-700', bar: 'bg-amber-500',
+    { key: 'onLine', label: 'Đang trên chuyền (P012→P021)', bar: 'bg-amber-500', ink: 'text-white',
       hint: 'Phần chưa nhập kho của hạng mục ở P012 → P021 (gồm GCVT).' },
-    { key: 'shortfall', label: 'P022–P025 nhập chưa đủ', tone: 'text-purple-700', bar: 'bg-purple-300',
+    { key: 'shortfall', label: 'P022–P025 nhập chưa đủ', bar: 'bg-orange-600', ink: 'text-white',
       hint: 'Hạng mục đã ở P022 / P025 nhưng giá trị nhập kho chưa đủ trị giá đơn hàng (lệch đơn giá / nhập thiếu).' },
-    { key: 'cancelled', label: 'Đơn hủy', tone: 'text-red-600', bar: 'bg-red-300',
+    { key: 'cancelled', label: 'Đơn hủy', bar: 'bg-rose-200', ink: 'text-rose-900',
       hint: 'Trị giá đơn hàng của hạng mục có Tình trạng IPO = HỦY (tính trong tổng để khớp file gốc — lọc Tình trạng IPO để bỏ).' },
   ] as const).filter(t => t.key === 'notDeployed' || t.key === 'p002' || t.key === 'onLine' || kpi.remainBy[t.key] > 0.0005);
-  const valueSegments = [
-    { key: 'exported', label: 'Đã xuất / giao', v: kpi.exported, bar: 'bg-sky-500' },
-    { key: 'stock', label: 'Tồn kho', v: kpi.stock, bar: 'bg-violet-500' },
-    ...remainTiles.map(t => ({ key: t.key, label: t.label, v: kpi.remainBy[t.key], bar: t.bar })),
-  ];
-  const segTotal = valueSegments.reduce((a, x) => a + x.v, 0);
   // Số HIỂN THỊ (làm tròn 0,01 tỷ) của các ô giá trị, cộng khớp tuyệt đối trên màn hình:
   // Đã nhập = Đã xuất + Tồn; Tổng = Đã nhập + Chưa nhập; các ô con Chưa nhập chia theo phần dư lớn nhất.
   const shownExported = roundTy(kpi.done) - roundTy(kpi.stock);
   const shownRemain = roundTy(kpi.total) - roundTy(kpi.done);
   const shownRemainBy = apportionTy(remainTiles.map(t => kpi.remainBy[t.key]), shownRemain);
+
+  // Đoạn của thanh tỷ trọng = đúng các ô bên dưới (cùng màu, cùng số hiển thị, bấm mở cùng cửa sổ chi tiết)
+  type Seg = { key: string; label: string; v: number; bar: string; ink: string; hint: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'> };
+  const EXPORT_HINT = `= Đã nhập kho − Tồn kho (theo từng hạng mục). Bảng xuất kho ghi ${fmtTy(kpi.exportedRecorded)} tỷ nhưng chỉ có dữ liệu từ 01/2025 — hạng mục giao trước đó không có số xuất.`;
+  const STOCK_HINT = kpi.stockOverItems > 0
+    ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Đã nhập kho = Đã xuất / giao + Tồn kho. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
+    : 'Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0). Đã nhập kho = Đã xuất / giao + Tồn kho.';
+  const doneSegs: Seg[] = [
+    { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, bar: 'bg-emerald-600', ink: 'text-white', hint: EXPORT_HINT,
+      spec: { pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' } },
+    { key: 'stock', label: 'Tồn kho', v: roundTy(kpi.stock), bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
+      spec: { pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho; đơn hủy không tính.' } },
+  ];
+  const remainSegs: Seg[] = remainTiles.map((t, i) => ({
+    key: t.key, label: t.label, v: shownRemainBy[i], bar: t.bar, ink: t.ink, hint: t.hint,
+    spec: { pred: (r: Rec) => r.bucket === t.key && r.total - r.done > 0, focus: 'remain' as DetailFocus, note: t.hint },
+  }));
+  const segTotal = [...doneSegs, ...remainSegs].reduce((a, x) => a + Math.max(x.v, 0), 0);
+  const segPct = (v: number) => (segTotal > 0 ? (Math.max(v, 0) / segTotal) * 100 : 0);
+  const doneW = doneSegs.reduce((a, x) => a + segPct(x.v), 0);
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
@@ -800,7 +817,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               type="button"
               onClick={() => { setGroup(g); setF({}); }}
               title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
-              className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : g === 'luong-do' ? 'font-semibold text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               {g ? GROUP_SHORT[g] : 'Tất cả CT'}
             </button>
@@ -836,11 +853,40 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               {fmtInt(kpi.cts)} công trình · {fmtInt(kpi.items)} hạng mục · đã nhập kho <b className="text-emerald-700">{pctOf(kpi.done, kpi.total)}</b> giá trị
             </p>
           </div>
-          {/* Thanh tỷ trọng: phần đã nhập (đã xuất / tồn kho) + phần chưa nhập theo công đoạn */}
-          <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100">
-            {valueSegments.filter(x => x.v > 0).map(x => (
-              <div key={x.key} className={x.bar} style={{ width: `${(x.v / Math.max(segTotal, 1)) * 100}%` }} title={`${x.label}: ${fmtTy(x.v)} tỷ (${pctOf(x.v, segTotal)})`} />
-            ))}
+          {/* Thanh tỷ trọng: 2 nhóm (xanh = đã nhập kho, cam / xám = chưa nhập kho), mỗi đoạn = 1 ô bên dưới.
+              Ngoặc nhóm phía trên; % in trên đoạn đủ rộng; rê chuột xem số, bấm mở chi tiết. */}
+          <div className="mt-4" role="img" aria-label={`Tổng ${fmtTy(kpi.total)} tỷ: ${[...doneSegs, ...remainSegs].map(x => `${x.label} ${fmtTy(x.v)} tỷ`).join(', ')}`}>
+            <div className="mb-1 flex text-[0.6875rem] font-medium">
+              {doneW > 0 && (
+                <div className="min-w-0 pr-1" style={{ width: `${doneW}%` }}>
+                  <div className="truncate border-b-2 border-emerald-500 pb-0.5 text-emerald-800" title={`Đã nhập kho: ${fmtTy(roundTy(kpi.done))} tỷ`}>
+                    Đã nhập kho · {pctOf(kpi.done, kpi.total)}
+                  </div>
+                </div>
+              )}
+              <div className="min-w-0 flex-1 pl-1">
+                <div className="truncate border-b-2 border-amber-400 pb-0.5 text-right text-amber-800" title={`Chưa nhập kho: ${fmtTy(shownRemain)} tỷ`}>
+                  Chưa nhập kho · {pctOf(kpi.remain, kpi.total)}
+                </div>
+              </div>
+            </div>
+            <div className="flex h-8 gap-[2px] overflow-hidden rounded-md bg-white">
+              {[...doneSegs, ...remainSegs].filter(x => x.v > 0).map(x => {
+                const w = segPct(x.v);
+                return (
+                  <button
+                    key={x.key}
+                    type="button"
+                    onClick={() => openDetail({ eyebrow: 'Chỉ số', title: x.label, ...x.spec })}
+                    title={`${x.label}: ${fmtTy(x.v)} tỷ (${pctOf(x.v, segTotal)})\n${x.hint}\nBấm để xem chi tiết`}
+                    className={`${x.bar} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden text-[0.6875rem] font-semibold tabular-nums transition hover:brightness-95 hover:ring-2 hover:ring-inset hover:ring-slate-900/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-900`}
+                    style={{ width: `${w}%` }}
+                  >
+                    {w >= 4 && <span className="truncate px-1">{w >= 14 ? `${x.label.replace(/ \(.*\)$/, '')} · ` : ''}{Math.round(w)}%</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
@@ -848,24 +894,18 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     hint="Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng)."
                     spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <Mini label="Đã xuất / giao (P025)" value={shownExported} tone="text-sky-700" bar="bg-sky-500"
-                      hint={`= Đã nhập kho − Tồn kho (theo từng hạng mục). Bảng xuất kho ghi ${fmtTy(kpi.exportedRecorded)} tỷ nhưng chỉ có dữ liệu từ 01/2025 — hạng mục giao trước đó không có số xuất.`}
-                      spec={{ pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' }} />
-                <Mini label="Tồn kho" value={roundTy(kpi.stock)} tone="text-violet-700" bar="bg-violet-500"
-                      hint={kpi.stockOverItems > 0
-                        ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Đã nhập kho = Đã xuất / giao + Tồn kho. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
-                        : 'Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0). Đã nhập kho = Đã xuất / giao + Tồn kho.'}
-                      spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho; đơn hủy không tính.' }} />
+                {doneSegs.map(x => (
+                  <Mini key={x.key} label={x.label} value={x.v} tone="text-slate-900" bar={x.bar} hint={x.hint} spec={x.spec} />
+                ))}
               </div>
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
               <Mini label="Chưa nhập kho" value={shownRemain} tone="text-amber-700" strong
                     hint="Trị giá đơn hàng − giá trị đã nhập kho, chia theo công đoạn BOP hiện tại của hạng mục."
                     spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
-              <div className={`mt-2 grid gap-2 ${remainTiles.length > 3 ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
-                {remainTiles.map((t, i) => (
-                  <Mini key={t.key} label={t.label} value={shownRemainBy[i]} tone={t.tone} bar={t.bar} hint={t.hint}
-                        spec={{ pred: r => r.bucket === t.key && r.total - r.done > 0, focus: 'remain', note: t.hint }} />
+              <div className={`mt-2 grid gap-2 ${remainSegs.length > 3 ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
+                {remainSegs.map(x => (
+                  <Mini key={x.key} label={x.label} value={x.v} tone="text-slate-900" bar={x.bar} hint={x.hint} spec={x.spec} />
                 ))}
               </div>
             </div>
