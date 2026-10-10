@@ -96,6 +96,17 @@ const apportionTy = (vals: number[], target: number): number[] => {
   }
   return base.map(u => u * 10);
 };
+/** Chia số nguyên `target` (vd 100%) theo tỷ lệ `vals` bằng phần dư lớn nhất => các phần nguyên cộng đúng `target`. */
+const apportionInt = (vals: number[], target: number): number[] => {
+  const sum = vals.reduce((a, v) => a + Math.max(v, 0), 0);
+  if (sum <= 0) return vals.map(() => 0);
+  const exact = vals.map(v => (Math.max(v, 0) / sum) * target);
+  const base = exact.map(Math.floor);
+  let diff = target - base.reduce((a, b) => a + b, 0);
+  exact.map((u, i) => ({ i, frac: u - base[i] })).sort((a, b) => b.frac - a.frac)
+    .forEach(o => { if (diff > 0) { base[o.i]++; diff--; } });
+  return base;
+};
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có KH nhập kho';
   // Cột gộp của biểu đồ tháng hạn: "<YYYY-MM" = trước tháng đó, ">YYYY-MM" = sau tháng đó
@@ -412,12 +423,14 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const ctTable = useMemo(() => {
     const q = ctSearch.trim().toLowerCase();
-    type Row = { name: string; ctKey: string; pms: Set<string>; mas: Set<string>; items: number; total: number; done: number; open: number; overdue: number; botDates: string[] };
+    type Row = { name: string; ctKey: string; pms: Set<string>; mas: Set<string>; items: number; total: number; cancelled: number; done: number; open: number; overdue: number; botDates: string[] };
     const m = new Map<string, Row>();
     for (const r of apply('ct')) {
       if (q && !r.ct.toLowerCase().includes(q)) continue;
-      const e = m.get(r.ct) ?? { name: r.ct, ctKey: r.ctKey, pms: new Set<string>(), mas: new Set<string>(), items: 0, total: 0, done: 0, open: 0, overdue: 0, botDates: [] };
+      const e = m.get(r.ct) ?? { name: r.ct, ctKey: r.ctKey, pms: new Set<string>(), mas: new Set<string>(), items: 0, total: 0, cancelled: 0, done: 0, open: 0, overdue: 0, botDates: [] };
       e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.items++; e.total += r.total; e.done += r.done;
+      // Trị giá đơn hủy nằm trong Tổng GT (cửa sổ công trình thì bỏ hủy) — tách riêng để ghi chú trên bảng
+      if (r.status === 'HỦY') e.cancelled += r.total;
       if (r.open) e.open++; if (r.overdue) e.overdue++;
       // Khoá ngày giờ địa phương (toISOString lùi 1 ngày ở +7)
       // Bỏ đơn HỦY khi gom BOT dự án (khớp ProjectHealthModal)
@@ -433,6 +446,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey) };
     }).sort((a, b) => b.total - a.total || b.items - a.items);
   }, [records, f, ctSearch, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phạm vi bảng có đơn hủy => cột Tổng GT ghi chú "gồm cả đơn hủy"
+  const ctHasCancel = ctTable.some(r => r.cancelled > 0);
   // Ô "Vướng mắc đang mở": theo MỌI bộ lọc trang (rowsAll, không theo ô tìm của bảng);
   // mỗi mã công trình chỉ cộng 1 lần (1 mã có thể nằm ở nhiều công trình / nhiều tên)
   const vmSum = useMemo(() => {
@@ -714,6 +729,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const segTotal = [...doneSegs, ...remainSegs].reduce((a, x) => a + Math.max(x.v, 0), 0);
   const segPct = (v: number) => (segTotal > 0 ? (Math.max(v, 0) / segTotal) * 100 : 0);
   const doneW = doneSegs.reduce((a, x) => a + segPct(x.v), 0);
+  // % IN RA (số nguyên) theo phần dư lớn nhất: chia 100% cho 2 nhóm trước, rồi chia % nhóm cho các đoạn
+  // => % ngoặc nhóm = tổng % các đoạn trong nhóm, Đã nhập + Chưa nhập = 100%
+  const sumV = (segs: Seg[]) => segs.reduce((a, x) => a + Math.max(x.v, 0), 0);
+  const [donePctInt, remainPctInt] = apportionInt([sumV(doneSegs), sumV(remainSegs)], 100);
+  const segPctInt = new Map<string, number>();
+  ([[doneSegs, donePctInt], [remainSegs, remainPctInt]] as const).forEach(([segs, p]) => {
+    const parts = apportionInt(segs.map(x => x.v), p);
+    segs.forEach((x, i) => segPctInt.set(x.key, parts[i]));
+  });
+  // Nhóm có giá trị nhưng làm tròn ra 0% thì ghi "<1%" (thay vì 0%)
+  const groupPctLabel = (p: number, v: number) => (segTotal <= 0 ? '—' : p === 0 && v > 0 ? '<1%' : `${p}%`);
+  const donePctLabel = groupPctLabel(donePctInt, sumV(doneSegs));
+  const remainPctLabel = groupPctLabel(remainPctInt, sumV(remainSegs));
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
@@ -850,7 +878,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               </p>
             </button>
             <p className="text-[0.6875rem] text-slate-500">
-              {fmtInt(kpi.cts)} công trình · {fmtInt(kpi.items)} hạng mục · đã nhập kho <b className="text-emerald-700">{pctOf(kpi.done, kpi.total)}</b> giá trị
+              {fmtInt(kpi.cts)} công trình · {fmtInt(kpi.items)} hạng mục · đã nhập kho <b className="text-emerald-700">{donePctLabel}</b> giá trị
             </p>
           </div>
           {/* Thanh tỷ trọng: 2 nhóm (xanh = đã nhập kho, cam / xám = chưa nhập kho), mỗi đoạn = 1 ô bên dưới.
@@ -860,13 +888,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               {doneW > 0 && (
                 <div className="min-w-0 pr-1" style={{ width: `${doneW}%` }}>
                   <div className="truncate border-b-2 border-emerald-500 pb-0.5 text-emerald-800" title={`Đã nhập kho: ${fmtTy(roundTy(kpi.done))} tỷ`}>
-                    Đã nhập kho · {pctOf(kpi.done, kpi.total)}
+                    Đã nhập kho · {donePctLabel}
                   </div>
                 </div>
               )}
               <div className="min-w-0 flex-1 pl-1">
                 <div className="truncate border-b-2 border-amber-400 pb-0.5 text-right text-amber-800" title={`Chưa nhập kho: ${fmtTy(shownRemain)} tỷ`}>
-                  Chưa nhập kho · {pctOf(kpi.remain, kpi.total)}
+                  Chưa nhập kho · {remainPctLabel}
                 </div>
               </div>
             </div>
@@ -882,7 +910,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     className={`${x.bar} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden text-[0.6875rem] font-semibold tabular-nums transition hover:brightness-95 hover:ring-2 hover:ring-inset hover:ring-slate-900/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-900`}
                     style={{ width: `${w}%` }}
                   >
-                    {w >= 4 && <span className="truncate px-1">{w >= 14 ? `${x.label.replace(/ \(.*\)$/, '')} · ` : ''}{Math.round(w)}%</span>}
+                    {w >= 4 && <span className="truncate px-1">{w >= 14 ? `${x.label.replace(/ \(.*\)$/, '')} · ` : ''}{segPctInt.get(x.key) ?? 0}%</span>}
                   </button>
                 );
               })}
@@ -1096,7 +1124,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <th className="text-left font-medium px-2 py-2">Tên công trình</th>
                     <th className="text-left font-medium px-2 py-2">PM</th>
                     <th className="text-right font-medium px-2 py-2">Mục</th>
-                    <th className="text-right font-medium px-2 py-2">Tổng GT (Tỷ)</th>
+                    <th className="text-right font-medium px-2 py-2"
+                        title={ctHasCancel ? 'Tổng trị giá đơn hàng, gồm cả đơn hủy (dòng phụ "hủy …" = phần trị giá đơn hủy). Cửa sổ công trình không tính đơn hủy — lọc Tình trạng IPO để bỏ.' : undefined}>
+                      Tổng GT (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
+                    </th>
                     <th className="text-left font-medium px-2 py-2 w-24">Hoàn thành</th>
                     <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT DA</th>
                     <th className="text-right font-medium px-2 py-2" title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
@@ -1132,7 +1163,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                           {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">
+                          {fmtTy(r.total)}
+                          {r.cancelled > 0 && (
+                            <div className="text-[0.625rem] font-normal leading-tight text-rose-500" title="Trị giá đơn hủy (đã tính trong Tổng GT)">hủy {fmtTy(r.cancelled)}</div>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5">
                           <div className="flex items-center gap-2">
                             <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">

@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { expandWorkshops, workshopGroupSql, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { vnDayKey, vnTodayUtc } from '../server/common.js';
-import { parseSafeDate, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified, notCancelledHexCond, CANCELLED_HEX_SQL } from '../server/data.js';
+import { parseSafeDate, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified, notCancelledHexCond, CANCELLED_HEX_SQL, productionKeySql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { app } from '../server/app.js';
 
@@ -27,7 +27,8 @@ const buildRoleFilter = (tinhTrangList: string[], tinhTrangIpoList: string[], pa
   if (tinhTrangList.length) { params.push(tinhTrangList); conds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
   if (tinhTrangIpoList.length) { params.push(tinhTrangIpoList); conds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
   const ctes = [...new Set(joinCols)].map(col =>
-    `role_${col} AS (SELECT DISTINCT "${col}"::text AS k FROM production_status_app WHERE "${col}" IS NOT NULL AND ${conds.join(' AND ')})`);
+    // ma_id_sap: chuẩn hoá mã 18 số về 12 số (productionKeySql) cho khớp ton_kho
+    `role_${col} AS (SELECT DISTINCT ${productionKeySql(col)}::text AS k FROM production_status_app WHERE "${col}" IS NOT NULL AND ${conds.join(' AND ')})`);
   return { ctes, existsCond: (hexExpr, joinCol) => `EXISTS (SELECT 1 FROM role_${joinCol} rh WHERE rh.k = ${hexExpr}::text)` };
 };
 

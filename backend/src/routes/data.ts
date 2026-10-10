@@ -125,26 +125,8 @@ apiRoutes.forEach(({ path, table }) => {
   });
 });
 
-// Route riêng cho trang cần ĐẦY ĐỦ cột
-app.get('/api/production/full', async (req: Request, res: Response) => {
-  const { updated_after } = req.query;
-  try {
-    let query = `SELECT * FROM production_status_app`;
-    const values: any[] = [];
-
-    const validDate = parseSafeDate(updated_after as string);
-    if (validDate) {
-      query += ` WHERE updated_at >= $1`;
-      values.push(validDate.toISOString());
-    }
-
-    const result = await timedQuery(query, values);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Lỗi truy vấn production full:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
-  }
-});
+// /api/production/full (SELECT * ~256 MB) đã bỏ: frontend không gọi — dữ liệu sản xuất lấy qua /api/all-data,
+// /api/production (cột đã cắt), /api/production/notes, /api/production/hex/:hex.
 
 const NOTE_COLUMNS = [
   'tong_hop_ghi_chu_nhap_kho', 'tong_hop_thong_tin_qc', 'tong_hop_ghi_chu_xuat_kho',

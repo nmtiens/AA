@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, CalendarClock, Image as ImageIcon } from 'lucide-react';
+import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, XCircle, CalendarClock, Image as ImageIcon } from 'lucide-react';
 import { LinkLightbox } from '../shared/LinkLightbox';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
@@ -126,12 +126,15 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     const valDone = doneValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
     const valRemain = remainValue(total, parseNumber(row.thanh_tien_nhap_kho_luy_ke), cancelled);
     const pctValue = total > 0 ? (valDone / total) * 100 : 0;
-    // Đã nhập kho đủ: đủ trị giá HOẶC đủ số lượng (thành tiền NK có thể lệch đơn giá) — quy tắc chung
-    const full = (total > 0 && valRemain <= 0) || (qtyOrder > 0 && qtyIn >= qtyOrder);
+    // Đã nhập kho đủ: đủ trị giá HOẶC đủ số lượng (thành tiền NK có thể lệch đơn giá) — quy tắc chung.
+    // Đơn HỦY không bao giờ "đủ" (valRemain của đơn hủy = 0 nên trước bị coi là đã nhập đủ)
+    const full = !cancelled && ((total > 0 && valRemain <= 0) || (qtyOrder > 0 && qtyIn >= qtyOrder));
 
     // Mốc BOP: trạng thái theo công đoạn hiện tại
-    const state = (fromIdx: number, toIdx: number, doneOverride?: boolean): 'done' | 'current' | 'todo' =>
-      doneOverride ? 'done' : cur > toIdx ? 'done' : cur >= fromIdx && cur <= toIdx ? 'current' : 'todo';
+    // Đơn HỦY: mốc đã qua giữ 'done', mốc đang làm / chưa tới => 'cancelled' (không đánh xong)
+    type St = 'done' | 'current' | 'todo' | 'cancelled';
+    const state = (fromIdx: number, toIdx: number, doneOverride?: boolean): St =>
+      doneOverride ? 'done' : cur > toIdx ? 'done' : cancelled ? 'cancelled' : cur >= fromIdx && cur <= toIdx ? 'current' : 'todo';
     const pmDate = parsePlanDate(row.ngay_nhan_tu_pm);
     const bvDate = parsePlanDate(row.ngay_trien_khai_ban_ve);
     const phDate = parsePlanDate(row.ngay_tinh_phieu);
@@ -160,9 +163,9 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
         // Số lượng + giá trị đã nhập / trị giá đơn hàng (tỷ); đơn HỦY không tính giá trị
         note: `${fmtNum(qtyIn, 3)} / ${fmtNum(qtyOrder, 3)} ${row.dvt ?? ''}`
           + (cancelled ? '' : ` · ${fmtTy(valDone)} / ${fmtTy(total)} tỷ`)
-          + (full ? ' · đủ' : ''),
+          + (full ? ' · đủ' : '') + (cancelled ? ' · đơn HỦY' : ''),
         gap: [gapText(phDate, firstIn, 'sau tính phiếu'), gapText(pmDate, lastIn, '· tổng từ PM')].filter(Boolean).join(' '),
-        st: full ? 'done' as const : qtyIn > 0 ? 'current' as const : state(10, 11),
+        st: (cancelled ? 'cancelled' : full ? 'done' : qtyIn > 0 ? 'current' : state(10, 11)) as St,
       },
       {
         key: 'xk', title: 'Xuất kho / giao', stage: 'P025', date: null,
@@ -172,7 +175,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
           : (qtyIn > 0 ? 'chưa xuất kho' : ''),
         gap: '',
         // Xong khi đã nhập đủ và không còn tồn; còn tồn hoặc chưa nhập đủ mà đã xuất 1 phần => đang xuất
-        st: (qtyIn > 0 && full && qtyStockEff <= QTY_EPS) ? 'done' as const : qtyOutEff > QTY_EPS ? 'current' as const : 'todo' as const,
+        st: (cancelled ? 'cancelled' : (qtyIn > 0 && full && qtyStockEff <= QTY_EPS) ? 'done' : qtyOutEff > QTY_EPS ? 'current' : 'todo') as St,
       },
     ];
 
@@ -207,8 +210,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     if (d.cur >= 2 && !tk) warnings.push('Đã qua triển khai bản vẽ nhưng chưa ghi ngày triển khai bản vẽ');
     if (tk && ph && ph < tk) warnings.push('Ngày tính phiếu trước ngày triển khai bản vẽ');
     if (d.dl.date && tk && d.dl.date < tk) warnings.push(`Hạn đang dùng (${fmtDate(d.dl.date)}) trước ngày triển khai bản vẽ — hạn không thực tế`);
-    // Chỉ cảnh báo khi hạng mục chưa nhập kho đủ (giống cờ ở cửa sổ tổng quan công trình)
-    if (!d.full && planAfterDue(d.dl)) warnings.push('KH nhập kho muộn hơn ngày cần giao — biết trước sẽ giao trễ');
+    // Chỉ cảnh báo khi hạng mục chưa nhập kho đủ và không HỦY (giống cờ ở cửa sổ tổng quan công trình)
+    if (!d.full && !d.cancelled && planAfterDue(d.dl)) warnings.push('KH nhập kho muộn hơn ngày cần giao — biết trước sẽ giao trễ');
     return { warnings };
   }, [row, d]);
   const openIssues = (issues ?? []).filter(v => !v.isResolved);
@@ -267,8 +270,8 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '' },
                   {
                     label: 'Hạn (BOT)', value: fmtDate(d.dl.date),
-                    sub: d.dl.source ? `KH nhập kho ${d.dl.source}${d.full ? ' · đã nhập kho đủ' : d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
-                    tone: d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
+                    sub: d.cancelled ? 'Đơn HỦY — không theo dõi hạn' : d.dl.source ? `KH nhập kho ${d.dl.source}${d.full ? ' · đã nhập kho đủ' : d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
+                    tone: d.cancelled ? 'text-slate-400' : d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
                   },
                   {
                     label: 'Ở công đoạn hiện tại', value: dwell === DWELL_NONE || !dwell ? 'Chưa có số ngày' : dwell, sub: dwell === DWELL_NONE ? '' : row.so_ngay_cd_hien_tai ?? '',
@@ -308,15 +311,16 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   <p className="mb-3 text-xs font-semibold text-slate-700">Tiến trình (BOP) <span className="font-normal text-slate-400">· SL đã giao theo công đoạn / SL đơn hàng</span></p>
                   <ol className="space-y-3">
                     {d.milestones.map(m => {
-                      const Icon = m.st === 'done' ? CheckCircle2 : m.st === 'current' ? CircleDot : Circle;
-                      const color = m.st === 'done' ? 'text-emerald-600' : m.st === 'current' ? 'text-amber-600' : 'text-slate-300';
+                      const Icon = m.st === 'done' ? CheckCircle2 : m.st === 'current' ? CircleDot : m.st === 'cancelled' ? XCircle : Circle;
+                      const color = m.st === 'done' ? 'text-emerald-600' : m.st === 'current' ? 'text-amber-600' : m.st === 'cancelled' ? 'text-rose-400' : 'text-slate-300';
                       return (
                         <li key={m.key} className="flex gap-3">
                           <Icon size={18} className={`mt-0.5 shrink-0 ${color}`} />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-baseline gap-x-2">
-                              <span className={`text-sm font-semibold ${m.st === 'todo' ? 'text-slate-400' : 'text-slate-800'}`}>{m.title}</span>
+                              <span className={`text-sm font-semibold ${m.st === 'todo' || m.st === 'cancelled' ? 'text-slate-400' : 'text-slate-800'}`}>{m.title}</span>
                               <span className="text-[0.6875rem] text-slate-400">{m.stage}</span>
+                              {m.st === 'cancelled' && <span className="rounded bg-rose-50 px-1.5 text-[0.625rem] font-semibold text-rose-600">Hủy</span>}
                               <span className="ml-auto text-xs tabular-nums text-slate-600">
                                 {m.date ? fmtDate(m.date) : ''}
                                 {'date2' in m && m.date2 && m.date2.getTime() !== m.date?.getTime() ? ` → ${fmtDate(m.date2)}` : ''}
@@ -360,7 +364,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     <ul className="divide-y divide-slate-100 text-xs">
                       {d.deadlines.map(x => {
                         const dd = x.date ? Math.floor((x.date.getTime() - today) / DAY) : null;
-                        const late = !x.ref && dd !== null && dd < 0 && !d.full;
+                        const late = !x.ref && dd !== null && dd < 0 && !d.full && !d.cancelled;
                         return (
                           <li key={x.label} className={`flex items-center gap-2 py-1.5 ${x.used ? 'font-semibold' : ''}`}>
                             <span className={x.used ? 'text-slate-900' : 'text-slate-500'}>{x.label}</span>

@@ -198,16 +198,17 @@ export function usePivotTables({
   // Giá trị còn lại = remainValue(trị giá, đã nhập kho) theo từng hạng mục,
   // riêng đơn HỦY tính 0 — cùng quy tắc với utils/productionMetrics.
   const isCancelledRow = (row: DataRow) => !!tinhTrangIpoKey && isCancelledIpo(row[tinhTrangIpoKey]);
+  // Còn lại của 1 hạng mục (chưa xét HỦY) = remainValue(trị giá, đã nhập kho)
+  const rowRemain = (row: DataRow) =>
+    remainValue(parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
   const calculateMetricValue = (row: DataRow, metric: MetricType): number => {
     // Đơn HỦY không tính cả khi ĐẾM (trước COUNT_HEX trả 1 trước khi xét HỦY => bỏ lọc IPO thì đếm cả HỦY)
     if (isCancelledRow(row)) return 0;
     if (metric === 'COUNT_HEX') return 1;
     // Còn lại theo quy tắc chung (trị giá − đã nhập, chặn [0, trị giá]) như phễu — không đọc thẳng cột
-    // gia_tri_don_hang_con_lai (sai khi nhập kho âm)
-    if (metric === 'SUM_GT_CON_LAI') {
-      return remainValue(parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
-    }
-    if (metric === 'SUM_GT_DON_HANG') return parseNumber(row[valueKey]);
+    // gia_tri_don_hang_con_lai (sai khi nhập kho âm). Nút "Tổng GT Đơn hàng còn lại" cũng là phần còn lại
+    // nên dùng cùng quy tắc (trước đọc thẳng cột => lệch phễu khi có HEX nhập âm)
+    if (metric === 'SUM_GT_CON_LAI' || metric === 'SUM_GT_DON_HANG') return rowRemain(row);
     return 0;
   };
 
@@ -272,7 +273,8 @@ export function usePivotTables({
     if (!tinhTrangKey) return metrics;
     filteredProductionData.forEach(row => {
       const status = String(row[tinhTrangKey] || '').trim().toUpperCase();
-      const val = isCancelledRow(row) ? 0 : parseNumber(row[valueKey]);
+      // Còn lại theo quy tắc chung (không đọc thẳng cột gia_tri_don_hang_con_lai); đơn HỦY = 0
+      const val = isCancelledRow(row) ? 0 : rowRemain(row);
       const isIn = (group: string[]) => group.some(s => status.includes(s));
       if (isIn(STATUS_GROUPS.CO_THE_SX)) metrics.coTheSX += val;
       if (isIn(STATUS_GROUPS.VECNI_FITTING)) metrics.vecniFitting += val;
@@ -283,7 +285,8 @@ export function usePivotTables({
       else if (isIn(STATUS_GROUPS.CHUA_TRIEN_KHAI)) metrics.chuaTrienKhai += val;
     });
     return metrics;
-  }, [filteredProductionData, tinhTrangKey, tinhTrangIpoKey, valueKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredProductionData, tinhTrangKey, tinhTrangIpoKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Project status summary (bản gốc — dùng cho bảng LEGACY, ăn đầy đủ 4 filter)
@@ -495,7 +498,7 @@ export function usePivotTables({
       }
     });
     return { uniqueWorkshops, rows, uniqueBops, bopTotals, bopRowTotals, matrix, rowTotals, colTotals, grandTotal };
-  }, [filteredProductionData, tinhTrangKey, xuongKey, bopKey, workshopMetric, valueKey, realValueKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
+  }, [filteredProductionData, tinhTrangKey, tinhTrangIpoKey, xuongKey, bopKey, workshopMetric, realValueKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Pivot: Funnel (BOP) — dùng funnelProductionData (theo Tình trạng IPO của trang,
@@ -683,7 +686,7 @@ export function usePivotTables({
       }
     });
     return { uniqueProjects, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
-  }, [filteredProductionData, excludeFabrics, congTrinhKey, tinhTrangKey, hangMucKey, projectMetric, valueKey, realValueKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
+  }, [filteredProductionData, excludeFabrics, congTrinhKey, tinhTrangKey, hangMucKey, projectMetric, tinhTrangIpoKey, realValueKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Pivot: Material summary / status
@@ -739,7 +742,7 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
       aggregated[status] = (aggregated[status] || 0) + calculateVal;
     });
     return Object.entries(aggregated).map(([name, value]) => ({ name, value })).sort((a, b) => b.name.localeCompare(a.name));
-  }, [filteredProductionData, tinhTrangKey, chartMetric, valueKey, realValueKey, hexKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
+  }, [filteredProductionData, tinhTrangKey, tinhTrangIpoKey, chartMetric, realValueKey, hexKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
    return {
     workshopMetric, setWorkshopMetric,

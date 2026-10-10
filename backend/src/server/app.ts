@@ -95,7 +95,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   // (router con như express.Router() mặc định vẫn khớp không phân biệt hoa thường).
   const path = req.path.toLowerCase();
   if (req.method === 'OPTIONS' || !path.startsWith('/api/')) return next();
-  if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
+  // Bỏ '/' cuối khi so danh sách công khai ('/api/warmup/' = '/api/warmup', Express cũng khớp như vậy) —
+  // trước so khớp chính xác nên có '/' cuối bị đòi JWT
+  if (PUBLIC_API_PATHS.has(path.replace(/\/+$/, '')) || PUBLIC_API_PREFIXES.some(p => path.startsWith(p))) return next();
   return authenticateActiveUser(req, res, next);
 });
 
@@ -104,8 +106,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // Bảng tên mặc định CHỜ nạp cho mọi API (route mới / bị quên vẫn gộp đúng các cách viết ngay khi vừa khởi động).
 // Riêng các route chắc chắn không dùng tên công trình (danh sách bỏ qua bên dưới) chỉ kích nạp nền, không chờ
 // — lần nạp đầu ~2-3 giây, không để đăng nhập / thông báo / người dùng... chờ theo.
+// cron (quét hạn BOT) và warmup (cache all-data + stock/dates không lọc) không dùng tên công trình.
 // Sau lần nạp đầu, ensureProjectAliases chỉ so mốc thời gian (làm mới nền) => không tốn thêm thời gian.
-const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log)(\/|$)/i;
+const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup)(\/|$)/i;
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
   if (path.startsWith('/api/')) {

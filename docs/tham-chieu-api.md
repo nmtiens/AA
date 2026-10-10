@@ -31,7 +31,6 @@ Nguồn: `backend/api/index.ts` (thứ tự đăng ký) và từng file trong `b
 |---|---|---|
 | GET | `/api/all-data?tables=production,order,...` | 12 bảng theo whitelist cột `REPORT_COLUMNS`; trả gzip sẵn; bỏ `tables` để lấy đủ 12 |
 | GET | `/api/production`, `/api/material`, `/api/khsx`, `/api/order`, `/api/inventory`, `/api/tkbv`, `/api/pthsp`, `/api/analysis`, `/api/yearly-plan`, `/api/export`, `/api/attendance`, `/api/stock` | từng bảng, cùng whitelist; `?updated_after=` lọc theo `updated_at` |
-| GET | `/api/production/full` | bảng sản xuất đủ cột (nặng) |
 | GET | `/api/production/hex/:hex` | 1 hạng mục đủ cột cho cửa sổ BOP×BOT |
 | POST | `/api/production/notes` | `{hexes[], full?}` ghi chú nhập kho / QC / phiếu theo HEX (≤2000) |
 | POST | `/api/production/by-hex-extra` | `{hexes[]}` (≤4000): SL theo công đoạn SX, tóm tắt QC, gia công ngoài, mốc ngày |

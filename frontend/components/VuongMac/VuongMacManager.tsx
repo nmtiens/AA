@@ -81,7 +81,10 @@ export default function VuongMacManager() {
 
   // ---- danh sách ----
   const [f, setF] = useState<ListFilter>(DEFAULT_LIST);
-  const set = (p: Partial<ListFilter>) => setF(x => ({ ...x, ...p }));
+  // Lần bấm dòng bảng nhóm gần nhất: bấm lại ĐÚNG dòng đó mới bỏ lọc; đổi bộ lọc tay => quên
+  type PickDim = 'xuong' | 'stage' | 'handler' | 'congTrinh';
+  const [lastPick, setLastPick] = useState<{ dim: PickDim; value: string } | null>(null);
+  const set = (p: Partial<ListFilter>) => { setF(x => ({ ...x, ...p })); setLastPick(null); };
   // Bấm ô số / dòng ở các bảng nhóm => lọc danh sách rồi cuộn xuống danh sách (trước không có phản hồi gì)
   const listRef = useRef<HTMLDivElement>(null);
   // Dựng bộ lọc MỚI từ mặc định (không dính lọc cũ: người xử lý, loại, tìm, "của tôi", ngày…) để số ở ô
@@ -89,9 +92,17 @@ export default function VuongMacManager() {
   // trừ khi p tự đặt xuong) và cách sắp xếp
   const pick = (p: Partial<ListFilter>, label?: string) => {
     setF({ ...DEFAULT_LIST, sort: f.sort, ...(xuong ? { xuong } : {}), ...p });
+    setLastPick(null);
     setQInput('');
     setTimeout(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
     if (label) flash(`Đã lọc danh sách: ${label}`);
+  };
+  // Bấm dòng bảng nhóm: luôn lọc theo dòng; chỉ bỏ lọc khi bấm lại đúng dòng vừa bấm qua bảng (trước so với
+  // f — giá trị chọn ở dropdown trùng dòng thì bấm dòng lại thành bỏ lọc)
+  const pickRow = (dim: PickDim, v: string, label: string, unLabel: string) => {
+    const again = lastPick?.dim === dim && lastPick.value === v && f[dim] === v;
+    pick({ [dim]: again ? '' : v, tab: 'active' }, again ? unLabel : label);
+    setLastPick(again ? null : { dim, value: v });
   };
   const [rows, setRows] = useState<VuongMacItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -232,9 +243,9 @@ export default function VuongMacManager() {
                 <Tooltip />
                 {/* Chữ chú thích màu mực (ô màu bên cạnh đã cho biết cột nào) */}
                 <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-slate-600">{v}</span>} />
-                {/* 3 màu tách hẳn nhau (kể cả người mù màu đỏ–lục): cam = vấn đề mới phát sinh, xanh lá sáng = xử lý xong,
-                    xám = đã đóng (đã kết thúc, không cần chú ý). Trước teal / xanh lá gần như trùng nhau */}
-                <Bar dataKey="created" name="Báo mới" fill="#f97316" radius={[3, 3, 0, 0]} />
+                {/* Bộ 3 màu xanh dương (báo mới) / xanh lá sáng (xử lý xong) / xám (đã đóng — đã kết thúc) tách được
+                    cả với người mù màu đỏ–lục (đã kiểm bằng công cụ mô phỏng). Trước teal / xanh lá gần như trùng nhau */}
+                <Bar dataKey="created" name="Báo mới" fill="#2563eb" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="done" name="Xử lý xong" fill="#22c55e" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="closed" name="Đã đóng" fill="#94a3b8" radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -256,19 +267,19 @@ export default function VuongMacManager() {
       <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         <GroupTable title="Theo loại 5M" rows={dash?.byCategory ?? []} label={n => `${catIcon(n)} ${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`}
           onPick={n => pick({ cat: n as FiveMCategory, tab: 'active' }, `${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`)} active={f.cat} />
-        <GroupTable title="Theo khu vực sản xuất" rows={dash?.byXuong ?? []} onPick={n => pick({ xuong: n === f.xuong ? '' : n, tab: 'active' }, n === f.xuong ? 'bỏ lọc khu vực' : `khu vực ${n}`)} active={f.xuong} />
+        <GroupTable title="Theo khu vực sản xuất" rows={dash?.byXuong ?? []} onPick={n => pickRow('xuong', n, `khu vực ${n}`, 'bỏ lọc khu vực')} active={f.xuong} />
         <GroupTable title="Theo công đoạn lúc báo" rows={dash?.byStage ?? []} hint="Công đoạn (BOP) của hạng mục lúc báo vướng mắc — biết khâu nào hay vướng"
-          onPick={n => pick({ stage: n === f.stage ? '' : n, tab: 'active' }, n === f.stage ? 'bỏ lọc công đoạn' : `công đoạn ${n}`)} active={f.stage} />
+          onPick={n => pickRow('stage', n, `công đoạn ${n}`, 'bỏ lọc công đoạn')} active={f.stage} />
         <GroupTable title="Theo người xử lý" rows={dash?.byHandler ?? []} onPick={n => {
             // "Chưa giao" = handler rỗng => lọc bằng giá trị đặc biệt (trước bỏ lọc nên hiện tất cả)
             const v = n === NONE_LABEL ? HANDLER_NONE : n;
-            pick({ handler: v === f.handler ? '' : v, tab: 'active' }, v === f.handler ? 'bỏ lọc người xử lý' : `người xử lý ${n}`);
+            pickRow('handler', v, `người xử lý ${n}`, 'bỏ lọc người xử lý');
           }} active={f.handler === HANDLER_NONE ? NONE_LABEL : f.handler} showAvg />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <GroupTable title="Theo công trình (nhiều vướng mắc nhất)" rows={dash?.byProject ?? []} onPick={n => {
             const v = n === UNKNOWN_LABEL ? CT_NONE : n;
-            pick({ congTrinh: v === f.congTrinh ? '' : v, tab: 'active' }, v === f.congTrinh ? 'bỏ lọc công trình' : `công trình ${n}`);
+            pickRow('congTrinh', v, `công trình ${n}`, 'bỏ lọc công trình');
           }} active={f.congTrinh === CT_NONE ? UNKNOWN_LABEL : f.congTrinh} />
         <Panel title="Cần xử lý ngay" sub="chưa xong, quá hạn lâu nhất / tuổi lớn nhất · bấm 1 dòng để mở chi tiết">
           <ul className="max-h-80 divide-y divide-slate-100 overflow-auto">
@@ -351,7 +362,7 @@ export default function VuongMacManager() {
           <label className="flex items-center gap-1 text-slate-600">Báo từ <input type="date" value={f.from} onChange={e => set({ from: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1" /></label>
           <label className="flex items-center gap-1 text-slate-600">đến <input type="date" value={f.to} onChange={e => set({ to: e.target.value })} className="rounded-lg border border-slate-300 px-2 py-1" /></label>
           {JSON.stringify({ ...f, q: '' }) !== JSON.stringify({ ...DEFAULT_LIST, q: '' }) && (
-            <button onClick={() => { setF(DEFAULT_LIST); setQInput(''); }} className="text-slate-500 underline">Bỏ lọc</button>
+            <button onClick={() => { setF(DEFAULT_LIST); setQInput(''); setLastPick(null); }} className="text-slate-500 underline">Bỏ lọc</button>
           )}
         </div>
         <div className="overflow-auto rounded-lg border border-slate-200">

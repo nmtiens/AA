@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
-import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { app, warmupLimiter } from '../server/app.js';
 import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
@@ -88,12 +88,14 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
 // Điều kiện gộp thành 1 cột boolean `ok` rồi lọc `WHERE ok`: lọc thẳng 2 điều kiện trở lên (vd. tình trạng +
 // IPO) Postgres ước ~1 mã rồi chọn nested loop so từng dòng tồn với từng mã => 9–15s, vượt statement timeout.
 // Cột boolean không có thống kê => ước 50% số mã => hash join (~0,1–0,2s).
+// Mã SAP phía sản xuất chuẩn hoá về 12 số (sapKeySql) — cột ra ma_id_sap là text đã chuẩn hoá.
+const PSA_SAP_KEY = sapKeySql('ma_id_sap');
 const matchedIdsSql = (pConds: string[]) => `
   SELECT ma_id_sap FROM (
-    SELECT DISTINCT ON (ma_id_sap) ma_id_sap${pConds.length ? `, (${pConds.join(' AND ')}) AS ok` : ''}
+    SELECT DISTINCT ON (${PSA_SAP_KEY}) ${PSA_SAP_KEY} AS ma_id_sap${pConds.length ? `, (${pConds.join(' AND ')}) AS ok` : ''}
     FROM production_status_app
     WHERE ma_id_sap IS NOT NULL
-    ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+    ORDER BY ${PSA_SAP_KEY}, updated_at DESC NULLS LAST, id DESC
   ) lp${pConds.length ? ' WHERE ok' : ''}
 `;
 
@@ -244,10 +246,10 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
       // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
       // tồn => ~4k lần quét bảng sản xuất, vượt statement timeout khi không lọc công trình)
       `WITH p AS (
-         SELECT DISTINCT ON (ma_id_sap) ma_id_sap::text AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
+         SELECT DISTINCT ON (${PSA_SAP_KEY}) ${PSA_SAP_KEY} AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
          FROM production_status_app
          WHERE ma_id_sap IS NOT NULL
-         ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+         ORDER BY ${PSA_SAP_KEY}, updated_at DESC NULLS LAST, id DESC
        )
        -- Nối xong rồi mới sắp + LIMIT (OFFSET 0 chặn đẩy LIMIT vào trong: không có nó Postgres chọn
        -- nested loop so từng dòng tồn với ~30k mã => ~2–8s khi không lọc)

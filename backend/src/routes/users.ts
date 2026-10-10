@@ -6,6 +6,7 @@ import { authenticateJWT, requireRole, isValidUserId } from '../server/auth.js';
 import { invalidateUserAccess } from '../server/permissions.js';
 import { validateBody, createUserSchema, updateUserSchema } from '../server/validation.js';
 import { app } from '../server/app.js';
+import { invalidateUsersCache } from '../notifications.js';
 
 // ============================================================================
 // USERS API — nay yêu cầu JWT + role ADMIN cho toàn bộ (trước đây public hoàn toàn)
@@ -94,6 +95,12 @@ usersRouter.post('/', validateBody(createUserSchema), async (req: Request, res: 
   }
 });
 
+// Số ADMIN đang hoạt động KHÁC user id — 0 thì không cho khoá / hạ quyền / xoá user này (mất quyền quản trị)
+const otherActiveAdmins = async (id: string | string[]): Promise<number> => {
+  const r = await pool.query(`SELECT COUNT(*) AS n FROM users WHERE role = 'ADMIN' AND is_active = true AND id <> $1`, [String(id)]);
+  return Number(r.rows[0].n);
+};
+
 // --- CẬP NHẬT USER ---
 usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res: Response) => {
   try {
@@ -101,7 +108,7 @@ usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res
     if (!isValidUserId(id)) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
     const { password, fullName, email, role, permissions, msnv, department, note, status } = req.body;
 
-    const existing = await pool.query('SELECT id FROM users WHERE id = $1', [id]);
+    const existing = await pool.query('SELECT id, role, is_active FROM users WHERE id = $1', [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
     }
@@ -113,6 +120,12 @@ usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res
       if (role !== undefined && role !== 'ADMIN') {
         return res.status(400).json({ success: false, message: 'Không thể tự hạ quyền ADMIN của chính mình' });
       }
+    }
+    // Không khoá / hạ quyền ADMIN đang hoạt động cuối cùng
+    const ex = existing.rows[0];
+    const losesAdmin = (status !== undefined && status !== 'ACTIVE') || (role !== undefined && role !== 'ADMIN');
+    if (ex.role === 'ADMIN' && ex.is_active && losesAdmin && (await otherActiveAdmins(id)) === 0) {
+      return res.status(400).json({ success: false, message: 'Không thể khoá hoặc hạ quyền ADMIN đang hoạt động cuối cùng' });
     }
 
     const fields: string[] = [];
@@ -146,8 +159,9 @@ usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
       values
     );
-    // Role / quyền / trạng thái có hiệu lực ngay (không chờ cache 60 giây)
+    // Role / quyền / trạng thái có hiệu lực ngay (không chờ cache 60 giây) — cả danh sách người nhận thông báo / push
     invalidateUserAccess(String(Number(id)));
+    invalidateUsersCache();
 
     const u = result.rows[0];
     res.json({
@@ -174,16 +188,20 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
     if (Number(id) === Number(req.user!.id)) {
       return res.status(400).json({ success: false, message: 'Không thể tự xoá tài khoản của chính mình' });
     }
-    const target = await pool.query('SELECT username FROM users WHERE id = $1', [id]);
+    const target = await pool.query('SELECT username, role, is_active FROM users WHERE id = $1', [id]);
     if (target.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
     }
     if (target.rows[0].username === 'admin') {
       return res.status(403).json({ success: false, message: 'Không thể xóa tài khoản admin' });
     }
+    if (target.rows[0].role === 'ADMIN' && target.rows[0].is_active && (await otherActiveAdmins(id)) === 0) {
+      return res.status(400).json({ success: false, message: 'Không thể xoá ADMIN đang hoạt động cuối cùng' });
+    }
 
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
     invalidateUserAccess(String(Number(id)));
+    invalidateUsersCache(); // user vừa xoá không còn nhận thông báo / push
     res.json({ success: true, message: 'Xóa user thành công' });
   } catch (error) {
     console.error('Lỗi xóa user:', error);

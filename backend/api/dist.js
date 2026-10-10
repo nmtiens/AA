@@ -44897,10 +44897,10 @@ var PUBLIC_API_PREFIXES = ["/api/cron/"];
 app.use((req, res, next) => {
   const path = req.path.toLowerCase();
   if (req.method === "OPTIONS" || !path.startsWith("/api/")) return next();
-  if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
+  if (PUBLIC_API_PATHS.has(path.replace(/\/+$/, "")) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateActiveUser(req, res, next);
 });
-var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log)(\/|$)/i;
+var NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup)(\/|$)/i;
 app.use(async (req, _res, next) => {
   const path = req.path.toLowerCase();
   if (path.startsWith("/api/")) {
@@ -64480,15 +64480,25 @@ var applyCtWhitelist = (req, congTrinhColExpr, conditions, params) => {
   params.push(wl);
   conditions.push(`${normNameSql(congTrinhColExpr)} = ANY($${params.length}::text[])`);
 };
-var buildMatchedProductionCTE = (joinKey) => `
+var sapKeySql = (col) => `(CASE WHEN LENGTH(${col}::text) = 18 AND SUBSTRING(${col}::text FROM 7 FOR 6) = '000000'
+     THEN SUBSTRING(${col}::text FROM 1 FOR 6) || SUBSTRING(${col}::text FROM 13 FOR 6)
+     ELSE ${col}::text END)`;
+var productionKeySql = (col, alias = "") => {
+  const ref = `${alias ? `${alias}.` : ""}"${col}"`;
+  return col === "ma_id_sap" ? sapKeySql(ref) : ref;
+};
+var buildMatchedProductionCTE = (joinKey) => {
+  const key = productionKeySql(joinKey);
+  return `
   p AS (
-    SELECT DISTINCT ON ("${joinKey}")
-      "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
+    SELECT DISTINCT ON (${key})
+      ${key} AS "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
     FROM production_status_app
     WHERE "${joinKey}" IS NOT NULL
-    ORDER BY "${joinKey}", updated_at DESC NULLS LAST, id DESC
+    ORDER BY ${key}, updated_at DESC NULLS LAST, id DESC
   )
 `;
+};
 var fetchTableData = async (tableName, updatedAfter, strict = false) => {
   try {
     const cols = REPORT_COLUMNS[tableName];
@@ -64651,7 +64661,7 @@ var STOCK_TREND_CONFIG = {
   joinProductionForFilters: true,
   xuongViaProductionJoin: true,
   productionJoinCol: "ma_id_sap"
-  // ton_kho <-> production_status_app khớp qua ma_id_sap (giữ nguyên, đã đúng)
+  // ton_kho <-> production_status_app khớp qua ma_id_sap (phía sản xuất chuẩn hoá — sapKeySql)
 };
 var ANALYSIS_TABLES = {
   order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true, productionJoinCol: "hex" },
@@ -64905,23 +64915,6 @@ apiRoutes.forEach(({ path, table }) => {
     }
     res.json(data);
   });
-});
-app.get("/api/production/full", async (req, res) => {
-  const { updated_after } = req.query;
-  try {
-    let query = `SELECT * FROM production_status_app`;
-    const values = [];
-    const validDate = parseSafeDate(updated_after);
-    if (validDate) {
-      query += ` WHERE updated_at >= $1`;
-      values.push(validDate.toISOString());
-    }
-    const result = await timedQuery(query, values);
-    res.json(result.rows);
-  } catch (error61) {
-    console.error("L\u1ED7i truy v\u1EA5n production full:", error61);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
 });
 var NOTE_COLUMNS = [
   "tong_hop_ghi_chu_nhap_kho",
@@ -65711,7 +65704,10 @@ var buildRoleFilter = (tinhTrangList, tinhTrangIpoList, params, joinCols) => {
     params.push(tinhTrangIpoList);
     conds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
   }
-  const ctes = [...new Set(joinCols)].map((col) => `role_${col} AS (SELECT DISTINCT "${col}"::text AS k FROM production_status_app WHERE "${col}" IS NOT NULL AND ${conds.join(" AND ")})`);
+  const ctes = [...new Set(joinCols)].map((col) => (
+    // ma_id_sap: chuẩn hoá mã 18 số về 12 số (productionKeySql) cho khớp ton_kho
+    `role_${col} AS (SELECT DISTINCT ${productionKeySql(col)}::text AS k FROM production_status_app WHERE "${col}" IS NOT NULL AND ${conds.join(" AND ")})`
+  ));
   return { ctes, existsCond: (hexExpr, joinCol) => `EXISTS (SELECT 1 FROM role_${joinCol} rh WHERE rh.k = ${hexExpr}::text)` };
 };
 app.get("/api/overview/summary", async (req, res) => {
@@ -66004,12 +66000,13 @@ var refreshStockDatesCache = async (filters) => {
   trimCache(stockDatesCache);
   return { payload, fromCache: false };
 };
+var PSA_SAP_KEY = sapKeySql("ma_id_sap");
 var matchedIdsSql = (pConds) => `
   SELECT ma_id_sap FROM (
-    SELECT DISTINCT ON (ma_id_sap) ma_id_sap${pConds.length ? `, (${pConds.join(" AND ")}) AS ok` : ""}
+    SELECT DISTINCT ON (${PSA_SAP_KEY}) ${PSA_SAP_KEY} AS ma_id_sap${pConds.length ? `, (${pConds.join(" AND ")}) AS ok` : ""}
     FROM production_status_app
     WHERE ma_id_sap IS NOT NULL
-    ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+    ORDER BY ${PSA_SAP_KEY}, updated_at DESC NULLS LAST, id DESC
   ) lp${pConds.length ? " WHERE ok" : ""}
 `;
 var productionConds = (filters, params) => {
@@ -66140,10 +66137,10 @@ app.get("/api/stock/items", async (req, res) => {
         // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
         // tồn => ~4k lần quét bảng sản xuất, vượt statement timeout khi không lọc công trình)
         `WITH p AS (
-         SELECT DISTINCT ON (ma_id_sap) ma_id_sap::text AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
+         SELECT DISTINCT ON (${PSA_SAP_KEY}) ${PSA_SAP_KEY} AS sap_id, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
          FROM production_status_app
          WHERE ma_id_sap IS NOT NULL
-         ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
+         ORDER BY ${PSA_SAP_KEY}, updated_at DESC NULLS LAST, id DESC
        )
        -- N\u1ED1i xong r\u1ED3i m\u1EDBi s\u1EAFp + LIMIT (OFFSET 0 ch\u1EB7n \u0111\u1EA9y LIMIT v\xE0o trong: kh\xF4ng c\xF3 n\xF3 Postgres ch\u1ECDn
        -- nested loop so t\u1EEBng d\xF2ng t\u1ED3n v\u1EDBi ~30k m\xE3 => ~2\u20138s khi kh\xF4ng l\u1ECDc)
@@ -66802,12 +66799,16 @@ usersRouter.post("/", validateBody(createUserSchema), async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
+var otherActiveAdmins = async (id) => {
+  const r = await pool.query(`SELECT COUNT(*) AS n FROM users WHERE role = 'ADMIN' AND is_active = true AND id <> $1`, [String(id)]);
+  return Number(r.rows[0].n);
+};
 usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
   try {
     const { id } = req.params;
     if (!isValidUserId(id)) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
     const { password, fullName, email: email3, role, permissions, msnv, department, note, status } = req.body;
-    const existing = await pool.query("SELECT id FROM users WHERE id = $1", [id]);
+    const existing = await pool.query("SELECT id, role, is_active FROM users WHERE id = $1", [id]);
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y user" });
     }
@@ -66818,6 +66819,11 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
       if (role !== void 0 && role !== "ADMIN") {
         return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 h\u1EA1 quy\u1EC1n ADMIN c\u1EE7a ch\xEDnh m\xECnh" });
       }
+    }
+    const ex = existing.rows[0];
+    const losesAdmin = status !== void 0 && status !== "ACTIVE" || role !== void 0 && role !== "ADMIN";
+    if (ex.role === "ADMIN" && ex.is_active && losesAdmin && await otherActiveAdmins(id) === 0) {
+      return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 kho\xE1 ho\u1EB7c h\u1EA1 quy\u1EC1n ADMIN \u0111ang ho\u1EA1t \u0111\u1ED9ng cu\u1ED1i c\xF9ng" });
     }
     const fields = [];
     const values = [];
@@ -66850,6 +66856,7 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
       values
     );
     invalidateUserAccess(String(Number(id)));
+    invalidateUsersCache();
     const u = result.rows[0];
     res.json({
       success: true,
@@ -66879,15 +66886,19 @@ usersRouter.delete("/:id", async (req, res) => {
     if (Number(id) === Number(req.user.id)) {
       return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 xo\xE1 t\xE0i kho\u1EA3n c\u1EE7a ch\xEDnh m\xECnh" });
     }
-    const target = await pool.query("SELECT username FROM users WHERE id = $1", [id]);
+    const target = await pool.query("SELECT username, role, is_active FROM users WHERE id = $1", [id]);
     if (target.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y user" });
     }
     if (target.rows[0].username === "admin") {
       return res.status(403).json({ success: false, message: "Kh\xF4ng th\u1EC3 x\xF3a t\xE0i kho\u1EA3n admin" });
     }
+    if (target.rows[0].role === "ADMIN" && target.rows[0].is_active && await otherActiveAdmins(id) === 0) {
+      return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 xo\xE1 ADMIN \u0111ang ho\u1EA1t \u0111\u1ED9ng cu\u1ED1i c\xF9ng" });
+    }
     await pool.query("DELETE FROM users WHERE id = $1", [id]);
     invalidateUserAccess(String(Number(id)));
+    invalidateUsersCache();
     res.json({ success: true, message: "X\xF3a user th\xE0nh c\xF4ng" });
   } catch (error61) {
     console.error("L\u1ED7i x\xF3a user:", error61);

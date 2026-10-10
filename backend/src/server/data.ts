@@ -215,15 +215,32 @@ export const applyCtWhitelist = (
 // Dedup bằng DISTINCT ON trước khi join (trùng updated_at thì lấy id lớn nhất — cố định, không đổi
 // giữa các lần truy vấn; 1 mã có thể có nhiều dòng ở nhiều xưởng cùng thời điểm cập nhật). Đặt tên CTE là "p" để mọi chỗ tham
 // chiếu "p.xuong_chinh", "p.dvt", "p.phan_loai_nhom_san_pham"... không cần sửa.
-export const buildMatchedProductionCTE = (joinKey: string): string => `
+// Mã ID SAP bên sản xuất (production_status_app.ma_id_sap, text) có 2 dạng: 12 số và 18 số = 12 số chèn
+// 6 số 0 ở giữa ('300000000000189659' = '300000189659'); ton_kho.ma_id_sap (bigint) chỉ có dạng 12 số.
+// Chuẩn hoá về 12 số trước khi nối / DISTINCT ON — không thì ~119 mã tồn mất xưởng / tình trạng.
+export const sapKeySql = (col: string): string =>
+  `(CASE WHEN LENGTH(${col}::text) = 18 AND SUBSTRING(${col}::text FROM 7 FOR 6) = '000000'
+     THEN SUBSTRING(${col}::text FROM 1 FOR 6) || SUBSTRING(${col}::text FROM 13 FOR 6)
+     ELSE ${col}::text END)`;
+// Biểu thức khoá nối phía production_status_app theo tên cột (ma_id_sap => chuẩn hoá, cột khác giữ nguyên)
+export const productionKeySql = (col: string, alias = ''): string => {
+  const ref = `${alias ? `${alias}.` : ''}"${col}"`;
+  return col === 'ma_id_sap' ? sapKeySql(ref) : ref;
+};
+
+export const buildMatchedProductionCTE = (joinKey: string): string => {
+  // Cột ra vẫn tên "${joinKey}" (đã chuẩn hoá nếu là ma_id_sap) => chỗ nối p."${joinKey}" không cần sửa
+  const key = productionKeySql(joinKey);
+  return `
   p AS (
-    SELECT DISTINCT ON ("${joinKey}")
-      "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
+    SELECT DISTINCT ON (${key})
+      ${key} AS "${joinKey}", xuong_chinh, dvt, phan_loai_nhom_san_pham, tinh_trang, tinh_trang_ipo
     FROM production_status_app
     WHERE "${joinKey}" IS NOT NULL
-    ORDER BY "${joinKey}", updated_at DESC NULLS LAST, id DESC
+    ORDER BY ${key}, updated_at DESC NULLS LAST, id DESC
   )
 `;
+};
 
 // Helper lấy dữ liệu an toàn cho từng bảng (INCREMENTAL SYNC + CẮT CỘT)
 // [ĐO TIMING] Đây là hàm chạy cho /api/all-data và mọi route trong apiRoutes —
@@ -413,7 +430,7 @@ export const STOCK_TREND_CONFIG: TrendTableConfig = {
   dvtCol: 'dvt',
   joinProductionForFilters: true,
   xuongViaProductionJoin: true,
-  productionJoinCol: 'ma_id_sap', // ton_kho <-> production_status_app khớp qua ma_id_sap (giữ nguyên, đã đúng)
+  productionJoinCol: 'ma_id_sap', // ton_kho <-> production_status_app khớp qua ma_id_sap (phía sản xuất chuẩn hoá — sapKeySql)
 };
 export const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
   order:     { table: 'dht',        dateCol: 'ngay_nhan_tu_pm', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1,  dvtCol: 'dvt', joinProductionForFilters: true, productionJoinCol: 'hex' },
