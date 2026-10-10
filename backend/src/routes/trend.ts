@@ -207,6 +207,9 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
 
 // [ĐO TIMING] 4 route filters/* — UNION ALL 7 bảng lớn (~1s), giờ cache theo phiên bản các bảng đó.
 // Danh sách các giá trị xưởng distinct, dùng cho dropdown filter
+// Danh sách giá trị cho ô lọc: quét DISTINCT nhiều bảng lớn, trên Vercel có lúc > 8 giây (timeout mặc định) =>
+// 500. Kết quả đã cache theo phiên bản bảng nên chỉ lần đầu chậm — cho 25 giây.
+const FILTER_TIMEOUT_MS = 25000;
 cachedGet('/api/filters/xuong', filterCache, () => ['khsx', 'order', 'inventory', 'export', 'tkbv', 'pthsp', 'production'], async () => {
     const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
@@ -227,7 +230,7 @@ cachedGet('/api/filters/xuong', filterCache, () => ['khsx', 'order', 'inventory'
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-    const r = await timedQuery(q);
+    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     // Trả tên xưởng ĐÃ GỘP (setup gộp xưởng), bỏ trùng
     const groups = [...new Set(r.rows.map(row => workshopGroupOf(row.name)).filter(Boolean))].sort();
     return groups.map(name => ({ code: name, name }));
@@ -254,7 +257,7 @@ cachedGet('/api/filters/cong-trinh', filterCache, () => ['khsx', 'order', 'inven
       ) t
       ORDER BY UPPER(TRIM(name)), name
     `;
-    const r = await timedQuery(q);
+    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
 });
 
@@ -268,7 +271,7 @@ cachedGet('/api/filters/dvt', filterCache, () => ['order', 'stock'], async () =>
       WHERE dvt IS NOT NULL AND TRIM(dvt) <> ''
       ORDER BY 1
     `;
-    const r = await timedQuery(q);
+    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
 });
 
@@ -280,7 +283,7 @@ cachedGet('/api/filters/phan-loai-nhom-san-pham', filterCache, () => ['productio
       WHERE phan_loai_nhom_san_pham IS NOT NULL AND TRIM(phan_loai_nhom_san_pham) <> ''
       ORDER BY 1
     `;
-    const r = await timedQuery(q);
+    const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
 });
 
