@@ -19,7 +19,6 @@ import './index.css';
 import { InstallMobileAppModal } from './components/Dashboard/components/modals/InstallMobileAppModal';
 import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
-import type { ConstructionViewId } from './components/Construction/ConstructionView';
 import { ModalShell } from './components/shared/ModalShell';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
@@ -27,7 +26,6 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const DataGrid = lazy(() => import('./components/DataGrid'));
 const Login = lazy(() => import('./components/Login'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
-const ConstructionView = lazy(() => import('./components/Construction/ConstructionView'));
 const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
 const ConstructionOverview = lazy(() => import('./components/Construction/ConstructionOverview'));
 const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
@@ -59,11 +57,7 @@ const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: strin
   { key: 'stock', label: '6. TỒN KHO', path: '/charts/stock', permId: 'chart_stock' },
 ];
 
-const CONSTRUCTION_SUB_ITEMS: { key: string; label: string; path: string; permId: string }[] = [
-  { key: 'overview', label: 'Tổng quan công trình', path: '/cong-trinh/tong-quan', permId: 'construction_overview' },
-  { key: 'red-flow', label: 'Công trình luồng đỏ', path: '/cong-trinh/luong-do', permId: 'construction_redflow' },
-  { key: 'can-mau', label: 'Căn mẫu', path: '/cong-trinh/can-mau', permId: 'construction_sample' },
-];
+const CONSTRUCTION_PATH = '/cong-trinh/tong-quan';
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
   const isMobileEntry = window.location.pathname.startsWith('/m');
@@ -108,8 +102,9 @@ const App: React.FC = () => {
 
                   {/* --- Nhóm Công trình --- */}
                   <Route path="/cong-trinh/tong-quan" element={<RequirePermission viewId="construction_overview"><ConstructionOverviewWrapper /></RequirePermission>} />
-                  <Route path="/cong-trinh/luong-do" element={<RequirePermission viewId="construction_redflow"><ConstructionViewWrapper viewId="luong-do" title="Công trình luồng đỏ" /></RequirePermission>} />
-                  <Route path="/cong-trinh/can-mau" element={<RequirePermission viewId="construction_sample"><ConstructionViewWrapper viewId="can-mau" title="Căn mẫu" /></RequirePermission>} />
+                  {/* Luồng đỏ / Căn mẫu không còn là trang riêng: chọn nhóm ngay trong Tổng quan công trình (link cũ chuyển về đó) */}
+                  <Route path="/cong-trinh/luong-do" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
+                  <Route path="/cong-trinh/can-mau" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
                   <Route path="/cong-trinh/setup" element={<RequirePermission viewId="construction_setup"><ConstructionSetupWrapper /></RequirePermission>} />
 
                   {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
@@ -189,17 +184,10 @@ const useViewMappingReady = () => {
 const ConstructionOverviewWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { user } = useAuth();
-  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''} inventory={context.inventoryData} />;
-};
-
-// Dùng chung 1 component cho 2 view Công trình. key={viewId} để chuyển giữa 2 view thì
-// component được tạo mới hoàn toàn (không giữ bộ lọc/dữ liệu đã lọc của view trước).
-const ConstructionViewWrapper = ({ viewId, title }: { viewId: ConstructionViewId; title: string }) => {
-  const context = useOutletContext<MainLayoutContext>();
-  const { user } = useAuth();
   const mappingReady = useViewMappingReady();
   if (!mappingReady) return <FullScreenLoader />;
-  return <ConstructionView key={viewId} viewId={viewId} title={title} {...context} currentUser={user?.username ?? ''} />;
+  // Chờ danh sách công trình của nhóm Luồng đỏ / Căn mẫu (Công trình → Setup) để lọc theo nhóm
+  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''} inventory={context.inventoryData} />;
 };
 
 const ConstructionSetupWrapper = () => {
@@ -400,7 +388,6 @@ const MainLayout: React.FC = () => {
   // Trạng thái đóng/mở của các nhóm menu - mặc định đóng
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
   const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
-  const [isConstructionMenuOpen, setIsConstructionMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -452,9 +439,6 @@ const MainLayout: React.FC = () => {
     }
     if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
       setIsChartMenuOpen(true);
-    }
-    if (CONSTRUCTION_SUB_ITEMS.some(item => item.path === location.pathname)) {
-      setIsConstructionMenuOpen(true);
     }
   }, [location.pathname]);
 
@@ -755,17 +739,15 @@ const MainLayout: React.FC = () => {
   const vuongMacView = APP_VIEWS.find(v => v.id === 'vuong_mac' && hasPermission(v.id));
   const usersView = APP_VIEWS.find(v => v.id === 'users' && hasPermission(v.id));
 
-  const visibleConstructionItems = CONSTRUCTION_SUB_ITEMS.filter(i => hasPermission(i.permId));
+  const canSeeConstruction = hasPermission('construction_overview');
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
   const canSeeSetup = hasPermission('construction_setup');
   const canSeeColumnSetup = hasPermission('table_column_setup');
 
-  const isConstructionGroupActive = visibleConstructionItems.some(i => i.path === location.pathname);
   const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
   const isGroupActive = groupedViews.some(v => v.path === location.pathname);
 
-  const handleConstructionGroupToggle = makeGroupToggle(isConstructionMenuOpen, setIsConstructionMenuOpen);
   const handleChartGroupToggle = makeGroupToggle(isChartMenuOpen, setIsChartMenuOpen);
   const handleGroupToggle = makeGroupToggle(isDataMenuOpen, setIsDataMenuOpen);
 
@@ -863,18 +845,16 @@ const MainLayout: React.FC = () => {
             />
           )}
 
-          {/* Nhóm Công trình */}
-          {visibleConstructionItems.length > 0 && (
-            <NavGroup
+          {/* Tổng quan công trình: 1 mục ngoài cùng (Luồng đỏ / Căn mẫu chọn nhóm ngay trong trang) */}
+          {canSeeConstruction && (
+            <NavLink
+              to={CONSTRUCTION_PATH}
               icon={<Box size={18} className="shrink-0" />}
-              label="Công trình"
+              label="Tổng quan công trình"
+              active={location.pathname === CONSTRUCTION_PATH}
+              onClick={closeMobileSidebar}
               collapsed={isCollapsed}
-              open={isConstructionMenuOpen}
-              active={isConstructionGroupActive}
-              onToggle={handleConstructionGroupToggle}
-            >
-              {renderSubLinks(visibleConstructionItems)}
-            </NavGroup>
+            />
           )}
 
           {/* Vướng mắc sản xuất (quản lý) */}

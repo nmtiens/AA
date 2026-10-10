@@ -42,7 +42,7 @@ export const PivotMaterialStatusSection = ({
             onClick={() => setMatStatusMetric('COUNT_PR')}
             className={`px-2 py-1 text-[0.625rem] font-bold rounded flex items-center gap-1 transition-all ${matStatusMetric === 'COUNT_PR' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <Hash size={12} /> Số hạng mục PR
+            <Hash size={12} /> Số dòng PR
           </button>
           <div className="w-px h-3 bg-slate-300 mx-1"></div>
           <button
@@ -133,6 +133,16 @@ export const PivotMaterialStatusSection = ({
       </div>
     ) : (
       <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">Không có dữ liệu để tạo bảng trạng thái vật tư.</div>
+    )}
+    {pivotMaterialStatusData && (
+      <p className="mt-2 text-[0.6875rem] text-slate-500">
+        Cột theo Trạng thái chung của dòng PR. {matStatusMetric === 'COUNT_PR'
+          ? '1 ô = số dòng PR (1 Số PR · line), không phải số hạng mục.'
+          : 'Khối lượng yêu cầu cộng theo nguyên số, KHÔNG quy đổi đơn vị (kg, m, cái… cộng chung) — chỉ nên so trong cùng 1 nhóm vật tư.'}
+        {(pivotMaterialStatusData.closedShort ?? 0) > 0 && (
+          <> 3.ĐÃ NHẬP KHO gồm cả <b className="text-violet-700">{formatNumber(pivotMaterialStatusData.closedShort ?? 0)}</b> dòng PR đã ĐÓNG khi chưa nhận đủ (dùng tồn / đóng thiếu) — xem nhóm "PR đã đóng, chưa nhận đủ" ở tab BOM.</>
+        )}
+      </p>
     )}
   </div>
 );

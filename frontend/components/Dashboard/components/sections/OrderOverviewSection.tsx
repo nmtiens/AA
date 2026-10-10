@@ -298,6 +298,8 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
 const periodLabel = overviewDateFilters.length > 1
   ? `${overviewDateFilters.length} NGÀY CÓ DỮ LIỆU`
   : `NGÀY ${latestUnifiedDate ? `${latestUnifiedDate.getDate()}/${latestUnifiedDate.getMonth() + 1}/${latestUnifiedDate.getFullYear()}` : ''}`;
+  // Số tháng trước của ngày dữ liệu (getMonth() là 0–11: tháng 1 trước hiện "T0" => phải là T12)
+  const prevMonthNo = latestUnifiedDate ? (latestUnifiedDate.getMonth() === 0 ? 12 : latestUnifiedDate.getMonth()) : '';
 
    return (
     <TrendFilterProvider
@@ -454,7 +456,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs font-bold text-pink-800/70 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()}:
+                    Lũy kế T{prevMonthNo}:
                   </span>
                   <span className="text-lg font-extrabold text-pink-700/70">
                     {overviewMetric === 'COUNT'
@@ -515,7 +517,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs font-bold text-blue-800/70 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()}:
+                    Lũy kế T{prevMonthNo}:
                   </span>
                   <span className="text-lg font-extrabold text-blue-700/70">
                     {overviewMetric === 'COUNT'
@@ -576,7 +578,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs font-bold text-purple-800/70 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()}:
+                    Lũy kế T{prevMonthNo}:
                   </span>
                   <span className="text-lg font-extrabold text-purple-700/70">
                     {overviewMetric === 'COUNT'
@@ -636,7 +638,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs font-bold text-teal-800/70 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()}:
+                    Lũy kế T{prevMonthNo}:
                   </span>
                   <span className="text-lg font-extrabold text-teal-700/70">
                     {overviewMetric === 'COUNT'
@@ -696,7 +698,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs font-bold text-amber-800/70 uppercase">
-                    Lũy kế T{latestUnifiedDate?.getMonth()}:
+                    Lũy kế T{prevMonthNo}:
                   </span>
                   <span className="text-lg font-extrabold text-amber-700/70">
                     {overviewMetric === 'COUNT'
@@ -750,7 +752,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-[0.625rem] font-bold text-slate-600 uppercase leading-tight">
-                    Giá trị tồn mới nhất (
+                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất (
                     {latestStockStats.date
                       ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1)
                           .toString()
@@ -766,7 +768,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center gap-2 mt-2">
                   <span className="text-[0.5625rem] font-bold text-slate-500 uppercase leading-tight">
-                    Giá trị tồn mới nhất của tháng {latestUnifiedDate?.getMonth()} (
+                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất của tháng {prevMonthNo} (
                     {latestStockStatsPrevMonth.date
                       ? `${latestStockStatsPrevMonth.date.getDate().toString().padStart(2, '0')}/${(
                           latestStockStatsPrevMonth.date.getMonth() + 1

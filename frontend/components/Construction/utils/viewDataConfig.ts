@@ -15,7 +15,10 @@ export interface ViewDefinition {
   label: string;
 }
 
-export const CONFIGURABLE_VIEWS: ViewDefinition[] = [
+/** Nhóm công trình chọn ở trang Tổng quan công trình (danh sách công trình setup ở Công trình → Setup) */
+export type ProjectGroupId = 'luong-do' | 'can-mau';
+
+export const CONFIGURABLE_VIEWS: (ViewDefinition & { id: ProjectGroupId })[] = [
   { id: 'luong-do', label: 'Công trình luồng đỏ' },
   { id: 'can-mau', label: 'Căn mẫu' },
 ];

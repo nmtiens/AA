@@ -10,6 +10,9 @@ import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
 import { deadlineOf, resolveDeadlineKeys, isQtyComplete, projectMatchKey } from '../../utils/productionMetrics';
+import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
+import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
+import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './utils/viewDataConfig';
 import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
 import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
@@ -49,6 +52,10 @@ interface Rec {
   qtyDone: boolean;   // đã nhập đủ số lượng đơn hàng (đếm là đã nhập kho dù thành tiền NK thấp hơn trị giá)
   row: DataRow;       // dòng gốc — để mở cửa sổ danh sách HEX
   ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
+  mk: string;         // khoá so khớp tên công trình gốc (projectMatchKey) — lọc theo nhóm Luồng đỏ / Căn mẫu
+  // Phần CHƯA NHẬP KHO xếp theo công đoạn (cùng cách chia với bảng "Tình trạng đơn hàng theo công trình"):
+  // P001 / P002 / đang trên chuyền (P012→P021, GCVT) / P022–P025 nhập chưa đủ; đơn HỦY tách riêng
+  bucket: RemainBucket | 'cancelled';
 }
 
 // Mặc định không lọc Tình trạng IPO: các ô KPI hiện tổng toàn bộ công trình, chỉ đổi khi người dùng chọn lọc
@@ -56,6 +63,7 @@ interface Rec {
 const isDefaultIpo = (ipo: string) => /ĐANG SẢN XUẤT/i.test(ipo);
 
 const NO_DATA = '(Chưa có)';
+const GROUP_SHORT: Record<ProjectGroupId, string> = { 'luong-do': 'Luồng đỏ', 'can-mau': 'Căn mẫu' };
 const NO_MONTH = 'none';
 
 const FILTER_LABEL: Record<FKey, string> = {
@@ -68,6 +76,7 @@ const COLOR_REMAIN = '#f59e0b';
 // Giá trị gốc tính theo triệu đồng (khớp backend TRIEU_TO_TY) => Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
 const fmtTy = formatTrieuAsTy;
+const pctOf = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toFixed(v / total < 0.01 && v > 0 ? 1 : 0)}%` : '—');
 const monthLabel = (key: string) => {
   if (key === NO_MONTH) return 'Chưa có KH nhập kho';
   // Cột gộp của biểu đồ tháng hạn: "<YYYY-MM" = trước tháng đó, ">YYYY-MM" = sau tháng đó
@@ -134,6 +143,8 @@ interface Props {
 }
 
 const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory }) => {
+  // Nhóm công trình (Luồng đỏ / Căn mẫu = danh sách setup ở Công trình → Setup); null = mọi công trình
+  const [group, setGroup] = useState<ProjectGroupId | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
   const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(null);
@@ -197,6 +208,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const xkK = key('thanh_tien_xuat_kho_luy_ke', 'thanh_tien_xuat_kho_luy_ke');
     const tkK = key('thanh_tien_ton_kho_hien_tai', 'thanh_tien_ton_kho_hien_tai');
     const nctK = columns.find(c => c.key === 'nhom_ct')?.key ?? 'nhom_ct';
+    const bopK = key(TARGET_COLUMN_NAMES.BOP, 'bop');
     const tdaK = columns.find(c => c.key === 'tinh_trang_du_an')?.key ?? 'tinh_trang_du_an';
     const projectKey = projectKeyResolver(data, maK, ctK);
 
@@ -251,6 +263,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         stock,
         qtyDone,
         row,
+        mk: projectMatchKey(ct),
+        bucket: cancelled ? 'cancelled' : remainBucketOf(st, extractStage(row[bopK])),
       });
     }
 
@@ -275,16 +289,24 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   // Bộ lọc Tình trạng IPO (mặc định: Đang sản xuất — bỏ chọn hết = tất cả),
   // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
+  // Lọc theo nhóm công trình trước mọi bộ lọc khác (so theo tên chuẩn — gộp các cách viết)
+  const groupRecords = useMemo(() => {
+    if (!group) return allRecords;
+    const allowed = new Set(getProjectsForView(group).map(projectMatchKey));
+    return allRecords.filter(r => allowed.has(r.mk));
+  }, [allRecords, group]);
+  const groupSize = useMemo(() => (group ? getProjectsForView(group).length : 0), [group]);
+
   const ipoOptions = useMemo(
-    () => [...new Set(allRecords.map(r => r.ipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
-    [allRecords]
+    () => [...new Set(groupRecords.map(r => r.ipo).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi')),
+    [groupRecords]
   );
   const ipoSel = useMemo(() => ipoPicked ?? ipoOptions.filter(isDefaultIpo), [ipoPicked, ipoOptions]);
   const records = useMemo(() => {
-    if (ipoSel.length === 0) return allRecords;
+    if (ipoSel.length === 0) return groupRecords;
     const set = new Set(ipoSel);
-    return allRecords.filter(r => set.has(r.ipo));
-  }, [allRecords, ipoSel]);
+    return groupRecords.filter(r => set.has(r.ipo));
+  }, [groupRecords, ipoSel]);
 
   // Lọc chéo: mỗi biểu đồ bỏ qua bộ lọc của chính nó để vẫn đổi được lựa chọn
   const apply = (exclude?: FKey) =>
@@ -299,8 +321,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const cts = new Set<string>();
     let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0;
     let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho (theo đơn giá tồn) lớn hơn giá trị đã nhập
+    // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
+    const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
     for (const r of rowsAll) {
       cts.add(r.ctKey);
+      remainBy[r.bucket] += Math.max(r.total - r.done, 0);
       if (r.status === 'HỦY') cancelled++;
       else if (isStocked(r)) stocked++;
       else { notStocked++; if (r.done > 0) partial++; }
@@ -318,7 +343,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     }
     return {
       cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, total, done, remain: total - done,
-      exported, stock, exportedRecorded, stockOver, stockOverItems,
+      exported, stock, exportedRecorded, stockOver, stockOverItems, remainBy,
       overdue, overdueRemain, noPlan, noPlanRemain, pastBot, pastBotRemain,
     };
   }, [rowsAll, today]);
@@ -516,16 +541,24 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   // Danh sách cho các ô chọn (lấy từ toàn bộ dữ liệu, không phụ thuộc bộ lọc IPO)
   const options = useMemo(() => {
-    const uniq = (pick: (r: Rec) => string) => [...new Set(allRecords.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
+    const uniq = (pick: (r: Rec) => string) => [...new Set(groupRecords.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
     return {
       ct: uniq(r => r.ct), pm: uniq(r => r.pm), kv: uniq(r => r.kv), nct: uniq(r => r.nct), tda: uniq(r => r.tda),
-      month: [...new Set(allRecords.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : b.localeCompare(a))), // mới nhất trước
+      month: [...new Set(groupRecords.map(r => r.month))].sort((a, b) => (a === NO_MONTH ? 1 : b === NO_MONTH ? -1 : b.localeCompare(a))), // mới nhất trước
     };
-  }, [allRecords]);
+  }, [groupRecords]);
+
+  // Ô lọc Nhóm CT / Dự án: hiện theo TOÀN BỘ dữ liệu (cột có dữ liệu hay không), không theo nhóm đang chọn —
+  // trước Căn mẫu chỉ có 1 giá trị nên 2 ô biến mất, thanh lọc lệch so với Tất cả CT / Luồng đỏ
+  const showCol = useMemo(() => ({
+    nct: new Set(allRecords.map(r => r.nct)).size > 1,
+    tda: new Set(allRecords.map(r => r.tda)).size > 1,
+  }), [allRecords]);
 
   const display = (k: FKey, v: string) => (k === 'month' ? monthLabel(v) : v);
   // Mô tả bộ lọc đang áp dụng (cho cửa sổ chi tiết / file Excel); `skip` = bộ lọc được bỏ qua
   const filterSummary = (skip?: FKey) => [
+    ...(group ? [`Nhóm: ${CONFIGURABLE_VIEWS.find(v => v.id === group)?.label ?? group}`] : []),
     ...(ipoSel.length ? [`Tình trạng IPO: ${ipoSel.join(', ')}`] : []),
     ...activeKeys.filter(k => k !== skip).map(k => `${FILTER_LABEL[k]}: ${display(k, f[k]!)}`),
   ].join(' · ');
@@ -563,16 +596,75 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     </button>
   );
 
+  // Ô giá trị trong thanh "Giá trị": bấm mở cửa sổ chi tiết đúng tập dòng tạo ra con số
+  const Mini = ({ label, value, tone, bar, hint, spec, strong = false }: {
+    label: string; value: number; tone: string; bar?: string; hint?: string; strong?: boolean;
+    spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
+  }) => (
+    <button
+      type="button"
+      onClick={() => openDetail({ eyebrow: 'Chỉ số', title: label, ...spec })}
+      title={hint ? `${hint}\nBấm để xem chi tiết` : 'Bấm để xem chi tiết'}
+      className={`group w-full rounded-md px-2 py-1.5 text-left transition hover:bg-white hover:shadow-sm ${strong ? '' : 'border border-slate-200 bg-white/70'}`}
+    >
+      <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-slate-500">
+        {bar && <i className={`h-2 w-2 shrink-0 rounded-sm ${bar}`} />}
+        <span className="truncate">{label}</span>
+        <ChevronRight size={12} className="ml-auto shrink-0 text-slate-300 group-hover:text-slate-600" />
+      </p>
+      <p className={`${strong ? 'text-2xl' : 'text-lg'} font-semibold tabular-nums ${tone}`}>
+        {fmtTy(value)}<span className="ml-1 text-xs font-medium text-slate-400">Tỷ</span>
+        <span className="ml-1.5 text-[0.6875rem] font-normal text-slate-400">{pctOf(value, kpi.total)}</span>
+      </p>
+    </button>
+  );
+
+  // Phần chưa nhập kho theo công đoạn (P022–P025 nhập chưa đủ / đơn hủy chỉ hiện khi có số)
+  const remainTiles = ([
+    { key: 'notDeployed', label: 'Chưa triển khai (P001)', tone: 'text-slate-700', bar: 'bg-slate-400',
+      hint: 'Phần chưa nhập kho của hạng mục ở P001 / 15. CHƯA TRIỂN KHAI.' },
+    { key: 'p002', label: 'Chưa tính phiếu (P002)', tone: 'text-orange-700', bar: 'bg-orange-300',
+      hint: 'Phần chưa nhập kho của hạng mục ở P002 (bản vẽ kỹ thuật, chưa tính phiếu).' },
+    { key: 'onLine', label: 'Đang trên chuyền (P012→P021)', tone: 'text-amber-700', bar: 'bg-amber-500',
+      hint: 'Phần chưa nhập kho của hạng mục ở P012 → P021 (gồm GCVT).' },
+    { key: 'shortfall', label: 'P022–P025 nhập chưa đủ', tone: 'text-purple-700', bar: 'bg-purple-300',
+      hint: 'Hạng mục đã ở P022 / P025 nhưng giá trị nhập kho chưa đủ trị giá đơn hàng (lệch đơn giá / nhập thiếu).' },
+    { key: 'cancelled', label: 'Đơn hủy', tone: 'text-red-600', bar: 'bg-red-300',
+      hint: 'Trị giá đơn hàng của hạng mục có Tình trạng IPO = HỦY (tính trong tổng để khớp file gốc — lọc Tình trạng IPO để bỏ).' },
+  ] as const).filter(t => t.key === 'notDeployed' || t.key === 'p002' || t.key === 'onLine' || kpi.remainBy[t.key] > 0.0005);
+  const valueSegments = [
+    { key: 'exported', label: 'Đã xuất / giao', v: kpi.exported, bar: 'bg-sky-500' },
+    { key: 'stock', label: 'Tồn kho', v: kpi.stock, bar: 'bg-violet-500' },
+    ...remainTiles.map(t => ({ key: t.key, label: t.label, v: kpi.remainBy[t.key], bar: t.bar })),
+  ];
+  const segTotal = valueSegments.reduce((a, x) => a + x.v, 0);
+
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
       {/* Thanh tiêu đề + bộ lọc */}
       <div className="sticky top-0 z-30 bg-wood-50/90 backdrop-blur border-b border-slate-200 px-4 md:px-6 py-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight text-slate-900">Báo cáo tiến độ công trình</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+              Báo cáo tiến độ công trình{group && <span className="text-red-700"> · {GROUP_SHORT[group]}</span>}
+            </h2>
             <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {/* Nhóm công trình: thay cho 2 trang riêng Luồng đỏ / Căn mẫu trước đây */}
+            <div className="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Nhóm công trình">
+              {([null, ...CONFIGURABLE_VIEWS.map(v => v.id)] as (ProjectGroupId | null)[]).map(g => (
+                <button
+                  key={g ?? 'all'}
+                  type="button"
+                  onClick={() => { setGroup(g); setF({}); }}
+                  title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
+                  className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  {g ? GROUP_SHORT[g] : 'Tất cả CT'}
+                </button>
+              ))}
+            </div>
             {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
             <DashboardFilter
               label="Tình Trạng IPO"
@@ -613,7 +705,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
             />
             {/* Nhóm CT (vd. "CỤM TÂY HỒ VIEW", "OUT TOP 33 CT") và tình trạng dự án — cột có từ 10/2026 */}
-            {options.nct.length > 1 && (
+            {showCol.nct && (
               <SearchableSelect
                 value={f.nct ?? ''}
                 onChange={v => setKey('nct', v)}
@@ -623,7 +715,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
               />
             )}
-            {options.tda.length > 1 && (
+            {showCol.tda && (
               <SearchableSelect
                 value={f.tda ?? ''}
                 onChange={v => setKey('tda', v)}
@@ -655,39 +747,85 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       </div>
 
       <div className="p-4 md:p-6 space-y-4">
-        {/* KPI */}
-        {/* 1280–1535px: 2 hàng × 5 ô (10 ô một hàng chỉ rộng ~100px, số bị cắt) */}
-        <div className="grid grid-cols-2 md:grid-cols-5 2xl:grid-cols-10 gap-3">
-          {/* Mỗi ô: pred = đúng điều kiện đã dùng để tính con số trong khối KPI ở trên */}
+        {group && groupSize === 0 && (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+            Chưa có công trình nào được setup cho nhóm {GROUP_SHORT[group]}. Vào Công trình → Setup phân loại để chọn công trình.
+          </p>
+        )}
+
+        {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
+            Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
+            Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn kho
+            Chưa nhập kho = Chưa triển khai (P001) + Chưa tính phiếu (P002) + Đang trên chuyền (P012→P021)
+                            [+ P022–P025 nhập chưa đủ] [+ đơn hủy] */}
+        <div className={`${cardCls} p-4`}>
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+            <button
+              type="button"
+              onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Tổng giá trị đơn hàng', pred: () => true, focus: 'total', note: 'Tổng trị giá đơn hàng, gồm cả đơn hủy (khớp file gốc) — lọc Tình trạng IPO để bỏ hủy.' })}
+              title="Bấm để xem chi tiết"
+              className="group text-left"
+            >
+              <p className="flex items-center gap-1 text-[0.6875rem] font-medium tracking-wide text-slate-500">
+                Tổng giá trị đơn hàng <ChevronRight size={13} className="text-slate-300 group-hover:text-slate-600" />
+              </p>
+              <p className="text-3xl font-semibold tabular-nums text-slate-900">
+                {fmtTy(kpi.total)}<span className="ml-1 text-sm font-medium text-slate-400">Tỷ</span>
+              </p>
+            </button>
+            <p className="text-[0.6875rem] text-slate-500">
+              {fmtInt(kpi.cts)} công trình · {fmtInt(kpi.items)} hạng mục · đã nhập kho <b className="text-emerald-700">{pctOf(kpi.done, kpi.total)}</b> giá trị
+            </p>
+          </div>
+          {/* Thanh tỷ trọng: phần đã nhập (đã xuất / tồn kho) + phần chưa nhập theo công đoạn */}
+          <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100">
+            {valueSegments.filter(x => x.v > 0).map(x => (
+              <div key={x.key} className={x.bar} style={{ width: `${(x.v / Math.max(segTotal, 1)) * 100}%` }} title={`${x.label}: ${fmtTy(x.v)} tỷ (${pctOf(x.v, segTotal)})`} />
+            ))}
+          </div>
+          <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
+              <Mini label="Đã nhập kho (P022)" value={kpi.done} tone="text-emerald-700" strong
+                    hint="Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng)."
+                    spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Mini label="Đã xuất / giao (P025)" value={kpi.exported} tone="text-sky-700" bar="bg-sky-500"
+                      hint={`= Đã nhập kho − Tồn kho (theo từng hạng mục). Bảng xuất kho ghi ${fmtTy(kpi.exportedRecorded)} tỷ nhưng chỉ có dữ liệu từ 01/2025 — hạng mục giao trước đó không có số xuất.`}
+                      spec={{ pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' }} />
+                <Mini label="Tồn kho" value={kpi.stock} tone="text-violet-700" bar="bg-violet-500"
+                      hint={kpi.stockOverItems > 0
+                        ? `Tồn kho hiện tại (khớp bảng tồn kho). ${fmtInt(kpi.stockOverItems)} hạng mục có tồn kho tính theo đơn giá cao hơn giá trị đã nhập (lệch ${fmtTy(kpi.stockOver)} tỷ) nên Đã xuất / giao + Tồn kho lớn hơn Đã nhập kho một chút.`
+                        : 'Tồn kho hiện tại (khớp bảng tồn kho). Đã nhập kho = Đã xuất / giao + Tồn kho.'}
+                      spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất — khớp bảng tồn kho).' }} />
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+              <Mini label="Chưa nhập kho" value={kpi.remain} tone="text-amber-700" strong
+                    hint="Trị giá đơn hàng − giá trị đã nhập kho, chia theo công đoạn BOP hiện tại của hạng mục."
+                    spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
+              <div className={`mt-2 grid gap-2 ${remainTiles.length > 3 ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
+                {remainTiles.map(t => (
+                  <Mini key={t.key} label={t.label} value={kpi.remainBy[t.key]} tone={t.tone} bar={t.bar} hint={t.hint}
+                        spec={{ pred: r => r.bucket === t.key && r.total - r.done > 0, focus: 'remain', note: t.hint }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* HẠNG MỤC + CẢNH BÁO (cảnh báo đếm hạng mục còn theo dõi: chưa nhập đủ, không hủy) */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
                spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
           <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
+               sub={kpi.cancelled > 0 ? `trong đó ${fmtInt(kpi.cancelled)} hủy` : undefined}
                spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
-          <Kpi label="Hủy" value={fmtInt(kpi.cancelled)} tone="text-red-600"
-               spec={{ pred: r => r.status === 'HỦY', focus: 'items', note: 'Hạng mục có Tình trạng IPO = HỦY (trị giá vẫn tính vào Tổng giá trị — lọc Tình trạng IPO để bỏ).' }} />
-          <Kpi label="Hạng mục đã nhập kho" value={fmtInt(kpi.stocked)} tone="text-emerald-600"
+          <Kpi label="Đã nhập kho" value={fmtInt(kpi.stocked)} unit="mục" tone="text-emerald-600"
+               hint="Đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng"
                spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng (không tính đơn hủy).' }} />
-          <Kpi label="Hạng mục chưa nhập kho" value={fmtInt(kpi.notStocked)} tone="text-amber-600"
+          <Kpi label="Chưa nhập kho" value={fmtInt(kpi.notStocked)} unit="mục" tone="text-amber-600"
                sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần` : undefined}
                spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
-          <Kpi label="Tổng giá trị" value={fmtTy(kpi.total)} unit="Tỷ"
-               spec={{ pred: () => true, focus: 'total', note: 'Tổng trị giá đơn hàng, gồm cả đơn hủy (khớp file gốc) — lọc Tình trạng IPO để bỏ hủy.' }} />
-          <Kpi label="Giá trị đã nhập kho" value={fmtTy(kpi.done)} unit="Tỷ" tone="text-emerald-600"
-               spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
-          <Kpi label="Giá trị chưa nhập kho" value={fmtTy(kpi.remain)} unit="Tỷ" tone="text-amber-600"
-               spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
-          <Kpi label="Đã xuất / giao" value={fmtTy(kpi.exported)} unit="Tỷ" tone="text-sky-700"
-               hint={`= Đã nhập kho − Tồn kho (theo từng hạng mục). Bảng xuất kho ghi ${fmtTy(kpi.exportedRecorded)} tỷ nhưng chỉ có dữ liệu từ 01/2025 — hạng mục giao trước đó không có số xuất.`}
-               spec={{ pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' }} />
-          <Kpi label="Tồn kho" value={fmtTy(kpi.stock)} unit="Tỷ" tone="text-violet-700"
-               hint={kpi.stockOverItems > 0
-                 ? `Tồn kho hiện tại (khớp bảng tồn kho). ${fmtInt(kpi.stockOverItems)} hạng mục có tồn kho tính theo đơn giá cao hơn giá trị đã nhập (lệch ${fmtTy(kpi.stockOver)} tỷ) nên Đã nhập ≈ Đã xuất / giao + Tồn kho.`
-                 : 'Tồn kho hiện tại (khớp bảng tồn kho). Đã nhập = Đã xuất / giao + Tồn kho.'}
-               spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất — khớp bảng tồn kho).' }} />
-        </div>
-
-        {/* Cảnh báo: hạng mục còn theo dõi (chưa nhập đủ, không hủy) theo hạn / KH / BOT dự án + vướng mắc đang mở */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <Kpi label="Quá hạn KH nhập kho" value={fmtInt(kpi.overdue)} unit="mục" tone={kpi.overdue ? 'text-red-600' : 'text-slate-900'}
                sub={`${fmtTy(kpi.overdueRemain)} tỷ chưa nhập kho`}
                hint="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng (KH kỳ đã nhập đủ SL thì không tính)"

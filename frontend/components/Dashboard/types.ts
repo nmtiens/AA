@@ -15,6 +15,8 @@ export interface WorkshopPivotData {
   rowTotals: Record<string, number>;
   colTotals: Record<string, number>;
   grandTotal: number;
+  /** Số dòng 3.ĐÃ NHẬP KHO mà PR đã đóng khi chưa nhận đủ */
+  closedShort?: number;
 }
 
 export interface ProjectPivotData {
@@ -24,6 +26,8 @@ export interface ProjectPivotData {
   rowTotals: Record<string, number>;
   colTotals: Record<string, number>;
   grandTotal: number;
+  /** Số dòng 3.ĐÃ NHẬP KHO mà PR đã đóng khi chưa nhận đủ */
+  closedShort?: number;
 }
 
 export interface MaterialSummaryPivotData {
@@ -40,6 +44,8 @@ export interface MaterialStatusPivotData {
   rowTotals: Record<string, number>;
   colTotals: Record<string, number>;
   grandTotal: number;
+  /** Số dòng 3.ĐÃ NHẬP KHO mà PR đã đóng khi chưa nhận đủ */
+  closedShort?: number;
 }
 
 export interface AnalysisItem {

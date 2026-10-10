@@ -214,7 +214,7 @@ export const ProjectSummarySection_v2 = ({
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đơn Hàng</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Nhập Kho <br />P022</th>
                 <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Đã Xuất Kho <br />P025</th>
-                <th rowSpan={2} className={`${thBase} top-0`}>Tổng {label} <br />Tồn Kho Sau <br />Xuất Kho</th>
+                <th rowSpan={2} className={`${thBase} top-0`} title="Nhập kho − Xuất kho lũy kế theo bảng sản xuất (P022 − P025). Khác thanh &quot;P022. Tồn kho thực tế&quot; ở phễu (lấy từ bảng tồn kho tại 1 ngày)">Tổng {label} <br />Tồn Kho Sau <br />Xuất Kho</th>
                 <th colSpan={showShortfall ? 5 : 4} className={`${thBase} top-0 h-9 py-0 bg-emerald-100`}>
                   Tổng {label} Đơn Hàng Còn Lại
                 </th>

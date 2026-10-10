@@ -183,8 +183,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     label: 'Công trình',
     items: [
       { id: 'construction_overview', label: 'Tổng quan công trình' },
-      { id: 'construction_redflow', label: 'Công trình luồng đỏ' },
-      { id: 'construction_sample', label: 'Căn mẫu' },
       { id: 'construction_setup', label: 'Setup dữ liệu (phân loại công trình)' },
     ],
   },

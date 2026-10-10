@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { DataRow } from '../../../types';
 import { STATUS_GROUPS } from '../constants';
 import { parseNumber } from '../utils/numberParsers';
-import { doneValue, isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK } from '../../../utils/productionMetrics';
+import { doneValue, isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK, materialLineState } from '../../../utils/productionMetrics';
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import { ON_LINE_STAGES, P002_STAGE, extractStage } from '../components/modals/OnLineStageDetailModal';
 import { BOP_STAGE_ORDER } from '../../../utils/productionMetrics';
@@ -856,6 +856,11 @@ export function usePivotTables({
     const getVal = (bop: string) => pivotFunnelData.data.find(d => d.name === bop)?.value || 0;
 
     let p022Val = 0;
+    // Tồn kho THỰC TẾ theo bảng tồn kho tại ngày gần nhất — khác cột "Tồn kho sau xuất kho" của bảng công trình
+    // (= nhập kho − xuất kho lũy kế theo bảng sản xuất), nên ghi rõ ngày trên nhãn để không bị hiểu là cùng 1 số
+    const p022Label = closestStockDate
+      ? `P022. Tồn kho thực tế (${String(closestStockDate.getDate()).padStart(2, '0')}/${String(closestStockDate.getMonth() + 1).padStart(2, '0')})`
+      : 'P022. Tồn kho thực tế';
     if (closestStockDate) {
       const targetISO = toISODateLocal(closestStockDate);
       const entry = stockDates.find(s => {
@@ -872,7 +877,7 @@ export function usePivotTables({
       { id: 'P002', name: 'P002. Bản vẽ kỹ thuật', value: getVal('P002'), color: '#fdba74' },
       { id: 'P012', name: 'P012. Có phiếu chưa sản xuất', value: getVal('P012'), color: '#a3e635' },
       { id: 'P013', name: 'P013. Ra phôi sơ chế', value: getVal('P013'), color: '#a3e635' },
-      { id: 'GCVT', name: 'P013. GCVT', value: getVal('GCVT'), color: '#a3e635' },
+      { id: 'GCVT', name: 'GCVT (sau P013)', value: getVal('GCVT'), color: '#a3e635' },
       { id: 'P014', name: 'P014. Tinh chỉnh định hình', value: getVal('P014'), color: '#a3e635' },
       { id: 'P016', name: 'P016. Lắp ráp tinh chỉnh', value: getVal('P016'), color: '#a3e635' },
       { id: 'P018', name: 'P018. Sơn - làm màu', value: getVal('P018'), color: '#a3e635' },
@@ -883,7 +888,7 @@ export function usePivotTables({
       ...(getVal('P022') + getVal('P025') > 0
         ? [{ id: 'P022_SHORT', name: 'P022/P025. Nhập kho chưa đủ', value: getVal('P022') + getVal('P025'), color: '#c4b5fd' }]
         : []),
-      { id: 'P022', name: 'P022. TỒN KHO', value: p022Val, color: '#eab308' },
+      { id: 'P022', name: p022Label, value: p022Val, color: '#eab308' },
     ];
 
     const maxVal = Math.max(...funnelItems.map(item => item.value), 1);
@@ -949,6 +954,8 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
   const rowTotals: Record<string, number> = {};
   const colTotals: Record<string, number> = {};
   let grandTotal = 0;
+  // Dòng 3.ĐÃ NHẬP KHO nhưng PR đã ĐÓNG khi chưa nhận đủ (cùng nhãn "PR đã đóng, chưa nhận đủ" ở tab BOM)
+  let closedShort = 0;
   uniqueGroups.forEach(g => { matrix[g] = {}; rowTotals[g] = 0; uniqueStatuses.forEach(s => { matrix[g][s] = 0; colTotals[s] = (colTotals[s] || 0); }); });
   filteredMaterialData.forEach(row => {
     const g = String(row[matNhomVtKey] || 'Chưa phân nhóm').trim();
@@ -956,9 +963,10 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
     if (s) {
       const val = matStatusMetric === 'COUNT_PR' ? 1 : parseNumber(row[matSlYeuCauKey]);
       if (matrix[g] && matrix[g][s] !== undefined) { matrix[g][s] += val; rowTotals[g] += val; colTotals[s] += val; grandTotal += val; }
+      if (materialLineState(row) === 'closedShort') closedShort++;
     }
   });
-  return { sortedGroups: uniqueGroups, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
+  return { sortedGroups: uniqueGroups, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal, closedShort };
 }, [filteredMaterialData, matNhomVtKey, matStatusKey, matStatusMetric, matSlYeuCauKey]);
 
   // -------------------------------------------------------------------------
