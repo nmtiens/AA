@@ -291,7 +291,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
         trang_thai: r.trang_thai, trang_thai_sap: r.trang_thai_sap, sl_hang_ve_thuc_te: r.sl_hang_ve_thuc_te,
         ngay_du_kien_giao_hang_pmh_nhap: r.ngay_du_kien_giao_hang_pmh_nhap, ngay_can_vat_tu: r.ngay_can_vat_tu,
         ngay_pr: r.ngay_pr, ngay_thuc_te_ve: r.ngay_thuc_te_ve,
-        team_pr_note: r.team_pr_note, tinh_trang_po: r.tinh_trang_po,
+        team_pr_note: r.team_pr_note, tinh_trang_po: r.tinh_trang_po, ghi_chu_tinh_trang_po: r.ghi_chu_tinh_trang_po,
       }));
       setMaterialLines(list);
     }).catch(() => {});

@@ -309,7 +309,7 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
  *  - late        : đang mua, đã quá ngày dự kiến giao (PMH nhập) mà chưa về đủ
  *  - onTrack     : đang mua, chưa tới ngày dự kiến giao
  */
-export type MaterialLineState = 'cancelled' | 'done' | 'ccld' | 'closedShort' | 'notOrdered' | 'arrived' | 'late' | 'onTrack';
+export type MaterialLineState = 'cancelled' | 'done' | 'ccld' | 'closedShort' | 'notOrdered' | 'arrived' | 'late' | 'deferred' | 'onTrack';
 
 export interface MaterialLineFields {
   so_luong_con_lai?: unknown;
@@ -323,12 +323,25 @@ export interface MaterialLineFields {
   ngay_thuc_te_ve?: unknown;
   team_pr_note?: unknown;
   tinh_trang_po?: unknown;
+  ghi_chu_tinh_trang_po?: unknown;
 }
+
+/**
+ * Hàng cố ý cho về theo nhu cầu sản xuất / dùng tồn kho trước (ghi chú Team PR "VỀ THEO NHU CẦU SX",
+ * "DÙNG TRƯỚC TỒN KHO" hoặc ghi chú PO "ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT"): quá ngày dự kiến giao
+ * không phải nhà cung cấp trễ => tách khỏi "trễ hẹn".
+ */
+export const isDeferredLine = (r: MaterialLineFields): boolean =>
+  /NHU C[ẦA]U (SX|S[ẢA]N XU[ẤA]T)|D[ÙU]NG TR[ƯU][ỚO]C T[ỒO]N KHO/.test(
+    `${String(r.team_pr_note ?? '')} ${String(r.ghi_chu_tinh_trang_po ?? '')}`.normalize('NFC').toUpperCase());
 
 export const isCcldLine = (r: MaterialLineFields): boolean =>
   /CCLD/i.test(String(r.team_pr_note ?? '')) || String(r.tinh_trang_po ?? '').toUpperCase().includes('CUNG CẤP LẮP ĐẶT');
 
 const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); };
+
+/** Số kho báo về vượt quá bội số này của SL yêu cầu => coi là ghi khác đơn vị, không dùng */
+export const KHO_BAO_MAX_RATIO = 1.5;
 
 export const materialLineState = (r: MaterialLineFields, today = todayStart()): MaterialLineState => {
   // Trạng thái lấy theo cột trang_thai (đã quy về 4 trạng thái chung: 1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO /
@@ -340,17 +353,21 @@ export const materialLineState = (r: MaterialLineFields, today = todayStart()): 
   // 3.ĐÃ NHẬP KHO / PR đã đóng xét TRƯỚC CCLD: trạng thái chung đã là "đã nhập kho" thì không xếp lại thành
   // CCLD (trước 659 dòng 3.ĐÃ NHẬP KHO có ghi chú CCLD bị đưa về nhóm CCLD)
   if (sap.includes('ĐÓNG') || st.includes('ĐÃ NHẬP KHO') || sap.includes('HOÀN THÀNH')) return 'closedShort';
-  if (isCcldLine(r)) return 'ccld';
+  // Nhãn 1.CHƯA MUA xét TRƯỚC CCLD: dòng chưa mua vẫn tính là thiếu dù có ghi chú CCLD (~596 dòng)
   if (st.includes('CHƯA MUA')) return 'notOrdered';
+  if (isCcldLine(r)) return 'ccld';
   const yc = Number(r.so_luong_yeu_cau);
   const khoBao = Number(r.sl_hang_ve_thuc_te);
-  if (khoBao > 0 && yc > 0 && khoBao >= yc) return 'arrived';
+  // Kho báo về đủ. Bỏ qua số kho báo lớn bất thường (> 1,5 lần SL yêu cầu): kho ghi theo đơn vị khác
+  // (vd. gỗ M3: PR 15 M3 mà kho ghi 7.249) — trước các dòng này bị xếp nhầm "kho báo về, chờ nhập SAP"
+  if (yc > 0 && khoBao >= yc && khoBao <= yc * KHO_BAO_MAX_RATIO) return 'arrived';
   const due = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
-  return due && due.getTime() < today ? 'late' : 'onTrack';
+  if (!(due && due.getTime() < today)) return 'onTrack';
+  return isDeferredLine(r) ? 'deferred' : 'late';
 };
 
 /** Dòng còn phải chờ vật tư về (chưa mua / đang mua trễ / đang mua đúng hẹn). */
-export const isMaterialPending = (s: MaterialLineState) => s === 'notOrdered' || s === 'late' || s === 'onTrack';
+export const isMaterialPending = (s: MaterialLineState) => s === 'notOrdered' || s === 'late' || s === 'deferred' || s === 'onTrack';
 
 /**
  * Dòng vật tư còn THIẾU = còn phải chờ về (chưa mua / đang mua). Không tính dòng HỦY, CCLD (lắp tại

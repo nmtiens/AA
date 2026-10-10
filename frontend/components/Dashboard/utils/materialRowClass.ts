@@ -12,6 +12,7 @@ export const materialRowClass = (row: DataRow): string => {
     case 'closedShort': return 'bg-slate-50 text-slate-600';
     case 'arrived': return 'bg-sky-50 text-sky-800';
     case 'late': return 'bg-red-100 text-red-700 font-semibold';
+    case 'deferred': return 'bg-amber-50 text-amber-800';
     case 'notOrdered': return 'bg-rose-50 text-rose-700';
     case 'onTrack': {
       // Đang mua: sắp tới ngày dự kiến giao thì tô đậm dần

@@ -7,7 +7,7 @@ import {
   type DeadlineSource, type MaterialLineState, type MaterialLineFields, stageRank,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
-import { fmtInt, fmtDate, DAY_MS as DAY } from '../../utils/format';
+import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, summarizeNeeds, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
 
@@ -1086,7 +1086,7 @@ export const BopTab = ({ items, onHexClick, extra }: {
 //    => chưa kiểm chứng được vật tư, cần để ý
 //  - noneInSx: đã lên chuyền (từ P013), hoặc P002 / P012 mà tình trạng NVL ở bảng sản xuất đã về đủ
 //    => vật tư mua gộp theo công trình / tồn kho, không đáng lo
-export type BomState = 'noneBeforeSx' | 'noneInSx' | 'noneNotDeployed' | 'notOrdered' | 'late' | 'onTrack' | 'arrived' | 'ok' | 'stocked';
+export type BomState = 'noneBeforeSx' | 'noneInSx' | 'noneNotDeployed' | 'notOrdered' | 'late' | 'deferred' | 'onTrack' | 'arrived' | 'ok' | 'stocked';
 export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' | 'emerald' | 'slate'; badge: string; hint: string }[] = [
   { key: 'noneBeforeSx', label: 'Đã triển khai, chưa SX – chưa thấy PR', tone: 'red', badge: 'bg-red-50 text-red-600',
     hint: 'P002 / P012 (chưa sản xuất), không có dòng PR nào ghi mã nhà máy của hạng mục và bảng sản xuất không ghi tình trạng mua (hoặc còn dòng chờ) — chưa kiểm chứng được vật tư: kiểm tra PR chung của công trình / định mức NVL' },
@@ -1098,6 +1098,8 @@ export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' |
     hint: 'Ít nhất 1 dòng PR 1.CHƯA MUA (chưa có PO)' },
   { key: 'late', label: 'VT trễ hẹn giao', tone: 'amber', badge: 'bg-orange-50 text-orange-700',
     hint: 'Đang mua, đã quá Ngày dự kiến giao hàng PMH nhập mà chưa về đủ' },
+  { key: 'deferred', label: 'VT về theo nhu cầu SX', tone: 'amber', badge: 'bg-yellow-50 text-yellow-800',
+    hint: 'Đang mua, đã qua ngày dự kiến giao nhưng ghi chú là về theo nhu cầu sản xuất / dùng tồn kho trước — cố ý cho về sau, không phải nhà cung cấp trễ' },
   { key: 'onTrack', label: 'Đang mua, chưa tới hẹn', tone: 'amber', badge: 'bg-amber-50 text-amber-700',
     hint: 'Còn dòng đang mua nhưng chưa tới Ngày dự kiến giao hàng PMH nhập' },
   { key: 'arrived', label: 'Kho đã báo về, chờ nhập SAP', tone: 'slate', badge: 'bg-sky-50 text-sky-700',
@@ -1116,12 +1118,14 @@ export const LINE_STATES: { key: MaterialLineState; label: string; bar: string; 
     hint: 'Trạng thái 1.CHƯA MUA — chưa có PO.' },
   { key: 'late', label: 'Đang mua – trễ hẹn', bar: 'bg-orange-500',
     hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) mà SAP chưa nhận đủ.' },
+  { key: 'deferred', label: 'Đang mua – về theo nhu cầu SX', bar: 'bg-yellow-300',
+    hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) nhưng ghi chú Team PR "VỀ THEO NHU CẦU SX" / "DÙNG TRƯỚC TỒN KHO" hoặc ghi chú PO "ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT": hàng cố ý cho về theo nhu cầu sản xuất, không phải nhà cung cấp trễ. Vẫn tính là còn chờ.' },
   { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-amber-400',
     hint: 'Trạng thái 2.ĐANG MUA, chưa tới Ngày dự kiến giao hàng (PMH nhập).' },
   { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-sky-400',
     hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu — chỉ còn chờ SAP ghi nhập kho.' },
   { key: 'ccld', label: 'CCLD – lắp tại công trình', bar: 'bg-teal-400',
-    hint: 'Dòng 1.CHƯA MUA / 2.ĐANG MUA là hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất.' },
+    hint: 'Dòng 2.ĐANG MUA là hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất. Dòng 1.CHƯA MUA dù ghi CCLD vẫn tính là Chưa mua (còn thiếu).' },
   { key: 'closedShort', label: 'PR đã đóng, chưa nhận đủ', bar: 'bg-violet-400',
     hint: 'Trạng thái 3.ĐÃ NHẬP KHO nhưng PR đã ĐÓNG trên SAP khi SL còn lại > 0 (nhận 1 phần hoặc chưa nhận): dùng tồn kho, đóng PR thiếu, hàng CCLD… — không còn chờ hàng về.' },
   { key: 'done', label: 'Đã nhận đủ', bar: 'bg-emerald-500',
@@ -1152,7 +1156,7 @@ export interface BomAnalysis {
   issueTotal: number;                             // số vướng mắc M3 đang mở
 }
 
-const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'onTrack', 'arrived'];
+const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'onTrack', 'deferred', 'arrived'];
 
 /**
  * Dòng còn chờ sẽ về SAU Ngày cần vật tư:
@@ -1163,7 +1167,7 @@ const lineAfterNeed = (l: MaterialLine, st: MaterialLineState, today: number): b
   const need = parsePlanDate(l.ngay_can_vat_tu)?.getTime();
   if (need === undefined) return false;
   if (st === 'notOrdered') return need < today;
-  if (st === 'late' || st === 'onTrack') {
+  if (st === 'late' || st === 'deferred' || st === 'onTrack') {
     const due = parsePlanDate(l.ngay_du_kien_giao_hang_pmh_nhap)?.getTime() ?? today;
     return Math.max(due, today) > need;
   }
@@ -1201,7 +1205,7 @@ export function analyzeBom(
     const after = lineAfterNeed(l, st, today);
     const pr = parsePlanDate(l.ngay_pr)?.getTime();
     const need = parsePlanDate(l.ngay_can_vat_tu)?.getTime();
-    const due = st === 'late' || st === 'onTrack' ? parsePlanDate(l.ngay_du_kien_giao_hang_pmh_nhap)?.getTime() : undefined;
+    const due = st === 'late' || st === 'deferred' || st === 'onTrack' ? parsePlanDate(l.ngay_du_kien_giao_hang_pmh_nhap)?.getTime() : undefined;
     const arrived = parsePlanDate(l.ngay_thuc_te_ve)?.getTime();
     if (l.hexes.some(h => openHex.has(h))) { lineCounts[st]++; lineTotal++; }
     for (const h of l.hexes) {
@@ -1265,6 +1269,7 @@ export interface ProjectMaterialLine extends MaterialLineFields {
   trackingno?: string; ten_cong_trinh?: string;
   ma_nha_may?: string; item_note_pr?: string; so_pr?: unknown; pr_line?: unknown;
   ten_vat_tu?: string; nhom_vt?: string; dvt?: string; ma_vat_tu_sap?: unknown; nguoi_yeu_cau?: string;
+  so_luong_da_nhan_sap?: unknown; so_po?: unknown;
 }
 
 export interface ProjectMaterialSummary {
@@ -1274,7 +1279,7 @@ export interface ProjectMaterialSummary {
   toFix: number;                                   // dòng cần bổ sung mã (còn chờ không mã + sai mã)
 }
 
-const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'late', 'onTrack', 'arrived'];
+const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'late', 'deferred', 'onTrack', 'arrived'];
 const lineStateLabel = (s: MaterialLineState) => LINE_STATES.find(x => x.key === s)?.label ?? s;
 
 export function summarizeProjectMaterial(rows: ProjectMaterialLine[] | null, today: number): ProjectMaterialSummary | null {
@@ -1294,6 +1299,13 @@ export function summarizeProjectMaterial(rows: ProjectMaterialLine[] | null, tod
 
 const xlsxDate = (v: unknown) => { const d = parsePlanDate(v); return d ? fmtDate(d) : ''; };
 
+// Ghi chú Team PR đôi khi là ngày Excel bị lưu thành chuỗi "2026-07-20 00:00:00" => hiện dd/mm/yyyy
+const fmtNote = (v: unknown): string => {
+  const t = String(v ?? '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]00:00:00(?:\.0+)?)?$/.exec(t);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : t;
+};
+
 /** Xuất Excel các dòng cần bổ sung mã nhà máy (gửi team PR). */
 async function exportToFixExcel(rows: ProjectMaterialLine[], today: number, fileTag: string) {
   const XLSX = await import('xlsx');
@@ -1306,7 +1318,8 @@ async function exportToFixExcel(rows: ProjectMaterialLine[], today: number, file
       'Số PR': r.so_pr ?? '', 'PR line': r.pr_line ?? '',
       'Ngày PR': xlsxDate(r.ngay_pr), 'Người yêu cầu': r.nguoi_yeu_cau ?? '',
       'Mã VT SAP': r.ma_vat_tu_sap ?? '', 'Tên vật tư': r.ten_vat_tu ?? '', 'Nhóm VT': r.nhom_vt ?? '', 'ĐVT': r.dvt ?? '',
-      'SL yêu cầu': Number(r.so_luong_yeu_cau) || 0, 'SL còn lại': Number(r.so_luong_con_lai) || 0,
+      'SL yêu cầu': Number(r.so_luong_yeu_cau) || 0, 'SL đã nhận (SAP)': Number(r.so_luong_da_nhan_sap) || 0, 'SL còn lại': +(Number(r.so_luong_con_lai) || 0).toFixed(3),
+      'Số PO': r.so_po ?? '', 'Team PR note': fmtNote(r.team_pr_note),
       'Trạng thái': String(r.trang_thai ?? ''),
       'Tình trạng': st ? lineStateLabel(st) : '',
       'Ngày cần VT': xlsxDate(r.ngay_can_vat_tu), 'Dự kiến giao PMH': xlsxDate(r.ngay_du_kien_giao_hang_pmh_nhap),
@@ -1315,7 +1328,7 @@ async function exportToFixExcel(rows: ProjectMaterialLine[], today: number, file
     };
   });
   const ws = XLSX.utils.json_to_sheet(data);
-  ws['!cols'] = [6, 14, 34, 12, 8, 12, 18, 14, 40, 22, 8, 10, 10, 14, 24, 12, 16, 24, 40, 44].map(wch => ({ wch }));
+  ws['!cols'] = [6, 14, 34, 12, 8, 12, 18, 14, 40, 22, 8, 10, 12, 10, 12, 24, 14, 24, 12, 16, 24, 40, 44].map(wch => ({ wch }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Cần bổ sung mã NM');
   XLSX.writeFile(wb, `vat_tu_can_bo_sung_ma_nha_may_${fileTag}_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -1332,7 +1345,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
   const enriched = useMemo(() => (rows ?? []).map(r => ({ r, st: r.kind === 'uncoded' ? materialLineState(r, today) : null })), [rows, today]);
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'onTrack', 'arrived', 'ccld', 'closedShort', 'done', 'cancelled'];
+    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'onTrack', 'deferred', 'arrived', 'ccld', 'closedShort', 'done', 'cancelled'];
     const need = (r: ProjectMaterialLine) => parsePlanDate(r.ngay_can_vat_tu)?.getTime() ?? Infinity;
     return enriched
       .filter(({ r, st }) => {
@@ -1418,6 +1431,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                   <th className={`${th} text-left`}>Tên vật tư</th>
                   <th className={`${th} text-left`}>Nhóm VT</th>
                   <th className={`${th} text-right`}>SL YC</th>
+                  <th className={`${th} text-right`} title="SL SAP đã nhận kho (so_luong_da_nhan_sap)">Đã nhận</th>
                   <th className={`${th} text-right`}>SL còn lại</th>
                   <th className={`${th} text-left`}>Ngày PR</th>
                   <th className={`${th} text-left`}>Ngày cần VT</th>
@@ -1431,6 +1445,9 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                   const need = parsePlanDate(r.ngay_can_vat_tu);
                   const due = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
                   const meta = st ? LINE_STATES.find(x => x.key === st) : null;
+                  // Số ngày trễ so với Ngày dự kiến giao (PMH nhập) — để thấy dòng nào trễ lâu nhất
+                  const lateDays = (st === 'late' || st === 'deferred') && due ? Math.floor((today - due.getTime()) / DAY) : 0;
+                  const note = [fmtNote(r.team_pr_note), r.item_note_pr].filter(Boolean).join(' · ');
                   return (
                     <tr key={`${String(r.so_pr)}-${String(r.pr_line)}-${idx}`} className="hover:bg-slate-50">
                       <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
@@ -1438,25 +1455,26 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                       <td className={`${td} whitespace-nowrap tabular-nums text-slate-600`}>{String(r.so_pr ?? '—')} · {String(r.pr_line ?? '')}</td>
                       <td className={`${td} max-w-[320px] truncate text-slate-800`} title={r.ten_vat_tu}>{r.ten_vat_tu}</td>
                       <td className={`${td} whitespace-nowrap text-slate-500`}>{r.nhom_vt}</td>
-                      <td className={`${td} text-right tabular-nums`}>{Number(r.so_luong_yeu_cau) || '—'} <span className="text-slate-400">{r.dvt}</span></td>
-                      <td className={`${td} text-right tabular-nums font-semibold text-slate-700`}>{Number(r.so_luong_con_lai) || '—'}</td>
+                      <td className={`${td} whitespace-nowrap text-right tabular-nums`}>{fmtQty(r.so_luong_yeu_cau)} <span className="text-slate-400">{r.dvt}</span></td>
+                      <td className={`${td} whitespace-nowrap text-right tabular-nums text-slate-500`}>{Number(r.so_luong_da_nhan_sap) > 0 ? fmtQty(r.so_luong_da_nhan_sap) : '—'}</td>
+                      <td className={`${td} whitespace-nowrap text-right tabular-nums font-semibold text-slate-700`}>{Number(r.so_luong_con_lai) > 0 ? fmtQty(r.so_luong_con_lai) : '—'} {Number(r.so_luong_con_lai) > 0 && <span className="font-normal text-slate-400">{r.dvt}</span>}</td>
                       <td className={`${td} whitespace-nowrap tabular-nums text-slate-500`}>{fmtDate(parsePlanDate(r.ngay_pr))}</td>
                       <td className={`${td} whitespace-nowrap tabular-nums ${need && st && PENDING_STATES.includes(st) && need.getTime() < today ? 'font-semibold text-red-600' : 'text-slate-600'}`}>{fmtDate(need)}</td>
-                      <td className={`${td} whitespace-nowrap tabular-nums ${st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-600'}`}>{st === 'late' || st === 'onTrack' ? fmtDate(due) : '—'}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums ${st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-600'}`}>{st === 'late' || st === 'deferred' || st === 'onTrack' ? fmtDate(due) : '—'}</td>
                       <td className={td}>
                         {r.kind === 'badCode' ? (
                           <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-800" title={r.bad_reason ?? ''}>Sai mã NM: {r.ma_nha_may}</span>
                         ) : meta ? (
-                          <span className="inline-flex cursor-help items-center gap-1 whitespace-nowrap text-slate-700" title={meta.hint}><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}</span>
+                          <span className="inline-flex cursor-help items-center gap-1 whitespace-nowrap text-slate-700" title={meta.hint}><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}{lateDays > 0 && <span className={st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-500'}>· {st === 'late' ? '' : 'quá '}{fmtInt(lateDays)} ngày</span>}</span>
                         ) : null}
                       </td>
-                      <td className={`${td} max-w-[260px] truncate text-slate-500`} title={[r.team_pr_note, r.item_note_pr].filter(Boolean).join(' · ')}>
-                        {[r.team_pr_note, r.item_note_pr].filter(Boolean).join(' · ') || '—'}
+                      <td className={`${td} max-w-[260px] truncate text-slate-500`} title={note}>
+                        {note || '—'}
                       </td>
                     </tr>
                   );
                 })}
-                {list.length === 0 && <tr><td colSpan={12} className="px-3 py-6 text-center text-slate-400">Không có dòng phù hợp.</td></tr>}
+                {list.length === 0 && <tr><td colSpan={13} className="px-3 py-6 text-center text-slate-400">Không có dòng phù hợp.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -1503,7 +1521,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
     // Ưu tiên xử lý: trễ hẹn giao → chưa mua → đang mua chưa tới hẹn → chưa tìm thấy VT → kho báo về
     // → đã về đủ → hạng mục đã nhập kho đủ (không còn ảnh hưởng, luôn xếp cuối)
     // Chưa triển khai (P001) xếp sau 'đã về đủ' — chưa lên PR là bình thường
-    const PRIORITY: BomState[] = ['late', 'notOrdered', 'onTrack', 'noneBeforeSx', 'arrived', 'ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
+    const PRIORITY: BomState[] = ['late', 'notOrdered', 'onTrack', 'deferred', 'noneBeforeSx', 'arrived', 'ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
     const rank = (i: HexInfo) => PRIORITY.indexOf(bom.byHex[i.hex]?.state ?? 'noneBeforeSx');
     const pendingFirst = (i: HexInfo) => (rank(i) <= 2 ? 0 : rank(i) >= 5 ? 2 : 1);
     const need = (i: HexInfo) => bom.byHex[i.hex]?.needDate?.getTime() ?? Infinity;
@@ -1659,6 +1677,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
             <th className={`${th} text-right`} title="Số dòng PR (vật tư) đã nối được với hạng mục qua mã nhà máy / Item note PR — gồm mọi trạng thái còn hiệu lực: chưa mua, đang mua, đã nhận, CCLD, đã đóng (không tính dòng đã hủy)">Số dòng PR</th>
             <th className={`${th} text-right`} title="Dòng 1.CHƯA MUA">Chưa mua</th>
             <th className={`${th} text-right`} title="Đang mua, quá ngày dự kiến giao">Trễ hẹn</th>
+            <th className={`${th} text-right`} title="Đang mua, quá ngày dự kiến giao nhưng ghi chú về theo nhu cầu SX / dùng tồn kho trước">Theo nhu cầu SX</th>
             <th className={`${th} text-right`} title="Đang mua, chưa tới ngày dự kiến giao">Chưa tới hẹn</th>
             <th className={`${th} text-left`} title="Ngày PR sớm nhất">Ngày PR</th>
             <th className={`${th} text-left`} title="Ngày cần vật tư sớm nhất của các dòng còn chờ">Ngày cần VT</th>
@@ -1675,7 +1694,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
               return <td className={`${td} text-right tabular-nums ${v ? cls : 'text-slate-300'}`}>{v || '—'}</td>;
             };
             const meta = BOM_META[b?.state ?? 'noneBeforeSx'];
-            const pending = !!b && (b.state === 'notOrdered' || b.state === 'late' || b.state === 'onTrack');
+            const pending = !!b && (b.state === 'notOrdered' || b.state === 'late' || b.state === 'deferred' || b.state === 'onTrack');
             const needLate = !!b && b.afterNeed > 0;
             const dueLate = pending && !!b?.dueDate && b.dueDate.getTime() < today;
             return (
@@ -1683,6 +1702,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
                 <td className={`${td} text-right tabular-nums`}>{b?.lines || '—'}</td>
                 {n('notOrdered', 'font-semibold text-rose-600')}
                 {n('late', 'font-semibold text-orange-600')}
+                {n('deferred', 'text-yellow-700')}
                 {n('onTrack', 'text-amber-700')}
                 {dateCell(b?.prDate ?? null)}
                 <td

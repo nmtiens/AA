@@ -7,6 +7,12 @@
 /** Số nguyên có dấu phân cách nghìn: 12,751 */
 export const fmtInt = (n: number): string => (Number.isFinite(n) ? Math.round(n) : 0).toLocaleString('en-US');
 
+/** Số lượng (tối đa 3 số lẻ, bỏ sai số dấu phẩy động 12.799999… -> 12.8): 17,400 / 12.8; không phải số -> "—" */
+export const fmtQty = (v: unknown): string => {
+  const n = Number(v);
+  return v === null || v === undefined || v === '' || !Number.isFinite(n) ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: 3 });
+};
+
 /** dd/mm/yyyy; null -> "—" */
 export const fmtDate = (d: Date | null | undefined): string =>
   d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';

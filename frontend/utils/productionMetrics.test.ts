@@ -109,15 +109,24 @@ describe('trạng thái dòng vật tư (PR)', () => {
   const today = new Date(2026, 9, 9).getTime(); // 09/10/2026
   const line = (over: Record<string, unknown>) => ({ so_luong_con_lai: 5, so_luong_yeu_cau: 5, trang_thai: '2.ĐANG MUA', ...over });
 
-  it('hủy > đã nhận đủ > PR đóng chưa nhận đủ > CCLD > chưa mua > kho báo về > trễ hẹn / chưa tới hẹn', () => {
+  it('hủy > đã nhận đủ > PR đóng chưa nhận đủ > chưa mua > CCLD > kho báo về > trễ hẹn / chưa tới hẹn', () => {
     expect(materialLineState(line({ trang_thai: '4.HỦY' }), today)).toBe('cancelled');
     expect(materialLineState(line({ so_luong_con_lai: 0 }), today)).toBe('done');
     expect(materialLineState(line({ trang_thai: '3.ĐÃ NHẬP KHO' }), today)).toBe('closedShort');
     expect(materialLineState(line({ trang_thai_sap: 'ĐÓNG', team_pr_note: 'CCLD' }), today)).toBe('closedShort'); // đóng xét trước CCLD
     expect(materialLineState(line({ team_pr_note: 'hàng CCLD' }), today)).toBe('ccld');
     expect(materialLineState(line({ trang_thai: '1.CHƯA MUA' }), today)).toBe('notOrdered');
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'CCLD' }), today)).toBe('notOrdered'); // nhãn chưa mua xét trước CCLD
     expect(materialLineState(line({ sl_hang_ve_thuc_te: 5 }), today)).toBe('arrived');
+    // kho ghi khác đơn vị (gỗ M3: PR 15 mà kho ghi 7249) => không tính là đã báo về
+    expect(materialLineState(line({ so_luong_yeu_cau: 15, sl_hang_ve_thuc_te: '7249.0', ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01' }), today)).toBe('late');
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01' }), today)).toBe('late');
+    // quá hẹn nhưng ghi chú về theo nhu cầu SX / dùng tồn kho trước => nhóm riêng, vẫn còn chờ
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: 'VỀ THEO NHU CẦU SX' }), today)).toBe('deferred');
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: 'DÙNG TRƯỚC TỒN KHO' }), today)).toBe('deferred');
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', ghi_chu_tinh_trang_po: 'ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT' }), today)).toBe('deferred');
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-12-01', team_pr_note: 'VỀ THEO NHU CẦU SX' }), today)).toBe('onTrack');
+    expect(isMaterialPending('deferred')).toBe(true);
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-20' }), today)).toBe('onTrack');
     expect(materialLineState(line({}), today)).toBe('onTrack'); // không có ngày dự kiến -> chưa tới hẹn
   });
