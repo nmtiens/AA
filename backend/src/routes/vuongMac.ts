@@ -9,9 +9,9 @@ import {
 import { authenticateJWT } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
 import { expandWorkshops, workshopGroupOf } from '../server/workshopGroups.js';
-import { canonicalProjectName } from '../server/projectAlias.js';
+import { canonicalProjectName, ensureProjectAliases, expandProjectNames, normNameSql } from '../server/projectAlias.js';
 import { app } from '../server/app.js';
-import { userHasPermission } from '../server/permissions.js';
+import { userHasPermission, loadUserAccess } from '../server/permissions.js';
 
 // ============================================================================
 // VƯỚNG MẮC SẢN XUẤT (5M) — QUY TRÌNH XỬ LÝ
@@ -161,10 +161,11 @@ interface VuongMacActor {
 }
 
 const getVuongMacActor = async (req: Request): Promise<VuongMacActor> => {
-  const r = await pool.query('SELECT department, full_name, is_active FROM users WHERE id = $1', [req.user!.id]);
+  const r = await pool.query('SELECT department, full_name, is_active, role FROM users WHERE id = $1', [req.user!.id]);
   return {
     username: req.user!.username,
-    role: req.user!.role,
+    // Role theo DB (token có thể còn role cũ tới 8 giờ sau khi bị hạ quyền)
+    role: String(r.rows[0]?.role ?? ''),
     department: r.rows[0]?.department ?? null,
     fullName: r.rows[0]?.full_name ?? null,
     active: r.rows[0]?.is_active === true,
@@ -217,12 +218,51 @@ const dueState = (bot: string | null, now = Date.now()): DueState => {
 };
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Hạn nhập kho của hạng mục: KH tuần → KH tháng (quy tắc chung, utils/productionMetrics.deadlineOf)
-const planDate = (tuan: unknown, thang: unknown): string | null => {
-  const t = String(tuan ?? '').match(/^\d{4}-\d{2}-\d{2}/);
+// Hạn nhập kho của hạng mục: KH tuần → KH tháng (quy tắc chung, utils/productionMetrics.deadlineOf).
+// KH kỳ đã ĐẠT (đã nhập đủ SL trong kỳ) thì bỏ qua, chuyển sang nguồn tiếp theo.
+interface PlanMet { tuan: boolean; thang: boolean }
+const planDate = (tuan: unknown, thang: unknown, met?: PlanMet): string | null => {
+  const t = met?.tuan ? null : String(tuan ?? '').match(/^\d{4}-\d{2}-\d{2}/);
   if (t) return t[0];
-  const m = String(thang ?? '').match(/^\d{4}-\d{2}-\d{2}/);
+  const m = met?.thang ? null : String(thang ?? '').match(/^\d{4}-\d{2}-\d{2}/);
   return m ? m[0] : null;
+};
+// KH kỳ đã đạt của các HEX — cùng công thức /api/production/plan-met (routes/data.ts) nhưng chỉ tính cho
+// HEX đang trả về (≤ 1 trang). Lỗi => coi như chưa đạt (giữ hạn như trước), không làm hỏng danh sách.
+const planMetOf = async (hexes: string[]): Promise<Map<string, PlanMet>> => {
+  const out = new Map<string, PlanMet>();
+  const list = [...new Set(hexes.filter(Boolean))];
+  if (list.length === 0) return out;
+  try {
+    const r = await timedQuery(
+      `WITH p AS (
+         SELECT DISTINCT ON (hex::text) hex::text AS hex,
+           CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
+           sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[]) AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
+       ), n AS (
+         SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
+         FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
+       )
+       SELECT p.hex,
+         -- Tuần ISO cắt trong năm dương lịch của ngày KH — cùng cách với /api/production/plan-met
+         (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
+            AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
+         (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+       FROM p LEFT JOIN n ON n.hex = p.hex
+       GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
+      [list],
+      { timeoutMs: 15000 }
+    );
+    for (const row of r.rows) out.set(row.hex, { tuan: row.tuan_met === true, thang: row.thang_met === true });
+  } catch (error) {
+    console.error('Lỗi tính KH kỳ đã đạt (vướng mắc):', error);
+  }
+  return out;
 };
 const stageOf = (bop: unknown): string | null => String(bop ?? '').trim().toUpperCase().match(/^(P\d{3}|GCVT)/)?.[1] ?? null;
 const statusOf = (row: any): VmStatus =>
@@ -232,7 +272,8 @@ const statusOf = (row: any): VmStatus =>
 const mapVuongMacRow = (
   row: any,
   actor: VuongMacActor,
-  createdDepartment: string | null = row.created_department ?? null
+  createdDepartment: string | null = row.created_department ?? null,
+  planMet?: PlanMet
 ) => {
   const perms = permsOf(actor, row.created_by, createdDepartment, row.handler);
   const hasProd = 'p_ten_cong_trinh' in row;
@@ -276,7 +317,7 @@ const mapVuongMacRow = (
     tinhTrangIpo: hasProd ? (row.p_tinh_trang_ipo ?? null) : undefined,
     pc: hasProd ? (row.p_ten_pc ?? null) : undefined,
     pm: hasProd ? (row.p_ten_pm ?? null) : undefined,
-    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang) : undefined,
+    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang, planMet) : undefined,
     ngayCanGiao: hasProd ? (row.p_ngay_can_giao ?? null) : undefined,
     perms,
     canModify: perms.edit,
@@ -287,7 +328,9 @@ type VmRow = ReturnType<typeof mapVuongMacRow>;
 const fetchOne = async (id: number | string, me: VuongMacActor) => {
   const ready = await hasWorkflowSchema();
   const r = await pool.query(`${selectVm(ready, true)} WHERE vm.id = $1`, [id]);
-  return r.rows[0] ? mapVuongMacRow(r.rows[0], me) : null;
+  if (!r.rows[0]) return null;
+  const met = await planMetOf([r.rows[0].hex]);
+  return mapVuongMacRow(r.rows[0], me, undefined, met.get(r.rows[0].hex));
 };
 
 // Dòng sản xuất hiện tại của 1 HEX (để lưu snapshot công đoạn / xưởng / công trình lúc báo)
@@ -375,6 +418,21 @@ app.post(
     }
   }
 );
+
+// GET đọc dữ liệu (/all, /stats, /item, /log): tài khoản đã khoá / không còn => 403 như /photo.
+// Dùng cache quyền 60 giây (permissions.loadUserAccess) — admin khoá tài khoản thì cache được xoá ngay.
+const requireActiveUser = async (req: Request, res: Response, next: () => void) => {
+  try {
+    if (!(await loadUserAccess(req.user!.id)).active) {
+      res.status(403).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
+      return;
+    }
+    next();
+  } catch (error) {
+    console.error('Lỗi kiểm tra tài khoản vướng mắc:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+};
 
 // Lấy 1 ảnh (cần token nên client fetch -> blob -> objectURL).
 // Quyền xem ảnh = quyền xem vướng mắc: mọi tài khoản ĐANG HOẠT ĐỘNG (danh sách vướng mắc
@@ -465,7 +523,7 @@ app.post('/api/vuong-mac/list', authenticateJWT, async (req: Request, res: Respo
 });
 
 // 1 vướng mắc (mở từ thông báo / đường dẫn chia sẻ)
-app.get('/api/vuong-mac/item/:id', authenticateJWT, async (req: Request, res: Response) => {
+app.get('/api/vuong-mac/item/:id', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
@@ -483,12 +541,16 @@ app.get('/api/vuong-mac/item/:id', authenticateJWT, async (req: Request, res: Re
 // DANH SÁCH (app điện thoại + màn quản lý)
 //   status : open (chưa xong: open+doing) | resolved (done+closed) | all      — tương thích cũ
 //   st     : danh sách trạng thái cụ thể, ngăn bằng dấu phẩy (open,doing,done,closed) — ưu tiên hơn status
-//   mine   : 1 (tôi tạo hoặc tôi xử lý) | assignee (tôi xử lý) | reporter (tôi tạo) | confirm (tôi tạo, chờ tôi xác nhận)
+//   status : ... | notclosed (chưa đóng: open+doing+done — khớp "Việc tôi đã báo" khi đi cùng mine=reporter, không gửi st)
+//   mine   : 1 (tôi tạo hoặc tôi xử lý) | assignee (tôi xử lý, hoặc tôi tạo mà chưa giao ai) | reporter (tôi tạo) | confirm (tôi tạo, chờ tôi xác nhận)
+//   handler: tên người xử lý | __none__ (chưa giao);  stage: P001… | GCVT | "Chưa rõ" (theo cột lưu, không có thì theo bop)
 //   due    : overdue | soon (theo hạn BOT, chỉ dòng chưa xong)
 //   sort   : bot (hạn BOT gần nhất) | oldest | priority | (mặc định: mới tạo trước)
 //   xuong, congTrinh, handler, stage, priority, category, q, from, to, page, pageSize
 // ============================================================================
-app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Response) => {
+const HANDLER_NONE = '__none__';
+const STAGE_UNKNOWN = 'CHƯA RÕ';
+app.get('/api/vuong-mac/all', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
   try {
     const status = String(req.query.status || 'open');
     const stList = String(req.query.st || '').split(',').map(s => s.trim()).filter(s => (VM_STATUSES as readonly string[]).includes(s)) as VmStatus[];
@@ -525,6 +587,8 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
       conds.push(`${statusExpr} = ANY($${params.length}::text[])`);
     } else if (status === 'open') conds.push('b.is_resolved = FALSE');
     else if (status === 'resolved') conds.push('b.is_resolved = TRUE');
+    // Chưa đóng (open+doing+done) — khớp phép đếm "Việc tôi đã báo" (stats mine.reported)
+    else if (status === 'notclosed') conds.push(ready ? `b.status <> 'closed'` : 'b.is_resolved = FALSE');
 
     if ((FIVE_M_CATEGORIES as readonly string[]).includes(category)) {
       params.push(category);
@@ -550,12 +614,15 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
     // Chỉ đẩy tham số thực sự dùng: tham số khai báo mà câu lệnh không tham chiếu => Postgres báo
     // "could not determine data type of parameter" (lỗi 500 khi lọc "Tôi báo" / "Tôi xử lý")
     const creatorCond = () => { params.push(me.username); return `b.created_by = $${params.length}`; };
+    // Người xử lý = họ tên HOẶC tên đăng nhập của tôi (như isHandler)
     const handlerCond = () => {
-      params.push(me.fullName ?? '');
-      const n = params.length;
-      return `($${n}::text <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}::text)))`;
+      params.push(me.fullName ?? '', me.username);
+      const n = params.length - 1;
+      return `(($${n}::text <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}::text)))
+               OR LOWER(TRIM(b.handler)) = LOWER(TRIM($${n + 1}::text)))`;
     };
-    if (mine === 'assignee') conds.push(handlerCond());
+    // "Tôi phải xử lý" = tôi là người xử lý, hoặc tôi báo mà chưa giao ai (như stats mine.open)
+    if (mine === 'assignee') conds.push(`(${handlerCond()} OR (${creatorCond()} AND COALESCE(TRIM(b.handler), '') = ''))`);
     else if (mine === 'reporter') conds.push(creatorCond());
     else if (mine === 'confirm') conds.push(`${creatorCond()} AND ${statusExpr} = 'done'`);
     else if (mine) conds.push(`(${creatorCond()} OR ${handlerCond()})`);
@@ -564,14 +631,34 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
       conds.push(`UPPER(TRIM(COALESCE(${ready ? 'b.xuong, ' : ''}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
     }
     if (congTrinh) {
-      params.push(`%${likeEsc(congTrinh)}%`);
-      conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+      // Client gửi tên chuẩn (canonicalProjectName) => mở rộng ra mọi cách viết của cùng công trình, so khớp
+      // chính xác (đã chuẩn hoá). Không mở rộng được (tên lạ / bảng tên lỗi) => giữ ILIKE '%tên%' như cũ.
+      let names: string[] = [];
+      try {
+        await ensureProjectAliases();
+        names = expandProjectNames([congTrinh]);
+      } catch (error) {
+        console.error('Lỗi mở rộng tên công trình (vướng mắc):', error);
+      }
+      if (names.length > 1) {
+        params.push(names);
+        conds.push(`${normNameSql('COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh)')} = ANY($${params.length}::text[])`);
+      } else {
+        params.push(`%${likeEsc(congTrinh)}%`);
+        conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+      }
     }
-    if (handler) {
+    // handler=__none__ : "Chưa giao" (chưa có người xử lý)
+    if (handler === HANDLER_NONE) conds.push(`COALESCE(TRIM(b.handler), '') = ''`);
+    else if (handler) {
       params.push(handler);
       conds.push(`LOWER(TRIM(b.handler)) = LOWER(TRIM($${params.length}))`);
     }
-    if (stage && ready) { params.push(stage); conds.push(`b.stage = $${params.length}`); }
+    // Công đoạn như byStage của dashboard: cột lưu lúc báo, không có thì suy từ bop dòng sản xuất (stageOf);
+    // "Chưa rõ" = không xác định được
+    const stageExpr = `COALESCE(b.stage, substring(UPPER(TRIM(b.p_bop)) from '^(P[0-9]{3}|GCVT)'))`;
+    if (stage === STAGE_UNKNOWN) conds.push(`${stageExpr} IS NULL`);
+    else if (stage) { params.push(stage); conds.push(`${stageExpr} = $${params.length}`); }
     if (priority && ready && (PRIORITIES as readonly string[]).includes(priority)) { params.push(priority); conds.push(`b.priority = $${params.length}`); }
 
     // Lọc / sắp theo hạn BOT phải đọc BOT (dạng chữ) nên làm ở Node: lấy hết dòng khớp rồi tự phân trang.
@@ -618,7 +705,10 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
       page,
       pageSize,
       workflow: ready,
-      data: rows.map(row => mapVuongMacRow(row, me)),
+      data: await (async () => {
+        const met = await planMetOf(rows.map(row => row.hex));
+        return rows.map(row => mapVuongMacRow(row, me, undefined, met.get(row.hex)));
+      })(),
     });
   } catch (e) {
     console.error('Lỗi /api/vuong-mac/all:', e);
@@ -629,7 +719,7 @@ app.get('/api/vuong-mac/all', authenticateJWT, async (req: Request, res: Respons
 // ============================================================================
 // SỐ LIỆU MÀN "TỔNG QUAN" (app điện thoại): việc của tôi, theo trạng thái / hạn / loại / xưởng / công trình
 // ============================================================================
-app.get('/api/vuong-mac/stats', authenticateJWT, async (req: Request, res: Response) => {
+app.get('/api/vuong-mac/stats', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
   try {
     const me = await getVuongMacActor(req);
     const ready = await hasWorkflowSchema();
@@ -1308,7 +1398,7 @@ app.delete('/api/vuong-mac/:id', authenticateJWT, async (req: Request, res: Resp
 });
 
 // Nhật ký theo hex (?id= : chỉ 1 vướng mắc)
-app.get('/api/vuong-mac/log/:hex', authenticateJWT, async (req: Request, res: Response) => {
+app.get('/api/vuong-mac/log/:hex', authenticateJWT, requireActiveUser, async (req: Request, res: Response) => {
   try {
     const { hex } = req.params;
     const id = Number(req.query.id) || null;

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { JWT_SECRET_SAFE } from './config.js';
+import { loadUserAccess } from './permissions.js';
 
 // ============================================================================
 // AUTH MIDDLEWARE: JWT + phân quyền role
@@ -35,19 +36,31 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
   }
 };
 
-export const requireRole = (...allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) => {
+// Role / trạng thái lấy theo DB (cache 60 giây, xem permissions.loadUserAccess) — token còn hạn tới 8 giờ
+// sau khi tài khoản bị khoá / hạ quyền. Cập nhật req.user.role theo DB cho các bước sau.
+const withCurrentAccess = (
+  req: Request, res: Response,
+  allowed: (req: Request) => boolean,
+  next: NextFunction
+) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Chưa xác thực' });
-  if (!allowedRoles.includes(req.user.role)) return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
-  next();
+  loadUserAccess(req.user.id).then(access => {
+    if (!access.active) return res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
+    req.user!.role = access.role;
+    if (!allowed(req)) return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
+    next();
+  }).catch(error => {
+    console.error('Lỗi kiểm tra tài khoản:', error);
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  });
 };
 
+export const requireRole = (...allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) =>
+  withCurrentAccess(req, res, r => allowedRoles.includes(r.user!.role), next);
+
 export const requireSelfOrRole = (usernameParam: (req: Request) => string, ...allowedRoles: string[]) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) return res.status(401).json({ success: false, message: 'Chưa xác thực' });
-    const target = usernameParam(req);
-    if (req.user.username === target || allowedRoles.includes(req.user.role)) return next();
-    return res.status(403).json({ success: false, message: 'Không có quyền truy cập' });
-  };
+  (req: Request, res: Response, next: NextFunction) =>
+    withCurrentAccess(req, res, r => r.user!.username === usernameParam(r) || allowedRoles.includes(r.user!.role), next);
 
 export const requireWarmupSecret = (req: Request, res: Response, next: NextFunction) => {
   const expected = process.env.WARMUP_SECRET;

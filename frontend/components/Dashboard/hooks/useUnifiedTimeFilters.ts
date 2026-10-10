@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toFilterSet, matchesFilter, toProjectSet, matchesProject } from '../utils/filterMatch';
 import { DataRow } from '../../../types';
-import { getWeekNumber } from '../utils/dateHelpers';
 import { DashboardFiltersState } from './useDashboardFilters';
 import { ColumnDefinition } from '../../../types';
 import { findColumnKey } from '../utils/columnKeyResolver';
@@ -21,6 +20,15 @@ export const inPlanWeek = (d: Date, year: number, week: number): boolean => {
   const lo = mon < new Date(year, 0, 1) ? new Date(year, 0, 1) : mon;
   const hi = sun > new Date(year, 11, 31) ? new Date(year, 11, 31) : sun;
   return d >= lo && d <= hi;
+};
+// Số tuần của ngày d trong năm dương lịch của nó, cùng cách đánh số với inPlanWeek (tuần mặc định của bộ lọc).
+// Khác getWeekNumber (ISO thuần): 29–31/12/2025 là tuần 53 của 2025 (ISO ra tuần 1); 01–03/01/2027 (trước thứ Hai
+// tuần ISO 1) ISO ra tuần 53 — ở đây chặn về tuần 1 của 2027 vì năm lọc mặc định là năm hiện tại.
+export const planWeekOf = (d: Date): number => {
+  const year = d.getFullYear();
+  const day = new Date(year, d.getMonth(), d.getDate());
+  const days = Math.round((day.getTime() - isoWeekMonday(year, 1).getTime()) / 86_400_000);
+  return Math.max(1, Math.floor(days / 7) + 1);
 };
 
 export interface UnifiedTimeFiltersState {
@@ -97,7 +105,7 @@ export function useUnifiedTimeFilters({
 
   // Mặc định lọc theo tuần hiện tại khi component mount
   useEffect(() => {
-    const currentWeek = getWeekNumber();
+    const currentWeek = planWeekOf(new Date());
     setUnifiedTimeFilters(prev => ({ ...prev, tuan: [String(currentWeek)] }));
   }, []);
 

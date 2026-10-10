@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import type { Request, Response } from 'express';
 import { pool } from '../db.js';
 import { authenticateJWT, requireRole } from '../server/auth.js';
+import { invalidateUserAccess } from '../server/permissions.js';
 import { validateBody, createUserSchema, updateUserSchema } from '../server/validation.js';
 import { app } from '../server/app.js';
 
@@ -103,6 +104,15 @@ usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
     }
+    // Không cho admin tự khoá / tự hạ quyền chính mình (tránh mất quyền quản trị)
+    if (String(existing.rows[0].id) === String(req.user!.id)) {
+      if (status !== undefined && status !== 'ACTIVE') {
+        return res.status(400).json({ success: false, message: 'Không thể tự khoá tài khoản của chính mình' });
+      }
+      if (role !== undefined && role !== 'ADMIN') {
+        return res.status(400).json({ success: false, message: 'Không thể tự hạ quyền ADMIN của chính mình' });
+      }
+    }
 
     const fields: string[] = [];
     const values: any[] = [];
@@ -135,6 +145,8 @@ usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
       values
     );
+    // Role / quyền / trạng thái có hiệu lực ngay (không chờ cache 60 giây)
+    invalidateUserAccess(String(id));
 
     const u = result.rows[0];
     res.json({
@@ -157,6 +169,9 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    if (String(id) === String(req.user!.id)) {
+      return res.status(400).json({ success: false, message: 'Không thể tự xoá tài khoản của chính mình' });
+    }
     const target = await pool.query('SELECT username FROM users WHERE id = $1', [id]);
     if (target.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy user' });
@@ -166,6 +181,7 @@ usersRouter.delete('/:id', async (req: Request, res: Response) => {
     }
 
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    invalidateUserAccess(String(id));
     res.json({ success: true, message: 'Xóa user thành công' });
   } catch (error) {
     console.error('Lỗi xóa user:', error);

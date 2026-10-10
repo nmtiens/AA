@@ -11,13 +11,14 @@ export const DATE_LABELS: Record<DateMode, string> = {
   today: 'Hôm nay', yesterday: 'Hôm qua', '7d': '7 ngày', '30d': '30 ngày', all: 'Mọi ngày', custom: 'Chọn ngày',
 };
 
-/** Nhóm trạng thái ở thanh chọn nhanh */
-export type StatusTab = 'active' | 'waiting' | 'closed' | 'all';
+/** Nhóm trạng thái ở thanh chọn nhanh; notClosed (chưa đóng = chưa xong + chờ xác nhận) không có nút riêng —
+ *  chỉ mở từ ô "Việc tôi đã báo" (khớp phép đếm reported), hiện thành chip bỏ được */
+export type StatusTab = 'active' | 'waiting' | 'closed' | 'all' | 'notClosed';
 export const STATUS_TAB_LABELS: Record<StatusTab, string> = {
-  active: 'Chưa xong', waiting: 'Chờ xác nhận', closed: 'Đã đóng', all: 'Tất cả',
+  active: 'Chưa xong', waiting: 'Chờ xác nhận', closed: 'Đã đóng', all: 'Tất cả', notClosed: 'Chưa đóng',
 };
-const STATUS_TAB_ST: Record<StatusTab, VmStatus[]> = {
-  active: ['open', 'doing'], waiting: ['done'], closed: ['closed'], all: [],
+export const STATUS_TAB_ST: Record<StatusTab, VmStatus[]> = {
+  active: ['open', 'doing'], waiting: ['done'], closed: ['closed'], all: [], notClosed: ['open', 'doing', 'done'],
 };
 
 export type MineMode = '' | '1' | 'assignee' | 'reporter' | 'confirm';
@@ -36,13 +37,15 @@ export interface ListFilters {
   sort: '' | 'bot' | 'oldest' | 'priority';
   priority: VmPriority | '';
   xuong: string;
+  /** Lọc theo tên công trình (tham số congTrinh của API, chỉ so tên công trình — không lẫn nội dung) */
+  congTrinh: string;
   dateMode: DateMode;
   dateFrom: string;
   dateTo: string;
 }
 
 export const DEFAULT_FILTERS: ListFilters = {
-  tab: 'active', st: '', cat: '', q: '', mine: '', due: '', sort: '', priority: '', xuong: '',
+  tab: 'active', st: '', cat: '', q: '', mine: '', due: '', sort: '', priority: '', xuong: '', congTrinh: '',
   // Mặc định: mọi vướng mắc chưa xong (mọi ngày) — trước chỉ hiện mục tạo trong ngày nên dễ "mất" việc cũ
   dateMode: 'all', dateFrom: '', dateTo: '',
 };
@@ -69,19 +72,21 @@ export const toQuery = (f: ListFilters, page: number, pageSize = 30): VuongMacQu
     status: f.tab === 'all' ? 'all' : undefined,
     st: st.length ? st : '',
     category: f.cat, q: f.q.trim(), page, pageSize,
-    mine: f.mine, due: f.due, sort: f.sort, priority: f.priority, xuong: f.xuong, from, to,
+    mine: f.mine, due: f.due, sort: f.sort, priority: f.priority, xuong: f.xuong, congTrinh: f.congTrinh.trim(), from, to,
   };
 };
 
 /** Các bộ lọc "phụ" đang bật (hiện thành chip có thể bỏ) */
 export const activeChips = (f: ListFilters): { key: string; label: string; clear: Partial<ListFilters> }[] => {
   const out: { key: string; label: string; clear: Partial<ListFilters> }[] = [];
+  if (f.tab === 'notClosed') out.push({ key: 'tab', label: `📂 ${STATUS_TAB_LABELS.notClosed}`, clear: { tab: 'all', st: '' } });
   if (f.mine) out.push({ key: 'mine', label: `👤 ${MINE_LABELS[f.mine]}`, clear: { mine: '' } });
   if (f.st) out.push({ key: 'st', label: `${STATUS_META[f.st].icon} ${STATUS_META[f.st].label}`, clear: { st: '' } });
   if (f.due) out.push({ key: 'due', label: f.due === 'overdue' ? '⏰ Quá hạn BOT' : '⌛ Sắp đến hạn', clear: { due: '' } });
   if (f.cat) out.push({ key: 'cat', label: `🏷️ ${CAT_CODE[f.cat] ?? f.cat}`, clear: { cat: '' } });
   if (f.priority) out.push({ key: 'priority', label: f.priority === 'urgent' ? '🔥 Khẩn' : '🔺 Ưu tiên cao', clear: { priority: '' } });
   if (f.xuong) out.push({ key: 'xuong', label: `🏭 ${f.xuong}`, clear: { xuong: '' } });
+  if (f.congTrinh) out.push({ key: 'congTrinh', label: `🏗️ ${f.congTrinh}`, clear: { congTrinh: '' } });
   if (f.dateMode !== 'all') {
     const label = f.dateMode === 'custom'
       ? `📅 ${f.dateFrom || '…'} → ${f.dateTo || '…'}`

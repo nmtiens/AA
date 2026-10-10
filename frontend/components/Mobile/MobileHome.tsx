@@ -102,7 +102,7 @@ export default function MobileHome({ active, onOpenList, onCreate, onUnauthorize
             <p className="flex items-center gap-1.5 text-sm text-slate-500"><ClipboardCheck size="1em" /> Chờ tôi xác nhận</p>
             <p className={`mt-1 text-4xl font-semibold tabular-nums ${stats?.mine.waiting ? 'text-teal-700' : 'text-slate-900'}`}>{n(stats?.mine.waiting)}</p>
           </button>
-          <button onClick={() => onOpenList({ tab: 'all', mine: 'reporter' })} className="mt-2 text-left text-sm text-slate-500 active:opacity-70">
+          <button onClick={() => onOpenList({ tab: 'notClosed', mine: 'reporter' })} className="mt-2 text-left text-sm text-slate-500 active:opacity-70">
             Việc tôi đã báo: <b className="text-slate-800">{n(stats?.mine.reported)}</b> <span className="underline">xem</span>
           </button>
         </div>
@@ -177,7 +177,7 @@ export default function MobileHome({ active, onOpenList, onCreate, onUnauthorize
         <ul className="divide-y divide-slate-100">
           {stats?.topProjects.map(p => (
             <li key={p.name}>
-              <button onClick={() => openActive({ q: p.name })} className="flex w-full items-center gap-3 py-2.5 text-left active:bg-slate-50">
+              <button onClick={() => openActive({ congTrinh: p.name })} className="flex w-full items-center gap-3 py-2.5 text-left active:bg-slate-50">
                 <span className="min-w-0 flex-1"><span className="line-clamp-2 text-base text-slate-800">{p.name}</span></span>
                 <span className="shrink-0 text-right text-sm">
                   <span className="block font-semibold text-slate-900">{p.open} mở</span>

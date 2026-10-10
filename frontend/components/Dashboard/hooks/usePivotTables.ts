@@ -175,6 +175,15 @@ export function remainBucketOf(statusUpper: string, stage: string | null): Remai
   return 'shortfall';
 }
 
+// Hạng mục không có tên công trình: gom vào 1 dòng 'Chưa xác định' (giống phễu) để bảng / danh sách HEX
+// khớp tổng phễu thay vì bỏ mất các dòng này; dòng này luôn xếp cuối bảng.
+export const UNKNOWN_PROJECT = 'Chưa xác định';
+export function projectNameOf(value: unknown): string {
+  return String(value ?? '').trim() || UNKNOWN_PROJECT;
+}
+const unknownProjectLast = (a: { name: string }, b: { name: string }) =>
+  Number(a.name === UNKNOWN_PROJECT) - Number(b.name === UNKNOWN_PROJECT);
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -224,14 +233,18 @@ export function usePivotTables({
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
-  // Giá trị còn lại = gia_tri_don_hang_con_lai (đã = trị giá − đã nhập kho theo từng hạng mục),
+  // Giá trị còn lại = remainValue(trị giá, đã nhập kho) theo từng hạng mục,
   // riêng đơn HỦY tính 0 — cùng quy tắc với utils/productionMetrics.
   const isCancelledRow = (row: DataRow) => !!tinhTrangIpoKey && isCancelledIpo(row[tinhTrangIpoKey]);
   const calculateMetricValue = (row: DataRow, metric: MetricType): number => {
     // Đơn HỦY không tính cả khi ĐẾM (trước COUNT_HEX trả 1 trước khi xét HỦY => bỏ lọc IPO thì đếm cả HỦY)
     if (isCancelledRow(row)) return 0;
     if (metric === 'COUNT_HEX') return 1;
-    if (metric === 'SUM_GT_CON_LAI') return parseNumber(row[realValueKey]);
+    // Còn lại theo quy tắc chung (trị giá − đã nhập, chặn [0, trị giá]) như phễu — không đọc thẳng cột
+    // gia_tri_don_hang_con_lai (sai khi nhập kho âm)
+    if (metric === 'SUM_GT_CON_LAI') {
+      return remainValue(parseNumber(row[triGiaDonHangTongKey]), thanhTienNhapKhoKey ? parseNumber(row[thanhTienNhapKhoKey]) : 0);
+    }
     if (metric === 'SUM_GT_DON_HANG') return parseNumber(row[valueKey]);
     return 0;
   };
@@ -320,8 +333,7 @@ export function usePivotTables({
     const isCount = projectSummaryMetric === 'COUNT';
 
     filteredProductionData.forEach(row => {
-      const ctName = String(row[congTrinhKey] || '').trim();
-      if (!ctName) return;
+      const ctName = projectNameOf(row[congTrinhKey]);
       // Bỏ HỦY TRƯỚC khi tạo dòng (trước công trình chỉ toàn đơn HỦY vẫn hiện thành dòng 0)
       if (isCancelledRow(row)) return;
       if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0, notDeployedRaw: 0 };
@@ -378,7 +390,7 @@ export function usePivotTables({
       remaining: data.remainingRaw,
       notDeployed: data.notDeployedRaw,
       percentComplete: data.totalOrder > 0 ? (data.inventory / data.totalOrder) * 100 : 0,
-    })).sort((a, b) => b.totalOrder - a.totalOrder);
+    })).sort((a, b) => unknownProjectLast(a, b) || b.totalOrder - a.totalOrder);
   }, [filteredProductionData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, projectSummaryMetric]);
 
   // -------------------------------------------------------------------------
@@ -399,8 +411,7 @@ export function usePivotTables({
     const isCount = projectSummaryMetric === 'COUNT';
 
     projectSummaryData.forEach(row => {
-      const ctName = String(row[congTrinhKey] || '').trim();
-      if (!ctName) return;
+      const ctName = projectNameOf(row[congTrinhKey]);
       if (!agg[ctName]) {
         agg[ctName] = {
           totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0,
@@ -441,7 +452,7 @@ export function usePivotTables({
       name, ...data,
       remaining: data.notDeployed + data.p002 + data.onLine + data.shortfall,
       percentComplete: data.totalOrder > 0 ? (data.inventory / data.totalOrder) * 100 : 0,
-    })).sort((x, y) => y.totalOrder - x.totalOrder);
+    })).sort((x, y) => unknownProjectLast(x, y) || y.totalOrder - x.totalOrder);
   }, [projectSummaryData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienNhapKhoKey, projectSummaryMetric]);
 
   // -------------------------------------------------------------------------
@@ -455,8 +466,7 @@ export function usePivotTables({
     const isCount = projectSummaryMetric === 'COUNT';
 
     filteredProductionData.forEach(row => {
-      const ctName = String(row[congTrinhKey] || '').trim();
-      if (!ctName) return;
+      const ctName = projectNameOf(row[congTrinhKey]);
 
       const status = String(row[tinhTrangKey] || '').toUpperCase();
       if (!isInProductionRow(status)) return;
@@ -485,8 +495,7 @@ export function usePivotTables({
     const isCount = projectSummaryMetric === 'COUNT';
 
     projectSummaryData.forEach(row => {
-      const ctName = String(row[congTrinhKey] || '').trim();
-      if (!ctName) return;
+      const ctName = projectNameOf(row[congTrinhKey]);
 
       const status = String(row[tinhTrangKey] || '').toUpperCase();
       if (String(row[tinhTrangIpoKey] || '').toUpperCase().includes('HỦY')) return;
@@ -522,8 +531,7 @@ export function usePivotTables({
     const isCount = projectSummaryMetric === 'COUNT';
 
     projectSummaryData.forEach(row => {
-      const ctName = String(row[congTrinhKey] || '').trim();
-      if (!ctName) return;
+      const ctName = projectNameOf(row[congTrinhKey]);
 
       const status = String(row[tinhTrangKey] || '').toUpperCase();
       if (String(row[tinhTrangIpoKey] || '').toUpperCase().includes('HỦY')) return;
@@ -558,9 +566,8 @@ export function usePivotTables({
     const inventory: DataRow[] = [];
 
     if (congTrinhKey && tinhTrangKey) {
+      // Giữ cả hạng mục không có tên công trình (thuộc dòng 'Chưa xác định')
       filteredProductionData.forEach(row => {
-        const ctName = String(row[congTrinhKey] || '').trim();
-        if (!ctName) return;
         const status = String(row[tinhTrangKey] || '').toUpperCase();
 
         totalOrder.push(row);
@@ -608,9 +615,8 @@ export function usePivotTables({
     const buckets: Record<RemainBucket, DataRow[]> = { notDeployed, p002, onLine, shortfall };
 
     if (congTrinhKey && tinhTrangKey) {
+      // Giữ cả hạng mục không có tên công trình (dòng 'Chưa xác định' của phễu) — trước bỏ nên danh sách rỗng
       sourceRows.forEach(row => {
-        const ctName = String(row[congTrinhKey] || '').trim();
-        if (!ctName) return;
         if (requireStatusArea && !(String(row[tinhTrangKey] || '').trim() && xuongKey && String(row[xuongKey] || '').trim())) return;
         const status = String(row[tinhTrangKey] || '').toUpperCase();
         const statusIpo = String(row[tinhTrangIpoKey] || '').toUpperCase();
@@ -738,7 +744,7 @@ export function usePivotTables({
       }
     });
     return { uniqueWorkshops, rows, uniqueBops, bopTotals, bopRowTotals, matrix, rowTotals, colTotals, grandTotal };
-  }, [filteredProductionData, tinhTrangKey, xuongKey, bopKey, workshopMetric, valueKey, realValueKey]);
+  }, [filteredProductionData, tinhTrangKey, xuongKey, bopKey, workshopMetric, valueKey, realValueKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Pivot: Funnel (BOP) — dùng funnelProductionData (theo Tình trạng IPO của trang,
@@ -817,7 +823,7 @@ export function usePivotTables({
       const w = String(row[xuongKey] || '').trim();
       if (!s || !w) return;
 
-      const project = String(row[congTrinhKey] || 'Chưa xác định').trim();
+      const project = projectNameOf(row[congTrinhKey]);
       const val = funnelValue(row);
 
       if (!agg[bop]) agg[bop] = {};
@@ -829,7 +835,7 @@ export function usePivotTables({
       result[bop] = {
         data: Object.entries(agg[bop])
           .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value),
+          .sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
         total: totals[bop] || 0,
       };
     });
@@ -838,7 +844,7 @@ export function usePivotTables({
     ['P022', 'P025'].forEach(bop => Object.entries(agg[bop] ?? {}).forEach(([name, v]) => { short[name] = (short[name] || 0) + v; }));
     if (Object.keys(short).length) {
       result.P022_SHORT = {
-        data: Object.entries(short).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
+        data: Object.entries(short).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
         total: (totals.P022 || 0) + (totals.P025 || 0),
       };
     }
@@ -926,7 +932,7 @@ export function usePivotTables({
       }
     });
     return { uniqueProjects, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
-  }, [filteredProductionData, excludeFabrics, congTrinhKey, tinhTrangKey, hangMucKey, projectMetric, valueKey, realValueKey]);
+  }, [filteredProductionData, excludeFabrics, congTrinhKey, tinhTrangKey, hangMucKey, projectMetric, valueKey, realValueKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
   // Pivot: Material summary / status
@@ -982,7 +988,7 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
       aggregated[status] = (aggregated[status] || 0) + calculateVal;
     });
     return Object.entries(aggregated).map(([name, value]) => ({ name, value })).sort((a, b) => b.name.localeCompare(a.name));
-  }, [filteredProductionData, tinhTrangKey, chartMetric, valueKey, realValueKey, hexKey]);
+  }, [filteredProductionData, tinhTrangKey, chartMetric, valueKey, realValueKey, hexKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
    return {
     workshopMetric, setWorkshopMetric,

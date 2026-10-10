@@ -44401,38 +44401,6 @@ if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
 
 // src/server/auth.ts
 var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
-var signAuthToken = (payload) => import_jsonwebtoken.default.sign(payload, JWT_SECRET_SAFE, { expiresIn: "8h" });
-var authenticateJWT = (req, res, next) => {
-  const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ success: false, message: "Thi\u1EBFu token x\xE1c th\u1EF1c" });
-  try {
-    req.user = import_jsonwebtoken.default.verify(token, JWT_SECRET_SAFE);
-    next();
-  } catch {
-    return res.status(401).json({ success: false, message: "Token kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c \u0111\xE3 h\u1EBFt h\u1EA1n" });
-  }
-};
-var requireRole = (...allowedRoles) => (req, res, next) => {
-  if (!req.user) return res.status(401).json({ success: false, message: "Ch\u01B0a x\xE1c th\u1EF1c" });
-  if (!allowedRoles.includes(req.user.role)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n truy c\u1EADp" });
-  next();
-};
-var requireSelfOrRole = (usernameParam, ...allowedRoles) => (req, res, next) => {
-  if (!req.user) return res.status(401).json({ success: false, message: "Ch\u01B0a x\xE1c th\u1EF1c" });
-  const target = usernameParam(req);
-  if (req.user.username === target || allowedRoles.includes(req.user.role)) return next();
-  return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n truy c\u1EADp" });
-};
-var requireWarmupSecret = (req, res, next) => {
-  const expected = process.env.WARMUP_SECRET;
-  if (!expected) return res.status(503).json({ ok: false, error: "WARMUP_SECRET ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5u h\xECnh" });
-  if (req.headers["x-warmup-key"] !== expected) return res.status(401).json({ ok: false, error: "Unauthorized" });
-  next();
-};
-
-// src/server/projectAlias.ts
-import { createHash as createHash2 } from "crypto";
 
 // node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
@@ -44565,7 +44533,99 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
+// src/server/permissions.ts
+var ACCESS_CACHE_TTL_MS = 6e4;
+var accessCache = /* @__PURE__ */ new Map();
+var loadUserAccess = async (userId) => {
+  const key = String(userId);
+  const hit = accessCache.get(key);
+  if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
+  const r = await pool.query(
+    `SELECT role, permissions, is_active FROM users WHERE id = $1`,
+    [userId]
+  );
+  const row = r.rows[0];
+  const active = !!row && row.is_active === true;
+  const access = {
+    active,
+    role: active ? String(row.role ?? "") : "",
+    perms: new Set(active && Array.isArray(row.permissions) ? row.permissions : [])
+  };
+  accessCache.set(key, { access, at: Date.now() });
+  if (accessCache.size > 1e3) {
+    const oldest = accessCache.keys().next().value;
+    if (oldest !== void 0) accessCache.delete(oldest);
+  }
+  return access;
+};
+var invalidateUserAccess = (userId) => {
+  accessCache.delete(String(userId));
+};
+var userHasPermission = async (req, permission) => {
+  if (!req.user) return false;
+  try {
+    const access = await loadUserAccess(req.user.id);
+    if (!access.active) return false;
+    return access.role === "ADMIN" || access.perms.has(permission);
+  } catch (error61) {
+    console.error("L\u1ED7i \u0111\u1ECDc quy\u1EC1n ng\u01B0\u1EDDi d\xF9ng:", error61);
+    return false;
+  }
+};
+var MATERIAL_PRICE_PERMISSION = "materials_view_price";
+var MATERIAL_PRICE_COLUMNS = ["thanh_tien", "don_gia", "nha_cung_cap"];
+var strippedCache = /* @__PURE__ */ new WeakMap();
+var stripMaterialPriceColumns = (rows) => {
+  if (!Array.isArray(rows)) return rows;
+  const cached2 = strippedCache.get(rows);
+  if (cached2) return cached2;
+  const out = rows.map((row) => {
+    const copy = { ...row };
+    MATERIAL_PRICE_COLUMNS.forEach((c) => {
+      delete copy[c];
+    });
+    return copy;
+  });
+  strippedCache.set(rows, out);
+  return out;
+};
+
+// src/server/auth.ts
+var signAuthToken = (payload) => import_jsonwebtoken.default.sign(payload, JWT_SECRET_SAFE, { expiresIn: "8h" });
+var authenticateJWT = (req, res, next) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ success: false, message: "Thi\u1EBFu token x\xE1c th\u1EF1c" });
+  try {
+    req.user = import_jsonwebtoken.default.verify(token, JWT_SECRET_SAFE);
+    next();
+  } catch {
+    return res.status(401).json({ success: false, message: "Token kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c \u0111\xE3 h\u1EBFt h\u1EA1n" });
+  }
+};
+var withCurrentAccess = (req, res, allowed, next) => {
+  if (!req.user) return res.status(401).json({ success: false, message: "Ch\u01B0a x\xE1c th\u1EF1c" });
+  loadUserAccess(req.user.id).then((access) => {
+    if (!access.active) return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+    req.user.role = access.role;
+    if (!allowed(req)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n truy c\u1EADp" });
+    next();
+  }).catch((error61) => {
+    console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  });
+};
+var requireRole = (...allowedRoles) => (req, res, next) => withCurrentAccess(req, res, (r) => allowedRoles.includes(r.user.role), next);
+var requireSelfOrRole = (usernameParam, ...allowedRoles) => (req, res, next) => withCurrentAccess(req, res, (r) => r.user.username === usernameParam(r) || allowedRoles.includes(r.user.role), next);
+var requireWarmupSecret = (req, res, next) => {
+  const expected = process.env.WARMUP_SECRET;
+  if (!expected) return res.status(503).json({ ok: false, error: "WARMUP_SECRET ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5u h\xECnh" });
+  if (req.headers["x-warmup-key"] !== expected) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  next();
+};
+
 // src/server/projectAlias.ts
+import { createHash as createHash2 } from "crypto";
 var REFRESH_MS = 10 * 60 * 1e3;
 var ALIAS_MIN_HEX = 5;
 var normName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
@@ -44822,18 +44882,19 @@ app.use((req, res, next) => {
   if (PUBLIC_API_PATHS.has(path) || PUBLIC_API_PREFIXES.some((p) => path.startsWith(p))) return next();
   return authenticateJWT(req, res, next);
 });
-var NEEDS_PROJECT_ALIASES = /^\/api\/(project-aliases|trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
+var SKIP_PROJECT_ALIASES = /^\/api\/auth\//i;
 app.use(async (req, _res, next) => {
-  if (req.path.toLowerCase().startsWith("/api/")) {
+  const path = req.path.toLowerCase();
+  if (path.startsWith("/api/")) {
     try {
       await ensureWorkshopGroups();
     } catch {
     }
-  }
-  if (req.query.congTrinh || req.query.ctWhitelist || NEEDS_PROJECT_ALIASES.test(req.path)) {
-    try {
-      await ensureProjectAliases();
-    } catch {
+    if (!SKIP_PROJECT_ALIASES.test(path)) {
+      try {
+        await ensureProjectAliases();
+      } catch {
+      }
     }
   }
   next();
@@ -63799,7 +63860,7 @@ async function findMentionedIds(...texts) {
 async function idsByFullName(name) {
   const n = lower((name ?? "").trim());
   if (!n) return [];
-  return (await activeUsers()).filter((u) => lower(u.fullName) === n).map((u) => u.id);
+  return (await activeUsers()).filter((u) => !!u.fullName && lower(u.fullName) === n || lower(u.username.trim()) === n).map((u) => u.id);
 }
 async function adminIds() {
   return (await activeUsers()).filter((u) => u.role === "ADMIN").map((u) => u.id);
@@ -64581,26 +64642,24 @@ var ANALYSIS_TABLES = {
 };
 var ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
 var TREND_SOURCES = /* @__PURE__ */ new Set([...Object.keys(ANALYSIS_TABLES), "stock"]);
-var numericExpr = (col) => `
-  NULLIF(
-    CASE 
-      WHEN regexp_replace("${col}"::text, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$' 
-      THEN regexp_replace("${col}"::text, '[^0-9.-]', '', 'g') 
-      ELSE NULL 
-    END, 
-    ''
-  )::numeric
+var SCI_NUMBER_RE = `'^\\s*-?[0-9]+(\\.[0-9]+)?[eE][-+]?[0-9]+\\s*$'`;
+var SCI_EXP_OK_RE = `'[eE][-+]?0*[0-9]{1,3}\\s*$'`;
+var numericFromText = (textExpr) => `
+  CASE
+    WHEN REPLACE(${textExpr}, ',', '') ~ ${SCI_NUMBER_RE}
+    THEN CASE WHEN ${textExpr} ~ ${SCI_EXP_OK_RE} THEN TRIM(REPLACE(${textExpr}, ',', ''))::numeric END
+    ELSE NULLIF(
+      CASE
+        WHEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$'
+        THEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g')
+        ELSE NULL
+      END,
+      ''
+    )::numeric
+  END
 `;
-var numericExprQualified = (qualifiedCol) => `
-  NULLIF(
-    CASE 
-      WHEN regexp_replace(${qualifiedCol}::text, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$' 
-      THEN regexp_replace(${qualifiedCol}::text, '[^0-9.-]', '', 'g') 
-      ELSE NULL 
-    END, 
-    ''
-  )::numeric
-`;
+var numericExpr = (col) => numericFromText(`"${col}"::text`);
+var numericExprQualified = (qualifiedCol) => numericFromText(`${qualifiedCol}::text`);
 var NUMERIC_GENERATED_COLUMNS = {
   "dht.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
   "tkbv_full.tri_gia_don_hang_tong": "tri_gia_don_hang_tong_num",
@@ -64657,54 +64716,6 @@ var queryKey = (query, names) => {
     if (v !== void 0 && v !== null) o[n] = String(v);
   }
   return JSON.stringify(o);
-};
-
-// src/server/permissions.ts
-var PERMISSION_CACHE_TTL_MS = 6e4;
-var permissionCache = /* @__PURE__ */ new Map();
-var loadPermissions = async (userId) => {
-  const key = String(userId);
-  const hit = permissionCache.get(key);
-  if (hit && Date.now() - hit.at < PERMISSION_CACHE_TTL_MS) return hit.perms;
-  const r = await pool.query(
-    `SELECT permissions, is_active FROM users WHERE id = $1`,
-    [userId]
-  );
-  const row = r.rows[0];
-  const perms = new Set(row && row.is_active && Array.isArray(row.permissions) ? row.permissions : []);
-  permissionCache.set(key, { perms, at: Date.now() });
-  if (permissionCache.size > 1e3) {
-    const oldest = permissionCache.keys().next().value;
-    if (oldest !== void 0) permissionCache.delete(oldest);
-  }
-  return perms;
-};
-var userHasPermission = async (req, permission) => {
-  if (!req.user) return false;
-  if (req.user.role === "ADMIN") return true;
-  try {
-    return (await loadPermissions(req.user.id)).has(permission);
-  } catch (error61) {
-    console.error("L\u1ED7i \u0111\u1ECDc quy\u1EC1n ng\u01B0\u1EDDi d\xF9ng:", error61);
-    return false;
-  }
-};
-var MATERIAL_PRICE_PERMISSION = "materials_view_price";
-var MATERIAL_PRICE_COLUMNS = ["thanh_tien", "don_gia", "nha_cung_cap"];
-var strippedCache = /* @__PURE__ */ new WeakMap();
-var stripMaterialPriceColumns = (rows) => {
-  if (!Array.isArray(rows)) return rows;
-  const cached2 = strippedCache.get(rows);
-  if (cached2) return cached2;
-  const out = rows.map((row) => {
-    const copy = { ...row };
-    MATERIAL_PRICE_COLUMNS.forEach((c) => {
-      delete copy[c];
-    });
-    return copy;
-  });
-  strippedCache.set(rows, out);
-  return out;
 };
 
 // src/server/qc.ts
@@ -65138,8 +65149,11 @@ app.get("/api/production/plan-met", async (_req, res) => {
            FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
          )
          SELECT p.hex,
+           -- Tu\u1EA7n ISO (T2\u2013CN) c\u1EAFt trong n\u0103m d\u01B0\u01A1ng l\u1ECBch c\u1EE7a ng\xE0y KH \u2014 kh\u1EDBp inPlanWeek \u1EDF frontend
+           -- (useUnifiedTimeFilters): tu\u1EA7n 1 kh\xF4ng l\u1EA5y 29\u201331/12 n\u0103m tr\u01B0\u1EDBc, tu\u1EA7n cu\u1ED1i kh\xF4ng tr\xE0n sang n\u0103m sau
            (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
-              n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
+              n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
+              AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
            (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
               n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
          FROM p LEFT JOIN n ON n.hex = p.hex
@@ -65933,7 +65947,7 @@ var parseStockFilters = (req) => ({
   tinhTrangIpo: String(req.query.tinhTrangIpo || "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).sort()
 });
 var refreshStockDatesCache = async (filters) => {
-  const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+  const needsJoin = hasProductionFilter(filters);
   const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion() });
   const versions = await getRelevantVersions(needsJoin ? ["stock", "production"] : ["stock"]);
   const cached2 = stockDatesCache.get(cacheKey);
@@ -65949,20 +65963,7 @@ var refreshStockDatesCache = async (filters) => {
   let cteClause = "";
   let joinClause = "";
   if (needsJoin) {
-    const pConds = [];
-    if (filters.xuong.length) {
-      params.push(filters.xuong);
-      pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
-    }
-    if (filters.tinhTrang.length) {
-      params.push(filters.tinhTrang);
-      pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
-    }
-    if (filters.tinhTrangIpo.length) {
-      params.push(filters.tinhTrangIpo);
-      pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
-    }
-    cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
+    cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
     joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
   const q = `
@@ -65984,21 +65985,38 @@ var refreshStockDatesCache = async (filters) => {
 };
 var matchedIdsSql = (pConds) => `
   SELECT ma_id_sap FROM (
-    SELECT DISTINCT ON (ma_id_sap) ma_id_sap, xuong_chinh, tinh_trang, tinh_trang_ipo
+    SELECT DISTINCT ON (ma_id_sap) ma_id_sap${pConds.length ? `, (${pConds.join(" AND ")}) AS ok` : ""}
     FROM production_status_app
     WHERE ma_id_sap IS NOT NULL
     ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
-  ) lp${pConds.length ? ` WHERE ${pConds.join(" AND ")}` : ""}
+  ) lp${pConds.length ? " WHERE ok" : ""}
 `;
-var stockScopeConds = (filters, params) => {
-  const conds = [];
-  if (filters.congTrinh.length) {
-    params.push(filters.congTrinh);
-    conds.push(`${normNameSql("ten_cong_trinh")} = ANY($${params.length}::text[])`);
-  }
+var productionConds = (filters, params) => {
+  const pConds = [];
   if (filters.xuong.length) {
     params.push(filters.xuong);
-    conds.push(`ma_id_sap::text IN (SELECT mi.ma_id_sap::text FROM (${matchedIdsSql([`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`])}) mi)`);
+    pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
+  }
+  if (filters.tinhTrang.length) {
+    params.push(filters.tinhTrang);
+    pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
+  }
+  if (filters.tinhTrangIpo.length) {
+    params.push(filters.tinhTrangIpo);
+    pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
+  }
+  return pConds;
+};
+var hasProductionFilter = (filters) => filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+var stockScopeConds = (filters, params, alias = "", withProject = true) => {
+  const a = alias ? `${alias}.` : "";
+  const conds = [];
+  if (withProject && filters.congTrinh.length) {
+    params.push(filters.congTrinh);
+    conds.push(`${normNameSql(`${a}ten_cong_trinh`)} = ANY($${params.length}::text[])`);
+  }
+  if (hasProductionFilter(filters)) {
+    conds.push(`${a}ma_id_sap::text IN (SELECT mi.ma_id_sap::text FROM (${matchedIdsSql(productionConds(filters, params))}) mi)`);
   }
   return conds;
 };
@@ -66036,7 +66054,7 @@ app.get("/api/stock/by-project", async (req, res) => {
     if (!date5) return res.status(400).json({ error: "Missing date" });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date5) || !parseSafeDate(date5)) return res.status(400).json({ error: "Invalid date" });
     const filters = parseStockFilters(req);
-    const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+    const needsJoin = hasProductionFilter(filters);
     const rows = await cachedByVersions(stockQueryCache, `by-project|${date5}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
       const conds = ["s.date_parsed = $1"];
       const params = [date5];
@@ -66047,20 +66065,7 @@ app.get("/api/stock/by-project", async (req, res) => {
       let cteClause = "";
       let joinClause = "";
       if (needsJoin) {
-        const pConds = [];
-        if (filters.xuong.length) {
-          params.push(filters.xuong);
-          pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`);
-        }
-        if (filters.tinhTrang.length) {
-          params.push(filters.tinhTrang);
-          pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`);
-        }
-        if (filters.tinhTrangIpo.length) {
-          params.push(filters.tinhTrangIpo);
-          pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`);
-        }
-        cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
+        cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
         joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
       }
       const q = `
@@ -66107,14 +66112,8 @@ app.get("/api/stock/items", async (req, res) => {
       } else if (project) {
         params.push(expandProjectNames([project]));
         conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
-      } else if (filters.congTrinh.length) {
-        params.push(filters.congTrinh);
-        conds.push(`${normNameSql("s.ten_cong_trinh")} = ANY($${params.length}::text[])`);
       }
-      if (filters.xuong.length) {
-        params.push(filters.xuong);
-        conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
-      }
+      conds.push(...stockScopeConds(filters, params, "s", !project));
       params.push(STOCK_ITEMS_LIMIT + 1);
       const r = await timedQuery(
         // Dòng sản xuất mới nhất của mỗi mã: tính 1 lần rồi nối (trước dùng LATERAL tra lại cho TỪNG mã
@@ -66231,7 +66230,7 @@ var cachedStockTotalCountVersion = null;
 app.get("/api/stock/total-count", async (req, res) => {
   try {
     const filters = parseStockFilters(req);
-    if (filters.congTrinh.length || filters.xuong.length) {
+    if (filters.congTrinh.length || hasProductionFilter(filters)) {
       const total2 = await cachedByVersions(stockQueryCache, `total-count|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
         const params = [];
         const conds = stockScopeConds(filters, params);
@@ -66790,6 +66789,14 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y user" });
     }
+    if (String(existing.rows[0].id) === String(req.user.id)) {
+      if (status !== void 0 && status !== "ACTIVE") {
+        return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 kho\xE1 t\xE0i kho\u1EA3n c\u1EE7a ch\xEDnh m\xECnh" });
+      }
+      if (role !== void 0 && role !== "ADMIN") {
+        return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 h\u1EA1 quy\u1EC1n ADMIN c\u1EE7a ch\xEDnh m\xECnh" });
+      }
+    }
     const fields = [];
     const values = [];
     let idx = 1;
@@ -66820,6 +66827,7 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
       values
     );
+    invalidateUserAccess(String(id));
     const u = result.rows[0];
     res.json({
       success: true,
@@ -66845,6 +66853,9 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
 usersRouter.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    if (String(id) === String(req.user.id)) {
+      return res.status(400).json({ success: false, message: "Kh\xF4ng th\u1EC3 t\u1EF1 xo\xE1 t\xE0i kho\u1EA3n c\u1EE7a ch\xEDnh m\xECnh" });
+    }
     const target = await pool.query("SELECT username FROM users WHERE id = $1", [id]);
     if (target.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y user" });
@@ -66853,6 +66864,7 @@ usersRouter.delete("/:id", async (req, res) => {
       return res.status(403).json({ success: false, message: "Kh\xF4ng th\u1EC3 x\xF3a t\xE0i kho\u1EA3n admin" });
     }
     await pool.query("DELETE FROM users WHERE id = $1", [id]);
+    invalidateUserAccess(String(id));
     res.json({ success: true, message: "X\xF3a user th\xE0nh c\xF4ng" });
   } catch (error61) {
     console.error("L\u1ED7i x\xF3a user:", error61);
@@ -67811,10 +67823,11 @@ var isSameDept = (a, b) => {
 };
 var sameName = (a, b) => (a ?? "").trim().toLowerCase() !== "" && (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 var getVuongMacActor = async (req) => {
-  const r = await pool.query("SELECT department, full_name, is_active FROM users WHERE id = $1", [req.user.id]);
+  const r = await pool.query("SELECT department, full_name, is_active, role FROM users WHERE id = $1", [req.user.id]);
   return {
     username: req.user.username,
-    role: req.user.role,
+    // Role theo DB (token có thể còn role cũ tới 8 giờ sau khi bị hạ quyền)
+    role: String(r.rows[0]?.role ?? ""),
     department: r.rows[0]?.department ?? null,
     fullName: r.rows[0]?.full_name ?? null,
     active: r.rows[0]?.is_active === true
@@ -67851,15 +67864,50 @@ var dueState = (bot, now = Date.now()) => {
   return left < 0 ? "overdue" : left <= DUE_SOON_MS ? "soon" : "ok";
 };
 var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-var planDate = (tuan, thang) => {
-  const t = String(tuan ?? "").match(/^\d{4}-\d{2}-\d{2}/);
+var planDate = (tuan, thang, met) => {
+  const t = met?.tuan ? null : String(tuan ?? "").match(/^\d{4}-\d{2}-\d{2}/);
   if (t) return t[0];
-  const m = String(thang ?? "").match(/^\d{4}-\d{2}-\d{2}/);
+  const m = met?.thang ? null : String(thang ?? "").match(/^\d{4}-\d{2}-\d{2}/);
   return m ? m[0] : null;
+};
+var planMetOf = async (hexes) => {
+  const out = /* @__PURE__ */ new Map();
+  const list = [...new Set(hexes.filter(Boolean))];
+  if (list.length === 0) return out;
+  try {
+    const r = await timedQuery(
+      `WITH p AS (
+         SELECT DISTINCT ON (hex::text) hex::text AS hex,
+           CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
+           sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
+         FROM production_status_app
+         WHERE hex::text = ANY($1::text[]) AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
+       ), n AS (
+         SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
+         FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
+       )
+       SELECT p.hex,
+         -- Tu\u1EA7n ISO c\u1EAFt trong n\u0103m d\u01B0\u01A1ng l\u1ECBch c\u1EE7a ng\xE0y KH \u2014 c\xF9ng c\xE1ch v\u1EDBi /api/production/plan-met
+         (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
+            AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
+         (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+       FROM p LEFT JOIN n ON n.hex = p.hex
+       GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
+      [list],
+      { timeoutMs: 15e3 }
+    );
+    for (const row of r.rows) out.set(row.hex, { tuan: row.tuan_met === true, thang: row.thang_met === true });
+  } catch (error61) {
+    console.error("L\u1ED7i t\xEDnh KH k\u1EF3 \u0111\xE3 \u0111\u1EA1t (v\u01B0\u1EDBng m\u1EAFc):", error61);
+  }
+  return out;
 };
 var stageOf = (bop) => String(bop ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/)?.[1] ?? null;
 var statusOf = (row) => VM_STATUSES.includes(row.status) ? row.status : row.is_resolved ? "closed" : "open";
-var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null) => {
+var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null, planMet) => {
   const perms = permsOf(actor, row.created_by, createdDepartment, row.handler);
   const hasProd = "p_ten_cong_trinh" in row;
   const rawCt = hasProd ? row.p_ten_cong_trinh ?? row.ten_cong_trinh : row.ten_cong_trinh;
@@ -67903,7 +67951,7 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
     tinhTrangIpo: hasProd ? row.p_tinh_trang_ipo ?? null : void 0,
     pc: hasProd ? row.p_ten_pc ?? null : void 0,
     pm: hasProd ? row.p_ten_pm ?? null : void 0,
-    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang) : void 0,
+    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang, planMet) : void 0,
     ngayCanGiao: hasProd ? row.p_ngay_can_giao ?? null : void 0,
     perms,
     canModify: perms.edit
@@ -67912,7 +67960,9 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
 var fetchOne = async (id, me2) => {
   const ready = await hasWorkflowSchema();
   const r = await pool.query(`${selectVm(ready, true)} WHERE vm.id = $1`, [id]);
-  return r.rows[0] ? mapVuongMacRow(r.rows[0], me2) : null;
+  if (!r.rows[0]) return null;
+  const met = await planMetOf([r.rows[0].hex]);
+  return mapVuongMacRow(r.rows[0], me2, void 0, met.get(r.rows[0].hex));
 };
 var productionOfHex = async (hex3) => {
   const r = await pool.query(
@@ -67994,6 +68044,18 @@ app.post(
     }
   }
 );
+var requireActiveUser = async (req, res, next) => {
+  try {
+    if (!(await loadUserAccess(req.user.id)).active) {
+      res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+      return;
+    }
+    next();
+  } catch (error61) {
+    console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n v\u01B0\u1EDBng m\u1EAFc:", error61);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+};
 app.get("/api/vuong-mac/photo/:photoId", authenticateJWT, async (req, res) => {
   try {
     const photoId = Number(req.params.photoId);
@@ -68065,7 +68127,7 @@ app.post("/api/vuong-mac/list", authenticateJWT, async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-app.get("/api/vuong-mac/item/:id", authenticateJWT, async (req, res) => {
+app.get("/api/vuong-mac/item/:id", authenticateJWT, requireActiveUser, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
@@ -68078,7 +68140,9 @@ app.get("/api/vuong-mac/item/:id", authenticateJWT, async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
-app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
+var HANDLER_NONE = "__none__";
+var STAGE_UNKNOWN = "CH\u01AFA R\xD5";
+app.get("/api/vuong-mac/all", authenticateJWT, requireActiveUser, async (req, res) => {
   try {
     const status = String(req.query.status || "open");
     const stList = String(req.query.st || "").split(",").map((s) => s.trim()).filter((s) => VM_STATUSES.includes(s));
@@ -68110,6 +68174,7 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       conds.push(`${statusExpr} = ANY($${params.length}::text[])`);
     } else if (status === "open") conds.push("b.is_resolved = FALSE");
     else if (status === "resolved") conds.push("b.is_resolved = TRUE");
+    else if (status === "notclosed") conds.push(ready ? `b.status <> 'closed'` : "b.is_resolved = FALSE");
     if (FIVE_M_CATEGORIES.includes(category)) {
       params.push(category);
       conds.push(`b.category = $${params.length}`);
@@ -68135,11 +68200,12 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       return `b.created_by = $${params.length}`;
     };
     const handlerCond = () => {
-      params.push(me2.fullName ?? "");
-      const n = params.length;
-      return `($${n}::text <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}::text)))`;
+      params.push(me2.fullName ?? "", me2.username);
+      const n = params.length - 1;
+      return `(($${n}::text <> '' AND LOWER(TRIM(b.handler)) = LOWER(TRIM($${n}::text)))
+               OR LOWER(TRIM(b.handler)) = LOWER(TRIM($${n + 1}::text)))`;
     };
-    if (mine === "assignee") conds.push(handlerCond());
+    if (mine === "assignee") conds.push(`(${handlerCond()} OR (${creatorCond()} AND COALESCE(TRIM(b.handler), '') = ''))`);
     else if (mine === "reporter") conds.push(creatorCond());
     else if (mine === "confirm") conds.push(`${creatorCond()} AND ${statusExpr} = 'done'`);
     else if (mine) conds.push(`(${creatorCond()} OR ${handlerCond()})`);
@@ -68148,16 +68214,31 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       conds.push(`UPPER(TRIM(COALESCE(${ready ? "b.xuong, " : ""}b.p_xuong_chinh, ''))) = ANY($${params.length}::text[])`);
     }
     if (congTrinh) {
-      params.push(`%${likeEsc(congTrinh)}%`);
-      conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+      let names = [];
+      try {
+        await ensureProjectAliases();
+        names = expandProjectNames([congTrinh]);
+      } catch (error61) {
+        console.error("L\u1ED7i m\u1EDF r\u1ED9ng t\xEAn c\xF4ng tr\xECnh (v\u01B0\u1EDBng m\u1EAFc):", error61);
+      }
+      if (names.length > 1) {
+        params.push(names);
+        conds.push(`${normNameSql("COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh)")} = ANY($${params.length}::text[])`);
+      } else {
+        params.push(`%${likeEsc(congTrinh)}%`);
+        conds.push(`COALESCE(b.p_ten_cong_trinh, b.ten_cong_trinh) ILIKE $${params.length}`);
+      }
     }
-    if (handler) {
+    if (handler === HANDLER_NONE) conds.push(`COALESCE(TRIM(b.handler), '') = ''`);
+    else if (handler) {
       params.push(handler);
       conds.push(`LOWER(TRIM(b.handler)) = LOWER(TRIM($${params.length}))`);
     }
-    if (stage && ready) {
+    const stageExpr = `COALESCE(b.stage, substring(UPPER(TRIM(b.p_bop)) from '^(P[0-9]{3}|GCVT)'))`;
+    if (stage === STAGE_UNKNOWN) conds.push(`${stageExpr} IS NULL`);
+    else if (stage) {
       params.push(stage);
-      conds.push(`b.stage = $${params.length}`);
+      conds.push(`${stageExpr} = $${params.length}`);
     }
     if (priority && ready && PRIORITIES.includes(priority)) {
       params.push(priority);
@@ -68195,14 +68276,17 @@ app.get("/api/vuong-mac/all", authenticateJWT, async (req, res) => {
       page,
       pageSize,
       workflow: ready,
-      data: rows.map((row) => mapVuongMacRow(row, me2))
+      data: await (async () => {
+        const met = await planMetOf(rows.map((row) => row.hex));
+        return rows.map((row) => mapVuongMacRow(row, me2, void 0, met.get(row.hex)));
+      })()
     });
   } catch (e) {
     console.error("L\u1ED7i /api/vuong-mac/all:", e);
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
-app.get("/api/vuong-mac/stats", authenticateJWT, async (req, res) => {
+app.get("/api/vuong-mac/stats", authenticateJWT, requireActiveUser, async (req, res) => {
   try {
     const me2 = await getVuongMacActor(req);
     const ready = await hasWorkflowSchema();
@@ -68948,7 +69032,7 @@ app.delete("/api/vuong-mac/:id", authenticateJWT, async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
-app.get("/api/vuong-mac/log/:hex", authenticateJWT, async (req, res) => {
+app.get("/api/vuong-mac/log/:hex", authenticateJWT, requireActiveUser, async (req, res) => {
   try {
     const { hex: hex3 } = req.params;
     const id = Number(req.query.id) || null;

@@ -254,11 +254,12 @@ useEffect(() => {
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                   <td className="pl-4 pr-2 py-3 text-right tabular-nums text-slate-400">{idx + 1}</td>
                   <td className="px-4 py-3 text-left font-medium text-slate-700">{item.name}</td>
-                  <td className={`px-4 py-3 ${item.daily > 0 ? `${primaryColorClass} font-bold` : 'text-slate-300'}`}>
-                    {item.daily > 0 ? formatValue(item.daily) : '-'}
+                  {/* Chỉ ô = 0 hiện "-"; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
+                  <td className={`px-4 py-3 ${item.daily > 0 ? `${primaryColorClass} font-bold` : item.daily < 0 ? 'text-red-600 font-bold' : 'text-slate-300'}`}>
+                    {item.daily !== 0 ? formatValue(item.daily) : '-'}
                   </td>
-                  <td className={`px-4 py-3 ${item.mtd > 0 ? `${secondaryColorClass} font-bold` : 'text-slate-300'}`}>
-                    {item.mtd > 0 ? formatValue(item.mtd) : '-'}
+                  <td className={`px-4 py-3 ${item.mtd > 0 ? `${secondaryColorClass} font-bold` : item.mtd < 0 ? 'text-red-600 font-bold' : 'text-slate-300'}`}>
+                    {item.mtd !== 0 ? formatValue(item.mtd) : '-'}
                   </td>
                 </tr>
               )) : (

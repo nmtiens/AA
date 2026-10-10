@@ -2,38 +2,57 @@ import type { Request } from 'express';
 import { pool } from '../db.js';
 
 // ============================================================================
-// QUYỀN CHI TIẾT (users.permissions) PHÍA SERVER
-// Token JWT chỉ mang role; danh sách quyền nằm ở cột users.permissions và admin có
-// thể đổi bất cứ lúc nào -> đọc từ DB, cache ngắn theo user để không query mỗi request.
+// QUYỀN CHI TIẾT (users.permissions) + ROLE / TRẠNG THÁI TÀI KHOẢN PHÍA SERVER
+// Token JWT sống 8 giờ nên KHÔNG tin role trong token: role, is_active và danh sách quyền đọc từ DB
+// (admin có thể khoá / hạ quyền bất cứ lúc nào), cache ngắn theo user để không query mỗi request.
+// Admin sửa / xoá user => gọi invalidateUserAccess(id) để có hiệu lực ngay.
 // Quy ước giống frontend (AuthContext.hasPermission): ADMIN có mọi quyền.
 // ============================================================================
-const PERMISSION_CACHE_TTL_MS = 60_000;
-const permissionCache = new Map<string, { perms: Set<string>; at: number }>();
+const ACCESS_CACHE_TTL_MS = 60_000;
 
-const loadPermissions = async (userId: string | number): Promise<Set<string>> => {
+export interface UserAccess {
+  /** Còn tồn tại và đang hoạt động */
+  active: boolean;
+  /** Role hiện tại trong DB ('' nếu không còn) */
+  role: string;
+  perms: Set<string>;
+}
+
+const accessCache = new Map<string, { access: UserAccess; at: number }>();
+
+export const loadUserAccess = async (userId: string | number): Promise<UserAccess> => {
   const key = String(userId);
-  const hit = permissionCache.get(key);
-  if (hit && Date.now() - hit.at < PERMISSION_CACHE_TTL_MS) return hit.perms;
+  const hit = accessCache.get(key);
+  if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
   const r = await pool.query(
-    `SELECT permissions, is_active FROM users WHERE id = $1`,
+    `SELECT role, permissions, is_active FROM users WHERE id = $1`,
     [userId]
   );
   const row = r.rows[0];
-  const perms = new Set<string>(row && row.is_active && Array.isArray(row.permissions) ? row.permissions : []);
-  permissionCache.set(key, { perms, at: Date.now() });
-  if (permissionCache.size > 1000) {
-    const oldest = permissionCache.keys().next().value;
-    if (oldest !== undefined) permissionCache.delete(oldest);
+  const active = !!row && row.is_active === true;
+  const access: UserAccess = {
+    active,
+    role: active ? String(row.role ?? '') : '',
+    perms: new Set<string>(active && Array.isArray(row.permissions) ? row.permissions : []),
+  };
+  accessCache.set(key, { access, at: Date.now() });
+  if (accessCache.size > 1000) {
+    const oldest = accessCache.keys().next().value;
+    if (oldest !== undefined) accessCache.delete(oldest);
   }
-  return perms;
+  return access;
 };
 
-/** true nếu user của request có quyền `permission` (ADMIN luôn có). Lỗi DB -> coi như KHÔNG có quyền. */
+/** Xoá cache quyền của 1 user (sau khi admin đổi role / quyền / trạng thái / xoá) */
+export const invalidateUserAccess = (userId: string | number) => { accessCache.delete(String(userId)); };
+
+/** true nếu user của request có quyền `permission` (ADMIN luôn có). Tài khoản bị khoá / lỗi DB -> KHÔNG có quyền. */
 export const userHasPermission = async (req: Request, permission: string): Promise<boolean> => {
   if (!req.user) return false;
-  if (req.user.role === 'ADMIN') return true;
   try {
-    return (await loadPermissions(req.user.id)).has(permission);
+    const access = await loadUserAccess(req.user.id);
+    if (!access.active) return false;
+    return access.role === 'ADMIN' || access.perms.has(permission);
   } catch (error) {
     console.error('Lỗi đọc quyền người dùng:', error);
     return false;

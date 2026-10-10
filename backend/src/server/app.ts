@@ -98,17 +98,19 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   return authenticateJWT(req, res, next);
 });
 
-// Lọc theo tên công trình: nạp sẵn bảng "mọi cách viết tên của cùng mã" (làm mới 10 phút/lần).
+// Lọc theo tên công trình: nạp sẵn bảng "mọi cách viết tên của cùng mã" (làm mới 10 phút/lần, chạy nền).
 // Setup gộp xưởng: bảng nhỏ, nạp cho mọi API (làm mới 5 phút/lần, lưu xong nạp lại ngay).
-// API gộp tên theo công trình (canonicalProjectName) cần bảng tên kể cả khi KHÔNG lọc công trình —
-// trước chỉ nạp khi có congTrinh nên vừa khởi động mà mở trang không lọc thì các cách viết không được gộp.
-const NEEDS_PROJECT_ALIASES = /^\/api\/(project-aliases|trend-by-congtrinh|overview\/by-group|khsx-nhapkho\/summary|stock\/(by-project|items))/i;
+// Bảng tên nay cũng nạp cho MỌI API (trừ đăng nhập): trước chỉ nạp theo danh sách route (regex) nên route
+// mới / bị quên (vd. /api/detail?dimension=congtrinh, vướng mắc) lúc vừa khởi động không gộp các cách viết.
+// Sau lần nạp đầu, ensureProjectAliases chỉ so mốc thời gian (làm mới nền) => không tốn thêm thời gian.
+const SKIP_PROJECT_ALIASES = /^\/api\/auth\//i;
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
-  if (req.path.toLowerCase().startsWith('/api/')) {
+  const path = req.path.toLowerCase();
+  if (path.startsWith('/api/')) {
     try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ }
-  }
-  if (req.query.congTrinh || req.query.ctWhitelist || NEEDS_PROJECT_ALIASES.test(req.path)) {
-    try { await ensureProjectAliases(); } catch { /* giữ bảng cũ */ }
+    if (!SKIP_PROJECT_ALIASES.test(path)) {
+      try { await ensureProjectAliases(); } catch { /* giữ bảng cũ */ }
+    }
   }
   next();
 });

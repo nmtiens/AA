@@ -13,7 +13,7 @@ import { useUnifiedTimeFilters } from './Dashboard/hooks/useUnifiedTimeFilters';
 import { useOverviewSummary } from './Dashboard/hooks/useOverviewSummary';
 import { useKhsxSummary } from './Dashboard/hooks/useKhsxSummary';
 import { useStockData } from './Dashboard/hooks/useStockData';
-import { usePivotTables } from './Dashboard/hooks/usePivotTables';
+import { usePivotTables, projectNameOf } from './Dashboard/hooks/usePivotTables';
 import { useExportFlows } from './Dashboard/hooks/useExportFlows';
 import { PivotMaterialStatusSection } from './Dashboard/components/sections/PivotMaterialStatusSection';
 import { MaterialListSection } from './Dashboard/components/sections/MaterialListSection';
@@ -486,10 +486,13 @@ const handleContinueToOrderColumnStep = () => {
   const activeFunnelPivotData = useMemo(() => {
     if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> tổng theo BOP
     if (activeFunnelItem.id === 'P022') {
-      return { data: stockByProjectData, total: stockByProjectData.reduce((sum, r) => sum + r.value, 0) };
+      // Chế độ Hạng mục: lấy số mã tồn (count) — value là triệu đồng, không được in như số đếm
+      const isCount = workshopMetric === 'COUNT_HEX';
+      const data = stockByProjectData.map(r => ({ name: r.name, value: isCount ? r.count : r.value }));
+      return { data, total: data.reduce((sum, r) => sum + r.value, 0) };
     }
     return funnelBreakdownByBop[activeFunnelItem.id] ?? { data: [], total: 0 };
-  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData]);
+  }, [activeFunnelItem, pivotFunnelData, funnelBreakdownByBop, stockByProjectData, workshopMetric]);
 
   const [stockItems, setStockItems] = useState<{ open: boolean; projectName: string | null }>({ open: false, projectName: null });
   const [funnelHex, setFunnelHex] = useState<{
@@ -513,7 +516,8 @@ const handleContinueToOrderColumnStep = () => {
     // Danh sách cho phễu: cùng nguồn + nút Giá trị / Hạng mục của phễu (khớp số trong ô)
     let source = funnelHexRowsByColumn[funnelHex.column] ?? [];
     if (funnelHex.projectName && congTrinhKey) {
-      source = source.filter(row => String(row[congTrinhKey] || '').trim() === funnelHex.projectName);
+      // Tên trống = dòng 'Chưa xác định' của phễu
+      source = source.filter(row => projectNameOf(row[congTrinhKey]) === funnelHex.projectName);
     }
     if (funnelHex.stage && funnelHex.stage !== TOTAL_STAGE && bopKey) {
       source = source.filter(row => extractStage(row[bopKey]) === funnelHex.stage);

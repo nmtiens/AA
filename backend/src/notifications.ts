@@ -105,11 +105,13 @@ export async function findMentionedIds(...texts: (string | null | undefined)[]):
   return out;
 }
 
-/** Người dùng có họ tên = người xử lý (so không phân biệt hoa thường) */
+/** Người dùng có họ tên HOẶC tên đăng nhập = người xử lý (so không phân biệt hoa thường; cột Người xử lý có thể ghi username) */
 export async function idsByFullName(name?: string | null): Promise<string[]> {
   const n = lower((name ?? '').trim());
   if (!n) return [];
-  return (await activeUsers()).filter(u => lower(u.fullName) === n).map(u => u.id);
+  return (await activeUsers())
+    .filter(u => (!!u.fullName && lower(u.fullName) === n) || lower(u.username.trim()) === n)
+    .map(u => u.id);
 }
 
 /** Tài khoản ADMIN đang hoạt động — nhận thông báo leo thang khi vướng mắc quá hạn lâu */

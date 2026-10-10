@@ -35,7 +35,7 @@ const parseStockFilters = (req: Request): StockFilterParams => ({
 
 // [ĐO TIMING] Endpoint từng bị "pending" 25.39s trên production — điểm nóng số 2.
 const refreshStockDatesCache = async (filters: StockFilterParams) => {
-  const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+  const needsJoin = hasProductionFilter(filters);
   const cacheKey = JSON.stringify({ ...filters, wg: workshopGroupsVersion() });
   const versions = await getRelevantVersions(needsJoin ? ['stock', 'production'] : ['stock']);
 
@@ -59,12 +59,7 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
   let cteClause = '';
   let joinClause = '';
   if (needsJoin) {
-    const pConds: string[] = [];
-    if (filters.xuong.length) { params.push(filters.xuong); pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`); }
-    if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
-    if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
-
-    cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
+    cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
     joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
   }
 
@@ -90,25 +85,40 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
 // Tập ma_id_sap thoả bộ lọc xưởng / tình trạng / IPO — xét DÒNG SẢN XUẤT MỚI NHẤT của mỗi mã
 // (giống biểu đồ tồn theo xưởng: buildMatchedProductionCTE). Trước đây xét mọi dòng nên 1 mã có
 // dòng ở nhiều xưởng bị tính vào mọi xưởng đó => tổng các xưởng khi lọc lớn hơn tổng thật.
+// Điều kiện gộp thành 1 cột boolean `ok` rồi lọc `WHERE ok`: lọc thẳng 2 điều kiện trở lên (vd. tình trạng +
+// IPO) Postgres ước ~1 mã rồi chọn nested loop so từng dòng tồn với từng mã => 9–15s, vượt statement timeout.
+// Cột boolean không có thống kê => ước 50% số mã => hash join (~0,1–0,2s).
 const matchedIdsSql = (pConds: string[]) => `
   SELECT ma_id_sap FROM (
-    SELECT DISTINCT ON (ma_id_sap) ma_id_sap, xuong_chinh, tinh_trang, tinh_trang_ipo
+    SELECT DISTINCT ON (ma_id_sap) ma_id_sap${pConds.length ? `, (${pConds.join(' AND ')}) AS ok` : ''}
     FROM production_status_app
     WHERE ma_id_sap IS NOT NULL
     ORDER BY ma_id_sap, updated_at DESC NULLS LAST, id DESC
-  ) lp${pConds.length ? ` WHERE ${pConds.join(' AND ')}` : ''}
+  ) lp${pConds.length ? ' WHERE ok' : ''}
 `;
 
-// Điều kiện phạm vi công trình / xưởng trên bảng ton_kho (không alias) — dùng cho CSV / đếm dòng
-const stockScopeConds = (filters: StockFilterParams, params: any[]): string[] => {
+// Điều kiện xưởng / tình trạng / IPO (theo dòng sản xuất mới nhất của mã) — đẩy tham số vào params
+const productionConds = (filters: StockFilterParams, params: any[]): string[] => {
+  const pConds: string[] = [];
+  if (filters.xuong.length) { params.push(filters.xuong); pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`); }
+  if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
+  if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
+  return pConds;
+};
+const hasProductionFilter = (filters: StockFilterParams) =>
+  filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+
+// Điều kiện phạm vi công trình / xưởng / tình trạng / IPO trên bảng ton_kho (alias tuỳ chọn) — dùng cho
+// CSV / đếm dòng / chi tiết từng mã; cùng tập mã với /api/stock/by-project (matchedIdsSql)
+const stockScopeConds = (filters: StockFilterParams, params: any[], alias = '', withProject = true): string[] => {
+  const a = alias ? `${alias}.` : '';
   const conds: string[] = [];
-  if (filters.congTrinh.length) {
+  if (withProject && filters.congTrinh.length) {
     params.push(filters.congTrinh);
-    conds.push(`${normNameSql('ten_cong_trinh')} = ANY($${params.length}::text[])`);
+    conds.push(`${normNameSql(`${a}ten_cong_trinh`)} = ANY($${params.length}::text[])`);
   }
-  if (filters.xuong.length) {
-    params.push(filters.xuong);
-    conds.push(`ma_id_sap::text IN (SELECT mi.ma_id_sap::text FROM (${matchedIdsSql([`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`])}) mi)`);
+  if (hasProductionFilter(filters)) {
+    conds.push(`${a}ma_id_sap::text IN (SELECT mi.ma_id_sap::text FROM (${matchedIdsSql(productionConds(filters, params))}) mi)`);
   }
   return conds;
 };
@@ -156,7 +166,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !parseSafeDate(date)) return res.status(400).json({ error: 'Invalid date' });
 
     const filters = parseStockFilters(req);
-    const needsJoin = filters.xuong.length > 0 || filters.tinhTrang.length > 0 || filters.tinhTrangIpo.length > 0;
+    const needsJoin = hasProductionFilter(filters);
 
     const rows = await cachedByVersions(stockQueryCache, `by-project|${date}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
     const conds: string[] = ['s.date_parsed = $1'];
@@ -169,12 +179,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     let cteClause = '';
     let joinClause = '';
     if (needsJoin) {
-      const pConds: string[] = [];
-      if (filters.xuong.length) { params.push(filters.xuong); pConds.push(`UPPER(TRIM(xuong_chinh)) = ANY($${params.length}::text[])`); }
-      if (filters.tinhTrang.length) { params.push(filters.tinhTrang); pConds.push(`UPPER(TRIM(tinh_trang)) = ANY($${params.length}::text[])`); }
-      if (filters.tinhTrangIpo.length) { params.push(filters.tinhTrangIpo); pConds.push(`UPPER(TRIM(tinh_trang_ipo)) = ANY($${params.length}::text[])`); }
-
-      cteClause = `WITH matched_ids AS (${matchedIdsSql(pConds)})`;
+      cteClause = `WITH matched_ids AS (${matchedIdsSql(productionConds(filters, params))})`;
       joinClause = `INNER JOIN matched_ids m ON m.ma_id_sap::text = s.ma_id_sap::text`;
     }
 
@@ -229,14 +234,10 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
       // Tên chuẩn (dòng ở biểu đồ theo công trình) -> mọi cách viết của cùng công trình
       params.push(expandProjectNames([project]));
       conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);
-    } else if (filters.congTrinh.length) {
-      params.push(filters.congTrinh);
-      conds.push(`${normNameSql('s.ten_cong_trinh')} = ANY($${params.length}::text[])`);
     }
-    if (filters.xuong.length) {
-      params.push(filters.xuong);
-      conds.push(`UPPER(TRIM(p.xuong_chinh)) = ANY($${params.length}::text[])`);
-    }
+    // Công trình (khi không chọn 1 công trình cụ thể) + xưởng / tình trạng / IPO — cùng tập mã với
+    // /api/stock/by-project (trước bỏ qua tinhTrang / tinhTrangIpo => tổng chi tiết lớn hơn biểu đồ)
+    conds.push(...stockScopeConds(filters, params, 's', !project));
     params.push(STOCK_ITEMS_LIMIT + 1);
 
     const r = await timedQuery(
@@ -385,9 +386,9 @@ let cachedStockTotalCountVersion: string | null = null;
 
 app.get('/api/stock/total-count', async (req: Request, res: Response) => {
   try {
-    // Có lọc công trình / xưởng: đếm đúng phạm vi (không cache) — trước luôn trả COUNT(*) cả bảng
+    // Có lọc công trình / xưởng / tình trạng / IPO: đếm đúng phạm vi (không cache) — trước luôn trả COUNT(*) cả bảng
     const filters = parseStockFilters(req);
-    if (filters.congTrinh.length || filters.xuong.length) {
+    if (filters.congTrinh.length || hasProductionFilter(filters)) {
       const total = await cachedByVersions(stockQueryCache, `total-count|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
         const params: any[] = [];
         const conds = stockScopeConds(filters, params);

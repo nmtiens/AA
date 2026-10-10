@@ -337,8 +337,11 @@ app.get('/api/production/plan-met', async (_req: Request, res: Response) => {
            FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
          )
          SELECT p.hex,
+           -- Tuần ISO (T2–CN) cắt trong năm dương lịch của ngày KH — khớp inPlanWeek ở frontend
+           -- (useUnifiedTimeFilters): tuần 1 không lấy 29–31/12 năm trước, tuần cuối không tràn sang năm sau
            (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
-              n.date >= DATE_TRUNC('week', p.kt)::date AND n.date < DATE_TRUNC('week', p.kt)::date + 7), 0) >= p.st) AS tuan_met,
+              n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
+              AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
            (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
               n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
          FROM p LEFT JOIN n ON n.hex = p.hex

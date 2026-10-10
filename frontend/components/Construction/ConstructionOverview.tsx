@@ -48,7 +48,10 @@ interface Rec {
   // dữ liệu từ 01/2025: hạng mục giao trước đó có xuất = 0 nhưng tồn = 0 => nhập − xuất ≠ tồn (lệch hàng trăm tỷ).
   exported: number;
   exportedRecorded: number; // xuất kho lũy kế ghi trong bảng xuất kho (thanh_tien_xuat_kho_luy_ke) — để tham khảo
-  stock: number;      // giá trị tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) — khớp bảng tồn kho
+  // Tồn kho dùng để chia giá trị đã nhập: tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) chặn ≤ done
+  // (đơn HỦY = 0) => Đã xuất + Tồn kho = Đã nhập kho
+  stock: number;
+  stockCut: number;   // phần tồn kho hiện tại vượt giá trị đã nhập (bị chặn) — để ghi chú
   qtyDone: boolean;   // đã nhập đủ số lượng đơn hàng (đếm là đã nhập kho dù thành tiền NK thấp hơn trị giá)
   row: DataRow;       // dòng gốc — để mở cửa sổ danh sách HEX
   ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
@@ -244,7 +247,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
       const cancelled = status === 'HỦY';
       const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
-      const stock = Math.max(parseNumber(row[tkK]), 0);
+      // Tồn kho chặn ≤ đã nhập (nhập/tồn có thể vượt trị giá đơn hàng); đơn HỦY không tính tồn
+      const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
+      const stock = Math.min(stockRaw, done);
       const qtyDone = isQtyComplete(row);
       // Cùng định nghĩa "còn theo dõi" với cửa sổ tổng quan công trình (ProjectHealthModal)
       const open = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
@@ -258,9 +263,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         // người xem lọc IPO để bỏ HỦY khi cần
         total: totalRaw,
         done,
-        exported: Math.max(done - stock, 0),
+        exported: done - stock,
         exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
         stock,
+        stockCut: stockRaw - stock,
         qtyDone,
         row,
         mk: projectMatchKey(ct),
@@ -320,7 +326,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const kpi = useMemo(() => {
     const cts = new Set<string>();
     let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0;
-    let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho (theo đơn giá tồn) lớn hơn giá trị đã nhập
+    let stockOver = 0, stockOverItems = 0; // hạng mục nhập/tồn vượt trị giá đơn hàng (tồn bị chặn ≤ đã nhập)
     // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
     const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
     for (const r of rowsAll) {
@@ -330,7 +336,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       else if (isStocked(r)) stocked++;
       else { notStocked++; if (r.done > 0) partial++; }
       total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded;
-      if (r.stock > r.done + 0.001) { stockOver += r.stock - r.done; stockOverItems++; }
+      if (r.stockCut > 0.001) { stockOver += r.stockCut; stockOverItems++; }
     }
     // Cảnh báo: quá hạn KH nhập kho / chưa có KH / qua BOT dự án (hạng mục còn theo dõi)
     let overdue = 0, overdueRemain = 0, noPlan = 0, noPlanRemain = 0, pastBot = 0, pastBotRemain = 0;
@@ -368,6 +374,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // nhiều lần các tháng và ép biểu đồ — hiện thành 1 dòng bấm được phía trên biểu đồ.
   const monthChartData = useMemo(() => monthData.filter(d => d.key !== NO_MONTH && chartMonthOrder(d.key) % 2 === 1), [monthData]);
   const noMonthBucket = useMemo(() => monthData.find(d => d.key === NO_MONTH) ?? null, [monthData]);
+  // Cột gộp "Trước …" / "Sau …" (không vẽ) — hiện thành dòng bấm được khi có số
+  const outBuckets = useMemo(() => monthData.filter(d => d.key !== NO_MONTH && chartMonthOrder(d.key) % 2 === 0 && d.done + d.remain > 0.0005), [monthData]);
 
   // ---------- 4. Biểu đồ tròn ----------
   const donut = (k: 'kv' | 'kh' | 'pl') => aggregateMix(apply(k), r => r[k], r => r.ctKey, r => r.total, metric);
@@ -396,7 +404,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.items++; e.total += r.total; e.done += r.done;
       if (r.open) e.open++; if (r.overdue) e.overdue++;
       // Khoá ngày giờ địa phương (toISOString lùi 1 ngày ở +7)
-      if (r.botDuAn) e.botDates.push(`${r.botDuAn.getFullYear()}-${String(r.botDuAn.getMonth() + 1).padStart(2, '0')}-${String(r.botDuAn.getDate()).padStart(2, '0')}`);
+      // Bỏ đơn HỦY khi gom BOT dự án (khớp ProjectHealthModal)
+      if (r.botDuAn && r.status !== 'HỦY') e.botDates.push(`${r.botDuAn.getFullYear()}-${String(r.botDuAn.getMonth() + 1).padStart(2, '0')}-${String(r.botDuAn.getDate()).padStart(2, '0')}`);
       m.set(r.ct, e);
     }
     return [...m.values()].map(e => {
@@ -408,7 +417,36 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey) };
     }).sort((a, b) => b.total - a.total || b.items - a.items);
   }, [records, f, ctSearch, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
-  const vmTotal = useMemo(() => ctTable.reduce((s, r) => s + r.vm.open, 0), [ctTable]);
+  // Ô "Vướng mắc đang mở": theo MỌI bộ lọc trang (rowsAll, không theo ô tìm của bảng);
+  // mỗi mã công trình chỉ cộng 1 lần (1 mã có thể nằm ở nhiều công trình / nhiều tên)
+  const vmSum = useMemo(() => {
+    const byCt = new Map<string, { ctKey: string; mas: Set<string> }>();
+    for (const r of rowsAll) {
+      const e = byCt.get(r.ct) ?? { ctKey: r.ctKey, mas: new Set<string>() };
+      if (r.ma) e.mas.add(r.ma);
+      byCt.set(r.ct, e);
+    }
+    const seenMa = new Set<string>(), seenName = new Set<string>();
+    let open = 0, overdue = 0, cts = 0;
+    byCt.forEach(e => {
+      if (vmOf(e.mas, e.ctKey).open > 0) cts++;
+      let hit = false;
+      e.mas.forEach(ma => {
+        const v = vmIndex.byMa.get(ma);
+        if (!v) return;
+        hit = true;
+        if (seenMa.has(ma)) return;
+        seenMa.add(ma); open += v.open; overdue += v.overdue;
+      });
+      if (!hit && !seenName.has(e.ctKey)) {
+        seenName.add(e.ctKey);
+        const v = vmIndex.byName.get(e.ctKey);
+        if (v) { open += v.open; overdue += v.overdue; }
+      }
+    });
+    return { open, overdue, cts };
+  }, [rowsAll, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  const vmTotal = vmSum.open;
 
   // ---------- 6. Cửa sổ HEX của 1 công trình ----------
   // Cùng phạm vi với dòng bảng đã bấm: áp mọi bộ lọc đang chọn (trừ lọc công trình) — số HEX = cột "Mục"
@@ -794,9 +832,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                       spec={{ pred: r => r.exported > 0, focus: 'exported', note: 'Đã xuất / giao = giá trị đã nhập kho − tồn kho hiện tại, theo từng hạng mục (không lấy bảng xuất kho vì bảng chỉ có từ 01/2025).' }} />
                 <Mini label="Tồn kho" value={kpi.stock} tone="text-violet-700" bar="bg-violet-500"
                       hint={kpi.stockOverItems > 0
-                        ? `Tồn kho hiện tại (khớp bảng tồn kho). ${fmtInt(kpi.stockOverItems)} hạng mục có tồn kho tính theo đơn giá cao hơn giá trị đã nhập (lệch ${fmtTy(kpi.stockOver)} tỷ) nên Đã xuất / giao + Tồn kho lớn hơn Đã nhập kho một chút.`
-                        : 'Tồn kho hiện tại (khớp bảng tồn kho). Đã nhập kho = Đã xuất / giao + Tồn kho.'}
-                      spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất — khớp bảng tồn kho).' }} />
+                        ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Đã nhập kho = Đã xuất / giao + Tồn kho. ${fmtInt(kpi.stockOverItems)} mục nhập/tồn vượt trị giá đơn hàng — phần tồn vượt ${fmtTy(kpi.stockOver)} tỷ không tính.`
+                        : 'Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0). Đã nhập kho = Đã xuất / giao + Tồn kho.'}
+                      spec={{ pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho; đơn hủy không tính.' }} />
               </div>
             </div>
             <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
@@ -850,7 +888,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               {vmRows === null ? '…' : fmtInt(vmTotal)}<span className="ml-1 text-sm font-medium text-slate-400">vướng mắc</span>
             </p>
             <p className="mt-0.5 text-[0.6875rem] text-slate-400">
-              {vmRows === null ? 'Đang tải' : `${fmtInt(ctTable.filter(r => r.vm.open > 0).length)} công trình · ${fmtInt(ctTable.reduce((s, r) => s + r.vm.overdue, 0))} quá hạn BOT`}
+              {vmRows === null ? 'Đang tải' : `${fmtInt(vmSum.cts)} công trình · ${fmtInt(vmSum.overdue)} quá hạn BOT`}
             </p>
           </a>
         </div>
@@ -880,6 +918,24 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   {' · '}
                   <span className="tabular-nums" style={{ color: COLOR_REMAIN }}>{formatTy(noMonthBucket.remain)}</span> tỷ
                 </button>
+              )}
+              {outBuckets.length > 0 && (
+                <p className="mb-1 flex flex-wrap gap-x-3 text-[0.6875rem] text-slate-500">
+                  {outBuckets.map(b => (
+                    <button
+                      key={b.key}
+                      type="button"
+                      onClick={() => openMonthDetail(b.key)}
+                      title="Tháng hạn ngoài khoảng biểu đồ (không vẽ) — bấm để xem chi tiết"
+                      className="text-left hover:text-slate-800 hover:underline"
+                    >
+                      {b.label}:{' '}
+                      <span className="tabular-nums" style={{ color: COLOR_DONE }}>{formatTy(b.done)}</span>
+                      {' · '}
+                      <span className="tabular-nums" style={{ color: COLOR_REMAIN }}>{formatTy(b.remain)}</span> tỷ
+                    </button>
+                  ))}
+                </p>
               )}
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">

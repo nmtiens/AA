@@ -19,7 +19,7 @@ import { BG, NO_SCROLLBAR, inputCls, chipCls, BottomSheet, MobileLogin, Toast } 
 import { STATUS_META, PRIORITY_META, catIcon, catLabel, CAT_CODE } from '../VuongMac/model';
 import { VmCard, DetailSheet, FormSheet } from '../VuongMac/sheets';
 import {
-  DEFAULT_FILTERS, DATE_LABELS, MINE_LABELS, toQuery, activeChips,
+  DEFAULT_FILTERS, DATE_LABELS, MINE_LABELS, STATUS_TAB_ST, toQuery, activeChips,
   type ListFilters, type DateMode, type StatusTab, type MineMode,
 } from './listFilters';
 
@@ -43,7 +43,7 @@ function FilterSheet({ f, set, onClose, onReset, xuongs }: {
       <div className="flex flex-wrap gap-2">{children}</div>
     </div>
   );
-  const stOptions: VmStatus[] = f.tab === 'active' ? ['open', 'doing'] : f.tab === 'all' ? ['open', 'doing', 'done', 'closed'] : [];
+  const stOptions: VmStatus[] = f.tab === 'active' || f.tab === 'notClosed' ? STATUS_TAB_ST[f.tab] : f.tab === 'all' ? ['open', 'doing', 'done', 'closed'] : [];
   return (
     <BottomSheet
       title="Bộ lọc"

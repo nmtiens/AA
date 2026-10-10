@@ -426,28 +426,31 @@ export const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
 export const ALLOWED_ANALYSIS_KEYS = new Set(Object.keys(ANALYSIS_TABLES));
 export const TREND_SOURCES = new Set([...Object.keys(ANALYSIS_TABLES), 'stock']);
 
-export const numericExpr = (col: string) => `
-  NULLIF(
-    CASE 
-      WHEN regexp_replace("${col}"::text, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$' 
-      THEN regexp_replace("${col}"::text, '[^0-9.-]', '', 'g') 
-      ELSE NULL 
-    END, 
-    ''
-  )::numeric
+// Ép text -> numeric. Dạng khoa học ("6.4e-06", "1.5E+03") ép thẳng — trước bị xoá ký tự ngoài [0-9.-]
+// nên "6.4e-06" thành "6.4-06" => NULL, "1.5e+03" thành "1.503" (sai im lặng). Dấu phẩy ngăn nghìn được
+// bỏ; số mũ quá 3 chữ số => NULL (tránh lỗi tràn numeric làm hỏng cả câu lệnh). Dạng khác giữ hành vi cũ.
+// Cột generated *_num trong DB vẫn dùng biểu thức cũ — đề xuất sửa: sql/2026-10-10_fix_sci_numbers.sql
+const SCI_NUMBER_RE = `'^\\s*-?[0-9]+(\\.[0-9]+)?[eE][-+]?[0-9]+\\s*$'`;
+const SCI_EXP_OK_RE = `'[eE][-+]?0*[0-9]{1,3}\\s*$'`;
+const numericFromText = (textExpr: string) => `
+  CASE
+    WHEN REPLACE(${textExpr}, ',', '') ~ ${SCI_NUMBER_RE}
+    THEN CASE WHEN ${textExpr} ~ ${SCI_EXP_OK_RE} THEN TRIM(REPLACE(${textExpr}, ',', ''))::numeric END
+    ELSE NULLIF(
+      CASE
+        WHEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$'
+        THEN regexp_replace(${textExpr}, '[^0-9.-]', '', 'g')
+        ELSE NULL
+      END,
+      ''
+    )::numeric
+  END
 `;
 
+export const numericExpr = (col: string) => numericFromText(`"${col}"::text`);
+
 // Đặt ngay dưới numericExpr — dùng khi cần alias bảng (trường hợp có JOIN)
-export const numericExprQualified = (qualifiedCol: string) => `
-  NULLIF(
-    CASE 
-      WHEN regexp_replace(${qualifiedCol}::text, '[^0-9.-]', '', 'g') ~ '^-?[0-9]+(\\.[0-9]+)?$' 
-      THEN regexp_replace(${qualifiedCol}::text, '[^0-9.-]', '', 'g') 
-      ELSE NULL 
-    END, 
-    ''
-  )::numeric
-`;
+export const numericExprQualified = (qualifiedCol: string) => numericFromText(`${qualifiedCol}::text`);
 
 
 // Map "table.column" -> tên generated column numeric tương ứng (xem migration 001).

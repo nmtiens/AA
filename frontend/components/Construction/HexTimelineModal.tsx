@@ -135,6 +135,10 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
     const phDate = parsePlanDate(row.ngay_tinh_phieu);
     const qtyOut = Math.max(Number(row.so_luong_xuat_kho_luy_ke) || 0, 0);
     const qtyStock = Math.max(Number(row.so_luong_ton_kho_hien_tai) || 0, 0);
+    // Quy tắc chung: Đã xuất = Đã nhập − Tồn kho. Bảng xuất kho chỉ có từ 01/2025 => cột xuất trống/0
+    // mà nhập − tồn > 0 thì coi phần đó đã xuất/giao (suy từ nhập − tồn)
+    const outInferred = qtyOut <= 0 && qtyIn - qtyStock > 0;
+    const qtyOutEff = outInferred ? qtyIn - qtyStock : qtyOut;
     // Số ngày giữa 2 mốc (hiện cạnh mốc sau) — thời gian chờ ở từng khâu
     const gap = (a: Date | null, b: Date | null) => (a && b ? Math.round((b.getTime() - a.getTime()) / DAY) : null);
     const gapText = (a: Date | null, b: Date | null, label: string) => { const g = gap(a, b); return g === null ? '' : `${label} ${g} ngày`; };
@@ -160,9 +164,11 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       },
       {
         key: 'xk', title: 'Xuất kho / giao', stage: 'P025', date: null,
-        note: qtyOut > 0 || qtyStock > 0 ? `đã xuất ${fmtNum(qtyOut, 3)} · tồn kho ${fmtNum(qtyStock, 3)} ${row.dvt ?? ''}` : (qtyIn > 0 ? 'chưa xuất kho' : ''),
+        note: qtyOutEff > 0 || qtyStock > 0
+          ? `đã xuất ${fmtNum(qtyOutEff, 3)}${outInferred ? ' (suy từ nhập − tồn)' : ''} · tồn kho ${fmtNum(qtyStock, 3)} ${row.dvt ?? ''}`
+          : (qtyIn > 0 ? 'chưa xuất kho' : ''),
         gap: '',
-        st: (qtyIn > 0 && qtyOut >= qtyIn && qtyStock <= 0) ? 'done' as const : qtyOut > 0 ? 'current' as const : 'todo' as const,
+        st: (qtyIn > 0 && qtyOutEff >= qtyIn && qtyStock <= 0) ? 'done' as const : qtyOutEff > 0 ? 'current' as const : 'todo' as const,
       },
     ];
 
