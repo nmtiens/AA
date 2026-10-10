@@ -44617,8 +44617,8 @@ var authenticateActiveUser = (req, res, next) => authenticateJWT(req, res, () =>
     if (!access.active) return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
     next();
   }).catch((error61) => {
-    console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n:", error61);
-    res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+    console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n (cho qua theo token):", error61);
+    next();
   });
 });
 var withCurrentAccess = (req, res, allowed, next) => {
@@ -64650,6 +64650,39 @@ var refreshAllDataCache = async () => {
   })();
   return allDataInflight;
 };
+var VERSION_KEY_TO_TABLE = Object.fromEntries(
+  Object.entries(TABLE_TO_VERSION_KEY).map(([t, k]) => [k, t])
+);
+var tableCache = /* @__PURE__ */ new Map();
+var tableInflight = /* @__PURE__ */ new Map();
+var getTablesData = async (keys) => {
+  const versions = await getVersions();
+  const payload = {};
+  const fullFresh = cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions);
+  await runWithLimit(keys.filter((k) => VERSION_KEY_TO_TABLE[k]).map((key) => async () => {
+    if (fullFresh) {
+      payload[key] = cachedData[key];
+      return;
+    }
+    const ver = versions[key] ?? "";
+    const hit = tableCache.get(key);
+    if (hit && hit.ver === ver) {
+      payload[key] = hit.rows;
+      return;
+    }
+    let p = tableInflight.get(key);
+    if (!p) {
+      const table = VERSION_KEY_TO_TABLE[key];
+      p = (table === "ton_kho" ? fetchLatestStockSnapshot() : fetchTableData(table, void 0, true)).then((rows) => {
+        tableCache.set(key, { ver, rows });
+        return rows;
+      }).finally(() => tableInflight.delete(key));
+      tableInflight.set(key, p);
+    }
+    payload[key] = await p;
+  }), 2);
+  return { payload, versions };
+};
 var STOCK_TREND_CONFIG = {
   table: "ton_kho",
   dateCol: "date_parsed",
@@ -64867,8 +64900,8 @@ var getAllDataGzip = (vkey, gzKey, out) => {
 };
 app.get("/api/all-data", async (req, res) => {
   try {
-    const { payload, versions } = await refreshAllDataCache();
     const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
     const canSeePrice = !keys.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
     const out = {};

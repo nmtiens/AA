@@ -4,7 +4,7 @@ import { pool, timedQuery } from '../db.js';
 import { runWithLimit, GRACE_UNTIL_HOUR, vnDayKey, vnHour } from '../server/common.js';
 import { authenticateJWT, requireRole } from '../server/auth.js';
 import { validateBody } from '../server/validation.js';
-import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache } from '../server/data.js';
+import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache, getTablesData } from '../server/data.js';
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
@@ -65,11 +65,11 @@ const getAllDataGzip = (vkey: string, gzKey: string, out: Record<string, unknown
 
 app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
-    const { payload, versions } = await refreshAllDataCache();
     // ?tables=production,order: chỉ trả các bảng client cần (thường là bảng vừa đổi phiên bản),
-    // tránh tải lại cả 12 bảng (~51k dòng sản xuất) khi chỉ 1 bảng thay đổi.
-    // Không truyền => trả đủ 12 bảng như cũ (tương thích ngược với client cũ).
+    // tránh tải lại cả 12 bảng (~51k dòng sản xuất) khi chỉ 1 bảng thay đổi — và CHỈ NẠP các bảng đó từ DB
+    // (getTablesData, cache theo phiên bản từng bảng). Không truyền => nạp / trả đủ 12 bảng như cũ.
     const requested = String(req.query.tables || '').split(',').map(s => s.trim()).filter(Boolean);
+    const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
     // Vật tư: bỏ cột giá/NCC nếu user không có quyền "Xem Giá/NCC" (payload là cache dùng
     // chung -> không sửa trực tiếp, chỉ thay bản đã cắt trong object trả về).

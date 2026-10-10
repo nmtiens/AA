@@ -407,6 +407,39 @@ export const refreshAllDataCache = async (): Promise<{ payload: any; versions: R
   return allDataInflight;
 };
 
+// Nạp RIÊNG các bảng được yêu cầu (/api/all-data?tables=...), cache theo phiên bản TỪNG bảng.
+// Client tải mỗi bảng 1 request (phản hồi gộp vượt giới hạn ~4,5 MB của Vercel); trước đây mỗi request đó vẫn
+// nạp đủ 12 bảng (~150 MB) — trên Vercel nhiều request rơi vào nhiều instance, instance nào cũng nạp đủ 12 bảng,
+// chiếm hết pool 3 kết nối => mọi API khác chờ quá connectionTimeout => 500 hàng loạt.
+const VERSION_KEY_TO_TABLE: Record<string, string> = Object.fromEntries(
+  Object.entries(TABLE_TO_VERSION_KEY).map(([t, k]) => [k, t])
+);
+const tableCache = new Map<string, { ver: string; rows: any[] }>();
+const tableInflight = new Map<string, Promise<any[]>>();
+
+export const getTablesData = async (keys: string[]): Promise<{ payload: Record<string, any[]>; versions: Record<string, string> }> => {
+  const versions = await getVersions();
+  const payload: Record<string, any[]> = {};
+  // Bản đủ 12 bảng còn mới (vd vừa warmup) thì dùng luôn
+  const fullFresh = cachedData && cachedVersions && JSON.stringify(versions) === JSON.stringify(cachedVersions);
+  await runWithLimit(keys.filter(k => VERSION_KEY_TO_TABLE[k]).map(key => async () => {
+    if (fullFresh) { payload[key] = cachedData[key]; return; }
+    const ver = versions[key] ?? '';
+    const hit = tableCache.get(key);
+    if (hit && hit.ver === ver) { payload[key] = hit.rows; return; }
+    let p = tableInflight.get(key);
+    if (!p) {
+      const table = VERSION_KEY_TO_TABLE[key];
+      p = (table === 'ton_kho' ? fetchLatestStockSnapshot() : fetchTableData(table, undefined, true))
+        .then(rows => { tableCache.set(key, { ver, rows }); return rows; })
+        .finally(() => tableInflight.delete(key));
+      tableInflight.set(key, p);
+    }
+    payload[key] = await p;
+  }), 2);
+  return { payload, versions };
+};
+
 export interface TrendTableConfig {
   table: string;
   dateCol: string;

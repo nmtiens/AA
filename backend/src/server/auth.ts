@@ -53,8 +53,11 @@ export const authenticateActiveUser = (req: Request, res: Response, next: NextFu
       if (!access.active) return res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
       next();
     }).catch(error => {
-      console.error('Lỗi kiểm tra tài khoản:', error);
-      res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+      // DB tạm quá tải / lỗi kết nối: KHÔNG chặn cả app (trước => mọi API 500 hàng loạt). Token đã hợp lệ nên
+      // cho đi tiếp; bản thân route đọc DB sẽ tự báo lỗi nếu DB thật sự không dùng được. Thao tác quản trị
+      // (requireRole / requireSelfOrRole) vẫn kiểm chặt ở withCurrentAccess.
+      console.error('Lỗi kiểm tra tài khoản (cho qua theo token):', error);
+      next();
     });
   });
 
