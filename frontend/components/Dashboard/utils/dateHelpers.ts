@@ -27,14 +27,25 @@ export const toISODateLocal = (d: Date): string => {
   return `${y}-${m}-${day}`;
 };
 
+// Nhớ kết quả theo chuỗi ngày gốc: hàm được gọi trên từng dòng (hàng trăm nghìn) trong khi số ngày khác nhau
+// chỉ vài nghìn. Giới hạn kích thước để không phình mãi.
+const vnDateCache = new Map<string, string>();
 export const formatDateToVN = (dateInput: any): string => {
   if (!dateInput) return '';
-  const d = parseVNDate(String(dateInput));
-  if (!d) return String(dateInput).trim();
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
+  const raw = String(dateInput);
+  const hit = vnDateCache.get(raw);
+  if (hit !== undefined) return hit;
+  const d = parseVNDate(raw);
+  let out: string;
+  if (!d) out = raw.trim();
+  else {
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    out = `${day}/${month}/${d.getFullYear()}`;
+  }
+  if (vnDateCache.size > 20000) vnDateCache.clear();
+  vnDateCache.set(raw, out);
+  return out;
 };
 
 export const diffDays = (date1: Date, date2: Date): number => {
@@ -64,9 +75,18 @@ export const computeMtdRows = (
   if (!targetDate || !dateKey) return data;
   const tMonth = targetDate.getMonth();
   const tYear = targetDate.getFullYear();
+  const tTime = targetDate.getTime();
+  // Mỗi giá trị ngày chỉ đọc 1 lần (vài nghìn ngày khác nhau / hàng trăm nghìn dòng)
+  const inMtd = new Map<unknown, boolean>();
   return data.filter(row => {
-    const d = parseVNDate(String(row[dateKey] || ''));
-    return d && d.getMonth() === tMonth && d.getFullYear() === tYear && d.getTime() <= targetDate.getTime();
+    const v = row[dateKey];
+    let ok = inMtd.get(v);
+    if (ok === undefined) {
+      const d = parseVNDate(String(v || ''));
+      ok = !!d && d.getMonth() === tMonth && d.getFullYear() === tYear && d.getTime() <= tTime;
+      inMtd.set(v, ok);
+    }
+    return ok;
   });
 };
 

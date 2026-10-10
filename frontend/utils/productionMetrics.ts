@@ -230,14 +230,16 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
   if (!maKey || !tenKey || rows.length === 0) return rows;
 
   const counts = new Map<string, Map<string, number>>(); // mã -> (tên gọn -> số dòng)
-  for (const row of rows) {
-    const ma = normProjectName(row[maKey]);
+  // Chuẩn hoá mã mỗi dòng 1 lần (dùng lại ở 3 vòng lặp bên dưới)
+  const maOf = rows.map(row => normProjectName(row[maKey]));
+  rows.forEach((row, i) => {
+    const ma = maOf[i];
     const ten = String(row[tenKey] ?? '').trim().replace(/\s+/g, ' ');
-    if (!ma || !ten) continue;
+    if (!ma || !ten) return;
     let m = counts.get(ma);
     if (!m) { m = new Map(); counts.set(ma, m); }
     m.set(ten, (m.get(ten) ?? 0) + 1);
-  }
+  });
   const canonical = new Map<string, string>();
   counts.forEach((m, ma) => {
     let best = '', bestN = -1;
@@ -253,7 +255,12 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
     if (!s) { s = new Set(); nameCodes.set(k, s); }
     s.add(ma);
   }));
-  const single = (ten: unknown) => (nameCodes.get(normProjectName(ten))?.size ?? 0) <= 1;
+  const singleCache = new Map<unknown, boolean>();
+  const single = (ten: unknown) => {
+    let r = singleCache.get(ten);
+    if (r === undefined) { r = (nameCodes.get(normProjectName(ten))?.size ?? 0) <= 1; singleCache.set(ten, r); }
+    return r;
+  };
 
   // Bảng tên phụ -> tên chuẩn cho các bảng khác chỉ có TÊN công trình (nhập/xuất kho, danh sách
   // công trình của view...). Tên đang là tên chuẩn của 1 mã khác thì giữ nguyên, không đổi.
@@ -282,14 +289,14 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
   // Mã không có dòng nào ghi tên (vd. CT19-023 — 54 hạng mục tên trống): dùng chính mã làm tên để các dòng
   // vẫn thuộc 1 công trình khi lọc / đếm, không rơi vào "Chưa xác định" (dòng trống cả tên lẫn mã giữ nguyên).
   const codeOnly = new Map<string, string>();
-  for (const row of rows) {
-    const ma = normProjectName(row[maKey]);
+  rows.forEach((row, i) => {
+    const ma = maOf[i];
     if (ma && !canonical.has(ma) && !codeOnly.has(ma)) codeOnly.set(ma, String(row[maKey]).trim().replace(/\s+/g, ' '));
-  }
+  });
 
   let changed = false;
-  const out = rows.map(row => {
-    const ma = normProjectName(row[maKey]);
+  const out = rows.map((row, i) => {
+    const ma = maOf[i];
     const name = canonical.get(ma) ?? codeOnly.get(ma);
     if (!name || row[tenKey] === name) return row;
     // Chốt theo tên: không đổi tên dòng khi tên của dòng hoặc tên chuẩn dùng cho nhiều mã
@@ -436,13 +443,24 @@ const deaccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').repla
 const normPerson = (v: unknown) => String(v ?? '').normalize('NFC').trim().replace(/\s+/g, ' ').toUpperCase();
 const isAccount = (raw: string) => /^[a-z0-9._]+$/.test(raw.trim()) && !raw.includes(' ');
 
+// Tách chữ / bỏ dấu của 1 tên đầy đủ: nhớ lại (mỗi tên được so với hàng trăm tên khác)
+const fullWordsCache = new Map<string, { fw: string[]; words: string[] }>();
+const fullWordsOf = (full: string) => {
+  let c = fullWordsCache.get(full);
+  if (!c) {
+    const fw = full.split(' ');
+    c = { fw, words: fw.map(w => deaccent(w).toLowerCase()) };
+    fullWordsCache.set(full, c);
+  }
+  return c;
+};
+
 /** Tên rút gọn / tài khoản `short` có phải của người tên đầy đủ `full` không. */
 const personMatches = (short: string, shortRaw: string, full: string): boolean => {
-  const fw = full.split(' ');
+  const { fw, words } = fullWordsOf(full);
   if (isAccount(shortRaw)) {
     // Tài khoản: tên + chữ cái đầu họ/đệm (saudn = SÁU + Đ, N), hoặc viết liền cả họ tên (nguyenvietdung)
     const acc = shortRaw.toLowerCase().split('.')[0].replace(/\d+$/, '');
-    const words = fw.map(w => deaccent(w).toLowerCase());
     if (words.length < 2) return false;
     const given = words[words.length - 1];
     if (acc === words.join('') || acc === [given, ...words.slice(0, -1)].join('')) return true;
@@ -460,22 +478,29 @@ export function canonicalizePersonNames(rows: DataRow[], columns: ColumnDefiniti
   const keys = ['ten_pm', 'ten_pc'].map(k => findColumnKey(columns, k)).filter(Boolean) as string[];
   if (!maKey || keys.length === 0 || rows.length === 0) return rows;
 
+  const maOf = rows.map(row => normProjectName(row[maKey]));
+  const normOf = new Map<string, string>(); // cách viết gốc -> tên chuẩn hoá (chuẩn hoá NFC tốn, ~100k lượt)
+  const normCached = (raw: string) => {
+    let n = normOf.get(raw);
+    if (n === undefined) { n = normPerson(raw); normOf.set(raw, n); }
+    return n;
+  };
   const maps = keys.map(key => {
     // Cách viết hiển thị của 1 tên chuẩn hoá = cách viết nhiều dòng nhất
     const display = new Map<string, Map<string, number>>();
     const perProject = new Map<string, Set<string>>();
     const rawOf = new Map<string, string>(); // tên chuẩn hoá -> 1 cách viết gốc (để nhận diện tài khoản)
-    for (const row of rows) {
+    rows.forEach((row, i) => {
       const raw = String(row[key] ?? '').trim();
-      if (!raw) continue;
-      const n = normPerson(raw);
+      if (!raw) return;
+      const n = normCached(raw);
       let d = display.get(n); if (!d) { d = new Map(); display.set(n, d); }
       d.set(raw, (d.get(raw) ?? 0) + 1);
       if (!rawOf.has(n)) rawOf.set(n, raw);
-      const ma = normProjectName(row[maKey]);
+      const ma = maOf[i];
       let s = perProject.get(ma); if (!s) { s = new Set(); perProject.set(ma, s); }
       s.add(n);
-    }
+    });
     const best = (n: string) => {
       let b = n, bn = -1;
       display.get(n)?.forEach((c, raw) => { if (c > bn) { b = raw; bn = c; } });
@@ -489,11 +514,18 @@ export function canonicalizePersonNames(rows: DataRow[], columns: ColumnDefiniti
       const top = cands.filter(f => !cands.some(g => g !== f && personMatches(f, f, g)));
       return top.length === 1 ? top[0] : null;
     };
+    // Dò trong toàn bộ tên: kết quả chỉ phụ thuộc tên => nhớ lại (trước dò lại cho từng công trình, ~0,4 giây)
+    const pickAll = new Map<string, string | null>();
+    const pickFulls = (n: string) => {
+      let r = pickAll.get(n);
+      if (r === undefined) { r = pick(n, fulls); pickAll.set(n, r); }
+      return r;
+    };
     const perProjectAlias = new Map<string, Map<string, string>>();
     perProject.forEach((names, ma) => {
       const m = new Map<string, string>();
       names.forEach(n => {
-        const target = pick(n, names) ?? pick(n, fulls);
+        const target = pick(n, names) ?? pickFulls(n);
         m.set(n, best(target ?? n));
       });
       perProjectAlias.set(ma, m);
@@ -502,13 +534,13 @@ export function canonicalizePersonNames(rows: DataRow[], columns: ColumnDefiniti
   });
 
   let changed = false;
-  const out = rows.map(row => {
-    const ma = normProjectName(row[maKey]);
+  const out = rows.map((row, i) => {
+    const ma = maOf[i];
     let next: DataRow | null = null;
     for (const { key, perProjectAlias } of maps) {
       const raw = String(row[key] ?? '').trim();
       if (!raw) continue;
-      const name = perProjectAlias.get(ma)?.get(normPerson(raw));
+      const name = perProjectAlias.get(ma)?.get(normCached(raw));
       if (name && name !== row[key]) {
         if (!next) next = { ...row };
         next[key] = name;

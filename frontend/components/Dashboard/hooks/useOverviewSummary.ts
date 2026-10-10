@@ -308,16 +308,7 @@ export function useOverviewSummary({
   }, [exportData, overviewDateFilters, filters.congTrinh, filters.xuong, expDateKey, expCongTrinhKey, expXuongKey, viewProjectWhitelist]);
 
   // --- Dữ liệu lũy kế tháng (MTD) tính theo latestUnifiedDate ---
-  const mtdOrderData = useMemo(() => {
-    if (!latestUnifiedDate || !orderDateKey) return orderData;
-    const target = latestUnifiedDate as Date;
-    const tMonth = target.getMonth();
-    const tYear = target.getFullYear();
-    return orderData.filter(row => {
-      const d = parseVNDate(String(row[orderDateKey] || ''));
-      return d && d.getMonth() === tMonth && d.getFullYear() === tYear && d.getTime() <= target.getTime();
-    });
-  }, [orderData, latestUnifiedDate, orderDateKey]);
+  const mtdOrderData = useMemo(() => computeMtdRows(orderData, orderDateKey, latestUnifiedDate), [orderData, orderDateKey, latestUnifiedDate]);
 
   const mtdTkbvData = useMemo(() => computeMtdRows(tkbvData, tkbvDateKey, latestUnifiedDate), [tkbvData, tkbvDateKey, latestUnifiedDate]);
   const mtdPthspData = useMemo(() => computeMtdRows(pthspData, pthspDateKey, latestUnifiedDate), [pthspData, pthspDateKey, latestUnifiedDate]);
