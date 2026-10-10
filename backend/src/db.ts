@@ -11,16 +11,17 @@ export const pool = new Pool({
     ? { rejectUnauthorized: false }
     : false,
 
-  // Transaction-mode pooler (6543) có pool phía server rất nhỏ, dùng chung cho mọi
-  // client/instance. Không tăng max khi chưa biết giới hạn thật của pooler.
-  max: 3,
+  // Transaction-mode pooler có giới hạn số client (max_client_conn) dùng chung cho MỌI instance Vercel.
+  // Mỗi instance thường xử lý 1 request tại 1 thời điểm => 2 kết nối là đủ (1 cho request, 1 cho việc nền như
+  // nạp bảng tên công trình); 3 làm nhiều instance cộng lại vượt trần pooler.
+  max: 2,
 
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 
-  // Trả connection rảnh về pooler sau 10 giây: trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
+  // Trả connection rảnh về pooler sau 5 giây: trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
   // instance cùng giữ chỗ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500.
-  idleTimeoutMillis: 10000,
+  idleTimeoutMillis: 5000,
 
   connectionTimeoutMillis: 15000,
 
