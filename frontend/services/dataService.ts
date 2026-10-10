@@ -278,7 +278,9 @@ const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
   }));
 };
 
-// Tải nhiều bảng trong 1 request /api/all-data.
+const ALL_DATA_CONCURRENCY = 4;
+
+// Tải nhiều bảng qua /api/all-data (mỗi bảng 1 request, chạy song song).
 // endpoints: danh sách bảng cần tải (theo tên endpoint, vd 'production', 'yearly-plan');
 // không truyền => tải đủ 12 bảng. Kết quả chỉ chứa các bảng đã yêu cầu.
 export const fetchAllDataFromServer = async (
@@ -289,11 +291,23 @@ export const fetchAllDataFromServer = async (
       ? Object.entries(ALL_DATA_ENDPOINT_MAP).filter(([, ep]) => endpoints.includes(ep)).map(([key]) => key)
       : null;
     if (keys && keys.length === 0) return {};
-    const query = keys ? `?tables=${encodeURIComponent(keys.join(','))}` : '';
 
-    const response = await fetch(`${API_BASE_URL}/all-data${query}`, { cache: 'no-store' });
-    if (!response.ok) throw new Error(`Failed to fetch all-data: ${response.statusText}`);
-    const raw = await response.json();
+    // Mỗi bảng 1 request (tối đa ALL_DATA_CONCURRENCY request song song) rồi ghép lại. Gộp cả 10–12 bảng vào 1
+    // request thì phản hồi ~10 MB (đã nén) — vượt giới hạn ~4,5 MB của serverless function trên Vercel => 500
+    // (xảy ra khi ETL nạp lại làm mọi bảng đổi phiên bản cùng lúc). Từng bảng hiện ≤ ~3,4 MB.
+    const wanted = keys ?? Object.keys(ALL_DATA_ENDPOINT_MAP);
+    const raw: Record<string, DataRow[]> = {};
+    let next = 0;
+    const worker = async () => {
+      while (next < wanted.length) {
+        const key = wanted[next++];
+        const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(key)}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`Failed to fetch all-data (${key}): ${response.status} ${response.statusText}`);
+        const part = await response.json();
+        raw[key] = part[key] || [];
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(ALL_DATA_CONCURRENCY, wanted.length) }, worker));
 
     const result: Record<string, { data: DataRow[]; columns: ColumnDefinition[] }> = {};
     Object.entries(ALL_DATA_ENDPOINT_MAP).forEach(([key, endpoint]) => {
