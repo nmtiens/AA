@@ -365,7 +365,13 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
         ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows
         : [];
       const dich = new Map<string, Row>(dichDb.map(x => [String(x.id), x]));
-      const quanLy = huyIds.length ? await xuongQuanLy(sentBy) : new Set<string>();
+      const quanLy = await xuongQuanLy(sentBy);
+      // Tổ người gửi được ghi: tổ trưởng, hoặc thành viên đang trong tổ (theo mã NV — một người có thể có nhiều tài khoản)
+      const toCuaToi = new Set((await client.query(
+        `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
+         UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $1
+           WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
+        [sentBy])).rows.map(x => Number(x.id)));
 
       const ghi: Row[] = [];
       for (const e of hopLe) {
@@ -392,6 +398,18 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
         }
 
         const co: string[] = [];
+        // Quyền ghi theo tổ: người của tổ; quản lý xưởng ghi hộ được (gắn cờ để đối chiếu); người khác bị từ chối
+        if (e.loai !== 'huy') {
+          if (toId) {
+            if (!toCuaToi.has(toId)) {
+              if (!quanLyDuoc(quanLy, xuongTo.get(toId) ?? null)) { tuChoi.push({ id: e.id, reason: 'Tài khoản không thuộc tổ này' }); continue; }
+              co.push('quan_ly_ghi_ho');
+            }
+          } else if (!quanLyDuoc(quanLy, xuong)) {
+            tuChoi.push({ id: e.id, reason: 'Thao tác không gắn tổ chỉ quản lý xưởng được ghi' });
+            continue;
+          }
+        }
         // Tác giả (R6): chỉ tin người khai nếu đã đăng nhập trên chính máy này
         let userId: number = sentBy;
         let userIdKhai: number | null = null;

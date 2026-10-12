@@ -94,6 +94,11 @@ function dauXacThuc(): Record<string, string> {
   return authXuong();
 }
 
+export interface TongQuanTo {
+  id: number; ten: string; toTruong: string | null; quanSo: number | null;
+  dangChay: number; tamNgung: number; choNhan: number; choGiao: number; canXem: number; thaoTacCuoi: string | null;
+}
+
 type KetQua<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
 
 async function goi<T>(method: string, path: string, body?: unknown): Promise<KetQua<T>> {
@@ -134,6 +139,7 @@ export const xuongSetupApi = {
   boLichCa: (xuong: string, loaiCa: LoaiCa) => goi<unknown>('DELETE', '/api/xuong/setup/lich-ca', { xuong, loaiCa }),
   quanLy: (userId: number, xuong: string, bo = false) => goi<unknown>('POST', '/api/xuong/setup/quan-ly', { userId, xuong, bo }),
   timNguoi: (s: string) => goi<{ ketQua: NguoiDung[] }>('GET', `/api/xuong/setup/nguoi-dung?${q({ q: s })}`),
+  tongQuan: (xuong?: string) => goi<{ dsXuong: string[]; xuong: string | null; to: TongQuanTo[] }>('GET', `/api/xuong/tong-quan?${q({ xuong })}`),
   canXem: (xuong: string) => goi<{ suKien: Array<Record<string, unknown>>; trangThai: Array<Record<string, unknown>> }>('GET', `/api/xuong/can-xem?${q({ xuong })}`),
   huy: (suKienId: string, lyDo?: string) => goi<unknown>('POST', '/api/xuong/huy', { suKienId, lyDo }),
   hex: (hex: string) => goi<ChiTietHex>('GET', `/api/xuong/hex/${encodeURIComponent(hex)}`),

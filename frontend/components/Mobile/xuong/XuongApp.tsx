@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScanLine, ChevronDown, MoreHorizontal, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { ScanLine, ChevronDown, MoreHorizontal, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users, LayoutGrid } from 'lucide-react';
 import { BG, Toast, MobileLogin, InstallBanner } from '../mobileUi';
 import { getToken } from '../../../services/userService';
 import { useAuth } from '../../../context/AuthContext';
 import TrienKhaiGon from './TrienKhaiGon';
+import TongQuanXuong from './TongQuanXuong';
 import { dangKyThietBi, xoaTokenXuong, xuongApi, type ToCuaToi, type DanhMucXuong } from '../../../services/xuongApi';
 import {
   themSuKien, guiHangDoi, tinhTrangHangDoi, danhSachCho, xinLuuBen, themAnh, LoiLuuMay, LoiQuaNhieuAnh, type SuKienNhap, type SuKienCho,
@@ -52,6 +53,9 @@ export default function XuongApp({ onThoat }: { onThoat: () => void }) {
   // Quản lý / kế hoạch xưởng: triển khai gọn trên điện thoại (7A). Backend kiểm lại quyền theo xưởng.
   const laQuanLy = hasPermission('xuong_quan_ly');
   const quetDeTrienKhai = useRef(false);
+  // Quản lý xem / thao tác hộ một tổ không phải của mình (D25)
+  const [toNgoai, setToNgoai] = useState<ToCuaToi | null>(null);
+  const [xemTongQuan, setXemTongQuan] = useState(false);
   const [phien, setPhien] = useState<Phien | null>(() => docLS<Phien>(KHOA_PHIEN));
   const [dangKy, setDangKy] = useState<'dang' | 'ok' | 'loi'>('dang');
   const [loiDangKy, setLoiDangKy] = useState('');
@@ -218,7 +222,8 @@ export default function XuongApp({ onThoat }: { onThoat: () => void }) {
   const nhieuCd = (cv?.congDoan.length ?? 0) > 1;
   const tenCd = (id: string) => (nhieuCd ? cv?.congDoan.find(c => c.id === id)?.ten ?? null : null);
   const guiCua = (r: DongViec): TrangThaiGui => (choGui.has(khoaDong(r)) ? 'cho' : vuaGui.has(khoaDong(r)) ? 'da_gui' : null);
-  const toHienTai = phien?.to.find(t => t.id === toId) ?? null;
+  const toHienTai = phien?.to.find(t => t.id === toId) ?? (toNgoai && toNgoai.id === toId ? toNgoai : null);
+  const laToNgoai = !!toHienTai && !phien?.to.some(t => t.id === toHienTai.id);
 
   // 3A: ca chưa chốt quân số → chốt trước, rồi tự làm tiếp thao tác vừa bấm
   const canQuanSo = (nhan: string, chay: (quanSoMoi?: number) => void) => {
@@ -377,7 +382,24 @@ export default function XuongApp({ onThoat }: { onThoat: () => void }) {
       </div>
     );
   }
-  if (phien && phien.to.length === 0) {
+  if (laQuanLy && dangKy === 'ok' && (xemTongQuan || (phien && phien.to.length === 0 && !toNgoai))) {
+    return (
+      <>
+        <TongQuanXuong
+          coToRieng={!!phien && phien.to.length > 0}
+          onVeToCuaToi={() => { setToNgoai(null); setToId(phien?.to[0]?.id ?? null); setXemTongQuan(false); }}
+          onChonTo={t => {
+            if (!phien?.to.some(x => x.id === t.id)) setToNgoai(t);
+            setToId(t.id); setXemTongQuan(false); setTab('dangLam');
+          }}
+          onTrienKhai={() => setSheet({ loai: 'trienKhai', hex: null })}
+          onThoat={onThoat} />
+        {sheetTrienKhai}
+        <Toast text={toast} />
+      </>
+    );
+  }
+  if (phien && phien.to.length === 0 && !toNgoai) {
     return (
       <div className={`flex min-h-[100dvh] flex-col justify-center gap-4 ${BG} px-5`}>
         <p className="text-lg font-semibold text-slate-900">Tài khoản chưa được gán tổ nào</p>
@@ -441,10 +463,22 @@ export default function XuongApp({ onThoat }: { onThoat: () => void }) {
           ) : (
             <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Xưởng'}</h1>
           )}
-          <button className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Việc khác" onClick={() => setSheet({ loai: 'menu' })}>
-            <MoreHorizontal size="1.5em" />
-          </button>
+          <div className="flex shrink-0 gap-2">
+            {laQuanLy && (
+              <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Tổng quan xưởng" onClick={() => setXemTongQuan(true)}>
+                <LayoutGrid size="1.4em" />
+              </button>
+            )}
+            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Việc khác" onClick={() => setSheet({ loai: 'menu' })}>
+              <MoreHorizontal size="1.5em" />
+            </button>
+          </div>
         </div>
+        {laToNgoai && (
+          <p className={`rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3 text-base ${MAU.ngung.chu}`}>
+            Đang xem tổ xưởng {toHienTai?.xuong} với quyền quản lý — thao tác sẽ ghi "quản lý ghi hộ".
+          </p>
+        )}
         <p className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-base font-medium ${thanhGui.mau.nen} ${thanhGui.mau.chu}`} aria-live="polite">
           {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}
         </p>

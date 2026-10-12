@@ -70671,7 +70671,13 @@ app.post("/api/xuong/events", async (req, res) => {
       const huyIds = hopLe.filter((e) => e.loai === "huy").map((e) => e.suaCho);
       const dichDb = huyIds.length ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows : [];
       const dich = new Map(dichDb.map((x) => [String(x.id), x]));
-      const quanLy = huyIds.length ? await xuongQuanLy(sentBy) : /* @__PURE__ */ new Set();
+      const quanLy = await xuongQuanLy(sentBy);
+      const toCuaToi = new Set((await client.query(
+        `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
+         UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $1
+           WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
+        [sentBy]
+      )).rows.map((x) => Number(x.id)));
       const ghi = [];
       for (const e of hopLe) {
         let hex3 = e.hex ?? null;
@@ -70708,6 +70714,20 @@ app.post("/api/xuong/events", async (req, res) => {
           xuong = d.xuong ?? null;
         }
         const co = [];
+        if (e.loai !== "huy") {
+          if (toId) {
+            if (!toCuaToi.has(toId)) {
+              if (!quanLyDuoc(quanLy, xuongTo.get(toId) ?? null)) {
+                tuChoi.push({ id: e.id, reason: "T\xE0i kho\u1EA3n kh\xF4ng thu\u1ED9c t\u1ED5 n\xE0y" });
+                continue;
+              }
+              co.push("quan_ly_ghi_ho");
+            }
+          } else if (!quanLyDuoc(quanLy, xuong)) {
+            tuChoi.push({ id: e.id, reason: "Thao t\xE1c kh\xF4ng g\u1EAFn t\u1ED5 ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c ghi" });
+            continue;
+          }
+        }
         let userId = sentBy;
         let userIdKhai = null;
         if (e.userId && e.userId !== sentBy) {
@@ -71708,6 +71728,60 @@ app.get("/api/xuong/setup", async (req, res) => {
     });
   } catch (e) {
     fail(res, e, "/api/xuong/setup");
+  }
+});
+app.get("/api/xuong/tong-quan", async (req, res) => {
+  try {
+    const { ds, admin } = await xuongDuocSua(req);
+    if (!ds.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    const dsXuong = (await pool.query(`SELECT DISTINCT xuong FROM xuong_to WHERE active ORDER BY xuong`)).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
+    const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : dsXuong[0] ?? null;
+    if (!xuong) return res.json({ success: true, available: true, dsXuong, xuong: null, to: [] });
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    const r = await pool.query(
+      `WITH homnay AS (SELECT (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS d)
+       SELECT t.id, t.ten_to, u.full_name AS to_truong,
+         (SELECT (e.du_lieu->>'soNguoi')::int FROM xuong_su_kien e, homnay
+            WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' IN ('chinh','chu_nhat')
+              AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = homnay.d
+              AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+            ORDER BY e.device_ts_hieu_chinh DESC LIMIT 1) AS quan_so,
+         count(s.*) FILTER (WHERE s.trang_thai = 'dang_lam')::int AS dang_chay,
+         count(s.*) FILTER (WHERE s.trang_thai = 'tam_ngung')::int AS tam_ngung,
+         count(s.*) FILTER (WHERE s.sl_giao_den > s.sl_nhan)::int AS cho_nhan,
+         count(s.*) FILTER (WHERE s.sl_hoan_thanh > s.sl_giao)::int AS cho_giao,
+         count(s.*) FILTER (WHERE s.co <> '{}')::int AS can_xem,
+         (SELECT max(e.server_ts) FROM xuong_su_kien e, homnay WHERE e.to_id = t.id
+            AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = homnay.d) AS thao_tac_cuoi
+       FROM xuong_to t
+       LEFT JOIN users u ON u.id = t.to_truong_user_id
+       LEFT JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
+       LEFT JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong'
+       WHERE t.xuong = $1 AND t.active
+       GROUP BY t.id, t.ten_to, u.full_name
+       ORDER BY t.ten_to`,
+      [xuong]
+    );
+    res.json({
+      success: true,
+      available: true,
+      dsXuong,
+      xuong,
+      to: r.rows.map((x) => ({
+        id: Number(x.id),
+        ten: x.ten_to,
+        toTruong: x.to_truong ?? null,
+        quanSo: x.quan_so === null ? null : Number(x.quan_so),
+        dangChay: x.dang_chay,
+        tamNgung: x.tam_ngung,
+        choNhan: x.cho_nhan,
+        choGiao: x.cho_giao,
+        canXem: x.can_xem,
+        thaoTacCuoi: x.thao_tac_cuoi
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tong-quan");
   }
 });
 var congDoanSchema = external_exports.object({
