@@ -16,6 +16,8 @@ const readSavedFilterLists = (): FilterLists | null => {
   } catch { return null; }
 };
 let filterListsRequest: Promise<FilterLists> | null = null;
+/** Bấm "Làm mới": lần mở ô lọc kế tiếp tải lại danh sách (ETL thêm công trình / đổi setup gộp xưởng). */
+export const resetFilterLists = () => { filterListsRequest = null; };
 const loadFilterLists = (delayMs: number): Promise<FilterLists> => {
   if (!filterListsRequest) {
     const get = (u: string) => fetch(u).then(r => (r.ok ? r.json() : [])).catch(() => []);

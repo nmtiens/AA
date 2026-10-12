@@ -8,7 +8,7 @@ import { parseSafeDate, fetchTableData, TABLES, getVersions, refreshAllDataCache
 import { createCache, cachedByVersions, hashKey } from '../server/cache.js';
 import { app } from '../server/app.js';
 import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION } from '../server/permissions.js';
-import { listProjectAliases } from '../server/projectAlias.js';
+import { ensureProjectAliases, listProjectAliases } from '../server/projectAlias.js';
 import { parseQcEntries, summarizeQc } from '../server/qc.js';
 import { createGzip } from 'zlib';
 
@@ -297,9 +297,15 @@ app.get('/api/production/hex/:hex', async (req: Request, res: Response) => {
 // Cache theo phiên bản bảng sản xuất + nhập kho (trước giữ 10 phút cố định => sau ETL vẫn trả số cũ)
 const planMetCache = createCache<{ tuan: string[]; thang: string[] }>(1);
 // Tên phụ -> tên chuẩn công trình (xem server/projectAlias.listProjectAliases)
-// Trả ngay bảng đang có (instance mới: rỗng, middleware đã kích nạp nền). Giao diện tự hỏi lại sau 20 giây khi nhận
-// rỗng (App.tsx loadProjectAliases). Trước chờ tới 10 giây => chiếm 1 trong 4 suất request của trình duyệt + 1 instance.
-app.get('/api/project-aliases', (_req: Request, res: Response) => {
+// Instance mới: chờ nạp bảng tên tối đa 3 giây (thường chỉ đọc 1 dòng cache dùng chung — server/sharedCache.ts) rồi
+// trả; quá hạn thì trả bảng đang có, giao diện tự hỏi lại sau 20 giây khi nhận rỗng (App.tsx loadProjectAliases).
+// Trả ngay không chờ thì instance bị đóng băng giữa chừng lúc đang nạp => giữ kết nối DB, lần hỏi lại vẫn rỗng.
+const PROJECT_ALIAS_ROUTE_WAIT_MS = 3000;
+app.get('/api/project-aliases', async (_req: Request, res: Response) => {
+  await Promise.race([
+    ensureProjectAliases().catch(() => { /* giữ bảng cũ */ }),
+    new Promise(resolve => setTimeout(resolve, PROJECT_ALIAS_ROUTE_WAIT_MS)),
+  ]);
   res.json(listProjectAliases());
 });
 

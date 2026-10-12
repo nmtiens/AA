@@ -284,7 +284,7 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       WITH ${ctes.join(',\n')}
       SELECT
         -- Công trình: gom theo tên đã chuẩn hoá (hoa/thường, khoảng trắng) như khi lọc / xem chi tiết
-        COALESCE(NULLIF(${groupBy === 'congtrinh' ? `MIN(TRIM(${groupCol}))` : workshopGroupSql(groupCol)}, ''), 'Chưa xác định') AS name,
+        COALESCE(NULLIF(${groupBy === 'congtrinh' ? `MIN(TRIM(REGEXP_REPLACE(${groupCol}, '\\s+', ' ', 'g')))` : workshopGroupSql(groupCol)}, ''), 'Chưa xác định') AS name,
         COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${mtdCond}) AS mtd_count,

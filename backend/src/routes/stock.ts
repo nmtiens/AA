@@ -188,7 +188,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
 
     const q = `
       ${cteClause}
-      SELECT COALESCE(NULLIF(MIN(TRIM(s.ten_cong_trinh)), ''), 'Chưa xác định') AS name,
+      SELECT COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(s.ten_cong_trinh, '\\s+', ' ', 'g'))), ''), 'Chưa xác định') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
       FROM ton_kho s

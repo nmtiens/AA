@@ -44420,8 +44420,20 @@ var defaults = import_lib.default.defaults;
 var import_dotenv2 = __toESM(require_main(), 1);
 import_dotenv2.default.config();
 types.setTypeParser(1082, (val) => val);
+var connectionString = (() => {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return raw;
+  try {
+    const u = new URL(raw);
+    if (!u.searchParams.has("sslmode")) return raw;
+    u.searchParams.delete("sslmode");
+    return u.toString();
+  } catch {
+    return raw;
+  }
+})();
 var pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
   // Transaction-mode pooler có giới hạn số client (max_client_conn) dùng chung cho MỌI instance Vercel.
   // Mỗi instance thường xử lý 1 request tại 1 thời điểm => 2 kết nối là đủ (1 cho request, 1 cho việc nền như
@@ -44672,6 +44684,37 @@ var requireWarmupSecret = (req, res, next) => {
 
 // src/server/projectAlias.ts
 import { createHash as createHash2 } from "crypto";
+
+// src/server/sharedCache.ts
+var sharedCacheDisabled = false;
+var isMissingTable = (e) => e?.code === "42P01";
+async function readShared(key, versions) {
+  if (sharedCacheDisabled) return void 0;
+  try {
+    const r = await timedQuery(
+      "SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2",
+      [key, versions]
+    );
+    return r.rows[0]?.data;
+  } catch (e) {
+    if (isMissingTable(e)) sharedCacheDisabled = true;
+    return void 0;
+  }
+}
+async function writeShared(key, versions, data) {
+  if (sharedCacheDisabled) return;
+  try {
+    await timedQuery(
+      `INSERT INTO api_result_cache (cache_key, versions, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
+       ON CONFLICT (cache_key) DO UPDATE SET versions = EXCLUDED.versions, data = EXCLUDED.data, updated_at = NOW()`,
+      [key, versions, JSON.stringify(data)]
+    );
+  } catch (e) {
+    if (isMissingTable(e)) sharedCacheDisabled = true;
+  }
+}
+
+// src/server/projectAlias.ts
 var REFRESH_MS = 10 * 60 * 1e3;
 var ALIAS_MIN_HEX = 5;
 var normName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
@@ -44693,7 +44736,8 @@ var loadedAt = 0;
 var aliasVersion = "";
 var projectAliasesVersion = () => aliasVersion;
 var loading = null;
-var load = async () => {
+var ALIAS_SHARED_KEY = "project-aliases";
+var compute = async () => {
   const exist = await timedQuery(
     `SELECT table_name FROM information_schema.columns
      WHERE table_schema = 'public' AND column_name IN ('hex', 'ten_cong_trinh') AND table_name = ANY($1::text[])
@@ -44738,11 +44782,23 @@ var load = async () => {
     [],
     { timeoutMs: 6e4 }
   );
+  return { r: r.rows, canon: canon.rows };
+};
+var load = async () => {
+  const v = await timedQuery(
+    `SELECT STRING_AGG(table_name || ':' || last_updated::text, ',' ORDER BY table_name) AS v FROM table_versions`
+  );
+  const versions = v.rows[0]?.v ?? "";
+  let data = versions ? await readShared(ALIAS_SHARED_KEY, versions) : void 0;
+  if (!data) {
+    data = await compute();
+    if (versions) await writeShared(ALIAS_SHARED_KEY, versions, data);
+  }
   const cbc = /* @__PURE__ */ new Map();
-  for (const row of canon.rows) cbc.set(row.code, row.name);
+  for (const row of data.canon) cbc.set(row.code, row.name);
   const n2c = /* @__PURE__ */ new Map();
   const c2n = /* @__PURE__ */ new Map();
-  for (const row of r.rows) {
+  for (const row of data.r) {
     c2n.set(row.code, new Set(row.names));
     for (const n of row.names) {
       let s = n2c.get(n);
@@ -44756,7 +44812,7 @@ var load = async () => {
   nameToCodes = n2c;
   codeToNames = c2n;
   canonicalByCode = cbc;
-  aliasVersion = createHash2("sha1").update(JSON.stringify([r.rows, canon.rows])).digest("hex").slice(0, 12);
+  aliasVersion = createHash2("sha1").update(JSON.stringify([data.r, data.canon])).digest("hex").slice(0, 12);
   loadedAt = Date.now();
 };
 var ensureProjectAliases = async () => {
@@ -46301,7 +46357,7 @@ var breaker = {
     return void 0;
   }
 };
-function defineLazyInternal(inst, key, compute) {
+function defineLazyInternal(inst, key, compute2) {
   const proto = Object.getPrototypeOf(inst._zod);
   if (key in proto && installing !== inst._zod) {
     installing = void 0;
@@ -46315,7 +46371,7 @@ function defineLazyInternal(inst, key, compute) {
       const outer = broke;
       broke = false;
       try {
-        const value = compute(this);
+        const value = compute2(this);
         if (broke)
           delete this[key];
         else
@@ -64779,34 +64835,7 @@ var numericColQualified = (table, alias, col) => {
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-var sharedCacheDisabled = false;
-var isMissingTable = (e) => e?.code === "42P01";
-async function readShared(key, versions) {
-  if (sharedCacheDisabled) return void 0;
-  try {
-    const r = await timedQuery(
-      "SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2",
-      [key, versions]
-    );
-    return r.rows[0]?.data;
-  } catch (e) {
-    if (isMissingTable(e)) sharedCacheDisabled = true;
-    return void 0;
-  }
-}
-async function writeShared(key, versions, data) {
-  if (sharedCacheDisabled) return;
-  try {
-    await timedQuery(
-      `INSERT INTO api_result_cache (cache_key, versions, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
-       ON CONFLICT (cache_key) DO UPDATE SET versions = EXCLUDED.versions, data = EXCLUDED.data, updated_at = NOW()`,
-      [key, versions, JSON.stringify(data)]
-    );
-  } catch (e) {
-    if (isMissingTable(e)) sharedCacheDisabled = true;
-  }
-}
-async function cachedByVersions(cache, key, versionKeys, compute, extraVersion = "", shared = false) {
+async function cachedByVersions(cache, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
   const versions = await getRelevantVersions(versionKeys);
   const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
   const hit = cache.map.get(key);
@@ -64817,10 +64846,10 @@ async function cachedByVersions(cache, key, versionKeys, compute, extraVersion =
   const p = (async () => {
     try {
       const sharedVersions = `${JSON.stringify(versions)}|${extraVersion}`;
-      let payload = shared ? await readShared(key, sharedVersions) : void 0;
+      let payload = sharedKey ? await readShared(sharedKey, sharedVersions) : void 0;
       if (payload === void 0) {
-        payload = await compute();
-        if (shared) await writeShared(key, sharedVersions, payload);
+        payload = await compute2();
+        if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
       }
       cache.map.delete(key);
       cache.map.set(key, { vkey, payload });
@@ -65242,7 +65271,13 @@ app.get("/api/production/hex/:hex", async (req, res) => {
   }
 });
 var planMetCache = createCache(1);
-app.get("/api/project-aliases", (_req, res) => {
+var PROJECT_ALIAS_ROUTE_WAIT_MS = 3e3;
+app.get("/api/project-aliases", async (_req, res) => {
+  await Promise.race([
+    ensureProjectAliases().catch(() => {
+    }),
+    new Promise((resolve) => setTimeout(resolve, PROJECT_ALIAS_ROUTE_WAIT_MS))
+  ]);
   res.json(listProjectAliases());
 });
 app.get("/api/production/plan-met", async (_req, res) => {
@@ -66017,7 +66052,7 @@ app.get("/api/overview/by-group", async (req, res) => {
       WITH ${ctes.join(",\n")}
       SELECT
         -- C\xF4ng tr\xECnh: gom theo t\xEAn \u0111\xE3 chu\u1EA9n ho\xE1 (hoa/th\u01B0\u1EDDng, kho\u1EA3ng tr\u1EAFng) nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt
-        COALESCE(NULLIF(${groupBy === "congtrinh" ? `MIN(TRIM(${groupCol}))` : workshopGroupSql(groupCol)}, ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
+        COALESCE(NULLIF(${groupBy === "congtrinh" ? `MIN(TRIM(REGEXP_REPLACE(${groupCol}, '\\s+', ' ', 'g')))` : workshopGroupSql(groupCol)}, ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
         COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
         COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
@@ -66190,7 +66225,7 @@ app.get("/api/stock/by-project", async (req, res) => {
       }
       const q = `
       ${cteClause}
-      SELECT COALESCE(NULLIF(MIN(TRIM(s.ten_cong_trinh)), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
+      SELECT COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(s.ten_cong_trinh, '\\s+', ' ', 'g'))), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
             COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
       FROM ton_kho s
@@ -67219,11 +67254,11 @@ var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "pro
 var BadRequest = class extends Error {
   status = 400;
 };
-var cachedGet = (path, cache, versionKeysOf, compute, shared = false) => {
+var cachedGet = (path, cache, versionKeysOf, compute2, shared = false) => {
   app.get(path, async (req, res) => {
     try {
       const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion(), shared);
+      const data = await cachedByVersions(cache, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
       res.json(data);
     } catch (error61) {
       if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
@@ -67580,7 +67615,7 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
       SELECT
         -- Gom theo t\xEAn \u0111\xE3 chu\u1EA9n ho\xE1 (hoa/th\u01B0\u1EDDng, kho\u1EA3ng tr\u1EAFng) nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt: tr\u01B0\u1EDBc gom theo t\xEAn g\u1ED1c
         -- => "ABC X" v\xE0 "abc x" th\xE0nh 2 c\u1ED9t, b\u1EA5m 1 c\u1ED9t th\xEC chi ti\u1EBFt ra c\u1EA3 2 (l\u1EDBn h\u01A1n c\u1ED9t), HEX \u0111\u1EBFm 2 l\u1EA7n
-        COALESCE(NULLIF(MIN(TRIM(${colBare(cfg.congTrinhCol)})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
+        COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g'))), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}

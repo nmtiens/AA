@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { getRelevantVersions } from './data.js';
 import { projectAliasesVersion } from './projectAlias.js';
-import { timedQuery } from '../db.js';
+import { readShared, writeShared } from './sharedCache.js';
 
 // ============================================================================
 // CACHE KẾT QUẢ API THEO PHIÊN BẢN BẢNG (table_versions)
@@ -21,44 +21,13 @@ export interface VersionedCache<T> {
 
 export const createCache = <T = unknown>(max = 50): VersionedCache<T> => ({ max, map: new Map(), inflight: new Map() });
 
-// ----------------------------------------------------------------------------
-// CACHE DÙNG CHUNG MỌI INSTANCE (bảng api_result_cache, xem sql/2026-10-12_api_result_cache.sql)
-// Cache trong bộ nhớ mất khi Vercel mở instance mới => truy vấn nặng (vd. danh sách ô lọc quét DISTINCT 7 bảng lớn,
-// 5–9 giây) chạy lại ở mỗi instance. Lưu kết quả vào DB kèm phiên bản dữ liệu: instance khác đọc lại 1 dòng nhỏ,
-// chỉ tính lại khi ETL đổi dữ liệu. Chưa tạo bảng / DB lỗi => bỏ qua, tính như cũ.
-// ----------------------------------------------------------------------------
-let sharedCacheDisabled = false; // bảng chưa tạo: thôi thử trong instance này
-const isMissingTable = (e: unknown) => (e as { code?: string })?.code === '42P01';
-
-async function readShared<T>(key: string, versions: string): Promise<T | undefined> {
-  if (sharedCacheDisabled) return undefined;
-  try {
-    const r = await timedQuery<{ data: T }>(
-      'SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2', [key, versions]);
-    return r.rows[0]?.data;
-  } catch (e) {
-    if (isMissingTable(e)) sharedCacheDisabled = true;
-    return undefined;
-  }
-}
-
-async function writeShared(key: string, versions: string, data: unknown): Promise<void> {
-  if (sharedCacheDisabled) return;
-  try {
-    await timedQuery(
-      `INSERT INTO api_result_cache (cache_key, versions, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
-       ON CONFLICT (cache_key) DO UPDATE SET versions = EXCLUDED.versions, data = EXCLUDED.data, updated_at = NOW()`,
-      [key, versions, JSON.stringify(data)]);
-  } catch (e) {
-    if (isMissingTable(e)) sharedCacheDisabled = true;
-  }
-}
-
 /**
  * Trả kết quả đã cache nếu phiên bản các bảng `versionKeys` (+ `extraVersion`, vd. setup gộp xưởng)
  * không đổi; ngược lại gọi `compute` rồi lưu lại. Entry cũ nhất bị bỏ khi vượt `max`.
- * `shared` = true: thêm tầng cache trong DB dùng chung mọi instance — CHỈ cho kết quả không phụ thuộc người dùng
- * và bảng tên công trình (khoá dùng chung không gồm projectAliasesVersion vì instance mới chưa nạp bảng tên).
+ * `sharedKey`: thêm tầng cache trong DB dùng chung mọi instance (server/sharedCache.ts) với khoá này — CHỈ cho kết
+ * quả không phụ thuộc người dùng và bảng tên công trình (phiên bản dùng chung không gồm projectAliasesVersion vì
+ * instance mới chưa nạp bảng tên). Khoá do nơi gọi chọn (vd. chỉ đường dẫn API): không lấy từ tham số request
+ * => tham số tuỳ ý không đẻ thêm dòng trong bảng cache.
  */
 export async function cachedByVersions<T>(
   cache: VersionedCache<T>,
@@ -66,7 +35,7 @@ export async function cachedByVersions<T>(
   versionKeys: string[],
   compute: () => Promise<T>,
   extraVersion = '',
-  shared = false,
+  sharedKey = '',
 ): Promise<T> {
   const versions = await getRelevantVersions(versionKeys);
   // Gắn cả phiên bản bảng tên công trình: các API gộp / mở rộng tên công trình phải tính lại khi bảng tên đổi
@@ -81,10 +50,10 @@ export async function cachedByVersions<T>(
   const p = (async () => {
     try {
       const sharedVersions = `${JSON.stringify(versions)}|${extraVersion}`;
-      let payload = shared ? await readShared<T>(key, sharedVersions) : undefined;
+      let payload = sharedKey ? await readShared<T>(sharedKey, sharedVersions) : undefined;
       if (payload === undefined) {
         payload = await compute();
-        if (shared) await writeShared(key, sharedVersions, payload);
+        if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
       }
       cache.map.delete(key); // Map giữ thứ tự chèn: xoá rồi chèn lại để entry vừa dùng nằm cuối
       cache.map.set(key, { vkey, payload });

@@ -5,8 +5,24 @@ dotenv.config();
 
 types.setTypeParser(1082, (val: string) => val);
 
+// Bỏ tham số sslmode khỏi chuỗi kết nối: SSL đã cấu hình riêng ở `ssl` bên dưới. pg hiện cảnh báo sslmode=require
+// sẽ bị hiểu là verify-full ở bản pg sau (kiểm tra chứng chỉ) => có thể không kết nối được pooler; bỏ đi thì `ssl`
+// bên dưới quyết định (production: mã hoá, không kiểm tra chứng chỉ — như hiện tại).
+const connectionString = (() => {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return raw;
+  try {
+    const u = new URL(raw);
+    if (!u.searchParams.has('sslmode')) return raw;
+    u.searchParams.delete('sslmode');
+    return u.toString();
+  } catch {
+    return raw;
+  }
+})();
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: process.env.NODE_ENV === 'production'
     ? { rejectUnauthorized: false }
     : false,

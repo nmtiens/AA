@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { userService } from './services/userService';
 import { useColumnKeys } from './components/Dashboard/hooks/useColumnKeys';
+import { resetFilterLists } from './components/Dashboard/components/Dashboards/TrendFilterContext';
 import { canonicalizeProjectNames, canonicalizePersonNames, setPlanMet, setServerProjectAliases } from './utils/productionMetrics';
 import { loadWorkshopGroups, canonicalizeWorkshops } from './utils/workshopGroups';
 // Prefetch + gate cho mapping "view -> danh sách công trình"
@@ -784,6 +785,7 @@ const MainLayout: React.FC = () => {
   const manualRefresh = async () => {
     setLoading(true);
     tableVersions.current = {};
+    resetFilterLists();
     closeMobileSidebar();
     try {
       const [ok] = await Promise.all([
@@ -792,7 +794,8 @@ const MainLayout: React.FC = () => {
         loadTableColumnConfig(),
         loadWorkshopGroups().then(() => setWorkshopGroupsVersion(v => v + 1)),
         fetchPlanMet().then(d => { setPlanMet(d); setPlanMetVersion(v => v + 1); }),
-        fetchProjectAliases().then(d => { setServerProjectAliases(d); setAliasVersion(v => v + 1); }),
+        // Nhận rỗng (instance mới / lỗi mạng) thì giữ bảng đang có, tự hỏi lại sau — không ghi đè bằng bảng rỗng
+        loadProjectAliases(),
       ]);
       if (ok) {
         // Đổi key -> trang hiện tại mount lại, mọi biểu đồ/bộ lọc tự gọi lại API lấy số mới

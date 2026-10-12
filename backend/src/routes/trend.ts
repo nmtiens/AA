@@ -30,7 +30,8 @@ const cachedGet = (
   app.get(path, async (req: Request, res: Response) => {
     try {
       const key = `${path}|${queryKey(req.query as Record<string, unknown>, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion(), shared);
+      // Route dùng chung (danh sách ô lọc) không đọc tham số => cả khoá bộ nhớ lẫn khoá DB chỉ theo đường dẫn
+      const data = await cachedByVersions(cache, shared ? path : key, versionKeysOf(req), () => compute(req), workshopGroupsVersion(), shared ? path : '');
       res.json(data);
     } catch (error) {
       if (error instanceof BadRequest) return res.status(400).json({ error: error.message });
@@ -436,7 +437,7 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
       SELECT
         -- Gom theo tên đã chuẩn hoá (hoa/thường, khoảng trắng) như khi lọc / xem chi tiết: trước gom theo tên gốc
         -- => "ABC X" và "abc x" thành 2 cột, bấm 1 cột thì chi tiết ra cả 2 (lớn hơn cột), HEX đếm 2 lần
-        COALESCE(NULLIF(MIN(TRIM(${colBare(cfg.congTrinhCol)})), ''), 'Chưa xác định') AS cong_trinh,
+        COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g'))), ''), 'Chưa xác định') AS cong_trinh,
         COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
         ${countExpr} AS total_count
       FROM ${cfg.table} ${mainAlias}
