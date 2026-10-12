@@ -300,7 +300,8 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
       {data.length === 0 ? (
         <p className="flex-1 flex items-center justify-center text-xs text-slate-400">Không có dữ liệu</p>
       ) : (
-        <div className="flex-1 flex items-center justify-between gap-4">
+        // flex-wrap + chú thích rộng tối thiểu 8rem: khung hẹp thì chú thích xuống dưới vòng tròn thay vì bị bóp mất tên
+        <div className="flex-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           {/* Biểu đồ tròn: chạy theo chiều kim đồng hồ từ 3 giờ (các lát nhỏ cuối danh sách dồn về bên phải, nhãn xếp cột dọc ngang đúng lát), cùng thứ tự với chú thích */}
           {/* [&_*]:outline-none: bỏ khung đen trình duyệt vẽ quanh lát vừa bấm */}
           <div className="relative shrink-0 [&_*]:outline-none" style={{ width: W, height: H }}>
@@ -358,7 +359,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
           </div>
 
           {/* Chú thích: đủ mọi lát, cùng thứ tự với vòng tròn, kèm số hạng mục / giá trị (Tỷ) theo chế độ đang xem */}
-          <ul className={`flex-1 min-w-0 max-w-[16rem] space-y-0.5 overflow-y-auto custom-scrollbar ${large ? 'max-h-56' : 'max-h-40'}`}>
+          <ul className={`flex-1 min-w-[8rem] max-w-[16rem] space-y-0.5 overflow-y-auto custom-scrollbar ${large ? 'max-h-56' : 'max-h-40'}`}>
             {data.map((d, i) => (
               <li key={d.name}>
                 <button

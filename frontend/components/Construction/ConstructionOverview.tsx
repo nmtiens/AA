@@ -977,9 +977,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
         {/* 1280–1535px: trái 4 / giữa 8, thẻ Nhóm đơn hàng xuống hàng dưới (bảng công trình 9 cột cần ≥ 800px);
             từ 1536px: 3 / 6 / 3 */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        {/* Màn hình rộng: cột trái hẹp (biểu đồ + PC), cột giữa rộng để danh sách công trình hiện đủ, không viết tắt */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,3.4fr)_minmax(0,1.5fr)] gap-4">
           {/* Cột trái: biểu đồ theo tháng + bảng theo PC */}
-          <div className="xl:col-span-4 2xl:col-span-3 space-y-4">
+          <div className="xl:col-span-4 2xl:col-span-1 space-y-4">
             <div className={`${cardCls} p-4`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng</span></p>
@@ -1046,11 +1047,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                 <table className="w-full table-fixed text-xs">
                   <thead className="sticky top-0 bg-slate-50 text-slate-500">
                     <tr>
-                      <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
-                      <th className="text-left font-medium px-2 py-2">Tên PC</th>
-                      <th className="text-right font-medium px-2 py-2 w-10">CT</th>
-                      <th className="text-right font-medium px-2 py-2 w-14">Mục</th>
-                      <th className="text-right font-medium px-3 py-2 w-[4.5rem]" title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
+                      <th className="text-right font-medium pl-3 pr-1.5 py-2 w-8">STT</th>
+                      <th className="text-left font-medium px-1.5 py-2">Tên PC</th>
+                      <th className="text-right font-medium px-1.5 py-2 w-8" title="Số công trình">CT</th>
+                      <th className="text-right font-medium px-1.5 py-2 w-12" title="Số hạng mục">Mục</th>
+                      <th className="text-right font-medium pl-1.5 pr-3 py-2 w-[3.75rem]" title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1061,10 +1062,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                           })}
                           title="Bấm để xem các công trình PC đang quản lý"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.pc === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                        <td className="px-2 py-1.5 text-slate-800">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="truncate group-hover:text-blue-700 group-hover:underline">{r.name}</span>
+                        <td className="pl-3 pr-1.5 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                        <td className="px-1.5 py-1.5 text-slate-800">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="min-w-0 break-words group-hover:text-blue-700 group-hover:underline">{r.name}</span>
                             {/* Lọc chéo theo PC (tách riêng để bấm dòng là mở chi tiết PC) */}
                             <button
                               type="button"
@@ -1077,19 +1078,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             </button>
                           </div>
                         </td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{r.cts.size}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
-                        <td className="px-4 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
+                        <td className="px-1.5 py-1.5 text-right tabular-nums">{r.cts.size}</td>
+                        <td className="px-1.5 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
+                        <td className="pl-1.5 pr-3 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="sticky bottom-0 bg-slate-50 font-semibold text-slate-800">
                     <tr>
                       <td />
-                      <td className="px-2 py-2">Tổng cộng</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{new Set(pcTable.flatMap(r => [...r.cts])).size}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtInt(pcTable.reduce((s, r) => s + r.items, 0))}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
+                      <td className="px-1.5 py-2">Tổng cộng</td>
+                      <td className="px-1.5 py-2 text-right tabular-nums">{new Set(pcTable.flatMap(r => [...r.cts])).size}</td>
+                      <td className="px-1.5 py-2 text-right tabular-nums">{fmtInt(pcTable.reduce((s, r) => s + r.items, 0))}</td>
+                      <td className="pl-1.5 pr-3 py-2 text-right tabular-nums">{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1098,7 +1099,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
 
           {/* Cột giữa: danh sách công trình (rộng 6/12 cột, tên công trình hiện đầy đủ) */}
-          <div className={`xl:col-span-8 2xl:col-span-6 ${cardCls} overflow-hidden flex flex-col`}>
+          <div className={`xl:col-span-8 2xl:col-span-1 ${cardCls} overflow-hidden flex flex-col`}>
             <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
               <p className="text-xs font-semibold text-slate-700">Danh sách công trình ({fmtInt(ctTable.length)})</p>
               <div className="relative">
@@ -1116,15 +1117,15 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
                     <th className="text-left font-medium px-2 py-2">Tên công trình</th>
                     <th className="text-left font-medium px-2 py-2">PM</th>
-                    <th className="text-right font-medium px-2 py-2">Mục</th>
+                    <th className="text-right font-medium px-2 py-2 whitespace-nowrap">Hạng mục</th>
                     <th className="text-right font-medium px-2 py-2"
                         title={ctHasCancel ? 'Tổng trị giá đơn hàng, gồm cả đơn hủy (dòng phụ "hủy …" = phần trị giá đơn hủy). Cửa sổ công trình không tính đơn hủy — lọc Tình trạng IPO để bỏ.' : undefined}>
-                      Tổng GT (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
+                      Tổng giá trị (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
                     </th>
-                    <th className="text-left font-medium px-2 py-2 w-24">Hoàn thành</th>
-                    <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT DA</th>
+                    <th className="text-left font-medium px-2 py-2 w-20">Hoàn thành</th>
+                    <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án</th>
                     <th className="text-right font-medium px-2 py-2" title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
-                    <th className="text-right font-medium pl-2 pr-4 py-2" title="Vướng mắc chưa xử lý xong (theo mã công trình)">VM</th>
+                    <th className="text-right font-medium pl-2 pr-4 py-2" title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1137,7 +1138,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
                         <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                        <td className="px-2 py-1.5 text-slate-800 min-w-[200px]">
+                        <td className="px-2 py-1.5 text-slate-800 min-w-[260px]">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
                             {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở HEX) */}
@@ -1152,8 +1153,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             </button>
                           </div>
                         </td>
-                        <td className="max-w-[120px] truncate px-2 py-1.5 text-slate-600 whitespace-nowrap" title={pms.join(', ')}>
-                          {pms[0]}{pms.length > 1 ? ` +${pms.length - 1}` : ''}
+                        <td className="min-w-[140px] px-2 py-1.5 text-slate-600" title={pms.join(', ')}>
+                          {pms.map(pm => <div key={pm} className="whitespace-nowrap">{pm}</div>)}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
@@ -1172,7 +1173,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                         </td>
                         <td className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${!r.botDuAn ? 'text-slate-300' : r.open === 0 ? 'text-emerald-600' : botLeft! < 0 ? 'font-semibold text-red-600' : botLeft! <= 30 ? 'text-amber-600' : 'text-slate-500'}`}
                             title={r.botDuAn ? (r.open === 0 ? 'Đã nhập kho đủ' : botLeft! < 0 ? `Quá BOT dự án ${-botLeft!} ngày · còn ${fmtInt(r.open)} hạng mục` : `Còn ${botLeft} ngày · ${fmtInt(r.open)} hạng mục chưa xong`) : 'Chưa có BOT dự án'}>
-                          {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                          {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                         </td>
                         <td className={`px-2 py-1.5 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '—'}</td>
                         <td className={`pl-2 pr-4 py-1.5 text-right tabular-nums ${r.vm.open ? 'font-semibold text-red-600' : 'text-slate-300'}`}
@@ -1191,7 +1192,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </div>
 
           {/* Cột phải: thẻ "Cơ cấu đơn hàng" dùng chung với Tổng quan / Luồng đỏ / Căn mẫu */}
-          <div className="xl:col-span-12 2xl:col-span-3 flex flex-col">
+          <div className="xl:col-span-12 2xl:col-span-1 flex flex-col">
             <OrderMixCard
               metric={metric}
               onMetricChange={setMetric}
