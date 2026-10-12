@@ -1,6 +1,6 @@
 -- ============================================================================
 -- MỤC XƯỞNG — NẠP DANH MỤC TỪ MRA (sinh bởi C:\data mra\tao_danh_muc_xuong.py, 2026-10-12)
--- Chạy SAU 2026-10-12_xuong.sql. Chạy lại an toàn (không xoá gì).
+-- Chạy SAU 2026-10-12_xuong.sql. Chạy lại an toàn (không xoá gì). Chỉ 4 câu lệnh (tránh giới hạn số câu của trang Query).
 -- 97 công đoạn chi tiết; mỗi công đoạn một tổ (tên tổ = tên công đoạn). Gộp / tách tổ ở thẻ Xưởng.
 -- Tổ trưởng: gán theo users.msnv khi tài khoản đã có; xem danh sách cuối file để tạo tài khoản + cấp quyền 'xuong'.
 -- ============================================================================
@@ -117,87 +117,92 @@ WHERE c.id IN ('CD2400093', 'CD2400008', 'CD2400094', 'CD2400010', 'CD2400009', 
 ON CONFLICT DO NOTHING;
 
 -- Tổ trưởng: gán khi users.msnv khớp (tổ chưa có tổ trưởng). Một công đoạn nhiều tổ trưởng: lấy người đầu tiên.
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'CNC X2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7622';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'CẮT' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7615';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'DÁN CẠNH' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7684';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'LAMINATE' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7684';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'LẮP RÁP 10' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF5541';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'LẮP RÁP 7' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7625';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'LẮP RÁP 8' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7605';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'LẮP RÁP 9' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0226';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'SƠN' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF13577';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'TUBI' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4213';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2A' AND upper(t.ten_to) = 'ÉP NGUỘI' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7615';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2B' AND upper(t.ten_to) = 'VÁN LẠNG CT' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF1296';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2B' AND upper(t.ten_to) = 'VÁN LẠNG OEM' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF6979';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2B' AND upper(t.ten_to) = 'ÉP NÓNG' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF3965';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '2B' AND upper(t.ten_to) = 'ÉP NÓNG 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0569';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'CHÀ NHÁM GỖ' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7096';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'CHÀ NHÁM TRẮNG X3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0222';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'CNC X3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7242';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'CTS GỖ 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7185';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'CTS TẤM 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF3951';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'DẶM VÁ 1 X3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7562';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'FITTING + DẶM VÁ' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF3931';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'LẮP RÁP 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7091';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'LẮP RÁP 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF3828';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'LẮP RÁP 3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF5638';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'LẮP RÁP 4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF11445';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'TINH GỖ' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4856';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'TINH TẤM' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF2319';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'UV' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7461';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '3A' AND upper(t.ten_to) = 'VECNI 6' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF10940';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'CHÀ NHÁM TRẮNG X4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0803';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'CHẠM' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF2297';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'CNC MẪU X4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF10691';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'CNC X4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF2757';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'CTS GỖ 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF5552';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'CTS TẤM 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0427';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'DẶM VÁ 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF1143';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'DẶM VÁ 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0680';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'FITTING X4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF2267';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MÁY TINH GỖ 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF11724';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MÁY TINH GỖ 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF1151';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MÁY TINH GỖ 3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF1156';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MÁY TINH TẤM' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0563';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0469';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0355';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC 5' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0852';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC 6' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0229';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC 7' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0230';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC MẪU 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0615';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC MẪU 4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4152';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'MỘC MẪU 5' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF5827';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'VECNI 3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0240';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'VECNI 4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0685';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'VECNI CHUYỀN A' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0697';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '4A' AND upper(t.ten_to) = 'VECNI CHUYỀN B' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0709';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'BỌC NỆM 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF2766';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'BỌC NỆM 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7306';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'BỌC NỆM 3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF11701';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'BỌC NỆM 4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4371';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'CẮT KHUNG' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF11413';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'DÁN MOUSSE HÀNG LOẠT' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF6699';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'DÁN MOUSSE MẪU LẺ' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0276';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'FITTING X5' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7876';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MAY_02' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7198';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MAY_03+CẮT' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF1557';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MỘC SOFA 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4740';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MỘC SOFA 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4732';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MỘC SOFA 3' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4056';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MỘC SOFA 4' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF5193';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'MỘC SOFA 5' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0308';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '5A' AND upper(t.ten_to) = 'ĐAN MÂY' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF6712';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'NGUỘI 1' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF1003';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'NGUỘI 2' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0990';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'PHÔI TẤM INLAY' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF4686';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'PHÔI ĐỊNH HÌNH' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF12570';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'PVD' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF5842';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'RESIN' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF7158';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8AB' AND upper(t.ten_to) = 'ĐỒNG NHÔM' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF0278';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8C' AND upper(t.ten_to) = 'CTS ĐÁ' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF13009';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8C' AND upper(t.ten_to) = 'KÍNH' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF11533';
-UPDATE xuong_to t SET to_truong_user_id = u.id FROM users u WHERE t.xuong = '8C' AND upper(t.ten_to) = 'ĐÁ' AND t.to_truong_user_id IS NULL AND u.msnv = 'AAF6704';
+UPDATE xuong_to t SET to_truong_user_id = u.id
+FROM (VALUES
+  ('2A', 'CNC X2', 'AAF7622'),
+  ('2A', 'CẮT', 'AAF7615'),
+  ('2A', 'DÁN CẠNH', 'AAF7684'),
+  ('2A', 'LAMINATE', 'AAF7684'),
+  ('2A', 'LẮP RÁP 10', 'AAF5541'),
+  ('2A', 'LẮP RÁP 7', 'AAF7625'),
+  ('2A', 'LẮP RÁP 8', 'AAF7605'),
+  ('2A', 'LẮP RÁP 9', 'AAF0226'),
+  ('2A', 'SƠN', 'AAF13577'),
+  ('2A', 'TUBI', 'AAF4213'),
+  ('2A', 'ÉP NGUỘI', 'AAF7615'),
+  ('2B', 'VÁN LẠNG CT', 'AAF1296'),
+  ('2B', 'VÁN LẠNG OEM', 'AAF6979'),
+  ('2B', 'ÉP NÓNG', 'AAF3965'),
+  ('2B', 'ÉP NÓNG 2', 'AAF0569'),
+  ('3A', 'CHÀ NHÁM GỖ', 'AAF7096'),
+  ('3A', 'CHÀ NHÁM TRẮNG X3', 'AAF0222'),
+  ('3A', 'CNC X3', 'AAF7242'),
+  ('3A', 'CTS GỖ 2', 'AAF7185'),
+  ('3A', 'CTS TẤM 1', 'AAF3951'),
+  ('3A', 'DẶM VÁ 1 X3', 'AAF7562'),
+  ('3A', 'FITTING + DẶM VÁ', 'AAF3931'),
+  ('3A', 'LẮP RÁP 1', 'AAF7091'),
+  ('3A', 'LẮP RÁP 2', 'AAF3828'),
+  ('3A', 'LẮP RÁP 3', 'AAF5638'),
+  ('3A', 'LẮP RÁP 4', 'AAF11445'),
+  ('3A', 'TINH GỖ', 'AAF4856'),
+  ('3A', 'TINH TẤM', 'AAF2319'),
+  ('3A', 'UV', 'AAF7461'),
+  ('3A', 'VECNI 6', 'AAF10940'),
+  ('4A', 'CHÀ NHÁM TRẮNG X4', 'AAF0803'),
+  ('4A', 'CHẠM', 'AAF2297'),
+  ('4A', 'CNC MẪU X4', 'AAF10691'),
+  ('4A', 'CNC X4', 'AAF2757'),
+  ('4A', 'CTS GỖ 1', 'AAF5552'),
+  ('4A', 'CTS TẤM 2', 'AAF0427'),
+  ('4A', 'DẶM VÁ 1', 'AAF1143'),
+  ('4A', 'DẶM VÁ 2', 'AAF0680'),
+  ('4A', 'FITTING X4', 'AAF2267'),
+  ('4A', 'MÁY TINH GỖ 1', 'AAF11724'),
+  ('4A', 'MÁY TINH GỖ 2', 'AAF1151'),
+  ('4A', 'MÁY TINH GỖ 3', 'AAF1156'),
+  ('4A', 'MÁY TINH TẤM', 'AAF0563'),
+  ('4A', 'MỘC 1', 'AAF0469'),
+  ('4A', 'MỘC 2', 'AAF0355'),
+  ('4A', 'MỘC 5', 'AAF0852'),
+  ('4A', 'MỘC 6', 'AAF0229'),
+  ('4A', 'MỘC 7', 'AAF0230'),
+  ('4A', 'MỘC MẪU 2', 'AAF0615'),
+  ('4A', 'MỘC MẪU 4', 'AAF4152'),
+  ('4A', 'MỘC MẪU 5', 'AAF5827'),
+  ('4A', 'VECNI 3', 'AAF0240'),
+  ('4A', 'VECNI 4', 'AAF0685'),
+  ('4A', 'VECNI CHUYỀN A', 'AAF0697'),
+  ('4A', 'VECNI CHUYỀN B', 'AAF0709'),
+  ('5A', 'BỌC NỆM 1', 'AAF2766'),
+  ('5A', 'BỌC NỆM 2', 'AAF7306'),
+  ('5A', 'BỌC NỆM 3', 'AAF11701'),
+  ('5A', 'BỌC NỆM 4', 'AAF4371'),
+  ('5A', 'CẮT KHUNG', 'AAF11413'),
+  ('5A', 'DÁN MOUSSE HÀNG LOẠT', 'AAF6699'),
+  ('5A', 'DÁN MOUSSE MẪU LẺ', 'AAF0276'),
+  ('5A', 'FITTING X5', 'AAF7876'),
+  ('5A', 'MAY_02', 'AAF7198'),
+  ('5A', 'MAY_03+CẮT', 'AAF1557'),
+  ('5A', 'MỘC SOFA 1', 'AAF4740'),
+  ('5A', 'MỘC SOFA 2', 'AAF4732'),
+  ('5A', 'MỘC SOFA 3', 'AAF4056'),
+  ('5A', 'MỘC SOFA 4', 'AAF5193'),
+  ('5A', 'MỘC SOFA 5', 'AAF0308'),
+  ('5A', 'ĐAN MÂY', 'AAF6712'),
+  ('8AB', 'NGUỘI 1', 'AAF1003'),
+  ('8AB', 'NGUỘI 2', 'AAF0990'),
+  ('8AB', 'PHÔI TẤM INLAY', 'AAF4686'),
+  ('8AB', 'PHÔI ĐỊNH HÌNH', 'AAF12570'),
+  ('8AB', 'PVD', 'AAF5842'),
+  ('8AB', 'RESIN', 'AAF7158'),
+  ('8AB', 'ĐỒNG NHÔM', 'AAF0278'),
+  ('8C', 'CTS ĐÁ', 'AAF13009'),
+  ('8C', 'KÍNH', 'AAF11533'),
+  ('8C', 'ĐÁ', 'AAF6704')
+) AS g(xuong, ten_to, msnv)
+JOIN users u ON upper(trim(u.msnv)) = upper(g.msnv)
+WHERE t.xuong = g.xuong AND upper(t.ten_to) = g.ten_to AND t.to_truong_user_id IS NULL;
 
 -- ----------------------------------------------------------------------------
 -- DANH SÁCH TỔ TRƯỞNG MRA (cần tài khoản project_v2 có msnv + quyền 'xuong')
