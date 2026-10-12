@@ -130,11 +130,14 @@ export async function timedQuery<T extends QueryResultRow = any>(
     try {
       let result;
       if (opts.timeoutMs || opts.workMemMb) {
-        // SET LOCAL chỉ có hiệu lực trong transaction này -> an toàn với transaction-mode pooler
-        await client.query('BEGIN');
+        // SET LOCAL chỉ có hiệu lực trong transaction này -> an toàn với transaction-mode pooler.
+        // BEGIN + các SET gửi chung 1 lệnh (1 lượt đi về thay vì 3 — mỗi lượt tới DB là vài chục–vài trăm ms)
+        const setup = ['BEGIN'];
+        if (opts.timeoutMs) setup.push(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+        if (opts.workMemMb) setup.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
         try {
-          if (opts.timeoutMs) await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
-          if (opts.workMemMb) await client.query(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
+          // Trong try: SET lỗi thì vẫn ROLLBACK, không trả kết nối đang kẹt transaction về pool
+          await client.query(setup.join('; '));
           result = await client.query(text, params);
           await client.query('COMMIT');
         } catch (e) {

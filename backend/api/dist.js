@@ -44505,10 +44505,11 @@ async function timedQuery(text, params, opts = {}) {
     try {
       let result;
       if (opts.timeoutMs || opts.workMemMb) {
-        await client.query("BEGIN");
+        const setup = ["BEGIN"];
+        if (opts.timeoutMs) setup.push(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
+        if (opts.workMemMb) setup.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
         try {
-          if (opts.timeoutMs) await client.query(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
-          if (opts.workMemMb) await client.query(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
+          await client.query(setup.join("; "));
           result = await client.query(text, params);
           await client.query("COMMIT");
         } catch (e) {
