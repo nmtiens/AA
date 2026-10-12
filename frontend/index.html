@@ -5,10 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#f1f4f9" />
 
-    <!-- Manifest: /m/ dùng bản mobile, còn lại dùng bản desktop -->
+    <!-- Manifest: /m/xuong = app Xưởng (cài riêng, mở thẳng màn tổ trưởng), /m/ = app Vướng mắc, còn lại = desktop -->
     <link id="app-manifest" rel="manifest" href="/manifest.webmanifest" />
     <script>
-      if (!/^\/m(\/|$)/.test(location.pathname)) {
+      if (/^\/m\/xuong(\/|$)/.test(location.pathname)) {
+        document.getElementById('app-manifest').setAttribute('href', '/manifest-xuong.webmanifest');
+        document.addEventListener('DOMContentLoaded', function () {
+          var t = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+          if (t) t.setAttribute('content', 'Xưởng');
+          document.title = 'Xưởng';
+        });
+      } else if (!/^\/m(\/|$)/.test(location.pathname)) {
         document.getElementById('app-manifest').setAttribute('href', '/manifest-desktop.webmanifest');
       }
 

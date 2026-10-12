@@ -5,7 +5,9 @@ import { getToken } from './userService';
 export type NotifyKind =
   | 'mention' | 'assigned' | 'resolved' | 'reopened' | 'extend'
   | 'due60' | 'due15' | 'overdue' | 'new_in_dept'
-  | 'accepted' | 'closed' | 'comment' | 'escalated';
+  | 'accepted' | 'closed' | 'comment' | 'escalated'
+  // Mục Xưởng
+  | 'xuong_cho_nhan' | 'xuong_quan_so' | 'xuong_xac_nhan' | 'xuong_chay_lau' | 'xuong_co' | 'xuong_trien_khai';
 
 export interface AppNotification {
   id: number;
@@ -26,6 +28,7 @@ export const PREF_LABELS = {
   extend:    { label: 'Xin thêm thời gian', hint: 'Vướng mắc của phòng ban / tôi xử lý' },
   due:       { label: 'Nhắc hạn BOT', hint: 'Còn 1 giờ, còn 15 phút, khi quá hạn và khi quá hạn hơn 24 giờ (báo quản lý)' },
   newInDept: { label: 'Vướng mắc mới trong phòng ban', hint: 'Mỗi khi đồng nghiệp tạo vướng mắc' },
+  xuong:     { label: 'Xưởng', hint: 'Hàng giao tới tổ, nhắc chốt quân số 8h00 / xác nhận cuối ngày 16h30, hạng mục chạy lâu, thao tác cần xem' },
 } as const;
 export type PrefKey = keyof typeof PREF_LABELS;
 export type NotifyPrefs = Record<PrefKey, boolean>;

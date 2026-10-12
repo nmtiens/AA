@@ -37,7 +37,7 @@ const DataSetupPage: React.FC<{ tabs: SetupTab[] }> = ({ tabs }) => {
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-800">Setup dữ liệu</h1>
-            <p className="text-xs text-slate-500">Cấu hình dùng chung cho mọi người: nhóm công trình, cột hiển thị, gộp xưởng</p>
+            <p className="text-xs text-slate-500">Cấu hình dùng chung cho mọi người: nhóm công trình, cột hiển thị, gộp xưởng, mục Xưởng</p>
           </div>
         </div>
         {/* Thẻ chọn mục setup — mỗi thẻ có mô tả ngắn để biết mục đó dùng làm gì */}

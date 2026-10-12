@@ -9,11 +9,14 @@ const KIND_ICON: Record<NotifyKind, string> = {
   mention: '💬', assigned: '👤', resolved: '✅', reopened: '↩️', extend: '⏳',
   due60: '⌛', due15: '⌛', overdue: '⏰', new_in_dept: '🆕',
   accepted: '🔧', closed: '🔒', comment: '💬', escalated: '🚨',
+  xuong_cho_nhan: '📦', xuong_quan_so: '👥', xuong_xac_nhan: '📋', xuong_chay_lau: '⏱️', xuong_co: '⚠️', xuong_trien_khai: '🏭',
 };
 const KIND_BG: Record<NotifyKind, string> = {
   mention: 'bg-blue-100', assigned: 'bg-indigo-100', resolved: 'bg-emerald-100', reopened: 'bg-slate-100',
   extend: 'bg-amber-100', due60: 'bg-amber-100', due15: 'bg-amber-100', overdue: 'bg-red-100', new_in_dept: 'bg-slate-100',
   accepted: 'bg-indigo-100', closed: 'bg-emerald-100', comment: 'bg-blue-100', escalated: 'bg-red-100',
+  xuong_cho_nhan: 'bg-emerald-100', xuong_quan_so: 'bg-amber-100', xuong_xac_nhan: 'bg-amber-100', xuong_chay_lau: 'bg-amber-100',
+  xuong_co: 'bg-red-100', xuong_trien_khai: 'bg-indigo-100',
 };
 
 /** Nút chuông có số chưa đọc */
@@ -81,6 +84,8 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
       onUnreadChange(Math.max(0, items.filter(x => !x.readAt).length - 1));
     }
     if (n.vuongMacId) onOpenItem(n.vuongMacId, n.hex);
+    // Thông báo mục Xưởng: mở màn tổ trưởng (thao tác cần xem: thẻ Xưởng trên máy tính)
+    else if (n.kind.startsWith('xuong_')) location.href = n.kind === 'xuong_co' ? '/#/setup?tab=xuong' : '/m/xuong';
   };
 
   const today = dayKey(new Date());

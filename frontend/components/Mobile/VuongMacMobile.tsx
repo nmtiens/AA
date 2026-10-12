@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ClipboardList, LayoutDashboard, Search as SearchIcon, UserRound, SlidersHorizontal, RefreshCw, Plus, X as XIcon,
@@ -22,6 +22,9 @@ import {
   DEFAULT_FILTERS, DATE_LABELS, MINE_LABELS, STATUS_TAB_ST, toQuery, activeChips,
   type ListFilters, type DateMode, type StatusTab, type MineMode,
 } from './listFilters';
+
+// Mục Xưởng (/m/xuong, màn tổ trưởng) — tải riêng, người không dùng không phải tải
+const XuongApp = lazy(() => import('./xuong/XuongApp'));
 
 // ============================================================================
 // APP VƯỚNG MẮC (điện thoại, PWA tại /m/): 4 tab Tổng quan | Vướng mắc | Tra cứu HEX | Tài khoản.
@@ -412,6 +415,11 @@ export default function VuongMacMobile() {
 
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => { scroller.current?.scrollTo({ top: 0 }); }, [tab]);
+
+  // Mục Xưởng tự lo đăng nhập (token Xưởng 30 ngày, làm được khi mất sóng — R5), nên đứng trước màn đăng nhập chung
+  if (location.pathname.startsWith('/m/xuong')) {
+    return <XuongApp onThoat={() => { location.href = '/m/'; }} />;
+  }
 
   if (!authed) {
     return <MobileLogin onSuccess={() => { setAuthed(true); setDataVersion(v => v + 1); }} />;

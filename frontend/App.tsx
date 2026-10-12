@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory, Hammer } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration } from './services/dataService';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -36,6 +36,8 @@ const TableColumnSetup = lazyPage(() => import('./components/Construction/TableC
 const WorkshopGroupSetup = lazyPage(() => import('./components/Construction/WorkshopGroupSetup'));
 import type { SetupTab } from './components/Setup/DataSetupPage';
 const DataSetupPage = lazyPage(() => import('./components/Setup/DataSetupPage'));
+// Thẻ Xưởng trong Setup (mục Xưởng: triển khai, tổ, công đoạn, lịch ca, cần xem) — tải riêng khi mở thẻ
+const XuongSetup = React.lazy(() => import('./components/Xuong/XuongSetup'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazyPage(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
@@ -279,7 +281,7 @@ const TableColumnSetupWrapper = () => {
 
 // Trang chung Setup dữ liệu: mỗi thẻ hiện theo đúng quyền của trang setup cũ tương ứng
 //   Nhóm công trình (Luồng đỏ / Căn mẫu): quyền construction_setup · Cột dữ liệu: table_column_setup ·
-//   Gộp xưởng: chỉ ADMIN (lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang)
+//   Gộp xưởng: chỉ ADMIN (lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang) · Xưởng: ADMIN hoặc xuong_quan_ly
 const DataSetupWrapper = () => {
   const { user, isLoading, hasPermission } = useAuth();
   if (isLoading) return <FullScreenLoader />;
@@ -292,6 +294,10 @@ const DataSetupWrapper = () => {
   if (hasPermission('table_column_setup')) tabs.push({
     id: 'cot-du-lieu', label: 'Cột dữ liệu', desc: 'Cột được hiện & thứ tự cột từng bảng',
     icon: <Columns size={16} />, render: () => <TableColumnSetupWrapper />,
+  });
+  if (user.role === 'ADMIN' || hasPermission('xuong_quan_ly')) tabs.push({
+    id: 'xuong', label: 'Xưởng', desc: 'Triển khai hạng mục, tổ, công đoạn, lịch ca',
+    icon: <Hammer size={16} />, render: () => <XuongSetup />,
   });
   if (user.role === 'ADMIN') tabs.push({
     id: 'gop-xuong', label: 'Gộp xưởng', desc: 'Gộp mã xưởng nhỏ vào 1 xưởng (chỉ Admin)',
@@ -874,7 +880,7 @@ const MainLayout: React.FC = () => {
   const canSeeConstruction = hasPermission('construction_overview');
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
-  const canSeeAnySetup = hasPermission('construction_setup') || hasPermission('table_column_setup') || user?.role === 'ADMIN';
+  const canSeeAnySetup = hasPermission('construction_setup') || hasPermission('table_column_setup') || hasPermission('xuong_quan_ly') || user?.role === 'ADMIN';
 
   const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
   const isGroupActive = groupedViews.some(v => v.path === location.pathname);

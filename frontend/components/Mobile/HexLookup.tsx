@@ -10,6 +10,7 @@ import { NoteContent } from '../Dashboard/components/modals/HexDetailModal';
 import { searchHexBulk } from './hexBulkApi';
 import { FormSheet, StatusPill } from '../VuongMac/sheets';
 import { TY_UNIT_LABEL, formatTrieuAsTy } from '../../utils/money';
+import XuongHexChiTiet from '../Xuong/XuongHexChiTiet';
 
 // Các ô ghi chú giống bảng "Chi tiết theo Hex" trên desktop
 const NOTE_LABELS: [string, string][] = [
@@ -163,6 +164,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   const [error, setError] = useState('');
   const [openHex, setOpenHex] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, Detail | 'loading'>>({});
+  const [xuongMo, setXuongMo] = useState<Set<string>>(new Set());
   const [addFor, setAddFor] = useState<HexHit | null>(null);
   const [toast, setToast] = useState('');
   const reqId = useRef(0);
@@ -422,6 +424,15 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
                 </table>
               </div>
             </div>
+
+            {/* Tiến độ ở xưởng (mục Xưởng — quyết định 6A); chỉ tải khi mở */}
+            <details className="rounded-lg border border-slate-200" onToggle={e => {
+              const mo = (e.currentTarget as HTMLDetailsElement).open;
+              setXuongMo(s => { const t = new Set(s); if (mo) t.add(h.hex); else t.delete(h.hex); return t; });
+            }}>
+              <summary className="cursor-pointer px-3 py-2 font-semibold text-slate-600">Tiến độ ở xưởng (công đoạn, giờ công)</summary>
+              {xuongMo.has(h.hex) && <div className="border-t border-slate-200 p-2"><XuongHexChiTiet hex={h.hex} /></div>}
+            </details>
           </>
         )}
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, BellOff, BellRing, LogOut, Monitor, Type, Smartphone } from 'lucide-react';
+import { Bell, BellOff, BellRing, LogOut, Monitor, Type, Smartphone, Factory } from 'lucide-react';
 import {
   fetchNotifyPrefs, saveNotifyPrefs, PREF_LABELS, type NotifyPrefs, type PrefKey,
 } from '../../services/notificationService';
@@ -20,7 +20,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
   onLoggedOut: () => void;
   flash: (msg: string) => void;
 }) {
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
 
@@ -83,6 +83,13 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
           </p>
         </div>
       </section>
+
+      {/* Mục Xưởng (tổ trưởng) — chỉ hiện khi có quyền */}
+      {(hasPermission('xuong') || hasPermission('xuong_quan_ly')) && (
+        <a href="/m/xuong" className={`${CARD} flex min-h-14 items-center gap-3 p-4 text-base font-semibold text-slate-900 active:bg-slate-50`}>
+          <Factory size="1.25em" aria-hidden /> Mở mục Xưởng — ghi việc của tổ
+        </a>
+      )}
 
       {/* Cỡ chữ */}
       <section className={`${CARD} p-4`}>

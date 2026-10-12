@@ -7,6 +7,7 @@ import { invalidateUserAccess } from '../server/permissions.js';
 import { validateBody, createUserSchema, updateUserSchema } from '../server/validation.js';
 import { app } from '../server/app.js';
 import { invalidateUsersCache } from '../notifications.js';
+import { bumpTokenVersion } from '../server/xuong/auth.js';
 
 // ============================================================================
 // USERS API — nay yêu cầu JWT + role ADMIN cho toàn bộ (trước đây public hoàn toàn)
@@ -159,6 +160,8 @@ usersRouter.put('/:id', validateBody(updateUserSchema), async (req: Request, res
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
       values
     );
+    // Admin đặt lại mật khẩu hoặc khoá tài khoản => thu hồi mọi token mục Xưởng (30 ngày) của người này
+    if (password || (status !== undefined && status !== 'ACTIVE')) await bumpTokenVersion(String(id));
     // Role / quyền / trạng thái có hiệu lực ngay (không chờ cache 60 giây) — cả danh sách người nhận thông báo / push
     invalidateUserAccess(String(Number(id)));
     invalidateUsersCache();

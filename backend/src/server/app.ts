@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import type { Request, Response, NextFunction } from 'express';
 import { allowedOrigins } from './config.js';
 import { authenticateActiveUser } from './auth.js';
+import { isXuongPath } from './xuong/auth.js';
 import { ensureProjectAliases } from './projectAlias.js';
 import { ensureWorkshopGroups } from './workshopGroups.js';
 
@@ -44,6 +45,9 @@ export const globalLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  // Mục Xưởng có giới hạn riêng theo người (server/xuong/auth.ts — xuongLimiter): điện thoại ở xưởng
+  // dùng chung IP nhà máy, tính chung 300/phút/IP thì 78 tổ trưởng giành lượt của nhau (R1)
+  skip: (req: Request) => isXuongPath(req.path),
 });
 app.use(globalLimiter);
 

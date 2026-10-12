@@ -179,11 +179,17 @@ const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 /**
  * Thẻ mời cài app. `force` = luôn hiện (màn Tài khoản), bỏ qua lựa chọn "ẩn" trước đó.
  */
-export function InstallBanner({ force = false }: { force?: boolean }) {
+export function InstallBanner({ force = false, tieuDe = 'Cài ứng dụng lên điện thoại', moTa = 'Mở nhanh từ màn hình chính, nhận thông báo nhắc hạn BOT', khoaAn = 'install_banner_hidden' }: {
+  force?: boolean;
+  tieuDe?: string;
+  moTa?: string;
+  /** Khoá localStorage nhớ "ẩn" — mỗi app (Vướng mắc / Xưởng) một khoá */
+  khoaAn?: string;
+}) {
   // __installEvt do index.html bắt sớm, phòng khi sự kiện bắn trước lúc component này được tải
   const [evt, setEvt] = useState<InstallEvent | null>((window as any).__installEvt ?? null);
   const [installed, setInstalled] = useState(isStandalone());
-  const [dismissed, setDismissed] = useState(localStorage.getItem('install_banner_hidden') === '1');
+  const [dismissed, setDismissed] = useState(() => { try { return localStorage.getItem(khoaAn) === '1'; } catch { return false; } });
   const [showIOS, setShowIOS] = useState(false);
 
   useEffect(() => {
@@ -197,7 +203,7 @@ export function InstallBanner({ force = false }: { force?: boolean }) {
     };
   }, []);
 
-  const dismiss = () => { localStorage.setItem('install_banner_hidden', '1'); setDismissed(true); };
+  const dismiss = () => { try { localStorage.setItem(khoaAn, '1'); } catch { /* bỏ qua */ } setDismissed(true); };
 
   const install = async () => {
     if (evt) {
@@ -224,8 +230,8 @@ export function InstallBanner({ force = false }: { force?: boolean }) {
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-xl">📲</div>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-medium text-slate-900">Cài ứng dụng lên điện thoại</p>
-          <p className="text-sm text-slate-600">Mở nhanh từ màn hình chính, nhận thông báo nhắc hạn BOT</p>
+          <p className="text-base font-medium text-slate-900">{tieuDe}</p>
+          <p className="text-sm text-slate-600">{moTa}</p>
         </div>
         <button onClick={install} className="shrink-0 rounded-full bg-slate-900 px-4 py-2 text-base font-medium text-white active:opacity-80">
           Cài đặt

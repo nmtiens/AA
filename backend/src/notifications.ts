@@ -15,21 +15,24 @@ export type NotifyKind =
   | 'mention' | 'assigned' | 'resolved' | 'reopened' | 'extend'
   | 'due60' | 'due15' | 'overdue' | 'new_in_dept'
   // Quy trình mới (2026-10-10): nhận xử lý, xác nhận đóng, bình luận, leo thang khi quá hạn lâu
-  | 'accepted' | 'closed' | 'comment' | 'escalated';
+  | 'accepted' | 'closed' | 'comment' | 'escalated'
+  // Mục Xưởng (backend/src/routes/xuongThongBao.ts)
+  | 'xuong_cho_nhan' | 'xuong_quan_so' | 'xuong_xac_nhan' | 'xuong_chay_lau' | 'xuong_co' | 'xuong_trien_khai';
 
-export const PREF_KEYS = ['mention', 'assigned', 'status', 'extend', 'due', 'newInDept'] as const;
+export const PREF_KEYS = ['mention', 'assigned', 'status', 'extend', 'due', 'newInDept', 'xuong'] as const;
 export type PrefKey = typeof PREF_KEYS[number];
 export type NotifyPrefs = Record<PrefKey, boolean>;
 
 // "Vướng mắc mới trong phòng ban" mặc định TẮT (dễ gây phiền), các loại khác BẬT
 export const DEFAULT_PREFS: NotifyPrefs = {
-  mention: true, assigned: true, status: true, extend: true, due: true, newInDept: false,
+  mention: true, assigned: true, status: true, extend: true, due: true, newInDept: false, xuong: true,
 };
 
-const PREF_OF: Record<NotifyKind, PrefKey> = {
+export const PREF_OF: Record<NotifyKind, PrefKey> = {
   mention: 'mention', assigned: 'assigned', resolved: 'status', reopened: 'status', extend: 'extend',
   due60: 'due', due15: 'due', overdue: 'due', new_in_dept: 'newInDept',
   accepted: 'status', closed: 'status', comment: 'mention', escalated: 'due',
+  xuong_cho_nhan: 'xuong', xuong_quan_so: 'xuong', xuong_xac_nhan: 'xuong', xuong_chay_lau: 'xuong', xuong_co: 'xuong', xuong_trien_khai: 'xuong',
 };
 
 export const mergePrefs = (raw: unknown): NotifyPrefs => {
@@ -55,7 +58,7 @@ const warnMissing = () => {
 interface UserLite { id: string; username: string; fullName: string; role: string; prefs: NotifyPrefs }
 let usersCache: { at: number; list: UserLite[] } | null = null;
 
-async function activeUsers(): Promise<UserLite[]> {
+export async function activeUsers(): Promise<UserLite[]> {
   if (usersCache && Date.now() - usersCache.at < 60_000) return usersCache.list;
   let rows: any[];
   try {

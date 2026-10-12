@@ -9,6 +9,7 @@
 //     data.ts        whitelist cột, đọc bảng, phiên bản bảng, cache all-data, SQL helpers
 //     common.ts      giới hạn song song, hằng số tiền, ngày giờ VN
 //   src/routes/  : mỗi file một nhóm API, tự đăng ký route lên `app` khi được import
+//   src/server/xuong/ : tính toán mục Xưởng (trạng thái, phân bổ giờ công, đồng hồ, token thiết bị)
 //   src/vuongMacPush.ts : Web Push + cron nhắc hạn BOT
 //
 // Thứ tự import các file route bên dưới = thứ tự đăng ký route (giữ như file cũ).
@@ -29,6 +30,10 @@ import '../src/routes/khsx.js';       // /api/khsx-nhapkho/summary
 import '../src/routes/trend.js';      // /api/trend*, /api/filters/*, /api/detail
 import '../src/routes/vuongMac.js';   // /api/vuong-mac/*
 import '../src/routes/notifications.js'; // /api/notifications/* (hộp thông báo + cài đặt)
+import '../src/routes/xuong.js';      // /api/xuong/* (mục Xưởng: sổ sự kiện, giờ công — docs/designs/xuong-checkin.md)
+import '../src/routes/xuongSetup.js'; // /api/xuong/setup, huy, hex-tom-tat, trien-khai (phần máy tính của mục Xưởng)
+import '../src/routes/xuongBaoCao.js'; // /api/xuong/bao-cao (báo cáo xưởng / tổ)
+import '../src/routes/xuongThongBao.js'; // thông báo mục Xưởng + /api/cron/xuong (8h00, 16h30)
 
 const PORT = process.env.PORT || 5000;
 

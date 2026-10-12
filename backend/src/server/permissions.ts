@@ -16,11 +16,30 @@ export interface UserAccess {
   /** Role hiện tại trong DB ('' nếu không còn) */
   role: string;
   perms: Set<string>;
+  /** users.token_version (thu hồi token mục Xưởng); null khi DB chưa chạy SQL 2026-10-12_xuong.sql */
+  tokenVersion: number | null;
 }
 
 const accessCache = new Map<string, { access: UserAccess; at: number }>();
 
-const NO_ACCESS: UserAccess = { active: false, role: '', perms: new Set<string>() };
+const NO_ACCESS: UserAccess = { active: false, role: '', perms: new Set<string>(), tokenVersion: null };
+
+// Cột token_version chỉ có sau khi chạy backend/sql/2026-10-12_xuong.sql: thiếu cột thì đọc như cũ
+let hasTokenVersion: boolean | null = null;
+const queryAccessRow = async (id: number) => {
+  if (hasTokenVersion !== false) {
+    try {
+      const r = await pool.query(`SELECT role, permissions, is_active, token_version FROM users WHERE id = $1`, [id]);
+      hasTokenVersion = true;
+      return r.rows[0];
+    } catch (e) {
+      if ((e as { code?: string })?.code !== '42703') throw e;
+      hasTokenVersion = false;
+    }
+  }
+  const r = await pool.query(`SELECT role, permissions, is_active FROM users WHERE id = $1`, [id]);
+  return r.rows[0];
+};
 // Khoá cache chuẩn hoá: '01' và 1 là cùng user
 const accessKey = (userId: string | number): string => String(Number(userId));
 
@@ -30,16 +49,13 @@ export const loadUserAccess = async (userId: string | number): Promise<UserAcces
   const key = accessKey(userId);
   const hit = accessCache.get(key);
   if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
-  const r = await pool.query(
-    `SELECT role, permissions, is_active FROM users WHERE id = $1`,
-    [Number(userId)]
-  );
-  const row = r.rows[0];
+  const row = await queryAccessRow(Number(userId));
   const active = !!row && row.is_active === true;
   const access: UserAccess = {
     active,
     role: active ? String(row.role ?? '') : '',
     perms: new Set<string>(active && Array.isArray(row.permissions) ? row.permissions : []),
+    tokenVersion: row && row.token_version !== undefined && row.token_version !== null ? Number(row.token_version) : null,
   };
   accessCache.set(key, { access, at: Date.now() });
   if (accessCache.size > 1000) {

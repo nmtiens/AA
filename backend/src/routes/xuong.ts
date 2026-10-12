@@ -1,0 +1,1034 @@
+import { createHash } from 'node:crypto';
+import express, { type Request, type Response } from 'express';
+import type { PoolClient } from 'pg';
+import { z } from 'zod';
+import { pool, withTransaction } from '../db.js';
+import { app } from '../server/app.js';
+import { loadUserAccess, userHasPermission } from '../server/permissions.js';
+import { vnDayKey, runWithLimit } from '../server/common.js';
+import { isMissingSchema } from '../notifications.js';
+import {
+  xuongLimiter, verifyDeviceToken, signDeviceToken, newDeviceId, signXuongToken, bumpTokenVersion,
+} from '../server/xuong/auth.js';
+import { hieuChinhGio } from '../server/xuong/clock.js';
+import { tinhTrangThai, suKienConHieuLuc } from '../server/xuong/state.js';
+import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, type ThayDoiSoNguoi } from '../server/xuong/allocation.js';
+import { thoiGianTheoLo } from '../server/xuong/metrics.js';
+import { baoHangChoNhan } from './xuongThongBao.js';
+import { khoaAnhHopLe, kieuAnh, ANH_TOI_DA_BYTE } from '../server/xuong/anh.js';
+import {
+  LOAI_SU_KIEN, LY_DO_TAM_NGUNG, LOAI_CA, LOAI_CA_TANG_CA, pairKey,
+  type SuKien, type LichCaRow, type LoaiCa, type DoanChay,
+} from '../server/xuong/types.js';
+
+// ============================================================================
+// API MỤC XƯỞNG (docs/designs/xuong-checkin.md — đợt 1, quyết định R1–R14)
+//   GET  /api/xuong/time               giờ server (máy tự đo lệch đồng hồ, R8)
+//   POST /api/xuong/thiet-bi           đăng ký máy → mã thiết bị ký HMAC + token Xưởng 30 ngày (R4, R5)
+//   POST /api/xuong/events             nhận lô ≤200 sự kiện, chống ghi trùng, tính lại trạng thái (R3)
+//   GET  /api/xuong/cong-viec          việc của tổ: Chờ nhận · Đang làm · Chờ giao
+//   GET  /api/xuong/hex/:hex           dòng thời gian, trạng thái từng công đoạn, thời gian trong xưởng, giờ công
+//   GET  /api/xuong/to/:id/gio-cong    giờ công phân bổ của tổ trong ngày (cache theo phiên bản sổ, R3)
+//   GET  /api/xuong/can-xem            sự kiện / trạng thái gắn cờ của xưởng
+//   GET  /api/xuong/danh-muc           công đoạn, tổ, lịch ca
+//   POST /api/xuong/thu-hoi/:userId    admin thu hồi mọi token / máy Xưởng của một người (R5)
+// Chưa chạy backend/sql/2026-10-12_xuong.sql: trả { available: false } thay vì lỗi 500.
+// ============================================================================
+
+// Giới hạn riêng theo người cho cả mục Xưởng (R1); middleware đăng nhập chung đã chạy trước
+app.use('/api/xuong', xuongLimiter);
+
+export const PERM_XUONG = 'xuong';
+export const PERM_QUAN_LY = 'xuong_quan_ly';
+const LO_TOI_DA = 200;
+const HUY_TRONG_MS = 24 * 3_600_000;
+export const HEX_RE = /^\d{9}$/;
+
+export const fail = (res: Response, e: unknown, where: string) => {
+  if (isMissingSchema(e)) return res.json({ success: true, available: false });
+  console.error(`Lỗi ${where}:`, e);
+  return res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+};
+
+export const coQuyenXuong = async (req: Request) =>
+  (await userHasPermission(req, PERM_XUONG)) || (await userHasPermission(req, PERM_QUAN_LY));
+
+/** Xưởng mà người dùng quản lý ('*' = mọi xưởng, với ADMIN) */
+export async function xuongQuanLy(userId: string | number): Promise<Set<string>> {
+  const access = await loadUserAccess(userId);
+  if (access.role === 'ADMIN') return new Set(['*']);
+  if (!access.perms.has(PERM_QUAN_LY)) return new Set();
+  const r = await pool.query('SELECT xuong FROM xuong_quan_ly WHERE user_id = $1', [Number(userId)]);
+  return new Set(r.rows.map(x => String(x.xuong)));
+}
+export const quanLyDuoc = (ds: Set<string>, xuong: string | null) => ds.has('*') || (!!xuong && ds.has(xuong));
+
+// ---------------------------------------------------------------------------
+// Đọc sổ
+// ---------------------------------------------------------------------------
+export const COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
+  so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
+  user_id_khai, sent_by, device_id, sua_cho, nguon, nguoi_thao_tac_goc, co`;
+
+export type Row = Record<string, any>;
+export const num = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number(v));
+
+export const toSuKien = (r: Row): SuKien => ({
+  id: String(r.id),
+  loai: r.loai,
+  hex: r.hex ?? null,
+  congDoanId: r.cong_doan_id ?? null,
+  toId: r.to_id === null || r.to_id === undefined ? null : Number(r.to_id),
+  soLuong: num(r.so_luong),
+  congDoanDenId: r.cong_doan_den_id ?? null,
+  congDoanNguonId: r.cong_doan_nguon_id ?? null,
+  xuongNguon: r.xuong_nguon ?? null,
+  soNguoi: r.so_nguoi === null || r.so_nguoi === undefined ? null : Number(r.so_nguoi),
+  duLieu: r.du_lieu ?? null,
+  ts: new Date(r.device_ts_hieu_chinh).getTime(),
+  serverTs: new Date(r.server_ts).getTime(),
+  suaCho: r.sua_cho ? String(r.sua_cho) : null,
+});
+
+/**
+ * Sự kiện của một tập hạng mục (gồm cả huy và giao đến). Mặc định CHỈ sự kiện từ app: lịch sử nạp từ MRA
+ * (nguon = 'mra') không được ảnh hưởng trạng thái hiện tại / giờ công phân bổ — chỉ hiện trong chi tiết hex.
+ */
+export async function suKienTheoHex(db: Pick<PoolClient, 'query'>, hexes: string[], kemMra = false): Promise<Row[]> {
+  if (!hexes.length) return [];
+  const r = await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE hex = ANY($1::text[])${kemMra ? '' : " AND nguon = 'app'"}`, [hexes]);
+  return r.rows;
+}
+
+/** Tính trạng thái các cặp (hex, công đoạn) từ sự kiện của các hạng mục đó */
+function trangThaiCacCap(rows: Row[], pairs: Array<[string, string]>) {
+  const evts = rows.map(toSuKien);
+  return pairs.map(([hex, cd]) => {
+    const cua = evts.filter(e => e.hex === hex && e.congDoanId === cd);
+    const den = evts.filter(e => e.hex === hex && (e.loai === 'giao' || e.loai === 'khai_bao_cd' || e.loai === 'huy')
+      && (e.congDoanDenId === cd || e.loai === 'huy'));
+    return { hex, cd, state: tinhTrangThai(cua, den) };
+  });
+}
+
+async function luuTrangThai(client: PoolClient, pairs: Array<[string, string]>) {
+  if (!pairs.length) return;
+  const hexes = [...new Set(pairs.map(p => p[0]))];
+  const rows = await suKienTheoHex(client, hexes);
+  const xuongCd = new Map<string, string | null>();
+  const cds = [...new Set(pairs.map(p => p[1]))];
+  const r = await client.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cds]);
+  r.rows.forEach(x => xuongCd.set(String(x.id), x.xuong));
+  const out = trangThaiCacCap(rows, pairs).map(({ hex, cd, state }) => ({
+    hex, cong_doan_id: cd, xuong: xuongCd.get(cd) ?? null, trang_thai: state.trangThai,
+    sl_giao_den: state.slGiaoDen, sl_nhan: state.slNhan, sl_hoan_thanh: state.slHoanThanh, sl_giao: state.slGiao,
+    so_nguoi: state.soNguoi,
+    dang_chay_tu: state.dangChayTu === null ? null : new Date(state.dangChayTu).toISOString(),
+    su_kien_cuoi: state.suKienCuoi === null ? null : new Date(state.suKienCuoi).toISOString(),
+    co: state.co,
+    rong: state.slGiaoDen === 0 && state.slNhan === 0 && state.slHoanThanh === 0 && state.slGiao === 0 && state.dangChayTu === null,
+  }));
+  const giu = out.filter(x => !x.rong);
+  const bo = out.filter(x => x.rong);
+  if (bo.length) {
+    await client.query(
+      `DELETE FROM xuong_trang_thai t USING jsonb_to_recordset($1::jsonb) AS x(hex text, cong_doan_id text)
+       WHERE t.hex = x.hex AND t.cong_doan_id = x.cong_doan_id`, [JSON.stringify(bo)]);
+  }
+  if (giu.length) {
+    await client.query(
+      `INSERT INTO xuong_trang_thai (hex, cong_doan_id, xuong, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh, sl_giao,
+         so_nguoi, dang_chay_tu, su_kien_cuoi, co, cap_nhat)
+       SELECT hex, cong_doan_id, xuong, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh, sl_giao, so_nguoi,
+              dang_chay_tu, su_kien_cuoi, co, now()
+       FROM jsonb_to_recordset($1::jsonb) AS x(hex text, cong_doan_id text, xuong text, trang_thai text,
+         sl_giao_den numeric, sl_nhan numeric, sl_hoan_thanh numeric, sl_giao numeric, so_nguoi int,
+         dang_chay_tu timestamptz, su_kien_cuoi timestamptz, co text[])
+       ON CONFLICT (hex, cong_doan_id) DO UPDATE SET
+         xuong = EXCLUDED.xuong, trang_thai = EXCLUDED.trang_thai, sl_giao_den = EXCLUDED.sl_giao_den,
+         sl_nhan = EXCLUDED.sl_nhan, sl_hoan_thanh = EXCLUDED.sl_hoan_thanh, sl_giao = EXCLUDED.sl_giao,
+         so_nguoi = EXCLUDED.so_nguoi, dang_chay_tu = EXCLUDED.dang_chay_tu, su_kien_cuoi = EXCLUDED.su_kien_cuoi,
+         co = EXCLUDED.co, cap_nhat = now()`,
+      [JSON.stringify(giu)]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/time
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/time', (_req: Request, res: Response) => {
+  res.json({ success: true, serverNow: Date.now() });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/xuong/thiet-bi — đăng ký máy, cấp token Xưởng
+// ---------------------------------------------------------------------------
+const thietBiSchema = z.object({ deviceToken: z.string().max(200).optional() });
+
+app.post('/api/xuong/thiet-bi', async (req: Request, res: Response) => {
+  try {
+    const parsed = thietBiSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const userId = Number(req.user!.id);
+    // Token Xưởng chỉ gia hạn được cho đúng máy đã ký trong token
+    const cu = verifyDeviceToken(parsed.data.deviceToken);
+    const deviceId = req.user!.scope === 'xuong' ? (req.user!.did ?? null) : (cu ?? newDeviceId());
+    if (!deviceId) return res.status(401).json({ success: false, message: 'Mã thiết bị không hợp lệ' });
+
+    const r = await pool.query(
+      `INSERT INTO xuong_phien_thiet_bi (device_id, user_id) VALUES ($1, $2)
+       ON CONFLICT (device_id, user_id) DO UPDATE SET lan_cuoi = now()
+       RETURNING thu_hoi`, [deviceId, userId]);
+    if (r.rows[0]?.thu_hoi) return res.status(403).json({ success: false, message: 'Máy này đã bị thu hồi quyền mục Xưởng' });
+
+    const access = await loadUserAccess(userId);
+    const u = await pool.query('SELECT id, username, full_name, role, msnv FROM users WHERE id = $1', [userId]);
+    const user = u.rows[0];
+    const to = await pool.query(
+      `SELECT t.id, t.xuong, t.ten_to FROM xuong_to t
+       WHERE t.active AND (t.to_truong_user_id = $1 OR EXISTS (
+         SELECT 1 FROM xuong_to_thanh_vien tv WHERE tv.to_id = t.id AND tv.mnv = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)))
+       ORDER BY t.xuong, t.ten_to`, [userId, user?.msnv ?? '']);
+    res.json({
+      success: true,
+      available: true,
+      token: signXuongToken({ id: userId, username: user.username, role: access.role }, deviceId, access.tokenVersion ?? 0),
+      deviceToken: signDeviceToken(deviceId),
+      user: { id: userId, username: user.username, fullName: user.full_name, msnv: user.msnv },
+      to: to.rows.map(t => ({ id: Number(t.id), xuong: t.xuong, ten: t.ten_to })),
+    });
+  } catch (e) { fail(res, e, '/api/xuong/thiet-bi'); }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/xuong/events — nhận lô sự kiện
+// ---------------------------------------------------------------------------
+const soHuuHan = z.number().finite();
+const suKienSchema = z.object({
+  id: z.string().uuid(),
+  loai: z.enum(LOAI_SU_KIEN),
+  hex: z.string().max(20).nullish(),
+  congDoanId: z.string().max(40).nullish(),
+  toId: z.number().int().positive().nullish(),
+  soLuong: soHuuHan.min(0).max(1_000_000).nullish(),
+  congDoanDenId: z.string().max(40).nullish(),
+  congDoanNguonId: z.string().max(40).nullish(),
+  xuongNguon: z.string().max(20).nullish(),
+  soNguoi: z.number().int().min(0).max(500).nullish(),
+  lyDoTamNgung: z.enum(LY_DO_TAM_NGUNG).nullish(),
+  tienDo: z.number().int().min(0).max(100).nullish(),
+  ghiChu: z.string().max(1000).nullish(),
+  duLieu: z.record(z.string(), z.unknown()).nullish(),
+  deviceTs: soHuuHan,
+  lechMs: soHuuHan.nullish(),
+  sauDoiGio: z.boolean().optional(),
+  userId: z.number().int().positive().nullish(),
+  suaCho: z.string().uuid().nullish(),
+});
+const loSchema = z.object({
+  deviceToken: z.string().max(200),
+  events: z.array(z.unknown()).min(1).max(LO_TOI_DA),
+});
+type SuKienVao = z.infer<typeof suKienSchema>;
+
+const CAN_HEX = new Set(['trien_khai', 'khai_bao_cd', 'nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do']);
+const CAN_CONG_DOAN = new Set(['nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do']);
+const CAN_TO = new Set(['tang_ca', 'chia_nguoi', 'quan_so', 'xac_nhan_cuoi_ngay']);
+
+/** Kiểm tra theo loại; trả lý do từ chối hoặc null */
+function kiemTraTheoLoai(e: SuKienVao): string | null {
+  if (CAN_HEX.has(e.loai) && !(e.hex && HEX_RE.test(e.hex))) return 'Mã hạng mục phải có 9 số';
+  if (CAN_CONG_DOAN.has(e.loai) && !e.congDoanId) return 'Thiếu công đoạn';
+  if (CAN_TO.has(e.loai) && !e.toId) return 'Thiếu tổ';
+  if (['nhan', 'hoan_thanh', 'giao', 'trien_khai'].includes(e.loai) && !(e.soLuong && e.soLuong > 0)) return 'Số lượng phải lớn hơn 0';
+  if ((e.loai === 'giao' || e.loai === 'khai_bao_cd') && !e.congDoanDenId) return 'Thiếu công đoạn nhận';
+  if (e.loai === 'tam_ngung' && !e.lyDoTamNgung) return 'Tạm ngưng phải chọn lý do';
+  if (e.loai === 'huy' && !e.suaCho) return 'Thiếu sự kiện cần huỷ';
+  if (e.duLieu && 'anh' in e.duLieu) {
+    const anh = e.duLieu.anh;
+    if (!Array.isArray(anh) || anh.length > 5 || !anh.every(khoaAnhHopLe)) return 'Ảnh không hợp lệ (tối đa 5 ảnh đã tải lên)';
+  }
+  if (e.loai === 'tang_ca') {
+    const ca = e.duLieu?.loaiCa;
+    if (typeof ca !== 'string' || !LOAI_CA_TANG_CA.includes(ca as LoaiCa)) return 'Loại ca tăng ca không hợp lệ';
+  }
+  if (e.loai === 'quan_so') {
+    const ca = e.duLieu?.loaiCa;
+    if (typeof ca !== 'string' || !LOAI_CA.includes(ca as LoaiCa)) return 'Loại ca không hợp lệ';
+    if (typeof e.duLieu?.soNguoi !== 'number' || (e.duLieu.soNguoi as number) < 0) return 'Thiếu quân số';
+  }
+  return null;
+}
+
+/**
+ * Ghi các dòng sự kiện đã kiểm (chống trùng theo id), tính lại trạng thái các cặp bị chạm (R3) và tăng phiên bản
+ * sổ (tổ, ngày). Dùng chung cho lô từ máy (POST /events) và thao tác từ máy tính (huỷ, triển khai — xuongSetup.ts).
+ * `dichDb`: các sự kiện bị huỷ đọc từ DB (để tính lại cặp nhận của sự kiện giao bị huỷ).
+ */
+export async function ghiVaTinhLai(client: PoolClient, ghi: Row[], dichDb: Row[] = []): Promise<Set<string>> {
+  const moi = new Set<string>();
+  if (ghi.length) {
+    const ins = await client.query(
+      `INSERT INTO xuong_su_kien (id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id,
+         xuong_nguon, so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh,
+         user_id, user_id_khai, sent_by, device_id, sua_cho, co)
+       SELECT id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id,
+         xuong_nguon, so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh,
+         user_id, user_id_khai, sent_by, device_id, sua_cho, co
+       FROM jsonb_to_recordset($1::jsonb) AS x(id uuid, loai text, hex text, cong_doan_id text, to_id int, xuong text,
+         so_luong numeric, cong_doan_den_id text, cong_doan_nguon_id text, xuong_nguon text, so_nguoi int,
+         ly_do_tam_ngung text, tien_do int, ghi_chu text, du_lieu jsonb, device_ts timestamptz, lech_ms bigint,
+         device_ts_hieu_chinh timestamptz, user_id int, user_id_khai int, sent_by int, device_id uuid, sua_cho uuid, co text[])
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id`,
+      [JSON.stringify(ghi)]);
+    for (const x of ins.rows) moi.add(String(x.id));
+
+    // Tính lại trạng thái các cặp bị chạm (R3)
+    const cap = new Map<string, [string, string]>();
+    for (const x of ghi) {
+      if (x.hex && x.cong_doan_id) cap.set(pairKey(x.hex, x.cong_doan_id), [x.hex, x.cong_doan_id]);
+      if (x.hex && x.cong_doan_den_id) cap.set(pairKey(x.hex, x.cong_doan_den_id), [x.hex, x.cong_doan_den_id]);
+    }
+    // Huỷ một sự kiện giao / khai báo: cặp nhận cũng phải tính lại
+    const giaoBiHuy = dichDb.filter(x => x.loai === 'giao' || x.loai === 'khai_bao_cd').map(x => String(x.id));
+    if (giaoBiHuy.length) {
+      const den = await client.query('SELECT hex, cong_doan_den_id FROM xuong_su_kien WHERE id = ANY($1::uuid[])', [giaoBiHuy]);
+      for (const x of den.rows) if (x.hex && x.cong_doan_den_id) cap.set(pairKey(x.hex, x.cong_doan_den_id), [x.hex, x.cong_doan_den_id]);
+    }
+    await luuTrangThai(client, [...cap.values()]);
+
+    // Phiên bản sổ theo (tổ, ngày) — khoá cache giờ công (R3)
+    const pb = new Map<string, { to_id: number; ngay: string }>();
+    for (const x of ghi) {
+      if (!x.to_id) continue;
+      const ngay = vnDayKey(new Date(x.device_ts_hieu_chinh));
+      pb.set(`${x.to_id}|${ngay}`, { to_id: x.to_id, ngay });
+    }
+    if (pb.size) {
+      await client.query(
+        `INSERT INTO xuong_phien_ban (to_id, ngay, v)
+         SELECT to_id, ngay, 1 FROM jsonb_to_recordset($1::jsonb) AS x(to_id int, ngay date)
+         ON CONFLICT (to_id, ngay) DO UPDATE SET v = xuong_phien_ban.v + 1`,
+        [JSON.stringify([...pb.values()])]);
+    }
+  }
+  return moi;
+}
+
+app.post('/api/xuong/events', async (req: Request, res: Response) => {
+  const serverNow = Date.now();
+  try {
+    const body = loSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ success: false, message: `Lô phải có 1–${LO_TOI_DA} sự kiện và mã thiết bị` });
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const sentBy = Number(req.user!.id);
+    const deviceId = verifyDeviceToken(body.data.deviceToken);
+    if (!deviceId) return res.status(401).json({ success: false, message: 'Mã thiết bị không hợp lệ, hãy mở lại mục Xưởng để đăng ký máy' });
+    if (req.user!.scope === 'xuong' && req.user!.did !== deviceId) {
+      return res.status(401).json({ success: false, message: 'Token không thuộc máy này' });
+    }
+
+    const tuChoi: Array<{ id: string; reason: string }> = [];
+    const hopLe: SuKienVao[] = [];
+    for (const raw of body.data.events) {
+      const p = suKienSchema.safeParse(raw);
+      const id = (raw as { id?: unknown })?.id;
+      if (!p.success) { tuChoi.push({ id: typeof id === 'string' ? id : '', reason: 'Dữ liệu sự kiện không hợp lệ' }); continue; }
+      const why = kiemTraTheoLoai(p.data);
+      if (why) { tuChoi.push({ id: p.data.id, reason: why }); continue; }
+      hopLe.push(p.data);
+    }
+
+    const ketQua = await withTransaction(async client => {
+      // Máy phải đã đăng ký cho người gửi và chưa bị thu hồi
+      const phien = await client.query(
+        'SELECT user_id, thu_hoi FROM xuong_phien_thiet_bi WHERE device_id = $1', [deviceId]);
+      const nguoiTrenMay = new Set(phien.rows.filter(x => !x.thu_hoi).map(x => Number(x.user_id)));
+      if (!nguoiTrenMay.has(sentBy)) return { loi: 'Máy chưa đăng ký hoặc đã bị thu hồi cho tài khoản này' } as const;
+
+      // Thông tin công đoạn / tổ để gắn xưởng
+      const cds = [...new Set(hopLe.flatMap(e => [e.congDoanId, e.congDoanDenId]).filter((x): x is string => !!x))];
+      const tos = [...new Set(hopLe.map(e => e.toId).filter((x): x is number => !!x))];
+      const [cdRows, toRows] = await Promise.all([
+        cds.length ? client.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cds]) : { rows: [] as Row[] },
+        tos.length ? client.query('SELECT id, xuong FROM xuong_to WHERE id = ANY($1::int[])', [tos]) : { rows: [] as Row[] },
+      ]);
+      const xuongCd = new Map(cdRows.rows.map(x => [String(x.id), String(x.xuong)]));
+      const xuongTo = new Map(toRows.rows.map(x => [Number(x.id), String(x.xuong)]));
+
+      // Sự kiện bị huỷ: lấy từ DB (hoặc cùng lô) để kiểm quyền và gắn hex / công đoạn cho sự kiện huy
+      const huyIds = hopLe.filter(e => e.loai === 'huy').map(e => e.suaCho!);
+      const dichDb = huyIds.length
+        ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows
+        : [];
+      const dich = new Map<string, Row>(dichDb.map(x => [String(x.id), x]));
+      const quanLy = huyIds.length ? await xuongQuanLy(sentBy) : new Set<string>();
+
+      const ghi: Row[] = [];
+      for (const e of hopLe) {
+        let hex = e.hex ?? null;
+        let congDoanId = e.congDoanId ?? null;
+        let toId = e.toId ?? null;
+        let xuong: string | null = (congDoanId ? xuongCd.get(congDoanId) : undefined)
+          ?? (toId ? xuongTo.get(toId) : undefined) ?? null;
+        if (congDoanId && !xuongCd.has(congDoanId)) { tuChoi.push({ id: e.id, reason: 'Công đoạn không tồn tại' }); continue; }
+        if (e.congDoanDenId && !xuongCd.has(e.congDoanDenId)) { tuChoi.push({ id: e.id, reason: 'Công đoạn nhận không tồn tại' }); continue; }
+        if (toId && !xuongTo.has(toId)) { tuChoi.push({ id: e.id, reason: 'Tổ không tồn tại' }); continue; }
+
+        if (e.loai === 'huy') {
+          const cungLo = ghi.find(x => x.id === e.suaCho);
+          const d: Row | undefined = dich.get(e.suaCho!) ?? (cungLo ? { ...cungLo, server_ts: new Date(serverNow) } : undefined);
+          if (!d) { tuChoi.push({ id: e.id, reason: 'Không tìm thấy sự kiện cần huỷ' }); continue; }
+          const laNguoiGui = Number(d.sent_by) === sentBy && serverNow - new Date(d.server_ts).getTime() <= HUY_TRONG_MS;
+          if (!laNguoiGui && !quanLyDuoc(quanLy, d.xuong ?? null)) {
+            tuChoi.push({ id: e.id, reason: 'Chỉ người gửi (trong 24 giờ) hoặc quản lý xưởng được huỷ' });
+            continue;
+          }
+          hex = d.hex ?? null; congDoanId = d.cong_doan_id ?? null;
+          toId = d.to_id === null || d.to_id === undefined ? null : Number(d.to_id); xuong = d.xuong ?? null;
+        }
+
+        const co: string[] = [];
+        // Tác giả (R6): chỉ tin người khai nếu đã đăng nhập trên chính máy này
+        let userId: number = sentBy;
+        let userIdKhai: number | null = null;
+        if (e.userId && e.userId !== sentBy) {
+          if (nguoiTrenMay.has(e.userId)) { userId = e.userId; co.push('gui_ho'); }
+          else { userIdKhai = e.userId; co.push('tac_gia_khong_xac_minh'); }
+        }
+        const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
+        co.push(...gio.co);
+        ghi.push({
+          id: e.id, loai: e.loai, hex, cong_doan_id: congDoanId, to_id: toId, xuong,
+          so_luong: e.soLuong ?? null, cong_doan_den_id: e.congDoanDenId ?? null,
+          cong_doan_nguon_id: e.congDoanNguonId ?? null, xuong_nguon: e.xuongNguon ?? null,
+          so_nguoi: e.soNguoi ?? null, ly_do_tam_ngung: e.lyDoTamNgung ?? null, tien_do: e.tienDo ?? null,
+          ghi_chu: e.ghiChu ?? null, du_lieu: e.duLieu ?? null,
+          device_ts: new Date(e.deviceTs).toISOString(), lech_ms: e.lechMs === undefined || e.lechMs === null ? null : Math.round(e.lechMs),
+          device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
+          user_id: userId, user_id_khai: userIdKhai, sent_by: sentBy, device_id: deviceId,
+          sua_cho: e.suaCho ?? null, co,
+        });
+      }
+
+      const moi = await ghiVaTinhLai(client, ghi, dichDb);
+      return {
+        ghi: ghi.map(x => String(x.id)),
+        // Chỉ sự kiện mới ghi (gửi lại lô cũ thì không báo trùng)
+        giaoDen: ghi.filter(x => moi.has(String(x.id)) && (x.loai === 'giao' || x.loai === 'khai_bao_cd') && x.hex && x.cong_doan_den_id)
+          .map(x => ({ hex: String(x.hex), congDoanDenId: String(x.cong_doan_den_id), soLuong: Number(x.so_luong ?? 0) })),
+      } as const;
+    });
+
+    if ('loi' in ketQua) return res.status(401).json({ success: false, message: ketQua.loi });
+    // Báo tổ nhận hàng (thông báo không bao giờ làm hỏng lô — guiTinXuong tự nuốt lỗi). Chờ tối đa 1,5 giây để Web Push
+    // chậm không kéo dài phản hồi lô (máy coi chậm là mất mạng và gửi lại).
+    if (ketQua.giaoDen.length) {
+      await Promise.race([baoHangChoNhan(ketQua.giaoDen, sentBy), new Promise(r => setTimeout(r, 1500))]);
+    }
+    res.json({ success: true, available: true, saved: ketQua.ghi, rejected: tuChoi, serverNow });
+  } catch (e) { fail(res, e, '/api/xuong/events'); }
+});
+
+// ---------------------------------------------------------------------------
+// Thông tin hạng mục từ bảng sản xuất (ETL)
+// ---------------------------------------------------------------------------
+export async function thongTinHangMuc(hexes: string[]): Promise<Map<string, Row>> {
+  if (!hexes.length) return new Map();
+  const r = await pool.query(
+    `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ma_cong_trinh, ten_cong_trinh, dvt,
+            so_luong_don_hang_tong, xuong_chinh
+     FROM production_status_app WHERE hex::text = ANY($1::text[])
+     ORDER BY hex::text, updated_at DESC NULLS LAST`, [hexes]);
+  return new Map(r.rows.map(x => [String(x.hex), x]));
+}
+
+const dongTrangThai = (x: Row, info?: Row) => ({
+  hex: x.hex, congDoanId: x.cong_doan_id, trangThai: x.trang_thai,
+  slGiaoDen: Number(x.sl_giao_den), slNhan: Number(x.sl_nhan), slHoanThanh: Number(x.sl_hoan_thanh), slGiao: Number(x.sl_giao),
+  soNguoi: x.so_nguoi === null ? null : Number(x.so_nguoi),
+  dangChayTu: x.dang_chay_tu, suKienCuoi: x.su_kien_cuoi, co: x.co ?? [],
+  tenHangMuc: info?.ten_hang_muc ?? null, maCongTrinh: info?.ma_cong_trinh ?? null, tenCongTrinh: info?.ten_cong_trinh ?? null,
+  dvt: info?.dvt ?? null,
+});
+
+/**
+ * Gợi ý công đoạn kế cho "Xong — giao" (3F, cải tiến 6). Ưu tiên tuyến đã khai khi triển khai
+ * (du_lieu.tuyen = [id công đoạn theo thứ tự]); chưa có tuyến thì các công đoạn cùng xưởng ở bậc `thu_tu` kế tiếp
+ * (theo cd_tach_ma). Mảng rỗng = chưa có tuyến, màn hình bắt chọn nơi giao.
+ */
+async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (!pairs.length) return out;
+  const hexes = [...new Set(pairs.map(p => p[0]))];
+  const [tk, cd] = await Promise.all([
+    pool.query(
+      `SELECT hex, du_lieu->'tuyen' AS tuyen FROM xuong_su_kien e
+       WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND jsonb_typeof(du_lieu->'tuyen') = 'array'
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       ORDER BY device_ts_hieu_chinh`, [hexes]),
+    pool.query('SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active'),
+  ]);
+  const tuyen = new Map<string, string[]>();
+  for (const x of tk.rows) tuyen.set(String(x.hex), (x.tuyen as unknown[]).map(String));
+  const cdMap = new Map(cd.rows.map(x => [String(x.id), { xuong: String(x.xuong), thuTu: Number(x.thu_tu) }]));
+  for (const [hex, cdId] of pairs) {
+    const t = tuyen.get(hex);
+    const i = t ? t.indexOf(cdId) : -1;
+    if (t && i >= 0 && i + 1 < t.length) { out.set(pairKey(hex, cdId), [t[i + 1]]); continue; }
+    const cur = cdMap.get(cdId);
+    if (!cur) continue;
+    const sau = [...cdMap.entries()].filter(([, v]) => v.xuong === cur.xuong && v.thuTu > cur.thuTu);
+    if (!sau.length) continue;
+    const bac = Math.min(...sau.map(([, v]) => v.thuTu));
+    out.set(pairKey(hex, cdId), sau.filter(([, v]) => v.thuTu === bac).map(([id]) => id));
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Ảnh tiến độ trong Postgres (D24) — bảng xuong_anh (backend/sql/2026-10-12_xuong_anh.sql)
+//   POST /api/xuong/anh?id=<uuid máy sinh>&hex=  body = bytes WebP / JPEG (≤ 1 MB)  → { bat, khoa }
+//   GET  /api/xuong/anh/:id                                                         → bytes ảnh
+// ---------------------------------------------------------------------------
+let bangAnh: { co: boolean; luc: number } | null = null;
+/** Đã chạy file SQL ảnh chưa (có rồi thì nhớ luôn; chưa có thì 5 phút kiểm lại) */
+async function coBangAnh(): Promise<boolean> {
+  if (bangAnh && (bangAnh.co || Date.now() - bangAnh.luc < 300_000)) return bangAnh.co;
+  const r = await pool.query(`SELECT to_regclass('xuong_anh') IS NOT NULL AS co`);
+  bangAnh = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangAnh.co;
+}
+
+app.post('/api/xuong/anh', express.raw({ type: 'image/*', limit: '1mb' }), async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    if (!(await coBangAnh())) return res.json({ success: true, available: true, bat: false });
+    const id = String(req.query.id ?? '');
+    const hex = String(req.query.hex ?? '');
+    if (!khoaAnhHopLe(id) || !HEX_RE.test(hex)) return res.status(400).json({ success: false, message: 'Thiếu mã ảnh / mã hạng mục' });
+    const buf = req.body as Buffer;
+    const mime = Buffer.isBuffer(buf) ? kieuAnh(buf) : null;
+    if (!mime || buf.length > ANH_TOI_DA_BYTE) return res.status(400).json({ success: false, message: 'Chỉ nhận ảnh WebP / JPEG dưới 1 MB' });
+    await pool.query(
+      `INSERT INTO xuong_anh (id, hex, mime, size, data, user_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+      [id, hex, mime, buf.length, buf, Number(req.user!.id)]);
+    res.json({ success: true, available: true, bat: true, khoa: id });
+  } catch (e) { fail(res, e, '/api/xuong/anh'); }
+});
+
+app.get('/api/xuong/anh/:id', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    if (!khoaAnhHopLe(id)) return res.status(400).json({ success: false, message: 'Mã ảnh không hợp lệ' });
+    const r = await pool.query('SELECT mime, data FROM xuong_anh WHERE id = $1', [id]);
+    if (!r.rows[0]) return res.status(404).json({ success: false, message: 'Không tìm thấy ảnh' });
+    res.setHeader('Content-Type', r.rows[0].mime === 'image/webp' ? 'image/webp' : 'image/jpeg');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.send(r.rows[0].data);
+  } catch (e) { fail(res, e, '/api/xuong/anh/:id'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/cong-viec?toId= — Chờ nhận · Đang làm · Chờ giao của tổ
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const toId = Number(req.query.toId);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Thiếu tổ' });
+    const cdRows = await pool.query(
+      `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
+       WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`, [toId]);
+    const cds = cdRows.rows.map(x => String(x.id));
+    const st = cds.length
+      ? (await pool.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows
+      : [];
+    const info = await thongTinHangMuc([...new Set(st.map(x => String(x.hex)))]);
+    const ngay = vnDayKey(new Date());
+    const hom = await pool.query(
+      `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
+       WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
+         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       ORDER BY device_ts_hieu_chinh`, [toId, ngay]);
+    const quanSo: Record<string, number> = {};
+    const tangCa: string[] = [];
+    for (const x of hom.rows) {
+      const d = x.du_lieu ?? {};
+      if (x.loai === 'quan_so' && typeof d.loaiCa === 'string') quanSo[d.loaiCa] = Number(d.soNguoi);
+      if (x.loai === 'tang_ca' && typeof d.loaiCa === 'string' && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
+    }
+    const toRow = (await pool.query('SELECT xuong, ten_to FROM xuong_to WHERE id = $1', [toId])).rows[0];
+    const xuongTo = toRow?.xuong ? String(toRow.xuong) : (cdRows.rows[0]?.xuong ?? null);
+
+    // "Giống hôm qua" (3B, 3H): quân số gần nhất trước hôm nay theo ca, số người tăng ca gần nhất
+    const [truoc, tcTruoc, xacNhan, lichCa] = await Promise.all([
+      pool.query(
+        `SELECT DISTINCT ON (du_lieu->>'loaiCa') du_lieu->>'loaiCa' AS ca, du_lieu->>'soNguoi' AS so
+         FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'quan_so'
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`, [toId, ngay]),
+      pool.query(
+        `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY device_ts_hieu_chinh DESC LIMIT 1`, [toId]),
+      pool.query(
+        `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`, [toId, ngay]),
+      xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([] as LichCaRow[]),
+    ]);
+    const quanSoTruoc: Record<string, number> = {};
+    for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
+
+    const goiY = await goiYCongDoanKe(st.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    // Số người đang làm: lần chia người (3D) sau lần bắt đầu / tiếp tục gần nhất thì thay số khai lúc bắt đầu
+    // (cùng cách phân bổ giờ công đọc soNguoi theo thời gian — allocation.ts)
+    const chia = await pool.query(
+      `SELECT du_lieu->'phanBo' AS pb, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+       WHERE to_id = $1 AND loai = 'chia_nguoi' AND device_ts_hieu_chinh > now() - interval '30 days'
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       ORDER BY device_ts_hieu_chinh`, [toId]);
+    const soNguoiChia = (hex: string, cd: string, tu: Date | null): number | null => {
+      if (!tu) return null;
+      let n: number | null = null;
+      for (const c of chia.rows) {
+        if (new Date(c.ts).getTime() < tu.getTime() || !Array.isArray(c.pb)) continue;
+        const p = (c.pb as Array<Record<string, unknown>>).find(x => x.hex === hex && x.congDoanId === cd);
+        if (p && typeof p.soNguoi === 'number') n = p.soNguoi;
+      }
+      return n;
+    };
+    const rows = st.map(x => {
+      const d = dongTrangThai(x, info.get(String(x.hex)));
+      const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
+      return { ...d, soNguoi: n ?? d.soNguoi, goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [] };
+    });
+    res.json({
+      success: true, available: true, serverNow: Date.now(), ngay,
+      to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
+      congDoan: cdRows.rows.map(x => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
+      choNhan: rows.filter(x => x.slGiaoDen > x.slNhan),
+      dangLam: rows.filter(x => ['dang_lam', 'tam_ngung', 'da_nhan'].includes(x.trangThai)),
+      // Theo số lượng, không theo trạng thái: xong một phần mà vẫn chạy / đang tạm ngưng vẫn giao được phần đã xong
+      choGiao: rows.filter(x => x.slHoanThanh > x.slGiao),
+      quanSo, tangCa, quanSoTruoc,
+      soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
+      daXacNhanHomNay: xacNhan.rows.length > 0,
+      anhBat: await coBangAnh(),
+      lichCa,
+    });
+  } catch (e) { fail(res, e, '/api/xuong/cong-viec'); }
+});
+
+// ---------------------------------------------------------------------------
+// Giờ công phân bổ của tổ trong một ngày — cache theo phiên bản sổ (to, ngày) (R3)
+// ---------------------------------------------------------------------------
+export type KetQuaGioCong = ReturnType<typeof phanBoGioCong> & { bamLichCa: string };
+const gioCongCache = new Map<string, { v: string; payload: KetQuaGioCong }>();
+
+/** Dấu ngắn của lịch ca (giờ, nghỉ) — kết quả phân bổ giờ công phụ thuộc lịch ca */
+export const dauLichCa = (lichCa: LichCaRow[]) => createHash('sha1')
+  .update(JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
+const GIO_CONG_CACHE_MAX = 300;
+/** Lịch ca đổi (thẻ Xưởng trong Setup) thì giờ công mọi ngày phải tính lại */
+export const xoaCacheGioCong = () => gioCongCache.clear();
+
+export async function lichCaCuaXuong(xuong: string): Promise<LichCaRow[]> {
+  const r = await pool.query(
+    `SELECT DISTINCT ON (loai_ca) loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+     FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY loai_ca, (xuong = '*')`, [xuong]);
+  return r.rows.map(x => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
+}
+
+export async function gioCongToNgay(toId: number, ngay: string) {
+  const pb = await pool.query('SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date', [toId, ngay]);
+  const toRow = await pool.query('SELECT xuong FROM xuong_to WHERE id = $1', [toId]);
+  const xuong = toRow.rows[0]?.xuong;
+  if (!xuong) return null;
+  const lichCa = await lichCaCuaXuong(String(xuong));
+  // Khoá cache = phiên bản sổ + dấu lịch ca: đổi lịch ca (giờ nghỉ…) thì mọi instance tự tính lại, không chỉ instance
+  // nhận request sửa lịch
+  const bamLichCa = dauLichCa(lichCa);
+  const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
+  const key = `${toId}|${ngay}`;
+  const today = vnDayKey(new Date()) === ngay;
+  const hit = gioCongCache.get(key);
+  // Ngày hôm nay có đoạn đang chạy => kết quả đổi theo giờ hiện tại, không cache
+  if (hit && hit.v === v && !today) return hit.payload;
+
+  // Sự kiện của tổ quanh ngày đó (quân số, tăng ca, chia người, xác nhận, các hạng mục tổ đã chạm) …
+  const r = await pool.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+     WHERE to_id = $1 AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ($2::date - 7) AND ($2::date + 1)`,
+    [toId, ngay]);
+  // … cộng TOÀN BỘ lịch sử các cặp (hex, công đoạn) đó: hạng mục chạy nhiều tuần vẫn có mốc bắt đầu
+  const capTrongCuaSo = new Set(r.rows.filter(x => x.hex && x.cong_doan_id).map(x => pairKey(x.hex, x.cong_doan_id)));
+  const lichSu = (await suKienTheoHex(pool, [...new Set(r.rows.filter(x => x.hex).map(x => String(x.hex)))]))
+    .filter(x => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
+  const theoId = new Map<string, Row>();
+  for (const x of [...r.rows, ...lichSu]) theoId.set(String(x.id), x);
+  const conHieuLuc = suKienConHieuLuc([...theoId.values()].map(toSuKien));
+
+  const trongNgay = (e: SuKien) => vnDayKey(new Date(e.ts)) === ngay;
+  const caTangCa = conHieuLuc.filter(e => e.loai === 'tang_ca' && trongNgay(e)).map(e => String(e.duLieu?.loaiCa) as LoaiCa);
+  const boChon: Partial<Record<LoaiCa, string[]>> = {};
+  for (const e of conHieuLuc.filter(x => x.loai === 'tang_ca' && trongNgay(x))) {
+    const ca = String(e.duLieu?.loaiCa) as LoaiCa;
+    const ds = Array.isArray(e.duLieu?.boChon) ? (e.duLieu!.boChon as unknown[]).map(String) : [];
+    boChon[ca] = [...(boChon[ca] ?? []), ...ds];
+  }
+  const quanSo: Partial<Record<LoaiCa, number | null>> = {};
+  for (const e of conHieuLuc.filter(x => x.loai === 'quan_so' && trongNgay(x))) {
+    quanSo[String(e.duLieu?.loaiCa) as LoaiCa] = Number(e.duLieu?.soNguoi);
+  }
+
+  // Đoạn chạy + số người theo cặp; ngày hoạt động cuối để áp R3-3
+  const doanChay: Record<string, DoanChay[]> = {};
+  const soNguoi: ThayDoiSoNguoi[] = [];
+  const ngayCuoi = new Map<string, string>();
+  const capCuaTo = new Map<string, SuKien[]>();
+  for (const e of conHieuLuc) {
+    if (e.hex && e.congDoanId) {
+      const k = pairKey(e.hex, e.congDoanId);
+      if (!capCuaTo.has(k)) capCuaTo.set(k, []);
+      capCuaTo.get(k)!.push(e);
+      if (e.loai !== 'tien_do') {
+        const d = vnDayKey(new Date(e.ts));
+        if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
+      }
+      if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && e.soNguoi !== null) soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi });
+    }
+    if (e.loai === 'chia_nguoi' && Array.isArray(e.duLieu?.phanBo)) {
+      for (const p of e.duLieu!.phanBo as Array<Record<string, unknown>>) {
+        if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && typeof p.soNguoi === 'number') {
+          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi });
+        }
+      }
+    }
+    if (e.loai === 'xac_nhan_cuoi_ngay' && Array.isArray(e.duLieu?.hangMuc)) {
+      const d = vnDayKey(new Date(e.ts));
+      for (const p of e.duLieu!.hangMuc as Array<Record<string, unknown>>) {
+        if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && p.trangThai === 'van_lam') {
+          const k = pairKey(p.hex, p.congDoanId);
+          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
+        }
+      }
+    }
+  }
+  const ngungTinh: string[] = [];
+  const chuaXacNhan: string[] = [];
+  for (const [k, evts] of capCuaTo) {
+    const st = tinhTrangThai(evts, []);
+    if (st.doanChay.length) doanChay[k] = st.doanChay;
+    if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
+      const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
+      if (tt === 'ngung') ngungTinh.push(k);
+      if (tt === 'chua_xac_nhan') chuaXacNhan.push(k);
+    }
+  }
+
+  const payload: KetQuaGioCong = { ...phanBoGioCong({
+    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa), quanSo, doanChay, soNguoi,
+    boChonTangCa: boChon, ngungTinh, chuaXacNhan, now: Date.now(),
+  }), bamLichCa };
+  gioCongCache.delete(key);
+  gioCongCache.set(key, { v, payload });
+  while (gioCongCache.size > GIO_CONG_CACHE_MAX) {
+    const oldest = gioCongCache.keys().next().value;
+    if (oldest === undefined) break;
+    gioCongCache.delete(oldest);
+  }
+  return payload;
+}
+
+app.get('/api/xuong/to/:id/gio-cong', async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const toId = Number(req.params.id);
+    const ngay = typeof req.query.ngay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(new Date());
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Tổ không hợp lệ' });
+    const kq = await gioCongToNgay(toId, ngay);
+    if (!kq) return res.status(404).json({ success: false, message: 'Không tìm thấy tổ' });
+    res.json({ success: true, available: true, toId, ngay, ...kq });
+  } catch (e) { fail(res, e, '/api/xuong/to/:id/gio-cong'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/hex/:hex — dòng thời gian + trạng thái + thời gian trong xưởng + giờ công
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
+  try {
+    const hex = String(req.params.hex);
+    if (!HEX_RE.test(hex)) return res.status(400).json({ success: false, message: 'Mã hạng mục phải có 9 số' });
+    const [rows, st, info] = await Promise.all([
+      suKienTheoHex(pool, [hex], true),
+      pool.query('SELECT * FROM xuong_trang_thai WHERE hex = $1', [hex]),
+      thongTinHangMuc([hex]),
+    ]);
+    const now = Date.now();
+    const evts = rows.map(toSuKien);
+    const laMra = new Set(rows.filter(r => r.nguon === 'mra').map(r => String(r.id)));
+    const evtsApp = evts.filter(e => !laMra.has(e.id));
+    const conHieuLuc = new Set(suKienConHieuLuc(evts).map(e => e.id));
+    const cdIds = [...new Set(evts.flatMap(e => [e.congDoanId, e.congDoanDenId]).filter((x): x is string => !!x))];
+    const cd = cdIds.length ? (await pool.query('SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds])).rows : [];
+    const cdMap = new Map(cd.map(x => [String(x.id), x]));
+    const xuongCua = (id: string | null) => (id ? (cdMap.get(id)?.xuong ?? null) : null);
+
+    // Thời gian trong từng xưởng theo lô (R3-4, R10)
+    // Theo lô chỉ với sự kiện app — MRA không ghi rõ lô vào xưởng (lịch sử MRA tính đầu–cuối riêng bên dưới)
+    const hl = suKienConHieuLuc(evtsApp);
+    const dsXuong = [...new Set(hl.map(e => xuongCua(e.congDoanId)).filter((x): x is string => !!x))];
+    const p = info.get(hex);
+    const thoiGianXuong = dsXuong.map(xg => {
+      // Cặp "cửa vào" của xưởng: có hàng đến từ ngoài xưởng (giao từ công đoạn xưởng khác, đơn hàng nội bộ QT2,
+      // hoặc nhận ghi nguồn ngoài app — R10). Mỗi lần nhận ở cặp cửa vào là một lô vào xưởng.
+      const cuaVao = new Set<string>();
+      for (const g of hl) {
+        if (!g.hex || !g.congDoanDenId || xuongCua(g.congDoanDenId) !== xg) continue;
+        if (g.loai === 'khai_bao_cd' || (g.loai === 'giao' && xuongCua(g.congDoanId) !== xg)) cuaVao.add(g.congDoanDenId);
+      }
+      const vao = hl.filter(e => e.loai === 'nhan' && xuongCua(e.congDoanId) === xg
+          && (cuaVao.has(e.congDoanId ?? '') || !!e.xuongNguon || (!!e.congDoanNguonId && xuongCua(e.congDoanNguonId) !== xg)))
+        .map(e => ({ ts: e.ts, soLuong: e.soLuong ?? 0 }));
+      const ra = hl.filter(e => (e.loai === 'giao' && xuongCua(e.congDoanId) === xg && xuongCua(e.congDoanDenId) !== xg)
+        || (e.loai === 'hoan_thanh' && xuongCua(e.congDoanId) === xg && cdMap.get(e.congDoanId ?? '')?.la_bao_bi))
+        .map(e => ({ ts: e.ts, soLuong: e.soLuong ?? 0 }));
+      const tk = hl.filter(e => e.loai === 'trien_khai' && (e.duLieu?.xuong === xg)).reduce((a, e) => a + (e.soLuong ?? 0), 0);
+      const moc = tk > 0 ? { soLuong: tk, loai: 'trien_khai' as const }
+        : p?.so_luong_don_hang_tong ? { soLuong: Number(p.so_luong_don_hang_tong), loai: 'don_hang' as const } : null;
+      return { xuong: xg, ...thoiGianTheoLo(vao, ra, moc, now) };
+    });
+
+    // Giờ chạy (đồng hồ) và giờ công phân bổ theo quân số (6A). Giờ công cộng từ phân bổ từng (tổ, ngày) có chạm
+    // hạng mục — tối đa 20 ngày gần nhất mỗi lần xem (mỗi ngày đã qua được cache theo phiên bản sổ).
+    const GIO = 3_600_000;
+    const gioChay = new Map<string, number>();
+    const toNgay = new Set<string>();
+    for (const x of st.rows) {
+      const cdId = String(x.cong_doan_id);
+      const cua = evtsApp.filter(e => e.congDoanId === cdId);
+      const doan = tinhTrangThai(cua, []).doanChay;
+      gioChay.set(cdId, doan.reduce((a, d) => a + ((d.end ?? now) - d.start) / GIO, 0));
+      const toCua = [...new Set(cua.filter(e => e.toId && (e.loai === 'bat_dau' || e.loai === 'tiep_tuc')).map(e => e.toId!))];
+      for (const d of doan) {
+        for (let t = d.start; t <= (d.end ?? now) + 1; t += 86_400_000) {
+          for (const to of toCua) toNgay.add(`${to}|${vnDayKey(new Date(Math.min(t, d.end ?? now)))}`);
+        }
+        for (const to of toCua) toNgay.add(`${to}|${vnDayKey(new Date(d.end ?? now))}`);
+      }
+    }
+    const capNgay = [...toNgay].sort((a, b) => (a.split('|')[1] < b.split('|')[1] ? 1 : -1));
+    const gioCong = new Map<string, number>();
+    await runWithLimit(capNgay.slice(0, 20).map(k => async () => {
+      const [to, ngay] = k.split('|');
+      const kq = await gioCongToNgay(Number(to), ngay);
+      if (!kq) return;
+      for (const x of st.rows) {
+        const h = kq.theoHangMuc[pairKey(hex, String(x.cong_doan_id))];
+        if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
+      }
+    }), 2);
+    const lam = (n: number) => Math.round(n * 100) / 100;
+
+    // Lịch sử MRA (nguon = 'mra'): công đoạn tính riêng từ sự kiện MRA — thời gian chạy + số nhân công gốc
+    // (MRA không có quân số nên không phân bổ giờ công; số nhân công gốc có thể đếm trùng)
+    const evtsMra = evts.filter(e => laMra.has(e.id));
+    const cdMra = [...new Set(evtsMra.map(e => e.congDoanId).filter((x): x is string => !!x))];
+    const congDoanMra = cdMra.map(cdId => {
+      const cua = evtsMra.filter(e => e.congDoanId === cdId);
+      const den = evtsMra.filter(e => (e.loai === 'giao' || e.loai === 'khai_bao_cd') && e.congDoanDenId === cdId);
+      const t = tinhTrangThai(cua, den);
+      const nc = cua.filter(e => e.loai === 'chia_nguoi' && e.soNguoi !== null).sort((a, b) => a.ts - b.ts);
+      return {
+        // MRA hay ghi trùng số giao tới => trạng thái lịch sử theo số tổ đã nhận / xong, không theo "chờ nhận"
+        hex, congDoanId: cdId, nguon: 'mra' as const,
+        trangThai: t.trangThai === 'cho_nhan' || t.trangThai === 'cho_giao'
+          ? (t.slNhan > 0 && t.slHoanThanh >= t.slNhan ? 'xong' as const : t.slNhan > 0 ? 'da_nhan' as const : t.trangThai)
+          : t.trangThai,
+        slGiaoDen: t.slGiaoDen, slNhan: t.slNhan, slHoanThanh: t.slHoanThanh, slGiao: t.slGiao, soNguoi: null,
+        dangChayTu: null, suKienCuoi: t.suKienCuoi === null ? null : new Date(t.suKienCuoi).toISOString(), co: [],
+        ten: cdMap.get(cdId)?.cd_chi_tiet ?? null, xuong: cdMap.get(cdId)?.xuong ?? null, thuTu: cdMap.get(cdId)?.thu_tu ?? null,
+        gioChay: lam(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO, 0)), gioCong: 0,
+        nhanCongMra: nc.length ? nc[nc.length - 1].soNguoi : null,
+      };
+    });
+
+    // Lịch sử MRA theo xưởng: từ thao tác đầu tới lần hoàn thành / giao cuối
+    const thoiGianMra = [...new Set(evtsMra.map(e => xuongCua(e.congDoanId)).filter((x): x is string => !!x))].map(xg => {
+      const cua = evtsMra.filter(e => xuongCua(e.congDoanId) === xg);
+      const ra = cua.filter(e => e.loai === 'hoan_thanh' || e.loai === 'giao');
+      const tu = Math.min(...cua.map(e => e.ts));
+      const den = ra.length ? Math.max(...ra.map(e => e.ts)) : null;
+      return { xuong: xg, tu: new Date(tu).toISOString(), den: den === null ? null : new Date(den).toISOString() };
+    }).sort((a, b) => a.tu.localeCompare(b.tu));
+
+    const ketQua: Row = {
+      success: true, available: true, hex,
+      gioCongTamTinh: capNgay.length > 20,
+      thoiGianMra,
+      hangMuc: p ? { ten: p.ten_hang_muc, maCongTrinh: p.ma_cong_trinh, tenCongTrinh: p.ten_cong_trinh, dvt: p.dvt,
+        soLuongDonHang: p.so_luong_don_hang_tong === null ? null : Number(p.so_luong_don_hang_tong), xuongChinh: p.xuong_chinh } : null,
+      congDoan: [...st.rows.map(x => ({
+        ...dongTrangThai(x), ten: cdMap.get(String(x.cong_doan_id))?.cd_chi_tiet ?? null,
+        xuong: x.xuong ?? null, thuTu: cdMap.get(String(x.cong_doan_id))?.thu_tu ?? null,
+        gioChay: lam(gioChay.get(String(x.cong_doan_id)) ?? 0), gioCong: lam(gioCong.get(String(x.cong_doan_id)) ?? 0),
+        nguon: 'app' as const, nhanCongMra: null as number | null,
+      })), ...congDoanMra],
+      thoiGianXuong,
+      suKien: rows.map(r => ({
+        id: r.id, loai: r.loai, congDoanId: r.cong_doan_id, congDoanDenId: r.cong_doan_den_id, soLuong: num(r.so_luong),
+        soNguoi: r.so_nguoi, lyDo: r.ly_do_tam_ngung, tienDo: r.tien_do, ghiChu: r.ghi_chu,
+        luc: r.device_ts_hieu_chinh, nguon: r.nguon, nguoiGoc: r.nguoi_thao_tac_goc, co: r.co ?? [], duLieu: r.du_lieu ?? null,
+        anh: Array.isArray(r.du_lieu?.anh) ? (r.du_lieu.anh as unknown[]).filter(khoaAnhHopLe) : [],
+        conHieuLuc: r.loai === 'huy' || conHieuLuc.has(String(r.id)), suaCho: r.sua_cho,
+      })).sort((a, b) => new Date(a.luc).getTime() - new Date(b.luc).getTime()),
+    };
+    res.json(ketQua);
+  } catch (e) { fail(res, e, '/api/xuong/hex/:hex'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/can-xem?xuong= — cần xem cho quản lý xưởng
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/can-xem', async (req: Request, res: Response) => {
+  try {
+    const ds = await xuongQuanLy(req.user!.id);
+    const xuong = typeof req.query.xuong === 'string' ? req.query.xuong.toUpperCase() : '';
+    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: 'Không có quyền quản lý xưởng này' });
+    const [sk, st] = await Promise.all([
+      pool.query(
+        `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co
+         FROM xuong_su_kien WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
+         ORDER BY server_ts DESC LIMIT 300`, [xuong]),
+      pool.query(`SELECT * FROM xuong_trang_thai WHERE xuong = $1 AND co <> '{}' ORDER BY cap_nhat DESC LIMIT 300`, [xuong]),
+    ]);
+    const info = await thongTinHangMuc([...new Set(st.rows.map(x => String(x.hex)))]);
+    res.json({
+      success: true, available: true, xuong,
+      suKien: sk.rows,
+      trangThai: st.rows.map(x => dongTrangThai(x, info.get(String(x.hex)))),
+    });
+  } catch (e) { fail(res, e, '/api/xuong/can-xem'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/lich-su?toId= — "Lịch sử hôm nay" (3G): thao tác 24 giờ qua của tổ, kèm quyền huỷ (R7)
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/lich-su', async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const toId = Number(req.query.toId);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Thiếu tổ' });
+    const me = Number(req.user!.id);
+    const [r, quanLy] = await Promise.all([
+      pool.query(
+        `SELECT e.id, e.loai, e.hex, e.cong_doan_id, e.cong_doan_den_id, e.so_luong, e.so_nguoi, e.ly_do_tam_ngung,
+                e.du_lieu, e.device_ts_hieu_chinh, e.server_ts, e.sent_by, e.xuong, u.full_name, u.username,
+                c.cd_chi_tiet AS ten_cd, d.cd_chi_tiet AS ten_cd_den,
+                EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) AS da_huy
+         FROM xuong_su_kien e
+         LEFT JOIN users u ON u.id = e.sent_by
+         LEFT JOIN xuong_cong_doan c ON c.id = e.cong_doan_id
+         LEFT JOIN xuong_cong_doan d ON d.id = e.cong_doan_den_id
+         WHERE e.loai <> 'huy' AND e.server_ts > now() - interval '24 hours'
+           AND (e.to_id = $1 OR e.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1))
+         ORDER BY e.device_ts_hieu_chinh DESC LIMIT 300`, [toId]),
+      xuongQuanLy(me),
+    ]);
+    const info = await thongTinHangMuc([...new Set(r.rows.filter(x => x.hex).map(x => String(x.hex)))]);
+    const now = Date.now();
+    res.json({
+      success: true, available: true,
+      suKien: r.rows.map(x => ({
+        id: String(x.id), loai: x.loai, hex: x.hex, congDoanId: x.cong_doan_id, tenCongDoan: x.ten_cd,
+        tenCongDoanDen: x.ten_cd_den, soLuong: num(x.so_luong), soNguoi: x.so_nguoi, lyDo: x.ly_do_tam_ngung,
+        duLieu: x.du_lieu, luc: x.device_ts_hieu_chinh, nguoi: x.full_name || x.username || null,
+        tenHangMuc: x.hex ? (info.get(String(x.hex))?.ten_hang_muc ?? null) : null,
+        daHuy: !!x.da_huy,
+        huyDuoc: !x.da_huy && ((Number(x.sent_by) === me && now - new Date(x.server_ts).getTime() <= HUY_TRONG_MS)
+          || quanLyDuoc(quanLy, x.xuong ?? null)),
+      })),
+    });
+  } catch (e) { fail(res, e, '/api/xuong/lich-su'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/tim-hex?q=&toId= — gợi ý khi gõ mã (7B): việc của tổ trước, rồi hạng mục trong bảng sản xuất
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/tim-hex', async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const q = String(req.query.q ?? '').replace(/\D/g, '').slice(0, 9);
+    if (q.length < 3) return res.json({ success: true, available: true, ketQua: [] });
+    const toId = Number(req.query.toId);
+    const mau = `%${q}%`;
+    const cuaTo = Number.isInteger(toId) && toId > 0
+      ? (await pool.query(
+          `SELECT DISTINCT t.hex FROM xuong_trang_thai t
+           WHERE t.hex LIKE $1 AND t.trang_thai <> 'xong'
+             AND (t.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $2)) LIMIT 10`, [mau, toId])).rows.map(x => String(x.hex))
+      : [];
+    const khac = await pool.query(
+      `SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE hex IS NOT NULL AND hex::text LIKE $1 LIMIT 10`, [mau]);
+    const ds = [...new Set([...cuaTo, ...khac.rows.map(x => String(x.hex))])].filter(h => HEX_RE.test(h)).slice(0, 10);
+    const info = await thongTinHangMuc(ds);
+    res.json({
+      success: true, available: true,
+      ketQua: ds.map(h => ({
+        hex: h, cuaTo: cuaTo.includes(h),
+        tenHangMuc: info.get(h)?.ten_hang_muc ?? null, tenCongTrinh: info.get(h)?.ten_cong_trinh ?? null,
+      })),
+    });
+  } catch (e) { fail(res, e, '/api/xuong/tim-hex'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/danh-muc?xuong= — công đoạn, tổ, lịch ca
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/danh-muc', async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const xuong = typeof req.query.xuong === 'string' && req.query.xuong ? req.query.xuong.toUpperCase() : null;
+    const [cd, to, tc, lc] = await Promise.all([
+      pool.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi FROM xuong_cong_doan
+                  WHERE active AND ($1::text IS NULL OR xuong = $1) ORDER BY xuong, thu_tu, cd_chi_tiet`, [xuong]),
+      pool.query(`SELECT id, xuong, ten_to, to_truong_user_id FROM xuong_to WHERE active AND ($1::text IS NULL OR xuong = $1)
+                  ORDER BY xuong, ten_to`, [xuong]),
+      pool.query(`SELECT to_id, cong_doan_id FROM xuong_to_cong_doan`),
+      pool.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+                  FROM xuong_lich_ca WHERE $1::text IS NULL OR xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong]),
+    ]);
+    res.json({
+      success: true, available: true,
+      congDoan: cd.rows.map(x => ({ id: x.id, xuong: x.xuong, tenCd: x.ten_cd, cdTachMa: x.cd_tach_ma, ten: x.cd_chi_tiet, thuTu: x.thu_tu, laBaoBi: x.la_bao_bi })),
+      to: to.rows.map(x => ({
+        id: Number(x.id), xuong: x.xuong, ten: x.ten_to, toTruongUserId: x.to_truong_user_id,
+        congDoan: tc.rows.filter(t => Number(t.to_id) === Number(x.id)).map(t => t.cong_doan_id),
+      })),
+      lichCa: lc.rows.map(x => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: x.nghi })),
+    });
+  } catch (e) { fail(res, e, '/api/xuong/danh-muc'); }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/xuong/thu-hoi/:userId — admin thu hồi token + mọi máy Xưởng của một người (R5)
+// ---------------------------------------------------------------------------
+app.post('/api/xuong/thu-hoi/:userId', async (req: Request, res: Response) => {
+  try {
+    const access = await loadUserAccess(req.user!.id);
+    if (access.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Chỉ admin được thu hồi' });
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
+    await pool.query('UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1', [userId]);
+    await bumpTokenVersion(userId);
+    res.json({ success: true, available: true });
+  } catch (e) { fail(res, e, '/api/xuong/thu-hoi/:userId'); }
+});

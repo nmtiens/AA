@@ -35,7 +35,8 @@ export interface PushPayload {
   title: string;
   body: string;
   tag?: string;
-  target: { hex: string; category: string; id: number };
+  /** url: mở thẳng trang này khi bấm (mục Xưởng: /m/xuong); không có thì mở vướng mắc theo id */
+  target: { hex: string; category: string; id: number; url?: string };
 }
 
 async function runLimited<T>(items: T[], limit: number, fn: (x: T) => Promise<void>) {
@@ -190,6 +191,17 @@ const subscribeSchema = z.object({
 });
 const unsubscribeSchema = z.object({ endpoint: z.string().url().max(2000) });
 
+// Vercel Cron tự gửi "Authorization: Bearer <CRON_SECRET>". Dịch vụ ngoài có thể dùng header x-cron-key.
+// Dùng chung cho mọi route /api/cron/* (vướng mắc, mục Xưởng).
+export const cronAuth: RequestHandler = (req, res, next) => {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return res.status(503).json({ ok: false, error: 'CRON_SECRET chưa được cấu hình' });
+  const auth = req.headers.authorization;
+  const key = auth?.startsWith('Bearer ') ? auth.slice(7) : (req.headers['x-cron-key'] as string | undefined);
+  if (key !== expected) return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  next();
+};
+
 export function registerVuongMacPush(app: Express, deps: { authenticateJWT: RequestHandler }) {
   initWebPush();
   const { authenticateJWT } = deps;
@@ -225,16 +237,6 @@ export function registerVuongMacPush(app: Express, deps: { authenticateJWT: Requ
       res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
     }
   });
-
-  // Vercel Cron tự gửi "Authorization: Bearer <CRON_SECRET>". Dịch vụ ngoài có thể dùng header x-cron-key.
-  const cronAuth: RequestHandler = (req, res, next) => {
-    const expected = process.env.CRON_SECRET;
-    if (!expected) return res.status(503).json({ ok: false, error: 'CRON_SECRET chưa được cấu hình' });
-    const auth = req.headers.authorization;
-    const key = auth?.startsWith('Bearer ') ? auth.slice(7) : (req.headers['x-cron-key'] as string | undefined);
-    if (key !== expected) return res.status(401).json({ ok: false, error: 'Unauthorized' });
-    next();
-  };
 
   app.get('/api/cron/vuong-mac-bot', cronAuth, async (_req, res) => {
     try {

@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { JWT_SECRET_SAFE } from './config.js';
 import { loadUserAccess } from './permissions.js';
+import { xuongScopeError, xuongTokenVersionOk } from './xuong/auth.js';
 
 // ============================================================================
 // AUTH MIDDLEWARE: JWT + phân quyền role
@@ -10,6 +11,12 @@ export interface AuthTokenPayload {
   id: string | number;
   username: string;
   role: string;
+  /** Chỉ có ở token mục Xưởng (server/xuong/auth.ts): dùng được riêng /api/xuong/* */
+  scope?: 'xuong';
+  /** Token Xưởng: device_id đã ký */
+  did?: string;
+  /** Token Xưởng: token_version lúc cấp */
+  tv?: number;
 }
 
 declare global {
@@ -35,6 +42,9 @@ export const authenticateJWT = (req: Request, res: Response, next: NextFunction)
   }
   // id phải là số nguyên dương (users.id integer) — id lạ làm query ép kiểu lỗi 500
   if (!isValidUserId(req.user?.id)) return res.status(401).json({ success: false, message: 'Token không hợp lệ' });
+  // Token mục Xưởng (30 ngày) chỉ mở được /api/xuong/* — các API khác vẫn đòi JWT 8 giờ
+  const scopeErr = xuongScopeError(req.user, req.path);
+  if (scopeErr) return res.status(401).json({ success: false, message: scopeErr });
   next();
 };
 
@@ -51,6 +61,10 @@ export const authenticateActiveUser = (req: Request, res: Response, next: NextFu
   authenticateJWT(req, res, () => {
     loadUserAccess(req.user!.id).then(access => {
       if (!access.active) return res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
+      // Token Xưởng bị thu hồi (admin thu hồi / đổi mật khẩu => token_version tăng)
+      if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {
+        return res.status(401).json({ success: false, message: 'Phiên mục Xưởng đã bị thu hồi, vui lòng đăng nhập lại' });
+      }
       next();
     }).catch(error => {
       // DB tạm quá tải / lỗi kết nối: KHÔNG chặn cả app (trước => mọi API 500 hàng loạt). Token đã hợp lệ nên

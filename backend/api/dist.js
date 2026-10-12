@@ -16097,14 +16097,14 @@ var require_object_inspect = __commonJS({
     var gPO = (typeof Reflect === "function" ? Reflect.getPrototypeOf : Object.getPrototypeOf) || ([].__proto__ === Array.prototype ? function(O) {
       return O.__proto__;
     } : null);
-    function addNumericSeparator(num, str) {
-      if (num === Infinity || num === -Infinity || num !== num || num && num > -1e3 && num < 1e3 || $test.call(/e/, str)) {
+    function addNumericSeparator(num2, str) {
+      if (num2 === Infinity || num2 === -Infinity || num2 !== num2 || num2 && num2 > -1e3 && num2 < 1e3 || $test.call(/e/, str)) {
         return str;
       }
       var sepRegex = /[0-9](?=(?:[0-9]{3})+(?![0-9]))/g;
-      if (typeof num === "number") {
-        var int2 = num < 0 ? -$floor(-num) : $floor(num);
-        if (int2 !== num) {
+      if (typeof num2 === "number") {
+        var int2 = num2 < 0 ? -$floor(-num2) : $floor(num2);
+        if (int2 !== num2) {
           var intStr = String(int2);
           var dec = $slice.call(str, intStr.length + 1);
           return $replace.call(intStr, sepRegex, "$&_") + "." + $replace.call($replace.call(dec, /([0-9]{3})/g, "$&_"), /_$/, "");
@@ -19241,14 +19241,14 @@ var require_etag = __commonJS({
   "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash2 = crypto2.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash2 = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash2 + '"';
     }
@@ -22798,17 +22798,17 @@ var require_content_disposition = __commonJS({
 // node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "node_modules/cookie-signature/index.js"(exports) {
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto2.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input2, secret) {
       if ("string" != typeof input2) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input2.slice(0, input2.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input2);
-      return expectedBuffer.length === inputBuffer.length && crypto2.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto4.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -27619,7 +27619,7 @@ var require_main = __commonJS({
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -27863,7 +27863,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto2.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error61) {
@@ -28182,14 +28182,14 @@ var require_buffer_equal_constant_time = __commonJS({
 var require_jwa = __commonJS({
   "node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
     var util = __require("util");
     var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".';
     var MSG_INVALID_SECRET = "secret must be a string or buffer";
     var MSG_INVALID_VERIFIER_KEY = "key must be a string or a buffer";
     var MSG_INVALID_SIGNER_KEY = "key must be a string, a buffer or an object";
-    var supportsKeyObjects = typeof crypto2.createPublicKey === "function";
+    var supportsKeyObjects = typeof crypto4.createPublicKey === "function";
     if (supportsKeyObjects) {
       MSG_INVALID_VERIFIER_KEY += " or a KeyObject";
       MSG_INVALID_SECRET += "or a KeyObject";
@@ -28279,17 +28279,17 @@ var require_jwa = __commonJS({
       return function sign(thing, secret) {
         checkIsSecretKey(secret);
         thing = normalizeInput(thing);
-        var hmac = crypto2.createHmac("sha" + bits, secret);
-        var sig = (hmac.update(thing), hmac.digest("base64"));
+        var hmac2 = crypto4.createHmac("sha" + bits, secret);
+        var sig = (hmac2.update(thing), hmac2.digest("base64"));
         return fromBase64(sig);
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto2 ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto4 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
-      return crypto2.timingSafeEqual(a, b);
+      return crypto4.timingSafeEqual(a, b);
     } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
@@ -28306,7 +28306,7 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto2.createSign("RSA-SHA" + bits);
+        var signer = crypto4.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign(privateKey, "base64"));
         return fromBase64(sig);
       };
@@ -28316,7 +28316,7 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto2.createVerify("RSA-SHA" + bits);
+        var verifier = crypto4.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify(publicKey, signature, "base64");
       };
@@ -28325,11 +28325,11 @@ var require_jwa = __commonJS({
       return function sign(thing, privateKey) {
         checkIsPrivateKey(privateKey);
         thing = normalizeInput(thing);
-        var signer = crypto2.createSign("RSA-SHA" + bits);
+        var signer = crypto4.createSign("RSA-SHA" + bits);
         var sig = (signer.update(thing), signer.sign({
           key: privateKey,
-          padding: crypto2.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto2.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
         }, "base64"));
         return fromBase64(sig);
       };
@@ -28339,12 +28339,12 @@ var require_jwa = __commonJS({
         checkIsPublicKey(publicKey);
         thing = normalizeInput(thing);
         signature = toBase64(signature);
-        var verifier = crypto2.createVerify("RSA-SHA" + bits);
+        var verifier = crypto4.createVerify("RSA-SHA" + bits);
         verifier.update(thing);
         return verifier.verify({
           key: publicKey,
-          padding: crypto2.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto2.constants.RSA_PSS_SALTLEN_DIGEST
+          padding: crypto4.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto4.constants.RSA_PSS_SALTLEN_DIGEST
         }, signature, "base64");
       };
     }
@@ -28643,9 +28643,9 @@ var require_jws = __commonJS({
 var require_decode = __commonJS({
   "node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
-    module.exports = function(jwt3, options) {
+    module.exports = function(jwt4, options) {
       options = options || {};
-      var decoded = jws.decode(jwt3, options);
+      var decoded = jws.decode(jwt4, options);
       if (!decoded) {
         return null;
       }
@@ -28978,9 +28978,9 @@ var require_semver = __commonJS({
         } else {
           this.prerelease = m[4].split(".").map((id) => {
             if (/^[0-9]+$/.test(id)) {
-              const num = +id;
-              if (num >= 0 && num < MAX_SAFE_INTEGER) {
-                return num;
+              const num2 = +id;
+              if (num2 >= 0 && num2 < MAX_SAFE_INTEGER) {
+                return num2;
               }
             }
             return id;
@@ -31878,8 +31878,8 @@ var require_postgres_date = __commonJS({
     function bcYearToNegativeYear(year) {
       return -(year - 1);
     }
-    function is0To99(num) {
-      return num >= 0 && num < 100;
+    function is0To99(num2) {
+      return num2 >= 0 && num2 < 100;
     }
   }
 });
@@ -33004,7 +33004,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
-    var crypto2 = require_utils5();
+    var crypto4 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function saslprep(password) {
       const nonAsciiSpace = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g;
@@ -33022,7 +33022,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto2.randomBytes(18).toString("base64");
+      const clientNonce = crypto4.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream ? "y" : "n";
       return {
         mechanism,
@@ -33064,20 +33064,20 @@ var require_sasl = __commonJS({
         const peerCert = stream.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto2.hashByName(hashName, peerCert);
+        const certHash = await crypto4.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto2.deriveKey(saslprep(password), saltBytes, sv.iteration);
-      const clientKey = await crypto2.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto2.sha256(clientKey);
-      const clientSignature = await crypto2.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto4.deriveKey(saslprep(password), saltBytes, sv.iteration);
+      const clientKey = await crypto4.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto4.sha256(clientKey);
+      const clientSignature = await crypto4.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto2.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto2.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto4.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto4.hmacSha256(serverKey, authMessage);
       session.message = "SASLResponse";
       session.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -34039,18 +34039,18 @@ var require_buffer_writer = __commonJS({
           oldBuffer.copy(this.buffer);
         }
       }
-      addInt32(num) {
+      addInt32(num2) {
         this.ensure(4);
-        this.buffer[this.offset++] = num >>> 24 & 255;
-        this.buffer[this.offset++] = num >>> 16 & 255;
-        this.buffer[this.offset++] = num >>> 8 & 255;
-        this.buffer[this.offset++] = num >>> 0 & 255;
+        this.buffer[this.offset++] = num2 >>> 24 & 255;
+        this.buffer[this.offset++] = num2 >>> 16 & 255;
+        this.buffer[this.offset++] = num2 >>> 8 & 255;
+        this.buffer[this.offset++] = num2 >>> 0 & 255;
         return this;
       }
-      addInt16(num) {
+      addInt16(num2) {
         this.ensure(2);
-        this.buffer[this.offset++] = num >>> 8 & 255;
-        this.buffer[this.offset++] = num >>> 0 & 255;
+        this.buffer[this.offset++] = num2 >>> 8 & 255;
+        this.buffer[this.offset++] = num2 >>> 0 & 255;
         return this;
       }
       addCString(string4) {
@@ -35311,7 +35311,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults2 = require_defaults();
     var Connection2 = require_connection();
-    var crypto2 = require_utils5();
+    var crypto4 = require_utils5();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -35566,7 +35566,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto2.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto4.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -37010,11 +37010,11 @@ var require_bn = __commonJS({
         }
       } catch (e) {
       }
-      BN.isBN = function isBN(num) {
-        if (num instanceof BN) {
+      BN.isBN = function isBN(num2) {
+        if (num2 instanceof BN) {
           return true;
         }
-        return num !== null && typeof num === "object" && num.constructor.wordSize === BN.wordSize && Array.isArray(num.words);
+        return num2 !== null && typeof num2 === "object" && num2.constructor.wordSize === BN.wordSize && Array.isArray(num2.words);
       };
       BN.max = function max(left, right) {
         if (left.cmp(right) > 0) return left;
@@ -37535,12 +37535,12 @@ var require_bn = __commonJS({
         var hi = this._countBits(w);
         return (this.length - 1) * 26 + hi;
       };
-      function toBitArray(num) {
-        var w = new Array(num.bitLength());
+      function toBitArray(num2) {
+        var w = new Array(num2.bitLength());
         for (var bit = 0; bit < w.length; bit++) {
           var off = bit / 26 | 0;
           var wbit = bit % 26;
-          w[bit] = (num.words[off] & 1 << wbit) >>> wbit;
+          w[bit] = (num2.words[off] & 1 << wbit) >>> wbit;
         }
         return w;
       }
@@ -37581,60 +37581,60 @@ var require_bn = __commonJS({
         }
         return this;
       };
-      BN.prototype.iuor = function iuor(num) {
-        while (this.length < num.length) {
+      BN.prototype.iuor = function iuor(num2) {
+        while (this.length < num2.length) {
           this.words[this.length++] = 0;
         }
-        for (var i = 0; i < num.length; i++) {
-          this.words[i] = this.words[i] | num.words[i];
+        for (var i = 0; i < num2.length; i++) {
+          this.words[i] = this.words[i] | num2.words[i];
         }
         return this.strip();
       };
-      BN.prototype.ior = function ior(num) {
-        assert2((this.negative | num.negative) === 0);
-        return this.iuor(num);
+      BN.prototype.ior = function ior(num2) {
+        assert2((this.negative | num2.negative) === 0);
+        return this.iuor(num2);
       };
-      BN.prototype.or = function or(num) {
-        if (this.length > num.length) return this.clone().ior(num);
-        return num.clone().ior(this);
+      BN.prototype.or = function or(num2) {
+        if (this.length > num2.length) return this.clone().ior(num2);
+        return num2.clone().ior(this);
       };
-      BN.prototype.uor = function uor(num) {
-        if (this.length > num.length) return this.clone().iuor(num);
-        return num.clone().iuor(this);
+      BN.prototype.uor = function uor(num2) {
+        if (this.length > num2.length) return this.clone().iuor(num2);
+        return num2.clone().iuor(this);
       };
-      BN.prototype.iuand = function iuand(num) {
+      BN.prototype.iuand = function iuand(num2) {
         var b;
-        if (this.length > num.length) {
-          b = num;
+        if (this.length > num2.length) {
+          b = num2;
         } else {
           b = this;
         }
         for (var i = 0; i < b.length; i++) {
-          this.words[i] = this.words[i] & num.words[i];
+          this.words[i] = this.words[i] & num2.words[i];
         }
         this.length = b.length;
         return this.strip();
       };
-      BN.prototype.iand = function iand(num) {
-        assert2((this.negative | num.negative) === 0);
-        return this.iuand(num);
+      BN.prototype.iand = function iand(num2) {
+        assert2((this.negative | num2.negative) === 0);
+        return this.iuand(num2);
       };
-      BN.prototype.and = function and(num) {
-        if (this.length > num.length) return this.clone().iand(num);
-        return num.clone().iand(this);
+      BN.prototype.and = function and(num2) {
+        if (this.length > num2.length) return this.clone().iand(num2);
+        return num2.clone().iand(this);
       };
-      BN.prototype.uand = function uand(num) {
-        if (this.length > num.length) return this.clone().iuand(num);
-        return num.clone().iuand(this);
+      BN.prototype.uand = function uand(num2) {
+        if (this.length > num2.length) return this.clone().iuand(num2);
+        return num2.clone().iuand(this);
       };
-      BN.prototype.iuxor = function iuxor(num) {
+      BN.prototype.iuxor = function iuxor(num2) {
         var a;
         var b;
-        if (this.length > num.length) {
+        if (this.length > num2.length) {
           a = this;
-          b = num;
+          b = num2;
         } else {
-          a = num;
+          a = num2;
           b = this;
         }
         for (var i = 0; i < b.length; i++) {
@@ -37648,17 +37648,17 @@ var require_bn = __commonJS({
         this.length = a.length;
         return this.strip();
       };
-      BN.prototype.ixor = function ixor(num) {
-        assert2((this.negative | num.negative) === 0);
-        return this.iuxor(num);
+      BN.prototype.ixor = function ixor(num2) {
+        assert2((this.negative | num2.negative) === 0);
+        return this.iuxor(num2);
       };
-      BN.prototype.xor = function xor2(num) {
-        if (this.length > num.length) return this.clone().ixor(num);
-        return num.clone().ixor(this);
+      BN.prototype.xor = function xor2(num2) {
+        if (this.length > num2.length) return this.clone().ixor(num2);
+        return num2.clone().ixor(this);
       };
-      BN.prototype.uxor = function uxor(num) {
-        if (this.length > num.length) return this.clone().iuxor(num);
-        return num.clone().iuxor(this);
+      BN.prototype.uxor = function uxor(num2) {
+        if (this.length > num2.length) return this.clone().iuxor(num2);
+        return num2.clone().iuxor(this);
       };
       BN.prototype.inotn = function inotn(width) {
         assert2(typeof width === "number" && width >= 0);
@@ -37695,25 +37695,25 @@ var require_bn = __commonJS({
         }
         return this.strip();
       };
-      BN.prototype.iadd = function iadd(num) {
+      BN.prototype.iadd = function iadd(num2) {
         var r;
-        if (this.negative !== 0 && num.negative === 0) {
+        if (this.negative !== 0 && num2.negative === 0) {
           this.negative = 0;
-          r = this.isub(num);
+          r = this.isub(num2);
           this.negative ^= 1;
           return this._normSign();
-        } else if (this.negative === 0 && num.negative !== 0) {
-          num.negative = 0;
-          r = this.isub(num);
-          num.negative = 1;
+        } else if (this.negative === 0 && num2.negative !== 0) {
+          num2.negative = 0;
+          r = this.isub(num2);
+          num2.negative = 1;
           return r._normSign();
         }
         var a, b;
-        if (this.length > num.length) {
+        if (this.length > num2.length) {
           a = this;
-          b = num;
+          b = num2;
         } else {
-          a = num;
+          a = num2;
           b = this;
         }
         var carry = 0;
@@ -37738,35 +37738,35 @@ var require_bn = __commonJS({
         }
         return this;
       };
-      BN.prototype.add = function add(num) {
+      BN.prototype.add = function add(num2) {
         var res;
-        if (num.negative !== 0 && this.negative === 0) {
-          num.negative = 0;
-          res = this.sub(num);
-          num.negative ^= 1;
+        if (num2.negative !== 0 && this.negative === 0) {
+          num2.negative = 0;
+          res = this.sub(num2);
+          num2.negative ^= 1;
           return res;
-        } else if (num.negative === 0 && this.negative !== 0) {
+        } else if (num2.negative === 0 && this.negative !== 0) {
           this.negative = 0;
-          res = num.sub(this);
+          res = num2.sub(this);
           this.negative = 1;
           return res;
         }
-        if (this.length > num.length) return this.clone().iadd(num);
-        return num.clone().iadd(this);
+        if (this.length > num2.length) return this.clone().iadd(num2);
+        return num2.clone().iadd(this);
       };
-      BN.prototype.isub = function isub(num) {
-        if (num.negative !== 0) {
-          num.negative = 0;
-          var r = this.iadd(num);
-          num.negative = 1;
+      BN.prototype.isub = function isub(num2) {
+        if (num2.negative !== 0) {
+          num2.negative = 0;
+          var r = this.iadd(num2);
+          num2.negative = 1;
           return r._normSign();
         } else if (this.negative !== 0) {
           this.negative = 0;
-          this.iadd(num);
+          this.iadd(num2);
           this.negative = 1;
           return this._normSign();
         }
-        var cmp = this.cmp(num);
+        var cmp = this.cmp(num2);
         if (cmp === 0) {
           this.negative = 0;
           this.length = 1;
@@ -37776,9 +37776,9 @@ var require_bn = __commonJS({
         var a, b;
         if (cmp > 0) {
           a = this;
-          b = num;
+          b = num2;
         } else {
-          a = num;
+          a = num2;
           b = this;
         }
         var carry = 0;
@@ -37803,16 +37803,16 @@ var require_bn = __commonJS({
         }
         return this.strip();
       };
-      BN.prototype.sub = function sub(num) {
-        return this.clone().isub(num);
+      BN.prototype.sub = function sub(num2) {
+        return this.clone().isub(num2);
       };
-      function smallMulTo(self, num, out) {
-        out.negative = num.negative ^ self.negative;
-        var len = self.length + num.length | 0;
+      function smallMulTo(self, num2, out) {
+        out.negative = num2.negative ^ self.negative;
+        var len = self.length + num2.length | 0;
         out.length = len;
         len = len - 1 | 0;
         var a = self.words[0] | 0;
-        var b = num.words[0] | 0;
+        var b = num2.words[0] | 0;
         var r = a * b;
         var lo = r & 67108863;
         var carry = r / 67108864 | 0;
@@ -37820,11 +37820,11 @@ var require_bn = __commonJS({
         for (var k = 1; k < len; k++) {
           var ncarry = carry >>> 26;
           var rword = carry & 67108863;
-          var maxJ = Math.min(k, num.length - 1);
+          var maxJ = Math.min(k, num2.length - 1);
           for (var j = Math.max(0, k - self.length + 1); j <= maxJ; j++) {
             var i = k - j | 0;
             a = self.words[i] | 0;
-            b = num.words[j] | 0;
+            b = num2.words[j] | 0;
             r = a * b + rword;
             ncarry += r / 67108864 | 0;
             rword = r & 67108863;
@@ -37839,9 +37839,9 @@ var require_bn = __commonJS({
         }
         return out.strip();
       }
-      var comb10MulTo = function comb10MulTo2(self, num, out) {
+      var comb10MulTo = function comb10MulTo2(self, num2, out) {
         var a = self.words;
-        var b = num.words;
+        var b = num2.words;
         var o = out.words;
         var c = 0;
         var lo;
@@ -37907,7 +37907,7 @@ var require_bn = __commonJS({
         var b9 = b[9] | 0;
         var bl9 = b9 & 8191;
         var bh9 = b9 >>> 13;
-        out.negative = self.negative ^ num.negative;
+        out.negative = self.negative ^ num2.negative;
         out.length = 19;
         lo = Math.imul(al0, bl0);
         mid = Math.imul(al0, bh0);
@@ -38394,20 +38394,20 @@ var require_bn = __commonJS({
       if (!Math.imul) {
         comb10MulTo = smallMulTo;
       }
-      function bigMulTo(self, num, out) {
-        out.negative = num.negative ^ self.negative;
-        out.length = self.length + num.length;
+      function bigMulTo(self, num2, out) {
+        out.negative = num2.negative ^ self.negative;
+        out.length = self.length + num2.length;
         var carry = 0;
         var hncarry = 0;
         for (var k = 0; k < out.length - 1; k++) {
           var ncarry = hncarry;
           hncarry = 0;
           var rword = carry & 67108863;
-          var maxJ = Math.min(k, num.length - 1);
+          var maxJ = Math.min(k, num2.length - 1);
           for (var j = Math.max(0, k - self.length + 1); j <= maxJ; j++) {
             var i = k - j;
             var a = self.words[i] | 0;
-            var b = num.words[j] | 0;
+            var b = num2.words[j] | 0;
             var r = a * b;
             var lo = r & 67108863;
             ncarry = ncarry + (r / 67108864 | 0) | 0;
@@ -38428,21 +38428,21 @@ var require_bn = __commonJS({
         }
         return out.strip();
       }
-      function jumboMulTo(self, num, out) {
+      function jumboMulTo(self, num2, out) {
         var fftm = new FFTM();
-        return fftm.mulp(self, num, out);
+        return fftm.mulp(self, num2, out);
       }
-      BN.prototype.mulTo = function mulTo(num, out) {
+      BN.prototype.mulTo = function mulTo(num2, out) {
         var res;
-        var len = this.length + num.length;
-        if (this.length === 10 && num.length === 10) {
-          res = comb10MulTo(this, num, out);
+        var len = this.length + num2.length;
+        if (this.length === 10 && num2.length === 10) {
+          res = comb10MulTo(this, num2, out);
         } else if (len < 63) {
-          res = smallMulTo(this, num, out);
+          res = smallMulTo(this, num2, out);
         } else if (len < 1024) {
-          res = bigMulTo(this, num, out);
+          res = bigMulTo(this, num2, out);
         } else {
-          res = jumboMulTo(this, num, out);
+          res = jumboMulTo(this, num2, out);
         }
         return res;
       };
@@ -38587,25 +38587,25 @@ var require_bn = __commonJS({
         out.length = x.length + y.length;
         return out.strip();
       };
-      BN.prototype.mul = function mul(num) {
+      BN.prototype.mul = function mul(num2) {
         var out = new BN(null);
-        out.words = new Array(this.length + num.length);
-        return this.mulTo(num, out);
+        out.words = new Array(this.length + num2.length);
+        return this.mulTo(num2, out);
       };
-      BN.prototype.mulf = function mulf(num) {
+      BN.prototype.mulf = function mulf(num2) {
         var out = new BN(null);
-        out.words = new Array(this.length + num.length);
-        return jumboMulTo(this, num, out);
+        out.words = new Array(this.length + num2.length);
+        return jumboMulTo(this, num2, out);
       };
-      BN.prototype.imul = function imul(num) {
-        return this.clone().mulTo(num, this);
+      BN.prototype.imul = function imul(num2) {
+        return this.clone().mulTo(num2, this);
       };
-      BN.prototype.imuln = function imuln(num) {
-        assert2(typeof num === "number");
-        assert2(num < 67108864);
+      BN.prototype.imuln = function imuln(num2) {
+        assert2(typeof num2 === "number");
+        assert2(num2 < 67108864);
         var carry = 0;
         for (var i = 0; i < this.length; i++) {
-          var w = (this.words[i] | 0) * num;
+          var w = (this.words[i] | 0) * num2;
           var lo = (w & 67108863) + (carry & 67108863);
           carry >>= 26;
           carry += w / 67108864 | 0;
@@ -38616,14 +38616,14 @@ var require_bn = __commonJS({
           this.words[i] = carry;
           this.length++;
         }
-        if (num === 0) {
+        if (num2 === 0) {
           this.length = 1;
           this._normSign();
         }
         return this;
       };
-      BN.prototype.muln = function muln(num) {
-        return this.clone().imuln(num);
+      BN.prototype.muln = function muln(num2) {
+        return this.clone().imuln(num2);
       };
       BN.prototype.sqr = function sqr() {
         return this.mul(this);
@@ -38631,8 +38631,8 @@ var require_bn = __commonJS({
       BN.prototype.isqr = function isqr() {
         return this.imul(this.clone());
       };
-      BN.prototype.pow = function pow(num) {
-        var w = toBitArray(num);
+      BN.prototype.pow = function pow(num2) {
+        var w = toBitArray(num2);
         if (w.length === 0) return new BN(1);
         var res = this;
         for (var i = 0; i < w.length; i++, res = res.sqr()) {
@@ -38775,25 +38775,25 @@ var require_bn = __commonJS({
       BN.prototype.maskn = function maskn(bits) {
         return this.clone().imaskn(bits);
       };
-      BN.prototype.iaddn = function iaddn(num) {
-        assert2(typeof num === "number");
-        assert2(num < 67108864);
-        if (num < 0) return this.isubn(-num);
+      BN.prototype.iaddn = function iaddn(num2) {
+        assert2(typeof num2 === "number");
+        assert2(num2 < 67108864);
+        if (num2 < 0) return this.isubn(-num2);
         if (this.negative !== 0) {
-          if (this.length === 1 && (this.words[0] | 0) < num) {
-            this.words[0] = num - (this.words[0] | 0);
+          if (this.length === 1 && (this.words[0] | 0) < num2) {
+            this.words[0] = num2 - (this.words[0] | 0);
             this.negative = 0;
             return this;
           }
           this.negative = 0;
-          this.isubn(num);
+          this.isubn(num2);
           this.negative = 1;
           return this;
         }
-        return this._iaddn(num);
+        return this._iaddn(num2);
       };
-      BN.prototype._iaddn = function _iaddn(num) {
-        this.words[0] += num;
+      BN.prototype._iaddn = function _iaddn(num2) {
+        this.words[0] += num2;
         for (var i = 0; i < this.length && this.words[i] >= 67108864; i++) {
           this.words[i] -= 67108864;
           if (i === this.length - 1) {
@@ -38805,17 +38805,17 @@ var require_bn = __commonJS({
         this.length = Math.max(this.length, i + 1);
         return this;
       };
-      BN.prototype.isubn = function isubn(num) {
-        assert2(typeof num === "number");
-        assert2(num < 67108864);
-        if (num < 0) return this.iaddn(-num);
+      BN.prototype.isubn = function isubn(num2) {
+        assert2(typeof num2 === "number");
+        assert2(num2 < 67108864);
+        if (num2 < 0) return this.iaddn(-num2);
         if (this.negative !== 0) {
           this.negative = 0;
-          this.iaddn(num);
+          this.iaddn(num2);
           this.negative = 1;
           return this;
         }
-        this.words[0] -= num;
+        this.words[0] -= num2;
         if (this.length === 1 && this.words[0] < 0) {
           this.words[0] = -this.words[0];
           this.negative = 1;
@@ -38827,11 +38827,11 @@ var require_bn = __commonJS({
         }
         return this.strip();
       };
-      BN.prototype.addn = function addn(num) {
-        return this.clone().iaddn(num);
+      BN.prototype.addn = function addn(num2) {
+        return this.clone().iaddn(num2);
       };
-      BN.prototype.subn = function subn(num) {
-        return this.clone().isubn(num);
+      BN.prototype.subn = function subn(num2) {
+        return this.clone().isubn(num2);
       };
       BN.prototype.iabs = function iabs() {
         this.negative = 0;
@@ -38840,15 +38840,15 @@ var require_bn = __commonJS({
       BN.prototype.abs = function abs() {
         return this.clone().iabs();
       };
-      BN.prototype._ishlnsubmul = function _ishlnsubmul(num, mul, shift) {
-        var len = num.length + shift;
+      BN.prototype._ishlnsubmul = function _ishlnsubmul(num2, mul, shift) {
+        var len = num2.length + shift;
         var i;
         this._expand(len);
         var w;
         var carry = 0;
-        for (i = 0; i < num.length; i++) {
+        for (i = 0; i < num2.length; i++) {
           w = (this.words[i + shift] | 0) + carry;
-          var right = (num.words[i] | 0) * mul;
+          var right = (num2.words[i] | 0) * mul;
           w -= right & 67108863;
           carry = (w >> 26) - (right / 67108864 | 0);
           this.words[i + shift] = w & 67108863;
@@ -38869,10 +38869,10 @@ var require_bn = __commonJS({
         this.negative = 1;
         return this.strip();
       };
-      BN.prototype._wordDiv = function _wordDiv(num, mode) {
-        var shift = this.length - num.length;
+      BN.prototype._wordDiv = function _wordDiv(num2, mode) {
+        var shift = this.length - num2.length;
         var a = this.clone();
-        var b = num;
+        var b = num2;
         var bhi = b.words[b.length - 1] | 0;
         var bhiBits = this._countBits(bhi);
         shift = 26 - bhiBits;
@@ -38926,8 +38926,8 @@ var require_bn = __commonJS({
           mod: a
         };
       };
-      BN.prototype.divmod = function divmod(num, mode, positive) {
-        assert2(!num.isZero());
+      BN.prototype.divmod = function divmod(num2, mode, positive) {
+        assert2(!num2.isZero());
         if (this.isZero()) {
           return {
             div: new BN(0),
@@ -38935,15 +38935,15 @@ var require_bn = __commonJS({
           };
         }
         var div, mod, res;
-        if (this.negative !== 0 && num.negative === 0) {
-          res = this.neg().divmod(num, mode);
+        if (this.negative !== 0 && num2.negative === 0) {
+          res = this.neg().divmod(num2, mode);
           if (mode !== "mod") {
             div = res.div.neg();
           }
           if (mode !== "div") {
             mod = res.mod.neg();
             if (positive && mod.negative !== 0) {
-              mod.iadd(num);
+              mod.iadd(num2);
             }
           }
           return {
@@ -38951,8 +38951,8 @@ var require_bn = __commonJS({
             mod
           };
         }
-        if (this.negative === 0 && num.negative !== 0) {
-          res = this.divmod(num.neg(), mode);
+        if (this.negative === 0 && num2.negative !== 0) {
+          res = this.divmod(num2.neg(), mode);
           if (mode !== "mod") {
             div = res.div.neg();
           }
@@ -38961,12 +38961,12 @@ var require_bn = __commonJS({
             mod: res.mod
           };
         }
-        if ((this.negative & num.negative) !== 0) {
-          res = this.neg().divmod(num.neg(), mode);
+        if ((this.negative & num2.negative) !== 0) {
+          res = this.neg().divmod(num2.neg(), mode);
           if (mode !== "div") {
             mod = res.mod.neg();
             if (positive && mod.negative !== 0) {
-              mod.isub(num);
+              mod.isub(num2);
             }
           }
           return {
@@ -38974,74 +38974,74 @@ var require_bn = __commonJS({
             mod
           };
         }
-        if (num.length > this.length || this.cmp(num) < 0) {
+        if (num2.length > this.length || this.cmp(num2) < 0) {
           return {
             div: new BN(0),
             mod: this
           };
         }
-        if (num.length === 1) {
+        if (num2.length === 1) {
           if (mode === "div") {
             return {
-              div: this.divn(num.words[0]),
+              div: this.divn(num2.words[0]),
               mod: null
             };
           }
           if (mode === "mod") {
             return {
               div: null,
-              mod: new BN(this.modn(num.words[0]))
+              mod: new BN(this.modn(num2.words[0]))
             };
           }
           return {
-            div: this.divn(num.words[0]),
-            mod: new BN(this.modn(num.words[0]))
+            div: this.divn(num2.words[0]),
+            mod: new BN(this.modn(num2.words[0]))
           };
         }
-        return this._wordDiv(num, mode);
+        return this._wordDiv(num2, mode);
       };
-      BN.prototype.div = function div(num) {
-        return this.divmod(num, "div", false).div;
+      BN.prototype.div = function div(num2) {
+        return this.divmod(num2, "div", false).div;
       };
-      BN.prototype.mod = function mod(num) {
-        return this.divmod(num, "mod", false).mod;
+      BN.prototype.mod = function mod(num2) {
+        return this.divmod(num2, "mod", false).mod;
       };
-      BN.prototype.umod = function umod(num) {
-        return this.divmod(num, "mod", true).mod;
+      BN.prototype.umod = function umod(num2) {
+        return this.divmod(num2, "mod", true).mod;
       };
-      BN.prototype.divRound = function divRound(num) {
-        var dm = this.divmod(num);
+      BN.prototype.divRound = function divRound(num2) {
+        var dm = this.divmod(num2);
         if (dm.mod.isZero()) return dm.div;
         var mod = dm.mod.abs();
-        var half = num.abs().iushrn(1);
-        var r2 = num.words[0] & 1;
+        var half = num2.abs().iushrn(1);
+        var r2 = num2.words[0] & 1;
         var cmp = mod.cmp(half);
         if (cmp < 0 || r2 === 1 && cmp === 0) return dm.div;
         var up = new BN(1);
-        up.negative = this.negative ^ num.negative;
+        up.negative = this.negative ^ num2.negative;
         return dm.div.iadd(up);
       };
-      BN.prototype.modn = function modn(num) {
-        assert2(num <= 67108863);
-        var p = (1 << 26) % num;
+      BN.prototype.modn = function modn(num2) {
+        assert2(num2 <= 67108863);
+        var p = (1 << 26) % num2;
         var acc = 0;
         for (var i = this.length - 1; i >= 0; i--) {
-          acc = (p * acc + (this.words[i] | 0)) % num;
+          acc = (p * acc + (this.words[i] | 0)) % num2;
         }
         return acc;
       };
-      BN.prototype.idivn = function idivn(num) {
-        assert2(num <= 67108863);
+      BN.prototype.idivn = function idivn(num2) {
+        assert2(num2 <= 67108863);
         var carry = 0;
         for (var i = this.length - 1; i >= 0; i--) {
           var w = (this.words[i] | 0) + carry * 67108864;
-          this.words[i] = w / num | 0;
-          carry = w % num;
+          this.words[i] = w / num2 | 0;
+          carry = w % num2;
         }
         return this.strip();
       };
-      BN.prototype.divn = function divn(num) {
-        return this.clone().idivn(num);
+      BN.prototype.divn = function divn(num2) {
+        return this.clone().idivn(num2);
       };
       BN.prototype.egcd = function egcd(p) {
         assert2(p.negative === 0);
@@ -39159,11 +39159,11 @@ var require_bn = __commonJS({
         }
         return res;
       };
-      BN.prototype.gcd = function gcd(num) {
-        if (this.isZero()) return num.abs();
-        if (num.isZero()) return this.abs();
+      BN.prototype.gcd = function gcd(num2) {
+        if (this.isZero()) return num2.abs();
+        if (num2.isZero()) return this.abs();
         var a = this.clone();
-        var b = num.clone();
+        var b = num2.clone();
         a.negative = 0;
         b.negative = 0;
         for (var shift = 0; a.isEven() && b.isEven(); shift++) {
@@ -39189,8 +39189,8 @@ var require_bn = __commonJS({
         } while (true);
         return b.iushln(shift);
       };
-      BN.prototype.invm = function invm(num) {
-        return this.egcd(num).a.umod(num);
+      BN.prototype.invm = function invm(num2) {
+        return this.egcd(num2).a.umod(num2);
       };
       BN.prototype.isEven = function isEven() {
         return (this.words[0] & 1) === 0;
@@ -39198,8 +39198,8 @@ var require_bn = __commonJS({
       BN.prototype.isOdd = function isOdd() {
         return (this.words[0] & 1) === 1;
       };
-      BN.prototype.andln = function andln(num) {
-        return this.words[0] & num;
+      BN.prototype.andln = function andln(num2) {
+        return this.words[0] & num2;
       };
       BN.prototype.bincn = function bincn(bit) {
         assert2(typeof bit === "number");
@@ -39228,8 +39228,8 @@ var require_bn = __commonJS({
       BN.prototype.isZero = function isZero() {
         return this.length === 1 && this.words[0] === 0;
       };
-      BN.prototype.cmpn = function cmpn(num) {
-        var negative = num < 0;
+      BN.prototype.cmpn = function cmpn(num2) {
+        var negative = num2 < 0;
         if (this.negative !== 0 && !negative) return -1;
         if (this.negative === 0 && negative) return 1;
         this.strip();
@@ -39238,29 +39238,29 @@ var require_bn = __commonJS({
           res = 1;
         } else {
           if (negative) {
-            num = -num;
+            num2 = -num2;
           }
-          assert2(num <= 67108863, "Number is too big");
+          assert2(num2 <= 67108863, "Number is too big");
           var w = this.words[0] | 0;
-          res = w === num ? 0 : w < num ? -1 : 1;
+          res = w === num2 ? 0 : w < num2 ? -1 : 1;
         }
         if (this.negative !== 0) return -res | 0;
         return res;
       };
-      BN.prototype.cmp = function cmp(num) {
-        if (this.negative !== 0 && num.negative === 0) return -1;
-        if (this.negative === 0 && num.negative !== 0) return 1;
-        var res = this.ucmp(num);
+      BN.prototype.cmp = function cmp(num2) {
+        if (this.negative !== 0 && num2.negative === 0) return -1;
+        if (this.negative === 0 && num2.negative !== 0) return 1;
+        var res = this.ucmp(num2);
         if (this.negative !== 0) return -res | 0;
         return res;
       };
-      BN.prototype.ucmp = function ucmp(num) {
-        if (this.length > num.length) return 1;
-        if (this.length < num.length) return -1;
+      BN.prototype.ucmp = function ucmp(num2) {
+        if (this.length > num2.length) return 1;
+        if (this.length < num2.length) return -1;
         var res = 0;
         for (var i = this.length - 1; i >= 0; i--) {
           var a = this.words[i] | 0;
-          var b = num.words[i] | 0;
+          var b = num2.words[i] | 0;
           if (a === b) continue;
           if (a < b) {
             res = -1;
@@ -39271,38 +39271,38 @@ var require_bn = __commonJS({
         }
         return res;
       };
-      BN.prototype.gtn = function gtn(num) {
-        return this.cmpn(num) === 1;
+      BN.prototype.gtn = function gtn(num2) {
+        return this.cmpn(num2) === 1;
       };
-      BN.prototype.gt = function gt(num) {
-        return this.cmp(num) === 1;
+      BN.prototype.gt = function gt(num2) {
+        return this.cmp(num2) === 1;
       };
-      BN.prototype.gten = function gten(num) {
-        return this.cmpn(num) >= 0;
+      BN.prototype.gten = function gten(num2) {
+        return this.cmpn(num2) >= 0;
       };
-      BN.prototype.gte = function gte(num) {
-        return this.cmp(num) >= 0;
+      BN.prototype.gte = function gte(num2) {
+        return this.cmp(num2) >= 0;
       };
-      BN.prototype.ltn = function ltn(num) {
-        return this.cmpn(num) === -1;
+      BN.prototype.ltn = function ltn(num2) {
+        return this.cmpn(num2) === -1;
       };
-      BN.prototype.lt = function lt(num) {
-        return this.cmp(num) === -1;
+      BN.prototype.lt = function lt(num2) {
+        return this.cmp(num2) === -1;
       };
-      BN.prototype.lten = function lten(num) {
-        return this.cmpn(num) <= 0;
+      BN.prototype.lten = function lten(num2) {
+        return this.cmpn(num2) <= 0;
       };
-      BN.prototype.lte = function lte(num) {
-        return this.cmp(num) <= 0;
+      BN.prototype.lte = function lte(num2) {
+        return this.cmp(num2) <= 0;
       };
-      BN.prototype.eqn = function eqn(num) {
-        return this.cmpn(num) === 0;
+      BN.prototype.eqn = function eqn(num2) {
+        return this.cmpn(num2) === 0;
       };
-      BN.prototype.eq = function eq(num) {
-        return this.cmp(num) === 0;
+      BN.prototype.eq = function eq(num2) {
+        return this.cmp(num2) === 0;
       };
-      BN.red = function red(num) {
-        return new Red(num);
+      BN.red = function red(num2) {
+        return new Red(num2);
       };
       BN.prototype.toRed = function toRed(ctx) {
         assert2(!this.red, "Already a number in reduction context");
@@ -39321,35 +39321,35 @@ var require_bn = __commonJS({
         assert2(!this.red, "Already a number in reduction context");
         return this._forceRed(ctx);
       };
-      BN.prototype.redAdd = function redAdd(num) {
+      BN.prototype.redAdd = function redAdd(num2) {
         assert2(this.red, "redAdd works only with red numbers");
-        return this.red.add(this, num);
+        return this.red.add(this, num2);
       };
-      BN.prototype.redIAdd = function redIAdd(num) {
+      BN.prototype.redIAdd = function redIAdd(num2) {
         assert2(this.red, "redIAdd works only with red numbers");
-        return this.red.iadd(this, num);
+        return this.red.iadd(this, num2);
       };
-      BN.prototype.redSub = function redSub(num) {
+      BN.prototype.redSub = function redSub(num2) {
         assert2(this.red, "redSub works only with red numbers");
-        return this.red.sub(this, num);
+        return this.red.sub(this, num2);
       };
-      BN.prototype.redISub = function redISub(num) {
+      BN.prototype.redISub = function redISub(num2) {
         assert2(this.red, "redISub works only with red numbers");
-        return this.red.isub(this, num);
+        return this.red.isub(this, num2);
       };
-      BN.prototype.redShl = function redShl(num) {
+      BN.prototype.redShl = function redShl(num2) {
         assert2(this.red, "redShl works only with red numbers");
-        return this.red.shl(this, num);
+        return this.red.shl(this, num2);
       };
-      BN.prototype.redMul = function redMul(num) {
+      BN.prototype.redMul = function redMul(num2) {
         assert2(this.red, "redMul works only with red numbers");
-        this.red._verify2(this, num);
-        return this.red.mul(this, num);
+        this.red._verify2(this, num2);
+        return this.red.mul(this, num2);
       };
-      BN.prototype.redIMul = function redIMul(num) {
+      BN.prototype.redIMul = function redIMul(num2) {
         assert2(this.red, "redMul works only with red numbers");
-        this.red._verify2(this, num);
-        return this.red.imul(this, num);
+        this.red._verify2(this, num2);
+        return this.red.imul(this, num2);
       };
       BN.prototype.redSqr = function redSqr() {
         assert2(this.red, "redSqr works only with red numbers");
@@ -39376,10 +39376,10 @@ var require_bn = __commonJS({
         this.red._verify1(this);
         return this.red.neg(this);
       };
-      BN.prototype.redPow = function redPow(num) {
-        assert2(this.red && !num.red, "redPow(normalNum)");
+      BN.prototype.redPow = function redPow(num2) {
+        assert2(this.red && !num2.red, "redPow(normalNum)");
         this.red._verify1(this);
-        return this.red.pow(this, num);
+        return this.red.pow(this, num2);
       };
       var primes = {
         k256: null,
@@ -39399,8 +39399,8 @@ var require_bn = __commonJS({
         tmp.words = new Array(Math.ceil(this.n / 13));
         return tmp;
       };
-      MPrime.prototype.ireduce = function ireduce(num) {
-        var r = num;
+      MPrime.prototype.ireduce = function ireduce(num2) {
+        var r = num2;
         var rlen;
         do {
           this.split(r, this.tmp);
@@ -39426,8 +39426,8 @@ var require_bn = __commonJS({
       MPrime.prototype.split = function split(input2, out) {
         input2.iushrn(this.n, 0, out);
       };
-      MPrime.prototype.imulK = function imulK(num) {
-        return num.imul(this.k);
+      MPrime.prototype.imulK = function imulK(num2) {
+        return num2.imul(this.k);
       };
       function K256() {
         MPrime.call(
@@ -39464,24 +39464,24 @@ var require_bn = __commonJS({
           input2.length -= 9;
         }
       };
-      K256.prototype.imulK = function imulK(num) {
-        num.words[num.length] = 0;
-        num.words[num.length + 1] = 0;
-        num.length += 2;
+      K256.prototype.imulK = function imulK(num2) {
+        num2.words[num2.length] = 0;
+        num2.words[num2.length + 1] = 0;
+        num2.length += 2;
         var lo = 0;
-        for (var i = 0; i < num.length; i++) {
-          var w = num.words[i] | 0;
+        for (var i = 0; i < num2.length; i++) {
+          var w = num2.words[i] | 0;
           lo += w * 977;
-          num.words[i] = lo & 67108863;
+          num2.words[i] = lo & 67108863;
           lo = w * 64 + (lo / 67108864 | 0);
         }
-        if (num.words[num.length - 1] === 0) {
-          num.length--;
-          if (num.words[num.length - 1] === 0) {
-            num.length--;
+        if (num2.words[num2.length - 1] === 0) {
+          num2.length--;
+          if (num2.words[num2.length - 1] === 0) {
+            num2.length--;
           }
         }
-        return num;
+        return num2;
       };
       function P224() {
         MPrime.call(
@@ -39507,19 +39507,19 @@ var require_bn = __commonJS({
         );
       }
       inherits(P25519, MPrime);
-      P25519.prototype.imulK = function imulK(num) {
+      P25519.prototype.imulK = function imulK(num2) {
         var carry = 0;
-        for (var i = 0; i < num.length; i++) {
-          var hi = (num.words[i] | 0) * 19 + carry;
+        for (var i = 0; i < num2.length; i++) {
+          var hi = (num2.words[i] | 0) * 19 + carry;
           var lo = hi & 67108863;
           hi >>>= 26;
-          num.words[i] = lo;
+          num2.words[i] = lo;
           carry = hi;
         }
         if (carry !== 0) {
-          num.words[num.length++] = carry;
+          num2.words[num2.length++] = carry;
         }
-        return num;
+        return num2;
       };
       BN._prime = function prime(name) {
         if (primes[name]) return primes[name];
@@ -39602,9 +39602,9 @@ var require_bn = __commonJS({
         }
         return res;
       };
-      Red.prototype.shl = function shl(a, num) {
+      Red.prototype.shl = function shl(a, num2) {
         this._verify1(a);
-        return this.imod(a.ushln(num));
+        return this.imod(a.ushln(num2));
       };
       Red.prototype.imul = function imul(a, b) {
         this._verify2(a, b);
@@ -39670,9 +39670,9 @@ var require_bn = __commonJS({
           return this.imod(inv);
         }
       };
-      Red.prototype.pow = function pow(a, num) {
-        if (num.isZero()) return new BN(1).toRed(this);
-        if (num.cmpn(1) === 0) return a.clone();
+      Red.prototype.pow = function pow(a, num2) {
+        if (num2.isZero()) return new BN(1).toRed(this);
+        if (num2.cmpn(1) === 0) return a.clone();
         var windowSize = 4;
         var wnd = new Array(1 << windowSize);
         wnd[0] = new BN(1).toRed(this);
@@ -39683,12 +39683,12 @@ var require_bn = __commonJS({
         var res = wnd[0];
         var current = 0;
         var currentLen = 0;
-        var start = num.bitLength() % 26;
+        var start = num2.bitLength() % 26;
         if (start === 0) {
           start = 26;
         }
-        for (i = num.length - 1; i >= 0; i--) {
-          var word = num.words[i];
+        for (i = num2.length - 1; i >= 0; i--) {
+          var word = num2.words[i];
           for (var j = start - 1; j >= 0; j--) {
             var bit = word >> j & 1;
             if (res !== wnd[0]) {
@@ -39710,17 +39710,17 @@ var require_bn = __commonJS({
         }
         return res;
       };
-      Red.prototype.convertTo = function convertTo(num) {
-        var r = num.umod(this.m);
-        return r === num ? r.clone() : r;
+      Red.prototype.convertTo = function convertTo(num2) {
+        var r = num2.umod(this.m);
+        return r === num2 ? r.clone() : r;
       };
-      Red.prototype.convertFrom = function convertFrom(num) {
-        var res = num.clone();
+      Red.prototype.convertFrom = function convertFrom(num2) {
+        var res = num2.clone();
         res.red = null;
         return res;
       };
-      BN.mont = function mont(num) {
-        return new Mont(num);
+      BN.mont = function mont(num2) {
+        return new Mont(num2);
       };
       function Mont(m) {
         Red.call(this, m);
@@ -39736,11 +39736,11 @@ var require_bn = __commonJS({
         this.minv = this.r.sub(this.minv);
       }
       inherits(Mont, Red);
-      Mont.prototype.convertTo = function convertTo(num) {
-        return this.imod(num.ushln(this.shift));
+      Mont.prototype.convertTo = function convertTo(num2) {
+        return this.imod(num2.ushln(this.shift));
       };
-      Mont.prototype.convertFrom = function convertFrom(num) {
-        var r = this.imod(num.mul(this.rinv));
+      Mont.prototype.convertFrom = function convertFrom(num2) {
+        var r = this.imod(num2.mul(this.rinv));
         r.red = null;
         return r;
       };
@@ -39923,15 +39923,15 @@ var require_buffer = __commonJS({
     DecoderBuffer.prototype.isEmpty = function isEmpty() {
       return this.offset === this.length;
     };
-    DecoderBuffer.prototype.readUInt8 = function readUInt8(fail) {
+    DecoderBuffer.prototype.readUInt8 = function readUInt8(fail2) {
       if (this.offset + 1 <= this.length)
         return this.base.readUInt8(this.offset++, true);
       else
-        return this.error(fail || "DecoderBuffer overrun");
+        return this.error(fail2 || "DecoderBuffer overrun");
     };
-    DecoderBuffer.prototype.skip = function skip(bytes, fail) {
+    DecoderBuffer.prototype.skip = function skip(bytes, fail2) {
       if (!(this.offset + bytes <= this.length))
-        return this.error(fail || "DecoderBuffer overrun");
+        return this.error(fail2 || "DecoderBuffer overrun");
       const res = new DecoderBuffer(this.base);
       res._reporterState = this._reporterState;
       res.offset = this.offset;
@@ -40224,16 +40224,16 @@ var require_node2 = __commonJS({
       state.optional = true;
       return this;
     };
-    Node.prototype.explicit = function explicit(num) {
+    Node.prototype.explicit = function explicit(num2) {
       const state = this._baseState;
       assert2(state.explicit === null && state.implicit === null);
-      state.explicit = num;
+      state.explicit = num2;
       return this;
     };
-    Node.prototype.implicit = function implicit(num) {
+    Node.prototype.implicit = function implicit(num2) {
       const state = this._baseState;
       assert2(state.explicit === null && state.implicit === null);
-      state.implicit = num;
+      state.implicit = num2;
       return this;
     };
     Node.prototype.obj = function obj() {
@@ -40712,11 +40712,11 @@ var require_der2 = __commonJS({
       }
       return this._createEncoderBuffer(objid);
     };
-    function two(num) {
-      if (num < 10)
-        return "0" + num;
+    function two(num2) {
+      if (num2 < 10)
+        return "0" + num2;
       else
-        return num;
+        return num2;
     }
     DERNode.prototype._encodeTime = function encodeTime(time3, tag) {
       let str;
@@ -40749,43 +40749,43 @@ var require_der2 = __commonJS({
     DERNode.prototype._encodeNull = function encodeNull() {
       return this._createEncoderBuffer("");
     };
-    DERNode.prototype._encodeInt = function encodeInt(num, values) {
-      if (typeof num === "string") {
+    DERNode.prototype._encodeInt = function encodeInt(num2, values) {
+      if (typeof num2 === "string") {
         if (!values)
           return this.reporter.error("String int or enum given, but no values map");
-        if (!values.hasOwnProperty(num)) {
-          return this.reporter.error("Values map doesn't contain: " + JSON.stringify(num));
+        if (!values.hasOwnProperty(num2)) {
+          return this.reporter.error("Values map doesn't contain: " + JSON.stringify(num2));
         }
-        num = values[num];
+        num2 = values[num2];
       }
-      if (typeof num !== "number" && !Buffer3.isBuffer(num)) {
-        const numArray = num.toArray();
-        if (!num.sign && numArray[0] & 128) {
+      if (typeof num2 !== "number" && !Buffer3.isBuffer(num2)) {
+        const numArray = num2.toArray();
+        if (!num2.sign && numArray[0] & 128) {
           numArray.unshift(0);
         }
-        num = Buffer3.from(numArray);
+        num2 = Buffer3.from(numArray);
       }
-      if (Buffer3.isBuffer(num)) {
-        let size2 = num.length;
-        if (num.length === 0)
+      if (Buffer3.isBuffer(num2)) {
+        let size2 = num2.length;
+        if (num2.length === 0)
           size2++;
         const out2 = Buffer3.alloc(size2);
-        num.copy(out2);
-        if (num.length === 0)
+        num2.copy(out2);
+        if (num2.length === 0)
           out2[0] = 0;
         return this._createEncoderBuffer(out2);
       }
-      if (num < 128)
-        return this._createEncoderBuffer(num);
-      if (num < 256)
-        return this._createEncoderBuffer([0, num]);
+      if (num2 < 128)
+        return this._createEncoderBuffer(num2);
+      if (num2 < 256)
+        return this._createEncoderBuffer([0, num2]);
       let size = 1;
-      for (let i = num; i >= 256; i >>= 8)
+      for (let i = num2; i >= 256; i >>= 8)
         size++;
       const out = new Array(size);
       for (let i = out.length - 1; i >= 0; i--) {
-        out[i] = num & 255;
-        num >>= 8;
+        out[i] = num2 & 255;
+        num2 >>= 8;
       }
       if (out[0] & 128) {
         out.unshift(0);
@@ -40938,19 +40938,19 @@ var require_der3 = __commonJS({
       buffer.restore(state);
       return buffer.skip(len, 'Failed to match body of: "' + tag + '"');
     };
-    DERNode.prototype._skipUntilEnd = function skipUntilEnd(buffer, fail) {
+    DERNode.prototype._skipUntilEnd = function skipUntilEnd(buffer, fail2) {
       for (; ; ) {
-        const tag = derDecodeTag(buffer, fail);
+        const tag = derDecodeTag(buffer, fail2);
         if (buffer.isError(tag))
           return tag;
-        const len = derDecodeLen(buffer, tag.primitive, fail);
+        const len = derDecodeLen(buffer, tag.primitive, fail2);
         if (buffer.isError(len))
           return len;
         let res;
         if (tag.primitive || len !== null)
           res = buffer.skip(len);
         else
-          res = this._skipUntilEnd(buffer, fail);
+          res = this._skipUntilEnd(buffer, fail2);
         if (buffer.isError(res))
           return res;
         if (tag.tagStr === "end")
@@ -41091,8 +41091,8 @@ var require_der3 = __commonJS({
         entity = entity(obj);
       return entity._getDecoder("der").tree;
     };
-    function derDecodeTag(buf, fail) {
-      let tag = buf.readUInt8(fail);
+    function derDecodeTag(buf, fail2) {
+      let tag = buf.readUInt8(fail2);
       if (buf.isError(tag))
         return tag;
       const cls = der.tagClass[tag >> 6];
@@ -41101,7 +41101,7 @@ var require_der3 = __commonJS({
         let oct = tag;
         tag = 0;
         while ((oct & 128) === 128) {
-          oct = buf.readUInt8(fail);
+          oct = buf.readUInt8(fail2);
           if (buf.isError(oct))
             return oct;
           tag <<= 7;
@@ -41118,8 +41118,8 @@ var require_der3 = __commonJS({
         tagStr
       };
     }
-    function derDecodeLen(buf, primitive, fail) {
-      let len = buf.readUInt8(fail);
+    function derDecodeLen(buf, primitive, fail2) {
+      let len = buf.readUInt8(fail2);
       if (buf.isError(len))
         return len;
       if (!primitive && len === 128)
@@ -41127,13 +41127,13 @@ var require_der3 = __commonJS({
       if ((len & 128) === 0) {
         return len;
       }
-      const num = len & 127;
-      if (num > 4)
+      const num2 = len & 127;
+      if (num2 > 4)
         return buf.error("length octect is too long");
       len = 0;
-      for (let i = 0; i < num; i++) {
+      for (let i = 0; i < num2; i++) {
         len <<= 8;
-        const j = buf.readUInt8(fail);
+        const j = buf.readUInt8(fail2);
         if (buf.isError(j))
           return j;
         len |= j;
@@ -41329,7 +41329,7 @@ var require_urlsafe_base64_helper = __commonJS({
 var require_vapid_helper = __commonJS({
   "node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     var asn1 = require_asn1();
     var jws = require_jws();
     var { URL: URL2 } = __require("url");
@@ -41356,7 +41356,7 @@ var require_vapid_helper = __commonJS({
       });
     }
     function generateVAPIDKeys() {
-      const curve = crypto2.createECDH("prime256v1");
+      const curve = crypto4.createECDH("prime256v1");
       curve.generateKeys();
       let publicKeyBuffer = curve.getPublicKey();
       let privateKeyBuffer = curve.getPrivateKey();
@@ -41472,19 +41472,19 @@ var require_vapid_helper = __commonJS({
         exp: expiration,
         sub: subject
       };
-      const jwt3 = jws.sign({
+      const jwt4 = jws.sign({
         header,
         payload: jwtPayload,
         privateKey: toPEM(privateKey)
       });
       if (contentEncoding === WebPushConstants.supportedContentEncodings.AES_128_GCM) {
         return {
-          Authorization: "vapid t=" + jwt3 + ", k=" + publicKey
+          Authorization: "vapid t=" + jwt4 + ", k=" + publicKey
         };
       }
       if (contentEncoding === WebPushConstants.supportedContentEncodings.AES_GCM) {
         return {
-          Authorization: "WebPush " + jwt3,
+          Authorization: "WebPush " + jwt4,
           "Crypto-Key": "p256ecdsa=" + publicKey
         };
       }
@@ -41506,7 +41506,7 @@ var require_vapid_helper = __commonJS({
 var require_ece = __commonJS({
   "node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
     var PAD_SIZE = { "aes128gcm": 1, "aesgcm": 2 };
     var TAG_LENGTH = 16;
@@ -41533,9 +41533,9 @@ var require_ece = __commonJS({
       return b;
     }
     function HMAC_hash(key, input2) {
-      var hmac = crypto2.createHmac("sha256", key);
-      hmac.update(input2);
-      return hmac.digest();
+      var hmac2 = crypto4.createHmac("sha256", key);
+      hmac2.update(input2);
+      return hmac2.digest();
     }
     function HKDF_extract(salt, ikm) {
       keylog("salt", salt);
@@ -41801,7 +41801,7 @@ var require_ece = __commonJS({
     function decryptRecord(key, counter, buffer, header, last) {
       keylog("decrypt", buffer);
       var nonce = generateNonce(key.nonce, counter);
-      var gcm = crypto2.createDecipheriv(AES_GCM, key.key, nonce);
+      var gcm = crypto4.createDecipheriv(AES_GCM, key.key, nonce);
       gcm.setAuthTag(buffer.slice(buffer.length - TAG_LENGTH));
       var data = gcm.update(buffer.slice(0, buffer.length - TAG_LENGTH));
       data = Buffer.concat([data, gcm.final()]);
@@ -41849,7 +41849,7 @@ var require_ece = __commonJS({
       keylog("encrypt", buffer);
       pad = pad || 0;
       var nonce = generateNonce(key.nonce, counter);
-      var gcm = crypto2.createCipheriv(AES_GCM, key.key, nonce);
+      var gcm = crypto4.createCipheriv(AES_GCM, key.key, nonce);
       var ciphertext = [];
       var padSize = PAD_SIZE[header.version];
       var padding = Buffer.alloc(pad + padSize);
@@ -41892,7 +41892,7 @@ var require_ece = __commonJS({
       }
       var header = parseParams(params);
       if (!header.salt) {
-        header.salt = crypto2.randomBytes(KEY_LENGTH);
+        header.salt = crypto4.randomBytes(KEY_LENGTH);
       }
       var result;
       if (header.version === "aes128gcm") {
@@ -41957,7 +41957,7 @@ var require_ece = __commonJS({
 var require_encryption_helper = __commonJS({
   "node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
-    var crypto2 = __require("crypto");
+    var crypto4 = __require("crypto");
     var ece = require_ece();
     var encrypt = function(userPublicKey, userAuth, payload, contentEncoding) {
       if (!userPublicKey) {
@@ -41984,9 +41984,9 @@ var require_encryption_helper = __commonJS({
       if (typeof payload === "string" || payload instanceof String) {
         payload = Buffer.from(payload);
       }
-      const localCurve = crypto2.createECDH("prime256v1");
+      const localCurve = crypto4.createECDH("prime256v1");
       const localPublicKey = localCurve.generateKeys();
-      const salt = crypto2.randomBytes(16).toString("base64url");
+      const salt = crypto4.randomBytes(16).toString("base64url");
       const cipherText = ece.encrypt(payload, {
         version: contentEncoding,
         dh: userPublicKey,
@@ -44400,7 +44400,7 @@ if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
 }
 
 // src/server/auth.ts
-var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
+var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
 
 // node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
@@ -44576,23 +44576,35 @@ process.on("SIGINT", async () => {
 // src/server/permissions.ts
 var ACCESS_CACHE_TTL_MS = 6e4;
 var accessCache = /* @__PURE__ */ new Map();
-var NO_ACCESS = { active: false, role: "", perms: /* @__PURE__ */ new Set() };
+var NO_ACCESS = { active: false, role: "", perms: /* @__PURE__ */ new Set(), tokenVersion: null };
+var hasTokenVersion = null;
+var queryAccessRow = async (id) => {
+  if (hasTokenVersion !== false) {
+    try {
+      const r2 = await pool.query(`SELECT role, permissions, is_active, token_version FROM users WHERE id = $1`, [id]);
+      hasTokenVersion = true;
+      return r2.rows[0];
+    } catch (e) {
+      if (e?.code !== "42703") throw e;
+      hasTokenVersion = false;
+    }
+  }
+  const r = await pool.query(`SELECT role, permissions, is_active FROM users WHERE id = $1`, [id]);
+  return r.rows[0];
+};
 var accessKey = (userId) => String(Number(userId));
 var loadUserAccess = async (userId) => {
   if (!/^\d+$/.test(String(userId)) || !(Number(userId) > 0) || Number(userId) > 2147483647) return NO_ACCESS;
   const key = accessKey(userId);
   const hit = accessCache.get(key);
   if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
-  const r = await pool.query(
-    `SELECT role, permissions, is_active FROM users WHERE id = $1`,
-    [Number(userId)]
-  );
-  const row = r.rows[0];
+  const row = await queryAccessRow(Number(userId));
   const active = !!row && row.is_active === true;
   const access = {
     active,
     role: active ? String(row.role ?? "") : "",
-    perms: new Set(active && Array.isArray(row.permissions) ? row.permissions : [])
+    perms: new Set(active && Array.isArray(row.permissions) ? row.permissions : []),
+    tokenVersion: row && row.token_version !== void 0 && row.token_version !== null ? Number(row.token_version) : null
   };
   accessCache.set(key, { access, at: Date.now() });
   if (accessCache.size > 1e3) {
@@ -44633,18 +44645,80 @@ var stripMaterialPriceColumns = (rows) => {
   return out;
 };
 
+// src/server/xuong/auth.ts
+var import_jsonwebtoken = __toESM(require_jsonwebtoken(), 1);
+import crypto from "node:crypto";
+var XUONG_PREFIX = "/api/xuong/";
+var XUONG_TOKEN_TTL = "30d";
+var XUONG_RATE_PER_MIN = 120;
+var isXuongPath = (path) => {
+  const p = path.toLowerCase();
+  return p.startsWith(XUONG_PREFIX) || p === "/api/xuong";
+};
+var hmac = (data) => crypto.createHmac("sha256", JWT_SECRET_SAFE).update(`xuong-device:${data}`).digest("base64url");
+var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var signDeviceToken = (deviceId) => `${deviceId}.${hmac(deviceId)}`;
+var verifyDeviceToken = (token) => {
+  if (typeof token !== "string") return null;
+  const i = token.lastIndexOf(".");
+  if (i <= 0) return null;
+  const id = token.slice(0, i);
+  const sig = token.slice(i + 1);
+  if (!UUID_RE.test(id)) return null;
+  const expected = hmac(id);
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  return id.toLowerCase();
+};
+var newDeviceId = () => crypto.randomUUID();
+var signXuongToken = (u, deviceId, tokenVersion) => import_jsonwebtoken.default.sign(
+  { id: u.id, username: u.username, role: u.role, scope: "xuong", did: deviceId, tv: tokenVersion },
+  JWT_SECRET_SAFE,
+  { expiresIn: XUONG_TOKEN_TTL }
+);
+var xuongScopeError = (claims, path) => {
+  if (claims?.scope === void 0) return null;
+  if (claims.scope !== "xuong") return "Token kh\xF4ng h\u1EE3p l\u1EC7";
+  return isXuongPath(path) ? null : "Token m\u1EE5c X\u01B0\u1EDFng ch\u1EC9 d\xF9ng \u0111\u01B0\u1EE3c trong m\u1EE5c X\u01B0\u1EDFng";
+};
+var xuongTokenVersionOk = (claims, currentVersion) => {
+  if (claims?.scope !== "xuong" || currentVersion === null) return true;
+  return Number(claims.tv ?? -1) === currentVersion;
+};
+async function bumpTokenVersion(userId) {
+  try {
+    await pool.query("UPDATE users SET token_version = token_version + 1 WHERE id = $1", [Number(userId)]);
+  } catch (e) {
+    if (e?.code !== "42703") throw e;
+  } finally {
+    invalidateUserAccess(userId);
+  }
+}
+var xuongRateKey = (req) => `xuong-user:${req.user?.id ?? "anon"}`;
+var xuongLimiter = rate_limit_default({
+  windowMs: 60 * 1e3,
+  max: XUONG_RATE_PER_MIN,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: xuongRateKey,
+  message: { success: false, message: "G\u1EEDi qu\xE1 nhi\u1EC1u y\xEAu c\u1EA7u, m\xE1y s\u1EBD t\u1EF1 g\u1EEDi l\u1EA1i sau \xEDt gi\xE2y" }
+});
+
 // src/server/auth.ts
-var signAuthToken = (payload) => import_jsonwebtoken.default.sign(payload, JWT_SECRET_SAFE, { expiresIn: "8h" });
+var signAuthToken = (payload) => import_jsonwebtoken2.default.sign(payload, JWT_SECRET_SAFE, { expiresIn: "8h" });
 var authenticateJWT = (req, res, next) => {
   const header = req.headers.authorization;
   const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
   if (!token) return res.status(401).json({ success: false, message: "Thi\u1EBFu token x\xE1c th\u1EF1c" });
   try {
-    req.user = import_jsonwebtoken.default.verify(token, JWT_SECRET_SAFE);
+    req.user = import_jsonwebtoken2.default.verify(token, JWT_SECRET_SAFE);
   } catch {
     return res.status(401).json({ success: false, message: "Token kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c \u0111\xE3 h\u1EBFt h\u1EA1n" });
   }
   if (!isValidUserId(req.user?.id)) return res.status(401).json({ success: false, message: "Token kh\xF4ng h\u1EE3p l\u1EC7" });
+  const scopeErr = xuongScopeError(req.user, req.path);
+  if (scopeErr) return res.status(401).json({ success: false, message: scopeErr });
   next();
 };
 var isValidUserId = (v) => {
@@ -44655,6 +44729,9 @@ var isValidUserId = (v) => {
 var authenticateActiveUser = (req, res, next) => authenticateJWT(req, res, () => {
   loadUserAccess(req.user.id).then((access) => {
     if (!access.active) return res.status(401).json({ success: false, message: "T\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kho\xE1 ho\u1EB7c kh\xF4ng c\xF2n t\u1ED3n t\u1EA1i" });
+    if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {
+      return res.status(401).json({ success: false, message: "Phi\xEAn m\u1EE5c X\u01B0\u1EDFng \u0111\xE3 b\u1ECB thu h\u1ED3i, vui l\xF2ng \u0111\u0103ng nh\u1EADp l\u1EA1i" });
+    }
     next();
   }).catch((error61) => {
     console.error("L\u1ED7i ki\u1EC3m tra t\xE0i kho\u1EA3n (cho qua theo token):", error61);
@@ -44946,7 +45023,10 @@ var globalLimiter = rate_limit_default({
   windowMs: 60 * 1e3,
   max: 300,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Mục Xưởng có giới hạn riêng theo người (server/xuong/auth.ts — xuongLimiter): điện thoại ở xưởng
+  // dùng chung IP nhà máy, tính chung 300/phút/IP thì 78 tổ trưởng giành lượt của nhau (R1)
+  skip: (req) => isXuongPath(req.path)
 });
 app.use(globalLimiter);
 var loginLimiter = rate_limit_default({
@@ -45167,7 +45247,7 @@ __export(external_exports, {
   ipv6: () => ipv62,
   iso: () => iso_exports,
   json: () => json,
-  jwt: () => jwt2,
+  jwt: () => jwt3,
   keyof: () => keyof,
   ksuid: () => ksuid2,
   lazy: () => lazy,
@@ -61504,7 +61584,7 @@ __export(schemas_exports2, {
   ipv4: () => ipv42,
   ipv6: () => ipv62,
   json: () => json,
-  jwt: () => jwt2,
+  jwt: () => jwt3,
   keyof: () => keyof,
   ksuid: () => ksuid2,
   lazy: () => lazy,
@@ -62154,7 +62234,7 @@ var ZodJWT = /* @__PURE__ */ $constructor("ZodJWT", (inst, def) => {
   $ZodJWT.init(inst, def);
   ZodStringFormat.init(inst, def);
 });
-function jwt2(params) {
+function jwt3(params) {
   return _jwt(ZodJWT, params);
 }
 var ZodCustomStringFormat = /* @__PURE__ */ $constructor("ZodCustomStringFormat", (inst, def) => {
@@ -63880,14 +63960,15 @@ function date4(params) {
 }
 
 // src/notifications.ts
-var PREF_KEYS = ["mention", "assigned", "status", "extend", "due", "newInDept"];
+var PREF_KEYS = ["mention", "assigned", "status", "extend", "due", "newInDept", "xuong"];
 var DEFAULT_PREFS = {
   mention: true,
   assigned: true,
   status: true,
   extend: true,
   due: true,
-  newInDept: false
+  newInDept: false,
+  xuong: true
 };
 var PREF_OF = {
   mention: "mention",
@@ -63902,7 +63983,13 @@ var PREF_OF = {
   accepted: "status",
   closed: "status",
   comment: "mention",
-  escalated: "due"
+  escalated: "due",
+  xuong_cho_nhan: "xuong",
+  xuong_quan_so: "xuong",
+  xuong_xac_nhan: "xuong",
+  xuong_chay_lau: "xuong",
+  xuong_co: "xuong",
+  xuong_trien_khai: "xuong"
 };
 var mergePrefs = (raw) => {
   const out = { ...DEFAULT_PREFS };
@@ -64187,6 +64274,14 @@ var subscribeSchema = external_exports.object({
   userAgent: external_exports.string().max(500).optional().nullable()
 });
 var unsubscribeSchema = external_exports.object({ endpoint: external_exports.string().url().max(2e3) });
+var cronAuth = (req, res, next) => {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return res.status(503).json({ ok: false, error: "CRON_SECRET ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5u h\xECnh" });
+  const auth = req.headers.authorization;
+  const key = auth?.startsWith("Bearer ") ? auth.slice(7) : req.headers["x-cron-key"];
+  if (key !== expected) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  next();
+};
 function registerVuongMacPush(app2, deps) {
   initWebPush();
   const { authenticateJWT: authenticateJWT2 } = deps;
@@ -64223,14 +64318,6 @@ function registerVuongMacPush(app2, deps) {
       res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
     }
   });
-  const cronAuth = (req, res, next) => {
-    const expected = process.env.CRON_SECRET;
-    if (!expected) return res.status(503).json({ ok: false, error: "CRON_SECRET ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5u h\xECnh" });
-    const auth = req.headers.authorization;
-    const key = auth?.startsWith("Bearer ") ? auth.slice(7) : req.headers["x-cron-key"];
-    if (key !== expected) return res.status(401).json({ ok: false, error: "Unauthorized" });
-    next();
-  };
   app2.get("/api/cron/vuong-mac-bot", cronAuth, async (_req, res) => {
     try {
       const startedAt = Date.now();
@@ -64505,8 +64592,8 @@ var parseSafeDate = (rawInput) => {
     return null;
   }
   if (!isNaN(Number(rawInput))) {
-    const num = Number(rawInput);
-    const dateVal = new Date(num > 1e10 ? num : num * 1e3);
+    const num2 = Number(rawInput);
+    const dateVal = new Date(num2 > 1e10 ? num2 : num2 * 1e3);
     return !isNaN(dateVal.getTime()) ? dateVal : null;
   }
   const parsed = new Date(rawInput);
@@ -64881,9 +64968,9 @@ var qcNum = (v) => {
   const n = Number(String(v).replace(/[^\d.-]/g, ""));
   return Number.isFinite(n) ? n : 0;
 };
-var qcStatus = (raw, fail) => {
+var qcStatus = (raw, fail2) => {
   const s = raw.trim().toLowerCase();
-  if (!s) return fail > 0 ? "unknown" : "approved";
+  if (!s) return fail2 > 0 ? "unknown" : "approved";
   if (s === "verified") return "approved";
   return s;
 };
@@ -64902,15 +64989,15 @@ var parseQcEntries = (text) => {
       const f = fields.find((x) => x.toUpperCase().startsWith(label.toUpperCase()));
       return f ? f.slice(label.length).replace(/^:/, "").trim() : "";
     };
-    const fail = qcNum(get("SL L\u1ED7i"));
+    const fail2 = qcNum(get("SL L\u1ED7i"));
     out.push({
       date: m[1],
       qc: get("QC"),
       stage: get("C\xF4ng \u0111o\u1EA1n"),
-      status: qcStatus(get("Tr\u1EA1ng th\xE1i"), fail),
+      status: qcStatus(get("Tr\u1EA1ng th\xE1i"), fail2),
       checked: qcNum(get("SL Ki\u1EC3m")),
       pass: qcNum(get("SL \u0110\u1EA1t")),
-      fail,
+      fail: fail2,
       note: get("Ghi ch\xFA").replace(/https?:\/\/\S+/g, "").trim(),
       photos
     });
@@ -64926,16 +65013,16 @@ var summarizeQc = (entries) => {
     if (!prev || prev.status === "approved" && e.status !== "approved") seen.set(k, e);
   }
   const list = [...seen.values()];
-  let checked = 0, pass = 0, fail = 0, bad = 0;
+  let checked = 0, pass = 0, fail2 = 0, bad = 0;
   for (const e of list) {
     checked += e.checked;
     pass += e.pass;
-    fail += e.fail;
+    fail2 += e.fail;
     if (e.fail > 0 || QC_BAD_STATUS.has(e.status)) bad++;
   }
   const key = (d) => d.slice(6, 10) + d.slice(3, 5) + d.slice(0, 2);
   const last = [...list].sort((a, b) => key(b.date).localeCompare(key(a.date)))[0];
-  return { n: list.length, checked, pass, fail, bad, last: { date: last.date, stage: last.stage, status: last.status, fail: last.fail } };
+  return { n: list.length, checked, pass, fail: fail2, bad, last: { date: last.date, stage: last.stage, status: last.status, fail: last.fail } };
 };
 
 // src/routes/data.ts
@@ -66737,15 +66824,15 @@ app.post(
 );
 
 // src/routes/auth.ts
-import crypto from "node:crypto";
+import crypto2 from "node:crypto";
 import bcrypt from "bcrypt";
 var LOGIN_FAILED_MESSAGE = "Sai t\xEAn \u0111\u0103ng nh\u1EADp ho\u1EB7c m\u1EADt kh\u1EA9u, ho\u1EB7c t\xE0i kho\u1EA3n \u0111\xE3 b\u1ECB kh\xF3a";
 var dummyHashPromise = null;
-var getDummyHash = () => dummyHashPromise ??= bcrypt.hash(crypto.randomBytes(16).toString("hex"), 12);
+var getDummyHash = () => dummyHashPromise ??= bcrypt.hash(crypto2.randomBytes(16).toString("hex"), 12);
 var safeEqual = (a, b) => {
   const ba = Buffer.from(a);
   const bb = Buffer.from(b);
-  return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+  return ba.length === bb.length && crypto2.timingSafeEqual(ba, bb);
 };
 app.post("/api/auth/login", loginLimiter, validateBody(loginSchema), async (req, res) => {
   try {
@@ -66785,7 +66872,7 @@ app.post("/api/auth/forgot-password", otpRequestLimiter, validateBody(forgotPass
     const result = await pool.query("SELECT id FROM users WHERE email = $1", [email3]);
     const user = result.rows[0];
     if (user) {
-      const otp = crypto.randomInt(1e5, 1e6).toString();
+      const otp = crypto2.randomInt(1e5, 1e6).toString();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1e3);
       await pool.query(
         `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = now() WHERE id = $3`,
@@ -66820,6 +66907,7 @@ app.post("/api/auth/verify-otp", otpVerifyLimiter, validateBody(verifyOtpSchema)
       `UPDATE users SET password_hash = $1, otp_code = NULL, otp_expires_at = NULL, updated_at = now() WHERE id = $2`,
       [newHash, user.id]
     );
+    await bumpTokenVersion(user.id);
     res.json({ success: true, message: "\u0110\u1ED5i m\u1EADt kh\u1EA9u th\xE0nh c\xF4ng" });
   } catch (error61) {
     console.error("L\u1ED7i x\xE1c th\u1EF1c OTP:", error61);
@@ -66851,6 +66939,7 @@ app.post(
         `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
         [newHash, user.id]
       );
+      await bumpTokenVersion(user.id);
       res.json({ success: true, message: "\u0110\u1ED5i m\u1EADt kh\u1EA9u th\xE0nh c\xF4ng" });
     } catch (error61) {
       console.error("L\u1ED7i \u0111\u1ED5i m\u1EADt kh\u1EA9u:", error61);
@@ -67023,6 +67112,7 @@ usersRouter.put("/:id", validateBody(updateUserSchema), async (req, res) => {
        RETURNING id, username, full_name, email, role, permissions, msnv, department, note, is_active`,
       values
     );
+    if (password || status !== void 0 && status !== "ACTIVE") await bumpTokenVersion(String(id));
     invalidateUserAccess(String(Number(id)));
     invalidateUsersCache();
     const u = result.rows[0];
@@ -69626,6 +69716,2393 @@ app.post("/api/notifications/test", async (req, res) => {
   } catch (e) {
     console.error("L\u1ED7i /api/notifications/test:", e);
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+
+// src/routes/xuong.ts
+var import_express4 = __toESM(require_express2(), 1);
+import { createHash as createHash4 } from "node:crypto";
+
+// src/server/xuong/clock.ts
+var NGUONG_LECH_MS = 5 * 6e4;
+var DUNG_SAI_TUONG_LAI_MS = 2 * 6e4;
+function hieuChinhGio(deviceTs, lechMs, sauDoiGio, serverNow) {
+  const co = [];
+  const lech = typeof lechMs === "number" && Number.isFinite(lechMs) ? Math.round(lechMs) : null;
+  if (lech === null) co.push("chua_do_lech");
+  else if (Math.abs(lech) > NGUONG_LECH_MS) co.push("lech_dong_ho_lon");
+  if (sauDoiGio) co.push("doi_gio_may");
+  const ts = deviceTs + (lech ?? 0);
+  if (ts > serverNow + DUNG_SAI_TUONG_LAI_MS) co.push("gio_tuong_lai");
+  return { ts, co };
+}
+
+// src/server/xuong/state.ts
+var soSanhSuKien = (a, b) => a.ts - b.ts || a.serverTs - b.serverTs || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+function suKienConHieuLuc(events) {
+  const byId = new Map(events.map((e) => [e.id, e]));
+  const huyBiVoHieu = /* @__PURE__ */ new Set();
+  for (const e of events) {
+    if (e.loai !== "huy" || !e.suaCho) continue;
+    const dich = byId.get(e.suaCho);
+    if (dich?.loai === "huy") huyBiVoHieu.add(dich.id);
+  }
+  const biHuy = /* @__PURE__ */ new Set();
+  for (const e of events) {
+    if (e.loai !== "huy" || !e.suaCho || huyBiVoHieu.has(e.id)) continue;
+    const dich = byId.get(e.suaCho);
+    if (dich && dich.loai !== "huy") biHuy.add(dich.id);
+  }
+  return events.filter((e) => e.loai !== "huy" && !biHuy.has(e.id)).sort(soSanhSuKien);
+}
+var so = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var nhanNgoaiApp = (e) => !!(e.congDoanNguonId || e.xuongNguon);
+function tinhTrangThai(cuaCongDoan, giaoDen) {
+  const own2 = suKienConHieuLuc(cuaCongDoan);
+  const incoming = suKienConHieuLuc(giaoDen).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
+  const co = /* @__PURE__ */ new Set();
+  let slGiaoDen = 0;
+  for (const e of incoming) slGiaoDen += so(e.soLuong);
+  let slNhan = 0;
+  let slNhanTrongApp = 0;
+  let slHoanThanh = 0;
+  let slGiao = 0;
+  let soNguoi = null;
+  let dangChayTu = null;
+  let tamNgung = false;
+  let daBatDau = false;
+  const doanChay = [];
+  const batDauChay = (e) => {
+    if (dangChayTu !== null) {
+      co.add("bat_dau_hai_lan");
+    } else {
+      dangChayTu = e.ts;
+      doanChay.push({ start: e.ts, end: null });
+    }
+    if (e.soNguoi !== null && e.soNguoi !== void 0) soNguoi = e.soNguoi;
+    tamNgung = false;
+    daBatDau = true;
+  };
+  const dungChay = (e) => {
+    if (dangChayTu === null) return false;
+    doanChay[doanChay.length - 1].end = e.ts;
+    dangChayTu = null;
+    return true;
+  };
+  for (const e of own2) {
+    switch (e.loai) {
+      case "nhan":
+        slNhan += so(e.soLuong);
+        if (!nhanNgoaiApp(e)) slNhanTrongApp += so(e.soLuong);
+        break;
+      case "bat_dau":
+        batDauChay(e);
+        break;
+      case "tiep_tuc":
+        if (dangChayTu === null && !tamNgung) co.add("tiep_tuc_khi_chua_tam_ngung");
+        batDauChay(e);
+        break;
+      case "tam_ngung":
+        if (!dungChay(e)) co.add("tam_ngung_khi_khong_chay");
+        tamNgung = true;
+        break;
+      case "hoan_thanh":
+        if (!daBatDau) co.add("hoan_thanh_chua_bat_dau");
+        slHoanThanh += so(e.soLuong);
+        if (slHoanThanh >= slNhan) {
+          dungChay(e);
+          tamNgung = false;
+        }
+        break;
+      case "giao":
+        slGiao += so(e.soLuong);
+        break;
+      default:
+        break;
+    }
+  }
+  if (slNhanTrongApp > slGiaoDen) co.add("nhan_chua_thay_giao");
+  if (slGiao > slHoanThanh) co.add("giao_vuot_hoan_thanh");
+  if (slHoanThanh > slNhan && slNhan > 0) co.add("hoan_thanh_vuot_nhan");
+  let trangThai;
+  if (dangChayTu !== null) trangThai = "dang_lam";
+  else if (tamNgung) trangThai = "tam_ngung";
+  else if (slHoanThanh > slGiao) trangThai = "cho_giao";
+  else if (slNhan > slHoanThanh) trangThai = "da_nhan";
+  else if (slGiaoDen > slNhan) trangThai = "cho_nhan";
+  else if (slNhan > 0 || slGiao > 0) trangThai = "xong";
+  else trangThai = "cho_nhan";
+  const tatCa = [...own2, ...incoming];
+  const suKienCuoi = tatCa.length ? Math.max(...tatCa.map((e) => e.ts)) : null;
+  return {
+    trangThai,
+    slGiaoDen,
+    slNhan,
+    slHoanThanh,
+    slGiao,
+    soNguoi,
+    dangChayTu,
+    suKienCuoi,
+    doanChay,
+    co: [...co].sort()
+  };
+}
+
+// src/server/xuong/types.ts
+var LOAI_SU_KIEN = [
+  "trien_khai",
+  "khai_bao_cd",
+  "nhan",
+  "bat_dau",
+  "tam_ngung",
+  "tiep_tuc",
+  "hoan_thanh",
+  "giao",
+  "tang_ca",
+  "chia_nguoi",
+  "quan_so",
+  "xac_nhan_cuoi_ngay",
+  "tien_do",
+  "huy"
+];
+var LY_DO_TAM_NGUNG = [
+  "thieu_vat_tu",
+  "cho_ban_ve_duyet",
+  "loi_chat_luong",
+  "chuyen_viec_gap",
+  "lenh_cap_tren",
+  "khac"
+];
+var LOAI_CA = ["chinh", "ca1", "ca2", "ca3", "ca4", "chu_nhat"];
+var LOAI_CA_TANG_CA = ["ca1", "ca2", "ca3", "ca4", "chu_nhat"];
+var pairKey = (hex3, congDoanId) => `${hex3}|${congDoanId}`;
+
+// src/server/xuong/allocation.ts
+var VN_OFFSET = "+07:00";
+var GIO_MS = 36e5;
+var moc = (ngay, hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
+var thuTrongTuan = (ngay) => (/* @__PURE__ */ new Date(`${ngay}T12:00:00${VN_OFFSET}`)).getUTCDay();
+function truNghi(start, end, nghi) {
+  let doan = [[start, end]];
+  for (const [ns, ne] of nghi) {
+    const next = [];
+    for (const [s, e] of doan) {
+      if (ne <= s || ns >= e) {
+        next.push([s, e]);
+        continue;
+      }
+      if (ns > s) next.push([s, ns]);
+      if (ne < e) next.push([ne, e]);
+    }
+    doan = next;
+  }
+  return doan.filter(([s, e]) => e > s);
+}
+function cuaSoCuaCa(ngay, ca) {
+  const start = moc(ngay, ca.gioBatDau);
+  let end = moc(ngay, ca.gioKetThuc);
+  if (end <= start) end += 24 * GIO_MS;
+  const nghi = (ca.nghi ?? []).map(([a, b]) => {
+    let ns = moc(ngay, a);
+    let ne = moc(ngay, b);
+    if (ns < start) {
+      ns += 24 * GIO_MS;
+      ne += 24 * GIO_MS;
+    }
+    if (ne <= ns) ne += 24 * GIO_MS;
+    return [ns, ne];
+  });
+  return truNghi(start, end, nghi).map(([s, e]) => ({ loaiCa: ca.loaiCa, start: s, end: e }));
+}
+function cuaSoTrongNgay(ngay, lichCa, caTangCaDaKhai) {
+  const theoLoai = new Map(lichCa.map((c) => [c.loaiCa, c]));
+  const out = [];
+  const chinh = theoLoai.get("chinh");
+  if (chinh && thuTrongTuan(ngay) !== 0) out.push(...cuaSoCuaCa(ngay, chinh));
+  for (const loai of new Set(caTangCaDaKhai)) {
+    if (!LOAI_CA_TANG_CA.includes(loai)) continue;
+    const ca = theoLoai.get(loai);
+    if (ca) out.push(...cuaSoCuaCa(ngay, ca));
+  }
+  return out.sort((a, b) => a.start - b.start);
+}
+var lamTron = (h) => Math.round(h * 1e3) / 1e3;
+function phanBoGioCong(input2) {
+  const ngung = new Set(input2.ngungTinh ?? []);
+  const chuaXn = new Set(input2.chuaXacNhan ?? []);
+  const keys = Object.keys(input2.doanChay).filter((k) => !ngung.has(k));
+  const soNguoiTheoKey = /* @__PURE__ */ new Map();
+  for (const c of [...input2.soNguoi].sort((a, b) => a.at - b.at)) {
+    if (!soNguoiTheoKey.has(c.key)) soNguoiTheoKey.set(c.key, []);
+    soNguoiTheoKey.get(c.key).push(c);
+  }
+  const soNguoiLuc = (key, t) => {
+    const ds = soNguoiTheoKey.get(key);
+    if (!ds) return 0;
+    let v = 0;
+    for (const c of ds) {
+      if (c.at <= t) v = c.soNguoi;
+      else break;
+    }
+    return Math.max(0, v);
+  };
+  const dangChayLuc = (key, t) => input2.doanChay[key].some((d) => d.start <= t && t < (d.end ?? input2.now));
+  const out = {};
+  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, co: chuaXn.has(k) ? ["chua_xac_nhan"] : [] };
+  const coTo = /* @__PURE__ */ new Set();
+  const gioCho = { thuong: 0, tangCa: 0 };
+  const gioNguoiTo = { thuong: 0, tangCa: 0 };
+  const coHangMuc = (k, c) => {
+    if (!out[k].co.includes(c)) out[k].co.push(c);
+  };
+  for (const cs of input2.cuaSo) {
+    const laTangCa = cs.loaiCa !== "chinh";
+    const boChon = new Set(laTangCa ? input2.boChonTangCa?.[cs.loaiCa] ?? [] : []);
+    const ks = keys.filter((k) => !boChon.has(k));
+    const end = Math.min(cs.end, input2.now);
+    if (end <= cs.start) continue;
+    const mocs = /* @__PURE__ */ new Set([cs.start, end]);
+    for (const k of ks) {
+      for (const d of input2.doanChay[k]) {
+        for (const t of [d.start, d.end ?? input2.now]) if (t > cs.start && t < end) mocs.add(t);
+      }
+      for (const c of soNguoiTheoKey.get(k) ?? []) if (c.at > cs.start && c.at < end) mocs.add(c.at);
+    }
+    const ds = [...mocs].sort((a, b) => a - b);
+    const q = input2.quanSo[cs.loaiCa];
+    const daChot = typeof q === "number" && q >= 0;
+    if (!daChot) coTo.add("chua_chot_quan_so");
+    for (let i = 0; i + 1 < ds.length; i++) {
+      const s = ds[i];
+      const gio = (ds[i + 1] - s) / GIO_MS;
+      if (gio <= 0) continue;
+      const chay = ks.filter((k) => dangChayLuc(k, s));
+      for (const k of chay) out[k].gioChay += gio;
+      const khai = chay.map((k) => [k, soNguoiLuc(k, s)]);
+      const tongKhai = khai.reduce((a, [, n]) => a + n, 0);
+      const cong2 = (k, h) => {
+        if (laTangCa) out[k].gioCongTangCa += h;
+        else out[k].gioCongThuong += h;
+      };
+      if (!daChot) {
+        for (const [k, n] of khai) cong2(k, n * gio);
+        continue;
+      }
+      const Q = q;
+      if (laTangCa) gioNguoiTo.tangCa += Q * gio;
+      else gioNguoiTo.thuong += Q * gio;
+      if (tongKhai === 0) {
+        if (laTangCa) gioCho.tangCa += Q * gio;
+        else gioCho.thuong += Q * gio;
+        continue;
+      }
+      if (tongKhai <= Q) {
+        for (const [k, n] of khai) cong2(k, n * gio);
+        const du = (Q - tongKhai) * gio;
+        if (laTangCa) gioCho.tangCa += du;
+        else gioCho.thuong += du;
+      } else {
+        for (const [k, n] of khai) {
+          cong2(k, n * Q / tongKhai * gio);
+          coHangMuc(k, "khai_vuot_quan_so");
+        }
+        coTo.add("khai_vuot_quan_so");
+      }
+    }
+  }
+  for (const k of keys) {
+    out[k].gioChay = lamTron(out[k].gioChay);
+    out[k].gioCongThuong = lamTron(out[k].gioCongThuong);
+    out[k].gioCongTangCa = lamTron(out[k].gioCongTangCa);
+    out[k].co.sort();
+  }
+  return {
+    theoHangMuc: out,
+    gioCho: { thuong: lamTron(gioCho.thuong), tangCa: lamTron(gioCho.tangCa) },
+    gioNguoiTo: { thuong: lamTron(gioNguoiTo.thuong), tangCa: lamTron(gioNguoiTo.tangCa) },
+    co: [...coTo].sort()
+  };
+}
+function trangThaiXacNhan(ngay, ngayHoatDongCuoi) {
+  if (ngayHoatDongCuoi >= ngay) return "tinh";
+  let d = /* @__PURE__ */ new Date(`${ngayHoatDongCuoi}T12:00:00${VN_OFFSET}`);
+  let boQua = 0;
+  for (; ; ) {
+    d = new Date(d.getTime() + 24 * GIO_MS);
+    const key = d.toISOString().slice(0, 10);
+    if (key >= ngay) break;
+    if (d.getUTCDay() !== 0) boQua++;
+  }
+  if (boQua === 0) return "tinh";
+  if (boQua === 1) return "chua_xac_nhan";
+  return "ngung";
+}
+
+// src/server/xuong/metrics.ts
+var EPS = 1e-9;
+function thoiGianTheoLo(vao, ra, moc2, now) {
+  const lots = [...vao].filter((v) => v.soLuong > 0).sort((a, b) => a.ts - b.ts).map((v) => ({ nhanLuc: v.ts, soLuong: v.soLuong, conLai: v.soLuong, raHetLuc: null }));
+  const outs = [...ra].filter((r) => r.soLuong > 0).sort((a, b) => a.ts - b.ts);
+  let tongDaRa = 0;
+  for (const o of outs) {
+    tongDaRa += o.soLuong;
+    let can = o.soLuong;
+    for (const l of lots) {
+      if (can <= EPS) break;
+      if (l.conLai <= EPS || l.nhanLuc > o.ts) continue;
+      const tru = Math.min(l.conLai, can);
+      l.conLai -= tru;
+      can -= tru;
+      if (l.conLai <= EPS) l.raHetLuc = o.ts;
+    }
+  }
+  const lo = lots.map((l) => ({
+    nhanLuc: l.nhanLuc,
+    soLuong: l.soLuong,
+    raHetLuc: l.raHetLuc,
+    thoiGian: (l.raHetLuc ?? now) - l.nhanLuc,
+    daRa: l.soLuong - l.conLai
+  }));
+  const mocSl = moc2?.soLuong && moc2.soLuong > 0 ? moc2.soLuong : 0;
+  const batDau = lots.length ? lots[0].nhanLuc : null;
+  if (!mocSl) {
+    return {
+      lo,
+      moc: 0,
+      loaiMoc: "khong_co",
+      tongDaRa,
+      phanTram: 0,
+      batDau,
+      ketThuc: null,
+      thoiGian: batDau === null ? null : now - batDau,
+      tamTinh: true
+    };
+  }
+  let luyKe = 0;
+  let ketThuc = null;
+  for (const o of outs) {
+    luyKe += o.soLuong;
+    if (luyKe + EPS >= mocSl) {
+      ketThuc = o.ts;
+      break;
+    }
+  }
+  const phanTram = Math.min(100, Math.round(tongDaRa / mocSl * 1e3) / 10);
+  return {
+    lo,
+    moc: mocSl,
+    loaiMoc: moc2.loai,
+    tongDaRa,
+    phanTram,
+    batDau,
+    ketThuc,
+    thoiGian: batDau === null ? null : (ketThuc ?? now) - batDau,
+    tamTinh: ketThuc === null
+  };
+}
+
+// src/routes/xuongThongBao.ts
+var URL_XUONG = "/m/xuong";
+var clip2 = (s, n = 140) => s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
+async function guiTinXuong(tins, actorId) {
+  let tong = 0;
+  try {
+    const users = await activeUsers();
+    const byId = new Map(users.map((u) => [u.id, u]));
+    for (const t of tins) {
+      let ids = [...new Set([...t.userIds].map(String))].filter((id) => id !== String(actorId ?? "") && byId.get(id)?.prefs[PREF_OF[t.kind]]);
+      if (!ids.length) continue;
+      if (t.moiNgayMotLan) {
+        try {
+          const da = await pool.query(
+            `SELECT DISTINCT user_id FROM notifications WHERE user_id = ANY($1::text[]) AND kind = $2 AND title = $3
+               AND (created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $4::date`,
+            [ids, t.kind, t.title, vnDayKey(/* @__PURE__ */ new Date())]
+          );
+          const daGui = new Set(da.rows.map((x) => String(x.user_id)));
+          ids = ids.filter((id) => !daGui.has(id));
+        } catch (e) {
+          if (!isMissingSchema(e)) throw e;
+        }
+        if (!ids.length) continue;
+      }
+      try {
+        await pool.query(
+          `INSERT INTO notifications (user_id, kind, title, body, vuong_mac_id, hex, actor)
+           SELECT u, $2, $3, $4, NULL, $5, NULL FROM unnest($1::text[]) u`,
+          [ids, t.kind, t.title, t.body ? clip2(t.body, 500) : null, t.hex ?? null]
+        );
+      } catch (e) {
+        if (!isMissingSchema(e)) throw e;
+      }
+      await sendToUsers(ids, {
+        title: t.title,
+        body: clip2(t.body ?? ""),
+        tag: `${t.kind}-${t.hex ?? ""}-${vnDayKey(/* @__PURE__ */ new Date())}`,
+        target: { hex: t.hex ?? "", category: "xuong", id: 0, url: t.url ?? URL_XUONG }
+      });
+      tong += ids.length;
+    }
+  } catch (e) {
+    console.error("[xuong-thong-bao] l\u1ED7i", e);
+  }
+  return tong;
+}
+async function nguoiCuaTo(toIds) {
+  const out = /* @__PURE__ */ new Map();
+  if (!toIds.length) return out;
+  const r = await pool.query(
+    `SELECT t.id AS to_id, t.to_truong_user_id::text AS uid FROM xuong_to t WHERE t.id = ANY($1::int[]) AND t.active AND t.to_truong_user_id IS NOT NULL
+     UNION
+     SELECT tv.to_id, u.id::text FROM xuong_to_thanh_vien tv JOIN users u ON upper(u.msnv) = upper(tv.mnv) AND u.is_active
+     WHERE tv.to_id = ANY($1::int[]) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
+    [toIds]
+  );
+  for (const x of r.rows) {
+    const k = Number(x.to_id);
+    if (!out.has(k)) out.set(k, []);
+    out.get(k).push(String(x.uid));
+  }
+  return out;
+}
+async function quanLyCuaXuong(xuongs) {
+  const out = /* @__PURE__ */ new Map();
+  if (!xuongs.length) return out;
+  const r = await pool.query("SELECT xuong, user_id::text AS uid FROM xuong_quan_ly WHERE xuong = ANY($1::text[])", [xuongs]);
+  for (const x of r.rows) {
+    if (!out.has(x.xuong)) out.set(x.xuong, []);
+    out.get(x.xuong).push(String(x.uid));
+  }
+  return out;
+}
+var so2 = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+async function baoHangChoNhan(ds, actorId) {
+  try {
+    if (!ds.length) return;
+    const cds = [...new Set(ds.map((d) => d.congDoanDenId))];
+    const r = await pool.query(
+      `SELECT tc.to_id, tc.cong_doan_id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
+       WHERE tc.cong_doan_id = ANY($1::text[])`,
+      [cds]
+    );
+    const nguoi = await nguoiCuaTo([...new Set(r.rows.map((x) => Number(x.to_id)))]);
+    const tins = [];
+    for (const x of r.rows) {
+      const cua = ds.filter((d) => d.congDoanDenId === x.cong_doan_id);
+      if (!cua.length) continue;
+      tins.push({
+        kind: "xuong_cho_nhan",
+        userIds: nguoi.get(Number(x.to_id)) ?? [],
+        title: `C\xF3 h\xE0ng giao t\u1EDBi ${x.cd_chi_tiet}`,
+        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so2(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
+        hex: cua.length === 1 ? cua[0].hex : null
+      });
+    }
+    await guiTinXuong(tins, actorId);
+  } catch (e) {
+    console.error("[xuong-thong-bao] h\xE0ng ch\u1EDD nh\u1EADn", e);
+  }
+}
+async function baoXuongPhu(xuongChinh, items, actorId) {
+  try {
+    const cdIds = [...new Set(items.flatMap((i) => i.tuyen))];
+    const cd = await pool.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds]);
+    const cdMap = new Map(cd.rows.map((x) => [String(x.id), x]));
+    const theoXuong = /* @__PURE__ */ new Map();
+    for (const it of items) {
+      for (const id of it.tuyen) {
+        const c = cdMap.get(id);
+        if (!c || c.xuong === xuongChinh) continue;
+        if (!theoXuong.has(c.xuong)) theoXuong.set(c.xuong, []);
+        theoXuong.get(c.xuong).push(`${it.hex} \xB7 ${so2(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+      }
+    }
+    if (!theoXuong.size) return;
+    const ql = await quanLyCuaXuong([...theoXuong.keys()]);
+    await guiTinXuong([...theoXuong.entries()].map(([x, dong]) => ({
+      kind: "xuong_trien_khai",
+      userIds: ql.get(x) ?? [],
+      title: `X\u01B0\u1EDFng ${xuongChinh} giao c\xF4ng \u0111o\u1EA1n cho x\u01B0\u1EDFng ${x}`,
+      body: [...new Set(dong)].slice(0, 6).join(" \xB7 ")
+    })), actorId);
+  } catch (e) {
+    console.error("[xuong-thong-bao] x\u01B0\u1EDFng ph\u1EE5", e);
+  }
+}
+async function nhacSang(ngay) {
+  const tins = [];
+  const thu = (/* @__PURE__ */ new Date(`${ngay}T12:00:00+07:00`)).getUTCDay();
+  if (thu !== 0) {
+    const r = await pool.query(
+      `SELECT t.id, t.ten_to FROM xuong_to t
+       WHERE t.active AND EXISTS (SELECT 1 FROM xuong_to_cong_doan tc JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id
+                                  WHERE tc.to_id = t.id AND (s.trang_thai IN ('dang_lam','tam_ngung','da_nhan') OR s.sl_giao_den > s.sl_nhan))
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' = 'chinh'
+                           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+                           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))`,
+      [ngay]
+    );
+    const nguoi = await nguoiCuaTo(r.rows.map((x) => Number(x.id)));
+    for (const x of r.rows) {
+      tins.push({
+        kind: "xuong_quan_so",
+        userIds: nguoi.get(Number(x.id)) ?? [],
+        moiNgayMotLan: true,
+        title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 ca ch\xEDnh`,
+        body: 'M\u1EDF m\u1EE5c X\u01B0\u1EDFng, b\u1EA5m "Ch\u1ED1t qu\xE2n s\u1ED1" \u2014 gi\u1EDD c\xF4ng c\u1EE7a t\u1ED5 t\xEDnh theo qu\xE2n s\u1ED1.'
+      });
+    }
+  }
+  const lau = await pool.query(
+    // "Cập nhật" = thao tác của chính tổ trên cặp (hex, công đoạn) hoặc xác nhận cuối ngày có hạng mục đó;
+    // hàng giao tới từ tổ khác không tính (su_kien_cuoi của bảng trạng thái có tính cả giao tới)
+    `SELECT tc.to_id, s.hex, c.cd_chi_tiet FROM xuong_trang_thai s
+     JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = s.cong_doan_id JOIN xuong_cong_doan c ON c.id = s.cong_doan_id
+     WHERE s.trang_thai = 'dang_lam' AND s.dang_chay_tu < now() - interval '48 hours'
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.hex = s.hex AND e.cong_doan_id = s.cong_doan_id
+                         AND e.device_ts_hieu_chinh > now() - interval '48 hours')
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien x WHERE x.to_id = tc.to_id AND x.loai = 'xac_nhan_cuoi_ngay'
+                         AND x.device_ts_hieu_chinh > now() - interval '48 hours'
+                         AND x.du_lieu->'hangMuc' @> jsonb_build_array(jsonb_build_object('hex', s.hex, 'congDoanId', s.cong_doan_id, 'trangThai', 'van_lam')))`
+  );
+  const nguoiLau = await nguoiCuaTo([...new Set(lau.rows.map((x) => Number(x.to_id)))]);
+  const theoToLau = /* @__PURE__ */ new Map();
+  for (const x of lau.rows) {
+    const k = Number(x.to_id);
+    if (!theoToLau.has(k)) theoToLau.set(k, []);
+    theoToLau.get(k).push(`${x.hex} (${x.cd_chi_tiet})`);
+  }
+  for (const [to, ds] of theoToLau) {
+    tins.push({
+      kind: "xuong_chay_lau",
+      userIds: nguoiLau.get(to) ?? [],
+      moiNgayMotLan: true,
+      title: "H\u1EA1ng m\u1EE5c \u0111ang ch\u1EA1y h\u01A1n 2 ng\xE0y ch\u01B0a c\u1EADp nh\u1EADt",
+      body: `${ds.length} h\u1EA1ng m\u1EE5c: ${ds.slice(0, 5).join(" \xB7 ")} \u2014 ki\u1EC3m tra: c\xF2n l\xE0m, t\u1EA1m ng\u01B0ng hay \u0111\xE3 xong?`
+    });
+  }
+  const co = await pool.query(
+    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien WHERE co <> '{}' AND server_ts > now() - interval '24 hours' AND xuong IS NOT NULL
+     GROUP BY xuong`
+  );
+  const ql = await quanLyCuaXuong(co.rows.map((x) => String(x.xuong)));
+  for (const x of co.rows) {
+    tins.push({
+      kind: "xuong_co",
+      userIds: ql.get(x.xuong) ?? [],
+      moiNgayMotLan: true,
+      url: "/#/setup?tab=xuong",
+      title: `X\u01B0\u1EDFng ${x.xuong}: c\xF3 thao t\xE1c c\u1EA7n xem`,
+      body: `${x.n} thao t\xE1c trong 24 gi\u1EDD qua \u2014 Setup d\u1EEF li\u1EC7u \u2192 X\u01B0\u1EDFng \u2192 C\u1EA7n xem (gi\u1EDD m\xE1y l\u1EC7ch, g\u1EEDi h\u1ED9, giao v\u01B0\u1EE3t s\u1ED1 \u0111\xE3 xong\u2026).`
+    });
+  }
+  await donAnhMoCoi();
+  return guiTinXuong(tins);
+}
+async function donAnhMoCoi() {
+  try {
+    const r = await pool.query(
+      `DELETE FROM xuong_anh a WHERE a.created_at < now() - interval '2 days'
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.loai = 'tien_do' AND e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`
+    );
+    if (r.rowCount) console.log(`[xuong] xo\xE1 ${r.rowCount} \u1EA3nh kh\xF4ng c\xF2n s\u1EF1 ki\u1EC7n n\xE0o d\xF9ng`);
+  } catch (e) {
+    if (!isMissingSchema(e)) console.error("[xuong] d\u1ECDn \u1EA3nh m\u1ED3 c\xF4i l\u1ED7i", e);
+  }
+}
+async function nhacChieu(ngay) {
+  const tins = [];
+  const tc = await pool.query(
+    `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
+     WHERE e.loai = 'tang_ca' AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien q WHERE q.to_id = t.id AND q.loai = 'quan_so' AND q.du_lieu->>'loaiCa' = e.du_lieu->>'loaiCa'
+                         AND (q.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+                         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = q.id))`,
+    [ngay]
+  );
+  const nguoiTc = await nguoiCuaTo([...new Set(tc.rows.map((x) => Number(x.id)))]);
+  for (const x of tc.rows) {
+    tins.push({
+      kind: "xuong_quan_so",
+      userIds: nguoiTc.get(Number(x.id)) ?? [],
+      moiNgayMotLan: true,
+      title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 t\u0103ng ca`,
+      body: 'B\u1EA5m "Ch\u1ED1t qu\xE2n s\u1ED1" cho ca t\u0103ng ca \u0111\u1EC3 gi\u1EDD t\u0103ng ca \u0111\u01B0\u1EE3c ph\xE2n b\u1ED5 \u0111\xFAng.'
+    });
+  }
+  const xn = await pool.query(
+    `SELECT t.id, t.ten_to, count(*)::int AS n FROM xuong_to t
+     JOIN xuong_to_cong_doan tc ON tc.to_id = t.id JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai = 'dang_lam'
+     WHERE t.active AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'xac_nhan_cuoi_ngay'
+                                      AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
+                                      AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))
+     GROUP BY t.id, t.ten_to`,
+    [ngay]
+  );
+  const nguoiXn = await nguoiCuaTo(xn.rows.map((x) => Number(x.id)));
+  for (const x of xn.rows) {
+    tins.push({
+      kind: "xuong_xac_nhan",
+      userIds: nguoiXn.get(Number(x.id)) ?? [],
+      moiNgayMotLan: true,
+      title: `${x.ten_to}: x\xE1c nh\u1EADn cu\u1ED1i ng\xE0y`,
+      body: `${x.n} h\u1EA1ng m\u1EE5c \u0111ang ch\u1EA1y \u2014 b\u1EA5m "T\u1EA5t c\u1EA3 v\u1EABn \u0111ang l\xE0m" ho\u1EB7c ch\u1ECDn h\u1EA1ng m\u1EE5c \u0111\xE3 d\u1EEBng; kh\xF4ng x\xE1c nh\u1EADn 2 ng\xE0y li\u1EC1n th\xEC ng\u1EEBng t\xEDnh gi\u1EDD.`
+    });
+  }
+  return guiTinXuong(tins);
+}
+app.get("/api/cron/xuong", cronAuth, async (req, res) => {
+  try {
+    const t0 = Date.now();
+    const ngay = vnDayKey(/* @__PURE__ */ new Date());
+    const gio = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }).format(/* @__PURE__ */ new Date()));
+    const dot = req.query.dot === "sang" || req.query.dot === "chieu" ? req.query.dot : gio < 12 ? "sang" : "chieu";
+    const daGui = dot === "sang" ? await nhacSang(ngay) : await nhacChieu(ngay);
+    res.json({ ok: true, dot, ngay, daGui, ms: Date.now() - t0 });
+  } catch (e) {
+    if (isMissingSchema(e)) return res.json({ ok: true, available: false });
+    console.error("L\u1ED7i cron xuong:", e);
+    res.status(500).json({ ok: false, error: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+  }
+});
+
+// src/server/xuong/anh.ts
+var UUID_RE2 = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+var khoaAnhHopLe = (k) => typeof k === "string" && UUID_RE2.test(k);
+function kieuAnh(b) {
+  if (b.length > 3 && b[0] === 255 && b[1] === 216 && b[2] === 255) return "image/jpeg";
+  if (b.length > 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return null;
+}
+var ANH_TOI_DA_BYTE = 1e6;
+
+// src/routes/xuong.ts
+app.use("/api/xuong", xuongLimiter);
+var PERM_XUONG = "xuong";
+var PERM_QUAN_LY = "xuong_quan_ly";
+var LO_TOI_DA = 200;
+var HUY_TRONG_MS = 24 * 36e5;
+var HEX_RE = /^\d{9}$/;
+var fail = (res, e, where) => {
+  if (isMissingSchema(e)) return res.json({ success: true, available: false });
+  console.error(`L\u1ED7i ${where}:`, e);
+  return res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
+};
+var coQuyenXuong = async (req) => await userHasPermission(req, PERM_XUONG) || await userHasPermission(req, PERM_QUAN_LY);
+async function xuongQuanLy(userId) {
+  const access = await loadUserAccess(userId);
+  if (access.role === "ADMIN") return /* @__PURE__ */ new Set(["*"]);
+  if (!access.perms.has(PERM_QUAN_LY)) return /* @__PURE__ */ new Set();
+  const r = await pool.query("SELECT xuong FROM xuong_quan_ly WHERE user_id = $1", [Number(userId)]);
+  return new Set(r.rows.map((x) => String(x.xuong)));
+}
+var quanLyDuoc = (ds, xuong) => ds.has("*") || !!xuong && ds.has(xuong);
+var COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
+  so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
+  user_id_khai, sent_by, device_id, sua_cho, nguon, nguoi_thao_tac_goc, co`;
+var num = (v) => v === null || v === void 0 || v === "" ? null : Number(v);
+var toSuKien = (r) => ({
+  id: String(r.id),
+  loai: r.loai,
+  hex: r.hex ?? null,
+  congDoanId: r.cong_doan_id ?? null,
+  toId: r.to_id === null || r.to_id === void 0 ? null : Number(r.to_id),
+  soLuong: num(r.so_luong),
+  congDoanDenId: r.cong_doan_den_id ?? null,
+  congDoanNguonId: r.cong_doan_nguon_id ?? null,
+  xuongNguon: r.xuong_nguon ?? null,
+  soNguoi: r.so_nguoi === null || r.so_nguoi === void 0 ? null : Number(r.so_nguoi),
+  duLieu: r.du_lieu ?? null,
+  ts: new Date(r.device_ts_hieu_chinh).getTime(),
+  serverTs: new Date(r.server_ts).getTime(),
+  suaCho: r.sua_cho ? String(r.sua_cho) : null
+});
+async function suKienTheoHex(db, hexes, kemMra = false) {
+  if (!hexes.length) return [];
+  const r = await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE hex = ANY($1::text[])${kemMra ? "" : " AND nguon = 'app'"}`,
+    [hexes]
+  );
+  return r.rows;
+}
+function trangThaiCacCap(rows, pairs) {
+  const evts = rows.map(toSuKien);
+  return pairs.map(([hex3, cd]) => {
+    const cua = evts.filter((e) => e.hex === hex3 && e.congDoanId === cd);
+    const den = evts.filter((e) => e.hex === hex3 && (e.loai === "giao" || e.loai === "khai_bao_cd" || e.loai === "huy") && (e.congDoanDenId === cd || e.loai === "huy"));
+    return { hex: hex3, cd, state: tinhTrangThai(cua, den) };
+  });
+}
+async function luuTrangThai(client, pairs) {
+  if (!pairs.length) return;
+  const hexes = [...new Set(pairs.map((p) => p[0]))];
+  const rows = await suKienTheoHex(client, hexes);
+  const xuongCd = /* @__PURE__ */ new Map();
+  const cds = [...new Set(pairs.map((p) => p[1]))];
+  const r = await client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cds]);
+  r.rows.forEach((x) => xuongCd.set(String(x.id), x.xuong));
+  const out = trangThaiCacCap(rows, pairs).map(({ hex: hex3, cd, state }) => ({
+    hex: hex3,
+    cong_doan_id: cd,
+    xuong: xuongCd.get(cd) ?? null,
+    trang_thai: state.trangThai,
+    sl_giao_den: state.slGiaoDen,
+    sl_nhan: state.slNhan,
+    sl_hoan_thanh: state.slHoanThanh,
+    sl_giao: state.slGiao,
+    so_nguoi: state.soNguoi,
+    dang_chay_tu: state.dangChayTu === null ? null : new Date(state.dangChayTu).toISOString(),
+    su_kien_cuoi: state.suKienCuoi === null ? null : new Date(state.suKienCuoi).toISOString(),
+    co: state.co,
+    rong: state.slGiaoDen === 0 && state.slNhan === 0 && state.slHoanThanh === 0 && state.slGiao === 0 && state.dangChayTu === null
+  }));
+  const giu = out.filter((x) => !x.rong);
+  const bo = out.filter((x) => x.rong);
+  if (bo.length) {
+    await client.query(
+      `DELETE FROM xuong_trang_thai t USING jsonb_to_recordset($1::jsonb) AS x(hex text, cong_doan_id text)
+       WHERE t.hex = x.hex AND t.cong_doan_id = x.cong_doan_id`,
+      [JSON.stringify(bo)]
+    );
+  }
+  if (giu.length) {
+    await client.query(
+      `INSERT INTO xuong_trang_thai (hex, cong_doan_id, xuong, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh, sl_giao,
+         so_nguoi, dang_chay_tu, su_kien_cuoi, co, cap_nhat)
+       SELECT hex, cong_doan_id, xuong, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh, sl_giao, so_nguoi,
+              dang_chay_tu, su_kien_cuoi, co, now()
+       FROM jsonb_to_recordset($1::jsonb) AS x(hex text, cong_doan_id text, xuong text, trang_thai text,
+         sl_giao_den numeric, sl_nhan numeric, sl_hoan_thanh numeric, sl_giao numeric, so_nguoi int,
+         dang_chay_tu timestamptz, su_kien_cuoi timestamptz, co text[])
+       ON CONFLICT (hex, cong_doan_id) DO UPDATE SET
+         xuong = EXCLUDED.xuong, trang_thai = EXCLUDED.trang_thai, sl_giao_den = EXCLUDED.sl_giao_den,
+         sl_nhan = EXCLUDED.sl_nhan, sl_hoan_thanh = EXCLUDED.sl_hoan_thanh, sl_giao = EXCLUDED.sl_giao,
+         so_nguoi = EXCLUDED.so_nguoi, dang_chay_tu = EXCLUDED.dang_chay_tu, su_kien_cuoi = EXCLUDED.su_kien_cuoi,
+         co = EXCLUDED.co, cap_nhat = now()`,
+      [JSON.stringify(giu)]
+    );
+  }
+}
+app.get("/api/xuong/time", (_req, res) => {
+  res.json({ success: true, serverNow: Date.now() });
+});
+var thietBiSchema = external_exports.object({ deviceToken: external_exports.string().max(200).optional() });
+app.post("/api/xuong/thiet-bi", async (req, res) => {
+  try {
+    const parsed = thietBiSchema.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u kh\xF4ng h\u1EE3p l\u1EC7" });
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const userId = Number(req.user.id);
+    const cu = verifyDeviceToken(parsed.data.deviceToken);
+    const deviceId = req.user.scope === "xuong" ? req.user.did ?? null : cu ?? newDeviceId();
+    if (!deviceId) return res.status(401).json({ success: false, message: "M\xE3 thi\u1EBFt b\u1ECB kh\xF4ng h\u1EE3p l\u1EC7" });
+    const r = await pool.query(
+      `INSERT INTO xuong_phien_thiet_bi (device_id, user_id) VALUES ($1, $2)
+       ON CONFLICT (device_id, user_id) DO UPDATE SET lan_cuoi = now()
+       RETURNING thu_hoi`,
+      [deviceId, userId]
+    );
+    if (r.rows[0]?.thu_hoi) return res.status(403).json({ success: false, message: "M\xE1y n\xE0y \u0111\xE3 b\u1ECB thu h\u1ED3i quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const access = await loadUserAccess(userId);
+    const u = await pool.query("SELECT id, username, full_name, role, msnv FROM users WHERE id = $1", [userId]);
+    const user = u.rows[0];
+    const to = await pool.query(
+      `SELECT t.id, t.xuong, t.ten_to FROM xuong_to t
+       WHERE t.active AND (t.to_truong_user_id = $1 OR EXISTS (
+         SELECT 1 FROM xuong_to_thanh_vien tv WHERE tv.to_id = t.id AND tv.mnv = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)))
+       ORDER BY t.xuong, t.ten_to`,
+      [userId, user?.msnv ?? ""]
+    );
+    res.json({
+      success: true,
+      available: true,
+      token: signXuongToken({ id: userId, username: user.username, role: access.role }, deviceId, access.tokenVersion ?? 0),
+      deviceToken: signDeviceToken(deviceId),
+      user: { id: userId, username: user.username, fullName: user.full_name, msnv: user.msnv },
+      to: to.rows.map((t) => ({ id: Number(t.id), xuong: t.xuong, ten: t.ten_to }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/thiet-bi");
+  }
+});
+var soHuuHan = external_exports.number().finite();
+var suKienSchema = external_exports.object({
+  id: external_exports.string().uuid(),
+  loai: external_exports.enum(LOAI_SU_KIEN),
+  hex: external_exports.string().max(20).nullish(),
+  congDoanId: external_exports.string().max(40).nullish(),
+  toId: external_exports.number().int().positive().nullish(),
+  soLuong: soHuuHan.min(0).max(1e6).nullish(),
+  congDoanDenId: external_exports.string().max(40).nullish(),
+  congDoanNguonId: external_exports.string().max(40).nullish(),
+  xuongNguon: external_exports.string().max(20).nullish(),
+  soNguoi: external_exports.number().int().min(0).max(500).nullish(),
+  lyDoTamNgung: external_exports.enum(LY_DO_TAM_NGUNG).nullish(),
+  tienDo: external_exports.number().int().min(0).max(100).nullish(),
+  ghiChu: external_exports.string().max(1e3).nullish(),
+  duLieu: external_exports.record(external_exports.string(), external_exports.unknown()).nullish(),
+  deviceTs: soHuuHan,
+  lechMs: soHuuHan.nullish(),
+  sauDoiGio: external_exports.boolean().optional(),
+  userId: external_exports.number().int().positive().nullish(),
+  suaCho: external_exports.string().uuid().nullish()
+});
+var loSchema = external_exports.object({
+  deviceToken: external_exports.string().max(200),
+  events: external_exports.array(external_exports.unknown()).min(1).max(LO_TOI_DA)
+});
+var CAN_HEX = /* @__PURE__ */ new Set(["trien_khai", "khai_bao_cd", "nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do"]);
+var CAN_CONG_DOAN = /* @__PURE__ */ new Set(["nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do"]);
+var CAN_TO = /* @__PURE__ */ new Set(["tang_ca", "chia_nguoi", "quan_so", "xac_nhan_cuoi_ngay"]);
+function kiemTraTheoLoai(e) {
+  if (CAN_HEX.has(e.loai) && !(e.hex && HEX_RE.test(e.hex))) return "M\xE3 h\u1EA1ng m\u1EE5c ph\u1EA3i c\xF3 9 s\u1ED1";
+  if (CAN_CONG_DOAN.has(e.loai) && !e.congDoanId) return "Thi\u1EBFu c\xF4ng \u0111o\u1EA1n";
+  if (CAN_TO.has(e.loai) && !e.toId) return "Thi\u1EBFu t\u1ED5";
+  if (["nhan", "hoan_thanh", "giao", "trien_khai"].includes(e.loai) && !(e.soLuong && e.soLuong > 0)) return "S\u1ED1 l\u01B0\u1EE3ng ph\u1EA3i l\u1EDBn h\u01A1n 0";
+  if ((e.loai === "giao" || e.loai === "khai_bao_cd") && !e.congDoanDenId) return "Thi\u1EBFu c\xF4ng \u0111o\u1EA1n nh\u1EADn";
+  if (e.loai === "tam_ngung" && !e.lyDoTamNgung) return "T\u1EA1m ng\u01B0ng ph\u1EA3i ch\u1ECDn l\xFD do";
+  if (e.loai === "huy" && !e.suaCho) return "Thi\u1EBFu s\u1EF1 ki\u1EC7n c\u1EA7n hu\u1EF7";
+  if (e.duLieu && "anh" in e.duLieu) {
+    const anh = e.duLieu.anh;
+    if (!Array.isArray(anh) || anh.length > 5 || !anh.every(khoaAnhHopLe)) return "\u1EA2nh kh\xF4ng h\u1EE3p l\u1EC7 (t\u1ED1i \u0111a 5 \u1EA3nh \u0111\xE3 t\u1EA3i l\xEAn)";
+  }
+  if (e.loai === "tang_ca") {
+    const ca = e.duLieu?.loaiCa;
+    if (typeof ca !== "string" || !LOAI_CA_TANG_CA.includes(ca)) return "Lo\u1EA1i ca t\u0103ng ca kh\xF4ng h\u1EE3p l\u1EC7";
+  }
+  if (e.loai === "quan_so") {
+    const ca = e.duLieu?.loaiCa;
+    if (typeof ca !== "string" || !LOAI_CA.includes(ca)) return "Lo\u1EA1i ca kh\xF4ng h\u1EE3p l\u1EC7";
+    if (typeof e.duLieu?.soNguoi !== "number" || e.duLieu.soNguoi < 0) return "Thi\u1EBFu qu\xE2n s\u1ED1";
+  }
+  return null;
+}
+async function ghiVaTinhLai(client, ghi, dichDb = []) {
+  const moi = /* @__PURE__ */ new Set();
+  if (ghi.length) {
+    const ins = await client.query(
+      `INSERT INTO xuong_su_kien (id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id,
+         xuong_nguon, so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh,
+         user_id, user_id_khai, sent_by, device_id, sua_cho, co)
+       SELECT id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id,
+         xuong_nguon, so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh,
+         user_id, user_id_khai, sent_by, device_id, sua_cho, co
+       FROM jsonb_to_recordset($1::jsonb) AS x(id uuid, loai text, hex text, cong_doan_id text, to_id int, xuong text,
+         so_luong numeric, cong_doan_den_id text, cong_doan_nguon_id text, xuong_nguon text, so_nguoi int,
+         ly_do_tam_ngung text, tien_do int, ghi_chu text, du_lieu jsonb, device_ts timestamptz, lech_ms bigint,
+         device_ts_hieu_chinh timestamptz, user_id int, user_id_khai int, sent_by int, device_id uuid, sua_cho uuid, co text[])
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id`,
+      [JSON.stringify(ghi)]
+    );
+    for (const x of ins.rows) moi.add(String(x.id));
+    const cap = /* @__PURE__ */ new Map();
+    for (const x of ghi) {
+      if (x.hex && x.cong_doan_id) cap.set(pairKey(x.hex, x.cong_doan_id), [x.hex, x.cong_doan_id]);
+      if (x.hex && x.cong_doan_den_id) cap.set(pairKey(x.hex, x.cong_doan_den_id), [x.hex, x.cong_doan_den_id]);
+    }
+    const giaoBiHuy = dichDb.filter((x) => x.loai === "giao" || x.loai === "khai_bao_cd").map((x) => String(x.id));
+    if (giaoBiHuy.length) {
+      const den = await client.query("SELECT hex, cong_doan_den_id FROM xuong_su_kien WHERE id = ANY($1::uuid[])", [giaoBiHuy]);
+      for (const x of den.rows) if (x.hex && x.cong_doan_den_id) cap.set(pairKey(x.hex, x.cong_doan_den_id), [x.hex, x.cong_doan_den_id]);
+    }
+    await luuTrangThai(client, [...cap.values()]);
+    const pb = /* @__PURE__ */ new Map();
+    for (const x of ghi) {
+      if (!x.to_id) continue;
+      const ngay = vnDayKey(new Date(x.device_ts_hieu_chinh));
+      pb.set(`${x.to_id}|${ngay}`, { to_id: x.to_id, ngay });
+    }
+    if (pb.size) {
+      await client.query(
+        `INSERT INTO xuong_phien_ban (to_id, ngay, v)
+         SELECT to_id, ngay, 1 FROM jsonb_to_recordset($1::jsonb) AS x(to_id int, ngay date)
+         ON CONFLICT (to_id, ngay) DO UPDATE SET v = xuong_phien_ban.v + 1`,
+        [JSON.stringify([...pb.values()])]
+      );
+    }
+  }
+  return moi;
+}
+app.post("/api/xuong/events", async (req, res) => {
+  const serverNow = Date.now();
+  try {
+    const body = loSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ success: false, message: `L\xF4 ph\u1EA3i c\xF3 1\u2013${LO_TOI_DA} s\u1EF1 ki\u1EC7n v\xE0 m\xE3 thi\u1EBFt b\u1ECB` });
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const sentBy = Number(req.user.id);
+    const deviceId = verifyDeviceToken(body.data.deviceToken);
+    if (!deviceId) return res.status(401).json({ success: false, message: "M\xE3 thi\u1EBFt b\u1ECB kh\xF4ng h\u1EE3p l\u1EC7, h\xE3y m\u1EDF l\u1EA1i m\u1EE5c X\u01B0\u1EDFng \u0111\u1EC3 \u0111\u0103ng k\xFD m\xE1y" });
+    if (req.user.scope === "xuong" && req.user.did !== deviceId) {
+      return res.status(401).json({ success: false, message: "Token kh\xF4ng thu\u1ED9c m\xE1y n\xE0y" });
+    }
+    const tuChoi = [];
+    const hopLe = [];
+    for (const raw of body.data.events) {
+      const p = suKienSchema.safeParse(raw);
+      const id = raw?.id;
+      if (!p.success) {
+        tuChoi.push({ id: typeof id === "string" ? id : "", reason: "D\u1EEF li\u1EC7u s\u1EF1 ki\u1EC7n kh\xF4ng h\u1EE3p l\u1EC7" });
+        continue;
+      }
+      const why = kiemTraTheoLoai(p.data);
+      if (why) {
+        tuChoi.push({ id: p.data.id, reason: why });
+        continue;
+      }
+      hopLe.push(p.data);
+    }
+    const ketQua = await withTransaction(async (client) => {
+      const phien = await client.query(
+        "SELECT user_id, thu_hoi FROM xuong_phien_thiet_bi WHERE device_id = $1",
+        [deviceId]
+      );
+      const nguoiTrenMay = new Set(phien.rows.filter((x) => !x.thu_hoi).map((x) => Number(x.user_id)));
+      if (!nguoiTrenMay.has(sentBy)) return { loi: "M\xE1y ch\u01B0a \u0111\u0103ng k\xFD ho\u1EB7c \u0111\xE3 b\u1ECB thu h\u1ED3i cho t\xE0i kho\u1EA3n n\xE0y" };
+      const cds = [...new Set(hopLe.flatMap((e) => [e.congDoanId, e.congDoanDenId]).filter((x) => !!x))];
+      const tos = [...new Set(hopLe.map((e) => e.toId).filter((x) => !!x))];
+      const [cdRows, toRows] = await Promise.all([
+        cds.length ? client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cds]) : { rows: [] },
+        tos.length ? client.query("SELECT id, xuong FROM xuong_to WHERE id = ANY($1::int[])", [tos]) : { rows: [] }
+      ]);
+      const xuongCd = new Map(cdRows.rows.map((x) => [String(x.id), String(x.xuong)]));
+      const xuongTo = new Map(toRows.rows.map((x) => [Number(x.id), String(x.xuong)]));
+      const huyIds = hopLe.filter((e) => e.loai === "huy").map((e) => e.suaCho);
+      const dichDb = huyIds.length ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows : [];
+      const dich = new Map(dichDb.map((x) => [String(x.id), x]));
+      const quanLy = huyIds.length ? await xuongQuanLy(sentBy) : /* @__PURE__ */ new Set();
+      const ghi = [];
+      for (const e of hopLe) {
+        let hex3 = e.hex ?? null;
+        let congDoanId = e.congDoanId ?? null;
+        let toId = e.toId ?? null;
+        let xuong = (congDoanId ? xuongCd.get(congDoanId) : void 0) ?? (toId ? xuongTo.get(toId) : void 0) ?? null;
+        if (congDoanId && !xuongCd.has(congDoanId)) {
+          tuChoi.push({ id: e.id, reason: "C\xF4ng \u0111o\u1EA1n kh\xF4ng t\u1ED3n t\u1EA1i" });
+          continue;
+        }
+        if (e.congDoanDenId && !xuongCd.has(e.congDoanDenId)) {
+          tuChoi.push({ id: e.id, reason: "C\xF4ng \u0111o\u1EA1n nh\u1EADn kh\xF4ng t\u1ED3n t\u1EA1i" });
+          continue;
+        }
+        if (toId && !xuongTo.has(toId)) {
+          tuChoi.push({ id: e.id, reason: "T\u1ED5 kh\xF4ng t\u1ED3n t\u1EA1i" });
+          continue;
+        }
+        if (e.loai === "huy") {
+          const cungLo = ghi.find((x) => x.id === e.suaCho);
+          const d = dich.get(e.suaCho) ?? (cungLo ? { ...cungLo, server_ts: new Date(serverNow) } : void 0);
+          if (!d) {
+            tuChoi.push({ id: e.id, reason: "Kh\xF4ng t\xECm th\u1EA5y s\u1EF1 ki\u1EC7n c\u1EA7n hu\u1EF7" });
+            continue;
+          }
+          const laNguoiGui = Number(d.sent_by) === sentBy && serverNow - new Date(d.server_ts).getTime() <= HUY_TRONG_MS;
+          if (!laNguoiGui && !quanLyDuoc(quanLy, d.xuong ?? null)) {
+            tuChoi.push({ id: e.id, reason: "Ch\u1EC9 ng\u01B0\u1EDDi g\u1EEDi (trong 24 gi\u1EDD) ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c hu\u1EF7" });
+            continue;
+          }
+          hex3 = d.hex ?? null;
+          congDoanId = d.cong_doan_id ?? null;
+          toId = d.to_id === null || d.to_id === void 0 ? null : Number(d.to_id);
+          xuong = d.xuong ?? null;
+        }
+        const co = [];
+        let userId = sentBy;
+        let userIdKhai = null;
+        if (e.userId && e.userId !== sentBy) {
+          if (nguoiTrenMay.has(e.userId)) {
+            userId = e.userId;
+            co.push("gui_ho");
+          } else {
+            userIdKhai = e.userId;
+            co.push("tac_gia_khong_xac_minh");
+          }
+        }
+        const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
+        co.push(...gio.co);
+        ghi.push({
+          id: e.id,
+          loai: e.loai,
+          hex: hex3,
+          cong_doan_id: congDoanId,
+          to_id: toId,
+          xuong,
+          so_luong: e.soLuong ?? null,
+          cong_doan_den_id: e.congDoanDenId ?? null,
+          cong_doan_nguon_id: e.congDoanNguonId ?? null,
+          xuong_nguon: e.xuongNguon ?? null,
+          so_nguoi: e.soNguoi ?? null,
+          ly_do_tam_ngung: e.lyDoTamNgung ?? null,
+          tien_do: e.tienDo ?? null,
+          ghi_chu: e.ghiChu ?? null,
+          du_lieu: e.duLieu ?? null,
+          device_ts: new Date(e.deviceTs).toISOString(),
+          lech_ms: e.lechMs === void 0 || e.lechMs === null ? null : Math.round(e.lechMs),
+          device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
+          user_id: userId,
+          user_id_khai: userIdKhai,
+          sent_by: sentBy,
+          device_id: deviceId,
+          sua_cho: e.suaCho ?? null,
+          co
+        });
+      }
+      const moi = await ghiVaTinhLai(client, ghi, dichDb);
+      return {
+        ghi: ghi.map((x) => String(x.id)),
+        // Chỉ sự kiện mới ghi (gửi lại lô cũ thì không báo trùng)
+        giaoDen: ghi.filter((x) => moi.has(String(x.id)) && (x.loai === "giao" || x.loai === "khai_bao_cd") && x.hex && x.cong_doan_den_id).map((x) => ({ hex: String(x.hex), congDoanDenId: String(x.cong_doan_den_id), soLuong: Number(x.so_luong ?? 0) }))
+      };
+    });
+    if ("loi" in ketQua) return res.status(401).json({ success: false, message: ketQua.loi });
+    if (ketQua.giaoDen.length) {
+      await Promise.race([baoHangChoNhan(ketQua.giaoDen, sentBy), new Promise((r) => setTimeout(r, 1500))]);
+    }
+    res.json({ success: true, available: true, saved: ketQua.ghi, rejected: tuChoi, serverNow });
+  } catch (e) {
+    fail(res, e, "/api/xuong/events");
+  }
+});
+async function thongTinHangMuc(hexes) {
+  if (!hexes.length) return /* @__PURE__ */ new Map();
+  const r = await pool.query(
+    `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ma_cong_trinh, ten_cong_trinh, dvt,
+            so_luong_don_hang_tong, xuong_chinh
+     FROM production_status_app WHERE hex::text = ANY($1::text[])
+     ORDER BY hex::text, updated_at DESC NULLS LAST`,
+    [hexes]
+  );
+  return new Map(r.rows.map((x) => [String(x.hex), x]));
+}
+var dongTrangThai = (x, info) => ({
+  hex: x.hex,
+  congDoanId: x.cong_doan_id,
+  trangThai: x.trang_thai,
+  slGiaoDen: Number(x.sl_giao_den),
+  slNhan: Number(x.sl_nhan),
+  slHoanThanh: Number(x.sl_hoan_thanh),
+  slGiao: Number(x.sl_giao),
+  soNguoi: x.so_nguoi === null ? null : Number(x.so_nguoi),
+  dangChayTu: x.dang_chay_tu,
+  suKienCuoi: x.su_kien_cuoi,
+  co: x.co ?? [],
+  tenHangMuc: info?.ten_hang_muc ?? null,
+  maCongTrinh: info?.ma_cong_trinh ?? null,
+  tenCongTrinh: info?.ten_cong_trinh ?? null,
+  dvt: info?.dvt ?? null
+});
+async function goiYCongDoanKe(pairs) {
+  const out = /* @__PURE__ */ new Map();
+  if (!pairs.length) return out;
+  const hexes = [...new Set(pairs.map((p) => p[0]))];
+  const [tk, cd] = await Promise.all([
+    pool.query(
+      `SELECT hex, du_lieu->'tuyen' AS tuyen FROM xuong_su_kien e
+       WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND jsonb_typeof(du_lieu->'tuyen') = 'array'
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       ORDER BY device_ts_hieu_chinh`,
+      [hexes]
+    ),
+    pool.query("SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active")
+  ]);
+  const tuyen = /* @__PURE__ */ new Map();
+  for (const x of tk.rows) tuyen.set(String(x.hex), x.tuyen.map(String));
+  const cdMap = new Map(cd.rows.map((x) => [String(x.id), { xuong: String(x.xuong), thuTu: Number(x.thu_tu) }]));
+  for (const [hex3, cdId] of pairs) {
+    const t = tuyen.get(hex3);
+    const i = t ? t.indexOf(cdId) : -1;
+    if (t && i >= 0 && i + 1 < t.length) {
+      out.set(pairKey(hex3, cdId), [t[i + 1]]);
+      continue;
+    }
+    const cur = cdMap.get(cdId);
+    if (!cur) continue;
+    const sau = [...cdMap.entries()].filter(([, v]) => v.xuong === cur.xuong && v.thuTu > cur.thuTu);
+    if (!sau.length) continue;
+    const bac = Math.min(...sau.map(([, v]) => v.thuTu));
+    out.set(pairKey(hex3, cdId), sau.filter(([, v]) => v.thuTu === bac).map(([id]) => id));
+  }
+  return out;
+}
+var bangAnh = null;
+async function coBangAnh() {
+  if (bangAnh && (bangAnh.co || Date.now() - bangAnh.luc < 3e5)) return bangAnh.co;
+  const r = await pool.query(`SELECT to_regclass('xuong_anh') IS NOT NULL AS co`);
+  bangAnh = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangAnh.co;
+}
+app.post("/api/xuong/anh", import_express4.default.raw({ type: "image/*", limit: "1mb" }), async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    if (!await coBangAnh()) return res.json({ success: true, available: true, bat: false });
+    const id = String(req.query.id ?? "");
+    const hex3 = String(req.query.hex ?? "");
+    if (!khoaAnhHopLe(id) || !HEX_RE.test(hex3)) return res.status(400).json({ success: false, message: "Thi\u1EBFu m\xE3 \u1EA3nh / m\xE3 h\u1EA1ng m\u1EE5c" });
+    const buf = req.body;
+    const mime = Buffer.isBuffer(buf) ? kieuAnh(buf) : null;
+    if (!mime || buf.length > ANH_TOI_DA_BYTE) return res.status(400).json({ success: false, message: "Ch\u1EC9 nh\u1EADn \u1EA3nh WebP / JPEG d\u01B0\u1EDBi 1 MB" });
+    await pool.query(
+      `INSERT INTO xuong_anh (id, hex, mime, size, data, user_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
+      [id, hex3, mime, buf.length, buf, Number(req.user.id)]
+    );
+    res.json({ success: true, available: true, bat: true, khoa: id });
+  } catch (e) {
+    fail(res, e, "/api/xuong/anh");
+  }
+});
+app.get("/api/xuong/anh/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    if (!khoaAnhHopLe(id)) return res.status(400).json({ success: false, message: "M\xE3 \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" });
+    const r = await pool.query("SELECT mime, data FROM xuong_anh WHERE id = $1", [id]);
+    if (!r.rows[0]) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
+    res.setHeader("Content-Type", r.rows[0].mime === "image/webp" ? "image/webp" : "image/jpeg");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.send(r.rows[0].data);
+  } catch (e) {
+    fail(res, e, "/api/xuong/anh/:id");
+  }
+});
+app.get("/api/xuong/cong-viec", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const toId = Number(req.query.toId);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
+    const cdRows = await pool.query(
+      `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
+       WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`,
+      [toId]
+    );
+    const cds = cdRows.rows.map((x) => String(x.id));
+    const st = cds.length ? (await pool.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
+    const info = await thongTinHangMuc([...new Set(st.map((x) => String(x.hex)))]);
+    const ngay = vnDayKey(/* @__PURE__ */ new Date());
+    const hom = await pool.query(
+      `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
+       WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
+         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       ORDER BY device_ts_hieu_chinh`,
+      [toId, ngay]
+    );
+    const quanSo = {};
+    const tangCa = [];
+    for (const x of hom.rows) {
+      const d = x.du_lieu ?? {};
+      if (x.loai === "quan_so" && typeof d.loaiCa === "string") quanSo[d.loaiCa] = Number(d.soNguoi);
+      if (x.loai === "tang_ca" && typeof d.loaiCa === "string" && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
+    }
+    const toRow = (await pool.query("SELECT xuong, ten_to FROM xuong_to WHERE id = $1", [toId])).rows[0];
+    const xuongTo = toRow?.xuong ? String(toRow.xuong) : cdRows.rows[0]?.xuong ?? null;
+    const [truoc, tcTruoc, xacNhan, lichCa] = await Promise.all([
+      pool.query(
+        `SELECT DISTINCT ON (du_lieu->>'loaiCa') du_lieu->>'loaiCa' AS ca, du_lieu->>'soNguoi' AS so
+         FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'quan_so'
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`,
+        [toId, ngay]
+      ),
+      pool.query(
+        `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY device_ts_hieu_chinh DESC LIMIT 1`,
+        [toId]
+      ),
+      pool.query(
+        `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`,
+        [toId, ngay]
+      ),
+      xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([])
+    ]);
+    const quanSoTruoc = {};
+    for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
+    const goiY = await goiYCongDoanKe(st.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    const chia = await pool.query(
+      `SELECT du_lieu->'phanBo' AS pb, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+       WHERE to_id = $1 AND loai = 'chia_nguoi' AND device_ts_hieu_chinh > now() - interval '30 days'
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       ORDER BY device_ts_hieu_chinh`,
+      [toId]
+    );
+    const soNguoiChia = (hex3, cd, tu) => {
+      if (!tu) return null;
+      let n = null;
+      for (const c of chia.rows) {
+        if (new Date(c.ts).getTime() < tu.getTime() || !Array.isArray(c.pb)) continue;
+        const p = c.pb.find((x) => x.hex === hex3 && x.congDoanId === cd);
+        if (p && typeof p.soNguoi === "number") n = p.soNguoi;
+      }
+      return n;
+    };
+    const rows = st.map((x) => {
+      const d = dongTrangThai(x, info.get(String(x.hex)));
+      const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
+      return { ...d, soNguoi: n ?? d.soNguoi, goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [] };
+    });
+    res.json({
+      success: true,
+      available: true,
+      serverNow: Date.now(),
+      ngay,
+      to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
+      congDoan: cdRows.rows.map((x) => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
+      choNhan: rows.filter((x) => x.slGiaoDen > x.slNhan),
+      dangLam: rows.filter((x) => ["dang_lam", "tam_ngung", "da_nhan"].includes(x.trangThai)),
+      // Theo số lượng, không theo trạng thái: xong một phần mà vẫn chạy / đang tạm ngưng vẫn giao được phần đã xong
+      choGiao: rows.filter((x) => x.slHoanThanh > x.slGiao),
+      quanSo,
+      tangCa,
+      quanSoTruoc,
+      soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
+      daXacNhanHomNay: xacNhan.rows.length > 0,
+      anhBat: await coBangAnh(),
+      lichCa
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-viec");
+  }
+});
+var gioCongCache = /* @__PURE__ */ new Map();
+var dauLichCa = (lichCa) => createHash4("sha1").update(JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
+var GIO_CONG_CACHE_MAX = 300;
+var xoaCacheGioCong = () => gioCongCache.clear();
+async function lichCaCuaXuong(xuong) {
+  const r = await pool.query(
+    `SELECT DISTINCT ON (loai_ca) loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+     FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY loai_ca, (xuong = '*')`,
+    [xuong]
+  );
+  return r.rows.map((x) => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
+}
+async function gioCongToNgay(toId, ngay) {
+  const pb = await pool.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay]);
+  const toRow = await pool.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
+  const xuong = toRow.rows[0]?.xuong;
+  if (!xuong) return null;
+  const lichCa = await lichCaCuaXuong(String(xuong));
+  const bamLichCa = dauLichCa(lichCa);
+  const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
+  const key = `${toId}|${ngay}`;
+  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay;
+  const hit = gioCongCache.get(key);
+  if (hit && hit.v === v && !today) return hit.payload;
+  const r = await pool.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+     WHERE to_id = $1 AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ($2::date - 7) AND ($2::date + 1)`,
+    [toId, ngay]
+  );
+  const capTrongCuaSo = new Set(r.rows.filter((x) => x.hex && x.cong_doan_id).map((x) => pairKey(x.hex, x.cong_doan_id)));
+  const lichSu = (await suKienTheoHex(pool, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
+  const theoId = /* @__PURE__ */ new Map();
+  for (const x of [...r.rows, ...lichSu]) theoId.set(String(x.id), x);
+  const conHieuLuc = suKienConHieuLuc([...theoId.values()].map(toSuKien));
+  const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay;
+  const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
+  const boChon = {};
+  for (const e of conHieuLuc.filter((x) => x.loai === "tang_ca" && trongNgay(x))) {
+    const ca = String(e.duLieu?.loaiCa);
+    const ds = Array.isArray(e.duLieu?.boChon) ? e.duLieu.boChon.map(String) : [];
+    boChon[ca] = [...boChon[ca] ?? [], ...ds];
+  }
+  const quanSo = {};
+  for (const e of conHieuLuc.filter((x) => x.loai === "quan_so" && trongNgay(x))) {
+    quanSo[String(e.duLieu?.loaiCa)] = Number(e.duLieu?.soNguoi);
+  }
+  const doanChay = {};
+  const soNguoi = [];
+  const ngayCuoi = /* @__PURE__ */ new Map();
+  const capCuaTo = /* @__PURE__ */ new Map();
+  for (const e of conHieuLuc) {
+    if (e.hex && e.congDoanId) {
+      const k = pairKey(e.hex, e.congDoanId);
+      if (!capCuaTo.has(k)) capCuaTo.set(k, []);
+      capCuaTo.get(k).push(e);
+      if (e.loai !== "tien_do") {
+        const d = vnDayKey(new Date(e.ts));
+        if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+      }
+      if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi });
+    }
+    if (e.loai === "chia_nguoi" && Array.isArray(e.duLieu?.phanBo)) {
+      for (const p of e.duLieu.phanBo) {
+        if (typeof p.hex === "string" && typeof p.congDoanId === "string" && typeof p.soNguoi === "number") {
+          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi });
+        }
+      }
+    }
+    if (e.loai === "xac_nhan_cuoi_ngay" && Array.isArray(e.duLieu?.hangMuc)) {
+      const d = vnDayKey(new Date(e.ts));
+      for (const p of e.duLieu.hangMuc) {
+        if (typeof p.hex === "string" && typeof p.congDoanId === "string" && p.trangThai === "van_lam") {
+          const k = pairKey(p.hex, p.congDoanId);
+          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+        }
+      }
+    }
+  }
+  const ngungTinh = [];
+  const chuaXacNhan = [];
+  for (const [k, evts] of capCuaTo) {
+    const st = tinhTrangThai(evts, []);
+    if (st.doanChay.length) doanChay[k] = st.doanChay;
+    if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
+      const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
+      if (tt === "ngung") ngungTinh.push(k);
+      if (tt === "chua_xac_nhan") chuaXacNhan.push(k);
+    }
+  }
+  const payload = { ...phanBoGioCong({
+    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa),
+    quanSo,
+    doanChay,
+    soNguoi,
+    boChonTangCa: boChon,
+    ngungTinh,
+    chuaXacNhan,
+    now: Date.now()
+  }), bamLichCa };
+  gioCongCache.delete(key);
+  gioCongCache.set(key, { v, payload });
+  while (gioCongCache.size > GIO_CONG_CACHE_MAX) {
+    const oldest = gioCongCache.keys().next().value;
+    if (oldest === void 0) break;
+    gioCongCache.delete(oldest);
+  }
+  return payload;
+}
+app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const toId = Number(req.params.id);
+    const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const kq = await gioCongToNgay(toId, ngay);
+    if (!kq) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
+    res.json({ success: true, available: true, toId, ngay, ...kq });
+  } catch (e) {
+    fail(res, e, "/api/xuong/to/:id/gio-cong");
+  }
+});
+app.get("/api/xuong/hex/:hex", async (req, res) => {
+  try {
+    const hex3 = String(req.params.hex);
+    if (!HEX_RE.test(hex3)) return res.status(400).json({ success: false, message: "M\xE3 h\u1EA1ng m\u1EE5c ph\u1EA3i c\xF3 9 s\u1ED1" });
+    const [rows, st, info] = await Promise.all([
+      suKienTheoHex(pool, [hex3], true),
+      pool.query("SELECT * FROM xuong_trang_thai WHERE hex = $1", [hex3]),
+      thongTinHangMuc([hex3])
+    ]);
+    const now = Date.now();
+    const evts = rows.map(toSuKien);
+    const laMra = new Set(rows.filter((r) => r.nguon === "mra").map((r) => String(r.id)));
+    const evtsApp = evts.filter((e) => !laMra.has(e.id));
+    const conHieuLuc = new Set(suKienConHieuLuc(evts).map((e) => e.id));
+    const cdIds = [...new Set(evts.flatMap((e) => [e.congDoanId, e.congDoanDenId]).filter((x) => !!x))];
+    const cd = cdIds.length ? (await pool.query("SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows : [];
+    const cdMap = new Map(cd.map((x) => [String(x.id), x]));
+    const xuongCua = (id) => id ? cdMap.get(id)?.xuong ?? null : null;
+    const hl = suKienConHieuLuc(evtsApp);
+    const dsXuong = [...new Set(hl.map((e) => xuongCua(e.congDoanId)).filter((x) => !!x))];
+    const p = info.get(hex3);
+    const thoiGianXuong = dsXuong.map((xg) => {
+      const cuaVao = /* @__PURE__ */ new Set();
+      for (const g of hl) {
+        if (!g.hex || !g.congDoanDenId || xuongCua(g.congDoanDenId) !== xg) continue;
+        if (g.loai === "khai_bao_cd" || g.loai === "giao" && xuongCua(g.congDoanId) !== xg) cuaVao.add(g.congDoanDenId);
+      }
+      const vao = hl.filter((e) => e.loai === "nhan" && xuongCua(e.congDoanId) === xg && (cuaVao.has(e.congDoanId ?? "") || !!e.xuongNguon || !!e.congDoanNguonId && xuongCua(e.congDoanNguonId) !== xg)).map((e) => ({ ts: e.ts, soLuong: e.soLuong ?? 0 }));
+      const ra = hl.filter((e) => e.loai === "giao" && xuongCua(e.congDoanId) === xg && xuongCua(e.congDoanDenId) !== xg || e.loai === "hoan_thanh" && xuongCua(e.congDoanId) === xg && cdMap.get(e.congDoanId ?? "")?.la_bao_bi).map((e) => ({ ts: e.ts, soLuong: e.soLuong ?? 0 }));
+      const tk = hl.filter((e) => e.loai === "trien_khai" && e.duLieu?.xuong === xg).reduce((a, e) => a + (e.soLuong ?? 0), 0);
+      const moc2 = tk > 0 ? { soLuong: tk, loai: "trien_khai" } : p?.so_luong_don_hang_tong ? { soLuong: Number(p.so_luong_don_hang_tong), loai: "don_hang" } : null;
+      return { xuong: xg, ...thoiGianTheoLo(vao, ra, moc2, now) };
+    });
+    const GIO = 36e5;
+    const gioChay = /* @__PURE__ */ new Map();
+    const toNgay = /* @__PURE__ */ new Set();
+    for (const x of st.rows) {
+      const cdId = String(x.cong_doan_id);
+      const cua = evtsApp.filter((e) => e.congDoanId === cdId);
+      const doan = tinhTrangThai(cua, []).doanChay;
+      gioChay.set(cdId, doan.reduce((a, d) => a + ((d.end ?? now) - d.start) / GIO, 0));
+      const toCua = [...new Set(cua.filter((e) => e.toId && (e.loai === "bat_dau" || e.loai === "tiep_tuc")).map((e) => e.toId))];
+      for (const d of doan) {
+        for (let t = d.start; t <= (d.end ?? now) + 1; t += 864e5) {
+          for (const to of toCua) toNgay.add(`${to}|${vnDayKey(new Date(Math.min(t, d.end ?? now)))}`);
+        }
+        for (const to of toCua) toNgay.add(`${to}|${vnDayKey(new Date(d.end ?? now))}`);
+      }
+    }
+    const capNgay = [...toNgay].sort((a, b) => a.split("|")[1] < b.split("|")[1] ? 1 : -1);
+    const gioCong = /* @__PURE__ */ new Map();
+    await runWithLimit(capNgay.slice(0, 20).map((k) => async () => {
+      const [to, ngay] = k.split("|");
+      const kq = await gioCongToNgay(Number(to), ngay);
+      if (!kq) return;
+      for (const x of st.rows) {
+        const h = kq.theoHangMuc[pairKey(hex3, String(x.cong_doan_id))];
+        if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
+      }
+    }), 2);
+    const lam2 = (n) => Math.round(n * 100) / 100;
+    const evtsMra = evts.filter((e) => laMra.has(e.id));
+    const cdMra = [...new Set(evtsMra.map((e) => e.congDoanId).filter((x) => !!x))];
+    const congDoanMra = cdMra.map((cdId) => {
+      const cua = evtsMra.filter((e) => e.congDoanId === cdId);
+      const den = evtsMra.filter((e) => (e.loai === "giao" || e.loai === "khai_bao_cd") && e.congDoanDenId === cdId);
+      const t = tinhTrangThai(cua, den);
+      const nc = cua.filter((e) => e.loai === "chia_nguoi" && e.soNguoi !== null).sort((a, b) => a.ts - b.ts);
+      return {
+        // MRA hay ghi trùng số giao tới => trạng thái lịch sử theo số tổ đã nhận / xong, không theo "chờ nhận"
+        hex: hex3,
+        congDoanId: cdId,
+        nguon: "mra",
+        trangThai: t.trangThai === "cho_nhan" || t.trangThai === "cho_giao" ? t.slNhan > 0 && t.slHoanThanh >= t.slNhan ? "xong" : t.slNhan > 0 ? "da_nhan" : t.trangThai : t.trangThai,
+        slGiaoDen: t.slGiaoDen,
+        slNhan: t.slNhan,
+        slHoanThanh: t.slHoanThanh,
+        slGiao: t.slGiao,
+        soNguoi: null,
+        dangChayTu: null,
+        suKienCuoi: t.suKienCuoi === null ? null : new Date(t.suKienCuoi).toISOString(),
+        co: [],
+        ten: cdMap.get(cdId)?.cd_chi_tiet ?? null,
+        xuong: cdMap.get(cdId)?.xuong ?? null,
+        thuTu: cdMap.get(cdId)?.thu_tu ?? null,
+        gioChay: lam2(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO, 0)),
+        gioCong: 0,
+        nhanCongMra: nc.length ? nc[nc.length - 1].soNguoi : null
+      };
+    });
+    const thoiGianMra = [...new Set(evtsMra.map((e) => xuongCua(e.congDoanId)).filter((x) => !!x))].map((xg) => {
+      const cua = evtsMra.filter((e) => xuongCua(e.congDoanId) === xg);
+      const ra = cua.filter((e) => e.loai === "hoan_thanh" || e.loai === "giao");
+      const tu = Math.min(...cua.map((e) => e.ts));
+      const den = ra.length ? Math.max(...ra.map((e) => e.ts)) : null;
+      return { xuong: xg, tu: new Date(tu).toISOString(), den: den === null ? null : new Date(den).toISOString() };
+    }).sort((a, b) => a.tu.localeCompare(b.tu));
+    const ketQua = {
+      success: true,
+      available: true,
+      hex: hex3,
+      gioCongTamTinh: capNgay.length > 20,
+      thoiGianMra,
+      hangMuc: p ? {
+        ten: p.ten_hang_muc,
+        maCongTrinh: p.ma_cong_trinh,
+        tenCongTrinh: p.ten_cong_trinh,
+        dvt: p.dvt,
+        soLuongDonHang: p.so_luong_don_hang_tong === null ? null : Number(p.so_luong_don_hang_tong),
+        xuongChinh: p.xuong_chinh
+      } : null,
+      congDoan: [...st.rows.map((x) => ({
+        ...dongTrangThai(x),
+        ten: cdMap.get(String(x.cong_doan_id))?.cd_chi_tiet ?? null,
+        xuong: x.xuong ?? null,
+        thuTu: cdMap.get(String(x.cong_doan_id))?.thu_tu ?? null,
+        gioChay: lam2(gioChay.get(String(x.cong_doan_id)) ?? 0),
+        gioCong: lam2(gioCong.get(String(x.cong_doan_id)) ?? 0),
+        nguon: "app",
+        nhanCongMra: null
+      })), ...congDoanMra],
+      thoiGianXuong,
+      suKien: rows.map((r) => ({
+        id: r.id,
+        loai: r.loai,
+        congDoanId: r.cong_doan_id,
+        congDoanDenId: r.cong_doan_den_id,
+        soLuong: num(r.so_luong),
+        soNguoi: r.so_nguoi,
+        lyDo: r.ly_do_tam_ngung,
+        tienDo: r.tien_do,
+        ghiChu: r.ghi_chu,
+        luc: r.device_ts_hieu_chinh,
+        nguon: r.nguon,
+        nguoiGoc: r.nguoi_thao_tac_goc,
+        co: r.co ?? [],
+        duLieu: r.du_lieu ?? null,
+        anh: Array.isArray(r.du_lieu?.anh) ? r.du_lieu.anh.filter(khoaAnhHopLe) : [],
+        conHieuLuc: r.loai === "huy" || conHieuLuc.has(String(r.id)),
+        suaCho: r.sua_cho
+      })).sort((a, b) => new Date(a.luc).getTime() - new Date(b.luc).getTime())
+    };
+    res.json(ketQua);
+  } catch (e) {
+    fail(res, e, "/api/xuong/hex/:hex");
+  }
+});
+app.get("/api/xuong/can-xem", async (req, res) => {
+  try {
+    const ds = await xuongQuanLy(req.user.id);
+    const xuong = typeof req.query.xuong === "string" ? req.query.xuong.toUpperCase() : "";
+    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    const [sk, st] = await Promise.all([
+      pool.query(
+        `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co
+         FROM xuong_su_kien WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
+         ORDER BY server_ts DESC LIMIT 300`,
+        [xuong]
+      ),
+      pool.query(`SELECT * FROM xuong_trang_thai WHERE xuong = $1 AND co <> '{}' ORDER BY cap_nhat DESC LIMIT 300`, [xuong])
+    ]);
+    const info = await thongTinHangMuc([...new Set(st.rows.map((x) => String(x.hex)))]);
+    res.json({
+      success: true,
+      available: true,
+      xuong,
+      suKien: sk.rows,
+      trangThai: st.rows.map((x) => dongTrangThai(x, info.get(String(x.hex))))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/can-xem");
+  }
+});
+app.get("/api/xuong/lich-su", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const toId = Number(req.query.toId);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
+    const me2 = Number(req.user.id);
+    const [r, quanLy] = await Promise.all([
+      pool.query(
+        `SELECT e.id, e.loai, e.hex, e.cong_doan_id, e.cong_doan_den_id, e.so_luong, e.so_nguoi, e.ly_do_tam_ngung,
+                e.du_lieu, e.device_ts_hieu_chinh, e.server_ts, e.sent_by, e.xuong, u.full_name, u.username,
+                c.cd_chi_tiet AS ten_cd, d.cd_chi_tiet AS ten_cd_den,
+                EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) AS da_huy
+         FROM xuong_su_kien e
+         LEFT JOIN users u ON u.id = e.sent_by
+         LEFT JOIN xuong_cong_doan c ON c.id = e.cong_doan_id
+         LEFT JOIN xuong_cong_doan d ON d.id = e.cong_doan_den_id
+         WHERE e.loai <> 'huy' AND e.server_ts > now() - interval '24 hours'
+           AND (e.to_id = $1 OR e.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1))
+         ORDER BY e.device_ts_hieu_chinh DESC LIMIT 300`,
+        [toId]
+      ),
+      xuongQuanLy(me2)
+    ]);
+    const info = await thongTinHangMuc([...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))]);
+    const now = Date.now();
+    res.json({
+      success: true,
+      available: true,
+      suKien: r.rows.map((x) => ({
+        id: String(x.id),
+        loai: x.loai,
+        hex: x.hex,
+        congDoanId: x.cong_doan_id,
+        tenCongDoan: x.ten_cd,
+        tenCongDoanDen: x.ten_cd_den,
+        soLuong: num(x.so_luong),
+        soNguoi: x.so_nguoi,
+        lyDo: x.ly_do_tam_ngung,
+        duLieu: x.du_lieu,
+        luc: x.device_ts_hieu_chinh,
+        nguoi: x.full_name || x.username || null,
+        tenHangMuc: x.hex ? info.get(String(x.hex))?.ten_hang_muc ?? null : null,
+        daHuy: !!x.da_huy,
+        huyDuoc: !x.da_huy && (Number(x.sent_by) === me2 && now - new Date(x.server_ts).getTime() <= HUY_TRONG_MS || quanLyDuoc(quanLy, x.xuong ?? null))
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/lich-su");
+  }
+});
+app.get("/api/xuong/tim-hex", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const q = String(req.query.q ?? "").replace(/\D/g, "").slice(0, 9);
+    if (q.length < 3) return res.json({ success: true, available: true, ketQua: [] });
+    const toId = Number(req.query.toId);
+    const mau = `%${q}%`;
+    const cuaTo = Number.isInteger(toId) && toId > 0 ? (await pool.query(
+      `SELECT DISTINCT t.hex FROM xuong_trang_thai t
+           WHERE t.hex LIKE $1 AND t.trang_thai <> 'xong'
+             AND (t.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $2)) LIMIT 10`,
+      [mau, toId]
+    )).rows.map((x) => String(x.hex)) : [];
+    const khac = await pool.query(
+      `SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE hex IS NOT NULL AND hex::text LIKE $1 LIMIT 10`,
+      [mau]
+    );
+    const ds = [.../* @__PURE__ */ new Set([...cuaTo, ...khac.rows.map((x) => String(x.hex))])].filter((h) => HEX_RE.test(h)).slice(0, 10);
+    const info = await thongTinHangMuc(ds);
+    res.json({
+      success: true,
+      available: true,
+      ketQua: ds.map((h) => ({
+        hex: h,
+        cuaTo: cuaTo.includes(h),
+        tenHangMuc: info.get(h)?.ten_hang_muc ?? null,
+        tenCongTrinh: info.get(h)?.ten_cong_trinh ?? null
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tim-hex");
+  }
+});
+app.get("/api/xuong/danh-muc", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : null;
+    const [cd, to, tc, lc] = await Promise.all([
+      pool.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi FROM xuong_cong_doan
+                  WHERE active AND ($1::text IS NULL OR xuong = $1) ORDER BY xuong, thu_tu, cd_chi_tiet`, [xuong]),
+      pool.query(`SELECT id, xuong, ten_to, to_truong_user_id FROM xuong_to WHERE active AND ($1::text IS NULL OR xuong = $1)
+                  ORDER BY xuong, ten_to`, [xuong]),
+      pool.query(`SELECT to_id, cong_doan_id FROM xuong_to_cong_doan`),
+      pool.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+                  FROM xuong_lich_ca WHERE $1::text IS NULL OR xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong])
+    ]);
+    res.json({
+      success: true,
+      available: true,
+      congDoan: cd.rows.map((x) => ({ id: x.id, xuong: x.xuong, tenCd: x.ten_cd, cdTachMa: x.cd_tach_ma, ten: x.cd_chi_tiet, thuTu: x.thu_tu, laBaoBi: x.la_bao_bi })),
+      to: to.rows.map((x) => ({
+        id: Number(x.id),
+        xuong: x.xuong,
+        ten: x.ten_to,
+        toTruongUserId: x.to_truong_user_id,
+        congDoan: tc.rows.filter((t) => Number(t.to_id) === Number(x.id)).map((t) => t.cong_doan_id)
+      })),
+      lichCa: lc.rows.map((x) => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: x.nghi }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/danh-muc");
+  }
+});
+app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
+  try {
+    const access = await loadUserAccess(req.user.id);
+    if (access.role !== "ADMIN") return res.status(403).json({ success: false, message: "Ch\u1EC9 admin \u0111\u01B0\u1EE3c thu h\u1ED3i" });
+    const userId = Number(req.params.userId);
+    if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
+    await pool.query("UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1", [userId]);
+    await bumpTokenVersion(userId);
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/thu-hoi/:userId");
+  }
+});
+
+// src/routes/xuongSetup.ts
+import crypto3 from "node:crypto";
+
+// src/routes/xuongBaoCao.ts
+var TINH_TOI_DA = 30;
+var NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+async function xoaGioCongLuu(xuong) {
+  try {
+    if (xuong === "*") await pool.query("DELETE FROM xuong_gio_cong_ngay");
+    else await pool.query("DELETE FROM xuong_gio_cong_ngay WHERE to_id IN (SELECT id FROM xuong_to WHERE xuong = $1)", [xuong]);
+  } catch (e) {
+    if (!isMissingSchema(e)) throw e;
+  }
+}
+var cong = (a, b) => {
+  a.thuong += b.thuong;
+  a.tangCa += b.tangCa;
+};
+var lam = (n) => Math.round(n * 100) / 100;
+app.get("/api/xuong/bao-cao", async (req, res) => {
+  try {
+    const xuong = String(req.query.xuong ?? "").toUpperCase();
+    const ds = await xuongQuanLy(req.user.id);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    const homNay = vnDayKey(/* @__PURE__ */ new Date());
+    const den = typeof req.query.den === "string" && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
+    const tu = typeof req.query.tu === "string" && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
+    const soNgay = (Date.parse(den) - Date.parse(tu)) / 864e5;
+    if (soNgay < 0 || soNgay > 62) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 63 ng\xE0y" });
+    const toRows = (await pool.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows;
+    const toIds = toRows.map((t) => Number(t.id));
+    const [pb, kpiNk, kpiGui, hienTai] = await Promise.all([
+      pool.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
+                  WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, tu, den]),
+      // Nhật ký công đoạn có đủ Bắt đầu và Hoàn thành (cặp hex × công đoạn có bắt đầu / hoàn thành trong kỳ)
+      pool.query(
+        `WITH hl AS (SELECT * FROM xuong_su_kien e WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai IN ('bat_dau','hoan_thanh')
+                       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)),
+              cap AS (SELECT DISTINCT hex, cong_doan_id FROM hl
+                      WHERE (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date)
+         SELECT count(*)::int AS tong,
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai = 'bat_dau')
+                                   AND EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai = 'hoan_thanh'))::int AS du
+         FROM cap`,
+        [xuong, tu, den]
+      ),
+      // Sự kiện tới server trong vòng 1 giờ sau khi bấm (chỉ sự kiện từ máy; bỏ sự kiện ghi lùi giờ "Đã dừng lúc…")
+      pool.query(
+        `SELECT count(*)::int AS tong, count(*) FILTER (WHERE server_ts - device_ts_hieu_chinh <= interval '1 hour')::int AS nhanh
+         FROM xuong_su_kien WHERE xuong = $1 AND device_id IS NOT NULL AND COALESCE(du_lieu->>'ghiLui', '') <> 'true'
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date`,
+        [xuong, tu, den]
+      ),
+      // Hiện tại: hạng mục đang chạy, hàng chờ nhận theo tổ
+      pool.query(
+        `SELECT tc.to_id, count(*) FILTER (WHERE t.trang_thai = 'dang_lam')::int AS dang_chay,
+                count(*) FILTER (WHERE t.sl_giao_den > t.sl_nhan)::int AS cho_nhan,
+                count(*) FILTER (WHERE t.trang_thai = 'tam_ngung')::int AS tam_ngung
+         FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
+         WHERE tc.to_id = ANY($1::int[]) GROUP BY tc.to_id`,
+        [toIds]
+      )
+    ]);
+    let banLuu = true;
+    const daLuu = /* @__PURE__ */ new Map();
+    try {
+      const r = await pool.query(
+        `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
+         WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`,
+        [toIds, tu, den]
+      );
+      for (const x of r.rows) daLuu.set(`${x.to_id}|${x.ngay}`, { v: String(x.v), kq: x.ket_qua });
+    } catch (e) {
+      if (!isMissingSchema(e)) throw e;
+      banLuu = false;
+    }
+    const bamHienTai = dauLichCa(await lichCaCuaXuong(xuong));
+    const ketQua = /* @__PURE__ */ new Map();
+    const canTinh = [];
+    for (const x of pb.rows) {
+      const k = `${x.to_id}|${x.ngay}`;
+      const luu = daLuu.get(k);
+      if (x.ngay < homNay && luu && luu.v === String(x.v) && luu.kq.bamLichCa === bamHienTai) ketQua.set(k, luu.kq);
+      else canTinh.push({ toId: Number(x.to_id), ngay: x.ngay, v: String(x.v) });
+    }
+    canTinh.sort((a, b) => a.ngay === homNay ? -1 : b.ngay === homNay ? 1 : b.ngay.localeCompare(a.ngay));
+    const lanNay = canTinh.slice(0, TINH_TOI_DA);
+    await runWithLimit(lanNay.map((c) => async () => {
+      const kq = await gioCongToNgay(c.toId, c.ngay);
+      if (!kq) return;
+      ketQua.set(`${c.toId}|${c.ngay}`, kq);
+      if (banLuu && c.ngay < homNay) {
+        await pool.query(
+          `INSERT INTO xuong_gio_cong_ngay (to_id, ngay, v, ket_qua) VALUES ($1, $2::date, $3, $4::jsonb)
+           ON CONFLICT (to_id, ngay) DO UPDATE SET v = EXCLUDED.v, ket_qua = EXCLUDED.ket_qua, tinh_luc = now()`,
+          [c.toId, c.ngay, c.v, JSON.stringify(kq)]
+        );
+      }
+    }), 2);
+    const ht = new Map(hienTai.rows.map((x) => [Number(x.to_id), x]));
+    const tatCaHex = /* @__PURE__ */ new Set();
+    const theoTo = toRows.map((t) => {
+      const toId = Number(t.id);
+      const gioNguoi = { thuong: 0, tangCa: 0 };
+      const gioCho = { thuong: 0, tangCa: 0 };
+      const gioCong = { thuong: 0, tangCa: 0 };
+      const hm = /* @__PURE__ */ new Map();
+      const theoNgay = [];
+      let ngayCoChay = 0;
+      let ngayChot = 0;
+      let khaiVuot = 0;
+      for (const x of pb.rows.filter((p) => Number(p.to_id) === toId)) {
+        const kq = ketQua.get(`${toId}|${x.ngay}`);
+        if (!kq) continue;
+        cong(gioNguoi, kq.gioNguoiTo);
+        cong(gioCho, kq.gioCho);
+        let gcNgay = 0;
+        let chay = 0;
+        for (const [k, h2] of Object.entries(kq.theoHangMuc)) {
+          gioCong.thuong += h2.gioCongThuong;
+          gioCong.tangCa += h2.gioCongTangCa;
+          gcNgay += h2.gioCongThuong + h2.gioCongTangCa;
+          chay += h2.gioChay;
+          const cur = hm.get(k) ?? { gioChay: 0, thuong: 0, tangCa: 0 };
+          cur.gioChay += h2.gioChay;
+          cur.thuong += h2.gioCongThuong;
+          cur.tangCa += h2.gioCongTangCa;
+          hm.set(k, cur);
+          tatCaHex.add(k.split("|")[0]);
+        }
+        if (chay > 0) {
+          ngayCoChay++;
+          if (!kq.co.includes("chua_chot_quan_so")) ngayChot++;
+        }
+        if (kq.co.includes("khai_vuot_quan_so")) khaiVuot++;
+        theoNgay.push({
+          ngay: x.ngay,
+          gioNguoi: lam(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa),
+          gioCong: lam(gcNgay),
+          gioCho: lam(kq.gioCho.thuong + kq.gioCho.tangCa),
+          co: kq.co
+        });
+      }
+      const h = ht.get(toId);
+      return {
+        toId,
+        ten: t.ten_to,
+        active: t.active,
+        gioNguoi: { thuong: lam(gioNguoi.thuong), tangCa: lam(gioNguoi.tangCa) },
+        gioCong: { thuong: lam(gioCong.thuong), tangCa: lam(gioCong.tangCa) },
+        gioCho: { thuong: lam(gioCho.thuong), tangCa: lam(gioCho.tangCa) },
+        ngayCoChay,
+        ngayChot,
+        khaiVuot,
+        dangChay: h ? Number(h.dang_chay) : 0,
+        tamNgung: h ? Number(h.tam_ngung) : 0,
+        choNhan: h ? Number(h.cho_nhan) : 0,
+        theoNgay,
+        theoHangMuc: [...hm.entries()].map(([k, v]) => ({
+          hex: k.split("|")[0],
+          congDoanId: k.split("|")[1],
+          gioChay: lam(v.gioChay),
+          gioCongThuong: lam(v.thuong),
+          gioCongTangCa: lam(v.tangCa)
+        })).sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa))
+      };
+    });
+    const info = await thongTinHangMuc([...tatCaHex].slice(0, 2e3));
+    const cdTen = new Map((await pool.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong])).rows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+    let chamCong = null;
+    try {
+      const [dd, moi, qs] = await Promise.all([
+        pool.query(
+          `SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn, sum(gio_cong_hanh_chinh)::float AS hc,
+                  sum(gio_cong_tang_ca)::float AS tc
+           FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1 AND date BETWEEN $2::date AND $3::date GROUP BY date ORDER BY date`,
+          [xuong, tu, den]
+        ),
+        pool.query(`SELECT to_char(max(date),'YYYY-MM-DD') AS d FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1`, [xuong]),
+        pool.query(
+          `SELECT ngay, sum(so)::float AS so FROM (
+             SELECT DISTINCT ON (e.to_id, (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
+                    to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay, (e.du_lieu->>'soNguoi')::float AS so
+             FROM xuong_su_kien e
+             WHERE e.to_id = ANY($1::int[]) AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' IN ('chinh','chu_nhat')
+               AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+               AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+             ORDER BY e.to_id, (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, e.device_ts_hieu_chinh DESC) x
+           GROUP BY ngay`,
+          [toIds, tu, den]
+        )
+      ]);
+      const appNgay = /* @__PURE__ */ new Map();
+      for (const x of pb.rows) {
+        const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
+        if (!kq) continue;
+        const a = appNgay.get(x.ngay) ?? { thuong: 0, tangCa: 0 };
+        cong(a, kq.gioNguoiTo);
+        appNgay.set(x.ngay, a);
+      }
+      const qsNgay = new Map(qs.rows.map((x) => [String(x.ngay), Number(x.so)]));
+      const ngays = [.../* @__PURE__ */ new Set([...dd.rows.map((x) => String(x.ngay)), ...appNgay.keys()])].sort();
+      chamCong = {
+        moiNhat: moi.rows[0]?.d ?? null,
+        theoNgay: ngays.map((n) => {
+          const d = dd.rows.find((x) => x.ngay === n);
+          const a = appNgay.get(n);
+          return {
+            ngay: n,
+            congNhan: d ? Number(d.cn) : 0,
+            gioHc: d ? lam(Number(d.hc)) : 0,
+            gioTc: d ? lam(Number(d.tc)) : 0,
+            quanSoApp: qsNgay.get(n) ?? 0,
+            gioThuongApp: a ? lam(a.thuong) : 0,
+            gioTangCaApp: a ? lam(a.tangCa) : 0
+          };
+        })
+      };
+    } catch (e) {
+      if (!isMissingSchema(e)) throw e;
+    }
+    const tong = theoTo.reduce((a, t) => ({
+      ngayCoChay: a.ngayCoChay + t.ngayCoChay,
+      ngayChot: a.ngayChot + t.ngayChot,
+      khaiVuot: a.khaiVuot + t.khaiVuot
+    }), { ngayCoChay: 0, ngayChot: 0, khaiVuot: 0 });
+    res.json({
+      success: true,
+      available: true,
+      xuong,
+      tu,
+      den,
+      banLuu,
+      conThieu: Math.max(0, canTinh.length - lanNay.length),
+      chamCong,
+      chiSo: {
+        nhatKy: { tong: kpiNk.rows[0]?.tong ?? 0, du: kpiNk.rows[0]?.du ?? 0 },
+        guiTrong1Gio: { tong: kpiGui.rows[0]?.tong ?? 0, nhanh: kpiGui.rows[0]?.nhanh ?? 0 },
+        chotQuanSo: { ngayCoChay: tong.ngayCoChay, ngayChot: tong.ngayChot },
+        khaiVuotQuanSo: tong.khaiVuot
+      },
+      theoTo: theoTo.map((t) => ({
+        ...t,
+        theoHangMuc: t.theoHangMuc.map((x) => ({
+          ...x,
+          tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId,
+          tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null,
+          tenCongTrinh: info.get(x.hex)?.ten_cong_trinh ?? null
+        }))
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/bao-cao");
+  }
+});
+
+// src/routes/xuongSetup.ts
+var gioRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+async function xuongDuocSua(req) {
+  const ds = await xuongQuanLy(req.user.id);
+  return { ds, admin: ds.has("*") };
+}
+var khongQuyen = (res, msg = "Ch\u1EC9 admin ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y \u0111\u01B0\u1EE3c thay \u0111\u1ED5i") => res.status(403).json({ success: false, message: msg });
+app.get("/api/xuong/setup", async (req, res) => {
+  try {
+    const { ds, admin } = await xuongDuocSua(req);
+    if (!ds.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    const tatCa = (await pool.query(
+      `SELECT DISTINCT xuong FROM (SELECT xuong FROM xuong_cong_doan UNION SELECT xuong FROM xuong_to) x ORDER BY xuong`
+    )).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
+    const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : tatCa[0] ?? null;
+    if (!xuong) return res.json({ success: true, available: true, admin, dsXuong: tatCa, xuong: null });
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    const [cd, to, tc, tv, lc, ql] = await Promise.all([
+      pool.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active FROM xuong_cong_doan
+                  WHERE xuong = $1 ORDER BY thu_tu, cd_tach_ma, cd_chi_tiet`, [xuong]),
+      pool.query(`SELECT t.id, t.ten_to, t.active, t.to_truong_user_id, u.full_name, u.username, u.msnv, u.permissions, u.role
+                  FROM xuong_to t LEFT JOIN users u ON u.id = t.to_truong_user_id WHERE t.xuong = $1 ORDER BY t.ten_to`, [xuong]),
+      pool.query(`SELECT tc.to_id, tc.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id WHERE t.xuong = $1`, [xuong]),
+      pool.query(`SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
+                  WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) ORDER BY tv.mnv`, [xuong]),
+      pool.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+                  FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong]),
+      pool.query(`SELECT q.user_id, u.full_name, u.username FROM xuong_quan_ly q JOIN users u ON u.id = q.user_id
+                  WHERE q.xuong = $1 ORDER BY u.full_name`, [xuong])
+    ]);
+    const coQuyen = (r) => r.role === "ADMIN" || Array.isArray(r.permissions) && r.permissions.includes(PERM_XUONG);
+    res.json({
+      success: true,
+      available: true,
+      admin,
+      dsXuong: tatCa,
+      xuong,
+      congDoan: cd.rows.map((x) => ({
+        id: x.id,
+        tenCd: x.ten_cd,
+        cdTachMa: x.cd_tach_ma,
+        ten: x.cd_chi_tiet,
+        thuTu: x.thu_tu,
+        laBaoBi: x.la_bao_bi,
+        active: x.active
+      })),
+      to: to.rows.map((x) => ({
+        id: Number(x.id),
+        ten: x.ten_to,
+        active: x.active,
+        toTruong: x.to_truong_user_id ? {
+          id: Number(x.to_truong_user_id),
+          ten: x.full_name || x.username,
+          msnv: x.msnv ?? null,
+          coQuyenXuong: coQuyen(x)
+        } : null,
+        congDoan: tc.rows.filter((t) => Number(t.to_id) === Number(x.id)).map((t) => String(t.cong_doan_id)),
+        thanhVien: tv.rows.filter((t) => Number(t.to_id) === Number(x.id)).map((t) => String(t.mnv))
+      })),
+      lichCa: lc.rows.map((x) => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] })),
+      quanLy: ql.rows.map((x) => ({ userId: Number(x.user_id), ten: x.full_name || x.username }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/setup");
+  }
+});
+var congDoanSchema = external_exports.object({
+  id: external_exports.string().max(40).optional(),
+  xuong: external_exports.string().trim().min(1).max(20),
+  tenCd: external_exports.string().trim().min(1).max(200),
+  cdTachMa: external_exports.string().trim().max(200).nullish(),
+  ten: external_exports.string().trim().min(1).max(200),
+  thuTu: external_exports.number().int().min(0).max(999),
+  laBaoBi: external_exports.boolean(),
+  active: external_exports.boolean()
+});
+app.post("/api/xuong/setup/cong-doan", async (req, res) => {
+  try {
+    const p = congDoanSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\xEAn c\xF4ng \u0111o\u1EA1n / x\u01B0\u1EDFng / th\u1EE9 t\u1EF1" });
+    const d = { ...p.data, xuong: p.data.xuong.toUpperCase() };
+    const { ds } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
+    if (d.id) {
+      const cu = await pool.query("SELECT xuong FROM xuong_cong_doan WHERE id = $1", [d.id]);
+      if (!cu.rows[0]) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y c\xF4ng \u0111o\u1EA1n" });
+      if (cu.rows[0].xuong !== d.xuong) return res.status(400).json({ success: false, message: "Kh\xF4ng \u0111\u1ED5i \u0111\u01B0\u1EE3c x\u01B0\u1EDFng c\u1EE7a c\xF4ng \u0111o\u1EA1n \u0111\xE3 c\xF3" });
+      await pool.query(
+        `UPDATE xuong_cong_doan SET ten_cd = $2, cd_tach_ma = $3, cd_chi_tiet = $4, thu_tu = $5, la_bao_bi = $6, active = $7 WHERE id = $1`,
+        [d.id, d.tenCd, d.cdTachMa ?? null, d.ten, d.thuTu, d.laBaoBi, d.active]
+      );
+      return res.json({ success: true, available: true, id: d.id });
+    }
+    const id = `CD-${d.xuong}-${crypto3.randomBytes(3).toString("hex").toUpperCase()}`;
+    await pool.query(
+      `INSERT INTO xuong_cong_doan (id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [id, d.xuong, d.tenCd, d.cdTachMa ?? null, d.ten, d.thuTu, d.laBaoBi, d.active]
+    );
+    res.json({ success: true, available: true, id });
+  } catch (e) {
+    fail(res, e, "/api/xuong/setup/cong-doan");
+  }
+});
+var toSchema = external_exports.object({
+  id: external_exports.number().int().positive().optional(),
+  xuong: external_exports.string().trim().min(1).max(20),
+  ten: external_exports.string().trim().min(1).max(200),
+  toTruongUserId: external_exports.number().int().positive().nullable(),
+  congDoan: external_exports.array(external_exports.string().max(40)).max(50),
+  thanhVien: external_exports.array(external_exports.string().trim().min(1).max(20)).max(300),
+  active: external_exports.boolean(),
+  /** Admin: cấp luôn quyền 'xuong' cho tổ trưởng chưa có */
+  capQuyen: external_exports.boolean().optional()
+});
+app.post("/api/xuong/setup/to", async (req, res) => {
+  try {
+    const p = toSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u t\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const d = { ...p.data, xuong: p.data.xuong.toUpperCase(), thanhVien: [...new Set(p.data.thanhVien.map((x) => x.toUpperCase()))] };
+    const { ds, admin } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
+    if (d.capQuyen && !admin) return khongQuyen(res, "Ch\u1EC9 admin \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n t\xE0i kho\u1EA3n");
+    const kq = await withTransaction(async (client) => {
+      const cds = d.congDoan.length ? (await client.query("SELECT id FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND xuong = $2", [d.congDoan, d.xuong])).rows : [];
+      if (cds.length !== d.congDoan.length) return { loi: "C\xF4ng \u0111o\u1EA1n ph\u1EE5 tr\xE1ch ph\u1EA3i thu\u1ED9c x\u01B0\u1EDFng c\u1EE7a t\u1ED5" };
+      let id = d.id;
+      if (id) {
+        const cu = await client.query("SELECT xuong FROM xuong_to WHERE id = $1", [id]);
+        if (!cu.rows[0]) return { loi: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" };
+        if (cu.rows[0].xuong !== d.xuong) return { loi: "Kh\xF4ng \u0111\u1ED5i \u0111\u01B0\u1EE3c x\u01B0\u1EDFng c\u1EE7a t\u1ED5 \u0111\xE3 c\xF3" };
+        await client.query(
+          "UPDATE xuong_to SET ten_to = $2, to_truong_user_id = $3, active = $4 WHERE id = $1",
+          [id, d.ten, d.toTruongUserId, d.active]
+        );
+      } else {
+        id = Number((await client.query(
+          "INSERT INTO xuong_to (xuong, ten_to, to_truong_user_id, active) VALUES ($1,$2,$3,$4) RETURNING id",
+          [d.xuong, d.ten, d.toTruongUserId, d.active]
+        )).rows[0].id);
+      }
+      await client.query("DELETE FROM xuong_to_cong_doan WHERE to_id = $1 AND NOT (cong_doan_id = ANY($2::text[]))", [id, d.congDoan]);
+      if (d.congDoan.length) {
+        await client.query(
+          `INSERT INTO xuong_to_cong_doan (to_id, cong_doan_id) SELECT $1, unnest($2::text[]) ON CONFLICT DO NOTHING`,
+          [id, d.congDoan]
+        );
+      }
+      await client.query(
+        `UPDATE xuong_to_thanh_vien SET den_ngay = CURRENT_DATE - 1
+         WHERE to_id = $1 AND (den_ngay IS NULL OR den_ngay >= CURRENT_DATE) AND NOT (mnv = ANY($2::text[]))`,
+        [id, d.thanhVien]
+      );
+      if (d.thanhVien.length) {
+        await client.query(
+          `INSERT INTO xuong_to_thanh_vien (to_id, mnv, tu_ngay)
+           SELECT $1, m, CURRENT_DATE FROM unnest($2::text[]) m
+           WHERE NOT EXISTS (SELECT 1 FROM xuong_to_thanh_vien x WHERE x.to_id = $1 AND x.mnv = m AND (x.den_ngay IS NULL OR x.den_ngay >= CURRENT_DATE))
+           ON CONFLICT (to_id, mnv, tu_ngay) DO UPDATE SET den_ngay = NULL`,
+          [id, d.thanhVien]
+        );
+      }
+      if (d.capQuyen && d.toTruongUserId) {
+        await client.query(
+          `UPDATE users SET permissions = array_append(COALESCE(permissions, '{}'), $2)
+           WHERE id = $1 AND NOT ($2 = ANY(COALESCE(permissions, '{}')))`,
+          [d.toTruongUserId, PERM_XUONG]
+        );
+      }
+      return { id };
+    });
+    if ("loi" in kq) return res.status(400).json({ success: false, message: kq.loi });
+    if (d.capQuyen && d.toTruongUserId) invalidateUserAccess(d.toTruongUserId);
+    res.json({ success: true, available: true, id: kq.id });
+  } catch (e) {
+    if (e?.code === "23505") return res.status(400).json({ success: false, message: "X\u01B0\u1EDFng \u0111\xE3 c\xF3 t\u1ED5 tr\xF9ng t\xEAn" });
+    fail(res, e, "/api/xuong/setup/to");
+  }
+});
+var lichCaSchema = external_exports.object({
+  xuong: external_exports.string().trim().min(1).max(20),
+  loaiCa: external_exports.enum(LOAI_CA),
+  gioBatDau: external_exports.string().regex(gioRe),
+  gioKetThuc: external_exports.string().regex(gioRe),
+  nghi: external_exports.array(external_exports.tuple([external_exports.string().regex(gioRe), external_exports.string().regex(gioRe)])).max(6)
+});
+app.put("/api/xuong/setup/lich-ca", async (req, res) => {
+  try {
+    const p = lichCaSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "Gi\u1EDD ph\u1EA3i d\u1EA1ng HH:MM" });
+    const d = { ...p.data, xuong: p.data.xuong === "*" ? "*" : p.data.xuong.toUpperCase() };
+    const { ds, admin } = await xuongDuocSua(req);
+    if (d.xuong === "*" ? !admin : !quanLyDuoc(ds, d.xuong)) return khongQuyen(res, d.xuong === "*" ? "Ch\u1EC9 admin s\u1EEDa l\u1ECBch m\u1EB7c \u0111\u1ECBnh" : void 0);
+    await pool.query(
+      `INSERT INTO xuong_lich_ca (xuong, loai_ca, gio_bat_dau, gio_ket_thuc, nghi) VALUES ($1,$2,$3,$4,$5::jsonb)
+       ON CONFLICT (xuong, loai_ca) DO UPDATE SET gio_bat_dau = EXCLUDED.gio_bat_dau, gio_ket_thuc = EXCLUDED.gio_ket_thuc, nghi = EXCLUDED.nghi`,
+      [d.xuong, d.loaiCa, d.gioBatDau, d.gioKetThuc, JSON.stringify(d.nghi)]
+    );
+    xoaCacheGioCong();
+    await xoaGioCongLuu(d.xuong);
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/setup/lich-ca");
+  }
+});
+app.delete("/api/xuong/setup/lich-ca", async (req, res) => {
+  try {
+    const xuong = String(req.body?.xuong ?? "").toUpperCase();
+    const loaiCa = String(req.body?.loaiCa ?? "");
+    if (!xuong || xuong === "*" || !LOAI_CA.includes(loaiCa)) {
+      return res.status(400).json({ success: false, message: "Ch\u1EC9 b\u1ECF \u0111\u01B0\u1EE3c l\u1ECBch ri\xEAng c\u1EE7a m\u1ED9t x\u01B0\u1EDFng" });
+    }
+    const { ds } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    await pool.query("DELETE FROM xuong_lich_ca WHERE xuong = $1 AND loai_ca = $2", [xuong, loaiCa]);
+    xoaCacheGioCong();
+    await xoaGioCongLuu(xuong);
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/setup/lich-ca");
+  }
+});
+app.post("/api/xuong/setup/quan-ly", async (req, res) => {
+  try {
+    const { admin } = await xuongDuocSua(req);
+    if (!admin) return khongQuyen(res, "Ch\u1EC9 admin g\xE1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    const userId = Number(req.body?.userId);
+    const xuong = String(req.body?.xuong ?? "").toUpperCase();
+    if (!Number.isInteger(userId) || userId <= 0 || !xuong) return res.status(400).json({ success: false, message: "Thi\u1EBFu ng\u01B0\u1EDDi / x\u01B0\u1EDFng" });
+    if (req.body?.bo) {
+      await pool.query("DELETE FROM xuong_quan_ly WHERE user_id = $1 AND xuong = $2", [userId, xuong]);
+    } else {
+      await pool.query("INSERT INTO xuong_quan_ly (user_id, xuong) VALUES ($1,$2) ON CONFLICT DO NOTHING", [userId, xuong]);
+      await pool.query(
+        `UPDATE users SET permissions = array_append(COALESCE(permissions, '{}'), 'xuong_quan_ly')
+         WHERE id = $1 AND NOT ('xuong_quan_ly' = ANY(COALESCE(permissions, '{}')))`,
+        [userId]
+      );
+    }
+    invalidateUserAccess(userId);
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/setup/quan-ly");
+  }
+});
+app.get("/api/xuong/setup/nguoi-dung", async (req, res) => {
+  try {
+    const { ds } = await xuongDuocSua(req);
+    if (!ds.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    const q = String(req.query.q ?? "").trim();
+    if (q.length < 2) return res.json({ success: true, available: true, ketQua: [] });
+    const mau = `%${q.replace(/[%_\\]/g, "\\$&")}%`;
+    const r = await pool.query(
+      `SELECT id, full_name, username, msnv, role, permissions FROM users
+       WHERE is_active AND (full_name ILIKE $1 OR username ILIKE $1 OR msnv ILIKE $1) ORDER BY full_name LIMIT 20`,
+      [mau]
+    );
+    res.json({
+      success: true,
+      available: true,
+      ketQua: r.rows.map((x) => ({
+        id: Number(x.id),
+        ten: x.full_name || x.username,
+        username: x.username,
+        msnv: x.msnv ?? null,
+        coQuyenXuong: x.role === "ADMIN" || Array.isArray(x.permissions) && x.permissions.includes(PERM_XUONG)
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/setup/nguoi-dung");
+  }
+});
+var dongServer = (p, userId) => {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  return {
+    id: crypto3.randomUUID(),
+    hex: null,
+    cong_doan_id: null,
+    to_id: null,
+    xuong: null,
+    so_luong: null,
+    cong_doan_den_id: null,
+    cong_doan_nguon_id: null,
+    xuong_nguon: null,
+    so_nguoi: null,
+    ly_do_tam_ngung: null,
+    tien_do: null,
+    ghi_chu: null,
+    du_lieu: null,
+    device_ts: now,
+    lech_ms: 0,
+    device_ts_hieu_chinh: now,
+    user_id: userId,
+    user_id_khai: null,
+    sent_by: userId,
+    device_id: null,
+    sua_cho: null,
+    co: [],
+    ...p
+  };
+};
+app.post("/api/xuong/huy", async (req, res) => {
+  try {
+    const id = String(req.body?.suKienId ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ success: false, message: "Thi\u1EBFu s\u1EF1 ki\u1EC7n c\u1EA7n hu\u1EF7" });
+    const me2 = Number(req.user.id);
+    const kq = await withTransaction(async (client) => {
+      const d = (await client.query("SELECT id, loai, hex, cong_doan_id, to_id, xuong FROM xuong_su_kien WHERE id = $1", [id])).rows[0];
+      if (!d) return { loi: "Kh\xF4ng t\xECm th\u1EA5y s\u1EF1 ki\u1EC7n", ma: 404 };
+      if (!quanLyDuoc(await xuongQuanLy(me2), d.xuong ?? null)) return { loi: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c hu\u1EF7 t\u1EEB m\xE1y t\xEDnh", ma: 403 };
+      const da = await client.query(`SELECT 1 FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = $1 LIMIT 1`, [id]);
+      if (da.rows.length) return { loi: "S\u1EF1 ki\u1EC7n \u0111\xE3 \u0111\u01B0\u1EE3c hu\u1EF7", ma: 400 };
+      await ghiVaTinhLai(client, [dongServer({
+        loai: "huy",
+        sua_cho: id,
+        hex: d.hex,
+        cong_doan_id: d.cong_doan_id,
+        to_id: d.to_id,
+        xuong: d.xuong,
+        ghi_chu: typeof req.body?.lyDo === "string" ? req.body.lyDo.slice(0, 500) : null
+      }, me2)], [d]);
+      return { ok: true, ma: 200 };
+    });
+    if ("loi" in kq) return res.status(kq.ma).json({ success: false, message: kq.loi });
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/huy");
+  }
+});
+app.post("/api/xuong/hex-tom-tat", async (req, res) => {
+  try {
+    const hexes = Array.isArray(req.body?.hexes) ? [...new Set(req.body.hexes.map(String).filter((h) => HEX_RE.test(h)))].slice(0, 1e3) : [];
+    if (!hexes.length) return res.json({ success: true, available: true, tomTat: {} });
+    const r = await pool.query(
+      `SELECT t.hex, t.xuong, t.trang_thai, c.cd_chi_tiet FROM xuong_trang_thai t
+       LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id WHERE t.hex = ANY($1::text[])`,
+      [hexes]
+    );
+    const tomTat = {};
+    for (const x of r.rows) {
+      const k = String(x.hex);
+      tomTat[k] ??= { soCongDoan: 0, dangO: [] };
+      tomTat[k].soCongDoan++;
+      if (x.trang_thai !== "xong") tomTat[k].dangO.push({ xuong: x.xuong, ten: x.cd_chi_tiet, trangThai: x.trang_thai });
+    }
+    res.json({ success: true, available: true, tomTat });
+  } catch (e) {
+    fail(res, e, "/api/xuong/hex-tom-tat");
+  }
+});
+app.get("/api/xuong/trien-khai", async (req, res) => {
+  try {
+    const xuong = String(req.query.xuong ?? "").toUpperCase();
+    const { ds } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const q = String(req.query.q ?? "").trim();
+    const chiChua = req.query.chua === "1";
+    const hexLoc = typeof req.query.hex === "string" && HEX_RE.test(req.query.hex) ? req.query.hex : null;
+    const params = [xuong];
+    let dk = `UPPER(TRIM(xuong_chinh)) = $1 AND hex IS NOT NULL AND COALESCE(tam_ngung_huy_don_hang_tong, '') = ''`;
+    if (hexLoc) {
+      params.push(hexLoc);
+      dk += ` AND hex::text = $${params.length}`;
+    } else if (q) {
+      params.push(`%${q.replace(/[%_\\]/g, "\\$&")}%`);
+      dk += ` AND (hex::text ILIKE $${params.length} OR ten_hang_muc ILIKE $${params.length} OR ten_cong_trinh ILIKE $${params.length} OR ma_cong_trinh ILIKE $${params.length})`;
+    }
+    const sp = await pool.query(
+      `SELECT * FROM (SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ma_cong_trinh, ten_cong_trinh, dvt,
+              so_luong_don_hang_tong, phan_loai_nhom_san_pham, xuong_chinh, updated_at
+       FROM production_status_app WHERE ${dk} ORDER BY hex::text, updated_at DESC NULLS LAST) t
+       ORDER BY updated_at DESC NULLS LAST, hex DESC LIMIT 300`,
+      params
+    );
+    const hexes = sp.rows.map((x) => String(x.hex));
+    const [tk, cd, lanTruoc] = await Promise.all([
+      hexes.length ? pool.query(
+        `SELECT hex, sum(so_luong)::float AS sl FROM xuong_su_kien e WHERE loai = 'trien_khai' AND hex = ANY($1::text[])
+           AND du_lieu->>'xuong' = $2 AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         GROUP BY hex`,
+        [hexes, xuong]
+      ) : Promise.resolve({ rows: [] }),
+      pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
+      // Tuyến lần triển khai gần nhất theo nhóm sản phẩm (gợi ý — cải tiến 8)
+      pool.query(
+        `SELECT DISTINCT ON (p.phan_loai_nhom_san_pham) p.phan_loai_nhom_san_pham AS nhom, e.du_lieu->'tuyen' AS tuyen
+         FROM xuong_su_kien e JOIN LATERAL (SELECT phan_loai_nhom_san_pham FROM production_status_app WHERE hex::text = e.hex LIMIT 1) p ON true
+         WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1 AND jsonb_typeof(e.du_lieu->'tuyen') = 'array'
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY p.phan_loai_nhom_san_pham, e.device_ts_hieu_chinh DESC`,
+        [xuong]
+      )
+    ]);
+    const daTk = new Map(tk.rows.map((x) => [String(x.hex), Number(x.sl)]));
+    const goiY = new Map(lanTruoc.rows.map((x) => [String(x.nhom ?? ""), x.tuyen.map(String)]));
+    const ds2 = sp.rows.map((x) => ({
+      hex: String(x.hex),
+      ten: x.ten_hang_muc,
+      maCongTrinh: x.ma_cong_trinh,
+      tenCongTrinh: x.ten_cong_trinh,
+      dvt: x.dvt,
+      soLuongDonHang: x.so_luong_don_hang_tong === null ? null : Number(x.so_luong_don_hang_tong),
+      nhom: x.phan_loai_nhom_san_pham ?? null,
+      daTrienKhai: daTk.get(String(x.hex)) ?? 0,
+      goiYTuyen: goiY.get(String(x.phan_loai_nhom_san_pham ?? "")) ?? null
+    })).filter((x) => !chiChua || x.soLuongDonHang === null || x.daTrienKhai < x.soLuongDonHang);
+    res.json({
+      success: true,
+      available: true,
+      xuong,
+      hangMuc: ds2,
+      congDoan: cd.rows.map((x) => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/trien-khai");
+  }
+});
+var trienKhaiSchema = external_exports.object({
+  xuong: external_exports.string().trim().min(1).max(20),
+  items: external_exports.array(external_exports.object({
+    hex: external_exports.string().regex(HEX_RE),
+    soLuong: external_exports.number().positive().max(1e6),
+    tuyen: external_exports.array(external_exports.string().max(40)).min(1).max(30)
+  })).min(1).max(200)
+});
+app.post("/api/xuong/trien-khai", async (req, res) => {
+  try {
+    const p = trienKhaiSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "M\u1ED7i h\u1EA1ng m\u1EE5c c\u1EA7n m\xE3 9 s\u1ED1, s\u1ED1 l\u01B0\u1EE3ng > 0 v\xE0 \xEDt nh\u1EA5t m\u1ED9t c\xF4ng \u0111o\u1EA1n" });
+    const xuong = p.data.xuong.toUpperCase();
+    const me2 = Number(req.user.id);
+    const { ds } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const kq = await withTransaction(async (client) => {
+      const cdIds = [...new Set(p.data.items.flatMap((i) => i.tuyen))];
+      const cd = await client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND active", [cdIds]);
+      const xuongCd = new Map(cd.rows.map((x) => [String(x.id), String(x.xuong)]));
+      const thieu = cdIds.filter((id) => !xuongCd.has(id));
+      if (thieu.length) return { loi: `C\xF4ng \u0111o\u1EA1n kh\xF4ng t\u1ED3n t\u1EA1i / \u0111\xE3 t\u1EAFt: ${thieu.join(", ")}` };
+      const ghi = [];
+      for (const it of p.data.items) {
+        ghi.push(dongServer({ loai: "trien_khai", hex: it.hex, xuong, so_luong: it.soLuong, du_lieu: { xuong, tuyen: it.tuyen } }, me2));
+        ghi.push(dongServer({
+          loai: "khai_bao_cd",
+          hex: it.hex,
+          xuong: xuongCd.get(it.tuyen[0]) ?? xuong,
+          so_luong: it.soLuong,
+          cong_doan_den_id: it.tuyen[0],
+          du_lieu: { xuongTrienKhai: xuong }
+        }, me2));
+      }
+      await ghiVaTinhLai(client, ghi);
+      return { so: p.data.items.length };
+    });
+    if ("loi" in kq) return res.status(400).json({ success: false, message: kq.loi });
+    await baoHangChoNhan(p.data.items.map((i) => ({ hex: i.hex, congDoanDenId: i.tuyen[0], soLuong: i.soLuong })), me2);
+    await baoXuongPhu(xuong, p.data.items, me2);
+    res.json({ success: true, available: true, soHangMuc: kq.so, cap: p.data.items.map((i) => pairKey(i.hex, i.tuyen[0])) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/trien-khai");
   }
 });
 

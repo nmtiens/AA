@@ -156,6 +156,9 @@ useEffect(() => {
   const logout = () => {
     setUser(null);
     clearAllStorage();
+    // Token mục Xưởng (30 ngày) gắn với người dùng: đăng xuất chủ động thì bỏ luôn để người cầm máy sau không dùng
+    // nhầm tên người trước. Hàng đợi thao tác chưa gửi + mã thiết bị giữ nguyên (services/xuongQueue.ts).
+    try { localStorage.removeItem('xuong_token'); localStorage.removeItem('xuong_phien'); } catch { /* bỏ qua */ }
     void clearDataCache();
     showToast('Đã đăng xuất', 'info');
   };

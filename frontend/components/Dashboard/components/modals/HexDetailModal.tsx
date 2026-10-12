@@ -19,6 +19,8 @@ import {
 } from '../../../../services/vuongMacService';
 import { VuongMacDetailModal } from './VuongMacDetailModal';
 import { HexMaterialModal, type MaterialViewMode } from './HexMaterialModal';
+import { xuongSetupApi, type TomTatHex } from '../../../../services/xuongSetupApi';
+import XuongHexChiTiet from '../../../Xuong/XuongHexChiTiet';
 
 export interface HexDetailColumnKeys {
   hexKey: string;
@@ -495,6 +497,9 @@ export const HexDetailModal = ({
   const [unassignedCount, setUnassignedCount] = useState<{ lines: number; prs: number } | null>(null);
   // Số dòng vật tư (map theo mã nhà máy) của từng hex; null = đang tải
   const [materialCountByHex, setMaterialCountByHex] = useState<Record<string, number> | null>(null);
+  // Mục Xưởng: hạng mục đang ở công đoạn nào (chỉ hex đã có dữ liệu xưởng) + hex đang mở chi tiết
+  const [xuongTomTat, setXuongTomTat] = useState<Record<string, TomTatHex>>({});
+  const [xuongHex, setXuongHex] = useState<string | null>(null);
   // Mặc định hiện ĐỦ hex (khớp số ở bảng ngoài)
   const [materialFilter, setMaterialFilter] = useState<MaterialFilter>('all');
 
@@ -541,6 +546,20 @@ export const HexDetailModal = ({
       .then(d => setMaterialCountByHex(d && typeof d === 'object' ? d : {}))
       .catch(e => { if (e?.name !== 'AbortError') setMaterialCountByHex({}); });
     return () => ctrl.abort();
+  }, [isOpen, hexList]);
+
+  useEffect(() => {
+    setXuongTomTat({});
+    if (!isOpen || hexList.length === 0) return;
+    let huy = false;
+    // API nhận tối đa 1000 hex / lần: chia lô rồi gộp
+    const lo: string[][] = [];
+    for (let i = 0; i < hexList.length; i += 1000) lo.push(hexList.slice(i, i + 1000));
+    Promise.all(lo.map(x => xuongSetupApi.tomTat(x))).then(rs => {
+      if (huy) return;
+      setXuongTomTat(Object.assign({}, ...rs.map(r => (r.ok ? r.data.tomTat : {}))));
+    });
+    return () => { huy = true; };
   }, [isOpen, hexList]);
 
   // Tải lại vướng mắc 5M mỗi khi hexList đổi (kể cả sau khi popup con đóng).
@@ -1392,6 +1411,17 @@ export const HexDetailModal = ({
                                   ) : null}
                                 </button>
                               ) : '—'}
+                              {row[hexKey] && xuongTomTat[String(row[hexKey])] && (() => {
+                                const t = xuongTomTat[String(row[hexKey])];
+                                const o = t.dangO[0];
+                                return (
+                                  <button type="button" onClick={() => setXuongHex(String(row[hexKey]))}
+                                    title="Xem tiến độ ở xưởng: công đoạn, số lượng, giờ công"
+                                    className="mt-0.5 block text-left text-[0.6875rem] font-normal text-emerald-700 hover:underline">
+                                    {o ? `Xưởng: ${o.ten ?? ''}${t.dangO.length > 1 ? ` +${t.dangO.length - 1}` : ''}` : 'Xưởng: xong'}
+                                  </button>
+                                );
+                              })()}
                               {materialFilter === 'without' && hasDeadline && (() => {
                                 const info = deadlineInfo(row);
                                 const d = info?.date;
@@ -1548,6 +1578,22 @@ export const HexDetailModal = ({
                 <NoteContent text={fullNoteText} />
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {xuongHex && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setXuongHex(null)}>
+          <div role="dialog" aria-label={`Xưởng — hex ${xuongHex}`} onClick={e => e.stopPropagation()}
+            className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl bg-slate-50 shadow-xl">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-base font-bold text-slate-800">Xưởng — hex <span className="tabular-nums">{xuongHex}</span></p>
+                <p className="truncate text-xs text-slate-500">{hangMucByHex?.[xuongHex] ?? ''}{congTrinhByHex?.[xuongHex] ? ` · ${congTrinhByHex[xuongHex]}` : ''}</p>
+              </div>
+              <button type="button" onClick={() => setXuongHex(null)} aria-label="Đóng" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={18} /></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4"><XuongHexChiTiet hex={xuongHex} /></div>
           </div>
         </div>
       )}

@@ -5,6 +5,7 @@ import { pool } from '../db.js';
 import { signAuthToken, authenticateJWT, requireSelfOrRole } from '../server/auth.js';
 import { validateBody, loginSchema, forgotPasswordSchema, verifyOtpSchema, changePasswordSchema } from '../server/validation.js';
 import { app, loginLimiter, otpRequestLimiter, otpVerifyLimiter } from '../server/app.js';
+import { bumpTokenVersion } from '../server/xuong/auth.js';
 
 // ============================================================================
 // AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES
@@ -122,6 +123,8 @@ app.post('/api/auth/verify-otp', otpVerifyLimiter, validateBody(verifyOtpSchema)
       `UPDATE users SET password_hash = $1, otp_code = NULL, otp_expires_at = NULL, updated_at = now() WHERE id = $2`,
       [newHash, user.id]
     );
+    // Đổi mật khẩu => thu hồi mọi token mục Xưởng (30 ngày) của người này
+    await bumpTokenVersion(user.id);
 
     res.json({ success: true, message: 'Đổi mật khẩu thành công' });
   } catch (error) {
@@ -160,6 +163,8 @@ app.post(
         `UPDATE users SET password_hash = $1, updated_at = now() WHERE id = $2`,
         [newHash, user.id]
       );
+      // Đổi mật khẩu => thu hồi mọi token mục Xưởng (30 ngày) của người này
+      await bumpTokenVersion(user.id);
 
       res.json({ success: true, message: 'Đổi mật khẩu thành công' });
     } catch (error) {

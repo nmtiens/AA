@@ -21,6 +21,23 @@ export async function compressImage(file: File): Promise<Blob> {
   );
 }
 
+/** Nén cho ảnh tiến độ mục Xưởng (D22): WebP ~150 KB; trình duyệt không xuất được WebP thì JPEG */
+export async function compressImageWebp(file: File): Promise<{ blob: Blob; kieu: 'image/webp' | 'image/jpeg' }> {
+  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+  const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close?.();
+  const ra = (type: string, q: number) => new Promise<Blob | null>(r => canvas.toBlob(r, type, q));
+  const webp = await ra('image/webp', 0.7);
+  if (webp && webp.type === 'image/webp') return { blob: webp, kieu: 'image/webp' };
+  const jpg = await ra('image/jpeg', QUALITY);
+  if (!jpg) throw new Error('Không xử lý được ảnh');
+  return { blob: jpg, kieu: 'image/jpeg' };
+}
+
 type Props = {
   value: PhotoItem[];
   onChange: (next: PhotoItem[]) => void;
