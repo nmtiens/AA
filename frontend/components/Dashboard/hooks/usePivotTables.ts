@@ -723,7 +723,7 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
     if (s) {
       const val = matStatusMetric === 'COUNT_PR' ? 1 : parseNumber(row[matSlYeuCauKey]);
       if (matrix[g] && matrix[g][s] !== undefined) { matrix[g][s] += val; rowTotals[g] += val; colTotals[s] += val; grandTotal += val; }
-      if (materialLineState(row) === 'closedShort') closedShort++;
+      { const st = materialLineState(row); if (st === 'closedPartial' || st === 'closedNoReceipt' || st === 'closedNoPo') closedShort++; }
     }
   });
   return { sortedGroups: uniqueGroups, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal, closedShort };

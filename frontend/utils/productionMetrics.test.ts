@@ -109,11 +109,16 @@ describe('trạng thái dòng vật tư (PR)', () => {
   const today = new Date(2026, 9, 9).getTime(); // 09/10/2026
   const line = (over: Record<string, unknown>) => ({ so_luong_con_lai: 5, so_luong_yeu_cau: 5, trang_thai: '2.ĐANG MUA', ...over });
 
-  it('hủy > đã nhận đủ > PR đóng chưa nhận đủ > chưa mua > CCLD > kho báo về > trễ hẹn / chưa tới hẹn', () => {
-    expect(materialLineState(line({ trang_thai: '4.HỦY' }), today)).toBe('cancelled');
-    expect(materialLineState(line({ so_luong_con_lai: 0 }), today)).toBe('done');
-    expect(materialLineState(line({ trang_thai: '3.ĐÃ NHẬP KHO' }), today)).toBe('closedShort');
-    expect(materialLineState(line({ trang_thai_sap: 'ĐÓNG', team_pr_note: 'CCLD' }), today)).toBe('closedShort'); // đóng xét trước CCLD
+  it('cấp 1 theo 2 cột trạng thái, cấp 2 chi tiết trong từng nhóm', () => {
+    expect(materialLineState(line({ trang_thai: '4.HỦY', trang_thai_sap: 'Hủy' }), today)).toBe('cancelled');
+    expect(materialLineState(line({ trang_thai: '3.ĐÃ NHẬP KHO', trang_thai_sap: 'Hoàn thành', so_luong_con_lai: -2 }), today)).toBe('done'); // nhận dư
+    // 3.ĐÃ NHẬP KHO / Đóng: tách theo đã nhận đến đâu
+    const closed = { trang_thai: '3.ĐÃ NHẬP KHO', trang_thai_sap: 'Đóng' };
+    expect(materialLineState(line({ ...closed, so_luong_con_lai: 0 }), today)).toBe('closedFull');
+    expect(materialLineState(line({ ...closed, so_luong_da_nhan_sap: 2, so_luong_con_lai: 3, so_po: 4500001 }), today)).toBe('closedPartial');
+    expect(materialLineState(line({ ...closed, so_po: 4500001 }), today)).toBe('closedNoReceipt');
+    expect(materialLineState(line({ ...closed, team_pr_note: 'CCLD' }), today)).toBe('closedNoPo'); // đóng xét trước CCLD
+    expect(materialLineState(line({ trang_thai: '3.ĐÃ NHẬP KHO' }), today)).toBe('closedNoPo'); // thiếu cột SAP, còn lại > 0
     expect(materialLineState(line({ team_pr_note: 'hàng CCLD' }), today)).toBe('ccld');
     expect(materialLineState(line({ trang_thai: '1.CHƯA MUA' }), today)).toBe('notOrdered');
     expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'CCLD' }), today)).toBe('notOrdered'); // nhãn chưa mua xét trước CCLD
@@ -129,12 +134,13 @@ describe('trạng thái dòng vật tư (PR)', () => {
     expect(isMaterialPending('deferred')).toBe(true);
     // Gia công ngoài (nhóm 806 / ghi chú GC…): nhóm riêng, vẫn còn chờ — xét trước nhãn chưa mua
     expect(materialLineState(line({ nhom_vt: '806 - Gia công', ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01' }), today)).toBe('outsourced');
-    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'GC BTP-KHUNG GỖ' }), today)).toBe('outsourced');
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'GC BTP-KHUNG GỖ' }), today)).toBe('gcNotOrdered');
+    expect(isMaterialPending('gcNotOrdered')).toBe(true);
     expect(isMaterialPending('outsourced')).toBe(true);
     // PO hủy / tạm ngưng / chuyển thầu phụ / BOD pending: không còn chờ
-    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', tinh_trang_po: 'HỦY PR' }), today)).toBe('onHold');
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', tinh_trang_po: 'HỦY PR' }), today)).toBe('holdNotOrdered');
     expect(materialLineState(line({ tinh_trang_po: 'CT TẠM DỪNG', nhom_vt: '806 - Gia công' }), today)).toBe('onHold');
-    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'BOD BÁO PENDING' }), today)).toBe('onHold');
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'BOD BÁO PENDING' }), today)).toBe('holdNotOrdered');
     expect(materialLineState(line({ ghi_chu_tinh_trang_po: 'NHẬP 12 HỦY 1 CÁI', ngay_du_kien_giao_hang_pmh_nhap: '2026-10-20' }), today)).toBe('onTrack');
     expect(isMaterialPending('onHold')).toBe(false);
     // Ghi chú Team PR là ngày hẹn mới (muộn hơn ngày PMH) => xét trễ theo ngày ghi chú
@@ -148,7 +154,7 @@ describe('trạng thái dòng vật tư (PR)', () => {
 
   it('còn chờ = chưa mua / trễ / chưa tới hẹn', () => {
     expect(['notOrdered', 'late', 'onTrack'].every(s => isMaterialPending(s as any))).toBe(true);
-    expect(['cancelled', 'done', 'ccld', 'closedShort', 'arrived'].some(s => isMaterialPending(s as any))).toBe(false);
+    expect(['cancelled', 'done', 'ccld', 'closedFull', 'closedPartial', 'closedNoReceipt', 'closedNoPo', 'arrived', 'onHold', 'holdNotOrdered'].some(s => isMaterialPending(s as any))).toBe(false);
   });
 });
 

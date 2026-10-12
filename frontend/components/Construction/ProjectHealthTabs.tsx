@@ -4,7 +4,7 @@ import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
   materialLineState, isMaterialPending, materialDueDate, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
-  type DeadlineSource, type MaterialLineState, type MaterialLineFields, stageRank,
+  type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
 import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
@@ -1122,31 +1122,54 @@ const BOM_DOT: Partial<Record<BomState, string>> = {
   ok: 'bg-emerald-500', stocked: 'bg-slate-300', noneBeforeSx: 'bg-white ring-1 ring-red-400', noneInSx: 'bg-white ring-1 ring-slate-300', noneNotDeployed: 'bg-white ring-1 ring-slate-300',
 };
 
-// Nhóm dòng PR — xếp theo cột Trạng thái chung (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) + SL còn lại
-// trên SAP (utils/productionMetrics.materialLineState). `hint` hiện khi rê chuột vào nhóm.
-export const LINE_STATES: { key: MaterialLineState; label: string; bar: string; hint: string }[] = [
-  { key: 'notOrdered', label: 'Chưa mua', bar: 'bg-red-600',
-    hint: 'Trạng thái 1.CHƯA MUA — chưa có PO (kể cả dòng có ghi chú CCLD).' },
-  { key: 'outsourced', label: 'Gia công ngoài', bar: 'bg-fuchsia-500',
-    hint: 'PR đặt gia công ngoài (nhóm VT 806 - Gia công, ghi chú Team PR "GC BTP-…" / "GC CÔNG ĐOẠN-…" / "GC NGUYÊN CON"): bán thành phẩm / công đoạn thuê ngoài, không phải mua vật tư. Vẫn là còn chờ (chưa đặt hoặc chưa về) nhưng tách riêng khỏi vật tư chưa mua / trễ hẹn.' },
-  { key: 'late', label: 'Đang mua – trễ hẹn', bar: 'bg-orange-500',
-    hint: 'Trạng thái 2.ĐANG MUA, đã qua hạn giao mà SAP chưa nhận đủ. Hạn giao = Ngày dự kiến giao hàng (PMH nhập); Team PR ghi ngày hẹn mới vào ghi chú (muộn hơn) thì lấy ngày ghi chú.' },
-  { key: 'deferred', label: 'Đang mua – về theo nhu cầu SX', bar: 'bg-amber-300',
-    hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) nhưng ghi chú Team PR "VỀ THEO NHU CẦU SX" / "DÙNG TRƯỚC TỒN KHO" hoặc ghi chú PO "ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT": hàng cố ý cho về theo nhu cầu sản xuất, không phải nhà cung cấp trễ. Vẫn tính là còn chờ.' },
-  { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-sky-300',
-    hint: 'Trạng thái 2.ĐANG MUA, chưa tới hạn giao (Ngày dự kiến giao hàng PMH nhập, hoặc ngày hẹn mới Team PR ghi trong ghi chú).' },
-  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-blue-500',
-    hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu, hoặc Team PR ghi chú "HOÀN THÀNH" — chỉ còn chờ SAP ghi nhập kho. Số kho báo lớn hơn 1,5 lần SL yêu cầu bị bỏ qua (kho ghi khác đơn vị, vd. gỗ M3).' },
-  { key: 'onHold', label: 'Tạm dừng / chờ hủy PR', bar: 'bg-stone-400',
-    hint: 'Nhãn vẫn là 1.CHƯA MUA / 2.ĐANG MUA nhưng tình trạng PO ghi HỦY / tạm ngưng / công trình tạm dừng / chuyển thầu phụ, hoặc ghi chú Team PR ghi HỦY / tạm ngưng / BOD pending — không còn chờ hàng về; cần team PR đóng / hủy PR trên SAP.' },
-  { key: 'ccld', label: 'CCLD – lắp tại công trình', bar: 'bg-teal-400',
-    hint: 'Dòng 2.ĐANG MUA là hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất. Dòng 1.CHƯA MUA dù ghi CCLD vẫn tính là Chưa mua (còn thiếu).' },
-  { key: 'closedShort', label: 'PR đã đóng, chưa nhận đủ', bar: 'bg-violet-400',
-    hint: 'Trạng thái 3.ĐÃ NHẬP KHO nhưng PR đã ĐÓNG trên SAP khi SL còn lại > 0 (nhận 1 phần hoặc chưa nhận): dùng tồn kho, đóng PR thiếu, hàng CCLD… — không còn chờ hàng về.' },
-  { key: 'done', label: 'Đã nhận đủ', bar: 'bg-emerald-500',
-    hint: 'Trạng thái 3.ĐÃ NHẬP KHO và SL còn lại trên SAP = 0: SL đã nhận (SAP) ≥ SL yêu cầu (có dòng nhận dư).' },
-  { key: 'cancelled', label: 'Hủy', bar: 'bg-slate-300',
-    hint: 'Trạng thái 4.HỦY — không tính vào vật tư của hạng mục.' },
+// Nhãn dòng PR — 2 cấp (utils/productionMetrics.materialLineState): cấp 1 theo 2 cột TRẠNG THÁI + TRẠNG THÁI SAP
+// (LINE_BASES), cấp 2 chi tiết trong từng nhóm. `label` ngắn (hiện dưới tiêu đề nhóm cấp 1), `full` kèm tên nhóm
+// (bảng / bộ lọc). `hint` hiện khi rê chuột.
+export const LINE_STATES: { key: MaterialLineState; label: string; full: string; bar: string; hint: string }[] = [
+  { key: 'notOrdered', label: 'Chưa mua', full: 'Chưa mua', bar: 'bg-red-600',
+    hint: '1.CHƯA MUA / Mở — chưa có PO (kể cả dòng có ghi chú CCLD).' },
+  { key: 'gcNotOrdered', label: 'Gia công ngoài – chưa đặt', full: 'Chưa mua – gia công ngoài', bar: 'bg-fuchsia-400',
+    hint: '1.CHƯA MUA / Mở, PR gia công ngoài (nhóm VT 806 - Gia công, ghi chú Team PR "GC BTP-…" / "GC CÔNG ĐOẠN-…" / "GC NGUYÊN CON") chưa đặt: bán thành phẩm / công đoạn thuê ngoài, không phải mua vật tư. Vẫn là còn chờ.' },
+  { key: 'holdNotOrdered', label: 'Tạm dừng / chờ hủy', full: 'Chưa mua – tạm dừng / chờ hủy', bar: 'bg-stone-400',
+    hint: '1.CHƯA MUA / Mở nhưng tình trạng PO ghi HỦY / tạm ngưng / công trình tạm dừng / chuyển thầu phụ, hoặc ghi chú Team PR ghi HỦY / tạm ngưng / BOD pending — không còn chờ; cần team PR hủy PR trên SAP.' },
+  { key: 'late', label: 'Trễ hẹn', full: 'Đang mua – trễ hẹn', bar: 'bg-orange-500',
+    hint: '2.ĐANG MUA / Mở, đã qua hạn giao mà SAP chưa nhận đủ. Hạn giao = Ngày dự kiến giao hàng (PMH nhập); Team PR ghi ngày hẹn mới vào ghi chú (muộn hơn) thì lấy ngày ghi chú.' },
+  { key: 'outsourced', label: 'Gia công ngoài', full: 'Đang mua – gia công ngoài', bar: 'bg-fuchsia-600',
+    hint: '2.ĐANG MUA / Mở, PR gia công ngoài (nhóm 806 / ghi chú GC…) đã đặt, chưa về — bán thành phẩm / công đoạn thuê ngoài, không phải vật tư. Vẫn là còn chờ.' },
+  { key: 'deferred', label: 'Về theo nhu cầu SX', full: 'Đang mua – về theo nhu cầu SX', bar: 'bg-amber-300',
+    hint: '2.ĐANG MUA / Mở, đã qua hạn giao nhưng ghi chú Team PR "VỀ THEO NHU CẦU SX" / "DÙNG TRƯỚC TỒN KHO" hoặc ghi chú PO "ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT": cố ý cho về theo nhu cầu sản xuất, không phải nhà cung cấp trễ. Vẫn là còn chờ.' },
+  { key: 'onTrack', label: 'Chưa tới hẹn', full: 'Đang mua – chưa tới hẹn', bar: 'bg-sky-300',
+    hint: '2.ĐANG MUA / Mở, chưa tới hạn giao (Ngày dự kiến giao hàng PMH nhập, hoặc ngày hẹn mới Team PR ghi trong ghi chú).' },
+  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', full: 'Đang mua – kho báo về, chờ nhập SAP', bar: 'bg-blue-500',
+    hint: '2.ĐANG MUA / Mở nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu, hoặc Team PR ghi chú "HOÀN THÀNH" — chỉ còn chờ SAP ghi nhập kho. Số kho báo lớn hơn 1,5 lần SL yêu cầu bị bỏ qua (kho ghi khác đơn vị, vd. gỗ M3).' },
+  { key: 'ccld', label: 'CCLD – lắp tại công trình', full: 'Đang mua – CCLD lắp tại công trình', bar: 'bg-teal-400',
+    hint: '2.ĐANG MUA / Mở, hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất.' },
+  { key: 'onHold', label: 'Tạm dừng / chờ hủy', full: 'Đang mua – tạm dừng / chờ hủy', bar: 'bg-stone-400',
+    hint: '2.ĐANG MUA / Mở nhưng tình trạng PO / ghi chú ghi HỦY / tạm ngưng / công trình tạm dừng / chuyển thầu phụ / BOD pending — không còn chờ hàng về; cần team PR đóng / hủy PR trên SAP.' },
+  { key: 'done', label: 'Đã nhận đủ', full: 'Hoàn thành – đã nhận đủ', bar: 'bg-emerald-500',
+    hint: '3.ĐÃ NHẬP KHO / Hoàn thành: SAP đã nhận ≥ SL yêu cầu (kể cả dòng nhận dư, SL còn lại âm).' },
+  { key: 'closedFull', label: 'Nhận đủ rồi đóng', full: 'Đóng PR – đã nhận đủ', bar: 'bg-emerald-300',
+    hint: '3.ĐÃ NHẬP KHO / Đóng, SL còn lại = 0: đã nhận đủ rồi đóng PR.' },
+  { key: 'closedPartial', label: 'Nhận 1 phần rồi đóng', full: 'Đóng PR – nhận 1 phần', bar: 'bg-violet-500',
+    hint: '3.ĐÃ NHẬP KHO / Đóng, đã nhận 1 phần trên SAP rồi đóng PR khi còn thiếu (dùng tồn kho, đóng PR thiếu, CCLD…) — không còn chờ hàng về.' },
+  { key: 'closedNoReceipt', label: 'Có PO, chưa nhận gì', full: 'Đóng PR – có PO, chưa nhận', bar: 'bg-violet-300',
+    hint: '3.ĐÃ NHẬP KHO / Đóng, đã có PO nhưng SAP chưa nhận gì đã đóng PR (CCLD, hủy PO, đề xuất đóng PR…) — không còn chờ hàng về.' },
+  { key: 'closedNoPo', label: 'Không có PO', full: 'Đóng PR – không có PO', bar: 'bg-slate-400',
+    hint: '3.ĐÃ NHẬP KHO / Đóng, không có PO: đóng PR mà không mua (phần lớn CCLD, dùng tồn kho, đề xuất đóng PR…) — không còn chờ hàng về.' },
+  { key: 'cancelled', label: 'Hủy', full: 'Hủy', bar: 'bg-slate-300',
+    hint: '4.HỦY / Hủy — không tính vào vật tư của hạng mục.' },
+];
+
+// Nhóm cấp 1 — đúng theo 2 cột TRẠNG THÁI + TRẠNG THÁI SAP (dòng Hủy ghi riêng, không vẽ vào thanh)
+const LINE_BASES: { key: MaterialBase; label: string; cols: string; tone: string; states: MaterialLineState[]; hint: string }[] = [
+  { key: 'notOrdered', label: 'Chưa mua', cols: '1.CHƯA MUA / Mở', tone: 'text-red-700',
+    states: ['notOrdered', 'gcNotOrdered', 'holdNotOrdered'], hint: 'TRẠNG THÁI 1.CHƯA MUA · TRẠNG THÁI SAP Mở — chưa có PO' },
+  { key: 'buying', label: 'Đang mua', cols: '2.ĐANG MUA / Mở', tone: 'text-orange-700',
+    states: ['late', 'outsourced', 'deferred', 'onTrack', 'arrived', 'ccld', 'onHold'], hint: 'TRẠNG THÁI 2.ĐANG MUA · TRẠNG THÁI SAP Mở — đã có PO, chưa nhận đủ' },
+  { key: 'done', label: 'Đã nhập kho – Hoàn thành', cols: '3.ĐÃ NHẬP KHO / Hoàn thành', tone: 'text-emerald-700',
+    states: ['done'], hint: 'TRẠNG THÁI 3.ĐÃ NHẬP KHO · TRẠNG THÁI SAP Hoàn thành — đã nhận đủ' },
+  { key: 'closed', label: 'Đã nhập kho – Đóng PR', cols: '3.ĐÃ NHẬP KHO / Đóng', tone: 'text-violet-700',
+    states: ['closedFull', 'closedPartial', 'closedNoReceipt', 'closedNoPo'], hint: 'TRẠNG THÁI 3.ĐÃ NHẬP KHO · TRẠNG THÁI SAP Đóng — PR đã đóng trên SAP (có thể khi chưa nhận đủ)' },
 ];
 
 export interface HexBom {
@@ -1171,7 +1194,14 @@ export interface BomAnalysis {
   issueTotal: number;                             // số vướng mắc M3 đang mở
 }
 
-const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'outsourced', 'onTrack', 'deferred', 'arrived', 'onHold'];
+// Nhãn dòng PR -> tình trạng hạng mục (chưa mua / gia công chưa đặt + đang đặt gộp "Gia công ngoài"; tạm dừng của
+// cả chưa mua lẫn đang mua gộp "Tạm dừng"); nhãn không có ở đây (CCLD, đã nhận, đóng PR) => hạng mục "Đã về đủ"
+const BOM_FROM_LINE: Partial<Record<MaterialLineState, BomState>> = {
+  notOrdered: 'notOrdered', gcNotOrdered: 'outsourced', outsourced: 'outsourced', late: 'late', deferred: 'deferred',
+  onTrack: 'onTrack', arrived: 'arrived', onHold: 'onHold', holdNotOrdered: 'onHold',
+};
+// Thứ tự "xấu nhất" của hạng mục
+const BOM_ORDER: BomState[] = ['notOrdered', 'late', 'outsourced', 'onTrack', 'deferred', 'arrived', 'onHold'];
 
 /**
  * Dòng còn chờ sẽ về SAU Ngày cần vật tư:
@@ -1183,8 +1213,8 @@ const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'outsourced', 'on
 const lineAfterNeed = (l: MaterialLine, st: MaterialLineState, today: number): boolean => {
   const need = parsePlanDate(l.ngay_can_vat_tu)?.getTime();
   if (need === undefined) return false;
-  if (st === 'notOrdered') return need < today;
-  if (st === 'late' || st === 'onTrack') {
+  if (st === 'notOrdered' || st === 'gcNotOrdered') return need < today;
+  if (st === 'late' || st === 'onTrack' || st === 'outsourced') {
     const due = materialDueDate(l)?.getTime() ?? today;
     return Math.max(due, today) > need;
   }
@@ -1222,7 +1252,7 @@ export function analyzeBom(
     const after = lineAfterNeed(l, st, today);
     const pr = parsePlanDate(l.ngay_pr)?.getTime();
     const need = parsePlanDate(l.ngay_can_vat_tu)?.getTime();
-    const due = st === 'late' || st === 'deferred' || st === 'onTrack' ? materialDueDate(l)?.getTime() : undefined;
+    const due = st === 'late' || st === 'deferred' || st === 'onTrack' || st === 'outsourced' ? materialDueDate(l)?.getTime() : undefined;
     const arrived = parsePlanDate(l.ngay_thuc_te_ve)?.getTime();
     if (l.hexes.some(h => openHex.has(h))) { lineCounts[st]++; lineTotal++; }
     for (const h of l.hexes) {
@@ -1257,7 +1287,7 @@ export function analyzeBom(
       state = i.bucket === 'notDeployed' ? 'noneNotDeployed'
         : beforeSx && !nvlDone(i.hex) ? 'noneBeforeSx' : 'noneInSx';
     }
-    else state = (LINE_ORDER.find(k => (e.byLine[k] ?? 0) > 0) as BomState | undefined) ?? 'ok';
+    else state = BOM_ORDER.find(bs => (Object.keys(e.byLine) as MaterialLineState[]).some(k => BOM_FROM_LINE[k] === bs && (e.byLine[k] ?? 0) > 0)) ?? 'ok';
     const lateNeed = state !== 'stocked' && (e?.afterNeed ?? 0) > 0 ? e!.afterNeed : 0;
     if (lateNeed > 0) afterNeed++;
     const issues = materialIssues?.[i.hex] ?? [];
@@ -1296,119 +1326,123 @@ export interface ProjectMaterialSummary {
   toFix: number;                                   // dòng cần bổ sung mã (còn chờ không mã + sai mã)
 }
 
-const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'outsourced', 'late', 'deferred', 'onTrack', 'arrived'];
-const lineStateLabel = (s: MaterialLineState) => LINE_STATES.find(x => x.key === s)?.label ?? s;
+// Còn chờ hàng về (kể cả kho đã báo về, chờ SAP nhập)
+const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'gcNotOrdered', 'late', 'outsourced', 'deferred', 'onTrack', 'arrived'];
+const lineStateLabel = (s: MaterialLineState) => LINE_STATES.find(x => x.key === s)?.full ?? s;
 
 // ---------------------------------------------------------------------------
-// Biểu đồ phân bổ dòng PR theo trạng thái — dùng chung cho "Vật tư chung của công trình" và "Dòng PR gắn hạng mục".
-// Chia 2 nhóm lớn có tổng + %: CÒN CHỜ hàng về / KHÔNG CÒN CHỜ (dòng Hủy ghi riêng, không vẽ vào thanh). Thanh
-// dày, số dòng ghi ngay trên đoạn đủ rộng, khe ngăn giữa 2 nhóm; chú thích 2 cột theo nhóm (số + %). Có onPick thì
-// bấm từng nhóm để lọc bảng bên dưới.
+// Biểu đồ phân bổ dòng PR — dùng chung cho "Vật tư chung của công trình" và "Dòng PR gắn hạng mục".
+// Thanh chia theo nhóm CẤP 1 (đúng 2 cột TRẠNG THÁI + TRẠNG THÁI SAP: Chưa mua | Đang mua | Đã nhập kho – Hoàn thành |
+// Đã nhập kho – Đóng PR), mỗi nhóm tô theo nhãn CẤP 2; dòng Hủy ghi riêng, không vẽ, % tính trên dòng còn hiệu lực.
+// Phía trên ghi tổng "Còn chờ hàng về". Chú thích chia cột theo nhóm cấp 1 (số + %). Có onPick thì bấm để lọc.
 // ---------------------------------------------------------------------------
-const CLEAR_STATES: MaterialLineState[] = ['onHold', 'ccld', 'closedShort', 'done'];
 const LINE_META = Object.fromEntries(LINE_STATES.map(s => [s.key, s])) as Record<MaterialLineState, (typeof LINE_STATES)[number]>;
-const DARK_TEXT_BARS = new Set<MaterialLineState>(['deferred', 'onTrack']); // nền nhạt => chữ tối
+const DARK_TEXT_BARS = new Set<MaterialLineState>(['deferred', 'onTrack', 'closedFull', 'closedNoReceipt']); // nền nhạt => chữ tối
 
 type LinePick = MaterialLineState | 'pending';
-const LineStateBreakdown = ({ counts, active, onPick, canPick }: {
+const LineStateBreakdown = ({ counts, active, onPick, canPick, isActive }: {
   counts: Record<MaterialLineState, number>;
   active?: string;
   onPick?: (k: LinePick) => void;
-  canPick?: (k: LinePick) => boolean; // mặc định: mọi nhóm bấm được khi có onPick
+  canPick?: (k: LinePick) => boolean; // mặc định: mọi nhãn bấm được khi có onPick
+  isActive?: (k: LinePick) => boolean; // mặc định: active === k
 }) => {
   const pickable = (k: LinePick) => !!onPick && (canPick ? canPick(k) : true);
-  const sumOf = (keys: MaterialLineState[]) => keys.reduce((t, k) => t + (counts[k] ?? 0), 0);
-  const wait = sumOf(PENDING_STATES);
-  const clear = sumOf(CLEAR_STATES);
-  const base = wait + clear;
-  const cancelled = counts.cancelled ?? 0;
-  const pct = (n: number) => (base ? `${Math.round((n / base) * 100)}%` : '0%');
+  const on = (k: LinePick) => (isActive ? isActive(k) : active === k);
+  const n = (k: MaterialLineState) => counts[k] ?? 0;
+  const bases = LINE_BASES.map(b => ({ ...b, total: b.states.reduce((t, k) => t + n(k), 0) }));
+  const base = bases.reduce((t, b) => t + b.total, 0);
+  const cancelled = n('cancelled');
+  const wait = PENDING_STATES.reduce((t, k) => t + n(k), 0);
+  const pct = (v: number) => (base ? `${Math.round((v / base) * 100)}%` : '0%');
   if (base === 0) {
     return <p className="py-2 text-xs text-slate-500">Không có dòng PR nào (ngoài {fmtInt(cancelled)} dòng hủy).</p>;
   }
 
-  const segments = (keys: MaterialLineState[], groupTotal: number) => keys.filter(k => counts[k] > 0).map(k => {
-    const w = (counts[k] / groupTotal) * 100;
-    const wide = (counts[k] / base) * 100 >= 6; // đủ rộng để ghi số
+  const segments = (keys: MaterialLineState[], groupTotal: number) => keys.filter(k => n(k) > 0).map(k => {
+    const w = (n(k) / groupTotal) * 100;
+    const wide = (n(k) / base) * 100 >= 5; // đủ rộng để ghi số
     return (
       <div
         key={k}
         onClick={pickable(k) ? () => onPick!(k) : undefined}
-        className={`${LINE_META[k].bar} flex items-center justify-center border-r border-white/70 text-[0.625rem] font-bold tabular-nums last:border-r-0 ${DARK_TEXT_BARS.has(k) ? 'text-slate-800' : 'text-white'} ${pickable(k) ? 'cursor-pointer hover:brightness-110' : ''} ${active === k ? 'ring-2 ring-inset ring-slate-900' : ''}`}
+        className={`${LINE_META[k].bar} flex items-center justify-center border-r border-white/70 text-[0.625rem] font-bold tabular-nums last:border-r-0 ${DARK_TEXT_BARS.has(k) ? 'text-slate-800' : 'text-white'} ${pickable(k) ? 'cursor-pointer hover:brightness-110' : ''} ${on(k) ? 'ring-2 ring-inset ring-slate-900' : ''}`}
         style={{ width: `${w}%` }}
-        title={`${LINE_META[k].label}: ${fmtInt(counts[k])} dòng (${pct(counts[k])}) — ${LINE_META[k].hint}`}
+        title={`${LINE_META[k].full}: ${fmtInt(n(k))} dòng (${pct(n(k))}) — ${LINE_META[k].hint}`}
       >
-        {wide ? fmtInt(counts[k]) : ''}
+        {wide ? fmtInt(n(k)) : ''}
       </div>
     );
   });
 
   const item = (k: MaterialLineState) => {
-    const n = counts[k] ?? 0;
-    const on = active === k;
+    const v = n(k);
+    const pending = PENDING_STATES.includes(k);
     const body = (
       <>
         <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${LINE_META[k].bar}`} />
-        <span className={`truncate ${n ? 'text-slate-700' : 'text-slate-400'}`}>{LINE_META[k].label}</span>
-        <span className={`ml-auto font-semibold tabular-nums ${n ? 'text-slate-800' : 'text-slate-300'}`}>{fmtInt(n)}</span>
-        <span className="w-9 text-right tabular-nums text-slate-400">{n ? pct(n) : ''}</span>
+        <span className={`truncate ${!v ? 'text-slate-400' : pending ? 'text-slate-800' : 'text-slate-600'}`}>{LINE_META[k].label}</span>
+        <span className={`ml-auto font-semibold tabular-nums ${v ? 'text-slate-800' : 'text-slate-300'}`}>{fmtInt(v)}</span>
+        <span className="w-9 text-right tabular-nums text-slate-400">{v ? pct(v) : ''}</span>
       </>
     );
-    const cls = `flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs ${on ? 'bg-slate-800/5 ring-1 ring-slate-400' : ''}`;
+    const cls = `flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs ${on(k) ? 'bg-slate-800/5 ring-1 ring-slate-400' : ''}`;
     return pickable(k) ? (
-      <button key={k} type="button" disabled={!n} onClick={() => onPick!(k)} title={LINE_META[k].hint}
+      <button key={k} type="button" disabled={!v} onClick={() => onPick!(k)} title={LINE_META[k].hint}
         className={`${cls} enabled:hover:bg-slate-100 disabled:cursor-default`}>{body}</button>
     ) : (
       <div key={k} className={`${cls} cursor-help`} title={LINE_META[k].hint}>{body}</div>
     );
   };
 
-  const header = (label: string, n: number, tone: string, pick?: LinePick) => {
-    const text = (
-      <>
-        <span className={`font-bold ${tone}`}>{label}</span>
-        <span className="font-semibold tabular-nums text-slate-800">{fmtInt(n)} dòng</span>
-        <span className="tabular-nums text-slate-500">· {pct(n)}</span>
-      </>
-    );
-    return pick && pickable(pick) ? (
-      <button type="button" onClick={() => onPick!(pick)}
-        className={`flex items-baseline gap-1.5 rounded px-1.5 py-0.5 text-xs hover:bg-slate-100 ${active === pick ? 'bg-slate-800/5 ring-1 ring-slate-400' : ''}`}
-        title="Bấm để lọc các dòng còn chờ hàng về">{text}</button>
-    ) : <div className="flex items-baseline gap-1.5 px-1.5 py-0.5 text-xs">{text}</div>;
-  };
-
+  const waitText = (
+    <>
+      <span className="font-bold text-red-700">Còn chờ hàng về</span>
+      <span className="font-semibold tabular-nums text-slate-800">{fmtInt(wait)} dòng</span>
+      <span className="tabular-nums text-slate-500">· {pct(wait)}</span>
+    </>
+  );
   return (
     <div>
-      {/* 2 nhóm lớn: tổng + % ngay trên thanh, căn theo vị trí nhóm */}
-      <div className="mb-1 flex items-end justify-between gap-2">
-        {header('Còn chờ hàng về', wait, 'text-red-700', 'pending')}
-        {header('Không còn chờ', clear, 'text-emerald-700')}
+      <div className="mb-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs">
+        {pickable('pending') ? (
+          <button type="button" onClick={() => onPick!('pending')}
+            className={`flex items-baseline gap-1.5 rounded px-1.5 py-0.5 hover:bg-slate-100 ${on('pending') ? 'bg-slate-800/5 ring-1 ring-slate-400' : ''}`}
+            title="Chưa mua + Gia công ngoài + Đang mua (trễ hẹn / về theo nhu cầu SX / chưa tới hẹn) + Kho báo về chờ nhập SAP — bấm để lọc">{waitText}</button>
+        ) : (
+          <span className="flex items-baseline gap-1.5 px-1.5 py-0.5" title="Chưa mua + Gia công ngoài + Đang mua (trễ hẹn / về theo nhu cầu SX / chưa tới hẹn) + Kho báo về chờ nhập SAP">{waitText}</span>
+        )}
+        {cancelled > 0 && (pickable('cancelled') ? (
+          <button type="button" onClick={() => onPick!('cancelled')} title={LINE_META.cancelled.hint}
+            className={`rounded px-1.5 py-0.5 text-slate-400 hover:bg-slate-100 ${on('cancelled') ? 'ring-1 ring-slate-400' : ''}`}>
+            Hủy (không tính): <span className="tabular-nums">{fmtInt(cancelled)}</span>
+          </button>
+        ) : (
+          <span className="px-1.5 text-slate-400" title={LINE_META.cancelled.hint}>Hủy (không tính): <span className="tabular-nums">{fmtInt(cancelled)}</span></span>
+        ))}
+        <span className="ml-auto text-[0.625rem] text-slate-400">% trên {fmtInt(base)} dòng còn hiệu lực · nhóm theo cột TRẠNG THÁI / TRẠNG THÁI SAP</span>
       </div>
       <div className="flex h-6 w-full gap-1">
-        {wait > 0 && (
-          <div className="flex overflow-hidden rounded-l-md" style={{ width: `${(wait / base) * 100}%` }}>{segments(PENDING_STATES, wait)}</div>
-        )}
-        {clear > 0 && (
-          <div className={`flex overflow-hidden ${wait > 0 ? '' : 'rounded-l-md'} rounded-r-md`} style={{ width: `${(clear / base) * 100}%` }}>{segments(CLEAR_STATES, clear)}</div>
-        )}
+        {bases.filter(b => b.total > 0).map((b, i, arr) => (
+          <div key={b.key} className={`flex overflow-hidden ${i === 0 ? 'rounded-l-md' : ''} ${i === arr.length - 1 ? 'rounded-r-md' : ''}`}
+            style={{ width: `${(b.total / base) * 100}%` }}>
+            {segments(b.states, b.total)}
+          </div>
+        ))}
       </div>
-      {/* Chú thích 2 cột theo nhóm: số dòng + % trên tổng (không tính hủy) */}
-      <div className="mt-2 grid gap-x-8 gap-y-0.5 sm:grid-cols-2">
-        <div className="space-y-0.5">{PENDING_STATES.map(item)}</div>
-        <div className="space-y-0.5">
-          {CLEAR_STATES.map(item)}
-          {cancelled > 0 && (pickable('cancelled') ? (
-            <button type="button" onClick={() => onPick!('cancelled')} title={LINE_META.cancelled.hint}
-              className={`flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs text-slate-400 hover:bg-slate-100 ${active === 'cancelled' ? 'ring-1 ring-slate-400' : ''}`}>
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${LINE_META.cancelled.bar}`} />Hủy (không tính)<span className="ml-auto tabular-nums">{fmtInt(cancelled)}</span><span className="w-9" />
-            </button>
-          ) : (
-            <div className="flex items-center gap-1.5 px-1.5 py-0.5 text-xs text-slate-400" title={LINE_META.cancelled.hint}>
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${LINE_META.cancelled.bar}`} />Hủy (không tính)<span className="ml-auto tabular-nums">{fmtInt(cancelled)}</span><span className="w-9" />
+      {/* Chú thích theo nhóm cấp 1 (2 cột trạng thái): tổng nhóm + nhãn cấp 2 */}
+      <div className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-4">
+        {bases.map(b => (
+          <div key={b.key}>
+            <div className="mb-0.5 flex flex-wrap items-baseline gap-x-1.5 border-b border-slate-200 px-1.5 pb-0.5 text-xs" title={b.hint}>
+              <span className={`font-bold ${b.tone}`}>{b.label}</span>
+              <span className="font-semibold tabular-nums text-slate-800">{fmtInt(b.total)}</span>
+              <span className="tabular-nums text-slate-500">· {pct(b.total)}</span>
+              <span className="ml-auto text-[0.625rem] text-slate-400">{b.cols}</span>
             </div>
-          ))}
-        </div>
+            <div className="space-y-0.5">{b.states.map(item)}</div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1477,7 +1511,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
   const enriched = useMemo(() => (rows ?? []).map(r => ({ r, st: r.kind === 'uncoded' ? materialLineState(r, today) : null })), [rows, today]);
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'outsourced', 'onTrack', 'deferred', 'arrived', 'onHold', 'ccld', 'closedShort', 'done', 'cancelled'];
+    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'gcNotOrdered', 'outsourced', 'onTrack', 'deferred', 'arrived', 'onHold', 'holdNotOrdered', 'ccld', 'closedPartial', 'closedNoReceipt', 'closedNoPo', 'closedFull', 'done', 'cancelled'];
     const need = (r: ProjectMaterialLine) => parsePlanDate(r.ngay_can_vat_tu)?.getTime() ?? Infinity;
     return enriched
       .filter(({ r, st }) => {
@@ -1591,7 +1625,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                         {r.kind === 'badCode' ? (
                           <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-800" title={r.bad_reason ?? ''}>Sai mã NM: {r.ma_nha_may}</span>
                         ) : meta ? (
-                          <span className="inline-flex cursor-help items-center gap-1 whitespace-nowrap text-slate-700" title={meta.hint}><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}{lateDays > 0 && <span className={st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-500'}>· {st === 'late' ? '' : 'quá '}{fmtInt(lateDays)} ngày</span>}</span>
+                          <span className="inline-flex cursor-help items-center gap-1 whitespace-nowrap text-slate-700" title={meta.hint}><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.full}{lateDays > 0 && <span className={st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-500'}>· {st === 'late' ? '' : 'quá '}{fmtInt(lateDays)} ngày</span>}</span>
                         ) : null}
                       </td>
                       <td className={`${td} min-w-[200px] max-w-[340px] break-words text-slate-500`} title={note}>
@@ -1714,12 +1748,12 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
           </p>
           <LineStateBreakdown
             counts={bom.lineCounts}
-            active={filter}
-            canPick={k => k === 'notOrdered' || k === 'outsourced' || k === 'late' || k === 'deferred' || k === 'onTrack' || k === 'arrived' || k === 'onHold'}
-            onPick={k => setFilter(prev => (prev === k ? 'all' : (k as BomState)))}
+            canPick={k => k !== 'pending' && !!BOM_FROM_LINE[k]}
+            isActive={k => k !== 'pending' && BOM_FROM_LINE[k] === filter}
+            onPick={k => { const bs = k === 'pending' ? undefined : BOM_FROM_LINE[k]; if (bs) setFilter(prev => (prev === bs ? 'all' : bs)); }}
           />
           <p className="mt-1 text-[0.6875rem] text-slate-500">
-            Số trên biểu đồ = số <b>dòng PR</b>. Bấm nhóm còn chờ (trên thanh hoặc chú thích) để lọc danh sách <b>hạng mục</b> bên dưới có nhóm đó là tình trạng xấu nhất — số ở nút lọc là số hạng mục.
+            Số trên biểu đồ = số <b>dòng PR</b>. Bấm nhãn còn chờ / tạm dừng (trên thanh hoặc chú thích) để lọc danh sách <b>hạng mục</b> bên dưới có nhãn đó là tình trạng xấu nhất (gia công chưa đặt + đang đặt gộp "Gia công ngoài") — số ở nút lọc là số hạng mục.
           </p>
           <p className="mt-2 text-[0.6875rem] text-slate-400">
             Nhóm theo cột Trạng thái của PR (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) và SL còn lại trên SAP.
@@ -1812,8 +1846,8 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
           </>}
           extraCells={i => {
             const b = bom.byHex[i.hex];
-            const n = (k: MaterialLineState, cls: string) => {
-              const v = b?.byLine[k] ?? 0;
+            const n = (k: MaterialLineState | MaterialLineState[], cls: string) => {
+              const v = ([] as MaterialLineState[]).concat(k).reduce((t, x) => t + (b?.byLine[x] ?? 0), 0);
               return <td className={`${td} text-right tabular-nums ${v ? cls : 'text-slate-300'}`}>{v || '—'}</td>;
             };
             const meta = BOM_META[b?.state ?? 'noneBeforeSx'];
@@ -1824,7 +1858,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
               <>
                 <td className={`${td} text-right tabular-nums`}>{b?.lines || '—'}</td>
                 {n('notOrdered', 'font-semibold text-rose-600')}
-                {n('outsourced', 'text-fuchsia-700')}
+                {n(['gcNotOrdered', 'outsourced'], 'text-fuchsia-700')}
                 {n('late', 'font-semibold text-orange-600')}
                 {n('deferred', 'text-yellow-700')}
                 {n('onTrack', 'text-amber-700')}

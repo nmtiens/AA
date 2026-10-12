@@ -390,7 +390,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       const b = bomDetail.byHex[i.hex]?.byLine;
       if ((b?.late ?? 0) > 0) out.late++;
       if ((b?.deferred ?? 0) > 0) out.deferred++;
-      if ((b?.outsourced ?? 0) > 0) out.outsourced++;
+      if ((b?.outsourced ?? 0) + (b?.gcNotOrdered ?? 0) > 0) out.outsourced++;
     }
     return out;
   }, [bomDetail, items]);
@@ -431,7 +431,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
     if (mat && mat !== 'stocked') {
       if ((b?.byLine.notOrdered ?? 0) > 0) flags.push('VT chưa mua');
       if ((b?.byLine.late ?? 0) > 0) flags.push('VT đang mua – trễ hẹn');
-      if ((b?.byLine.outsourced ?? 0) > 0) flags.push('Gia công ngoài chưa về');
+      if ((b?.byLine.outsourced ?? 0) + (b?.byLine.gcNotOrdered ?? 0) > 0) flags.push('Gia công ngoài chưa về');
     }
     // Vướng mắc đang mở, ghi rõ loại (vd. "Vướng mắc M3 Vật tư ×2")
     if (openIssues && (openIssues[i.hex] || 0) > 0) {
@@ -661,7 +661,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
                 </div>
               </>
             ) : <p className="text-sm text-slate-400">Đang kiểm tra vật tư…</p>}
-            <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 text-xs">
+            <dl className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-xs">
               <dt className="flex items-center gap-1.5 text-slate-500" title="Hạng mục chưa nhập kho đủ có ít nhất 1 dòng PR 1.CHƯA MUA (không tính gia công ngoài) — tình trạng xấu nhất của hạng mục"><span className="h-2 w-2 shrink-0 rounded-sm bg-red-600" />HM có dòng Chưa mua</dt>
               <dd className="text-right font-semibold tabular-nums text-red-600">{bomDetail ? fmtInt(bomDetail.counts.notOrdered) : '…'}</dd>
               <dt className="flex items-center gap-1.5 text-slate-500" title="Hạng mục chưa nhập kho đủ có dòng PR gia công ngoài (nhóm 806 / ghi chú GC…) chưa đặt hoặc chưa về"><span className="h-2 w-2 shrink-0 rounded-sm bg-fuchsia-500" />HM có dòng Gia công ngoài</dt>
@@ -673,8 +673,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <dt className="text-slate-500" title="Có dòng PR còn chờ sẽ về sau Ngày cần vật tư">Hạng mục có VT về sau ngày cần</dt>
               <dd className="text-right font-semibold tabular-nums text-red-600">{bomDetail ? fmtInt(bomDetail.afterNeed) : '…'}</dd>
               <dt className="text-slate-500" title="PR thuộc công trình nhưng không ghi mã nhà máy => không gắn được hạng mục (xem tab BOM)">VT chung công trình (không mã)</dt>
-              <dd className={`text-right tabular-nums ${projectMat && (projectMat.byState.notOrdered + projectMat.byState.late) > 0 ? 'font-semibold text-rose-600' : 'text-slate-700'}`}>
-                {!projectMat ? '…' : `${fmtInt(projectMat.lines)} dòng · ${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.outsourced)} gia công · ${fmtInt(projectMat.byState.late)} trễ · ${fmtInt(projectMat.byState.deferred)} theo nhu cầu SX`}
+              <dd className="text-right tabular-nums text-slate-700">{projectMat ? `${fmtInt(projectMat.lines)} dòng` : '…'}</dd>
+              <dd className={`col-span-2 -mt-0.5 pl-3 text-[0.6875rem] tabular-nums ${projectMat && (projectMat.byState.notOrdered + projectMat.byState.late) > 0 ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>
+                {!projectMat ? '' : `${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.outsourced + projectMat.byState.gcNotOrdered)} gia công · ${fmtInt(projectMat.byState.late)} trễ · ${fmtInt(projectMat.byState.deferred)} theo nhu cầu SX`}
               </dd>
               <dt className="text-slate-500" title="Theo cột tình trạng gia công ngoài của bảng sản xuất (khác nhóm PR 'Gia công ngoài' ở trên): hạng mục chưa nhập kho đủ có gia công ngoài mà NCC chưa giao xong (tình trạng GCN chưa HOÀN THÀNH / HỦY) — xem tab BOP">Gia công ngoài còn chờ NCC (bảng SX)</dt>
               <dd className={`text-right tabular-nums ${gcnPending ? 'font-semibold text-orange-600' : 'text-slate-700'}`}>

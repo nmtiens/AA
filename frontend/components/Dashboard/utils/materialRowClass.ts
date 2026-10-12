@@ -8,13 +8,18 @@ export const materialRowClass = (row: DataRow): string => {
   switch (st) {
     case 'cancelled': return 'bg-gray-100 text-gray-500 italic';
     case 'done': return 'bg-green-100 text-green-800';
+    case 'closedFull': return 'bg-green-50 text-green-800';
     case 'ccld':
-    case 'closedShort': return 'bg-slate-50 text-slate-600';
+    case 'closedPartial':
+    case 'closedNoReceipt':
+    case 'closedNoPo': return 'bg-slate-50 text-slate-600';
     case 'arrived': return 'bg-sky-50 text-sky-800';
     case 'late': return 'bg-red-100 text-red-700 font-semibold';
     case 'deferred': return 'bg-amber-50 text-amber-800';
     case 'notOrdered': return 'bg-rose-50 text-rose-700';
+    case 'gcNotOrdered':
     case 'outsourced': return 'bg-fuchsia-50 text-fuchsia-800';
+    case 'holdNotOrdered':
     case 'onHold': return 'bg-stone-100 text-stone-500';
     case 'onTrack': {
       // Đang mua: sắp tới ngày dự kiến giao thì tô đậm dần
