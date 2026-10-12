@@ -19,10 +19,11 @@ export const pool = new Pool({
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
 
-  // Trả connection rảnh về pooler sau 30 giây (5 giây khiến gần như request nào cũng mở lại kết nối SSL mới,
-  // chậm thêm vài trăm ms; pooler đầy thoáng qua đã có thử lại ở connectWithRetry): trên Vercel mỗi instance có pool riêng, giữ 60 giây khiến nhiều
-  // instance cùng giữ chỗ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500.
-  idleTimeoutMillis: 30000,
+  // Trả connection rảnh về pooler gần như ngay (1 giây). Trên Vercel instance bị ĐÓNG BĂNG ngay sau khi trả kết quả:
+  // bộ đếm rảnh không chạy trong lúc đóng băng => kết nối chưa kịp trả bị giữ suốt đời instance (vài phút). Nhiều
+  // instance cùng giữ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500
+  // (12/10/2026 với 30 giây). Mở lại kết nối tốn ít vì hàm API (iad1) đặt cạnh DB (Mỹ).
+  idleTimeoutMillis: 1000,
 
   connectionTimeoutMillis: 15000,
 

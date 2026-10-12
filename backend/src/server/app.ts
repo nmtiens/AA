@@ -118,7 +118,8 @@ app.use(async (req: Request, _res: Response, next: NextFunction) => {
   if (path.startsWith('/api/')) {
     try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ }
     if (NO_WAIT_PROJECT_ALIASES.test(path)) {
-      ensureProjectAliases().catch(() => { /* giữ bảng cũ */ });
+      // Route không dùng tên công trình: không kích nạp bảng tên (truy vấn nặng, chiếm thêm 1 kết nối DB tới ~28 giây
+      // trên MỖI instance mới — đăng nhập / thông báo / kiểm tra phiên bản... từng làm pooler đầy)
     } else {
       // Chờ tối đa PROJECT_ALIAS_WAIT_MS: trên Vercel lần nạp đầu của instance mới có lúc ~28 giây (query nối
       // 8 bảng qua HEX khi DB đang bận) => mọi API số liệu treo theo. Quá hạn thì chạy luôn (nạp tiếp ở nền) —
