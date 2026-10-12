@@ -64779,7 +64779,34 @@ var numericColQualified = (table, alias, col) => {
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-async function cachedByVersions(cache, key, versionKeys, compute, extraVersion = "") {
+var sharedCacheDisabled = false;
+var isMissingTable = (e) => e?.code === "42P01";
+async function readShared(key, versions) {
+  if (sharedCacheDisabled) return void 0;
+  try {
+    const r = await timedQuery(
+      "SELECT data FROM api_result_cache WHERE cache_key = $1 AND versions = $2",
+      [key, versions]
+    );
+    return r.rows[0]?.data;
+  } catch (e) {
+    if (isMissingTable(e)) sharedCacheDisabled = true;
+    return void 0;
+  }
+}
+async function writeShared(key, versions, data) {
+  if (sharedCacheDisabled) return;
+  try {
+    await timedQuery(
+      `INSERT INTO api_result_cache (cache_key, versions, data, updated_at) VALUES ($1, $2, $3::jsonb, NOW())
+       ON CONFLICT (cache_key) DO UPDATE SET versions = EXCLUDED.versions, data = EXCLUDED.data, updated_at = NOW()`,
+      [key, versions, JSON.stringify(data)]
+    );
+  } catch (e) {
+    if (isMissingTable(e)) sharedCacheDisabled = true;
+  }
+}
+async function cachedByVersions(cache, key, versionKeys, compute, extraVersion = "", shared = false) {
   const versions = await getRelevantVersions(versionKeys);
   const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
   const hit = cache.map.get(key);
@@ -64789,7 +64816,12 @@ async function cachedByVersions(cache, key, versionKeys, compute, extraVersion =
   if (pending) return pending;
   const p = (async () => {
     try {
-      const payload = await compute();
+      const sharedVersions = `${JSON.stringify(versions)}|${extraVersion}`;
+      let payload = shared ? await readShared(key, sharedVersions) : void 0;
+      if (payload === void 0) {
+        payload = await compute();
+        if (shared) await writeShared(key, sharedVersions, payload);
+      }
       cache.map.delete(key);
       cache.map.set(key, { vkey, payload });
       while (cache.map.size > cache.max) {
@@ -67187,11 +67219,11 @@ var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "pro
 var BadRequest = class extends Error {
   status = 400;
 };
-var cachedGet = (path, cache, versionKeysOf, compute) => {
+var cachedGet = (path, cache, versionKeysOf, compute, shared = false) => {
   app.get(path, async (req, res) => {
     try {
       const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion());
+      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion(), shared);
       res.json(data);
     } catch (error61) {
       if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
@@ -67371,7 +67403,7 @@ cachedGet("/api/filters/xuong", filterCache, () => ["khsx", "order", "inventory"
   const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
   const groups = [...new Set(r.rows.map((row) => workshopGroupOf(row.name)).filter(Boolean))].sort();
   return groups.map((name) => ({ code: name, name }));
-});
+}, true);
 cachedGet("/api/filters/cong-trinh", filterCache, () => ["khsx", "order", "inventory", "export", "tkbv", "pthsp", "stock"], async () => {
   const q = `
       SELECT DISTINCT ON (UPPER(TRIM(name))) TRIM(name) AS name
@@ -67394,7 +67426,7 @@ cachedGet("/api/filters/cong-trinh", filterCache, () => ["khsx", "order", "inven
     `;
   const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
   return r.rows.map((row) => ({ code: row.name, name: row.name }));
-});
+}, true);
 cachedGet("/api/filters/dvt", filterCache, () => ["order", "stock"], async () => {
   const q = `
       SELECT DISTINCT UPPER(TRIM(dvt)) AS name FROM dht
@@ -67406,7 +67438,7 @@ cachedGet("/api/filters/dvt", filterCache, () => ["order", "stock"], async () =>
     `;
   const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
   return r.rows.map((row) => ({ code: row.name, name: row.name }));
-});
+}, true);
 cachedGet("/api/filters/phan-loai-nhom-san-pham", filterCache, () => ["production"], async () => {
   const q = `
       SELECT DISTINCT TRIM(phan_loai_nhom_san_pham) AS name
@@ -67416,7 +67448,7 @@ cachedGet("/api/filters/phan-loai-nhom-san-pham", filterCache, () => ["productio
     `;
   const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
   return r.rows.map((row) => ({ code: row.name, name: row.name }));
-});
+}, true);
 cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
   const { cfg, isStock } = sourceCfg(req);
   if (!cfg.xuongCol && !cfg.xuongViaProductionJoin) return [];

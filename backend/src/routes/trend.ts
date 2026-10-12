@@ -25,11 +25,12 @@ const cachedGet = (
   cache: VersionedCache<unknown>,
   versionKeysOf: (req: Request) => string[],
   compute: (req: Request) => Promise<unknown>,
+  shared = false, // lưu thêm vào cache dùng chung mọi instance (xem server/cache.ts) — chỉ cho kết quả không theo người dùng
 ) => {
   app.get(path, async (req: Request, res: Response) => {
     try {
       const key = `${path}|${queryKey(req.query as Record<string, unknown>, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion());
+      const data = await cachedByVersions(cache, key, versionKeysOf(req), () => compute(req), workshopGroupsVersion(), shared);
       res.json(data);
     } catch (error) {
       if (error instanceof BadRequest) return res.status(400).json({ error: error.message });
@@ -234,7 +235,7 @@ cachedGet('/api/filters/xuong', filterCache, () => ['khsx', 'order', 'inventory'
     // Trả tên xưởng ĐÃ GỘP (setup gộp xưởng), bỏ trùng
     const groups = [...new Set(r.rows.map(row => workshopGroupOf(row.name)).filter(Boolean))].sort();
     return groups.map(name => ({ code: name, name }));
-});
+}, true);
 
 // Danh sách công trình distinct, dùng cho dropdown filter
 cachedGet('/api/filters/cong-trinh', filterCache, () => ['khsx', 'order', 'inventory', 'export', 'tkbv', 'pthsp', 'stock'], async () => {
@@ -259,7 +260,7 @@ cachedGet('/api/filters/cong-trinh', filterCache, () => ['khsx', 'order', 'inven
     `;
     const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
-});
+}, true);
 
 // Danh sách đơn vị tính (dvt) distinct từ dht — dùng cho dropdown filter Đơn hàng mới
 cachedGet('/api/filters/dvt', filterCache, () => ['order', 'stock'], async () => {
@@ -273,7 +274,7 @@ cachedGet('/api/filters/dvt', filterCache, () => ['order', 'stock'], async () =>
     `;
     const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
-});
+}, true);
 
 // Danh sách phân loại nhóm sản phẩm distinct từ production_status_app — dùng cho dropdown filter
 cachedGet('/api/filters/phan-loai-nhom-san-pham', filterCache, () => ['production'], async () => {
@@ -285,7 +286,7 @@ cachedGet('/api/filters/phan-loai-nhom-san-pham', filterCache, () => ['productio
     `;
     const r = await timedQuery(q, [], { timeoutMs: FILTER_TIMEOUT_MS });
     return r.rows.map(row => ({ code: row.name, name: row.name }));
-});
+}, true);
 
 // [ĐO TIMING] Trả về: tổng hợp theo XƯỞNG (không group theo thời gian) — dùng cho biểu đồ so sánh xưởng
 cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req.query.source || '')), async (req: Request) => {
