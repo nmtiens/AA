@@ -143,6 +143,12 @@ describe('trạng thái dòng vật tư (PR)', () => {
     expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'BOD BÁO PENDING' }), today)).toBe('holdNotOrdered');
     expect(materialLineState(line({ ghi_chu_tinh_trang_po: 'NHẬP 12 HỦY 1 CÁI', ngay_du_kien_giao_hang_pmh_nhap: '2026-10-20' }), today)).toBe('onTrack');
     expect(isMaterialPending('onHold')).toBe(false);
+    // Chính tả khác: "tạm ngừng", "huỷ" (dấu trên Y); 4.HUỶ cũng là hủy
+    expect(materialLineState(line({ team_pr_note: 'Tạm ngừng mua' }), today)).toBe('onHold');
+    expect(materialLineState(line({ tinh_trang_po: 'HUỶ PR' }), today)).toBe('onHold');
+    expect(materialLineState(line({ trang_thai: '4.HUỶ' }), today)).toBe('cancelled');
+    // Ngày ghi chú dạng "… 00:00:00.000"
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: '2026-10-30 00:00:00.000' }), today)).toBe('onTrack');
     // Ghi chú Team PR là ngày hẹn mới (muộn hơn ngày PMH) => xét trễ theo ngày ghi chú
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: '2026-10-30 00:00:00' }), today)).toBe('onTrack');
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: '2026-09-20' }), today)).toBe('late');

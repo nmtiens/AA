@@ -150,7 +150,7 @@ export const PivotMaterialStatusSection = ({
           ? '1 ô = số dòng PR (1 Số PR · line), không phải số hạng mục.'
           : 'Khối lượng yêu cầu cộng theo nguyên số, KHÔNG quy đổi đơn vị (kg, m, cái… cộng chung) — chỉ nên so trong cùng 1 nhóm vật tư.'}
         {(pivotMaterialStatusData.closedShort ?? 0) > 0 && (
-          <> 3.ĐÃ NHẬP KHO gồm cả <b className="text-violet-700">{formatNumber(pivotMaterialStatusData.closedShort ?? 0)}</b> dòng PR đã ĐÓNG khi chưa nhận đủ (dùng tồn / đóng thiếu) — xem nhóm "PR đã đóng, chưa nhận đủ" ở tab BOM.</>
+          <> 3.ĐÃ NHẬP KHO gồm cả <b className="text-violet-700">{formatNumber(pivotMaterialStatusData.closedShort ?? 0)}</b> dòng PR đã ĐÓNG khi chưa nhận đủ (dùng tồn / đóng thiếu / không mua) — xem nhóm "Đã nhập kho – Đóng PR" ở tab BOM.</>
         )}
       </p>
     )}

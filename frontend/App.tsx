@@ -1,5 +1,5 @@
 // src/App.tsx
-import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory } from 'lucide-react';
@@ -21,26 +21,27 @@ import { InstallMobileAppModal } from './components/Dashboard/components/modals/
 import { disablePush } from './services/vuongMacMobileApi';
 import { DataUpdateLogModal } from './components/Dashboard/components/modals/DataUpdateLogModal';
 import { ModalShell } from './components/shared/ModalShell';
+import { lazyPage } from './utils/chunkReload';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
-const ChartOverview = lazy(() => import('./components/Charts/ChartOverview'));
+const ChartOverview = lazyPage(() => import('./components/Charts/ChartOverview'));
 const loadDashboardPage = () => import('./components/Dashboard');
-const Dashboard = lazy(loadDashboardPage);
-const DataGrid = lazy(() => import('./components/DataGrid'));
-const Login = lazy(() => import('./components/Login'));
-const UserManagement = lazy(() => import('./components/UserManagement'));
-const ConstructionSetup = lazy(() => import('./components/Construction/ConstructionSetup'));
+const Dashboard = lazyPage(loadDashboardPage);
+const DataGrid = lazyPage(() => import('./components/DataGrid'));
+const Login = lazyPage(() => import('./components/Login'));
+const UserManagement = lazyPage(() => import('./components/UserManagement'));
+const ConstructionSetup = lazyPage(() => import('./components/Construction/ConstructionSetup'));
 const loadConstructionPage = () => import('./components/Construction/ConstructionOverview');
-const ConstructionOverview = lazy(loadConstructionPage);
-const TableColumnSetup = lazy(() => import('./components/Construction/TableColumnSetup'));
-const WorkshopGroupSetup = lazy(() => import('./components/Construction/WorkshopGroupSetup'));
+const ConstructionOverview = lazyPage(loadConstructionPage);
+const TableColumnSetup = lazyPage(() => import('./components/Construction/TableColumnSetup'));
+const WorkshopGroupSetup = lazyPage(() => import('./components/Construction/WorkshopGroupSetup'));
 import type { SetupTab } from './components/Setup/DataSetupPage';
-const DataSetupPage = lazy(() => import('./components/Setup/DataSetupPage'));
+const DataSetupPage = lazyPage(() => import('./components/Setup/DataSetupPage'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
-const MobileApp = lazy(() => import('./components/Mobile/VuongMacMobile'));
+const MobileApp = lazyPage(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
-const HexLookup = lazy(() => import('./components/Mobile/HexLookup'));
+const HexLookup = lazyPage(() => import('./components/Mobile/HexLookup'));
 // Màn quản lý vướng mắc sản xuất (desktop) — dùng chung sheet chi tiết với app điện thoại
-const VuongMacManager = lazy(() => import('./components/VuongMac/VuongMacManager'));
+const VuongMacManager = lazyPage(() => import('./components/VuongMac/VuongMacManager'));
 
 // Vòng chờ trong vùng nội dung (giữ menu); label = đang làm bước nào (đọc dữ liệu đã lưu / tính số liệu...)
 const ContentLoader: React.FC<{ label?: string }> = ({ label }) => (
@@ -91,7 +92,7 @@ const tablesForPath = (path: string): string[] => {
 };
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
-  // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazy() tự tải lại và báo lỗi nếu có
+  // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazyPage() tự tải lại và báo lỗi nếu có
   if (path === '/') loadDashboardPage().catch(() => {});
   else if (path === CONSTRUCTION_PATH) loadConstructionPage().catch(() => {});
 };

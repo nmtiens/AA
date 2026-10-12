@@ -387,9 +387,10 @@ const upNfc = (v: unknown) => String(v ?? '').normalize('NFC').trim().toUpperCas
  */
 export const isOnHoldLine = (r: MaterialLineFields): boolean => {
   const po = upNfc(r.tinh_trang_po), note = upNfc(r.team_pr_note), gpo = upNfc(r.ghi_chu_tinh_trang_po);
-  return /HỦY|TẠM NG[ƯU]NG|TẠM D[ỪU]NG|THẦU PHỤ|CÔNG TRÌNH ĐÃ HOÀN THÀNH/.test(po)
-    || /HỦY|TẠM NG[ƯU]NG|TẠM D[ỪU]NG|PENDING/.test(note)
-    || /HỦY YÊU CẦU|HỦY PHẦN CÒN LẠI|KHÔNG MUA NỮA|TẠM NG[ƯU]NG|TẠM D[ỪU]NG/.test(gpo);
+  // "HỦY" có 2 kiểu đặt dấu (HỦY / HUỶ); "tạm ngưng / tạm ngừng"
+  return /H(?:ỦY|UỶ)|TẠM NG[ƯỪU]NG|TẠM D[ỪU]NG|THẦU PHỤ|CÔNG TRÌNH ĐÃ HOÀN THÀNH/.test(po)
+    || /H(?:ỦY|UỶ)|TẠM NG[ƯỪU]NG|TẠM D[ỪU]NG|PENDING/.test(note)
+    || /H(?:ỦY|UỶ) YÊU CẦU|H(?:ỦY|UỶ) PHẦN CÒN LẠI|KHÔNG MUA NỮA|TẠM NG[ƯỪU]NG|TẠM D[ỪU]NG/.test(gpo);
 };
 
 /**
@@ -406,7 +407,8 @@ export const isOutsourcedLine = (r: MaterialLineFields): boolean =>
  */
 export const materialDueDate = (r: MaterialLineFields): Date | null => {
   const pmh = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
-  const m = /^(\d{4}-\d{2}-\d{2})(?:[ T]00:00(?::00)?)?$/.exec(String(r.team_pr_note ?? '').trim());
+  // Cùng dạng với ô ghi chú hiện là ngày ở bảng (ProjectHealthTabs.fmtNote): "2026-10-30", "… 00:00:00", "… 00:00:00.000"
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[ T]00:00(?::00(?:\.0+)?)?)?$/.exec(String(r.team_pr_note ?? '').trim());
   const note = m ? parsePlanDate(m[1]) : null;
   if (note && (!pmh || note.getTime() > pmh.getTime())) return note;
   return pmh;
@@ -418,7 +420,7 @@ const isDoneNote = (r: MaterialLineFields): boolean => upNfc(r.team_pr_note) ===
 /** Nhóm cấp 1 theo 2 cột TRẠNG THÁI + TRẠNG THÁI SAP (lệch nhau thì ưu tiên HỦY, rồi cột TRẠNG THÁI). */
 export const materialBaseOf = (r: MaterialLineFields): MaterialBase => {
   const st = upNfc(r.trang_thai), sap = upNfc(r.trang_thai_sap);
-  if (st.includes('HỦY') || sap.includes('HỦY')) return 'cancelled';
+  if (/H(?:ỦY|UỶ)/.test(st) || /H(?:ỦY|UỶ)/.test(sap)) return 'cancelled';
   if (st.includes('ĐÃ NHẬP KHO') || sap.includes('ĐÓNG') || sap.includes('HOÀN THÀNH')) {
     if (sap.includes('ĐÓNG')) return 'closed';
     if (sap.includes('HOÀN THÀNH')) return 'done';

@@ -714,7 +714,7 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
   const rowTotals: Record<string, number> = {};
   const colTotals: Record<string, number> = {};
   let grandTotal = 0;
-  // Dòng 3.ĐÃ NHẬP KHO nhưng PR đã ĐÓNG khi chưa nhận đủ (cùng nhãn "PR đã đóng, chưa nhận đủ" ở tab BOM)
+  // Dòng 3.ĐÃ NHẬP KHO nhưng PR đã ĐÓNG khi chưa nhận đủ (nhóm "Đã nhập kho – Đóng PR" ở tab BOM: nhận 1 phần / có PO chưa nhận / không PO)
   let closedShort = 0;
   uniqueGroups.forEach(g => { matrix[g] = {}; rowTotals[g] = 0; uniqueStatuses.forEach(s => { matrix[g][s] = 0; colTotals[s] = (colTotals[s] || 0); }); });
   filteredMaterialData.forEach(row => {

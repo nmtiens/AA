@@ -1606,7 +1606,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                   const due = materialDueDate(r);
                   const meta = st ? LINE_STATES.find(x => x.key === st) : null;
                   // Số ngày trễ so với Ngày dự kiến giao (PMH nhập) — để thấy dòng nào trễ lâu nhất
-                  const lateDays = (st === 'late' || st === 'deferred') && due ? Math.floor((today - due.getTime()) / DAY) : 0;
+                  const lateDays = (st === 'late' || st === 'deferred' || st === 'outsourced') && due && due.getTime() < today ? Math.floor((today - due.getTime()) / DAY) : 0;
                   const note = [fmtNote(r.team_pr_note), r.item_note_pr].filter(Boolean).join(' · ');
                   return (
                     <tr key={`${String(r.so_pr)}-${String(r.pr_line)}-${idx}`} className="hover:bg-slate-50">
@@ -1620,7 +1620,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                       <td className={`${td} whitespace-nowrap text-right tabular-nums font-semibold text-slate-700`}>{Number(r.so_luong_con_lai) > 0 ? fmtQty(r.so_luong_con_lai) : '—'} {Number(r.so_luong_con_lai) > 0 && <span className="font-normal text-slate-400">{r.dvt}</span>}</td>
                       <td className={`${td} whitespace-nowrap tabular-nums text-slate-500`}>{fmtDate(parsePlanDate(r.ngay_pr))}</td>
                       <td className={`${td} whitespace-nowrap tabular-nums ${need && st && PENDING_STATES.includes(st) && need.getTime() < today ? 'font-semibold text-red-600' : 'text-slate-600'}`}>{fmtDate(need)}</td>
-                      <td className={`${td} whitespace-nowrap tabular-nums ${st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-600'}`}>{st === 'late' || st === 'deferred' || st === 'onTrack' ? fmtDate(due) : '—'}</td>
+                      <td className={`${td} whitespace-nowrap tabular-nums ${st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-600'}`}>{st === 'late' || st === 'deferred' || st === 'onTrack' || st === 'outsourced' ? fmtDate(due) : '—'}</td>
                       <td className={td}>
                         {r.kind === 'badCode' ? (
                           <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-800" title={r.bad_reason ?? ''}>Sai mã NM: {r.ma_nha_may}</span>
@@ -1681,9 +1681,9 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
     // Ưu tiên xử lý: trễ hẹn giao → chưa mua → đang mua chưa tới hẹn → chưa tìm thấy VT → kho báo về
     // → đã về đủ → hạng mục đã nhập kho đủ (không còn ảnh hưởng, luôn xếp cuối)
     // Chưa triển khai (P001) xếp sau 'đã về đủ' — chưa lên PR là bình thường
-    const PRIORITY: BomState[] = ['late', 'notOrdered', 'onTrack', 'deferred', 'noneBeforeSx', 'arrived', 'ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
+    const PRIORITY: BomState[] = ['late', 'notOrdered', 'outsourced', 'onTrack', 'deferred', 'noneBeforeSx', 'arrived', 'onHold', 'ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
     const rank = (i: HexInfo) => PRIORITY.indexOf(bom.byHex[i.hex]?.state ?? 'noneBeforeSx');
-    const PENDING_BOM: BomState[] = ['late', 'notOrdered', 'onTrack', 'deferred'];
+    const PENDING_BOM: BomState[] = ['late', 'notOrdered', 'outsourced', 'onTrack', 'deferred'];
     const DONE_BOM: BomState[] = ['ok', 'noneInSx', 'noneNotDeployed', 'stocked'];
     const pendingFirst = (i: HexInfo) => {
       const s = bom.byHex[i.hex]?.state ?? 'noneBeforeSx';
@@ -1756,9 +1756,10 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
             Số trên biểu đồ = số <b>dòng PR</b>. Bấm nhãn còn chờ / tạm dừng (trên thanh hoặc chú thích) để lọc danh sách <b>hạng mục</b> bên dưới có nhãn đó là tình trạng xấu nhất (gia công chưa đặt + đang đặt gộp "Gia công ngoài") — số ở nút lọc là số hạng mục.
           </p>
           <p className="mt-2 text-[0.6875rem] text-slate-400">
-            Nhóm theo cột Trạng thái của PR (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) và SL còn lại trên SAP.
-            "Đã nhận đủ" = 3.ĐÃ NHẬP KHO và SL còn lại = 0; "PR đã đóng, chưa nhận đủ" = 3.ĐÃ NHẬP KHO nhưng PR đóng khi còn
-            thiếu (dùng tồn / đóng thiếu / CCLD). Còn chờ hàng về = Chưa mua + Đang mua (trễ / về theo nhu cầu SX / chưa tới hẹn) + Kho báo về chờ nhập SAP; % tính trên tổng không gồm dòng hủy. Rê chuột vào từng nhóm để xem chi tiết.
+            Nhóm cấp 1 theo 2 cột TRẠNG THÁI / TRẠNG THÁI SAP: Chưa mua (1.CHƯA MUA / Mở) · Đang mua (2.ĐANG MUA / Mở) ·
+            Đã nhập kho – Hoàn thành (3.ĐÃ NHẬP KHO / Hoàn thành, đã nhận đủ) · Đã nhập kho – Đóng PR (3.ĐÃ NHẬP KHO / Đóng: nhận đủ /
+            nhận 1 phần / có PO chưa nhận / không PO). Còn chờ hàng về = Chưa mua + Gia công ngoài + Đang mua (trễ / về theo nhu cầu SX /
+            chưa tới hẹn) + Kho báo về chờ nhập SAP; % tính trên tổng không gồm dòng hủy. Rê chuột vào từng nhãn để xem chi tiết.
           </p>
         </div>
       )}
