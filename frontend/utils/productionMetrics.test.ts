@@ -127,6 +127,21 @@ describe('trạng thái dòng vật tư (PR)', () => {
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', ghi_chu_tinh_trang_po: 'ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT' }), today)).toBe('deferred');
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-12-01', team_pr_note: 'VỀ THEO NHU CẦU SX' }), today)).toBe('onTrack');
     expect(isMaterialPending('deferred')).toBe(true);
+    // Gia công ngoài (nhóm 806 / ghi chú GC…): nhóm riêng, vẫn còn chờ — xét trước nhãn chưa mua
+    expect(materialLineState(line({ nhom_vt: '806 - Gia công', ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01' }), today)).toBe('outsourced');
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'GC BTP-KHUNG GỖ' }), today)).toBe('outsourced');
+    expect(isMaterialPending('outsourced')).toBe(true);
+    // PO hủy / tạm ngưng / chuyển thầu phụ / BOD pending: không còn chờ
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', tinh_trang_po: 'HỦY PR' }), today)).toBe('onHold');
+    expect(materialLineState(line({ tinh_trang_po: 'CT TẠM DỪNG', nhom_vt: '806 - Gia công' }), today)).toBe('onHold');
+    expect(materialLineState(line({ trang_thai: '1.CHƯA MUA', team_pr_note: 'BOD BÁO PENDING' }), today)).toBe('onHold');
+    expect(materialLineState(line({ ghi_chu_tinh_trang_po: 'NHẬP 12 HỦY 1 CÁI', ngay_du_kien_giao_hang_pmh_nhap: '2026-10-20' }), today)).toBe('onTrack');
+    expect(isMaterialPending('onHold')).toBe(false);
+    // Ghi chú Team PR là ngày hẹn mới (muộn hơn ngày PMH) => xét trễ theo ngày ghi chú
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: '2026-10-30 00:00:00' }), today)).toBe('onTrack');
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: '2026-09-20' }), today)).toBe('late');
+    // Đang mua, ghi chú "HOÀN THÀNH": hàng đã về, chờ SAP nhập
+    expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-01', team_pr_note: 'Hoàn thành' }), today)).toBe('arrived');
     expect(materialLineState(line({ ngay_du_kien_giao_hang_pmh_nhap: '2026-10-20' }), today)).toBe('onTrack');
     expect(materialLineState(line({}), today)).toBe('onTrack'); // không có ngày dự kiến -> chưa tới hẹn
   });

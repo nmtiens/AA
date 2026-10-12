@@ -3,12 +3,12 @@ import { Search, Package, AlertTriangle, Download } from 'lucide-react';
 import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
-  materialLineState, isMaterialPending, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
+  materialLineState, isMaterialPending, materialDueDate, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
   type DeadlineSource, type MaterialLineState, type MaterialLineFields, stageRank,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
 import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
-import { parseNvlNeeds, parseNvlStatus, nvlLinePending, summarizeNeeds, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
+import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
 
 // ============================================================================
@@ -1059,7 +1059,7 @@ export const BopTab = ({ items, onHexClick, extra }: {
                       </span>
                     )}
                 </td>
-                <td className={`${td} max-w-[180px] truncate`} title={e?.gcn ? [e.gcn.st, e.gcn.note, e.gcn.due ? `dự kiến về ${e.gcn.due}` : ''].filter(Boolean).join(' · ') : undefined}>
+                <td className={`${td} min-w-[140px] max-w-[220px] break-words`} title={e?.gcn ? [e.gcn.st, e.gcn.note, e.gcn.due ? `dự kiến về ${e.gcn.due}` : ''].filter(Boolean).join(' · ') : undefined}>
                   {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
                     : !e?.gcn ? <span className="text-slate-300">—</span>
                       : <span className={GCN_DONE(e.gcn.st) ? 'text-slate-500' : 'font-medium text-orange-700'}>{e.gcn.st ?? 'Chưa ghi tình trạng'}</span>}
@@ -1086,7 +1086,7 @@ export const BopTab = ({ items, onHexClick, extra }: {
 //    => chưa kiểm chứng được vật tư, cần để ý
 //  - noneInSx: đã lên chuyền (từ P013), hoặc P002 / P012 mà tình trạng NVL ở bảng sản xuất đã về đủ
 //    => vật tư mua gộp theo công trình / tồn kho, không đáng lo
-export type BomState = 'noneBeforeSx' | 'noneInSx' | 'noneNotDeployed' | 'notOrdered' | 'late' | 'deferred' | 'onTrack' | 'arrived' | 'ok' | 'stocked';
+export type BomState = 'noneBeforeSx' | 'noneInSx' | 'noneNotDeployed' | 'notOrdered' | 'late' | 'outsourced' | 'deferred' | 'onTrack' | 'arrived' | 'onHold' | 'ok' | 'stocked';
 export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' | 'emerald' | 'slate'; badge: string; hint: string }[] = [
   { key: 'noneBeforeSx', label: 'Đã triển khai, chưa SX – chưa thấy PR', tone: 'red', badge: 'bg-red-50 text-red-600',
     hint: 'P002 / P012 (chưa sản xuất), không có dòng PR nào ghi mã nhà máy của hạng mục và bảng sản xuất không ghi tình trạng mua (hoặc còn dòng chờ) — chưa kiểm chứng được vật tư: kiểm tra PR chung của công trình / định mức NVL' },
@@ -1094,36 +1094,51 @@ export const BOM_STATES: { key: BomState; label: string; tone: 'red' | 'amber' |
     hint: 'Không có PR ghi mã hạng mục nhưng đã lên chuyền (từ P013) hoặc bảng sản xuất ghi tình trạng mua đã về đủ — vật tư mua gộp theo công trình hoặc lấy từ tồn kho' },
   { key: 'noneNotDeployed', label: 'Chưa triển khai (P001)', tone: 'slate', badge: 'bg-slate-100 text-slate-600',
     hint: 'Hạng mục chưa triển khai bản vẽ (P001 / 15. CHƯA TRIỂN KHAI) nên chưa lên PR — bình thường' },
-  { key: 'notOrdered', label: 'Có VT chưa mua', tone: 'red', badge: 'bg-rose-50 text-rose-700',
+  { key: 'notOrdered', label: 'Chưa mua', tone: 'red', badge: 'bg-red-50 text-red-700',
     hint: 'Ít nhất 1 dòng PR 1.CHƯA MUA (chưa có PO)' },
-  { key: 'late', label: 'VT trễ hẹn giao', tone: 'amber', badge: 'bg-orange-50 text-orange-700',
+  { key: 'late', label: 'Đang mua – trễ hẹn', tone: 'amber', badge: 'bg-orange-50 text-orange-700',
     hint: 'Đang mua, đã quá Ngày dự kiến giao hàng PMH nhập mà chưa về đủ' },
-  { key: 'deferred', label: 'VT về theo nhu cầu SX', tone: 'amber', badge: 'bg-yellow-50 text-yellow-800',
+  { key: 'outsourced', label: 'Gia công ngoài', tone: 'amber', badge: 'bg-fuchsia-50 text-fuchsia-700',
+    hint: 'Còn PR gia công ngoài (nhóm 806 / ghi chú GC…) chưa đặt hoặc chưa về — bán thành phẩm / công đoạn thuê ngoài, không phải vật tư' },
+  { key: 'deferred', label: 'Đang mua – về theo nhu cầu SX', tone: 'amber', badge: 'bg-amber-50 text-amber-800',
     hint: 'Đang mua, đã qua ngày dự kiến giao nhưng ghi chú là về theo nhu cầu sản xuất / dùng tồn kho trước — cố ý cho về sau, không phải nhà cung cấp trễ' },
-  { key: 'onTrack', label: 'Đang mua, chưa tới hẹn', tone: 'amber', badge: 'bg-amber-50 text-amber-700',
+  { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', tone: 'slate', badge: 'bg-sky-50 text-sky-700',
     hint: 'Còn dòng đang mua nhưng chưa tới Ngày dự kiến giao hàng PMH nhập' },
-  { key: 'arrived', label: 'Kho đã báo về, chờ nhập SAP', tone: 'slate', badge: 'bg-sky-50 text-sky-700',
+  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', tone: 'slate', badge: 'bg-blue-50 text-blue-700',
     hint: 'Kho báo SL hàng về thực tế ≥ SL yêu cầu (và không quá 1,5 lần — lớn hơn coi là kho ghi khác đơn vị, vd. gỗ M3), SAP chưa ghi nhận' },
+  { key: 'onHold', label: 'Tạm dừng / chờ hủy PR', tone: 'slate', badge: 'bg-stone-100 text-stone-600',
+    hint: 'Không còn dòng chờ hàng về, nhưng có dòng PR tạm dừng / chờ hủy (PO ghi HỦY / tạm ngưng / chuyển thầu phụ…) — team PR cần đóng / hủy PR' },
   { key: 'ok', label: 'Đã về đủ (theo PR đã có)', tone: 'emerald', badge: 'bg-emerald-50 text-emerald-700',
     hint: 'Mọi dòng PR đã nối được đều đã về / CCLD / đã đóng / đã hủy — không khẳng định đủ toàn bộ BOM' },
   { key: 'stocked', label: 'Hạng mục đã nhập kho đủ', tone: 'slate', badge: 'bg-slate-100 text-slate-500',
     hint: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng — vật tư không còn ảnh hưởng' },
 ];
 const BOM_META = Object.fromEntries(BOM_STATES.map(s => [s.key, s])) as Record<BomState, (typeof BOM_STATES)[number]>;
+// Thứ tự + màu nút lọc hạng mục — cùng thứ tự / màu với biểu đồ dòng PR (LineStateBreakdown): còn chờ hàng về →
+// đã về → chưa có PR. Màu ô vuông = màu đoạn tương ứng trên biểu đồ (BOM_DOT; nhóm chưa có PR không có trên biểu đồ).
+const BOM_CHIP_ORDER: BomState[] = ['notOrdered', 'outsourced', 'late', 'deferred', 'onTrack', 'arrived', 'onHold', 'ok', 'stocked', 'noneBeforeSx', 'noneInSx', 'noneNotDeployed'];
+const BOM_DOT: Partial<Record<BomState, string>> = {
+  notOrdered: 'bg-red-600', outsourced: 'bg-fuchsia-500', onHold: 'bg-stone-400', late: 'bg-orange-500', deferred: 'bg-amber-300', onTrack: 'bg-sky-300', arrived: 'bg-blue-500',
+  ok: 'bg-emerald-500', stocked: 'bg-slate-300', noneBeforeSx: 'bg-white ring-1 ring-red-400', noneInSx: 'bg-white ring-1 ring-slate-300', noneNotDeployed: 'bg-white ring-1 ring-slate-300',
+};
 
 // Nhóm dòng PR — xếp theo cột Trạng thái chung (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) + SL còn lại
 // trên SAP (utils/productionMetrics.materialLineState). `hint` hiện khi rê chuột vào nhóm.
 export const LINE_STATES: { key: MaterialLineState; label: string; bar: string; hint: string }[] = [
-  { key: 'notOrdered', label: 'Chưa mua', bar: 'bg-rose-500',
+  { key: 'notOrdered', label: 'Chưa mua', bar: 'bg-red-600',
     hint: 'Trạng thái 1.CHƯA MUA — chưa có PO (kể cả dòng có ghi chú CCLD).' },
+  { key: 'outsourced', label: 'Gia công ngoài', bar: 'bg-fuchsia-500',
+    hint: 'PR đặt gia công ngoài (nhóm VT 806 - Gia công, ghi chú Team PR "GC BTP-…" / "GC CÔNG ĐOẠN-…" / "GC NGUYÊN CON"): bán thành phẩm / công đoạn thuê ngoài, không phải mua vật tư. Vẫn là còn chờ (chưa đặt hoặc chưa về) nhưng tách riêng khỏi vật tư chưa mua / trễ hẹn.' },
   { key: 'late', label: 'Đang mua – trễ hẹn', bar: 'bg-orange-500',
-    hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) mà SAP chưa nhận đủ.' },
-  { key: 'deferred', label: 'Đang mua – về theo nhu cầu SX', bar: 'bg-yellow-300',
+    hint: 'Trạng thái 2.ĐANG MUA, đã qua hạn giao mà SAP chưa nhận đủ. Hạn giao = Ngày dự kiến giao hàng (PMH nhập); Team PR ghi ngày hẹn mới vào ghi chú (muộn hơn) thì lấy ngày ghi chú.' },
+  { key: 'deferred', label: 'Đang mua – về theo nhu cầu SX', bar: 'bg-amber-300',
     hint: 'Trạng thái 2.ĐANG MUA, đã qua Ngày dự kiến giao hàng (PMH nhập) nhưng ghi chú Team PR "VỀ THEO NHU CẦU SX" / "DÙNG TRƯỚC TỒN KHO" hoặc ghi chú PO "ĐIỀU PHỐI HÀNG VỀ THEO NHU CẦU SẢN XUẤT": hàng cố ý cho về theo nhu cầu sản xuất, không phải nhà cung cấp trễ. Vẫn tính là còn chờ.' },
-  { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-amber-400',
-    hint: 'Trạng thái 2.ĐANG MUA, chưa tới Ngày dự kiến giao hàng (PMH nhập).' },
-  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-sky-400',
-    hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu — chỉ còn chờ SAP ghi nhập kho. Số kho báo lớn hơn 1,5 lần SL yêu cầu bị bỏ qua (kho ghi khác đơn vị, vd. gỗ M3).' },
+  { key: 'onTrack', label: 'Đang mua – chưa tới hẹn', bar: 'bg-sky-300',
+    hint: 'Trạng thái 2.ĐANG MUA, chưa tới hạn giao (Ngày dự kiến giao hàng PMH nhập, hoặc ngày hẹn mới Team PR ghi trong ghi chú).' },
+  { key: 'arrived', label: 'Kho báo về, chờ nhập SAP', bar: 'bg-blue-500',
+    hint: 'Trạng thái 2.ĐANG MUA nhưng kho đã báo SL hàng về thực tế ≥ SL yêu cầu, hoặc Team PR ghi chú "HOÀN THÀNH" — chỉ còn chờ SAP ghi nhập kho. Số kho báo lớn hơn 1,5 lần SL yêu cầu bị bỏ qua (kho ghi khác đơn vị, vd. gỗ M3).' },
+  { key: 'onHold', label: 'Tạm dừng / chờ hủy PR', bar: 'bg-stone-400',
+    hint: 'Nhãn vẫn là 1.CHƯA MUA / 2.ĐANG MUA nhưng tình trạng PO ghi HỦY / tạm ngưng / công trình tạm dừng / chuyển thầu phụ, hoặc ghi chú Team PR ghi HỦY / tạm ngưng / BOD pending — không còn chờ hàng về; cần team PR đóng / hủy PR trên SAP.' },
   { key: 'ccld', label: 'CCLD – lắp tại công trình', bar: 'bg-teal-400',
     hint: 'Dòng 2.ĐANG MUA là hàng CCLD (ghi chú Team PR có "CCLD" hoặc tình trạng PO "Cung cấp lắp đặt"): nhà cung cấp giao và lắp thẳng tại công trình, không về kho nhà máy — không chặn sản xuất. Dòng 1.CHƯA MUA dù ghi CCLD vẫn tính là Chưa mua (còn thiếu).' },
   { key: 'closedShort', label: 'PR đã đóng, chưa nhận đủ', bar: 'bg-violet-400',
@@ -1156,7 +1171,7 @@ export interface BomAnalysis {
   issueTotal: number;                             // số vướng mắc M3 đang mở
 }
 
-const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'onTrack', 'deferred', 'arrived'];
+const LINE_ORDER: MaterialLineState[] = ['notOrdered', 'late', 'outsourced', 'onTrack', 'deferred', 'arrived', 'onHold'];
 
 /**
  * Dòng còn chờ sẽ về SAU Ngày cần vật tư:
@@ -1170,7 +1185,7 @@ const lineAfterNeed = (l: MaterialLine, st: MaterialLineState, today: number): b
   if (need === undefined) return false;
   if (st === 'notOrdered') return need < today;
   if (st === 'late' || st === 'onTrack') {
-    const due = parsePlanDate(l.ngay_du_kien_giao_hang_pmh_nhap)?.getTime() ?? today;
+    const due = materialDueDate(l)?.getTime() ?? today;
     return Math.max(due, today) > need;
   }
   return false;
@@ -1207,7 +1222,7 @@ export function analyzeBom(
     const after = lineAfterNeed(l, st, today);
     const pr = parsePlanDate(l.ngay_pr)?.getTime();
     const need = parsePlanDate(l.ngay_can_vat_tu)?.getTime();
-    const due = st === 'late' || st === 'deferred' || st === 'onTrack' ? parsePlanDate(l.ngay_du_kien_giao_hang_pmh_nhap)?.getTime() : undefined;
+    const due = st === 'late' || st === 'deferred' || st === 'onTrack' ? materialDueDate(l)?.getTime() : undefined;
     const arrived = parsePlanDate(l.ngay_thuc_te_ve)?.getTime();
     if (l.hexes.some(h => openHex.has(h))) { lineCounts[st]++; lineTotal++; }
     for (const h of l.hexes) {
@@ -1281,8 +1296,123 @@ export interface ProjectMaterialSummary {
   toFix: number;                                   // dòng cần bổ sung mã (còn chờ không mã + sai mã)
 }
 
-const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'late', 'deferred', 'onTrack', 'arrived'];
+const PENDING_STATES: MaterialLineState[] = ['notOrdered', 'outsourced', 'late', 'deferred', 'onTrack', 'arrived'];
 const lineStateLabel = (s: MaterialLineState) => LINE_STATES.find(x => x.key === s)?.label ?? s;
+
+// ---------------------------------------------------------------------------
+// Biểu đồ phân bổ dòng PR theo trạng thái — dùng chung cho "Vật tư chung của công trình" và "Dòng PR gắn hạng mục".
+// Chia 2 nhóm lớn có tổng + %: CÒN CHỜ hàng về / KHÔNG CÒN CHỜ (dòng Hủy ghi riêng, không vẽ vào thanh). Thanh
+// dày, số dòng ghi ngay trên đoạn đủ rộng, khe ngăn giữa 2 nhóm; chú thích 2 cột theo nhóm (số + %). Có onPick thì
+// bấm từng nhóm để lọc bảng bên dưới.
+// ---------------------------------------------------------------------------
+const CLEAR_STATES: MaterialLineState[] = ['onHold', 'ccld', 'closedShort', 'done'];
+const LINE_META = Object.fromEntries(LINE_STATES.map(s => [s.key, s])) as Record<MaterialLineState, (typeof LINE_STATES)[number]>;
+const DARK_TEXT_BARS = new Set<MaterialLineState>(['deferred', 'onTrack']); // nền nhạt => chữ tối
+
+type LinePick = MaterialLineState | 'pending';
+const LineStateBreakdown = ({ counts, active, onPick, canPick }: {
+  counts: Record<MaterialLineState, number>;
+  active?: string;
+  onPick?: (k: LinePick) => void;
+  canPick?: (k: LinePick) => boolean; // mặc định: mọi nhóm bấm được khi có onPick
+}) => {
+  const pickable = (k: LinePick) => !!onPick && (canPick ? canPick(k) : true);
+  const sumOf = (keys: MaterialLineState[]) => keys.reduce((t, k) => t + (counts[k] ?? 0), 0);
+  const wait = sumOf(PENDING_STATES);
+  const clear = sumOf(CLEAR_STATES);
+  const base = wait + clear;
+  const cancelled = counts.cancelled ?? 0;
+  const pct = (n: number) => (base ? `${Math.round((n / base) * 100)}%` : '0%');
+  if (base === 0) {
+    return <p className="py-2 text-xs text-slate-500">Không có dòng PR nào (ngoài {fmtInt(cancelled)} dòng hủy).</p>;
+  }
+
+  const segments = (keys: MaterialLineState[], groupTotal: number) => keys.filter(k => counts[k] > 0).map(k => {
+    const w = (counts[k] / groupTotal) * 100;
+    const wide = (counts[k] / base) * 100 >= 6; // đủ rộng để ghi số
+    return (
+      <div
+        key={k}
+        onClick={pickable(k) ? () => onPick!(k) : undefined}
+        className={`${LINE_META[k].bar} flex items-center justify-center border-r border-white/70 text-[0.625rem] font-bold tabular-nums last:border-r-0 ${DARK_TEXT_BARS.has(k) ? 'text-slate-800' : 'text-white'} ${pickable(k) ? 'cursor-pointer hover:brightness-110' : ''} ${active === k ? 'ring-2 ring-inset ring-slate-900' : ''}`}
+        style={{ width: `${w}%` }}
+        title={`${LINE_META[k].label}: ${fmtInt(counts[k])} dòng (${pct(counts[k])}) — ${LINE_META[k].hint}`}
+      >
+        {wide ? fmtInt(counts[k]) : ''}
+      </div>
+    );
+  });
+
+  const item = (k: MaterialLineState) => {
+    const n = counts[k] ?? 0;
+    const on = active === k;
+    const body = (
+      <>
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${LINE_META[k].bar}`} />
+        <span className={`truncate ${n ? 'text-slate-700' : 'text-slate-400'}`}>{LINE_META[k].label}</span>
+        <span className={`ml-auto font-semibold tabular-nums ${n ? 'text-slate-800' : 'text-slate-300'}`}>{fmtInt(n)}</span>
+        <span className="w-9 text-right tabular-nums text-slate-400">{n ? pct(n) : ''}</span>
+      </>
+    );
+    const cls = `flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs ${on ? 'bg-slate-800/5 ring-1 ring-slate-400' : ''}`;
+    return pickable(k) ? (
+      <button key={k} type="button" disabled={!n} onClick={() => onPick!(k)} title={LINE_META[k].hint}
+        className={`${cls} enabled:hover:bg-slate-100 disabled:cursor-default`}>{body}</button>
+    ) : (
+      <div key={k} className={`${cls} cursor-help`} title={LINE_META[k].hint}>{body}</div>
+    );
+  };
+
+  const header = (label: string, n: number, tone: string, pick?: LinePick) => {
+    const text = (
+      <>
+        <span className={`font-bold ${tone}`}>{label}</span>
+        <span className="font-semibold tabular-nums text-slate-800">{fmtInt(n)} dòng</span>
+        <span className="tabular-nums text-slate-500">· {pct(n)}</span>
+      </>
+    );
+    return pick && pickable(pick) ? (
+      <button type="button" onClick={() => onPick!(pick)}
+        className={`flex items-baseline gap-1.5 rounded px-1.5 py-0.5 text-xs hover:bg-slate-100 ${active === pick ? 'bg-slate-800/5 ring-1 ring-slate-400' : ''}`}
+        title="Bấm để lọc các dòng còn chờ hàng về">{text}</button>
+    ) : <div className="flex items-baseline gap-1.5 px-1.5 py-0.5 text-xs">{text}</div>;
+  };
+
+  return (
+    <div>
+      {/* 2 nhóm lớn: tổng + % ngay trên thanh, căn theo vị trí nhóm */}
+      <div className="mb-1 flex items-end justify-between gap-2">
+        {header('Còn chờ hàng về', wait, 'text-red-700', 'pending')}
+        {header('Không còn chờ', clear, 'text-emerald-700')}
+      </div>
+      <div className="flex h-6 w-full gap-1">
+        {wait > 0 && (
+          <div className="flex overflow-hidden rounded-l-md" style={{ width: `${(wait / base) * 100}%` }}>{segments(PENDING_STATES, wait)}</div>
+        )}
+        {clear > 0 && (
+          <div className={`flex overflow-hidden ${wait > 0 ? '' : 'rounded-l-md'} rounded-r-md`} style={{ width: `${(clear / base) * 100}%` }}>{segments(CLEAR_STATES, clear)}</div>
+        )}
+      </div>
+      {/* Chú thích 2 cột theo nhóm: số dòng + % trên tổng (không tính hủy) */}
+      <div className="mt-2 grid gap-x-8 gap-y-0.5 sm:grid-cols-2">
+        <div className="space-y-0.5">{PENDING_STATES.map(item)}</div>
+        <div className="space-y-0.5">
+          {CLEAR_STATES.map(item)}
+          {cancelled > 0 && (pickable('cancelled') ? (
+            <button type="button" onClick={() => onPick!('cancelled')} title={LINE_META.cancelled.hint}
+              className={`flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs text-slate-400 hover:bg-slate-100 ${active === 'cancelled' ? 'ring-1 ring-slate-400' : ''}`}>
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${LINE_META.cancelled.bar}`} />Hủy (không tính)<span className="ml-auto tabular-nums">{fmtInt(cancelled)}</span><span className="w-9" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-1.5 py-0.5 text-xs text-slate-400" title={LINE_META.cancelled.hint}>
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${LINE_META.cancelled.bar}`} />Hủy (không tính)<span className="ml-auto tabular-nums">{fmtInt(cancelled)}</span><span className="w-9" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export function summarizeProjectMaterial(rows: ProjectMaterialLine[] | null, today: number): ProjectMaterialSummary | null {
   if (!rows) return null;
@@ -1347,7 +1477,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
   const enriched = useMemo(() => (rows ?? []).map(r => ({ r, st: r.kind === 'uncoded' ? materialLineState(r, today) : null })), [rows, today]);
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
-    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'onTrack', 'deferred', 'arrived', 'ccld', 'closedShort', 'done', 'cancelled'];
+    const RANK: MaterialLineState[] = ['late', 'notOrdered', 'outsourced', 'onTrack', 'deferred', 'arrived', 'onHold', 'ccld', 'closedShort', 'done', 'cancelled'];
     const need = (r: ProjectMaterialLine) => parsePlanDate(r.ngay_can_vat_tu)?.getTime() ?? Infinity;
     return enriched
       .filter(({ r, st }) => {
@@ -1403,21 +1533,14 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
         <p className="py-3 text-center text-xs text-slate-500">Mọi dòng PR của công trình đều đã ghi mã nhà máy.</p>
       ) : (
         <>
-          <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
-            {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
-              <div key={s.key} className={s.bar} style={{ width: `${(sum.byState[s.key] / Math.max(total, 1)) * 100}%` }} title={`${s.label}: ${sum.byState[s.key]} — ${s.hint}`} />
-            ))}
-          </div>
+          <LineStateBreakdown counts={sum.byState} active={filter} onPick={setFilter} />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[0.6875rem] font-semibold text-slate-500" title="Mỗi số là số DÒNG PR (1 dòng = 1 Số PR · line), không phải số hạng mục hay số PR">Số dòng PR:</span>
-            <span title="Dòng chưa có hàng về kho: Chưa mua + Đang mua (trễ / chưa tới hẹn) + Kho báo về chờ nhập SAP — cần bổ sung mã nhà máy để gắn hạng mục"><Chip active={filter === 'pending'} tone="red" onClick={() => setFilter('pending')}>Còn chờ, kể cả kho báo về ({fmtInt(pendingN)})</Chip></span>
-            {LINE_STATES.map(s => sum.byState[s.key] > 0 && (
-              <span key={s.key} title={`${fmtInt(sum.byState[s.key])} dòng PR — ${s.hint}`}>
-                <Chip active={filter === s.key} onClick={() => setFilter(s.key)}>
-                  <span className={`mr-1 inline-block h-2 w-2 rounded-sm ${s.bar}`} />{s.label} ({fmtInt(sum.byState[s.key])})
-                </Chip>
+            <span className="text-[0.6875rem] text-slate-500" title="Mỗi số là số DÒNG PR (1 dòng = 1 Số PR · line), không phải số hạng mục hay số PR">
+              Số liệu = số dòng PR · bấm từng nhóm để lọc bảng · đang xem:{' '}
+              <span className="font-semibold text-slate-700">
+                {filter === 'pending' ? `Còn chờ hàng về (${fmtInt(pendingN)})` : filter === 'all' ? `Tất cả (${fmtInt(total)})` : filter === 'badCode' ? 'Ghi sai mã NM' : lineStateLabel(filter)}
               </span>
-            ))}
+            </span>
             <span title={`${fmtInt(total)} dòng PR không mã nhà máy, gồm cả dòng hủy`}><Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip></span>
             {sum.badCode > 0 && (
               <Chip active={filter === 'badCode'} tone="amber" onClick={() => setFilter('badCode')}>Ghi sai mã NM ({fmtInt(sum.badCode)})</Chip>
@@ -1446,7 +1569,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
               <tbody className="divide-y divide-slate-100">
                 {list.slice(0, 1000).map(({ r, st }, idx) => {
                   const need = parsePlanDate(r.ngay_can_vat_tu);
-                  const due = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
+                  const due = materialDueDate(r);
                   const meta = st ? LINE_STATES.find(x => x.key === st) : null;
                   // Số ngày trễ so với Ngày dự kiến giao (PMH nhập) — để thấy dòng nào trễ lâu nhất
                   const lateDays = (st === 'late' || st === 'deferred') && due ? Math.floor((today - due.getTime()) / DAY) : 0;
@@ -1456,7 +1579,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                       <td className={`${td} text-right tabular-nums text-slate-400`}>{idx + 1}</td>
                       <td className={`${td} whitespace-nowrap text-slate-600`} title={r.ten_cong_trinh}>{r.trackingno}</td>
                       <td className={`${td} whitespace-nowrap tabular-nums text-slate-600`}>{String(r.so_pr ?? '—')} · {String(r.pr_line ?? '')}</td>
-                      <td className={`${td} max-w-[320px] truncate text-slate-800`} title={r.ten_vat_tu}>{r.ten_vat_tu}</td>
+                      <td className={`${td} min-w-[220px] max-w-[360px] break-words text-slate-800`} title={r.ten_vat_tu}>{r.ten_vat_tu}</td>
                       <td className={`${td} whitespace-nowrap text-slate-500`}>{r.nhom_vt}</td>
                       <td className={`${td} whitespace-nowrap text-right tabular-nums`}>{fmtQty(r.so_luong_yeu_cau)} <span className="text-slate-400">{r.dvt}</span></td>
                       <td className={`${td} whitespace-nowrap text-right tabular-nums text-slate-500`}>{Number(r.so_luong_da_nhan_sap) > 0 ? fmtQty(r.so_luong_da_nhan_sap) : '—'}</td>
@@ -1471,7 +1594,7 @@ export const ProjectMaterialSection = ({ rows, today, fileTag }: {
                           <span className="inline-flex cursor-help items-center gap-1 whitespace-nowrap text-slate-700" title={meta.hint}><span className={`h-2 w-2 rounded-sm ${meta.bar}`} />{meta.label}{lateDays > 0 && <span className={st === 'late' ? 'font-semibold text-orange-600' : 'text-slate-500'}>· {st === 'late' ? '' : 'quá '}{fmtInt(lateDays)} ngày</span>}</span>
                         ) : null}
                       </td>
-                      <td className={`${td} max-w-[260px] truncate text-slate-500`} title={note}>
+                      <td className={`${td} min-w-[200px] max-w-[340px] break-words text-slate-500`} title={note}>
                         {note || '—'}
                       </td>
                     </tr>
@@ -1589,39 +1712,30 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
             Dòng PR gắn hạng mục (có mã nhà máy){' '}
             <span className="font-normal text-slate-500">· {fmtInt(bom.lineTotal)} dòng phục vụ hạng mục chưa nhập kho đủ</span>
           </p>
-          <div className="flex h-2.5 overflow-hidden rounded-full bg-slate-100">
-            {LINE_STATES.map(s => bom.lineCounts[s.key] > 0 && (
-              <div
-                key={s.key}
-                className={s.bar}
-                style={{ width: `${(bom.lineCounts[s.key] / bom.lineTotal) * 100}%` }}
-                title={`${s.label}: ${bom.lineCounts[s.key]} — ${s.hint}`}
-              />
-            ))}
-          </div>
-          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-xs sm:grid-cols-4 xl:grid-cols-4">
-            {LINE_STATES.map(s => (
-              <div key={s.key} className="flex cursor-help items-center gap-1.5" title={`${fmtInt(bom.lineCounts[s.key])} dòng PR — ${s.hint}`}>
-                <span className={`h-2 w-2 shrink-0 rounded-sm ${s.bar}`} />
-                <span className="truncate text-slate-600 underline decoration-dotted decoration-slate-300 underline-offset-2">{s.label}</span>
-                <span className="ml-auto font-semibold tabular-nums text-slate-800">{fmtInt(bom.lineCounts[s.key])}</span>
-              </div>
-            ))}
-          </div>
+          <LineStateBreakdown
+            counts={bom.lineCounts}
+            active={filter}
+            canPick={k => k === 'notOrdered' || k === 'outsourced' || k === 'late' || k === 'deferred' || k === 'onTrack' || k === 'arrived' || k === 'onHold'}
+            onPick={k => setFilter(prev => (prev === k ? 'all' : (k as BomState)))}
+          />
+          <p className="mt-1 text-[0.6875rem] text-slate-500">
+            Số trên biểu đồ = số <b>dòng PR</b>. Bấm nhóm còn chờ (trên thanh hoặc chú thích) để lọc danh sách <b>hạng mục</b> bên dưới có nhóm đó là tình trạng xấu nhất — số ở nút lọc là số hạng mục.
+          </p>
           <p className="mt-2 text-[0.6875rem] text-slate-400">
             Nhóm theo cột Trạng thái của PR (1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO / 4.HỦY) và SL còn lại trên SAP.
             "Đã nhận đủ" = 3.ĐÃ NHẬP KHO và SL còn lại = 0; "PR đã đóng, chưa nhận đủ" = 3.ĐÃ NHẬP KHO nhưng PR đóng khi còn
-            thiếu (dùng tồn / đóng thiếu / CCLD). Còn chờ = Chưa mua + Đang mua (trễ / về theo nhu cầu SX / chưa tới hẹn). Rê chuột vào từng nhóm để xem chi tiết.
+            thiếu (dùng tồn / đóng thiếu / CCLD). Còn chờ hàng về = Chưa mua + Đang mua (trễ / về theo nhu cầu SX / chưa tới hẹn) + Kho báo về chờ nhập SAP; % tính trên tổng không gồm dòng hủy. Rê chuột vào từng nhóm để xem chi tiết.
           </p>
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-slate-700">Hạng mục theo tình trạng vật tư:</span>
+        <span className="text-xs font-semibold text-slate-700" title="Mỗi hạng mục lấy tình trạng xấu nhất trong các dòng PR của nó">Số hạng mục theo tình trạng vật tư:</span>
         <Chip active={filter === 'all'} onClick={() => setFilter('all')}>Tất cả ({fmtInt(total)})</Chip>
-        {BOM_STATES.map(s => (
+        {BOM_CHIP_ORDER.map(k => BOM_META[k]).map(s => (
           <span key={s.key} title={s.hint}>
             <Chip active={filter === s.key} tone={s.tone} onClick={() => setFilter(s.key)}>
+              {BOM_DOT[s.key] && <span className={`mr-1.5 inline-block h-2 w-2 rounded-sm align-middle ${BOM_DOT[s.key]}`} />}
               {s.label} ({bom ? fmtInt(bom.counts[s.key]) : '…'})
             </Chip>
           </span>
@@ -1684,12 +1798,13 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
           extraHead={<>
             <th className={`${th} text-right`} title="Số dòng PR (vật tư) đã nối được với hạng mục qua mã nhà máy / Item note PR — gồm mọi trạng thái còn hiệu lực: chưa mua, đang mua, đã nhận, CCLD, đã đóng (không tính dòng đã hủy)">Số dòng PR</th>
             <th className={`${th} text-right`} title="Dòng 1.CHƯA MUA">Chưa mua</th>
+            <th className={`${th} text-right`} title="Dòng PR gia công ngoài (nhóm 806 / ghi chú GC…) chưa đặt hoặc chưa về">Gia công</th>
             <th className={`${th} text-right`} title="Đang mua, quá ngày dự kiến giao">Trễ hẹn</th>
             <th className={`${th} text-right`} title="Đang mua, quá ngày dự kiến giao nhưng ghi chú về theo nhu cầu SX / dùng tồn kho trước">Theo nhu cầu SX</th>
             <th className={`${th} text-right`} title="Đang mua, chưa tới ngày dự kiến giao">Chưa tới hẹn</th>
             <th className={`${th} text-left`} title="Ngày PR sớm nhất">Ngày PR</th>
             <th className={`${th} text-left`} title="Ngày cần vật tư sớm nhất của các dòng còn chờ">Ngày cần VT</th>
-            <th className={`${th} text-left`} title="Ngày dự kiến giao hàng PMH nhập muộn nhất của các dòng đang mua">Dự kiến giao PMH</th>
+            <th className={`${th} text-left`} title="Hạn giao muộn nhất của các dòng đang mua: Ngày dự kiến giao hàng PMH nhập, hoặc ngày hẹn mới Team PR ghi trong ghi chú (nếu muộn hơn)">Dự kiến giao PMH</th>
             <th className={`${th} text-left`} title="Posting date — ngày thực tế về muộn nhất">Thực tế về</th>
             <th className={`${th} text-right`} title="Vướng mắc M3 – Vật tư chưa xử lý (bấm để xem)">VM vật tư</th>
             <th className={`${th} text-left`} title="Định mức vật tư của hạng mục và tình trạng mua do kế hoạch ghi ở bảng sản xuất — có cả vật tư mua gộp theo công trình (không cần PR ghi mã). Bấm HEX để xem đủ.">Định mức NVL (bảng SX)</th>
@@ -1702,13 +1817,14 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
               return <td className={`${td} text-right tabular-nums ${v ? cls : 'text-slate-300'}`}>{v || '—'}</td>;
             };
             const meta = BOM_META[b?.state ?? 'noneBeforeSx'];
-            const pending = !!b && (b.state === 'notOrdered' || b.state === 'late' || b.state === 'deferred' || b.state === 'onTrack');
+            const pending = !!b && (b.state === 'notOrdered' || b.state === 'late' || b.state === 'outsourced' || b.state === 'deferred' || b.state === 'onTrack');
             const needLate = !!b && b.afterNeed > 0;
             const dueLate = pending && !!b?.dueDate && b.dueDate.getTime() < today;
             return (
               <>
                 <td className={`${td} text-right tabular-nums`}>{b?.lines || '—'}</td>
                 {n('notOrdered', 'font-semibold text-rose-600')}
+                {n('outsourced', 'text-fuchsia-700')}
                 {n('late', 'font-semibold text-orange-600')}
                 {n('deferred', 'text-yellow-700')}
                 {n('onTrack', 'text-amber-700')}
@@ -1741,10 +1857,41 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
                   const status = parseNvlStatus(raw);
                   const pendingN = status.filter(nvlLinePending).length;
                   if (!needs.length && !status.length) return <td className={`${td} text-slate-300`}>—</td>;
-                  const full = needs.map(n => `${NVL_GROUP_LABEL[n.group]}: ${n.name}${n.qty !== null ? ` ${Number(n.qty.toFixed(3))} ${n.dvt}` : ''}`).join('\n');
+                  // Không có định mức (ô định mức trống ở bảng SX — ~1.500 hạng mục, hoặc chỉ có dòng BTP) nhưng có tình
+                  // trạng mua: hiện tên vật tư SAP của các dòng tình trạng (ưu tiên dòng còn chờ) thay cho "—"
+                  const fmtQ = (v: number | null) => (v === null ? '?' : Number(v.toFixed(3)).toLocaleString('vi-VN'));
+                  const statusFull = status.map(l => `${nvlLinePending(l) ? '• còn chờ' : '• xong'}: ${l.name}${l.left !== null ? ` — còn ${fmtQ(l.left)}/${fmtQ(l.req)}` : ''}${l.due ? ` — giao ${l.due}` : ''}`).join('\n');
+                  const needsFull = needs.map(n => `${NVL_GROUP_LABEL[n.group]}: ${n.name}${n.qty !== null ? ` ${Number(n.qty.toFixed(3))} ${n.dvt}` : ''}`).join('\n');
+                  const full = needs.length
+                    ? needsFull + (statusFull ? `\n\nTình trạng mua:\n${statusFull}` : '')
+                    : `Bảng SX không ghi định mức — tên vật tư lấy từ tình trạng mua:\n${statusFull}`;
+                  // Hiện ĐỦ thông tin, mỗi vật tư 1 dòng, tự xuống dòng (trước cắt "…" chỉ còn 2 vật tư đầu)
+                  const statusSorted = [...status.filter(nvlLinePending), ...status.filter(l => !nvlLinePending(l))];
                   return (
-                    <td className={`${td} max-w-[300px]`} title={full || undefined}>
-                      <span className="block truncate text-slate-600">{summarizeNeeds(needs) || '—'}</span>
+                    <td className={`${td} min-w-[300px] max-w-[440px] align-top`} title={full || undefined}>
+                      {needs.length > 0 ? (
+                        <ul className="space-y-0.5 text-[0.6875rem] leading-snug text-slate-600">
+                          {needs.map((n, k) => (
+                            <li key={k} className="break-words">
+                              {n.name}{n.qty !== null && <span className="whitespace-nowrap font-semibold tabular-nums text-slate-800"> {Number(n.qty.toFixed(3)).toLocaleString('vi-VN')} {n.dvt}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <ul className="space-y-0.5 text-[0.6875rem] leading-snug">
+                          <li className="italic text-slate-400">Bảng SX không ghi định mức — theo PR:</li>
+                          {statusSorted.map((l, k) => (
+                            <li key={k} className={`break-words ${nvlLinePending(l) ? 'text-slate-700' : 'text-slate-400'}`}>
+                              {l.name || '(không tên)'}
+                              {l.left !== null && (
+                                <span className={`whitespace-nowrap tabular-nums ${nvlLinePending(l) ? 'font-semibold text-amber-700' : 'text-emerald-700'}`}>
+                                  {' '}{nvlLinePending(l) ? `còn ${fmtQ(l.left)}/${fmtQ(l.req)}` : 'đã về đủ'}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                       {status.length > 0 && (
                         <span className={`text-[0.625rem] ${pendingN ? 'font-semibold text-amber-700' : 'text-emerald-700'}`}>
                           {pendingN ? `${pendingN}/${status.length} dòng mua còn chờ` : `${status.length} dòng mua đã xong`}
@@ -1841,7 +1988,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
                 </button>
               ) : i.hex}
             </td>
-            <td className={`${td} max-w-[240px] truncate text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
+            <td className={`${td} min-w-[200px] max-w-[320px] break-words text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
             <td className={`${td} text-slate-600`}>{i.stage ?? '—'}</td>
             {planDates && <>
               <PlanDateCell i={i} which="tuần" />

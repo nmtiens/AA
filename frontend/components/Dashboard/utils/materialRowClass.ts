@@ -1,8 +1,8 @@
 import type { DataRow } from '../../../types';
-import { materialLineState, parsePlanDate } from '../../../utils/productionMetrics';
+import { materialLineState, materialDueDate } from '../../../utils/productionMetrics';
 
 // Màu dòng trong "Chi tiết dữ liệu vật tư" — theo cùng trạng thái dòng PR với tab BOM
-// (materialLineState): hủy / CCLD / PR đóng / đã nhận đủ / kho báo về / trễ hẹn / chưa mua / đang mua.
+// (materialLineState): hủy / CCLD / PR đóng / đã nhận đủ / kho báo về / trễ hẹn / chưa mua / gia công ngoài / tạm dừng / đang mua.
 export const materialRowClass = (row: DataRow): string => {
   const st = materialLineState(row);
   switch (st) {
@@ -14,9 +14,11 @@ export const materialRowClass = (row: DataRow): string => {
     case 'late': return 'bg-red-100 text-red-700 font-semibold';
     case 'deferred': return 'bg-amber-50 text-amber-800';
     case 'notOrdered': return 'bg-rose-50 text-rose-700';
+    case 'outsourced': return 'bg-fuchsia-50 text-fuchsia-800';
+    case 'onHold': return 'bg-stone-100 text-stone-500';
     case 'onTrack': {
       // Đang mua: sắp tới ngày dự kiến giao thì tô đậm dần
-      const due = parsePlanDate(row['ngay_du_kien_giao_hang_pmh_nhap']);
+      const due = materialDueDate(row);
       if (due) {
         const today = new Date(); today.setHours(0, 0, 0, 0);
         const diff = Math.round((due.getTime() - today.getTime()) / 86_400_000);

@@ -325,7 +325,7 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
  *  - late        : đang mua, đã quá ngày dự kiến giao (PMH nhập) mà chưa về đủ
  *  - onTrack     : đang mua, chưa tới ngày dự kiến giao
  */
-export type MaterialLineState = 'cancelled' | 'done' | 'ccld' | 'closedShort' | 'notOrdered' | 'arrived' | 'late' | 'deferred' | 'onTrack';
+export type MaterialLineState = 'cancelled' | 'done' | 'ccld' | 'closedShort' | 'onHold' | 'outsourced' | 'notOrdered' | 'arrived' | 'late' | 'deferred' | 'onTrack';
 
 export interface MaterialLineFields {
   so_luong_con_lai?: unknown;
@@ -340,6 +340,7 @@ export interface MaterialLineFields {
   team_pr_note?: unknown;
   tinh_trang_po?: unknown;
   ghi_chu_tinh_trang_po?: unknown;
+  nhom_vt?: unknown;
 }
 
 /**
@@ -359,6 +360,44 @@ const todayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return 
 /** Số kho báo về vượt quá bội số này của SL yêu cầu => coi là ghi khác đơn vị, không dùng */
 export const KHO_BAO_MAX_RATIO = 1.5;
 
+const upNfc = (v: unknown) => String(v ?? '').normalize('NFC').trim().toUpperCase();
+
+/**
+ * Dòng chưa mua / đang mua mà PO đã dừng: tình trạng PO ghi HỦY / tạm ngưng / công trình tạm dừng / đã hoàn thành /
+ * chuyển thầu phụ, hoặc ghi chú Team PR ghi HỦY / tạm ngưng / BOD pending, hoặc ghi chú PO "hủy yêu cầu / hủy phần
+ * còn lại / không mua nữa / tạm ngưng" (~134 dòng, 10/2026) — nhãn trạng thái chưa kịp đổi trên SAP. Không còn chờ
+ * hàng về; giữ riêng để team PR đóng / hủy PR.
+ */
+export const isOnHoldLine = (r: MaterialLineFields): boolean => {
+  const po = upNfc(r.tinh_trang_po), note = upNfc(r.team_pr_note), gpo = upNfc(r.ghi_chu_tinh_trang_po);
+  return /HỦY|TẠM NG[ƯU]NG|TẠM D[ỪU]NG|THẦU PHỤ|CÔNG TRÌNH ĐÃ HOÀN THÀNH/.test(po)
+    || /HỦY|TẠM NG[ƯU]NG|TẠM D[ỪU]NG|PENDING/.test(note)
+    || /HỦY YÊU CẦU|HỦY PHẦN CÒN LẠI|KHÔNG MUA NỮA|TẠM NG[ƯU]NG|TẠM D[ỪU]NG/.test(gpo);
+};
+
+/**
+ * Gia công ngoài: PR đặt gia công bán thành phẩm / công đoạn (nhóm VT "806 - Gia công", ghi chú Team PR "GC BTP-…",
+ * "GC CÔNG ĐOẠN-…", "GC NGUYÊN CON", "…#GIA CÔNG…") — không phải mua vật tư. ~2.200 dòng (10/2026), trước bị tính vào
+ * "chưa mua / đang mua trễ hẹn" (chiếm ~1.575 / 2.979 dòng đang mua quá hạn). Vẫn là còn chờ nhưng tách nhóm riêng.
+ */
+export const isOutsourcedLine = (r: MaterialLineFields): boolean =>
+  /^806\b/.test(upNfc(r.nhom_vt)) || /^GC\b|#GIA CÔNG/.test(upNfc(r.team_pr_note));
+
+/**
+ * Hạn giao dùng để xét trễ: Ngày dự kiến giao hàng (PMH nhập); Team PR có ghi ngày hẹn mới vào ghi chú (ô ghi chú
+ * chỉ là 1 ngày, vd "2026-10-30") và ngày đó MUỘN hơn thì lấy ngày ghi chú (~437 dòng ghi chú là ngày, 10/2026).
+ */
+export const materialDueDate = (r: MaterialLineFields): Date | null => {
+  const pmh = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
+  const m = /^(\d{4}-\d{2}-\d{2})(?:[ T]00:00(?::00)?)?$/.exec(String(r.team_pr_note ?? '').trim());
+  const note = m ? parsePlanDate(m[1]) : null;
+  if (note && (!pmh || note.getTime() > pmh.getTime())) return note;
+  return pmh;
+};
+
+/** Ghi chú Team PR "HOÀN THÀNH" trên dòng đang mua: hàng đã về, SAP chưa ghi nhập (132 dòng, 10/2026). */
+const isDoneNote = (r: MaterialLineFields): boolean => upNfc(r.team_pr_note) === 'HOÀN THÀNH';
+
 export const materialLineState = (r: MaterialLineFields, today = todayStart()): MaterialLineState => {
   // Trạng thái lấy theo cột trang_thai (đã quy về 4 trạng thái chung: 1.CHƯA MUA / 2.ĐANG MUA / 3.ĐÃ NHẬP KHO /
   // 4.HỦY) — không đọc tình trạng PO / tình trạng PR (vd "KHÔNG CẦN") để phân loại
@@ -368,26 +407,34 @@ export const materialLineState = (r: MaterialLineFields, today = todayStart()): 
   // SL còn lại trống: dòng 1.CHƯA MUA vẫn là chưa mua (trước thành "đã nhận đủ" => không tính thiếu); dòng khác như cũ.
   // Đọc số bằng parseNumber như các chỗ khác (Number("1,200") = NaN => trước cũng thành "đã nhận đủ")
   const conLai = r.so_luong_con_lai;
-  if (conLai == null || String(conLai).trim() === '') return st.includes('CHƯA MUA') ? 'notOrdered' : 'done';
-  if (!(parseNumber(conLai as string | number) > 0)) return 'done';
+  const conLaiBlank = conLai == null || String(conLai).trim() === '';
+  if (conLaiBlank && !st.includes('CHƯA MUA')) return 'done';
+  if (!conLaiBlank && !(parseNumber(conLai as string | number) > 0)) return 'done';
   // 3.ĐÃ NHẬP KHO / PR đã đóng xét TRƯỚC CCLD: trạng thái chung đã là "đã nhập kho" thì không xếp lại thành
   // CCLD (trước 659 dòng 3.ĐÃ NHẬP KHO có ghi chú CCLD bị đưa về nhóm CCLD)
   if (sap.includes('ĐÓNG') || st.includes('ĐÃ NHẬP KHO') || sap.includes('HOÀN THÀNH')) return 'closedShort';
+  // Còn lại là 1.CHƯA MUA / 2.ĐANG MUA. PO đã hủy / tạm dừng => không còn chờ
+  if (isOnHoldLine(r)) return 'onHold';
+  // Gia công ngoài => nhóm riêng (chưa đặt: ngay đây; đang đặt: sau CCLD / kho báo về — hàng gia công đã về / lắp tại
+  // công trình thì xếp như dòng thường)
+  const outsourced = isOutsourcedLine(r);
   // Nhãn 1.CHƯA MUA xét TRƯỚC CCLD: dòng chưa mua vẫn tính là thiếu dù có ghi chú CCLD (~596 dòng)
-  if (st.includes('CHƯA MUA')) return 'notOrdered';
+  if (st.includes('CHƯA MUA')) return outsourced ? 'outsourced' : 'notOrdered';
   if (isCcldLine(r)) return 'ccld';
   const yc = parseNumber(r.so_luong_yeu_cau as string | number | null | undefined);
   const khoBao = parseNumber(r.sl_hang_ve_thuc_te as string | number | null | undefined);
   // Kho báo về đủ. Bỏ qua số kho báo lớn bất thường (> 1,5 lần SL yêu cầu): kho ghi theo đơn vị khác
   // (vd. gỗ M3: PR 15 M3 mà kho ghi 7.249) — trước các dòng này bị xếp nhầm "kho báo về, chờ nhập SAP"
   if (yc > 0 && khoBao >= yc && khoBao <= yc * KHO_BAO_MAX_RATIO) return 'arrived';
-  const due = parsePlanDate(r.ngay_du_kien_giao_hang_pmh_nhap);
+  if (isDoneNote(r)) return 'arrived';
+  if (outsourced) return 'outsourced';
+  const due = materialDueDate(r);
   if (!(due && due.getTime() < today)) return 'onTrack';
   return isDeferredLine(r) ? 'deferred' : 'late';
 };
 
-/** Dòng còn phải chờ vật tư về (chưa mua / đang mua trễ / đang mua đúng hẹn). */
-export const isMaterialPending = (s: MaterialLineState) => s === 'notOrdered' || s === 'late' || s === 'deferred' || s === 'onTrack';
+/** Dòng còn phải chờ vật tư về (chưa mua / gia công ngoài / đang mua trễ / đang mua đúng hẹn). */
+export const isMaterialPending = (s: MaterialLineState) => s === 'notOrdered' || s === 'outsourced' || s === 'late' || s === 'deferred' || s === 'onTrack';
 
 /**
  * Dòng vật tư còn THIẾU = còn phải chờ về (chưa mua / đang mua). Không tính dòng HỦY, CCLD (lắp tại
