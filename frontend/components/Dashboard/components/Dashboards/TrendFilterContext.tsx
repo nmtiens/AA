@@ -4,6 +4,37 @@ import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 export type Granularity = 'day' | 'week' | 'month';
 export interface FilterOption { code: string; name: string; }
 
+// Danh sách cho ô lọc (xưởng / công trình / ĐVT / nhóm SP): server quét DISTINCT nhiều bảng lớn — instance Vercel
+// mới mất 7–11 giây và chiếm suất request của số liệu chính. Lưu bản gần nhất trên máy: mở trang dùng ngay, làm mới
+// ngầm (1 lượt / lần mở app, dùng chung mọi ô lọc trên trang), chờ vài giây để số liệu chính tải trước.
+type FilterLists = [FilterOption[], FilterOption[], FilterOption[], FilterOption[]];
+const FILTER_LISTS_KEY = 'opsHub_filterLists_v1';
+const readSavedFilterLists = (): FilterLists | null => {
+  try {
+    const v = JSON.parse(localStorage.getItem(FILTER_LISTS_KEY) || 'null');
+    return Array.isArray(v) && v.length === 4 ? (v as FilterLists) : null;
+  } catch { return null; }
+};
+let filterListsRequest: Promise<FilterLists> | null = null;
+const loadFilterLists = (delayMs: number): Promise<FilterLists> => {
+  if (!filterListsRequest) {
+    const get = (u: string) => fetch(u).then(r => (r.ok ? r.json() : [])).catch(() => []);
+    filterListsRequest = new Promise(r => setTimeout(r, delayMs)).then(() => Promise.all([
+      get('/api/filters/xuong'),
+      get('/api/filters/cong-trinh'),
+      get('/api/filters/dvt'),
+      get('/api/filters/phan-loai-nhom-san-pham'),
+    ]) as Promise<FilterLists>).then(lists => {
+      // Lưu khi đủ dữ liệu (lỗi trả [] thì giữ bản cũ, lần mở sau thử lại)
+      if (lists.every(l => Array.isArray(l) && l.length > 0)) {
+        try { localStorage.setItem(FILTER_LISTS_KEY, JSON.stringify(lists)); } catch { /* bỏ qua */ }
+      } else filterListsRequest = null;
+      return lists;
+    });
+  }
+  return filterListsRequest;
+};
+
 interface TrendFilterState {
   granularity: Granularity;
   dateFrom: string;
@@ -109,27 +140,24 @@ export function TrendFilterProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
-  const [xuongList, setXuongList] = useState<FilterOption[]>([]);
-  const [rawCongTrinhList, setRawCongTrinhList] = useState<FilterOption[]>([]);
-  const [dvtList, setDvtList] = useState<FilterOption[]>([]);
-  const [phanLoaiList, setPhanLoaiList] = useState<FilterOption[]>([]);
+  const [saved] = useState(readSavedFilterLists);
+  const [xuongList, setXuongList] = useState<FilterOption[]>(saved?.[0] ?? []);
+  const [rawCongTrinhList, setRawCongTrinhList] = useState<FilterOption[]>(saved?.[1] ?? []);
+  const [dvtList, setDvtList] = useState<FilterOption[]>(saved?.[2] ?? []);
+  const [phanLoaiList, setPhanLoaiList] = useState<FilterOption[]>(saved?.[3] ?? []);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetch('/api/filters/xuong').then(r => r.json()).catch(() => []),
-      fetch('/api/filters/cong-trinh').then(r => r.json()).catch(() => []),
-      fetch('/api/filters/dvt').then(r => r.json()).catch(() => []),
-      fetch('/api/filters/phan-loai-nhom-san-pham').then(r => r.json()).catch(() => []),
-    ]).then(([xuongData, ctData, dvtData, plData]) => {
+    // Có bản đã lưu: làm mới sau 4 giây (số liệu chính tải trước); chưa có thì tải ngay
+    loadFilterLists(saved ? 4000 : 0).then(([xuongData, ctData, dvtData, plData]) => {
       if (cancelled) return;
-      setXuongList(xuongData);
-      setRawCongTrinhList(ctData);
-      setDvtList(dvtData);
-      setPhanLoaiList(plData);
+      if (xuongData.length) setXuongList(xuongData);
+      if (ctData.length) setRawCongTrinhList(ctData);
+      if (dvtData.length) setDvtList(dvtData);
+      if (plData.length) setPhanLoaiList(plData);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [saved]);
 
   const congTrinhList = useMemo(() => {
     if (viewProjectWhitelist === undefined) return rawCongTrinhList;

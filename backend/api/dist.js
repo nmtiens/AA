@@ -65210,13 +65210,7 @@ app.get("/api/production/hex/:hex", async (req, res) => {
   }
 });
 var planMetCache = createCache(1);
-var PROJECT_ALIAS_ROUTE_WAIT_MS = 1e4;
-app.get("/api/project-aliases", async (_req, res) => {
-  await Promise.race([
-    ensureProjectAliases().catch(() => {
-    }),
-    new Promise((resolve) => setTimeout(resolve, PROJECT_ALIAS_ROUTE_WAIT_MS))
-  ]);
+app.get("/api/project-aliases", (_req, res) => {
   res.json(listProjectAliases());
 });
 app.get("/api/production/plan-met", async (_req, res) => {
