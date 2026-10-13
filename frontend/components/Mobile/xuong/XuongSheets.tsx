@@ -114,13 +114,13 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca, now, onB
       <div className="space-y-5 pb-2">
         {r.tenHangMuc && <p className="text-base text-slate-700">{r.tenHangMuc}</p>}
         {theoTen && (<>
-          <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} onDoi={setChon} ban={ban} />
           <p className={chuyen ? `text-base font-medium ${MAU.ngung.chu}` : CHU_PHU}>
             {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.`
               : !chon.size && coMat.length && coMat.every(m => ban.has(m))
                 ? `Cả ${coMat.length} người có mặt đang làm hạng mục khác — chạm tên người muốn chuyển sang ${r.hex}.`
                 : 'Chạm tên để chọn / bỏ. Tên mờ là người đang làm hạng mục khác.'}
           </p>
+          <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} onDoi={setChon} ban={ban} />
         </>)}
         {!theoTen && (<>
         <BoDem value={n} onChange={setN} lon min={1} max={500} nhan="số người làm hạng mục" />
@@ -452,17 +452,6 @@ export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
             </button>
           ))}
         </div>
-        {theoTen ? (
-          <div className="space-y-2">
-            <p className="text-base font-medium text-slate-800">Người tăng ca · <span className="tabular-nums">{n}</span></p>
-            <ChonNguoi coMat={dsTen} ds={cv.congNhan ?? []} chon={chonTen} onDoi={setChonTen} />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-base font-medium text-slate-800">Số người tăng ca</p>
-            <BoDem value={n} onChange={setN} nhan="số người tăng ca" max={500} />
-          </div>
-        )}
         {dangChay.length > 0 && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Hạng mục làm tăng ca <span className="font-normal text-slate-600">(chạm để bỏ)</span></p>
@@ -481,6 +470,18 @@ export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
                 );
               })}
             </ul>
+          </div>
+        )}
+        {theoTen ? (
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-800">Người tăng ca · <span className="tabular-nums">{n}</span>
+              <span className="font-normal text-slate-600"> (sẵn chọn người có mặt ca chính)</span></p>
+            <ChonNguoi coMat={dsTen} ds={cv.congNhan ?? []} chon={chonTen} onDoi={setChonTen} />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-800">Số người tăng ca</p>
+            <BoDem value={n} onChange={setN} nhan="số người tăng ca" max={500} />
           </div>
         )}
       </div>

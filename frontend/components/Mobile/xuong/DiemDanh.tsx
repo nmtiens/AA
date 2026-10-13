@@ -374,24 +374,62 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   );
 }
 
-/** Lưới chip chọn người; `ban` = người đang ở hạng mục khác (chọn thì chuyển sang) */
+/**
+ * Lưới chip chọn người; `ban` = người đang ở hạng mục khác (chọn thì chuyển sang).
+ * Tổ đông (> 12 người): thanh dính trên cùng — đếm, lọc (Cả tổ / Đã chọn / Rảnh), tìm không dấu, Chọn hết / Bỏ hết
+ * (áp cho những người đang hiện). Tên xếp theo ABC.
+ */
 export function ChonNguoi({ coMat, ds, chon, onDoi, ban }: {
   coMat: string[]; ds: CongNhanTo[]; chon: Set<string>; onDoi: (s: Set<string>) => void; ban?: Map<string, string>;
 }) {
+  const [tim, setTim] = useState('');
+  const [loc, setLoc] = useState<'tat_ca' | 'chon' | 'ranh'>('tat_ca');
   if (!coMat.length) return <p className={CHU_PHU}>Chưa có ai điểm danh có mặt.</p>;
+  const gon = coMat.length > 12;
+  const tu = boDau(tim.trim());
+  const ten = (m: string) => ds.find(c => c.mnv === m)?.hoTen ?? m;
+  const soRanh = ban ? coMat.filter(m => !ban.has(m)).length : 0;
+  const hien = [...coMat]
+    .filter(m => (loc === 'tat_ca' || (loc === 'chon' ? chon.has(m) : !ban?.has(m)))
+      && (!tu || boDau(`${ten(m)} ${m}`).includes(tu)))
+    .sort((x, y) => tenGon(x, ds).localeCompare(tenGon(y, ds), 'vi'));
+  const nutLoc = (k: typeof loc, chu: string) => (
+    <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
+      className={`h-10 shrink-0 whitespace-nowrap rounded-full border px-3 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{chu}</button>
+  );
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {coMat.map(m => {
-        const on = chon.has(m);
-        const o = ban?.get(m);
-        return (
-          <button key={m} type="button" aria-pressed={on} className={chipNguoi(on, !!o && !on)}
-            onClick={() => { const t = new Set(chon); if (on) t.delete(m); else t.add(m); onDoi(t); }}>
-            <span className="min-w-0 flex-1 truncate">{tenGon(m, ds)}</span>
-            {on ? <Check size="1em" aria-hidden /> : o ? <span className="shrink-0 text-xs tabular-nums">…{o.slice(-4)}</span> : null}
-          </button>
-        );
-      })}
+    <div className="space-y-2">
+      {gon && (
+        <div className="sticky top-0 z-10 -mx-5 space-y-2 border-b border-slate-100 bg-white px-5 pb-2 pt-1">
+          <div className="-mx-5 flex gap-2 overflow-x-auto px-5">
+            {nutLoc('tat_ca', `Cả tổ ${coMat.length}`)}
+            {nutLoc('chon', `Đã chọn ${chon.size}`)}
+            {ban && ban.size > 0 && nutLoc('ranh', `Rảnh ${soRanh}`)}
+          </div>
+          <div className="flex gap-2">
+            <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm tên" aria-label="Tìm người"
+              className="h-10 min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-slate-500" />
+            <button type="button" onClick={() => onDoi(new Set([...chon, ...hien]))}
+              className="h-10 shrink-0 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-700">Chọn hết</button>
+            <button type="button" onClick={() => { const bo = new Set(hien); onDoi(new Set([...chon].filter(m => !bo.has(m)))); }}
+              className="h-10 shrink-0 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-700">Bỏ hết</button>
+          </div>
+        </div>
+      )}
+      {!hien.length && <p className={`rounded-2xl bg-slate-50 p-4 text-center ${CHU_PHU}`}>{tu ? 'Không ai khớp.' : 'Không có ai.'}</p>}
+      <div className="grid grid-cols-2 gap-2">
+        {hien.map(m => {
+          const on = chon.has(m);
+          const o = ban?.get(m);
+          return (
+            <button key={m} type="button" aria-pressed={on} className={`${chipNguoi(on, !!o && !on)} ${gon ? '!min-h-12 !py-1.5' : ''}`}
+              onClick={() => { const t = new Set(chon); if (on) t.delete(m); else t.add(m); onDoi(t); }}>
+              <span className="min-w-0 flex-1 truncate">{tenGon(m, ds)}</span>
+              {on ? <Check size="1em" aria-hidden /> : o ? <span className="shrink-0 text-xs tabular-nums">…{o.slice(-4)}</span> : null}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
