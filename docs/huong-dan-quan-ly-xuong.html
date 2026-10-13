@@ -277,6 +277,7 @@ table td:first-child { min-width: 9em; }
 
   <section id="tong-quan">
     <h2>Tổng quan và ghi hộ</h2>
+    <p>Đầu mục <b>Tổng quan</b> có dòng chấm công hôm nay của cả xưởng: <b>"có mặt / tổng · vắng · trễ · về sớm"</b>; chạm vào để xem tên người vắng, trễ (số phút), về sớm (giờ) theo từng tổ.</p>
     <p>Mục <b>Tổng quan</b> (điện thoại): chọn xưởng ở hàng nút trên cùng. Mỗi tổ hiện tổ trưởng, quân số hôm nay (số người có mặt theo điểm danh, hoặc <b>Chưa chốt quân số</b>), số đang chạy, tạm ngưng, chờ nhận, chờ giao, cần xem, giờ thao tác cuối.</p>
     <div class="khung">
       <h3>Ghi hộ một tổ</h3>
@@ -326,7 +327,7 @@ table td:first-child { min-width: 9em; }
     </div>
     <div class="khung">
       <h3>Đầu báo cáo: 5 số của kỳ</h3>
-      <p>Công nhân bình quân mỗi ngày · Giờ công · Dùng người · Giờ chờ (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ có mặt, tăng ca, giờ công, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
+      <p>Công nhân bình quân mỗi ngày · Giờ công · Dùng người · Giờ chờ (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Bảng công</b> (người × ngày như màn hình), <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ có mặt, tăng ca, giờ công, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
     </div>
     <div class="bang-boc">
       <table>
@@ -335,7 +336,7 @@ table td:first-child { min-width: 9em; }
           <tr><td><b>Theo ngày</b></td><td>Mỗi ngày × mỗi tổ: công nhân, giờ người, giờ công, giờ chờ, % dùng người, số hạng mục nhận, chạy, số xong. Bấm tổ: giờ công từng hạng mục, hàng nhận, hàng xong, giờ chờ vì sao.</td><td>Hỏi tổ về một ngày cụ thể</td></tr>
           <tr><td><b>Theo tổ</b></td><td>Mỗi tổ một hàng, mỗi ngày một ô % dùng người tô màu, cuối hàng là tổng kỳ.</td><td>Thấy tổ nào yếu, xu hướng tốt lên hay kém đi</td></tr>
           <tr><td><b>Theo hạng mục</b></td><td>Mỗi hạng mục: từng công đoạn với tổ, số công nhân, giờ chạy, giờ công/người, tổng giờ công, số xong, giờ công/đơn vị. Mở "Theo ngày" xem từng ngày.</td><td>Giờ công thực tế của hạng mục, so định mức, tính giá thành</td></tr>
-          <tr><td><b>Theo người</b></td><td>Mỗi công nhân: ngày có mặt, giờ có mặt, tăng ca, giờ công, giờ chờ, % làm việc, số lần trễ / về sớm. Bấm vào người: từng ngày giờ vào – ra, trễ, về sớm, giờ theo từng hạng mục.</td><td>Chấm công, tính lương / thưởng, xem ai hay chờ việc</td></tr>
+          <tr><td><b>Theo người</b></td><td><b>Danh sách</b>: mỗi công nhân có ngày có mặt / vắng, giờ có mặt, tăng ca, giờ công, giờ chờ, % làm việc, số lần trễ / về sớm; bấm vào người xem từng ngày. <b>Bảng công</b>: mỗi người một hàng, mỗi ngày một ô (giờ có mặt, "+" tăng ca, <b>V</b> = vắng, ô vàng = trễ / về sớm), cuối hàng ngày công, giờ, vắng, trễ.</td><td>Chấm công, tính lương / thưởng, xem ai hay chờ việc</td></tr>
           <tr><td><b>Chất lượng dữ liệu</b></td><td>Tỷ lệ nhật ký đủ Bắt đầu/Hoàn thành, ngày-tổ có chốt quân số, thao tác gửi trong 1 giờ, khai vượt quân số; các cờ trong kỳ; đối chiếu với điểm danh.</td><td>Biết số liệu đáng tin tới đâu, tổ nào cần nhắc</td></tr>
         </tbody>
       </table>

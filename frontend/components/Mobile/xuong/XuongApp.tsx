@@ -588,20 +588,28 @@ export default function XuongApp({ moTo, onTongQuan }: {
               {cv.chamCong ? 'Điểm danh' : 'Chốt quân số'}</button>
           </div>
         )}
-        {cv?.chamCong && !caChot && ca && daDiemDanh(cv, ca) && (
-          <button className="flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2 text-left active:bg-slate-50"
-            onClick={() => setSheet({ loai: 'diemDanh', ca })}>
-            <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-base text-slate-800"><Users size="1.1em" className="shrink-0" aria-hidden />
-              <b className="tabular-nums">{coMatLuc(cv, ca, now).length}</b> có mặt
-              {nhom.dangChay.length > 0 && (() => {
-                const gan = new Set(nhom.dangChay.flatMap(r => r.nguoi ?? []));
-                const ranh2 = coMatLuc(cv, ca, now).filter(m => !gan.has(m)).length;
-                return ranh2 > 0 ? <span className={MAU.ngung.chu}> · {ranh2} chưa gắn việc</span> : null;
-              })()}
-            </span>
-            <span className="shrink-0 text-base font-medium text-slate-600">Điểm danh</span>
-          </button>
-        )}
+        {cv?.chamCong && !caChot && ca && daDiemDanh(cv, ca) && (() => {
+          const coMatNay = coMatLuc(cv, ca, now);
+          const gan = new Set(nhom.dangChay.flatMap(r => r.nguoi ?? []));
+          const chuaGan = nhom.dangChay.length ? coMatNay.filter(m => !gan.has(m)).length : 0;
+          return (
+            <div className="flex items-stretch gap-2">
+              <button className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2 text-left active:bg-slate-50"
+                onClick={() => setSheet({ loai: 'diemDanh', ca })}>
+                <span className="flex items-center gap-2 text-base text-slate-800"><Users size="1.1em" className="shrink-0" aria-hidden />
+                  <b className="tabular-nums">{coMatNay.length}</b> có mặt</span>
+                <span className="shrink-0 text-base font-medium text-slate-600">Điểm danh</span>
+              </button>
+              {chuaGan > 0 && (
+                // Người có mặt chưa gắn hạng mục: mở thẳng Chia người
+                <button className={`flex min-h-14 shrink-0 items-center rounded-2xl border px-4 text-base font-medium ${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} active:opacity-80`}
+                  onClick={() => setSheet({ loai: 'chiaNguoi' })}>
+                  {chuaGan} chưa gắn việc
+                </button>
+              )}
+            </div>
+          );
+        })()}
         {nhacXacNhan && (
           <div className={`flex items-center justify-between gap-3 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`}>
             <p className={`text-base font-semibold ${MAU.ngung.chu}`}>Xác nhận cuối ngày ({nhom.dangChay.length} hạng mục đang chạy)</p>

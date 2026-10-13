@@ -586,7 +586,83 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
 // ---------------------------------------------------------------------------
 const gioPhut = (p: number) => (p > 0 ? (p >= 60 ? `${Math.floor(p / 60)}g${String(p % 60).padStart(2, '0')}` : `${p}′`) : '—');
 
-function TabTheoNguoi({ ds }: { ds: BaoCaoNguoi[] }) {
+/** Các ngày 'YYYY-MM-DD' từ tu tới den */
+function cacNgay(tu: string, den: string): string[] {
+  const out: string[] = [];
+  for (let t = Date.parse(`${tu}T00:00:00Z`); t <= Date.parse(`${den}T00:00:00Z`) && out.length < 70; t += 86_400_000) out.push(new Date(t).toISOString().slice(0, 10));
+  return out;
+}
+const THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+const thuCua = (ngay: string) => new Date(`${ngay}T12:00:00Z`).getUTCDay();
+
+/** Một ô bảng công: gộp các dòng (người, ngày) — một người có thể ở 2 tổ trong ngày */
+function oCong(ds: BaoCaoNguoi['ngay']) {
+  const co = ds.filter(x => !x.vang);
+  return {
+    vang: ds.length > 0 && co.length === 0,
+    thuong: co.reduce((a, x) => a + x.coMatThuong, 0), tangCa: co.reduce((a, x) => a + x.coMatTangCa, 0),
+    treP: Math.max(0, ...co.map(x => x.treP)), veSomP: Math.max(0, ...co.map(x => x.veSomP)), co: co.length > 0,
+  };
+}
+
+/** Bảng công kỳ: mỗi người một hàng, mỗi ngày một ô (giờ có mặt, +tăng ca, V = vắng, màu = trễ / về sớm) */
+function BangCong({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: string }) {
+  const ngays = cacNgay(tu, den);
+  return (
+    <div className="overflow-x-auto">
+      <table className="border-separate border-spacing-0 text-sm" style={{ minWidth: 260 + ngays.length * 52 + 300 }}>
+        <thead><tr>
+          <th className={`${TH} sticky left-0 z-10 min-w-[11rem] border-b border-slate-200 bg-slate-50`}>Người</th>
+          {ngays.map(n => (
+            <th key={n} className={`border-b border-slate-200 px-1 py-1.5 text-center text-xs font-semibold ${thuCua(n) === 0 ? 'bg-slate-100 text-slate-500' : 'bg-slate-50 text-slate-600'}`}>
+              {n.slice(8, 10)}<div className="font-normal">{THU[thuCua(n)]}</div>
+            </th>
+          ))}
+          <th className={`${TH} border-b border-l border-slate-200 bg-slate-50 text-right`}>Ngày công</th>
+          <th className={`${TH} border-b border-slate-200 bg-slate-50 text-right`}>Giờ thường</th>
+          <th className={`${TH} border-b border-slate-200 bg-slate-50 text-right`}>Tăng ca</th>
+          <th className={`${TH} border-b border-slate-200 bg-slate-50 text-right`}>Vắng</th>
+          <th className={`${TH} border-b border-slate-200 bg-slate-50 text-right`}>Trễ</th>
+        </tr></thead>
+        <tbody>
+          {ds.map(n => (
+            <tr key={n.mnv}>
+              <td className="sticky left-0 z-10 border-b border-slate-100 bg-white px-3 py-1.5">
+                <div className="truncate font-medium text-slate-800">{n.hoTen ?? n.mnv}</div>
+                <div className="text-xs tabular-nums text-slate-500">{n.mnv}{n.tenTo ? ` · ${n.tenTo}` : ''}</div>
+              </td>
+              {ngays.map(ng => {
+                const o = oCong(n.ngay.filter(x => x.ngay === ng));
+                const goiY = o.vang ? 'Vắng' : o.co ? `Có mặt ${so(o.thuong)} giờ${o.tangCa ? `, tăng ca ${so(o.tangCa)}` : ''}${o.treP ? `, trễ ${o.treP} phút` : ''}${o.veSomP ? `, về sớm ${o.veSomP} phút` : ''}` : '';
+                return (
+                  <td key={ng} title={goiY} className={`border-b border-slate-100 px-1 py-1 text-center tabular-nums ${
+                    o.vang ? 'bg-red-50 font-semibold text-red-700' : o.treP || o.veSomP ? 'bg-amber-50 text-amber-900' : thuCua(ng) === 0 ? 'bg-slate-50' : ''}`}>
+                    {o.vang ? 'V' : o.co ? (<>
+                      <div>{so(o.thuong)}</div>
+                      {o.tangCa > 0 && <div className="text-[0.7rem] text-slate-500">+{so(o.tangCa)}</div>}
+                    </>) : <span className="text-slate-300">·</span>}
+                  </td>
+                );
+              })}
+              <td className="border-b border-l border-slate-100 px-3 py-1 text-right font-semibold tabular-nums">{n.soNgay}</td>
+              <td className="border-b border-slate-100 px-3 py-1 text-right tabular-nums">{so(n.coMatThuong)}</td>
+              <td className="border-b border-slate-100 px-3 py-1 text-right tabular-nums">{n.coMatTangCa ? so(n.coMatTangCa) : '—'}</td>
+              <td className={`border-b border-slate-100 px-3 py-1 text-right tabular-nums ${n.soNgayVang ? 'text-red-700' : ''}`}>{n.soNgayVang || '—'}</td>
+              <td className={`border-b border-slate-100 px-3 py-1 text-right tabular-nums ${n.lanTre ? 'text-amber-700' : ''}`}>{n.lanTre || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+        Mỗi ô = giờ có mặt trong ca chính (trừ nghỉ), dòng nhỏ "+" = giờ tăng ca. <b className="text-red-700">V</b> = vắng (có trong danh sách tổ, không có mặt ngày tổ điểm danh).
+        Ô vàng = có đi trễ / về sớm (rê chuột xem phút). Vắng tính theo danh sách tổ hiện tại.
+      </p>
+    </div>
+  );
+}
+
+function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: string }) {
+  const [kieu, setKieu] = useState<'ds' | 'bang'>('ds');
   const [q, setQ] = useState('');
   const [mo, setMo] = useState<Set<string>>(new Set());
   const tim = q.trim().toLowerCase();
@@ -608,8 +684,58 @@ function TabTheoNguoi({ ds }: { ds: BaoCaoNguoi[] }) {
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm mã NV, họ tên, tổ" className="w-full text-sm outline-none" aria-label="Tìm người" />
         </label>
         <span className="text-sm text-slate-600">{hien.length} người</span>
+        <div className="flex overflow-hidden rounded-md border border-slate-300" role="tablist" aria-label="Kiểu xem chấm công">
+          {([['ds', 'Danh sách'], ['bang', 'Bảng công']] as const).map(([k, t]) => (
+            <button key={k} type="button" role="tab" aria-selected={kieu === k} onClick={() => setKieu(k)}
+              className={`px-3 py-1 text-sm ${kieu === k ? 'bg-slate-900 font-semibold text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}>{t}</button>
+          ))}
+        </div>
       </div>
-      <table className="w-full min-w-[980px]">
+      {kieu === 'bang' ? <BangCong ds={hien} tu={tu} den={den} /> : (<>
+      {/* Điện thoại: thẻ từng người */}
+      <ul className="divide-y divide-slate-100 rmd:hidden">
+        {hien.map(n => {
+          const m = mo.has(n.mnv);
+          const cong = n.congThuong + n.congTangCa;
+          const p = phanTram(cong, n.coMatThuong + n.coMatTangCa);
+          return (
+            <li key={n.mnv}>
+              <button type="button" className="w-full px-4 py-3 text-left active:bg-slate-50" aria-expanded={m} onClick={() => bat(n.mnv)}>
+                <p className="flex items-center gap-1 font-semibold text-slate-800">{m ? <ChevronDown size={16} /> : <ChevronRight size={16} />}{n.hoTen ?? n.mnv}</p>
+                <p className="pl-5 text-xs tabular-nums text-slate-500">{n.mnv}{n.tenTo ? ` · ${n.tenTo}` : ''}</p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center tabular-nums">
+                  <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Có mặt</p><p className="font-semibold text-slate-800">{so(n.coMatThuong)}{n.coMatTangCa ? `+${so(n.coMatTangCa)}` : ''}</p></div>
+                  <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công</p><p className="font-semibold text-slate-800">{so(cong)}</p></div>
+                  <div className={`rounded-lg py-1.5 ${mauDung(p)}`}><p className="text-xs opacity-75">Làm việc</p><p className="font-semibold">{p === null ? '—' : `${p}%`}</p></div>
+                </div>
+                <p className="mt-2 flex flex-wrap gap-x-3 text-sm text-slate-600">
+                  <span>{n.soNgay} ngày</span>
+                  {!!n.soNgayVang && <span className="text-red-700">{n.soNgayVang} vắng</span>}
+                  {n.lanTre > 0 && <span className="text-amber-700">{n.lanTre} lần trễ</span>}
+                  {n.lanVeSom > 0 && <span className="text-amber-700">{n.lanVeSom} về sớm</span>}
+                  <span>Chờ {so(n.cho)} giờ</span>
+                </p>
+              </button>
+              {m && (
+                <ul className="space-y-1 bg-slate-50 px-4 py-2 text-sm">
+                  {n.ngay.map(x => (
+                    <li key={`${x.ngay}|${x.toId}`} className="flex flex-wrap gap-x-2">
+                      <span className="font-medium tabular-nums">{ddmm(x.ngay)}</span>
+                      {x.vang ? <span className="text-red-700">Vắng</span> : (<>
+                        <span className="tabular-nums">{x.vao ? hhmm(x.vao) : '—'}–{x.ra ? hhmm(x.ra) : 'hết ca'}</span>
+                        {x.treP > 0 && <span className="text-amber-700">trễ {gioPhut(x.treP)}</span>}
+                        {x.veSomP > 0 && <span className="text-amber-700">về sớm {gioPhut(x.veSomP)}</span>}
+                        <span className="text-slate-600">· {so(x.congThuong + x.congTangCa)} giờ công</span>
+                      </>)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <table className="hidden w-full min-w-[980px] rmd:table">
         <thead className="bg-slate-50"><tr>
           <th className={TH}>Người</th><th className={TH}>Tổ</th>
           <th className={`${TH} text-right`}>Ngày có mặt</th>
@@ -634,7 +760,7 @@ function TabTheoNguoi({ ds }: { ds: BaoCaoNguoi[] }) {
                     <div className="pl-5 text-xs tabular-nums text-slate-500">{n.mnv}{n.chucVu ? ` · ${n.chucVu}` : ''}</div>
                   </td>
                   <td className={TD}>{n.tenTo ?? '—'}</td>
-                  <td className={`${TD} text-right tabular-nums`}>{n.soNgay}</td>
+                  <td className={`${TD} text-right tabular-nums`}>{n.soNgay}{n.soNgayVang ? <div className="text-xs text-red-700">{n.soNgayVang} vắng</div> : null}</td>
                   <td className={`${TD} text-right tabular-nums`}>{so(n.coMatThuong)}</td>
                   <td className={`${TD} text-right tabular-nums`}>{n.coMatTangCa ? so(n.coMatTangCa) : '—'}</td>
                   <td className={`${TD} text-right font-semibold tabular-nums`}>{so(cong)}</td>
@@ -657,7 +783,7 @@ function TabTheoNguoi({ ds }: { ds: BaoCaoNguoi[] }) {
                             <tr key={`${x.ngay}|${x.toId}`} className="border-t border-slate-100">
                               <td className={`${TD} tabular-nums`}>{ddmm(x.ngay)}</td>
                               <td className={TD}>{x.tenTo}</td>
-                              <td className={`${TD} tabular-nums`}>{x.vao ? hhmm(x.vao) : '—'} – {x.ra ? hhmm(x.ra) : x.vao ? 'hết ca' : '—'}</td>
+                              <td className={`${TD} tabular-nums ${x.vang ? 'font-semibold text-red-700' : ''}`}>{x.vang ? 'Vắng' : `${x.vao ? hhmm(x.vao) : '—'} – ${x.ra ? hhmm(x.ra) : x.vao ? 'hết ca' : '—'}`}</td>
                               <td className={`${TD} text-right tabular-nums ${x.treP ? 'text-amber-700' : ''}`}>{gioPhut(x.treP)}</td>
                               <td className={`${TD} text-right tabular-nums ${x.veSomP ? 'text-amber-700' : ''}`}>{gioPhut(x.veSomP)}</td>
                               <td className={`${TD} text-right tabular-nums`}>{so(x.coMatThuong + x.coMatTangCa)}{x.coMatTangCa > 0 && <div className="text-xs text-slate-500">tăng ca {so(x.coMatTangCa)}</div>}</td>
@@ -680,10 +806,11 @@ function TabTheoNguoi({ ds }: { ds: BaoCaoNguoi[] }) {
           })}
         </tbody>
       </table>
-      <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+      </>)}
+      {kieu === 'ds' && <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
         Giờ có mặt = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ giờ nghỉ. Giờ công = giờ được gắn tên vào hạng mục đang chạy. Giờ chờ = có mặt mà không gắn hạng mục.
         Làm việc = giờ công / giờ có mặt. Trễ / về sớm so với giờ ca chính (số lần trong kỳ).
-      </p>
+      </p>}
     </div>
   );
 }
@@ -826,13 +953,22 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
   if (nguoi.length) {
     them('Cham cong theo ngay', nguoi.flatMap(n => [...n.ngay].reverse().map(x => ({
       'Ngày': x.ngay, 'Mã NV': n.mnv, 'Họ tên': n.hoTen, 'Tổ': x.tenTo,
-      'Giờ vào': x.vao ? hhmm(x.vao) : '', 'Giờ ra': x.ra ? hhmm(x.ra) : x.vao ? 'hết ca' : '',
+      'Giờ vào': x.vang ? 'Vắng' : x.vao ? hhmm(x.vao) : '', 'Giờ ra': x.ra ? hhmm(x.ra) : x.vao ? 'hết ca' : '',
       'Trễ (phút)': x.treP || null, 'Về sớm (phút)': x.veSomP || null,
       'Giờ có mặt (thường)': x.coMatThuong, 'Giờ tăng ca': x.coMatTangCa, 'Giờ công': Math.round((x.congThuong + x.congTangCa) * 100) / 100,
       'Giờ chờ': x.cho, 'Hạng mục': x.hangMuc.map(h => `${h.hex} (${h.tenCongDoan}) ${h.gio}g`).join('; '),
     }))));
+    const ngays = cacNgay(d.tu, d.den);
+    them('Bang cong', nguoi.map(n => {
+      const dong: Record<string, unknown> = { 'Mã NV': n.mnv, 'Họ tên': n.hoTen, 'Tổ': n.tenTo };
+      for (const ng of ngays) {
+        const o = oCong(n.ngay.filter(x => x.ngay === ng));
+        dong[`${ddmm(ng)} ${THU[thuCua(ng)]}`] = o.vang ? 'V' : o.co ? Math.round((o.thuong + o.tangCa) * 100) / 100 : '';
+      }
+      return { ...dong, 'Ngày công': n.soNgay, 'Giờ thường': n.coMatThuong, 'Giờ tăng ca': n.coMatTangCa, 'Ngày vắng': n.soNgayVang ?? 0, 'Lần trễ': n.lanTre, 'Lần về sớm': n.lanVeSom };
+    }));
     them('Tong hop nguoi', nguoi.map(n => ({
-      'Mã NV': n.mnv, 'Họ tên': n.hoTen, 'Tổ': n.tenTo, 'Chức vụ': n.chucVu, 'Ngày có mặt': n.soNgay,
+      'Mã NV': n.mnv, 'Họ tên': n.hoTen, 'Tổ': n.tenTo, 'Chức vụ': n.chucVu, 'Ngày có mặt': n.soNgay, 'Ngày vắng': n.soNgayVang ?? 0,
       'Giờ có mặt (thường)': n.coMatThuong, 'Giờ tăng ca': n.coMatTangCa, 'Giờ công': Math.round((n.congThuong + n.congTangCa) * 100) / 100,
       'Giờ chờ': n.cho, 'Số lần trễ': n.lanTre, 'Số lần về sớm': n.lanVeSom,
     })));
@@ -955,7 +1091,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
           {tab === 'ngay' && <TabTheoNgay ds={ds} />}
           {tab === 'to' && <TabTheoTo ds={ds} d={d} />}
           {tab === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} />}
-          {tab === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} />}
+          {tab === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} tu={d.tu} den={d.den} />}
           {tab === 'chatLuong' && <TabChatLuong d={d} ds={ds} />}
         </>
       )}

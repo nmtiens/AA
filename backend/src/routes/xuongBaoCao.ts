@@ -324,9 +324,20 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       ngay: string; toId: number; tenTo: string; vao: number | null; ra: number | null; treP: number; veSomP: number;
       coMatThuong: number; coMatTangCa: number; congThuong: number; congTangCa: number; cho: number;
       hangMuc: Array<{ hex: string; congDoanId: string; gio: number }>;
+      /** Có trong danh sách tổ mà không có mặt ngày tổ điểm danh */
+      vang: boolean;
     };
     const nguoiNgay = new Map<string, NgayNguoi[]>();
     const tenToCua = new Map(toRows.map(t => [Number(t.id), String(t.ten_to)]));
+    // Danh sách tổ hiện tại — đánh dấu vắng (gần đúng: dùng danh sách bây giờ cho các ngày cũ)
+    const doiTo = new Map<number, string[]>();
+    if (await coBangCongNhan()) {
+      for (const x of (await pool.query('SELECT mnv, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])', [toIds])).rows) {
+        const k = Number(x.to_id);
+        if (!doiTo.has(k)) doiTo.set(k, []);
+        doiTo.get(k)!.push(String(x.mnv));
+      }
+    }
     for (const x of pb.rows) {
       const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
       if (!kq?.theoNguoi) continue;
@@ -340,7 +351,19 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
           cho: lam(n.cho),
           hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split('|')[0], congDoanId: k.split('|')[1], gio: lam(g) }))
             .sort((a, b) => b.gio - a.gio),
+          vang: false,
         });
+      }
+      // Ngày tổ có điểm danh: người trong danh sách tổ mà không có mặt = vắng
+      if (kq.diemDanh && Object.keys(kq.diemDanh).length) {
+        for (const mnv of doiTo.get(Number(x.to_id)) ?? []) {
+          if (kq.theoNguoi[mnv]) continue;
+          if (!nguoiNgay.has(mnv)) nguoiNgay.set(mnv, []);
+          nguoiNgay.get(mnv)!.push({
+            ngay: x.ngay, toId: Number(x.to_id), tenTo: tenToCua.get(Number(x.to_id)) ?? '', vao: null, ra: null, treP: 0, veSomP: 0,
+            coMatThuong: 0, coMatTangCa: 0, congThuong: 0, congTangCa: 0, cho: 0, hangMuc: [], vang: true,
+          });
+        }
       }
     }
     const tenNguoi = new Map<string, { hoTen: string; tenTo: string | null; chucVu: string | null }>();
@@ -355,7 +378,9 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       const cong = (f: (x: NgayNguoi) => number) => lam(ds.reduce((a, x) => a + f(x), 0));
       return {
         mnv, hoTen: t?.hoTen ?? null, tenTo: t?.tenTo ?? ds[ds.length - 1]?.tenTo ?? null, chucVu: t?.chucVu ?? null,
-        soNgay: new Set(ds.map(x => x.ngay)).size, lanTre: ds.filter(x => x.treP > 0).length, lanVeSom: ds.filter(x => x.veSomP > 0).length,
+        soNgay: new Set(ds.filter(x => !x.vang).map(x => x.ngay)).size,
+        soNgayVang: new Set(ds.filter(x => x.vang).map(x => x.ngay)).size,
+        lanTre: ds.filter(x => x.treP > 0).length, lanVeSom: ds.filter(x => x.veSomP > 0).length,
         coMatThuong: cong(x => x.coMatThuong), coMatTangCa: cong(x => x.coMatTangCa),
         congThuong: cong(x => x.congThuong), congTangCa: cong(x => x.congTangCa), cho: cong(x => x.cho),
         ngay: ds.sort((a, b) => b.ngay.localeCompare(a.ngay)).map(x => ({

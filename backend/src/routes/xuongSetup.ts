@@ -7,7 +7,11 @@ import { invalidateUserAccess } from '../server/permissions.js';
 import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
   fail, xuongQuanLy, quanLyDuoc, ghiVaTinhLai, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
+  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong,
 } from './xuong.js';
+import { suKienConHieuLuc } from '../server/xuong/state.js';
+import { doanCoMat, tomTatDiemDanh } from '../server/xuong/chamCong.js';
+import { vnDayKey } from '../server/common.js';
 import { xoaGioCongLuu } from './xuongBaoCao.js';
 import { baoHangChoNhan, baoXuongPhu } from './xuongThongBao.js';
 
@@ -120,12 +124,55 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
        WHERE t.xuong = $1 AND t.active
        GROUP BY t.id, t.ten_to, u.full_name
        ORDER BY t.ten_to`, [xuong]);
+    // Chấm công hôm nay theo tổ: có mặt / tổng danh sách, vắng, trễ, về sớm (ca chính / Chủ nhật)
+    type NguoiDd = { mnv: string; hoTen: string };
+    const diemDanh = new Map<number, {
+      daDiemDanh: boolean; coMat: number; tong: number; vang: NguoiDd[];
+      tre: Array<NguoiDd & { phut: number }>; veSom: Array<NguoiDd & { luc: number }>;
+    }>();
+    if (r.rows.length && await coBangCongNhan()) {
+      const ids = r.rows.map(x => Number(x.id));
+      const ngay = vnDayKey(new Date());
+      const now = Date.now();
+      const [ev, ds2, lichCa] = await Promise.all([
+        pool.query(
+          `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
+             AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date`, [ids, ngay]),
+        pool.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
+        lichCaCuaXuong(xuong),
+      ]);
+      const ten = new Map<string, string>(ds2.rows.map(x => [String(x.mnv), String(x.ho_ten)]));
+      // Người mượn (không thuộc tổ) cũng cần tên
+      const thieu = [...new Set(ev.rows.flatMap(x => (Array.isArray(x.du_lieu?.nguoi) ? x.du_lieu.nguoi : []).map((n: { mnv?: string }) => String(n?.mnv ?? ''))))]
+        .filter(m => m && !ten.has(m));
+      if (thieu.length) {
+        for (const x of (await pool.query('SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])', [thieu])).rows) ten.set(String(x.mnv), String(x.ho_ten));
+      }
+      const tenCua = (m: string) => ten.get(m) ?? m;
+      const theoTo = new Map<number, Row[]>();
+      for (const x of ev.rows) { const k = Number(x.to_id); if (!theoTo.has(k)) theoTo.set(k, []); theoTo.get(k)!.push(x); }
+      for (const id of ids) {
+        const coMat = doanCoMat(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)));
+        const caChinh = [...(coMat.chinh ?? []), ...(coMat.chu_nhat ?? [])];
+        const daDiemDanh = caChinh.length > 0;
+        const dangCo = new Set(caChinh.filter(d => d.end === null || d.end > now).map(d => d.mnv));
+        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay, lichCa);
+        const doi = ds2.rows.filter(x => Number(x.to_id) === id).map(x => String(x.mnv));
+        const daTung = new Set(caChinh.map(d => d.mnv));
+        diemDanh.set(id, {
+          daDiemDanh, coMat: dangCo.size, tong: doi.length,
+          vang: daDiemDanh ? doi.filter(m => !daTung.has(m)).map(m => ({ mnv: m, hoTen: tenCua(m) })) : [],
+          tre: Object.entries(tomTat).filter(([, v]) => v.treP > 0).map(([m, v]) => ({ mnv: m, hoTen: tenCua(m), phut: v.treP })),
+          veSom: caChinh.filter(d => d.end !== null && d.end <= now && !dangCo.has(d.mnv)).map(d => ({ mnv: d.mnv, hoTen: tenCua(d.mnv), luc: d.end! })),
+        });
+      }
+    }
     res.json({
       success: true, available: true, dsXuong, xuong,
       to: r.rows.map(x => ({
         id: Number(x.id), ten: x.ten_to, toTruong: x.to_truong ?? null, quanSo: x.quan_so === null ? null : Number(x.quan_so),
         dangChay: x.dang_chay, tamNgung: x.tam_ngung, choNhan: x.cho_nhan, choGiao: x.cho_giao, canXem: x.can_xem,
-        thaoTacCuoi: x.thao_tac_cuoi,
+        thaoTacCuoi: x.thao_tac_cuoi, diemDanh: diemDanh.get(Number(x.id)) ?? null,
       })),
     });
   } catch (e) { fail(res, e, '/api/xuong/tong-quan'); }

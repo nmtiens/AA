@@ -72141,6 +72141,14 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     }
     const nguoiNgay = /* @__PURE__ */ new Map();
     const tenToCua = new Map(toRows.map((t) => [Number(t.id), String(t.ten_to)]));
+    const doiTo = /* @__PURE__ */ new Map();
+    if (await coBangCongNhan()) {
+      for (const x of (await pool.query("SELECT mnv, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])", [toIds])).rows) {
+        const k = Number(x.to_id);
+        if (!doiTo.has(k)) doiTo.set(k, []);
+        doiTo.get(k).push(String(x.mnv));
+      }
+    }
     for (const x of pb.rows) {
       const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
       if (!kq?.theoNguoi) continue;
@@ -72160,8 +72168,31 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           congThuong: lam(n.congThuong),
           congTangCa: lam(n.congTangCa),
           cho: lam(n.cho),
-          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam(g) })).sort((a, b) => b.gio - a.gio)
+          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam(g) })).sort((a, b) => b.gio - a.gio),
+          vang: false
         });
+      }
+      if (kq.diemDanh && Object.keys(kq.diemDanh).length) {
+        for (const mnv of doiTo.get(Number(x.to_id)) ?? []) {
+          if (kq.theoNguoi[mnv]) continue;
+          if (!nguoiNgay.has(mnv)) nguoiNgay.set(mnv, []);
+          nguoiNgay.get(mnv).push({
+            ngay: x.ngay,
+            toId: Number(x.to_id),
+            tenTo: tenToCua.get(Number(x.to_id)) ?? "",
+            vao: null,
+            ra: null,
+            treP: 0,
+            veSomP: 0,
+            coMatThuong: 0,
+            coMatTangCa: 0,
+            congThuong: 0,
+            congTangCa: 0,
+            cho: 0,
+            hangMuc: [],
+            vang: true
+          });
+        }
       }
     }
     const tenNguoi = /* @__PURE__ */ new Map();
@@ -72180,7 +72211,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         hoTen: t?.hoTen ?? null,
         tenTo: t?.tenTo ?? ds2[ds2.length - 1]?.tenTo ?? null,
         chucVu: t?.chucVu ?? null,
-        soNgay: new Set(ds2.map((x) => x.ngay)).size,
+        soNgay: new Set(ds2.filter((x) => !x.vang).map((x) => x.ngay)).size,
+        soNgayVang: new Set(ds2.filter((x) => x.vang).map((x) => x.ngay)).size,
         lanTre: ds2.filter((x) => x.treP > 0).length,
         lanVeSom: ds2.filter((x) => x.veSomP > 0).length,
         coMatThuong: cong2((x) => x.coMatThuong),
@@ -72369,6 +72401,50 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
        ORDER BY t.ten_to`,
       [xuong]
     );
+    const diemDanh = /* @__PURE__ */ new Map();
+    if (r.rows.length && await coBangCongNhan()) {
+      const ids = r.rows.map((x) => Number(x.id));
+      const ngay = vnDayKey(/* @__PURE__ */ new Date());
+      const now = Date.now();
+      const [ev, ds2, lichCa] = await Promise.all([
+        pool.query(
+          `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
+             AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date`,
+          [ids, ngay]
+        ),
+        pool.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
+        lichCaCuaXuong(xuong)
+      ]);
+      const ten = new Map(ds2.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
+      const thieu = [...new Set(ev.rows.flatMap((x) => (Array.isArray(x.du_lieu?.nguoi) ? x.du_lieu.nguoi : []).map((n) => String(n?.mnv ?? ""))))].filter((m) => m && !ten.has(m));
+      if (thieu.length) {
+        for (const x of (await pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [thieu])).rows) ten.set(String(x.mnv), String(x.ho_ten));
+      }
+      const tenCua = (m) => ten.get(m) ?? m;
+      const theoTo = /* @__PURE__ */ new Map();
+      for (const x of ev.rows) {
+        const k = Number(x.to_id);
+        if (!theoTo.has(k)) theoTo.set(k, []);
+        theoTo.get(k).push(x);
+      }
+      for (const id of ids) {
+        const coMat = doanCoMat(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)));
+        const caChinh = [...coMat.chinh ?? [], ...coMat.chu_nhat ?? []];
+        const daDiemDanh = caChinh.length > 0;
+        const dangCo = new Set(caChinh.filter((d) => d.end === null || d.end > now).map((d) => d.mnv));
+        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay, lichCa);
+        const doi = ds2.rows.filter((x) => Number(x.to_id) === id).map((x) => String(x.mnv));
+        const daTung = new Set(caChinh.map((d) => d.mnv));
+        diemDanh.set(id, {
+          daDiemDanh,
+          coMat: dangCo.size,
+          tong: doi.length,
+          vang: daDiemDanh ? doi.filter((m) => !daTung.has(m)).map((m) => ({ mnv: m, hoTen: tenCua(m) })) : [],
+          tre: Object.entries(tomTat).filter(([, v]) => v.treP > 0).map(([m, v]) => ({ mnv: m, hoTen: tenCua(m), phut: v.treP })),
+          veSom: caChinh.filter((d) => d.end !== null && d.end <= now && !dangCo.has(d.mnv)).map((d) => ({ mnv: d.mnv, hoTen: tenCua(d.mnv), luc: d.end }))
+        });
+      }
+    }
     res.json({
       success: true,
       available: true,
@@ -72384,7 +72460,8 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         choNhan: x.cho_nhan,
         choGiao: x.cho_giao,
         canXem: x.can_xem,
-        thaoTacCuoi: x.thao_tac_cuoi
+        thaoTacCuoi: x.thao_tac_cuoi,
+        diemDanh: diemDanh.get(Number(x.id)) ?? null
       }))
     });
   } catch (e) {

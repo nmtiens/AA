@@ -78,6 +78,13 @@ export default function TongQuanXuong({ onChonTo }: {
   useEffect(() => { tai(); }, [tai]);
   useEffect(() => { if (xuong) try { localStorage.setItem(KHOA_XUONG, xuong); } catch { /* bỏ qua */ } }, [xuong]);
 
+  const [moVang, setMoVang] = useState(false);
+  const coDd = (d?.to ?? []).filter(t => t.diemDanh?.daDiemDanh);
+  const dd = coDd.reduce((a, t) => ({
+    coMat: a.coMat + t.diemDanh!.coMat, tong: a.tong + t.diemDanh!.tong,
+    vang: a.vang + t.diemDanh!.vang.length, tre: a.tre + t.diemDanh!.tre.length, veSom: a.veSom + t.diemDanh!.veSom.length,
+  }), { coMat: 0, tong: 0, vang: 0, tre: 0, veSom: 0 });
+
   const tong = (d?.to ?? []).reduce((a, t) => ({
     chuaChot: a.chuaChot + (t.quanSo === null && (t.dangChay + t.tamNgung + t.choNhan) > 0 ? 1 : 0),
     dangChay: a.dangChay + t.dangChay, choNhan: a.choNhan + t.choNhan, canXem: a.canXem + t.canXem,
@@ -112,6 +119,32 @@ export default function TongQuanXuong({ onChonTo }: {
             <span>{tong.choNhan} chờ nhận</span>
           </p>
         )}
+        {/* Chấm công hôm nay: có mặt / vắng / trễ / về sớm của cả xưởng, mở ra xem tên theo tổ */}
+        {coDd.length > 0 && (
+          <div className={`${KHOI} border border-slate-200`}>
+            <button className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left text-base active:bg-slate-50" aria-expanded={moVang} onClick={() => setMoVang(v => !v)}>
+              <span className="font-semibold text-slate-900"><Users size="1em" className="mr-1 inline" aria-hidden />{dd.coMat}{dd.tong ? `/${dd.tong}` : ''} có mặt</span>
+              <span className={dd.vang ? `font-medium ${MAU.loi.chu}` : 'text-slate-600'}>{dd.vang} vắng</span>
+              <span className={dd.tre ? `font-medium ${MAU.ngung.chu}` : 'text-slate-600'}>{dd.tre} trễ</span>
+              <span className={dd.veSom ? `font-medium ${MAU.ngung.chu}` : 'text-slate-600'}>{dd.veSom} về sớm</span>
+              {(d?.to.length ?? 0) > coDd.length && <span className="text-slate-600">{(d?.to.length ?? 0) - coDd.length} tổ chưa điểm danh</span>}
+              <ChevronRight size="1.1em" className={`ml-auto text-slate-500 transition-transform ${moVang ? 'rotate-90' : ''}`} aria-hidden />
+            </button>
+            {moVang && (
+              <ul className="divide-y divide-slate-100 border-t border-slate-100">
+                {coDd.filter(t => t.diemDanh!.vang.length || t.diemDanh!.tre.length || t.diemDanh!.veSom.length).map(t => (
+                  <li key={t.id} className="space-y-1 px-4 py-2.5 text-base">
+                    <p className="font-semibold text-slate-900">{t.ten} <span className="font-normal text-slate-600">· {t.diemDanh!.coMat}/{t.diemDanh!.tong} có mặt</span></p>
+                    {t.diemDanh!.vang.length > 0 && <p className={MAU.loi.chu}>Vắng: {t.diemDanh!.vang.map(x => x.hoTen).join(', ')}</p>}
+                    {t.diemDanh!.tre.length > 0 && <p className={MAU.ngung.chu}>Trễ: {t.diemDanh!.tre.map(x => `${x.hoTen} (${x.phut} phút)`).join(', ')}</p>}
+                    {t.diemDanh!.veSom.length > 0 && <p className={MAU.ngung.chu}>Về sớm: {t.diemDanh!.veSom.map(x => `${x.hoTen} (${hhmm(x.luc)})`).join(', ')}</p>}
+                  </li>
+                ))}
+                {!dd.vang && !dd.tre && !dd.veSom && <li className="px-4 py-2.5 text-base text-slate-600">Hôm nay chưa có ai vắng, trễ hay về sớm.</li>}
+              </ul>
+            )}
+          </div>
+        )}
         {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
         <div className="grid grid-cols-2 gap-3">
           <button className={NUT_PHU} onClick={() => setTrienKhai({ hex: null })}><Rocket size="1.25em" aria-hidden /> Triển khai</button>
@@ -132,7 +165,11 @@ export default function TongQuanXuong({ onChonTo }: {
                       <p className="text-lg font-semibold text-slate-900">{t.ten}</p>
                       <p className={CHU_PHU}>{t.toTruong ?? 'Chưa có tổ trưởng'}{t.thaoTacCuoi ? ` · thao tác cuối ${hhmm(Date.parse(t.thaoTacCuoi))}` : ''}</p>
                       <p className="flex flex-wrap gap-x-3 gap-y-1 text-base">
-                        {t.quanSo !== null
+                        {t.diemDanh?.daDiemDanh
+                          ? <span className="inline-flex items-center gap-1 text-slate-700"><Users size="1em" aria-hidden /> {t.diemDanh.coMat}{t.diemDanh.tong ? `/${t.diemDanh.tong}` : ''} có mặt
+                              {t.diemDanh.vang.length > 0 && <span className={MAU.loi.chu}> · {t.diemDanh.vang.length} vắng</span>}
+                              {t.diemDanh.tre.length > 0 && <span className={MAU.ngung.chu}> · {t.diemDanh.tre.length} trễ</span>}</span>
+                          : t.quanSo !== null
                           ? <span className="inline-flex items-center gap-1 text-slate-700"><Users size="1em" aria-hidden /> {t.quanSo} người</span>
                           : coViec && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><Users size="1em" aria-hidden /> Chưa chốt quân số</span>}
                         {t.dangChay > 0 && <span className={`inline-flex items-center gap-1 ${MAU.chay.chu}`}><Play size="1em" aria-hidden /> {t.dangChay} đang chạy</span>}

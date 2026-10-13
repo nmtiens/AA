@@ -119,10 +119,12 @@ export interface BaoCaoNguoiNgay {
   vao: number | null; ra: number | null; treP: number; veSomP: number;
   coMatThuong: number; coMatTangCa: number; congThuong: number; congTangCa: number; cho: number;
   hangMuc: Array<{ hex: string; congDoanId: string; gio: number; tenHangMuc: string | null; tenCongDoan: string }>;
+  /** Có trong danh sách tổ mà không có mặt ngày tổ điểm danh */
+  vang?: boolean;
 }
 export interface BaoCaoNguoi {
   mnv: string; hoTen: string | null; tenTo: string | null; chucVu: string | null;
-  soNgay: number; lanTre: number; lanVeSom: number;
+  soNgay: number; soNgayVang?: number; lanTre: number; lanVeSom: number;
   coMatThuong: number; coMatTangCa: number; congThuong: number; congTangCa: number; cho: number;
   ngay: BaoCaoNguoiNgay[];
 }
@@ -148,6 +150,13 @@ function dauXacThuc(): Record<string, string> {
 export interface TongQuanTo {
   id: number; ten: string; toTruong: string | null; quanSo: number | null;
   dangChay: number; tamNgung: number; choNhan: number; choGiao: number; canXem: number; thaoTacCuoi: string | null;
+  /** Chấm công hôm nay (null = máy chủ chưa bật chấm công theo người) */
+  diemDanh?: {
+    daDiemDanh: boolean; coMat: number; tong: number;
+    vang: Array<{ mnv: string; hoTen: string }>;
+    tre: Array<{ mnv: string; hoTen: string; phut: number }>;
+    veSom: Array<{ mnv: string; hoTen: string; luc: number }>;
+  } | null;
 }
 
 type KetQua<T> = { ok: true; data: T } | { ok: false; status: number; message: string };
