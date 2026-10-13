@@ -149,7 +149,7 @@ html { scroll-behavior: smooth; }
   <header class="dau">
     <p class="nhan-tren">App Xưởng · dành cho tổ trưởng</p>
     <h1>Sổ tay tổ trưởng</h1>
-    <p class="mo">App Xưởng ghi lại việc của tổ trong ngày: hàng giao tới, bắt đầu, tạm ngưng, xong và giao sang công đoạn sau, quân số, tăng ca. Từ đó hệ thống tự tính giờ công cho từng hạng mục. Tổ trưởng bấm đúng lúc, đúng số thì báo cáo mới đúng.</p>
+    <p class="mo">App Xưởng ghi lại việc của tổ trong ngày: ai có mặt, hàng giao tới, ai làm hạng mục nào, tạm ngưng, xong và giao sang công đoạn sau, tăng ca. Từ đó hệ thống tự tính giờ công cho từng hạng mục và từng người. Tổ trưởng bấm đúng lúc, đúng người thì báo cáo mới đúng.</p>
     <div class="link-app">
       <span class="ten">Địa chỉ app:</span>
       <code id="link">https://operationshub-dev.vercel.app/xuong</code>
@@ -159,7 +159,8 @@ html { scroll-behavior: smooth; }
       <a href="#cai">Cài app</a>
       <a href="#man">Màn hình Tổ</a>
       <a href="#ngay">Một ngày làm việc</a>
-      <a href="#nguoi">Khai số người</a>
+      <a href="#diem-danh">Điểm danh</a>
+      <a href="#nguoi">Chọn người làm</a>
       <a href="#nham">Bấm nhầm, mất sóng</a>
       <a href="#tra">Tra cứu</a>
       <a href="#hoi">Hỏi đáp</a>
@@ -195,13 +196,13 @@ html { scroll-behavior: smooth; }
     <h2>Màn hình Tổ</h2>
     <p class="mo">Mở app là vào thẳng màn của tổ. Từ trên xuống:</p>
     <div class="man">
-      <div><b>Tên tổ</b><span>Phụ trách nhiều tổ thì bấm vào tên để đổi tổ. Nút <span class="nut phu">⋯</span> mở <b>Việc khác</b>: Lịch sử hôm nay, Khai tăng ca, Xác nhận cuối ngày, Chốt quân số, Chia người cho hạng mục, Làm mới.</span></div>
+      <div><b>Tên tổ</b><span>Phụ trách nhiều tổ thì bấm vào tên để đổi tổ. Nút <span class="nut phu">⋯</span> mở <b>Việc khác</b>: Lịch sử hôm nay, Khai tăng ca, Xác nhận cuối ngày, Điểm danh, Chia người cho hạng mục, Làm mới.</span></div>
       <div><b>Trạng thái gửi</b><span><b>Đã gửi hết</b>, <b>Đang gửi 2 thao tác</b> hoặc <b>Mất sóng · 3 thao tác chờ gửi</b>.</span></div>
-      <div><b>Thẻ nhắc</b><span>Thẻ đỏ <b>Chưa chốt quân số ca chính</b>; thẻ vàng <b>Xác nhận cuối ngày</b> từ 15h30.</span></div>
+      <div><b>Thẻ nhắc</b><span>Thẻ đỏ <b>Chưa điểm danh ca chính</b>. Điểm danh xong thì thành dòng <b>"18 có mặt · 2 chưa gắn việc"</b> (chạm để mở lại điểm danh). Thẻ vàng <b>Xác nhận cuối ngày</b> từ 15h30.</span></div>
       <div><b>3 tab</b><span><b>Chờ nhận</b>: hàng giao tới tổ, chưa nhận. <b>Đang làm</b>: Đang chạy · Tạm ngưng · Chưa bắt đầu. <b>Chờ giao</b>: đã xong, chưa giao đi.</span></div>
       <div><b>Đáy màn</b><span><span class="nut">Quét phiếu</span> quét mã QR trên phiếu; <span class="nut phu">Gõ mã</span> khi không quét được.</span></div>
     </div>
-    <p>Mỗi dòng hạng mục ghi: mã <span class="ma">240707263</span>, tên hạng mục, công trình, trạng thái, số người đang làm, thời gian đã chạy và <b>Nhận · Xong · Giao</b> theo đơn vị của hạng mục (SET, M2, cái…).</p>
+    <p>Mỗi dòng hạng mục ghi: mã <span class="ma">240707263</span>, tên hạng mục, công trình, trạng thái, <b>tên người đang làm</b> (vd "Chi, An, Bình"), thời gian đã chạy và <b>Nhận · Xong · Giao</b> theo đơn vị của hạng mục (SET, M2, cái…).</p>
   </section>
 
   <section id="ngay">
@@ -213,9 +214,10 @@ html { scroll-behavior: smooth; }
         <div class="moc">7:30</div>
         <div class="noi">
           <p class="khi">Đầu ca · trước 8h00</p>
-          <h3>Chốt quân số ca chính</h3>
-          <p>Bấm <span class="nut phu">Chốt quân số</span> trên thẻ đỏ, nhập số người có mặt làm ca chính. App gợi ý số hôm qua.</p>
-          <p class="goi chu-y">8h00 tổ nào chưa chốt sẽ nhận thông báo nhắc. Chưa chốt mà bấm Bắt đầu thì app hỏi quân số trước.</p>
+          <h3>Điểm danh ca chính</h3>
+          <p>Bấm <span class="nut phu">Điểm danh</span> trên thẻ đỏ. Cả tổ được tick sẵn là có mặt: <b>bỏ tick người vắng</b> rồi bấm <span class="nut">Lưu điểm danh</span>. Quân số tự bằng số người có mặt.</p>
+          <p>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca (7:30), kể cả khi bạn điểm danh muộn.</p>
+          <p class="goi chu-y">8h00 tổ nào chưa điểm danh sẽ nhận thông báo nhắc. Chưa điểm danh mà bấm Bắt đầu thì app mở điểm danh trước.</p>
         </div>
       </div>
 
@@ -238,10 +240,10 @@ html { scroll-behavior: smooth; }
         <div class="moc">Bắt đầu</div>
         <div class="noi">
           <p class="khi">Khi bắt tay làm một hạng mục</p>
-          <h3>Bắt đầu — khai số người làm</h3>
-          <p>Tab <b>Đang làm</b> → <span class="nut">Bắt đầu</span>. App <b>bắt buộc</b> hỏi <b>"mấy người làm?"</b>, gợi ý sẵn số người đang rảnh.</p>
-          <p>Sửa cho đúng số người thật sự làm hạng mục đó rồi bấm <span class="nut">Bắt đầu với 4 người</span>.</p>
-          <p class="goi chu-y">Số hiện đỏ "Nhiều hơn số người đang rảnh" nghĩa là tổng số người khai ở các hạng mục đang chạy vượt quân số. Kiểm tra lại, chia người cho đúng.</p>
+          <h3>Bắt đầu — chọn người làm</h3>
+          <p>Tab <b>Đang làm</b> → <span class="nut">Bắt đầu</span>. App hỏi <b>"ai làm?"</b> bằng các ô tên người đang có mặt, chọn sẵn những người đang rảnh.</p>
+          <p>Chạm tên để chọn / bỏ cho đúng người thật sự làm hạng mục đó, rồi bấm <span class="nut">Bắt đầu với 4 người</span>.</p>
+          <p class="goi chu-y">Tên mờ là người đang làm hạng mục khác. Chọn người đó thì họ <b>chuyển sang</b> hạng mục này (một người chỉ ở một hạng mục).</p>
         </div>
       </div>
 
@@ -250,7 +252,7 @@ html { scroll-behavior: smooth; }
         <div class="noi">
           <p class="khi">Khi phải dừng giữa chừng</p>
           <h3>Tạm ngưng và tiếp tục</h3>
-          <p><span class="nut phu">Tạm ngưng</span> → chọn lý do (bảng bên dưới). Làm lại thì bấm <span class="nut">Tiếp tục</span>, app hỏi lại số người làm.</p>
+          <p><span class="nut phu">Tạm ngưng</span> → chọn lý do (bảng bên dưới). Làm lại thì bấm <span class="nut">Tiếp tục</span>, app hỏi lại ai làm (chọn sẵn người cũ còn có mặt).</p>
           <p>Lý do tạm ngưng cho quản lý biết vì sao tổ phải chờ, nên chọn đúng.</p>
         </div>
       </div>
@@ -274,7 +276,7 @@ html { scroll-behavior: smooth; }
         <div class="noi">
           <p class="khi">Nếu tổ làm tăng ca</p>
           <h3>Khai tăng ca</h3>
-          <p><span class="nut phu">⋯</span> → <b>Khai tăng ca</b>: chọn ca (Ca 1–Ca 4, Chủ nhật), số người tăng ca, bỏ chọn hạng mục không làm tăng ca.</p>
+          <p><span class="nut phu">⋯</span> → <b>Khai tăng ca</b>: chọn ca (Ca 1–Ca 4, Chủ nhật), <b>chạm tên những người ở lại tăng ca</b>, bỏ chọn hạng mục không làm tăng ca. Chỉ người được chọn mới được tính giờ tăng ca.</p>
         </div>
       </div>
 
@@ -306,23 +308,42 @@ html { scroll-behavior: smooth; }
     </div>
   </section>
 
+  <section id="diem-danh">
+    <h2>Điểm danh trong ca</h2>
+    <p class="mo">Mở lại điểm danh bất cứ lúc nào: chạm dòng <b>"… có mặt"</b> ở đầu màn, hoặc <span class="nut phu">⋯</span> → <b>Điểm danh</b>.</p>
+    <div class="bang-boc">
+      <table>
+        <thead><tr><th>Khi</th><th>Làm</th></tr></thead>
+        <tbody>
+          <tr><td><b>Có người đến trễ</b></td><td>Tick tên người đó, sửa <b>Giờ vào</b> thành giờ họ tới, Lưu. Lần điểm danh đầu mà biết ai trễ thì bỏ tick họ trước, khi họ tới mới tick.</td></tr>
+          <tr><td><b>Có người về sớm, nghỉ giữa ca</b></td><td>Bỏ tick, chọn <b>Giờ ra</b> và lý do (Về sớm, Nghỉ giữa ca, Sang tổ khác), Lưu. App tự gỡ tên họ khỏi hạng mục đang làm.</td></tr>
+          <tr><td><b>Tick nhầm người vắng</b></td><td>Bỏ tick, chọn lý do <b>Vắng (tick nhầm)</b>, Lưu: người đó không được tính giờ nào.</td></tr>
+          <tr><td><b>Mượn người tổ khác</b></td><td><b>Thêm người / mượn người tổ khác</b> → gõ tên hoặc mã NV → chạm <b>Mượn</b>. Người đó có mặt ở tổ mình hôm nay.</td></tr>
+          <tr><td><b>Người mới chưa có trong danh sách</b></td><td>Cũng ở <b>Thêm người</b>: gõ tên, không thấy thì <b>Thêm người mới vào tổ</b>, nhập mã NV và họ tên. Lần sau app nhớ. Bước này cần có sóng.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="goi chu-y">Mất sóng vẫn điểm danh được với danh sách tổ đã có; chỉ thêm người mới / tìm người tổ khác là cần sóng. Tổ chưa có danh sách thì vẫn có lối <b>"chỉ nhập số người"</b> ở cuối màn điểm danh.</p>
+  </section>
+
   <section id="nguoi">
-    <h2>Vì sao phải khai đúng số người</h2>
-    <p class="mo">Giờ công không tính bằng "số người × thời gian" tuỳ ý. Hệ thống làm như sau:</p>
+    <h2>Vì sao phải điểm danh và chọn đúng người</h2>
+    <p class="mo">Từ điểm danh và tên người làm, hệ thống tính cho <b>từng người</b>:</p>
     <div class="khung">
       <ol class="ds">
-        <li><b>Giờ người của tổ</b> = quân số đã chốt × giờ ca. Ca chính 7:30–15:45, trừ nghỉ trưa 11:30–12:15, còn 7,5 giờ.</li>
-        <li>Giờ người được chia cho các hạng mục <b>đang chạy</b> theo số người tổ khai cho từng hạng mục.</li>
-        <li>Phần không chia cho hạng mục nào là <b>giờ chờ</b>, kèm lý do: người rảnh, không có hạng mục chạy, hoặc lý do tạm ngưng.</li>
+        <li><b>Giờ có mặt</b> = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ nghỉ trưa 11:30–12:15. Ca chính đủ là 7,5 giờ.</li>
+        <li><b>Giờ công</b> của người đó cho từng hạng mục = thời gian họ được gắn tên vào hạng mục đang chạy.</li>
+        <li>Có mặt mà không gắn hạng mục nào là <b>giờ chờ</b>, kèm lý do: người rảnh, không có hạng mục chạy, hoặc lý do tạm ngưng.</li>
+        <li>Giờ công hạng mục = cộng giờ của những người làm nó. Đi trễ, về sớm được ghi lại theo từng người.</li>
       </ol>
     </div>
-    <p class="goi tot">Ví dụ: tổ chốt 7 người. Hạng mục A chạy 4 giờ với 7 người → A được 28 giờ công. Nếu chỉ 4 người làm A, 3 người kia rảnh 4 giờ → A được 16 giờ công, 12 giờ còn lại là giờ chờ "người rảnh".</p>
+    <p class="goi tot">Ví dụ: tổ có mặt 7 người. Hạng mục A chạy 4 giờ với An, Bình, Chi, Dũng → mỗi người 4 giờ công cho A, A được 16 giờ công. 3 người kia không gắn việc → mỗi người 4 giờ chờ "người rảnh".</p>
     <div class="khung">
       <h3>Nhiều hạng mục chạy cùng lúc</h3>
       <p>Sau mỗi thao tác, nếu còn người rảnh hoặc có hạng mục chưa có người, dải vàng hiện <b>"3 người đang rảnh"</b> với 2 nút:</p>
       <ul class="ds">
-        <li><span class="nut phu">Chia đều</span>: chia đều quân số cho các hạng mục đang chạy.</li>
-        <li><span class="nut phu">Chọn</span>: tự nhập số người cho từng hạng mục.</li>
+        <li><span class="nut phu">Chia đều</span>: chia người rảnh cho hạng mục đang ít người nhất, giữ nguyên người đã gắn.</li>
+        <li><span class="nut phu">Chọn</span>: chạm tên để gắn từng người vào từng hạng mục.</li>
       </ul>
       <p>Người chuyển từ hạng mục này sang hạng mục khác giữa chừng, hoặc khai sai: <span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b> để sửa số người bất cứ lúc nào.</p>
     </div>
@@ -375,8 +396,12 @@ html { scroll-behavior: smooth; }
         <p>Tổ đã nhận đủ số lượng được triển khai cho xưởng. Nếu hàng về thêm thật, báo quản lý triển khai thêm số lượng.</p>
       </details>
       <details>
-        <summary>Khai sai số người khi bắt đầu?</summary>
-        <p><span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b>, sửa số người cho từng hạng mục đang chạy rồi bấm <b>Lưu</b>.</p>
+        <summary>Chọn sai người khi bắt đầu?</summary>
+        <p><span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b>, chạm tên để gắn lại cho đúng rồi bấm <b>Lưu</b>.</p>
+      </details>
+      <details>
+        <summary>Tổ chưa có danh sách công nhân?</summary>
+        <p>Thêm từng người khi điểm danh (<b>Thêm người</b> → <b>Thêm người mới vào tổ</b>), hoặc nhờ quản lý nạp file nhân sự. Trong lúc chờ vẫn dùng được lối "chỉ nhập số người".</p>
       </details>
       <details>
         <summary>Quên bấm Tạm ngưng lúc nghỉ, hết ca?</summary>

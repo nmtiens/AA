@@ -150,7 +150,7 @@ table td:first-child { min-width: 9em; }
   <header class="dau">
     <p class="nhan-tren">App Xưởng · dành cho quản lý xưởng</p>
     <h1>Sổ tay quản lý xưởng</h1>
-    <p class="mo">Tổ trưởng ghi việc của tổ trên điện thoại. Quản lý xưởng chuẩn bị danh mục, triển khai hạng mục cho các tổ, theo dõi tổ trong ngày, xử lý thao tác sai và đọc báo cáo giờ công.</p>
+    <p class="mo">Tổ trưởng điểm danh và ghi việc của tổ trên điện thoại. Quản lý xưởng chuẩn bị danh mục và danh sách công nhân, triển khai hạng mục cho các tổ, theo dõi tổ trong ngày, xử lý thao tác sai và đọc báo cáo giờ công, chấm công.</p>
     <div class="link-app">
       <span class="ten">Địa chỉ app:</span>
       <code id="link">https://operationshub-dev.vercel.app/xuong</code>
@@ -175,7 +175,7 @@ table td:first-child { min-width: 9em; }
       <div><b>Máy tính</b><span>Cùng địa chỉ app (menu ở cột trái), hoặc Operations Hub → <b>Setup dữ liệu → Xưởng</b>. Màn <b>Quản lý</b> trên app và thẻ Xưởng trên máy tính là một.</span></div>
       <div><b>Quyền</b><span><b>Admin</b> quản lý mọi xưởng. <b>Quản lý xưởng</b> chỉ thấy và sửa xưởng được admin gán ở mục <b>Quản lý xưởng</b>.</span></div>
     </div>
-    <p>Màn <b>Quản lý</b> có 7 mục: <b>Báo cáo · Triển khai hạng mục · Tổ &amp; tổ trưởng · Công đoạn · Lịch ca · Quản lý xưởng · Cần xem</b>. Chọn xưởng ở ô <b>Xưởng</b> đầu màn.</p>
+    <p>Màn <b>Quản lý</b> có 8 mục: <b>Báo cáo · Triển khai hạng mục · Tổ &amp; tổ trưởng · Nhân sự · Công đoạn · Lịch ca · Quản lý xưởng · Cần xem</b>. Chọn xưởng ở ô <b>Xưởng</b> đầu màn.</p>
   </section>
 
   <section id="chuan-bi">
@@ -204,6 +204,19 @@ table td:first-child { min-width: 9em; }
       <div class="buoc">
         <div class="moc">3</div>
         <div class="noi">
+          <h3>Nhân sự (danh sách công nhân)</h3>
+          <ul class="ds">
+            <li><b>Nạp file nhân sự</b> (Excel / CSV): app tự nhận cột mã NV, họ tên, xưởng, tổ, chức vụ theo tiêu đề (sửa lại được), xem trước 5 dòng rồi bấm <b>Nạp</b>. Người đã có thì cập nhật, không tạo trùng.</li>
+            <li>Cột tổ khớp tên tổ trong xưởng (không phân biệt hoa thường). Tổ không khớp được báo lại, người đó vẫn được nạp nhưng chưa xếp tổ.</li>
+            <li>Tick <b>Đánh nghỉ việc người không có trong file</b> khi nạp file đầy đủ của xưởng.</li>
+            <li>Danh sách: lọc theo tổ, tìm tên / mã NV, đổi tổ, <b>Nghỉ việc</b> / <b>Khôi phục</b>.</li>
+          </ul>
+          <p>Chưa có file thì tổ trưởng tự thêm người khi điểm danh; người đó hiện ở đây với nguồn "Tổ trưởng thêm".</p>
+        </div>
+      </div>
+      <div class="buoc">
+        <div class="moc">4</div>
+        <div class="noi">
           <h3>Lịch ca</h3>
           <ul class="ds">
             <li>Giờ bắt đầu, kết thúc và <b>giờ nghỉ</b> của ca chính và các ca tăng ca (Ca 1–Ca 4, Chủ nhật). Giờ nghỉ không tính giờ công.</li>
@@ -214,7 +227,7 @@ table td:first-child { min-width: 9em; }
         </div>
       </div>
       <div class="buoc">
-        <div class="moc">4</div>
+        <div class="moc">5</div>
         <div class="noi">
           <h3>Quản lý xưởng</h3>
           <p>Admin gán ai được quản lý xưởng nào. Quản lý được triển khai hạng mục, sửa tổ, công đoạn, lịch ca của xưởng mình, xem Cần xem và huỷ thao tác sai bất kỳ lúc nào.</p>
@@ -229,7 +242,7 @@ table td:first-child { min-width: 9em; }
       <table>
         <thead><tr><th>Khi nào</th><th>Việc</th></tr></thead>
         <tbody>
-          <tr><td><b>8h00</b></td><td>Thông báo gửi quản lý: tổ chưa chốt quân số, hạng mục chạy quá 2 ngày không cập nhật, thao tác bị gắn cờ trong 24 giờ qua. Mở <b>Tổng quan</b> nhắc tổ chưa chốt.</td></tr>
+          <tr><td><b>8h00</b></td><td>Thông báo gửi quản lý: tổ chưa điểm danh (chốt quân số), hạng mục chạy quá 2 ngày không cập nhật, thao tác bị gắn cờ trong 24 giờ qua. Mở <b>Tổng quan</b> nhắc tổ chưa điểm danh.</td></tr>
           <tr><td><b>Trước khi hàng xuống tổ</b></td><td><b>Triển khai hạng mục</b> cho xưởng. Chưa triển khai thì tổ đầu tuyến không thấy hàng ở Chờ nhận.</td></tr>
           <tr><td><b>Trong ca</b></td><td>Xem <b>Tổng quan</b>: tổ nào nhiều tạm ngưng, chờ nhận, chờ giao, có thao tác cần xem. Bấm vào tổ để xem chi tiết hoặc ghi hộ.</td></tr>
           <tr><td><b>Cuối ngày</b></td><td>16h30 tổ được nhắc xác nhận cuối ngày. Xem <b>Cần xem</b> và huỷ thao tác sai.</td></tr>
@@ -264,7 +277,7 @@ table td:first-child { min-width: 9em; }
 
   <section id="tong-quan">
     <h2>Tổng quan và ghi hộ</h2>
-    <p>Mục <b>Tổng quan</b> (điện thoại): chọn xưởng ở hàng nút trên cùng. Mỗi tổ hiện tổ trưởng, quân số hôm nay (hoặc <b>Chưa chốt quân số</b>), số đang chạy, tạm ngưng, chờ nhận, chờ giao, cần xem, giờ thao tác cuối.</p>
+    <p>Mục <b>Tổng quan</b> (điện thoại): chọn xưởng ở hàng nút trên cùng. Mỗi tổ hiện tổ trưởng, quân số hôm nay (số người có mặt theo điểm danh, hoặc <b>Chưa chốt quân số</b>), số đang chạy, tạm ngưng, chờ nhận, chờ giao, cần xem, giờ thao tác cuối.</p>
     <div class="khung">
       <h3>Ghi hộ một tổ</h3>
       <ul class="ds">
@@ -304,8 +317,8 @@ table td:first-child { min-width: 9em; }
     <div class="khung">
       <h3>Cách tính</h3>
       <ul class="ds">
-        <li><b>Giờ người</b> = quân số chốt × giờ ca (trừ giờ nghỉ). Ca chính hiện là 7,5 giờ.</li>
-        <li><b>Giờ công</b> = giờ người chia cho các hạng mục đang chạy theo số người tổ khai. Khai vượt quân số thì co lại theo tỷ lệ.</li>
+        <li><b>Giờ người</b> = số người có mặt theo điểm danh, cộng dồn theo thời gian (đến trễ, về sớm được tính), trừ giờ nghỉ. Ca chính đủ là 7,5 giờ/người. Tổ chưa điểm danh tên thì dùng quân số chốt × giờ ca.</li>
+        <li><b>Giờ công</b> = giờ của những người được gắn tên vào hạng mục đang chạy (chỉ tính người đang có mặt). Tổ khai theo số thì chia theo số người khai, khai vượt quân số thì co lại theo tỷ lệ.</li>
         <li><b>Giờ chờ</b> = phần giờ người không chia cho hạng mục nào, kèm lý do: <i>Người rảnh</i> (khai ít hơn quân số), <i>Không có hạng mục chạy</i>, hoặc lý do tạm ngưng (thiếu vật tư, chờ bản vẽ…).</li>
         <li><b>Dùng người</b> = giờ công ÷ giờ người. Xanh từ 80%, vàng 50–79%, đỏ dưới 50%.</li>
         <li>Ca chưa chốt quân số chỉ tính theo số người khai, không có giờ chờ.</li>
@@ -313,7 +326,7 @@ table td:first-child { min-width: 9em; }
     </div>
     <div class="khung">
       <h3>Đầu báo cáo: 5 số của kỳ</h3>
-      <p>Công nhân bình quân mỗi ngày · Giờ công · Dùng người · Giờ chờ (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra 6 sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục.</p>
+      <p>Công nhân bình quân mỗi ngày · Giờ công · Dùng người · Giờ chờ (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ có mặt, tăng ca, giờ công, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
     </div>
     <div class="bang-boc">
       <table>
@@ -322,6 +335,7 @@ table td:first-child { min-width: 9em; }
           <tr><td><b>Theo ngày</b></td><td>Mỗi ngày × mỗi tổ: công nhân, giờ người, giờ công, giờ chờ, % dùng người, số hạng mục nhận, chạy, số xong. Bấm tổ: giờ công từng hạng mục, hàng nhận, hàng xong, giờ chờ vì sao.</td><td>Hỏi tổ về một ngày cụ thể</td></tr>
           <tr><td><b>Theo tổ</b></td><td>Mỗi tổ một hàng, mỗi ngày một ô % dùng người tô màu, cuối hàng là tổng kỳ.</td><td>Thấy tổ nào yếu, xu hướng tốt lên hay kém đi</td></tr>
           <tr><td><b>Theo hạng mục</b></td><td>Mỗi hạng mục: từng công đoạn với tổ, số công nhân, giờ chạy, giờ công/người, tổng giờ công, số xong, giờ công/đơn vị. Mở "Theo ngày" xem từng ngày.</td><td>Giờ công thực tế của hạng mục, so định mức, tính giá thành</td></tr>
+          <tr><td><b>Theo người</b></td><td>Mỗi công nhân: ngày có mặt, giờ có mặt, tăng ca, giờ công, giờ chờ, % làm việc, số lần trễ / về sớm. Bấm vào người: từng ngày giờ vào – ra, trễ, về sớm, giờ theo từng hạng mục.</td><td>Chấm công, tính lương / thưởng, xem ai hay chờ việc</td></tr>
           <tr><td><b>Chất lượng dữ liệu</b></td><td>Tỷ lệ nhật ký đủ Bắt đầu/Hoàn thành, ngày-tổ có chốt quân số, thao tác gửi trong 1 giờ, khai vượt quân số; các cờ trong kỳ; đối chiếu với điểm danh.</td><td>Biết số liệu đáng tin tới đâu, tổ nào cần nhắc</td></tr>
         </tbody>
       </table>
@@ -347,6 +361,14 @@ table td:first-child { min-width: 9em; }
       <details>
         <summary>Báo cáo thiếu ngày, hiện "Đang tính thêm … ngày-tổ"?</summary>
         <p>Máy chủ tính dần các ngày chưa có sẵn, trang tự gọi lại tới khi đủ. Chờ dòng đó biến mất rồi mới xuất Excel.</p>
+      </details>
+      <details>
+        <summary>Chấm công có chính xác không?</summary>
+        <p>Đây là chấm công qua tổ trưởng: giờ vào – ra do tổ trưởng ghi khi điểm danh. Lần điểm danh đầu tính mọi người vào đúng giờ ca; đến trễ, về sớm chỉ được ghi khi tổ trưởng cập nhật. Nên đối chiếu tab Theo người với dữ liệu Điểm danh của nhân sự, nhất là những ngày đầu.</p>
+      </details>
+      <details>
+        <summary>Một người làm ở 2 tổ trong ngày?</summary>
+        <p>Tổ mượn người thì điểm danh họ ở mục "mượn người tổ khác"; tổ gốc nên bỏ tick người đó (lý do "Sang tổ khác") để không tính 2 lần.</p>
       </details>
       <details>
         <summary>Số công nhân ghi "5–7"?</summary>
