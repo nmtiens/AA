@@ -73798,43 +73798,82 @@ async function sanXuatChuan(ver, verSanXuat) {
   chuanDang = { ver, p };
   return p;
 }
+var dangDung = /* @__PURE__ */ new Map();
+async function phienBanChuan() {
+  await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
+  const versions = await getVersions();
+  const verSanXuat = versions.production ?? "";
+  const verChuan = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
+  return { versions, verSanXuat, verChuan };
+}
+var nhoKetQua = (k, buf) => {
+  ketQuaNho.set(k, buf);
+  while (ketQuaNho.size > KET_QUA_NHO_MAX) {
+    const cu = ketQuaNho.keys().next().value;
+    if (cu === void 0) break;
+    ketQuaNho.delete(cu);
+  }
+};
+function layHoacDung(khoa, ver, luuDb, dung) {
+  const k = `${khoa}|${ver}`;
+  const nho = ketQuaNho.get(k);
+  if (nho) return Promise.resolve({ buf: nho, nguon: "mem", timing: "" });
+  let p = dangDung.get(k);
+  if (!p) {
+    p = (async () => {
+      if (luuDb) {
+        const nguon = { v: "" };
+        const buf2 = await docSnapshot(khoa, ver, nguon);
+        if (buf2) {
+          nhoKetQua(k, buf2);
+          return { buf: buf2, nguon: nguon.v, timing: "" };
+        }
+      }
+      const { buf, timing } = await dung();
+      nhoKetQua(k, buf);
+      if (luuDb) await luuSnapshot(khoa, ver, buf);
+      return { buf, nguon: "tinh", timing };
+    })().finally(() => dangDung.delete(k));
+    dangDung.set(k, p);
+  }
+  return p;
+}
+async function tongQuanSanXuat(filters, tuy) {
+  const { verSanXuat, verChuan } = await phienBanChuan();
+  const khoa = `tongquan|${createHash5("sha1").update(JSON.stringify([filters, tuy])).digest("hex").slice(0, 20)}`;
+  const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
+  return layHoacDung(khoa, verChuan, macDinh, async () => {
+    const tDoc = Date.now();
+    const { rows, cols } = await sanXuatChuan(verChuan, verSanXuat);
+    const tTinh = Date.now();
+    const kq = tinhTongQuanSanXuat(rows, cols, filters, tuy);
+    const buf = gzipSync(JSON.stringify({ success: true, ver: verChuan, ...kq }));
+    return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
+  });
+}
+async function tongQuanCongTrinh() {
+  const { versions, verSanXuat, verChuan } = await phienBanChuan();
+  const ver = JSON.stringify([verChuan, versions.inventory ?? ""]);
+  return layHoacDung("tongquan-congtrinh", ver, true, async () => {
+    const tDoc = Date.now();
+    const [{ rows, cols }, planMet2] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet()]);
+    const tTinh = Date.now();
+    setPlanMet(planMet2);
+    const banGhi = nenBanGhi(taoBanGhi(rows, cols, Date.now()));
+    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi }));
+    return { buf, timing: `bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}` };
+  });
+}
 app.post("/api/tong-quan/san-xuat", async (req, res) => {
   try {
     const parsed = BodySchema.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ success: false, message: "B\u1ED9 l\u1ECDc kh\xF4ng h\u1EE3p l\u1EC7" });
-    const filters = { ...DEFAULT_FILTERS, ...parsed.data.filters };
-    const tuy = { ...TUY_CHON_MAC_DINH, ...parsed.data.tuyChon };
     const t0 = Date.now();
-    await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
-    const versions = await getVersions();
-    const verSanXuat = versions.production ?? "";
-    const ver = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
-    const thamSo = JSON.stringify([filters, tuy]);
-    const khoa = `tongquan|${createHash5("sha1").update(thamSo).digest("hex").slice(0, 20)}`;
-    const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
-    const nho = ketQuaNho.get(`${khoa}|${ver}`);
-    if (nho) return guiGzip(res, nho, `tq;desc="mem";dur=${Date.now() - t0}`);
-    if (macDinh) {
-      const nguon = { v: "" };
-      const buf2 = await docSnapshot(khoa, ver, nguon);
-      if (buf2) {
-        ketQuaNho.set(`${khoa}|${ver}`, buf2);
-        return guiGzip(res, buf2, `tq;desc="${nguon.v}";dur=${Date.now() - t0}`);
-      }
-    }
-    const tDoc = Date.now();
-    const { rows, cols } = await sanXuatChuan(ver, verSanXuat);
-    const tTinh = Date.now();
-    const kq = tinhTongQuanSanXuat(rows, cols, filters, tuy);
-    const buf = gzipSync(JSON.stringify({ success: true, ver, ...kq }));
-    ketQuaNho.set(`${khoa}|${ver}`, buf);
-    while (ketQuaNho.size > KET_QUA_NHO_MAX) {
-      const cu = ketQuaNho.keys().next().value;
-      if (cu === void 0) break;
-      ketQuaNho.delete(cu);
-    }
-    if (macDinh) await luuSnapshot(khoa, ver, buf);
-    guiGzip(res, buf, `tq;desc="tinh";dur=${Date.now() - t0}, bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}`);
+    const { buf, nguon, timing } = await tongQuanSanXuat(
+      { ...DEFAULT_FILTERS, ...parsed.data.filters },
+      { ...TUY_CHON_MAC_DINH, ...parsed.data.tuyChon }
+    );
+    guiGzip(res, buf, `tq;desc="${nguon}";dur=${Date.now() - t0}${timing ? `, ${timing}` : ""}`);
   } catch (e) {
     console.error("[tong-quan] l\u1ED7i", e);
     if (!res.headersSent) res.status(500).json({ success: false, message: "Kh\xF4ng t\xEDnh \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u T\u1ED5ng quan" });
@@ -73843,32 +73882,29 @@ app.post("/api/tong-quan/san-xuat", async (req, res) => {
 app.get("/api/tong-quan/cong-trinh", async (_req, res) => {
   try {
     const t0 = Date.now();
-    await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
-    const versions = await getVersions();
-    const verSanXuat = versions.production ?? "";
-    const verChuan = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
-    const ver = JSON.stringify([verChuan, versions.inventory ?? ""]);
-    const khoa = "tongquan-congtrinh";
-    const nho = ketQuaNho.get(`${khoa}|${ver}`);
-    if (nho) return guiGzip(res, nho, `tqct;desc="mem";dur=${Date.now() - t0}`);
-    const nguon = { v: "" };
-    const luu = await docSnapshot(khoa, ver, nguon);
-    if (luu) {
-      ketQuaNho.set(`${khoa}|${ver}`, luu);
-      return guiGzip(res, luu, `tqct;desc="${nguon.v}";dur=${Date.now() - t0}`);
-    }
-    const [{ rows, cols }, planMet2] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet()]);
-    const tTinh = Date.now();
-    setPlanMet(planMet2);
-    const banGhi = nenBanGhi(taoBanGhi(rows, cols, Date.now()));
-    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi }));
-    ketQuaNho.set(`${khoa}|${ver}`, buf);
-    await luuSnapshot(khoa, ver, buf);
-    guiGzip(res, buf, `tqct;desc="tinh";dur=${Date.now() - t0}, tinh;dur=${Date.now() - tTinh}`);
+    const { buf, nguon, timing } = await tongQuanCongTrinh();
+    guiGzip(res, buf, `tqct;desc="${nguon}";dur=${Date.now() - t0}${timing ? `, ${timing}` : ""}`);
   } catch (e) {
     console.error("[tong-quan/cong-trinh] l\u1ED7i", e);
     if (!res.headersSent) res.status(500).json({ success: false, message: "Kh\xF4ng d\u1EF1ng \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u c\xF4ng tr\xECnh" });
   }
+});
+app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
+  const t0 = Date.now();
+  const ketQua = {};
+  const chay = async (ten, f) => {
+    const t = Date.now();
+    try {
+      ketQua[ten] = `${(await f()).nguon} ${Date.now() - t}ms`;
+    } catch (e) {
+      ketQua[ten] = "l\u1ED7i";
+      console.error(`[cron/tong-quan] ${ten}`, e);
+    }
+  };
+  await chay("cong-trinh", tongQuanCongTrinh);
+  await chay("tong-quan", () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
+  await chay("tong-quan-hang-muc", () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: "COUNT_HEX" }));
+  res.json({ ok: true, ketQua, ms: Date.now() - t0 });
 });
 
 // api/index.ts
