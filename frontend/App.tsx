@@ -751,10 +751,12 @@ const MainLayout: React.FC = () => {
       stage('Đang đọc dữ liệu đã lưu trên máy…');
       preloadPageChunk(pathnameRef.current);
       const cached = await Promise.all(fresh.map(e => getCachedData(e)));
-      // Chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ tính 1 lượt
-      await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
-      if (!mountedRef.current) return;
       const missing = fresh.some((_, i) => !cached[i]?.data);
+      // Có bản lưu: chờ setup gộp xưởng / KH đã đạt / bảng tên công trình (thường đã về trong lúc đọc cache) để chỉ
+      // tính 1 lượt. Chưa có (máy mới): tải bảng NGAY, song song — tải vài giây, lúc về thì mấy setup này đã có
+      // (trước đây lệnh tải ~3 MB đứng chờ tới 1,5 giây). Setup về sau thì trang tự tính lại.
+      if (!missing) await Promise.race([metaReadyRef.current, new Promise(r => setTimeout(r, META_WAIT_MS))]);
+      if (!mountedRef.current) return;
       // Áp dữ liệu => trang tính toàn bộ số liệu (vài giây, màn hình đứng yên): vẽ chữ "Đang tính" trước rồi mới áp
       stage(missing ? 'Đang tải dữ liệu từ máy chủ…' : 'Đang tính số liệu…');
       await new Promise(r => setTimeout(r, 30));
