@@ -1,6 +1,7 @@
 import Papa from 'papaparse';
 import { expandProjectNames } from '../utils/productionMetrics';
 import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
+import type { DashboardFiltersState, TuyChonTongQuan, TongQuanSanXuat } from '../components/Dashboard/core/tongQuanSanXuat';
 import { getToken } from './userService';
 
 // Bảng ánh xạ tên cột kỹ thuật (snake_case từ DB) sang tên hiển thị tiếng Việt.
@@ -540,6 +541,26 @@ export const fetchRevenue2026 = async (year?: string | number): Promise<Revenue2
     return await r.json();
   } catch (e) {
     console.error('fetchRevenue2026 error:', e);
+    return null;
+  }
+};
+
+/**
+ * Màn đầu "Tổng quan" do máy chủ tính sẵn (cùng code core/tongQuanSanXuat.ts) — dùng khi trình duyệt chưa có bảng
+ * sản xuất (người mới / máy mới). null = lỗi / bị huỷ.
+ */
+export const fetchTongQuanSanXuat = async (
+  body: { filters: DashboardFiltersState; tuyChon: TuyChonTongQuan }, signal?: AbortSignal,
+): Promise<TongQuanSanXuat | null> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/tong-quan/san-xuat`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal,
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d?.success ? d as TongQuanSanXuat : null;
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') console.error('fetchTongQuanSanXuat error:', e);
     return null;
   }
 };

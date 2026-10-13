@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch api/index.ts",
     "build": "tsc",
-    "build:bundle": "esbuild api/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/dist.js --external:bcrypt --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
+    "build:bundle": "esbuild api/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/dist.js --alias:@tong-quan/core=../frontend/components/Dashboard/core/mayChu.ts --external:bcrypt --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "start": "node dist/api/index.js",
     "test": "node --import tsx --test \"test/**/*.test.ts\"",
     "lint": "eslint ."

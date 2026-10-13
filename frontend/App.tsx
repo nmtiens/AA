@@ -91,15 +91,16 @@ const tablesForPath = (path: string): string[] => {
   };
   if (one[path]) return [one[path]];
   if (path === '/cong-trinh/tong-quan') return ['production', 'inventory'];
-  // Tổng quan: màn đầu chỉ tính từ bảng sản xuất + vật tư (doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng do máy chủ
-  // tính sẵn). Các bảng khác (danh sách ngày / tháng, xem Tuần, xuất Excel) tải ngầm sau — tablesNenForPath.
-  if (path === '/') return ['production', 'material'];
+  // Tổng quan: không chặn màn hình — số màn đầu do máy chủ tính sẵn (/api/tong-quan/san-xuat, cùng code giao diện;
+  // doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng vốn đã từ máy chủ). Mọi bảng tải ngầm (tablesNenForPath), có bảng
+  // sản xuất thì trang tự tính như cũ (lọc tức thì, danh sách hạng mục, xuất Excel).
+  if (path === '/') return [];
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
   return ALL_TABLE_ENDPOINTS;
 };
 // Bảng trang cần nhưng không chặn màn đầu: tải ngầm sau khi bảng chính đã hiện (máy mới / người mới đỡ chờ ~60%)
 const tablesNenForPath = (path: string): string[] =>
-  path === '/' ? ['inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock'] : [];
+  path === '/' ? ['production', 'material', 'inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock'] : [];
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
   // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazyPage() tự tải lại và báo lỗi nếu có

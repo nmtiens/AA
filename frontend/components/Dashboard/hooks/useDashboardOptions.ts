@@ -35,23 +35,15 @@ interface UseDashboardOptionsParams {
   invDateKey: string | undefined;
 }
 
+// getUniqueOptions nằm ở core/tongQuanSanXuat.ts (dùng chung với máy chủ tính sẵn màn đầu)
+import { getUniqueOptions } from '../core/tongQuanSanXuat';
+export { getUniqueOptions };
+
 /** Giá trị thô khác nhau của 1 cột (1 vòng, không tạo mảng trung gian) — vài trăm nghìn dòng chỉ còn vài nghìn giá trị */
 const distinctRaw = (data: DataRow[], key: string): Set<unknown> => {
   const raw = new Set<unknown>();
   for (const row of data) raw.add(row[key]);
   return raw;
-};
-
-/** Lấy danh sách giá trị duy nhất (đã trim, bỏ rỗng, sort) của 1 cột trong 1 tập dữ liệu. */
-export const getUniqueOptions = (data: DataRow[], key: string | undefined): string[] => {
-  if (!key) return [];
-  // Gom giá trị thô trước rồi mới trim (kết quả như trước: trim từng dòng rồi gom)
-  const set = new Set<string>();
-  for (const v of distinctRaw(data, key)) {
-    const t = String(v || '').trim();
-    if (t) set.add(t);
-  }
-  return Array.from(set).sort();
 };
 
 /**

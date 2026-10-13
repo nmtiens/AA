@@ -1,28 +1,22 @@
 import React, { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
-import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../../../types';
-import { findColumnKey } from '../../utils/columnKeyResolver';
-import { parseNumber } from '../../utils/numberParsers';
-import { categoryValue, NO_DATA_LABEL } from '../../utils/filterMatch';
+import { DataRow, ColumnDefinition } from '../../../../types';
 import { exportOrderMixExcel, type MixExportRec } from '../../utils/orderMixExport';
 import { Download, Info, Loader2, XCircle } from 'lucide-react';
 import { formatTy } from '../../../../utils/money';
 import { projectMatchKey } from '../../../../utils/productionMetrics';
+import {
+  OTHERS, mixRecords, mixMatching, mixBuild, mixSummary, TOP_CUSTOMERS, mixTuJson,
+  type DKey, type MixMetric, type MixRec, type MixItem, type MixSummary, type MixItemJson, type OrderMixSelection,
+} from '../../core/tongQuanSanXuat';
 
-// Giá trị gốc tính theo triệu đồng  =>  Tỷ = giá trị gốc / 1,000
-const UNIT = 1000;
-export const OTHERS = 'Khác';          // gộp các khách hàng nhỏ
-export const TOP_CUSTOMERS = 6;        // số khách hàng hiển thị riêng, phần còn lại gộp vào "Khác"
+// Phần gom số của biểu đồ nằm ở core/tongQuanSanXuat.ts (dùng chung với máy chủ tính sẵn màn đầu); xuất lại
+// các tên cũ cho nơi khác đang dùng (Tổng quan công trình…)
+export { OTHERS, TOP_CUSTOMERS, aggregateMix, summarizeMix, groupTopN, orderMix } from '../../core/tongQuanSanXuat';
+export type { MixItem, MixSummary, OrderMixSelection } from '../../core/tongQuanSanXuat';
 
-type DKey = 'kv' | 'kh' | 'pl';
-type Metric = 'count' | 'value';
-
-interface Rec {
-  /** Khoá đếm công trình (mã -> tên chuẩn), xem projectKeyResolver */
-  ct: string;
-  kv: string; kh: string; pl: string; total: number;
-  row: DataRow;  // dòng gốc — cho file xuất Excel
-}
+type Metric = MixMetric;
+type Rec = MixRec;
 
 const PALETTE = ['#1f2a44', '#2563eb', '#60a5fa', '#94a3b8', '#d97706', '#16a34a', '#a78bfa', '#cbd5e1'];
 const OTHERS_COLOR = '#64748b';
@@ -30,42 +24,6 @@ export const pickMixColor = (name: string, i: number) => (name === OTHERS ? OTHE
 
 const fmtInt = (n: number) => Math.round(n).toLocaleString('en-US');
 const fmtTy = formatTy;
-
-// ============================================================================
-// Gom dữ liệu cho 1 biểu đồ tròn
-// ============================================================================
-export interface MixItem {
-  name: string;
-  /** Giá trị vẽ lát: số hạng mục hoặc Tỷ, tuỳ chế độ */
-  value: number;
-  items: number;      // số hạng mục
-  totalTy: number;    // tổng giá trị (Tỷ)
-  cts: Set<string>;   // các công trình
-}
-
-export interface MixSummary { cts: number; items: number; totalTy: number }
-
-/** Gom các dòng theo `dimOf`, trả về danh sách lát (đã bỏ lát = 0), sắp giảm dần theo value. */
-export function aggregateMix<R>(
-  rows: R[],
-  dimOf: (r: R) => string,
-  ctOf: (r: R) => string,
-  totalTrieuOf: (r: R) => number,
-  metric: Metric,
-): MixItem[] {
-  const m = new Map<string, MixItem>();
-  for (const r of rows) {
-    const name = dimOf(r);
-    let e = m.get(name);
-    if (!e) { e = { name, value: 0, items: 0, totalTy: 0, cts: new Set() }; m.set(name, e); }
-    const ty = totalTrieuOf(r) / UNIT;
-    e.items++;
-    e.totalTy += ty;
-    e.cts.add(ctOf(r));
-    e.value += metric === 'count' ? 1 : ty;
-  }
-  return [...m.values()].filter(d => d.value > 0).sort((a, b) => b.value - a.value);
-}
 
 /**
  * Khoá dùng để ĐẾM / gom công trình: tên chuẩn theo quy tắc chung (utils/productionMetrics.projectMatchKey —
@@ -76,47 +34,6 @@ export function aggregateMix<R>(
 export function projectKeyResolver(_rows: DataRow[], _maKey: string, tenKey: string): (row: DataRow) => string {
   return (row: DataRow) => projectMatchKey(row[tenKey]);
 }
-
-/** Tóm tắt (số công trình / hạng mục / giá trị) của 1 tập dòng. */
-export function summarizeMix<R>(rows: R[], ctOf: (r: R) => string, totalTrieuOf: (r: R) => number): MixSummary {
-  const cts = new Set<string>();
-  let total = 0;
-  for (const r of rows) { cts.add(ctOf(r)); total += totalTrieuOf(r); }
-  return { cts: cts.size, items: rows.length, totalTy: total / UNIT };
-}
-
-/** Giữ top N (và luôn giữ mục đang chọn), phần còn lại gộp thành "Khác". `list` đã sắp giảm dần. */
-export const groupTopN = (list: MixItem[], topN: number, selected: string[] = []): MixItem[] => {
-  if (list.length <= topN) return list;
-  const head = list.filter((d, i) => i < topN || selected.includes(d.name));
-  const rest = list.filter(d => !head.includes(d));
-  if (rest.length === 0) return head;
-  const others: MixItem = { name: OTHERS, value: 0, items: 0, totalTy: 0, cts: new Set() };
-  for (const d of rest) {
-    others.value += d.value; others.items += d.items; others.totalTy += d.totalTy;
-    d.cts.forEach(c => others.cts.add(c));
-  }
-  return [...head, others];
-};
-
-// Mã đầu tên kiểu "01. BÀN", "10. CỬA"
-const CODE_PREFIX = /^(\d+)\s*[.\-)]/;
-
-/**
- * Thứ tự hiển thị: nếu mọi nhóm đều có mã số đầu tên (nhóm sản phẩm) => xếp theo mã 01, 02, 03...
- * (màu mỗi nhóm cố định dù đổi bộ lọc); ngược lại giữ giảm dần theo giá trị.
- * "(Chưa có)" và "Khác" luôn đứng cuối.
- */
-export const orderMix = (list: MixItem[]): MixItem[] => {
-  const isTail = (n: string) => n === NO_DATA_LABEL || n === OTHERS;
-  const head = list.filter(d => !isTail(d.name));
-  const tail = list.filter(d => isTail(d.name)).sort((a, b) => (a.name === OTHERS ? 1 : b.name === OTHERS ? -1 : 0));
-  if (head.length > 0 && head.every(d => CODE_PREFIX.test(d.name))) {
-    const code = (n: string) => Number(CODE_PREFIX.exec(n)![1]);
-    head.sort((a, b) => code(a.name) - code(b.name) || a.name.localeCompare(b.name, 'vi'));
-  }
-  return [...head, ...tail];
-};
 
 // ---------------------------------------------------------------------------
 // Nhãn % cho MỌI lát: lát đủ lớn => chữ trắng nằm trong lát; lát nhỏ => chữ ngoài vòng có đường nối.
@@ -381,8 +298,6 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
   );
 };
 
-export interface OrderMixSelection { kv: string[]; kh: string[]; pl: string[] }
-
 interface Props {
   /**
    * Dữ liệu sản xuất đã áp các bộ lọc tổng KHÁC (công trình, xưởng, tình trạng...), nhưng CHƯA lọc
@@ -402,44 +317,22 @@ interface Props {
   onMetricChange?: (m: Metric) => void;
   /** Bộ lọc phạm vi đang áp (vd. "Tình trạng IPO: 01. ĐANG SẢN XUẤT") — hiện ở dải tóm tắt */
   scopeNote?: string;
+  /**
+   * Số máy chủ tính sẵn (khi trình duyệt chưa có bảng sản xuất) — cùng lựa chọn / chế độ đang xem. Có thì vẽ
+   * theo số này; nút xuất Excel chờ bảng tải xong.
+   */
+  coCauSan?: { kv: MixItemJson[]; kh: MixItemJson[]; pl: MixItemJson[]; summary: MixSummary } | null;
 }
 
-const recCt = (r: Rec) => r.ct;
-const recTotal = (r: Rec) => r.total;
 
 export const ProductionDonutPanel: React.FC<Props> = ({
-  data, columns, selection, onSelectionChange, metric: metricProp, onMetricChange, scopeNote,
+  data, columns, selection, onSelectionChange, metric: metricProp, onMetricChange, scopeNote, coCauSan = null,
 }) => {
   const [metricState, setMetricState] = useState<Metric>('count');
   const metric = metricProp ?? metricState;
   const setMetric = (m: Metric) => { setMetricState(m); onMetricChange?.(m); };
 
-  const records = useMemo<Rec[]>(() => {
-    const key = (target: string, fallback: string) => findColumnKey(columns, target) || fallback;
-    const kvK = key('khu_vuc_du_an', 'khu_vuc_du_an');
-    const khK = key('khach_hang', 'khach_hang');
-    const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, 'phan_loai_nhom_san_pham');
-    const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo');
-    const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong');
-    const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, 'ten_cong_trinh');
-    const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, 'ma_cong_trinh');
-    const projectKey = projectKeyResolver(data, maK, ctK);
-
-    const out: Rec[] = [];
-    for (const row of data) {
-      if (!String(row[ctK] ?? '').trim()) continue;
-      // Đơn HỦY không tính (cả số hạng mục lẫn giá trị) — quy tắc chung
-      if (String(row[ipoK] ?? '').toUpperCase().includes('HỦY')) continue;
-      const ct = projectKey(row);
-      out.push({
-        ct,
-        kv: categoryValue(row[kvK]), kh: categoryValue(row[khK]), pl: categoryValue(row[plK]),
-        total: parseNumber(row[totK]),
-        row,
-      });
-    }
-    return out;
-  }, [data, columns]);
+  const records = useMemo<Rec[]>(() => mixRecords(data, columns), [data, columns]);
 
   // Bấm 1 lát: chọn riêng lát đó; bấm lại đúng lát đang chọn duy nhất => bỏ chọn
   const toggle = (k: DKey, v: string) => {
@@ -449,22 +342,15 @@ export const ProductionDonutPanel: React.FC<Props> = ({
   };
 
   // Các dòng khớp lựa chọn của mọi biểu đồ, trừ `exclude` (lọc chéo: mỗi biểu đồ bỏ qua lựa chọn của chính nó)
-  const matching = (exclude?: DKey) => {
-    const active = (['kv', 'kh', 'pl'] as DKey[])
-      .filter(x => x !== exclude && selection[x].length > 0)
-      .map(x => [x, new Set(selection[x])] as const);
-    return active.length ? records.filter(r => active.every(([o, set]) => set.has(r[o]))) : records;
-  };
+  const matching = (exclude?: DKey) => mixMatching(records, selection, exclude);
 
-  const build = (k: DKey, topN?: number) => {
-    const list = aggregateMix(matching(k), r => r[k], recCt, recTotal, metric);
-    return orderMix(topN ? groupTopN(list, topN, selection[k]) : list);
-  };
-
-  const kvData = useMemo(() => build('kv'), [records, selection, metric]);                  // eslint-disable-line react-hooks/exhaustive-deps
-  const khData = useMemo(() => build('kh', TOP_CUSTOMERS), [records, selection, metric]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const plData = useMemo(() => build('pl'), [records, selection, metric]);                  // eslint-disable-line react-hooks/exhaustive-deps
-  const summary = useMemo(() => summarizeMix(matching(), recCt, recTotal), [records, selection]); // eslint-disable-line react-hooks/exhaustive-deps
+  const san = useMemo(() => (coCauSan
+    ? { kv: mixTuJson(coCauSan.kv), kh: mixTuJson(coCauSan.kh), pl: mixTuJson(coCauSan.pl) }
+    : null), [coCauSan]);
+  const kvData = useMemo(() => san?.kv ?? mixBuild(records, selection, 'kv', metric), [san, records, selection, metric]);
+  const khData = useMemo(() => san?.kh ?? mixBuild(records, selection, 'kh', metric, TOP_CUSTOMERS), [san, records, selection, metric]);
+  const plData = useMemo(() => san?.pl ?? mixBuild(records, selection, 'pl', metric), [san, records, selection, metric]);
+  const summary = useMemo(() => coCauSan?.summary ?? mixSummary(records, selection), [coCauSan, records, selection]);
 
   const hasSel = selection.kv.length + selection.kh.length + selection.pl.length > 0;
 
@@ -486,7 +372,7 @@ export const ProductionDonutPanel: React.FC<Props> = ({
       metric={metric}
       onMetricChange={setMetric}
       onClear={hasSel ? () => onSelectionChange({ kv: [], kh: [], pl: [] }) : undefined}
-      onExport={handleExport}
+      onExport={coCauSan ? undefined : handleExport}
       summary={summary}
       scopeNote={scopeNote}
       charts={[

@@ -65027,6 +65027,70 @@ var summarizeQc = (entries) => {
 
 // src/routes/data.ts
 import { createGzip } from "zlib";
+
+// src/server/snapshot.ts
+var SNAPSHOT_NHO_MAX = 24;
+var snapshotBat = true;
+var snapshotNho = /* @__PURE__ */ new Map();
+var docSnapshot = async (khoa, ver, nguon) => {
+  const nho = snapshotNho.get(khoa);
+  if (nho && nho.ver === ver) {
+    nguon.v = "mem";
+    return nho.buf;
+  }
+  if (!snapshotBat) {
+    nguon.v = "off";
+    return null;
+  }
+  try {
+    const r = await pool.query("SELECT du_lieu FROM all_data_snapshot WHERE khoa = $1 AND ver = $2", [khoa, ver]);
+    const buf = r.rows[0]?.du_lieu;
+    if (!buf) {
+      nguon.v = "miss";
+      return null;
+    }
+    snapshotNho.set(khoa, { ver, buf });
+    nguon.v = "db";
+    return buf;
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false;
+    else console.error("[all-data] \u0111\u1ECDc b\u1EA3n n\xE9n l\u1ED7i", e);
+    nguon.v = "err";
+    return null;
+  }
+};
+var luuSnapshot = async (khoa, ver, buf) => {
+  snapshotNho.set(khoa, { ver, buf });
+  while (snapshotNho.size > SNAPSHOT_NHO_MAX) {
+    const cu = snapshotNho.keys().next().value;
+    if (cu === void 0) break;
+    snapshotNho.delete(cu);
+  }
+  if (!snapshotBat) return;
+  try {
+    await pool.query(
+      `INSERT INTO all_data_snapshot (khoa, ver, du_lieu, cap_nhat) VALUES ($1, $2, $3, now())
+       ON CONFLICT (khoa) DO UPDATE SET ver = EXCLUDED.ver, du_lieu = EXCLUDED.du_lieu, cap_nhat = now()`,
+      [khoa, ver, buf]
+    );
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false;
+    else console.error("[all-data] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
+  }
+};
+var guiGzip = (res, buf, timing) => {
+  if (timing) res.set("Server-Timing", timing);
+  res.status(200).set({
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Encoding": "gzip",
+    "Content-Length": String(buf.length),
+    "Vary": "Accept-Encoding",
+    "Cache-Control": "no-store"
+  });
+  res.end(buf);
+};
+
+// src/routes/data.ts
 var ALL_DATA_GZIP_MAX = 8;
 var allDataGzipVkey = "";
 var allDataGzip = /* @__PURE__ */ new Map();
@@ -65078,65 +65142,6 @@ var getAllDataGzip = (vkey, gzKey, out) => {
     allDataGzipInflight.set(gzKey, p);
   }
   return p;
-};
-var snapshotBat = true;
-var snapshotNho = /* @__PURE__ */ new Map();
-var docSnapshot = async (khoa, ver, nguon) => {
-  const nho = snapshotNho.get(khoa);
-  if (nho && nho.ver === ver) {
-    nguon.v = "mem";
-    return nho.buf;
-  }
-  if (!snapshotBat) {
-    nguon.v = "off";
-    return null;
-  }
-  try {
-    const r = await pool.query("SELECT du_lieu FROM all_data_snapshot WHERE khoa = $1 AND ver = $2", [khoa, ver]);
-    const buf = r.rows[0]?.du_lieu;
-    if (!buf) {
-      nguon.v = "miss";
-      return null;
-    }
-    snapshotNho.set(khoa, { ver, buf });
-    nguon.v = "db";
-    return buf;
-  } catch (e) {
-    if (isMissingSchema(e)) snapshotBat = false;
-    else console.error("[all-data] \u0111\u1ECDc b\u1EA3n n\xE9n l\u1ED7i", e);
-    nguon.v = "err";
-    return null;
-  }
-};
-var luuSnapshot = async (khoa, ver, buf) => {
-  snapshotNho.set(khoa, { ver, buf });
-  while (snapshotNho.size > ALL_DATA_GZIP_MAX) {
-    const cu = snapshotNho.keys().next().value;
-    if (cu === void 0) break;
-    snapshotNho.delete(cu);
-  }
-  if (!snapshotBat) return;
-  try {
-    await pool.query(
-      `INSERT INTO all_data_snapshot (khoa, ver, du_lieu, cap_nhat) VALUES ($1, $2, $3, now())
-       ON CONFLICT (khoa) DO UPDATE SET ver = EXCLUDED.ver, du_lieu = EXCLUDED.du_lieu, cap_nhat = now()`,
-      [khoa, ver, buf]
-    );
-  } catch (e) {
-    if (isMissingSchema(e)) snapshotBat = false;
-    else console.error("[all-data] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
-  }
-};
-var guiGzip = (res, buf, timing) => {
-  if (timing) res.set("Server-Timing", timing);
-  res.status(200).set({
-    "Content-Type": "application/json; charset=utf-8",
-    "Content-Encoding": "gzip",
-    "Content-Length": String(buf.length),
-    "Vary": "Accept-Encoding",
-    "Cache-Control": "no-store"
-  });
-  res.end(buf);
 };
 app.get("/api/all-data", async (req, res) => {
   try {
@@ -72244,6 +72249,1249 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     res.json({ success: true, available: true, soHangMuc: kq.so, cap: p.data.items.map((i) => pairKey(i.hex, i.tuyen[0])) });
   } catch (e) {
     fail(res, e, "/api/xuong/trien-khai");
+  }
+});
+
+// src/routes/tongQuan.ts
+import { createHash as createHash5 } from "crypto";
+import { gzipSync, gunzipSync } from "zlib";
+
+// ../frontend/types.ts
+var TARGET_COLUMN_NAMES = {
+  HEX: "hex",
+  CONG_TRINH: "ten_cong_trinh",
+  XUONG: "xuong_chinh",
+  TINH_TRANG: "tinh_trang",
+  TINH_TRANG_IPO: "tinh_trang_ipo",
+  // New Column
+  BOP: "bop",
+  GIA_TRI_CON_LAI: "gia_tri_don_hang_con_lai",
+  GIA_TRI_THUC_TE: "gia_tri_con_lai",
+  // New columns for Project Summary Section
+  TRI_GIA_DON_HANG_TONG: "tri_gia_don_hang_tong",
+  THANH_TIEN_TINH_PHIEU: "thanh_tien_tinh_phieu",
+  THANH_TIEN_NHAP_KHO: "thanh_tien_nhap_kho_luy_ke",
+  // Cột cũ của Production View
+  INVENTORY_AMOUNT: "thanh_tien_nhap_kho",
+  // Cột mới chính xác cho Inventory View
+  EXPORT_AMOUNT: "thanh_tien_xuat_kho",
+  // Correct column for Export View
+  EXPORT_QUANTITY: "so_luong_xuat_kho",
+  // ✅ MỚI: cột số lượng (khác với EXPORT_AMOUNT là cột tiền)
+  GIA_TRI_TON_KHO: "gia_tri",
+  // For Stock View // Correct column for Export View
+  MA_ID_SAP: "ma_id_sap",
+  // For counting unique items in Stock
+  NHAP_KHO_TUAN: "nhap_kho_tuan",
+  // Cột mới theo yêu cầu
+  // Inventory Specific Date Columns
+  NAM: "nam",
+  THANG: "thang",
+  NGAY: "ngay",
+  DATE: "date",
+  // New Column for Inventory Overview
+  TUAN: "tuan",
+  // New Column for Weekly Analysis
+  TEN_HANG_MUC: "ten_hang_muc",
+  PHAN_LOAI_NHOM_SAN_PHAM: "phan_loai_nhom_san_pham",
+  // ✅ MỚI
+  // Production Days Columns
+  SO_NGAY_CD_HIEN_TAI: "so_ngay_cd_hien_tai",
+  // KHSX Specific Columns
+  THANH_TIEN_KE_HOACH: "thanh_tien_ke_hoach",
+  PHAN_LOAI_KH: "phan_loai_kh",
+  NGAY_KHNK: "ngay_khnk",
+  MA_CONG_TRINH: "ma_cong_trinh",
+  // Order Data Specific Columns
+  NGAY_NHAN_TU_PM: "ngay_nhan_tu_pm",
+  // TKBV Specific Columns
+  NGAY_NHAN: "ngay_nhan",
+  // PTHSP Specific Columns
+  NGAY_HOAN_THANH: "ngay_hoan_thanh",
+  THANH_TIEN_PTHSP: "thanh_tien",
+  // Material View Columns
+  SO_PR: "so_pr",
+  SO_PO: "so_po",
+  TRACKING_NO: "trackingno",
+  TEN_VAT_TU: "ten_vat_tu",
+  NHOM_VT: "nhom_vt",
+  // Material Dashboard Columns
+  SL_YEU_CAU: "so_luong_yeu_cau",
+  SL_DA_NHAN: "so_luong_da_nhan_sap",
+  STATUS: "trang_thai",
+  STATUS_SAP: "trang_thai_sap",
+  PR_ITEM: "pr_line",
+  MATERIAL_CODE: "ma_vat_tu_sap",
+  BASE_UNIT: "dvt",
+  REQUEST_DATE: "ngay_pr",
+  EST_DELIVERY: "ngay_du_kien_giao_hang_pmh_nhap",
+  REMAINING_QTY: "so_luong_con_lai",
+  STATUS_PO: "tinh_trang_po",
+  NOTE_PO: "ghi_chu_tinh_trang_po",
+  PR_LINE_COMBINED: "pr_line_1",
+  ACTUAL_DATE: "ngay_ve",
+  ACTUAL_QTY: "sl_hang_ve_thuc_te",
+  TEAM_PR_NOTE: "team_pr_note",
+  REQUISITIONER: "nguoi_yeu_cau",
+  // Weekly Analysis New Columns
+  DUNG_KE_HOACH: "dung_ke_hoach",
+  THUC_HIEN_DUNG_KE_HOACH_1_PHAN: "thuc_hien_dung_ke_hoach_1_phan",
+  ROT_KE_HOACH: "rot_ke_hoach",
+  THUC_HIEN_ROT_KE_HOACH_1_PHAN: "thuc_hien_rot_ke_hoach_1_phan",
+  NHAP_KHO_TRUOC_KE_HOACH: "nhap_kho_truoc_ke_hoach",
+  VUOT_KE_HOACH: "vuot_ke_hoach",
+  NHAP_KHO_NGOAI_KE_HOACH: "nhap_kho_ngoai_ke_hoach",
+  // Attendance Columns
+  SO_LUONG_CONG_NHAN: "so_luong_cong_nhan",
+  GIO_CONG_HC: "gio_cong_hanh_chinh",
+  GIO_CONG_TC: "gio_cong_tang_ca",
+  DINH_BIEN: "dinh_bien"
+};
+var PRODUCTION_DEFAULT_VIEW_COLUMNS = [
+  TARGET_COLUMN_NAMES.HEX,
+  TARGET_COLUMN_NAMES.CONG_TRINH,
+  TARGET_COLUMN_NAMES.XUONG,
+  TARGET_COLUMN_NAMES.TEN_HANG_MUC,
+  TARGET_COLUMN_NAMES.TINH_TRANG_IPO,
+  TARGET_COLUMN_NAMES.TINH_TRANG,
+  TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI,
+  TARGET_COLUMN_NAMES.GIA_TRI_THUC_TE,
+  TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO,
+  TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG,
+  TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU
+];
+var PERMISSION_GROUPS = [
+  {
+    id: "g_dashboard",
+    label: "T\u1ED5ng quan",
+    items: [
+      { id: "dashboard", label: "T\u1ED5ng quan" },
+      { id: "hex_lookup", label: "Tra c\u1EE9u hex" },
+      { id: "vuong_mac", label: "V\u01B0\u1EDBng m\u1EAFc s\u1EA3n xu\u1EA5t (qu\u1EA3n l\xFD)" }
+    ]
+  },
+  {
+    id: "g_xuong",
+    label: "X\u01B0\u1EDFng (ch\u1EA5m c\xF4ng \u0111o\u1EA1n)",
+    items: [
+      { id: "xuong", label: "T\u1ED5 tr\u01B0\u1EDFng \u2014 ghi thao t\xE1c \u1EDF x\u01B0\u1EDFng (app X\u01B0\u1EDFng /xuong)" },
+      { id: "xuong_quan_ly", label: "Qu\u1EA3n l\xFD x\u01B0\u1EDFng \u2014 hu\u1EF7 / xem c\u1EA7n xem" }
+    ]
+  },
+  {
+    id: "g_construction",
+    label: "C\xF4ng tr\xECnh",
+    items: [
+      { id: "construction_overview", label: "T\u1ED5ng quan c\xF4ng tr\xECnh" },
+      { id: "construction_setup", label: "Setup d\u1EEF li\u1EC7u (ph\xE2n lo\u1EA1i c\xF4ng tr\xECnh)" }
+    ]
+  },
+  {
+    id: "g_charts",
+    label: "Qu\u1EA3n tr\u1ECB (Bi\u1EC3u \u0111\u1ED3)",
+    items: [
+      { id: "chart_order", label: "1. \u0110\u01A1n h\xE0ng m\u1EDBi (P001)" },
+      { id: "chart_tkbv", label: "2. Tri\u1EC3n khai BV (P002)" },
+      { id: "chart_pthsp", label: "3. \u0110\xE3 t\xEDnh phi\u1EBFu (P012)" },
+      { id: "chart_inventory", label: "4. Nh\u1EADp kho (P022)" },
+      { id: "chart_export", label: "5. Xu\u1EA5t kho (P025)" },
+      { id: "chart_stock", label: "6. T\u1ED3n kho" }
+    ]
+  },
+  {
+    id: "g_data",
+    label: "D\u1EEF li\u1EC7u",
+    items: [
+      { id: "production", label: "D\u1EEF li\u1EC7u S\u1EA3n xu\u1EA5t" },
+      { id: "yearly_plan_data", label: "D\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m" },
+      { id: "orders", label: "D\u1EEF li\u1EC7u \u0110\u01A1n h\xE0ng t\u1ED5ng" },
+      { id: "inventory", label: "D\u1EEF li\u1EC7u Nh\u1EADp kho" },
+      { id: "export", label: "D\u1EEF li\u1EC7u Xu\u1EA5t kho" },
+      { id: "stock", label: "D\u1EEF li\u1EC7u T\u1ED3n kho" },
+      { id: "attendance", label: "D\u1EEF li\u1EC7u \u0110i\u1EC3m danh" },
+      { id: "khsx", label: "K\u1EBF ho\u1EA1ch SX" },
+      { id: "analysis", label: "Ph\xE2n t\xEDch KH-TH" },
+      { id: "tkbv", label: "D\u1EEF li\u1EC7u TKBV" },
+      { id: "pthsp", label: "D\u1EEF li\u1EC7u PTHSP" },
+      { id: "materials", label: "V\u1EADt t\u01B0" },
+      { id: "data_log", label: "Nh\u1EADt k\xFD c\u1EADp nh\u1EADt" }
+    ]
+  },
+  {
+    id: "g_system",
+    label: "H\u1EC7 th\u1ED1ng",
+    items: [
+      { id: "users", label: "Qu\u1EA3n tr\u1ECB User" },
+      { id: "table_column_setup", label: "Setup c\u1ED9t d\u1EEF li\u1EC7u" }
+      // MỚI
+    ]
+  }
+];
+var ITEM_ACTIONS = {
+  dashboard: [
+    { id: "dashboard_overview", label: "B\xE1o c\xE1o T\u1ED5ng quan" },
+    { id: "dashboard_financial", label: "S\u1ED1 li\u1EC7u T\xE0i ch\xEDnh" },
+    { id: "dashboard_bottleneck", label: "B\xE1o c\xE1o \u0110i\u1EC3m ngh\u1EBDn" }
+  ],
+  production: [
+    { id: "production_edit", label: "Ch\u1EC9nh s\u1EEDa d\u1EEF li\u1EC7u" },
+    { id: "production_export", label: "Xu\u1EA5t Excel" }
+  ],
+  yearly_plan_data: [
+    { id: "yearly_plan_data_export", label: "Xu\u1EA5t Excel" }
+  ],
+  orders: [
+    { id: "orders_import", label: "Import D\u1EEF li\u1EC7u" },
+    { id: "orders_view_price", label: "Xem Gi\xE1 tr\u1ECB \u0110\u01A1n h\xE0ng" }
+  ],
+  materials: [
+    { id: "materials_view_price", label: "Xem Gi\xE1/NCC" },
+    { id: "materials_edit", label: "C\u1EADp nh\u1EADt tr\u1EA1ng th\xE1i" }
+  ],
+  inventory: [
+    { id: "inventory_edit", label: "\u0110i\u1EC1u ch\u1EC9nh kho" }
+  ],
+  analysis: [
+    { id: "analysis_export", label: "Xu\u1EA5t b\xE1o c\xE1o KH-TH" }
+  ]
+};
+var ALL_ITEM_IDS = PERMISSION_GROUPS.flatMap((g) => g.items.map((i) => i.id));
+var ALL_ACTION_IDS = Object.values(ITEM_ACTIONS).flatMap((a) => a.map((x) => x.id));
+
+// ../frontend/components/Dashboard/constants.ts
+var STATUS_GROUPS = {
+  CO_THE_SX: [
+    "01. NH\u1EACP KHO K\u0110B",
+    "02. BAO B\xCC",
+    "02.1. \u0110\xD3NG KI\u1EC6N",
+    "03. FITTING",
+    "03.3. FITTING KL",
+    "04. VECNI",
+    "04.1. B\u1ECCC N\u1EC6M",
+    "04.2. PVD",
+    "05. M\u1ED8C",
+    "05.1. T\u1ED4 \u0110\xC1",
+    "05.2. NGU\u1ED8I",
+    "06. M\xC1Y",
+    "06.1. H\xC0N",
+    "07. CTS",
+    "07.1. CTS \u0110\xC1",
+    "07.2. PH\xD4I",
+    "07.\u0110\xC3 GIAO GCNB",
+    "11. CH\u01AFA SX",
+    "16. GIA C\xD4NG V\u1EC6 TINH-BTP",
+    "16.1. GIA C\xD4NG V\u1EC6 TINH-NGUY\xCAN CON",
+    "16.2. GIA C\xD4NG V\u1EC6 TINH-\u0110\xC1",
+    "16.3. GIA C\xD4NG V\u1EC6 TINH-KH\xC1C"
+  ],
+  VECNI_FITTING: [
+    "01. NH\u1EACP KHO K\u0110B",
+    "02. BAO B\xCC",
+    "02.1. \u0110\xD3NG KI\u1EC6N"
+  ],
+  CHUYEN_KHAC: [
+    "03. FITTING",
+    "03.3. FITTING KL",
+    "04. VECNI",
+    "04.1. B\u1ECCC N\u1EC6M",
+    "04.2. PVD",
+    "05. M\u1ED8C",
+    "05.1. T\u1ED4 \u0110\xC1",
+    "05.2. NGU\u1ED8I",
+    "06. M\xC1Y",
+    "06.1. H\xC0N",
+    "07. CTS",
+    "07.1. CTS \u0110\xC1",
+    "07.2. PH\xD4I",
+    "07.\u0110\xC3 GIAO GCNB",
+    "16. GIA C\xD4NG V\u1EC6 TINH-BTP",
+    "16.1. GIA C\xD4NG V\u1EC6 TINH-NGUY\xCAN CON",
+    "16.2. GIA C\xD4NG V\u1EC6 TINH-\u0110\xC1",
+    "16.3. GIA C\xD4NG V\u1EC6 TINH-KH\xC1C"
+  ],
+  CO_PHIEU_CHUA_SX: [
+    "11. CH\u01AFA SX"
+  ],
+  CHUA_THE_SX: [
+    "12. CH\u01AFA SX PH\u1EA6N C\xD2N L\u1EA0I",
+    "13. CH\u01AFA PHI\u1EBEU PH\u1EA6N C\xD2N L\u1EA0I",
+    "14. CH\u01AFA PHI\u1EBEU",
+    "14.1. CH\u01AFA PHI\u1EBEU KL",
+    "15. CH\u01AFA TRI\u1EC2N KHAI"
+  ],
+  VUONG_SL: [
+    "12. CH\u01AFA SX PH\u1EA6N C\xD2N L\u1EA0I",
+    "13. CH\u01AFA PHI\u1EBEU PH\u1EA6N C\xD2N L\u1EA0I"
+  ],
+  CHUA_TRIEN_KHAI: [
+    "14. CH\u01AFA PHI\u1EBEU",
+    "14.1. CH\u01AFA PHI\u1EBEU KL",
+    "15. CH\u01AFA TRI\u1EC2N KHAI"
+  ]
+};
+var MATERIAL_LIST_COLUMNS = [
+  TARGET_COLUMN_NAMES.STATUS,
+  TARGET_COLUMN_NAMES.CONG_TRINH,
+  TARGET_COLUMN_NAMES.SO_PR,
+  TARGET_COLUMN_NAMES.TEN_VAT_TU,
+  TARGET_COLUMN_NAMES.SL_YEU_CAU,
+  TARGET_COLUMN_NAMES.BASE_UNIT,
+  TARGET_COLUMN_NAMES.REQUEST_DATE,
+  TARGET_COLUMN_NAMES.EST_DELIVERY,
+  TARGET_COLUMN_NAMES.SL_DA_NHAN,
+  TARGET_COLUMN_NAMES.REMAINING_QTY,
+  TARGET_COLUMN_NAMES.TEAM_PR_NOTE,
+  TARGET_COLUMN_NAMES.STATUS_PO,
+  TARGET_COLUMN_NAMES.NOTE_PO,
+  TARGET_COLUMN_NAMES.PR_ITEM,
+  TARGET_COLUMN_NAMES.ACTUAL_DATE,
+  TARGET_COLUMN_NAMES.ACTUAL_QTY,
+  TARGET_COLUMN_NAMES.MATERIAL_CODE,
+  TARGET_COLUMN_NAMES.REQUISITIONER
+];
+var MATERIAL_LIST_COLUMN_LABELS = {
+  [TARGET_COLUMN_NAMES.STATUS]: "TR\u1EA0NG TH\xC1I",
+  [TARGET_COLUMN_NAMES.CONG_TRINH]: "T\xCAN C\xD4NG TR\xCCNH",
+  [TARGET_COLUMN_NAMES.SO_PR]: "S\u1ED0 PR",
+  [TARGET_COLUMN_NAMES.TEN_VAT_TU]: "T\xCAN V\u1EACT T\u01AF",
+  [TARGET_COLUMN_NAMES.SL_YEU_CAU]: "S\u1ED0 L\u01AF\u1EE2NG Y\xCAU C\u1EA6U",
+  [TARGET_COLUMN_NAMES.BASE_UNIT]: "\u0110VT",
+  [TARGET_COLUMN_NAMES.REQUEST_DATE]: "NG\xC0Y PR",
+  [TARGET_COLUMN_NAMES.EST_DELIVERY]: "NG\xC0Y D\u1EF0 KI\u1EBEN GIAO H\xC0NG PMH NH\u1EACP",
+  [TARGET_COLUMN_NAMES.SL_DA_NHAN]: "S\u1ED0 L\u01AF\u1EE2NG \u0110\xC3 NH\u1EACN (SAP)",
+  [TARGET_COLUMN_NAMES.REMAINING_QTY]: "S\u1ED0 L\u01AF\u1EE2NG C\xD2N L\u1EA0I",
+  [TARGET_COLUMN_NAMES.TEAM_PR_NOTE]: "TEAM PR NOTE",
+  [TARGET_COLUMN_NAMES.STATUS_PO]: "T\xCCNH TR\u1EA0NG PO",
+  [TARGET_COLUMN_NAMES.NOTE_PO]: "GHI CH\xDA T\xCCNH TR\u1EA0NG PO",
+  [TARGET_COLUMN_NAMES.PR_ITEM]: "PR LINE",
+  [TARGET_COLUMN_NAMES.ACTUAL_DATE]: "NG\xC0Y V\u1EC0 - KHO B\xC1O",
+  [TARGET_COLUMN_NAMES.ACTUAL_QTY]: "SL H\xC0NG V\u1EC0 TH\u1EF0C T\u1EBE - KHO B\xC1O",
+  [TARGET_COLUMN_NAMES.MATERIAL_CODE]: "M\xC3 V\u1EACT T\u01AF (SAP)",
+  [TARGET_COLUMN_NAMES.REQUISITIONER]: "NG\u01AF\u1EDCI Y\xCAU C\u1EA6U"
+};
+
+// ../frontend/components/Dashboard/utils/numberParsers.ts
+var parseNumber = (valStr) => {
+  if (valStr === null || valStr === void 0) return 0;
+  if (typeof valStr === "number") return Number.isNaN(valStr) ? 0 : valStr;
+  let s = String(valStr).trim();
+  if (!s) return 0;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) return 0;
+  if (/^-?\d+(\.\d+)?e[+-]?\d+$/i.test(s)) return Number(s);
+  const isNegative = s.startsWith("-");
+  s = s.replace(/[^\d.,]/g, "");
+  if (!s) return 0;
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma > -1 && lastDot > -1) {
+    if (lastDot > lastComma) {
+      s = s.replace(/,/g, "");
+    } else {
+      s = s.replace(/\./g, "").replace(",", ".");
+    }
+  } else if (lastComma > -1) {
+    const parts = s.split(",");
+    if (parts.length > 2 || parts.length === 2 && parts[1].length === 3) {
+      s = s.replace(/,/g, "");
+    } else {
+      s = s.replace(",", ".");
+    }
+  } else if (lastDot > -1) {
+    const parts = s.split(".");
+    if (parts.length > 2) {
+      s = s.replace(/\./g, "");
+    }
+  }
+  const result = Number.parseFloat(s);
+  if (Number.isNaN(result)) return 0;
+  return isNegative ? -result : result;
+};
+
+// ../frontend/components/Dashboard/utils/columnKeyResolver.ts
+var normalizeString = (str) => {
+  if (!str) return "";
+  return String(str).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9]/g, "");
+};
+var findColumnKey = (cols, target) => {
+  if (!cols || cols.length === 0) return "";
+  const normalizedTarget = normalizeString(target);
+  let match = cols.find((c) => {
+    const k = normalizeString(c.key);
+    const l = normalizeString(c.label);
+    return k === normalizedTarget || l === normalizedTarget;
+  });
+  if (!match) {
+    const candidates = cols.filter((c) => {
+      const k = normalizeString(c.key);
+      const l = normalizeString(c.label);
+      return k.includes(normalizedTarget) || l.includes(normalizedTarget);
+    });
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => normalizeString(a.key).length - normalizeString(b.key).length);
+      match = candidates[0];
+    }
+  }
+  return match ? match.key : "";
+};
+
+// ../frontend/utils/productionMetrics.ts
+var isCancelledIpo = (ipo) => String(ipo ?? "").toUpperCase().includes("H\u1EE6Y");
+var doneValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.min(Math.max(nhapKho, 0), Math.max(total, 0));
+var remainValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.max(total - Math.max(nhapKho, 0), 0);
+var QTY_ORDER_KEY = "so_luong_don_hang_tong";
+var QTY_IN_KEY = "so_luong_nhap_kho_luy_ke";
+var isQtyComplete = (row) => {
+  const order = parseNumber(row[QTY_ORDER_KEY]);
+  return order > 0 && parseNumber(row[QTY_IN_KEY]) >= order;
+};
+var isStocked = (total, nhapKho, cancelled = false, qtyDone = false) => !cancelled && (total > 0 && remainValue(total, nhapKho) <= 0 || qtyDone);
+var normProjectName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+var projectAlias = /* @__PURE__ */ new Map();
+var projectVariants = /* @__PURE__ */ new Map();
+var serverAlias = /* @__PURE__ */ new Map();
+var serverVariants = /* @__PURE__ */ new Map();
+var setServerProjectAliases = (list) => {
+  const a = /* @__PURE__ */ new Map();
+  const v = /* @__PURE__ */ new Map();
+  for (const { k, c } of list) {
+    a.set(k, c);
+    const ck = normProjectName(c);
+    let set2 = v.get(ck);
+    if (!set2) {
+      set2 = /* @__PURE__ */ new Set();
+      v.set(ck, set2);
+    }
+    set2.add(k);
+  }
+  serverAlias = a;
+  serverVariants = v;
+};
+var canonicalProjectName2 = (name) => {
+  const t = String(name ?? "").trim().replace(/\s+/g, " ");
+  const k = normProjectName(t);
+  return projectAlias.get(k) ?? serverAlias.get(k) ?? t;
+};
+var projectMatchKey = (name) => normProjectName(canonicalProjectName2(name));
+function canonicalizeProjectNames(rows, columns) {
+  const maKey = findColumnKey(columns, "ma_cong_trinh");
+  const tenKey = findColumnKey(columns, "ten_cong_trinh");
+  if (!maKey || !tenKey || rows.length === 0) return rows;
+  const counts = /* @__PURE__ */ new Map();
+  const maOf = rows.map((row) => normProjectName(row[maKey]));
+  rows.forEach((row, i) => {
+    const ma = maOf[i];
+    const ten = String(row[tenKey] ?? "").trim().replace(/\s+/g, " ");
+    if (!ma || !ten) return;
+    let m = counts.get(ma);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      counts.set(ma, m);
+    }
+    m.set(ten, (m.get(ten) ?? 0) + 1);
+  });
+  const canonical = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => {
+    let best = "", bestN = -1;
+    m.forEach((n, ten) => {
+      if (n > bestN || n === bestN && ten < best) {
+        best = ten;
+        bestN = n;
+      }
+    });
+    canonical.set(ma, best);
+  });
+  const nameCodes = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => m.forEach((_n, ten) => {
+    const k = normProjectName(ten);
+    let s = nameCodes.get(k);
+    if (!s) {
+      s = /* @__PURE__ */ new Set();
+      nameCodes.set(k, s);
+    }
+    s.add(ma);
+  }));
+  const singleCache = /* @__PURE__ */ new Map();
+  const single = (ten) => {
+    let r = singleCache.get(ten);
+    if (r === void 0) {
+      r = (nameCodes.get(normProjectName(ten))?.size ?? 0) <= 1;
+      singleCache.set(ten, r);
+    }
+    return r;
+  };
+  const canonicalNames = new Set([...canonical.values()].map(normProjectName));
+  const alias = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => {
+    const best = canonical.get(ma);
+    if (!single(best)) return;
+    m.forEach((_n, ten) => {
+      const k = normProjectName(ten);
+      if (ten !== best && !canonicalNames.has(k) && single(ten)) alias.set(k, best);
+    });
+  });
+  projectAlias = alias;
+  const variants = /* @__PURE__ */ new Map();
+  counts.forEach((m, ma) => {
+    const best = canonical.get(ma);
+    if (!single(best)) return;
+    const k = normProjectName(best);
+    let set2 = variants.get(k);
+    if (!set2) {
+      set2 = /* @__PURE__ */ new Set();
+      variants.set(k, set2);
+    }
+    m.forEach((_n, ten) => {
+      if (single(ten)) set2.add(ten);
+    });
+  });
+  projectVariants = variants;
+  const codeOnly = /* @__PURE__ */ new Map();
+  rows.forEach((row, i) => {
+    const ma = maOf[i];
+    if (ma && !canonical.has(ma) && !codeOnly.has(ma)) codeOnly.set(ma, String(row[maKey]).trim().replace(/\s+/g, " "));
+  });
+  let changed = false;
+  const out = rows.map((row, i) => {
+    const ma = maOf[i];
+    const name = canonical.get(ma) ?? codeOnly.get(ma);
+    if (!name || row[tenKey] === name) return row;
+    const own2 = String(row[tenKey] ?? "").trim();
+    if (own2 && (!single(own2) || !single(name))) return row;
+    changed = true;
+    return { ...row, [tenKey]: name };
+  });
+  return changed ? out : rows;
+}
+var BOP_STAGE_ORDER = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
+var DWELL_KEYS = ["<3 NG\xC0Y", "4-7 NG\xC0Y", "2 tu\u1EA7n", "3 tu\u1EA7n", "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn", "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y"];
+var DWELL_STUCK = "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn";
+var DWELL_NONE = "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y";
+var dwellBucket = (v) => {
+  const s = String(v ?? "").trim().toUpperCase();
+  if (!s || s === "0") return DWELL_NONE;
+  if (s.includes("<3")) return "<3 NG\xC0Y";
+  if (s.includes("4-7")) return "4-7 NG\xC0Y";
+  const w = s.match(/(\d+)\s*TUẦN/);
+  if (w) {
+    const n = Number(w[1]);
+    if (n >= 4) return DWELL_STUCK;
+    if (n === 3) return "3 tu\u1EA7n";
+    if (n === 2) return "2 tu\u1EA7n";
+    return "4-7 NG\xC0Y";
+  }
+  return DWELL_NONE;
+};
+
+// ../frontend/components/Dashboard/utils/filterMatch.ts
+var toFilterSet = (values) => values.length ? new Set(values) : null;
+var matchesFilter = (set2, row, key) => set2 === null || !!key && set2.has(String(row[key] || "").trim());
+var NO_DATA_LABEL = "(Ch\u01B0a c\xF3)";
+var categoryValue = (v) => {
+  const t = String(v ?? "").trim();
+  return !t || t.startsWith("#") ? NO_DATA_LABEL : t;
+};
+var matchesCategory = (set2, row, key) => set2 === null || !!key && set2.has(categoryValue(row[key]));
+var categoryOptions = (data, key) => {
+  if (!key) return [];
+  const raw = /* @__PURE__ */ new Set();
+  for (const row of data) raw.add(row[key]);
+  const set2 = /* @__PURE__ */ new Set();
+  for (const v of raw) set2.add(categoryValue(v));
+  const hasNoData = set2.delete(NO_DATA_LABEL);
+  const list = Array.from(set2).sort((a, b) => a.localeCompare(b, "vi"));
+  return hasNoData ? [...list, NO_DATA_LABEL] : list;
+};
+
+// ../frontend/components/Dashboard/core/stages.ts
+var ON_LINE_STAGES = [
+  "P012",
+  "P013",
+  "GCVT",
+  "P014",
+  "P016",
+  "P018",
+  "P020",
+  "P021"
+];
+var P002_STAGE = "P002";
+var extractStage = (value) => {
+  const match = String(value ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/);
+  return match ? match[1] : null;
+};
+
+// ../frontend/components/Dashboard/core/tongQuanSanXuat.ts
+function khoaSanXuat(productionColumns) {
+  return {
+    hexKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.HEX) || "hex",
+    tinhTrangKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TINH_TRANG) || "tinh_trang",
+    tinhTrangIpoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TINH_TRANG_IPO) || "tinh_trang_ipo",
+    valueKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.GIA_TRI_CON_LAI) || "gia_tri_don_hang_con_lai",
+    realValueKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.GIA_TRI_THUC_TE) || "gia_tri_con_lai",
+    congTrinhKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.CONG_TRINH) || "ten_cong_trinh",
+    xuongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.XUONG) || "xuong_chinh",
+    hangMucKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TEN_HANG_MUC) || "ten_hang_muc",
+    daysAtCurrentStageKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI) || "so_ngay_cd_hien_tai",
+    phanLoaiNhomSanPhamKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM) || "phan_loai_nhom_san_pham",
+    bopKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.BOP) || "bop",
+    triGiaDonHangTongKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG) || "tri_gia_don_hang_tong",
+    thanhTienTinhPhieuKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || "thanh_tien_tinh_phieu",
+    thanhTienNhapKhoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO) || "thanh_tien_nhap_kho_luy_ke",
+    khachHangKey: findColumnKey(productionColumns, "khach_hang") || "khach_hang",
+    khuVucDuAnKey: findColumnKey(productionColumns, "khu_vuc_du_an") || "khu_vuc_du_an"
+  };
+}
+var DEFAULT_FILTERS = {
+  congTrinh: [],
+  xuong: [],
+  tinhTrang: [],
+  tinhTrangIpo: ["01. \u0110ANG S\u1EA2N XU\u1EA4T"],
+  khachHang: [],
+  khuVucDuAn: [],
+  phanLoai: []
+};
+var NO_MATCH_PROJECT = "__KHONG_CO_CONG_TRINH__";
+function tinhScopedProjects(productionData, khachHang, khuVucDuAn, congTrinhKey, khachHangKey, khuVucDuAnKey) {
+  if (!congTrinhKey) return null;
+  if (khachHang.length === 0 && khuVucDuAn.length === 0) return null;
+  const khachHangSet = toFilterSet(khachHang);
+  const khuVucDuAnSet = toFilterSet(khuVucDuAn);
+  const set2 = /* @__PURE__ */ new Set();
+  for (const row of productionData) {
+    const ct = String(row[congTrinhKey] || "").trim();
+    if (!ct) continue;
+    if (!matchesCategory(khachHangSet, row, khachHangKey)) continue;
+    if (!matchesCategory(khuVucDuAnSet, row, khuVucDuAnKey)) continue;
+    set2.add(ct);
+  }
+  return set2;
+}
+function tinhEffectiveCongTrinh(scopedProjects, congTrinh) {
+  if (!scopedProjects) return congTrinh;
+  const list = congTrinh.length > 0 ? congTrinh.filter((ct) => scopedProjects.has(ct)) : Array.from(scopedProjects);
+  return list.length > 0 ? list : [NO_MATCH_PROJECT];
+}
+function tapLoc(applied, effectiveCongTrinh) {
+  return {
+    congTrinhSet: toFilterSet(effectiveCongTrinh),
+    explicitCongTrinhSet: toFilterSet(applied.congTrinh),
+    xuongSet: toFilterSet(applied.xuong),
+    tinhTrangSet: toFilterSet(applied.tinhTrang),
+    tinhTrangIpoSet: toFilterSet(applied.tinhTrangIpo),
+    phanLoaiSet: toFilterSet(applied.phanLoai),
+    rowKhSet: toFilterSet(applied.khachHang),
+    rowKvSet: toFilterSet(applied.khuVucDuAn)
+  };
+}
+function locFiltered(productionData, t, k) {
+  const khRowKey = k.khachHangKey ?? "khach_hang";
+  const kvRowKey = k.khuVucDuAnKey ?? "khu_vuc_du_an";
+  return productionData.filter(
+    (row) => matchesFilter(t.congTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesFilter(t.tinhTrangSet, row, k.tinhTrangKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey) && matchesCategory(t.phanLoaiSet, row, k.phanLoaiKey) && matchesCategory(t.rowKhSet, row, khRowKey) && matchesCategory(t.rowKvSet, row, kvRowKey)
+  );
+}
+function locCrossFilterBase(source, t, k) {
+  return source.filter(
+    (row) => matchesFilter(t.explicitCongTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesFilter(t.tinhTrangSet, row, k.tinhTrangKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey)
+  );
+}
+function locFunnel(productionData, t, k) {
+  const khRowKey = k.khachHangKey ?? "khach_hang";
+  const kvRowKey = k.khuVucDuAnKey ?? "khu_vuc_du_an";
+  return productionData.filter(
+    (row) => matchesFilter(t.congTrinhSet, row, k.congTrinhKey) && matchesFilter(t.xuongSet, row, k.xuongKey) && matchesCategory(t.phanLoaiSet, row, k.phanLoaiKey) && matchesCategory(t.rowKhSet, row, khRowKey) && matchesCategory(t.rowKvSet, row, kvRowKey) && matchesFilter(t.tinhTrangIpoSet, row, k.tinhTrangIpoKey)
+  );
+}
+var distinctRaw = (data, key) => {
+  const raw = /* @__PURE__ */ new Set();
+  for (const row of data) raw.add(row[key]);
+  return raw;
+};
+var getUniqueOptions = (data, key) => {
+  if (!key) return [];
+  const set2 = /* @__PURE__ */ new Set();
+  for (const v of distinctRaw(data, key)) {
+    const t = String(v || "").trim();
+    if (t) set2.add(t);
+  }
+  return Array.from(set2).sort();
+};
+function luaChonSanXuat(productionData, k) {
+  return {
+    congTrinhOptions: getUniqueOptions(productionData, k.congTrinhKey),
+    xuongOptions: getUniqueOptions(productionData, k.xuongKey),
+    tinhTrangOptions: getUniqueOptions(productionData, k.tinhTrangKey),
+    tinhTrangIpoOptions: getUniqueOptions(productionData, k.tinhTrangIpoKey),
+    khachHangOptions: categoryOptions(productionData, k.khachHangKey),
+    khuVucDuAnOptions: categoryOptions(productionData, k.khuVucDuAnKey),
+    phanLoaiOptions: categoryOptions(productionData, k.phanLoaiNhomSanPhamKey)
+  };
+}
+function isInProductionRow(statusUpper) {
+  return !statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") && !statusUpper.includes("14. CH\u01AFA PHI\u1EBEU") && !statusUpper.includes("11. CH\u01AFA SX");
+}
+var ON_LINE_STAGE_SET = new Set(ON_LINE_STAGES);
+function remainBucketOf(statusUpper, stage) {
+  if (statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") || stage === "P001") return "notDeployed";
+  if (stage === P002_STAGE) return "p002";
+  if (stage && ON_LINE_STAGE_SET.has(stage)) return "onLine";
+  return "shortfall";
+}
+var UNKNOWN_PROJECT = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+function projectNameOf(value) {
+  return String(value ?? "").trim() || UNKNOWN_PROJECT;
+}
+var unknownProjectLast = (a, b) => Number(a.name === UNKNOWN_PROJECT) - Number(b.name === UNKNOWN_PROJECT);
+function hamGiaTri(k) {
+  const isCancelledRow = (row) => !!k.tinhTrangIpoKey && isCancelledIpo(row[k.tinhTrangIpoKey]);
+  const rowRemain = (row) => remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
+  const calculateMetricValue = (row, metric) => {
+    if (isCancelledRow(row)) return 0;
+    if (metric === "COUNT_HEX") return 1;
+    if (metric === "SUM_GT_CON_LAI" || metric === "SUM_GT_DON_HANG") return rowRemain(row);
+    return 0;
+  };
+  const funnelValue = (row, metric) => {
+    if (metric !== "COUNT_HEX") {
+      if (isCancelledRow(row)) return 0;
+      return remainValue(parseNumber(row[k.triGiaDonHangTongKey]), k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0);
+    }
+    if (isCancelledRow(row)) return 0;
+    const total = parseNumber(row[k.triGiaDonHangTongKey]);
+    const nk = k.thanhTienNhapKhoKey ? parseNumber(row[k.thanhTienNhapKhoKey]) : 0;
+    return isStocked(total, nk, false, isQtyComplete(row)) ? 0 : 1;
+  };
+  return { isCancelledRow, rowRemain, calculateMetricValue, funnelValue };
+}
+var statusOf2 = (row, k, mode) => {
+  let status = "";
+  if (mode === "BOP") {
+    status = k.bopKey ? String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim() : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+    if (!status) status = "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
+  } else {
+    status = String(row[k.tinhTrangKey] || "").trim();
+  }
+  return status;
+};
+function tinhBottleneck(rows, k, mode) {
+  if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const agg = {};
+  rows.forEach((row) => {
+    const status = statusOf2(row, k, mode);
+    if (!status) return;
+    if (!agg[status]) {
+      agg[status] = { name: status };
+      DWELL_KEYS.forEach((d2) => {
+        agg[status][d2] = 0;
+      });
+    }
+    const d = dwellBucket(row[k.daysAtCurrentStageKey]);
+    agg[status][d] = (agg[status][d] || 0) + 1;
+  });
+  return Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
+}
+function tinhTopBottlenecks(rows, k, mode) {
+  if (!k.tinhTrangKey || !k.daysAtCurrentStageKey) return [];
+  const counts = {};
+  rows.forEach((row) => {
+    const status = statusOf2(row, k, mode);
+    if (status && dwellBucket(row[k.daysAtCurrentStageKey]) === DWELL_STUCK) {
+      counts[status] = (counts[status] || 0) + 1;
+    }
+  });
+  return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 6);
+}
+function tinhCardMetrics(rows, k) {
+  const metrics = { coTheSX: 0, vecniFitting: 0, chuyenKhac: 0, coPhieuChuaSX: 0, chuaTheSX: 0, vuongSL: 0, chuaTrienKhai: 0 };
+  if (!k.tinhTrangKey) return metrics;
+  const { isCancelledRow, rowRemain } = hamGiaTri(k);
+  rows.forEach((row) => {
+    const status = String(row[k.tinhTrangKey] || "").trim().toUpperCase();
+    const val = isCancelledRow(row) ? 0 : rowRemain(row);
+    const isIn = (group) => group.some((s) => status.includes(s));
+    if (isIn(STATUS_GROUPS.CO_THE_SX)) metrics.coTheSX += val;
+    if (isIn(STATUS_GROUPS.VECNI_FITTING)) metrics.vecniFitting += val;
+    else if (isIn(STATUS_GROUPS.CHUYEN_KHAC)) metrics.chuyenKhac += val;
+    else if (isIn(STATUS_GROUPS.CO_PHIEU_CHUA_SX)) metrics.coPhieuChuaSX += val;
+    if (isIn(STATUS_GROUPS.CHUA_THE_SX)) metrics.chuaTheSX += val;
+    if (isIn(STATUS_GROUPS.VUONG_SL)) metrics.vuongSL += val;
+    else if (isIn(STATUS_GROUPS.CHUA_TRIEN_KHAI)) metrics.chuaTrienKhai += val;
+  });
+  return metrics;
+}
+function tinhProjectStatusSummary(rows, k, metric) {
+  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return [];
+  const { isCancelledRow } = hamGiaTri(k);
+  const agg = {};
+  const isCount = metric === "COUNT";
+  rows.forEach((row) => {
+    const ctName = projectNameOf(row[k.congTrinhKey]);
+    if (isCancelledRow(row)) return;
+    if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0, notDeployedRaw: 0 };
+    const status = String(row[k.tinhTrangKey] || "").toUpperCase();
+    const totalOrderValRaw = parseNumber(row[k.triGiaDonHangTongKey]);
+    const ticketValRaw = parseNumber(row[k.thanhTienTinhPhieuKey]);
+    const inventoryValRaw = doneValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]));
+    const totalOrderVal = isCount ? 1 : totalOrderValRaw / 1e3;
+    agg[ctName].totalOrder += totalOrderVal;
+    if (!status.includes("15. CH\u01AFA TRI\u1EC2N KHAI")) agg[ctName].deployed += totalOrderVal;
+    const valToAddTicket = isCount ? ticketValRaw > 0 ? 1 : 0 : ticketValRaw / 1e3;
+    if (!status.includes("15. CH\u01AFA TRI\u1EC2N KHAI") && !status.includes("14. CH\u01AFA PHI\u1EBEU")) agg[ctName].ticketed += valToAddTicket;
+    const stockedItem = isStocked(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]), false, isQtyComplete(row));
+    const rowRemainRaw = remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]));
+    if (isInProductionRow(status)) {
+      agg[ctName].inProduction += isCount ? !stockedItem && rowRemainRaw > 0 ? 1 : 0 : rowRemainRaw / 1e3;
+    }
+    if (remainBucketOf(status, k.bopKey ? extractStage(row[k.bopKey]) : null) === "notDeployed") {
+      agg[ctName].notDeployedRaw += isCount ? !stockedItem && rowRemainRaw > 0 ? 1 : 0 : rowRemainRaw / 1e3;
+    }
+    agg[ctName].inventory += isCount ? stockedItem ? 1 : 0 : inventoryValRaw / 1e3;
+    agg[ctName].remainingRaw += isCount ? !stockedItem && remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey])) > 0 ? 1 : 0 : remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey])) / 1e3;
+  });
+  return Object.entries(agg).map(([name, data]) => ({
+    name,
+    ...data,
+    remaining: data.remainingRaw,
+    notDeployed: data.notDeployedRaw,
+    percentComplete: data.totalOrder > 0 ? data.inventory / data.totalOrder * 100 : 0
+  })).sort((a, b) => unknownProjectLast(a, b) || b.totalOrder - a.totalOrder);
+}
+function tinhPivotWorkshop(rows, k, metric) {
+  if (!k.tinhTrangKey || !k.xuongKey) return null;
+  const { calculateMetricValue } = hamGiaTri(k);
+  const uniqueWorkshops = Array.from(new Set(rows.map((r) => String(r[k.xuongKey] || "").trim()).filter(Boolean))).sort();
+  const pivotRows = [];
+  const seen = /* @__PURE__ */ new Set();
+  rows.forEach((r) => {
+    const bop = String(r[k.bopKey] || "").trim();
+    const status = String(r[k.tinhTrangKey] || "").trim();
+    if (status) {
+      const combinedKey = `${bop} ||| ${status}`;
+      if (!seen.has(combinedKey)) {
+        seen.add(combinedKey);
+        pivotRows.push({ bop, status, key: combinedKey });
+      }
+    }
+  });
+  pivotRows.sort((a, b) => {
+    const bopComp = a.bop.localeCompare(b.bop);
+    if (bopComp !== 0) return bopComp;
+    return a.status.localeCompare(b.status);
+  });
+  if (uniqueWorkshops.length === 0 || pivotRows.length === 0) return null;
+  const uniqueBops = Array.from(new Set(pivotRows.map((r) => r.bop)));
+  const matrix = {};
+  const rowTotals = {};
+  const colTotals = {};
+  const bopTotals = {};
+  const bopRowTotals = {};
+  let grandTotal = 0;
+  uniqueBops.forEach((b) => {
+    bopTotals[b] = {};
+    bopRowTotals[b] = 0;
+    uniqueWorkshops.forEach((w) => {
+      bopTotals[b][w] = 0;
+    });
+  });
+  pivotRows.forEach((r) => {
+    matrix[r.key] = {};
+    rowTotals[r.key] = 0;
+    uniqueWorkshops.forEach((w) => {
+      matrix[r.key][w] = 0;
+      colTotals[w] = colTotals[w] || 0;
+    });
+  });
+  rows.forEach((row) => {
+    const bop = String(row[k.bopKey] || "").trim();
+    const s = String(row[k.tinhTrangKey] || "").trim();
+    const w = String(row[k.xuongKey] || "").trim();
+    if (s && w) {
+      const combinedKey = `${bop} ||| ${s}`;
+      const val = calculateMetricValue(row, metric);
+      if (matrix[combinedKey] && matrix[combinedKey][w] !== void 0) {
+        matrix[combinedKey][w] += val;
+        rowTotals[combinedKey] += val;
+        colTotals[w] += val;
+        grandTotal += val;
+        if (bopTotals[bop] && bopTotals[bop][w] !== void 0) {
+          bopTotals[bop][w] += val;
+          bopRowTotals[bop] += val;
+        }
+      }
+    }
+  });
+  return { uniqueWorkshops, rows: pivotRows, uniqueBops, bopTotals, bopRowTotals, matrix, rowTotals, colTotals, grandTotal };
+}
+function tinhPivotFunnel(rows, k, metric) {
+  if (!k.bopKey) return null;
+  const { funnelValue } = hamGiaTri(k);
+  const agg = {};
+  let total = 0;
+  rows.forEach((row) => {
+    const bop = String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim();
+    const s = String(row[k.tinhTrangKey] || "").trim();
+    const w = String(row[k.xuongKey] || "").trim();
+    if (s && w) {
+      const val = funnelValue(row, metric);
+      agg[bop] = (agg[bop] || 0) + val;
+      total += val;
+    }
+  });
+  const bopOrder = BOP_STAGE_ORDER;
+  return {
+    data: Object.entries(agg).map(([name, value]) => ({ name, value })).sort((a, b) => {
+      const indexA = bopOrder.indexOf(a.name);
+      const indexB = bopOrder.indexOf(b.name);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return b.value - a.value;
+    }),
+    total
+  };
+}
+function tinhFunnelBreakdownByBop(rows, k, metric) {
+  const result = {};
+  if (!k.bopKey || !k.congTrinhKey) return result;
+  const { funnelValue } = hamGiaTri(k);
+  const agg = {};
+  const totals = {};
+  rows.forEach((row) => {
+    const bop = String(row[k.bopKey] || "Ch\u01B0a x\xE1c \u0111\u1ECBnh").trim();
+    const s = String(row[k.tinhTrangKey] || "").trim();
+    const w = String(row[k.xuongKey] || "").trim();
+    if (!s || !w) return;
+    const project = projectNameOf(row[k.congTrinhKey]);
+    const val = funnelValue(row, metric);
+    if (!agg[bop]) agg[bop] = {};
+    agg[bop][project] = (agg[bop][project] || 0) + val;
+    totals[bop] = (totals[bop] || 0) + val;
+  });
+  Object.keys(agg).forEach((bop) => {
+    result[bop] = {
+      data: Object.entries(agg[bop]).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
+      total: totals[bop] || 0
+    };
+  });
+  const short = {};
+  ["P022", "P025"].forEach((bop) => Object.entries(agg[bop] ?? {}).forEach(([name, v]) => {
+    short[name] = (short[name] || 0) + v;
+  }));
+  if (Object.keys(short).length) {
+    result.P022_SHORT = {
+      data: Object.entries(short).map(([name, value]) => ({ name, value })).sort((a, b) => unknownProjectLast(a, b) || b.value - a.value),
+      total: (totals.P022 || 0) + (totals.P025 || 0)
+    };
+  }
+  return result;
+}
+function tinhPivotProject(rows, k, metric, excludeFabrics) {
+  if (!k.congTrinhKey || !k.tinhTrangKey) return null;
+  const { calculateMetricValue } = hamGiaTri(k);
+  const dataToUse = excludeFabrics ? rows.filter((r) => {
+    const hm = String(r[k.hangMucKey] || "").toLowerCase();
+    return !hm.includes("v\u1EA3i") && !hm.includes("g\u1ED1i");
+  }) : rows;
+  const uniqueStatuses = Array.from(new Set(dataToUse.map((r) => String(r[k.tinhTrangKey] || "").trim()).filter(Boolean))).sort();
+  const uniqueProjects = Array.from(new Set(dataToUse.map((r) => String(r[k.congTrinhKey] || "").trim()).filter(Boolean))).sort();
+  const matrix = {};
+  const rowTotals = {};
+  const colTotals = {};
+  let grandTotal = 0;
+  uniqueProjects.forEach((p) => {
+    matrix[p] = {};
+    rowTotals[p] = 0;
+    uniqueStatuses.forEach((s) => {
+      matrix[p][s] = 0;
+      colTotals[s] = colTotals[s] || 0;
+    });
+  });
+  dataToUse.forEach((row) => {
+    const p = String(row[k.congTrinhKey] || "").trim();
+    const s = String(row[k.tinhTrangKey] || "").trim();
+    if (p && s) {
+      const val = calculateMetricValue(row, metric);
+      if (matrix[p] && matrix[p][s] !== void 0) {
+        matrix[p][s] += val;
+        rowTotals[p] += val;
+        colTotals[s] += val;
+        grandTotal += val;
+      }
+    }
+  });
+  return { uniqueProjects, uniqueStatuses, matrix, rowTotals, colTotals, grandTotal };
+}
+var UNIT = 1e3;
+var OTHERS = "Kh\xE1c";
+var TOP_CUSTOMERS = 6;
+function aggregateMix(rows, dimOf, ctOf, totalTrieuOf, metric) {
+  const m = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    const name = dimOf(r);
+    let e = m.get(name);
+    if (!e) {
+      e = { name, value: 0, items: 0, totalTy: 0, cts: /* @__PURE__ */ new Set() };
+      m.set(name, e);
+    }
+    const ty = totalTrieuOf(r) / UNIT;
+    e.items++;
+    e.totalTy += ty;
+    e.cts.add(ctOf(r));
+    e.value += metric === "count" ? 1 : ty;
+  }
+  return [...m.values()].filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
+}
+function summarizeMix(rows, ctOf, totalTrieuOf) {
+  const cts = /* @__PURE__ */ new Set();
+  let total = 0;
+  for (const r of rows) {
+    cts.add(ctOf(r));
+    total += totalTrieuOf(r);
+  }
+  return { cts: cts.size, items: rows.length, totalTy: total / UNIT };
+}
+var groupTopN = (list, topN, selected = []) => {
+  if (list.length <= topN) return list;
+  const head = list.filter((d, i) => i < topN || selected.includes(d.name));
+  const rest = list.filter((d) => !head.includes(d));
+  if (rest.length === 0) return head;
+  const others = { name: OTHERS, value: 0, items: 0, totalTy: 0, cts: /* @__PURE__ */ new Set() };
+  for (const d of rest) {
+    others.value += d.value;
+    others.items += d.items;
+    others.totalTy += d.totalTy;
+    d.cts.forEach((c) => others.cts.add(c));
+  }
+  return [...head, others];
+};
+var CODE_PREFIX = /^(\d+)\s*[.\-)]/;
+var orderMix = (list) => {
+  const isTail = (n) => n === NO_DATA_LABEL || n === OTHERS;
+  const head = list.filter((d) => !isTail(d.name));
+  const tail = list.filter((d) => isTail(d.name)).sort((a, b) => a.name === OTHERS ? 1 : b.name === OTHERS ? -1 : 0);
+  if (head.length > 0 && head.every((d) => CODE_PREFIX.test(d.name))) {
+    const code = (n) => Number(CODE_PREFIX.exec(n)[1]);
+    head.sort((a, b) => code(a.name) - code(b.name) || a.name.localeCompare(b.name, "vi"));
+  }
+  return [...head, ...tail];
+};
+function mixRecords(data, columns) {
+  const key = (target, fallback) => findColumnKey(columns, target) || fallback;
+  const kvK = key("khu_vuc_du_an", "khu_vuc_du_an");
+  const khK = key("khach_hang", "khach_hang");
+  const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, "phan_loai_nhom_san_pham");
+  const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, "tinh_trang_ipo");
+  const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, "tri_gia_don_hang_tong");
+  const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, "ten_cong_trinh");
+  const out = [];
+  for (const row of data) {
+    if (!String(row[ctK] ?? "").trim()) continue;
+    if (String(row[ipoK] ?? "").toUpperCase().includes("H\u1EE6Y")) continue;
+    out.push({
+      ct: projectMatchKey(row[ctK]),
+      kv: categoryValue(row[kvK]),
+      kh: categoryValue(row[khK]),
+      pl: categoryValue(row[plK]),
+      total: parseNumber(row[totK]),
+      row
+    });
+  }
+  return out;
+}
+var recCt = (r) => r.ct;
+var recTotal = (r) => r.total;
+function mixMatching(records, selection, exclude) {
+  const active = ["kv", "kh", "pl"].filter((x) => x !== exclude && selection[x].length > 0).map((x) => [x, new Set(selection[x])]);
+  return active.length ? records.filter((r) => active.every(([o, set2]) => set2.has(r[o]))) : records;
+}
+function mixBuild(records, selection, k, metric, topN) {
+  const list = aggregateMix(mixMatching(records, selection, k), (r) => r[k], recCt, recTotal, metric);
+  return orderMix(topN ? groupTopN(list, topN, selection[k]) : list);
+}
+function mixSummary(records, selection) {
+  return summarizeMix(mixMatching(records, selection), recCt, recTotal);
+}
+function tinhCoCauDonHang(records, selection, metric) {
+  return {
+    kv: mixBuild(records, selection, "kv", metric),
+    kh: mixBuild(records, selection, "kh", metric, TOP_CUSTOMERS),
+    pl: mixBuild(records, selection, "pl", metric),
+    summary: mixSummary(records, selection)
+  };
+}
+var TUY_CHON_MAC_DINH = {
+  workshopMetric: "SUM_GT_DON_HANG",
+  projectMetric: "SUM_GT_DON_HANG",
+  projectSummaryMetric: "VALUE",
+  excludeFabrics: false,
+  bottleneckViewMode: "BOP"
+};
+var mixJson = (l) => l.map((d) => ({ ...d, cts: [...d.cts] }));
+function tinhTongQuanSanXuat(productionData, productionColumns, applied, tuy) {
+  const k = khoaSanXuat(productionColumns);
+  const kLoc = { ...k, phanLoaiKey: k.phanLoaiNhomSanPhamKey };
+  const scoped = tinhScopedProjects(productionData, applied.khachHang, applied.khuVucDuAn, k.congTrinhKey, k.khachHangKey, k.khuVucDuAnKey);
+  const effectiveCongTrinh = tinhEffectiveCongTrinh(scoped, applied.congTrinh);
+  const t = tapLoc(applied, effectiveCongTrinh);
+  const filtered = locFiltered(productionData, t, kLoc);
+  const funnel = locFunnel(productionData, t, kLoc);
+  const crossBase = locCrossFilterBase(productionData, t, kLoc);
+  const mixMetric = tuy.workshopMetric === "COUNT_HEX" ? "count" : "value";
+  const coCau = tinhCoCauDonHang(mixRecords(crossBase, productionColumns), { kv: applied.khuVucDuAn, kh: applied.khachHang, pl: applied.phanLoai }, mixMetric);
+  return {
+    soDong: productionData.length,
+    luaChon: luaChonSanXuat(productionData, k),
+    scopedProjects: scoped ? [...scoped] : null,
+    effectiveCongTrinh,
+    cardMetrics: tinhCardMetrics(filtered, k),
+    projectStatusSummary: tinhProjectStatusSummary(filtered, k, tuy.projectSummaryMetric),
+    pivotWorkshopData: tinhPivotWorkshop(filtered, k, tuy.workshopMetric),
+    pivotFunnelData: tinhPivotFunnel(funnel, k, tuy.workshopMetric),
+    funnelBreakdownByBop: tinhFunnelBreakdownByBop(funnel, k, tuy.workshopMetric),
+    pivotProjectData: tinhPivotProject(filtered, k, tuy.projectMetric, tuy.excludeFabrics),
+    bottleneckData: tinhBottleneck(filtered, k, tuy.bottleneckViewMode),
+    topBottlenecks: tinhTopBottlenecks(filtered, k, tuy.bottleneckViewMode),
+    coCau: { kv: mixJson(coCau.kv), kh: mixJson(coCau.kh), pl: mixJson(coCau.pl), summary: coCau.summary }
+  };
+}
+
+// ../frontend/utils/workshopGroupsCore.ts
+var normWorkshop2 = (v) => String(v ?? "").trim().toUpperCase();
+var rawToGroup2 = /* @__PURE__ */ new Map();
+var setMapping = (mapping) => {
+  const m = /* @__PURE__ */ new Map();
+  Object.entries(mapping || {}).forEach(([raw, g]) => {
+    const r = normWorkshop2(raw), gg = normWorkshop2(g);
+    if (r && gg && r !== gg) m.set(r, gg);
+  });
+  rawToGroup2 = m;
+};
+var applyWorkshopMapping = (mapping) => setMapping(mapping);
+function canonicalizeWorkshops(rows, columns) {
+  if (rows.length === 0) return rows;
+  const key = findColumnKey(columns, "xuong_chinh");
+  if (!key) return rows;
+  let changed = false;
+  const groupOf = /* @__PURE__ */ new Map();
+  const out = rows.map((row) => {
+    const v = row[key];
+    if (v == null || v === "") return row;
+    let g = groupOf.get(v);
+    if (g === void 0) {
+      const n = normWorkshop2(v);
+      g = rawToGroup2.get(n) ?? n;
+      groupOf.set(v, g);
+    }
+    if (!g || v === g) return row;
+    changed = true;
+    return { ...row, [key]: g };
+  });
+  return changed ? out : rows;
+}
+
+// ../frontend/components/Dashboard/core/mayChu.ts
+var cotTuDuLieu = (rows) => {
+  const keys = /* @__PURE__ */ new Set();
+  for (const r of rows) for (const k of Object.keys(r)) if (k && k.trim() !== "") keys.add(k);
+  return [...keys].map((key) => ({ key, label: key }));
+};
+
+// src/routes/tongQuan.ts
+var dsChuoi = external_exports.array(external_exports.string().max(300)).max(3e3);
+var BodySchema = external_exports.object({
+  filters: external_exports.object({
+    congTrinh: dsChuoi,
+    xuong: dsChuoi,
+    tinhTrang: dsChuoi,
+    tinhTrangIpo: dsChuoi,
+    khachHang: dsChuoi,
+    khuVucDuAn: dsChuoi,
+    phanLoai: dsChuoi
+  }).partial().default({}),
+  tuyChon: external_exports.object({
+    workshopMetric: external_exports.enum(["SUM_GT_DON_HANG", "SUM_GT_CON_LAI", "COUNT_HEX"]),
+    projectMetric: external_exports.enum(["SUM_GT_DON_HANG", "SUM_GT_CON_LAI", "COUNT_HEX"]),
+    projectSummaryMetric: external_exports.enum(["VALUE", "COUNT"]),
+    excludeFabrics: external_exports.boolean(),
+    bottleneckViewMode: external_exports.enum(["BOP", "T\xCCNH TR\u1EA0NG"])
+  }).partial().default({})
+});
+var chuan = null;
+var chuanDang = null;
+var ketQuaNho = /* @__PURE__ */ new Map();
+var KET_QUA_NHO_MAX = 60;
+async function bangSanXuatTho(verSanXuat) {
+  const ver = JSON.stringify([verSanXuat]);
+  for (const khoa of ["production|0", "production|1"]) {
+    const buf = await docSnapshot(khoa, ver, { v: "" });
+    if (buf) {
+      try {
+        const rows = JSON.parse(gunzipSync(buf).toString("utf8")).production;
+        if (Array.isArray(rows)) return rows;
+      } catch {
+      }
+    }
+  }
+  const { payload } = await getTablesData(["production"]);
+  return payload.production ?? [];
+}
+async function sanXuatChuan(ver, verSanXuat) {
+  if (chuan?.ver === ver) return chuan;
+  if (chuanDang?.ver === ver) return chuanDang.p;
+  const p = (async () => {
+    const tho = await bangSanXuatTho(verSanXuat);
+    const cols = cotTuDuLieu(tho);
+    setServerProjectAliases(listProjectAliases());
+    applyWorkshopMapping(getWorkshopMapping());
+    const rows = canonicalizeWorkshops(canonicalizeProjectNames(tho, cols), cols);
+    const bang = { ver, rows, cols };
+    chuan = bang;
+    return bang;
+  })().finally(() => {
+    if (chuanDang?.ver === ver) chuanDang = null;
+  });
+  chuanDang = { ver, p };
+  return p;
+}
+app.post("/api/tong-quan/san-xuat", async (req, res) => {
+  try {
+    const parsed = BodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) return res.status(400).json({ success: false, message: "B\u1ED9 l\u1ECDc kh\xF4ng h\u1EE3p l\u1EC7" });
+    const filters = { ...DEFAULT_FILTERS, ...parsed.data.filters };
+    const tuy = { ...TUY_CHON_MAC_DINH, ...parsed.data.tuyChon };
+    const t0 = Date.now();
+    await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
+    const versions = await getVersions();
+    const verSanXuat = versions.production ?? "";
+    const ver = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
+    const thamSo = JSON.stringify([filters, tuy]);
+    const khoa = `tongquan|${createHash5("sha1").update(thamSo).digest("hex").slice(0, 20)}`;
+    const macDinh = JSON.stringify(filters) === JSON.stringify(DEFAULT_FILTERS);
+    const nho = ketQuaNho.get(`${khoa}|${ver}`);
+    if (nho) return guiGzip(res, nho, `tq;desc="mem";dur=${Date.now() - t0}`);
+    if (macDinh) {
+      const nguon = { v: "" };
+      const buf2 = await docSnapshot(khoa, ver, nguon);
+      if (buf2) {
+        ketQuaNho.set(`${khoa}|${ver}`, buf2);
+        return guiGzip(res, buf2, `tq;desc="${nguon.v}";dur=${Date.now() - t0}`);
+      }
+    }
+    const tDoc = Date.now();
+    const { rows, cols } = await sanXuatChuan(ver, verSanXuat);
+    const tTinh = Date.now();
+    const kq = tinhTongQuanSanXuat(rows, cols, filters, tuy);
+    const buf = gzipSync(JSON.stringify({ success: true, ver, ...kq }));
+    ketQuaNho.set(`${khoa}|${ver}`, buf);
+    while (ketQuaNho.size > KET_QUA_NHO_MAX) {
+      const cu = ketQuaNho.keys().next().value;
+      if (cu === void 0) break;
+      ketQuaNho.delete(cu);
+    }
+    if (macDinh) await luuSnapshot(khoa, ver, buf);
+    guiGzip(res, buf, `tq;desc="tinh";dur=${Date.now() - t0}, bang;dur=${tTinh - tDoc}, tinh;dur=${Date.now() - tTinh}`);
+  } catch (e) {
+    console.error("[tong-quan] l\u1ED7i", e);
+    if (!res.headersSent) res.status(500).json({ success: false, message: "Kh\xF4ng t\xEDnh \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u T\u1ED5ng quan" });
   }
 });
 

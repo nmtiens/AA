@@ -6,7 +6,9 @@ import { findColumnKey } from './Dashboard/utils/columnKeyResolver';
 import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
 import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
-import { fetchRevenue2026, type Revenue2026Data } from '../services/dataService';
+import { fetchRevenue2026, fetchTongQuanSanXuat, type Revenue2026Data } from '../services/dataService';
+import type { TongQuanSanXuat } from './Dashboard/core/tongQuanSanXuat';
+import { useToast } from '../context/ToastContext';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
 import { ProductionDonutPanel, type OrderMixSelection } from './Dashboard/components/shared/ProductionDonutPanel';
 import { categoryOptions } from './Dashboard/utils/filterMatch';
@@ -133,6 +135,13 @@ const Dashboard: React.FC<DashboardProps> = ({
 });
 
 
+// Màn đầu khi trình duyệt CHƯA có bảng sản xuất (người mới / máy mới / vừa xoá bộ nhớ): máy chủ tính sẵn bằng
+// cùng code (core/tongQuanSanXuat.ts) — trang hiện số ngay, bảng ~3 MB tải ngầm; tải xong thì tự tính như cũ.
+const coBangSanXuat = productionData.length > 0;
+const [sanTuMayChu, setSanTuMayChu] = useState<TongQuanSanXuat | null>(null);
+const [sanLoi, setSanLoi] = useState(false);
+const san = coBangSanXuat ? null : sanTuMayChu;
+
 const {
   filters,
   appliedFilters,
@@ -164,6 +173,7 @@ const {
   matNhomVtKey,
   // Đổi bộ lọc tổng: ô chọn phản hồi ngay, phần lọc/tính nặng chạy hoãn ở nền (kết quả cuối không đổi)
   deferCalc: true,
+  sanTuMayChu: san,
 });
 
 // HEX thuộc đơn HỦY — tính 1 lần, dùng chung cho bộ lọc nhập kho và file xuất
@@ -180,8 +190,8 @@ const orderMixSelection = useMemo<OrderMixSelection>(
 const setOrderMixSelection = (next: OrderMixSelection) =>
   setFilters(prev => ({ ...prev, khuVucDuAn: next.kv, khachHang: next.kh, phanLoai: next.pl }));
 const phanLoaiOptions = useMemo(
-  () => categoryOptions(productionData, phanLoaiNhomSanPhamKey),
-  [productionData, phanLoaiNhomSanPhamKey]
+  () => san?.luaChon.phanLoaiOptions ?? categoryOptions(productionData, phanLoaiNhomSanPhamKey),
+  [san, productionData, phanLoaiNhomSanPhamKey]
 );
 
 const {
@@ -220,12 +230,12 @@ useEffect(() => {
 }, [selectedRevenueYear]);
  
 const {
-  congTrinhOptions,
-  xuongOptions,
-  tinhTrangOptions,
-   tinhTrangIpoOptions,
-  khachHangOptions,
-  khuVucDuAnOptions,
+  congTrinhOptions: congTrinhOptionsMay,
+  xuongOptions: xuongOptionsMay,
+  tinhTrangOptions: tinhTrangOptionsMay,
+  tinhTrangIpoOptions: tinhTrangIpoOptionsMay,
+  khachHangOptions: khachHangOptionsMay,
+  khuVucDuAnOptions: khuVucDuAnOptionsMay,
   unifiedNamOptions,
   unifiedThangOptions,
   unifiedNgayOptions,
@@ -257,6 +267,13 @@ const {
   pthspDateKey,
   invDateKey,
 });
+// Lựa chọn bộ lọc theo bảng sản xuất: chưa có bảng thì lấy danh sách máy chủ gửi kèm
+const congTrinhOptions = san?.luaChon.congTrinhOptions ?? congTrinhOptionsMay;
+const xuongOptions = san?.luaChon.xuongOptions ?? xuongOptionsMay;
+const tinhTrangOptions = san?.luaChon.tinhTrangOptions ?? tinhTrangOptionsMay;
+const tinhTrangIpoOptions = san?.luaChon.tinhTrangIpoOptions ?? tinhTrangIpoOptionsMay;
+const khachHangOptions = san?.luaChon.khachHangOptions ?? khachHangOptionsMay;
+const khuVucDuAnOptions = san?.luaChon.khuVucDuAnOptions ?? khuVucDuAnOptionsMay;
 
 const {
   overviewSummary,
@@ -377,7 +394,24 @@ const {
   triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   matNhomVtKey, matSlYeuCauKey, matSlDaNhanKey, matStatusKey,
   // XÓA: stockDateKey, stockValueKey, stockSapIdKey, selectedCongTrinh: filters.congTrinh
+  sanTuMayChu: san,
 });
+
+// Chưa có bảng sản xuất: hỏi máy chủ số của đúng bộ lọc + các nút đang chọn (đổi thì hỏi lại)
+useEffect(() => {
+  if (coBangSanXuat) return;
+  const ctl = new AbortController();
+  const t = setTimeout(() => {
+    fetchTongQuanSanXuat({
+      filters: appliedFilters,
+      tuyChon: { workshopMetric, projectMetric, projectSummaryMetric, excludeFabrics, bottleneckViewMode },
+    }, ctl.signal).then(d => {
+      if (ctl.signal.aborted) return;
+      if (d) { setSanTuMayChu(d); setSanLoi(false); } else setSanLoi(true);
+    });
+  }, 120);
+  return () => { clearTimeout(t); ctl.abort(); };
+}, [coBangSanXuat, appliedFilters, workshopMetric, projectMetric, projectSummaryMetric, excludeFabrics, bottleneckViewMode]);
 
 const {
   selectedExportColumns, setSelectedExportColumns,
@@ -528,6 +562,7 @@ const handleContinueToOrderColumnStep = () => {
     open: boolean; column: FunnelHexColumn | null; projectName: string | null; stage: string | null;
   }>({ open: false, column: null, projectName: null, stage: null });
 
+  const { showToast } = useToast();
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
     // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
     // (dòng "P022" khi chưa chọn thanh nào là hạng mục sản xuất P022 chưa nhập đủ — mở danh sách HEX, không phải tồn kho)
@@ -537,6 +572,8 @@ const handleContinueToOrderColumnStep = () => {
     }
     const target = resolveFunnelHexTarget(name, item?.id ?? null);
     if (!target) return; // vd. bước P022 (Tồn kho) không có dữ liệu hex gốc
+    // Số đang là của máy chủ tính sẵn — danh sách hạng mục cần bảng sản xuất (đang tải ngầm)
+    if (!coBangSanXuat) { showToast('Đang tải chi tiết hạng mục, bấm lại sau ít giây', 'info'); return; }
     setFunnelHex({ open: true, ...target });
   };
 
@@ -562,7 +599,8 @@ const handleContinueToOrderColumnStep = () => {
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   ]);
 
-  if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0) {
+  // Không có bảng nào và máy chủ cũng không tính được => mới báo không có dữ liệu (đang chờ số máy chủ thì vẫn vẽ trang)
+  if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0 && sanLoi) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500">
         Không có dữ liệu để hiển thị.
@@ -714,6 +752,7 @@ const handleContinueToOrderColumnStep = () => {
     <ProductionDonutPanel
       data={crossFilterBaseData}
       columns={productionColumns}
+      coCauSan={san?.coCau ?? null}
       selection={orderMixSelection}
       onSelectionChange={setOrderMixSelection}
       // Nút Hạng mục / Giá trị dùng chung với phễu bên cạnh
