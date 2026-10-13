@@ -68,10 +68,6 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
           {r.slGiaoDen > r.slNhan && `Giao tới ${hienSl(r.slGiaoDen)} · `}Nhận {hienSl(r.slNhan)} · Xong {hienSl(r.slHoanThanh)} · Giao {hienSl(r.slGiao)}{dvt}
         </span>
       </p>
-      {r.toiDaNhan !== null && r.toiDaNhan !== undefined && r.slGiaoDen - r.slNhan > r.toiDaNhan && (
-        <p className={`flex items-start gap-1.5 text-base font-medium ${MAU.ngung.chu}`}><AlertTriangle size="1em" className="mt-1 shrink-0" aria-hidden />
-          Tổ trước giao dư {hienSl(r.slGiaoDen - r.slNhan - r.toiDaNhan)}{dvt} so với số được nhận — báo quản lý</p>
-      )}
       {coThay.map(c => (
         <p key={c} className={`flex items-center gap-1.5 text-base font-medium ${MAU.loi.chu}`}><AlertTriangle size="1em" aria-hidden /> {c}</p>
       ))}

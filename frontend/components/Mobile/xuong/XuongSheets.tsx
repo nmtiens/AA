@@ -353,12 +353,8 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   const dv = dvt?.trim() || 'cái';
   const soLe = choSoLe(dvt, gh?.moc, gh?.daNhan, dongCho?.slGiaoDen, dongCho?.slNhan);
   const duoi = soLe ? 0.001 : 1;
-  const toiDaGoc = gh && gh.moc !== null ? Math.max(0, lamTronSl(gh.moc - gh.daNhan)) : null;
-  // Tổ trước giao nhiều hơn số còn nhận được (giao dư / triển khai chưa đủ): cho chọn vẫn nhận, máy chủ gắn cờ cho quản lý
-  const conCho = dongCho ? lamTronSl(slChoNhan(dongCho)) : null;
-  const giaoDu = toiDaGoc !== null && conCho !== null && conCho > toiDaGoc ? lamTronSl(conCho - toiDaGoc) : 0;
-  const [vuot, setVuot] = useState(false);
-  const toiDa = vuot && conCho !== null ? conCho : toiDaGoc;
+  // Số lượng chỉ có đủ, không có vượt: tối đa = đã triển khai (đơn hàng) − đã nhận
+  const toiDa = gh && gh.moc !== null ? Math.max(0, lamTronSl(gh.moc - gh.daNhan)) : null;
   const hetHan = toiDa !== null && toiDa < duoi;
   const [sl, setSl] = useState(dongCho ? Math.max(1, slChoNhan(dongCho)) : 1);
   const [nguon, setNguon] = useState<string | null>(null);
@@ -368,7 +364,6 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
     if (goiY === null || goiY === undefined) return;
     setSl(Math.max(duoi, toiDa !== null ? Math.min(goiY, toiDa) : goiY));
   }, [cd, toiDa]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setVuot(false); }, [cd]);
   const canNguon = !dongCho;
   const xong = () => onNhan({
     congDoanId: cd, soLuong: sl, anh,
@@ -377,7 +372,7 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   return (
     <BottomSheet title={`Nhận ${hex}`} onClose={onClose}
       footer={<button className={NUT_CHINH} disabled={!cd || hetHan || (canNguon && !nguon)} onClick={xong}>
-        {hetHan ? (giaoDu ? 'Hết số được nhận — xem bên trên' : 'Đã nhận đủ số triển khai') : `${vuot ? 'Nhận vượt' : 'Nhận'} ${hienSl(sl)} ${dv}${canNguon && !nguon ? ' (chọn nơi giao tới)' : ''}`}
+        {hetHan ? 'Đã nhận đủ số triển khai' : `Nhận ${hienSl(sl)} ${dv}${canNguon && !nguon ? ' (chọn nơi giao tới)' : ''}`}
       </button>}>
       <div className="space-y-5 pb-2">
         {ten && <p className="text-base text-slate-800">{ten}</p>}
@@ -403,20 +398,6 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
             </p>
           )}
           {dongCho && <p className={CHU_PHU}>Tổ trước đã giao {hienSl(dongCho.slGiaoDen)} {dv}, tổ đã nhận {hienSl(dongCho.slNhan)}.</p>}
-          {giaoDu > 0 && gh && gh.moc !== null && (
-            <div className={`space-y-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`}>
-              <p className={`text-base font-medium ${MAU.ngung.chu}`}>
-                Tổ trước giao {hienSl(dongCho!.slGiaoDen)} {dv}, nhiều hơn {gh.loai === 'trien_khai' ? 'số đã triển khai' : 'số lượng đơn hàng'} ({hienSl(gh.moc)} {dv}) — dư {hienSl(giaoDu)} {dv}.
-              </p>
-              <p className="text-base text-slate-700">
-                Có thể tổ trước bấm giao dư (báo họ huỷ lần giao đó), hoặc {gh.loai === 'trien_khai' ? 'chưa triển khai đủ' : 'hạng mục chưa được triển khai'} — báo quản lý.
-                Hàng thật sự đã tới thì vẫn nhận được, quản lý sẽ kiểm tra ở mục Cần xem.
-              </p>
-              <button type="button" className={`${NUT_PHU} w-full`} aria-pressed={vuot} onClick={() => setVuot(v => !v)}>
-                {vuot ? 'Chỉ nhận trong giới hạn' : `Vẫn nhận phần vượt (tối đa ${hienSl(conCho!)} ${dv})`}
-              </button>
-            </div>
-          )}
         </div>
         {canNguon && (
           <div className="space-y-2">

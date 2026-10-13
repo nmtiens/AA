@@ -70952,9 +70952,19 @@ app.post("/api/xuong/events", async (req, res) => {
            WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
         [sentBy]
       )).rows.map((x) => Number(x.id)));
-      const capNhan = hopLe.filter((e) => e.loai === "nhan" && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
-      const gioiHan = await gioiHanNhan(client, capNhan);
-      const nhanTrongLo = /* @__PURE__ */ new Map();
+      const SAI_SO = 5e-4;
+      const capSl = hopLe.filter((e) => ["nhan", "hoan_thanh", "giao"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
+      const gioiHan = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
+      const soCap = /* @__PURE__ */ new Map();
+      if (capSl.length) {
+        const tt = await client.query(
+          `SELECT t.hex, t.cong_doan_id, t.sl_nhan, t.sl_hoan_thanh, t.sl_giao FROM xuong_trang_thai t
+           JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
+          [capSl.map((x) => x[0]), capSl.map((x) => x[1])]
+        );
+        for (const x of tt.rows) soCap.set(`${x.hex}|${x.cong_doan_id}`, { nhan: num(x.sl_nhan) ?? 0, ht: num(x.sl_hoan_thanh) ?? 0, giao: num(x.sl_giao) ?? 0 });
+      }
+      const hienSo = (n) => String(Math.round(Math.max(0, n) * 1e3) / 1e3).replace(".", ",");
       const ghi = [];
       for (const e of hopLe) {
         let hex3 = e.hex ?? null;
@@ -71016,12 +71026,31 @@ app.post("/api/xuong/events", async (req, res) => {
             co.push("tac_gia_khong_xac_minh");
           }
         }
-        if (e.loai === "nhan" && hex3 && congDoanId) {
+        if (hex3 && congDoanId && (e.loai === "nhan" || e.loai === "hoan_thanh" || e.loai === "giao")) {
           const k = `${hex3}|${congDoanId}`;
-          const gh = gioiHan.get(k);
-          const tong = (gh?.daNhan ?? 0) + (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0);
-          nhanTrongLo.set(k, (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0));
-          if (gh?.moc !== null && gh?.moc !== void 0 && tong > gh.moc) co.push("nhan_vuot_trien_khai");
+          const c = soCap.get(k) ?? { nhan: 0, ht: 0, giao: 0 };
+          const sl = e.soLuong ?? 0;
+          if (e.loai === "nhan") {
+            const gh = gioiHan.get(k);
+            if (gh && gh.moc !== null && c.nhan + sl > gh.moc + SAI_SO) {
+              tuChoi.push({ id: e.id, reason: `Nh\u1EADn v\u01B0\u1EE3t s\u1ED1 ${gh.loai === "trien_khai" ? "\u0111\xE3 tri\u1EC3n khai" : "l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng"} ${hienSo(gh.moc)} \u2014 c\xF2n nh\u1EADn \u0111\u01B0\u1EE3c ${hienSo(gh.moc - c.nhan)}` });
+              continue;
+            }
+            c.nhan += sl;
+          } else if (e.loai === "hoan_thanh") {
+            if (c.ht + sl > c.nhan + SAI_SO) {
+              tuChoi.push({ id: e.id, reason: `Xong nhi\u1EC1u h\u01A1n s\u1ED1 \u0111\xE3 nh\u1EADn \u2014 c\xF2n ${hienSo(c.nhan - c.ht)}` });
+              continue;
+            }
+            c.ht += sl;
+          } else {
+            if (c.giao + sl > c.ht + SAI_SO) {
+              tuChoi.push({ id: e.id, reason: `Giao nhi\u1EC1u h\u01A1n s\u1ED1 \u0111\xE3 xong \u2014 c\xF2n ${hienSo(c.ht - c.giao)}` });
+              continue;
+            }
+            c.giao += sl;
+          }
+          soCap.set(k, c);
         }
         if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && !e.soNguoi) co.push("thieu_so_nguoi");
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
@@ -71305,11 +71334,12 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       ngay,
       to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
       congDoan: cdRows.rows.map((x) => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
-      // Kèm số còn nhận được (đã triển khai / đơn hàng − đã nhận): tổ trước giao dư thì màn hình báo rõ
+      // Kèm số còn nhận được (đã triển khai / đơn hàng − đã nhận); đã nhận đủ thì không còn chờ nhận
+      // (số lượng chỉ có đủ, không có vượt — dữ liệu cũ ghi trước khi có giới hạn có thể "giao tới" nhiều hơn)
       choNhan: rows.filter((x) => x.slGiaoDen > x.slNhan).map((x) => {
         const g = ghChoNhan.get(`${x.hex}|${x.congDoanId}`);
         return { ...x, toiDaNhan: g && g.moc !== null ? Math.max(0, Math.round((g.moc - g.daNhan) * 1e3) / 1e3) : null };
-      }),
+      }).filter((x) => x.toiDaNhan === null || x.toiDaNhan > 0),
       dangLam: rows.filter((x) => ["dang_lam", "tam_ngung", "da_nhan"].includes(x.trangThai)),
       // Theo số lượng, không theo trạng thái: xong một phần mà vẫn chạy / đang tạm ngưng vẫn giao được phần đã xong
       choGiao: rows.filter((x) => x.slHoanThanh > x.slGiao),

@@ -292,16 +292,14 @@ table td:first-child { min-width: 9em; }
 
   <section id="can-xem">
     <h2>Cần xem: xử lý thao tác bị gắn cờ</h2>
-    <p class="mo">Máy chủ không từ chối thao tác lúc mất sóng; thao tác lạ được ghi và gắn cờ để quản lý kiểm tra. Mục <b>Cần xem</b> lọc theo cờ; thao tác sai thì bấm <b>Huỷ thao tác</b> (quản lý huỷ được bất kỳ lúc nào).</p>
+    <p class="mo">Số lượng chỉ có đủ, không có vượt: máy chủ <b>từ chối</b> nhận quá số đã triển khai (chưa triển khai: số đơn hàng), xong quá số đã nhận, giao quá số đã xong — kể cả thao tác ghi lúc mất sóng; tổ trưởng thấy thẻ đỏ "Không ghi được" kèm số còn lại. Các thao tác lạ khác vẫn được ghi và gắn cờ để quản lý kiểm tra. Mục <b>Cần xem</b> lọc theo cờ; thao tác sai thì bấm <b>Huỷ thao tác</b> (quản lý huỷ được bất kỳ lúc nào).</p>
     <div class="bang-boc">
       <table>
         <thead><tr><th>Cờ</th><th>Nghĩa là</th><th>Nên làm</th></tr></thead>
         <tbody>
           <tr><td><b>Nhận khi chưa thấy tổ trước giao</b></td><td>Tổ nhận hàng mà tổ trước chưa bấm giao</td><td>Nhắc tổ trước bấm Giao, hoặc kiểm tra hàng từ đâu tới</td></tr>
-          <tr><td><b>Nhận vượt số lượng triển khai</b></td><td>Tổng số nhận lớn hơn số đã triển khai</td><td>Triển khai thêm nếu đúng, hoặc huỷ lần nhận sai</td></tr>
           <tr><td><b>Bắt đầu chưa khai số người</b></td><td>Máy chưa cập nhật app, gửi Bắt đầu không có số người</td><td>Nhắc tổ tải lại app; sửa số người qua ⋯ → Chia người</td></tr>
           <tr><td><b>Khai nhiều người hơn quân số</b></td><td>Tổng người khai ở các hạng mục vượt quân số chốt</td><td>Giờ công đã co theo quân số; nhắc tổ chia lại người</td></tr>
-          <tr><td><b>Xong nhiều hơn số đã nhận</b>, <b>Giao nhiều hơn số đã xong</b></td><td>Bấm sai số lượng</td><td>Huỷ thao tác sai, nhờ tổ ghi lại</td></tr>
           <tr><td><b>Bắt đầu 2 lần</b>, <b>Tạm ngưng khi không chạy</b>, <b>Xong khi chưa bắt đầu</b></td><td>Bấm nhầm thứ tự</td><td>Thường không ảnh hưởng; huỷ nếu làm sai giờ công</td></tr>
           <tr><td><b>Chưa xác nhận cuối ngày</b></td><td>Hạng mục đang chạy qua đêm không được xác nhận</td><td>Nhắc tổ xác nhận; quá 2 ngày liên tiếp hệ thống ngừng tính giờ cho hạng mục đó</td></tr>
           <tr><td><b>Đồng hồ máy lệch hơn 5 phút</b>, <b>Máy bị đổi giờ</b></td><td>Giờ điện thoại tổ sai</td><td>Nhắc bật giờ tự động trên điện thoại</td></tr>

@@ -498,11 +498,10 @@ export default function XuongApp({ moTo, onTongQuan }: {
 
   const nutDong = (r: DongViec, o: 'choNhan' | 'dangLam' | 'choGiao') => {
     if (o === 'choNhan') {
-      // Giao dư so với số triển khai / đơn hàng: nút ghi số nhận được (0 thì "Xem" để đọc giải thích trong màn Nhận)
+      // Số còn nhận được không vượt số triển khai / đơn hàng
       const con = r.slGiaoDen - r.slNhan;
       const td = r.toiDaNhan ?? null;
-      const so = td !== null && td < con ? td : con;
-      return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc })}>{so > 0 ? `Nhận ${hienSl(so)}` : 'Xem — giao dư'}</button>;
+      return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc })}>Nhận {hienSl(td !== null ? Math.min(con, td) : con)}</button>;
     }
     if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'giao', r, cheDo: 'giao' })}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
     if (r.trangThai === 'dang_lam') return (<>
