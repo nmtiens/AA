@@ -30,6 +30,8 @@ export interface SuKien {
   congDoanNguonId: string | null;
   xuongNguon: string | null;
   soNguoi: number | null;
+  /** Lý do tạm ngưng (sự kiện tam_ngung) */
+  lyDoTamNgung?: string | null;
   duLieu: Record<string, unknown> | null;
   /** device_ts_hieu_chinh (ms) — thứ tự và mọi số đo dùng mốc này */
   ts: number;

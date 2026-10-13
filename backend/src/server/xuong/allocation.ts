@@ -13,6 +13,8 @@ import { LOAI_CA_TANG_CA } from './types.js';
 //    giờ chờ; khai nhiều hơn → co theo tỷ lệ + cờ "khai_vuot_quan_so"; không hạng mục nào chạy → toàn bộ là giờ chờ.
 // 4. Ca chưa chốt quân số: giờ công chỉ theo số người khai trên từng hạng mục, không tính giờ chờ, cờ
 //    "chua_chot_quan_so".
+//    Giờ chờ tách lý do: có hạng mục chạy nhưng khai ít hơn quân số → "nguoi_ranh"; không hạng mục nào chạy → lý do
+//    tạm ngưng của hạng mục vừa tạm ngưng gần nhất (đang tạm ngưng lúc đó), không có thì "khong_viec".
 // 5. Tăng ca: hạng mục bị bỏ chọn trong lần khai tăng ca của tổ coi như không chạy trong cửa sổ đó.
 // R3-3: hạng mục không được xác nhận cuối ngày: ngày kế vẫn tính nhưng cờ "chua_xac_nhan"; từ ngày thứ 2 liên
 //       tiếp không xác nhận thì ngừng tính (nơi gọi truyền vào chuaXacNhan / ngungTinh).
@@ -89,6 +91,8 @@ export interface DauVaoPhanBo {
   ngungTinh?: string[];
   /** Không xác nhận hôm trước → vẫn tính, gắn cờ */
   chuaXacNhan?: string[];
+  /** Đoạn tạm ngưng theo khoá cặp (từ tam_ngung tới lúc chạy lại / xong) — để tách lý do giờ chờ */
+  doanNgung?: Record<string, Array<{ start: number; end: number | null; lyDo: string }>>;
   /** Giờ hiện tại, dùng cắt đoạn đang chạy (end = null) */
   now: number;
 }
@@ -99,6 +103,8 @@ export interface KetQuaPhanBo {
   gioCho: { thuong: number; tangCa: number };
   /** Tổng giờ người của tổ theo quân số (ca đã chốt) */
   gioNguoiTo: { thuong: number; tangCa: number };
+  /** Giờ chờ (thường + tăng ca) theo lý do: nguoi_ranh, khong_viec, hoặc mã lý do tạm ngưng */
+  gioChoLyDo: Record<string, number>;
   co: string[];
 }
 
@@ -131,6 +137,17 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
   const gioCho = { thuong: 0, tangCa: 0 };
   const gioNguoiTo = { thuong: 0, tangCa: 0 };
   const coHangMuc = (k: string, c: string) => { if (!out[k].co.includes(c)) out[k].co.push(c); };
+  const gioChoLyDo: Record<string, number> = {};
+  const choVi = (lyDo: string, h: number) => { if (h > 0) gioChoLyDo[lyDo] = (gioChoLyDo[lyDo] ?? 0) + h; };
+  const doanNgung = input.doanNgung ?? {};
+  // Không hạng mục nào chạy lúc t: lý do của hạng mục tạm ngưng gần nhất còn đang ngưng
+  const lyDoCho = (t: number): string => {
+    let tot: { start: number; lyDo: string } | null = null;
+    for (const ds of Object.values(doanNgung)) {
+      for (const d of ds) if (d.start <= t && t < (d.end ?? input.now) && (!tot || d.start > tot.start)) tot = d;
+    }
+    return tot ? tot.lyDo : 'khong_viec';
+  };
 
   for (const cs of input.cuaSo) {
     const laTangCa = cs.loaiCa !== 'chinh';
@@ -146,6 +163,9 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
         for (const t of [d.start, d.end ?? input.now]) if (t > cs.start && t < end) mocs.add(t);
       }
       for (const c of soNguoiTheoKey.get(k) ?? []) if (c.at > cs.start && c.at < end) mocs.add(c.at);
+    }
+    for (const ds of Object.values(doanNgung)) {
+      for (const d of ds) for (const t of [d.start, d.end ?? input.now]) if (t > cs.start && t < end) mocs.add(t);
     }
     const ds = [...mocs].sort((a, b) => a - b);
 
@@ -174,12 +194,14 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       if (laTangCa) gioNguoiTo.tangCa += Q * gio; else gioNguoiTo.thuong += Q * gio;
       if (tongKhai === 0) {
         if (laTangCa) gioCho.tangCa += Q * gio; else gioCho.thuong += Q * gio;
+        choVi(lyDoCho(s), Q * gio);
         continue;
       }
       if (tongKhai <= Q) {
         for (const [k, n] of khai) cong(k, n * gio);
         const du = (Q - tongKhai) * gio;
         if (laTangCa) gioCho.tangCa += du; else gioCho.thuong += du;
+        choVi('nguoi_ranh', du);
       } else {
         for (const [k, n] of khai) { cong(k, (n * Q / tongKhai) * gio); coHangMuc(k, 'khai_vuot_quan_so'); }
         coTo.add('khai_vuot_quan_so');
@@ -197,6 +219,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     theoHangMuc: out,
     gioCho: { thuong: lamTron(gioCho.thuong), tangCa: lamTron(gioCho.tangCa) },
     gioNguoiTo: { thuong: lamTron(gioNguoiTo.thuong), tangCa: lamTron(gioNguoiTo.tangCa) },
+    gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lamTron(v)])),
     co: [...coTo].sort(),
   };
 }

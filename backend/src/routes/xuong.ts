@@ -85,6 +85,7 @@ export const toSuKien = (r: Row): SuKien => ({
   congDoanNguonId: r.cong_doan_nguon_id ?? null,
   xuongNguon: r.xuong_nguon ?? null,
   soNguoi: r.so_nguoi === null || r.so_nguoi === undefined ? null : Number(r.so_nguoi),
+  lyDoTamNgung: r.ly_do_tam_ngung ?? null,
   duLieu: r.du_lieu ?? null,
   ts: new Date(r.device_ts_hieu_chinh).getTime(),
   serverTs: new Date(r.server_ts).getTime(),
@@ -703,8 +704,10 @@ export type KetQuaGioCong = ReturnType<typeof phanBoGioCong> & { bamLichCa: stri
 const gioCongCache = new Map<string, { v: string; payload: KetQuaGioCong }>();
 
 /** Dấu ngắn của lịch ca (giờ, nghỉ) — kết quả phân bổ giờ công phụ thuộc lịch ca */
+// PHIEN_BAN_TINH: đổi khi cách tính / dạng kết quả phân bổ đổi (vd thêm gioChoLyDo) — kết quả đã lưu tự tính lại
+const PHIEN_BAN_TINH = 'pb2';
 export const dauLichCa = (lichCa: LichCaRow[]) => createHash('sha1')
-  .update(JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
+  .update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
 const GIO_CONG_CACHE_MAX = 300;
 /** Lịch ca đổi (thẻ Xưởng trong Setup) thì giờ công mọi ngày phải tính lại */
 export const xoaCacheGioCong = () => gioCongCache.clear();
@@ -803,8 +806,22 @@ export async function gioCongToNgay(toId: number, ngay: string) {
     }
   }
 
+  // Đoạn tạm ngưng (tam_ngung → bat_dau / tiep_tuc / hoan_thanh) — tách lý do giờ chờ
+  const doanNgung: Record<string, Array<{ start: number; end: number | null; lyDo: string }>> = {};
+  for (const [k, evts] of capCuaTo) {
+    let dangNgung: { start: number; end: number | null; lyDo: string } | null = null;
+    for (const e of [...evts].sort((a, b) => a.ts - b.ts || a.serverTs - b.serverTs)) {
+      if (e.loai === 'tam_ngung' && !dangNgung) {
+        dangNgung = { start: e.ts, end: null, lyDo: e.lyDoTamNgung || 'khac' };
+        (doanNgung[k] ??= []).push(dangNgung);
+      } else if (dangNgung && (e.loai === 'bat_dau' || e.loai === 'tiep_tuc' || e.loai === 'hoan_thanh')) {
+        dangNgung.end = e.ts; dangNgung = null;
+      }
+    }
+  }
+
   const payload: KetQuaGioCong = { ...phanBoGioCong({
-    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa), quanSo, doanChay, soNguoi,
+    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa), quanSo, doanChay, soNguoi, doanNgung,
     boChonTangCa: boChon, ngungTinh, chuaXacNhan, now: Date.now(),
   }), bamLichCa };
   gioCongCache.delete(key);

@@ -60,6 +60,7 @@ export interface BaoCaoTo {
   toId: number; ten: string; active: boolean;
   gioNguoi: GioTach; gioCong: GioTach; gioCho: GioTach;
   ngayCoChay: number; ngayChot: number; khaiVuot: number;
+  gioChoLyDo: Record<string, number>;
   dangChay: number; tamNgung: number; choNhan: number;
   /** Mới nhất trước */
   theoNgay: BaoCaoToNgay[];
@@ -78,6 +79,18 @@ export interface BaoCaoToNgay {
     gioChay: number; gioCongThuong: number; gioCongTangCa: number; dangChay: boolean;
   }>;
   nhan: Array<{ hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; soLuong: number; dvt: string | null }>;
+  xong: Array<{ hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; soLuong: number; dvt: string | null }>;
+  /** Giờ chờ theo lý do: nguoi_ranh, khong_viec, mã lý do tạm ngưng */
+  gioChoLyDo: Record<string, number>;
+}
+/** Một hạng mục trong kỳ (mọi tổ của xưởng): giờ công + số lượng xong theo công đoạn */
+export interface BaoCaoHangMuc {
+  hex: string; tenHangMuc: string | null; tenCongTrinh: string | null; dvt: string | null; soLuongDonHang: number | null;
+  gioCong: number; slXong: number;
+  congDoan: Array<{
+    congDoanId: string; tenCongDoan: string; to: string[]; gioChay: number; gioCong: number; gioCongTangCa: number; slXong: number;
+    trangThai: string | null; slNhan: number; slHoanThanh: number;
+  }>;
 }
 export interface BaoCaoXuong {
   xuong: string; tu: string; den: string; banLuu: boolean; conThieu: number;
@@ -91,6 +104,7 @@ export interface BaoCaoXuong {
     chotQuanSo: { ngayCoChay: number; ngayChot: number }; khaiVuotQuanSo: number;
   };
   theoTo: BaoCaoTo[];
+  hangMuc: BaoCaoHangMuc[];
 }
 
 /** Token đăng nhập thường còn hạn (JWT 8 giờ) thì dùng (đúng người đang đăng nhập); hết hạn / không có thì dùng

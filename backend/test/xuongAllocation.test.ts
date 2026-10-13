@@ -130,3 +130,21 @@ describe('trangThaiXacNhan — R3-3, bỏ qua Chủ nhật', () => {
     assert.equal(trangThaiXacNhan('2026-10-19', '2026-10-17'), 'tinh');
   });
 });
+
+describe('phanBoGioCong — lý do giờ chờ', () => {
+  const ca = cuaSoTrongNgay(NGAY, LICH, []);
+  it('người rảnh / tạm ngưng thiếu vật tư / không có việc; tổng = giờ chờ', () => {
+    // 5 người. A 2 người chạy 7h30–9h30 (rảnh 3) → tạm ngưng thiếu vật tư tới 10h30 → chạy lại 2 người tới 11h30 → hết việc
+    const kq = phanBoGioCong({
+      cuaSo: ca, quanSo: { chinh: 5 }, now: t('23:00'),
+      doanChay: { A: [{ start: t('07:30'), end: t('09:30') }, { start: t('10:30'), end: t('11:30') }] },
+      soNguoi: [{ key: 'A', at: t('07:30'), soNguoi: 2 }],
+      doanNgung: { A: [{ start: t('09:30'), end: t('10:30'), lyDo: 'thieu_vat_tu' }] },
+    });
+    assert.equal(kq.gioChoLyDo.nguoi_ranh, 3 * 3);
+    assert.equal(kq.gioChoLyDo.thieu_vat_tu, 5);
+    assert.equal(kq.gioChoLyDo.khong_viec, H(5 * 3.25)); // 12h30–15h45 (nghỉ trưa không tính)
+    const tong = Object.values(kq.gioChoLyDo).reduce((a, b) => a + b, 0);
+    assert.equal(H(tong), kq.gioCho.thuong);
+  });
+});
