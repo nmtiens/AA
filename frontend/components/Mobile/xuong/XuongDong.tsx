@@ -49,8 +49,9 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
             {r.hex}
             {tenCongDoan && <span className="ml-2 text-base font-normal text-slate-600">· {tenCongDoan}</span>}
           </p>
-          {r.tenHangMuc && <p className="break-words text-base text-slate-800">{r.tenHangMuc}</p>}
-          {r.tenCongTrinh && <p className={`break-words ${CHU_PHU}`}>{r.tenCongTrinh}</p>}
+          {/* Gọn để màn điện thoại thấy được nhiều hạng mục: tên tối đa 2 dòng, công trình 1 dòng (chạm hạng mục / Tra cứu để xem đủ) */}
+          {r.tenHangMuc && <p className="line-clamp-2 break-words text-base text-slate-800" title={r.tenHangMuc}>{r.tenHangMuc}</p>}
+          {r.tenCongTrinh && <p className={`truncate ${CHU_PHU}`} title={r.tenCongTrinh}>{r.tenCongTrinh}</p>}
         </div>
         <NhanGui gui={gui} />
       </div>
@@ -59,13 +60,14 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
         {r.trangThai === 'dang_lam' && (
           <span className="text-slate-700">
             {r.nguoi?.length
-              ? `${r.nguoi.slice(0, 3).map(m => tenGon(m, congNhan ?? [])).join(', ')}${r.nguoi.length > 3 ? ` +${r.nguoi.length - 3}` : ''} · `
+              ? `${r.nguoi.slice(0, 2).map(m => tenGon(m, congNhan ?? [])).join(', ')}${r.nguoi.length > 2 ? ` +${r.nguoi.length - 2}` : ''} · `
               : r.soNguoi ? `${r.soNguoi} người · ` : 'chưa chia người · '}
             {r.dangChayTu ? thoiLuong(now - Date.parse(r.dangChayTu)) : ''}
           </span>
         )}
         <span className="tabular-nums text-slate-600">
-          {r.slGiaoDen > r.slNhan && `Giao tới ${hienSl(r.slGiaoDen)} · `}Nhận {hienSl(r.slNhan)} · Xong {hienSl(r.slHoanThanh)} · Giao {hienSl(r.slGiao)}{dvt}
+          {/* Chỉ hiện số khác 0 (sau "Nhận") — dòng ngắn, ít xuống dòng */}
+          {r.slGiaoDen > r.slNhan && `Giao tới ${hienSl(r.slGiaoDen)} · `}Nhận {hienSl(r.slNhan)}{r.slHoanThanh > 0 ? ` · Xong ${hienSl(r.slHoanThanh)}` : ''}{r.slGiao > 0 ? ` · Giao ${hienSl(r.slGiao)}` : ''}{dvt}
         </span>
       </p>
       {coThay.map(c => (

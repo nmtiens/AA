@@ -140,7 +140,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
         )}
       </section>
 
-      <NotifyDiagnostics />
+      <NotifyDiagnostics appXuong={appXuong} />
 
       {/* Cài app */}
       <section className={`${CARD} p-4`}>

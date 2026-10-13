@@ -558,12 +558,10 @@ export default function XuongApp({ moTo, onTongQuan }: {
           </div>
         </div>
         {laToNgoai && (
-          <div className={`space-y-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`}>
-            <p className={`text-base ${MAU.ngung.chu}`}>Đang xem tổ xưởng {toHienTai?.xuong} với quyền quản lý — thao tác sẽ ghi "quản lý ghi hộ".</p>
-            <div className="flex flex-wrap gap-2">
-              <button className={NUT_PHU} onClick={onTongQuan}>Về Tổng quan</button>
-              {!!phien?.to.length && <button className={NUT_PHU} onClick={veToCuaToi}>Về tổ của tôi</button>}
-            </div>
+          <div className={`flex flex-wrap items-center gap-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} py-2 pl-3 pr-2`}>
+            <p className={`min-w-0 flex-1 text-base ${MAU.ngung.chu}`}>Xem tổ xưởng {toHienTai?.xuong} — quản lý ghi hộ</p>
+            <button className={`${NUT_PHU} min-h-12 shrink-0 px-3`} onClick={onTongQuan}>Về Tổng quan</button>
+            {!!phien?.to.length && <button className={`${NUT_PHU} min-h-12 shrink-0 px-3`} onClick={veToCuaToi}>Tổ của tôi</button>}
           </div>
         )}
         {loiLuu && (
@@ -625,7 +623,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
       </header>
 
       {/* Tầng giữa: 3 tab có số — dính trên cùng khi cuộn */}
-      <div className="sticky top-0 z-10 mx-auto max-w-3xl bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4px)] backdrop-blur">
+      <div className="sticky top-0 z-10 mx-auto max-w-3xl bg-[#f4f6fa]/95 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+4px)] backdrop-blur">
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-200/70 p-1" role="tablist">
           {([['choNhan', 'Chờ nhận'], ['dangLam', 'Đang làm'], ['choGiao', 'Chờ giao']] as [Tab, string][]).map(([t, ten]) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
@@ -655,7 +653,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
       </main>
 
       {/* Tầng đáy (vùng ngón cái): dải người rảnh / hoàn tác + Quét phiếu */}
-      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 bg-gradient-to-t from-[#f4f6fa] via-[#f4f6fa] to-[#f4f6fa]/0 px-4 pb-2 pt-4 rmd:bottom-0 rmd:left-60 rmd:pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 bg-gradient-to-t from-[#f4f6fa] via-[#f4f6fa] to-[#f4f6fa]/0 px-4 pb-2 pt-3 rmd:bottom-0 rmd:left-60 rmd:pb-[calc(env(safe-area-inset-bottom)+12px)]">
         <div className="mx-auto max-w-3xl space-y-2">
         {hienRanh && canChia && (
           <div className={`flex flex-wrap items-center gap-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`} aria-live="polite">

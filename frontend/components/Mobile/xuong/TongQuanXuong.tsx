@@ -114,7 +114,9 @@ export default function TongQuanXuong({ onChonTo }: {
         {/* Tóm tắt xưởng: cuộn theo trang (không dính) */}
         {d?.xuong && (
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-base text-slate-700">
-            <span className={tong.chuaChot ? `font-semibold ${MAU.loi.chu}` : ''}>{tong.chuaChot} tổ chưa chốt quân số</span>
+            <span className={tong.chuaChot ? `font-semibold ${MAU.loi.chu}` : ''}>
+              {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
+            </span>
             <span>{tong.dangChay} hạng mục đang chạy</span>
             <span>{tong.choNhan} chờ nhận</span>
           </p>

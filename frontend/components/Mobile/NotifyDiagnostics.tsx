@@ -11,7 +11,8 @@ import { CARD, fmtAgo } from './mobileUi';
 
 interface Check { ok: boolean | null; label: string; fix?: ReactNode }
 
-export default function NotifyDiagnostics() {
+/** appXuong: câu hướng dẫn theo app Xưởng (không có tag tên như Vướng mắc) */
+export default function NotifyDiagnostics({ appXuong = false }: { appXuong?: boolean } = {}) {
   const [busy, setBusy] = useState(false);
   const [checks, setChecks] = useState<Check[] | null>(null);
   const [info, setInfo] = useState<NotifyDiagnose | null>(null);
@@ -79,8 +80,10 @@ export default function NotifyDiagnostics() {
     <section className={`${CARD} p-4`}>
       <p className="mb-1 flex items-center gap-2 text-base font-semibold text-slate-800"><Stethoscope size="1em" /> Kiểm tra thông báo</p>
       <p className="mb-3 text-sm text-slate-500">
-        Không nhận được thông báo? Bấm kiểm tra để biết khâu nào chưa sẵn sàng. Lưu ý: hệ thống không báo cho
-        chính người thao tác — tự tag tên mình sẽ không có thông báo, hãy nhờ người khác tag để thử.
+        Không nhận được thông báo? Bấm kiểm tra để biết khâu nào chưa sẵn sàng.
+        {appXuong
+          ? ' Bấm "Gửi thử cho tôi" để nhận một thông báo thử ngay.'
+          : ' Lưu ý: hệ thống không báo cho chính người thao tác — tự tag tên mình sẽ không có thông báo, hãy nhờ người khác tag để thử.'}
       </p>
       <div className="flex gap-2">
         <button onClick={run} disabled={busy} className="flex-1 rounded-full border border-slate-300 py-2.5 text-base text-slate-700 active:bg-slate-100 disabled:opacity-50">
