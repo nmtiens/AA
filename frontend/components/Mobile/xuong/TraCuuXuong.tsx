@@ -36,7 +36,7 @@ export default function TraCuuXuong() {
   };
 
   return (
-    <div className="min-h-full bg-[#f4f6fa] pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-8">
+    <div className="min-h-full bg-[#f4f6fa] pb-[calc(env(safe-area-inset-bottom)+6rem)] rmd:pb-8">
       <header className="sticky top-0 z-10 mx-auto max-w-5xl space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
         <h1 className="text-2xl font-semibold text-slate-900">Tra cứu hạng mục</h1>
         <form onSubmit={tim} className="flex gap-2" role="search">
@@ -64,7 +64,7 @@ export default function TraCuuXuong() {
 
       <main className="mx-auto max-w-5xl space-y-3 px-4">
         {hex ? (
-          <section className="space-y-2 rounded-2xl bg-white p-3 md:p-4" aria-label={`Hạng mục ${hex}`}>
+          <section className="space-y-2 rounded-2xl bg-white p-3 rmd:p-4" aria-label={`Hạng mục ${hex}`}>
             <p className="text-lg font-semibold text-slate-900">Hạng mục <span className="tabular-nums">{hex}</span></p>
             <XuongHexChiTiet key={hex} hex={hex} />
           </section>

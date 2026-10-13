@@ -62,13 +62,13 @@ export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
   }, []);
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 md:items-center md:p-4">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 rmd:items-center rmd:p-4">
       <div
-        className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white md:max-h-[90dvh] md:max-w-3xl md:rounded-3xl"
+        className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white rmd:max-h-[90dvh] rmd:max-w-3xl rmd:rounded-3xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="shrink-0 px-5 pt-3 md:pt-5">
-          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300 md:hidden" />
+        <div className="shrink-0 px-5 pt-3 rmd:pt-5">
+          <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-slate-300 rmd:hidden" />
           <div className="flex items-center justify-between gap-2 pb-2">
             <h2 className="min-w-0 text-lg font-semibold text-slate-900">{title}</h2>
             <div className="flex shrink-0 items-center">
@@ -79,11 +79,11 @@ export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
             </div>
           </div>
         </div>
-        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 ${footer ? 'pb-4' : 'pb-[calc(env(safe-area-inset-bottom)+20px)] md:pb-5'}`}>
+        <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 ${footer ? 'pb-4' : 'pb-[calc(env(safe-area-inset-bottom)+20px)] rmd:pb-5'}`}>
           {children}
         </div>
         {footer && (
-          <div className="shrink-0 border-t border-slate-100 bg-white px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-4">
+          <div className="shrink-0 border-t border-slate-100 bg-white px-5 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] rmd:pb-4">
             {footer}
           </div>
         )}

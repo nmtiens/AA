@@ -81,7 +81,7 @@ function SuaTo({ d, to, bao, xong, huy }: { d: SetupXuong; to: ToSetup | null; b
   };
   return (
     <div className="space-y-4 border-t border-wood-200 bg-wood-50/60 p-4">
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 rlg:grid-cols-2">
         <label className="block text-sm font-medium text-slate-700">Tên tổ
           <input className={`${INPUT} mt-1`} value={ten} onChange={e => setTen(e.target.value)} />
         </label>
@@ -136,7 +136,7 @@ export function XuongToSetup({ d, bao, tai }: MucProps) {
         <button type="button" className={`${BTN_CHINH} ml-auto`} onClick={() => setSua('moi')}><Plus size={14} /> Thêm tổ</button>
       </div>
       {sua === 'moi' && <SuaTo d={d} to={null} bao={bao} xong={() => { setSua(null); tai(); }} huy={() => setSua(null)} />}
-      <table className="w-full min-w-[36rem] md:min-w-0">
+      <table className="w-full min-w-[36rem] rmd:min-w-0">
         <thead className="bg-slate-50"><tr>
           <th className={TH}>Tổ</th><th className={TH}>Tổ trưởng</th><th className={TH}>Công đoạn phụ trách</th>
           <th className={`${TH} text-right`}>Thành viên</th><th className={TH} />
@@ -209,7 +209,7 @@ export function XuongCongDoanSetup({ d, bao, tai }: MucProps) {
           <button type="button" className={BTN_CHINH} disabled={!doi.size} onClick={luu}><Check size={14} /> Lưu {doi.size || ''}</button>
         </div>
       </div>
-      <table className="w-full min-w-[36rem] md:min-w-0">
+      <table className="w-full min-w-[36rem] rmd:min-w-0">
         <thead className="bg-slate-50"><tr>
           <th className={`${TH} w-20`}>Thứ tự</th><th className={TH}>Nhóm công đoạn</th><th className={TH}>Công đoạn chi tiết (tổ)</th>
           <th className={TH}>Công đoạn xưởng</th><th className={`${TH} w-20`}>Bao bì</th><th className={`${TH} w-24`}>Đang dùng</th>
@@ -289,7 +289,7 @@ export function XuongLichCaSetup({ d, bao, tai }: MucProps) {
         </p>
       )}
       <div className={KHUNG}>
-        <table className="w-full min-w-[36rem] md:min-w-0">
+        <table className="w-full min-w-[36rem] rmd:min-w-0">
           <thead className="bg-slate-50"><tr>
             <th className={TH}>Ca</th><th className={`${TH} w-32`}>Bắt đầu</th><th className={`${TH} w-32`}>Kết thúc</th>
             <th className={TH}>Giờ nghỉ (không tính giờ công)</th><th className={TH}>Áp dụng</th><th className={TH} />
@@ -371,7 +371,7 @@ export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congD
           <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} /> Tải lại</button>
         </div>
         {ds.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">Không có thao tác nào cần xem.</p> : (
-          <table className="w-full min-w-[36rem] md:min-w-0">
+          <table className="w-full min-w-[36rem] rmd:min-w-0">
             <thead className="bg-slate-50"><tr>
               <th className={TH}>Lúc</th><th className={TH}>Thao tác</th><th className={TH}>Hạng mục · công đoạn · tổ</th><th className={TH}>Cờ</th><th className={TH} />
             </tr></thead>
@@ -399,7 +399,7 @@ export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congD
       <div className={KHUNG}>
         <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Hạng mục có cờ ({d.trangThai.length})</p>
         {d.trangThai.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">Không có.</p> : (
-          <table className="w-full min-w-[36rem] md:min-w-0">
+          <table className="w-full min-w-[36rem] rmd:min-w-0">
             <thead className="bg-slate-50"><tr><th className={TH}>Hạng mục</th><th className={TH}>Công đoạn</th><th className={TH}>Số lượng</th><th className={TH}>Cờ</th></tr></thead>
             <tbody>
               {d.trangThai.map(x => (

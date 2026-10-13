@@ -1,10 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { ClipboardList, LayoutGrid, Search, Settings2, UserRound, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { getToken } from '../../../services/userService';
 import { BG, Toast } from '../mobileUi';
 import DangNhapXuong from './DangNhapXuong';
 import XuongApp, { type ToMo } from './XuongApp';
+import { apDungCheDoDienThoai } from './cheDoDienThoai';
 
 // ============================================================================
 // APP XƯỞNG RIÊNG (/xuong — đường cũ /m/xuong của bản đã cài vẫn vào đây). Cài riêng thành app "Xưởng".
@@ -32,6 +33,8 @@ export default function XuongShell() {
   const { user, hasPermission } = useAuth();
   const [daDangNhap, setDaDangNhap] = useState(dangNhapSan);
   const laQuanLy = hasPermission('xuong_quan_ly');
+  // Điện thoại bật "Trang web cho máy tính" → vẫn dùng bố cục điện thoại (trước khi vẽ để không nháy bố cục máy tính)
+  useLayoutEffect(() => apDungCheDoDienThoai(), []);
 
   const dsMuc: Array<{ id: Muc; ten: string; icon: ReactNode }> = [
     { id: 'to', ten: 'Tổ', icon: <ClipboardList size="1.375em" /> },
@@ -85,7 +88,7 @@ export default function XuongShell() {
   return (
     <div className={`fixed inset-0 flex ${BG}`}>
       {/* Máy tính: cột menu trái */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white rmd:flex">
         <div className="flex items-center gap-3 px-5 py-5">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-xl text-white" aria-hidden>🏭</span>
           <div className="min-w-0">
@@ -123,7 +126,7 @@ export default function XuongShell() {
       </div>
 
       {/* Điện thoại: thanh điều hướng dưới */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden" aria-label="Mục app Xưởng">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur rmd:hidden" aria-label="Mục app Xưởng">
         <div className="mx-auto flex h-16 max-w-xl">
           {dsMuc.map(m => (
             <button key={m.id} onClick={() => chon(m.id)} aria-current={mucHienTai === m.id ? 'page' : undefined}

@@ -84,7 +84,7 @@ export default function TongQuanXuong({ onChonTo }: {
   }), { chuaChot: 0, dangChay: 0, choNhan: 0, canXem: 0 });
 
   return (
-    <div className="min-h-full bg-[#f4f6fa] pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-8">
+    <div className="min-h-full bg-[#f4f6fa] pb-[calc(env(safe-area-inset-bottom)+6rem)] rmd:pb-8">
       <header className="sticky top-0 z-10 mx-auto max-w-5xl space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">Tổng quan xưởng</h1>
@@ -94,7 +94,7 @@ export default function TongQuanXuong({ onChonTo }: {
         </div>
         {d && d.dsXuong.length > 1 && (
           // 1 hàng vuốt ngang (trước xuống 2 hàng — phần dính trên cùng cao quá trên điện thoại); máy tính thì xuống hàng
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0" role="tablist" aria-label="Chọn xưởng">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] rmd:mx-0 rmd:flex-wrap rmd:overflow-visible rmd:px-0" role="tablist" aria-label="Chọn xưởng">
             {d.dsXuong.map(x => (
               <button key={x} role="tab" aria-selected={x === d.xuong} onClick={() => setXuong(x)}
                 className={`min-h-12 shrink-0 rounded-2xl px-4 text-base font-medium ${x === d.xuong ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-800'}`}>{x}</button>
@@ -122,7 +122,7 @@ export default function TongQuanXuong({ onChonTo }: {
         {!d && !loi && <p className={`py-6 text-center ${CHU_PHU}`}>Đang tải…</p>}
         {d && d.to.length === 0 &&<p className="py-6 text-center text-base text-slate-600">Xưởng chưa có tổ đang hoạt động.</p>}
         {d && d.to.length > 0 && (
-          <ul className={`${KHOI} ${KE} md:grid md:grid-cols-2 md:gap-px md:divide-y-0 md:bg-slate-100`}>
+          <ul className={`${KHOI} ${KE} rmd:grid rmd:grid-cols-2 rmd:gap-px rmd:divide-y-0 rmd:bg-slate-100`}>
             {d.to.map(t => {
               const coViec = t.dangChay + t.tamNgung + t.choNhan > 0;
               return (

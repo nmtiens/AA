@@ -560,7 +560,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
       </main>
 
       {/* Tầng đáy (vùng ngón cái): dải người rảnh / hoàn tác + Quét phiếu */}
-      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 bg-gradient-to-t from-[#f4f6fa] via-[#f4f6fa] to-[#f4f6fa]/0 px-4 pb-2 pt-4 md:bottom-0 md:left-60 md:pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 bg-gradient-to-t from-[#f4f6fa] via-[#f4f6fa] to-[#f4f6fa]/0 px-4 pb-2 pt-4 rmd:bottom-0 rmd:left-60 rmd:pb-[calc(env(safe-area-inset-bottom)+12px)]">
         <div className="mx-auto max-w-3xl space-y-2">
         {hienRanh && canChia && (
           <div className={`flex flex-wrap items-center gap-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`} aria-live="polite">
@@ -606,8 +606,8 @@ export default function XuongApp({ moTo, onTongQuan }: {
       )}
       {sheet?.loai === 'nhan' && cv && <NhanSheet hex={sheet.hex} ten={sheet.ten} cv={cv} dm={dm} onNhan={p => nhan(sheet.hex, p, sheet.ten)} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'hex' && cv && (
-        <div className="fixed inset-0 z-[70] flex items-end bg-black/40 md:items-center md:justify-center" onClick={() => setSheet(null)}>
-          <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-[#f4f6fa] p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] md:max-w-3xl md:rounded-3xl" onClick={e => e.stopPropagation()} role="dialog" aria-label={`Hạng mục ${sheet.hex}`}>
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/40 rmd:items-center rmd:justify-center" onClick={() => setSheet(null)}>
+          <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-[#f4f6fa] p-4 pb-[calc(env(safe-area-inset-bottom)+16px)] rmd:max-w-3xl rmd:rounded-3xl" onClick={e => e.stopPropagation()} role="dialog" aria-label={`Hạng mục ${sheet.hex}`}>
             <p className="mb-3 text-lg font-semibold text-slate-900">Hạng mục <span className="tabular-nums">{sheet.hex}</span> ở tổ</p>
             <ul className={`${KHOI} ${KE}`}>
               {dongHex.map(r => {

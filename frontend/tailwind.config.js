@@ -1,3 +1,5 @@
+import plugin from 'tailwindcss/plugin';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './**/*.{ts,tsx}', '!./node_modules/**'],
@@ -28,5 +30,14 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // rsm: / rmd: / rlg: / rxl: / r2xl: = sm: / md: … nhưng KHÔNG áp khi <html class="dien-thoai"> — điện thoại bật
+    // "Trang web cho máy tính" (Chrome bỏ qua meta viewport, ép rộng 980px). App Xưởng gắn class đó và phóng to trang
+    // về bề rộng màn thật (components/Mobile/xuong/cheDoDienThoai.ts) nên phải dùng bố cục điện thoại.
+    plugin(({ addVariant }) => {
+      for (const [ten, px] of [['sm', 640], ['md', 768], ['lg', 1024], ['xl', 1280], ['2xl', 1536]]) {
+        addVariant(`r${ten}`, `@media (min-width: ${px}px) { html:not(.dien-thoai) & }`);
+      }
+    }),
+  ],
 };

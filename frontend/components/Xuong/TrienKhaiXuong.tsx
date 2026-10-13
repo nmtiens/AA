@@ -77,7 +77,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
         </div>
         {loi && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
         <div className="max-h-[55vh] overflow-y-auto">
-          <table className="w-full min-w-[36rem] md:min-w-0">
+          <table className="w-full min-w-[36rem] rmd:min-w-0">
             <thead className="sticky top-0 z-[1] bg-slate-50"><tr>
               <th className={`${TH} w-8`}><input type="checkbox" aria-label="Chọn tất cả" checked={tatCa}
                 onChange={() => setChon(tatCa ? new Set() : new Set(d?.hangMuc.map(h => h.hex)))} /></th>

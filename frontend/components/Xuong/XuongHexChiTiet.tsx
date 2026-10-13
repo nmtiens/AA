@@ -125,11 +125,11 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
         </div>
       )}
       {d.thoiGianXuong.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2">{d.thoiGianXuong.map(t => <ThoiGianTrongXuong key={t.xuong} t={t} />)}</div>
+        <div className="grid gap-2 rsm:grid-cols-2">{d.thoiGianXuong.map(t => <ThoiGianTrongXuong key={t.xuong} t={t} />)}</div>
       )}
 
       {/* ≥ xl: bảng */}
-      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white xl:block">
+      <div className="hidden overflow-hidden rounded-lg border border-slate-200 bg-white rxl:block">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-xs text-slate-600">
             <tr>
@@ -161,7 +161,7 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
       </div>
 
       {/* < xl: dòng 2 tầng */}
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white xl:hidden">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200 bg-white rxl:hidden">
         {ds.map(c => (
           <li key={c.congDoanId} className="space-y-1 px-3 py-2.5">
             <p className="flex flex-wrap items-baseline justify-between gap-x-3">

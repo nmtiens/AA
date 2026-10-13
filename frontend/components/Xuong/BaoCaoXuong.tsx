@@ -122,7 +122,7 @@ function DsSoLuong({ ds, rong }: { ds: BaoCaoToNgay['nhan']; rong: string }) {
 function ChiTietNgay({ n }: { n: BaoCaoToNgay }) {
   const lyDo = congLyDo([n.gioChoLyDo]);
   return (
-    <div className="grid gap-3 bg-slate-50 p-3 md:grid-cols-2 md:p-4 2xl:grid-cols-4">
+    <div className="grid gap-3 bg-slate-50 p-3 rmd:grid-cols-2 rmd:p-4 r2xl:grid-cols-4">
       <div className={KHUNG}>
         <TieuDe>Giờ công theo hạng mục ({n.hangMuc.length})</TieuDe>
         <ul className="divide-y divide-slate-100">
@@ -174,7 +174,7 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
   return (
     <div className={KHUNG}>
       {/* Điện thoại: thẻ từng tổ theo ngày */}
-      <div className="md:hidden">
+      <div className="rmd:hidden">
         {ngays.map(ngay => (
           <div key={ngay}>
             <p className="border-y border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-800">{ddmm(ngay)}/{ngay.slice(0, 4)}</p>
@@ -208,7 +208,7 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
           </div>
         ))}
       </div>
-      <table className="hidden w-full min-w-[980px] md:table">
+      <table className="hidden w-full min-w-[980px] rmd:table">
         <thead className="sticky top-0 bg-slate-50"><tr>
           <th className={TH}>Ngày · tổ</th>
           <th className={`${TH} text-right`}>Công nhân</th>
@@ -390,7 +390,7 @@ function TabTheoTo({ ds, d }: { ds: BaoCaoTo[]; d: BaoCao }) {
 function ChiTietTo({ t }: { t: BaoCaoTo }) {
   const tongCho = t.gioCho.thuong + t.gioCho.tangCa;
   return (
-    <div className="grid gap-3 bg-slate-50 p-3 md:p-4 xl:grid-cols-[2fr_1fr]">
+    <div className="grid gap-3 bg-slate-50 p-3 rmd:p-4 rxl:grid-cols-[2fr_1fr]">
       <div className={KHUNG}>
         <TieuDe>Giờ công theo hạng mục (cộng cả kỳ)</TieuDe>
         <div className="max-h-96 overflow-y-auto">
@@ -449,7 +449,7 @@ function TabTheoHangMuc({ ds }: { ds: BaoCaoHangMuc[] }) {
         <span className="text-sm text-slate-600">{hien.length} hạng mục · {so(hien.reduce((a, h) => a + h.gioCong, 0))} giờ công</span>
       </div>
       {/* Điện thoại: thẻ từng hạng mục */}
-      <ul className="divide-y divide-slate-100 md:hidden">
+      <ul className="divide-y divide-slate-100 rmd:hidden">
         {hien.map(h => {
           const g = gioTrenDv(h);
           return (
@@ -474,7 +474,7 @@ function TabTheoHangMuc({ ds }: { ds: BaoCaoHangMuc[] }) {
         })}
         {!hien.length && <li className="px-4 py-3 text-sm text-slate-500">{ds.length ? 'Không có hạng mục khớp tìm kiếm.' : 'Chưa có hạng mục chạy hoặc xong trong kỳ.'}</li>}
       </ul>
-      <table className="hidden w-full min-w-[900px] md:table">
+      <table className="hidden w-full min-w-[900px] rmd:table">
         <thead className="bg-slate-50"><tr>
           <th className={TH}>Hạng mục</th>
           <th className={TH}>Công đoạn · tổ</th>
@@ -618,7 +618,7 @@ function TabChatLuong({ d, ds }: { d: BaoCao; ds: BaoCaoTo[] }) {
   }
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 rxl:grid-cols-4">
         <ChiSo ten="Nhật ký đủ Bắt đầu và Hoàn thành" giaTri={pNk === null ? '—' : `${pNk}%`}
           phu={`${cs.nhatKy.du}/${cs.nhatKy.tong} cặp hạng mục × công đoạn, mục tiêu ≥ 90% (MRA 85%)`} dat={pNk === null ? null : pNk >= 90} />
         <ChiSo ten="Ngày-tổ có chốt quân số" giaTri={pChot === null ? '—' : `${pChot}%`}
@@ -774,7 +774,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       {d && d.conThieu > 0 && <p className="text-sm text-slate-600" aria-live="polite"><RefreshCw size={13} className="mr-1 inline animate-spin" /> Đang tính thêm {d.conThieu} ngày-tổ…</p>}
 
       {d && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
           <The ten="Công nhân bình quân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu · quân số chốt ca chính`} />
           <The ten="Giờ công" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ người${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}`} />
           <The ten="Dùng người" giaTri={pDung === null ? '—' : `${pDung}%`} phu="giờ công / giờ người, mục tiêu ≥ 80%"
