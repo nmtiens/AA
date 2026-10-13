@@ -276,12 +276,20 @@ export default function XuongApp({ moTo, onTongQuan }: {
     const evs: SuKienNhap[] = [];
     if (kq.vao.length) evs.push({ loai: 'vao_ca', toId: toId!, duLieu: { loaiCa: caChon, nguoi: kq.vao } });
     if (kq.ra.length) evs.push({ loai: 'ra_ca', toId: toId!, duLieu: { loaiCa: caChon, nguoi: kq.ra } });
+    // Người ra ca (về sớm / vắng) đang gắn vào hạng mục chạy: gỡ tên khỏi hạng mục
+    const daRa = new Set(kq.ra.map(x => x.mnv));
+    const phanBoRa = nhom.dangChay.filter(r => (r.nguoi ?? []).some(m => daRa.has(m))).map(r => {
+      const con = (r.nguoi ?? []).filter(m => !daRa.has(m));
+      return { hex: r.hex, congDoanId: r.congDoanId, soNguoi: con.length, nguoi: con };
+    });
+    if (phanBoRa.length) evs.push({ loai: 'chia_nguoi', toId: toId!, duLieu: { phanBo: phanBoRa } });
     evs.push({ loai: 'quan_so', toId: toId!, soNguoi: kq.soCoMat, duLieu: { loaiCa: caChon, soNguoi: kq.soCoMat } });
     const nhanGhi = kq.ra.length && !kq.vao.length
       ? `${kq.ra.length} người ra ca · còn ${kq.soCoMat} có mặt`
       : `Điểm danh ${TEN_CA[caChon].toLowerCase()} · ${kq.soCoMat} có mặt`;
     const ok = await ghi(evs, nhanGhi, c => {
-      const c2 = apDungDiemDanh(c, caChon, kq.vao, kq.ra);
+      const c1 = phanBoRa.reduce<CongViec>((acc, p) => apDung(acc, khoa(p.hex, p.congDoanId), y => ({ ...y, soNguoi: p.soNguoi, nguoi: p.nguoi })), c);
+      const c2 = apDungDiemDanh(c1, caChon, kq.vao, kq.ra);
       const ds = [...(c2.congNhan ?? [])];
       for (const n of nguoiMoi) if (!ds.some(x => x.mnv === n.mnv)) ds.push(n);
       return { ...c2, congNhan: ds };

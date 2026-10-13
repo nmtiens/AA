@@ -29,6 +29,12 @@ const LY_DO_RA = [
   { ma: 'vang', ten: 'Vắng (tick nhầm)' },
 ] as const;
 
+/** Xếp theo tên (chữ cuối của họ tên), rồi họ */
+const theoTen = (a: CongNhanTo, b: CongNhanTo) => {
+  const t = (x: CongNhanTo) => { const p = x.hoTen.trim().split(/\s+/); return `${p[p.length - 1]} ${x.hoTen}`; };
+  return t(a).localeCompare(t(b), 'vi');
+};
+
 const phut = (ms: number) => { const d = new Date(ms + 7 * 3_600_000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
 const hhmmTuPhut = (p: number) => `${String(Math.floor(p / 60)).padStart(2, '0')}:${String(p % 60).padStart(2, '0')}`;
 
@@ -139,13 +145,15 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
     const goc = [...(cv.congNhan ?? [])];
     // Người có mặt (mượn) chưa có trong danh sách
     for (const m of coMatTruoc) if (!goc.some(x => x.mnv === m)) goc.push({ mnv: m, hoTen: m, toKhac: null });
-    return goc;
+    return goc.sort(theoTen);
   });
+  const [tim, setTim] = useState('');
   const [nguoiMoi, setNguoiMoi] = useState<CongNhanTo[]>([]);
   // Lần đầu trong ca: mặc định cả tổ có mặt (bỏ tick người vắng nhanh hơn tick từng người)
   const [chon, setChon] = useState<Set<string>>(() => new Set(lanDau ? ds.filter(x => !x.toKhac).map(x => x.mnv) : coMatTruoc));
-  // Giờ cho người vừa tick / bỏ tick: điểm danh trong 30 phút đầu ca = đúng giờ ca
-  const [gio, setGio] = useState(() => hhmmTuPhut(now < batDauCa + 30 * 60_000 ? phut(batDauCa) : phut(now)));
+  // Giờ cho người vừa tick / bỏ tick: lần điểm danh đầu (hoặc trong 30 phút đầu ca) = đúng giờ đầu ca — tổ trưởng
+  // điểm danh muộn thì cả tổ không bị tính trễ; sau đó (đến trễ / về sớm) = giờ hiện tại
+  const [gio, setGio] = useState(() => hhmmTuPhut(lanDau || now < batDauCa + 30 * 60_000 ? phut(batDauCa) : phut(now)));
   const [lyDo, setLyDo] = useState<string>('ve_som');
   const [them, setThem] = useState(false);
 
@@ -153,8 +161,10 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   const raMoi = [...coMatTruoc].filter(m => !chon.has(m));
   const doi = vaoMoi.length > 0 || raMoi.length > 0;
   const lucChon = mocTrongNgay(cv.ngay, gio);
-  const tenMuon = ds.filter(x => x.toKhac);
-  const cuaTo = ds.filter(x => !x.toKhac);
+  const loc = tim.trim().toLowerCase();
+  const hop = (x: CongNhanTo) => !loc || `${x.hoTen} ${x.mnv}`.toLowerCase().includes(loc);
+  const tenMuon = ds.filter(x => x.toKhac && hop(x));
+  const cuaTo = ds.filter(x => !x.toKhac && hop(x));
 
   const bat = (m: string) => setChon(s => { const t = new Set(s); if (t.has(m)) t.delete(m); else t.add(m); return t; });
   const luu = () => {
@@ -202,6 +212,14 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
           </div>
         </div>
 
+        {ds.length > 12 && (
+          <label className="relative block">
+            <SearchIcon size="1.1em" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden />
+            <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm trong tổ" aria-label="Tìm trong tổ"
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white pl-10 pr-4 text-lg text-slate-900 outline-none focus:border-slate-500" />
+          </label>
+        )}
+
         {ds.length === 0 && (
           <p className={`rounded-2xl ${MAU.ngung.nen} p-3 text-base ${MAU.ngung.chu}`}>
             Tổ chưa có danh sách công nhân. Bấm <b>Thêm người</b> để thêm từng người (lần sau app nhớ), hoặc chỉ nhập số người.
@@ -243,7 +261,7 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
                 ))}
               </div>
             )}
-            {lanDau && now < batDauCa + 30 * 60_000 && <p className={CHU_PHU}>Điểm danh trong 30 phút đầu ca thì tính vào đúng giờ ca. Người đến trễ thì tick sau, kèm giờ đến.</p>}
+            {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bỏ tick, lưu, rồi khi người đó tới thì mở lại điểm danh, tick kèm giờ đến.</p>}
           </div>
         )}
 

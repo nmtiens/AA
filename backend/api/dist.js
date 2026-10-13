@@ -70165,13 +70165,20 @@ function phanBoGioCong(input2) {
       if (gio <= 0) continue;
       const chay = ks.filter((k) => dangChayLuc(k, s));
       for (const k of chay) out[k].gioChay += gio;
-      const khai = chay.map((k) => [k, soNguoiLuc(k, s)]);
-      const tenChay = /* @__PURE__ */ new Set();
-      for (const k of chay) for (const m of nguoiLuc(k, s) ?? []) tenChay.add(m);
-      const coMatLuc = new Set(tenChay);
+      const coMatDd = /* @__PURE__ */ new Set();
       if (coDiemDanh) {
-        for (const d of coMat) if (d.start <= s && s < (d.end ?? input2.now)) coMatLuc.add(d.mnv);
+        for (const d of coMat) if (d.start <= s && s < (d.end ?? input2.now)) coMatDd.add(d.mnv);
       }
+      const tenLuc = (k) => {
+        const ds2 = nguoiLuc(k, s);
+        return ds2 && coDiemDanh ? ds2.filter((m) => coMatDd.has(m)) : ds2;
+      };
+      const khai = chay.map((k) => {
+        const t = tenLuc(k);
+        return [k, t ? t.length : soNguoiLuc(k, s)];
+      });
+      const coMatLuc = new Set(coMatDd);
+      if (!coDiemDanh) for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -70185,7 +70192,7 @@ function phanBoGioCong(input2) {
       const tinhNguoi = (heSo) => {
         const daGan = /* @__PURE__ */ new Set();
         for (const k of chay) {
-          for (const m of nguoiLuc(k, s) ?? []) {
+          for (const m of tenLuc(k) ?? []) {
             const x = nguoi(m);
             const h = gio * heSo;
             if (laTangCa) x.congTangCa += h;
@@ -71318,7 +71325,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 });
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH = "pb5";
+var PHIEN_BAN_TINH = "pb6";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();

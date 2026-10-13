@@ -17,9 +17,10 @@ import { LOAI_CA_TANG_CA } from './types.js';
 //    tạm ngưng của hạng mục vừa tạm ngưng gần nhất (đang tạm ngưng lúc đó), không có thì "khong_viec".
 // 5. Tăng ca: hạng mục bị bỏ chọn trong lần khai tăng ca của tổ coi như không chạy trong cửa sổ đó.
 // 6. Chấm công theo người (docs/designs/xuong-cham-cong.md): ca có điểm danh (coMat) thì quân số tại mỗi thời điểm =
-//    số người đang có mặt (đến trễ / về sớm / mượn người), cộng người đang được gắn tên vào hạng mục chạy (đang làm
-//    thì chắc chắn có mặt). Hạng mục khai theo tên (nguoi) thì mỗi người nhận đúng giờ của đoạn mình được gắn (co theo
-//    quân số như trên); người có mặt mà không gắn hạng mục nào là giờ chờ của người đó.
+//    số người đang có mặt (đến trễ / về sớm / mượn người), và chỉ người đang có mặt mới được tính giờ — gắn tên vào
+//    hạng mục mà đã về sớm / không ở lại tăng ca thì không cộng. Ca không điểm danh: người gắn tên coi như có mặt.
+//    Hạng mục khai theo tên (nguoi): mỗi người nhận đúng giờ của đoạn mình được gắn (co theo quân số như trên);
+//    người có mặt mà không gắn hạng mục nào là giờ chờ của người đó.
 // R3-3: hạng mục không được xác nhận cuối ngày: ngày kế vẫn tính nhưng cờ "chua_xac_nhan"; từ ngày thứ 2 liên
 //       tiếp không xác nhận thì ngừng tính (nơi gọi truyền vào chuaXacNhan / ngungTinh).
 // ============================================================================
@@ -222,12 +223,18 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       const chay = ks.filter(k => dangChayLuc(k, s));
       for (const k of chay) out[k].gioChay += gio;
 
-      const khai = chay.map(k => [k, soNguoiLuc(k, s)] as const);
-      // Người có mặt lúc s (điểm danh) + người đang gắn tên vào hạng mục chạy
-      const tenChay = new Set<string>();
-      for (const k of chay) for (const m of nguoiLuc(k, s) ?? []) tenChay.add(m);
-      const coMatLuc = new Set<string>(tenChay);
-      if (coDiemDanh) for (const d of coMat) if (d.start <= s && s < (d.end ?? input.now)) coMatLuc.add(d.mnv);
+      // Ca có điểm danh: chỉ người đang có mặt mới được tính — gắn tên mà đã về sớm / đánh vắng / không ở lại tăng ca
+      // thì không cộng giờ (số người khai của hạng mục cũng chỉ đếm người có mặt). Ca không điểm danh: người gắn tên
+      // coi như có mặt.
+      const coMatDd = new Set<string>();
+      if (coDiemDanh) for (const d of coMat) if (d.start <= s && s < (d.end ?? input.now)) coMatDd.add(d.mnv);
+      const tenLuc = (k: string): string[] | null => {
+        const ds = nguoiLuc(k, s);
+        return ds && coDiemDanh ? ds.filter(m => coMatDd.has(m)) : ds;
+      };
+      const khai = chay.map(k => { const t = tenLuc(k); return [k, t ? t.length : soNguoiLuc(k, s)] as const; });
+      const coMatLuc = new Set<string>(coMatDd);
+      if (!coDiemDanh) for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -242,7 +249,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       const tinhNguoi = (heSo: number) => {
         const daGan = new Set<string>();
         for (const k of chay) {
-          for (const m of nguoiLuc(k, s) ?? []) {
+          for (const m of tenLuc(k) ?? []) {
             const x = nguoi(m);
             const h = gio * heSo;
             if (laTangCa) x.congTangCa += h; else x.congThuong += h;

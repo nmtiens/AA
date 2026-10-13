@@ -771,7 +771,7 @@ const gioCongCache = new Map<string, { v: string; payload: KetQuaGioCong }>();
 
 /** Dấu ngắn của lịch ca (giờ, nghỉ) — kết quả phân bổ giờ công phụ thuộc lịch ca */
 // PHIEN_BAN_TINH: đổi khi cách tính / dạng kết quả phân bổ đổi (vd thêm gioChoLyDo) — kết quả đã lưu tự tính lại
-const PHIEN_BAN_TINH = 'pb5'; // pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người
+const PHIEN_BAN_TINH = 'pb6'; // pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người; pb6: chỉ tính người có mặt
 export const dauLichCa = (lichCa: LichCaRow[]) => createHash('sha1')
   .update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
 const GIO_CONG_CACHE_MAX = 300;

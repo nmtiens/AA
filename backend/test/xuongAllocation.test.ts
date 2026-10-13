@@ -201,17 +201,36 @@ describe('phanBoGioCong — chấm công theo người', () => {
     assert.equal(H(coMat), H(kq.theoHangMuc.A.gioCongThuong + kq.theoHangMuc.B.gioCongThuong + kq.gioCho.thuong));
   });
 
-  it('người gắn tên mà quên điểm danh vẫn được tính có mặt', () => {
+  it('ca có điểm danh: người gắn tên mà về sớm / không điểm danh thì không được cộng giờ', () => {
+    // An, Bình làm A cả buổi sáng; Bình về sớm 9:30 nhưng tên vẫn gắn ở A; MOI gắn tên mà không điểm danh
     const kq = phanBoGioCong({
       cuaSo: ca, quanSo: {}, now,
-      coMat: { chinh: [{ mnv: 'AN', start: t('07:30'), end: null }] },
-      doanChay: { A: [{ start: t('07:30'), end: t('08:30') }] },
-      soNguoi: [{ key: 'A', at: t('07:30'), soNguoi: 2, nguoi: ['AN', 'MOI'] }],
+      coMat: { chinh: [{ mnv: 'AN', start: t('07:30'), end: null }, { mnv: 'BINH', start: t('07:30'), end: t('09:30') }] },
+      doanChay: { A: [{ start: t('07:30'), end: t('11:30') }] },
+      soNguoi: [{ key: 'A', at: t('07:30'), soNguoi: 3, nguoi: ['AN', 'BINH', 'MOI'] }],
     });
-    assert.equal(kq.theoNguoi.MOI.theoHangMuc.A, 1);
-    assert.equal(kq.theoNguoi.MOI.coMatThuong, 1);
-    assert.equal(kq.theoHangMuc.A.gioCongThuong, 2);
+    assert.equal(kq.theoNguoi.AN.theoHangMuc.A, 4);
+    assert.equal(kq.theoNguoi.BINH.theoHangMuc.A, 2);
+    assert.equal(kq.theoNguoi.MOI, undefined);
+    assert.equal(kq.theoHangMuc.A.gioCongThuong, 6);
     assert.ok(!kq.co.includes('khai_vuot_quan_so'));
+  });
+
+  it('tăng ca: chỉ người điểm danh tăng ca được cộng giờ tăng ca', () => {
+    const caTc = cuaSoTrongNgay(NGAY, LICH, ['ca2']); // ca2 16:15–20:15
+    const kq = phanBoGioCong({
+      cuaSo: caTc, quanSo: {}, now,
+      coMat: {
+        chinh: [{ mnv: 'AN', start: t('07:30'), end: null }, { mnv: 'BINH', start: t('07:30'), end: null }],
+        ca2: [{ mnv: 'AN', start: t('16:15'), end: null }],
+      },
+      doanChay: { A: [{ start: t('14:45'), end: t('18:15') }] },
+      soNguoi: [{ key: 'A', at: t('14:45'), soNguoi: 2, nguoi: ['AN', 'BINH'] }],
+    });
+    assert.equal(kq.theoNguoi.AN.congTangCa, 2);
+    assert.equal(kq.theoNguoi.BINH.congTangCa, 0);
+    assert.equal(kq.theoNguoi.BINH.congThuong, 1);
+    assert.equal(kq.theoHangMuc.A.gioCongTangCa, 2);
   });
 
   it('không điểm danh: giữ nguyên cách tính cũ, không có theo người', () => {
