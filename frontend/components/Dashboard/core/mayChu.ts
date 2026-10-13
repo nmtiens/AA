@@ -9,7 +9,8 @@ export {
   tinhTongQuanSanXuat, DEFAULT_FILTERS, TUY_CHON_MAC_DINH,
   type DashboardFiltersState, type TuyChonTongQuan, type TongQuanSanXuat,
 } from './tongQuanSanXuat';
-export { canonicalizeProjectNames, setServerProjectAliases } from '../../../utils/productionMetrics';
+export { canonicalizeProjectNames, canonicalizePersonNames, setServerProjectAliases, setPlanMet } from '../../../utils/productionMetrics';
+export { taoBanGhi, nenBanGhi } from '../../Construction/core/banGhiCongTrinh';
 export { canonicalizeWorkshops, applyWorkshopMapping } from '../../../utils/workshopGroupsCore';
 
 /** Cột như trình duyệt dựng từ dữ liệu tải về (khoá = tên trường; lõi chỉ tìm cột theo khoá) */

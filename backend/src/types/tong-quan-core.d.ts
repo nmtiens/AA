@@ -16,6 +16,11 @@ declare module '@tong-quan/core' {
   export const TUY_CHON_MAC_DINH: TuyChonTongQuan;
   export function tinhTongQuanSanXuat(rows: Row[], cols: Cot[], filters: DashboardFiltersState, tuy: TuyChonTongQuan): { soDong: number } & Record<string, unknown>;
   export function canonicalizeProjectNames(rows: Row[], cols: Cot[]): Row[];
+  export function canonicalizePersonNames(rows: Row[], cols: Cot[]): Row[];
+  export function setPlanMet(d: { tuan: string[]; thang: string[] }): void;
+  /** Bản ghi gọn Tổng quan công trình (frontend/components/Construction/core/banGhiCongTrinh.ts) */
+  export function taoBanGhi(rows: Row[], cols: Cot[], today: number): unknown[];
+  export function nenBanGhi(recs: unknown[]): { n: number } & Record<string, unknown>;
   export function setServerProjectAliases(list: { k: string; c: string }[]): void;
   export function canonicalizeWorkshops(rows: Row[], cols: Cot[]): Row[];
   export function applyWorkshopMapping(mapping: Record<string, string>): void;

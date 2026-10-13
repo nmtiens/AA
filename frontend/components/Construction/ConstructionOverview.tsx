@@ -8,17 +8,16 @@ import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter'
 import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
-import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, resolveDeadlineKeys, isQtyComplete, projectMatchKey } from '../../utils/productionMetrics';
-import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
-import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
+import { projectMatchKey } from '../../utils/productionMetrics';
+import type { RemainBucket } from '../Dashboard/core/tongQuanSanXuat';
+import { taoBanGhi, NO_MONTH, type Rec } from './core/banGhiCongTrinh';
+import { useToast } from '../../context/ToastContext';
 import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './utils/viewDataConfig';
 import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
-import { STATUS_GROUPS } from '../Dashboard/constants';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
 import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal';
-import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix, projectKeyResolver } from '../Dashboard/components/shared/ProductionDonutPanel';
+import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
 import { fmtInt } from '../../utils/format';
 // ============================================================
@@ -26,48 +25,14 @@ import { fmtInt } from '../../utils/format';
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
 // ============================================================
 
-type Status = 'HOÀN THÀNH' | 'CÓ PHIẾU SX' | 'CHƯA TKSX' | 'CẦN XỬ LÝ' | 'TẠM NGƯNG' | 'HỦY';
 type FKey = 'ct' | 'pm' | 'pc' | 'kv' | 'kh' | 'pl' | 'month' | 'nct' | 'tda';
 type Filters = Partial<Record<FKey, string | undefined>>;
-
-interface Rec {
-  ct: string; pm: string; pc: string; kv: string; kh: string; pl: string;
-  nct: string;        // nhóm công trình (nhom_ct) — vd. "CỤM TÂY HỒ VIEW", "OUT TOP 33 CT"
-  tda: string;        // tình trạng dự án (tinh_trang_du_an) — SẢN XUẤT / ĐÓNG DỰ ÁN / CẦN XỬ LÝ
-  ma: string;         // mã công trình (khớp vướng mắc theo mã)
-  deadline: Date | null; // hạn = KH nhập kho tuần → tháng
-  open: boolean;      // còn phải theo dõi (chưa nhập đủ giá trị / số lượng, không hủy)
-  overdue: boolean;   // open và đã qua hạn
-  botDuAn: Date | null;  // BOT dự án (tham khảo)
-  ctKey: string;      // khoá ĐẾM công trình: tên chuẩn (projectMatchKey, xem projectKeyResolver)
-  month: string;      // 'YYYY-MM' hoặc 'none'
-  status: Status;
-  total: number;      // trị giá đơn hàng — GỒM cả đơn HỦY (khớp file gốc); muốn bỏ thì lọc Tình trạng IPO
-  done: number;       // giá trị đã nhập kho, tối đa = total (đơn HỦY = 0)
-  // Đã xuất / giao = đã nhập kho − tồn kho (không âm). Không lấy cột xuất kho lũy kế vì bảng xuất kho chỉ có
-  // dữ liệu từ 01/2025: hạng mục giao trước đó có xuất = 0 nhưng tồn = 0 => nhập − xuất ≠ tồn (lệch hàng trăm tỷ).
-  exported: number;
-  exportedRecorded: number; // xuất kho lũy kế ghi trong bảng xuất kho (thanh_tien_xuat_kho_luy_ke) — để tham khảo
-  // Tồn kho dùng để chia giá trị đã nhập: tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) chặn ≤ done
-  // (đơn HỦY = 0) => Đã xuất + Tồn kho = Đã nhập kho
-  stock: number;
-  stockCut: number;   // phần tồn kho hiện tại vượt giá trị đã nhập (bị chặn) — để ghi chú
-  qtyDone: boolean;   // đã nhập đủ số lượng đơn hàng (đếm là đã nhập kho dù thành tiền NK thấp hơn trị giá)
-  row: DataRow;       // dòng gốc — để mở cửa sổ danh sách HEX
-  ipo: string;        // Tình trạng IPO gốc (đã trim) — cho bộ lọc Tình trạng IPO
-  mk: string;         // khoá so khớp tên công trình gốc (projectMatchKey) — lọc theo nhóm Luồng đỏ / Căn mẫu
-  // Phần CHƯA NHẬP KHO xếp theo công đoạn (cùng cách chia với bảng "Tình trạng đơn hàng theo công trình"):
-  // P001 / P002 / đang trên chuyền (P012→P021, GCVT) / P022–P025 nhập chưa đủ; đơn HỦY tách riêng
-  bucket: RemainBucket | 'cancelled';
-}
 
 // Mặc định không lọc Tình trạng IPO: các ô KPI hiện tổng toàn bộ công trình, chỉ đổi khi người dùng chọn lọc
 // Mặc định chỉ xem hạng mục ĐANG SẢN XUẤT (khớp bộ lọc mặc định ở trang Tổng quan); chọn lại được ở bộ lọc
 const isDefaultIpo = (ipo: string) => /ĐANG SẢN XUẤT/i.test(ipo);
 
-const NO_DATA = '(Chưa có)';
 const GROUP_SHORT: Record<ProjectGroupId, string> = { 'luong-do': 'Luồng đỏ', 'can-mau': 'Căn mẫu' };
-const NO_MONTH = 'none';
 
 const FILTER_LABEL: Record<FKey, string> = {
   ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', kh: 'Khách hàng', pl: 'Nhóm SP', month: 'Tháng hạn',
@@ -170,9 +135,14 @@ interface Props {
   currentUser?: string;
   /** Bảng nhập kho — nhịp nhập kho theo tuần + dự báo trong cửa sổ tổng quan công trình */
   inventory?: DataRow[];
+  /**
+   * Bản ghi máy chủ dựng sẵn (/api/tong-quan/cong-trinh) — dùng khi CHƯA có bảng sản xuất (người mới / máy mới):
+   * trang hiện và lọc được ngay; danh sách HEX / cửa sổ công trình / xuất Excel chờ bảng tải xong.
+   */
+  banGhiSan?: Rec[] | null;
 }
 
-const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory }) => {
+const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null }) => {
   // Nhóm công trình (Luồng đỏ / Căn mẫu = danh sách setup ở Công trình → Setup); null = mọi công trình
   const [group, setGroup] = useState<ProjectGroupId | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
@@ -220,105 +190,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // Đã nhập kho đủ trị giá đơn hàng HOẶC đủ số lượng (dùng chung cho ô KPI và popup chi tiết)
   const isStocked = (r: Rec) => r.status !== 'HỦY' && ((r.total > 0 && r.done >= r.total) || r.qtyDone);
 
-  // ---------- 1. Chuẩn hoá từng dòng 1 lần ----------
-  const allRecords = useMemo<Rec[]>(() => {
-    const key = (target: string, fallback: string) => findColumnKey(columns, target) || fallback;
-    const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, 'ten_cong_trinh');
-    const pmK = key('ten_pm', 'ten_pm');
-    const pcK = key('ten_pc', 'ten_pc');
-    const kvK = key('khu_vuc_du_an', 'khu_vuc_du_an');
-    const khK = key('khach_hang', 'khach_hang');
-    const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, 'phan_loai_nhom_san_pham');
-    const dlKeys = resolveDeadlineKeys(columns);
-    const stK = key(TARGET_COLUMN_NAMES.TINH_TRANG, 'tinh_trang');
-    const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo');
-    const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong');
-    const invK = key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, 'thanh_tien_nhap_kho_luy_ke');
-    const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, 'ma_cong_trinh');
-    const xkK = key('thanh_tien_xuat_kho_luy_ke', 'thanh_tien_xuat_kho_luy_ke');
-    const tkK = key('thanh_tien_ton_kho_hien_tai', 'thanh_tien_ton_kho_hien_tai');
-    const nctK = columns.find(c => c.key === 'nhom_ct')?.key ?? 'nhom_ct';
-    const bopK = key(TARGET_COLUMN_NAMES.BOP, 'bop');
-    const tdaK = columns.find(c => c.key === 'tinh_trang_du_an')?.key ?? 'tinh_trang_du_an';
-    const projectKey = projectKeyResolver(data, maK, ctK);
-
-      const txt = (v: unknown) => {
-      const t = String(v ?? '').trim();
-      return !t || t.startsWith('#') ? NO_DATA : t;
-    };
-
-    const out: Rec[] = [];
-    for (const row of data) {
-      const ct = String(row[ctK] ?? '').trim();
-      if (!ct) continue;
-
-      const ipo = String(row[ipoK] ?? '').toUpperCase();
-      const st = String(row[stK] ?? '').toUpperCase();
-      const totalRaw = parseNumber(row[totK]);
-      const invRaw = parseNumber(row[invK]);
-
-      // Ưu tiên cột Tình trạng IPO (nguồn chính thức); riêng "01. ĐANG SẢN XUẤT" thì chia tiếp
-      // thành CHƯA TKSX / CÓ PHIẾU SX theo cột Tình trạng (công đoạn).
-      let status: Status;
-      if (ipo.includes('HỦY')) status = 'HỦY';
-      else if (ipo.includes('HOÀN THÀNH')) status = 'HOÀN THÀNH';
-      else if (ipo.includes('TẠM NGƯNG')) status = 'TẠM NGƯNG';
-      else if (ipo.includes('CẦN XỬ LÝ')) status = 'CẦN XỬ LÝ';
-      else if (STATUS_GROUPS.CHUA_THE_SX.some(s => st.includes(s))) status = 'CHƯA TKSX';
-      else status = 'CÓ PHIẾU SX';
-
-      // Tháng hạn = KH nhập kho tuần → KH nhập kho tháng (quy tắc chung; không có KH => "Chưa có KH nhập kho")
-      const dl = deadlineOf(row, dlKeys);
-      const d = dl.date;
-      const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : NO_MONTH;
-
-      const cancelled = status === 'HỦY';
-      const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
-      // Tồn kho chặn ≤ đã nhập (nhập/tồn có thể vượt trị giá đơn hàng); đơn HỦY không tính tồn
-      const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
-      const stock = Math.min(stockRaw, done);
-      const qtyDone = isQtyComplete(row);
-      // Cùng định nghĩa "còn theo dõi" với cửa sổ tổng quan công trình (ProjectHealthModal)
-      const open = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
-      out.push({
-        ct, ctKey: projectKey(row), pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
-        nct: txt(row[nctK]), tda: txt(row[tdaK]), ma: String(row[maK] ?? '').trim().toUpperCase(),
-        deadline: d, open, overdue: open && !!d && d.getTime() < today, botDuAn: dl.botDuAn,
-        ipo: String(row[ipoK] ?? '').trim(),
-        month, status,
-        // Trang có bộ lọc Tình trạng IPO => trị giá gồm cả HỦY (khớp tổng cột trị giá ở file gốc);
-        // người xem lọc IPO để bỏ HỦY khi cần
-        total: totalRaw,
-        done,
-        exported: done - stock,
-        exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
-        stock,
-        stockCut: stockRaw - stock,
-        qtyDone,
-        row,
-        mk: projectMatchKey(ct),
-        bucket: cancelled ? 'cancelled' : remainBucketOf(st, extractStage(row[bopK])),
-      });
-    }
-
-    // Tên hiển thị của 1 công trình = cách viết xuất hiện nhiều nhất trong các dòng cùng khoá
-    // (mã công trình -> tên chuẩn). Gán lại `ct` để MỌI danh sách / bộ lọc / số đếm trên trang
-    // cùng gom theo 1 khoá — tránh cảnh ô "Công trình" ra 387 mà danh sách lại 402 dòng.
-    const nameCount = new Map<string, Map<string, number>>();
-    for (const r of out) {
-      let m = nameCount.get(r.ctKey);
-      if (!m) { m = new Map(); nameCount.set(r.ctKey, m); }
-      m.set(r.ct, (m.get(r.ct) ?? 0) + 1);
-    }
-    const displayName = new Map<string, string>();
-    nameCount.forEach((m, k) => {
-      let best = '', bestN = -1;
-      m.forEach((n, name) => { if (n > bestN || (n === bestN && name < best)) { best = name; bestN = n; } });
-      displayName.set(k, best);
-    });
-    for (const r of out) r.ct = displayName.get(r.ctKey) ?? r.ct;
-    return out;
-  }, [data, columns, today]);
+  // ---------- 1. Chuẩn hoá từng dòng 1 lần (lõi dùng chung với máy chủ: core/banGhiCongTrinh.ts) ----------
+  // Chưa có bảng sản xuất mà máy chủ đã gửi bản ghi => dùng bản ghi máy chủ (dòng gốc chỉ có hex)
+  const coBang = data.length > 0;
+  const allRecords = useMemo<Rec[]>(
+    () => (coBang ? taoBanGhi(data, columns, today) : banGhiSan ?? []),
+    [coBang, data, columns, today, banGhiSan]);
+  const { showToast } = useToast();
+  /** Danh sách HEX / cửa sổ công trình / xuất Excel cần dòng gốc đầy đủ — chưa có bảng thì báo chờ */
+  const canBang = () => {
+    if (coBang) return true;
+    showToast('Đang tải chi tiết hạng mục, bấm lại sau ít giây', 'info');
+    return false;
+  };
 
   // Bộ lọc Tình trạng IPO (mặc định: Đang sản xuất — bỏ chọn hết = tất cả),
   // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
@@ -628,7 +512,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   if (allRecords.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-sm text-slate-500">
-        Chưa có dữ liệu sản xuất để lập báo cáo.
+        {coBang || banGhiSan ? 'Chưa có dữ liệu sản xuất để lập báo cáo.' : 'Đang tải số liệu công trình…'}
       </div>
     );
   }
@@ -1134,7 +1018,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     const pms = [...r.pms];
                     const botLeft = r.botDuAn ? Math.floor((r.botDuAn.getTime() - today) / 86_400_000) : null;
                     return (
-                      <tr key={r.name} onClick={() => setHealth({ ct: r.name, inDetail: false })}
+                      <tr key={r.name} onClick={() => { if (canBang()) setHealth({ ct: r.name, inDetail: false }); }}
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
                         <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
@@ -1198,13 +1082,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               onMetricChange={setMetric}
               summary={{ cts: kpi.cts, items: kpi.items, totalTy: kpi.total / UNIT }}
               scopeNote={ipoSel.length ? `Tình trạng IPO: ${ipoSel.join(', ')}` : 'Tình trạng IPO: tất cả'}
-              onExport={() => exportOrderMixExcel({
+              onExport={() => (canBang() ? exportOrderMixExcel({
                 fileName: `co_cau_don_hang_cong_trinh_${new Date().toISOString().slice(0, 10)}`,
                 scopeLabel: filterSummary() || 'Tất cả',
                 byDim: { kv: apply('kv'), kh: apply('kh'), pl: apply('pl') },
                 scopeRows: rowsAll,
                 columns,
-              })}
+              }) : undefined)}
               charts={[
                 { title: 'Theo khu vực', data: kvData, selected: f.kv ? [f.kv] : [], onSelect: n => toggle('kv', n) },
                 // "Khác" là nhóm gộp các khách hàng nhỏ, không lọc được
@@ -1244,7 +1128,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   </button>
                 )}
                 <button
-                  onClick={() => setHexScope({ ct: null, inDetail: true })}
+                  onClick={() => { if (canBang()) setHexScope({ ct: null, inDetail: true }); }}
                   disabled={detailData.items === 0 || detailData.items > MAX_HEX_ALL}
                   title={detailData.items > MAX_HEX_ALL
                     ? `Quá nhiều (${fmtInt(detailData.items)} HEX) — chọn 1 công trình bên dưới để xem HEX`
@@ -1313,7 +1197,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     const pms = [...p.pms];
                     const strong = (k: DetailFocus) => (detail.focus === k ? 'font-semibold text-slate-900' : '');
                     return (
-                      <tr key={p.name} onClick={() => setHealth({ ct: p.name, inDetail: true })}
+                      <tr key={p.name} onClick={() => { if (canBang()) setHealth({ ct: p.name, inDetail: true }); }}
                           className="group cursor-pointer hover:bg-blue-50/60">
                         <td className="px-2 py-1.5 text-right tabular-nums text-slate-400">{i + 1}</td>
                         <td className="px-2 py-1.5 text-slate-800 max-w-[320px] truncate group-hover:text-blue-700" title={p.name}>{p.name}</td>

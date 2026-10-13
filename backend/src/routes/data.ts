@@ -321,39 +321,44 @@ app.get('/api/project-aliases', async (_req: Request, res: Response) => {
   res.json(listProjectAliases());
 });
 
+/** HEX đã đạt SL KH nhập kho tuần / tháng trong kỳ (cache theo phiên bản sản xuất + nhập kho) — dùng chung cho
+ *  /api/production/plan-met và máy chủ tính sẵn Tổng quan công trình */
+export const layPlanMet = (): Promise<{ tuan: string[]; thang: string[] }> =>
+  cachedByVersions(planMetCache, 'plan-met', ['production', 'inventory'], async () => {
+    // Nối p với n theo hex rồi gộp 1 lần (hash join). Trước dùng 2 subquery tương quan `(SELECT SUM(sl)
+    // FROM n WHERE n.hex = p.hex AND ...)` cho TỪNG hạng mục => quét lại CTE n hàng nghìn lần.
+    const r = await timedQuery(
+      `WITH p AS (
+         SELECT DISTINCT ON (hex::text) hex::text AS hex,
+           CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
+           sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
+         FROM production_status_app
+         WHERE hex IS NOT NULL AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
+       ), n AS (
+         SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
+         FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
+       )
+       SELECT p.hex,
+         -- Tuần ISO (T2–CN) cắt trong năm dương lịch của ngày KH — khớp inPlanWeek ở frontend
+         -- (useUnifiedTimeFilters): tuần 1 không lấy 29–31/12 năm trước, tuần cuối không tràn sang năm sau
+         (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
+            AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
+         (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+       FROM p LEFT JOIN n ON n.hex = p.hex
+       GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
+      [],
+      { timeoutMs: 30000 }
+    );
+    const rows = r.rows as { hex: string; tuan_met: boolean; thang_met: boolean }[];
+    return { tuan: rows.filter(x => x.tuan_met).map(x => x.hex), thang: rows.filter(x => x.thang_met).map(x => x.hex) };
+  });
+
 app.get('/api/production/plan-met', async (_req: Request, res: Response) => {
   try {
-    const data = await cachedByVersions(planMetCache, 'plan-met', ['production', 'inventory'], async () => {
-      // Nối p với n theo hex rồi gộp 1 lần (hash join). Trước dùng 2 subquery tương quan `(SELECT SUM(sl)
-      // FROM n WHERE n.hex = p.hex AND ...)` cho TỪNG hạng mục => quét lại CTE n hàng nghìn lần.
-      const r = await timedQuery(
-        `WITH p AS (
-           SELECT DISTINCT ON (hex::text) hex::text AS hex,
-             CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
-             sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
-           FROM production_status_app
-           WHERE hex IS NOT NULL AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
-           ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
-         ), n AS (
-           SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
-           FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
-         )
-         SELECT p.hex,
-           -- Tuần ISO (T2–CN) cắt trong năm dương lịch của ngày KH — khớp inPlanWeek ở frontend
-           -- (useUnifiedTimeFilters): tuần 1 không lấy 29–31/12 năm trước, tuần cuối không tràn sang năm sau
-           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
-              n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
-              AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
-           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
-              n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
-         FROM p LEFT JOIN n ON n.hex = p.hex
-         GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
-        [],
-        { timeoutMs: 30000 }
-      );
-      const rows = r.rows as { hex: string; tuan_met: boolean; thang_met: boolean }[];
-      return { tuan: rows.filter(x => x.tuan_met).map(x => x.hex), thang: rows.filter(x => x.thang_met).map(x => x.hex) };
-    });
+    const data = await layPlanMet();
     res.json(data);
   } catch (error) {
     console.error('Lỗi /api/production/plan-met:', error);

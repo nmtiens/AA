@@ -65439,37 +65439,38 @@ app.get("/api/project-aliases", async (_req, res) => {
   ]);
   res.json(listProjectAliases());
 });
+var layPlanMet = () => cachedByVersions(planMetCache, "plan-met", ["production", "inventory"], async () => {
+  const r = await timedQuery(
+    `WITH p AS (
+         SELECT DISTINCT ON (hex::text) hex::text AS hex,
+           CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
+           sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
+         FROM production_status_app
+         WHERE hex IS NOT NULL AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
+       ), n AS (
+         SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
+         FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
+       )
+       SELECT p.hex,
+         -- Tu\u1EA7n ISO (T2\u2013CN) c\u1EAFt trong n\u0103m d\u01B0\u01A1ng l\u1ECBch c\u1EE7a ng\xE0y KH \u2014 kh\u1EDBp inPlanWeek \u1EDF frontend
+         -- (useUnifiedTimeFilters): tu\u1EA7n 1 kh\xF4ng l\u1EA5y 29\u201331/12 n\u0103m tr\u01B0\u1EDBc, tu\u1EA7n cu\u1ED1i kh\xF4ng tr\xE0n sang n\u0103m sau
+         (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
+            AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
+         (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
+            n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
+       FROM p LEFT JOIN n ON n.hex = p.hex
+       GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
+    [],
+    { timeoutMs: 3e4 }
+  );
+  const rows = r.rows;
+  return { tuan: rows.filter((x) => x.tuan_met).map((x) => x.hex), thang: rows.filter((x) => x.thang_met).map((x) => x.hex) };
+});
 app.get("/api/production/plan-met", async (_req, res) => {
   try {
-    const data = await cachedByVersions(planMetCache, "plan-met", ["production", "inventory"], async () => {
-      const r = await timedQuery(
-        `WITH p AS (
-           SELECT DISTINCT ON (hex::text) hex::text AS hex,
-             CASE WHEN ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN LEFT(ngay_khnk_tuan, 10)::date END AS kt,
-             sl_khnk_tuan AS st, ngay_khnk_thang AS kth, sl_khnk_thang AS sth
-           FROM production_status_app
-           WHERE hex IS NOT NULL AND (COALESCE(sl_khnk_tuan, 0) > 0 OR COALESCE(sl_khnk_thang, 0) > 0)
-           ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
-         ), n AS (
-           SELECT x.hex::text AS hex, x.date, SUM(COALESCE(x.so_luong_nhap_kho, 0)) AS sl
-           FROM nhap_kho x JOIN p ON p.hex = x.hex::text GROUP BY 1, 2
-         )
-         SELECT p.hex,
-           -- Tu\u1EA7n ISO (T2\u2013CN) c\u1EAFt trong n\u0103m d\u01B0\u01A1ng l\u1ECBch c\u1EE7a ng\xE0y KH \u2014 kh\u1EDBp inPlanWeek \u1EDF frontend
-           -- (useUnifiedTimeFilters): tu\u1EA7n 1 kh\xF4ng l\u1EA5y 29\u201331/12 n\u0103m tr\u01B0\u1EDBc, tu\u1EA7n cu\u1ED1i kh\xF4ng tr\xE0n sang n\u0103m sau
-           (p.kt IS NOT NULL AND p.st > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
-              n.date >= GREATEST(DATE_TRUNC('week', p.kt)::date, DATE_TRUNC('year', p.kt)::date)
-              AND n.date < LEAST(DATE_TRUNC('week', p.kt)::date + 7, (DATE_TRUNC('year', p.kt) + INTERVAL '1 year')::date)), 0) >= p.st) AS tuan_met,
-           (p.kth IS NOT NULL AND p.sth > 0 AND COALESCE(SUM(n.sl) FILTER (WHERE
-              n.date >= DATE_TRUNC('month', p.kth)::date AND n.date < (DATE_TRUNC('month', p.kth) + INTERVAL '1 month')::date), 0) >= p.sth) AS thang_met
-         FROM p LEFT JOIN n ON n.hex = p.hex
-         GROUP BY p.hex, p.kt, p.st, p.kth, p.sth`,
-        [],
-        { timeoutMs: 3e4 }
-      );
-      const rows = r.rows;
-      return { tuan: rows.filter((x) => x.tuan_met).map((x) => x.hex), thang: rows.filter((x) => x.thang_met).map((x) => x.hex) };
-    });
+    const data = await layPlanMet();
     res.json(data);
   } catch (error61) {
     console.error("L\u1ED7i /api/production/plan-met:", error61);
@@ -68274,7 +68275,7 @@ var planMetOf = async (hexes) => {
 };
 var stageOf = (bop) => String(bop ?? "").trim().toUpperCase().match(/^(P\d{3}|GCVT)/)?.[1] ?? null;
 var statusOf = (row) => VM_STATUSES.includes(row.status) ? row.status : row.is_resolved ? "closed" : "open";
-var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null, planMet) => {
+var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? null, planMet2) => {
   const perms = permsOf(actor, row.created_by, createdDepartment, row.handler);
   const hasProd = "p_ten_cong_trinh" in row;
   const rawCt = hasProd ? row.p_ten_cong_trinh ?? row.ten_cong_trinh : row.ten_cong_trinh;
@@ -68318,7 +68319,7 @@ var mapVuongMacRow = (row, actor, createdDepartment = row.created_department ?? 
     tinhTrangIpo: hasProd ? row.p_tinh_trang_ipo ?? null : void 0,
     pc: hasProd ? row.p_ten_pc ?? null : void 0,
     pm: hasProd ? row.p_ten_pm ?? null : void 0,
-    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang, planMet) : void 0,
+    deadline: hasProd ? planDate(row.p_khnk_tuan, row.p_khnk_thang, planMet2) : void 0,
     ngayCanGiao: hasProd ? row.p_ngay_can_giao ?? null : void 0,
     perms,
     canModify: perms.edit
@@ -72634,6 +72635,29 @@ var findColumnKey = (cols, target) => {
   return match ? match.key : "";
 };
 
+// ../frontend/components/Dashboard/utils/dateHelpers.ts
+var parseVNDate = (dateStr) => {
+  if (!dateStr) return null;
+  const str = String(dateStr).trim();
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (dateOnly) return new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+  if (str.includes("T") || str.match(/^\d{4}-\d{2}-\d{2}/)) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const parts = str.split(/[/.-]/);
+  if (parts.length >= 3) {
+    let year = parseInt(parts[2], 10);
+    if (parts[0].length === 4) {
+      year = parseInt(parts[0], 10);
+      return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+    if (year < 100) year += 2e3;
+    return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
+  }
+  return null;
+};
+
 // ../frontend/utils/productionMetrics.ts
 var isCancelledIpo = (ipo) => String(ipo ?? "").toUpperCase().includes("H\u1EE6Y");
 var doneValue = (total, nhapKho, cancelled = false) => cancelled ? 0 : Math.min(Math.max(nhapKho, 0), Math.max(total, 0));
@@ -72645,6 +72669,57 @@ var isQtyComplete = (row) => {
   return order > 0 && parseNumber(row[QTY_IN_KEY]) >= order;
 };
 var isStocked = (total, nhapKho, cancelled = false, qtyDone = false) => !cancelled && (total > 0 && remainValue(total, nhapKho) <= 0 || qtyDone);
+var ngayDaDoc = /* @__PURE__ */ new Map();
+var parsePlanDate = (v) => {
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+  const nho = ngayDaDoc.get(s);
+  if (nho !== void 0) return nho === null ? null : new Date(nho);
+  const d = docNgayKeHoach(s);
+  if (ngayDaDoc.size > 5e4) ngayDaDoc.clear();
+  ngayDaDoc.set(s, d ? d.getTime() : null);
+  return d;
+};
+var docNgayKeHoach = (s) => {
+  if (/^\d{4}-\d{2}-\d{2}([ T]|$)/.test(s)) {
+    if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+      const d3 = new Date(s);
+      if (!isNaN(d3.getTime())) return new Date(d3.getFullYear(), d3.getMonth(), d3.getDate());
+    }
+    const [y, m, d2] = s.slice(0, 10).split("-").map(Number);
+    return new Date(y, m - 1, d2);
+  }
+  const d = parseVNDate(s);
+  return d ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
+};
+var resolveDeadlineKeys = (columns) => ({
+  khnkTuanKey: findColumnKey(columns, "ngay_khnk_tuan") || "ngay_khnk_tuan",
+  khnkThangKey: findColumnKey(columns, "ngay_khnk_thang") || "ngay_khnk_thang",
+  ngayCanGiaoKey: findColumnKey(columns, "ngay_can_giao") || "ngay_can_giao",
+  // So khớp ĐÚNG tên (findColumnKey dò chuỗi con sẽ nhận nhầm ngay_can_giao)
+  ngayCanKey: columns.find((c) => c.key === "ngay_can")?.key ?? "ngay_can",
+  botDuAnKey: findColumnKey(columns, "bot_du_an") || "bot_du_an",
+  hexKey: findColumnKey(columns, "hex") || "hex"
+});
+var planMet = { tuan: /* @__PURE__ */ new Set(), thang: /* @__PURE__ */ new Set() };
+var setPlanMet = (d) => {
+  planMet = { tuan: new Set(d.tuan), thang: new Set(d.thang) };
+};
+var deadlineOf = (row, k) => {
+  const khnkTuan = parsePlanDate(row[k.khnkTuanKey]);
+  const khnkThang = parsePlanDate(row[k.khnkThangKey]);
+  const canGiao = parsePlanDate(row[k.ngayCanGiaoKey]);
+  const canPm = k.ngayCanKey ? parsePlanDate(row[k.ngayCanKey]) : null;
+  const botDuAn = k.botDuAnKey ? parsePlanDate(row[k.botDuAnKey]) : null;
+  const hex3 = k.hexKey ? String(row[k.hexKey] ?? "").trim() : "";
+  const tuanMet = !!hex3 && !!khnkTuan && planMet.tuan.has(hex3);
+  const thangMet = !!hex3 && !!khnkThang && planMet.thang.has(hex3);
+  const tuan = tuanMet ? null : khnkTuan;
+  const thang = thangMet ? null : khnkThang;
+  const date5 = tuan ?? thang;
+  const source = tuan ? "tu\u1EA7n" : thang ? "th\xE1ng" : null;
+  return { date: date5, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
+};
 var normProjectName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
 var projectAlias = /* @__PURE__ */ new Map();
 var projectVariants = /* @__PURE__ */ new Map();
@@ -72795,6 +72870,127 @@ var dwellBucket = (v) => {
   }
   return DWELL_NONE;
 };
+var deaccent = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d");
+var normPerson = (v) => String(v ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toUpperCase();
+var isAccount = (raw) => /^[a-z0-9._]+$/.test(raw.trim()) && !raw.includes(" ");
+var fullWordsCache = /* @__PURE__ */ new Map();
+var fullWordsOf = (full) => {
+  let c = fullWordsCache.get(full);
+  if (!c) {
+    const fw = full.split(" ");
+    c = { fw, words: fw.map((w) => deaccent(w).toLowerCase()) };
+    fullWordsCache.set(full, c);
+  }
+  return c;
+};
+var personMatches = (short, shortRaw, full) => {
+  const { fw, words } = fullWordsOf(full);
+  if (isAccount(shortRaw)) {
+    const acc = shortRaw.toLowerCase().split(".")[0].replace(/\d+$/, "");
+    if (words.length < 2) return false;
+    const given = words[words.length - 1];
+    if (acc === words.join("") || acc === [given, ...words.slice(0, -1)].join("")) return true;
+    if (!acc.startsWith(given)) return false;
+    const rest = acc.slice(given.length).split("").sort().join("");
+    const initials = words.slice(0, -1).map((w) => w[0]).sort().join("");
+    return rest.length > 0 && rest === initials;
+  }
+  const sw = short.split(" ");
+  return fw.length > sw.length && fw.slice(fw.length - sw.length).join(" ") === short;
+};
+function canonicalizePersonNames(rows, columns) {
+  const maKey = findColumnKey(columns, "ma_cong_trinh");
+  const keys = ["ten_pm", "ten_pc"].map((k) => findColumnKey(columns, k)).filter(Boolean);
+  if (!maKey || keys.length === 0 || rows.length === 0) return rows;
+  const maOf = rows.map((row) => normProjectName(row[maKey]));
+  const normOf = /* @__PURE__ */ new Map();
+  const normCached = (raw) => {
+    let n = normOf.get(raw);
+    if (n === void 0) {
+      n = normPerson(raw);
+      normOf.set(raw, n);
+    }
+    return n;
+  };
+  const maps = keys.map((key) => {
+    const display = /* @__PURE__ */ new Map();
+    const perProject = /* @__PURE__ */ new Map();
+    const rawOf = /* @__PURE__ */ new Map();
+    rows.forEach((row, i) => {
+      const raw = String(row[key] ?? "").trim();
+      if (!raw) return;
+      const n = normCached(raw);
+      let d = display.get(n);
+      if (!d) {
+        d = /* @__PURE__ */ new Map();
+        display.set(n, d);
+      }
+      d.set(raw, (d.get(raw) ?? 0) + 1);
+      if (!rawOf.has(n)) rawOf.set(n, raw);
+      const ma = maOf[i];
+      let s = perProject.get(ma);
+      if (!s) {
+        s = /* @__PURE__ */ new Set();
+        perProject.set(ma, s);
+      }
+      s.add(n);
+    });
+    const best = (n) => {
+      let b = n, bn = -1;
+      display.get(n)?.forEach((c, raw) => {
+        if (c > bn) {
+          b = raw;
+          bn = c;
+        }
+      });
+      return b;
+    };
+    const fulls = [...display.keys()].filter((n) => n.includes(" "));
+    const pick2 = (n, pool2) => {
+      const raw = rawOf.get(n) ?? n;
+      const cands = [...pool2].filter((f) => f !== n && f.includes(" ") && personMatches(n, raw, f));
+      const top = cands.filter((f) => !cands.some((g) => g !== f && personMatches(f, f, g)));
+      return top.length === 1 ? top[0] : null;
+    };
+    const pickAll = /* @__PURE__ */ new Map();
+    const pickFulls = (n) => {
+      let r = pickAll.get(n);
+      if (r === void 0) {
+        r = pick2(n, fulls);
+        pickAll.set(n, r);
+      }
+      return r;
+    };
+    const perProjectAlias = /* @__PURE__ */ new Map();
+    perProject.forEach((names, ma) => {
+      const m = /* @__PURE__ */ new Map();
+      names.forEach((n) => {
+        const target = pick2(n, names) ?? pickFulls(n);
+        m.set(n, best(target ?? n));
+      });
+      perProjectAlias.set(ma, m);
+    });
+    return { key, perProjectAlias };
+  });
+  let changed = false;
+  const out = rows.map((row, i) => {
+    const ma = maOf[i];
+    let next = null;
+    for (const { key, perProjectAlias } of maps) {
+      const raw = String(row[key] ?? "").trim();
+      if (!raw) continue;
+      const name = perProjectAlias.get(ma)?.get(normCached(raw));
+      if (name && name !== row[key]) {
+        if (!next) next = { ...row };
+        next[key] = name;
+      }
+    }
+    if (!next) return row;
+    changed = true;
+    return next;
+  });
+  return changed ? out : rows;
+}
 
 // ../frontend/components/Dashboard/utils/filterMatch.ts
 var toFilterSet = (values) => values.length ? new Set(values) : null;
@@ -73368,6 +73564,142 @@ function tinhTongQuanSanXuat(productionData, productionColumns, applied, tuy) {
   };
 }
 
+// ../frontend/components/Construction/core/banGhiCongTrinh.ts
+var NO_DATA = "(Ch\u01B0a c\xF3)";
+var NO_MONTH = "none";
+function taoBanGhi(data, columns, today) {
+  const key = (target, fallback) => findColumnKey(columns, target) || fallback;
+  const ctK = key(TARGET_COLUMN_NAMES.CONG_TRINH, "ten_cong_trinh");
+  const pmK = key("ten_pm", "ten_pm");
+  const pcK = key("ten_pc", "ten_pc");
+  const kvK = key("khu_vuc_du_an", "khu_vuc_du_an");
+  const khK = key("khach_hang", "khach_hang");
+  const plK = key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, "phan_loai_nhom_san_pham");
+  const dlKeys = resolveDeadlineKeys(columns);
+  const stK = key(TARGET_COLUMN_NAMES.TINH_TRANG, "tinh_trang");
+  const ipoK = key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, "tinh_trang_ipo");
+  const totK = key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, "tri_gia_don_hang_tong");
+  const invK = key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, "thanh_tien_nhap_kho_luy_ke");
+  const maK = key(TARGET_COLUMN_NAMES.MA_CONG_TRINH, "ma_cong_trinh");
+  const xkK = key("thanh_tien_xuat_kho_luy_ke", "thanh_tien_xuat_kho_luy_ke");
+  const tkK = key("thanh_tien_ton_kho_hien_tai", "thanh_tien_ton_kho_hien_tai");
+  const nctK = columns.find((c) => c.key === "nhom_ct")?.key ?? "nhom_ct";
+  const bopK = key(TARGET_COLUMN_NAMES.BOP, "bop");
+  const tdaK = columns.find((c) => c.key === "tinh_trang_du_an")?.key ?? "tinh_trang_du_an";
+  const projectKey = (row) => projectMatchKey(row[ctK]);
+  const txt = (v) => {
+    const t = String(v ?? "").trim();
+    return !t || t.startsWith("#") ? NO_DATA : t;
+  };
+  const out = [];
+  for (const row of data) {
+    const ct = String(row[ctK] ?? "").trim();
+    if (!ct) continue;
+    const ipo = String(row[ipoK] ?? "").toUpperCase();
+    const st = String(row[stK] ?? "").toUpperCase();
+    const totalRaw = parseNumber(row[totK]);
+    const invRaw = parseNumber(row[invK]);
+    let status;
+    if (ipo.includes("H\u1EE6Y")) status = "H\u1EE6Y";
+    else if (ipo.includes("HO\xC0N TH\xC0NH")) status = "HO\xC0N TH\xC0NH";
+    else if (ipo.includes("T\u1EA0M NG\u01AFNG")) status = "T\u1EA0M NG\u01AFNG";
+    else if (ipo.includes("C\u1EA6N X\u1EEC L\xDD")) status = "C\u1EA6N X\u1EEC L\xDD";
+    else if (STATUS_GROUPS.CHUA_THE_SX.some((s) => st.includes(s))) status = "CH\u01AFA TKSX";
+    else status = "C\xD3 PHI\u1EBEU SX";
+    const dl = deadlineOf(row, dlKeys);
+    const d = dl.date;
+    const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : NO_MONTH;
+    const cancelled = status === "H\u1EE6Y";
+    const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
+    const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
+    const stock = Math.min(stockRaw, done);
+    const qtyDone = isQtyComplete(row);
+    const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
+    out.push({
+      ct,
+      ctKey: projectKey(row),
+      pm: txt(row[pmK]),
+      pc: txt(row[pcK]),
+      kv: txt(row[kvK]),
+      kh: txt(row[khK]),
+      pl: txt(row[plK]),
+      nct: txt(row[nctK]),
+      tda: txt(row[tdaK]),
+      ma: String(row[maK] ?? "").trim().toUpperCase(),
+      deadline: d,
+      open: open2,
+      overdue: open2 && !!d && d.getTime() < today,
+      botDuAn: dl.botDuAn,
+      ipo: String(row[ipoK] ?? "").trim(),
+      month,
+      status,
+      // Trang có bộ lọc Tình trạng IPO => trị giá gồm cả HỦY (khớp tổng cột trị giá ở file gốc);
+      // người xem lọc IPO để bỏ HỦY khi cần
+      total: totalRaw,
+      done,
+      exported: done - stock,
+      exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
+      stock,
+      stockCut: stockRaw - stock,
+      qtyDone,
+      row,
+      mk: projectMatchKey(ct),
+      bucket: cancelled ? "cancelled" : remainBucketOf(st, extractStage(row[bopK]))
+    });
+  }
+  const nameCount = /* @__PURE__ */ new Map();
+  for (const r of out) {
+    let m = nameCount.get(r.ctKey);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      nameCount.set(r.ctKey, m);
+    }
+    m.set(r.ct, (m.get(r.ct) ?? 0) + 1);
+  }
+  const displayName2 = /* @__PURE__ */ new Map();
+  nameCount.forEach((m, k) => {
+    let best = "", bestN = -1;
+    m.forEach((n, name) => {
+      if (n > bestN || n === bestN && name < best) {
+        best = name;
+        bestN = n;
+      }
+    });
+    displayName2.set(k, best);
+  });
+  for (const r of out) r.ct = displayName2.get(r.ctKey) ?? r.ct;
+  return out;
+}
+var COT_CHU = ["ct", "pm", "pc", "kv", "kh", "pl", "nct", "tda", "ma", "ctKey", "month", "status", "ipo", "mk", "bucket"];
+var COT_SO = ["total", "done", "exported", "exportedRecorded", "stock", "stockCut"];
+var ngayChuoi = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+function nenBanGhi(recs) {
+  const tu = [];
+  const idx = /* @__PURE__ */ new Map();
+  const ma = (s) => {
+    let i = idx.get(s);
+    if (i === void 0) {
+      i = tu.length;
+      tu.push(s);
+      idx.set(s, i);
+    }
+    return i;
+  };
+  const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
+  const so3 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  return {
+    n: recs.length,
+    tu,
+    chu,
+    so: so3,
+    open: recs.map((r) => r.open ? 1 : 0),
+    qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
+    deadline: recs.map((r) => ma(ngayChuoi(r.deadline))),
+    botDuAn: recs.map((r) => ma(ngayChuoi(r.botDuAn))),
+    hex: recs.map((r) => ma(String(r.row?.["hex"] ?? "").trim()))
+  };
+}
+
 // ../frontend/utils/workshopGroupsCore.ts
 var normWorkshop2 = (v) => String(v ?? "").trim().toUpperCase();
 var rawToGroup2 = /* @__PURE__ */ new Map();
@@ -73456,7 +73788,7 @@ async function sanXuatChuan(ver, verSanXuat) {
     const cols = cotTuDuLieu(tho);
     setServerProjectAliases(listProjectAliases());
     applyWorkshopMapping(getWorkshopMapping());
-    const rows = canonicalizeWorkshops(canonicalizeProjectNames(tho, cols), cols);
+    const rows = canonicalizeWorkshops(canonicalizePersonNames(canonicalizeProjectNames(tho, cols), cols), cols);
     const bang = { ver, rows, cols };
     chuan = bang;
     return bang;
@@ -73506,6 +73838,36 @@ app.post("/api/tong-quan/san-xuat", async (req, res) => {
   } catch (e) {
     console.error("[tong-quan] l\u1ED7i", e);
     if (!res.headersSent) res.status(500).json({ success: false, message: "Kh\xF4ng t\xEDnh \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u T\u1ED5ng quan" });
+  }
+});
+app.get("/api/tong-quan/cong-trinh", async (_req, res) => {
+  try {
+    const t0 = Date.now();
+    await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
+    const versions = await getVersions();
+    const verSanXuat = versions.production ?? "";
+    const verChuan = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
+    const ver = JSON.stringify([verChuan, versions.inventory ?? ""]);
+    const khoa = "tongquan-congtrinh";
+    const nho = ketQuaNho.get(`${khoa}|${ver}`);
+    if (nho) return guiGzip(res, nho, `tqct;desc="mem";dur=${Date.now() - t0}`);
+    const nguon = { v: "" };
+    const luu = await docSnapshot(khoa, ver, nguon);
+    if (luu) {
+      ketQuaNho.set(`${khoa}|${ver}`, luu);
+      return guiGzip(res, luu, `tqct;desc="${nguon.v}";dur=${Date.now() - t0}`);
+    }
+    const [{ rows, cols }, planMet2] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet()]);
+    const tTinh = Date.now();
+    setPlanMet(planMet2);
+    const banGhi = nenBanGhi(taoBanGhi(rows, cols, Date.now()));
+    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi }));
+    ketQuaNho.set(`${khoa}|${ver}`, buf);
+    await luuSnapshot(khoa, ver, buf);
+    guiGzip(res, buf, `tqct;desc="tinh";dur=${Date.now() - t0}, tinh;dur=${Date.now() - tTinh}`);
+  } catch (e) {
+    console.error("[tong-quan/cong-trinh] l\u1ED7i", e);
+    if (!res.headersSent) res.status(500).json({ success: false, message: "Kh\xF4ng d\u1EF1ng \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u c\xF4ng tr\xECnh" });
   }
 });
 

@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory, Hammer } from 'lucide-react';
-import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration } from './services/dataService';
+import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinh } from './services/dataService';
+import { giaiNenBanGhi, type Rec as CongTrinhRec } from './components/Construction/core/banGhiCongTrinh';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -90,9 +91,9 @@ const tablesForPath = (path: string): string[] => {
     '/materials': 'material',
   };
   if (one[path]) return [one[path]];
-  // Tổng quan công trình: chỉ chờ bảng sản xuất; bảng nhập kho (~3,3 MB) chỉ dùng cho nhịp nhập kho trong cửa sổ
-  // "sức khoẻ công trình" => tải ngầm (tablesNenForPath)
-  if (path === '/cong-trinh/tong-quan') return ['production'];
+  // Tổng quan công trình: không chặn — bản ghi gọn do máy chủ dựng sẵn (/api/tong-quan/cong-trinh, cùng code giao diện)
+  // nên trang hiện + lọc được ngay; bảng sản xuất (danh sách HEX, cửa sổ công trình) và nhập kho (nhịp nhập kho) tải ngầm
+  if (path === '/cong-trinh/tong-quan') return [];
   // Tổng quan: không chặn màn hình — số màn đầu do máy chủ tính sẵn (/api/tong-quan/san-xuat, cùng code giao diện;
   // doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng vốn đã từ máy chủ). Mọi bảng tải ngầm (tablesNenForPath), có bảng
   // sản xuất thì trang tự tính như cũ (lọc tức thì, danh sách hạng mục, xuất Excel).
@@ -115,7 +116,7 @@ const trangKey = (pathname: string, search: string): string =>
 // Bảng trang cần nhưng không chặn màn đầu: tải ngầm sau khi bảng chính đã hiện (máy mới / người mới đỡ chờ ~60%)
 const tablesNenForPath = (path: string): string[] =>
   path === '/' ? ['production', 'material', 'inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock']
-    : path === CONSTRUCTION_PATH ? ['inventory'] : [];
+    : path === CONSTRUCTION_PATH ? ['production', 'inventory'] : [];
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
   // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazyPage() tự tải lại và báo lỗi nếu có
@@ -254,9 +255,23 @@ const ConstructionOverviewWrapper = () => {
   const context = useOutletContext<MainLayoutContext>();
   const { user } = useAuth();
   const mappingReady = useViewMappingReady();
+  // Chưa có bảng sản xuất (máy mới / người mới): lấy bản ghi gọn máy chủ dựng sẵn — trang hiện ngay, bảng tải ngầm
+  const coBang = context.productionData.length > 0;
+  const [banGhiSan, setBanGhiSan] = useState<CongTrinhRec[] | null>(null);
+  useEffect(() => {
+    if (coBang || banGhiSan) return;
+    let on = true;
+    fetchTongQuanCongTrinh().then(z => {
+      if (!on || !z) return;
+      const homNay = new Date(); homNay.setHours(0, 0, 0, 0);
+      setBanGhiSan(giaiNenBanGhi(z, homNay.getTime()));
+    });
+    return () => { on = false; };
+  }, [coBang]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!mappingReady) return <FullScreenLoader />;
   // Chờ danh sách công trình của nhóm Luồng đỏ / Căn mẫu (Công trình → Setup) để lọc theo nhóm
-  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''} inventory={context.inventoryData} />;
+  return <ConstructionOverview data={context.productionData} columns={context.productionColumns} currentUser={user?.username ?? ''}
+    inventory={context.inventoryData} banGhiSan={coBang ? null : banGhiSan} />;
 };
 
 const ConstructionSetupWrapper = () => {

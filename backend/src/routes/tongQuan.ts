@@ -4,12 +4,13 @@ import { gzipSync, gunzipSync } from 'zlib';
 import { z } from 'zod';
 import { app } from '../server/app.js';
 import { getVersions, getTablesData } from '../server/data.js';
+import { layPlanMet } from './data.js';
 import { docSnapshot, luuSnapshot, guiGzip } from '../server/snapshot.js';
 import { ensureProjectAliases, listProjectAliases, projectAliasesVersion } from '../server/projectAlias.js';
 import { ensureWorkshopGroups, getWorkshopMapping, workshopGroupsVersion } from '../server/workshopGroups.js';
 import {
-  tinhTongQuanSanXuat, DEFAULT_FILTERS, TUY_CHON_MAC_DINH, canonicalizeProjectNames, setServerProjectAliases,
-  canonicalizeWorkshops, applyWorkshopMapping, cotTuDuLieu,
+  tinhTongQuanSanXuat, DEFAULT_FILTERS, TUY_CHON_MAC_DINH, canonicalizeProjectNames, canonicalizePersonNames,
+  setServerProjectAliases, canonicalizeWorkshops, applyWorkshopMapping, cotTuDuLieu, setPlanMet, taoBanGhi, nenBanGhi,
   type DashboardFiltersState, type TuyChonTongQuan,
 } from '@tong-quan/core';
 
@@ -69,7 +70,8 @@ async function sanXuatChuan(ver: string, verSanXuat: string): Promise<BangChuan>
     const cols = cotTuDuLieu(tho);
     setServerProjectAliases(listProjectAliases());
     applyWorkshopMapping(getWorkshopMapping());
-    const rows = canonicalizeWorkshops(canonicalizeProjectNames(tho, cols), cols);
+    // Như App.tsx (canonicalProductionBase): tên công trình -> tên người (PM / PC) -> gộp xưởng
+    const rows = canonicalizeWorkshops(canonicalizePersonNames(canonicalizeProjectNames(tho, cols), cols), cols);
     const bang: BangChuan = { ver, rows, cols };
     chuan = bang;
     return bang;
@@ -121,5 +123,46 @@ app.post('/api/tong-quan/san-xuat', async (req: Request, res: Response) => {
   } catch (e) {
     console.error('[tong-quan] lỗi', e);
     if (!res.headersSent) res.status(500).json({ success: false, message: 'Không tính được số liệu Tổng quan' });
+  }
+});
+
+// ============================================================================
+// GET /api/tong-quan/cong-trinh — BẢN GHI GỌN "TỔNG QUAN CÔNG TRÌNH" dựng sẵn (frontend/components/Construction/core/
+// banGhiCongTrinh.ts: taoBanGhi + nenBanGhi) cho trình duyệt CHƯA có bảng sản xuất: mọi bảng / biểu đồ / bộ lọc của
+// trang tính từ bản ghi nên hiện và lọc được ngay; bảng sản xuất tải ngầm cho danh sách HEX / cửa sổ công trình.
+// Không phụ thuộc bộ lọc => 1 bản / phiên bản dữ liệu (sản xuất + nhập kho cho "KH đã đạt" + bảng tên + gộp xưởng),
+// lưu all_data_snapshot dùng chung mọi phiên bản hàm.
+// ============================================================================
+app.get('/api/tong-quan/cong-trinh', async (_req: Request, res: Response) => {
+  try {
+    const t0 = Date.now();
+    await Promise.all([ensureProjectAliases(), ensureWorkshopGroups()]);
+    const versions = await getVersions();
+    const verSanXuat = versions.production ?? '';
+    const verChuan = JSON.stringify([verSanXuat, projectAliasesVersion(), workshopGroupsVersion()]);
+    const ver = JSON.stringify([verChuan, versions.inventory ?? '']);
+    const khoa = 'tongquan-congtrinh';
+
+    const nho = ketQuaNho.get(`${khoa}|${ver}`);
+    if (nho) return guiGzip(res, nho, `tqct;desc="mem";dur=${Date.now() - t0}`);
+    const nguon = { v: '' };
+    const luu = await docSnapshot(khoa, ver, nguon);
+    if (luu) {
+      ketQuaNho.set(`${khoa}|${ver}`, luu);
+      return guiGzip(res, luu, `tqct;desc="${nguon.v}";dur=${Date.now() - t0}`);
+    }
+
+    const [{ rows, cols }, planMet] = await Promise.all([sanXuatChuan(verChuan, verSanXuat), layPlanMet()]);
+    const tTinh = Date.now();
+    // Hạn bỏ qua KH tuần / tháng đã đạt — như trình duyệt (setPlanMet từ /api/production/plan-met)
+    setPlanMet(planMet);
+    const banGhi = nenBanGhi(taoBanGhi(rows, cols, Date.now()));
+    const buf = gzipSync(JSON.stringify({ success: true, ver, banGhi }));
+    ketQuaNho.set(`${khoa}|${ver}`, buf);
+    await luuSnapshot(khoa, ver, buf);
+    guiGzip(res, buf, `tqct;desc="tinh";dur=${Date.now() - t0}, tinh;dur=${Date.now() - tTinh}`);
+  } catch (e) {
+    console.error('[tong-quan/cong-trinh] lỗi', e);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Không dựng được số liệu công trình' });
   }
 });

@@ -2,6 +2,7 @@ import Papa from 'papaparse';
 import { expandProjectNames } from '../utils/productionMetrics';
 import { DataRow, ColumnDefinition, COMMON_DATE_HEADERS } from '../types';
 import type { DashboardFiltersState, TuyChonTongQuan, TongQuanSanXuat } from '../components/Dashboard/core/tongQuanSanXuat';
+import type { BanGhiNen } from '../components/Construction/core/banGhiCongTrinh';
 import { getToken } from './userService';
 
 // Bảng ánh xạ tên cột kỹ thuật (snake_case từ DB) sang tên hiển thị tiếng Việt.
@@ -561,6 +562,19 @@ export const fetchTongQuanSanXuat = async (
     return d?.success ? d as TongQuanSanXuat : null;
   } catch (e: any) {
     if (e?.name !== 'AbortError') console.error('fetchTongQuanSanXuat error:', e);
+    return null;
+  }
+};
+
+/** Bản ghi gọn "Tổng quan công trình" máy chủ dựng sẵn (nén cột) — dùng khi chưa có bảng sản xuất. null = lỗi. */
+export const fetchTongQuanCongTrinh = async (): Promise<BanGhiNen | null> => {
+  try {
+    const r = await fetch(`${API_BASE_URL}/tong-quan/cong-trinh`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d?.success ? d.banGhi as BanGhiNen : null;
+  } catch (e) {
+    console.error('fetchTongQuanCongTrinh error:', e);
     return null;
   }
 };
