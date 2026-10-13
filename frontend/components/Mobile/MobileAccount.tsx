@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { pushSupported, isPushOn, enablePush, disablePush } from '../../services/vuongMacMobileApi';
 import { BG, CARD, InstallBanner, initials } from './mobileUi';
 import NotifyDiagnostics from './NotifyDiagnostics';
+import { docBoCuc, luuBoCuc, type BoCuc } from './xuong/cheDoDienThoai';
 
 // ============================================================================
 // Màn "Tài khoản": thông tin người dùng, cỡ chữ, thông báo nhắc hạn BOT, cài app,
@@ -102,6 +103,23 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
           ))}
         </div>
       </section>
+
+      {/* Bố cục (app Xưởng): tự động / luôn điện thoại / luôn máy tính — khi máy bị nhận nhầm */}
+      {appXuong && (
+        <section className={`${CARD} p-4`}>
+          <p className="mb-1 text-base font-semibold text-slate-800">Bố cục màn hình</p>
+          <p className="mb-3 text-sm text-slate-500">Tự động là đúng với hầu hết máy. Chọn lại nếu app hiện sai (vd máy tính mà hiện dạng điện thoại).</p>
+          <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1">
+            {([['tu_dong', 'Tự động'], ['dien_thoai', 'Điện thoại'], ['may_tinh', 'Máy tính']] as Array<[BoCuc, string]>).map(([k, l]) => (
+              <button key={k} aria-pressed={docBoCuc() === k}
+                onClick={() => { luuBoCuc(k); location.reload(); }}
+                className={`rounded-full py-2 text-base ${docBoCuc() === k ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Thông báo */}
       <section className={`${CARD} p-4`}>

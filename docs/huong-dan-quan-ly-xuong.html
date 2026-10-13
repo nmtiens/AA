@@ -316,22 +316,22 @@ table td:first-child { min-width: 9em; }
     <div class="khung">
       <h3>Cách tính</h3>
       <ul class="ds">
-        <li><b>Giờ người</b> = số người có mặt theo điểm danh, cộng dồn theo thời gian (đến trễ, về sớm được tính), trừ giờ nghỉ. Ca chính đủ là 7,5 giờ/người. Tổ chưa điểm danh tên thì dùng quân số chốt × giờ ca.</li>
+        <li><b>Giờ có mặt</b> = số người có mặt theo điểm danh, cộng dồn theo thời gian (đến trễ, về sớm được tính), trừ giờ nghỉ. Ca chính đủ là 7,5 giờ/người. Tổ chưa điểm danh tên thì dùng quân số chốt × giờ ca.</li>
         <li><b>Giờ công</b> = giờ của những người được gắn tên vào hạng mục đang chạy (chỉ tính người đang có mặt). Tổ khai theo số thì chia theo số người khai, khai vượt quân số thì co lại theo tỷ lệ.</li>
-        <li><b>Giờ chờ</b> = phần giờ người không chia cho hạng mục nào, kèm lý do: <i>Người rảnh</i> (khai ít hơn quân số), <i>Không có hạng mục chạy</i>, hoặc lý do tạm ngưng (thiếu vật tư, chờ bản vẽ…).</li>
-        <li><b>Dùng người</b> = giờ công ÷ giờ người. Xanh từ 80%, vàng 50–79%, đỏ dưới 50%.</li>
+        <li><b>Giờ chờ việc</b> = phần giờ có mặt không chia cho hạng mục nào, kèm lý do: <i>Người rảnh</i> (khai ít hơn quân số), <i>Không có hạng mục chạy</i>, hoặc lý do tạm ngưng (thiếu vật tư, chờ bản vẽ…).</li>
+        <li><b>Tỷ lệ có việc</b> = giờ công ÷ giờ có mặt. Xanh từ 80%, vàng 50–79%, đỏ dưới 50%.</li>
         <li>Ca chưa chốt quân số chỉ tính theo số người khai, không có giờ chờ.</li>
       </ul>
     </div>
     <div class="khung">
       <h3>Đầu báo cáo: 5 số của kỳ</h3>
-      <p>Công nhân bình quân mỗi ngày · Giờ công · Dùng người · Giờ chờ (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Bảng công</b> (người × ngày như màn hình), <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ có mặt, tăng ca, giờ công, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
+      <p>Công nhân bình quân mỗi ngày · Giờ công · Tỷ lệ có việc · Giờ chờ việc (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Bảng công</b> (người × ngày như màn hình), <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ có mặt, tăng ca, giờ công, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
     </div>
     <div class="bang-boc">
       <table>
         <thead><tr><th>Tab</th><th>Xem gì</th><th>Dùng để</th></tr></thead>
         <tbody>
-          <tr><td><b>Theo ngày</b></td><td>Mỗi ngày × mỗi tổ: công nhân, giờ người, giờ công, giờ chờ, % dùng người, số hạng mục nhận, chạy, số xong. Bấm tổ: giờ công từng hạng mục, hàng nhận, hàng xong, giờ chờ vì sao.</td><td>Hỏi tổ về một ngày cụ thể</td></tr>
+          <tr><td><b>Theo ngày</b></td><td>Mỗi ngày × mỗi tổ: công nhân, giờ có mặt, giờ công, giờ chờ việc, % có việc, số hạng mục nhận, chạy, số xong. Bấm tổ: giờ công từng hạng mục, hàng nhận, hàng xong, giờ chờ vì sao.</td><td>Hỏi tổ về một ngày cụ thể</td></tr>
           <tr><td><b>Theo tổ</b></td><td>Mỗi tổ một hàng, mỗi ngày một ô % dùng người tô màu, cuối hàng là tổng kỳ.</td><td>Thấy tổ nào yếu, xu hướng tốt lên hay kém đi</td></tr>
           <tr><td><b>Theo hạng mục</b></td><td>Mỗi hạng mục: từng công đoạn với tổ, số công nhân, giờ chạy, giờ công/người, tổng giờ công, số xong, giờ công/đơn vị. Mở "Theo ngày" xem từng ngày.</td><td>Giờ công thực tế của hạng mục, so định mức, tính giá thành</td></tr>
           <tr><td><b>Theo người</b></td><td><b>Danh sách</b>: mỗi công nhân có ngày có mặt / vắng, giờ có mặt, tăng ca, giờ công, giờ chờ, % làm việc, số lần trễ / về sớm; bấm vào người xem từng ngày. <b>Bảng công</b>: mỗi người một hàng, mỗi ngày một ô (giờ có mặt, "+" tăng ca, <b>V</b> = vắng, ô vàng = trễ / về sớm), cuối hàng ngày công, giờ, vắng, trễ.</td><td>Chấm công, tính lương / thưởng, xem ai hay chờ việc</td></tr>
@@ -339,7 +339,7 @@ table td:first-child { min-width: 9em; }
         </tbody>
       </table>
     </div>
-    <p class="goi chu-y">Dùng người thấp: mở tổ đó ở tab Theo ngày, xem <b>Giờ chờ — vì sao</b>. Phần lớn "Không có hạng mục chạy" là thiếu việc hoặc chưa triển khai; "Người rảnh" là tổ khai thiếu người; lý do tạm ngưng chỉ ra chỗ tắc (vật tư, bản vẽ…).</p>
+    <p class="goi chu-y">Tỷ lệ có việc thấp: mở tổ đó ở tab Theo ngày, xem <b>Giờ chờ — vì sao</b>. Phần lớn "Không có hạng mục chạy" là thiếu việc hoặc chưa triển khai; "Người rảnh" là tổ khai thiếu người; lý do tạm ngưng chỉ ra chỗ tắc (vật tư, bản vẽ…).</p>
   </section>
 
   <section id="hoi">

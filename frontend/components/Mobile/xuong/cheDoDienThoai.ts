@@ -5,10 +5,20 @@
 //   1. gắn <html class="dien-thoai">: các biến thể rsm: / rmd: … (tailwind.config.js) thôi áp → bố cục điện thoại;
 //   2. đặt <body> rộng đúng bề rộng màn thật, phóng to (transform) cho đầy 980px — các phần position: fixed (thanh menu
 //      dưới, cửa sổ thao tác gắn vào body) lấy body làm khung nên vẫn nằm gọn trong màn.
-// Thử trên máy tính: localStorage.xuong_ep_dien_thoai = '1' (ép bật, bề rộng 412) / '0' (ép tắt).
+// Người dùng chọn ở Tài khoản → Bố cục màn hình: localStorage.xuong_ep_dien_thoai = '1' (luôn điện thoại) / '0' (luôn
+// máy tính) / không có (tự động).
 // ============================================================================
 
-const KHOA_EP = 'xuong_ep_dien_thoai';
+export const KHOA_EP = 'xuong_ep_dien_thoai';
+export type BoCuc = 'tu_dong' | 'dien_thoai' | 'may_tinh';
+export function docBoCuc(): BoCuc {
+  try { const v = localStorage.getItem(KHOA_EP); return v === '1' ? 'dien_thoai' : v === '0' ? 'may_tinh' : 'tu_dong'; } catch { return 'tu_dong'; }
+}
+export function luuBoCuc(b: BoCuc) {
+  try {
+    if (b === 'tu_dong') localStorage.removeItem(KHOA_EP); else localStorage.setItem(KHOA_EP, b === 'dien_thoai' ? '1' : '0');
+  } catch { /* bỏ qua */ }
+}
 
 /** Bề rộng màn thật (CSS px) khi đang ở chế độ máy tính trên điện thoại; null = không phải trường hợp này */
 export function rongManThat(): number | null {
@@ -21,7 +31,8 @@ export function rongManThat(): number | null {
   const cam = window.matchMedia?.('(pointer: coarse)').matches && window.matchMedia?.('(hover: none)').matches
     && navigator.maxTouchPoints > 0;
   const manNho = screen.width > 0 && Math.max(screen.width, screen.height) < 1100;
-  if (!cam || !manNho || window.innerWidth < 768) return null;
+  // Điện thoại ở chế độ máy tính dựng trang rộng ~980px: cửa sổ rộng hơn 1100px chắc chắn là máy tính / màn lớn
+  if (!cam || !manNho || window.innerWidth < 768 || window.innerWidth > 1100) return null;
   // screen.width vẫn là bề rộng màn thật; trang rộng hơn hẳn => viewport bị ép
   if (screen.width > 0 && screen.width < 768 && window.innerWidth > screen.width * 1.25) return screen.width;
   // Dự phòng: trình duyệt thu nhỏ trang để vừa màn (tỉ lệ < 0,8)
