@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
-import { xuongSetupApi, type BaoCaoXuong as BaoCao, type BaoCaoTo } from '../../services/xuongSetupApi';
-import { gioVN, tenCo } from '../../services/xuongModel';
+import { xuongSetupApi, type BaoCaoXuong as BaoCao, type BaoCaoTo, type BaoCaoToNgay } from '../../services/xuongSetupApi';
+import { gioVN, tenCo, hienSl, TEN_CA, type LoaiCa } from '../../services/xuongModel';
 import { BTN, KHUNG, TH, TD } from './xuongDesktopUi';
 
 // ============================================================================
@@ -29,30 +29,9 @@ function ChiSo({ ten, giaTri, phu, dat }: { ten: string; giaTri: string; phu: st
 
 function ChiTietTo({ t }: { t: BaoCaoTo }) {
   return (
-    <div className="grid gap-3 bg-slate-50 p-3 md:gap-4 md:p-4 xl:grid-cols-2">
+    <div className="bg-slate-50 p-3 md:p-4">
       <div className={KHUNG}>
-        <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Theo ngày</p>
-        <table className="w-full">
-          <thead className="bg-slate-50"><tr>
-            <th className={TH}>Ngày</th><th className={`${TH} text-right`}>Giờ người</th><th className={`${TH} text-right`}>Giờ công</th>
-            <th className={`${TH} text-right`}>Giờ chờ</th><th className={TH}>Cờ</th>
-          </tr></thead>
-          <tbody>
-            {t.theoNgay.map(n => (
-              <tr key={n.ngay} className="border-t border-slate-100">
-                <td className={`${TD} tabular-nums`}>{ddmm(n.ngay)}</td>
-                <td className={`${TD} text-right tabular-nums`}>{so(n.gioNguoi)}</td>
-                <td className={`${TD} text-right tabular-nums`}>{so(n.gioCong)}</td>
-                <td className={`${TD} text-right tabular-nums`}>{so(n.gioCho)}</td>
-                <td className={`${TD} text-xs text-amber-800`}>{n.co.map(tenCo).join(', ')}</td>
-              </tr>
-            ))}
-            {!t.theoNgay.length && <tr><td colSpan={5} className={`${TD} text-slate-500`}>Không có số liệu trong kỳ.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <div className={KHUNG}>
-        <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Giờ công theo hạng mục</p>
+        <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Giờ công theo hạng mục (cộng cả kỳ)</p>
         {/* Điện thoại: thẻ từng hạng mục (bảng 4 cột bị cắt cột tăng ca) */}
         <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto md:hidden">
           {t.theoHangMuc.map(h => (
@@ -90,6 +69,129 @@ function ChiTietTo({ t }: { t: BaoCaoTo }) {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Quân số chốt: ca chính trước, tăng ca sau — "7 người · tăng ca Ca 1: 5" */
+function moTaQuanSo(q: Record<string, number>) {
+  const chinh = q.chinh;
+  const tc = Object.entries(q).filter(([k]) => k !== 'chinh').map(([k, n]) => `${TEN_CA[k as LoaiCa] ?? k}: ${n}`);
+  return { chinh: typeof chinh === 'number' ? chinh : null, tangCa: tc.join(' · ') };
+}
+
+function ChiTietNgay({ n }: { n: BaoCaoToNgay }) {
+  return (
+    <div className="grid gap-3 bg-slate-50 p-3 md:p-4 xl:grid-cols-2">
+      <div className={KHUNG}>
+        <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Giờ công theo hạng mục trong ngày ({n.hangMuc.length})</p>
+        <ul className="divide-y divide-slate-100">
+          {n.hangMuc.map(h => (
+            <li key={`${h.hex}|${h.congDoanId}`} className="flex items-start gap-3 px-3 py-2 text-sm">
+              <div className="min-w-0 flex-1">
+                <p>
+                  <span className="font-medium tabular-nums text-slate-800">{h.hex}</span> {h.tenHangMuc ?? ''}
+                  {h.dangChay && <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">Đang chạy</span>}
+                </p>
+                <p className="text-xs text-slate-500">{h.tenCongDoan} · chạy {so(h.gioChay)} giờ</p>
+              </div>
+              <div className="shrink-0 text-right tabular-nums">
+                <p className="font-semibold text-slate-800">{so(h.gioCongThuong + h.gioCongTangCa)} giờ công</p>
+                {h.gioCongTangCa > 0 && <p className="text-xs text-slate-500">tăng ca {so(h.gioCongTangCa)}</p>}
+              </div>
+            </li>
+          ))}
+          {!n.hangMuc.length && <li className="px-3 py-2 text-sm text-slate-500">Không có hạng mục chạy trong ngày.</li>}
+        </ul>
+      </div>
+      <div className={KHUNG}>
+        <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Hạng mục nhận trong ngày ({n.nhan.length})</p>
+        <ul className="divide-y divide-slate-100">
+          {n.nhan.map(h => (
+            <li key={`${h.hex}|${h.congDoanId}`} className="flex items-start gap-3 px-3 py-2 text-sm">
+              <div className="min-w-0 flex-1">
+                <p><span className="font-medium tabular-nums text-slate-800">{h.hex}</span> {h.tenHangMuc ?? ''}</p>
+                <p className="text-xs text-slate-500">{h.tenCongDoan}</p>
+              </div>
+              <p className="shrink-0 tabular-nums text-slate-800">{hienSl(h.soLuong)} {h.dvt?.trim() || 'cái'}</p>
+            </li>
+          ))}
+          {!n.nhan.length && <li className="px-3 py-2 text-sm text-slate-500">Không nhận hạng mục nào.</li>}
+        </ul>
+        {n.co.length > 0 && <p className="border-t border-slate-100 px-3 py-2 text-xs text-amber-800">{n.co.map(tenCo).join(', ')}</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Theo ngày: mỗi ngày (mới trước) × mỗi tổ — công nhân, giờ công, giờ công từng hạng mục, hạng mục nhận / đang chạy */
+function TheoNgay({ ds }: { ds: BaoCaoTo[] }) {
+  const [mo, setMo] = useState<Set<string>>(new Set());
+  const bat = (k: string) => setMo(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const theoNgay = new Map<string, Array<{ t: BaoCaoTo; n: BaoCaoToNgay }>>();
+  for (const t of ds) for (const n of t.theoNgay) {
+    if (!theoNgay.has(n.ngay)) theoNgay.set(n.ngay, []);
+    theoNgay.get(n.ngay)!.push({ t, n });
+  }
+  const ngays = [...theoNgay.keys()].sort().reverse();
+  if (!ngays.length) return null;
+  return (
+    <div className={KHUNG}>
+      <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Theo ngày — từng tổ</p>
+      {ngays.map(ngay => {
+        const dong = theoNgay.get(ngay)!.sort((a, b) => a.t.ten.localeCompare(b.t.ten));
+        const tongCn = dong.reduce((a, x) => a + (x.n.quanSo.chinh ?? 0), 0);
+        const tongGc = dong.reduce((a, x) => a + x.n.gioCong, 0);
+        return (
+          <div key={ngay} className="border-b border-slate-100 last:border-b-0">
+            <p className="flex flex-wrap gap-x-4 bg-slate-50 px-4 py-2 text-sm">
+              <span className="font-semibold text-slate-800">{ddmm(ngay)}/{ngay.slice(0, 4)}</span>
+              <span className="tabular-nums text-slate-600">{tongCn} công nhân · {so(tongGc)} giờ công</span>
+            </p>
+            <ul className="divide-y divide-slate-100">
+              {dong.map(({ t, n }) => {
+                const k = `${ngay}|${t.toId}`;
+                const m = mo.has(k);
+                const qs = moTaQuanSo(n.quanSo);
+                const chay = n.hangMuc.filter(h => h.dangChay).length;
+                return (
+                  <li key={k}>
+                    <button type="button" className="w-full px-4 py-2.5 text-left hover:bg-slate-50 active:bg-slate-50" aria-expanded={m} onClick={() => bat(k)}>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                        <span className="flex min-w-36 items-center gap-1 font-semibold text-slate-800">
+                          {m ? <ChevronDown size={15} /> : <ChevronRight size={15} />}{t.ten}
+                        </span>
+                        <span className="tabular-nums text-slate-700">
+                          <span className="text-slate-500">Công nhân </span>
+                          {qs.chinh !== null ? <b>{qs.chinh}</b> : <span className="text-amber-700">chưa chốt</span>}
+                          {qs.tangCa && <span className="text-slate-500"> · tăng ca {qs.tangCa}</span>}
+                        </span>
+                        <span className="tabular-nums text-slate-700">
+                          <span className="text-slate-500">Giờ công </span><b>{so(n.gioCong)}</b>
+                          {n.gioCongTangCa > 0 && <span className="text-slate-500"> (tăng ca {so(n.gioCongTangCa)})</span>}
+                        </span>
+                        <span className="tabular-nums text-slate-700"><span className="text-slate-500">Giờ người </span>{so(n.gioNguoi)}</span>
+                        <span className="tabular-nums text-slate-700"><span className="text-slate-500">Giờ chờ </span>{so(n.gioCho)}</span>
+                        <span className="tabular-nums text-slate-700"><span className="text-slate-500">Nhận </span>{n.nhan.length} hạng mục</span>
+                        <span className="tabular-nums text-slate-700">
+                          <span className="text-slate-500">Chạy </span>{n.hangMuc.length} hạng mục
+                          {chay > 0 && <span className="text-emerald-700"> · {chay} đang chạy</span>}
+                        </span>
+                        {n.co.length > 0 && <AlertTriangle size={14} className="text-amber-600" aria-label={n.co.map(tenCo).join(', ')} />}
+                      </div>
+                    </button>
+                    {m && <ChiTietNgay n={n} />}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
+      <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
+        Công nhân = quân số tổ chốt trong ngày. Giờ công từng hạng mục = thời gian chạy × số người khai khi bắt đầu / chia người (co theo quân số).
+        Bấm một tổ để xem giờ công từng hạng mục và các hạng mục nhận.
+      </p>
     </div>
   );
 }
@@ -239,6 +341,8 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
         </div>
       )}
 
+      {d && <TheoNgay ds={ds} />}
+
       {d && <DoiChieuChamCong d={d} />}
 
       {d && (
@@ -349,7 +453,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
           </div>
           <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
             Giờ người = quân số đã chốt × giờ ca (trừ giờ nghỉ). Giờ công = giờ người chia cho hạng mục đang chạy theo số người khai; phần không gán là giờ chờ.
-            Ca chưa chốt quân số chỉ tính theo số người khai (không có giờ chờ). Bấm một tổ để xem theo ngày và theo hạng mục.
+            Ca chưa chốt quân số chỉ tính theo số người khai (không có giờ chờ). Bấm một tổ để xem giờ công cả kỳ theo hạng mục.
           </p>
         </div>
       )}

@@ -466,6 +466,8 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
           nhanTrongLo.set(k, (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0));
           if (gh?.moc !== null && gh?.moc !== undefined && tong > gh.moc) co.push('nhan_vuot_trien_khai');
         }
+        // Bắt đầu / tiếp tục phải khai số người làm hạng mục (app bắt khai; máy cũ chưa cập nhật thì gắn cờ)
+        if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && !e.soNguoi) co.push('thieu_so_nguoi');
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
         co.push(...gio.co);
         ghi.push({

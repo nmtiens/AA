@@ -61,11 +61,23 @@ export interface BaoCaoTo {
   gioNguoi: GioTach; gioCong: GioTach; gioCho: GioTach;
   ngayCoChay: number; ngayChot: number; khaiVuot: number;
   dangChay: number; tamNgung: number; choNhan: number;
-  theoNgay: Array<{ ngay: string; gioNguoi: number; gioCong: number; gioCho: number; co: string[] }>;
+  /** Mới nhất trước */
+  theoNgay: BaoCaoToNgay[];
   theoHangMuc: Array<{
     hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; tenCongTrinh: string | null;
     gioChay: number; gioCongThuong: number; gioCongTangCa: number;
   }>;
+}
+export interface BaoCaoToNgay {
+  ngay: string; gioNguoi: number; gioCong: number; gioCongTangCa: number; gioCho: number; co: string[];
+  /** Quân số chốt theo loại ca (chinh, ca1…) */
+  quanSo: Record<string, number>;
+  /** Hạng mục có chạy trong ngày, nhiều giờ công trước; dangChay = đang chạy lúc này (chỉ hôm nay) */
+  hangMuc: Array<{
+    hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null;
+    gioChay: number; gioCongThuong: number; gioCongTangCa: number; dangChay: boolean;
+  }>;
+  nhan: Array<{ hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; soLuong: number; dvt: string | null }>;
 }
 export interface BaoCaoXuong {
   xuong: string; tu: string; den: string; banLuu: boolean; conThieu: number;

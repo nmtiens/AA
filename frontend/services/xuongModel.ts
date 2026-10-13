@@ -273,6 +273,7 @@ export const TEN_CO: Record<string, string> = {
   tac_gia_khong_xac_minh: 'Không xác minh được người bấm',
   nhan_chua_thay_giao: 'Nhận khi chưa thấy tổ trước giao',
   nhan_vuot_trien_khai: 'Nhận vượt số lượng triển khai',
+  thieu_so_nguoi: 'Bắt đầu chưa khai số người',
   bat_dau_hai_lan: 'Bắt đầu 2 lần',
   tam_ngung_khi_khong_chay: 'Tạm ngưng khi không chạy',
   tiep_tuc_khi_chua_tam_ngung: 'Tiếp tục khi chưa tạm ngưng',

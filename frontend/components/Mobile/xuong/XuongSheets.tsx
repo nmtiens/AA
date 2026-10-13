@@ -85,6 +85,40 @@ export function QuanSoSheet({ ca, macDinh, homQua, sauDo, onChot, onClose }: {
 }
 
 // ---------------------------------------------------------------------------
+// Bắt đầu / Tiếp tục — bắt buộc khai số người làm hạng mục (giờ công chia theo số người khai)
+// ---------------------------------------------------------------------------
+export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, onBatDau, onClose }: {
+  r: DongViec; tiepTuc: boolean; quanSo: number | null; dangChayKhac: DongViec[];
+  onBatDau: (soNguoi: number) => void; onClose: () => void;
+}) {
+  const dangLamKhac = dangChayKhac.reduce((a, x) => a + (x.soNguoi ?? 0), 0);
+  const ranh = quanSo === null ? null : Math.max(0, quanSo - dangLamKhac);
+  const goiY = tiepTuc && r.soNguoi && (ranh === null || r.soNguoi <= ranh) ? r.soNguoi : (ranh || r.soNguoi || 1);
+  const [n, setN] = useState(Math.max(1, goiY));
+  const vuot = ranh !== null && n > ranh;
+  const dongTu = tiepTuc ? 'Tiếp tục' : 'Bắt đầu';
+  return (
+    <BottomSheet title={`${dongTu} ${r.hex} — mấy người làm?`} onClose={onClose}
+      footer={<button className={NUT_CHINH} disabled={n < 1} onClick={() => onBatDau(n)}>{dongTu} với {n} người</button>}>
+      <div className="space-y-5 pb-2">
+        {r.tenHangMuc && <p className="text-base text-slate-700">{r.tenHangMuc}</p>}
+        <BoDem value={n} onChange={setN} lon min={1} max={500} nhan="số người làm hạng mục" />
+        {quanSo !== null && (
+          <p className={`text-base ${vuot ? `font-semibold ${MAU.loi.chu}` : 'text-slate-700'}`}>
+            {vuot
+              ? `Nhiều hơn số người đang rảnh (${ranh}) — tổ có ${quanSo} người, ${dangLamKhac} người đang làm hạng mục khác. Nên chia lại người.`
+              : `Tổ có ${quanSo} người · ${dangLamKhac} đang làm hạng mục khác · còn rảnh ${ranh}.`}
+          </p>
+        )}
+        {ranh !== null && ranh > 0 && ranh !== n && (
+          <button className={`${NUT_PHU} w-full`} onClick={() => setN(ranh)}>Tất cả người đang rảnh ({ranh})</button>
+        )}
+      </div>
+    </BottomSheet>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 3E — Tạm ngưng: lưới 2×3, chạm một lần là ghi
 // ---------------------------------------------------------------------------
 const ICON_LY_DO: Record<MaLyDo, typeof PackageX> = {

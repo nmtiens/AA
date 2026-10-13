@@ -70852,6 +70852,7 @@ app.post("/api/xuong/events", async (req, res) => {
           nhanTrongLo.set(k, (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0));
           if (gh?.moc !== null && gh?.moc !== void 0 && tong > gh.moc) co.push("nhan_vuot_trien_khai");
         }
+        if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && !e.soNguoi) co.push("thieu_so_nguoi");
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
         co.push(...gio.co);
         ghi.push({
@@ -71565,7 +71566,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     if (soNgay < 0 || soNgay > 62) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 63 ng\xE0y" });
     const toRows = (await pool.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows;
     const toIds = toRows.map((t) => Number(t.id));
-    const [pb, kpiNk, kpiGui, hienTai] = await Promise.all([
+    const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay] = await Promise.all([
       pool.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
                   WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, tu, den]),
       // Nhật ký công đoạn có đủ Bắt đầu và Hoàn thành (cặp hex × công đoạn có bắt đầu / hoàn thành trong kỳ)
@@ -71595,6 +71596,29 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
          FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
          WHERE tc.to_id = ANY($1::int[]) GROUP BY tc.to_id`,
         [toIds]
+      ),
+      // Quân số chốt theo (tổ, ngày, loại ca) — lần chốt cuối còn hiệu lực
+      pool.query(
+        `SELECT DISTINCT ON (e.to_id, 2, e.du_lieu->>'loaiCa') e.to_id,
+                to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay,
+                e.du_lieu->>'loaiCa' AS loai_ca, (e.du_lieu->>'soNguoi')::float AS so
+         FROM xuong_su_kien e
+         WHERE e.to_id = ANY($1::int[]) AND e.loai = 'quan_so'
+           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY e.to_id, 2, e.du_lieu->>'loaiCa', e.device_ts_hieu_chinh DESC`,
+        [toIds, tu, den]
+      ),
+      // Hạng mục tổ nhận theo ngày
+      pool.query(
+        `SELECT e.to_id, to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay,
+                e.hex, e.cong_doan_id, sum(e.so_luong)::float AS sl
+         FROM xuong_su_kien e
+         WHERE e.to_id = ANY($1::int[]) AND e.loai = 'nhan' AND e.hex IS NOT NULL
+           AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         GROUP BY 1, 2, 3, 4 ORDER BY 1, 2, 3`,
+        [toIds, tu, den]
       )
     ]);
     let banLuu = true;
@@ -71635,6 +71659,23 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     }), 2);
     const ht = new Map(hienTai.rows.map((x) => [Number(x.to_id), x]));
     const tatCaHex = /* @__PURE__ */ new Set();
+    const quanSoCua = /* @__PURE__ */ new Map();
+    for (const x of qsNgay.rows) {
+      const k = `${x.to_id}|${x.ngay}`;
+      quanSoCua.set(k, { ...quanSoCua.get(k) ?? {}, [String(x.loai_ca)]: Number(x.so) });
+    }
+    const nhanCua = /* @__PURE__ */ new Map();
+    for (const x of nhanNgay.rows) {
+      const k = `${x.to_id}|${x.ngay}`;
+      if (!nhanCua.has(k)) nhanCua.set(k, []);
+      nhanCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam(Number(x.sl)) });
+      tatCaHex.add(String(x.hex));
+    }
+    const dangChayNay = new Set((await pool.query(
+      `SELECT DISTINCT t.hex, t.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
+       WHERE tc.to_id = ANY($1::int[]) AND t.trang_thai = 'dang_lam'`,
+      [toIds]
+    )).rows.map((x) => `${x.hex}|${x.cong_doan_id}`));
     const theoTo = toRows.map((t) => {
       const toId = Number(t.id);
       const gioNguoi = { thuong: 0, tangCa: 0 };
@@ -71651,8 +71692,21 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         cong(gioNguoi, kq.gioNguoiTo);
         cong(gioCho, kq.gioCho);
         let gcNgay = 0;
+        let tcNgay = 0;
         let chay = 0;
+        const hmNgay = [];
         for (const [k, h2] of Object.entries(kq.theoHangMuc)) {
+          tcNgay += h2.gioCongTangCa;
+          if (h2.gioChay > 0 || h2.gioCongThuong + h2.gioCongTangCa > 0) {
+            hmNgay.push({
+              hex: k.split("|")[0],
+              congDoanId: k.split("|")[1],
+              gioChay: lam(h2.gioChay),
+              gioCongThuong: lam(h2.gioCongThuong),
+              gioCongTangCa: lam(h2.gioCongTangCa),
+              dangChay: x.ngay === homNay && dangChayNay.has(k)
+            });
+          }
           gioCong.thuong += h2.gioCongThuong;
           gioCong.tangCa += h2.gioCongTangCa;
           gcNgay += h2.gioCongThuong + h2.gioCongTangCa;
@@ -71673,8 +71727,12 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           ngay: x.ngay,
           gioNguoi: lam(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa),
           gioCong: lam(gcNgay),
+          gioCongTangCa: lam(tcNgay),
           gioCho: lam(kq.gioCho.thuong + kq.gioCho.tangCa),
-          co: kq.co
+          co: kq.co,
+          quanSo: quanSoCua.get(`${toId}|${x.ngay}`) ?? {},
+          hangMuc: hmNgay.sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa)),
+          nhan: nhanCua.get(`${toId}|${x.ngay}`) ?? []
         });
       }
       const h = ht.get(toId);
@@ -71734,7 +71792,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         cong(a, kq.gioNguoiTo);
         appNgay.set(x.ngay, a);
       }
-      const qsNgay = new Map(qs.rows.map((x) => [String(x.ngay), Number(x.so)]));
+      const qsNgay2 = new Map(qs.rows.map((x) => [String(x.ngay), Number(x.so)]));
       const ngays = [.../* @__PURE__ */ new Set([...dd.rows.map((x) => String(x.ngay)), ...appNgay.keys()])].sort();
       chamCong = {
         moiNhat: moi.rows[0]?.d ?? null,
@@ -71746,7 +71804,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
             congNhan: d ? Number(d.cn) : 0,
             gioHc: d ? lam(Number(d.hc)) : 0,
             gioTc: d ? lam(Number(d.tc)) : 0,
-            quanSoApp: qsNgay.get(n) ?? 0,
+            quanSoApp: qsNgay2.get(n) ?? 0,
             gioThuongApp: a ? lam(a.thuong) : 0,
             gioTangCaApp: a ? lam(a.tangCa) : 0
           };
@@ -71777,6 +71835,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       },
       theoTo: theoTo.map((t) => ({
         ...t,
+        theoNgay: t.theoNgay.map((n) => ({
+          ...n,
+          hangMuc: n.hangMuc.map((x) => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null })),
+          nhan: n.nhan.map((x) => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null, dvt: info.get(x.hex)?.dvt ?? null }))
+        })).reverse(),
         theoHangMuc: t.theoHangMuc.map((x) => ({
           ...x,
           tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId,
