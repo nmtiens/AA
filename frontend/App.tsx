@@ -1020,7 +1020,7 @@ const MainLayout: React.FC = () => {
         </div>
 
         {user && (
-          <div className={`px-4 py-3.5 flex items-center gap-3 border-b border-slate-200 ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className={`px-4 py-3.5 flex items-center gap-3 border-b border-slate-200 ${isCollapsed ? 'justify-center !gap-0' : ''}`}>
             <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-semibold text-xs shrink-0 cursor-help" title={`Permissions: ${user.permissions.length} views`}>
               {user.fullName.charAt(0).toUpperCase()}
             </div>
@@ -1157,40 +1157,40 @@ const MainLayout: React.FC = () => {
           {user?.role === 'USER' && (
             <button
               onClick={() => { setIsChangePasswordOpen(true); closeMobileSidebar(); }}
-              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center' : ''}`}
+              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0' : ''}`}
               title="Đổi mật khẩu"
             >
               <Key size={18} />
-              <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đổi mật khẩu</span>
+              <span className={`whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đổi mật khẩu</span>
             </button>
           )}
 
           <button
             onClick={handleLogoutClick}
-            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center' : ''}`}
+            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center !gap-0' : ''}`}
             title="Đăng xuất"
           >
             <LogOut size={18} />
-            <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đăng xuất</span>
+            <span className={`whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Đăng xuất</span>
           </button>
 
           <button
             onClick={() => { setIsInstallOpen(true); closeMobileSidebar(); }}
-            className={`${FOOT_BTN} ${isCollapsed ? 'justify-center' : ''}`}
+            className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0' : ''}`}
             title="Tải ứng dụng điện thoại"
           >
             <Smartphone size={18} />
-            <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Tải app điện thoại</span>
+            <span className={`whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Tải app điện thoại</span>
           </button>
 
           {hasPermission('data_log') && (
             <button
               onClick={() => { setIsLogOpen(true); closeMobileSidebar(); }}
-              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center' : ''}`}
+              className={`${FOOT_BTN} ${isCollapsed ? 'justify-center !gap-0' : ''}`}
               title="Nhật ký cập nhật dữ liệu"
             >
               <Clock size={18} />
-              <span className={`transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Nhật ký cập nhật</span>
+              <span className={`whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Nhật ký cập nhật</span>
             </button>
           )}
 
@@ -1201,7 +1201,7 @@ const MainLayout: React.FC = () => {
           <button
             onClick={manualRefresh}
             className={`flex items-center justify-center w-full gap-2 py-2 mt-1 bg-wood-600 hover:bg-wood-700 rounded-lg transition-colors text-sm font-medium text-white
-             ${loading ? 'opacity-50 cursor-not-allowed' : ''} ${isCollapsed ? 'px-0' : 'px-4'}`}
+             ${loading ? 'opacity-50 cursor-not-allowed' : ''} ${isCollapsed ? 'px-0 !gap-0' : 'px-4'}`}
             disabled={loading}
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
@@ -1320,12 +1320,13 @@ const NavGroup: React.FC<NavGroupProps> = ({ icon, label, tooltip, collapsed, op
     <button
       onClick={onToggle}
       title={collapsed ? (tooltip || label) : undefined}
-      className={`flex items-center w-full gap-3 py-2 rounded-lg text-sm transition-colors duration-150
-        ${collapsed ? 'justify-center px-2' : 'px-3'}
+      className={`flex items-center w-full py-2 rounded-lg text-sm transition-colors duration-150
+        ${collapsed ? 'justify-center gap-0 px-2' : 'gap-3 px-3'}
         ${active ? 'text-slate-900 bg-slate-100 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
     >
       {icon}
-      <span className={`flex-1 text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+      {/* Thu gọn: bỏ hẳn chữ (flex-1 dù rộng 0 vẫn chiếm chỗ trống, đẩy icon lệch trái) */}
+      <span className={`text-left whitespace-nowrap overflow-hidden transition-all duration-300 ${collapsed ? 'hidden' : 'flex-1 w-auto opacity-100'}`}>
         {label}
       </span>
       {!collapsed && (
@@ -1360,8 +1361,8 @@ const NavLink: React.FC<NavLinkProps> = ({ to, icon, label, active, onClick, col
     to={to}
     onClick={onClick}
     title={collapsed ? label : undefined}
-    className={`flex items-center gap-3 py-2 rounded-lg text-sm transition-colors duration-150 group relative
-      ${collapsed ? 'justify-center px-2' : 'px-3'}
+    className={`flex items-center py-2 rounded-lg text-sm transition-colors duration-150 group relative
+      ${collapsed ? 'justify-center gap-0 px-2' : 'gap-3 px-3'}
       ${active ? NAV_ACTIVE : NAV_IDLE}
     `}
   >
