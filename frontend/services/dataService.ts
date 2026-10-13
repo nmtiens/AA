@@ -161,10 +161,22 @@ export const saveToCache = async (endpoint: string, version: string, result: any
   }
 };
 
-// XOÁ TOÀN BỘ CACHE DỮ LIỆU (đăng xuất / đổi người dùng): dữ liệu đã lọc theo quyền của người
-// trước (vd. cột giá vật tư) không được để lại cho người sau trên cùng máy.
+// XOÁ TOÀN BỘ CACHE DỮ LIỆU khi đổi sang người có quyền xem dữ liệu khác: /api/all-data trả CÙNG một bộ bảng cho
+// mọi người, chỉ khác cột giá / NCC vật tư (quyền materials_view_price, admin luôn có). Nên cache gắn với "mức xem
+// dữ liệu" chứ không gắn với từng người: đăng nhập lại / người khác cùng mức / cấp thêm quyền không liên quan dữ
+// liệu (Xưởng, Vướng mắc…) đều dùng lại cache, khỏi tải lại ~440 nghìn dòng. Cache có cột giá thì xoá khi đăng xuất
+// để người sau trên cùng máy không đọc được giá.
 // Xoá nội dung kho thay vì xoá cả DB vì các kết nối IndexedDB đang mở sẽ chặn deleteDatabase.
 const CACHE_OWNER_KEY = 'ops_cache_owner';
+
+/** Mức xem dữ liệu của tài khoản — cache dùng chung giữa các tài khoản cùng mức */
+export const mucXemDuLieu = (u: { role?: string; permissions?: string[] } | null | undefined): 'gia' | 'thuong' =>
+  u?.role === 'ADMIN' || (u?.permissions ?? []).includes('materials_view_price') ? 'gia' : 'thuong';
+
+/** Cache hiện có chứa cột giá / NCC vật tư (hoặc chưa rõ) → đăng xuất thì phải xoá */
+export const cacheCoGia = (): boolean => {
+  try { return localStorage.getItem(CACHE_OWNER_KEY) !== 'thuong'; } catch { return true; }
+};
 
 export const clearDataCache = async (): Promise<void> => {
   cacheGeneration++;
@@ -182,12 +194,13 @@ export const clearDataCache = async (): Promise<void> => {
   }
 };
 
-/** Gọi khi đăng nhập: cache thuộc người khác thì xoá trước khi dùng. */
-export const claimDataCache = async (username: string): Promise<void> => {
+/** Gọi khi đăng nhập / xác thực lại: cache của mức xem dữ liệu khác thì xoá trước khi dùng. */
+export const claimDataCache = async (u: { role?: string; permissions?: string[] }): Promise<void> => {
+  const muc = mucXemDuLieu(u);
   let owner: string | null = null;
   try { owner = localStorage.getItem(CACHE_OWNER_KEY); } catch { /* bỏ qua */ }
-  if (owner !== username) await clearDataCache();
-  try { localStorage.setItem(CACHE_OWNER_KEY, username); } catch { /* bỏ qua */ }
+  if (owner !== muc) await clearDataCache();
+  try { localStorage.setItem(CACHE_OWNER_KEY, muc); } catch { /* bỏ qua */ }
 };
 
 // TẢI TRỰC TIẾP TỪ SERVER

@@ -91,9 +91,15 @@ const tablesForPath = (path: string): string[] => {
   };
   if (one[path]) return [one[path]];
   if (path === '/cong-trinh/tong-quan') return ['production', 'inventory'];
+  // Tổng quan: màn đầu chỉ tính từ bảng sản xuất + vật tư (doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng do máy chủ
+  // tính sẵn). Các bảng khác (danh sách ngày / tháng, xem Tuần, xuất Excel) tải ngầm sau — tablesNenForPath.
+  if (path === '/') return ['production', 'material'];
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
   return ALL_TABLE_ENDPOINTS;
 };
+// Bảng trang cần nhưng không chặn màn đầu: tải ngầm sau khi bảng chính đã hiện (máy mới / người mới đỡ chờ ~60%)
+const tablesNenForPath = (path: string): string[] =>
+  path === '/' ? ['inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock'] : [];
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
   // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazyPage() tự tải lại và báo lỗi nếu có
@@ -689,10 +695,22 @@ const MainLayout: React.FC = () => {
     stock: [setStockData, setStockColumns], attendance: [setAttendanceData, setAttendanceColumns],
   };
   // Nạp thêm các bảng trang cần mà chưa nạp: đọc cache trình duyệt (song song) -> áp 1 lần -> đồng bộ với server
+  // Lượt nạp đang chạy của từng bảng: gọi lại với bảng đang nạp thì chờ lượt đó xong (để tải ngầm bảng phụ thật sự
+  // đi sau bảng chính, kể cả khi effect chạy 2 lần / chuyển trang nhanh)
+  const tableLoadsRef = useRef(new Map<string, Promise<void>>());
   const loadTables = async (endpoints: string[]) => {
     const fresh = endpoints.filter(e => !activeTablesRef.current.has(e));
     fresh.forEach(e => activeTablesRef.current.add(e));
-    if (fresh.length === 0) { settleLoading(); return; }
+    if (fresh.length === 0) {
+      await Promise.all(endpoints.map(e => tableLoadsRef.current.get(e)));
+      settleLoading();
+      return;
+    }
+    const run = loadFreshTables(fresh);
+    fresh.forEach(e => tableLoadsRef.current.set(e, run));
+    await run;
+  };
+  const loadFreshTables = async (fresh: string[]) => {
     pendingLoadsRef.current++;
     setLoading(true);
     const stage = (label: string) => setLoadStages(list => [...list.filter(s => s.tables !== fresh), { label, tables: fresh }]);
@@ -728,10 +746,16 @@ const MainLayout: React.FC = () => {
       if (mountedRef.current) { clearStage(); settleLoading(); }
     }
   };
+  // Nạp bảng chính của trang (có vòng chờ), xong thì tải ngầm các bảng phụ (không chặn màn hình)
+  const loadForPath = async (path: string) => {
+    await loadTables(tablesForPath(path));
+    const nen = tablesNenForPath(path);
+    if (nen.length && mountedRef.current && pathnameRef.current === path) void loadTables(nen);
+  };
   // Chuyển trang: nạp thêm bảng trang mới cần (bảng đã nạp giữ nguyên)
   useEffect(() => {
     if (!initStartedRef.current) return;
-    loadTables(tablesForPath(location.pathname));
+    void loadForPath(location.pathname);
   }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -739,7 +763,7 @@ const MainLayout: React.FC = () => {
       // Chạy 1 lần (StrictMode ở bản dev gọi effect 2 lần => đọc cache 2 lần song song)
       if (initStartedRef.current) return;
       initStartedRef.current = true;
-      await loadTables(tablesForPath(pathnameRef.current));
+      await loadForPath(pathnameRef.current);
     };
 
     init();

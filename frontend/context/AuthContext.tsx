@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { userService, getToken } from '../services/userService';
 import { AUTH_EXPIRED_EVENT } from '../services/authFetch';
-import { claimDataCache, clearDataCache } from '../services/dataService';
+import { claimDataCache, clearDataCache, cacheCoGia } from '../services/dataService';
 import { useToast } from './ToastContext';
 
 interface AuthContextType {
@@ -65,12 +65,9 @@ useEffect(() => {
     try {
       const result = await userService.getMe();
       if (result.success && result.user) {
-        // Quyền / vai trò đổi (vd. bị thu quyền xem giá vật tư) -> bỏ cache dữ liệu cũ; lần đồng bộ
-        // kế tiếp sẽ tải lại theo quyền mới.
-        const accessKey = (u: any) => JSON.stringify([u?.username, u?.role, [...(u?.permissions ?? [])].sort()]);
-        let prevAccess = '';
-        try { prevAccess = accessKey(JSON.parse(storedUser)); } catch { /* bỏ qua */ }
-        if (prevAccess !== accessKey(result.user)) await clearDataCache();
+        // Mức xem dữ liệu đổi (vd. bị thu quyền xem giá vật tư) -> bỏ cache dữ liệu cũ; lần đồng bộ kế tiếp tải
+        // lại theo quyền mới. Quyền khác (Xưởng, Vướng mắc…) không đổi dữ liệu nên giữ cache.
+        await claimDataCache(result.user);
         setUser(result.user);
         // Ghi đè lại storage với dữ liệu mới, giữ nguyên loại storage đang dùng (local/session)
         const userStr = JSON.stringify(result.user);
@@ -122,7 +119,7 @@ useEffect(() => {
       const result = await userService.login(username, password);
 
       if (result.success && result.user && result.token) {
-        await claimDataCache(result.user.username);
+        await claimDataCache(result.user);
         setUser(result.user);
 
         try {
@@ -159,7 +156,8 @@ useEffect(() => {
     // Token mục Xưởng (30 ngày) gắn với người dùng: đăng xuất chủ động thì bỏ luôn để người cầm máy sau không dùng
     // nhầm tên người trước. Hàng đợi thao tác chưa gửi + mã thiết bị giữ nguyên (services/xuongQueue.ts).
     try { localStorage.removeItem('xuong_token'); localStorage.removeItem('xuong_phien'); } catch { /* bỏ qua */ }
-    void clearDataCache();
+    // Cache không có cột giá: giữ lại (dữ liệu chung của mọi tài khoản) để lần đăng nhập sau khỏi tải lại
+    if (cacheCoGia()) void clearDataCache();
     showToast('Đã đăng xuất', 'info');
   };
 
