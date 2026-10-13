@@ -634,6 +634,9 @@ export default function XuongApp({ moTo, onTongQuan }: {
           { ten: 'Khai tăng ca', icon: 'tangca', onClick: () => setSheet({ loai: 'tangCa' }), phu: cv?.tangCa.length ? cv.tangCa.map(l => TEN_CA[l]).join(', ') : undefined },
           { ten: 'Xác nhận cuối ngày', icon: 'xacnhan', onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv?.daXacNhanHomNay ? 'Đã xác nhận' : undefined },
           ...(ca ? [{ ten: `Chốt quân số ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'quanSo', ca }), phu: typeof quanSo === 'number' ? `${quanSo} người` : 'Chưa chốt' }] : []),
+          // Sửa số người từng hạng mục bất cứ lúc nào (dải vàng chỉ hiện khi còn người rảnh / hạng mục chưa có người)
+          ...(typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người cho hạng mục', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }),
+            phu: `${nhom.dangChay.length} hạng mục đang chạy` }] : []),
           ...(laQuanLy ? [{ ten: 'Triển khai hạng mục', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),
           ...(laToNgoai && phien?.to.length ? [{ ten: 'Về tổ của tôi', icon: 'thoat' as const, onClick: () => { setSheet(null); veToCuaToi(); } }] : []),
           { ten: 'Làm mới', icon: 'lammoi', onClick: () => { setSheet(null); gui(); taiCv(); taiDm(); } },

@@ -1,0 +1,417 @@
+<title>Sổ tay tổ trưởng Xưởng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600&display=swap">
+<style>
+/* Bố cục: một cột đọc trên điện thoại; trục thời gian một ngày làm việc ở giữa; thẻ "nút" giống nút thật trong app */
+:root {
+  --nen: #f3f5f8;
+  --giay: #ffffff;
+  --chu: #142033;
+  --chu-phu: #4f5d73;
+  --vien: #dbe1ea;
+  --dam: #142033;          /* nền nút chính trong app */
+  --tren-dam: #ffffff;
+  --nhan: #c2410c;         /* màu cam an toàn xưởng — điểm nhấn */
+  --nhan-nhat: #fff1e6;
+  --tot: #047857;
+  --tot-nhat: #e7f6ef;
+  --canh-bao: #b45309;
+  --canh-bao-nhat: #fef6e4;
+  --loi: #b91c1c;
+  --loi-nhat: #fdecec;
+  --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --nen: #0f1520; --giay: #172031; --chu: #e8edf5; --chu-phu: #a3b0c4; --vien: #2a3549;
+    --dam: #e8edf5; --tren-dam: #0f1520; --nhan: #fb923c; --nhan-nhat: #3a2416;
+    --tot: #34d399; --tot-nhat: #12302a; --canh-bao: #fbbf24; --canh-bao-nhat: #33290f; --loi: #f87171; --loi-nhat: #3a1a1c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --nen: #0f1520; --giay: #172031; --chu: #e8edf5; --chu-phu: #a3b0c4; --vien: #2a3549;
+  --dam: #e8edf5; --tren-dam: #0f1520; --nhan: #fb923c; --nhan-nhat: #3a2416;
+  --tot: #34d399; --tot-nhat: #12302a; --canh-bao: #fbbf24; --canh-bao-nhat: #33290f; --loi: #f87171; --loi-nhat: #3a1a1c;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--nen); color: var(--chu);
+  font-family: var(--font); font-size: 17px; line-height: 1.6;
+  padding-inline: 16px; padding-block: 0 48px;
+}
+.trang { max-width: 720px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.25; margin: 0; }
+p { margin: 0; }
+a { color: var(--nhan); }
+
+/* Đầu trang */
+.dau { padding-top: 28px; display: grid; gap: 12px; }
+.nhan-tren { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--nhan); }
+.dau h1 { font-size: clamp(30px, 7vw, 40px); font-weight: 800; letter-spacing: -.01em; }
+.dau .mo { color: var(--chu-phu); max-width: 60ch; }
+.link-app {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  background: var(--giay); border: 1px solid var(--vien); border-radius: 14px; padding: 12px 14px;
+}
+.link-app code { font-family: var(--mono); font-size: 15px; word-break: break-all; color: var(--chu); }
+.link-app .ten { font-size: 14px; color: var(--chu-phu); }
+button.chep {
+  margin-left: auto; font: 600 14px var(--font); border-radius: 10px; padding: 8px 12px; cursor: pointer;
+  background: var(--dam); color: var(--tren-dam); border: 0;
+}
+button.chep:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--nhan); outline-offset: 2px; }
+
+/* Mục lục */
+.muc-luc { display: flex; flex-wrap: wrap; gap: 8px; }
+.muc-luc a {
+  text-decoration: none; font-size: 15px; font-weight: 500; color: var(--chu);
+  border: 1px solid var(--vien); background: var(--giay); border-radius: 999px; padding: 6px 12px;
+}
+
+section { display: grid; gap: 14px; scroll-margin-top: 16px; }
+section > h2 { font-size: 24px; font-weight: 800; }
+section > .mo { color: var(--chu-phu); }
+
+/* Nút giả lập giống nút thật trong app */
+.nut {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  font-weight: 600; font-size: .92em; padding: 1px 9px; border-radius: 8px;
+  background: var(--dam); color: var(--tren-dam);
+}
+.nut.phu { background: var(--giay); color: var(--chu); border: 1px solid var(--vien); }
+.ma { font-family: var(--mono); font-size: .92em; font-weight: 600; }
+
+/* Thẻ khung */
+.khung { background: var(--giay); border: 1px solid var(--vien); border-radius: 16px; padding: 16px; display: grid; gap: 10px; }
+.khung h3 { font-size: 18px; font-weight: 700; }
+ul.ds, ol.ds { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+
+/* Màn hình Tổ — sơ đồ từ trên xuống */
+.man { display: grid; gap: 0; background: var(--giay); border: 1px solid var(--vien); border-radius: 16px; overflow: hidden; }
+.man > div { display: grid; grid-template-columns: 112px 1fr; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--vien); }
+.man > div:first-child { border-top: 0; }
+.man b { font-size: 15px; }
+.man span { color: var(--chu-phu); font-size: 15px; }
+
+/* Trục thời gian một ngày */
+.ngay { display: grid; gap: 0; }
+.buoc { display: grid; grid-template-columns: 56px 1fr; gap: 14px; position: relative; padding-bottom: 20px; }
+.buoc:last-child { padding-bottom: 0; }
+.buoc::before { content: ""; position: absolute; left: 27px; top: 44px; bottom: 0; width: 2px; background: var(--vien); }
+.buoc:last-child::before { display: none; }
+.moc {
+  width: 56px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--nhan-nhat); color: var(--nhan); font: 700 13px var(--font); text-align: center; line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.buoc .noi { min-width: 0; display: grid; gap: 8px; background: var(--giay); border: 1px solid var(--vien); border-radius: 16px; padding: 14px 16px; }
+.buoc h3 { font-size: 19px; font-weight: 700; }
+.buoc .khi { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--chu-phu); }
+
+/* Ghi chú màu */
+.goi { border-radius: 12px; padding: 10px 12px; font-size: 15px; }
+.goi.chu-y { background: var(--canh-bao-nhat); color: var(--chu); border-left: 4px solid var(--canh-bao); }
+.goi.tot { background: var(--tot-nhat); color: var(--chu); border-left: 4px solid var(--tot); }
+.goi.loi { background: var(--loi-nhat); color: var(--chu); border-left: 4px solid var(--loi); }
+
+/* Bảng */
+.bang-boc { overflow-x: auto; border: 1px solid var(--vien); border-radius: 14px; background: var(--giay); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 10px 14px; border-top: 1px solid var(--vien); vertical-align: top; }
+thead th { border-top: 0; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--chu-phu); background: var(--nen); }
+
+/* Hỏi đáp */
+details { background: var(--giay); border: 1px solid var(--vien); border-radius: 14px; padding: 12px 16px; }
+details + details { margin-top: 8px; }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin-top: 8px; color: var(--chu-phu); }
+
+.chan { color: var(--chu-phu); font-size: 14px; border-top: 1px solid var(--vien); padding-top: 16px; }
+
+@media (max-width: 480px) {
+  body { font-size: 16px; }
+  .man > div { grid-template-columns: 1fr; gap: 2px; }
+  .buoc { grid-template-columns: 48px 1fr; gap: 10px; }
+  .moc { width: 48px; font-size: 12px; }
+  .buoc::before { left: 23px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="trang">
+
+  <header class="dau">
+    <p class="nhan-tren">App Xưởng · dành cho tổ trưởng</p>
+    <h1>Sổ tay tổ trưởng</h1>
+    <p class="mo">App Xưởng ghi lại việc của tổ trong ngày: hàng giao tới, bắt đầu, tạm ngưng, xong và giao sang công đoạn sau, quân số, tăng ca. Từ đó hệ thống tự tính giờ công cho từng hạng mục. Tổ trưởng bấm đúng lúc, đúng số thì báo cáo mới đúng.</p>
+    <div class="link-app">
+      <span class="ten">Địa chỉ app:</span>
+      <code id="link">https://operationshub-dev.vercel.app/xuong</code>
+      <button class="chep" id="nut-chep" type="button">Chép link</button>
+    </div>
+    <nav class="muc-luc" aria-label="Mục lục">
+      <a href="#cai">Cài app</a>
+      <a href="#man">Màn hình Tổ</a>
+      <a href="#ngay">Một ngày làm việc</a>
+      <a href="#nguoi">Khai số người</a>
+      <a href="#nham">Bấm nhầm, mất sóng</a>
+      <a href="#tra">Tra cứu</a>
+      <a href="#hoi">Hỏi đáp</a>
+    </nav>
+  </header>
+
+  <section id="cai">
+    <h2>Cài app và đăng nhập</h2>
+    <div class="khung">
+      <h3>Điện thoại Android</h3>
+      <ol class="ds">
+        <li>Mở <b>Chrome</b>, vào địa chỉ app ở trên.</li>
+        <li>Đăng nhập bằng tài khoản Operations Hub của bạn.</li>
+        <li>Bấm <span class="nut phu">⋮</span> góc trên phải → <b>Cài đặt ứng dụng</b> (hoặc <b>Thêm vào màn hình chính</b>). Ô xác nhận phải ghi tên <b>Xưởng</b>.</li>
+      </ol>
+    </div>
+    <div class="khung">
+      <h3>iPhone</h3>
+      <ol class="ds">
+        <li>Mở bằng <b>Safari</b> (không dùng Zalo hay Chrome trên iPhone), vào địa chỉ app.</li>
+        <li>Đăng nhập, bấm nút <b>Chia sẻ</b> (ô vuông có mũi tên lên) → <b>Thêm vào MH chính</b> → <b>Thêm</b>.</li>
+      </ol>
+    </div>
+    <ul class="ds">
+      <li>Đăng nhập một lần dùng được 30 ngày, kể cả lúc mất sóng.</li>
+      <li>Muốn nhận nhắc việc: mục <b>Tài khoản</b> → bật <b>Thông báo trên điện thoại</b>.</li>
+      <li>Người khác cầm máy: <b>Tài khoản</b> → <b>Đăng xuất</b> rồi để họ đăng nhập.</li>
+    </ul>
+    <p class="goi chu-y">Mở app mà thấy <b>"Tài khoản chưa được gán tổ nào"</b>: báo quản lý xưởng gán bạn làm tổ trưởng, rồi đăng xuất và đăng nhập lại.</p>
+  </section>
+
+  <section id="man">
+    <h2>Màn hình Tổ</h2>
+    <p class="mo">Mở app là vào thẳng màn của tổ. Từ trên xuống:</p>
+    <div class="man">
+      <div><b>Tên tổ</b><span>Phụ trách nhiều tổ thì bấm vào tên để đổi tổ. Nút <span class="nut phu">⋯</span> mở <b>Việc khác</b>: Lịch sử hôm nay, Khai tăng ca, Xác nhận cuối ngày, Chốt quân số, Chia người cho hạng mục, Làm mới.</span></div>
+      <div><b>Trạng thái gửi</b><span><b>Đã gửi hết</b>, <b>Đang gửi 2 thao tác</b> hoặc <b>Mất sóng · 3 thao tác chờ gửi</b>.</span></div>
+      <div><b>Thẻ nhắc</b><span>Thẻ đỏ <b>Chưa chốt quân số ca chính</b>; thẻ vàng <b>Xác nhận cuối ngày</b> từ 15h30.</span></div>
+      <div><b>3 tab</b><span><b>Chờ nhận</b>: hàng giao tới tổ, chưa nhận. <b>Đang làm</b>: Đang chạy · Tạm ngưng · Chưa bắt đầu. <b>Chờ giao</b>: đã xong, chưa giao đi.</span></div>
+      <div><b>Đáy màn</b><span><span class="nut">Quét phiếu</span> quét mã QR trên phiếu; <span class="nut phu">Gõ mã</span> khi không quét được.</span></div>
+    </div>
+    <p>Mỗi dòng hạng mục ghi: mã <span class="ma">240707263</span>, tên hạng mục, công trình, trạng thái, số người đang làm, thời gian đã chạy và <b>Nhận · Xong · Giao</b> theo đơn vị của hạng mục (SET, M2, cái…).</p>
+  </section>
+
+  <section id="ngay">
+    <h2>Một ngày làm việc</h2>
+    <p class="mo">Làm theo đúng thứ tự này mỗi ngày.</p>
+    <div class="ngay">
+
+      <div class="buoc">
+        <div class="moc">7:30</div>
+        <div class="noi">
+          <p class="khi">Đầu ca · trước 8h00</p>
+          <h3>Chốt quân số ca chính</h3>
+          <p>Bấm <span class="nut phu">Chốt quân số</span> trên thẻ đỏ, nhập số người có mặt làm ca chính. App gợi ý số hôm qua.</p>
+          <p class="goi chu-y">8h00 tổ nào chưa chốt sẽ nhận thông báo nhắc. Chưa chốt mà bấm Bắt đầu thì app hỏi quân số trước.</p>
+        </div>
+      </div>
+
+      <div class="buoc">
+        <div class="moc">Hàng tới</div>
+        <div class="noi">
+          <p class="khi">Khi hàng về tới tổ</p>
+          <h3>Nhận hàng</h3>
+          <ol class="ds">
+            <li><span class="nut">Quét phiếu</span>, hoặc tab <b>Chờ nhận</b> → <span class="nut">Nhận</span>.</li>
+            <li>Nhập <b>số lượng nhận</b> theo đơn vị hạng mục. Hạng mục tính M2, M3, mét thì gõ được số lẻ, vd <span class="ma">74,255</span>.</li>
+            <li>Chụp 1–3 ảnh tình trạng hàng lúc nhận (<b>Chụp ảnh</b> hoặc <b>Chọn ảnh</b>), không bắt buộc.</li>
+            <li>Bấm nút <span class="nut">Nhận … </span> ở cuối.</li>
+          </ol>
+          <p>App không cho nhận quá số đã triển khai cho xưởng trừ số đã nhận, và ghi rõ "Tối đa … — đã triển khai …, đã nhận …". Nhận một phần được; phần còn lại vẫn nằm ở Chờ nhận.</p>
+        </div>
+      </div>
+
+      <div class="buoc">
+        <div class="moc">Bắt đầu</div>
+        <div class="noi">
+          <p class="khi">Khi bắt tay làm một hạng mục</p>
+          <h3>Bắt đầu — khai số người làm</h3>
+          <p>Tab <b>Đang làm</b> → <span class="nut">Bắt đầu</span>. App <b>bắt buộc</b> hỏi <b>"mấy người làm?"</b>, gợi ý sẵn số người đang rảnh.</p>
+          <p>Sửa cho đúng số người thật sự làm hạng mục đó rồi bấm <span class="nut">Bắt đầu với 4 người</span>.</p>
+          <p class="goi chu-y">Số hiện đỏ "Nhiều hơn số người đang rảnh" nghĩa là tổng số người khai ở các hạng mục đang chạy vượt quân số. Kiểm tra lại, chia người cho đúng.</p>
+        </div>
+      </div>
+
+      <div class="buoc">
+        <div class="moc">Trong ca</div>
+        <div class="noi">
+          <p class="khi">Khi phải dừng giữa chừng</p>
+          <h3>Tạm ngưng và tiếp tục</h3>
+          <p><span class="nut phu">Tạm ngưng</span> → chọn lý do (bảng bên dưới). Làm lại thì bấm <span class="nut">Tiếp tục</span>, app hỏi lại số người làm.</p>
+          <p>Lý do tạm ngưng cho quản lý biết vì sao tổ phải chờ, nên chọn đúng.</p>
+        </div>
+      </div>
+
+      <div class="buoc">
+        <div class="moc">Xong</div>
+        <div class="noi">
+          <p class="khi">Khi làm xong một phần hoặc hết</p>
+          <h3>Xong — giao</h3>
+          <ol class="ds">
+            <li><span class="nut">Xong — giao</span>, nhập số lượng xong (mặc định là toàn bộ phần còn lại).</li>
+            <li>Chọn nơi giao: công đoạn kế (app gợi ý theo tuyến), <b>Giao chỗ khác</b>, <b>Xưởng khác</b>, hoặc <b>Xong, hàng chưa chuyển — giao sau</b>.</li>
+            <li>Có thể chụp ảnh hàng lúc giao.</li>
+          </ol>
+          <p>Xong chưa hết số đã nhận thì hạng mục vẫn đang chạy. Chọn "giao sau" thì hạng mục sang tab <b>Chờ giao</b>; khi chuyển hàng thì bấm <span class="nut">Giao</span> ở đó.</p>
+        </div>
+      </div>
+
+      <div class="buoc">
+        <div class="moc">15:45</div>
+        <div class="noi">
+          <p class="khi">Nếu tổ làm tăng ca</p>
+          <h3>Khai tăng ca</h3>
+          <p><span class="nut phu">⋯</span> → <b>Khai tăng ca</b>: chọn ca (Ca 1–Ca 4, Chủ nhật), số người tăng ca, bỏ chọn hạng mục không làm tăng ca.</p>
+        </div>
+      </div>
+
+      <div class="buoc">
+        <div class="moc">Cuối ngày</div>
+        <div class="noi">
+          <p class="khi">Từ 15h30 · nhắc lúc 16h30</p>
+          <h3>Xác nhận cuối ngày</h3>
+          <p>Bấm <span class="nut phu">Xác nhận</span> trên thẻ vàng. Với từng hạng mục đang chạy chọn <b>Vẫn làm</b> hoặc <b>Đã dừng</b> (kèm giờ dừng). Có thể nhập tiến độ % và chụp ảnh tiến độ.</p>
+          <p class="goi loi">Bỏ qua bước này thì hạng mục bị tính là chạy suốt đêm, giờ công của tổ sẽ sai.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <h3 style="font-size:19px">Lý do tạm ngưng</h3>
+    <div class="bang-boc">
+      <table>
+        <thead><tr><th>Lý do</th><th>Khi nào chọn</th></tr></thead>
+        <tbody>
+          <tr><td><b>Thiếu vật tư</b></td><td>Hết hoặc chưa về vật tư, phụ kiện</td></tr>
+          <tr><td><b>Chờ bản vẽ duyệt</b></td><td>Chưa có bản vẽ, hoặc bản vẽ đang sửa</td></tr>
+          <tr><td><b>Lỗi chất lượng</b></td><td>Phát hiện lỗi phải xử lý trước khi làm tiếp</td></tr>
+          <tr><td><b>Chuyển việc gấp</b></td><td>Tổ chuyển sang làm hạng mục gấp hơn</td></tr>
+          <tr><td><b>Lệnh cấp trên</b></td><td>Quản lý yêu cầu dừng</td></tr>
+          <tr><td><b>Khác</b></td><td>Các trường hợp còn lại</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="nguoi">
+    <h2>Vì sao phải khai đúng số người</h2>
+    <p class="mo">Giờ công không tính bằng "số người × thời gian" tuỳ ý. Hệ thống làm như sau:</p>
+    <div class="khung">
+      <ol class="ds">
+        <li><b>Giờ người của tổ</b> = quân số đã chốt × giờ ca. Ca chính 7:30–15:45, trừ nghỉ trưa 11:30–12:15, còn 7,5 giờ.</li>
+        <li>Giờ người được chia cho các hạng mục <b>đang chạy</b> theo số người tổ khai cho từng hạng mục.</li>
+        <li>Phần không chia cho hạng mục nào là <b>giờ chờ</b>, kèm lý do: người rảnh, không có hạng mục chạy, hoặc lý do tạm ngưng.</li>
+      </ol>
+    </div>
+    <p class="goi tot">Ví dụ: tổ chốt 7 người. Hạng mục A chạy 4 giờ với 7 người → A được 28 giờ công. Nếu chỉ 4 người làm A, 3 người kia rảnh 4 giờ → A được 16 giờ công, 12 giờ còn lại là giờ chờ "người rảnh".</p>
+    <div class="khung">
+      <h3>Nhiều hạng mục chạy cùng lúc</h3>
+      <p>Sau mỗi thao tác, nếu còn người rảnh hoặc có hạng mục chưa có người, dải vàng hiện <b>"3 người đang rảnh"</b> với 2 nút:</p>
+      <ul class="ds">
+        <li><span class="nut phu">Chia đều</span>: chia đều quân số cho các hạng mục đang chạy.</li>
+        <li><span class="nut phu">Chọn</span>: tự nhập số người cho từng hạng mục.</li>
+      </ul>
+      <p>Người chuyển từ hạng mục này sang hạng mục khác giữa chừng, hoặc khai sai: <span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b> để sửa số người bất cứ lúc nào.</p>
+    </div>
+  </section>
+
+  <section id="nham">
+    <h2>Bấm nhầm, mất sóng</h2>
+    <div class="khung">
+      <h3>Bấm nhầm</h3>
+      <ul class="ds">
+        <li>Sau mỗi thao tác, dải đen <b>"Đã ghi: …"</b> hiện 10 giây với nút <b>Hoàn tác</b>.</li>
+        <li>Quá 10 giây: <span class="nut phu">⋯</span> → <b>Lịch sử hôm nay</b> → <b>Huỷ</b> ở thao tác nhầm. Người bấm huỷ được trong 24 giờ.</li>
+        <li>Quá 24 giờ: báo quản lý xưởng huỷ giúp.</li>
+      </ul>
+    </div>
+    <div class="khung">
+      <h3>Mất sóng</h3>
+      <ul class="ds">
+        <li>Cứ thao tác bình thường. App lưu trên máy trước, màn hình đổi ngay, có sóng lại thì tự gửi.</li>
+        <li>Giờ ghi nhận là giờ lúc bấm, không phải lúc gửi.</li>
+        <li>Mất sóng quá 4 giờ, dòng trạng thái chuyển đỏ: mang máy ra chỗ có sóng.</li>
+      </ul>
+      <p class="goi loi">Còn thao tác chờ gửi thì <b>không</b> gỡ app, <b>không</b> xoá dữ liệu trình duyệt, <b>không</b> đăng xuất. Làm vậy sẽ mất các thao tác chưa gửi.</p>
+    </div>
+    <div class="khung">
+      <h3>Thẻ đỏ "Không ghi được"</h3>
+      <p>Máy chủ không nhận thao tác (ví dụ hạng mục không thuộc tổ). Bấm <b>Làm lại</b> để ghi lại cho đúng, hoặc <b>Bỏ qua</b>.</p>
+    </div>
+  </section>
+
+  <section id="tra">
+    <h2>Tra cứu hạng mục</h2>
+    <p>Mục <b>Tra cứu</b> ở thanh dưới: quét phiếu, hoặc gõ <b>vài số</b> của mã (từ 3 số), hoặc bấm <b>Tìm theo tên</b> để gõ tên hạng mục, công trình. Chạm vào kết quả để xem:</p>
+    <ul class="ds">
+      <li>Hạng mục đang ở công đoạn nào, tổ nào, đã nhận, xong, giao bao nhiêu.</li>
+      <li>Thời gian nằm trong xưởng, giờ chạy và giờ công từng công đoạn.</li>
+      <li>Ảnh lúc nhận, lúc giao và ảnh tiến độ của từng công đoạn.</li>
+    </ul>
+  </section>
+
+  <section id="hoi">
+    <h2>Hỏi đáp</h2>
+    <div>
+      <details>
+        <summary>Hàng đã về mà không thấy ở tab Chờ nhận?</summary>
+        <p>Tổ trước chưa bấm giao, hoặc hạng mục chưa được triển khai. Cứ quét phiếu và nhận: app hỏi "Hàng từ đâu tới?" để chọn công đoạn hoặc xưởng gửi tới. Thao tác vẫn ghi được, quản lý sẽ kiểm tra.</p>
+      </details>
+      <details>
+        <summary>Nút Nhận báo "Đã nhận đủ số triển khai"?</summary>
+        <p>Tổ đã nhận đủ số lượng được triển khai cho xưởng. Nếu hàng về thêm thật, báo quản lý triển khai thêm số lượng.</p>
+      </details>
+      <details>
+        <summary>Khai sai số người khi bắt đầu?</summary>
+        <p><span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b>, sửa số người cho từng hạng mục đang chạy rồi bấm <b>Lưu</b>.</p>
+      </details>
+      <details>
+        <summary>Quên bấm Tạm ngưng lúc nghỉ, hết ca?</summary>
+        <p>Không cần bấm tạm ngưng cho giờ nghỉ trưa hay hết ca: giờ công chỉ tính trong giờ ca. Cuối ngày làm <b>Xác nhận cuối ngày</b> là đủ.</p>
+      </details>
+      <details>
+        <summary>Chữ trên app quá nhỏ hoặc quá to?</summary>
+        <p>Mục <b>Tài khoản</b> → <b>Cỡ chữ</b>: Nhỏ, Vừa, Lớn, Rất lớn.</p>
+      </details>
+      <details>
+        <summary>Phụ trách nhiều tổ?</summary>
+        <p>Bấm vào tên tổ ở đầu màn hình để đổi tổ. Thao tác luôn ghi cho tổ đang hiện.</p>
+      </details>
+    </div>
+  </section>
+
+  <p class="chan">Có thắc mắc hoặc app báo lỗi lạ: chụp màn hình gửi quản lý xưởng.</p>
+</div>
+
+<script>
+(function () {
+  var nut = document.getElementById('nut-chep');
+  var link = document.getElementById('link');
+  nut.addEventListener('click', function () {
+    var text = link.textContent.trim();
+    var xong = function () { nut.textContent = 'Đã chép'; setTimeout(function () { nut.textContent = 'Chép link'; }, 2000); };
+    var chonChu = function () {
+      var r = document.createRange(); r.selectNodeContents(link);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      nut.textContent = 'Đã chọn, bấm giữ để chép';
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(xong, chonChu);
+      else chonChu();
+    } catch (e) { chonChu(); }
+  });
+})();
+</script>
