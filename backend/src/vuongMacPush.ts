@@ -35,7 +35,7 @@ export interface PushPayload {
   title: string;
   body: string;
   tag?: string;
-  /** url: mở thẳng trang này khi bấm (mục Xưởng: /m/xuong); không có thì mở vướng mắc theo id */
+  /** url: mở thẳng trang này khi bấm (app Xưởng: /xuong); không có thì mở vướng mắc theo id */
   target: { hex: string; category: string; id: number; url?: string };
 }
 

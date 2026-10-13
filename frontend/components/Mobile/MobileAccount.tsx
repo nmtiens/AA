@@ -13,12 +13,14 @@ import NotifyDiagnostics from './NotifyDiagnostics';
 // mở bản máy tính, đăng xuất.
 // ============================================================================
 
-export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLoggedOut, flash }: {
+export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLoggedOut, flash, appXuong = false }: {
   sizeIdx: number;
   sizeLabels: string[];
   onSizeChange: (i: number) => void;
   onLoggedOut: () => void;
   flash: (msg: string) => void;
+  /** Dùng trong app Xưởng (/xuong): chỉ loại thông báo Xưởng, mời cài app Xưởng, link sang app Vướng mắc */
+  appXuong?: boolean;
 }) {
   const { user, logout, hasPermission } = useAuth();
   const [pushOn, setPushOn] = useState(false);
@@ -85,8 +87,8 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
       </section>
 
       {/* Mục Xưởng (tổ trưởng) — chỉ hiện khi có quyền */}
-      {(hasPermission('xuong') || hasPermission('xuong_quan_ly')) && (
-        <a href="/m/xuong" className={`${CARD} flex min-h-14 items-center gap-3 p-4 text-base font-semibold text-slate-900 active:bg-slate-50`}>
+      {!appXuong && (hasPermission('xuong') || hasPermission('xuong_quan_ly')) && (
+        <a href="/xuong" className={`${CARD} flex min-h-14 items-center gap-3 p-4 text-base font-semibold text-slate-900 active:bg-slate-50`}>
           <Factory size="1.25em" aria-hidden /> Mở mục Xưởng — ghi việc của tổ
         </a>
       )}
@@ -130,7 +132,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
           <p className="text-sm text-amber-700">Máy chủ chưa bật cài đặt thông báo (cần chạy file SQL). Hiện đang dùng mặc định.</p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {(Object.keys(PREF_LABELS) as PrefKey[]).map(k => (
+            {(Object.keys(PREF_LABELS) as PrefKey[]).filter(k => !appXuong || k === 'xuong').map(k => (
               <li key={k} className="flex items-center gap-3 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-base text-slate-800">{PREF_LABELS[k].label}</p>
@@ -148,11 +150,18 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
       {/* Cài app */}
       <section className={`${CARD} p-4`}>
         <p className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800"><Smartphone size="1em" /> Ứng dụng</p>
-        <InstallBanner force />
+        {appXuong
+          ? <InstallBanner force tieuDe="Cài app Xưởng lên điện thoại" moTa="Mở thẳng màn tổ, dùng được khi mất sóng" khoaAn="xuong_install_hidden" />
+          : <InstallBanner force />}
       </section>
 
       {/* Bản máy tính + đăng xuất */}
       <section className={`${CARD} divide-y divide-slate-100`}>
+        {appXuong && (
+          <a href="/m/" className="flex items-center gap-3 p-4 text-base text-slate-800 active:bg-slate-50">
+            <Smartphone size="1.125em" className="text-slate-500" /> Mở app Vướng mắc
+          </a>
+        )}
         <a href="/" className="flex items-center gap-3 p-4 text-base text-slate-800 active:bg-slate-50">
           <Monitor size="1.125em" className="text-slate-500" /> Mở bản đầy đủ (máy tính)
         </a>

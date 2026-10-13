@@ -39,6 +39,7 @@
     },
 
     { "src": "/m(?:/.*)?", "dest": "frontend/index.html" },
+    { "src": "/xuong(?:/.*)?", "dest": "frontend/index.html" },
 
     { "src": "/(.*)", "dest": "frontend/$1" }
   ]

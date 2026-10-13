@@ -129,7 +129,7 @@ export function XuongToSetup({ d, bao, tai }: MucProps) {
     <div className={KHUNG}>
       <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
         <p className="text-sm font-semibold text-slate-800">{d.to.length} tổ · xưởng {d.xuong}</p>
-        {chuaTt > 0 && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700"><AlertTriangle size={13} /> {chuaTt} tổ chưa có tổ trưởng (tổ trưởng chưa dùng được /m/xuong)</span>}
+        {chuaTt > 0 && <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700"><AlertTriangle size={13} /> {chuaTt} tổ chưa có tổ trưởng (tổ trưởng chưa dùng được app Xưởng)</span>}
         <select value={loc} onChange={e => setLoc(e.target.value as 'tat_ca' | 'chua_tt')} className="rounded-md border border-slate-300 px-2 py-1 text-sm">
           <option value="tat_ca">Tất cả tổ</option><option value="chua_tt">Chưa có tổ trưởng</option>
         </select>

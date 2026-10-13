@@ -16,7 +16,7 @@ import { sendToUsers, cronAuth } from '../vuongMacPush.js';
 // Không bao giờ ném lỗi ra ngoài: lỗi thông báo không được làm hỏng thao tác chính.
 // ============================================================================
 
-const URL_XUONG = '/m/xuong';
+const URL_XUONG = '/xuong';
 const clip = (s: string, n = 140) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
 interface TinXuong {
@@ -209,12 +209,12 @@ async function nhacSang(ngay: string) {
   return guiTinXuong(tins);
 }
 
-/** Ảnh đã gửi lên nhưng không sự kiện nào tham chiếu sau 2 ngày (sự kiện tiến độ bị từ chối) — xoá cho nhẹ DB */
+/** Ảnh đã gửi lên nhưng không sự kiện nào tham chiếu sau 2 ngày (sự kiện kèm ảnh bị từ chối) — xoá cho nhẹ DB */
 async function donAnhMoCoi() {
   try {
     const r = await pool.query(
       `DELETE FROM xuong_anh a WHERE a.created_at < now() - interval '2 days'
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.loai = 'tien_do' AND e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`);
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`);
     if (r.rowCount) console.log(`[xuong] xoá ${r.rowCount} ảnh không còn sự kiện nào dùng`);
   } catch (e) {
     if (!isMissingSchema(e)) console.error('[xuong] dọn ảnh mồ côi lỗi', e);

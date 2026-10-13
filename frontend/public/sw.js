@@ -78,13 +78,13 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const t = event.notification.data || {};
-  // Thông báo mục Xưởng mang url riêng (/m/xuong, thẻ Xưởng trên máy tính): mở thẳng trang đó
+  // Thông báo mục Xưởng mang url riêng (app Xưởng /xuong, thẻ Xưởng trên máy tính): mở thẳng trang đó
   if (t.url) {
     event.waitUntil((async () => {
       const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-      // url /m… chỉ dùng tab mobile; url desktop chỉ dùng tab desktop (không kéo app /m/ sang trang máy tính)
-      const laMobile = (p) => /^\/m(\/|$)/.test(p);
-      const tab = list.find((c) => laMobile(new URL(c.url).pathname) === laMobile(t.url));
+      // Chỉ dùng tab cùng loại: app Xưởng (/xuong, /m/xuong) · app Vướng mắc (/m) · máy tính — không kéo app này sang app kia
+      const loai = (p) => (/^\/(m\/)?xuong(\/|$)/.test(p) ? 'xuong' : /^\/m(\/|$)/.test(p) ? 'mobile' : 'desktop');
+      const tab = list.find((c) => loai(new URL(c.url).pathname) === loai(t.url));
       if (tab && 'navigate' in tab) {
         try { await tab.focus(); await tab.navigate(t.url); return; } catch { /* mở cửa sổ mới */ }
       }

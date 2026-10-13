@@ -38,6 +38,8 @@ import type { SetupTab } from './components/Setup/DataSetupPage';
 const DataSetupPage = lazyPage(() => import('./components/Setup/DataSetupPage'));
 // Thẻ Xưởng trong Setup (mục Xưởng: triển khai, tổ, công đoạn, lịch ca, cần xem) — tải riêng khi mở thẻ
 const XuongSetup = React.lazy(() => import('./components/Xuong/XuongSetup'));
+// App Xưởng riêng (/xuong; đường cũ /m/xuong của bản đã cài vẫn mở được) — tải riêng
+const XuongShell = lazyPage(() => import('./components/Mobile/xuong/XuongShell'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazyPage(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
@@ -100,6 +102,7 @@ const preloadPageChunk = (path: string) => {
 };
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
+  const isXuongEntry = /^\/(m\/)?xuong(\/|$)/.test(window.location.pathname);
   const isMobileEntry = window.location.pathname.startsWith('/m');
 
   // Lưu ý: view-project-mapping + table-column-config giờ được tải trong MainLayout
@@ -111,7 +114,9 @@ const App: React.FC = () => {
       <AuthProvider>
         {/* Suspense bao bọc để hiển thị Loader trong lúc tải Lazy Component */}
         <Suspense fallback={<FullScreenLoader />}>
-          {isMobileEntry ? (
+          {isXuongEntry ? (
+            <XuongShell />
+          ) : isMobileEntry ? (
             <MobileApp />
           ) : (
             <>

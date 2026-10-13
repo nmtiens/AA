@@ -70102,7 +70102,7 @@ function thoiGianTheoLo(vao, ra, moc2, now) {
 }
 
 // src/routes/xuongThongBao.ts
-var URL_XUONG = "/m/xuong";
+var URL_XUONG = "/xuong";
 var clip2 = (s, n = 140) => s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
 async function guiTinXuong(tins, actorId) {
   let tong = 0;
@@ -70303,7 +70303,7 @@ async function donAnhMoCoi() {
   try {
     const r = await pool.query(
       `DELETE FROM xuong_anh a WHERE a.created_at < now() - interval '2 days'
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.loai = 'tien_do' AND e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`
     );
     if (r.rowCount) console.log(`[xuong] xo\xE1 ${r.rowCount} \u1EA3nh kh\xF4ng c\xF2n s\u1EF1 ki\u1EC7n n\xE0o d\xF9ng`);
   } catch (e) {

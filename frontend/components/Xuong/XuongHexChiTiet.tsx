@@ -55,6 +55,9 @@ function ThoiGianTrongXuong({ t }: { t: ThoiGianXuong }) {
 }
 
 /** Một ảnh tiến độ: tải bằng token (API cần đăng nhập), bấm để mở cỡ lớn */
+/** Ảnh chụp lúc nào — nhãn dưới ảnh */
+const TEN_ANH: Record<string, string> = { nhan: 'Check-in', hoan_thanh: 'Xong', giao: 'Giao', tien_do: 'Cuối ngày' };
+
 function AnhXuong({ id, nhan }: { id: string; nhan: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [loi, setLoi] = useState(false);
@@ -180,16 +183,30 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
       {d.gioCongTamTinh && <p className="text-xs text-slate-600">Giờ công cộng 20 ngày làm gần nhất — hạng mục chạy lâu hơn thì xem báo cáo giờ công của tổ.</p>}
 
       {(() => {
+        // Ảnh check-in (nhận) / xong / giao / cuối ngày, nhóm theo công đoạn theo thứ tự tuyến
         const coAnh = d.suKien.filter(e => e.conHieuLuc && e.anh?.length);
         if (!coAnh.length) return null;
+        const thuTu = new Map(ds.map((c, i) => [c.congDoanId, i]));
+        const nhom = new Map<string, typeof coAnh>();
+        for (const e of coAnh) {
+          const k = e.congDoanId ?? '';
+          if (!nhom.has(k)) nhom.set(k, []);
+          nhom.get(k)!.push(e);
+        }
+        const dsNhom = [...nhom.entries()].sort((a, b) => (thuTu.get(a[0]) ?? 999) - (thuTu.get(b[0]) ?? 999));
         return (
-          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-            <p className="mb-2 text-sm font-semibold text-slate-800">Ảnh tiến độ ({coAnh.reduce((a, e) => a + (e.anh?.length ?? 0), 0)})</p>
-            <div className="flex flex-wrap gap-2">
-              {[...coAnh].reverse().flatMap(e => (e.anh ?? []).map(id => (
-                <AnhXuong key={id} id={id} nhan={`${ngayGio(Date.parse(e.luc))} · ${tenCd(e.congDoanId)}`} />
-              )))}
-            </div>
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <p className="text-sm font-semibold text-slate-800">Ảnh theo công đoạn ({coAnh.reduce((a, e) => a + (e.anh?.length ?? 0), 0)})</p>
+            {dsNhom.map(([cd, evs]) => (
+              <div key={cd} className="space-y-1.5">
+                <p className="text-sm font-medium text-slate-700">{tenCd(cd) || 'Không gắn công đoạn'}</p>
+                <div className="flex flex-wrap gap-2">
+                  {[...evs].reverse().flatMap(e => (e.anh ?? []).map(id => (
+                    <AnhXuong key={id} id={id} nhan={`${TEN_ANH[e.loai] ?? 'Ảnh'} · ${ngayGio(Date.parse(e.luc))}`} />
+                  )))}
+                </div>
+              </div>
+            ))}
           </div>
         );
       })()}

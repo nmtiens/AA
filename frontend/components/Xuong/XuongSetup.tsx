@@ -10,6 +10,7 @@ import BaoCaoXuong from './BaoCaoXuong';
 // THẺ "XƯỞNG" TRONG SETUP DỮ LIỆU (T8 — docs/designs/xuong-checkin.md).
 // Mục con: Báo cáo xưởng / tổ · Triển khai hạng mục (QT1/QT2, 7A) · Tổ & tổ trưởng · Công đoạn · Lịch ca · Quản lý xưởng · Cần xem.
 // Quyền: admin mọi xưởng; quản lý xưởng chỉ xưởng của mình (backend kiểm lại).
+// Dùng chung cho mục "Quản lý" của app Xưởng (/xuong): `trongApp` = chừa chỗ thanh điều hướng dưới, tiêu đề lớn hơn.
 // ============================================================================
 
 type Muc = 'bao-cao' | 'trien-khai' | 'to' | 'cong-doan' | 'lich-ca' | 'quan-ly' | 'can-xem';
@@ -25,7 +26,7 @@ const MUC: Array<{ id: Muc; ten: string; icon: React.ReactNode }> = [
 const KHOA_XUONG = 'xuong_setup_xuong';
 const KHOA_MUC = 'xuong_setup_muc';
 
-export default function XuongSetup() {
+export default function XuongSetup({ trongApp = false }: { trongApp?: boolean }) {
   const { showToast } = useToast();
   const [xuong, setXuong] = useState<string | undefined>(() => localStorage.getItem(KHOA_XUONG) || undefined);
   const [muc, setMuc] = useState<Muc>(() => (localStorage.getItem(KHOA_MUC) as Muc) || 'bao-cao');
@@ -50,9 +51,9 @@ export default function XuongSetup() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-wood-50">
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-6 py-3">
+      <div className={`flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:px-6 ${trongApp ? 'pt-[calc(env(safe-area-inset-top)+12px)]' : ''}`}>
         <Factory size={18} className="text-wood-700" aria-hidden />
-        <h2 className="text-base font-bold text-slate-800">Xưởng</h2>
+        <h2 className={trongApp ? 'text-xl font-semibold text-slate-900' : 'text-base font-bold text-slate-800'}>{trongApp ? 'Quản lý xưởng' : 'Xưởng'}</h2>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           Xưởng
           <select value={xuong ?? ''} onChange={e => setXuong(e.target.value)}
@@ -60,10 +61,10 @@ export default function XuongSetup() {
             {(d?.dsXuong ?? (xuong ? [xuong] : [])).map(x => <option key={x} value={x}>{x}</option>)}
           </select>
         </label>
-        <nav className="flex flex-wrap gap-1" aria-label="Mục cấu hình Xưởng">
+        <nav className="order-last -mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 [scrollbar-width:none] md:order-none md:mx-0 md:w-auto md:flex-wrap md:overflow-visible md:px-0" aria-label="Mục cấu hình Xưởng">
           {MUC.map(m => (
             <button key={m.id} type="button" onClick={() => setMuc(m.id)} aria-pressed={muc === m.id}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm ${muc === m.id ? 'bg-wood-600 font-semibold text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+              className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm ${muc === m.id ? 'bg-wood-600 font-semibold text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
               {m.icon}{m.ten}
             </button>
           ))}
@@ -72,7 +73,7 @@ export default function XuongSetup() {
           <RefreshCw size={16} className={dang ? 'animate-spin' : ''} />
         </button>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto p-4 md:p-6">
+      <div className={`min-h-0 flex-1 overflow-auto p-4 md:p-6 ${trongApp ? 'pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-6' : ''}`}>
         {loi && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
         {!d && dang && <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="animate-spin" size={20} /></div>}
         {d && !d.xuong && <p className="text-sm text-slate-600">Chưa có xưởng nào trong danh mục. Chạy file SQL danh mục (backend/sql/2026-10-12_xuong_danh_muc_mra.sql) hoặc thêm công đoạn.</p>}

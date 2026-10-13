@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   PackageX, FileClock, AlertOctagon, Zap, Megaphone, MoreHorizontal, Minus, Plus, ChevronRight,
-  History, Moon, ClipboardCheck, Users, RefreshCw, LogOut, Rocket, Camera, Search as SearchIcon,
+  History, Moon, ClipboardCheck, Users, RefreshCw, LogOut, Rocket, Camera, Image as ImageIcon, Search as SearchIcon,
 } from 'lucide-react';
 import { BottomSheet } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
@@ -11,6 +11,7 @@ import {
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
 import { NUT_CHINH, NUT_PHU, NUT_DEM, SO, SO_LON, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
+import XuongHexChiTiet from '../../Xuong/XuongHexChiTiet';
 
 // ============================================================================
 // CÁC CỬA SỔ THAO TÁC MÀN XƯỞNG (docs/designs/xuong-checkin.md — Pass 3, quyết định 3A–3H, 7B)
@@ -126,12 +127,78 @@ function ChonCongDoan({ dm, xuong, chon, setChon, boQua, choXuongNgoai }: {
 }
 
 // ---------------------------------------------------------------------------
+// Ảnh chụp kèm thao tác (check-in / xong / cuối ngày): nén WebP trên máy, tối đa 3 ảnh / thao tác
+// ---------------------------------------------------------------------------
+export interface AnhChup { blob: Blob; kieu: 'image/webp' | 'image/jpeg'; url: string }
+
+/** Giải phóng ảnh xem trước (object URL) khi đóng cửa sổ */
+function useGiaiPhongAnh(anh: AnhChup[][]) {
+  const ref = useRef(anh);
+  ref.current = anh;
+  useEffect(() => () => ref.current.flat().forEach(a => URL.revokeObjectURL(a.url)), []);
+}
+
+/** Máy cảm ứng (điện thoại / máy tính bảng): nút mở thẳng camera. Máy tính: trình duyệt chỉ mở hộp chọn file. */
+const coCamera = () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+
+function ChonAnh({ anh, onDoi, goiY = `Không bắt buộc, tối đa 3 ảnh.`, toiDa = 3 }: {
+  anh: AnhChup[]; onDoi: (a: AnhChup[]) => void; goiY?: string; toiDa?: number;
+}) {
+  const [loi, setLoi] = useState('');
+  const them = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setLoi('');
+    try {
+      const moi = await Promise.all([...files].slice(0, toiDa - anh.length).map(async f => {
+        const n = await compressImageWebp(f);
+        return { ...n, url: URL.createObjectURL(n.blob) };
+      }));
+      onDoi([...anh, ...moi]);
+    } catch {
+      setLoi('Không đọc được ảnh — chụp lại.');
+    }
+  };
+  return (
+    <div className="space-y-2">
+      {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        {anh.map((a, k) => (
+          <button key={a.url} type="button" aria-label="Bỏ ảnh" onClick={() => { URL.revokeObjectURL(a.url); onDoi(anh.filter((_, m) => m !== k)); }}
+            className="relative h-16 w-16 overflow-hidden rounded-xl border border-slate-200">
+            <img src={a.url} alt="" className="h-full w-full object-cover" />
+            <span className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white">✕</span>
+          </button>
+        ))}
+        {anh.length < toiDa && (<>
+          {/* Điện thoại: Chụp ảnh (mở thẳng camera sau) + Chọn ảnh (thư viện). Máy tính: chỉ Chọn ảnh. */}
+          {coCamera() && (
+            <label className={`${NUT_PHU} cursor-pointer`}>
+              <Camera size="1.25em" aria-hidden /> Chụp ảnh
+              <input type="file" accept="image/*" capture="environment" className="sr-only"
+                onChange={e => { them(e.target.files); e.target.value = ''; }} />
+            </label>
+          )}
+          <label className={`${NUT_PHU} cursor-pointer`}>
+            <ImageIcon size="1.25em" aria-hidden /> Chọn ảnh
+            <input type="file" accept="image/*" multiple className="sr-only"
+              onChange={e => { them(e.target.files); e.target.value = ''; }} />
+          </label>
+        </>)}
+      </div>
+      {!anh.length && <p className={CHU_PHU}>{goiY}</p>}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 3F — Xong — giao / Giao
 // ---------------------------------------------------------------------------
-export function GiaoSheet({ r, cheDo, dm, xuong, onXacNhan, onClose }: {
-  r: DongViec; cheDo: 'xong' | 'giao'; dm: DanhMucXuong | null; xuong: string | null;
-  onXacNhan: (p: { soLuong: number; den: string | null }) => void; onClose: () => void;
+export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
+  r: DongViec; cheDo: 'xong' | 'giao'; dm: DanhMucXuong | null; xuong: string | null; anhBat: boolean;
+  onXacNhan: (p: { soLuong: number; den: string | null; anh: AnhChup[] }) => void; onClose: () => void;
 }) {
+  const [anh, setAnh] = useState<AnhChup[]>([]);
+  useGiaiPhongAnh([anh]);
   const toiDa = cheDo === 'xong' ? Math.max(1, slConLam(r)) : Math.max(1, slChoGiao(r));
   const [sl, setSl] = useState(toiDa);
   const [den, setDen] = useState<string | null>(r.goiYKe.length === 1 ? r.goiYKe[0] : null);
@@ -142,11 +209,11 @@ export function GiaoSheet({ r, cheDo, dm, xuong, onXacNhan, onClose }: {
     <BottomSheet title={tieuDe} onClose={onClose}
       footer={
         <div className="space-y-3">
-          <button className={NUT_CHINH} disabled={!den} onClick={() => onXacNhan({ soLuong: sl, den })}>
+          <button className={NUT_CHINH} disabled={!den} onClick={() => onXacNhan({ soLuong: sl, den, anh })}>
             {cheDo === 'xong' ? 'Xong — giao' : 'Giao'}{den ? '' : ' (chọn nơi giao)'}
           </button>
           {cheDo === 'xong' && (
-            <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null })}>Xong, hàng chưa chuyển — giao sau</button>
+            <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null, anh })}>Xong, hàng chưa chuyển — giao sau</button>
           )}
         </div>
       }>
@@ -167,6 +234,12 @@ export function GiaoSheet({ r, cheDo, dm, xuong, onXacNhan, onClose }: {
           )}
           {doiCho && <ChonCongDoan dm={dm} xuong={xuong} chon={den} setChon={id => setDen(id)} boQua={[r.congDoanId]} />}
         </div>
+        {anhBat && (
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-800">Ảnh hàng lúc giao</p>
+            <ChonAnh anh={anh} onDoi={setAnh} />
+          </div>
+        )}
       </div>
     </BottomSheet>
   );
@@ -175,12 +248,15 @@ export function GiaoSheet({ r, cheDo, dm, xuong, onXacNhan, onClose }: {
 // ---------------------------------------------------------------------------
 // Nhận (R10: nhận hàng không có sự kiện giao thì bắt chọn nguồn)
 // ---------------------------------------------------------------------------
-export interface NhanKetQua { congDoanId: string; soLuong: number; congDoanNguonId?: string; xuongNguon?: string }
+export interface NhanKetQua { congDoanId: string; soLuong: number; congDoanNguonId?: string; xuongNguon?: string; anh: AnhChup[] }
 
 export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   hex: string; ten: string | null; cv: CongViec; dm: DanhMucXuong | null;
   onNhan: (p: NhanKetQua) => void; onClose: () => void;
 }) {
+  const [anh, setAnh] = useState<AnhChup[]>([]);
+  const [xemTruoc, setXemTruoc] = useState(false);
+  useGiaiPhongAnh([anh]);
   const choNhanCuaHex = cv.choNhan.filter(r => r.hex === hex);
   const [cd, setCd] = useState<string>(choNhanCuaHex[0]?.congDoanId ?? cv.congDoan[0]?.id ?? '');
   const dongCho = choNhanCuaHex.find(r => r.congDoanId === cd);
@@ -189,7 +265,7 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   useEffect(() => { if (dongCho) setSl(Math.max(1, slChoNhan(dongCho))); }, [cd]); // eslint-disable-line react-hooks/exhaustive-deps
   const canNguon = !dongCho;
   const xong = () => onNhan({
-    congDoanId: cd, soLuong: sl,
+    congDoanId: cd, soLuong: sl, anh,
     ...(canNguon && nguon ? (nguon.startsWith('xuong:') ? { xuongNguon: nguon.slice(6) } : { congDoanNguonId: nguon }) : {}),
   });
   return (
@@ -197,6 +273,10 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
       footer={<button className={NUT_CHINH} disabled={!cd || (canNguon && !nguon)} onClick={xong}>Nhận {sl} cái{canNguon && !nguon ? ' (chọn nơi giao tới)' : ''}</button>}>
       <div className="space-y-5 pb-2">
         {ten && <p className="text-base text-slate-800">{ten}</p>}
+        <details className="rounded-2xl border border-slate-200 bg-white" onToggle={e => setXemTruoc((e.target as HTMLDetailsElement).open)}>
+          <summary className="flex min-h-14 cursor-pointer items-center px-4 text-base font-medium text-slate-800">Xem tình trạng & ảnh ở công đoạn trước</summary>
+          {xemTruoc && <div className="px-2 pb-3"><XuongHexChiTiet hex={hex} /></div>}
+        </details>
         {cv.congDoan.length > 1 && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Nhận vào công đoạn</p>
@@ -215,6 +295,13 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
             <p className="text-base font-medium text-slate-800">Hàng từ đâu tới?</p>
             <p className={CHU_PHU}>Chưa có ai bấm giao hạng mục này cho tổ — chọn công đoạn hoặc xưởng giao tới.</p>
             <ChonCongDoan dm={dm} xuong={cv.to.xuong} chon={nguon} setChon={id => setNguon(id)} boQua={cv.congDoan.map(c => c.id)} choXuongNgoai />
+          </div>
+        )}
+        {cv.anhBat && (
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-800">Ảnh hàng lúc nhận</p>
+            <p className={CHU_PHU}>Chụp tình trạng hàng khi về tới tổ — nơi khác xem được ở Tra cứu.</p>
+            <ChonAnh anh={anh} onDoi={setAnh} />
           </div>
         )}
       </div>
@@ -282,31 +369,14 @@ export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
 export interface XacNhanDong {
   r: DongViec; vanLam: boolean; dungLuc: number | null; tienDo: number | null;
   /** Ảnh tiến độ đã nén (tuỳ chọn, tối đa 3 / hạng mục) */
-  anh: Array<{ blob: Blob; kieu: 'image/webp' | 'image/jpeg'; url: string }>;
+  anh: AnhChup[];
 }
 
 export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
   cv: CongViec; dangChay: DongViec[]; anhBat: boolean; onXacNhan: (ds: XacNhanDong[]) => void; onClose: () => void;
 }) {
   const [ds, setDs] = useState<XacNhanDong[]>(() => dangChay.map(r => ({ r, vanLam: true, dungLuc: null, tienDo: null, anh: [] })));
-  const [loiAnh, setLoiAnh] = useState('');
-  // Giải phóng ảnh xem trước (object URL) khi đóng cửa sổ
-  const dsRef = useRef(ds);
-  dsRef.current = ds;
-  useEffect(() => () => dsRef.current.forEach(x => x.anh.forEach(a => URL.revokeObjectURL(a.url))), []);
-  const themAnh = async (i: number, files: FileList | null) => {
-    if (!files?.length) return;
-    setLoiAnh('');
-    try {
-      const moi = await Promise.all([...files].slice(0, 3 - ds[i].anh.length).map(async f => {
-        const n = await compressImageWebp(f);
-        return { ...n, url: URL.createObjectURL(n.blob) };
-      }));
-      setDs(a => a.map((x, j) => (j === i ? { ...x, anh: [...x.anh, ...moi] } : x)));
-    } catch {
-      setLoiAnh('Không đọc được ảnh — chụp lại.');
-    }
-  };
+  useGiaiPhongAnh(ds.map(x => x.anh));
   const sua = (i: number, p: Partial<XacNhanDong>) => setDs(a => a.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const mocs = (r: DongViec) => {
     const out: Array<{ ten: string; luc: number }> = [];
@@ -328,7 +398,6 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
     <BottomSheet title="Xác nhận cuối ngày" onClose={onClose}
       footer={<button className={NUT_CHINH} disabled={thieu} onClick={() => onXacNhan(ds)}>{thieu ? 'Chọn giờ đã dừng' : 'Xác nhận'}</button>}>
       <div className="space-y-4 pb-2">
-        {loiAnh && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loiAnh}</p>}
         <button className={`${NUT_PHU} w-full border-emerald-300 ${MAU.chay.chu}`}
           onClick={() => onXacNhan(ds.map(x => ({ ...x, vanLam: true, dungLuc: null })))}>
           <ClipboardCheck size="1.25em" aria-hidden /> Tất cả vẫn đang làm
@@ -349,24 +418,7 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
                   </div>
                 </div>
               )}
-              {anhBat && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {x.anh.map((a, k) => (
-                    <button key={a.url} type="button" aria-label="Bỏ ảnh" onClick={() => { URL.revokeObjectURL(a.url); sua(i, { anh: x.anh.filter((_, m) => m !== k) }); }}
-                      className="relative h-16 w-16 overflow-hidden rounded-xl border border-slate-200">
-                      <img src={a.url} alt="" className="h-full w-full object-cover" />
-                      <span className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white">✕</span>
-                    </button>
-                  ))}
-                  {x.anh.length < 3 && (
-                    <label className={`${NUT_PHU} cursor-pointer`}>
-                      <Camera size="1.25em" aria-hidden /> Ảnh (không bắt buộc)
-                      <input type="file" accept="image/*" capture="environment" multiple className="sr-only"
-                        onChange={e => { themAnh(i, e.target.files); e.target.value = ''; }} />
-                    </label>
-                  )}
-                </div>
-              )}
+              {anhBat && <ChonAnh anh={x.anh} onDoi={a => sua(i, { anh: a })} />}
               <div className="space-y-2">
                 <p className="text-base text-slate-700">Tiến độ (không bắt buộc)</p>
                 <div className="grid grid-cols-4 gap-2">

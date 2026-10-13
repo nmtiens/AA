@@ -95,7 +95,7 @@ export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
 
 // ---------------- Đăng nhập ----------------
 // Đăng nhập ngay trong /m/ (không phải sang trang desktop nên không ra khỏi scope của app đã cài)
-export function MobileLogin({ onSuccess }: { onSuccess: () => void }) {
+export function MobileLogin({ onSuccess, tieuDe = 'Vướng mắc sản xuất', bieuTuong = '📋' }: { onSuccess: () => void; tieuDe?: string; bieuTuong?: string }) {
   const { login } = useAuth();
   const [username, setUsername] = useState(localStorage.getItem('saved_username') || '');
   const [password, setPassword] = useState('');
@@ -122,8 +122,8 @@ export function MobileLogin({ onSuccess }: { onSuccess: () => void }) {
     <div className={`flex min-h-[100dvh] flex-col justify-center ${BG} px-5 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]`}>
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-3xl text-white">📋</div>
-          <h1 className="text-2xl font-semibold text-slate-900">Vướng mắc sản xuất</h1>
+          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-3xl text-white">{bieuTuong}</div>
+          <h1 className="text-2xl font-semibold text-slate-900">{tieuDe}</h1>
           <p className="mt-1 text-base text-slate-500">Đăng nhập bằng tài khoản Operations Hub</p>
         </div>
         <form onSubmit={submit} className={`${CARD} space-y-3 p-5`}>

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ChevronRight, AlertTriangle, Users, Play, Pause, Inbox, PackageCheck, Rocket, LogOut } from 'lucide-react';
-import { BottomSheet } from '../mobileUi';
+import { RefreshCw, ChevronRight, AlertTriangle, Users, Play, Pause, Inbox, PackageCheck, Rocket } from 'lucide-react';
+import { BottomSheet, Toast } from '../mobileUi';
+import TrienKhaiGon from './TrienKhaiGon';
+import QuetQr from './QuetQr';
 import { xuongSetupApi, type TongQuanTo } from '../../../services/xuongSetupApi';
 import { hhmm, tenCo, moTaSuKien } from '../../../services/xuongModel';
 import { NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 
 // ============================================================================
-// TỔNG QUAN XƯỞNG TRÊN ĐIỆN THOẠI (quyết định D25) — cho admin / quản lý xưởng.
+// TỔNG QUAN XƯỞNG — mục "Tổng quan" của app Xưởng (D25), cho admin / quản lý xưởng.
 // Chọn xưởng → mỗi tổ: quân số hôm nay, đang chạy, tạm ngưng, chờ nhận, chờ giao, cần xem; bấm tổ → mở màn tổ trưởng
 // của tổ đó (xem / thao tác hộ — server gắn cờ "quản lý ghi hộ"). Cấu hình vẫn ở máy tính (Setup → Xưởng).
 // ============================================================================
@@ -52,19 +54,18 @@ function CanXemSheet({ xuong, onClose }: { xuong: string; onClose: () => void })
   );
 }
 
-export default function TongQuanXuong({ onChonTo, onTrienKhai, onThoat, coToRieng, onVeToCuaToi }: {
+export default function TongQuanXuong({ onChonTo }: {
   onChonTo: (to: { id: number; ten: string; xuong: string }) => void;
-  onTrienKhai: () => void;
-  onThoat: () => void;
-  /** Người dùng cũng là tổ trưởng: có nút quay về tổ của mình */
-  coToRieng: boolean;
-  onVeToCuaToi: () => void;
 }) {
   const [xuong, setXuong] = useState<string | undefined>(() => { try { return localStorage.getItem(KHOA_XUONG) || undefined; } catch { return undefined; } });
   const [d, setD] = useState<{ dsXuong: string[]; xuong: string | null; to: TongQuanTo[] } | null>(null);
   const [loi, setLoi] = useState('');
   const [dang, setDang] = useState(false);
   const [canXem, setCanXem] = useState(false);
+  // Triển khai gọn: hex = null khi gõ mã; quet = đang mở camera
+  const [trienKhai, setTrienKhai] = useState<{ hex: string | null } | null>(null);
+  const [quet, setQuet] = useState(false);
+  const [toast, setToast] = useState('');
 
   const tai = useCallback(async () => {
     setDang(true);
@@ -83,8 +84,8 @@ export default function TongQuanXuong({ onChonTo, onTrienKhai, onThoat, coToRien
   }), { chuaChot: 0, dangChay: 0, choNhan: 0, canXem: 0 });
 
   return (
-    <div className="min-h-[100dvh] bg-[#f4f6fa] pb-[calc(env(safe-area-inset-bottom)+24px)]">
-      <header className="sticky top-0 z-10 space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
+    <div className="min-h-full bg-[#f4f6fa] pb-[calc(env(safe-area-inset-bottom)+6rem)] md:pb-8">
+      <header className="sticky top-0 z-10 mx-auto max-w-5xl space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">Tổng quan xưởng</h1>
           <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Tải lại" onClick={tai}>
@@ -108,10 +109,10 @@ export default function TongQuanXuong({ onChonTo, onTrienKhai, onThoat, coToRien
         )}
       </header>
 
-      <main className="space-y-3 px-4">
+      <main className="mx-auto max-w-5xl space-y-3 px-4">
         {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
         <div className="grid grid-cols-2 gap-3">
-          <button className={NUT_PHU} onClick={onTrienKhai}><Rocket size="1.25em" aria-hidden /> Triển khai</button>
+          <button className={NUT_PHU} onClick={() => setTrienKhai({ hex: null })}><Rocket size="1.25em" aria-hidden /> Triển khai</button>
           <button className={NUT_PHU} disabled={!d?.xuong} onClick={() => setCanXem(true)}>
             <AlertTriangle size="1.25em" aria-hidden /> Cần xem{tong.canXem ? ` (${tong.canXem})` : ''}
           </button>
@@ -119,11 +120,11 @@ export default function TongQuanXuong({ onChonTo, onTrienKhai, onThoat, coToRien
         {!d && !loi && <p className={`py-6 text-center ${CHU_PHU}`}>Đang tải…</p>}
         {d && d.to.length === 0 &&<p className="py-6 text-center text-base text-slate-600">Xưởng chưa có tổ đang hoạt động.</p>}
         {d && d.to.length > 0 && (
-          <ul className={`${KHOI} ${KE}`}>
+          <ul className={`${KHOI} ${KE} md:grid md:grid-cols-2 md:gap-px md:divide-y-0 md:bg-slate-100`}>
             {d.to.map(t => {
               const coViec = t.dangChay + t.tamNgung + t.choNhan > 0;
               return (
-                <li key={t.id}>
+                <li key={t.id} className="bg-white">
                   <button className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50" onClick={() => onChonTo({ id: t.id, ten: t.ten, xuong: d.xuong! })}>
                     <div className="min-w-0 flex-1 space-y-1">
                       <p className="text-lg font-semibold text-slate-900">{t.ten}</p>
@@ -147,12 +148,19 @@ export default function TongQuanXuong({ onChonTo, onTrienKhai, onThoat, coToRien
             })}
           </ul>
         )}
-        <div className="grid gap-3 pt-2">
-          {coToRieng && <button className={NUT_PHU} onClick={onVeToCuaToi}>Về tổ của tôi</button>}
-          <button className={NUT_PHU} onClick={onThoat}><LogOut size="1.25em" aria-hidden /> Về Vướng mắc</button>
-        </div>
       </main>
       {canXem && d?.xuong && <CanXemSheet xuong={d.xuong} onClose={() => { setCanXem(false); tai(); }} />}
+      {trienKhai && !quet && (
+        <TrienKhaiGon hexBanDau={trienKhai.hex} xuongBanDau={d?.xuong ?? null}
+          onQuet={() => setQuet(true)}
+          onXong={m => { setTrienKhai(null); setToast(m); setTimeout(() => setToast(''), 3000); tai(); }}
+          onClose={() => setTrienKhai(null)} />
+      )}
+      {trienKhai && quet && (
+        <QuetQr onHex={h => { setQuet(false); setTrienKhai({ hex: h }); }}
+          onGoMa={() => setQuet(false)} onClose={() => setQuet(false)} />
+      )}
+      <Toast text={toast} />
     </div>
   );
 }
