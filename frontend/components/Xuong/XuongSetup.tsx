@@ -52,10 +52,10 @@ export default function XuongSetup({ trongApp = false }: { trongApp?: boolean })
   return (
     <div className="flex h-full flex-col overflow-hidden bg-wood-50">
       <div className={`flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:px-6 ${trongApp ? 'pt-[calc(env(safe-area-inset-top)+12px)]' : ''}`}>
-        <Factory size={18} className="text-wood-700" aria-hidden />
+        <Factory size={18} className={`text-wood-700 ${trongApp ? 'hidden sm:block' : ''}`} aria-hidden />
         <h2 className={trongApp ? 'text-xl font-semibold text-slate-900' : 'text-base font-bold text-slate-800'}>{trongApp ? 'Quản lý xưởng' : 'Xưởng'}</h2>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          Xưởng
+        <label className={`flex items-center gap-2 text-slate-600 ${trongApp ? 'text-base' : 'text-sm'}`}>
+          <span className={trongApp ? 'sr-only sm:not-sr-only' : ''}>Xưởng</span>
           <select value={xuong ?? ''} onChange={e => setXuong(e.target.value)}
             className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-wood-300">
             {(d?.dsXuong ?? (xuong ? [xuong] : [])).map(x => <option key={x} value={x}>{x}</option>)}

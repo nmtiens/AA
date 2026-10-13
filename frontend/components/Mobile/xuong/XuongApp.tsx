@@ -449,11 +449,9 @@ export default function XuongApp({ moTo, onTongQuan }: {
     </section>
   ) : null;
 
+  // Ô trống: chỉ câu báo — nút Quét phiếu đã ở đáy màn hình (trước có 2 nút trùng nhau)
   const trong = (cau: string) => (
-    <div className="space-y-3 rounded-2xl bg-white p-6 text-center">
-      <p className="text-base text-slate-700">{cau}</p>
-      <button className={`${NUT_PHU} w-full`} onClick={() => setSheet({ loai: 'quet' })}><ScanLine size="1.25em" aria-hidden /> Quét phiếu</button>
-    </div>
+    <div className="rounded-2xl bg-white p-6 text-center text-base text-slate-700">{cau}</div>
   );
 
   const thanhGui = !online
@@ -463,18 +461,24 @@ export default function XuongApp({ moTo, onTongQuan }: {
       : { ten: 'Đã gửi hết', icon: <Check size="1em" aria-hidden />, mau: MAU.chay };
 
   return (
-    <div className={`min-h-full ${BG}`} style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${13 + (hoanTac ? 5 : 0) + (hienRanh && canChia ? 5 : 0)}rem)` }}>
+    <div className={`min-h-full ${BG}`} style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${10 + (hoanTac ? 5 : 0) + (hienRanh && canChia ? 5 : 0)}rem)` }}>
       {/* Tầng trên */}
-      <header className="sticky top-0 z-10 mx-auto max-w-3xl space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
+      {/* Phần đầu cuộn theo trang (không dính) — chỉ thanh 3 tab dính trên cùng, để điện thoại còn chỗ cho danh sách */}
+      <header className="mx-auto max-w-3xl space-y-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)]">
         <div className="flex items-center justify-between gap-2">
-          {phien && phien.to.length > 1 ? (
-            <button className="flex min-h-14 min-w-0 items-center gap-1 text-left" onClick={() => setSheet({ loai: 'chonTo' })} aria-label="Chọn tổ">
-              <span className="truncate text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Chọn tổ'}</span>
-              <ChevronDown size="1.25em" className="shrink-0 text-slate-700" aria-hidden />
-            </button>
-          ) : (
-            <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Xưởng'}</h1>
-          )}
+          <div className="min-w-0">
+            {phien && phien.to.length > 1 ? (
+              <button className="flex min-h-12 min-w-0 items-center gap-1 text-left" onClick={() => setSheet({ loai: 'chonTo' })} aria-label="Chọn tổ">
+                <span className="truncate text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Chọn tổ'}</span>
+                <ChevronDown size="1.25em" className="shrink-0 text-slate-700" aria-hidden />
+              </button>
+            ) : (
+              <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Xưởng'}</h1>
+            )}
+            <p className={`flex items-center gap-1.5 text-base font-medium ${thanhGui.mau.chu}`} aria-live="polite">
+              {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}
+            </p>
+          </div>
           <div className="flex shrink-0 gap-2">
             <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Việc khác" onClick={() => setSheet({ loai: 'menu' })}>
               <MoreHorizontal size="1.5em" />
@@ -490,10 +494,6 @@ export default function XuongApp({ moTo, onTongQuan }: {
             </div>
           </div>
         )}
-        <p className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-base font-medium ${thanhGui.mau.nen} ${thanhGui.mau.chu}`} aria-live="polite">
-          {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}
-        </p>
-
         {loiLuu && (
           <div className={`space-y-2 rounded-2xl border ${MAU.loi.vien} ${MAU.loi.nen} p-4`} role="alert">
             <p className={`text-base font-semibold ${MAU.loi.chu}`}>Chưa lưu được trên máy. Thao tác vừa bấm CHƯA được ghi.</p>
@@ -526,7 +526,10 @@ export default function XuongApp({ moTo, onTongQuan }: {
           </div>
         )}
 
-        {/* Tầng giữa: 3 tab có số */}
+      </header>
+
+      {/* Tầng giữa: 3 tab có số — dính trên cùng khi cuộn */}
+      <div className="sticky top-0 z-10 mx-auto max-w-3xl bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+4px)] backdrop-blur">
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-200/70 p-1" role="tablist">
           {([['choNhan', 'Chờ nhận'], ['dangLam', 'Đang làm'], ['choGiao', 'Chờ giao']] as [Tab, string][]).map(([t, ten]) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
@@ -535,7 +538,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
             </button>
           ))}
         </div>
-      </header>
+      </div>
 
       <main className="mx-auto max-w-3xl space-y-4 px-4">
         {!online && cvLuc && <p className={`flex items-center gap-2 ${CHU_PHU}`}><Wifi size="1em" aria-hidden /> Đang mất sóng — danh sách cập nhật lúc {hhmm(cvLuc)}{gioVN(cvLuc).ngay !== gioVN(now).ngay ? ` ngày ${gioVN(cvLuc).ngay.split('-').reverse().join('/')}` : ''}</p>}
@@ -556,7 +559,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
       </main>
 
       {/* Tầng đáy (vùng ngón cái): dải người rảnh / hoàn tác + Quét phiếu */}
-      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 bg-gradient-to-t from-[#f4f6fa] via-[#f4f6fa] to-[#f4f6fa]/0 px-4 pb-3 pt-6 md:bottom-0 md:left-60 md:pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-20 bg-gradient-to-t from-[#f4f6fa] via-[#f4f6fa] to-[#f4f6fa]/0 px-4 pb-2 pt-4 md:bottom-0 md:left-60 md:pb-[calc(env(safe-area-inset-bottom)+12px)]">
         <div className="mx-auto max-w-3xl space-y-2">
         {hienRanh && canChia && (
           <div className={`flex flex-wrap items-center gap-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-3`} aria-live="polite">
@@ -573,8 +576,11 @@ export default function XuongApp({ moTo, onTongQuan }: {
             <button className="min-h-14 shrink-0 rounded-xl px-3 text-base font-semibold text-amber-300 active:bg-white/10" onClick={() => huy(hoanTac.ids, hoanTac.nhan)}>Hoàn tác</button>
           </div>
         )}
-        <button className={NUT_CHINH} onClick={() => setSheet({ loai: 'quet' })}><ScanLine size="1.5em" aria-hidden /> Quét phiếu</button>
-        <button className="block min-h-11 w-full text-center text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setSheet({ loai: 'goMa' })}>Gõ mã</button>
+        {/* Quét phiếu + Gõ mã cùng 1 hàng (trước 2 hàng — đáy chiếm gần 1/4 màn điện thoại) */}
+        <div className="flex gap-3">
+          <button className={NUT_CHINH} onClick={() => setSheet({ loai: 'quet' })}><ScanLine size="1.5em" aria-hidden /> Quét phiếu</button>
+          <button className={`${NUT_PHU} h-16 shrink-0 px-5`} onClick={() => setSheet({ loai: 'goMa' })}>Gõ mã</button>
+        </div>
         </div>
       </div>
 

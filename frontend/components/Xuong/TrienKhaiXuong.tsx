@@ -77,7 +77,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
         </div>
         {loi && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
         <div className="max-h-[55vh] overflow-y-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[36rem] md:min-w-0">
             <thead className="sticky top-0 z-[1] bg-slate-50"><tr>
               <th className={`${TH} w-8`}><input type="checkbox" aria-label="Chọn tất cả" checked={tatCa}
                 onChange={() => setChon(tatCa ? new Set() : new Set(d?.hangMuc.map(h => h.hex)))} /></th>
@@ -98,7 +98,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                     <td className={`${TD} text-xs`}>{h.nhom ?? '—'}</td>
                     <td className={`${TD} text-right tabular-nums`}>{h.soLuongDonHang ?? '—'} {h.dvt ?? ''}</td>
                     <td className={`${TD} text-right tabular-nums`}>{h.daTrienKhai || '—'}</td>
-                    <td className={TD}><input type="number" min={0} className={`${INPUT} text-right tabular-nums`} value={sl[h.hex] ?? 0}
+                    <td className={TD}><input type="number" min={0} className={`${INPUT} min-w-[4.5rem] text-right tabular-nums`} value={sl[h.hex] ?? 0}
                       onChange={e => setSl(s => ({ ...s, [h.hex]: Math.max(0, Number(e.target.value) || 0) }))} aria-label={`Số lượng triển khai ${h.hex}`} /></td>
                     <td className={`${TD} text-xs`}>
                       {t.length ? <>{t.map(tenCd).join(' → ')}{laGoiY && <span className="ml-1 rounded bg-emerald-50 px-1 text-emerald-700">gợi ý</span>}</>

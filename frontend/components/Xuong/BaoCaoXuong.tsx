@@ -29,7 +29,7 @@ function ChiSo({ ten, giaTri, phu, dat }: { ten: string; giaTri: string; phu: st
 
 function ChiTietTo({ t }: { t: BaoCaoTo }) {
   return (
-    <div className="grid gap-4 bg-slate-50 p-4 xl:grid-cols-2">
+    <div className="grid gap-3 bg-slate-50 p-3 md:gap-4 md:p-4 xl:grid-cols-2">
       <div className={KHUNG}>
         <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Theo ngày</p>
         <table className="w-full">
@@ -53,7 +53,21 @@ function ChiTietTo({ t }: { t: BaoCaoTo }) {
       </div>
       <div className={KHUNG}>
         <p className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Giờ công theo hạng mục</p>
-        <div className="max-h-96 overflow-y-auto">
+        {/* Điện thoại: thẻ từng hạng mục (bảng 4 cột bị cắt cột tăng ca) */}
+        <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto md:hidden">
+          {t.theoHangMuc.map(h => (
+            <li key={`${h.hex}|${h.congDoanId}`} className="px-3 py-2 text-sm">
+              <p><span className="font-medium tabular-nums text-slate-800">{h.hex}</span> {h.tenHangMuc ?? ''}</p>
+              <p className="text-xs text-slate-500">{h.tenCongDoan}{h.tenCongTrinh ? ` · ${h.tenCongTrinh}` : ''}</p>
+              <p className="mt-1 flex flex-wrap gap-x-3 tabular-nums text-slate-700">
+                <span>Chạy {so(h.gioChay)} giờ</span><span>Giờ công {so(h.gioCongThuong)}</span>
+                {h.gioCongTangCa > 0 && <span>Tăng ca {so(h.gioCongTangCa)}</span>}
+              </p>
+            </li>
+          ))}
+          {!t.theoHangMuc.length && <li className="px-3 py-2 text-sm text-slate-500">Không có hạng mục chạy trong kỳ.</li>}
+        </ul>
+        <div className="hidden max-h-96 overflow-y-auto md:block">
           <table className="w-full">
             <thead className="sticky top-0 bg-slate-50"><tr>
               <th className={TH}>Hạng mục · công đoạn</th><th className={`${TH} text-right`}>Giờ chạy</th>
@@ -101,7 +115,22 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
             </p>}
       </div>
       {ds.length > 0 && (
-        <div className="max-h-80 overflow-auto">
+        <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto md:hidden">
+          {ds.map(n => (
+            <li key={n.ngay} className="px-4 py-2.5 text-sm">
+              <p className="font-semibold tabular-nums text-slate-800">{ddmm(n.ngay)}</p>
+              <dl className="mt-1 grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-0.5 tabular-nums">
+                <dt className="text-slate-500" /><dd className="text-right text-xs text-slate-500">Điểm danh</dd><dd className="text-right text-xs text-slate-500">App</dd>
+                <dt className="text-slate-600">Người</dt><dd className="text-right">{n.congNhan ? so(n.congNhan) : '—'}</dd><dd className="text-right">{n.quanSoApp ? so(n.quanSoApp) : '—'}</dd>
+                <dt className="text-slate-600">Giờ thường</dt><dd className="text-right">{n.gioHc ? so(n.gioHc) : '—'}</dd><dd className="text-right">{n.gioThuongApp ? so(n.gioThuongApp) : '—'}</dd>
+                <dt className="text-slate-600">Giờ tăng ca</dt><dd className="text-right">{n.gioTc ? so(n.gioTc) : '—'}</dd><dd className="text-right">{n.gioTangCaApp ? so(n.gioTangCaApp) : '—'}</dd>
+              </dl>
+            </li>
+          ))}
+        </ul>
+      )}
+      {ds.length > 0 && (
+        <div className="hidden max-h-80 overflow-auto md:block">
           <table className="w-full min-w-[860px]">
             <thead className="sticky top-0 bg-slate-50"><tr>
               <th className={TH}>Ngày</th>
@@ -199,7 +228,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       {d && d.conThieu > 0 && <p className="text-sm text-slate-600" aria-live="polite"><RefreshCw size={13} className="mr-1 inline animate-spin" /> Đang tính thêm {d.conThieu} ngày-tổ…</p>}
 
       {cs && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <ChiSo ten="Nhật ký đủ Bắt đầu và Hoàn thành" giaTri={pNk === null ? '—' : `${pNk}%`}
             phu={`${cs.nhatKy.du}/${cs.nhatKy.tong} cặp hạng mục × công đoạn, mục tiêu ≥ 90% (MRA 85%)`} dat={pNk === null ? null : pNk >= 90} />
           <ChiSo ten="Ngày-tổ có chốt quân số" giaTri={pChot === null ? '—' : `${pChot}%`}
@@ -214,7 +243,51 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
 
       {d && (
         <div className={KHUNG}>
-          <div className="overflow-x-auto">
+          {/* Điện thoại: mỗi tổ 1 thẻ (bảng 10 cột chỉ thấy 3 cột, phải vuốt ngang) */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {ds.map(t => {
+              const gn = t.gioNguoi.thuong + t.gioNguoi.tangCa;
+              const gc = t.gioCong.thuong + t.gioCong.tangCa;
+              const p = phanTram(gc, gn);
+              const m = mo.has(t.toId);
+              return (
+                <li key={t.toId}>
+                  <button type="button" className="w-full px-4 py-3 text-left active:bg-slate-50" aria-expanded={m}
+                    onClick={() => setMo(s => { const n = new Set(s); if (n.has(t.toId)) n.delete(t.toId); else n.add(t.toId); return n; })}>
+                    <p className="flex items-center gap-1 font-semibold text-slate-800">
+                      {m ? <ChevronDown size={16} /> : <ChevronRight size={16} />}{t.ten}
+                      {t.khaiVuot > 0 && <span className="ml-1 text-xs font-normal text-amber-700">khai vượt {t.khaiVuot} ngày</span>}
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-center tabular-nums">
+                      <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ người</p><p className="font-semibold text-slate-800">{so(gn)}</p></div>
+                      <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công</p><p className="font-semibold text-slate-800">{so(gc)}</p></div>
+                      <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ chờ</p><p className="font-semibold text-slate-800">{so(t.gioCho.thuong + t.gioCho.tangCa)}</p></div>
+                    </div>
+                    <p className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-slate-600">
+                      <span>Dùng người {p === null ? '—' : `${p}%`}</span>
+                      {t.gioCong.tangCa > 0 && <span>Tăng ca {so(t.gioCong.tangCa)} giờ</span>}
+                      <span>Chốt quân số {t.ngayCoChay ? `${t.ngayChot}/${t.ngayCoChay} ngày` : '—'}</span>
+                      {t.dangChay > 0 && <span className="text-emerald-700">{t.dangChay} đang chạy</span>}
+                      {t.tamNgung > 0 && <span className="text-amber-700">{t.tamNgung} tạm ngưng</span>}
+                      {t.choNhan > 0 && <span>{t.choNhan} chờ nhận</span>}
+                    </p>
+                  </button>
+                  {m && <ChiTietTo t={t} />}
+                </li>
+              );
+            })}
+            {!ds.length && <li className="px-4 py-3 text-sm text-slate-500">Chưa có số liệu trong kỳ {ddmm(d.tu)} – {ddmm(d.den)}.</li>}
+            {ds.length > 1 && (
+              <li className="bg-slate-50 px-4 py-3 text-sm">
+                <p className="font-semibold text-slate-800">Cả xưởng {d.xuong}</p>
+                <p className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 tabular-nums text-slate-700">
+                  <span>Giờ người {so(tong.gn)}</span><span>Giờ công {so(tong.gc)}</span><span>Giờ chờ {so(tong.gch)}</span>
+                  <span>Dùng người {tong.gn ? `${Math.round((tong.gc / tong.gn) * 100)}%` : '—'}</span>
+                </p>
+              </li>
+            )}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[960px]">
               <thead className="bg-slate-50"><tr>
                 <th className={TH}>Tổ</th>

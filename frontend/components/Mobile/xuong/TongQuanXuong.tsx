@@ -93,13 +93,18 @@ export default function TongQuanXuong({ onChonTo }: {
           </button>
         </div>
         {d && d.dsXuong.length > 1 && (
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Chọn xưởng">
+          // 1 hàng vuốt ngang (trước xuống 2 hàng — phần dính trên cùng cao quá trên điện thoại); máy tính thì xuống hàng
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0" role="tablist" aria-label="Chọn xưởng">
             {d.dsXuong.map(x => (
               <button key={x} role="tab" aria-selected={x === d.xuong} onClick={() => setXuong(x)}
-                className={`min-h-12 rounded-2xl px-4 text-base font-medium ${x === d.xuong ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-800'}`}>{x}</button>
+                className={`min-h-12 shrink-0 rounded-2xl px-4 text-base font-medium ${x === d.xuong ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-800'}`}>{x}</button>
             ))}
           </div>
         )}
+      </header>
+
+      <main className="mx-auto max-w-5xl space-y-3 px-4">
+        {/* Tóm tắt xưởng: cuộn theo trang (không dính) */}
         {d?.xuong && (
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-base text-slate-700">
             <span className={tong.chuaChot ? `font-semibold ${MAU.loi.chu}` : ''}>{tong.chuaChot} tổ chưa chốt quân số</span>
@@ -107,9 +112,6 @@ export default function TongQuanXuong({ onChonTo }: {
             <span>{tong.choNhan} chờ nhận</span>
           </p>
         )}
-      </header>
-
-      <main className="mx-auto max-w-5xl space-y-3 px-4">
         {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
         <div className="grid grid-cols-2 gap-3">
           <button className={NUT_PHU} onClick={() => setTrienKhai({ hex: null })}><Rocket size="1.25em" aria-hidden /> Triển khai</button>
