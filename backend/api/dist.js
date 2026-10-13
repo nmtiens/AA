@@ -70510,6 +70510,33 @@ function trangThaiCacCap(rows, pairs) {
     return { hex: hex3, cd, state: tinhTrangThai(cua, den) };
   });
 }
+async function gioiHanNhan(db, pairs) {
+  const out = /* @__PURE__ */ new Map();
+  if (!pairs.length) return out;
+  const hexes = [...new Set(pairs.map((p) => p[0]))];
+  const cds = [...new Set(pairs.map((p) => p[1]))];
+  const [cdRows, nhanRows, evRows, info] = await Promise.all([
+    db.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cds]),
+    db.query("SELECT hex, cong_doan_id, sl_nhan FROM xuong_trang_thai WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])", [hexes, cds]),
+    suKienTheoHex(db, hexes),
+    thongTinHangMuc(hexes)
+  ]);
+  const xuongCd = new Map(cdRows.rows.map((x) => [String(x.id), String(x.xuong)]));
+  const daNhan = new Map(nhanRows.rows.map((x) => [`${x.hex}|${x.cong_doan_id}`, num(x.sl_nhan)]));
+  const tk = /* @__PURE__ */ new Map();
+  for (const e of suKienConHieuLuc(evRows.map(toSuKien))) {
+    if (e.loai !== "trien_khai" || !e.hex) continue;
+    const k = `${e.hex}|${String(e.duLieu?.xuong ?? "")}`;
+    tk.set(k, (tk.get(k) ?? 0) + (e.soLuong ?? 0));
+  }
+  for (const [hex3, cd] of pairs) {
+    const daTk = tk.get(`${hex3}|${xuongCd.get(cd) ?? ""}`) ?? 0;
+    const dh = info.get(hex3)?.so_luong_don_hang_tong;
+    const moc2 = daTk > 0 ? { moc: daTk, loai: "trien_khai" } : dh ? { moc: Number(dh), loai: "don_hang" } : { moc: null, loai: null };
+    out.set(`${hex3}|${cd}`, { ...moc2, daNhan: daNhan.get(`${hex3}|${cd}`) ?? 0, dvt: info.get(hex3)?.dvt ? String(info.get(hex3).dvt).trim() : null });
+  }
+  return out;
+}
 async function luuTrangThai(client, pairs) {
   if (!pairs.length) return;
   const hexes = [...new Set(pairs.map((p) => p[0]))];
@@ -70754,6 +70781,9 @@ app.post("/api/xuong/events", async (req, res) => {
            WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
         [sentBy]
       )).rows.map((x) => Number(x.id)));
+      const capNhan = hopLe.filter((e) => e.loai === "nhan" && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
+      const gioiHan = await gioiHanNhan(client, capNhan);
+      const nhanTrongLo = /* @__PURE__ */ new Map();
       const ghi = [];
       for (const e of hopLe) {
         let hex3 = e.hex ?? null;
@@ -70814,6 +70844,13 @@ app.post("/api/xuong/events", async (req, res) => {
             userIdKhai = e.userId;
             co.push("tac_gia_khong_xac_minh");
           }
+        }
+        if (e.loai === "nhan" && hex3 && congDoanId) {
+          const k = `${hex3}|${congDoanId}`;
+          const gh = gioiHan.get(k);
+          const tong = (gh?.daNhan ?? 0) + (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0);
+          nhanTrongLo.set(k, (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0));
+          if (gh?.moc !== null && gh?.moc !== void 0 && tong > gh.moc) co.push("nhan_vuot_trien_khai");
         }
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
         co.push(...gio.co);
@@ -71405,6 +71442,19 @@ app.get("/api/xuong/lich-su", async (req, res) => {
     });
   } catch (e) {
     fail(res, e, "/api/xuong/lich-su");
+  }
+});
+app.get("/api/xuong/gioi-han-nhan", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const hex3 = String(req.query.hex ?? "");
+    const toId = Number(req.query.toId);
+    if (!HEX_RE.test(hex3) || !Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu m\xE3 h\u1EA1ng m\u1EE5c / t\u1ED5" });
+    const cds = (await pool.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [toId])).rows.map((x) => String(x.cong_doan_id));
+    const gh = await gioiHanNhan(pool, cds.map((cd) => [hex3, cd]));
+    res.json({ success: true, available: true, congDoan: cds.map((cd) => ({ congDoanId: cd, ...gh.get(`${hex3}|${cd}`) })) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/gioi-han-nhan");
   }
 });
 app.get("/api/xuong/tim-hex", async (req, res) => {

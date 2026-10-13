@@ -198,6 +198,18 @@ export function apDung(cv: CongViec, key: string, doi: (r: DongViec) => DongViec
 }
 
 /** Số lượng điền sẵn khi Xong (còn đang làm) và khi Giao (đã xong chưa giao) */
+// ---------------------------------------------------------------------------
+// Số lượng theo đơn vị của hạng mục: đơn vị đo (m², m³, mét dài, kg…) hoặc số lượng có phần lẻ => nhập số lẻ
+// (tối đa 3 chữ số sau dấu phẩy); đơn vị đếm (cái, bộ, chiếc…) => số nguyên
+// ---------------------------------------------------------------------------
+const DVT_DEM = /^(cái|cai|bộ|bo|chiếc|chiec|cây|cay|tấm|tam|hộp|hop|thùng|thung|cuộn|cuon|kiện|kien|pcs|pc|set|ea|unit)$/i;
+export const choSoLe = (dvt: string | null | undefined, ...soLuong: Array<number | null | undefined>): boolean =>
+  soLuong.some(x => typeof x === 'number' && !Number.isInteger(lamTronSl(x))) || (!!dvt && !!dvt.trim() && !DVT_DEM.test(dvt.trim()));
+/** Làm tròn 3 chữ số lẻ (khử sai số cộng trừ số thực) */
+export const lamTronSl = (n: number): number => Math.round(n * 1000) / 1000;
+/** Hiển thị số lượng kiểu Việt Nam: 74,255 */
+export const hienSl = (n: number): string => lamTronSl(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+
 export const slConLam = (r: DongViec) => Math.max(0, r.slNhan - r.slHoanThanh);
 export const slChoGiao = (r: DongViec) => Math.max(0, r.slHoanThanh - r.slGiao);
 export const slChoNhan = (r: DongViec) => Math.max(0, r.slGiaoDen - r.slNhan);
@@ -260,6 +272,7 @@ export const TEN_CO: Record<string, string> = {
   gui_ho: 'Gửi hộ người khác trên cùng máy',
   tac_gia_khong_xac_minh: 'Không xác minh được người bấm',
   nhan_chua_thay_giao: 'Nhận khi chưa thấy tổ trước giao',
+  nhan_vuot_trien_khai: 'Nhận vượt số lượng triển khai',
   bat_dau_hai_lan: 'Bắt đầu 2 lần',
   tam_ngung_khi_khong_chay: 'Tạm ngưng khi không chạy',
   tiep_tuc_khi_chua_tam_ngung: 'Tiếp tục khi chưa tạm ngưng',

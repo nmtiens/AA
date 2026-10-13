@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   gioVN, caCanChot, caHienTai, apDung, nhomDangLam, soNguoiRanh, chiaDeu, trichHex, thoiLuong, hhmm, mocTrongNgay,
+  choSoLe, lamTronSl, hienSl,
   type DongViec, type LichCa,
 } from './xuongModel';
 
@@ -122,5 +123,22 @@ describe('tiện ích', () => {
     expect(thoiLuong(40 * 60_000)).toBe('40 phút');
     expect(thoiLuong(135 * 60_000)).toBe('2 giờ 15 phút');
     expect(thoiLuong(120 * 60_000)).toBe('2 giờ');
+  });
+});
+
+describe('số lượng theo đơn vị hạng mục', () => {
+  it('đơn vị đo hoặc số lẻ => nhập số lẻ; đơn vị đếm số nguyên => số nguyên', () => {
+    expect(choSoLe('M2', 10)).toBe(true);
+    expect(choSoLe('m3')).toBe(true);
+    expect(choSoLe('CÁI', 74.255)).toBe(true); // số lượng có phần lẻ thì vẫn cho nhập lẻ
+    expect(choSoLe('Cái', 10, 4)).toBe(false);
+    expect(choSoLe('bộ', 3)).toBe(false);
+    expect(choSoLe(null, 5)).toBe(false);
+  });
+  it('làm tròn 3 chữ số lẻ, hiển thị kiểu Việt Nam', () => {
+    expect(lamTronSl(74.255 - 30.1)).toBe(44.155);
+    expect(lamTronSl(0.1 + 0.2)).toBe(0.3);
+    expect(hienSl(74.255)).toBe('74,255');
+    expect(hienSl(1234.5)).toBe('1.234,5');
   });
 });

@@ -7,6 +7,7 @@ import { BottomSheet } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
+  choSoLe, lamTronSl, hienSl,
   type CongViec, type DongViec, type LoaiCa, type MaLyDo,
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
@@ -20,22 +21,40 @@ import XuongHexChiTiet from '../../Xuong/XuongHexChiTiet';
 const chip = (on: boolean) =>
   `min-h-14 rounded-2xl px-4 text-base font-medium ${on ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-800 active:bg-slate-100'}`;
 
-/** Bộ đếm −/+ 64px; chạm vào số để gõ thẳng (số lớn) */
-export function BoDem({ value, onChange, min = 0, max = 100_000, lon, nhan }: {
-  value: number; onChange: (n: number) => void; min?: number; max?: number; lon?: boolean; nhan: string;
+/**
+ * Bộ đếm −/+ 64px; chạm vào số để gõ thẳng (số lớn). soLe = số lượng theo đơn vị đo (m², m³, mét dài…): gõ được số lẻ
+ * (dấu phẩy hoặc dấu chấm, tối đa 3 chữ số sau dấu phẩy); không thì số nguyên.
+ */
+export function BoDem({ value, onChange, min = 0, max = 100_000, lon, nhan, soLe = false }: {
+  value: number; onChange: (n: number) => void; min?: number; max?: number; lon?: boolean; nhan: string; soLe?: boolean;
 }) {
-  const kep = (n: number) => Math.min(max, Math.max(min, Math.round(n)));
+  const kep = (n: number) => Math.min(max, Math.max(min, soLe ? lamTronSl(n) : Math.round(n)));
+  // Chữ đang gõ (vd "74," chưa xong) — giữ nguyên tới khi rời ô; null = hiện theo value
+  const [dangGo, setDangGo] = useState<string | null>(null);
+  const hien = soLe ? String(lamTronSl(value)).replace('.', ',') : String(value);
   return (
     <div className="flex items-center justify-between gap-3">
-      <button type="button" className={NUT_DEM} onClick={() => onChange(kep(value - 1))} disabled={value <= min} aria-label={`Bớt ${nhan}`}><Minus size="1em" /></button>
+      <button type="button" className={NUT_DEM} onClick={() => { setDangGo(null); onChange(kep(value - 1)); }} disabled={value <= min} aria-label={`Bớt ${nhan}`}><Minus size="1em" /></button>
       <input
-        inputMode="numeric" pattern="[0-9]*" aria-label={nhan}
-        value={String(value)}
-        onChange={e => { const n = Number(e.target.value.replace(/\D/g, '')); onChange(kep(Number.isFinite(n) ? n : min)); }}
+        inputMode={soLe ? 'decimal' : 'numeric'} pattern={soLe ? undefined : '[0-9]*'} aria-label={nhan}
+        value={dangGo ?? hien}
+        onChange={e => {
+          if (!soLe) { const n = Number(e.target.value.replace(/\D/g, '')); onChange(kep(Number.isFinite(n) ? n : min)); return; }
+          const t = e.target.value.replace(/[^\d.,]/g, '').replace('.', ',');
+          setDangGo(t);
+          const n = Number(t.replace(',', '.'));
+          if (t && Number.isFinite(n)) {
+            const k = kep(n);
+            onChange(k);
+            if (k !== lamTronSl(n)) setDangGo(String(k).replace('.', ',')); // vượt giới hạn => hiện số đã kẹp
+          }
+        }}
+        onBlur={() => setDangGo(null)}
         onFocus={e => e.target.select()}
-        className={`w-full min-w-0 bg-transparent text-center outline-none ${lon ? SO_LON : SO}`}
+        // Có khung rõ ràng: thấy ngay là ô gõ số được (không chỉ bấm −/+)
+        className={`h-16 w-full min-w-0 rounded-2xl border border-slate-300 bg-white text-center outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/15 ${lon ? SO_LON : SO}`}
       />
-      <button type="button" className={NUT_DEM} onClick={() => onChange(kep(value + 1))} disabled={value >= max} aria-label={`Thêm ${nhan}`}><Plus size="1em" /></button>
+      <button type="button" className={NUT_DEM} onClick={() => { setDangGo(null); onChange(kep(value + 1)); }} disabled={value >= max} aria-label={`Thêm ${nhan}`}><Plus size="1em" /></button>
     </div>
   );
 }
@@ -199,12 +218,17 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
 }) {
   const [anh, setAnh] = useState<AnhChup[]>([]);
   useGiaiPhongAnh([anh]);
-  const toiDa = cheDo === 'xong' ? Math.max(1, slConLam(r)) : Math.max(1, slChoGiao(r));
+  // Theo đơn vị của hạng mục: đơn vị đo / số lẻ => nhập số lẻ, giới hạn đúng số còn lại (không làm tròn)
+  const soLe = choSoLe(r.dvt, r.slNhan, r.slHoanThanh, r.slGiao);
+  const duoi = soLe ? 0.001 : 1;
+  const conLai = lamTronSl(cheDo === 'xong' ? slConLam(r) : slChoGiao(r));
+  const toiDa = Math.max(duoi, conLai);
   const [sl, setSl] = useState(toiDa);
   const [den, setDen] = useState<string | null>(r.goiYKe.length === 1 ? r.goiYKe[0] : null);
   const [doiCho, setDoiCho] = useState(r.goiYKe.length === 0);
   const ten = den ? tenCd(dm, den) : '…';
-  const tieuDe = cheDo === 'xong' ? `Xong ${sl} cái — giao sang ${ten}` : `Giao ${sl} cái sang ${ten}`;
+  const dv = r.dvt?.trim() || 'cái';
+  const tieuDe = cheDo === 'xong' ? `Xong ${hienSl(sl)} ${dv} — giao sang ${ten}` : `Giao ${hienSl(sl)} ${dv} sang ${ten}`;
   return (
     <BottomSheet title={tieuDe} onClose={onClose}
       footer={
@@ -220,8 +244,8 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
       <div className="space-y-5 pb-2">
         <div className="space-y-2">
           <p className="text-base font-medium text-slate-800">Số lượng {cheDo === 'xong' ? 'xong' : 'giao'}{r.dvt ? ` (${r.dvt})` : ''}</p>
-          <BoDem value={sl} onChange={setSl} min={1} max={toiDa} nhan="số lượng" />
-          {sl < toiDa && <p className={CHU_PHU}>Còn {toiDa - sl} ở lại tổ.</p>}
+          <BoDem value={sl} onChange={setSl} min={duoi} max={toiDa} soLe={soLe} nhan="số lượng" />
+          {sl < toiDa && <p className={CHU_PHU}>Còn {hienSl(toiDa - sl)} {dv} ở lại tổ.</p>}
         </div>
         <div className="space-y-2">
           <p className="text-base font-medium text-slate-800">Giao sang</p>
@@ -254,15 +278,38 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   hex: string; ten: string | null; cv: CongViec; dm: DanhMucXuong | null;
   onNhan: (p: NhanKetQua) => void; onClose: () => void;
 }) {
+  // Giới hạn nhận theo số đã triển khai (chưa triển khai: SL đơn hàng) trừ số đã nhận — hỏi máy chủ; mất sóng thì
+  // không chặn (máy chủ gắn cờ "Nhận vượt số lượng triển khai" để quản lý xem)
+  const [gioiHan, setGioiHan] = useState<Record<string, { moc: number | null; loai: 'trien_khai' | 'don_hang' | null; daNhan: number; dvt: string | null }> | null>(null);
+  useEffect(() => {
+    let on = true;
+    xuongApi.gioiHanNhan(hex, cv.to.id).then(r => {
+      if (on && r.ok && r.data?.congDoan) setGioiHan(Object.fromEntries(r.data.congDoan.map(x => [x.congDoanId, x])));
+    }).catch(() => { /* mất sóng: không chặn */ });
+    return () => { on = false; };
+  }, [hex, cv.to.id]);
   const [anh, setAnh] = useState<AnhChup[]>([]);
   const [xemTruoc, setXemTruoc] = useState(false);
   useGiaiPhongAnh([anh]);
   const choNhanCuaHex = cv.choNhan.filter(r => r.hex === hex);
   const [cd, setCd] = useState<string>(choNhanCuaHex[0]?.congDoanId ?? cv.congDoan[0]?.id ?? '');
   const dongCho = choNhanCuaHex.find(r => r.congDoanId === cd);
+  const gh = gioiHan?.[cd];
+  // Theo đơn vị của hạng mục (bảng sản xuất): đơn vị đo / số lẻ => nhập số lẻ; giới hạn = đúng số còn lại
+  const dvt = gh?.dvt ?? dongCho?.dvt ?? null;
+  const dv = dvt?.trim() || 'cái';
+  const soLe = choSoLe(dvt, gh?.moc, gh?.daNhan, dongCho?.slGiaoDen, dongCho?.slNhan);
+  const duoi = soLe ? 0.001 : 1;
+  const toiDa = gh && gh.moc !== null ? Math.max(0, lamTronSl(gh.moc - gh.daNhan)) : null;
+  const hetHan = toiDa !== null && toiDa < duoi;
   const [sl, setSl] = useState(dongCho ? Math.max(1, slChoNhan(dongCho)) : 1);
   const [nguon, setNguon] = useState<string | null>(null);
-  useEffect(() => { if (dongCho) setSl(Math.max(1, slChoNhan(dongCho))); }, [cd]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Mặc định = số còn phải nhận (tổ trước đã giao; chưa giao thì số còn lại theo triển khai / đơn hàng), không quá giới hạn
+  useEffect(() => {
+    const goiY = dongCho ? lamTronSl(slChoNhan(dongCho)) : toiDa;
+    if (goiY === null || goiY === undefined) return;
+    setSl(Math.max(duoi, toiDa !== null ? Math.min(goiY, toiDa) : goiY));
+  }, [cd, toiDa]); // eslint-disable-line react-hooks/exhaustive-deps
   const canNguon = !dongCho;
   const xong = () => onNhan({
     congDoanId: cd, soLuong: sl, anh,
@@ -270,7 +317,9 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   });
   return (
     <BottomSheet title={`Nhận ${hex}`} onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={!cd || (canNguon && !nguon)} onClick={xong}>Nhận {sl} cái{canNguon && !nguon ? ' (chọn nơi giao tới)' : ''}</button>}>
+      footer={<button className={NUT_CHINH} disabled={!cd || hetHan || (canNguon && !nguon)} onClick={xong}>
+        {hetHan ? 'Đã nhận đủ số triển khai' : `Nhận ${hienSl(sl)} ${dv}${canNguon && !nguon ? ' (chọn nơi giao tới)' : ''}`}
+      </button>}>
       <div className="space-y-5 pb-2">
         {ten && <p className="text-base text-slate-800">{ten}</p>}
         <details className="rounded-2xl border border-slate-200 bg-white" onToggle={e => setXemTruoc((e.target as HTMLDetailsElement).open)}>
@@ -286,9 +335,15 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
           </div>
         )}
         <div className="space-y-2">
-          <p className="text-base font-medium text-slate-800">Số lượng nhận</p>
-          <BoDem value={sl} onChange={setSl} min={1} nhan="số lượng" />
-          {dongCho && <p className={CHU_PHU}>Tổ trước đã giao {dongCho.slGiaoDen}, tổ đã nhận {dongCho.slNhan}.</p>}
+          <p className="text-base font-medium text-slate-800">Số lượng nhận ({dv})</p>
+          <BoDem value={sl} onChange={setSl} min={duoi} max={toiDa !== null && !hetHan ? toiDa : undefined} soLe={soLe} nhan="số lượng" />
+          {gh && gh.moc !== null && (
+            <p className={`text-base ${hetHan ? `font-semibold ${MAU.loi.chu}` : 'text-slate-700'}`}>
+              {hetHan ? `Công đoạn đã nhận đủ ${hienSl(gh.moc)} ${dv} — ` : `Tối đa ${hienSl(toiDa!)} ${dv} — `}
+              {gh.loai === 'trien_khai' ? `đã triển khai ${hienSl(gh.moc)}` : `số lượng đơn hàng ${hienSl(gh.moc)}`}{gh.daNhan > 0 && !hetHan ? `, đã nhận ${hienSl(gh.daNhan)}` : ''}
+            </p>
+          )}
+          {dongCho && <p className={CHU_PHU}>Tổ trước đã giao {hienSl(dongCho.slGiaoDen)} {dv}, tổ đã nhận {hienSl(dongCho.slNhan)}.</p>}
         </div>
         {canNguon && (
           <div className="space-y-2">

@@ -75,6 +75,8 @@ export interface DanhMucXuong {
 export const xuongApi = {
   congViec: (toId: number) => get<CongViec & { available?: boolean }>(`/api/xuong/cong-viec?toId=${toId}`),
   lichSu: (toId: number) => get<{ suKien: DongLichSu[]; available?: boolean }>(`/api/xuong/lich-su?toId=${toId}`),
+  /** Số tối đa nhận được ở từng công đoạn của tổ: moc = đã triển khai cho xưởng (chưa có: SL đơn hàng), daNhan = đã nhận */
+  gioiHanNhan: (hex: string, toId: number) => get<{ congDoan: Array<{ congDoanId: string; moc: number | null; loai: 'trien_khai' | 'don_hang' | null; daNhan: number; dvt: string | null }> }>(`/api/xuong/gioi-han-nhan?hex=${encodeURIComponent(hex)}&toId=${toId}`),
   timHex: (q: string, toId: number) => get<{ ketQua: GoiYHex[] }>(`/api/xuong/tim-hex?q=${encodeURIComponent(q)}&toId=${toId}`),
   gioCong: (toId: number, ngay?: string) => get<Record<string, unknown>>(`/api/xuong/to/${toId}/gio-cong${ngay ? `?ngay=${ngay}` : ''}`),
   hex: (hex: string) => get<Record<string, unknown>>(`/api/xuong/hex/${encodeURIComponent(hex)}`),

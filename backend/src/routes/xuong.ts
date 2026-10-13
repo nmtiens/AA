@@ -27,6 +27,7 @@ import {
 //   POST /api/xuong/thiet-bi           đăng ký máy → mã thiết bị ký HMAC + token Xưởng 30 ngày (R4, R5)
 //   POST /api/xuong/events             nhận lô ≤200 sự kiện, chống ghi trùng, tính lại trạng thái (R3)
 //   GET  /api/xuong/cong-viec          việc của tổ: Chờ nhận · Đang làm · Chờ giao
+//   GET  /api/xuong/gioi-han-nhan      số tối đa nhận được ở từng công đoạn của tổ (đã triển khai − đã nhận)
 //   GET  /api/xuong/hex/:hex           dòng thời gian, trạng thái từng công đoạn, thời gian trong xưởng, giờ công
 //   GET  /api/xuong/to/:id/gio-cong    giờ công phân bổ của tổ trong ngày (cache theo phiên bản sổ, R3)
 //   GET  /api/xuong/can-xem            sự kiện / trạng thái gắn cờ của xưởng
@@ -110,6 +111,42 @@ function trangThaiCacCap(rows: Row[], pairs: Array<[string, string]>) {
       && (e.congDoanDenId === cd || e.loai === 'huy'));
     return { hex, cd, state: tinhTrangThai(cua, den) };
   });
+}
+
+export interface GioiHanNhan { moc: number | null; loai: 'trien_khai' | 'don_hang' | null; daNhan: number; dvt: string | null }
+
+/**
+ * Số lượng tối đa nhận được ở từng (hạng mục, công đoạn): mốc = tổng số đã TRIỂN KHAI cho xưởng của công đoạn
+ * (chưa triển khai thì lấy số lượng đơn hàng ở bảng sản xuất — cùng mốc với thời gian trong xưởng); đã nhận = số
+ * nhận hiện có ở công đoạn đó. Khoá trả về: `${hex}|${congDoanId}`.
+ */
+export async function gioiHanNhan(db: Pick<PoolClient, 'query'>, pairs: Array<[string, string]>): Promise<Map<string, GioiHanNhan>> {
+  const out = new Map<string, GioiHanNhan>();
+  if (!pairs.length) return out;
+  const hexes = [...new Set(pairs.map(p => p[0]))];
+  const cds = [...new Set(pairs.map(p => p[1]))];
+  const [cdRows, nhanRows, evRows, info] = await Promise.all([
+    db.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cds]),
+    db.query('SELECT hex, cong_doan_id, sl_nhan FROM xuong_trang_thai WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])', [hexes, cds]),
+    suKienTheoHex(db, hexes),
+    thongTinHangMuc(hexes),
+  ]);
+  const xuongCd = new Map(cdRows.rows.map(x => [String(x.id), String(x.xuong)]));
+  const daNhan = new Map(nhanRows.rows.map(x => [`${x.hex}|${x.cong_doan_id}`, num(x.sl_nhan)]));
+  const tk = new Map<string, number>(); // `${hex}|${xuong}` -> tổng triển khai còn hiệu lực
+  for (const e of suKienConHieuLuc(evRows.map(toSuKien))) {
+    if (e.loai !== 'trien_khai' || !e.hex) continue;
+    const k = `${e.hex}|${String(e.duLieu?.xuong ?? '')}`;
+    tk.set(k, (tk.get(k) ?? 0) + (e.soLuong ?? 0));
+  }
+  for (const [hex, cd] of pairs) {
+    const daTk = tk.get(`${hex}|${xuongCd.get(cd) ?? ''}`) ?? 0;
+    const dh = info.get(hex)?.so_luong_don_hang_tong;
+    const moc = daTk > 0 ? { moc: daTk, loai: 'trien_khai' as const }
+      : dh ? { moc: Number(dh), loai: 'don_hang' as const } : { moc: null, loai: null };
+    out.set(`${hex}|${cd}`, { ...moc, daNhan: daNhan.get(`${hex}|${cd}`) ?? 0, dvt: info.get(hex)?.dvt ? String(info.get(hex)!.dvt).trim() : null });
+  }
+  return out;
 }
 
 async function luuTrangThai(client: PoolClient, pairs: Array<[string, string]>) {
@@ -373,6 +410,11 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
            WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
         [sentBy])).rows.map(x => Number(x.id)));
 
+      // Nhận vượt số triển khai: gắn cờ (không từ chối — thao tác ghi lúc mất sóng vẫn giữ); cộng dồn trong lô
+      const capNhan = hopLe.filter(e => e.loai === 'nhan' && e.hex && e.congDoanId).map(e => [e.hex!, e.congDoanId!] as [string, string]);
+      const gioiHan = await gioiHanNhan(client, capNhan);
+      const nhanTrongLo = new Map<string, number>();
+
       const ghi: Row[] = [];
       for (const e of hopLe) {
         let hex = e.hex ?? null;
@@ -416,6 +458,13 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
         if (e.userId && e.userId !== sentBy) {
           if (nguoiTrenMay.has(e.userId)) { userId = e.userId; co.push('gui_ho'); }
           else { userIdKhai = e.userId; co.push('tac_gia_khong_xac_minh'); }
+        }
+        if (e.loai === 'nhan' && hex && congDoanId) {
+          const k = `${hex}|${congDoanId}`;
+          const gh = gioiHan.get(k);
+          const tong = (gh?.daNhan ?? 0) + (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0);
+          nhanTrongLo.set(k, (nhanTrongLo.get(k) ?? 0) + (e.soLuong ?? 0));
+          if (gh?.moc !== null && gh?.moc !== undefined && tong > gh.moc) co.push('nhan_vuot_trien_khai');
         }
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
         co.push(...gio.co);
@@ -976,6 +1025,21 @@ app.get('/api/xuong/lich-su', async (req: Request, res: Response) => {
       })),
     });
   } catch (e) { fail(res, e, '/api/xuong/lich-su'); }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/xuong/gioi-han-nhan?hex=&toId= — số tối đa nhận được ở từng công đoạn của tổ (màn Nhận chặn trước)
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/gioi-han-nhan', async (req: Request, res: Response) => {
+  try {
+    if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
+    const hex = String(req.query.hex ?? '');
+    const toId = Number(req.query.toId);
+    if (!HEX_RE.test(hex) || !Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: 'Thiếu mã hạng mục / tổ' });
+    const cds = (await pool.query('SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1', [toId])).rows.map(x => String(x.cong_doan_id));
+    const gh = await gioiHanNhan(pool, cds.map(cd => [hex, cd] as [string, string]));
+    res.json({ success: true, available: true, congDoan: cds.map(cd => ({ congDoanId: cd, ...gh.get(`${hex}|${cd}`)! })) });
+  } catch (e) { fail(res, e, '/api/xuong/gioi-han-nhan'); }
 });
 
 // ---------------------------------------------------------------------------
