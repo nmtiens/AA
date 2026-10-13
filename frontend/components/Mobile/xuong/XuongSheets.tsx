@@ -7,13 +7,13 @@ import { BottomSheet } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
-  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan,
+  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon,
   type CongViec, type DongViec, type LoaiCa, type MaLyDo,
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
 import { NUT_CHINH, NUT_PHU, NUT_DEM, SO, SO_LON, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 import XuongHexChiTiet from '../../Xuong/XuongHexChiTiet';
-import { ChonNguoi } from './DiemDanh';
+import { ChonNguoi, boDau } from './DiemDanh';
 
 // ============================================================================
 // CÁC CỬA SỔ THAO TÁC MÀN XƯỞNG (docs/designs/xuong-checkin.md — Pass 3, quyết định 3A–3H, 7B)
@@ -575,38 +575,7 @@ export function ChiaNguoiSheet({ dangChay, quanSo, cv, ca, now, onLuu, onClose }
   const coMat = theoTen ? coMatLuc(cv!, ca ?? null, now ?? Date.now()) : [];
   const [ten, setTen] = useState<Record<string, string[]>>(() =>
     Object.fromEntries(dangChay.map(r => [khoaDong(r), (r.nguoi ?? []).filter(x => coMat.includes(x))])));
-  if (theoTen) {
-    const daGan = new Map<string, string>();
-    for (const [k, ds] of Object.entries(ten)) for (const x of ds) daGan.set(x, k);
-    const chuaGan = coMat.filter(x => !daGan.has(x)).length;
-    return (
-      <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
-        footer={<button className={NUT_CHINH} onClick={() => onLuu(Object.fromEntries(Object.entries(ten).map(([k, v]) => [k, v.length])), ten)}>Lưu</button>}>
-        <div className="space-y-5 pb-2">
-          <p className={`text-base font-medium ${chuaGan ? MAU.ngung.chu : 'text-slate-700'}`}>
-            {chuaGan ? `${chuaGan} / ${coMat.length} người có mặt chưa gắn hạng mục` : `Đã gắn đủ ${coMat.length} người có mặt`}
-          </p>
-          {dangChay.map(r => {
-            const k = khoaDong(r);
-            const chon = new Set(ten[k] ?? []);
-            const ban = new Map([...daGan].filter(([, kk]) => kk !== k).map(([x, kk]) => [x, kk.split('|')[0]]));
-            return (
-              <div key={k} className="space-y-2">
-                <p className="text-base"><span className="font-semibold tabular-nums">{r.hex}</span> {r.tenHangMuc ?? ''} · <b>{chon.size} người</b></p>
-                <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} ban={ban}
-                  onDoi={s2 => setTen(t => {
-                    // Một người chỉ ở một hạng mục: chọn ở đây thì bỏ ở hạng mục khác
-                    const out: Record<string, string[]> = {};
-                    for (const [kk, ds] of Object.entries(t)) out[kk] = kk === k ? [...s2] : ds.filter(x => !s2.has(x));
-                    return out;
-                  })} />
-              </div>
-            );
-          })}
-        </div>
-      </BottomSheet>
-    );
-  }
+  if (theoTen) return <ChiaTheoTen dangChay={dangChay} coMat={coMat} cv={cv!} ten={ten} setTen={setTen} onLuu={onLuu} onClose={onClose} />;
   return (
     <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
       footer={<button className={NUT_CHINH} onClick={() => onLuu(m, null)}>Lưu</button>}>
@@ -623,6 +592,113 @@ export function ChiaNguoiSheet({ dangChay, quanSo, cv, ca, now, onLuu, onClose }
             </div>
           );
         })}
+      </div>
+    </BottomSheet>
+  );
+}
+
+/**
+ * Chia người theo tên — tổ đông vẫn gọn: chọn hạng mục ở trên (A, B, C…), MỘT lưới người ở dưới; chạm tên = gắn vào
+ * hạng mục đang chọn (đang ở hạng mục khác thì chuyển sang), chạm lại = bỏ. Trước: mỗi hạng mục một lưới đủ cả tổ
+ * (40 người × 3 hạng mục = 120 ô).
+ */
+function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
+  dangChay: DongViec[]; coMat: string[]; cv: CongViec;
+  ten: Record<string, string[]>; setTen: (f: (t: Record<string, string[]>) => Record<string, string[]>) => void;
+  onLuu: (m: Record<string, number>, ten: Record<string, string[]> | null) => void; onClose: () => void;
+}) {
+  const ds = cv.congNhan ?? [];
+  const khoa = dangChay.map(khoaDong);
+  const chu = (i: number) => String.fromCharCode(65 + (i % 26));
+  const [dich, setDich] = useState(() => khoa[0]);
+  const [loc, setLoc] = useState<'tat_ca' | 'chua_gan'>('tat_ca');
+  const [tim, setTim] = useState('');
+  const daGan = new Map<string, string>();
+  for (const [k, v] of Object.entries(ten)) for (const x of v) daGan.set(x, k);
+  const chuaGan = coMat.filter(x => !daGan.has(x));
+  const tu = boDau(tim.trim());
+  const hien = coMat.filter(x => (loc === 'tat_ca' || !daGan.has(x))
+    && (!tu || boDau(`${ds.find(c => c.mnv === x)?.hoTen ?? ''} ${x}`).includes(tu)))
+    .sort((x, y) => tenGon(x, ds).localeCompare(tenGon(y, ds), 'vi'));
+  const ganVao = (ms: string[], k: string | null) => setTen(t => {
+    const bo = new Set(ms);
+    const out: Record<string, string[]> = {};
+    for (const kk of Object.keys(t)) out[kk] = t[kk].filter(x => !bo.has(x));
+    if (k) out[k] = [...(out[k] ?? []), ...ms];
+    return out;
+  });
+  const cham = (x: string) => ganVao([x], daGan.get(x) === dich ? null : dich);
+  /** Người chưa gắn: chia lần lượt vào hạng mục đang ít người nhất */
+  const chiaDeu = () => setTen(t => {
+    const out = Object.fromEntries(khoa.map(k => [k, [...(t[k] ?? [])]]));
+    for (const x of chuaGan) {
+      const k = khoa.reduce((a, b) => (out[b].length < out[a].length ? b : a));
+      out[k].push(x);
+    }
+    return out;
+  });
+  const gon = coMat.length > 12;
+  return (
+    <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
+      footer={<button className={NUT_CHINH} onClick={() => onLuu(Object.fromEntries(khoa.map(k => [k, (ten[k] ?? []).length])), ten)}>
+        Lưu{chuaGan.length ? ` · còn ${chuaGan.length} chưa gắn` : ''}</button>}>
+      <div className="space-y-3 pb-2">
+        {/* Dính trên: chọn hạng mục đích + lọc / tìm */}
+        <div className="sticky top-0 z-10 -mx-5 space-y-2 border-b border-slate-100 bg-white px-5 pb-3 pt-1">
+          {!gon && <p className={CHU_PHU}>Chọn hạng mục, rồi chạm tên người làm hạng mục đó.</p>}
+          <div className="max-h-40 space-y-1.5 overflow-y-auto" role="radiogroup" aria-label="Hạng mục">
+            {dangChay.map((r, i) => {
+              const k = khoa[i];
+              const on = k === dich;
+              return (
+                <button key={k} type="button" role="radio" aria-checked={on} onClick={() => setDich(k)}
+                  className={`flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-1 text-left ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-800'}`}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>
+                  <span className="min-w-0 flex-1 truncate text-base"><b className="tabular-nums">{r.hex}</b> {r.tenHangMuc ?? ''}</span>
+                  <span className="shrink-0 text-base font-semibold tabular-nums">{(ten[k] ?? []).length} người</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2">
+            {([['tat_ca', `Cả tổ ${coMat.length}`], ['chua_gan', `Chưa gắn ${chuaGan.length}`]] as const).map(([k, t]) => (
+              <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
+                className={`h-10 shrink-0 whitespace-nowrap rounded-full border px-3 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : chuaGan.length && k === 'chua_gan' ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>{t}</button>
+            ))}
+            {gon && (
+              <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm tên" aria-label="Tìm người"
+                className="h-10 min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-slate-500" />
+            )}
+          </div>
+          {chuaGan.length > 0 && (
+            <div className="flex gap-2">
+              {khoa.length > 1 && (
+                <button type="button" onClick={chiaDeu} className={`${NUT_PHU} !min-h-11 flex-1`}>Chia đều {chuaGan.length}</button>
+              )}
+              <button type="button" onClick={() => ganVao(chuaGan, dich)} className={`${NUT_PHU} !min-h-11 flex-1`}>
+                Gắn {chuaGan.length} vào {chu(khoa.indexOf(dich))}</button>
+            </div>
+          )}
+        </div>
+        {!coMat.length && <p className={CHU_PHU}>Chưa có ai điểm danh có mặt.</p>}
+        {coMat.length > 0 && !hien.length && <p className={`rounded-2xl bg-slate-50 p-4 text-center ${CHU_PHU}`}>{tu ? 'Không ai khớp.' : 'Đã gắn hết người có mặt.'}</p>}
+        <div className="grid grid-cols-2 gap-2">
+          {hien.map(x => {
+            const k = daGan.get(x);
+            const on = k === dich;
+            const i = k ? khoa.indexOf(k) : -1;
+            return (
+              <button key={x} type="button" aria-pressed={on} onClick={() => cham(x)}
+                aria-label={`${tenGon(x, ds)}${k ? ` — đang ở ${dangChay[i]?.hex}` : ' — chưa gắn'}`}
+                className={`flex min-h-12 min-w-0 items-center gap-2 rounded-2xl border px-3 py-1.5 text-left text-base active:opacity-80 ${
+                  on ? 'border-slate-900 bg-slate-900 text-white' : k ? 'border-slate-200 bg-slate-50 text-slate-600' : `border-dashed ${MAU.ngung.vien} bg-white text-slate-900`}`}>
+                <span className="min-w-0 flex-1 truncate">{tenGon(x, ds)}</span>
+                {/* Chữ hạng mục người này đang làm; chưa gắn thì không có */}
+                {i >= 0 && <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </BottomSheet>
   );

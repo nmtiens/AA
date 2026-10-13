@@ -36,7 +36,7 @@ const theoTen = (a: CongNhanTo, b: CongNhanTo) => {
 };
 
 /** Bỏ dấu tiếng Việt để tìm không cần gõ dấu ("hung" ra "Hùng") */
-const boDau = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+export const boDau = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
 const phut = (ms: number) => { const d = new Date(ms + 7 * 3_600_000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
 const hhmmTuPhut = (p: number) => `${String(Math.floor(p / 60)).padStart(2, '0')}:${String(p % 60).padStart(2, '0')}`;
