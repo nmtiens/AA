@@ -72665,13 +72665,26 @@ var setServerProjectAliases = (list) => {
   }
   serverAlias = a;
   serverVariants = v;
+  khoaTenDaDoi();
 };
 var canonicalProjectName2 = (name) => {
   const t = String(name ?? "").trim().replace(/\s+/g, " ");
   const k = normProjectName(t);
   return projectAlias.get(k) ?? serverAlias.get(k) ?? t;
 };
-var projectMatchKey = (name) => normProjectName(canonicalProjectName2(name));
+var khoaCongTrinh = /* @__PURE__ */ new Map();
+var khoaTenDaDoi = () => {
+  khoaCongTrinh = /* @__PURE__ */ new Map();
+};
+var projectMatchKey = (name) => {
+  const raw = typeof name === "string" ? name : String(name ?? "");
+  const nho = khoaCongTrinh.get(raw);
+  if (nho !== void 0) return nho;
+  const k = normProjectName(canonicalProjectName2(raw));
+  if (khoaCongTrinh.size > 2e4) khoaCongTrinh.clear();
+  khoaCongTrinh.set(raw, k);
+  return k;
+};
 function canonicalizeProjectNames(rows, columns) {
   const maKey = findColumnKey(columns, "ma_cong_trinh");
   const tenKey = findColumnKey(columns, "ten_cong_trinh");
@@ -72730,6 +72743,7 @@ function canonicalizeProjectNames(rows, columns) {
     });
   });
   projectAlias = alias;
+  khoaTenDaDoi();
   const variants = /* @__PURE__ */ new Map();
   counts.forEach((m, ma) => {
     const best = canonical.get(ma);

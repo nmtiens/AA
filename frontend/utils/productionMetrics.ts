@@ -73,9 +73,20 @@ export const resolveValueKeys = (columns: ColumnDefinition[]): ProductionValueKe
 // ---------------------------------------------------------------------------
 
 /** "2026-09-26 00:00:00" / "2026-09-26" / ISO / dd/mm/yyyy -> Date theo giờ địa phương (chỉ phần ngày). */
+// Bộ nhớ đệm ngày đã đọc theo chuỗi gốc: ~52k dòng × vài cột ngày chỉ có vài trăm giá trị khác nhau (trang Tổng
+// quan công trình đọc ~260 nghìn lần mỗi lần tính). Lưu mốc thời gian, mỗi lần trả Date mới (nơi gọi có thể sửa Date).
+const ngayDaDoc = new Map<string, number | null>();
 export const parsePlanDate = (v: unknown): Date | null => {
   const s = String(v ?? '').trim();
   if (!s) return null;
+  const nho = ngayDaDoc.get(s);
+  if (nho !== undefined) return nho === null ? null : new Date(nho);
+  const d = docNgayKeHoach(s);
+  if (ngayDaDoc.size > 50_000) ngayDaDoc.clear();
+  ngayDaDoc.set(s, d ? d.getTime() : null);
+  return d;
+};
+const docNgayKeHoach = (s: string): Date | null => {
   if (/^\d{4}-\d{2}-\d{2}([ T]|$)/.test(s)) {
     // Chuỗi có múi giờ (vd ISO "…T17:00:00.000Z" của cột date) -> đổi sang giờ địa phương trước
     if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
@@ -196,6 +207,7 @@ export const setServerProjectAliases = (list: { k: string; c: string }[]) => {
   }
   serverAlias = a;
   serverVariants = v;
+  khoaTenDaDoi();
 };
 
 /** Mở rộng danh sách tên công trình thành mọi cách viết đã biết (tên chuẩn + tên phụ của cùng mã). */
@@ -218,7 +230,18 @@ export const canonicalProjectName = (name: unknown): string => {
 };
 
 /** Khoá so khớp công trình giữa các bảng: tên chuẩn, không phân biệt hoa/thường, khoảng trắng. */
-export const projectMatchKey = (name: unknown): string => normProjectName(canonicalProjectName(name));
+// Đệm theo chuỗi gốc (vài trăm tên / hàng trăm nghìn lần gọi); xoá mỗi khi bảng tên đổi (khoaTenDaDoi)
+let khoaCongTrinh = new Map<string, string>();
+const khoaTenDaDoi = () => { khoaCongTrinh = new Map(); };
+export const projectMatchKey = (name: unknown): string => {
+  const raw = typeof name === 'string' ? name : String(name ?? '');
+  const nho = khoaCongTrinh.get(raw);
+  if (nho !== undefined) return nho;
+  const k = normProjectName(canonicalProjectName(raw));
+  if (khoaCongTrinh.size > 20_000) khoaCongTrinh.clear();
+  khoaCongTrinh.set(raw, k);
+  return k;
+};
 
 /**
  * Đổi tên công trình của mọi dòng về 1 tên chuẩn theo mã công trình (cách viết xuất hiện nhiều
@@ -275,6 +298,7 @@ export function canonicalizeProjectNames(rows: DataRow[], columns: ColumnDefinit
     });
   });
   projectAlias = alias;
+  khoaTenDaDoi();
   const variants = new Map<string, Set<string>>();
   counts.forEach((m, ma) => {
     const best = canonical.get(ma)!;

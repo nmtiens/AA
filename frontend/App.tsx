@@ -104,6 +104,11 @@ const tablesForPath = (path: string): string[] => {
   if (path === '/setup?tab=nhom-cong-trinh') return ['production'];
   return ALL_TABLE_ENDPOINTS;
 };
+// Việc không gấp (lưu bộ nhớ trình duyệt): chạy lúc luồng chính rảnh, chậm nhất 2 giây
+const luuKhiRanh = (f: () => void) => {
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+  if (w.requestIdleCallback) w.requestIdleCallback(f, { timeout: 2000 }); else setTimeout(f, 300);
+};
 // Khoá trang để chọn bảng cần nạp: đường dẫn, riêng Setup dữ liệu kèm thẻ đang mở (?tab=)
 const trangKey = (pathname: string, search: string): string =>
   pathname === '/setup' ? `/setup?tab=${new URLSearchParams(search).get('tab') ?? ''}` : pathname;
@@ -533,6 +538,8 @@ const MainLayout: React.FC = () => {
   const initStartedRef = useRef(false);
   // Bảng đang dùng (đã có trang cần) — đồng bộ ngầm / Làm mới chỉ tải các bảng này
   const activeTablesRef = useRef<Set<string>>(new Set());
+  // Bảng đã tải, đang chờ lưu vào bộ nhớ trình duyệt (lưu lúc rảnh): endpoint -> phiên bản + thế hệ bộ nhớ lúc tải
+  const choLuuRef = useRef(new Map<string, { ver: string; gen: number }>());
   // Còn gắn trên trang hay không — dùng ref (không dùng biến trong effect) vì init chỉ chạy 1 lần: StrictMode bản dev
   // huỷ + gắn lại effect ngay lúc khởi động, biến cục bộ của lượt đầu sẽ thành false dù component vẫn còn.
   const mountedRef = useRef(true);
@@ -627,7 +634,12 @@ const MainLayout: React.FC = () => {
 
       for (const cfg of tableConfigs.filter(c => activeTablesRef.current.has(c.endpoint))) {
         const serverVer = String(serverVersions[cfg.verKey] || '0');
-        const localVer = forceAll ? '0' : String(await getCachedVersion(cfg.endpoint));
+        // Bảng vừa tải nhưng chưa kịp lưu (lưu lúc rảnh) => coi như đã có phiên bản đó, khỏi tải lại; chỉ tin khi bộ nhớ
+        // chưa bị xoá kể từ lúc tải (đổi người / mức xem dữ liệu => gen đổi => tải lại theo quyền mới)
+        const choLuu = choLuuRef.current.get(cfg.endpoint);
+        const localVer = forceAll ? '0'
+          : choLuu && choLuu.gen === getCacheGeneration() ? choLuu.ver
+          : String(await getCachedVersion(cfg.endpoint));
 
         if (serverVer !== localVer || forceAll) {
           toUpdate.push(cfg);
@@ -669,7 +681,14 @@ const MainLayout: React.FC = () => {
               cfg.setData(res.data);
               cfg.setCols(res.columns);
               const serverVer = String(serverVersions[cfg.verKey] || '0');
-              await saveToCache(cfg.endpoint, serverVer, res, gen);
+              // Lưu bộ nhớ trình duyệt SAU khi trang đã vẽ (structured clone ~0,5 giây / bảng lớn chặn luồng chính) —
+              // lúc rảnh, chậm nhất 2 giây; cache bị xoá giữa chừng (đổi người) thì saveToCache tự bỏ qua theo gen
+              choLuuRef.current.set(cfg.endpoint, { ver: serverVer, gen });
+              luuKhiRanh(() => {
+                void saveToCache(cfg.endpoint, serverVer, res, gen).then(() => {
+                  if (choLuuRef.current.get(cfg.endpoint)?.ver === serverVer) choLuuRef.current.delete(cfg.endpoint);
+                });
+              });
               tableVersions.current[cfg.endpoint] = serverVer;
               dataLoadedRef.current[cfg.endpoint] = true;
               hasAnyUpdate = true;
