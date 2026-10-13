@@ -116,7 +116,10 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca, now, onB
         {theoTen && (<>
           <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} onDoi={setChon} ban={ban} />
           <p className={chuyen ? `text-base font-medium ${MAU.ngung.chu}` : CHU_PHU}>
-            {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.` : 'Chạm tên để chọn / bỏ. Tên mờ là người đang làm hạng mục khác.'}
+            {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.`
+              : !chon.size && coMat.length && coMat.every(m => ban.has(m))
+                ? `Cả ${coMat.length} người có mặt đang làm hạng mục khác — chạm tên người muốn chuyển sang ${r.hex}.`
+                : 'Chạm tên để chọn / bỏ. Tên mờ là người đang làm hạng mục khác.'}
           </p>
         </>)}
         {!theoTen && (<>

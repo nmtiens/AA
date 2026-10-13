@@ -41,6 +41,13 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
   const Icon = m.icon;
   const coThay = r.co.map(c => cauCo(c, r)).filter((x): x is string => !!x);
   const dvt = r.dvt ? ` ${r.dvt}` : '';
+  // Chỉ hiện số khác 0; chờ nhận chưa nhận gì thì chỉ "Giao tới 10" (bỏ "Nhận 0")
+  const soLuong = [
+    r.slGiaoDen > r.slNhan ? `Giao tới ${hienSl(r.slGiaoDen)}` : null,
+    r.slNhan > 0 || r.slGiaoDen <= r.slNhan ? `Nhận ${hienSl(r.slNhan)}` : null,
+    r.slHoanThanh > 0 ? `Xong ${hienSl(r.slHoanThanh)}` : null,
+    r.slGiao > 0 ? `Giao ${hienSl(r.slGiao)}` : null,
+  ].filter(Boolean).join(' · ') + dvt;
   return (
     <li className="space-y-2 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -55,21 +62,20 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
         </div>
         <NhanGui gui={gui} />
       </div>
+      {/* Đang chạy: dòng 1 trạng thái · thời gian, dòng 2 người · số lượng — luôn 2 dòng, không xuống dòng lộn xộn */}
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base">
         <span className={`inline-flex items-center gap-1 font-medium ${m.mau.chu}`}><Icon size="1em" aria-hidden /> {m.ten}</span>
-        {r.trangThai === 'dang_lam' && (
-          <span className="text-slate-700">
-            {r.nguoi?.length
-              ? `${r.nguoi.slice(0, 2).map(m => tenGon(m, congNhan ?? [])).join(', ')}${r.nguoi.length > 2 ? ` +${r.nguoi.length - 2}` : ''} · `
-              : r.soNguoi ? `${r.soNguoi} người · ` : 'chưa chia người · '}
-            {r.dangChayTu ? thoiLuong(now - Date.parse(r.dangChayTu)) : ''}
-          </span>
-        )}
-        <span className="tabular-nums text-slate-600">
-          {/* Chỉ hiện số khác 0 (sau "Nhận") — dòng ngắn, ít xuống dòng */}
-          {r.slGiaoDen > r.slNhan && `Giao tới ${hienSl(r.slGiaoDen)} · `}Nhận {hienSl(r.slNhan)}{r.slHoanThanh > 0 ? ` · Xong ${hienSl(r.slHoanThanh)}` : ''}{r.slGiao > 0 ? ` · Giao ${hienSl(r.slGiao)}` : ''}{dvt}
-        </span>
+        {r.trangThai === 'dang_lam' && r.dangChayTu && <span className="text-slate-700">{thoiLuong(now - Date.parse(r.dangChayTu))}</span>}
+        {r.trangThai !== 'dang_lam' && <span className="tabular-nums text-slate-600">{soLuong}</span>}
       </p>
+      {r.trangThai === 'dang_lam' && (
+        <p className="text-base text-slate-700">
+          {r.nguoi?.length
+            ? `${r.nguoi.length} người: ${r.nguoi.slice(0, 2).map(x => tenGon(x, congNhan ?? [])).join(', ')}${r.nguoi.length > 2 ? ` +${r.nguoi.length - 2}` : ''}`
+            : r.soNguoi ? `${r.soNguoi} người` : 'chưa chia người'}
+          <span className="tabular-nums text-slate-600"> · {soLuong}</span>
+        </p>
+      )}
       {coThay.map(c => (
         <p key={c} className={`flex items-center gap-1.5 text-base font-medium ${MAU.loi.chu}`}><AlertTriangle size="1em" aria-hidden /> {c}</p>
       ))}

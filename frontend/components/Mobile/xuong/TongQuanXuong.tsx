@@ -114,11 +114,14 @@ export default function TongQuanXuong({ onChonTo }: {
         {/* Tóm tắt xưởng: cuộn theo trang (không dính) */}
         {d?.xuong && (
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-base text-slate-700">
-            <span className={tong.chuaChot ? `font-semibold ${MAU.loi.chu}` : ''}>
-              {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
-            </span>
+            {/* Chỉ đếm tổ có việc mà chưa điểm danh — 0 thì không hiện */}
+            {tong.chuaChot > 0 && (
+              <span className={`font-semibold ${MAU.loi.chu}`}>
+                {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
+              </span>
+            )}
             <span>{tong.dangChay} hạng mục đang chạy</span>
-            <span>{tong.choNhan} chờ nhận</span>
+            {tong.choNhan > 0 && <span>{tong.choNhan} chờ nhận</span>}
           </p>
         )}
         {/* Chấm công hôm nay: có mặt / vắng / trễ / về sớm của cả xưởng, mở ra xem tên theo tổ */}
@@ -126,10 +129,10 @@ export default function TongQuanXuong({ onChonTo }: {
           <div className={`${KHOI} border border-slate-200`}>
             <button className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left text-base active:bg-slate-50" aria-expanded={moVang} onClick={() => setMoVang(v => !v)}>
               <span className="font-semibold text-slate-900"><Users size="1em" className="mr-1 inline" aria-hidden />{dd.coMat}{dd.tong ? `/${dd.tong}` : ''} có mặt</span>
-              <span className={dd.vang ? `font-medium ${MAU.loi.chu}` : 'text-slate-600'}>{dd.vang} vắng</span>
-              <span className={dd.tre ? `font-medium ${MAU.ngung.chu}` : 'text-slate-600'}>{dd.tre} trễ</span>
-              <span className={dd.veSom ? `font-medium ${MAU.ngung.chu}` : 'text-slate-600'}>{dd.veSom} về sớm</span>
-              {(d?.to.length ?? 0) > coDd.length && <span className="text-slate-600">{(d?.to.length ?? 0) - coDd.length} tổ chưa điểm danh</span>}
+              {dd.vang > 0 && <span className={`font-medium ${MAU.loi.chu}`}>{dd.vang} vắng</span>}
+              {dd.tre > 0 && <span className={`font-medium ${MAU.ngung.chu}`}>{dd.tre} trễ</span>}
+              {dd.veSom > 0 && <span className={`font-medium ${MAU.ngung.chu}`}>{dd.veSom} về sớm</span>}
+              {!dd.vang && !dd.tre && !dd.veSom && <span className="text-slate-600">không ai vắng, trễ, về sớm</span>}
               <ChevronRight size="1.1em" className={`ml-auto text-slate-500 transition-transform ${moVang ? 'rotate-90' : ''}`} aria-hidden />
             </button>
             {moVang && (

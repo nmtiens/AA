@@ -77,6 +77,8 @@ export default function XuongApp({ moTo, onTongQuan }: {
   const [taiLoi, setTaiLoi] = useState('');
   const [dm, setDm] = useState<DanhMucXuong | null>(() => docLS<DanhMucXuong>(KHOA_DM));
   const [tab, setTab] = useState<Tab>('dangLam');
+  // Mở tổ: tự vào tab có việc (Đang làm → Chờ nhận → Chờ giao) — trước luôn mở "Đang làm 0" dù có hàng chờ nhận
+  const daChonTab = useRef<number | null>(null);
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [online, setOnline] = useState(() => navigator.onLine);
   const [hangDoi, setHangDoi] = useState({ soCho: 0, canhBao: false });
@@ -116,13 +118,18 @@ export default function XuongApp({ moTo, onTongQuan }: {
   useEffect(() => { if (!canDangNhap) dangKyMay(); }, [canDangNhap, dangKyMay]);
 
   useEffect(() => { if (toId) localStorage.setItem(KHOA_TO, String(toId)); }, [toId]);
+  useEffect(() => {
+    if (!cv || !toId || daChonTab.current === toId || cv.to?.id !== toId) return;
+    daChonTab.current = toId;
+    setTab(cv.dangLam.length ? 'dangLam' : cv.choNhan.length ? 'choNhan' : cv.choGiao.length ? 'choGiao' : 'dangLam');
+  }, [cv, toId]);
 
   // Tổng quan chọn một tổ → mở tổ đó (tổ không phải của mình thì xem với quyền quản lý)
   useEffect(() => {
     if (!moTo) return;
     const cuaToi = phien?.to.some(t => t.id === moTo.id);
     setToNgoai(cuaToi ? null : { id: moTo.id, ten: moTo.ten, xuong: moTo.xuong } as ToCuaToi);
-    setToId(moTo.id); setTab('dangLam'); setSheet(null); setHienRanh(false);
+    setToId(moTo.id); daChonTab.current = null; setSheet(null); setHienRanh(false);
   }, [moTo]); // eslint-disable-line react-hooks/exhaustive-deps
   const veToCuaToi = () => { setToNgoai(null); setToId(phien?.to[0]?.id ?? null); setHienRanh(false); };
 
@@ -521,10 +528,19 @@ export default function XuongApp({ moTo, onTongQuan }: {
     </section>
   ) : null;
 
-  // Ô trống: chỉ câu báo — nút Quét phiếu đã ở đáy màn hình (trước có 2 nút trùng nhau)
-  const trong = (cau: string) => (
-    <div className="rounded-2xl bg-white p-6 text-center text-base text-slate-700">{cau}</div>
-  );
+  // Ô trống: câu báo + lối sang tab đang có hàng (nút Quét phiếu đã ở đáy màn hình)
+  const trong = (cau: string) => {
+    const khac = ([['choNhan', 'chờ nhận'], ['dangLam', 'đang làm'], ['choGiao', 'chờ giao']] as [Tab, string][])
+      .filter(([t]) => t !== tab && soTab[t] > 0);
+    return (
+      <div className="space-y-3 rounded-2xl bg-white p-6 text-center text-base text-slate-700">
+        <p>{cau}</p>
+        {khac.map(([t, ten]) => (
+          <button key={t} className={`${NUT_PHU} w-full`} onClick={() => setTab(t)}>Xem {soTab[t]} hạng mục {ten}</button>
+        ))}
+      </div>
+    );
+  };
 
   const thanhGui = !online
     ? { ten: hangDoi.soCho ? `Mất sóng · ${hangDoi.soCho} thao tác chờ gửi` : 'Mất sóng', icon: <WifiOff size="1em" aria-hidden />, mau: hangDoi.canhBao ? MAU.loi : MAU.ngung }
@@ -594,18 +610,20 @@ export default function XuongApp({ moTo, onTongQuan }: {
         {cv?.chamCong && !caChot && ca && daDiemDanh(cv, ca) && (() => {
           const coMatNay = coMatLuc(cv, ca, now);
           const gan = new Set(nhom.dangChay.flatMap(r => r.nguoi ?? []));
-          const chuaGan = nhom.dangChay.length ? coMatNay.filter(m => !gan.has(m)).length : 0;
+          // Dải vàng "N người đang rảnh" ở đáy đang hiện thì không lặp lại nút ở đầu
+          const chuaGan = nhom.dangChay.length && !(hienRanh && canChia) ? coMatNay.filter(m => !gan.has(m)).length : 0;
           return (
             <div className="flex items-stretch gap-2">
               <button className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2 text-left active:bg-slate-50"
                 onClick={() => setSheet({ loai: 'diemDanh', ca })}>
-                <span className="flex items-center gap-2 text-base text-slate-800"><Users size="1.1em" className="shrink-0" aria-hidden />
+                <span className="flex items-center gap-2 whitespace-nowrap text-base text-slate-800"><Users size="1.1em" className="shrink-0" aria-hidden />
                   <b className="tabular-nums">{coMatNay.length}</b> có mặt</span>
-                <span className="shrink-0 text-base font-medium text-slate-600">Điểm danh</span>
+                {/* Cạnh nút "chưa gắn việc" thì bỏ chữ cho khỏi bị bóp (cả ô vẫn mở Điểm danh) */}
+                {!chuaGan && <span className="shrink-0 text-base font-medium text-slate-600">Điểm danh</span>}
               </button>
               {chuaGan > 0 && (
                 // Người có mặt chưa gắn hạng mục: mở thẳng Chia người
-                <button className={`flex min-h-14 shrink-0 items-center rounded-2xl border px-4 text-base font-medium ${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} active:opacity-80`}
+                <button className={`flex min-h-14 shrink-0 items-center whitespace-nowrap rounded-2xl border px-4 text-base font-medium ${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} active:opacity-80`}
                   onClick={() => setSheet({ loai: 'chiaNguoi' })}>
                   {chuaGan} chưa gắn việc
                 </button>
@@ -647,9 +665,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
           {nhomEl('Chưa bắt đầu', nhom.chuaBatDau, 'dangLam')}
         </>) : trong('Tổ chưa có việc đang làm.'))}
         {cv && tab === 'choNhan' && (soTab.choNhan ? nhomEl('Hàng giao tới tổ', cv.choNhan, 'choNhan') : trong('Chưa có hàng giao tới tổ.'))}
-        {cv && tab === 'choGiao' && (soTab.choGiao ? nhomEl('Xong, chờ giao', cv.choGiao, 'choGiao') : (
-          <div className="rounded-2xl bg-white p-6 text-center text-base text-slate-700">Không có hàng chờ giao.</div>
-        ))}
+        {cv && tab === 'choGiao' && (soTab.choGiao ? nhomEl('Xong, chờ giao', cv.choGiao, 'choGiao') : trong('Không có hàng chờ giao.'))}
       </main>
 
       {/* Tầng đáy (vùng ngón cái): dải người rảnh / hoàn tác + Quét phiếu */}
@@ -712,7 +728,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
             <ul className={`${KHOI} ${KE}`}>
               {dongHex.map(r => {
                 const o = cv.dangLam.includes(r) ? 'dangLam' : cv.choNhan.includes(r) ? 'choNhan' : 'choGiao';
-                return <XuongDong key={khoaDong(r)} r={r} now={now} tenCongDoan={tenCd(r.congDoanId)} gui={guiCua(r)}>{nutDong(r, o)}</XuongDong>;
+                return <XuongDong key={khoaDong(r)} r={r} now={now} tenCongDoan={tenCd(r.congDoanId)} gui={guiCua(r)} congNhan={cv.congNhan}>{nutDong(r, o)}</XuongDong>;
               })}
             </ul>
             <div className="mt-3 flex gap-3">
