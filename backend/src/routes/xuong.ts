@@ -717,6 +717,8 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       };
     });
 
+    const ghChoNhan = await gioiHanNhan(pool, rows.filter(x => x.slGiaoDen > x.slNhan).map(x => [String(x.hex), String(x.congDoanId)] as [string, string]));
+
     // Chấm công theo người: danh sách công nhân của tổ + người có mặt hôm nay theo ca (kể cả người mượn tổ khác)
     const chamCong = await coBangCongNhan();
     let congNhan: Array<{ mnv: string; hoTen: string; toKhac: string | null }> = [];
@@ -742,7 +744,11 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       success: true, available: true, serverNow: Date.now(), ngay,
       to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
       congDoan: cdRows.rows.map(x => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
-      choNhan: rows.filter(x => x.slGiaoDen > x.slNhan),
+      // Kèm số còn nhận được (đã triển khai / đơn hàng − đã nhận): tổ trước giao dư thì màn hình báo rõ
+      choNhan: rows.filter(x => x.slGiaoDen > x.slNhan).map(x => {
+        const g = ghChoNhan.get(`${x.hex}|${x.congDoanId}`);
+        return { ...x, toiDaNhan: g && g.moc !== null ? Math.max(0, Math.round((g.moc - g.daNhan) * 1000) / 1000) : null };
+      }),
       dangLam: rows.filter(x => ['dang_lam', 'tam_ngung', 'da_nhan'].includes(x.trangThai)),
       // Theo số lượng, không theo trạng thái: xong một phần mà vẫn chạy / đang tạm ngưng vẫn giao được phần đã xong
       choGiao: rows.filter(x => x.slHoanThanh > x.slGiao),

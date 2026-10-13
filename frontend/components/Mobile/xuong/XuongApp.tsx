@@ -497,7 +497,13 @@ export default function XuongApp({ moTo, onTongQuan }: {
   const dongHex = sheet?.loai === 'hex' && cv ? [...cv.choNhan, ...cv.dangLam, ...cv.choGiao].filter(r => r.hex === sheet.hex) : [];
 
   const nutDong = (r: DongViec, o: 'choNhan' | 'dangLam' | 'choGiao') => {
-    if (o === 'choNhan') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc })}>Nhận {hienSl(r.slGiaoDen - r.slNhan)}</button>;
+    if (o === 'choNhan') {
+      // Giao dư so với số triển khai / đơn hàng: nút ghi số nhận được (0 thì "Xem" để đọc giải thích trong màn Nhận)
+      const con = r.slGiaoDen - r.slNhan;
+      const td = r.toiDaNhan ?? null;
+      const so = td !== null && td < con ? td : con;
+      return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc })}>{so > 0 ? `Nhận ${hienSl(so)}` : 'Xem — giao dư'}</button>;
+    }
     if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'giao', r, cheDo: 'giao' })}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
     if (r.trangThai === 'dang_lam') return (<>
       <button className={NUT_DONG} onClick={() => setSheet({ loai: 'giao', r, cheDo: 'xong' })}>Xong — giao</button>

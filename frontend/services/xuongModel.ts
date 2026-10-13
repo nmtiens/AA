@@ -46,6 +46,8 @@ export interface DongViec {
   goiYKe: string[];
   /** Mã NV người đang làm (khai theo tên — chấm công theo người); null = khai theo số */
   nguoi?: string[] | null;
+  /** Chờ nhận: số còn nhận được (đã triển khai / đơn hàng − đã nhận); null = không giới hạn */
+  toiDaNhan?: number | null;
 }
 
 /** Công nhân trong danh sách tổ (toKhac = tên tổ gốc khi là người mượn hôm nay) */
