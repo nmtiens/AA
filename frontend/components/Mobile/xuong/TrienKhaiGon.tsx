@@ -3,6 +3,7 @@ import { ScanLine, Loader2 } from 'lucide-react';
 import { BottomSheet } from '../mobileUi';
 import { xuongSetupApi, type DanhSachTrienKhai } from '../../../services/xuongSetupApi';
 import { BoDem } from './XuongSheets';
+import { choSoLe, lamTronSl, hienSl } from '../../../services/xuongModel';
 import { NUT_CHINH, NUT_PHU, CHU_PHU, MAU } from './xuongUi';
 
 // ============================================================================
@@ -44,7 +45,12 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
       if (!r.ok) { setLoi(r.message); return; }
       setLoi(''); setD(r.data);
       const h = r.data.hangMuc[0];
-      if (h) setSl(Math.max(1, h.soLuongDonHang === null ? 1 : h.soLuongDonHang - h.daTrienKhai));
+      // Mặc định = đúng số còn chưa triển khai (theo đơn vị hạng mục, không làm tròn)
+      if (h) {
+        const le = choSoLe(h.dvt, h.soLuongDonHang, h.daTrienKhai);
+        const con = h.soLuongDonHang === null ? 1 : lamTronSl(h.soLuongDonHang - h.daTrienKhai);
+        setSl(Math.max(le ? 0.001 : 1, con));
+      }
     });
   }, [xuong, hex]);
 
@@ -70,6 +76,9 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
   };
 
   const h = d?.hangMuc[0];
+  const dv = h?.dvt?.trim() || 'cái';
+  const soLe = !!h && choSoLe(h.dvt, h.soLuongDonHang, h.daTrienKhai);
+  const conLai = h && h.soLuongDonHang !== null ? lamTronSl(h.soLuongDonHang - h.daTrienKhai) : null;
   const tenCd = (id: string) => d?.congDoan.find(c => c.id === id)?.ten ?? id;
   const tuyen = h?.goiYTuyen ?? [];
   const trienKhai = async () => {
@@ -77,13 +86,13 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
     setGui(true);
     const r = await xuongSetupApi.trienKhai(xuong, [{ hex: h.hex, soLuong: sl, tuyen }]);
     setGui(false);
-    if (r.ok) onXong(`Đã triển khai ${sl} cái ${h.hex} — ${tenCd(tuyen[0])} thấy "Chờ nhận"`);
+    if (r.ok) onXong(`Đã triển khai ${hienSl(sl)} ${dv} ${h.hex} — ${tenCd(tuyen[0])} thấy "Chờ nhận"`);
     else setLoi(r.message);
   };
 
   return (
     <BottomSheet title="Triển khai hạng mục" onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={!h || !tuyen.length || gui} onClick={trienKhai}>Triển khai {sl} cái</button>}>
+      footer={<button className={NUT_CHINH} disabled={!h || !tuyen.length || gui} onClick={trienKhai}>Triển khai {hienSl(sl)} {dv}</button>}>
       <div className="space-y-4 pb-2">
         {dsXuong.length > 1 && (
           <div className="flex flex-wrap gap-2">
@@ -134,11 +143,19 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
             <div>
               <p className="text-base font-semibold text-slate-900">{h.ten}</p>
               <p className={CHU_PHU}>{h.tenCongTrinh}</p>
-              <p className="text-base tabular-nums text-slate-700">Đơn hàng {h.soLuongDonHang ?? '—'} {h.dvt ?? ''} · đã triển khai {h.daTrienKhai}</p>
+              <p className="text-base tabular-nums text-slate-700">
+                Đơn hàng {h.soLuongDonHang === null ? '—' : hienSl(h.soLuongDonHang)} {dv} · đã triển khai {hienSl(h.daTrienKhai)}
+                {conLai !== null && ` · còn ${hienSl(Math.max(0, conLai))}`}
+              </p>
             </div>
             <div className="space-y-2">
-              <p className="text-base font-medium text-slate-800">Số lượng triển khai</p>
-              <BoDem value={sl} onChange={setSl} min={1} nhan="số lượng triển khai" />
+              <p className="text-base font-medium text-slate-800">Số lượng triển khai ({dv})</p>
+              <BoDem value={sl} onChange={setSl} min={soLe ? 0.001 : 1} soLe={soLe} nhan="số lượng triển khai" />
+              {conLai !== null && sl > conLai && (
+                <p className={`text-base font-medium ${MAU.ngung.chu}`}>
+                  {conLai <= 0 ? 'Hạng mục đã triển khai đủ số đơn hàng' : `Vượt số còn lại (${hienSl(conLai)} ${dv})`} — kiểm tra lại trước khi triển khai.
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <p className="text-base font-medium text-slate-800">Tuyến (gợi ý theo nhóm sản phẩm {h.nhom ?? '—'})</p>

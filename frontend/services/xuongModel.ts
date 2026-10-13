@@ -231,7 +231,7 @@ export function thoiLuong(ms: number): string {
 /** Cờ tổ trưởng tự sửa được (2B) — câu cụ thể; cờ khác chỉ quản lý thấy */
 export function cauCo(co: string, r: DongViec): string | null {
   switch (co) {
-    case 'nhan_chua_thay_giao': return `Chưa thấy tổ trước giao ${Math.max(1, r.slNhan - r.slGiaoDen)} cái`;
+    case 'nhan_chua_thay_giao': return `Chưa thấy tổ trước giao ${hienSl(Math.max(0, r.slNhan - r.slGiaoDen))} ${r.dvt?.trim() || 'cái'}`;
     case 'bat_dau_hai_lan': return 'Bấm bắt đầu 2 lần — kiểm tra lại';
     case 'chua_xac_nhan': return 'Hôm qua chưa xác nhận cuối ngày';
     case 'khai_vuot_quan_so': return 'Số người khai nhiều hơn quân số tổ';
@@ -248,9 +248,9 @@ const TEN_LOAI: Record<string, string> = {
   tien_do: 'Tiến độ', trien_khai: 'Triển khai', khai_bao_cd: 'Khai báo công đoạn',
 };
 
-export function moTaSuKien(x: { loai: string; soLuong?: number | null; soNguoi?: number | null; lyDo?: string | null; tenCongDoanDen?: string | null; duLieu?: Record<string, unknown> | null }) {
+export function moTaSuKien(x: { loai: string; soLuong?: number | null; soNguoi?: number | null; lyDo?: string | null; tenCongDoanDen?: string | null; duLieu?: Record<string, unknown> | null; dvt?: string | null }) {
   const p: string[] = [TEN_LOAI[x.loai] ?? x.loai];
-  if (x.soLuong) p.push(`${x.soLuong} cái`);
+  if (x.soLuong) p.push(`${hienSl(Number(x.soLuong))} ${x.dvt?.trim() || 'cái'}`);
   if (x.tenCongDoanDen) p.push(`sang ${x.tenCongDoanDen}`);
   if (x.loai === 'tam_ngung') p.push(`— ${tenLyDo(x.lyDo)}`);
   if (x.loai === 'quan_so' || x.loai === 'tang_ca') {

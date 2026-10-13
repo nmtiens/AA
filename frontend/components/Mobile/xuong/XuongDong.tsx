@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Play, Pause, Circle, Inbox, PackageCheck, AlertTriangle, Clock, Check } from 'lucide-react';
-import { cauCo, thoiLuong, type DongViec } from '../../../services/xuongModel';
+import { cauCo, thoiLuong, hienSl, type DongViec } from '../../../services/xuongModel';
 import { CHU_PHU, MAU } from './xuongUi';
 
 // ============================================================================
@@ -61,7 +61,7 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children }: {
           </span>
         )}
         <span className="tabular-nums text-slate-600">
-          {r.slGiaoDen > r.slNhan && `Giao tới ${r.slGiaoDen} · `}Nhận {r.slNhan} · Xong {r.slHoanThanh} · Giao {r.slGiao}{dvt}
+          {r.slGiaoDen > r.slNhan && `Giao tới ${hienSl(r.slGiaoDen)} · `}Nhận {hienSl(r.slNhan)} · Xong {hienSl(r.slHoanThanh)} · Giao {hienSl(r.slGiao)}{dvt}
         </span>
       </p>
       {coThay.map(c => (

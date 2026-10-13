@@ -11,7 +11,7 @@ import {
 } from '../../../services/xuongQueue';
 import { doLech } from '../../../services/xuongClock';
 import {
-  apDung, caCanChot, caHienTai, chiaDeu, denGioXacNhan, gioVN, hhmm, khoa, khoaDong, nhomDangLam, soNguoiRanh,
+  apDung, caCanChot, caHienTai, chiaDeu, denGioXacNhan, gioVN, hhmm, hienSl, khoa, khoaDong, nhomDangLam, soNguoiRanh,
   TEN_CA, tenLyDo, moTaSuKien, type CongViec, type DongViec, type LoaiCa, type MaLyDo,
 } from '../../../services/xuongModel';
 import XuongDong, { type TrangThaiGui } from './XuongDong';
@@ -296,7 +296,8 @@ export default function XuongApp({ moTo, onTongQuan }: {
     if (cheDo === 'xong') ds.push({ loai: 'hoan_thanh', hex: r.hex, congDoanId: r.congDoanId, toId: toId!, soLuong, ...kemAnh });
     if (den) ds.push({ loai: 'giao', hex: r.hex, congDoanId: r.congDoanId, toId: toId!, soLuong, congDoanDenId: den, ...(cheDo === 'giao' ? kemAnh : {}) });
     const tenDen = den ? (dm?.congDoan.find(c => c.id === den)?.ten ?? den) : '';
-    const nhan = cheDo === 'xong' ? `Xong ${soLuong} cái ${r.hex}${den ? ` — giao sang ${tenDen}` : ''}` : `Giao ${soLuong} cái ${r.hex} sang ${tenDen}`;
+    const dv = r.dvt?.trim() || 'cái';
+    const nhan = cheDo === 'xong' ? `Xong ${hienSl(soLuong)} ${dv} ${r.hex}${den ? ` — giao sang ${tenDen}` : ''}` : `Giao ${hienSl(soLuong)} ${dv} ${r.hex} sang ${tenDen}`;
     ghi(ds, nhan, c => apDung(c, khoaDong(r), x => ({
       ...x,
       dangChayTu: cheDo === 'xong' && soLuong >= x.slNhan - x.slHoanThanh ? null : x.dangChayTu,
@@ -316,7 +317,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
     };
     ghi([{ loai: 'nhan', hex, congDoanId: p.congDoanId, toId: toId!, soLuong: p.soLuong,
       congDoanNguonId: p.congDoanNguonId ?? null, xuongNguon: p.xuongNguon ?? null, ...(anhCho.length ? { duLieu: { anhCho } } : {}) }],
-      `Nhận ${p.soLuong} cái ${hex}`,
+      `Nhận ${hienSl(p.soLuong)} ${[...(cv?.choNhan ?? []), ...(cv?.dangLam ?? [])].find(x => x.hex === hex)?.dvt?.trim() || 'cái'} ${hex}`,
       c => apDung(c, khoa(hex, p.congDoanId), x => ({ ...x, slNhan: x.slNhan + p.soLuong, suKienCuoi: new Date().toISOString() }), moi))
       .then(ok => { if (ok) setTab('dangLam'); });
   };
@@ -431,8 +432,8 @@ export default function XuongApp({ moTo, onTongQuan }: {
   const dongHex = sheet?.loai === 'hex' && cv ? [...cv.choNhan, ...cv.dangLam, ...cv.choGiao].filter(r => r.hex === sheet.hex) : [];
 
   const nutDong = (r: DongViec, o: 'choNhan' | 'dangLam' | 'choGiao') => {
-    if (o === 'choNhan') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc })}>Nhận {r.slGiaoDen - r.slNhan}</button>;
-    if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'giao', r, cheDo: 'giao' })}>Giao {r.slHoanThanh - r.slGiao}</button>;
+    if (o === 'choNhan') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc })}>Nhận {hienSl(r.slGiaoDen - r.slNhan)}</button>;
+    if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => setSheet({ loai: 'giao', r, cheDo: 'giao' })}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
     if (r.trangThai === 'dang_lam') return (<>
       <button className={NUT_DONG} onClick={() => setSheet({ loai: 'giao', r, cheDo: 'xong' })}>Xong — giao</button>
       <button className={`${NUT_PHU} shrink-0`} onClick={() => setSheet({ loai: 'tamNgung', r })}>Tạm ngưng</button>
