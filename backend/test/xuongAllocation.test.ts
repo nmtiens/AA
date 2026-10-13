@@ -52,6 +52,10 @@ describe('phanBoGioCong', () => {
     assert.equal(kq.gioNguoiTo.thuong, 72.5);
     assert.equal(kq.gioCho.thuong, H(72.5 - 3 * 7.25 - 4));
     assert.deepEqual(kq.co, []);
+    // Số người khai: A 3 người cả ca, B 2 người 2 giờ
+    assert.equal(kq.theoHangMuc.A.gioNguoiKhai, H(3 * 7.25));
+    assert.equal(kq.theoHangMuc.A.soNguoiMax, 3);
+    assert.equal(kq.theoHangMuc.B.gioNguoiKhai, 4);
   });
 
   it('khai vượt quân số: co theo tỷ lệ, gắn cờ (không còn đếm trùng kiểu MRA)', () => {

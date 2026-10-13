@@ -97,7 +97,13 @@ export interface DauVaoPhanBo {
   now: number;
 }
 
-export interface KetQuaHangMuc { gioChay: number; gioCongThuong: number; gioCongTangCa: number; co: string[] }
+export interface KetQuaHangMuc {
+  gioChay: number; gioCongThuong: number; gioCongTangCa: number; co: string[];
+  /** Giờ người theo số người KHAI (trước khi co theo quân số) — số người bình quân = gioNguoiKhai / gioChay */
+  gioNguoiKhai: number;
+  /** Số người khai nhiều nhất trong lúc chạy */
+  soNguoiMax: number;
+}
 export interface KetQuaPhanBo {
   theoHangMuc: Record<string, KetQuaHangMuc>;
   gioCho: { thuong: number; tangCa: number };
@@ -132,7 +138,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     input.doanChay[key].some(d => d.start <= t && t < (d.end ?? input.now));
 
   const out: Record<string, KetQuaHangMuc> = {};
-  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, co: chuaXn.has(k) ? ['chua_xac_nhan'] : [] };
+  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, gioNguoiKhai: 0, soNguoiMax: 0, co: chuaXn.has(k) ? ['chua_xac_nhan'] : [] };
   const coTo = new Set<string>();
   const gioCho = { thuong: 0, tangCa: 0 };
   const gioNguoiTo = { thuong: 0, tangCa: 0 };
@@ -181,6 +187,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       for (const k of chay) out[k].gioChay += gio;
 
       const khai = chay.map(k => [k, soNguoiLuc(k, s)] as const);
+      for (const [k, n] of khai) { out[k].gioNguoiKhai += n * gio; if (n > out[k].soNguoiMax) out[k].soNguoiMax = n; }
       const tongKhai = khai.reduce((a, [, n]) => a + n, 0);
       const cong = (k: string, h: number) => {
         if (laTangCa) out[k].gioCongTangCa += h; else out[k].gioCongThuong += h;
@@ -213,6 +220,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     out[k].gioChay = lamTron(out[k].gioChay);
     out[k].gioCongThuong = lamTron(out[k].gioCongThuong);
     out[k].gioCongTangCa = lamTron(out[k].gioCongTangCa);
+    out[k].gioNguoiKhai = lamTron(out[k].gioNguoiKhai);
     out[k].co.sort();
   }
   return {

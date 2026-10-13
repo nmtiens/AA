@@ -70024,7 +70024,7 @@ function phanBoGioCong(input2) {
   };
   const dangChayLuc = (key, t) => input2.doanChay[key].some((d) => d.start <= t && t < (d.end ?? input2.now));
   const out = {};
-  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, co: chuaXn.has(k) ? ["chua_xac_nhan"] : [] };
+  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, gioNguoiKhai: 0, soNguoiMax: 0, co: chuaXn.has(k) ? ["chua_xac_nhan"] : [] };
   const coTo = /* @__PURE__ */ new Set();
   const gioCho = { thuong: 0, tangCa: 0 };
   const gioNguoiTo = { thuong: 0, tangCa: 0 };
@@ -70070,6 +70070,10 @@ function phanBoGioCong(input2) {
       const chay = ks.filter((k) => dangChayLuc(k, s));
       for (const k of chay) out[k].gioChay += gio;
       const khai = chay.map((k) => [k, soNguoiLuc(k, s)]);
+      for (const [k, n] of khai) {
+        out[k].gioNguoiKhai += n * gio;
+        if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
+      }
       const tongKhai = khai.reduce((a, [, n]) => a + n, 0);
       const cong2 = (k, h) => {
         if (laTangCa) out[k].gioCongTangCa += h;
@@ -70107,6 +70111,7 @@ function phanBoGioCong(input2) {
     out[k].gioChay = lamTron(out[k].gioChay);
     out[k].gioCongThuong = lamTron(out[k].gioCongThuong);
     out[k].gioCongTangCa = lamTron(out[k].gioCongTangCa);
+    out[k].gioNguoiKhai = lamTron(out[k].gioNguoiKhai);
     out[k].co.sort();
   }
   return {
@@ -71121,7 +71126,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
   }
 });
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH = "pb2";
+var PHIEN_BAN_TINH = "pb3";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
@@ -71779,17 +71784,21 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
               gioChay: lam(h2.gioChay),
               gioCongThuong: lam(h2.gioCongThuong),
               gioCongTangCa: lam(h2.gioCongTangCa),
-              dangChay: x.ngay === homNay && dangChayNay.has(k)
+              dangChay: x.ngay === homNay && dangChayNay.has(k),
+              gioNguoiKhai: lam(h2.gioNguoiKhai ?? 0),
+              soNguoiMax: h2.soNguoiMax ?? 0
             });
           }
           gioCong.thuong += h2.gioCongThuong;
           gioCong.tangCa += h2.gioCongTangCa;
           gcNgay += h2.gioCongThuong + h2.gioCongTangCa;
           chay += h2.gioChay;
-          const cur = hm.get(k) ?? { gioChay: 0, thuong: 0, tangCa: 0 };
+          const cur = hm.get(k) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0 };
           cur.gioChay += h2.gioChay;
           cur.thuong += h2.gioCongThuong;
           cur.tangCa += h2.gioCongTangCa;
+          cur.gnk += h2.gioNguoiKhai ?? 0;
+          cur.max = Math.max(cur.max, h2.soNguoiMax ?? 0);
           hm.set(k, cur);
           tatCaHex.add(k.split("|")[0]);
         }
@@ -71833,7 +71842,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           congDoanId: k.split("|")[1],
           gioChay: lam(v.gioChay),
           gioCongThuong: lam(v.thuong),
-          gioCongTangCa: lam(v.tangCa)
+          gioCongTangCa: lam(v.tangCa),
+          gioNguoiKhai: lam(v.gnk),
+          soNguoiMax: v.max
         })).sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa))
       };
     });
@@ -71842,7 +71853,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const layCd = (hex3, cd) => {
       if (!hmKy.has(hex3)) hmKy.set(hex3, /* @__PURE__ */ new Map());
       const m = hmKy.get(hex3);
-      if (!m.has(cd)) m.set(cd, { congDoanId: cd, to: /* @__PURE__ */ new Set(), gioChay: 0, thuong: 0, tangCa: 0, slXong: 0 });
+      if (!m.has(cd)) m.set(cd, { congDoanId: cd, to: /* @__PURE__ */ new Set(), gioChay: 0, thuong: 0, tangCa: 0, slXong: 0, gnk: 0, max: 0 });
       return m.get(cd);
     };
     for (const t of theoTo) {
@@ -71852,6 +71863,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         c.gioChay += h.gioChay;
         c.thuong += h.gioCongThuong;
         c.tangCa += h.gioCongTangCa;
+        c.gnk += h.gioNguoiKhai;
+        c.max = Math.max(c.max, h.soNguoiMax);
       }
       for (const n of t.theoNgay) for (const x of n.xong) {
         const c = layCd(x.hex, x.congDoanId);
@@ -71928,6 +71941,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           gioCong: lam(c.thuong + c.tangCa),
           gioCongTangCa: lam(c.tangCa),
           slXong: lam(c.slXong),
+          // Số công nhân bình quân lúc chạy = giờ người khai / giờ chạy
+          // giờ chạy rất ngắn (vài phút) làm tròn lệch => không cho vượt số người khai nhiều nhất
+          soNguoiTb: c.gioChay > 0 ? lam(Math.min(c.max, c.gnk / c.gioChay)) : 0,
+          soNguoiMax: c.max,
           trangThai: tt ? String(tt.trang_thai) : null,
           slNhan: tt ? lam(Number(tt.sl_nhan)) : 0,
           slHoanThanh: tt ? lam(Number(tt.sl_ht)) : 0

@@ -16,8 +16,12 @@ export function rongManThat(): number | null {
   try { ep = localStorage.getItem(KHOA_EP); } catch { /* bỏ qua */ }
   if (ep === '0') return null;
   if (ep === '1') return Math.min(412, window.innerWidth);
-  const cam = window.matchMedia?.('(pointer: coarse)').matches;
-  if (!cam || window.innerWidth < 768) return null;
+  // Chỉ điện thoại thật: chạm là chính (không chuột: hover: none), có điểm chạm, màn nhỏ (cạnh dài < 1100).
+  // Laptop / máy tính màn cảm ứng có chuột (hover: hover) hoặc màn lớn => không bao giờ bật.
+  const cam = window.matchMedia?.('(pointer: coarse)').matches && window.matchMedia?.('(hover: none)').matches
+    && navigator.maxTouchPoints > 0;
+  const manNho = screen.width > 0 && Math.max(screen.width, screen.height) < 1100;
+  if (!cam || !manNho || window.innerWidth < 768) return null;
   // screen.width vẫn là bề rộng màn thật; trang rộng hơn hẳn => viewport bị ép
   if (screen.width > 0 && screen.width < 768 && window.innerWidth > screen.width * 1.25) return screen.width;
   // Dự phòng: trình duyệt thu nhỏ trang để vừa màn (tỉ lệ < 0,8)
