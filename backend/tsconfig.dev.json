@@ -1,0 +1,8 @@
+{
+  // Chỉ cho `npm run dev` (tsx): bí danh '@tong-quan/core' trỏ thẳng tới code tính của giao diện — bản Vercel đóng gói
+  // bằng esbuild --alias (script build:bundle). tsc kiểm tra kiểu vẫn dùng tsconfig.json (kiểu ở src/types/tong-quan-core.d.ts).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": { "@tong-quan/core": ["../frontend/components/Dashboard/core/mayChu.ts"] }
+  }
+}

@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch api/index.ts",
+    "dev": "tsx watch --tsconfig tsconfig.dev.json api/index.ts",
     "build": "tsc",
     "build:bundle": "esbuild api/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/dist.js --alias:@tong-quan/core=../frontend/components/Dashboard/core/mayChu.ts --external:bcrypt --external:pg-native --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\"",
     "start": "node dist/api/index.js",
