@@ -35,6 +35,9 @@ const theoTen = (a: CongNhanTo, b: CongNhanTo) => {
   return t(a).localeCompare(t(b), 'vi');
 };
 
+/** Bỏ dấu tiếng Việt để tìm không cần gõ dấu ("hung" ra "Hùng") */
+const boDau = (x: string) => x.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+
 const phut = (ms: number) => { const d = new Date(ms + 7 * 3_600_000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
 const hhmmTuPhut = (p: number) => `${String(Math.floor(p / 60)).padStart(2, '0')}:${String(p % 60).padStart(2, '0')}`;
 
@@ -160,8 +163,12 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   // Về sớm theo từng người (người đang có mặt): mã NV → giờ ra + lý do (bấm "Về sớm" cạnh tên)
   const [ve, setVe] = useState<Record<string, { gio: string; lyDo: string }>>({});
   const [them, setThem] = useState(false);
-  // Tổ đông: dòng gọn hơn (mã NV cùng dòng với tên)
+  // Tổ đông: dòng gọn hơn (mã NV cùng dòng với tên), thanh trên dính (đếm, tìm, lọc) khi cuộn
   const gon = ds.length > 12;
+  const [loc, setLoc] = useState<'tat_ca' | 'vang' | 'tre_ve'>('tat_ca');
+  // Đổi lọc / tìm: cuộn danh sách về đầu (không thì danh sách ngắn lại bị khuất dưới thanh dính)
+  const thanhTren = useRef<HTMLDivElement>(null);
+  useEffect(() => { thanhTren.current?.closest('.overflow-y-auto')?.scrollTo({ top: 0 }); }, [loc, tim]);
 
   const vaoMoi = [...chon].filter(m => !coMatTruoc.has(m));
   const vaoDungGio = vaoMoi.filter(m => !tre[m]);
@@ -169,8 +176,11 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   const raChung = raMoi.filter(m => !ve[m]);
   const doi = vaoMoi.length > 0 || raMoi.length > 0;
   const lucChon = mocTrongNgay(cv.ngay, gio);
-  const loc = tim.trim().toLowerCase();
-  const hop = (x: CongNhanTo) => !loc || `${x.hoTen} ${x.mnv}`.toLowerCase().includes(loc);
+  const tu = boDau(tim.trim());
+  const soVang = ds.filter(x => !chon.has(x.mnv)).length;
+  const soTreVe = ds.filter(x => tre[x.mnv] || ve[x.mnv]).length;
+  const hop = (x: CongNhanTo) => (!tu || boDau(`${x.hoTen} ${x.mnv}`).includes(tu))
+    && (loc === 'tat_ca' || (loc === 'vang' ? !chon.has(x.mnv) : !!(tre[x.mnv] || ve[x.mnv])));
   const tenMuon = ds.filter(x => x.toKhac && hop(x));
   const cuaTo = ds.filter(x => !x.toKhac && hop(x));
 
@@ -268,27 +278,62 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
 
   return (
     <BottomSheet title={`Điểm danh ${TEN_CA[ca].toLowerCase()}`} onClose={onClose}
-      footer={
-        <button className={NUT_CHINH} disabled={!doi && !lanDau} onClick={luu}>
-          {lanDau ? `Lưu điểm danh · ${chon.size} có mặt` : doi ? `Lưu thay đổi · ${chon.size} có mặt` : `${chon.size} người có mặt`}
-        </button>
-      }>
-      <div className="space-y-4 pb-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-lg font-semibold text-slate-900"><span className="tabular-nums">{chon.size}</span> / {ds.length} có mặt</p>
-          <div className="flex gap-2">
-            <button type="button" className={NUT_PHU} onClick={() => setChon(new Set(ds.map(x => x.mnv)))}>Tất cả</button>
-            <button type="button" className={NUT_PHU} onClick={() => setChon(new Set())}>Bỏ hết</button>
+      footer={<div className="space-y-2">
+        {/* Giờ vào / ra chung + lý do: ngay trên nút Lưu — tổ đông không phải cuộn xuống cuối danh sách */}
+        {(vaoDungGio.length > 0 || raChung.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="min-w-0 flex-1 text-base font-medium text-slate-800">
+              {vaoDungGio.length > 0 && raChung.length === 0 ? `Giờ vào (${vaoDungGio.length})` : raChung.length > 0 && vaoDungGio.length === 0 ? `Giờ ra (${raChung.length})` : 'Giờ vào / ra'}
+            </span>
+            <input type="time" value={gio} onChange={e => e.target.value && setGio(e.target.value)} aria-label="Giờ vào / ra"
+              className="h-12 w-40 shrink-0 rounded-xl border border-slate-300 bg-white px-2 text-lg tabular-nums text-slate-900" />
+            {raChung.length > 0 && (
+              <select value={lyDo} onChange={e => setLyDo(e.target.value)} aria-label="Lý do ra"
+                className="h-12 w-full rounded-xl border border-slate-300 bg-white px-2 text-base text-slate-900">
+                {LY_DO_RA.map(l => <option key={l.ma} value={l.ma}>{l.ten}</option>)}
+              </select>
+            )}
           </div>
-        </div>
-
-        {ds.length > 12 && (
-          <label className="relative block">
-            <SearchIcon size="1.1em" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden />
-            <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm trong tổ" aria-label="Tìm trong tổ"
-              className="h-14 w-full rounded-2xl border border-slate-300 bg-white pl-10 pr-4 text-lg text-slate-900 outline-none focus:border-slate-500" />
-          </label>
         )}
+        <button className={NUT_CHINH} disabled={!doi && !lanDau} onClick={luu}>
+          {/* Có người vắng thì chữ ngắn lại cho vừa 1 dòng */}
+          {!lanDau && !doi ? `${chon.size} người có mặt`
+            : soVang > 0 ? `Lưu · ${chon.size} có mặt, ${soVang} vắng`
+              : `${lanDau ? 'Lưu điểm danh' : 'Lưu thay đổi'} · ${chon.size} có mặt`}
+        </button>
+      </div>}>
+      <div className="space-y-4 pb-2">
+        <div ref={thanhTren} className={gon ? 'sticky top-0 z-10 -mx-5 space-y-2 border-b border-slate-100 bg-white px-5 pb-3 pt-1' : 'space-y-4'}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-lg font-semibold text-slate-900"><span className="tabular-nums">{chon.size}</span> / {ds.length} có mặt</p>
+            <div className="flex gap-2">
+              <button type="button" className={`${NUT_PHU} ${gon ? '!min-h-12' : ''}`} onClick={() => setChon(new Set(ds.map(x => x.mnv)))}>Tất cả</button>
+              <button type="button" className={`${NUT_PHU} ${gon ? '!min-h-12' : ''}`} onClick={() => setChon(new Set())}>Bỏ hết</button>
+            </div>
+          </div>
+          {gon && (<>
+            <label className="relative block">
+              <SearchIcon size="1.1em" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden />
+              <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm tên / mã NV trong tổ" aria-label="Tìm trong tổ"
+                className="h-12 w-full rounded-2xl border border-slate-300 bg-white pl-10 pr-12 text-lg text-slate-900 outline-none focus:border-slate-500" />
+              {tim && (
+                <button type="button" aria-label="Xoá tìm" onClick={() => setTim('')}
+                  className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 active:bg-slate-100">
+                  <X size="1.1em" />
+                </button>
+              )}
+            </label>
+            {/* Lọc nhanh: soát lại người vắng / người trễ – về sớm mà không phải cuộn cả tổ */}
+            <div className="-mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup" aria-label="Lọc danh sách">
+              {([['tat_ca', `Cả tổ ${ds.length}`], ['vang', `Vắng ${soVang}`], ['tre_ve', `Trễ, về sớm ${soTreVe}`]] as const).map(([k, ten]) => (
+                <button key={k} type="button" role="radio" aria-checked={loc === k} onClick={() => setLoc(k)}
+                  className={`h-10 shrink-0 whitespace-nowrap rounded-full border px-3 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>
+                  {ten}
+                </button>
+              ))}
+            </div>
+          </>)}
+        </div>
 
         {ds.length === 0 && (
           <p className={`rounded-2xl ${MAU.ngung.nen} p-3 text-base ${MAU.ngung.chu}`}>
@@ -296,6 +341,11 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
           </p>
         )}
 
+        {ds.length > 0 && !cuaTo.length && !tenMuon.length && (
+          <p className={`rounded-2xl bg-slate-50 p-4 text-center ${CHU_PHU}`}>
+            {tu ? `Không có ai khớp "${tim.trim()}".` : loc === 'vang' ? 'Không ai vắng.' : 'Không ai trễ / về sớm.'}
+          </p>
+        )}
         {cuaTo.length > 0 && <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">{cuaTo.map(dong)}</ul>}
         {tenMuon.length > 0 && (
           <div className="space-y-2">
@@ -314,26 +364,7 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
               }} />
           : <button type="button" className={`${NUT_PHU} w-full`} onClick={() => setThem(true)}><UserPlus size="1.1em" aria-hidden /> Thêm người / mượn người tổ khác</button>}
 
-        {(vaoDungGio.length > 0 || raChung.length > 0) && (
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
-            <label className="flex items-center justify-between gap-3">
-              <span className="text-base font-medium text-slate-800">
-                {vaoDungGio.length > 0 && raChung.length === 0 ? `Giờ vào (${vaoDungGio.length} người)` : raChung.length > 0 && vaoDungGio.length === 0 ? `Giờ ra (${raChung.length} người)` : 'Giờ vào / ra'}
-              </span>
-              <input type="time" value={gio} onChange={e => e.target.value && setGio(e.target.value)} aria-label="Giờ vào / ra"
-                className="h-14 rounded-2xl border border-slate-300 bg-white px-3 text-lg tabular-nums text-slate-900" />
-            </label>
-            {raChung.length > 0 && (
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Lý do ra">
-                {LY_DO_RA.map(l => (
-                  <button key={l.ma} type="button" role="radio" aria-checked={lyDo === l.ma} onClick={() => setLyDo(l.ma)}
-                    className={chipNguoi(lyDo === l.ma)}>{l.ten}</button>
-                ))}
-              </div>
-            )}
-            {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bấm <b>Trễ</b> cạnh tên và chỉnh giờ đến.</p>}
-          </div>
-        )}
+        {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bấm <b>Trễ</b> cạnh tên và chỉnh giờ đến.</p>}
 
         <button type="button" className="text-base font-medium text-slate-600 underline underline-offset-4" onClick={onChiNhapSo}>
           Không điểm danh tên — chỉ nhập số người
