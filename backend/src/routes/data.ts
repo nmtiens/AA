@@ -11,6 +11,7 @@ import { userHasPermission, stripMaterialPriceColumns, MATERIAL_PRICE_PERMISSION
 import { ensureProjectAliases, listProjectAliases } from '../server/projectAlias.js';
 import { parseQcEntries, summarizeQc } from '../server/qc.js';
 import { createGzip } from 'zlib';
+import { isMissingSchema } from '../notifications.js';
 
 // ============================================================================
 // /api/all-data: ~150 MB JSON (12 bảng). Trước đây mỗi request đều JSON.stringify + gzip lại toàn bộ
@@ -63,12 +64,75 @@ const getAllDataGzip = (vkey: string, gzKey: string, out: Record<string, unknown
   return p;
 };
 
+// ----------------------------------------------------------------------------
+// Bản nén lưu ở Postgres (all_data_snapshot — backend/sql/2026-10-13_all_data_snapshot.sql), dùng chung mọi phiên
+// bản hàm: phiên bản hàm mới (sau deploy / tăng tải / lâu không dùng) không phải truy vấn + nén lại hàng chục nghìn
+// dòng (đo 10/2026: 5–6 giây mỗi request bảng lớn). Khoá = bộ bảng + có cột giá; ver = phiên bản các bảng đó.
+// Chưa chạy SQL → bỏ qua, chạy như cũ.
+// ----------------------------------------------------------------------------
+let snapshotBat = true;
+const snapshotNho = new Map<string, { ver: string; buf: Buffer }>();
+
+const docSnapshot = async (khoa: string, ver: string): Promise<Buffer | null> => {
+  const nho = snapshotNho.get(khoa);
+  if (nho && nho.ver === ver) return nho.buf;
+  if (!snapshotBat) return null;
+  try {
+    const r = await pool.query('SELECT du_lieu FROM all_data_snapshot WHERE khoa = $1 AND ver = $2', [khoa, ver]);
+    const buf: Buffer | undefined = r.rows[0]?.du_lieu;
+    if (!buf) return null;
+    snapshotNho.set(khoa, { ver, buf });
+    return buf;
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false; else console.error('[all-data] đọc bản nén lỗi', e);
+    return null;
+  }
+};
+
+const luuSnapshot = async (khoa: string, ver: string, buf: Buffer) => {
+  snapshotNho.set(khoa, { ver, buf });
+  while (snapshotNho.size > ALL_DATA_GZIP_MAX) {
+    const cu = snapshotNho.keys().next().value;
+    if (cu === undefined) break;
+    snapshotNho.delete(cu);
+  }
+  if (!snapshotBat) return;
+  try {
+    await pool.query(
+      `INSERT INTO all_data_snapshot (khoa, ver, du_lieu, cap_nhat) VALUES ($1, $2, $3, now())
+       ON CONFLICT (khoa) DO UPDATE SET ver = EXCLUDED.ver, du_lieu = EXCLUDED.du_lieu, cap_nhat = now()`,
+      [khoa, ver, buf]);
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false; else console.error('[all-data] lưu bản nén lỗi', e);
+  }
+};
+
+const guiGzip = (res: Response, buf: Buffer) => {
+  res.status(200).set({
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Encoding': 'gzip',
+    'Content-Length': String(buf.length),
+    'Vary': 'Accept-Encoding',
+    'Cache-Control': 'no-store',
+  });
+  res.end(buf);
+};
+
 app.get('/api/all-data', async (req: Request, res: Response) => {
   try {
     // ?tables=production,order: chỉ trả các bảng client cần (thường là bảng vừa đổi phiên bản),
     // tránh tải lại cả 12 bảng (~51k dòng sản xuất) khi chỉ 1 bảng thay đổi — và CHỈ NẠP các bảng đó từ DB
     // (getTablesData, cache theo phiên bản từng bảng). Không truyền => nạp / trả đủ 12 bảng như cũ.
     const requested = String(req.query.tables || '').split(',').map(s => s.trim()).filter(Boolean);
+    // Bản nén sẵn (trước khi nạp bảng từ DB — phần chậm): chỉ khi client xin bộ bảng cụ thể và nhận gzip
+    let snap: { khoa: string; ver: string } | null = null;
+    if (requested.length && req.acceptsEncodings('gzip')) {
+      const all = await getVersions();
+      const gia = !requested.includes('material') || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+      snap = { khoa: `${requested.join(',')}|${gia ? 1 : 0}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
+      const buf = await docSnapshot(snap.khoa, snap.ver);
+      if (buf) return guiGzip(res, buf);
+    }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
     // Vật tư: bỏ cột giá/NCC nếu user không có quyền "Xem Giá/NCC" (payload là cache dùng
@@ -83,14 +147,9 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     if (!req.acceptsEncodings('gzip')) return res.json(out);
 
     const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(',')}|${canSeePrice ? 1 : 0}`, out);
-    res.status(200).set({
-      'Content-Type': 'application/json; charset=utf-8',
-      'Content-Encoding': 'gzip',
-      'Content-Length': String(buf.length),
-      'Vary': 'Accept-Encoding',
-      'Cache-Control': 'no-store',
-    });
-    res.end(buf);
+    // Lưu bản nén theo đúng phiên bản đã dùng để nén (versions lấy cùng lượt với dữ liệu)
+    if (snap) await luuSnapshot(snap.khoa, JSON.stringify(requested.map(k => versions[k] ?? '')), buf);
+    guiGzip(res, buf);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
     if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });

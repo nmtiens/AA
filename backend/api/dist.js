@@ -65079,9 +65079,64 @@ var getAllDataGzip = (vkey, gzKey, out) => {
   }
   return p;
 };
+var snapshotBat = true;
+var snapshotNho = /* @__PURE__ */ new Map();
+var docSnapshot = async (khoa, ver) => {
+  const nho = snapshotNho.get(khoa);
+  if (nho && nho.ver === ver) return nho.buf;
+  if (!snapshotBat) return null;
+  try {
+    const r = await pool.query("SELECT du_lieu FROM all_data_snapshot WHERE khoa = $1 AND ver = $2", [khoa, ver]);
+    const buf = r.rows[0]?.du_lieu;
+    if (!buf) return null;
+    snapshotNho.set(khoa, { ver, buf });
+    return buf;
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false;
+    else console.error("[all-data] \u0111\u1ECDc b\u1EA3n n\xE9n l\u1ED7i", e);
+    return null;
+  }
+};
+var luuSnapshot = async (khoa, ver, buf) => {
+  snapshotNho.set(khoa, { ver, buf });
+  while (snapshotNho.size > ALL_DATA_GZIP_MAX) {
+    const cu = snapshotNho.keys().next().value;
+    if (cu === void 0) break;
+    snapshotNho.delete(cu);
+  }
+  if (!snapshotBat) return;
+  try {
+    await pool.query(
+      `INSERT INTO all_data_snapshot (khoa, ver, du_lieu, cap_nhat) VALUES ($1, $2, $3, now())
+       ON CONFLICT (khoa) DO UPDATE SET ver = EXCLUDED.ver, du_lieu = EXCLUDED.du_lieu, cap_nhat = now()`,
+      [khoa, ver, buf]
+    );
+  } catch (e) {
+    if (isMissingSchema(e)) snapshotBat = false;
+    else console.error("[all-data] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
+  }
+};
+var guiGzip = (res, buf) => {
+  res.status(200).set({
+    "Content-Type": "application/json; charset=utf-8",
+    "Content-Encoding": "gzip",
+    "Content-Length": String(buf.length),
+    "Vary": "Accept-Encoding",
+    "Cache-Control": "no-store"
+  });
+  res.end(buf);
+};
 app.get("/api/all-data", async (req, res) => {
   try {
     const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
+    let snap = null;
+    if (requested.length && req.acceptsEncodings("gzip")) {
+      const all = await getVersions();
+      const gia = !requested.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+      snap = { khoa: `${requested.join(",")}|${gia ? 1 : 0}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
+      const buf2 = await docSnapshot(snap.khoa, snap.ver);
+      if (buf2) return guiGzip(res, buf2);
+    }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
     const canSeePrice = !keys.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
@@ -65092,14 +65147,8 @@ app.get("/api/all-data", async (req, res) => {
     }
     if (!req.acceptsEncodings("gzip")) return res.json(out);
     const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(",")}|${canSeePrice ? 1 : 0}`, out);
-    res.status(200).set({
-      "Content-Type": "application/json; charset=utf-8",
-      "Content-Encoding": "gzip",
-      "Content-Length": String(buf.length),
-      "Vary": "Accept-Encoding",
-      "Cache-Control": "no-store"
-    });
-    res.end(buf);
+    if (snap) await luuSnapshot(snap.khoa, JSON.stringify(requested.map((k) => versions[k] ?? "")), buf);
+    guiGzip(res, buf);
   } catch (error61) {
     console.error("L\u1ED7i khi fetch d\u1EEF li\u1EC7u:", error61);
     if (!res.headersSent) res.status(500).json({ error: "Internal Server Error" });
