@@ -155,9 +155,12 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   // điểm danh muộn thì cả tổ không bị tính trễ; sau đó (đến trễ / về sớm) = giờ hiện tại
   const [gio, setGio] = useState(() => hhmmTuPhut(lanDau || now < batDauCa + 30 * 60_000 ? phut(batDauCa) : phut(now)));
   const [lyDo, setLyDo] = useState<string>('ve_som');
+  // Đến trễ theo từng người: mã NV → giờ đến 'HH:MM' (bấm "Trễ" cạnh tên)
+  const [tre, setTre] = useState<Record<string, string>>({});
   const [them, setThem] = useState(false);
 
   const vaoMoi = [...chon].filter(m => !coMatTruoc.has(m));
+  const vaoDungGio = vaoMoi.filter(m => !tre[m]);
   const raMoi = [...coMatTruoc].filter(m => !chon.has(m));
   const doi = vaoMoi.length > 0 || raMoi.length > 0;
   const lucChon = mocTrongNgay(cv.ngay, gio);
@@ -166,9 +169,18 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   const tenMuon = ds.filter(x => x.toKhac && hop(x));
   const cuaTo = ds.filter(x => !x.toKhac && hop(x));
 
-  const bat = (m: string) => setChon(s => { const t = new Set(s); if (t.has(m)) t.delete(m); else t.add(m); return t; });
+  const bat = (m: string) => {
+    setChon(s => { const t = new Set(s); if (t.has(m)) t.delete(m); else t.add(m); return t; });
+    setTre(t => { if (!(m in t)) return t; const x = { ...t }; delete x[m]; return x; });
+  };
+  /** Bấm "Trễ": tick có mặt + giờ đến riêng (mặc định bây giờ) */
+  const datTre = (m: string) => {
+    setChon(s => new Set([...s, m]));
+    setTre(t => ({ ...t, [m]: hhmmTuPhut(phut(Math.max(now, batDauCa))) }));
+  };
+  const boTre = (m: string) => setTre(t => { const x = { ...t }; delete x[m]; return x; });
   const luu = () => {
-    const vao = vaoMoi.map(mnv => ({ mnv, luc: lucChon }));
+    const vao = vaoMoi.map(mnv => ({ mnv, luc: tre[mnv] ? mocTrongNgay(cv.ngay, tre[mnv]) : lucChon }));
     const ra = raMoi.map(mnv => {
       // Vắng (tick nhầm): rời đúng lúc vào => khoảng rỗng, không tính giờ
       const vaoLuc = cv.coMat?.[ca]?.find(x => x.mnv === mnv && x.ra === null)?.vao ?? lucChon;
@@ -180,18 +192,38 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   const dong = (c: CongNhanTo) => {
     const on = chon.has(c.mnv);
     const vao = cv.coMat?.[ca]?.find(x => x.mnv === c.mnv && x.ra === null)?.vao;
+    // Nút Trễ chỉ cho người chưa có mặt (đang điểm danh vào); người đã có mặt thì bỏ tick = ra ca
+    const coTheTre = !coMatTruoc.has(c.mnv);
+    const gioTre = tre[c.mnv];
     return (
       <li key={c.mnv}>
-        <button type="button" onClick={() => bat(c.mnv)} aria-pressed={on} aria-label={`${c.hoTen} (${c.mnv}) — ${on ? 'có mặt' : 'vắng'}`}
-          className="flex min-h-16 w-full items-center gap-3 px-4 py-2 text-left active:bg-slate-50">
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white'}`} aria-hidden>
-            {on && <Check size="1.1em" strokeWidth={3} />}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-base font-medium text-slate-900">{c.hoTen}</span>
-            <span className={CHU_PHU}>{c.mnv}{c.toKhac ? ` · mượn từ ${c.toKhac}` : ''}{vao ? ` · vào ${hhmm(vao)}` : ''}</span>
-          </span>
-        </button>
+        <div className="flex items-center gap-2 pr-3">
+          <button type="button" onClick={() => bat(c.mnv)} aria-pressed={on} aria-label={`${c.hoTen} (${c.mnv}) — ${on ? (gioTre ? `đến trễ ${gioTre}` : 'có mặt') : 'vắng'}`}
+            className="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-2 pl-4 text-left active:bg-slate-50">
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border-2 ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white'}`} aria-hidden>
+              {on && <Check size="1.1em" strokeWidth={3} />}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-base font-medium text-slate-900">{c.hoTen}</span>
+              <span className={CHU_PHU}>{c.mnv}{c.toKhac ? ` · mượn từ ${c.toKhac}` : ''}{vao ? ` · vào ${hhmm(vao)}` : ''}</span>
+            </span>
+          </button>
+          {coTheTre && (
+            <button type="button" onClick={() => (gioTre ? boTre(c.mnv) : datTre(c.mnv))} aria-pressed={!!gioTre}
+              aria-label={gioTre ? `Bỏ trễ ${c.hoTen}` : `${c.hoTen} đến trễ`}
+              className={`h-12 shrink-0 rounded-xl border px-3 text-base font-medium active:opacity-80 ${gioTre ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>
+              Trễ
+            </button>
+          )}
+        </div>
+        {gioTre && (
+          <label className="flex items-center gap-3 pb-3 pl-[3.75rem] pr-3">
+            <span className={`text-base font-medium ${MAU.ngung.chu}`}>Đến lúc</span>
+            <input type="time" value={gioTre} aria-label={`Giờ đến của ${c.hoTen}`}
+              onChange={e => e.target.value && setTre(t => ({ ...t, [c.mnv]: e.target.value }))}
+              className={`h-12 min-w-0 flex-1 rounded-xl border ${MAU.ngung.vien} bg-white px-3 text-lg tabular-nums text-slate-900`} />
+          </label>
+        )}
       </li>
     );
   };
@@ -244,11 +276,11 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
               }} />
           : <button type="button" className={`${NUT_PHU} w-full`} onClick={() => setThem(true)}><UserPlus size="1.1em" aria-hidden /> Thêm người / mượn người tổ khác</button>}
 
-        {(vaoMoi.length > 0 || raMoi.length > 0) && (
+        {(vaoDungGio.length > 0 || raMoi.length > 0) && (
           <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3">
             <label className="flex items-center justify-between gap-3">
               <span className="text-base font-medium text-slate-800">
-                {vaoMoi.length > 0 && raMoi.length === 0 ? `Giờ vào (${vaoMoi.length} người)` : raMoi.length > 0 && vaoMoi.length === 0 ? `Giờ ra (${raMoi.length} người)` : 'Giờ vào / ra'}
+                {vaoDungGio.length > 0 && raMoi.length === 0 ? `Giờ vào (${vaoDungGio.length} người)` : raMoi.length > 0 && vaoDungGio.length === 0 ? `Giờ ra (${raMoi.length} người)` : 'Giờ vào / ra'}
               </span>
               <input type="time" value={gio} onChange={e => e.target.value && setGio(e.target.value)} aria-label="Giờ vào / ra"
                 className="h-14 rounded-2xl border border-slate-300 bg-white px-3 text-lg tabular-nums text-slate-900" />
@@ -261,7 +293,7 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
                 ))}
               </div>
             )}
-            {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bỏ tick, lưu, rồi khi người đó tới thì mở lại điểm danh, tick kèm giờ đến.</p>}
+            {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bấm <b>Trễ</b> cạnh tên và chỉnh giờ đến.</p>}
           </div>
         )}
 
