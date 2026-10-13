@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScanLine, ChevronDown, MoreHorizontal, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users } from 'lucide-react';
-import { BG, Toast, MobileLogin } from '../mobileUi';
+import { BG, Toast } from '../mobileUi';
+import DangNhapXuong from './DangNhapXuong';
 import { getToken } from '../../../services/userService';
 import { useAuth } from '../../../context/AuthContext';
 import TrienKhaiGon from './TrienKhaiGon';
@@ -385,14 +386,11 @@ export default function XuongApp({ moTo, onTongQuan }: {
   // ---------- Màn chặn ----------
   if (canDangNhap) {
     return (
-      <div className={`min-h-full ${BG}`}>
-        {hangDoi.soCho > 0 && (
-          <p className={`mx-4 mt-[calc(env(safe-area-inset-top)+12px)] rounded-2xl ${MAU.ngung.nen} p-3 text-base font-medium ${MAU.ngung.chu}`} role="alert">
-            Còn {hangDoi.soCho} thao tác chưa gửi — đăng nhập để gửi. Các thao tác vẫn giữ trên máy.
-          </p>
-        )}
-        <MobileLogin tieuDe="Xưởng" bieuTuong="🏭" onSuccess={() => { setCanDangNhap(false); }} />
-      </div>
+      <DangNhapXuong onSuccess={() => { setCanDangNhap(false); }} ghiChu={hangDoi.soCho > 0 && (
+        <p className={`rounded-2xl ${MAU.ngung.nen} p-3 text-base font-medium ${MAU.ngung.chu}`} role="alert">
+          Còn {hangDoi.soCho} thao tác chưa gửi — đăng nhập để gửi. Các thao tác vẫn giữ trên máy.
+        </p>
+      )} />
     );
   }
   if (dangKy === 'dang' && !phien) {

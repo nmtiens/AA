@@ -12,6 +12,11 @@ import { isPushEnabled, sendToUsers } from '../vuongMacPush.js';
 // ============================================================================
 
 const me = (req: Request) => String(req.user!.id);
+// App Vướng mắc và app Xưởng là 2 app riêng: hộp thông báo mặc định (app Vướng mắc) KHÔNG gồm thông báo Xưởng
+// (kind 'xuong_…'); ?app=xuong (hoặc body.app) thì chỉ lấy thông báo Xưởng. Thông báo đẩy vẫn mở đúng app theo url.
+const laXuong = (v: unknown) => v === 'xuong';
+// LIKE 'xuong\_%': '\_' = dấu gạch dưới thật (không phải ký tự đại diện)
+const DK_APP = "(kind LIKE 'xuong\\_%') = $";
 
 // Danh sách (mới nhất trước), phân trang bằng `before` = id thông báo cuối của trang trước
 app.get('/api/notifications', async (req: Request, res: Response) => {
@@ -22,11 +27,11 @@ app.get('/api/notifications', async (req: Request, res: Response) => {
       pool.query(
         `SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
          FROM notifications
-         WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2)
+         WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2) AND ${DK_APP}4
          ORDER BY id DESC LIMIT $3`,
-        [me(req), before, limit + 1]
+        [me(req), before, limit + 1, laXuong(req.query.app)]
       ),
-      pool.query('SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL', [me(req)]),
+      pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}2`, [me(req), laXuong(req.query.app)]),
     ]);
     const rows = list.rows.slice(0, limit);
     res.json({
@@ -49,7 +54,7 @@ app.get('/api/notifications', async (req: Request, res: Response) => {
 
 app.get('/api/notifications/unread-count', async (req: Request, res: Response) => {
   try {
-    const r = await pool.query('SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL', [me(req)]);
+    const r = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}2`, [me(req), laXuong(req.query.app)]);
     res.json({ success: true, available: true, unread: r.rows[0].n });
   } catch (e) {
     if (isMissingSchema(e)) return res.json({ success: true, available: false, unread: 0 });
@@ -59,15 +64,16 @@ app.get('/api/notifications/unread-count', async (req: Request, res: Response) =
 });
 
 // Đánh dấu đã đọc: có `ids` => các thông báo đó; không có => tất cả
-const readSchema = z.object({ ids: z.array(z.number().int().positive()).max(500).optional() });
+const readSchema = z.object({ ids: z.array(z.number().int().positive()).max(500).optional(), app: z.enum(['xuong', 'vuong-mac']).optional() });
 app.post('/api/notifications/read', validateBody(readSchema), async (req: Request, res: Response) => {
   try {
     const ids: number[] | undefined = req.body.ids;
     if (ids && ids.length === 0) return res.json({ success: true });
     await pool.query(
       `UPDATE notifications SET read_at = now()
-       WHERE user_id = $1 AND read_at IS NULL AND ($2::bigint[] IS NULL OR id = ANY($2::bigint[]))`,
-      [me(req), ids ?? null]
+       WHERE user_id = $1 AND read_at IS NULL AND ($2::bigint[] IS NULL OR id = ANY($2::bigint[]))
+         AND ($2::bigint[] IS NOT NULL OR ${DK_APP}3)`,
+      [me(req), ids ?? null, laXuong(req.body.app)]
     );
     res.json({ success: true });
   } catch (e) {

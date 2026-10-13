@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from
 import { ClipboardList, LayoutGrid, Search, Settings2, UserRound, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { getToken } from '../../../services/userService';
-import { BG, MobileLogin, Toast } from '../mobileUi';
+import { BG, Toast } from '../mobileUi';
+import DangNhapXuong from './DangNhapXuong';
 import XuongApp, { type ToMo } from './XuongApp';
 
 // ============================================================================
@@ -70,7 +71,7 @@ export default function XuongShell() {
   }, [sizeIdx]);
 
   if (!daDangNhap) {
-    return <div className="fixed inset-0 overflow-y-auto"><MobileLogin tieuDe="Xưởng" bieuTuong="🏭" onSuccess={() => setDaDangNhap(true)} /></div>;
+    return <div className="fixed inset-0 overflow-y-auto"><DangNhapXuong onSuccess={() => setDaDangNhap(true)} /></div>;
   }
 
   const ten = user?.fullName || user?.username || '';
@@ -101,7 +102,6 @@ export default function XuongShell() {
           ))}
         </nav>
         <div className="mt-auto space-y-1 border-t border-slate-100 p-3 text-sm">
-          <a href="/m/" className="block rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">App Vướng mắc</a>
           <a href="/" className="block rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-100">Operations Hub (máy tính)</a>
         </div>
       </aside>

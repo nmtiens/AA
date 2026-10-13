@@ -69625,6 +69625,8 @@ app.post("/api/vuong-mac/hex-bulk", authenticateJWT, async (req, res) => {
 
 // src/routes/notifications.ts
 var me = (req) => String(req.user.id);
+var laXuong = (v) => v === "xuong";
+var DK_APP = "(kind LIKE 'xuong\\_%') = $";
 app.get("/api/notifications", async (req, res) => {
   try {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 30));
@@ -69633,11 +69635,11 @@ app.get("/api/notifications", async (req, res) => {
       pool.query(
         `SELECT id, kind, title, body, vuong_mac_id, hex, actor, created_at, read_at
          FROM notifications
-         WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2)
+         WHERE user_id = $1 AND ($2::bigint IS NULL OR id < $2) AND ${DK_APP}4
          ORDER BY id DESC LIMIT $3`,
-        [me(req), before, limit + 1]
+        [me(req), before, limit + 1, laXuong(req.query.app)]
       ),
-      pool.query("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL", [me(req)])
+      pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}2`, [me(req), laXuong(req.query.app)])
     ]);
     const rows = list.rows.slice(0, limit);
     res.json({
@@ -69665,7 +69667,7 @@ app.get("/api/notifications", async (req, res) => {
 });
 app.get("/api/notifications/unread-count", async (req, res) => {
   try {
-    const r = await pool.query("SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL", [me(req)]);
+    const r = await pool.query(`SELECT COUNT(*)::int AS n FROM notifications WHERE user_id = $1 AND read_at IS NULL AND ${DK_APP}2`, [me(req), laXuong(req.query.app)]);
     res.json({ success: true, available: true, unread: r.rows[0].n });
   } catch (e) {
     if (isMissingSchema(e)) return res.json({ success: true, available: false, unread: 0 });
@@ -69673,15 +69675,16 @@ app.get("/api/notifications/unread-count", async (req, res) => {
     res.status(500).json({ success: false, message: "L\u1ED7i h\u1EC7 th\u1ED1ng" });
   }
 });
-var readSchema = external_exports.object({ ids: external_exports.array(external_exports.number().int().positive()).max(500).optional() });
+var readSchema = external_exports.object({ ids: external_exports.array(external_exports.number().int().positive()).max(500).optional(), app: external_exports.enum(["xuong", "vuong-mac"]).optional() });
 app.post("/api/notifications/read", validateBody(readSchema), async (req, res) => {
   try {
     const ids = req.body.ids;
     if (ids && ids.length === 0) return res.json({ success: true });
     await pool.query(
       `UPDATE notifications SET read_at = now()
-       WHERE user_id = $1 AND read_at IS NULL AND ($2::bigint[] IS NULL OR id = ANY($2::bigint[]))`,
-      [me(req), ids ?? null]
+       WHERE user_id = $1 AND read_at IS NULL AND ($2::bigint[] IS NULL OR id = ANY($2::bigint[]))
+         AND ($2::bigint[] IS NOT NULL OR ${DK_APP}3)`,
+      [me(req), ids ?? null, laXuong(req.body.app)]
     );
     res.json({ success: true });
   } catch (e) {
