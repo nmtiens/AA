@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScanLine, ChevronDown, MoreHorizontal, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { ScanLine, ChevronDown, RefreshCw, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users } from 'lucide-react';
 import { BG, Toast } from '../mobileUi';
 import DangNhapXuong from './DangNhapXuong';
 import { getToken } from '../../../services/userService';
@@ -21,7 +21,7 @@ import { DiemDanhSheet, type KetQuaDiemDanh } from './DiemDanh';
 import type { CongNhanTo } from '../../../services/xuongModel';
 import {
   QuanSoSheet, BatDauSheet, TamNgungSheet, GiaoSheet, NhanSheet, TangCaSheet, XacNhanSheet, ChiaNguoiSheet, LichSuSheet, GoMaSheet,
-  ChonToSheet, MenuSheet, type NhanKetQua, type XacNhanDong, type AnhChup,
+  ChonToSheet, ThanhViec, type NhanKetQua, type XacNhanDong, type AnhChup,
 } from './XuongSheets';
 import { NUT_CHINH, NUT_DONG, NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 
@@ -39,7 +39,7 @@ type Sheet =
   | { loai: 'nhan'; hex: string; ten: string | null }
   | { loai: 'hex'; hex: string }
   | { loai: 'tangCa' } | { loai: 'xacNhan' } | { loai: 'chiaNguoi' } | { loai: 'lichSu' }
-  | { loai: 'goMa' } | { loai: 'quet' } | { loai: 'chonTo' } | { loai: 'menu' }
+  | { loai: 'goMa' } | { loai: 'quet' } | { loai: 'chonTo' }
   | { loai: 'trienKhai'; hex: string | null }
   | { loai: 'batDau'; r: DongViec; suKien: 'bat_dau' | 'tiep_tuc'; quanSo: number | null }
   | { loai: 'diemDanh'; ca: LoaiCa; sau?: { nhan: string; chay: (quanSoMoi?: number) => void } };
@@ -568,8 +568,9 @@ export default function XuongApp({ moTo, onTongQuan }: {
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
-            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Việc khác" onClick={() => setSheet({ loai: 'menu' })}>
-              <MoreHorizontal size="1.5em" />
+            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Làm mới" title="Làm mới"
+              onClick={() => { gui(); taiCv(); taiDm(); flash('Đang làm mới'); }}>
+              <RefreshCw size="1.4em" />
             </button>
           </div>
         </div>
@@ -638,6 +639,19 @@ export default function XuongApp({ moTo, onTongQuan }: {
           </div>
         )}
 
+        {cv && (
+          <ThanhViec muc={[
+            // Chia người: sửa số người / người từng hạng mục bất cứ lúc nào
+            ...(typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }) }] : []),
+            // Không điểm danh tên: nút chốt quân số (điểm danh tên đã có ô riêng ở trên)
+            ...(ca && !cv.chamCong ? [{ ten: `Quân số ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'quanSo', ca }),
+              phu: typeof quanSo === 'number' ? `${quanSo} người` : 'chưa chốt', noi: typeof quanSo !== 'number' }] : []),
+            { ten: 'Tăng ca', icon: 'tangca' as const, onClick: () => setSheet({ loai: 'tangCa' }), phu: cv.tangCa.length ? cv.tangCa.map(l => TEN_CA[l]).join(', ') : undefined },
+            { ten: 'Cuối ngày', icon: 'xacnhan' as const, onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv.daXacNhanHomNay ? '✓' : undefined },
+            { ten: 'Lịch sử', icon: 'lichsu' as const, onClick: () => setSheet({ loai: 'lichSu' }) },
+            ...(laQuanLy ? [{ ten: 'Triển khai', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),
+          ]} />
+        )}
       </header>
 
       {/* Tầng giữa: 3 tab có số — dính trên cùng khi cuộn */}
@@ -743,23 +757,6 @@ export default function XuongApp({ moTo, onTongQuan }: {
       {sheet?.loai === 'chiaNguoi' && <ChiaNguoiSheet dangChay={nhom.dangChay} quanSo={quanSo ?? 0} cv={cv} ca={ca} now={now} onLuu={chiaNguoi} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'lichSu' && toId && <LichSuSheet toId={toId} onHuy={async (id, moTa) => { await huy([id], moTa); }} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'chonTo' && phien && <ChonToSheet ds={phien.to} toId={toId} onChon={id => { setToId(id); setSheet(null); setHienRanh(false); }} onClose={() => setSheet(null)} />}
-      {sheet?.loai === 'menu' && (
-        <MenuSheet onClose={() => setSheet(null)} muc={[
-          { ten: 'Lịch sử hôm nay', icon: 'lichsu', onClick: () => setSheet({ loai: 'lichSu' }) },
-          { ten: 'Khai tăng ca', icon: 'tangca', onClick: () => setSheet({ loai: 'tangCa' }), phu: cv?.tangCa.length ? cv.tangCa.map(l => TEN_CA[l]).join(', ') : undefined },
-          { ten: 'Xác nhận cuối ngày', icon: 'xacnhan', onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv?.daXacNhanHomNay ? 'Đã xác nhận' : undefined },
-          ...(ca ? [cv?.chamCong
-            ? { ten: `Điểm danh ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'diemDanh', ca }),
-                phu: daDiemDanh(cv, ca) ? `${coMatLuc(cv, ca, now).length} có mặt` : 'Chưa điểm danh' }
-            : { ten: `Chốt quân số ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'quanSo', ca }), phu: typeof quanSo === 'number' ? `${quanSo} người` : 'Chưa chốt' }] : []),
-          // Sửa số người từng hạng mục bất cứ lúc nào (dải vàng chỉ hiện khi còn người rảnh / hạng mục chưa có người)
-          ...(typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người cho hạng mục', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }),
-            phu: `${nhom.dangChay.length} hạng mục đang chạy` }] : []),
-          ...(laQuanLy ? [{ ten: 'Triển khai hạng mục', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),
-          ...(laToNgoai && phien?.to.length ? [{ ten: 'Về tổ của tôi', icon: 'thoat' as const, onClick: () => { setSheet(null); veToCuaToi(); } }] : []),
-          { ten: 'Làm mới', icon: 'lammoi', onClick: () => { setSheet(null); gui(); taiCv(); taiDm(); } },
-        ]} />
-      )}
       {sheetTrienKhai}
       <Toast text={toast} />
     </div>

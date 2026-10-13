@@ -196,7 +196,7 @@ html { scroll-behavior: smooth; }
     <h2>Màn hình Tổ</h2>
     <p class="mo">Mở app là vào thẳng màn của tổ. Từ trên xuống:</p>
     <div class="man">
-      <div><b>Tên tổ</b><span>Phụ trách nhiều tổ thì bấm vào tên để đổi tổ. Nút <span class="nut phu">⋯</span> mở <b>Việc khác</b>: Lịch sử hôm nay, Khai tăng ca, Xác nhận cuối ngày, Điểm danh, Chia người cho hạng mục, Làm mới.</span></div>
+      <div><b>Tên tổ</b><span>Phụ trách nhiều tổ thì bấm vào tên để đổi tổ. Nút tròn góc phải là <b>Làm mới</b>. Ngay dưới đầu màn là hàng nút việc của tổ: <b>Chia người</b>, <b>Tăng ca</b>, <b>Cuối ngày</b> (xác nhận cuối ngày), <b>Lịch sử</b>.</span></div>
       <div><b>Trạng thái gửi</b><span><b>Đã gửi hết</b>, <b>Đang gửi 2 thao tác</b> hoặc <b>Mất sóng · 3 thao tác chờ gửi</b>.</span></div>
       <div><b>Thẻ nhắc</b><span>Thẻ đỏ <b>Chưa điểm danh ca chính</b>. Điểm danh xong thì thành dòng <b>"18 có mặt"</b> (chạm để mở lại điểm danh), cạnh đó nút vàng <b>"2 chưa gắn việc"</b> mở thẳng Chia người. Thẻ vàng <b>Xác nhận cuối ngày</b> từ 15h30.</span></div>
       <div><b>3 tab</b><span><b>Chờ nhận</b>: hàng giao tới tổ, chưa nhận. <b>Đang làm</b>: Đang chạy · Tạm ngưng · Chưa bắt đầu. <b>Chờ giao</b>: đã xong, chưa giao đi.</span></div>
@@ -276,7 +276,7 @@ html { scroll-behavior: smooth; }
         <div class="noi">
           <p class="khi">Nếu tổ làm tăng ca</p>
           <h3>Khai tăng ca</h3>
-          <p><span class="nut phu">⋯</span> → <b>Khai tăng ca</b>: chọn ca (Ca 1–Ca 4, Chủ nhật), <b>chạm tên những người ở lại tăng ca</b>, bỏ chọn hạng mục không làm tăng ca. Chỉ người được chọn mới được tính giờ tăng ca.</p>
+          <p>Nút <span class="nut phu">Tăng ca</span>: chọn ca (Ca 1–Ca 4, Chủ nhật), <b>chạm tên những người ở lại tăng ca</b>, bỏ chọn hạng mục không làm tăng ca. Chỉ người được chọn mới được tính giờ tăng ca.</p>
         </div>
       </div>
 
@@ -310,7 +310,7 @@ html { scroll-behavior: smooth; }
 
   <section id="diem-danh">
     <h2>Điểm danh trong ca</h2>
-    <p class="mo">Mở lại điểm danh bất cứ lúc nào: chạm dòng <b>"… có mặt"</b> ở đầu màn, hoặc <span class="nut phu">⋯</span> → <b>Điểm danh</b>.</p>
+    <p class="mo">Mở lại điểm danh bất cứ lúc nào: chạm dòng <b>"… có mặt"</b> ở đầu màn, nút <b>Điểm danh</b> ở cùng dòng.</p>
     <div class="bang-boc">
       <table>
         <thead><tr><th>Khi</th><th>Làm</th></tr></thead>
@@ -345,7 +345,7 @@ html { scroll-behavior: smooth; }
         <li><span class="nut phu">Chia đều</span>: chia người rảnh cho hạng mục đang ít người nhất, giữ nguyên người đã gắn.</li>
         <li><span class="nut phu">Chọn</span>: chạm tên để gắn từng người vào từng hạng mục.</li>
       </ul>
-      <p>Người chuyển từ hạng mục này sang hạng mục khác giữa chừng, hoặc khai sai: <span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b> để sửa số người bất cứ lúc nào.</p>
+      <p>Người chuyển từ hạng mục này sang hạng mục khác giữa chừng, hoặc khai sai: nút <span class="nut phu">Chia người</span> để sửa số người bất cứ lúc nào.</p>
     </div>
   </section>
 
@@ -355,7 +355,7 @@ html { scroll-behavior: smooth; }
       <h3>Bấm nhầm</h3>
       <ul class="ds">
         <li>Sau mỗi thao tác, dải đen <b>"Đã ghi: …"</b> hiện 10 giây với nút <b>Hoàn tác</b>.</li>
-        <li>Quá 10 giây: <span class="nut phu">⋯</span> → <b>Lịch sử hôm nay</b> → <b>Huỷ</b> ở thao tác nhầm. Người bấm huỷ được trong 24 giờ.</li>
+        <li>Quá 10 giây: nút <span class="nut phu">Lịch sử</span> → <b>Huỷ</b> ở thao tác nhầm. Người bấm huỷ được trong 24 giờ.</li>
         <li>Quá 24 giờ: báo quản lý xưởng huỷ giúp.</li>
       </ul>
     </div>
@@ -397,7 +397,7 @@ html { scroll-behavior: smooth; }
       </details>
       <details>
         <summary>Chọn sai người khi bắt đầu?</summary>
-        <p><span class="nut phu">⋯</span> → <b>Chia người cho hạng mục</b>, chạm tên để gắn lại cho đúng rồi bấm <b>Lưu</b>.</p>
+        <p>Nút <span class="nut phu">Chia người</span>: chọn hạng mục ở trên, chạm tên để gắn lại cho đúng rồi bấm <b>Lưu</b>.</p>
       </details>
       <details>
         <summary>Tổ chưa có danh sách công nhân?</summary>

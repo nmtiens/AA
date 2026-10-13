@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   PackageX, FileClock, AlertOctagon, Zap, Megaphone, MoreHorizontal, Minus, Plus, ChevronRight,
-  History, Moon, ClipboardCheck, Users, RefreshCw, LogOut, Rocket, Camera, Image as ImageIcon, Search as SearchIcon,
+  History, Moon, ClipboardCheck, Users, Rocket, Camera, Image as ImageIcon, Search as SearchIcon,
 } from 'lucide-react';
 import { BottomSheet } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
@@ -843,28 +843,27 @@ export function ChonToSheet({ ds, toId, onChon, onClose }: {
   );
 }
 
-export function MenuSheet({ muc, onClose }: {
-  muc: Array<{ ten: string; icon: 'lichsu' | 'tangca' | 'xacnhan' | 'quanso' | 'lammoi' | 'thoat' | 'trienkhai'; onClick: () => void; phu?: string }>;
-  onClose: () => void;
+/**
+ * Thanh việc của tổ — các việc trước nằm trong menu "⋯ Việc khác" nay hiện thẳng ra ngoài:
+ * hiện đủ hết (tự xuống hàng), không phải vuốt hay mở menu.
+ */
+export function ThanhViec({ muc }: {
+  muc: Array<{ ten: string; icon: 'lichsu' | 'tangca' | 'xacnhan' | 'quanso' | 'trienkhai'; onClick: () => void; phu?: string; noi?: boolean }>;
 }) {
   const ICON: Record<string, ReactNode> = {
-    lichsu: <History size="1.25em" />, tangca: <Moon size="1.25em" />, xacnhan: <ClipboardCheck size="1.25em" />,
-    quanso: <Users size="1.25em" />, lammoi: <RefreshCw size="1.25em" />, thoat: <LogOut size="1.25em" />,
-    trienkhai: <Rocket size="1.25em" />,
+    lichsu: <History size="1.1em" />, tangca: <Moon size="1.1em" />, xacnhan: <ClipboardCheck size="1.1em" />,
+    quanso: <Users size="1.1em" />, trienkhai: <Rocket size="1.1em" />,
   };
   return (
-    <BottomSheet title="Việc khác" onClose={onClose}>
-      <ul className={`${KHOI} ${KE} mb-2 border border-slate-200`}>
-        {muc.map(m => (
-          <li key={m.ten}>
-            <button className="flex min-h-14 w-full items-center gap-3 px-4 text-left text-base text-slate-900 active:bg-slate-50" onClick={m.onClick}>
-              <span className="text-slate-700" aria-hidden>{ICON[m.icon]}</span>
-              <span className="flex-1">{m.ten}</span>
-              {m.phu && <span className="text-slate-600">{m.phu}</span>}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </BottomSheet>
+    <nav aria-label="Việc của tổ" className="grid grid-cols-3 gap-2 rmd:flex rmd:flex-wrap">
+      {muc.map(m => (
+        <button key={m.ten} type="button" onClick={m.onClick}
+          className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border px-1 py-1.5 text-sm leading-tight rmd:min-h-11 rmd:flex-row rmd:gap-1.5 rmd:whitespace-nowrap rmd:px-3 rmd:text-base active:opacity-80 ${
+            m.noi ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} font-medium` : 'border-slate-200 bg-white text-slate-800'}`}>
+          <span className={m.noi ? '' : 'text-slate-600'} aria-hidden>{ICON[m.icon]}</span>
+          <span className="max-w-full truncate text-center">{m.ten}{m.phu && <span className={m.noi ? '' : 'text-slate-500'}> · {m.phu}</span>}</span>
+        </button>
+      ))}
+    </nav>
   );
 }
