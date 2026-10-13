@@ -1,7 +1,7 @@
 // Đổi tên cache mỗi khi thay đổi cách cache: bước 'activate' bên dưới sẽ xoá mọi
 // cache cũ (kể cả cache của Workbox/vite-plugin-pwa từ các bản build trước).
-const CACHE = 'ops-hub-shell-v3';
-const SHELL = ['/', '/m/', '/index.html'];
+const CACHE = 'ops-hub-shell-v4';
+const SHELL = ['/', '/m/', '/xuong', '/index.html'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,7 +32,7 @@ self.addEventListener('fetch', (event) => {
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req).catch(() =>
-        caches.match(url.pathname.startsWith('/m') ? '/m/' : '/').then((r) => r || caches.match('/index.html'))
+        caches.match(/^\/(m\/)?xuong(\/|$)/.test(url.pathname) ? '/xuong' : url.pathname.startsWith('/m') ? '/m/' : '/').then((r) => r || caches.match('/index.html'))
       )
     );
     return;

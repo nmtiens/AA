@@ -38,8 +38,9 @@
       "dest": "frontend/manifest-desktop.webmanifest"
     },
 
+    { "src": "/xuong(?:/.*)?", "dest": "frontend/xuong.html" },
+    { "src": "/m/xuong(?:/.*)?", "dest": "frontend/xuong.html" },
     { "src": "/m(?:/.*)?", "dest": "frontend/index.html" },
-    { "src": "/xuong(?:/.*)?", "dest": "frontend/index.html" },
 
     { "src": "/(.*)", "dest": "frontend/$1" }
   ]
