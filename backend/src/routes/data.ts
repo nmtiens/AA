@@ -73,18 +73,20 @@ const getAllDataGzip = (vkey: string, gzKey: string, out: Record<string, unknown
 let snapshotBat = true;
 const snapshotNho = new Map<string, { ver: string; buf: Buffer }>();
 
-const docSnapshot = async (khoa: string, ver: string): Promise<Buffer | null> => {
+const docSnapshot = async (khoa: string, ver: string, nguon: { v: string }): Promise<Buffer | null> => {
   const nho = snapshotNho.get(khoa);
-  if (nho && nho.ver === ver) return nho.buf;
-  if (!snapshotBat) return null;
+  if (nho && nho.ver === ver) { nguon.v = 'mem'; return nho.buf; }
+  if (!snapshotBat) { nguon.v = 'off'; return null; }
   try {
     const r = await pool.query('SELECT du_lieu FROM all_data_snapshot WHERE khoa = $1 AND ver = $2', [khoa, ver]);
     const buf: Buffer | undefined = r.rows[0]?.du_lieu;
-    if (!buf) return null;
+    if (!buf) { nguon.v = 'miss'; return null; }
     snapshotNho.set(khoa, { ver, buf });
+    nguon.v = 'db';
     return buf;
   } catch (e) {
     if (isMissingSchema(e)) snapshotBat = false; else console.error('[all-data] đọc bản nén lỗi', e);
+    nguon.v = 'err';
     return null;
   }
 };
@@ -107,7 +109,8 @@ const luuSnapshot = async (khoa: string, ver: string, buf: Buffer) => {
   }
 };
 
-const guiGzip = (res: Response, buf: Buffer) => {
+const guiGzip = (res: Response, buf: Buffer, timing?: string) => {
+  if (timing) res.set('Server-Timing', timing);
   res.status(200).set({
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Encoding': 'gzip',
@@ -125,13 +128,19 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     // (getTablesData, cache theo phiên bản từng bảng). Không truyền => nạp / trả đủ 12 bảng như cũ.
     const requested = String(req.query.tables || '').split(',').map(s => s.trim()).filter(Boolean);
     // Bản nén sẵn (trước khi nạp bảng từ DB — phần chậm): chỉ khi client xin bộ bảng cụ thể và nhận gzip
+    // Server-Timing (xem trong DevTools / đo tải): bản nén lấy từ đâu (mem | db | miss | off | err) và mất bao lâu
+    const t0 = Date.now();
+    const nguon = { v: 'none' };
+    let tDoc = 0;
     let snap: { khoa: string; ver: string } | null = null;
     if (requested.length && req.acceptsEncodings('gzip')) {
       const all = await getVersions();
       const gia = !requested.includes('material') || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
       snap = { khoa: `${requested.join(',')}|${gia ? 1 : 0}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
-      const buf = await docSnapshot(snap.khoa, snap.ver);
-      if (buf) return guiGzip(res, buf);
+      const t1 = Date.now();
+      const buf = await docSnapshot(snap.khoa, snap.ver, nguon);
+      tDoc = Date.now() - t1;
+      if (buf) return guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`);
     }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
@@ -148,8 +157,9 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
 
     const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(',')}|${canSeePrice ? 1 : 0}`, out);
     // Lưu bản nén theo đúng phiên bản đã dùng để nén (versions lấy cùng lượt với dữ liệu)
+    const tLuu = Date.now();
     if (snap) await luuSnapshot(snap.khoa, JSON.stringify(requested.map(k => versions[k] ?? '')), buf);
-    guiGzip(res, buf);
+    guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
   } catch (error) {
     console.error('Lỗi khi fetch dữ liệu:', error);
     if (!res.headersSent) res.status(500).json({ error: 'Internal Server Error' });

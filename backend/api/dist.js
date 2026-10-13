@@ -65081,19 +65081,30 @@ var getAllDataGzip = (vkey, gzKey, out) => {
 };
 var snapshotBat = true;
 var snapshotNho = /* @__PURE__ */ new Map();
-var docSnapshot = async (khoa, ver) => {
+var docSnapshot = async (khoa, ver, nguon) => {
   const nho = snapshotNho.get(khoa);
-  if (nho && nho.ver === ver) return nho.buf;
-  if (!snapshotBat) return null;
+  if (nho && nho.ver === ver) {
+    nguon.v = "mem";
+    return nho.buf;
+  }
+  if (!snapshotBat) {
+    nguon.v = "off";
+    return null;
+  }
   try {
     const r = await pool.query("SELECT du_lieu FROM all_data_snapshot WHERE khoa = $1 AND ver = $2", [khoa, ver]);
     const buf = r.rows[0]?.du_lieu;
-    if (!buf) return null;
+    if (!buf) {
+      nguon.v = "miss";
+      return null;
+    }
     snapshotNho.set(khoa, { ver, buf });
+    nguon.v = "db";
     return buf;
   } catch (e) {
     if (isMissingSchema(e)) snapshotBat = false;
     else console.error("[all-data] \u0111\u1ECDc b\u1EA3n n\xE9n l\u1ED7i", e);
+    nguon.v = "err";
     return null;
   }
 };
@@ -65116,7 +65127,8 @@ var luuSnapshot = async (khoa, ver, buf) => {
     else console.error("[all-data] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
   }
 };
-var guiGzip = (res, buf) => {
+var guiGzip = (res, buf, timing) => {
+  if (timing) res.set("Server-Timing", timing);
   res.status(200).set({
     "Content-Type": "application/json; charset=utf-8",
     "Content-Encoding": "gzip",
@@ -65129,13 +65141,18 @@ var guiGzip = (res, buf) => {
 app.get("/api/all-data", async (req, res) => {
   try {
     const requested = String(req.query.tables || "").split(",").map((s) => s.trim()).filter(Boolean);
+    const t0 = Date.now();
+    const nguon = { v: "none" };
+    let tDoc = 0;
     let snap = null;
     if (requested.length && req.acceptsEncodings("gzip")) {
       const all = await getVersions();
       const gia = !requested.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
       snap = { khoa: `${requested.join(",")}|${gia ? 1 : 0}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
-      const buf2 = await docSnapshot(snap.khoa, snap.ver);
-      if (buf2) return guiGzip(res, buf2);
+      const t1 = Date.now();
+      const buf2 = await docSnapshot(snap.khoa, snap.ver, nguon);
+      tDoc = Date.now() - t1;
+      if (buf2) return guiGzip(res, buf2, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`);
     }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
@@ -65147,8 +65164,9 @@ app.get("/api/all-data", async (req, res) => {
     }
     if (!req.acceptsEncodings("gzip")) return res.json(out);
     const buf = await getAllDataGzip(JSON.stringify(versions), `${Object.keys(out).join(",")}|${canSeePrice ? 1 : 0}`, out);
+    const tLuu = Date.now();
     if (snap) await luuSnapshot(snap.khoa, JSON.stringify(requested.map((k) => versions[k] ?? "")), buf);
-    guiGzip(res, buf);
+    guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
   } catch (error61) {
     console.error("L\u1ED7i khi fetch d\u1EEF li\u1EC7u:", error61);
     if (!res.headersSent) res.status(500).json({ error: "Internal Server Error" });
