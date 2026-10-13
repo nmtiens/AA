@@ -55,6 +55,7 @@ describe('phanBoGioCong', () => {
     // Số người khai: A 3 người cả ca, B 2 người 2 giờ
     assert.equal(kq.theoHangMuc.A.gioNguoiKhai, H(3 * 7.25));
     assert.equal(kq.theoHangMuc.A.soNguoiMax, 3);
+    assert.equal(kq.theoHangMuc.A.soNguoiMin, 3);
     assert.equal(kq.theoHangMuc.B.gioNguoiKhai, 4);
   });
 

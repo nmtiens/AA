@@ -101,8 +101,9 @@ export interface KetQuaHangMuc {
   gioChay: number; gioCongThuong: number; gioCongTangCa: number; co: string[];
   /** Giờ người theo số người KHAI (trước khi co theo quân số) — số người bình quân = gioNguoiKhai / gioChay */
   gioNguoiKhai: number;
-  /** Số người khai nhiều nhất trong lúc chạy */
+  /** Số người khai nhiều nhất / ít nhất trong lúc chạy (0 = chưa chạy) */
   soNguoiMax: number;
+  soNguoiMin: number;
 }
 export interface KetQuaPhanBo {
   theoHangMuc: Record<string, KetQuaHangMuc>;
@@ -138,7 +139,7 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     input.doanChay[key].some(d => d.start <= t && t < (d.end ?? input.now));
 
   const out: Record<string, KetQuaHangMuc> = {};
-  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, gioNguoiKhai: 0, soNguoiMax: 0, co: chuaXn.has(k) ? ['chua_xac_nhan'] : [] };
+  for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, gioNguoiKhai: 0, soNguoiMax: 0, soNguoiMin: 0, co: chuaXn.has(k) ? ['chua_xac_nhan'] : [] };
   const coTo = new Set<string>();
   const gioCho = { thuong: 0, tangCa: 0 };
   const gioNguoiTo = { thuong: 0, tangCa: 0 };
@@ -187,7 +188,11 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       for (const k of chay) out[k].gioChay += gio;
 
       const khai = chay.map(k => [k, soNguoiLuc(k, s)] as const);
-      for (const [k, n] of khai) { out[k].gioNguoiKhai += n * gio; if (n > out[k].soNguoiMax) out[k].soNguoiMax = n; }
+      for (const [k, n] of khai) {
+        out[k].gioNguoiKhai += n * gio;
+        if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
+        if (n > 0 && (out[k].soNguoiMin === 0 || n < out[k].soNguoiMin)) out[k].soNguoiMin = n;
+      }
       const tongKhai = khai.reduce((a, [, n]) => a + n, 0);
       const cong = (k: string, h: number) => {
         if (laTangCa) out[k].gioCongTangCa += h; else out[k].gioCongThuong += h;

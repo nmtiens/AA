@@ -134,7 +134,7 @@ function ChiTietNgay({ n }: { n: BaoCaoToNgay }) {
                   {h.dangChay && <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700">Đang chạy</span>}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {h.tenCongDoan} · {h.gioChay > 0 && h.gioNguoiKhai > 0 ? `${moTaNguoi(h.gioNguoiKhai / h.gioChay, h.soNguoiMax)} người × ` : 'chạy '}{thoiGian(h.gioChay)}
+                  {h.tenCongDoan} · {h.gioChay > 0 && h.gioNguoiKhai > 0 ? `${moTaNguoi(h.soNguoiMin, h.soNguoiMax)} người × ` : 'chạy '}{thoiGian(h.gioChay)}
                 </p>
               </div>
               <div className="shrink-0 text-right tabular-nums">
@@ -436,14 +436,13 @@ function gioTrenDv(h: BaoCaoHangMuc): number | null {
   if (!cds.length || cds.some(c => c.slXong <= 0)) return null;
   return cds.reduce((a, c) => a + c.gioCong / c.slXong, 0);
 }
-/** Số công nhân bình quân: "4" hoặc "3,5 (tối đa 5)" */
-const moTaNguoi = (tb0: number, max: number) => {
-  const tb = max > 0 ? Math.min(tb0, max) : tb0; // giờ chạy vài phút làm tròn lệch => không vượt số tối đa
-  return tb <= 0 ? '—' : Math.abs(tb - max) < 0.05 ? so(max) : `${so(tb)} (tối đa ${max})`;
-};
-const gioMoiNguoi = (gioCong: number, tb: number) => (tb > 0 ? gioCong / tb : null);
+/** Số công nhân khai (số nguyên): "7", đổi giữa chừng thì "5–7" */
+const moTaNguoi = (min: number, max: number) => (max <= 0 ? '—' : min > 0 && min < max ? `${min}–${max}` : String(max));
+/** Số người để chia giờ công: không đổi người thì đúng số đó (tránh lệch làm tròn), đổi giữa chừng thì bình quân */
+const nguoiChia = (min: number, max: number, tb: number) => (max > 0 && (min === max || min === 0) ? max : tb);
+const gioMoiNguoi = (gioCong: number, nguoi: number) => (nguoi > 0 ? gioCong / nguoi : null);
 
-type NgayHm = { ngay: string; to: string; tenCongDoan: string; soNguoiTb: number; soNguoiMax: number; gioChay: number; gioCong: number; gioCongTangCa: number };
+type NgayHm = { ngay: string; to: string; tenCongDoan: string; soNguoiTb: number; soNguoiMax: number; soNguoiMin: number; gioChay: number; gioCong: number; gioCongTangCa: number };
 
 function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[] }) {
   const [q, setQ] = useState('');
@@ -457,7 +456,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
       if (!m.has(h.hex)) m.set(h.hex, []);
       m.get(h.hex)!.push({
         ngay: n.ngay, to: t.ten, tenCongDoan: h.tenCongDoan, soNguoiTb: h.gioChay > 0 ? Math.min(h.soNguoiMax || Infinity, h.gioNguoiKhai / h.gioChay) : 0,
-        soNguoiMax: h.soNguoiMax, gioChay: h.gioChay, gioCong: h.gioCongThuong + h.gioCongTangCa, gioCongTangCa: h.gioCongTangCa,
+        soNguoiMax: h.soNguoiMax, soNguoiMin: h.soNguoiMin, gioChay: h.gioChay, gioCong: h.gioCongThuong + h.gioCongTangCa, gioCongTangCa: h.gioCongTangCa,
       });
     }
     for (const v of m.values()) v.sort((a, b) => b.ngay.localeCompare(a.ngay) || a.tenCongDoan.localeCompare(b.tenCongDoan));
@@ -512,11 +511,11 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                   </tr></thead>
                   <tbody>
                     {h.congDoan.map(c => {
-                      const gn = gioMoiNguoi(c.gioCong, c.soNguoiTb);
+                      const gn = gioMoiNguoi(c.gioCong, nguoiChia(c.soNguoiMin, c.soNguoiMax, c.soNguoiTb));
                       return (
                         <tr key={c.congDoanId} className="border-t border-slate-100">
                           <td className={TD}>{c.tenCongDoan}<div className="text-xs text-slate-500">{c.to.join(', ')}</div></td>
-                          <td className={`${TD} text-right tabular-nums`}>{moTaNguoi(c.soNguoiTb, c.soNguoiMax)}</td>
+                          <td className={`${TD} text-right tabular-nums`}>{moTaNguoi(c.soNguoiMin, c.soNguoiMax)}</td>
                           <td className={`${TD} text-right tabular-nums`}>{c.gioChay ? thoiGian(c.gioChay) : '—'}</td>
                           <td className={`${TD} text-right tabular-nums`}>{gn === null ? '—' : soNho(gn)}</td>
                           <td className={`${TD} text-right font-semibold tabular-nums`}>
@@ -552,12 +551,12 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                     </tr></thead>
                     <tbody>
                       {ngay.map((x, i) => {
-                        const gn = gioMoiNguoi(x.gioCong, x.soNguoiTb);
+                        const gn = gioMoiNguoi(x.gioCong, nguoiChia(x.soNguoiMin, x.soNguoiMax, x.soNguoiTb));
                         return (
                           <tr key={`${x.ngay}|${x.to}|${x.tenCongDoan}|${i}`} className="border-t border-slate-100">
                             <td className={`${TD} tabular-nums`}>{ddmm(x.ngay)}</td>
                             <td className={TD}>{x.to}<span className="text-xs text-slate-500"> · {x.tenCongDoan}</span></td>
-                            <td className={`${TD} text-right tabular-nums`}>{moTaNguoi(x.soNguoiTb, x.soNguoiMax)}</td>
+                            <td className={`${TD} text-right tabular-nums`}>{moTaNguoi(x.soNguoiMin, x.soNguoiMax)}</td>
                             <td className={`${TD} text-right tabular-nums`}>{thoiGian(x.gioChay)}</td>
                             <td className={`${TD} text-right tabular-nums`}>{gn === null ? '—' : soNho(gn)}</td>
                             <td className={`${TD} text-right tabular-nums`}>{so(x.gioCong)}{x.gioCongTangCa > 0 && <span className="text-xs text-slate-500"> (tăng ca {so(x.gioCongTangCa)})</span>}</td>
@@ -574,7 +573,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
         {!hien.length && <li className="px-4 py-3 text-sm text-slate-500">{ds.length ? 'Không có hạng mục khớp tìm kiếm.' : 'Chưa có hạng mục chạy hoặc xong trong kỳ.'}</li>}
       </ul>
       <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-        Công nhân = số người tổ khai làm hạng mục lúc chạy (bình quân theo thời gian). Giờ chạy = thời gian hạng mục chạy (mỗi người làm chừng đó giờ).
+        Công nhân = số người tổ khai làm hạng mục lúc chạy ("5–7" khi tổ đổi số người giữa chừng). Giờ chạy = thời gian hạng mục chạy (mỗi người làm chừng đó giờ).
         Tổng giờ công = công nhân × giờ chạy (co lại nếu khai vượt quân số). Giờ công / đơn vị = giờ công chia số lượng xong trong kỳ;
         "chưa đủ" khi có công đoạn đã tốn giờ nhưng chưa xong cái nào.
       </p>
@@ -693,7 +692,7 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
   })));
   them('Hang muc theo ngay', dong.flatMap(({ t, n }) => n.hangMuc.map(h => ({
     'Ngày': n.ngay, 'Tổ': t.ten, 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan,
-    'Công nhân (bình quân)': h.gioChay > 0 ? Math.round(Math.min(h.soNguoiMax || Infinity, h.gioNguoiKhai / h.gioChay) * 10) / 10 : null, 'Công nhân tối đa': h.soNguoiMax,
+    'Công nhân': moTaNguoi(h.soNguoiMin, h.soNguoiMax),
     'Giờ chạy': h.gioChay, 'Giờ công thường': h.gioCongThuong, 'Giờ công tăng ca': h.gioCongTangCa, 'Đang chạy': h.dangChay ? 'x' : '',
   }))));
   them('Nhan - Xong', dong.flatMap(({ t, n }) => [
@@ -710,8 +709,8 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
   }));
   them('Theo hang muc', d.hangMuc.flatMap(h => h.congDoan.map(c => ({
     'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công trình': h.tenCongTrinh, 'Đơn vị': dv(h.dvt), 'SL đơn hàng': h.soLuongDonHang,
-    'Công đoạn': c.tenCongDoan, 'Tổ': c.to.join(', '), 'Công nhân (bình quân)': c.soNguoiTb, 'Công nhân tối đa': c.soNguoiMax,
-    'Giờ chạy': c.gioChay, 'Giờ công / người': c.soNguoiTb > 0 ? Math.round((c.gioCong / c.soNguoiTb) * 100) / 100 : null,
+    'Công đoạn': c.tenCongDoan, 'Tổ': c.to.join(', '), 'Công nhân': moTaNguoi(c.soNguoiMin, c.soNguoiMax),
+    'Giờ chạy': c.gioChay, 'Giờ công / người': (() => { const g = gioMoiNguoi(c.gioCong, nguoiChia(c.soNguoiMin, c.soNguoiMax, c.soNguoiTb)); return g === null ? null : Math.round(g * 100) / 100; })(),
     'Giờ công': c.gioCong, 'Giờ công tăng ca': c.gioCongTangCa,
     'SL xong trong kỳ': c.slXong, 'Giờ công / đơn vị': c.slXong > 0 && c.gioCong > 0 ? Math.round((c.gioCong / c.slXong) * 100) / 100 : null,
     'Trạng thái': c.trangThai ? TEN_TRANG_THAI[c.trangThai] ?? c.trangThai : '', 'Đã xong / đã nhận': `${c.slHoanThanh} / ${c.slNhan}`,

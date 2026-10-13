@@ -68,7 +68,7 @@ export interface BaoCaoTo {
     hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; tenCongTrinh: string | null;
     gioChay: number; gioCongThuong: number; gioCongTangCa: number;
     /** Giờ người theo số người khai; số người bình quân = gioNguoiKhai / gioChay */
-    gioNguoiKhai: number; soNguoiMax: number;
+    gioNguoiKhai: number; soNguoiMax: number; soNguoiMin: number;
   }>;
 }
 export interface BaoCaoToNgay {
@@ -79,7 +79,7 @@ export interface BaoCaoToNgay {
   hangMuc: Array<{
     hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null;
     gioChay: number; gioCongThuong: number; gioCongTangCa: number; dangChay: boolean;
-    gioNguoiKhai: number; soNguoiMax: number;
+    gioNguoiKhai: number; soNguoiMax: number; soNguoiMin: number;
   }>;
   nhan: Array<{ hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; soLuong: number; dvt: string | null }>;
   xong: Array<{ hex: string; congDoanId: string; tenCongDoan: string; tenHangMuc: string | null; soLuong: number; dvt: string | null }>;
@@ -93,7 +93,7 @@ export interface BaoCaoHangMuc {
   congDoan: Array<{
     congDoanId: string; tenCongDoan: string; to: string[]; gioChay: number; gioCong: number; gioCongTangCa: number; slXong: number;
     /** Số công nhân bình quân lúc chạy (theo số người khai) / nhiều nhất */
-    soNguoiTb: number; soNguoiMax: number;
+    soNguoiTb: number; soNguoiMax: number; soNguoiMin: number;
     trangThai: string | null; slNhan: number; slHoanThanh: number;
   }>;
 }
