@@ -757,7 +757,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
               </p>
             </div>
             {!weekly ? (
-              <p className="py-6 text-center text-xs text-slate-400">Chưa có bảng nhập kho để tính nhịp.</p>
+              <p className="py-6 text-center text-xs text-slate-400">
+                {inventory && inventory.length > 0 ? 'Chưa có bảng nhập kho để tính nhịp.' : 'Đang tải bảng nhập kho để tính nhịp…'}
+              </p>
             ) : (
               <div className="mt-2 grid gap-3 md:grid-cols-[1fr_230px]">
                 <div className="h-40">

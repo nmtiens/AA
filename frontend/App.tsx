@@ -90,17 +90,27 @@ const tablesForPath = (path: string): string[] => {
     '/materials': 'material',
   };
   if (one[path]) return [one[path]];
-  if (path === '/cong-trinh/tong-quan') return ['production', 'inventory'];
+  // Tổng quan công trình: chỉ chờ bảng sản xuất; bảng nhập kho (~3,3 MB) chỉ dùng cho nhịp nhập kho trong cửa sổ
+  // "sức khoẻ công trình" => tải ngầm (tablesNenForPath)
+  if (path === '/cong-trinh/tong-quan') return ['production'];
   // Tổng quan: không chặn màn hình — số màn đầu do máy chủ tính sẵn (/api/tong-quan/san-xuat, cùng code giao diện;
   // doanh thu, 6 thẻ báo cáo, tồn kho, KHSX tháng vốn đã từ máy chủ). Mọi bảng tải ngầm (tablesNenForPath), có bảng
   // sản xuất thì trang tự tính như cũ (lọc tức thì, danh sách hạng mục, xuất Excel).
   if (path === '/') return [];
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
+  // Setup dữ liệu: theo thẻ đang mở (trangKey) — Xưởng / Gộp xưởng chỉ gọi API; Nhóm công trình cần bảng sản xuất;
+  // Cột dữ liệu (và thẻ mặc định chưa rõ) cần cột của đủ 12 bảng
+  if (path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
+  if (path === '/setup?tab=nhom-cong-trinh') return ['production'];
   return ALL_TABLE_ENDPOINTS;
 };
+// Khoá trang để chọn bảng cần nạp: đường dẫn, riêng Setup dữ liệu kèm thẻ đang mở (?tab=)
+const trangKey = (pathname: string, search: string): string =>
+  pathname === '/setup' ? `/setup?tab=${new URLSearchParams(search).get('tab') ?? ''}` : pathname;
 // Bảng trang cần nhưng không chặn màn đầu: tải ngầm sau khi bảng chính đã hiện (máy mới / người mới đỡ chờ ~60%)
 const tablesNenForPath = (path: string): string[] =>
-  path === '/' ? ['production', 'material', 'inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock'] : [];
+  path === '/' ? ['production', 'material', 'inventory', 'khsx', 'order', 'tkbv', 'pthsp', 'analysis', 'attendance', 'export', 'stock']
+    : path === CONSTRUCTION_PATH ? ['inventory'] : [];
 // File JS (lazy) của trang nặng: tải song song lúc đọc dữ liệu, không đợi dữ liệu xong mới tải
 const preloadPageChunk = (path: string) => {
   // Lỗi tải trước (mất mạng / vừa deploy bản mới) bỏ qua: lúc mở trang lazyPage() tự tải lại và báo lỗi nếu có
@@ -680,11 +690,12 @@ const MainLayout: React.FC = () => {
     }
   };
 
-  const pathnameRef = useRef(location.pathname);
-  pathnameRef.current = location.pathname;
+  const trangHienTai = trangKey(location.pathname, location.search);
+  const pathnameRef = useRef(trangHienTai);
+  pathnameRef.current = trangHienTai;
   // Vòng chờ của lượt nạp có bảng trang hiện tại cần (lượt mới nhất); trang không cần bảng đang nạp hiện ngay
   const activeStage = (() => {
-    const need = tablesForPath(location.pathname);
+    const need = tablesForPath(trangHienTai);
     return [...loadStages].reverse().find(st => st.tables.some(t => need.includes(t))) ?? null;
   })();
   // Setter theo bảng — dùng khi áp cache cho các bảng vừa có trang cần
@@ -756,8 +767,8 @@ const MainLayout: React.FC = () => {
   // Chuyển trang: nạp thêm bảng trang mới cần (bảng đã nạp giữ nguyên)
   useEffect(() => {
     if (!initStartedRef.current) return;
-    void loadForPath(location.pathname);
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+    void loadForPath(trangHienTai);
+  }, [trangHienTai]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const init = async () => {
