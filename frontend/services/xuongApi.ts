@@ -60,11 +60,25 @@ async function get<T>(path: string): Promise<{ ok: boolean; status: number; data
   }
 }
 
+async function gui<T>(path: string, body: unknown): Promise<{ ok: boolean; status: number; data?: T; message?: string }> {
+  try {
+    const r = await fetch(path, { method: 'POST', headers: { ...authXuong(), 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' });
+    const b = await docJson(r);
+    if (!r.ok || !b.success) return { ok: false, status: r.status, message: b.message };
+    return { ok: true, status: r.status, data: b as T };
+  } catch {
+    return { ok: false, status: 0, message: 'Mất mạng' };
+  }
+}
+
 export interface DongLichSu {
   id: string; loai: string; hex: string | null; congDoanId: string | null; tenCongDoan: string | null;
   tenCongDoanDen: string | null; soLuong: number | null; soNguoi: number | null; lyDo: string | null;
   duLieu: Record<string, unknown> | null; luc: string; nguoi: string | null; tenHangMuc: string | null;
   daHuy: boolean; huyDuoc: boolean;
+}
+export interface CongNhanTim {
+  mnv: string; hoTen: string; xuong: string | null; toId: number | null; tenTo: string | null; chucVu: string | null; active: boolean; nguon: string | null;
 }
 export interface GoiYHex { hex: string; cuaTo: boolean; tenHangMuc: string | null; tenCongTrinh: string | null }
 export interface DanhMucXuong {
@@ -77,6 +91,10 @@ export const xuongApi = {
   lichSu: (toId: number) => get<{ suKien: DongLichSu[]; available?: boolean }>(`/api/xuong/lich-su?toId=${toId}`),
   /** Số tối đa nhận được ở từng công đoạn của tổ: moc = đã triển khai cho xưởng (chưa có: SL đơn hàng), daNhan = đã nhận */
   gioiHanNhan: (hex: string, toId: number) => get<{ congDoan: Array<{ congDoanId: string; moc: number | null; loai: 'trien_khai' | 'don_hang' | null; daNhan: number; dvt: string | null }> }>(`/api/xuong/gioi-han-nhan?hex=${encodeURIComponent(hex)}&toId=${toId}`),
+  timCongNhan: (q: string, xuong: string | null) =>
+    get<{ ketQua: CongNhanTim[] }>(`/api/xuong/cong-nhan/tim?q=${encodeURIComponent(q)}${xuong ? `&xuong=${encodeURIComponent(xuong)}` : ''}`),
+  themCongNhan: (toId: number, mnv: string, hoTen: string) => gui<{ congNhan: CongNhanTim }>('/api/xuong/cong-nhan', { toId, mnv, hoTen }),
+  roiTo: (toId: number, mnv: string) => gui<Record<string, never>>('/api/xuong/cong-nhan/roi-to', { toId, mnv }),
   timHex: (q: string, toId: number) => get<{ ketQua: GoiYHex[] }>(`/api/xuong/tim-hex?q=${encodeURIComponent(q)}&toId=${toId}`),
   gioCong: (toId: number, ngay?: string) => get<Record<string, unknown>>(`/api/xuong/to/${toId}/gio-cong${ngay ? `?ngay=${ngay}` : ''}`),
   hex: (hex: string) => get<Record<string, unknown>>(`/api/xuong/hex/${encodeURIComponent(hex)}`),

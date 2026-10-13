@@ -7,12 +7,13 @@ import { BottomSheet } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
-  choSoLe, lamTronSl, hienSl,
+  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan,
   type CongViec, type DongViec, type LoaiCa, type MaLyDo,
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
 import { NUT_CHINH, NUT_PHU, NUT_DEM, SO, SO_LON, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 import XuongHexChiTiet from '../../Xuong/XuongHexChiTiet';
+import { ChonNguoi } from './DiemDanh';
 
 // ============================================================================
 // CÁC CỬA SỔ THAO TÁC MÀN XƯỞNG (docs/designs/xuong-checkin.md — Pass 3, quyết định 3A–3H, 7B)
@@ -87,21 +88,38 @@ export function QuanSoSheet({ ca, macDinh, homQua, sauDo, onChot, onClose }: {
 // ---------------------------------------------------------------------------
 // Bắt đầu / Tiếp tục — bắt buộc khai số người làm hạng mục (giờ công chia theo số người khai)
 // ---------------------------------------------------------------------------
-export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, onBatDau, onClose }: {
+export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca, now, onBatDau, onClose }: {
   r: DongViec; tiepTuc: boolean; quanSo: number | null; dangChayKhac: DongViec[];
-  onBatDau: (soNguoi: number) => void; onClose: () => void;
+  /** Có điểm danh theo tên thì chọn người bằng tên */
+  cv?: CongViec | null; ca?: LoaiCa | null; now?: number;
+  onBatDau: (soNguoi: number, nguoi: string[] | null) => void; onClose: () => void;
 }) {
   const dangLamKhac = dangChayKhac.reduce((a, x) => a + (x.soNguoi ?? 0), 0);
   const ranh = quanSo === null ? null : Math.max(0, quanSo - dangLamKhac);
   const goiY = tiepTuc && r.soNguoi && (ranh === null || r.soNguoi <= ranh) ? r.soNguoi : (ranh || r.soNguoi || 1);
   const [n, setN] = useState(Math.max(1, goiY));
-  const vuot = ranh !== null && n > ranh;
+  // Theo tên: người có mặt; gợi ý người rảnh (tiếp tục thì người cũ còn có mặt)
+  const theoTen = !!cv?.chamCong && daDiemDanh(cv, ca ?? null);
+  const coMat = theoTen ? coMatLuc(cv!, ca ?? null, now ?? Date.now()) : [];
+  const ban = nguoiDangBan(dangChayKhac);
+  const [chon, setChon] = useState<Set<string>>(() => new Set(
+    tiepTuc && r.nguoi?.length ? r.nguoi.filter(m => coMat.includes(m)) : coMat.filter(m => !ban.has(m))));
+  const soLam = theoTen ? chon.size : n;
+  const chuyen = [...chon].filter(m => ban.has(m)).length;
+  const vuot = !theoTen && ranh !== null && n > ranh;
   const dongTu = tiepTuc ? 'Tiếp tục' : 'Bắt đầu';
   return (
-    <BottomSheet title={`${dongTu} ${r.hex} — mấy người làm?`} onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={n < 1} onClick={() => onBatDau(n)}>{dongTu} với {n} người</button>}>
+    <BottomSheet title={`${dongTu} ${r.hex} — ${theoTen ? 'ai làm?' : 'mấy người làm?'}`} onClose={onClose}
+      footer={<button className={NUT_CHINH} disabled={soLam < 1} onClick={() => onBatDau(soLam, theoTen ? [...chon] : null)}>{dongTu} với {soLam} người</button>}>
       <div className="space-y-5 pb-2">
         {r.tenHangMuc && <p className="text-base text-slate-700">{r.tenHangMuc}</p>}
+        {theoTen && (<>
+          <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} onDoi={setChon} ban={ban} />
+          <p className={chuyen ? `text-base font-medium ${MAU.ngung.chu}` : CHU_PHU}>
+            {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.` : 'Chạm tên để chọn / bỏ. Tên mờ là người đang làm hạng mục khác.'}
+          </p>
+        </>)}
+        {!theoTen && (<>
         <BoDem value={n} onChange={setN} lon min={1} max={500} nhan="số người làm hạng mục" />
         {quanSo !== null && (
           <p className={`text-base ${vuot ? `font-semibold ${MAU.loi.chu}` : 'text-slate-700'}`}>
@@ -113,6 +131,7 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, onBatDau, onClos
         {ranh !== null && ranh > 0 && ranh !== n && (
           <button className={`${NUT_PHU} w-full`} onClick={() => setN(ranh)}>Tất cả người đang rảnh ({ranh})</button>
         )}
+        </>)}
       </div>
     </BottomSheet>
   );
@@ -403,15 +422,21 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
 // ---------------------------------------------------------------------------
 export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
   cv: CongViec; dangChay: DongViec[];
-  onKhai: (p: { loaiCa: LoaiCa; soNguoi: number; boChon: string[] }) => void; onClose: () => void;
+  onKhai: (p: { loaiCa: LoaiCa; soNguoi: number; boChon: string[]; nguoi: string[] | null }) => void; onClose: () => void;
 }) {
   const [ca, setCa] = useState<LoaiCa | null>(null);
-  const [n, setN] = useState(cv.soNguoiTangCaTruoc ?? cv.quanSo.chinh ?? 0);
+  const [n0, setN] = useState(cv.soNguoiTangCaTruoc ?? cv.quanSo.chinh ?? 0);
+  // Theo tên: chọn người tăng ca trong tổ (mặc định người đang có mặt ca chính)
+  const theoTen = !!cv.chamCong && (cv.congNhan?.length ?? 0) > 0;
+  const coMatChinh = theoTen ? coMatLuc(cv, 'chinh', Date.now()) : [];
+  const dsTen = theoTen ? [...new Set([...coMatChinh, ...(cv.congNhan ?? []).filter(x => !x.toKhac).map(x => x.mnv)])] : [];
+  const [chonTen, setChonTen] = useState<Set<string>>(() => new Set(coMatChinh));
+  const n = theoTen ? chonTen.size : n0;
   const [bo, setBo] = useState<Set<string>>(new Set());
   const gio = (l: LoaiCa) => { const c = cv.lichCa.find(x => x.loaiCa === l); return c ? `${c.gioBatDau}–${c.gioKetThuc}` : ''; };
   return (
     <BottomSheet title="Khai tăng ca của tổ" onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={!ca} onClick={() => ca && onKhai({ loaiCa: ca, soNguoi: n, boChon: [...bo] })}>
+      footer={<button className={NUT_CHINH} disabled={!ca || n < 1} onClick={() => ca && onKhai({ loaiCa: ca, soNguoi: n, boChon: [...bo], nguoi: theoTen ? [...chonTen] : null })}>
         {ca ? `Khai tăng ca ${TEN_CA[ca].toLowerCase()} · ${n} người` : 'Chọn ca tăng ca'}</button>}>
       <div className="space-y-5 pb-2">
         <div className="grid grid-cols-2 gap-2">
@@ -423,10 +448,17 @@ export function TangCaSheet({ cv, dangChay, onKhai, onClose }: {
             </button>
           ))}
         </div>
-        <div className="space-y-2">
-          <p className="text-base font-medium text-slate-800">Số người tăng ca</p>
-          <BoDem value={n} onChange={setN} nhan="số người tăng ca" max={500} />
-        </div>
+        {theoTen ? (
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-800">Người tăng ca · <span className="tabular-nums">{n}</span></p>
+            <ChonNguoi coMat={dsTen} ds={cv.congNhan ?? []} chon={chonTen} onDoi={setChonTen} />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-800">Số người tăng ca</p>
+            <BoDem value={n} onChange={setN} nhan="số người tăng ca" max={500} />
+          </div>
+        )}
         {dangChay.length > 0 && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Hạng mục làm tăng ca <span className="font-normal text-slate-600">(chạm để bỏ)</span></p>
@@ -527,14 +559,53 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
 // ---------------------------------------------------------------------------
 // 3D — Chọn số người cho từng hạng mục đang chạy
 // ---------------------------------------------------------------------------
-export function ChiaNguoiSheet({ dangChay, quanSo, onLuu, onClose }: {
-  dangChay: DongViec[]; quanSo: number; onLuu: (m: Record<string, number>) => void; onClose: () => void;
+export function ChiaNguoiSheet({ dangChay, quanSo, cv, ca, now, onLuu, onClose }: {
+  dangChay: DongViec[]; quanSo: number;
+  cv?: CongViec | null; ca?: LoaiCa | null; now?: number;
+  /** soNguoi theo khoá; tên người theo khoá khi chia theo tên */
+  onLuu: (m: Record<string, number>, ten: Record<string, string[]> | null) => void; onClose: () => void;
 }) {
   const [m, setM] = useState<Record<string, number>>(() => Object.fromEntries(dangChay.map(r => [khoaDong(r), r.soNguoi ?? 0])));
   const tong = Object.values(m).reduce((a, b) => a + b, 0);
+  const theoTen = !!cv?.chamCong && daDiemDanh(cv, ca ?? null);
+  const coMat = theoTen ? coMatLuc(cv!, ca ?? null, now ?? Date.now()) : [];
+  const [ten, setTen] = useState<Record<string, string[]>>(() =>
+    Object.fromEntries(dangChay.map(r => [khoaDong(r), (r.nguoi ?? []).filter(x => coMat.includes(x))])));
+  if (theoTen) {
+    const daGan = new Map<string, string>();
+    for (const [k, ds] of Object.entries(ten)) for (const x of ds) daGan.set(x, k);
+    const chuaGan = coMat.filter(x => !daGan.has(x)).length;
+    return (
+      <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
+        footer={<button className={NUT_CHINH} onClick={() => onLuu(Object.fromEntries(Object.entries(ten).map(([k, v]) => [k, v.length])), ten)}>Lưu</button>}>
+        <div className="space-y-5 pb-2">
+          <p className={`text-base font-medium ${chuaGan ? MAU.ngung.chu : 'text-slate-700'}`}>
+            {chuaGan ? `${chuaGan} / ${coMat.length} người có mặt chưa gắn hạng mục` : `Đã gắn đủ ${coMat.length} người có mặt`}
+          </p>
+          {dangChay.map(r => {
+            const k = khoaDong(r);
+            const chon = new Set(ten[k] ?? []);
+            const ban = new Map([...daGan].filter(([, kk]) => kk !== k).map(([x, kk]) => [x, kk.split('|')[0]]));
+            return (
+              <div key={k} className="space-y-2">
+                <p className="text-base"><span className="font-semibold tabular-nums">{r.hex}</span> {r.tenHangMuc ?? ''} · <b>{chon.size} người</b></p>
+                <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} ban={ban}
+                  onDoi={s2 => setTen(t => {
+                    // Một người chỉ ở một hạng mục: chọn ở đây thì bỏ ở hạng mục khác
+                    const out: Record<string, string[]> = {};
+                    for (const [kk, ds] of Object.entries(t)) out[kk] = kk === k ? [...s2] : ds.filter(x => !s2.has(x));
+                    return out;
+                  })} />
+              </div>
+            );
+          })}
+        </div>
+      </BottomSheet>
+    );
+  }
   return (
     <BottomSheet title="Chia người cho hạng mục" onClose={onClose}
-      footer={<button className={NUT_CHINH} onClick={() => onLuu(m)}>Lưu</button>}>
+      footer={<button className={NUT_CHINH} onClick={() => onLuu(m, null)}>Lưu</button>}>
       <div className="space-y-4 pb-2">
         <p className={`text-base font-medium ${tong > quanSo ? MAU.loi.chu : 'text-slate-700'}`}>
           {tong > quanSo ? `Khai ${tong} người — nhiều hơn quân số ${quanSo}` : `Còn rảnh ${quanSo - tong} / ${quanSo} người`}

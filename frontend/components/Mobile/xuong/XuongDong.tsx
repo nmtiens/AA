@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Play, Pause, Circle, Inbox, PackageCheck, AlertTriangle, Clock, Check } from 'lucide-react';
-import { cauCo, thoiLuong, hienSl, type DongViec } from '../../../services/xuongModel';
+import { cauCo, thoiLuong, hienSl, tenGon, type DongViec, type CongNhanTo } from '../../../services/xuongModel';
 import { CHU_PHU, MAU } from './xuongUi';
 
 // ============================================================================
@@ -26,7 +26,7 @@ export function NhanGui({ gui }: { gui: TrangThaiGui }) {
     : <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-base text-emerald-700"><Check size="0.9em" aria-hidden /> Đã gửi</span>;
 }
 
-export default function XuongDong({ r, now, tenCongDoan, gui, children }: {
+export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan }: {
   r: DongViec;
   now: number;
   /** Tên công đoạn — chỉ truyền khi tổ phụ trách > 1 công đoạn */
@@ -34,6 +34,8 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children }: {
   gui: TrangThaiGui;
   /** Nút thao tác của dòng */
   children?: ReactNode;
+  /** Danh sách công nhân (hiện tên người đang làm) */
+  congNhan?: CongNhanTo[];
 }) {
   const m = META[r.trangThai] ?? META.da_nhan;
   const Icon = m.icon;
@@ -56,7 +58,9 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children }: {
         <span className={`inline-flex items-center gap-1 font-medium ${m.mau.chu}`}><Icon size="1em" aria-hidden /> {m.ten}</span>
         {r.trangThai === 'dang_lam' && (
           <span className="text-slate-700">
-            {r.soNguoi ? `${r.soNguoi} người · ` : 'chưa chia người · '}
+            {r.nguoi?.length
+              ? `${r.nguoi.slice(0, 3).map(m => tenGon(m, congNhan ?? [])).join(', ')}${r.nguoi.length > 3 ? ` +${r.nguoi.length - 3}` : ''} · `
+              : r.soNguoi ? `${r.soNguoi} người · ` : 'chưa chia người · '}
             {r.dangChayTu ? thoiLuong(now - Date.parse(r.dangChayTu)) : ''}
           </span>
         )}

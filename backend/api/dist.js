@@ -69939,7 +69939,10 @@ var LOAI_SU_KIEN = [
   "quan_so",
   "xac_nhan_cuoi_ngay",
   "tien_do",
-  "huy"
+  "huy",
+  // Chấm công theo người (backend/sql/2026-10-13_xuong_cham_cong.sql)
+  "vao_ca",
+  "ra_ca"
 ];
 var LY_DO_TAM_NGUNG = [
   "thieu_vat_tu",
@@ -69952,6 +69955,85 @@ var LY_DO_TAM_NGUNG = [
 var LOAI_CA = ["chinh", "ca1", "ca2", "ca3", "ca4", "chu_nhat"];
 var LOAI_CA_TANG_CA = ["ca1", "ca2", "ca3", "ca4", "chu_nhat"];
 var pairKey = (hex3, congDoanId) => `${hex3}|${congDoanId}`;
+
+// src/server/xuong/chamCong.ts
+var MNV_RE = /^[A-Z0-9][A-Z0-9._-]{1,19}$/;
+var chuanMnv = (s) => String(s ?? "").trim().toUpperCase().replace(/\s+/g, "");
+function nguoiTrongSuKien(duLieu) {
+  const ds = Array.isArray(duLieu?.nguoi) ? duLieu.nguoi : [];
+  const out = [];
+  for (const x of ds) {
+    const o = typeof x === "string" ? { mnv: x } : x;
+    const mnv = chuanMnv(o?.mnv);
+    if (!MNV_RE.test(mnv)) continue;
+    const luc = typeof o.luc === "number" && Number.isFinite(o.luc) ? o.luc : null;
+    out.push({ mnv, luc, lyDo: typeof o.lyDo === "string" ? o.lyDo.slice(0, 40) : null });
+  }
+  return out;
+}
+function kiemTraDiemDanh(duLieu) {
+  const ca = duLieu?.loaiCa;
+  if (typeof ca !== "string" || !LOAI_CA.includes(ca)) return "Lo\u1EA1i ca kh\xF4ng h\u1EE3p l\u1EC7";
+  const ds = Array.isArray(duLieu?.nguoi) ? duLieu.nguoi : [];
+  if (!ds.length || ds.length > 300) return "Danh s\xE1ch \u0111i\u1EC3m danh tr\u1ED1ng ho\u1EB7c qu\xE1 d\xE0i";
+  if (nguoiTrongSuKien(duLieu).length !== ds.length) return "M\xE3 nh\xE2n vi\xEAn kh\xF4ng h\u1EE3p l\u1EC7";
+  return null;
+}
+function doanCoMat(evts) {
+  const mocs = [];
+  let i = 0;
+  for (const e of evts) {
+    if (e.loai !== "vao_ca" && e.loai !== "ra_ca") continue;
+    const ca = String(e.duLieu?.loaiCa ?? "");
+    if (!LOAI_CA.includes(ca)) continue;
+    for (const n of nguoiTrongSuKien(e.duLieu)) {
+      const luc = Math.min(n.luc ?? e.ts, e.ts + 3 * 36e5);
+      mocs.push({ mnv: n.mnv, ca, luc, vao: e.loai === "vao_ca", thuTu: i++ });
+    }
+  }
+  mocs.sort((a, b) => a.luc - b.luc || a.thuTu - b.thuTu);
+  const out = {};
+  const mo = /* @__PURE__ */ new Map();
+  for (const m of mocs) {
+    const k = `${m.ca}|${m.mnv}`;
+    const dang = mo.get(k);
+    if (m.vao) {
+      if (dang) continue;
+      const d = { mnv: m.mnv, start: m.luc, end: null };
+      (out[m.ca] ??= []).push(d);
+      mo.set(k, d);
+    } else if (dang) {
+      dang.end = Math.max(dang.start, m.luc);
+      mo.delete(k);
+    }
+  }
+  for (const ca of Object.keys(out)) out[ca] = out[ca].filter((d) => d.end === null || d.end > d.start);
+  return out;
+}
+function tomTatDiemDanh(coMat, ngay, lichCa) {
+  const moc2 = (hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00+07:00`);
+  const chinh = lichCa.find((c) => c.loaiCa === "chinh");
+  const bd = chinh ? moc2(chinh.gioBatDau) : null;
+  const kt = chinh ? moc2(chinh.gioKetThuc) : null;
+  const out = {};
+  for (const [ca, ds] of Object.entries(coMat)) {
+    for (const d of ds) {
+      const x = out[d.mnv] ??= { vao: d.start, ra: d.end, ca: [], treP: 0, veSomP: 0 };
+      x.vao = Math.min(x.vao, d.start);
+      x.ra = x.ra === null || d.end === null ? null : Math.max(x.ra, d.end);
+      if (!x.ca.includes(ca)) x.ca.push(ca);
+      if (ca === "chinh" && bd !== null && kt !== null) {
+        x.treP = Math.max(x.treP, Math.round((d.start - bd) / 6e4));
+        if (d.end !== null && d.end < kt) x.veSomP = Math.max(x.veSomP, Math.round((kt - d.end) / 6e4));
+      }
+    }
+  }
+  for (const x of Object.values(out)) {
+    x.treP = Math.max(0, x.treP);
+    x.veSomP = Math.max(0, x.veSomP);
+  }
+  return out;
+}
 
 // src/server/xuong/allocation.ts
 var VN_OFFSET = "+07:00";
@@ -70012,16 +70094,27 @@ function phanBoGioCong(input2) {
     if (!soNguoiTheoKey.has(c.key)) soNguoiTheoKey.set(c.key, []);
     soNguoiTheoKey.get(c.key).push(c);
   }
-  const soNguoiLuc = (key, t) => {
+  const khaiLuc = (key, t) => {
     const ds = soNguoiTheoKey.get(key);
-    if (!ds) return 0;
-    let v = 0;
+    if (!ds) return null;
+    let v = null;
     for (const c of ds) {
-      if (c.at <= t) v = c.soNguoi;
+      if (c.at <= t) v = c;
       else break;
     }
-    return Math.max(0, v);
+    return v;
   };
+  const soNguoiLuc = (key, t) => {
+    const c = khaiLuc(key, t);
+    if (!c) return 0;
+    return Math.max(0, Array.isArray(c.nguoi) ? c.nguoi.length : c.soNguoi);
+  };
+  const nguoiLuc = (key, t) => {
+    const c = khaiLuc(key, t);
+    return c && Array.isArray(c.nguoi) ? c.nguoi : null;
+  };
+  const theoNguoi = {};
+  const nguoi = (mnv) => theoNguoi[mnv] ??= { coMatThuong: 0, coMatTangCa: 0, congThuong: 0, congTangCa: 0, cho: 0, theoHangMuc: {} };
   const dangChayLuc = (key, t) => input2.doanChay[key].some((d) => d.start <= t && t < (d.end ?? input2.now));
   const out = {};
   for (const k of keys) out[k] = { gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, gioNguoiKhai: 0, soNguoiMax: 0, soNguoiMin: 0, co: chuaXn.has(k) ? ["chua_xac_nhan"] : [] };
@@ -70059,9 +70152,12 @@ function phanBoGioCong(input2) {
     for (const ds2 of Object.values(doanNgung)) {
       for (const d of ds2) for (const t of [d.start, d.end ?? input2.now]) if (t > cs.start && t < end) mocs.add(t);
     }
+    const coMat = input2.coMat?.[cs.loaiCa] ?? [];
+    const coDiemDanh = coMat.length > 0;
+    for (const d of coMat) for (const t of [d.start, d.end ?? input2.now]) if (t > cs.start && t < end) mocs.add(t);
     const ds = [...mocs].sort((a, b) => a - b);
     const q = input2.quanSo[cs.loaiCa];
-    const daChot = typeof q === "number" && q >= 0;
+    const daChot = coDiemDanh || typeof q === "number" && q >= 0;
     if (!daChot) coTo.add("chua_chot_quan_so");
     for (let i = 0; i + 1 < ds.length; i++) {
       const s = ds[i];
@@ -70070,6 +70166,12 @@ function phanBoGioCong(input2) {
       const chay = ks.filter((k) => dangChayLuc(k, s));
       for (const k of chay) out[k].gioChay += gio;
       const khai = chay.map((k) => [k, soNguoiLuc(k, s)]);
+      const tenChay = /* @__PURE__ */ new Set();
+      for (const k of chay) for (const m of nguoiLuc(k, s) ?? []) tenChay.add(m);
+      const coMatLuc = new Set(tenChay);
+      if (coDiemDanh) {
+        for (const d of coMat) if (d.start <= s && s < (d.end ?? input2.now)) coMatLuc.add(d.mnv);
+      }
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -70080,13 +70182,34 @@ function phanBoGioCong(input2) {
         if (laTangCa) out[k].gioCongTangCa += h;
         else out[k].gioCongThuong += h;
       };
+      const tinhNguoi = (heSo) => {
+        const daGan = /* @__PURE__ */ new Set();
+        for (const k of chay) {
+          for (const m of nguoiLuc(k, s) ?? []) {
+            const x = nguoi(m);
+            const h = gio * heSo;
+            if (laTangCa) x.congTangCa += h;
+            else x.congThuong += h;
+            x.theoHangMuc[k] = (x.theoHangMuc[k] ?? 0) + h;
+            daGan.add(m);
+          }
+        }
+        for (const m of coMatLuc) {
+          const x = nguoi(m);
+          if (laTangCa) x.coMatTangCa += gio;
+          else x.coMatThuong += gio;
+          if (!daGan.has(m)) x.cho += gio;
+        }
+      };
       if (!daChot) {
         for (const [k, n] of khai) cong2(k, n * gio);
+        tinhNguoi(1);
         continue;
       }
-      const Q = q;
+      const Q = coDiemDanh ? coMatLuc.size : q;
       if (laTangCa) gioNguoiTo.tangCa += Q * gio;
       else gioNguoiTo.thuong += Q * gio;
+      tinhNguoi(tongKhai > Q && tongKhai > 0 ? Q / tongKhai : 1);
       if (tongKhai === 0) {
         if (laTangCa) gioCho.tangCa += Q * gio;
         else gioCho.thuong += Q * gio;
@@ -70120,6 +70243,14 @@ function phanBoGioCong(input2) {
     gioCho: { thuong: lamTron(gioCho.thuong), tangCa: lamTron(gioCho.tangCa) },
     gioNguoiTo: { thuong: lamTron(gioNguoiTo.thuong), tangCa: lamTron(gioNguoiTo.tangCa) },
     gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lamTron(v)])),
+    theoNguoi: Object.fromEntries(Object.entries(theoNguoi).map(([m, x]) => [m, {
+      coMatThuong: lamTron(x.coMatThuong),
+      coMatTangCa: lamTron(x.coMatTangCa),
+      congThuong: lamTron(x.congThuong),
+      congTangCa: lamTron(x.congTangCa),
+      cho: lamTron(x.cho),
+      theoHangMuc: Object.fromEntries(Object.entries(x.theoHangMuc).map(([k, v]) => [k, lamTron(v)]))
+    }])),
     co: [...coTo].sort()
   };
 }
@@ -70319,11 +70450,11 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     }
     if (!theoXuong.size) return;
     const ql = await quanLyCuaXuong([...theoXuong.keys()]);
-    await guiTinXuong([...theoXuong.entries()].map(([x, dong]) => ({
+    await guiTinXuong([...theoXuong.entries()].map(([x, dong2]) => ({
       kind: "xuong_trien_khai",
       userIds: ql.get(x) ?? [],
       title: `X\u01B0\u1EDFng ${xuongChinh} giao c\xF4ng \u0111o\u1EA1n cho x\u01B0\u1EDFng ${x}`,
-      body: [...new Set(dong)].slice(0, 6).join(" \xB7 ")
+      body: [...new Set(dong2)].slice(0, 6).join(" \xB7 ")
     })), actorId);
   } catch (e) {
     console.error("[xuong-thong-bao] x\u01B0\u1EDFng ph\u1EE5", e);
@@ -70682,7 +70813,7 @@ var loSchema = external_exports.object({
 });
 var CAN_HEX = /* @__PURE__ */ new Set(["trien_khai", "khai_bao_cd", "nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do"]);
 var CAN_CONG_DOAN = /* @__PURE__ */ new Set(["nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do"]);
-var CAN_TO = /* @__PURE__ */ new Set(["tang_ca", "chia_nguoi", "quan_so", "xac_nhan_cuoi_ngay"]);
+var CAN_TO = /* @__PURE__ */ new Set(["tang_ca", "chia_nguoi", "quan_so", "xac_nhan_cuoi_ngay", "vao_ca", "ra_ca"]);
 function kiemTraTheoLoai(e) {
   if (CAN_HEX.has(e.loai) && !(e.hex && HEX_RE.test(e.hex))) return "M\xE3 h\u1EA1ng m\u1EE5c ph\u1EA3i c\xF3 9 s\u1ED1";
   if (CAN_CONG_DOAN.has(e.loai) && !e.congDoanId) return "Thi\u1EBFu c\xF4ng \u0111o\u1EA1n";
@@ -70698,6 +70829,10 @@ function kiemTraTheoLoai(e) {
   if (e.loai === "tang_ca") {
     const ca = e.duLieu?.loaiCa;
     if (typeof ca !== "string" || !LOAI_CA_TANG_CA.includes(ca)) return "Lo\u1EA1i ca t\u0103ng ca kh\xF4ng h\u1EE3p l\u1EC7";
+  }
+  if (e.loai === "vao_ca" || e.loai === "ra_ca") {
+    const loi = kiemTraDiemDanh(e.duLieu);
+    if (loi) return loi;
   }
   if (e.loai === "quan_so") {
     const ca = e.duLieu?.loaiCa;
@@ -70741,6 +70876,10 @@ async function ghiVaTinhLai(client, ghi, dichDb = []) {
       if (!x.to_id) continue;
       const ngay = vnDayKey(new Date(x.device_ts_hieu_chinh));
       pb.set(`${x.to_id}|${ngay}`, { to_id: x.to_id, ngay });
+      if (x.loai === "ra_ca" && new Date(new Date(x.device_ts_hieu_chinh).getTime() + 7 * 36e5).getUTCHours() < 12) {
+        const truoc = vnDayKey(new Date(new Date(x.device_ts_hieu_chinh).getTime() - 24 * 36e5));
+        pb.set(`${x.to_id}|${truoc}`, { to_id: x.to_id, ngay: truoc });
+      }
     }
     if (pb.size) {
       await client.query(
@@ -70985,6 +71124,13 @@ async function goiYCongDoanKe(pairs) {
   return out;
 }
 var bangAnh = null;
+var bangCongNhan = null;
+async function coBangCongNhan() {
+  if (bangCongNhan && (bangCongNhan.co || Date.now() - bangCongNhan.luc < 3e5)) return bangCongNhan.co;
+  const r = await pool.query(`SELECT to_regclass('xuong_cong_nhan') IS NOT NULL AS co`);
+  bangCongNhan = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangCongNhan.co;
+}
 async function coBangAnh() {
   if (bangAnh && (bangAnh.co || Date.now() - bangAnh.luc < 3e5)) return bangAnh.co;
   const r = await pool.query(`SELECT to_regclass('xuong_anh') IS NOT NULL AS co`);
@@ -71082,17 +71228,29 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
     const goiY = await goiYCongDoanKe(st.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const chia = await pool.query(
-      `SELECT du_lieu->'phanBo' AS pb, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
-       WHERE to_id = $1 AND loai = 'chia_nguoi' AND device_ts_hieu_chinh > now() - interval '30 days'
+      `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+       WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
        ORDER BY device_ts_hieu_chinh`,
       [toId]
     );
+    const tenDangLam = (hex3, cd, tu) => {
+      if (!tu) return null;
+      let ten = null;
+      for (const c of chia.rows) {
+        if (new Date(c.ts).getTime() < tu.getTime() - 1e3) continue;
+        if (c.loai === "chia_nguoi") {
+          const p = Array.isArray(c.pb) ? c.pb.find((x) => x.hex === hex3 && x.congDoanId === cd) : void 0;
+          if (p) ten = dsTen(p.nguoi);
+        } else if (String(c.hex) === hex3 && String(c.cong_doan_id) === cd) ten = dsTen(c.nguoi);
+      }
+      return ten;
+    };
     const soNguoiChia = (hex3, cd, tu) => {
       if (!tu) return null;
       let n = null;
       for (const c of chia.rows) {
-        if (new Date(c.ts).getTime() < tu.getTime() || !Array.isArray(c.pb)) continue;
+        if (c.loai !== "chia_nguoi" || new Date(c.ts).getTime() < tu.getTime() || !Array.isArray(c.pb)) continue;
         const p = c.pb.find((x) => x.hex === hex3 && x.congDoanId === cd);
         if (p && typeof p.soNguoi === "number") n = p.soNguoi;
       }
@@ -71101,8 +71259,37 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const rows = st.map((x) => {
       const d = dongTrangThai(x, info.get(String(x.hex)));
       const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
-      return { ...d, soNguoi: n ?? d.soNguoi, goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [] };
+      const tu = x.dang_chay_tu ? new Date(x.dang_chay_tu) : null;
+      return {
+        ...d,
+        soNguoi: n ?? d.soNguoi,
+        nguoi: x.trang_thai === "dang_lam" ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : null,
+        goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? []
+      };
     });
+    const chamCong = await coBangCongNhan();
+    let congNhan = [];
+    const coMatHomNay = {};
+    if (chamCong) {
+      const dd = (await pool.query(
+        `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
+           AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
+        [toId, ngay]
+      )).rows;
+      const evs = suKienConHieuLuc(dd.map(toSuKien)).filter((e) => vnDayKey(new Date(e.ts)) === ngay || e.loai === "ra_ca");
+      for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
+        coMatHomNay[ca] = (ds ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
+      }
+      const muon = [...new Set(Object.values(coMatHomNay).flat().map((x) => x.mnv))];
+      const cn = await pool.query(
+        `SELECT c.mnv, c.ho_ten, c.to_id, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
+         WHERE c.active AND (c.to_id = $1 OR c.mnv = ANY($2::text[])) ORDER BY c.ho_ten`,
+        [toId, muon]
+      );
+      congNhan = cn.rows.map((x) => ({ mnv: String(x.mnv), hoTen: String(x.ho_ten), toKhac: Number(x.to_id) === toId ? null : x.ten_to ?? "t\u1ED5 kh\xE1c" }));
+      for (const m of muon) if (!congNhan.some((c) => c.mnv === m)) congNhan.push({ mnv: m, hoTen: m, toKhac: null });
+    }
     res.json({
       success: true,
       available: true,
@@ -71117,6 +71304,9 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       quanSo,
       tangCa,
       quanSoTruoc,
+      chamCong,
+      congNhan,
+      coMat: coMatHomNay,
       soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
       daXacNhanHomNay: xacNhan.rows.length > 0,
       anhBat: await coBangAnh(),
@@ -71126,8 +71316,9 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     fail(res, e, "/api/xuong/cong-viec");
   }
 });
+var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH = "pb4";
+var PHIEN_BAN_TINH = "pb5";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
@@ -71186,12 +71377,14 @@ async function gioCongToNgay(toId, ngay) {
         const d = vnDayKey(new Date(e.ts));
         if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
       }
-      if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi });
+      if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) {
+        soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
+      }
     }
     if (e.loai === "chia_nguoi" && Array.isArray(e.duLieu?.phanBo)) {
       for (const p of e.duLieu.phanBo) {
         if (typeof p.hex === "string" && typeof p.congDoanId === "string" && typeof p.soNguoi === "number") {
-          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi });
+          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi, nguoi: dsTen(p.nguoi) });
         }
       }
     }
@@ -71229,17 +71422,20 @@ async function gioCongToNgay(toId, ngay) {
       }
     }
   }
+  const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 36e5;
+  const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)));
   const payload = { ...phanBoGioCong({
     cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa),
     quanSo,
     doanChay,
     soNguoi,
     doanNgung,
+    coMat,
     boChonTangCa: boChon,
     ngungTinh,
     chuaXacNhan,
     now: Date.now()
-  }), bamLichCa };
+  }), bamLichCa, diemDanh: tomTatDiemDanh(coMat, ngay, lichCa) };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
   while (gioCongCache.size > GIO_CONG_CACHE_MAX) {
@@ -71936,6 +72132,62 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     } catch (e) {
       if (!isMissingSchema(e)) throw e;
     }
+    const nguoiNgay = /* @__PURE__ */ new Map();
+    const tenToCua = new Map(toRows.map((t) => [Number(t.id), String(t.ten_to)]));
+    for (const x of pb.rows) {
+      const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
+      if (!kq?.theoNguoi) continue;
+      for (const [mnv, n] of Object.entries(kq.theoNguoi)) {
+        const dd = kq.diemDanh?.[mnv];
+        if (!nguoiNgay.has(mnv)) nguoiNgay.set(mnv, []);
+        nguoiNgay.get(mnv).push({
+          ngay: x.ngay,
+          toId: Number(x.to_id),
+          tenTo: tenToCua.get(Number(x.to_id)) ?? "",
+          vao: dd?.vao ?? null,
+          ra: dd?.ra ?? null,
+          treP: dd?.treP ?? 0,
+          veSomP: dd?.veSomP ?? 0,
+          coMatThuong: lam(n.coMatThuong),
+          coMatTangCa: lam(n.coMatTangCa),
+          congThuong: lam(n.congThuong),
+          congTangCa: lam(n.congTangCa),
+          cho: lam(n.cho),
+          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam(g) })).sort((a, b) => b.gio - a.gio)
+        });
+      }
+    }
+    const tenNguoi = /* @__PURE__ */ new Map();
+    if (nguoiNgay.size && await coBangCongNhan()) {
+      const r = await pool.query(
+        `SELECT c.mnv, c.ho_ten, c.chuc_vu, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.mnv = ANY($1::text[])`,
+        [[...nguoiNgay.keys()]]
+      );
+      for (const x of r.rows) tenNguoi.set(String(x.mnv), { hoTen: String(x.ho_ten), tenTo: x.ten_to ?? null, chucVu: x.chuc_vu ?? null });
+    }
+    const theoNguoi = [...nguoiNgay.entries()].map(([mnv, ds2]) => {
+      const t = tenNguoi.get(mnv);
+      const cong2 = (f) => lam(ds2.reduce((a, x) => a + f(x), 0));
+      return {
+        mnv,
+        hoTen: t?.hoTen ?? null,
+        tenTo: t?.tenTo ?? ds2[ds2.length - 1]?.tenTo ?? null,
+        chucVu: t?.chucVu ?? null,
+        soNgay: new Set(ds2.map((x) => x.ngay)).size,
+        lanTre: ds2.filter((x) => x.treP > 0).length,
+        lanVeSom: ds2.filter((x) => x.veSomP > 0).length,
+        coMatThuong: cong2((x) => x.coMatThuong),
+        coMatTangCa: cong2((x) => x.coMatTangCa),
+        congThuong: cong2((x) => x.congThuong),
+        congTangCa: cong2((x) => x.congTangCa),
+        cho: cong2((x) => x.cho),
+        ngay: ds2.sort((a, b) => b.ngay.localeCompare(a.ngay)).map((x) => ({
+          ...x,
+          hangMuc: x.hangMuc.map((h) => ({ ...h, tenHangMuc: info.get(h.hex)?.ten_hang_muc ?? null, tenCongDoan: cdTen.get(h.congDoanId) ?? h.congDoanId }))
+        }))
+      };
+    }).sort((a, b) => (a.tenTo ?? "").localeCompare(b.tenTo ?? "") || (a.hoTen ?? a.mnv).localeCompare(b.hoTen ?? b.mnv));
+    for (const n of theoNguoi) for (const d of n.ngay) for (const h of d.hangMuc) tatCaHex.add(h.hex);
     const hangMuc = [...hmKy.entries()].map(([hex3, m]) => {
       const congDoan = [...m.values()].map((c) => {
         const tt = ttCua.get(`${hex3}|${c.congDoanId}`);
@@ -71984,6 +72236,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       conThieu: Math.max(0, canTinh.length - lanNay.length),
       chamCong,
       hangMuc,
+      theoNguoi,
       chiSo: {
         nhatKy: { tong: kpiNk.rows[0]?.tong ?? 0, du: kpiNk.rows[0]?.du ?? 0 },
         guiTrong1Gio: { tong: kpiGui.rows[0]?.tong ?? 0, nhanh: kpiGui.rows[0]?.nhanh ?? 0 },
@@ -72524,6 +72777,235 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     res.json({ success: true, available: true, soHangMuc: kq.so, cap: p.data.items.map((i) => pairKey(i.hex, i.tuyen[0])) });
   } catch (e) {
     fail(res, e, "/api/xuong/trien-khai");
+  }
+});
+
+// src/routes/xuongCongNhan.ts
+var chuaBat = (res) => res.json({ success: true, available: false });
+async function quyenTo(req, toId) {
+  const me2 = Number(req.user.id);
+  const to = (await pool.query("SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1", [toId])).rows[0];
+  if (!to) return { duoc: false, quanLy: false, xuong: null };
+  const xuong = String(to.xuong);
+  const quanLy = quanLyDuoc(await xuongQuanLy(me2), xuong);
+  if (quanLy || Number(to.to_truong_user_id) === me2) return { duoc: true, quanLy, xuong };
+  const tv = await pool.query(
+    `SELECT 1 FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $2
+     WHERE tv.to_id = $1 AND u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv))
+       AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) LIMIT 1`,
+    [toId, me2]
+  );
+  return { duoc: tv.rows.length > 0, quanLy: false, xuong };
+}
+var dong = (x) => ({
+  mnv: String(x.mnv),
+  hoTen: String(x.ho_ten),
+  xuong: x.xuong ? String(x.xuong) : null,
+  toId: x.to_id === null || x.to_id === void 0 ? null : Number(x.to_id),
+  tenTo: x.ten_to ? String(x.ten_to) : null,
+  chucVu: x.chuc_vu ? String(x.chuc_vu) : null,
+  active: x.active !== false,
+  nguon: x.nguon ? String(x.nguon) : null
+});
+app.get("/api/xuong/cong-nhan/tim", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    if (!await coBangCongNhan()) return chuaBat(res);
+    const q = String(req.query.q ?? "").trim().slice(0, 60);
+    if (q.length < 2) return res.json({ success: true, available: true, ketQua: [] });
+    const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : null;
+    const mau = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const r = await pool.query(
+      `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
+       WHERE c.active AND (c.mnv ILIKE $1 OR c.ho_ten ILIKE $1) AND ($2::text IS NULL OR c.xuong = $2)
+       ORDER BY (upper(c.mnv) = upper($3)) DESC, c.ho_ten LIMIT 20`,
+      [mau, xuong, q]
+    );
+    res.json({ success: true, available: true, ketQua: r.rows.map(dong) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-nhan/tim");
+  }
+});
+var themSchema = external_exports.object({ toId: external_exports.number().int().positive(), mnv: external_exports.string().min(2).max(20), hoTen: external_exports.string().trim().max(80).optional() });
+app.post("/api/xuong/cong-nhan", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    if (!await coBangCongNhan()) return chuaBat(res);
+    const p = themSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5 / m\xE3 nh\xE2n vi\xEAn" });
+    const mnv = chuanMnv(p.data.mnv);
+    if (!MNV_RE.test(mnv)) return res.status(400).json({ success: false, message: "M\xE3 nh\xE2n vi\xEAn ch\u1EC9 g\u1ED3m ch\u1EEF, s\u1ED1 (vd AAF7615)" });
+    const q = await quyenTo(req, p.data.toId);
+    if (!q.duoc) return res.status(403).json({ success: false, message: "Ch\u1EC9 t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c s\u1EEDa danh s\xE1ch" });
+    const cu = (await pool.query(
+      `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.mnv = $1`,
+      [mnv]
+    )).rows[0];
+    if (cu && cu.active && cu.to_id !== null && Number(cu.to_id) !== p.data.toId && !q.quanLy) {
+      return res.status(409).json({
+        success: false,
+        message: `${cu.ho_ten} (${mnv}) \u0111ang \u1EDF t\u1ED5 ${cu.ten_to ?? "kh\xE1c"} \u2014 \u0111i\u1EC3m danh "Ng\u01B0\u1EDDi t\u1ED5 kh\xE1c" \u0111\u1EC3 m\u01B0\u1EE3n, ho\u1EB7c nh\u1EDD qu\u1EA3n l\xFD chuy\u1EC3n t\u1ED5`
+      });
+    }
+    const hoTen = p.data.hoTen?.trim() || (cu ? String(cu.ho_ten) : "");
+    if (!hoTen) return res.status(400).json({ success: false, message: "Nh\u1EADp h\u1ECD t\xEAn ng\u01B0\u1EDDi m\u1EDBi" });
+    const r = await pool.query(
+      `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, nguon) VALUES ($1, $2, $3, $4, 'app')
+       ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, active = true, cap_nhat = now(),
+         xuong = EXCLUDED.xuong, ho_ten = CASE WHEN xuong_cong_nhan.nguon = 'file' THEN xuong_cong_nhan.ho_ten ELSE EXCLUDED.ho_ten END
+       RETURNING *`,
+      [mnv, hoTen, q.xuong, p.data.toId]
+    );
+    res.json({ success: true, available: true, congNhan: dong(r.rows[0]) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-nhan");
+  }
+});
+app.post("/api/xuong/cong-nhan/roi-to", async (req, res) => {
+  try {
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    if (!await coBangCongNhan()) return chuaBat(res);
+    const p = external_exports.object({ toId: external_exports.number().int().positive(), mnv: external_exports.string().min(2).max(20) }).safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5 / m\xE3 nh\xE2n vi\xEAn" });
+    const q = await quyenTo(req, p.data.toId);
+    if (!q.duoc) return res.status(403).json({ success: false, message: "Ch\u1EC9 t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c s\u1EEDa danh s\xE1ch" });
+    await pool.query(`UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE mnv = $1 AND to_id = $2`, [chuanMnv(p.data.mnv), p.data.toId]);
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-nhan/roi-to");
+  }
+});
+app.get("/api/xuong/cong-nhan", async (req, res) => {
+  try {
+    const xuong = String(req.query.xuong ?? "").toUpperCase();
+    if (!xuong || !quanLyDuoc(await xuongQuanLy(req.user.id), xuong)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    if (!await coBangCongNhan()) return chuaBat(res);
+    const r = await pool.query(
+      `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
+       WHERE c.xuong = $1 OR t.xuong = $1 ORDER BY c.active DESC, t.ten_to NULLS LAST, c.ho_ten`,
+      [xuong]
+    );
+    res.json({ success: true, available: true, congNhan: r.rows.map(dong) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-nhan");
+  }
+});
+var suaSchema = external_exports.object({
+  mnv: external_exports.string().min(2).max(20),
+  toId: external_exports.number().int().positive().nullable().optional(),
+  active: external_exports.boolean().optional(),
+  hoTen: external_exports.string().trim().min(1).max(80).optional()
+});
+app.post("/api/xuong/cong-nhan/sua", async (req, res) => {
+  try {
+    if (!await coBangCongNhan()) return chuaBat(res);
+    const p = suaSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u kh\xF4ng h\u1EE3p l\u1EC7" });
+    const mnv = chuanMnv(p.data.mnv);
+    const cu = (await pool.query("SELECT * FROM xuong_cong_nhan WHERE mnv = $1", [mnv])).rows[0];
+    if (!cu) return res.status(404).json({ success: false, message: "Kh\xF4ng c\xF3 ng\u01B0\u1EDDi n\xE0y" });
+    const ds = await xuongQuanLy(req.user.id);
+    let xuongMoi = cu.xuong ?? null;
+    if (p.data.toId) {
+      const to = (await pool.query("SELECT xuong FROM xuong_to WHERE id = $1", [p.data.toId])).rows[0];
+      if (!to) return res.status(404).json({ success: false, message: "T\u1ED5 kh\xF4ng t\u1ED3n t\u1EA1i" });
+      xuongMoi = String(to.xuong);
+    }
+    if (!quanLyDuoc(ds, cu.xuong ?? null) || !quanLyDuoc(ds, xuongMoi)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    const r = await pool.query(
+      `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
+         active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
+      [mnv, p.data.toId !== void 0, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]
+    );
+    res.json({ success: true, available: true, congNhan: dong(r.rows[0]) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-nhan/sua");
+  }
+});
+var napSchema = external_exports.object({
+  rows: external_exports.array(external_exports.object({
+    mnv: external_exports.string().max(40),
+    hoTen: external_exports.string().max(120),
+    xuong: external_exports.string().max(20).nullish(),
+    tenTo: external_exports.string().max(80).nullish(),
+    chucVu: external_exports.string().max(80).nullish()
+  })).min(1).max(5e3),
+  /** Người của các xưởng trong file mà không có trong file => đánh nghỉ việc */
+  nghiNguoiVang: external_exports.boolean().optional()
+});
+app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
+  try {
+    if (!await coBangCongNhan()) return chuaBat(res);
+    const p = napSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "File kh\xF4ng \u0111\xFAng d\u1EA1ng (c\u1EA7n m\xE3 NV, h\u1ECD t\xEAn)" });
+    const ds = await xuongQuanLy(req.user.id);
+    if (!ds.size) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng" });
+    const toRows = (await pool.query("SELECT id, xuong, ten_to FROM xuong_to WHERE active")).rows;
+    const timTo = (xuong, ten) => {
+      if (!ten) return null;
+      const t = ten.trim().toUpperCase();
+      return toRows.find((x) => (!xuong || String(x.xuong) === xuong) && String(x.ten_to).trim().toUpperCase() === t) ?? null;
+    };
+    const loi = [];
+    const toKhongKhop = /* @__PURE__ */ new Set();
+    const hopLe = [];
+    for (const [i, x] of p.data.rows.entries()) {
+      const mnv = chuanMnv(x.mnv);
+      if (!MNV_RE.test(mnv) || !x.hoTen.trim()) {
+        if (loi.length < 20) loi.push(`D\xF2ng ${i + 2}: thi\u1EBFu / sai m\xE3 NV ho\u1EB7c h\u1ECD t\xEAn`);
+        continue;
+      }
+      const to = timTo(x.xuong?.trim().toUpperCase() || null, x.tenTo ?? null);
+      if (x.tenTo && !to) toKhongKhop.add(`${x.xuong ?? ""} ${x.tenTo}`.trim());
+      const xuong = (to ? String(to.xuong) : x.xuong?.trim().toUpperCase()) || null;
+      if (!quanLyDuoc(ds, xuong)) {
+        if (loi.length < 20) loi.push(`D\xF2ng ${i + 2}: kh\xF4ng c\xF3 quy\u1EC1n x\u01B0\u1EDFng ${xuong ?? "(tr\u1ED1ng)"}`);
+        continue;
+      }
+      hopLe.push({ mnv, hoTen: x.hoTen.trim(), xuong, toId: to ? Number(to.id) : null, chucVu: x.chucVu?.trim() || null });
+    }
+    const client = await pool.connect();
+    let nghi = 0;
+    try {
+      await client.query("BEGIN");
+      for (let i = 0; i < hopLe.length; i += 500) {
+        const lo = hopLe.slice(i, i + 500);
+        await client.query(
+          `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, chuc_vu, nguon, active)
+           SELECT * , 'file', true FROM unnest($1::text[], $2::text[], $3::text[], $4::int[], $5::text[])
+           ON CONFLICT (mnv) DO UPDATE SET ho_ten = EXCLUDED.ho_ten, xuong = EXCLUDED.xuong,
+             to_id = COALESCE(EXCLUDED.to_id, xuong_cong_nhan.to_id), chuc_vu = COALESCE(EXCLUDED.chuc_vu, xuong_cong_nhan.chuc_vu),
+             nguon = 'file', active = true, cap_nhat = now()`,
+          [lo.map((x) => x.mnv), lo.map((x) => x.hoTen), lo.map((x) => x.xuong), lo.map((x) => x.toId), lo.map((x) => x.chucVu)]
+        );
+      }
+      if (p.data.nghiNguoiVang) {
+        const xs = [...new Set(hopLe.map((x) => x.xuong).filter((x) => !!x))];
+        const r = await client.query(
+          `UPDATE xuong_cong_nhan SET active = false, to_id = NULL, cap_nhat = now()
+           WHERE active AND xuong = ANY($1::text[]) AND NOT (mnv = ANY($2::text[]))`,
+          [xs, hopLe.map((x) => x.mnv)]
+        );
+        nghi = r.rowCount ?? 0;
+      }
+      await client.query("COMMIT");
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    } finally {
+      client.release();
+    }
+    res.json({
+      success: true,
+      available: true,
+      daNap: hopLe.length,
+      boQua: p.data.rows.length - hopLe.length,
+      nghi,
+      loi,
+      toKhongKhop: [...toKhongKhop].slice(0, 30)
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/cong-nhan/nap");
   }
 });
 

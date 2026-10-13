@@ -153,3 +153,74 @@ describe('phanBoGioCong — lý do giờ chờ', () => {
     assert.equal(H(tong), kq.gioCho.thuong);
   });
 });
+
+describe('phanBoGioCong — chấm công theo người', () => {
+  const ca = cuaSoTrongNgay(NGAY, LICH, []); // 7:30–15:45, nghỉ 11:30–12:30 (7,25 giờ)
+  const now = t('23:00');
+
+  it('quân số theo người có mặt từng lúc: đến trễ, về sớm', () => {
+    // An, Bình có mặt cả ca; Chi đến 9:30; Dũng về 10:30. Không hạng mục nào chạy => toàn bộ là giờ chờ
+    const kq = phanBoGioCong({
+      cuaSo: ca, quanSo: { chinh: 99 }, now, doanChay: {}, soNguoi: [],
+      coMat: { chinh: [
+        { mnv: 'AN', start: t('07:30'), end: null }, { mnv: 'BINH', start: t('07:30'), end: null },
+        { mnv: 'CHI', start: t('09:30'), end: null }, { mnv: 'DUNG', start: t('07:30'), end: t('10:30') },
+      ] },
+    });
+    // quanSo 99 bị bỏ qua vì đã điểm danh
+    assert.equal(kq.theoNguoi.AN.coMatThuong, 7.25);
+    assert.equal(kq.theoNguoi.CHI.coMatThuong, 5.25);
+    assert.equal(kq.theoNguoi.DUNG.coMatThuong, 3);
+    assert.equal(kq.gioNguoiTo.thuong, H(7.25 * 2 + 5.25 + 3));
+    assert.equal(kq.theoNguoi.AN.cho, 7.25);
+    assert.deepEqual(kq.co, []);
+  });
+
+  it('giờ công từng người theo hạng mục khai tên; người không gắn là giờ chờ', () => {
+    // A chạy 7:30–9:30 với An, Bình; từ 8:30 chia lại: A còn An, B có Bình
+    const kq = phanBoGioCong({
+      cuaSo: ca, quanSo: {}, now,
+      coMat: { chinh: [{ mnv: 'AN', start: t('07:30'), end: null }, { mnv: 'BINH', start: t('07:30'), end: null }, { mnv: 'CHI', start: t('07:30'), end: null }] },
+      doanChay: { A: [{ start: t('07:30'), end: t('09:30') }], B: [{ start: t('08:30'), end: t('09:30') }] },
+      soNguoi: [
+        { key: 'A', at: t('07:30'), soNguoi: 2, nguoi: ['AN', 'BINH'] },
+        { key: 'A', at: t('08:30'), soNguoi: 1, nguoi: ['AN'] },
+        { key: 'B', at: t('08:30'), soNguoi: 1, nguoi: ['BINH'] },
+      ],
+    });
+    assert.equal(kq.theoNguoi.AN.theoHangMuc.A, 2);
+    assert.equal(kq.theoNguoi.BINH.theoHangMuc.A, 1);
+    assert.equal(kq.theoNguoi.BINH.theoHangMuc.B, 1);
+    assert.equal(kq.theoNguoi.CHI.congThuong, 0);
+    assert.equal(kq.theoNguoi.CHI.cho, 7.25);
+    // Giờ công hạng mục = tổng giờ người gắn tên
+    assert.equal(kq.theoHangMuc.A.gioCongThuong, 3);
+    assert.equal(kq.theoHangMuc.B.gioCongThuong, 1);
+    // Tổng giờ có mặt = giờ công + giờ chờ
+    const coMat = Object.values(kq.theoNguoi).reduce((a, x) => a + x.coMatThuong, 0);
+    assert.equal(H(coMat), H(kq.theoHangMuc.A.gioCongThuong + kq.theoHangMuc.B.gioCongThuong + kq.gioCho.thuong));
+  });
+
+  it('người gắn tên mà quên điểm danh vẫn được tính có mặt', () => {
+    const kq = phanBoGioCong({
+      cuaSo: ca, quanSo: {}, now,
+      coMat: { chinh: [{ mnv: 'AN', start: t('07:30'), end: null }] },
+      doanChay: { A: [{ start: t('07:30'), end: t('08:30') }] },
+      soNguoi: [{ key: 'A', at: t('07:30'), soNguoi: 2, nguoi: ['AN', 'MOI'] }],
+    });
+    assert.equal(kq.theoNguoi.MOI.theoHangMuc.A, 1);
+    assert.equal(kq.theoNguoi.MOI.coMatThuong, 1);
+    assert.equal(kq.theoHangMuc.A.gioCongThuong, 2);
+    assert.ok(!kq.co.includes('khai_vuot_quan_so'));
+  });
+
+  it('không điểm danh: giữ nguyên cách tính cũ, không có theo người', () => {
+    const kq = phanBoGioCong({
+      cuaSo: ca, quanSo: { chinh: 4 }, now,
+      doanChay: { A: [{ start: t('07:30'), end: t('09:30') }] },
+      soNguoi: [{ key: 'A', at: t('07:30'), soNguoi: 3 }],
+    });
+    assert.equal(kq.theoHangMuc.A.gioCongThuong, 6);
+    assert.deepEqual(kq.theoNguoi, {});
+  });
+});

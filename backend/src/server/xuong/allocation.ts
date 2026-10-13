@@ -16,6 +16,10 @@ import { LOAI_CA_TANG_CA } from './types.js';
 //    Giờ chờ tách lý do: có hạng mục chạy nhưng khai ít hơn quân số → "nguoi_ranh"; không hạng mục nào chạy → lý do
 //    tạm ngưng của hạng mục vừa tạm ngưng gần nhất (đang tạm ngưng lúc đó), không có thì "khong_viec".
 // 5. Tăng ca: hạng mục bị bỏ chọn trong lần khai tăng ca của tổ coi như không chạy trong cửa sổ đó.
+// 6. Chấm công theo người (docs/designs/xuong-cham-cong.md): ca có điểm danh (coMat) thì quân số tại mỗi thời điểm =
+//    số người đang có mặt (đến trễ / về sớm / mượn người), cộng người đang được gắn tên vào hạng mục chạy (đang làm
+//    thì chắc chắn có mặt). Hạng mục khai theo tên (nguoi) thì mỗi người nhận đúng giờ của đoạn mình được gắn (co theo
+//    quân số như trên); người có mặt mà không gắn hạng mục nào là giờ chờ của người đó.
 // R3-3: hạng mục không được xác nhận cuối ngày: ngày kế vẫn tính nhưng cờ "chua_xac_nhan"; từ ngày thứ 2 liên
 //       tiếp không xác nhận thì ngừng tính (nơi gọi truyền vào chuaXacNhan / ngungTinh).
 // ============================================================================
@@ -75,7 +79,10 @@ export function cuaSoTrongNgay(ngay: string, lichCa: LichCaRow[], caTangCaDaKhai
   return out.sort((a, b) => a.start - b.start);
 }
 
-export interface ThayDoiSoNguoi { key: string; at: number; soNguoi: number }
+export interface ThayDoiSoNguoi { key: string; at: number; soNguoi: number; /** Mã NV người làm (khai theo tên) */ nguoi?: string[] | null }
+
+/** Một lần có mặt của một người trong một loại ca (end = null: tới hết ca) */
+export interface DoanCoMat { mnv: string; start: number; end: number | null }
 
 export interface DauVaoPhanBo {
   cuaSo: CuaSo[];
@@ -91,6 +98,8 @@ export interface DauVaoPhanBo {
   ngungTinh?: string[];
   /** Không xác nhận hôm trước → vẫn tính, gắn cờ */
   chuaXacNhan?: string[];
+  /** Điểm danh theo loại ca — có thì quân số tính theo người có mặt từng lúc (bỏ qua quanSo của ca đó) */
+  coMat?: Partial<Record<LoaiCa, DoanCoMat[]>>;
   /** Đoạn tạm ngưng theo khoá cặp (từ tam_ngung tới lúc chạy lại / xong) — để tách lý do giờ chờ */
   doanNgung?: Record<string, Array<{ start: number; end: number | null; lyDo: string }>>;
   /** Giờ hiện tại, dùng cắt đoạn đang chạy (end = null) */
@@ -105,6 +114,15 @@ export interface KetQuaHangMuc {
   soNguoiMax: number;
   soNguoiMin: number;
 }
+export interface KetQuaNguoi {
+  /** Giờ có mặt trong cửa sổ ca (trừ nghỉ) */
+  coMatThuong: number; coMatTangCa: number;
+  /** Giờ công đã gắn hạng mục */
+  congThuong: number; congTangCa: number;
+  /** Giờ có mặt mà không gắn hạng mục nào */
+  cho: number;
+  theoHangMuc: Record<string, number>;
+}
 export interface KetQuaPhanBo {
   theoHangMuc: Record<string, KetQuaHangMuc>;
   gioCho: { thuong: number; tangCa: number };
@@ -112,6 +130,8 @@ export interface KetQuaPhanBo {
   gioNguoiTo: { thuong: number; tangCa: number };
   /** Giờ chờ (thường + tăng ca) theo lý do: nguoi_ranh, khong_viec, hoặc mã lý do tạm ngưng */
   gioChoLyDo: Record<string, number>;
+  /** Theo người (mã NV) — chỉ có khi tổ điểm danh / khai tên */
+  theoNguoi: Record<string, KetQuaNguoi>;
   co: string[];
 }
 
@@ -128,13 +148,25 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     if (!soNguoiTheoKey.has(c.key)) soNguoiTheoKey.set(c.key, []);
     soNguoiTheoKey.get(c.key)!.push(c);
   }
-  const soNguoiLuc = (key: string, t: number): number => {
+  const khaiLuc = (key: string, t: number): ThayDoiSoNguoi | null => {
     const ds = soNguoiTheoKey.get(key);
-    if (!ds) return 0;
-    let v = 0;
-    for (const c of ds) { if (c.at <= t) v = c.soNguoi; else break; }
-    return Math.max(0, v);
+    if (!ds) return null;
+    let v: ThayDoiSoNguoi | null = null;
+    for (const c of ds) { if (c.at <= t) v = c; else break; }
+    return v;
   };
+  /** Khai theo tên thì số người = số tên */
+  const soNguoiLuc = (key: string, t: number): number => {
+    const c = khaiLuc(key, t);
+    if (!c) return 0;
+    return Math.max(0, Array.isArray(c.nguoi) ? c.nguoi.length : c.soNguoi);
+  };
+  const nguoiLuc = (key: string, t: number): string[] | null => {
+    const c = khaiLuc(key, t);
+    return c && Array.isArray(c.nguoi) ? c.nguoi : null;
+  };
+  const theoNguoi: Record<string, KetQuaNguoi> = {};
+  const nguoi = (mnv: string) => (theoNguoi[mnv] ??= { coMatThuong: 0, coMatTangCa: 0, congThuong: 0, congTangCa: 0, cho: 0, theoHangMuc: {} });
   const dangChayLuc = (key: string, t: number): boolean =>
     input.doanChay[key].some(d => d.start <= t && t < (d.end ?? input.now));
 
@@ -174,10 +206,13 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     for (const ds of Object.values(doanNgung)) {
       for (const d of ds) for (const t of [d.start, d.end ?? input.now]) if (t > cs.start && t < end) mocs.add(t);
     }
+    const coMat = input.coMat?.[cs.loaiCa] ?? [];
+    const coDiemDanh = coMat.length > 0;
+    for (const d of coMat) for (const t of [d.start, d.end ?? input.now]) if (t > cs.start && t < end) mocs.add(t);
     const ds = [...mocs].sort((a, b) => a - b);
 
     const q = input.quanSo[cs.loaiCa];
-    const daChot = typeof q === 'number' && q >= 0;
+    const daChot = coDiemDanh || (typeof q === 'number' && q >= 0);
     if (!daChot) coTo.add('chua_chot_quan_so');
 
     for (let i = 0; i + 1 < ds.length; i++) {
@@ -188,6 +223,11 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       for (const k of chay) out[k].gioChay += gio;
 
       const khai = chay.map(k => [k, soNguoiLuc(k, s)] as const);
+      // Người có mặt lúc s (điểm danh) + người đang gắn tên vào hạng mục chạy
+      const tenChay = new Set<string>();
+      for (const k of chay) for (const m of nguoiLuc(k, s) ?? []) tenChay.add(m);
+      const coMatLuc = new Set<string>(tenChay);
+      if (coDiemDanh) for (const d of coMat) if (d.start <= s && s < (d.end ?? input.now)) coMatLuc.add(d.mnv);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -198,12 +238,33 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
         if (laTangCa) out[k].gioCongTangCa += h; else out[k].gioCongThuong += h;
       };
 
+      // Giờ có mặt / giờ chờ / giờ công từng người (hệ số co khi khai vượt quân số)
+      const tinhNguoi = (heSo: number) => {
+        const daGan = new Set<string>();
+        for (const k of chay) {
+          for (const m of nguoiLuc(k, s) ?? []) {
+            const x = nguoi(m);
+            const h = gio * heSo;
+            if (laTangCa) x.congTangCa += h; else x.congThuong += h;
+            x.theoHangMuc[k] = (x.theoHangMuc[k] ?? 0) + h;
+            daGan.add(m);
+          }
+        }
+        for (const m of coMatLuc) {
+          const x = nguoi(m);
+          if (laTangCa) x.coMatTangCa += gio; else x.coMatThuong += gio;
+          if (!daGan.has(m)) x.cho += gio;
+        }
+      };
+
       if (!daChot) {
         for (const [k, n] of khai) cong(k, n * gio);
+        tinhNguoi(1);
         continue;
       }
-      const Q = q as number;
+      const Q = coDiemDanh ? coMatLuc.size : (q as number);
       if (laTangCa) gioNguoiTo.tangCa += Q * gio; else gioNguoiTo.thuong += Q * gio;
+      tinhNguoi(tongKhai > Q && tongKhai > 0 ? Q / tongKhai : 1);
       if (tongKhai === 0) {
         if (laTangCa) gioCho.tangCa += Q * gio; else gioCho.thuong += Q * gio;
         choVi(lyDoCho(s), Q * gio);
@@ -233,6 +294,11 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     gioCho: { thuong: lamTron(gioCho.thuong), tangCa: lamTron(gioCho.tangCa) },
     gioNguoiTo: { thuong: lamTron(gioNguoiTo.thuong), tangCa: lamTron(gioNguoiTo.tangCa) },
     gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lamTron(v)])),
+    theoNguoi: Object.fromEntries(Object.entries(theoNguoi).map(([m, x]) => [m, {
+      coMatThuong: lamTron(x.coMatThuong), coMatTangCa: lamTron(x.coMatTangCa),
+      congThuong: lamTron(x.congThuong), congTangCa: lamTron(x.congTangCa), cho: lamTron(x.cho),
+      theoHangMuc: Object.fromEntries(Object.entries(x.theoHangMuc).map(([k, v]) => [k, lamTron(v)])),
+    }])),
     co: [...coTo].sort(),
   };
 }

@@ -110,7 +110,27 @@ export interface BaoCaoXuong {
   };
   theoTo: BaoCaoTo[];
   hangMuc: BaoCaoHangMuc[];
+  /** Chấm công theo người (chỉ khi tổ đã điểm danh / khai tên) */
+  theoNguoi?: BaoCaoNguoi[];
 }
+export interface BaoCaoNguoiNgay {
+  ngay: string; toId: number; tenTo: string;
+  /** ms; null = chưa điểm danh (chỉ được gắn tên vào hạng mục) */
+  vao: number | null; ra: number | null; treP: number; veSomP: number;
+  coMatThuong: number; coMatTangCa: number; congThuong: number; congTangCa: number; cho: number;
+  hangMuc: Array<{ hex: string; congDoanId: string; gio: number; tenHangMuc: string | null; tenCongDoan: string }>;
+}
+export interface BaoCaoNguoi {
+  mnv: string; hoTen: string | null; tenTo: string | null; chucVu: string | null;
+  soNgay: number; lanTre: number; lanVeSom: number;
+  coMatThuong: number; coMatTangCa: number; congThuong: number; congTangCa: number; cho: number;
+  ngay: BaoCaoNguoiNgay[];
+}
+export interface CongNhanXuong {
+  mnv: string; hoTen: string; xuong: string | null; toId: number | null; tenTo: string | null; chucVu: string | null;
+  active: boolean; nguon: string | null;
+}
+export interface DongNapNhanSu { mnv: string; hoTen: string; xuong?: string | null; tenTo?: string | null; chucVu?: string | null }
 
 /** Token đăng nhập thường còn hạn (JWT 8 giờ) thì dùng (đúng người đang đăng nhập); hết hạn / không có thì dùng
  *  token Xưởng 30 ngày — điện thoại tổ trưởng / quản lý thường chỉ còn token Xưởng sau một ca */
@@ -177,6 +197,11 @@ export const xuongSetupApi = {
   tomTat: (hexes: string[]) => goi<{ tomTat: Record<string, TomTatHex> }>('POST', '/api/xuong/hex-tom-tat', { hexes }),
   dsTrienKhai: (xuong: string, opt: { q?: string; chua?: boolean; hex?: string } = {}) =>
     goi<DanhSachTrienKhai>('GET', `/api/xuong/trien-khai?${q({ xuong, q: opt.q, chua: opt.chua ? '1' : undefined, hex: opt.hex })}`),
+  dsCongNhan: (xuong: string) => goi<{ congNhan: CongNhanXuong[] }>('GET', `/api/xuong/cong-nhan?${q({ xuong })}`),
+  suaCongNhan: (d: { mnv: string; toId?: number | null; active?: boolean; hoTen?: string }) =>
+    goi<{ congNhan: CongNhanXuong }>('POST', '/api/xuong/cong-nhan/sua', d),
+  napCongNhan: (rows: DongNapNhanSu[], nghiNguoiVang: boolean) =>
+    goi<{ daNap: number; boQua: number; nghi: number; loi: string[]; toKhongKhop: string[] }>('POST', '/api/xuong/cong-nhan/nap', { rows, nghiNguoiVang }),
   baoCao: (xuong: string, tu: string, den: string) => goi<BaoCaoXuong>('GET', `/api/xuong/bao-cao?${q({ xuong, tu, den })}`),
   trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; tuyen: string[] }>) =>
     goi<{ soHangMuc: number }>('POST', '/api/xuong/trien-khai', { xuong, items }),

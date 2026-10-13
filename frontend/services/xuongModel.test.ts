@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   gioVN, caCanChot, caHienTai, apDung, nhomDangLam, soNguoiRanh, chiaDeu, trichHex, thoiLuong, hhmm, mocTrongNgay,
-  choSoLe, lamTronSl, hienSl,
+  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon, apDungDiemDanh,
   type DongViec, type LichCa,
 } from './xuongModel';
 
@@ -140,5 +140,38 @@ describe('số lượng theo đơn vị hạng mục', () => {
     expect(lamTronSl(0.1 + 0.2)).toBe(0.3);
     expect(hienSl(74.255)).toBe('74,255');
     expect(hienSl(1234.5)).toBe('1.234,5');
+  });
+});
+
+describe('chấm công theo người', () => {
+  const T = Date.parse('2026-10-13T08:00:00+07:00');
+  const cvCc = (coMat: Record<string, Array<{ mnv: string; vao: number; ra: number | null }>>) =>
+    ({ coMat, quanSo: {}, congNhan: [] } as unknown as Parameters<typeof apDungDiemDanh>[0]);
+  it('người có mặt lúc này: đã vào, chưa ra', () => {
+    const cv = cvCc({ chinh: [
+      { mnv: 'A', vao: T - 3_600_000, ra: null }, { mnv: 'B', vao: T - 3_600_000, ra: T - 60_000 }, { mnv: 'C', vao: T + 3_600_000, ra: null },
+    ] });
+    expect(coMatLuc(cv, 'chinh', T)).toEqual(['A', 'C']); // C điểm danh sớm (giờ vào = đầu ca) vẫn có mặt
+    expect(daDiemDanh(cv, 'chinh')).toBe(true);
+    expect(daDiemDanh(cv, 'ca1')).toBe(false);
+  });
+  it('áp điểm danh: thêm người vào, đánh người ra; quân số = số người còn có mặt', () => {
+    let cv = apDungDiemDanh(cvCc({}), 'chinh', [{ mnv: 'A', luc: T }, { mnv: 'B', luc: T }], []);
+    expect(cv.quanSo.chinh).toBe(2);
+    cv = apDungDiemDanh(cv, 'chinh', [], [{ mnv: 'B', luc: T + 3_600_000 }]);
+    expect(cv.quanSo.chinh).toBe(1);
+    expect(coMatLuc(cv, 'chinh', T + 7_200_000)).toEqual(['A']);
+    // Vắng (ra đúng lúc vào) => bỏ khoảng rỗng
+    cv = apDungDiemDanh(cv, 'chinh', [], [{ mnv: 'A', luc: T }]);
+    expect(cv.coMat?.chinh?.some(x => x.mnv === 'A')).toBe(false);
+  });
+  it('người đang bận hạng mục khác, tên gọn', () => {
+    const r = (hex: string, nguoi: string[]) => ({ hex, congDoanId: 'CD', nguoi } as never);
+    const ban = nguoiDangBan([r('111111111', ['A', 'B']), r('222222222', ['C'])], '111111111|CD');
+    expect([...ban.entries()]).toEqual([['C', '222222222']]);
+    const ds = [{ mnv: 'AAF1', hoTen: 'Nguyễn Văn An', toKhac: null }, { mnv: 'AAF2', hoTen: 'Trần An', toKhac: null }, { mnv: 'AAF3', hoTen: 'Lê Bình', toKhac: null }];
+    expect(tenGon('AAF3', ds)).toBe('Bình');
+    expect(tenGon('AAF1', ds)).toBe('An AF1');
+    expect(tenGon('XYZ', ds)).toBe('XYZ');
   });
 });

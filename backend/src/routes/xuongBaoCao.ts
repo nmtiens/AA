@@ -3,7 +3,7 @@ import { pool } from '../db.js';
 import { app } from '../server/app.js';
 import { vnDayKey, runWithLimit } from '../server/common.js';
 import { isMissingSchema } from '../notifications.js';
-import { fail, xuongQuanLy, quanLyDuoc, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa } from './xuong.js';
+import { fail, xuongQuanLy, quanLyDuoc, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan } from './xuong.js';
 
 // ============================================================================
 // BÁO CÁO XƯỞNG / TỔ (đợt 2 — docs/designs/xuong-checkin.md, mục Màn hình: "theo xưởng / tổ — giờ công so với
@@ -319,6 +319,52 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       if (!isMissingSchema(e)) throw e;
     }
 
+    // Chấm công theo người: mỗi (người, ngày, tổ) từ kết quả phân bổ + điểm danh
+    type NgayNguoi = {
+      ngay: string; toId: number; tenTo: string; vao: number | null; ra: number | null; treP: number; veSomP: number;
+      coMatThuong: number; coMatTangCa: number; congThuong: number; congTangCa: number; cho: number;
+      hangMuc: Array<{ hex: string; congDoanId: string; gio: number }>;
+    };
+    const nguoiNgay = new Map<string, NgayNguoi[]>();
+    const tenToCua = new Map(toRows.map(t => [Number(t.id), String(t.ten_to)]));
+    for (const x of pb.rows) {
+      const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
+      if (!kq?.theoNguoi) continue;
+      for (const [mnv, n] of Object.entries(kq.theoNguoi)) {
+        const dd = kq.diemDanh?.[mnv];
+        if (!nguoiNgay.has(mnv)) nguoiNgay.set(mnv, []);
+        nguoiNgay.get(mnv)!.push({
+          ngay: x.ngay, toId: Number(x.to_id), tenTo: tenToCua.get(Number(x.to_id)) ?? '',
+          vao: dd?.vao ?? null, ra: dd?.ra ?? null, treP: dd?.treP ?? 0, veSomP: dd?.veSomP ?? 0,
+          coMatThuong: lam(n.coMatThuong), coMatTangCa: lam(n.coMatTangCa), congThuong: lam(n.congThuong), congTangCa: lam(n.congTangCa),
+          cho: lam(n.cho),
+          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split('|')[0], congDoanId: k.split('|')[1], gio: lam(g) }))
+            .sort((a, b) => b.gio - a.gio),
+        });
+      }
+    }
+    const tenNguoi = new Map<string, { hoTen: string; tenTo: string | null; chucVu: string | null }>();
+    if (nguoiNgay.size && await coBangCongNhan()) {
+      const r = await pool.query(
+        `SELECT c.mnv, c.ho_ten, c.chuc_vu, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.mnv = ANY($1::text[])`,
+        [[...nguoiNgay.keys()]]);
+      for (const x of r.rows) tenNguoi.set(String(x.mnv), { hoTen: String(x.ho_ten), tenTo: x.ten_to ?? null, chucVu: x.chuc_vu ?? null });
+    }
+    const theoNguoi = [...nguoiNgay.entries()].map(([mnv, ds]) => {
+      const t = tenNguoi.get(mnv);
+      const cong = (f: (x: NgayNguoi) => number) => lam(ds.reduce((a, x) => a + f(x), 0));
+      return {
+        mnv, hoTen: t?.hoTen ?? null, tenTo: t?.tenTo ?? ds[ds.length - 1]?.tenTo ?? null, chucVu: t?.chucVu ?? null,
+        soNgay: new Set(ds.map(x => x.ngay)).size, lanTre: ds.filter(x => x.treP > 0).length, lanVeSom: ds.filter(x => x.veSomP > 0).length,
+        coMatThuong: cong(x => x.coMatThuong), coMatTangCa: cong(x => x.coMatTangCa),
+        congThuong: cong(x => x.congThuong), congTangCa: cong(x => x.congTangCa), cho: cong(x => x.cho),
+        ngay: ds.sort((a, b) => b.ngay.localeCompare(a.ngay)).map(x => ({
+          ...x, hangMuc: x.hangMuc.map(h => ({ ...h, tenHangMuc: info.get(h.hex)?.ten_hang_muc ?? null, tenCongDoan: cdTen.get(h.congDoanId) ?? h.congDoanId })),
+        })),
+      };
+    }).sort((a, b) => (a.tenTo ?? '').localeCompare(b.tenTo ?? '') || (a.hoTen ?? a.mnv).localeCompare(b.hoTen ?? b.mnv));
+    for (const n of theoNguoi) for (const d of n.ngay) for (const h of d.hangMuc) tatCaHex.add(h.hex);
+
     const hangMuc = [...hmKy.entries()].map(([hex, m]) => {
       const congDoan = [...m.values()].map(c => {
         const tt = ttCua.get(`${hex}|${c.congDoanId}`);
@@ -348,6 +394,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       conThieu: Math.max(0, canTinh.length - lanNay.length),
       chamCong,
       hangMuc,
+      theoNguoi,
       chiSo: {
         nhatKy: { tong: kpiNk.rows[0]?.tong ?? 0, du: kpiNk.rows[0]?.du ?? 0 },
         guiTrong1Gio: { tong: kpiGui.rows[0]?.tong ?? 0, nhanh: kpiGui.rows[0]?.nhanh ?? 0 },

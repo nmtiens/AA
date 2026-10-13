@@ -12,6 +12,7 @@ import {
 } from '../server/xuong/auth.js';
 import { hieuChinhGio } from '../server/xuong/clock.js';
 import { tinhTrangThai, suKienConHieuLuc } from '../server/xuong/state.js';
+import { doanCoMat, tomTatDiemDanh, kiemTraDiemDanh, chuanMnv } from '../server/xuong/chamCong.js';
 import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, type ThayDoiSoNguoi } from '../server/xuong/allocation.js';
 import { thoiGianTheoLo } from '../server/xuong/metrics.js';
 import { baoHangChoNhan } from './xuongThongBao.js';
@@ -273,7 +274,7 @@ type SuKienVao = z.infer<typeof suKienSchema>;
 
 const CAN_HEX = new Set(['trien_khai', 'khai_bao_cd', 'nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do']);
 const CAN_CONG_DOAN = new Set(['nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do']);
-const CAN_TO = new Set(['tang_ca', 'chia_nguoi', 'quan_so', 'xac_nhan_cuoi_ngay']);
+const CAN_TO = new Set(['tang_ca', 'chia_nguoi', 'quan_so', 'xac_nhan_cuoi_ngay', 'vao_ca', 'ra_ca']);
 
 /** Kiểm tra theo loại; trả lý do từ chối hoặc null */
 function kiemTraTheoLoai(e: SuKienVao): string | null {
@@ -291,6 +292,10 @@ function kiemTraTheoLoai(e: SuKienVao): string | null {
   if (e.loai === 'tang_ca') {
     const ca = e.duLieu?.loaiCa;
     if (typeof ca !== 'string' || !LOAI_CA_TANG_CA.includes(ca as LoaiCa)) return 'Loại ca tăng ca không hợp lệ';
+  }
+  if (e.loai === 'vao_ca' || e.loai === 'ra_ca') {
+    const loi = kiemTraDiemDanh(e.duLieu);
+    if (loi) return loi;
   }
   if (e.loai === 'quan_so') {
     const ca = e.duLieu?.loaiCa;
@@ -344,6 +349,11 @@ export async function ghiVaTinhLai(client: PoolClient, ghi: Row[], dichDb: Row[]
       if (!x.to_id) continue;
       const ngay = vnDayKey(new Date(x.device_ts_hieu_chinh));
       pb.set(`${x.to_id}|${ngay}`, { to_id: x.to_id, ngay });
+      // Ra ca rạng sáng (ca qua đêm) thuộc ngày hôm trước
+      if (x.loai === 'ra_ca' && new Date(new Date(x.device_ts_hieu_chinh).getTime() + 7 * 3_600_000).getUTCHours() < 12) {
+        const truoc = vnDayKey(new Date(new Date(x.device_ts_hieu_chinh).getTime() - 24 * 3_600_000));
+        pb.set(`${x.to_id}|${truoc}`, { to_id: x.to_id, ngay: truoc });
+      }
     }
     if (pb.size) {
       await client.query(
@@ -566,6 +576,15 @@ async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<Map<strin
 // ---------------------------------------------------------------------------
 let bangAnh: { co: boolean; luc: number } | null = null;
 /** Đã chạy file SQL ảnh chưa (có rồi thì nhớ luôn; chưa có thì 5 phút kiểm lại) */
+let bangCongNhan: { co: boolean; luc: number } | null = null;
+/** Đã chạy backend/sql/2026-10-13_xuong_cham_cong.sql (bảng công nhân + loại sự kiện vao_ca / ra_ca) */
+export async function coBangCongNhan(): Promise<boolean> {
+  if (bangCongNhan && (bangCongNhan.co || Date.now() - bangCongNhan.luc < 300_000)) return bangCongNhan.co;
+  const r = await pool.query(`SELECT to_regclass('xuong_cong_nhan') IS NOT NULL AS co`);
+  bangCongNhan = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangCongNhan.co;
+}
+
 async function coBangAnh(): Promise<boolean> {
   if (bangAnh && (bangAnh.co || Date.now() - bangAnh.luc < 300_000)) return bangAnh.co;
   const r = await pool.query(`SELECT to_regclass('xuong_anh') IS NOT NULL AS co`);
@@ -661,15 +680,28 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
     // Số người đang làm: lần chia người (3D) sau lần bắt đầu / tiếp tục gần nhất thì thay số khai lúc bắt đầu
     // (cùng cách phân bổ giờ công đọc soNguoi theo thời gian — allocation.ts)
     const chia = await pool.query(
-      `SELECT du_lieu->'phanBo' AS pb, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
-       WHERE to_id = $1 AND loai = 'chia_nguoi' AND device_ts_hieu_chinh > now() - interval '30 days'
+      `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+       WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
        ORDER BY device_ts_hieu_chinh`, [toId]);
+    /** Tên người đang làm (khai theo tên) từ lần bắt đầu / tiếp tục / chia người gần nhất kể từ lúc chạy */
+    const tenDangLam = (hex: string, cd: string, tu: Date | null): string[] | null => {
+      if (!tu) return null;
+      let ten: string[] | null = null;
+      for (const c of chia.rows) {
+        if (new Date(c.ts).getTime() < tu.getTime() - 1000) continue;
+        if (c.loai === 'chia_nguoi') {
+          const p = Array.isArray(c.pb) ? (c.pb as Array<Record<string, unknown>>).find(x => x.hex === hex && x.congDoanId === cd) : undefined;
+          if (p) ten = dsTen(p.nguoi);
+        } else if (String(c.hex) === hex && String(c.cong_doan_id) === cd) ten = dsTen(c.nguoi);
+      }
+      return ten;
+    };
     const soNguoiChia = (hex: string, cd: string, tu: Date | null): number | null => {
       if (!tu) return null;
       let n: number | null = null;
       for (const c of chia.rows) {
-        if (new Date(c.ts).getTime() < tu.getTime() || !Array.isArray(c.pb)) continue;
+        if (c.loai !== 'chia_nguoi' || new Date(c.ts).getTime() < tu.getTime() || !Array.isArray(c.pb)) continue;
         const p = (c.pb as Array<Record<string, unknown>>).find(x => x.hex === hex && x.congDoanId === cd);
         if (p && typeof p.soNguoi === 'number') n = p.soNguoi;
       }
@@ -678,8 +710,34 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
     const rows = st.map(x => {
       const d = dongTrangThai(x, info.get(String(x.hex)));
       const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
-      return { ...d, soNguoi: n ?? d.soNguoi, goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [] };
+      const tu = x.dang_chay_tu ? new Date(x.dang_chay_tu) : null;
+      return {
+        ...d, soNguoi: n ?? d.soNguoi, nguoi: x.trang_thai === 'dang_lam' ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : null,
+        goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [],
+      };
     });
+
+    // Chấm công theo người: danh sách công nhân của tổ + người có mặt hôm nay theo ca (kể cả người mượn tổ khác)
+    const chamCong = await coBangCongNhan();
+    let congNhan: Array<{ mnv: string; hoTen: string; toKhac: string | null }> = [];
+    const coMatHomNay: Record<string, Array<{ mnv: string; vao: number; ra: number | null }>> = {};
+    if (chamCong) {
+      const dd = (await pool.query(
+        `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
+           AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`, [toId, ngay])).rows;
+      const evs = suKienConHieuLuc(dd.map(toSuKien)).filter(e => vnDayKey(new Date(e.ts)) === ngay || e.loai === 'ra_ca');
+      for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
+        coMatHomNay[ca] = (ds ?? []).map(d => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
+      }
+      const muon = [...new Set(Object.values(coMatHomNay).flat().map(x => x.mnv))];
+      const cn = await pool.query(
+        `SELECT c.mnv, c.ho_ten, c.to_id, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
+         WHERE c.active AND (c.to_id = $1 OR c.mnv = ANY($2::text[])) ORDER BY c.ho_ten`, [toId, muon]);
+      congNhan = cn.rows.map(x => ({ mnv: String(x.mnv), hoTen: String(x.ho_ten), toKhac: Number(x.to_id) === toId ? null : (x.ten_to ?? 'tổ khác') }));
+      // Người có mặt mà chưa có trong danh sách (mã nhập tay chưa lưu) vẫn hiện
+      for (const m of muon) if (!congNhan.some(c => c.mnv === m)) congNhan.push({ mnv: m, hoTen: m, toKhac: null });
+    }
     res.json({
       success: true, available: true, serverNow: Date.now(), ngay,
       to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
@@ -689,6 +747,7 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       // Theo số lượng, không theo trạng thái: xong một phần mà vẫn chạy / đang tạm ngưng vẫn giao được phần đã xong
       choGiao: rows.filter(x => x.slHoanThanh > x.slGiao),
       quanSo, tangCa, quanSoTruoc,
+      chamCong, congNhan, coMat: coMatHomNay,
       soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
       daXacNhanHomNay: xacNhan.rows.length > 0,
       anhBat: await coBangAnh(),
@@ -700,12 +759,19 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // Giờ công phân bổ của tổ trong một ngày — cache theo phiên bản sổ (to, ngày) (R3)
 // ---------------------------------------------------------------------------
-export type KetQuaGioCong = ReturnType<typeof phanBoGioCong> & { bamLichCa: string };
+export type KetQuaGioCong = ReturnType<typeof phanBoGioCong> & {
+  bamLichCa: string;
+  /** Giờ vào / ra, phút trễ / về sớm từng người (chấm công) */
+  diemDanh?: ReturnType<typeof tomTatDiemDanh>;
+};
+/** du_lieu.nguoi của bat_dau / tiep_tuc / phanBo chia_nguoi → mã NV; không có = null (khai theo số) */
+const dsTen = (v: unknown): string[] | null =>
+  Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 const gioCongCache = new Map<string, { v: string; payload: KetQuaGioCong }>();
 
 /** Dấu ngắn của lịch ca (giờ, nghỉ) — kết quả phân bổ giờ công phụ thuộc lịch ca */
 // PHIEN_BAN_TINH: đổi khi cách tính / dạng kết quả phân bổ đổi (vd thêm gioChoLyDo) — kết quả đã lưu tự tính lại
-const PHIEN_BAN_TINH = 'pb4'; // pb3: thêm gioNguoiKhai / soNguoiMax theo hạng mục; pb4: soNguoiMin
+const PHIEN_BAN_TINH = 'pb5'; // pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người
 export const dauLichCa = (lichCa: LichCaRow[]) => createHash('sha1')
   .update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
 const GIO_CONG_CACHE_MAX = 300;
@@ -775,12 +841,14 @@ export async function gioCongToNgay(toId: number, ngay: string) {
         const d = vnDayKey(new Date(e.ts));
         if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
       }
-      if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && e.soNguoi !== null) soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi });
+      if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && e.soNguoi !== null) {
+        soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
+      }
     }
     if (e.loai === 'chia_nguoi' && Array.isArray(e.duLieu?.phanBo)) {
       for (const p of e.duLieu!.phanBo as Array<Record<string, unknown>>) {
         if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && typeof p.soNguoi === 'number') {
-          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi });
+          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi, nguoi: dsTen(p.nguoi) });
         }
       }
     }
@@ -820,10 +888,15 @@ export async function gioCongToNgay(toId: number, ngay: string) {
     }
   }
 
+  // Điểm danh (chấm công theo người): vao_ca trong ngày; ra_ca trong ngày hoặc sáng hôm sau (ca qua đêm)
+  const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 3_600_000;
+  const coMat = doanCoMat(conHieuLuc.filter(e => (e.loai === 'vao_ca' && trongNgay(e))
+    || (e.loai === 'ra_ca' && (trongNgay(e) || (e.duLieu?.loaiCa !== 'chinh' && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)))));
+
   const payload: KetQuaGioCong = { ...phanBoGioCong({
-    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa), quanSo, doanChay, soNguoi, doanNgung,
+    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa), quanSo, doanChay, soNguoi, doanNgung, coMat,
     boChonTangCa: boChon, ngungTinh, chuaXacNhan, now: Date.now(),
-  }), bamLichCa };
+  }), bamLichCa, diemDanh: tomTatDiemDanh(coMat, ngay, lichCa) };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
   while (gioCongCache.size > GIO_CONG_CACHE_MAX) {

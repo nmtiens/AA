@@ -44,7 +44,14 @@ export interface DongViec {
   tenCongTrinh: string | null;
   dvt: string | null;
   goiYKe: string[];
+  /** Mã NV người đang làm (khai theo tên — chấm công theo người); null = khai theo số */
+  nguoi?: string[] | null;
 }
+
+/** Công nhân trong danh sách tổ (toKhac = tên tổ gốc khi là người mượn hôm nay) */
+export interface CongNhanTo { mnv: string; hoTen: string; toKhac: string | null }
+/** Một lần có mặt trong ca (ms); ra = null: vẫn đang có mặt */
+export interface CoMatNguoi { mnv: string; vao: number; ra: number | null }
 
 export interface CongViec {
   ngay: string;
@@ -58,6 +65,11 @@ export interface CongViec {
   tangCa: LoaiCa[];
   quanSoTruoc: Partial<Record<LoaiCa, number>>;
   soNguoiTangCaTruoc: number | null;
+  /** Máy chủ đã bật chấm công theo người (backend/sql/2026-10-13_xuong_cham_cong.sql) */
+  chamCong?: boolean;
+  congNhan?: CongNhanTo[];
+  /** Điểm danh hôm nay theo loại ca */
+  coMat?: Partial<Record<LoaiCa, CoMatNguoi[]>>;
   daXacNhanHomNay: boolean;
   lichCa: LichCa[];
   /** Máy chủ đã cấu hình kho ảnh (R2) */
@@ -286,3 +298,48 @@ export const TEN_CO: Record<string, string> = {
   chua_chot_quan_so: 'Chưa chốt quân số',
 };
 export const tenCo = (c: string) => TEN_CO[c] ?? c;
+
+// ---------------------------------------------------------------------------
+// Chấm công theo người (docs/designs/xuong-cham-cong.md)
+// ---------------------------------------------------------------------------
+/** Mã NV đang có mặt trong ca lúc `now` (điểm danh sớm trước giờ vào ca — giờ vào ở tương lai — vẫn tính có mặt) */
+export function coMatLuc(cv: Pick<CongViec, 'coMat'>, ca: LoaiCa | null, now: number): string[] {
+  if (!ca) return [];
+  const ds = cv.coMat?.[ca] ?? [];
+  return [...new Set(ds.filter(x => x.ra === null || x.ra > now).map(x => x.mnv))];
+}
+
+/** Ca này đã điểm danh theo tên chưa */
+export const daDiemDanh = (cv: Pick<CongViec, 'coMat'>, ca: LoaiCa | null) => !!ca && (cv.coMat?.[ca]?.length ?? 0) > 0;
+
+/** Người đang gắn vào các hạng mục chạy khác (mnv → hex) */
+export function nguoiDangBan(dangChay: DongViec[], boQua?: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const r of dangChay) {
+    if (boQua && khoaDong(r) === boQua) continue;
+    for (const m of r.nguoi ?? []) out.set(m, r.hex);
+  }
+  return out;
+}
+
+/** Tên gọn để hiện trên chip / dòng: "Nguyễn Văn An" → "An", trùng tên thì thêm đuôi mã */
+export function tenGon(mnv: string, ds: CongNhanTo[]): string {
+  const c = ds.find(x => x.mnv === mnv);
+  if (!c || !c.hoTen || c.hoTen === mnv) return mnv;
+  const ten = c.hoTen.trim().split(/\s+/).pop()!;
+  const trung = ds.filter(x => x.hoTen.trim().split(/\s+/).pop() === ten).length > 1;
+  return trung ? `${ten} ${mnv.slice(-3)}` : ten;
+}
+
+/** Áp kết quả điểm danh vào bản ghi máy (cập nhật ngay, chưa chờ máy chủ) */
+export function apDungDiemDanh(cv: CongViec, ca: LoaiCa, vao: Array<{ mnv: string; luc: number }>, ra: Array<{ mnv: string; luc: number }>): CongViec {
+  const ds = [...(cv.coMat?.[ca] ?? [])].map(x => ({ ...x }));
+  for (const v of vao) if (!ds.some(x => x.mnv === v.mnv && x.ra === null)) ds.push({ mnv: v.mnv, vao: v.luc, ra: null });
+  for (const x of ra) {
+    const d = ds.find(y => y.mnv === x.mnv && y.ra === null);
+    if (d) d.ra = Math.max(d.vao, x.luc);
+  }
+  const conLai = ds.filter(x => x.ra === null || x.ra > x.vao);
+  const coMat = { ...(cv.coMat ?? {}), [ca]: conLai };
+  return { ...cv, coMat, quanSo: { ...cv.quanSo, [ca]: new Set(conLai.filter(x => x.ra === null).map(x => x.mnv)).size } };
+}
