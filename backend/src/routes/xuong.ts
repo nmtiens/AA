@@ -1062,12 +1062,28 @@ app.get('/api/xuong/gioi-han-nhan', async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /api/xuong/tim-hex?q=&toId= — gợi ý khi gõ mã (7B): việc của tổ trước, rồi hạng mục trong bảng sản xuất
+// GET /api/xuong/tim-hex?q=&toId= — gợi ý khi gõ mã (7B): việc của tổ trước, rồi hạng mục trong bảng sản xuất.
+// q có chữ (≥ 2 ký tự) => tìm theo tên hạng mục / tên hoặc mã công trình (Tra cứu)
 // ---------------------------------------------------------------------------
 app.get('/api/xuong/tim-hex', async (req: Request, res: Response) => {
   try {
     if (!(await coQuyenXuong(req))) return res.status(403).json({ success: false, message: 'Tài khoản chưa được cấp quyền mục Xưởng' });
-    const q = String(req.query.q ?? '').replace(/\D/g, '').slice(0, 9);
+    const raw = String(req.query.q ?? '').trim().slice(0, 80);
+    if (/\p{L}/u.test(raw)) {
+      if (raw.length < 2) return res.json({ success: true, available: true, ketQua: [] });
+      const mauChu = `%${raw.replace(/[\\%_]/g, c => `\\${c}`)}%`;
+      const r = await pool.query(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh FROM production_status_app
+         WHERE hex IS NOT NULL AND (ten_hang_muc ILIKE $1 OR ten_cong_trinh ILIKE $1 OR ma_cong_trinh ILIKE $1)
+         ORDER BY hex::text DESC LIMIT 30`, [mauChu]);
+      return res.json({
+        success: true, available: true,
+        ketQua: r.rows.filter(x => HEX_RE.test(String(x.hex))).slice(0, 15).map(x => ({
+          hex: String(x.hex), cuaTo: false, tenHangMuc: x.ten_hang_muc ?? null, tenCongTrinh: x.ten_cong_trinh ?? null,
+        })),
+      });
+    }
+    const q = raw.replace(/\D/g, '').slice(0, 9);
     if (q.length < 3) return res.json({ success: true, available: true, ketQua: [] });
     const toId = Number(req.query.toId);
     const mau = `%${q}%`;
