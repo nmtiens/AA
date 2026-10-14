@@ -3,7 +3,8 @@ import { pool } from '../db.js';
 import { app } from '../server/app.js';
 import { vnDayKey, runWithLimit } from '../server/common.js';
 import { isMissingSchema } from '../notifications.js';
-import { fail, xuongQuanLy, quanLyDuoc, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan } from './xuong.js';
+import { fail, xuongQuanLy, quanLyDuoc, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan, COT_SU_KIEN, toSuKien, type Row } from './xuong.js';
+import { taiMra, khungCaChinh, gioTrongCaNgay, dauNgayVN, ngayCuaTs, NGAY, trangThaiMraLuc, type CapMra } from '../server/xuong/mraLichSu.js';
 
 // ============================================================================
 // BÁO CÁO XƯỞNG / TỔ (đợt 2 — docs/designs/xuong-checkin.md, mục Màn hình: "theo xưởng / tổ — giờ công so với
@@ -44,7 +45,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     const den = typeof req.query.den === 'string' && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === 'string' && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
     const soNgay = (Date.parse(den) - Date.parse(tu)) / 86_400_000;
-    if (soNgay < 0 || soNgay > 62) return res.status(400).json({ success: false, message: 'Khoảng ngày phải từ 1 tới 63 ngày' });
+    const rutGon = soNgay > 62;
+    if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: 'Khoảng ngày phải từ 1 tới 186 ngày (khoảng 6 tháng)' });
 
     const toRows = (await pool.query('SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to', [xuong])).rows;
     const toIds = toRows.map(t => Number(t.id));
@@ -167,7 +169,121 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     const dangChayNay = new Set((await pool.query(
       `SELECT DISTINCT t.hex, t.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
        WHERE tc.to_id = ANY($1::int[]) AND t.trang_thai = 'dang_lam'`, [toIds])).rows.map(x => `${x.hex}|${x.cong_doan_id}`));
-    const theoTo = toRows.map(t => {
+    // ---- LỊCH SỬ MRA (giai đoạn trước app mới): gắn vào tổ theo công đoạn ----
+    // Giờ công SP = nhân công MRA × giờ trong ca của ngày; giờ công (có mặt) = Dữ liệu Điểm danh của xưởng, chia cho các
+    // tổ theo tỷ lệ giờ công SP; giờ công SP không vượt giờ công điểm danh (MRA đếm trùng nhân công). Ngày tổ đã có số
+    // liệu app thì dùng app, bỏ MRA.
+    type HmMra = { hex: string; congDoanId: string; gioChay: number; gioCongThuong: number; gioCongTangCa: number; dangChay: boolean;
+      gioNguoiKhai: number; soNguoiMax: number; soNguoiMin: number };
+    type NgayMra = { gioNguoi: number; gioCong: number; gioCho: number; quanSo: number; hm: Map<string, HmMra>;
+      nhan: Array<{ hex: string; congDoanId: string; soLuong: number }>; xong: Array<{ hex: string; congDoanId: string; soLuong: number }> };
+    const mraNgay = new Map<string, NgayMra>();
+    const toGia: Array<{ id: number; ten_to: string; active: boolean }> = [];
+    const mraHex = new Map<string, { sl: number; luc: number }>(); // hạng mục có số liệu MRA trong kỳ
+    const mraCap = new Map<string, CapMra>(); // `${hex}|${cd}` -> cặp MRA (trạng thái cuối kỳ cho tab Theo hạng mục)
+    {
+      const caps = await taiMra(xuong, toSuKien, COT_SU_KIEN);
+      const t0 = dauNgayVN(tu), t1 = dauNgayVN(den) + NGAY;
+      const capsKy = caps.filter(c => c.doan.some(d => d.end > t0 && d.start < t1)
+        || c.nhan.some(e => e.ts >= t0 && e.ts < t1) || c.xong.some(e => e.ts >= t0 && e.ts < t1));
+      if (capsKy.length) {
+        const khung = khungCaChinh(await lichCaCuaXuong(xuong));
+        const [tcR, cdR2, ddR] = await Promise.all([
+          pool.query(`SELECT tc.cong_doan_id, min(tc.to_id) AS to_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id
+                      WHERE t.xuong = $1 GROUP BY tc.cong_doan_id`, [xuong]),
+          pool.query('SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1', [xuong]),
+          pool.query(`SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn,
+                             sum(coalesce(gio_cong_hanh_chinh,0) + coalesce(gio_cong_tang_ca,0))::float AS gio
+                      FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1 AND date BETWEEN $2::date AND $3::date GROUP BY date`, [xuong, tu, den])
+            .catch(() => ({ rows: [] as Row[] })),
+        ]);
+        const toTheoCd = new Map(tcR.rows.map(x => [String(x.cong_doan_id), Number(x.to_id)]));
+        const tenCd = new Map(cdR2.rows.map(x => [String(x.id), String(x.cd_chi_tiet)]));
+        const dd = new Map(ddR.rows.map(x => [String(x.ngay), { cn: Number(x.cn) || 0, gio: Number(x.gio) || 0 }]));
+        const coApp = new Set(pb.rows.map(x => `${x.to_id}|${x.ngay}`));
+        let idGia = -1;
+        const giaTheoCd = new Map<string, number>();
+        const toCua = (cd: string) => {
+          const id = toTheoCd.get(cd);
+          if (id) return id;
+          if (!giaTheoCd.has(cd)) { giaTheoCd.set(cd, idGia); toGia.push({ id: idGia, ten_to: `${tenCd.get(cd) ?? cd} (MRA)`, active: false }); idGia--; }
+          return giaTheoCd.get(cd)!;
+        };
+        const layNgay = (k: string) => {
+          if (!mraNgay.has(k)) mraNgay.set(k, { gioNguoi: 0, gioCong: 0, gioCho: 0, quanSo: 0, hm: new Map(), nhan: [], xong: [] });
+          return mraNgay.get(k)!;
+        };
+        for (const c of capsKy) {
+          const toId = toCua(c.cd);
+          mraCap.set(`${c.hex}|${c.cd}`, c);
+          const mh = mraHex.get(c.hex);
+          mraHex.set(c.hex, { sl: Math.max(mh?.sl ?? 0, c.slNhan), luc: Math.min(mh?.luc ?? c.dau, c.dau) });
+          const nc = c.nc && c.nc > 0 ? c.nc : 1;
+          for (const d of c.doan) {
+            const a = Math.max(d.start, t0), b = Math.min(d.end, t1);
+            if (b <= a) continue;
+            for (let n = dauNgayVN(ngayCuaTs(a)); n < b; n += NGAY) {
+              // Chủ nhật chỉ tính khi điểm danh cho thấy xưởng có làm ngày đó
+              const h = gioTrongCaNgay(a, b, n, khung, (dd.get(ngayCuaTs(n))?.gio ?? 0) > 0);
+              if (h <= 0) continue;
+              const k = `${toId}|${ngayCuaTs(n)}`;
+              if (coApp.has(k)) continue;
+              const m = layNgay(k);
+              const kk = `${c.hex}|${c.cd}`;
+              const x = m.hm.get(kk) ?? { hex: c.hex, congDoanId: c.cd, gioChay: 0, gioCongThuong: 0, gioCongTangCa: 0, dangChay: false,
+                gioNguoiKhai: 0, soNguoiMax: Math.round(nc), soNguoiMin: Math.round(nc) };
+              x.gioChay += h; x.gioCongThuong += nc * h; x.gioNguoiKhai += nc * h;
+              m.hm.set(kk, x); m.gioCong += nc * h;
+            }
+          }
+          for (const [ds2, dich] of [[c.nhan, 'nhan'], [c.xong, 'xong']] as const) {
+            for (const e of ds2) {
+              if (e.ts < t0 || e.ts >= t1 || !(e.sl > 0)) continue;
+              const k = `${toId}|${ngayCuaTs(e.ts)}`;
+              if (coApp.has(k)) continue;
+              layNgay(k)[dich].push({ hex: c.hex, congDoanId: c.cd, soLuong: lam(e.sl) });
+            }
+          }
+        }
+        // Khử đếm trùng: MRA khai nhân công theo TỪNG hạng mục. Tổ nào khai số khác nhau cho từng hạng mục (1, 3, 5…) là
+        // nhóm riêng => cộng. Tổ khai CÙNG một số cho phần lớn hạng mục chạy song song (vd Tinh gỗ 17, 17, 17) là cả nhóm
+        // khai lặp => tính 1 lần: giờ công SP của (tổ, ngày, công đoạn) ≤ số người đó × giờ chạy dài nhất trong ngày.
+        for (const m of mraNgay.values()) {
+          const theoCd = new Map<string, HmMra[]>();
+          for (const x of m.hm.values()) { if (!theoCd.has(x.congDoanId)) theoCd.set(x.congDoanId, []); theoCd.get(x.congDoanId)!.push(x); }
+          for (const xs of theoCd.values()) {
+            if (xs.length < 2) continue;
+            const dem = new Map<number, number>();
+            for (const x of xs) dem.set(x.soNguoiMax, (dem.get(x.soNguoiMax) ?? 0) + 1);
+            const [moThuong, lan] = [...dem.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
+            const lonNhat = Math.max(...xs.map(x => x.soNguoiMax));
+            if (!(lan >= 2 && lan / xs.length >= 0.5 && moThuong === lonNhat)) continue;
+            const tong = xs.reduce((a, x) => a + x.gioCongThuong, 0);
+            const tran = lonNhat * Math.max(...xs.map(x => x.gioChay));
+            if (tong > tran && tong > 0) {
+              const he = tran / tong;
+              for (const x of xs) { m.gioCong -= x.gioCongThuong * (1 - he); x.gioCongThuong *= he; }
+            }
+          }
+        }
+        // Giờ công điểm danh của xưởng chia cho các tổ theo tỷ lệ giờ công SP; giờ công SP không vượt điểm danh
+        const theoNgayXuong = new Map<string, NgayMra[]>();
+        for (const [k, m] of mraNgay) { const ng = k.split('|')[1]; if (!theoNgayXuong.has(ng)) theoNgayXuong.set(ng, []); theoNgayXuong.get(ng)!.push(m); }
+        for (const [ng, ms] of theoNgayXuong) {
+          const tongGc = ms.reduce((a, m) => a + m.gioCong, 0);
+          const d = dd.get(ng);
+          if (!d || !(d.gio > 0) || tongGc <= 0) continue;
+          const he = tongGc > d.gio ? d.gio / tongGc : 1;
+          for (const m of ms) {
+            const ty = m.gioCong / tongGc;
+            if (he < 1) { m.gioCong *= he; for (const x of m.hm.values()) { x.gioCongThuong *= he; } }
+            m.gioNguoi = d.gio * ty; m.gioCho = Math.max(0, m.gioNguoi - m.gioCong); m.quanSo = Math.round(d.cn * ty * 10) / 10;
+          }
+        }
+      }
+    }
+
+    const theoTo = [...toRows, ...toGia].map(t => {
       const toId = Number(t.id);
       const gioNguoi = { thuong: 0, tangCa: 0 };
       const gioCho = { thuong: 0, tangCa: 0 };
@@ -183,6 +299,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
         nhan: Array<{ hex: string; congDoanId: string; soLuong: number }>;
         xong: Array<{ hex: string; congDoanId: string; soLuong: number }>;
         gioChoLyDo: Record<string, number>;
+        /** 'mra' = ngày lấy từ lịch sử MRA cũ (ước tính: giờ công từ điểm danh xưởng, giờ công SP từ nhân công MRA) */
+        nguon?: 'mra';
       }> = [];
       const gioChoLyDo: Record<string, number> = {};
       let ngayCoChay = 0; let ngayChot = 0; let khaiVuot = 0;
@@ -226,6 +344,28 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
           gioChoLyDo: Object.fromEntries(Object.entries(kq.gioChoLyDo ?? {}).map(([k, v]) => [k, lam(v)])),
         });
       }
+      // Ngày MRA của tổ (đánh dấu nguon = 'mra')
+      for (const [k, m] of mraNgay) {
+        if (!k.startsWith(`${toId}|`)) continue;
+        const ngay = k.slice(k.indexOf('|') + 1);
+        gioNguoi.thuong += m.gioNguoi; gioCho.thuong += m.gioCho; gioCong.thuong += m.gioCong;
+        const hmNgay = [...m.hm.values()].map(x => ({ ...x, gioChay: lam(x.gioChay), gioCongThuong: lam(x.gioCongThuong), gioNguoiKhai: lam(x.gioNguoiKhai) }));
+        for (const x of m.hm.values()) {
+          const kk = `${x.hex}|${x.congDoanId}`;
+          const cur = hm.get(kk) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0, min: 0 };
+          cur.gioChay += x.gioChay; cur.thuong += x.gioCongThuong; cur.gnk += x.gioNguoiKhai;
+          cur.max = Math.max(cur.max, x.soNguoiMax); cur.min = minN(cur.min, x.soNguoiMin);
+          hm.set(kk, cur); tatCaHex.add(x.hex);
+        }
+        for (const x of [...m.nhan, ...m.xong]) tatCaHex.add(x.hex);
+        theoNgay.push({
+          ngay, gioNguoi: lam(m.gioNguoi), gioCong: lam(m.gioCong), gioCongTangCa: 0, gioCho: lam(m.gioCho), co: [],
+          quanSo: m.quanSo ? { chinh: m.quanSo } : {},
+          hangMuc: hmNgay.sort((a, b) => b.gioCongThuong - a.gioCongThuong),
+          nhan: m.nhan, xong: m.xong, gioChoLyDo: {}, nguon: 'mra',
+        });
+      }
+      theoNgay.sort((a, b) => a.ngay.localeCompare(b.ngay));
       const h = ht.get(toId);
       return {
         toId, ten: t.ten_to, active: t.active,
@@ -394,7 +534,13 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
 
     const hangMuc = [...hmKy.entries()].map(([hex, m]) => {
       const congDoan = [...m.values()].map(c => {
-        const tt = ttCua.get(`${hex}|${c.congDoanId}`);
+        const tt = ttCua.get(`${hex}|${c.congDoanId}`)
+          // Không có trạng thái app: trạng thái MRA cũ tại cuối khoảng ngày đang xem
+          ?? (() => {
+            const cap = mraCap.get(`${hex}|${c.congDoanId}`);
+            const t = cap ? trangThaiMraLuc(cap, dauNgayVN(den) + NGAY) : null;
+            return t ? { trang_thai: t.trangThai, sl_nhan: t.slNhan, sl_ht: t.slHoanThanh } : undefined;
+          })();
         return {
           congDoanId: c.congDoanId, tenCongDoan: cdTen.get(c.congDoanId) ?? c.congDoanId, to: [...c.to].sort(),
           gioChay: lam(c.gioChay), gioCong: lam(c.thuong + c.tangCa), gioCongTangCa: lam(c.tangCa), slXong: lam(c.slXong),
@@ -413,6 +559,45 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       };
     }).sort((a, b) => b.gioCong - a.gioCong);
 
+    // Mỗi hạng mục: kế hoạch đã TRIỂN KHAI (số lượng + tuyến công đoạn) và kế hoạch tuần KHSX (tuần, ngày KHNK, giá trị)
+    // — để thấy hạng mục có đang chạy đúng tuyến / đúng hạn không (tab Theo hạng mục)
+    const hexHm = hangMuc.map(h => h.hex);
+    const [tkRows, khRows, nkRows] = hexHm.length ? await Promise.all([
+      pool.query(
+        `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc,
+                (array_agg(du_lieu->'tuyen' ORDER BY device_ts_hieu_chinh DESC))[1] AS tuyen
+         FROM xuong_su_kien e
+         WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND upper(coalesce(du_lieu->>'xuong', xuong)) = $2
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         GROUP BY hex`, [hexHm, xuong]),
+      pool.query(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, nam::int AS nam, tuan::int AS tuan, to_char(min(ngay_khnk) OVER w, 'YYYY-MM-DD') AS ngay_khnk,
+                sum(thanh_tien_ke_hoach_num) OVER w AS kh, max(NULLIF(regexp_replace(tri_gia_don_hang_tong, '[^0-9.]', '', 'g'), '')::numeric) OVER w AS gia_tri_don
+         FROM khsx
+         WHERE upper(trim(phan_loai_kh)) LIKE '%TUẦN%' AND hex::text = ANY($1::text[])
+         WINDOW w AS (PARTITION BY hex::text, nam, tuan)
+         ORDER BY hex::text, (min(ngay_khnk) OVER w) <= $2::date DESC, nam DESC, tuan DESC`, [hexHm, den]).catch(() => ({ rows: [] as Row[] })),
+      pool.query(
+        `SELECT hex::text AS hex, sum(thanh_tien_nhap_kho_num) AS tien FROM nhap_kho WHERE hex::text = ANY($1::text[]) GROUP BY hex::text`, [hexHm])
+        .catch(() => ({ rows: [] as Row[] })),
+    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
+    const tkHm = new Map(tkRows.rows.map(x => [String(x.hex), {
+      sl: Number(x.sl) || 0, luc: x.luc,
+      tuyen: Array.isArray(x.tuyen) ? (x.tuyen as unknown[]).map(String).map(id => ({ congDoanId: id, ten: cdTen.get(id) ?? id })) : [],
+    }]));
+    const nkHm = new Map(nkRows.rows.map(x => [String(x.hex), Number(x.tien) || 0]));
+    const khHm = new Map(khRows.rows.map(x => [String(x.hex), {
+      nam: Number(x.nam), tuan: Number(x.tuan), kh: Number(x.kh) || 0,
+      ngayKhnk: (x.ngay_khnk as string | null) ?? null,
+      giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don), nhapKhoLuyKe: nkHm.get(String(x.hex)) ?? 0,
+    }]));
+    for (const h of hangMuc) {
+      const mh = mraHex.get(h.hex);
+      // Không có lần triển khai trên app nhưng có số liệu MRA cũ: làm theo MRA (không có tuyến)
+      const tk = tkHm.get(h.hex) ?? (mh ? { sl: mh.sl, luc: new Date(mh.luc).toISOString(), tuyen: [], mra: true } : null);
+      Object.assign(h, { trienKhai: tk, keHoach: khHm.get(h.hex) ?? null });
+    }
+
     const tong = theoTo.reduce((a, t) => ({
       ngayCoChay: a.ngayCoChay + t.ngayCoChay, ngayChot: a.ngayChot + t.ngayChot, khaiVuot: a.khaiVuot + t.khaiVuot,
     }), { ngayCoChay: 0, ngayChot: 0, khaiVuot: 0 });
@@ -428,14 +613,19 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
         chotQuanSo: { ngayCoChay: tong.ngayCoChay, ngayChot: tong.ngayChot },
         khaiVuotQuanSo: tong.khaiVuot,
       },
+      // Khoảng > 2 tháng: không gửi chi tiết hạng mục từng ngày (6 tháng xưởng lớn > 8 MB) — chỉ số đếm
+      rutGon,
       theoTo: theoTo.map(t => ({
         ...t,
-        theoNgay: t.theoNgay.map(n => ({
+        theoNgay: t.theoNgay.map(n => rutGon ? {
+          ...n, hangMuc: [], nhan: [], soHangMuc: n.hangMuc.length, soNhan: n.nhan.length,
+          xong: n.xong.map(x => ({ hex: x.hex, congDoanId: x.congDoanId, soLuong: x.soLuong, dvt: info.get(x.hex)?.dvt ?? null })),
+        } : {
           ...n,
           hangMuc: n.hangMuc.map(x => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null })),
           nhan: n.nhan.map(x => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null, dvt: info.get(x.hex)?.dvt ?? null })),
           xong: n.xong.map(x => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null, dvt: info.get(x.hex)?.dvt ?? null })),
-        })).reverse(),
+        }).reverse(),
         theoHangMuc: t.theoHangMuc.map(x => ({
           ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId,
           tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null, tenCongTrinh: info.get(x.hex)?.ten_cong_trinh ?? null,

@@ -59,6 +59,15 @@ export default function XuongShell() {
   }, []);
 
   const [moTo, setMoTo] = useState<ToMo | null>(null);
+  const [lanQl, setLanQl] = useState(0);
+  const moKeHoach = useCallback((xuong: string) => {
+    try {
+      localStorage.setItem('xuong_setup_xuong', xuong);
+      localStorage.setItem('xuong_setup_muc', 'bao-cao');
+      localStorage.setItem('xuong_bao_cao_tab', 'keHoach');
+    } catch { /* bỏ qua */ }
+    setLanQl(n => n + 1); chon('quanLy');
+  }, [chon]);
   const [toast, setToast] = useState('');
   const flash = useCallback((m: string) => { setToast(m); setTimeout(() => setToast(''), 3000); }, []);
 
@@ -114,9 +123,9 @@ export default function XuongShell() {
         <div className={`absolute inset-0 overflow-y-auto overscroll-contain ${mucHienTai === 'to' ? '' : 'hidden'}`} role="tabpanel" aria-label="Tổ">
           <XuongApp moTo={moTo} onTongQuan={() => chon('tongQuan')} />
         </div>
-        {khung('tongQuan', <TongQuanXuong onChonTo={t => { setMoTo({ ...t, lan: Date.now() }); chon('to'); }} />)}
+        {khung('tongQuan', <TongQuanXuong onChonTo={t => { setMoTo({ ...t, lan: Date.now() }); chon('to'); }} onMoKeHoach={moKeHoach} />)}
         {khung('traCuu', <TraCuuXuong />)}
-        {khung('quanLy', <XuongSetup trongApp />, false)}
+        {khung('quanLy', <XuongSetup key={lanQl} trongApp />, false)}
         {khung('taiKhoan', (
           <div className="mx-auto max-w-2xl">
             <MobileAccount appXuong sizeIdx={sizeIdx} sizeLabels={SIZE_LABELS} onSizeChange={setSizeIdx}

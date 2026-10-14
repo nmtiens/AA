@@ -237,6 +237,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const kpi = useMemo(() => {
     const cts = new Set<string>();
     let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0;
+    // Giá trị đã nhập kho tách theo hạng mục nhập đủ / nhập một phần (cộng lại = done, trừ phần của đơn hủy)
+    let stockedDone = 0, partialDone = 0;
     let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho vượt giá trị đã nhập (tồn bị chặn ≤ đã nhập)
     // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
     const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
@@ -244,8 +246,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       cts.add(r.ctKey);
       remainBy[r.bucket] += Math.max(r.total - r.done, 0);
       if (r.status === 'HỦY') cancelled++;
-      else if (isStocked(r)) stocked++;
-      else { notStocked++; if (r.done > 0) partial++; }
+      else if (isStocked(r)) { stocked++; stockedDone += r.done; }
+      else { notStocked++; if (r.done > 0) { partial++; partialDone += r.done; } }
       total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded;
       if (r.stockCut > 0.001) { stockOver += r.stockCut; stockOverItems++; }
     }
@@ -259,7 +261,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       if (r.botDuAn && r.botDuAn.getTime() < today) { pastBot++; pastBotRemain += rem; }
     }
     return {
-      cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, total, done, remain: total - done,
+      cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, stockedDone, partialDone, total, done, remain: total - done,
       exported, stock, exportedRecorded, stockOver, stockOverItems, remainBy,
       overdue, overdueRemain, noPlan, noPlanRemain, pastBot, pastBotRemain,
     };
@@ -796,7 +798,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
               <Mini label="Đã nhập kho (P022)" value={roundTy(kpi.done)} tone="text-emerald-700" strong
-                    hint="Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng)."
+                    hint={`Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng) = ${fmtTy(kpi.stockedDone)} tỷ của ${fmtInt(kpi.stocked)} mục nhập đủ + ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
                     spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {doneSegs.map(x => (
@@ -824,11 +826,12 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
                sub={kpi.cancelled > 0 ? `trong đó ${fmtInt(kpi.cancelled)} hủy` : undefined}
                spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
-          <Kpi label="Đã nhập kho" value={fmtInt(kpi.stocked)} unit="mục" tone="text-emerald-600"
-               hint="Đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng"
+          <Kpi label="Đã nhập kho đủ" value={fmtInt(kpi.stocked)} unit="mục" tone="text-emerald-600"
+               sub={`${fmtTy(kpi.stockedDone)} tỷ`}
+               hint={`Đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng — ${fmtTy(kpi.stockedDone)} tỷ. Ô "Đã nhập kho (P022)" ${fmtTy(roundTy(kpi.done))} tỷ còn gồm ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
                spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng (không tính đơn hủy).' }} />
-          <Kpi label="Chưa nhập kho" value={fmtInt(kpi.notStocked)} unit="mục" tone="text-amber-600"
-               sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần` : undefined}
+          <Kpi label="Chưa nhập kho đủ" value={fmtInt(kpi.notStocked)} unit="mục" tone="text-amber-600"
+               sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần (${fmtTy(kpi.partialDone)} tỷ)` : undefined}
                spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
           <Kpi label="Quá hạn KH nhập kho" value={fmtInt(kpi.overdue)} unit="mục" tone={kpi.overdue ? 'text-red-600' : 'text-slate-900'}
                sub={`${fmtTy(kpi.overdueRemain)} tỷ chưa nhập kho`}

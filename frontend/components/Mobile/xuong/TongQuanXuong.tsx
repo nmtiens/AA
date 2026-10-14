@@ -4,7 +4,8 @@ import { BottomSheet, Toast } from '../mobileUi';
 import TrienKhaiGon from './TrienKhaiGon';
 import QuetQr from './QuetQr';
 import { xuongSetupApi, type TongQuanTo } from '../../../services/xuongSetupApi';
-import { hhmm, tenCo, moTaSuKien } from '../../../services/xuongModel';
+import { hhmm, tenCo, moTaSuKien, gioVN } from '../../../services/xuongModel';
+import { tuanISO, tinhTrang, tuanDaChot } from '../../Xuong/KeHoachTuan';
 import { NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 
 // ============================================================================
@@ -54,8 +55,10 @@ function CanXemSheet({ xuong, onClose }: { xuong: string; onClose: () => void })
   );
 }
 
-export default function TongQuanXuong({ onChonTo }: {
+export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
   onChonTo: (to: { id: number; ten: string; xuong: string }) => void;
+  /** Mở Quản lý → Báo cáo → Kế hoạch tuần của xưởng */
+  onMoKeHoach?: (xuong: string) => void;
 }) {
   const [xuong, setXuong] = useState<string | undefined>(() => { try { return localStorage.getItem(KHOA_XUONG) || undefined; } catch { return undefined; } });
   const [d, setD] = useState<{ dsXuong: string[]; xuong: string | null; to: TongQuanTo[] } | null>(null);
@@ -77,6 +80,25 @@ export default function TongQuanXuong({ onChonTo }: {
   }, [xuong]);
   useEffect(() => { tai(); }, [tai]);
   useEffect(() => { if (xuong) try { localStorage.setItem(KHOA_XUONG, xuong); } catch { /* bỏ qua */ } }, [xuong]);
+
+  // Kế hoạch tuần này của xưởng: đếm hạng mục cần xử lý (cùng cách tính tab Báo cáo → Kế hoạch tuần)
+  const [khTuan, setKhTuan] = useState<{ tuan: number; nhom: Array<[string, number]>; tong: number } | null>(null);
+  const xuongDangXem = d?.xuong ?? null;
+  useEffect(() => {
+    setKhTuan(null);
+    if (!xuongDangXem) return;
+    const homNay = gioVN(Date.now()).ngay;
+    const t = tuanISO(homNay);
+    let huy = false;
+    xuongSetupApi.keHoachTuan(xuongDangXem, t.nam, t.tuan).then(r => {
+      if (huy || !r.ok || !r.data.keHoach.length) return;
+      const tt = r.data.keHoach.map(k => tinhTrang(k, tuanDaChot(r.data, homNay), homNay)).filter(z => z.muc >= 2);
+      const dem = new Map<string, number>();
+      for (const z of tt) dem.set(z.ten, (dem.get(z.ten) ?? 0) + 1);
+      setKhTuan({ tuan: t.tuan, nhom: [...dem.entries()].sort((a, b) => b[1] - a[1]), tong: r.data.keHoach.length });
+    });
+    return () => { huy = true; };
+  }, [xuongDangXem]);
 
   const [moVang, setMoVang] = useState(false);
   // Lọc "cần chú ý": tổ có việc mà chưa điểm danh / chốt quân số, có thao tác cần xem, hoặc hạng mục tạm ngưng
@@ -156,6 +178,18 @@ export default function TongQuanXuong({ onChonTo }: {
               </ul>
             )}
           </div>
+        )}
+        {/* Cảnh báo kế hoạch tuần — bấm để mở chi tiết ở Báo cáo */}
+        {khTuan && khTuan.nhom.length > 0 && xuongDangXem && (
+          <button type="button" onClick={() => onMoKeHoach?.(xuongDangXem)}
+            className={`flex w-full items-start gap-3 rounded-2xl border ${MAU.loi.vien} ${MAU.loi.nen} p-3 text-left active:opacity-80`}>
+            <AlertTriangle size="1.2em" className={`mt-0.5 shrink-0 ${MAU.loi.chu}`} aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className={`block text-base font-semibold ${MAU.loi.chu}`}>Kế hoạch tuần {khTuan.tuan}: {khTuan.nhom.reduce((a, x) => a + x[1], 0)}/{khTuan.tong} hạng mục cần xử lý</span>
+              <span className="block text-base text-slate-800">{khTuan.nhom.map(([ten, n]) => `${n} ${ten.toLowerCase()}`).join(' · ')}</span>
+            </span>
+            {onMoKeHoach && <ChevronRight size="1.2em" className="mt-0.5 shrink-0 text-slate-500" aria-hidden />}
+          </button>
         )}
         {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
         <div className="grid grid-cols-2 gap-3">

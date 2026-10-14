@@ -73,6 +73,10 @@ export interface BaoCaoTo {
 }
 export interface BaoCaoToNgay {
   ngay: string; gioNguoi: number; gioCong: number; gioCongTangCa: number; gioCho: number; co: string[];
+  /** Khoảng > 2 tháng (rutGon): hangMuc / nhan để trống, chỉ có số đếm */
+  soHangMuc?: number; soNhan?: number;
+  /** 'mra' = ngày lấy từ lịch sử MRA cũ (giờ công từ điểm danh xưởng chia theo tỷ lệ, giờ công SP = nhân công MRA × giờ trong ca) */
+  nguon?: 'mra';
   /** Quân số chốt theo loại ca (chinh, ca1…) */
   quanSo: Record<string, number>;
   /** Hạng mục có chạy trong ngày, nhiều giờ công trước; dangChay = đang chạy lúc này (chỉ hôm nay) */
@@ -96,9 +100,44 @@ export interface BaoCaoHangMuc {
     soNguoiTb: number; soNguoiMax: number; soNguoiMin: number;
     trangThai: string | null; slNhan: number; slHoanThanh: number;
   }>;
+  /** Kế hoạch đã triển khai trên MRA cho xưởng: tổng số lượng + tuyến công đoạn (lần triển khai mới nhất); null = chưa triển khai */
+  trienKhai?: { sl: number; luc: string; tuyen: Array<{ congDoanId: string; ten: string }>; mra?: boolean } | null;
+  /** Kế hoạch tuần KHSX gần nhất (đã tới hạn trước): tuần, ngày KHNK, giá trị (triệu); nhập kho luỹ kế để biết đã xong chưa */
+  keHoach?: { nam: number; tuan: number; kh: number; ngayKhnk: string | null; giaTriDon: number | null; nhapKhoLuyKe: number } | null;
+}
+/** Phân tích lịch sử MRA cũ của xưởng (giờ trong ca = phần đoạn chạy nằm trong ca chính, bỏ Chủ nhật) */
+export interface LichSuMra {
+  xuong: string; coDuLieu: boolean;
+  tong?: { soHm: number; soHmXong: number; soCap: number; tu: string; den: string; gioCa: number; soNgung: number; gioNgung: number; ngayTv: number; ngayP75: number; khongKhopCd: number };
+  congDoan?: Array<{ congDoanId: string; ten: string; thuTu: number; soHm: number; slXong: number; gioCaTv: number; gioCaP75: number; gioCa: number;
+    ngayChayTv: number; gioTrenDvTv: number; ncTb: number | null; ncGio: number; soNgung: number; gioNgung: number; hmNgung: number }>;
+  nhom?: Array<{ ten: string; soHm: number; soXong: number; ngayTv: number; ngayP75: number; gioCaTv: number }>;
+  theoThang?: Array<{ thang: string; soXong: number; soBatDau: number; gioCa: number }>;
+  lauNhat?: Array<{ hex: string; ten: string | null; congTrinh: string | null; nhom: string; ngay: number; gioCa: number; soCd: number }>;
+}
+/** Kế hoạch tuần của xưởng (khsx, tiền triệu đồng) đối chiếu nhập kho + trạng thái MRA */
+export interface KeHoachTuanCongDoan {
+  congDoanId: string; ten: string; xuong: string | null; thuTu: number | null; trangThai: string;
+  slGiaoDen: number; slNhan: number; slHoanThanh: number; slGiao: number;
+  ngung: { lyDo: string | null; luc: string } | null;
+}
+export interface KeHoachTuanDong {
+  hex: string; tenHangMuc: string | null; tenCongTrinh: string | null; dvt: string | null;
+  slKh: number | null; kh: number; ngayKhnk: string | null; nhapKho: number; slNhapKho: number;
+  /** Nhập kho luỹ kế tới hết tuần (mọi lần) và giá trị đơn hàng — để nhận ra hạng mục đã nhập đủ từ trước tuần */
+  nhapKhoLuyKe: number; giaTriDon: number | null;
+  trienKhai: { sl: number; luc: string } | null; congDoan: KeHoachTuanCongDoan[];
+}
+export interface KeHoachTuan {
+  xuong: string; nam: number; tuan: number; tu: string; den: string; nhapKhoMoiNhat: string | null;
+  nhapKhoTheoNgay: Array<{ ngay: string; theoKh: number; ngoaiKh: number }>;
+  keHoach: KeHoachTuanDong[];
+  ngoaiKeHoach: Array<{ hex: string; tenHangMuc: string | null; nhapKho: number; slNhapKho: number }>;
 }
 export interface BaoCaoXuong {
   xuong: string; tu: string; den: string; banLuu: boolean; conThieu: number;
+  /** Khoảng > 2 tháng: không có chi tiết hạng mục từng ngày */
+  rutGon?: boolean;
   /** Đối chiếu Dữ liệu Điểm danh (theo xưởng × ngày); null = chưa có bảng diem_danh */
   chamCong: {
     moiNhat: string | null;
@@ -212,6 +251,9 @@ export const xuongSetupApi = {
   napCongNhan: (rows: DongNapNhanSu[], nghiNguoiVang: boolean) =>
     goi<{ daNap: number; boQua: number; nghi: number; loi: string[]; toKhongKhop: string[] }>('POST', '/api/xuong/cong-nhan/nap', { rows, nghiNguoiVang }),
   baoCao: (xuong: string, tu: string, den: string) => goi<BaoCaoXuong>('GET', `/api/xuong/bao-cao?${q({ xuong, tu, den })}`),
+  lichSuMra: (xuong: string) => goi<LichSuMra>('GET', `/api/xuong/lich-su-mra?${q({ xuong })}`),
+  keHoachTuan: (xuong: string, nam: number, tuan: number) =>
+    goi<KeHoachTuan>('GET', `/api/xuong/ke-hoach-tuan?${q({ xuong, nam: String(nam), tuan: String(tuan) })}`),
   trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; tuyen: string[] }>) =>
     goi<{ soHangMuc: number }>('POST', '/api/xuong/trien-khai', { xuong, items }),
 };

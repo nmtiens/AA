@@ -65033,10 +65033,10 @@ var SNAPSHOT_NHO_MAX = 24;
 var snapshotBat = true;
 var snapshotNho = /* @__PURE__ */ new Map();
 var docSnapshot = async (khoa, ver, nguon) => {
-  const nho = snapshotNho.get(khoa);
-  if (nho && nho.ver === ver) {
+  const nho2 = snapshotNho.get(khoa);
+  if (nho2 && nho2.ver === ver) {
     nguon.v = "mem";
-    return nho.buf;
+    return nho2.buf;
   }
   if (!snapshotBat) {
     nguon.v = "off";
@@ -67243,15 +67243,15 @@ var khsxNhapKhoCache = createCache(50);
 var KHSX_NHAPKHO_VERSION_KEYS = ["khsx", "inventory", "production"];
 app.get("/api/khsx-nhapkho/summary", async (req, res) => {
   try {
-    const { nam, thang, mode = "month", tuan, ngay, congTrinh, xuong } = req.query;
+    const { nam, thang: thang2, mode = "month", tuan, ngay, congTrinh, xuong } = req.query;
     if (!nam) return res.status(400).json({ error: "Missing nam" });
-    const khsxCacheKey = JSON.stringify({ nam, thang, mode, tuan, ngay, congTrinh, xuong });
+    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay, congTrinh, xuong });
     const khsxPayload = await cachedByVersions(khsxNhapKhoCache, khsxCacheKey, KHSX_NHAPKHO_VERSION_KEYS, async () => {
       const isWeek = mode === "week";
       const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
       const normalize = (s) => s.trim().toUpperCase();
       const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
-      const thangList = numList(thang), tuanList = numList(tuan), ngayList = numList(ngay);
+      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay);
       const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
       const congTrinhList = expandProjectNames(parseNameList(congTrinh));
       const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
@@ -68232,10 +68232,10 @@ var dueState = (bot, now = Date.now()) => {
   return left < 0 ? "overdue" : left <= DUE_SOON_MS ? "soon" : "ok";
 };
 var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-var planDate = (tuan, thang, met) => {
+var planDate = (tuan, thang2, met) => {
   const t = met?.tuan ? null : String(tuan ?? "").match(/^\d{4}-\d{2}-\d{2}/);
   if (t) return t[0];
-  const m = met?.thang ? null : String(thang ?? "").match(/^\d{4}-\d{2}-\d{2}/);
+  const m = met?.thang ? null : String(thang2 ?? "").match(/^\d{4}-\d{2}-\d{2}/);
   return m ? m[0] : null;
 };
 var planMetOf = async (hexes) => {
@@ -71546,14 +71546,14 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
       const moc2 = tk > 0 ? { soLuong: tk, loai: "trien_khai" } : p?.so_luong_don_hang_tong ? { soLuong: Number(p.so_luong_don_hang_tong), loai: "don_hang" } : null;
       return { xuong: xg, ...thoiGianTheoLo(vao, ra, moc2, now) };
     });
-    const GIO = 36e5;
+    const GIO2 = 36e5;
     const gioChay = /* @__PURE__ */ new Map();
     const toNgay = /* @__PURE__ */ new Set();
     for (const x of st.rows) {
       const cdId = String(x.cong_doan_id);
       const cua = evtsApp.filter((e) => e.congDoanId === cdId);
       const doan = tinhTrangThai(cua, []).doanChay;
-      gioChay.set(cdId, doan.reduce((a, d) => a + ((d.end ?? now) - d.start) / GIO, 0));
+      gioChay.set(cdId, doan.reduce((a, d) => a + ((d.end ?? now) - d.start) / GIO2, 0));
       const toCua = [...new Set(cua.filter((e) => e.toId && (e.loai === "bat_dau" || e.loai === "tiep_tuc")).map((e) => e.toId))];
       for (const d of doan) {
         for (let t = d.start; t <= (d.end ?? now) + 1; t += 864e5) {
@@ -71573,7 +71573,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
       }
     }), 2);
-    const lam2 = (n) => Math.round(n * 100) / 100;
+    const lam3 = (n) => Math.round(n * 100) / 100;
     const evtsMra = evts.filter((e) => laMra.has(e.id));
     const cdMra = [...new Set(evtsMra.map((e) => e.congDoanId).filter((x) => !!x))];
     const congDoanMra = cdMra.map((cdId) => {
@@ -71598,7 +71598,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         ten: cdMap.get(cdId)?.cd_chi_tiet ?? null,
         xuong: cdMap.get(cdId)?.xuong ?? null,
         thuTu: cdMap.get(cdId)?.thu_tu ?? null,
-        gioChay: lam2(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO, 0)),
+        gioChay: lam3(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO2, 0)),
         gioCong: 0,
         nhanCongMra: nc.length ? nc[nc.length - 1].soNguoi : null
       };
@@ -71629,8 +71629,8 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         ten: cdMap.get(String(x.cong_doan_id))?.cd_chi_tiet ?? null,
         xuong: x.xuong ?? null,
         thuTu: cdMap.get(String(x.cong_doan_id))?.thu_tu ?? null,
-        gioChay: lam2(gioChay.get(String(x.cong_doan_id)) ?? 0),
-        gioCong: lam2(gioCong.get(String(x.cong_doan_id)) ?? 0),
+        gioChay: lam3(gioChay.get(String(x.cong_doan_id)) ?? 0),
+        gioCong: lam3(gioCong.get(String(x.cong_doan_id)) ?? 0),
         nguon: "app",
         nhanCongMra: null
       })), ...congDoanMra],
@@ -71853,6 +71853,101 @@ app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
 // src/routes/xuongSetup.ts
 import crypto3 from "node:crypto";
 
+// src/server/xuong/mraLichSu.ts
+var GIO = 36e5;
+var NGAY = 864e5;
+var VN = 7 * GIO;
+var gioSo = (s) => {
+  const [h, m] = String(s).split(":").map(Number);
+  return h + (m || 0) / 60;
+};
+function khungCaChinh(lich) {
+  const c = lich.find((x) => x.loaiCa === "chinh");
+  if (!c) return [[7.5, 11.5], [12.25, 15.75]];
+  let khung = [[gioSo(c.gioBatDau), gioSo(c.gioKetThuc)]];
+  for (const n of c.nghi ?? []) {
+    const [a, b] = [gioSo(String(n[0])), gioSo(String(n[1]))];
+    khung = khung.flatMap(([x, y]) => b <= x || a >= y ? [[x, y]] : [[x, a], [b, y]].filter(([p, q]) => q > p));
+  }
+  return khung;
+}
+var dauNgayVN = (ngay) => Date.parse(`${ngay}T00:00:00Z`) - VN;
+var ngayCuaTs = (ts) => new Date(ts + VN).toISOString().slice(0, 10);
+function gioTrongCaNgay(a, b, d, khung, tinhChuNhat = false) {
+  if (b <= a || !tinhChuNhat && new Date(d + VN).getUTCDay() === 0) return 0;
+  let t = 0;
+  for (const [x, y] of khung) t += Math.max(0, Math.min(b, d + y * GIO) - Math.max(a, d + x * GIO));
+  return t / GIO;
+}
+function gioTrongCa(a, b, khung) {
+  if (b <= a) return 0;
+  let t = 0;
+  for (let d = Math.floor((a + VN) / NGAY) * NGAY - VN; d < b; d += NGAY) t += gioTrongCaNgay(a, b, d, khung);
+  return t;
+}
+var nho = /* @__PURE__ */ new Map();
+async function taiMra(xuong, toSuKien2, cot, moi = false) {
+  const n = nho.get(xuong);
+  if (n && !moi && Date.now() - n.luc < GIO) return n.caps;
+  let rows = [];
+  try {
+    rows = (await pool.query(`SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'mra' AND xuong = $1 AND hex IS NOT NULL AND cong_doan_id IS NOT NULL`, [xuong])).rows;
+  } catch {
+    rows = [];
+  }
+  const theoCap = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    const e = toSuKien2(r);
+    const k = `${e.hex}|${e.congDoanId}`;
+    if (!theoCap.has(k)) theoCap.set(k, []);
+    theoCap.get(k).push(e);
+  }
+  const caps = [];
+  for (const [k, evs] of theoCap) {
+    const [hex3, cd] = k.split("|");
+    evs.sort((a, b) => a.ts - b.ts);
+    const t = tinhTrangThai(evs, []);
+    const cuoi = t.suKienCuoi ?? evs[evs.length - 1].ts;
+    let soNgung = 0, gioNgung = 0, ngungTu = null;
+    for (const e of evs) {
+      if (e.loai === "tam_ngung") {
+        soNgung++;
+        ngungTu = e.ts;
+      } else if (ngungTu !== null && (e.loai === "tiep_tuc" || e.loai === "bat_dau" || e.loai === "hoan_thanh")) {
+        gioNgung += (e.ts - ngungTu) / GIO;
+        ngungTu = null;
+      }
+    }
+    const ncs = evs.filter((e) => e.loai === "chia_nguoi" && e.soNguoi !== null).map((e) => e.soNguoi);
+    const xong = evs.filter((e) => e.loai === "hoan_thanh").map((e) => ({ ts: e.ts, sl: e.soLuong ?? 0 }));
+    const raTs = evs.filter((e) => e.loai === "hoan_thanh" || e.loai === "giao").map((e) => e.ts);
+    caps.push({
+      hex: hex3,
+      cd,
+      doan: t.doanChay.map((d) => ({ start: d.start, end: d.end ?? cuoi })).filter((d) => d.end > d.start),
+      nc: ncs.length ? ncs.reduce((a, b) => a + b, 0) / ncs.length : null,
+      nhan: evs.filter((e) => e.loai === "nhan").map((e) => ({ ts: e.ts, sl: e.soLuong ?? 0 })),
+      xong,
+      soNgung,
+      gioNgung,
+      dau: evs[0].ts,
+      xongCuoi: raTs.length ? Math.max(...raTs) : null,
+      slNhan: t.slNhan,
+      slXong: t.slHoanThanh,
+      evs
+    });
+  }
+  nho.set(xuong, { luc: Date.now(), caps });
+  return caps;
+}
+function trangThaiMraLuc(cap, luc) {
+  const evs = cap.evs.filter((e) => e.ts <= luc);
+  if (!evs.length) return null;
+  const t = tinhTrangThai(evs, []);
+  const trangThai = t.trangThai === "cho_nhan" || t.trangThai === "cho_giao" ? t.slNhan > 0 && t.slHoanThanh >= t.slNhan ? "xong" : t.slNhan > 0 ? "da_nhan" : t.trangThai : t.trangThai;
+  return { trangThai, slNhan: t.slNhan, slHoanThanh: t.slHoanThanh, slGiao: t.slGiao };
+}
+
 // src/routes/xuongBaoCao.ts
 var TINH_TOI_DA = 30;
 var NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -71879,7 +71974,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const den = typeof req.query.den === "string" && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === "string" && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
     const soNgay = (Date.parse(den) - Date.parse(tu)) / 864e5;
-    if (soNgay < 0 || soNgay > 62) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 63 ng\xE0y" });
+    const rutGon = soNgay > 62;
+    if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
     const toRows = (await pool.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows;
     const toIds = toRows.map((t) => Number(t.id));
     const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay] = await Promise.all([
@@ -72010,7 +72106,138 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
        WHERE tc.to_id = ANY($1::int[]) AND t.trang_thai = 'dang_lam'`,
       [toIds]
     )).rows.map((x) => `${x.hex}|${x.cong_doan_id}`));
-    const theoTo = toRows.map((t) => {
+    const mraNgay = /* @__PURE__ */ new Map();
+    const toGia = [];
+    const mraHex = /* @__PURE__ */ new Map();
+    const mraCap = /* @__PURE__ */ new Map();
+    {
+      const caps = await taiMra(xuong, toSuKien, COT_SU_KIEN);
+      const t0 = dauNgayVN(tu), t1 = dauNgayVN(den) + NGAY;
+      const capsKy = caps.filter((c) => c.doan.some((d) => d.end > t0 && d.start < t1) || c.nhan.some((e) => e.ts >= t0 && e.ts < t1) || c.xong.some((e) => e.ts >= t0 && e.ts < t1));
+      if (capsKy.length) {
+        const khung = khungCaChinh(await lichCaCuaXuong(xuong));
+        const [tcR, cdR2, ddR] = await Promise.all([
+          pool.query(`SELECT tc.cong_doan_id, min(tc.to_id) AS to_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id
+                      WHERE t.xuong = $1 GROUP BY tc.cong_doan_id`, [xuong]),
+          pool.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong]),
+          pool.query(`SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn,
+                             sum(coalesce(gio_cong_hanh_chinh,0) + coalesce(gio_cong_tang_ca,0))::float AS gio
+                      FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1 AND date BETWEEN $2::date AND $3::date GROUP BY date`, [xuong, tu, den]).catch(() => ({ rows: [] }))
+        ]);
+        const toTheoCd = new Map(tcR.rows.map((x) => [String(x.cong_doan_id), Number(x.to_id)]));
+        const tenCd = new Map(cdR2.rows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+        const dd = new Map(ddR.rows.map((x) => [String(x.ngay), { cn: Number(x.cn) || 0, gio: Number(x.gio) || 0 }]));
+        const coApp = new Set(pb.rows.map((x) => `${x.to_id}|${x.ngay}`));
+        let idGia = -1;
+        const giaTheoCd = /* @__PURE__ */ new Map();
+        const toCua = (cd) => {
+          const id = toTheoCd.get(cd);
+          if (id) return id;
+          if (!giaTheoCd.has(cd)) {
+            giaTheoCd.set(cd, idGia);
+            toGia.push({ id: idGia, ten_to: `${tenCd.get(cd) ?? cd} (MRA)`, active: false });
+            idGia--;
+          }
+          return giaTheoCd.get(cd);
+        };
+        const layNgay = (k) => {
+          if (!mraNgay.has(k)) mraNgay.set(k, { gioNguoi: 0, gioCong: 0, gioCho: 0, quanSo: 0, hm: /* @__PURE__ */ new Map(), nhan: [], xong: [] });
+          return mraNgay.get(k);
+        };
+        for (const c of capsKy) {
+          const toId = toCua(c.cd);
+          mraCap.set(`${c.hex}|${c.cd}`, c);
+          const mh = mraHex.get(c.hex);
+          mraHex.set(c.hex, { sl: Math.max(mh?.sl ?? 0, c.slNhan), luc: Math.min(mh?.luc ?? c.dau, c.dau) });
+          const nc = c.nc && c.nc > 0 ? c.nc : 1;
+          for (const d of c.doan) {
+            const a = Math.max(d.start, t0), b = Math.min(d.end, t1);
+            if (b <= a) continue;
+            for (let n = dauNgayVN(ngayCuaTs(a)); n < b; n += NGAY) {
+              const h = gioTrongCaNgay(a, b, n, khung, (dd.get(ngayCuaTs(n))?.gio ?? 0) > 0);
+              if (h <= 0) continue;
+              const k = `${toId}|${ngayCuaTs(n)}`;
+              if (coApp.has(k)) continue;
+              const m = layNgay(k);
+              const kk = `${c.hex}|${c.cd}`;
+              const x = m.hm.get(kk) ?? {
+                hex: c.hex,
+                congDoanId: c.cd,
+                gioChay: 0,
+                gioCongThuong: 0,
+                gioCongTangCa: 0,
+                dangChay: false,
+                gioNguoiKhai: 0,
+                soNguoiMax: Math.round(nc),
+                soNguoiMin: Math.round(nc)
+              };
+              x.gioChay += h;
+              x.gioCongThuong += nc * h;
+              x.gioNguoiKhai += nc * h;
+              m.hm.set(kk, x);
+              m.gioCong += nc * h;
+            }
+          }
+          for (const [ds2, dich] of [[c.nhan, "nhan"], [c.xong, "xong"]]) {
+            for (const e of ds2) {
+              if (e.ts < t0 || e.ts >= t1 || !(e.sl > 0)) continue;
+              const k = `${toId}|${ngayCuaTs(e.ts)}`;
+              if (coApp.has(k)) continue;
+              layNgay(k)[dich].push({ hex: c.hex, congDoanId: c.cd, soLuong: lam(e.sl) });
+            }
+          }
+        }
+        for (const m of mraNgay.values()) {
+          const theoCd = /* @__PURE__ */ new Map();
+          for (const x of m.hm.values()) {
+            if (!theoCd.has(x.congDoanId)) theoCd.set(x.congDoanId, []);
+            theoCd.get(x.congDoanId).push(x);
+          }
+          for (const xs of theoCd.values()) {
+            if (xs.length < 2) continue;
+            const dem = /* @__PURE__ */ new Map();
+            for (const x of xs) dem.set(x.soNguoiMax, (dem.get(x.soNguoiMax) ?? 0) + 1);
+            const [moThuong, lan] = [...dem.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
+            const lonNhat = Math.max(...xs.map((x) => x.soNguoiMax));
+            if (!(lan >= 2 && lan / xs.length >= 0.5 && moThuong === lonNhat)) continue;
+            const tong2 = xs.reduce((a, x) => a + x.gioCongThuong, 0);
+            const tran = lonNhat * Math.max(...xs.map((x) => x.gioChay));
+            if (tong2 > tran && tong2 > 0) {
+              const he = tran / tong2;
+              for (const x of xs) {
+                m.gioCong -= x.gioCongThuong * (1 - he);
+                x.gioCongThuong *= he;
+              }
+            }
+          }
+        }
+        const theoNgayXuong = /* @__PURE__ */ new Map();
+        for (const [k, m] of mraNgay) {
+          const ng = k.split("|")[1];
+          if (!theoNgayXuong.has(ng)) theoNgayXuong.set(ng, []);
+          theoNgayXuong.get(ng).push(m);
+        }
+        for (const [ng, ms] of theoNgayXuong) {
+          const tongGc = ms.reduce((a, m) => a + m.gioCong, 0);
+          const d = dd.get(ng);
+          if (!d || !(d.gio > 0) || tongGc <= 0) continue;
+          const he = tongGc > d.gio ? d.gio / tongGc : 1;
+          for (const m of ms) {
+            const ty = m.gioCong / tongGc;
+            if (he < 1) {
+              m.gioCong *= he;
+              for (const x of m.hm.values()) {
+                x.gioCongThuong *= he;
+              }
+            }
+            m.gioNguoi = d.gio * ty;
+            m.gioCho = Math.max(0, m.gioNguoi - m.gioCong);
+            m.quanSo = Math.round(d.cn * ty * 10) / 10;
+          }
+        }
+      }
+    }
+    const theoTo = [...toRows, ...toGia].map((t) => {
       const toId = Number(t.id);
       const gioNguoi = { thuong: 0, tangCa: 0 };
       const gioCho = { thuong: 0, tangCa: 0 };
@@ -72079,6 +72306,41 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           gioChoLyDo: Object.fromEntries(Object.entries(kq.gioChoLyDo ?? {}).map(([k, v]) => [k, lam(v)]))
         });
       }
+      for (const [k, m] of mraNgay) {
+        if (!k.startsWith(`${toId}|`)) continue;
+        const ngay = k.slice(k.indexOf("|") + 1);
+        gioNguoi.thuong += m.gioNguoi;
+        gioCho.thuong += m.gioCho;
+        gioCong.thuong += m.gioCong;
+        const hmNgay = [...m.hm.values()].map((x) => ({ ...x, gioChay: lam(x.gioChay), gioCongThuong: lam(x.gioCongThuong), gioNguoiKhai: lam(x.gioNguoiKhai) }));
+        for (const x of m.hm.values()) {
+          const kk = `${x.hex}|${x.congDoanId}`;
+          const cur = hm.get(kk) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0, min: 0 };
+          cur.gioChay += x.gioChay;
+          cur.thuong += x.gioCongThuong;
+          cur.gnk += x.gioNguoiKhai;
+          cur.max = Math.max(cur.max, x.soNguoiMax);
+          cur.min = minN(cur.min, x.soNguoiMin);
+          hm.set(kk, cur);
+          tatCaHex.add(x.hex);
+        }
+        for (const x of [...m.nhan, ...m.xong]) tatCaHex.add(x.hex);
+        theoNgay.push({
+          ngay,
+          gioNguoi: lam(m.gioNguoi),
+          gioCong: lam(m.gioCong),
+          gioCongTangCa: 0,
+          gioCho: lam(m.gioCho),
+          co: [],
+          quanSo: m.quanSo ? { chinh: m.quanSo } : {},
+          hangMuc: hmNgay.sort((a, b) => b.gioCongThuong - a.gioCongThuong),
+          nhan: m.nhan,
+          xong: m.xong,
+          gioChoLyDo: {},
+          nguon: "mra"
+        });
+      }
+      theoNgay.sort((a, b) => a.ngay.localeCompare(b.ngay));
       const h = ht.get(toId);
       return {
         toId,
@@ -72282,7 +72544,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     for (const n of theoNguoi) for (const d of n.ngay) for (const h of d.hangMuc) tatCaHex.add(h.hex);
     const hangMuc = [...hmKy.entries()].map(([hex3, m]) => {
       const congDoan = [...m.values()].map((c) => {
-        const tt = ttCua.get(`${hex3}|${c.congDoanId}`);
+        const tt = ttCua.get(`${hex3}|${c.congDoanId}`) ?? (() => {
+          const cap = mraCap.get(`${hex3}|${c.congDoanId}`);
+          const t = cap ? trangThaiMraLuc(cap, dauNgayVN(den) + NGAY) : null;
+          return t ? { trang_thai: t.trangThai, sl_nhan: t.slNhan, sl_ht: t.slHoanThanh } : void 0;
+        })();
         return {
           congDoanId: c.congDoanId,
           tenCongDoan: cdTen.get(c.congDoanId) ?? c.congDoanId,
@@ -72313,6 +72579,50 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         congDoan
       };
     }).sort((a, b) => b.gioCong - a.gioCong);
+    const hexHm = hangMuc.map((h) => h.hex);
+    const [tkRows, khRows, nkRows] = hexHm.length ? await Promise.all([
+      pool.query(
+        `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc,
+                (array_agg(du_lieu->'tuyen' ORDER BY device_ts_hieu_chinh DESC))[1] AS tuyen
+         FROM xuong_su_kien e
+         WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND upper(coalesce(du_lieu->>'xuong', xuong)) = $2
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         GROUP BY hex`,
+        [hexHm, xuong]
+      ),
+      pool.query(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, nam::int AS nam, tuan::int AS tuan, to_char(min(ngay_khnk) OVER w, 'YYYY-MM-DD') AS ngay_khnk,
+                sum(thanh_tien_ke_hoach_num) OVER w AS kh, max(NULLIF(regexp_replace(tri_gia_don_hang_tong, '[^0-9.]', '', 'g'), '')::numeric) OVER w AS gia_tri_don
+         FROM khsx
+         WHERE upper(trim(phan_loai_kh)) LIKE '%TU\u1EA6N%' AND hex::text = ANY($1::text[])
+         WINDOW w AS (PARTITION BY hex::text, nam, tuan)
+         ORDER BY hex::text, (min(ngay_khnk) OVER w) <= $2::date DESC, nam DESC, tuan DESC`,
+        [hexHm, den]
+      ).catch(() => ({ rows: [] })),
+      pool.query(
+        `SELECT hex::text AS hex, sum(thanh_tien_nhap_kho_num) AS tien FROM nhap_kho WHERE hex::text = ANY($1::text[]) GROUP BY hex::text`,
+        [hexHm]
+      ).catch(() => ({ rows: [] }))
+    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
+    const tkHm = new Map(tkRows.rows.map((x) => [String(x.hex), {
+      sl: Number(x.sl) || 0,
+      luc: x.luc,
+      tuyen: Array.isArray(x.tuyen) ? x.tuyen.map(String).map((id) => ({ congDoanId: id, ten: cdTen.get(id) ?? id })) : []
+    }]));
+    const nkHm = new Map(nkRows.rows.map((x) => [String(x.hex), Number(x.tien) || 0]));
+    const khHm = new Map(khRows.rows.map((x) => [String(x.hex), {
+      nam: Number(x.nam),
+      tuan: Number(x.tuan),
+      kh: Number(x.kh) || 0,
+      ngayKhnk: x.ngay_khnk ?? null,
+      giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don),
+      nhapKhoLuyKe: nkHm.get(String(x.hex)) ?? 0
+    }]));
+    for (const h of hangMuc) {
+      const mh = mraHex.get(h.hex);
+      const tk = tkHm.get(h.hex) ?? (mh ? { sl: mh.sl, luc: new Date(mh.luc).toISOString(), tuyen: [], mra: true } : null);
+      Object.assign(h, { trienKhai: tk, keHoach: khHm.get(h.hex) ?? null });
+    }
     const tong = theoTo.reduce((a, t) => ({
       ngayCoChay: a.ngayCoChay + t.ngayCoChay,
       ngayChot: a.ngayChot + t.ngayChot,
@@ -72335,14 +72645,23 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         chotQuanSo: { ngayCoChay: tong.ngayCoChay, ngayChot: tong.ngayChot },
         khaiVuotQuanSo: tong.khaiVuot
       },
+      // Khoảng > 2 tháng: không gửi chi tiết hạng mục từng ngày (6 tháng xưởng lớn > 8 MB) — chỉ số đếm
+      rutGon,
       theoTo: theoTo.map((t) => ({
         ...t,
-        theoNgay: t.theoNgay.map((n) => ({
+        theoNgay: t.theoNgay.map((n) => rutGon ? {
+          ...n,
+          hangMuc: [],
+          nhan: [],
+          soHangMuc: n.hangMuc.length,
+          soNhan: n.nhan.length,
+          xong: n.xong.map((x) => ({ hex: x.hex, congDoanId: x.congDoanId, soLuong: x.soLuong, dvt: info.get(x.hex)?.dvt ?? null }))
+        } : {
           ...n,
           hangMuc: n.hangMuc.map((x) => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null })),
           nhan: n.nhan.map((x) => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null, dvt: info.get(x.hex)?.dvt ?? null })),
           xong: n.xong.map((x) => ({ ...x, tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId, tenHangMuc: info.get(x.hex)?.ten_hang_muc ?? null, dvt: info.get(x.hex)?.dvt ?? null }))
-        })).reverse(),
+        }).reverse(),
         theoHangMuc: t.theoHangMuc.map((x) => ({
           ...x,
           tenCongDoan: cdTen.get(x.congDoanId) ?? x.congDoanId,
@@ -72914,6 +73233,323 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     res.json({ success: true, available: true, soHangMuc: kq.so, cap: p.data.items.map((i) => pairKey(i.hex, i.tuyen[0])) });
   } catch (e) {
     fail(res, e, "/api/xuong/trien-khai");
+  }
+});
+
+// src/routes/xuongKeHoach.ts
+app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
+  try {
+    const xuong = typeof req.query.xuong === "string" ? req.query.xuong.trim().toUpperCase() : "";
+    const nam = Number(req.query.nam);
+    const tuan = Number(req.query.tuan);
+    const ds = await xuongQuanLy(req.user.id);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    const khoang = isoWeekRangeInYear(nam, tuan);
+    if (!khoang) return res.status(400).json({ success: false, message: "Tu\u1EA7n kh\xF4ng h\u1EE3p l\u1EC7" });
+    await ensureWorkshopGroups();
+    const khP = [nam, tuan];
+    const kh = await pool.query(
+      `SELECT hex::text AS hex, max(trim(ten_hang_muc)) AS ten_hang_muc, max(trim(ten_cong_trinh)) AS ten_cong_trinh,
+              max(trim(dvt)) AS dvt, sum(${numericCol("khsx", "so_luong_kh")}) AS sl_kh,
+              sum(${numericCol("khsx", "thanh_tien_ke_hoach")}) AS kh, to_char(min(ngay_khnk), 'YYYY-MM-DD') AS ngay_khnk,
+              max(${numericCol("khsx", "tri_gia_don_hang_tong")}) AS gia_tri_don
+       FROM khsx
+       WHERE upper(trim(phan_loai_kh)) LIKE '%TU\u1EA6N%' AND nam = $1::bigint AND tuan = $2::double precision AND hex IS NOT NULL
+         AND ${notCancelledHexCond("hex")} AND ${workshopCondition("xuong_chinh", xuong, khP)}
+       GROUP BY hex::text ORDER BY sum(${numericCol("khsx", "thanh_tien_ke_hoach")}) DESC NULLS LAST`,
+      khP
+    );
+    const hexKh = kh.rows.map((x) => String(x.hex));
+    const nkP = [khoang.start, khoang.end];
+    const nk = await pool.query(
+      `SELECT hex::text AS hex, max(trim(ten_hang_muc)) AS ten_hang_muc, sum(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}) AS tien,
+              sum(${numericCol("nhap_kho", "so_luong_nhap_kho")}) AS sl
+       FROM nhap_kho
+       WHERE date_parsed BETWEEN $1::date AND $2::date AND hex IS NOT NULL AND ${notCancelledHexCond("hex")}
+         AND ${workshopCondition("xuong_chinh", xuong, nkP)}
+       GROUP BY hex::text`,
+      nkP
+    );
+    const nkMap = new Map(nk.rows.map((x) => [String(x.hex), { tien: Number(x.tien) || 0, sl: Number(x.sl) || 0, ten: x.ten_hang_muc }]));
+    const nkMoiNhat = (await pool.query(`SELECT to_char(max(date_parsed),'YYYY-MM-DD') AS d FROM nhap_kho`)).rows[0]?.d ?? null;
+    const lk = hexKh.length ? await pool.query(
+      `SELECT hex::text AS hex, sum(${numericCol("nhap_kho", "thanh_tien_nhap_kho")}) AS tien FROM nhap_kho
+       WHERE hex::text = ANY($1::text[]) AND date_parsed <= $2::date GROUP BY hex::text`,
+      [hexKh, khoang.end]
+    ) : { rows: [] };
+    const lkMap = new Map(lk.rows.map((x) => [String(x.hex), Number(x.tien) || 0]));
+    const ngP = [khoang.start, khoang.end, hexKh];
+    const theoNgay = await pool.query(
+      `SELECT to_char(date_parsed,'YYYY-MM-DD') AS ngay,
+              sum(CASE WHEN hex::text = ANY($3::text[]) THEN ${numericCol("nhap_kho", "thanh_tien_nhap_kho")} ELSE 0 END) AS theo_kh,
+              sum(CASE WHEN hex::text = ANY($3::text[]) THEN 0 ELSE ${numericCol("nhap_kho", "thanh_tien_nhap_kho")} END) AS ngoai_kh
+       FROM nhap_kho
+       WHERE date_parsed BETWEEN $1::date AND $2::date AND hex IS NOT NULL AND ${notCancelledHexCond("hex")}
+         AND ${workshopCondition("xuong_chinh", xuong, ngP)}
+       GROUP BY date_parsed ORDER BY date_parsed`,
+      ngP
+    );
+    const [tk, tt, ngung] = hexKh.length ? await Promise.all([
+      pool.query(
+        `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc FROM xuong_su_kien e
+         WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND upper(coalesce(du_lieu->>'xuong', xuong)) = $2
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         GROUP BY hex`,
+        [hexKh, xuong]
+      ),
+      pool.query(
+        `SELECT t.hex, t.cong_doan_id, t.trang_thai, t.sl_giao_den::float AS giao_den, t.sl_nhan::float AS nhan,
+                t.sl_hoan_thanh::float AS xong, t.sl_giao::float AS giao, c.cd_chi_tiet AS ten, c.thu_tu, c.xuong
+         FROM xuong_trang_thai t LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id
+         WHERE t.hex = ANY($1::text[])`,
+        [hexKh]
+      ),
+      pool.query(
+        `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS luc FROM xuong_su_kien e
+         WHERE loai = 'tam_ngung' AND hex = ANY($1::text[]) AND nguon = 'app'
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`,
+        [hexKh]
+      )
+    ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
+    const tkMap = new Map(tk.rows.map((x) => [String(x.hex), { sl: Number(x.sl) || 0, luc: x.luc }]));
+    const ngungMap = new Map(ngung.rows.map((x) => [`${x.hex}|${x.cong_doan_id}`, { lyDo: x.ly_do_tam_ngung, luc: x.luc }]));
+    const cdTheoHex = /* @__PURE__ */ new Map();
+    for (const x of tt.rows) {
+      const k = String(x.hex);
+      if (!cdTheoHex.has(k)) cdTheoHex.set(k, []);
+      cdTheoHex.get(k).push({
+        congDoanId: x.cong_doan_id,
+        ten: x.ten ?? x.cong_doan_id,
+        xuong: x.xuong,
+        thuTu: x.thu_tu === null ? null : Number(x.thu_tu),
+        trangThai: x.trang_thai,
+        slGiaoDen: x.giao_den,
+        slNhan: x.nhan,
+        slHoanThanh: x.xong,
+        slGiao: x.giao,
+        ngung: x.trang_thai === "tam_ngung" ? ngungMap.get(`${x.hex}|${x.cong_doan_id}`) ?? null : null
+      });
+    }
+    const mraTk = /* @__PURE__ */ new Map();
+    const canMra = hexKh.filter((h) => !cdTheoHex.has(h));
+    if (canMra.length) {
+      const cuoiTuan = dauNgayVN(khoang.end) + NGAY;
+      const ev = await pool.query(
+        `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE nguon = 'mra' AND hex = ANY($1::text[]) AND cong_doan_id IS NOT NULL
+           AND device_ts_hieu_chinh < to_timestamp($2::double precision / 1000)`,
+        [canMra, cuoiTuan]
+      );
+      const theoCap = /* @__PURE__ */ new Map();
+      for (const r0 of ev.rows) {
+        const e = toSuKien(r0);
+        const k = `${e.hex}|${e.congDoanId}`;
+        if (!theoCap.has(k)) theoCap.set(k, []);
+        theoCap.get(k).push(e);
+      }
+      const cdIds = [...new Set([...theoCap.keys()].map((k) => k.split("|")[1]))];
+      const cdInfo = new Map(cdIds.length ? (await pool.query("SELECT id, cd_chi_tiet, thu_tu, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows.map((x) => [String(x.id), x]) : []);
+      for (const [k, evs] of theoCap) {
+        const [hex3, cd] = k.split("|");
+        evs.sort((a, b) => a.ts - b.ts);
+        const t = tinhTrangThai(evs, []);
+        const trangThai = t.trangThai === "cho_nhan" || t.trangThai === "cho_giao" ? t.slNhan > 0 && t.slHoanThanh >= t.slNhan ? "xong" : t.slNhan > 0 ? "da_nhan" : t.trangThai : t.trangThai;
+        const ci = cdInfo.get(cd);
+        if (!cdTheoHex.has(hex3)) cdTheoHex.set(hex3, []);
+        cdTheoHex.get(hex3).push({
+          congDoanId: cd,
+          ten: ci?.cd_chi_tiet ?? cd,
+          xuong: ci?.xuong ?? null,
+          thuTu: ci?.thu_tu === null || ci?.thu_tu === void 0 ? null : Number(ci.thu_tu),
+          trangThai,
+          slGiaoDen: t.slGiaoDen,
+          slNhan: t.slNhan,
+          slHoanThanh: t.slHoanThanh,
+          slGiao: t.slGiao,
+          ngung: trangThai === "tam_ngung" ? { lyDo: null, luc: null } : null,
+          mra: true
+        });
+        const cu = mraTk.get(hex3);
+        mraTk.set(hex3, { sl: Math.max(cu?.sl ?? 0, t.slNhan), luc: new Date(Math.min(cu ? Date.parse(cu.luc) : evs[0].ts, evs[0].ts)).toISOString() });
+      }
+    }
+    for (const ds2 of cdTheoHex.values()) ds2.sort((a, b) => Number(a.thuTu ?? 999) - Number(b.thuTu ?? 999));
+    const daCoKh = new Set(hexKh);
+    res.json({
+      success: true,
+      xuong,
+      nam,
+      tuan,
+      tu: khoang.start,
+      den: khoang.end,
+      nhapKhoMoiNhat: nkMoiNhat,
+      nhapKhoTheoNgay: theoNgay.rows.map((x) => ({ ngay: x.ngay, theoKh: Number(x.theo_kh) || 0, ngoaiKh: Number(x.ngoai_kh) || 0 })),
+      keHoach: kh.rows.map((x) => {
+        const hex3 = String(x.hex);
+        const n = nkMap.get(hex3);
+        return {
+          hex: hex3,
+          tenHangMuc: x.ten_hang_muc,
+          tenCongTrinh: x.ten_cong_trinh,
+          dvt: x.dvt,
+          slKh: x.sl_kh === null ? null : Number(x.sl_kh),
+          kh: Number(x.kh) || 0,
+          ngayKhnk: x.ngay_khnk ?? null,
+          nhapKho: n?.tien ?? 0,
+          slNhapKho: n?.sl ?? 0,
+          nhapKhoLuyKe: lkMap.get(hex3) ?? 0,
+          giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don),
+          // Không triển khai trên app nhưng có lịch sử MRA: coi như đã triển khai (làm theo MRA)
+          trienKhai: tkMap.get(hex3) ?? (mraTk.has(hex3) ? { ...mraTk.get(hex3), mra: true } : null),
+          congDoan: cdTheoHex.get(hex3) ?? []
+        };
+      }),
+      // Nhập kho trong tuần của hạng mục KHÔNG có trong kế hoạch tuần
+      ngoaiKeHoach: [...nkMap.entries()].filter(([hex3]) => !daCoKh.has(hex3)).map(([hex3, v]) => ({ hex: hex3, tenHangMuc: v.ten, nhapKho: v.tien, slNhapKho: v.sl })).sort((a, b) => b.nhapKho - a.nhapKho)
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/ke-hoach-tuan");
+  }
+});
+
+// src/routes/xuongMra.ts
+var lam2 = (n, le = 2) => Math.round(n * 10 ** le) / 10 ** le;
+var trungVi = (a) => {
+  if (!a.length) return null;
+  const s = [...a].sort((x, y) => x - y);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+var phanVi = (a, p) => {
+  if (!a.length) return null;
+  const s = [...a].sort((x, y) => x - y);
+  return s[Math.min(s.length - 1, Math.floor(p * (s.length - 1) + 0.5))];
+};
+var thang = (ts) => new Date(ts + 7 * GIO).toISOString().slice(0, 7);
+app.get("/api/xuong/lich-su-mra", async (req, res) => {
+  try {
+    const xuong = typeof req.query.xuong === "string" ? req.query.xuong.trim().toUpperCase() : "";
+    const ds = await xuongQuanLy(req.user.id);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    const [capsGoc, lich, cdR] = await Promise.all([
+      taiMra(xuong, toSuKien, COT_SU_KIEN, req.query.moi === "1"),
+      lichCaCuaXuong(xuong),
+      pool.query(`SELECT id, cd_chi_tiet, thu_tu FROM xuong_cong_doan WHERE xuong = $1`, [xuong])
+    ]);
+    if (!capsGoc.length) return res.json({ success: true, xuong, coDuLieu: false });
+    const khung = khungCaChinh(lich);
+    const cdMap = new Map(cdR.rows.map((x) => [String(x.id), { ten: String(x.cd_chi_tiet), thuTu: x.thu_tu === null ? 999 : Number(x.thu_tu) }]));
+    const caps = capsGoc.map((c) => ({
+      ...c,
+      gioChay: c.doan.reduce((a, d) => a + (d.end - d.start), 0) / GIO,
+      gioCa: c.doan.reduce((a, d) => a + gioTrongCa(d.start, d.end, khung), 0)
+    }));
+    const hexes = [...new Set(caps.map((c) => c.hex))];
+    const info = new Map((await pool.query(
+      `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, phan_loai_nhom_san_pham AS nhom
+       FROM production_status_app WHERE hex::text = ANY($1::text[]) ORDER BY hex::text, updated_at DESC NULLS LAST`,
+      [hexes]
+    )).rows.map((x) => [String(x.hex), x]));
+    const theoHex = /* @__PURE__ */ new Map();
+    for (const c of caps) {
+      if (!theoHex.has(c.hex)) theoHex.set(c.hex, []);
+      theoHex.get(c.hex).push(c);
+    }
+    const hms = [...theoHex.entries()].map(([hex3, cs]) => {
+      const dau = Math.min(...cs.map((c) => c.dau));
+      const xongs = cs.map((c) => c.xongCuoi).filter((x) => x !== null);
+      const xong = xongs.length ? Math.max(...xongs) : null;
+      const i = info.get(hex3);
+      return {
+        hex: hex3,
+        nhom: (i?.nhom ? String(i.nhom).trim() : "") || "Ch\u01B0a ph\xE2n nh\xF3m",
+        ten: i?.ten_hang_muc ?? null,
+        congTrinh: i?.ten_cong_trinh ?? null,
+        dau,
+        xong,
+        ngay: xong !== null ? (xong - dau) / NGAY : null,
+        gioCa: cs.reduce((a, c) => a + c.gioCa, 0),
+        soCd: cs.length
+      };
+    });
+    const theoCd = /* @__PURE__ */ new Map();
+    for (const c of caps) {
+      if (!theoCd.has(c.cd)) theoCd.set(c.cd, []);
+      theoCd.get(c.cd).push(c);
+    }
+    const congDoan = [...theoCd.entries()].map(([cd, cs]) => {
+      const coChay = cs.filter((c) => c.gioCa > 0);
+      const ncs = cs.map((c) => c.nc).filter((x) => x !== null);
+      return {
+        congDoanId: cd,
+        ten: cdMap.get(cd)?.ten ?? cd,
+        thuTu: cdMap.get(cd)?.thuTu ?? 999,
+        soHm: cs.length,
+        slXong: lam2(cs.reduce((a, c) => a + c.slXong, 0), 1),
+        gioCaTv: lam2(trungVi(coChay.map((c) => c.gioCa)) ?? 0, 1),
+        gioCaP75: lam2(phanVi(coChay.map((c) => c.gioCa), 0.75) ?? 0, 1),
+        gioCa: lam2(cs.reduce((a, c) => a + c.gioCa, 0), 0),
+        ngayChayTv: lam2((trungVi(coChay.map((c) => c.gioChay)) ?? 0) / 24, 1),
+        gioTrenDvTv: lam2(trungVi(cs.filter((c) => c.slXong > 0 && c.gioCa > 0).map((c) => c.gioCa / c.slXong)) ?? 0, 3),
+        ncTb: ncs.length ? lam2(ncs.reduce((a, b) => a + b, 0) / ncs.length, 1) : null,
+        ncGio: lam2(cs.reduce((a, c) => a + (c.nc ?? 0) * c.gioCa, 0), 0),
+        soNgung: cs.reduce((a, c) => a + c.soNgung, 0),
+        gioNgung: lam2(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
+        hmNgung: cs.filter((c) => c.soNgung > 0).length
+      };
+    }).sort((a, b) => a.thuTu - b.thuTu || b.soHm - a.soHm);
+    const theoNhom = /* @__PURE__ */ new Map();
+    for (const h of hms) {
+      if (!theoNhom.has(h.nhom)) theoNhom.set(h.nhom, []);
+      theoNhom.get(h.nhom).push(h);
+    }
+    const nhom = [...theoNhom.entries()].map(([ten, hs]) => {
+      const ngay = hs.map((h) => h.ngay).filter((x) => x !== null);
+      return {
+        ten,
+        soHm: hs.length,
+        soXong: ngay.length,
+        ngayTv: lam2(trungVi(ngay) ?? 0, 1),
+        ngayP75: lam2(phanVi(ngay, 0.75) ?? 0, 1),
+        gioCaTv: lam2(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
+      };
+    }).sort((a, b) => b.soHm - a.soHm);
+    const thangMap = /* @__PURE__ */ new Map();
+    const lay = (m) => {
+      if (!thangMap.has(m)) thangMap.set(m, { soXong: 0, gioCa: 0, soBatDau: 0 });
+      return thangMap.get(m);
+    };
+    for (const h of hms) {
+      lay(thang(h.dau)).soBatDau++;
+      if (h.xong !== null) lay(thang(h.xong)).soXong++;
+    }
+    for (const c of caps) lay(thang(c.dau)).gioCa += c.gioCa;
+    const theoThang = [...thangMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => ({ thang: m, soXong: v.soXong, soBatDau: v.soBatDau, gioCa: lam2(v.gioCa, 0) }));
+    const ngayAll = hms.map((h) => h.ngay).filter((x) => x !== null);
+    res.json({
+      success: true,
+      xuong,
+      coDuLieu: true,
+      tong: {
+        soHm: hms.length,
+        soHmXong: ngayAll.length,
+        soCap: caps.length,
+        tu: new Date(Math.min(...caps.map((c) => c.dau))).toISOString(),
+        den: new Date(Math.max(...caps.map((c) => c.xongCuoi ?? c.dau))).toISOString(),
+        gioCa: lam2(caps.reduce((a, c) => a + c.gioCa, 0), 0),
+        soNgung: caps.reduce((a, c) => a + c.soNgung, 0),
+        gioNgung: lam2(caps.reduce((a, c) => a + c.gioNgung, 0), 0),
+        ngayTv: lam2(trungVi(ngayAll) ?? 0, 1),
+        ngayP75: lam2(phanVi(ngayAll, 0.75) ?? 0, 1),
+        khongKhopCd: (await pool.query(`SELECT count(*)::int AS n FROM xuong_su_kien WHERE nguon = 'mra' AND xuong = $1 AND cong_doan_id IS NULL AND loai <> 'giao'`, [xuong])).rows[0]?.n ?? 0
+      },
+      congDoan,
+      nhom,
+      theoThang,
+      lauNhat: hms.filter((h) => h.ngay !== null).sort((a, b) => b.ngay - a.ngay).slice(0, 15).map((h) => ({ hex: h.hex, ten: h.ten, congTrinh: h.congTrinh, nhom: h.nhom, ngay: lam2(h.ngay, 1), gioCa: lam2(h.gioCa, 1), soCd: h.soCd }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/lich-su-mra");
   }
 });
 
@@ -73566,8 +74202,8 @@ var ngayDaDoc = /* @__PURE__ */ new Map();
 var parsePlanDate = (v) => {
   const s = String(v ?? "").trim();
   if (!s) return null;
-  const nho = ngayDaDoc.get(s);
-  if (nho !== void 0) return nho === null ? null : new Date(nho);
+  const nho2 = ngayDaDoc.get(s);
+  if (nho2 !== void 0) return nho2 === null ? null : new Date(nho2);
   const d = docNgayKeHoach(s);
   if (ngayDaDoc.size > 5e4) ngayDaDoc.clear();
   ngayDaDoc.set(s, d ? d.getTime() : null);
@@ -73608,9 +74244,9 @@ var deadlineOf = (row, k) => {
   const tuanMet = !!hex3 && !!khnkTuan && planMet.tuan.has(hex3);
   const thangMet = !!hex3 && !!khnkThang && planMet.thang.has(hex3);
   const tuan = tuanMet ? null : khnkTuan;
-  const thang = thangMet ? null : khnkThang;
-  const date5 = tuan ?? thang;
-  const source = tuan ? "tu\u1EA7n" : thang ? "th\xE1ng" : null;
+  const thang2 = thangMet ? null : khnkThang;
+  const date5 = tuan ?? thang2;
+  const source = tuan ? "tu\u1EA7n" : thang2 ? "th\xE1ng" : null;
   return { date: date5, source, khnkTuan, khnkThang, canGiao, canPm, botDuAn, tuanMet, thangMet };
 };
 var normProjectName = (v) => String(v ?? "").trim().replace(/\s+/g, " ").toUpperCase();
@@ -73646,8 +74282,8 @@ var khoaTenDaDoi = () => {
 };
 var projectMatchKey = (name) => {
   const raw = typeof name === "string" ? name : String(name ?? "");
-  const nho = khoaCongTrinh.get(raw);
-  if (nho !== void 0) return nho;
+  const nho2 = khoaCongTrinh.get(raw);
+  if (nho2 !== void 0) return nho2;
   const k = normProjectName(canonicalProjectName2(raw));
   if (khoaCongTrinh.size > 2e4) khoaCongTrinh.clear();
   khoaCongTrinh.set(raw, k);
@@ -74709,8 +75345,8 @@ var nhoKetQua = (k, buf) => {
 };
 function layHoacDung(khoa, ver, luuDb, dung) {
   const k = `${khoa}|${ver}`;
-  const nho = ketQuaNho.get(k);
-  if (nho) return Promise.resolve({ buf: nho, nguon: "mem", timing: "" });
+  const nho2 = ketQuaNho.get(k);
+  if (nho2) return Promise.resolve({ buf: nho2, nguon: "mem", timing: "" });
   let p = dangDung.get(k);
   if (!p) {
     p = (async () => {
