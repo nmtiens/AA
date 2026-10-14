@@ -61,12 +61,13 @@ function moTaQuanSo(q: Record<string, number>) {
   return { chinh: typeof q.chinh === 'number' ? q.chinh : null, tangCa: tc.join(' · ') };
 }
 
-function The({ ten, giaTri, phu, mau }: { ten: string; giaTri: string; phu?: ReactNode; mau?: string }) {
+/** Thẻ số liệu đầu báo cáo. Điện thoại: gọn (ẩn dòng phụ — xem ở "Cách đọc các số") để bảng lên sớm hơn */
+function The({ ten, giaTri, phu, mau, rong }: { ten: string; giaTri: string; phu?: ReactNode; mau?: string; rong?: boolean }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm rsm:p-4 ${rong ? 'col-span-2 rmd:col-span-1' : ''}`}>
       <p className="text-xs font-semibold text-slate-600">{ten}</p>
-      <p className={`mt-1 text-2xl font-bold tabular-nums ${mau ?? 'text-slate-900'}`}>{giaTri}</p>
-      {phu && <p className="mt-0.5 text-xs text-slate-500">{phu}</p>}
+      <p className={`mt-1 text-xl font-bold tabular-nums rsm:text-2xl ${mau ?? 'text-slate-900'}`}>{giaTri}</p>
+      {phu && <p className="mt-0.5 hidden text-xs text-slate-500 rsm:block">{phu}</p>}
     </div>
   );
 }
@@ -706,7 +707,7 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
                 <div className="mt-2 grid grid-cols-3 gap-2 text-center tabular-nums">
                   <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Có mặt</p><p className="font-semibold text-slate-800">{so(n.coMatThuong)}{n.coMatTangCa ? `+${so(n.coMatTangCa)}` : ''}</p></div>
                   <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công</p><p className="font-semibold text-slate-800">{so(cong)}</p></div>
-                  <div className={`rounded-lg py-1.5 ${mauDung(p)}`}><p className="text-xs opacity-75">Làm việc</p><p className="font-semibold">{p === null ? '—' : `${p}%`}</p></div>
+                  <div className={`rounded-lg py-1.5 ${mauDung(p)}`}><p className="text-xs opacity-75">Có việc</p><p className="font-semibold">{p === null ? '—' : `${p}%`}</p></div>
                 </div>
                 <p className="mt-2 flex flex-wrap gap-x-3 text-sm text-slate-600">
                   <span>{n.soNgay} ngày</span>
@@ -743,7 +744,7 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
           <th className={`${TH} text-right`}>Tăng ca</th>
           <th className={`${TH} text-right`}>Giờ công</th>
           <th className={`${TH} text-right`}>Giờ chờ việc</th>
-          <th className={`${TH} text-right`}>Làm việc</th>
+          <th className={`${TH} text-right`}>% có việc</th>
           <th className={`${TH} text-right`}>Trễ / về sớm</th>
         </tr></thead>
         <tbody>
@@ -809,7 +810,7 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
       </>)}
       {kieu === 'ds' && <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
         Giờ có mặt = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ giờ nghỉ. Giờ công = giờ được gắn tên vào hạng mục đang chạy. Giờ chờ việc = có mặt mà không gắn hạng mục.
-        Làm việc = giờ công / giờ có mặt. Trễ / về sớm so với giờ ca chính (số lần trong kỳ).
+        % có việc = giờ công / giờ có mặt. Trễ / về sớm so với giờ ca chính (số lần trong kỳ).
       </p>}
     </div>
   );
@@ -1068,7 +1069,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
 
       {d && (
         <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
-          <The ten="Công nhân bình quân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu · quân số chốt ca chính`} />
+          <The ten="Công nhân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu · quân số chốt ca chính`} />
           <The ten="Giờ công" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ có mặt${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}`} />
           <The ten="Tỷ lệ có việc" giaTri={pDung === null ? '—' : `${pDung}%`} phu="giờ công ÷ giờ có mặt, mục tiêu ≥ 80%"
             mau={pDung === null ? undefined : pDung >= 80 ? 'text-emerald-700' : pDung >= 50 ? 'text-amber-700' : 'text-red-700'} />
@@ -1076,7 +1077,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
             phu={tom.lyDo.length
               ? `${tom.gn ? `${Math.round((tom.ch / tom.gn) * 100)}% giờ có mặt · ` : ''}nhiều nhất: ${tenLyDoCho(tom.lyDo[0][0])} ${so(tom.lyDo[0][1])} giờ`
               : 'không có giờ chờ việc'} />
-          <The ten="Xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`} phu={tom.xong.length ? theoDonVi(tom.xong) : 'chưa xong hạng mục nào'} />
+          <The rong ten="Xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`} phu={tom.xong.length ? theoDonVi(tom.xong) : 'chưa xong hạng mục nào'} />
         </div>
       )}
 

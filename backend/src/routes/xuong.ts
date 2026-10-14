@@ -1107,8 +1107,11 @@ app.get('/api/xuong/can-xem', async (req: Request, res: Response) => {
     if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: 'Không có quyền quản lý xưởng này' });
     const [sk, st] = await Promise.all([
       pool.query(
-        `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co
-         FROM xuong_su_kien WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
+        // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem)
+        `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
+                so_luong, so_nguoi, ly_do_tam_ngung, du_lieu
+         FROM xuong_su_kien e WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY server_ts DESC LIMIT 300`, [xuong]),
       pool.query(`SELECT * FROM xuong_trang_thai WHERE xuong = $1 AND co <> '{}' ORDER BY cap_nhat DESC LIMIT 300`, [xuong]),
     ]);

@@ -350,13 +350,17 @@ type Dong = Record<string, unknown>;
 export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congDoan: CongDoanSetup[]; to: ToSetup[]; bao: Bao }) {
   const [d, setD] = useState<{ suKien: Dong[]; trangThai: Dong[] } | null>(null);
   const [loi, setLoi] = useState('');
-  const [boLoc, setBoLoc] = useState('');
+  // Mặc định chỉ cờ cần xử lý — cờ chỉ để biết (quản lý ghi hộ…) nhiều, làm chìm lỗi thật
+  const [boLoc, setBoLoc] = useState('can_xu_ly');
   const tai = () => { setLoi(''); xuongSetupApi.canXem(xuong).then(r => (r.ok ? setD(r.data) : setLoi(r.message))); };
   useEffect(tai, [xuong]);
   const tenCd = (id: unknown) => congDoan.find(c => c.id === id)?.ten ?? (id ? String(id) : '');
   const tenTo = (id: unknown) => to.find(t => t.id === Number(id))?.ten ?? '';
   const cacCo = useMemo(() => [...new Set((d?.suKien ?? []).flatMap(x => (x.co as string[]) ?? []))].sort(), [d]);
-  const ds = (d?.suKien ?? []).filter(x => !boLoc || ((x.co as string[]) ?? []).includes(boLoc));
+  const CO_CHI_DE_BIET = new Set(['quan_ly_ghi_ho']);
+  const canXuLy = (x: Dong) => ((x.co as string[]) ?? []).some(c => !CO_CHI_DE_BIET.has(c));
+  const soCanXuLy = (d?.suKien ?? []).filter(canXuLy).length;
+  const ds = (d?.suKien ?? []).filter(x => !boLoc || (boLoc === 'can_xu_ly' ? canXuLy(x) : ((x.co as string[]) ?? []).includes(boLoc)));
   const ngayGio = (s: unknown) => { const t = Date.parse(String(s)); return `${hhmm(t)} ${gioVN(t).ngay.split('-').reverse().join('/')}`; };
   if (loi) return <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{loi}</p>;
   if (!d) return <div className="flex justify-center py-10 text-slate-400"><RefreshCw className="animate-spin" size={18} /></div>;
@@ -366,11 +370,14 @@ export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congD
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
           <p className="text-sm font-semibold text-slate-800">Thao tác có cờ (30 ngày) — {ds.length}</p>
           <select value={boLoc} onChange={e => setBoLoc(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm">
-            <option value="">Mọi cờ</option>{cacCo.map(c => <option key={c} value={c}>{tenCo(c)}</option>)}
+            <option value="can_xu_ly">Cần xử lý ({soCanXuLy})</option>
+            <option value="">Mọi cờ, kể cả chỉ để biết ({d.suKien.length})</option>
+            {cacCo.map(c => <option key={c} value={c}>{tenCo(c)}</option>)}
           </select>
           <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} /> Tải lại</button>
         </div>
-        {ds.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">Không có thao tác nào cần xem.</p> : (
+        {ds.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">
+          {boLoc === 'can_xu_ly' ? `Không có thao tác nào cần xử lý.${d.suKien.length ? ` (${d.suKien.length} thao tác chỉ để biết — chọn "Mọi cờ" để xem.)` : ''}` : 'Không có thao tác nào cần xem.'}</p> : (
           <table className="w-full min-w-[36rem] rmd:min-w-0">
             <thead className="bg-slate-50"><tr>
               <th className={TH}>Lúc</th><th className={TH}>Thao tác</th><th className={TH}>Hạng mục · công đoạn · tổ</th><th className={TH}>Cờ</th><th className={TH} />
@@ -379,7 +386,8 @@ export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congD
               {ds.map(x => (
                 <tr key={String(x.id)} className="border-t border-slate-100">
                   <td className={`${TD} whitespace-nowrap tabular-nums`}>{ngayGio(x.device_ts_hieu_chinh)}</td>
-                  <td className={TD}>{moTaSuKien({ loai: String(x.loai) })}</td>
+                  <td className={TD}>{moTaSuKien({ loai: String(x.loai), soLuong: x.so_luong as number | null, soNguoi: x.so_nguoi as number | null,
+                    lyDo: x.ly_do_tam_ngung as string | null, duLieu: x.du_lieu as Record<string, unknown> | null })}</td>
                   <td className={TD}><span className="tabular-nums">{String(x.hex ?? '—')}</span>{x.cong_doan_id ? ` · ${tenCd(x.cong_doan_id)}` : ''}{x.to_id ? ` · ${tenTo(x.to_id)}` : ''}</td>
                   <td className={TD}>{((x.co as string[]) ?? []).map(c => <span key={c} className="mr-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">{tenCo(c)}</span>)}</td>
                   <td className={`${TD} text-right`}>
