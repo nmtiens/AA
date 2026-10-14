@@ -75141,7 +75141,9 @@ function taoBanGhi(data, columns, today) {
     const cancelled = status === "H\u1EE6Y";
     const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
     const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
-    const stock = Math.min(stockRaw, done);
+    const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
+    const exported = cancelled ? 0 : Math.min(exportedRecorded, done);
+    const stock = Math.min(stockRaw, done - exported);
     const qtyDone = isQtyComplete(row);
     const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
     out.push({
@@ -75166,9 +75168,10 @@ function taoBanGhi(data, columns, today) {
       // người xem lọc IPO để bỏ HỦY khi cần
       total: totalRaw,
       done,
-      exported: done - stock,
-      exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
+      exported,
+      exportedRecorded,
       stock,
+      unmatched: done - exported - stock,
       stockCut: stockRaw - stock,
       qtyDone,
       row,
@@ -75200,7 +75203,7 @@ function taoBanGhi(data, columns, today) {
   return out;
 }
 var COT_CHU = ["ct", "pm", "pc", "kv", "kh", "pl", "nct", "tda", "ma", "ctKey", "month", "status", "ipo", "mk", "bucket"];
-var COT_SO = ["total", "done", "exported", "exportedRecorded", "stock", "stockCut"];
+var COT_SO = ["total", "done", "exported", "exportedRecorded", "stock", "stockCut", "unmatched"];
 var ngayChuoi = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
 function nenBanGhi(recs) {
   const tu = [];

@@ -31,13 +31,14 @@ export interface Rec {
   status: Status;
   total: number;      // trị giá đơn hàng — GỒM cả đơn HỦY (khớp file gốc); muốn bỏ thì lọc Tình trạng IPO
   done: number;       // giá trị đã nhập kho, tối đa = total (đơn HỦY = 0)
-  // Đã xuất / giao = đã nhập kho − tồn kho (không âm). Không lấy cột xuất kho lũy kế vì bảng xuất kho chỉ có
-  // dữ liệu từ 01/2025: hạng mục giao trước đó có xuất = 0 nhưng tồn = 0 => nhập − xuất ≠ tồn (lệch hàng trăm tỷ).
+  // Đã xuất / giao = TT xuất kho lũy kế (thanh_tien_xuat_kho_luy_ke), chặn ≤ đã nhập kho (đơn HỦY = 0) — khớp file gốc
   exported: number;
-  exportedRecorded: number; // xuất kho lũy kế ghi trong bảng xuất kho (thanh_tien_xuat_kho_luy_ke) — để tham khảo
-  // Tồn kho dùng để chia giá trị đã nhập: tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) chặn ≤ done
-  // (đơn HỦY = 0) => Đã xuất + Tồn kho = Đã nhập kho
+  exportedRecorded: number; // TT xuất kho lũy kế gốc (không chặn) — để tham khảo
+  // Tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) chặn ≤ đã nhập − đã xuất (đơn HỦY = 0)
   stock: number;
+  // Đã nhập kho nhưng không thấy trong xuất kho lũy kế lẫn tồn kho hiện tại (bảng xuất kho chỉ có từ 01/2025,
+  // giao không qua phiếu xuất…) => Đã nhập kho = Đã xuất + Tồn kho + phần này
+  unmatched: number;
   stockCut: number;   // phần tồn kho hiện tại vượt giá trị đã nhập (bị chặn) — để ghi chú
   qtyDone: boolean;   // đã nhập đủ số lượng đơn hàng (đếm là đã nhập kho dù thành tiền NK thấp hơn trị giá)
   /** Dòng gốc — để mở cửa sổ danh sách HEX. Bản ghi máy chủ gửi chỉ có { hex } (laBanGhiMayChu) */
@@ -109,7 +110,9 @@ export function taoBanGhi(data: DataRow[], columns: ColumnDefinition[], today: n
     const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
     // Tồn kho chặn ≤ đã nhập (nhập/tồn có thể vượt trị giá đơn hàng); đơn HỦY không tính tồn
     const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
-    const stock = Math.min(stockRaw, done);
+    const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
+    const exported = cancelled ? 0 : Math.min(exportedRecorded, done);
+    const stock = Math.min(stockRaw, done - exported);
     const qtyDone = isQtyComplete(row);
     // Cùng định nghĩa "còn theo dõi" với cửa sổ tổng quan công trình (ProjectHealthModal)
     const open = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
@@ -123,9 +126,10 @@ export function taoBanGhi(data: DataRow[], columns: ColumnDefinition[], today: n
       // người xem lọc IPO để bỏ HỦY khi cần
       total: totalRaw,
       done,
-      exported: done - stock,
-      exportedRecorded: Math.max(parseNumber(row[xkK]), 0),
+      exported,
+      exportedRecorded,
       stock,
+      unmatched: done - exported - stock,
       stockCut: stockRaw - stock,
       qtyDone,
       row,
@@ -158,7 +162,7 @@ export function taoBanGhi(data: DataRow[], columns: ColumnDefinition[], today: n
 // (giờ địa phương — máy chủ chạy UTC, trình duyệt +7); quá hạn tính lại ở trình duyệt theo ngày của máy xem.
 // ---------------------------------------------------------------------------
 const COT_CHU = ['ct', 'pm', 'pc', 'kv', 'kh', 'pl', 'nct', 'tda', 'ma', 'ctKey', 'month', 'status', 'ipo', 'mk', 'bucket'] as const;
-const COT_SO = ['total', 'done', 'exported', 'exportedRecorded', 'stock', 'stockCut'] as const;
+const COT_SO = ['total', 'done', 'exported', 'exportedRecorded', 'stock', 'stockCut', 'unmatched'] as const;
 
 export interface BanGhiNen {
   n: number;
@@ -203,7 +207,7 @@ export function giaiNenBanGhi(z: BanGhiNen, today: number): Rec[] {
       bucket: t[z.chu.bucket[i]] as Rec['bucket'],
       deadline, open, overdue: open && !!deadline && deadline.getTime() < today, botDuAn: chuoiNgay(t[z.botDuAn[i]]),
       total: z.so.total[i], done: z.so.done[i], exported: z.so.exported[i], exportedRecorded: z.so.exportedRecorded[i],
-      stock: z.so.stock[i], stockCut: z.so.stockCut[i], qtyDone: z.qtyDone[i] === 1,
+      stock: z.so.stock[i], stockCut: z.so.stockCut[i], unmatched: z.so.unmatched?.[i] ?? 0, qtyDone: z.qtyDone[i] === 1,
       row: { hex: t[z.hex[i]] } as DataRow,
     };
   }

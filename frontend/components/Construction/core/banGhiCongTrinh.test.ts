@@ -6,7 +6,7 @@ const dong = (p: Partial<Record<string, unknown>>): DataRow => ({
   hex: '250301895', ten_cong_trinh: 'CT A', ma_cong_trinh: 'ct25-001', ten_pm: 'PM 1', ten_pc: 'PC 1',
   khu_vuc_du_an: 'Miền Nam', khach_hang: 'KH1', phan_loai_nhom_san_pham: '01. BÀN', tinh_trang: '05. ĐANG SX',
   tinh_trang_ipo: '01. ĐANG SẢN XUẤT', tri_gia_don_hang_tong: 100, thanh_tien_nhap_kho_luy_ke: 40,
-  thanh_tien_ton_kho_hien_tai: 10, bop: 'P013', ngay_khnk_tuan: '2026-10-05', bot_du_an: '2026-12-31',
+  thanh_tien_ton_kho_hien_tai: 10, thanh_tien_xuat_kho_luy_ke: 25, bop: 'P013', ngay_khnk_tuan: '2026-10-05', bot_du_an: '2026-12-31',
   ...p,
 } as DataRow);
 const ROWS = [
@@ -21,8 +21,13 @@ describe('bản ghi Tổng quan công trình (máy chủ dựng sẵn)', () => {
   it('dựng bản ghi: bỏ dòng không tên công trình, HỦY = 0 đã nhập, quá hạn theo KH tuần', () => {
     const r = taoBanGhi(ROWS, COLS, HOM_NAY);
     expect(r).toHaveLength(2);
-    expect(r[0]).toMatchObject({ done: 40, stock: 10, exported: 30, open: true, overdue: true, month: '2026-10', ma: 'CT25-001' });
+    // Đã nhập 40 = xuất lũy kế 25 + tồn 10 + 5 không thấy xuất / tồn
+    expect(r[0]).toMatchObject({ done: 40, stock: 10, exported: 25, unmatched: 5, open: true, overdue: true, month: '2026-10', ma: 'CT25-001' });
     expect(r[1]).toMatchObject({ status: 'HỦY', done: 0, bucket: 'cancelled', month: NO_MONTH, pc: NO_DATA });
+  });
+  it('xuất kho lũy kế vượt đã nhập: chặn ≤ đã nhập, tồn kho chặn phần còn lại', () => {
+    const r = taoBanGhi([dong({ thanh_tien_xuat_kho_luy_ke: 38 })], COLS, HOM_NAY);
+    expect(r[0]).toMatchObject({ done: 40, exported: 38, stock: 2, stockCut: 8, unmatched: 0 });
   });
   it('nén rồi giải nén qua JSON giữ nguyên mọi trường (dòng gốc còn hex)', () => {
     const goc = taoBanGhi(ROWS, COLS, HOM_NAY);
