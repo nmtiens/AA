@@ -92,11 +92,11 @@ export default function XuongShell() {
         <div className="flex items-center gap-3 px-5 py-5">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-xl text-white" aria-hidden>🏭</span>
           <div className="min-w-0">
-            <p className="text-lg font-semibold leading-tight text-slate-900">Xưởng</p>
+            <p className="text-lg font-semibold leading-tight text-slate-900">MRA</p>
             <p className="truncate text-sm text-slate-500">{ten}</p>
           </div>
         </div>
-        <nav className="flex flex-col gap-1 px-3" aria-label="Mục app Xưởng">
+        <nav className="flex flex-col gap-1 px-3" aria-label="Mục app MRA">
           {dsMuc.map(m => (
             <button key={m.id} onClick={() => chon(m.id)} aria-current={mucHienTai === m.id ? 'page' : undefined}
               className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-base ${mucHienTai === m.id ? 'bg-slate-900 font-semibold text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
@@ -126,7 +126,7 @@ export default function XuongShell() {
       </div>
 
       {/* Điện thoại: thanh điều hướng dưới */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur rmd:hidden" aria-label="Mục app Xưởng">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur rmd:hidden" aria-label="Mục app MRA">
         <div className="mx-auto flex h-16 max-w-xl">
           {dsMuc.map(m => (
             <button key={m.id} onClick={() => chon(m.id)} aria-current={mucHienTai === m.id ? 'page' : undefined}

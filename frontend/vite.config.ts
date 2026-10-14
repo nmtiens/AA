@@ -23,9 +23,9 @@ function trangXuong(): Plugin {
         html = html.replace(a, b);
       };
       doi('href="/manifest.webmanifest"', 'href="/manifest-xuong.webmanifest"');
-      doi('<meta name="apple-mobile-web-app-title" content="Vướng mắc" />', '<meta name="apple-mobile-web-app-title" content="Xưởng" />');
+      doi('<meta name="apple-mobile-web-app-title" content="Vướng mắc" />', '<meta name="apple-mobile-web-app-title" content="MRA" />');
       doi('<meta name="theme-color" content="#f1f4f9" />', '<meta name="theme-color" content="#f4f6fa" />');
-      doi('<title>Operations Hub</title>', '<title>Xưởng</title>');
+      doi('<title>Operations Hub</title>', '<title>MRA</title>');
       this.emitFile({ type: 'asset', fileName: 'xuong.html', source: html });
     },
   };

@@ -51,7 +51,7 @@ export default function DangNhapXuong({ onSuccess, ghiChu }: {
             <Factory size={40} strokeWidth={1.75} aria-hidden />
           </div>
           <div>
-            <h1 className="text-3xl font-semibold text-slate-900">Xưởng</h1>
+            <h1 className="text-3xl font-semibold text-slate-900">MRA</h1>
             <p className={`mt-1 ${CHU_PHU}`}>Ghi việc của tổ: nhận hàng, bắt đầu, xong — giao</p>
           </div>
         </div>

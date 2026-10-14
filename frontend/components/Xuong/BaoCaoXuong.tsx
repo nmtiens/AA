@@ -672,7 +672,7 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
     return (
       <div className={`${KHUNG} space-y-1 p-4 text-sm text-slate-600`}>
         <p className="font-medium text-slate-800">Chưa có số liệu chấm công theo người trong kỳ.</p>
-        <p>Số liệu có khi tổ trưởng điểm danh tên đầu ca và chọn tên người khi bắt đầu hạng mục (app Xưởng). Danh sách công nhân ở Quản lý → Nhân sự.</p>
+        <p>Số liệu có khi tổ trưởng điểm danh tên đầu ca và chọn tên người khi bắt đầu hạng mục (app MRA). Danh sách công nhân ở Quản lý → Nhân sự.</p>
       </div>
     );
   }

@@ -168,7 +168,7 @@ async function nhacSang(ngay: string) {
     const nguoi = await nguoiCuaTo(r.rows.map(x => Number(x.id)));
     for (const x of r.rows) {
       tins.push({ kind: 'xuong_quan_so', userIds: nguoi.get(Number(x.id)) ?? [], moiNgayMotLan: true,
-        title: `${x.ten_to}: chưa chốt quân số ca chính`, body: 'Mở mục Xưởng, bấm "Chốt quân số" — giờ công của tổ tính theo quân số.' });
+        title: `${x.ten_to}: chưa chốt quân số ca chính`, body: 'Mở app MRA, điểm danh / chốt quân số đầu ca — giờ công của tổ tính theo người có mặt.' });
     }
   }
   // 2) Hạng mục đang chạy hơn 2 ngày không có thao tác mới

@@ -1,8 +1,8 @@
 {
   "id": "/m/xuong",
-  "name": "Xưởng - Operations Hub",
-  "short_name": "Xưởng",
-  "description": "App Xưởng: tổ trưởng ghi nhận, bắt đầu, tạm ngưng, xong — giao; chốt quân số, tăng ca, xác nhận cuối ngày (dùng được khi mất sóng)",
+  "name": "MRA - Operations Hub",
+  "short_name": "MRA",
+  "description": "App MRA: tổ trưởng ghi nhận, bắt đầu, tạm ngưng, xong — giao; chốt quân số, tăng ca, xác nhận cuối ngày (dùng được khi mất sóng)",
   "start_url": "/xuong",
   "scope": "/xuong",
   "display": "standalone",

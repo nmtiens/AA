@@ -70487,7 +70487,7 @@ async function nhacSang(ngay) {
         userIds: nguoi.get(Number(x.id)) ?? [],
         moiNgayMotLan: true,
         title: `${x.ten_to}: ch\u01B0a ch\u1ED1t qu\xE2n s\u1ED1 ca ch\xEDnh`,
-        body: 'M\u1EDF m\u1EE5c X\u01B0\u1EDFng, b\u1EA5m "Ch\u1ED1t qu\xE2n s\u1ED1" \u2014 gi\u1EDD c\xF4ng c\u1EE7a t\u1ED5 t\xEDnh theo qu\xE2n s\u1ED1.'
+        body: "M\u1EDF app MRA, \u0111i\u1EC3m danh / ch\u1ED1t qu\xE2n s\u1ED1 \u0111\u1EA7u ca \u2014 gi\u1EDD c\xF4ng c\u1EE7a t\u1ED5 t\xEDnh theo ng\u01B0\u1EDDi c\xF3 m\u1EB7t."
       });
     }
   }
@@ -73250,7 +73250,7 @@ var PERMISSION_GROUPS = [
     id: "g_xuong",
     label: "X\u01B0\u1EDFng (ch\u1EA5m c\xF4ng \u0111o\u1EA1n)",
     items: [
-      { id: "xuong", label: "T\u1ED5 tr\u01B0\u1EDFng \u2014 ghi thao t\xE1c \u1EDF x\u01B0\u1EDFng (app X\u01B0\u1EDFng /xuong)" },
+      { id: "xuong", label: "T\u1ED5 tr\u01B0\u1EDFng \u2014 ghi thao t\xE1c \u1EDF x\u01B0\u1EDFng (app MRA /xuong)" },
       { id: "xuong_quan_ly", label: "Qu\u1EA3n l\xFD x\u01B0\u1EDFng \u2014 hu\u1EF7 / xem c\u1EA7n xem" }
     ]
   },

@@ -561,7 +561,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
                 <ChevronDown size="1.25em" className="shrink-0 text-slate-700" aria-hidden />
               </button>
             ) : (
-              <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Xưởng'}</h1>
+              <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'MRA'}</h1>
             )}
             <p className={`flex items-center gap-1.5 text-base font-medium ${thanhGui.mau.chu}`} aria-live="polite">
               {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}

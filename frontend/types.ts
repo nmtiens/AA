@@ -182,7 +182,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     id: 'g_xuong',
     label: 'Xưởng (chấm công đoạn)',
     items: [
-      { id: 'xuong', label: 'Tổ trưởng — ghi thao tác ở xưởng (app Xưởng /xuong)' },
+      { id: 'xuong', label: 'Tổ trưởng — ghi thao tác ở xưởng (app MRA /xuong)' },
       { id: 'xuong_quan_ly', label: 'Quản lý xưởng — huỷ / xem cần xem' },
     ],
   },

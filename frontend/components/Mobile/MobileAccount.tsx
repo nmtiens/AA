@@ -164,7 +164,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
       <section className={`${CARD} p-4`}>
         <p className="mb-3 flex items-center gap-2 text-base font-semibold text-slate-800"><Smartphone size="1em" /> Ứng dụng</p>
         {appXuong
-          ? <InstallBanner force tieuDe="Cài app Xưởng lên điện thoại" moTa="Mở thẳng màn tổ, dùng được khi mất sóng" khoaAn="xuong_install_hidden" />
+          ? <InstallBanner force tieuDe="Cài app MRA lên điện thoại" moTa="Mở thẳng màn tổ, dùng được khi mất sóng" khoaAn="xuong_install_hidden" />
           : <InstallBanner force />}
       </section>
 
