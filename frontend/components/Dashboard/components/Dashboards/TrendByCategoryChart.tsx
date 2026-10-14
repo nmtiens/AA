@@ -17,6 +17,7 @@ export type CategoryKind = 'dvt' | 'phanloai';
 interface ApiCategoryPoint {
   total: number;
   totalCount: number;
+  distinctTotalCount?: number;
   [key: string]: any;
 }
 interface ChartPoint { name: string; code: string; total: number; }
@@ -158,7 +159,8 @@ export default function TrendByCategoryChart({
   const [detailTruncated, setDetailTruncated] = useState(false);
 
   const theme = THEME[source];
-  const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
+  // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -227,10 +229,16 @@ export default function TrendByCategoryChart({
     return Number((sum / chartData.length).toFixed(2));
   }, [chartData]);
 
+  // Số lượng: 1 mã có thể nằm ở nhiều nhóm (vd 1 mã tồn có 2 ĐVT) => cộng các cột bị đếm trùng; dùng số mã khác
+  // nhau trên cả khoảng do máy chủ tính (distinctTotalCount). Giá trị (tiền) cộng các cột vẫn đúng.
   const totalAll = useMemo(() => {
+    if (displayMode === 'COUNT') {
+      const distinct = raw.find(p => p.distinctTotalCount != null)?.distinctTotalCount;
+      if (distinct != null) return Number(distinct);
+    }
     const sum = chartData.reduce((s, p) => s + p.total, 0);
     return Number(sum.toFixed(2));
-  }, [chartData]);
+  }, [raw, chartData, displayMode]);
 
   const openDetailForPinned = async () => {
     if (!pinned) return;
@@ -317,7 +325,9 @@ export default function TrendByCategoryChart({
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0}
+                     angle={chartData.length > 6 ? -35 : 0} textAnchor={chartData.length > 6 ? 'end' : 'middle'}
+                     height={chartData.length > 6 ? 70 : 30} />
               <YAxis
                 tickFormatter={fmt}
                 tick={{ fontSize: 10, fill: '#64748b' }}

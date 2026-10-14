@@ -15,6 +15,7 @@ interface ApiCongTrinhPoint {
   congTrinhName: string;
   total: number;
   totalCount: number;
+  distinctTotalCount?: number;
 }
 interface ChartPoint { congTrinh: string; congTrinhCode: string; total: number; }
 
@@ -155,7 +156,8 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   const [detailTruncated, setDetailTruncated] = useState(false);
 
   const theme = THEME[source];
-  const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
+  // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -237,6 +239,11 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const totalAll = useMemo(() => {
     if (!hasValidRange) return 0;
+    // Số lượng: số mã khác nhau trên cả khoảng (máy chủ tính) — tránh đếm trùng mã nằm ở nhiều công trình
+    if (displayMode === 'COUNT') {
+      const distinct = raw.find(p => p.distinctTotalCount != null)?.distinctTotalCount;
+      if (distinct != null) return Number(distinct);
+    }
     const sum = raw.reduce((s, p) => s + (displayMode === 'COUNT' ? p.totalCount : isMoney ? trieuToTy(p.total) : p.total), 0);
     return Number(sum.toFixed(2));
   }, [raw, displayMode, hasValidRange]);

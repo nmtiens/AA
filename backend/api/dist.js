@@ -67694,23 +67694,27 @@ cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(r
     params.push(phanLoai);
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
-  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-  const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+  const valueRowExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
+  const countBase = cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)";
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
   const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
   const xuongExpr = cfg.xuongCol ? colBare(cfg.xuongCol) : "p.xuong_chinh";
   const noXuongLabel = isStock ? "T\u1ED2N KHO KH\xC1C" : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
   const q = `
-      ${withClause}
-      SELECT
-        COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS xuong,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(" AND ")}
-      GROUP BY 1
+      ${withClause ? `${withClause},` : "WITH"} base AS (
+        SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
+               ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
+        FROM ${cfg.table} ${mainAlias}
+        ${joinClause}
+        WHERE ${conditions.join(" AND ")}
+      )
+      SELECT g AS xuong,
+        COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
+        ${countBase} AS total_count,
+        (SELECT ${cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)"} FROM base) AS distinct_total
+      FROM base
+      GROUP BY g
       ORDER BY total_value DESC
     `;
   const r = await timedQuery(q, params, { workMemMb: 32 });
@@ -67718,7 +67722,8 @@ cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(r
     xuongCode: row.xuong,
     xuongName: row.xuong,
     total: Number(row.total_value),
-    totalCount: Number(row.total_count)
+    totalCount: Number(row.total_count),
+    distinctTotalCount: Number(row.distinct_total)
   }));
 });
 cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
@@ -67768,27 +67773,34 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
     params.push(phanLoai);
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
-  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-  const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+  const valueRowExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
+  const countBase = cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)";
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
   const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
   const q = `
-      ${withClause}
+      ${withClause ? `${withClause},` : "WITH"} base AS (
+        SELECT ${normNameSql(colBare(cfg.congTrinhCol))} AS g,
+               TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g')) AS ten,
+               ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
+        FROM ${cfg.table} ${mainAlias}
+        ${joinClause}
+        WHERE ${conditions.join(" AND ")}
+      )
       SELECT
         -- Gom theo t\xEAn \u0111\xE3 chu\u1EA9n ho\xE1 (hoa/th\u01B0\u1EDDng, kho\u1EA3ng tr\u1EAFng) nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt: tr\u01B0\u1EDBc gom theo t\xEAn g\u1ED1c
         -- => "ABC X" v\xE0 "abc x" th\xE0nh 2 c\u1ED9t, b\u1EA5m 1 c\u1ED9t th\xEC chi ti\u1EBFt ra c\u1EA3 2 (l\u1EDBn h\u01A1n c\u1ED9t), HEX \u0111\u1EBFm 2 l\u1EA7n
-        COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g'))), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(" AND ")}
-      GROUP BY ${normNameSql(colBare(cfg.congTrinhCol))}
+        COALESCE(NULLIF(MIN(ten), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS cong_trinh,
+        COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
+        ${countBase} AS total_count,
+        (SELECT ${cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)"} FROM base) AS distinct_total
+      FROM base
+      GROUP BY g
       ORDER BY total_value DESC
     `;
   const r = await timedQuery(q, params, { workMemMb: 32 });
   const merged = /* @__PURE__ */ new Map();
+  const distinctTotalCount = r.rows.length ? Number(r.rows[0].distinct_total) : 0;
   for (const row of r.rows) {
     const name = row.cong_trinh === "Ch\u01B0a x\xE1c \u0111\u1ECBnh" ? row.cong_trinh : canonicalProjectName(row.cong_trinh);
     const e = merged.get(name) ?? { total: 0, totalCount: 0 };
@@ -67796,7 +67808,7 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
     e.totalCount += Number(row.total_count);
     merged.set(name, e);
   }
-  return [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount })).filter((x) => x.total !== 0 || x.totalCount > 0).sort((a, b) => b.total - a.total);
+  return [...merged.entries()].map(([name, v]) => ({ congTrinhCode: name, congTrinhName: name, total: v.total, totalCount: v.totalCount, distinctTotalCount })).filter((x) => x.total !== 0 || x.totalCount > 0).sort((a, b) => b.total - a.total);
 });
 cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
   const { cfg, isStock } = sourceCfg(req);
@@ -67844,22 +67856,26 @@ cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req
     params.push(phanLoai);
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
-  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
-  const valueExpr = needsJoin ? `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})` : `SUM(${numericCol(cfg.table, cfg.valueCol)})`;
+  const valueRowExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
+  const countBase = cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)";
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = needsJoin ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text` : "";
   const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : "";
   const dvtExpr = cfg.dvtCol ? colBare(cfg.dvtCol) : "p.dvt";
   const q = `
-      ${withClause}
-      SELECT
-        COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS dvt,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(" AND ")}
-      GROUP BY 1
+      ${withClause ? `${withClause},` : "WITH"} base AS (
+        SELECT COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS g,
+               ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
+        FROM ${cfg.table} ${mainAlias}
+        ${joinClause}
+        WHERE ${conditions.join(" AND ")}
+      )
+      SELECT g AS dvt,
+        COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
+        ${countBase} AS total_count,
+        (SELECT ${cfg.hexCol ? "COUNT(DISTINCT hx)" : "COUNT(*)"} FROM base) AS distinct_total
+      FROM base
+      GROUP BY g
       ORDER BY total_value DESC
     `;
   const r = await timedQuery(q, params, { workMemMb: 32 });
@@ -67867,7 +67883,8 @@ cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req
     dvtCode: row.dvt,
     dvtName: row.dvt,
     total: Number(row.total_value),
-    totalCount: Number(row.total_count)
+    totalCount: Number(row.total_count),
+    distinctTotalCount: Number(row.distinct_total)
   }));
 });
 cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(String(req.query.source || "")), async (req) => {
@@ -67913,21 +67930,24 @@ cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(Strin
     params.push(phanLoai);
     conditions.push(`p.phan_loai_nhom_san_pham = $${params.length}`);
   }
-  const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
-  const valueExpr = `SUM(${numericColQualified(cfg.table, mainAlias, cfg.valueCol)})`;
+  const valueRowExpr = numericColQualified(cfg.table, mainAlias, cfg.valueCol);
   const joinKey = cfg.productionJoinCol || "hex";
   const joinClause = `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol)}::text`;
   const withClause = `WITH ${buildMatchedProductionCTE(joinKey)}`;
   const q = `
-      ${withClause}
-      SELECT
-        COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS phan_loai,
-        COALESCE(${valueExpr}, 0) / ${cfg.valueDivisor} AS total_value,
-        ${countExpr} AS total_count
-      FROM ${cfg.table} ${mainAlias}
-      ${joinClause}
-      WHERE ${conditions.join(" AND ")}
-      GROUP BY 1
+      ${withClause}, base AS (
+        SELECT COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS g,
+               ${colBare(cfg.hexCol)} AS hx, ${valueRowExpr} AS v
+        FROM ${cfg.table} ${mainAlias}
+        ${joinClause}
+        WHERE ${conditions.join(" AND ")}
+      )
+      SELECT g AS phan_loai,
+        COALESCE(SUM(v), 0) / ${cfg.valueDivisor} AS total_value,
+        COUNT(DISTINCT hx) AS total_count,
+        (SELECT COUNT(DISTINCT hx) FROM base) AS distinct_total
+      FROM base
+      GROUP BY g
       ORDER BY total_value DESC
     `;
   const r = await timedQuery(q, params, { workMemMb: 32 });
@@ -67935,7 +67955,8 @@ cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(Strin
     phanLoaiCode: row.phan_loai,
     phanLoaiName: row.phan_loai,
     total: Number(row.total_value),
-    totalCount: Number(row.total_count)
+    totalCount: Number(row.total_count),
+    distinctTotalCount: Number(row.distinct_total)
   }));
 });
 var DETAIL_DIMENSIONS = /* @__PURE__ */ new Set(["period", "xuong", "congtrinh", "dvt", "phanloai"]);
