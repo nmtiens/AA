@@ -38,6 +38,8 @@ export interface DongViec {
   soNguoi: number | null;
   dangChayTu: string | null;
   suKienCuoi: string | null;
+  /** Tạm ngưng: lý do + lúc ngưng (API cong-viec) */
+  ngung?: { lyDo: string | null; tu: string } | null;
   co: string[];
   tenHangMuc: string | null;
   maCongTrinh: string | null;
@@ -260,6 +262,7 @@ const TEN_LOAI: Record<string, string> = {
   nhan: 'Nhận', bat_dau: 'Bắt đầu', tam_ngung: 'Tạm ngưng', tiep_tuc: 'Tiếp tục', hoan_thanh: 'Xong', giao: 'Giao',
   tang_ca: 'Khai tăng ca', chia_nguoi: 'Chia người', quan_so: 'Chốt quân số', xac_nhan_cuoi_ngay: 'Xác nhận cuối ngày',
   tien_do: 'Tiến độ', trien_khai: 'Triển khai', khai_bao_cd: 'Khai báo công đoạn',
+  vao_ca: 'Điểm danh', ra_ca: 'Ra ca', huy: 'Huỷ thao tác',
 };
 
 export function moTaSuKien(x: { loai: string; soLuong?: number | null; soNguoi?: number | null; lyDo?: string | null; tenCongDoanDen?: string | null; duLieu?: Record<string, unknown> | null; dvt?: string | null }) {
@@ -267,6 +270,17 @@ export function moTaSuKien(x: { loai: string; soLuong?: number | null; soNguoi?:
   if (x.soLuong) p.push(`${hienSl(Number(x.soLuong))} ${x.dvt?.trim() || 'cái'}`);
   if (x.tenCongDoanDen) p.push(`sang ${x.tenCongDoanDen}`);
   if (x.loai === 'tam_ngung') p.push(`— ${tenLyDo(x.lyDo)}`);
+  // Điểm danh: "Điểm danh ca chính · 8 người vào" / "Ra ca chính · 2 người (về sớm)" (trước hiện mã thô vao_ca)
+  if (x.loai === 'vao_ca' || x.loai === 'ra_ca') {
+    const ca = x.duLieu?.loaiCa as LoaiCa | undefined;
+    if (ca && TEN_CA[ca]) p.push(TEN_CA[ca].toLowerCase());
+    const ds = Array.isArray(x.duLieu?.nguoi) ? (x.duLieu!.nguoi as Array<{ lyDo?: string }>) : [];
+    if (ds.length) p.push(`· ${ds.length} người ${x.loai === 'vao_ca' ? 'vào' : 'ra'}`);
+    const ly = x.loai === 'ra_ca' ? [...new Set(ds.map(d => d?.lyDo).filter(Boolean))] : [];
+    const TEN_RA: Record<string, string> = { ve_som: 'về sớm', nghi_giua_ca: 'nghỉ giữa ca', chuyen_to: 'sang tổ khác', vang: 'vắng' };
+    if (ly.length) p.push(`(${ly.map(l => TEN_RA[l as string] ?? l).join(', ')})`);
+    return p.join(' ');
+  }
   if (x.loai === 'quan_so' || x.loai === 'tang_ca') {
     const ca = x.duLieu?.loaiCa as LoaiCa | undefined;
     if (ca && TEN_CA[ca]) p.push(TEN_CA[ca].toLowerCase());

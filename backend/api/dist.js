@@ -71292,6 +71292,18 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       }
       return n;
     };
+    const dsNgung = st.filter((x) => x.trang_thai === "tam_ngung");
+    const ngung = /* @__PURE__ */ new Map();
+    if (dsNgung.length) {
+      const q = await pool.query(
+        `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai = 'tam_ngung' AND hex = ANY($2::text[])
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+         ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`,
+        [toId, dsNgung.map((x) => String(x.hex))]
+      );
+      for (const x of q.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
+    }
     const rows = st.map((x) => {
       const d = dongTrangThai(x, info.get(String(x.hex)));
       const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
@@ -71300,7 +71312,8 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         ...d,
         soNguoi: n ?? d.soNguoi,
         nguoi: x.trang_thai === "dang_lam" ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : null,
-        goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? []
+        goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [],
+        ngung: x.trang_thai === "tam_ngung" ? ngung.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? null : null
       };
     });
     const ghChoNhan = await gioiHanNhan(pool, rows.filter((x) => x.slGiaoDen > x.slNhan).map((x) => [String(x.hex), String(x.congDoanId)]));

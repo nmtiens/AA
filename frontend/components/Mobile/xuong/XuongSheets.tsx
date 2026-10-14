@@ -520,21 +520,38 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
     return out.filter(m => m.luc <= Date.now());
   };
   const thieu = ds.some(x => !x.vanLam && x.dungLuc === null);
+  // Ảnh / tiến độ (không bắt buộc) gập lại — tổ nhiều hạng mục không phải cuộn qua từng ô ảnh
+  const [mo, setMo] = useState<Set<string>>(new Set());
   return (
     <BottomSheet title="Xác nhận cuối ngày" onClose={onClose}
       footer={<button className={NUT_CHINH} disabled={thieu} onClick={() => onXacNhan(ds)}>{thieu ? 'Chọn giờ đã dừng' : 'Xác nhận'}</button>}>
       <div className="space-y-4 pb-2">
         <button className={`${NUT_PHU} w-full border-emerald-300 ${MAU.chay.chu}`}
           onClick={() => onXacNhan(ds.map(x => ({ ...x, vanLam: true, dungLuc: null })))}>
-          <ClipboardCheck size="1.25em" aria-hidden /> Tất cả vẫn đang làm
+          <ClipboardCheck size="1.25em" aria-hidden /> Tất cả {ds.length} hạng mục vẫn đang làm — xác nhận luôn
         </button>
+        {ds.length > 0 && <p className={CHU_PHU}>Hoặc chọn từng hạng mục bên dưới rồi bấm Xác nhận.</p>}
         <ul className={`${KHOI} ${KE} border border-slate-200`}>
           {ds.map((x, i) => (
-            <li key={khoaDong(x.r)} className="space-y-3 px-4 py-3">
-              <p className="text-base"><span className="text-lg font-semibold tabular-nums">{x.r.hex}</span> {x.r.tenHangMuc ?? ''}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <button className={chip(x.vanLam)} onClick={() => sua(i, { vanLam: true, dungLuc: null })}>Vẫn làm</button>
-                <button className={chip(!x.vanLam)} onClick={() => sua(i, { vanLam: false })}>Đã dừng</button>
+            <li key={khoaDong(x.r)} className="space-y-2 px-4 py-3">
+              <p className="truncate text-base" title={x.r.tenHangMuc ?? ''}><span className="font-semibold tabular-nums">{x.r.hex}</span> {x.r.tenHangMuc ?? ''}</p>
+              <div className="flex items-center gap-2">
+                <div className="grid flex-1 grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" role="radiogroup" aria-label={`${x.r.hex} cuối ngày`}>
+                  <button role="radio" aria-checked={x.vanLam} onClick={() => sua(i, { vanLam: true, dungLuc: null })}
+                    className={`min-h-11 whitespace-nowrap rounded-xl text-base ${x.vanLam ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600'}`}>Vẫn làm</button>
+                  <button role="radio" aria-checked={!x.vanLam} onClick={() => sua(i, { vanLam: false })}
+                    className={`min-h-11 whitespace-nowrap rounded-xl text-base ${!x.vanLam ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-600'}`}>Đã dừng</button>
+                </div>
+                {(() => {
+                  const k = khoaDong(x.r);
+                  const daCo = x.anh.length > 0 || x.tienDo !== null;
+                  return (
+                    <button type="button" aria-expanded={mo.has(k)} aria-label={`Ảnh, tiến độ ${x.r.hex}`} onClick={() => setMo(s2 => { const t = new Set(s2); if (t.has(k)) t.delete(k); else t.add(k); return t; })}
+                      className={`min-h-11 shrink-0 rounded-xl border px-3 text-base ${daCo ? `${MAU.chay.vien} ${MAU.chay.nen} ${MAU.chay.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>
+                      {daCo ? `${x.tienDo !== null ? `${x.tienDo}%` : ''}${x.tienDo !== null && x.anh.length ? ' · ' : ''}${x.anh.length ? `${x.anh.length} ảnh` : ''}` : <span className="flex items-center gap-1"><Camera size="1em" aria-hidden /> Thêm</span>}
+                    </button>
+                  );
+                })()}
               </div>
               {!x.vanLam && (
                 <div className="space-y-2">
@@ -544,15 +561,17 @@ export function XacNhanSheet({ cv, dangChay, anhBat, onXacNhan, onClose }: {
                   </div>
                 </div>
               )}
-              {anhBat && <ChonAnh anh={x.anh} onDoi={a => sua(i, { anh: a })} />}
-              <div className="space-y-2">
-                <p className="text-base text-slate-700">Tiến độ (không bắt buộc)</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {[25, 50, 75, 100].map(p => (
-                    <button key={p} className={chip(x.tienDo === p)} onClick={() => sua(i, { tienDo: x.tienDo === p ? null : p })}>{p}%</button>
-                  ))}
+              {mo.has(khoaDong(x.r)) && (<>
+                {anhBat && <ChonAnh anh={x.anh} onDoi={a2 => sua(i, { anh: a2 })} />}
+                <div className="space-y-2">
+                  <p className="text-base text-slate-700">Tiến độ</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[25, 50, 75, 100].map(p2 => (
+                      <button key={p2} className={chip(x.tienDo === p2)} onClick={() => sua(i, { tienDo: x.tienDo === p2 ? null : p2 })}>{p2}%</button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </>)}
             </li>
           ))}
         </ul>
