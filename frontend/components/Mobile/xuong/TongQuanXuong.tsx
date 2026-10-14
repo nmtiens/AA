@@ -79,6 +79,10 @@ export default function TongQuanXuong({ onChonTo }: {
   useEffect(() => { if (xuong) try { localStorage.setItem(KHOA_XUONG, xuong); } catch { /* bỏ qua */ } }, [xuong]);
 
   const [moVang, setMoVang] = useState(false);
+  // Lọc "cần chú ý": tổ có việc mà chưa điểm danh / chốt quân số, có thao tác cần xem, hoặc hạng mục tạm ngưng
+  const [chuY, setChuY] = useState(false);
+  const canChuY = (t: TongQuanTo) => (t.quanSo === null && !t.diemDanh?.daDiemDanh && (t.dangChay + t.tamNgung + t.choNhan) > 0)
+    || t.canXem > 0 || t.tamNgung > 0;
   const coDd = (d?.to ?? []).filter(t => t.diemDanh?.daDiemDanh);
   const dd = coDd.reduce((a, t) => ({
     coMat: a.coMat + t.diemDanh!.coMat, tong: a.tong + t.diemDanh!.tong,
@@ -116,9 +120,11 @@ export default function TongQuanXuong({ onChonTo }: {
           <p className="flex flex-wrap gap-x-4 gap-y-1 text-base text-slate-700">
             {/* Chỉ đếm tổ có việc mà chưa điểm danh — 0 thì không hiện */}
             {tong.chuaChot > 0 && (
-              <span className={`font-semibold ${MAU.loi.chu}`}>
+              // Bấm để chỉ xem các tổ cần chú ý
+              <button type="button" aria-pressed={chuY} onClick={() => setChuY(v => !v)}
+                className={`font-semibold underline underline-offset-4 ${MAU.loi.chu}`}>
                 {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
-              </span>
+              </button>
             )}
             <span>{tong.dangChay} hạng mục đang chạy</span>
             {tong.choNhan > 0 && <span>{tong.choNhan} chờ nhận</span>}
@@ -133,6 +139,7 @@ export default function TongQuanXuong({ onChonTo }: {
               {dd.tre > 0 && <span className={`font-medium ${MAU.ngung.chu}`}>{dd.tre} trễ</span>}
               {dd.veSom > 0 && <span className={`font-medium ${MAU.ngung.chu}`}>{dd.veSom} về sớm</span>}
               {!dd.vang && !dd.tre && !dd.veSom && <span className="text-slate-600">không ai vắng, trễ, về sớm</span>}
+              {(d?.to.length ?? 0) > coDd.length && <span className="text-slate-600">· {coDd.length}/{d!.to.length} tổ đã điểm danh</span>}
               <ChevronRight size="1.1em" className={`ml-auto text-slate-500 transition-transform ${moVang ? 'rotate-90' : ''}`} aria-hidden />
             </button>
             {moVang && (
@@ -160,8 +167,17 @@ export default function TongQuanXuong({ onChonTo }: {
         {!d && !loi && <p className={`py-6 text-center ${CHU_PHU}`}>Đang tải…</p>}
         {d && d.to.length === 0 &&<p className="py-6 text-center text-base text-slate-600">Xưởng chưa có tổ đang hoạt động.</p>}
         {d && d.to.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Lọc tổ">
+            {([[false, `Tất cả ${d.to.length} tổ`], [true, `Cần chú ý ${d.to.filter(canChuY).length}`]] as const).map(([k, ten]) => (
+              <button key={String(k)} type="button" role="radio" aria-checked={chuY === k} onClick={() => setChuY(k)}
+                className={`min-h-11 rounded-full border px-4 text-base ${chuY === k ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{ten}</button>
+            ))}
+          </div>
+        )}
+        {d && chuY && !d.to.some(canChuY) && <p className="py-6 text-center text-base text-slate-600">Không có tổ nào cần chú ý.</p>}
+        {d && d.to.length > 0 && (
           <ul className={`${KHOI} ${KE} rmd:grid rmd:grid-cols-2 rmd:gap-px rmd:divide-y-0 rmd:bg-slate-100`}>
-            {d.to.map(t => {
+            {d.to.filter(t => !chuY || canChuY(t)).map(t => {
               const coViec = t.dangChay + t.tamNgung + t.choNhan > 0;
               return (
                 <li key={t.id} className="bg-white">
@@ -176,7 +192,7 @@ export default function TongQuanXuong({ onChonTo }: {
                               {t.diemDanh.tre.length > 0 && <span className={MAU.ngung.chu}> · {t.diemDanh.tre.length} trễ</span>}</span>
                           : t.quanSo !== null
                           ? <span className="inline-flex items-center gap-1 text-slate-700"><Users size="1em" aria-hidden /> {t.quanSo} người</span>
-                          : coViec && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><Users size="1em" aria-hidden /> Chưa chốt quân số</span>}
+                          : coViec && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><Users size="1em" aria-hidden /> {t.diemDanh ? 'Chưa điểm danh' : 'Chưa chốt quân số'}</span>}
                         {t.dangChay > 0 && <span className={`inline-flex items-center gap-1 ${MAU.chay.chu}`}><Play size="1em" aria-hidden /> {t.dangChay} đang chạy</span>}
                         {t.tamNgung > 0 && <span className={`inline-flex items-center gap-1 ${MAU.ngung.chu}`}><Pause size="1em" aria-hidden /> {t.tamNgung} tạm ngưng</span>}
                         {t.choNhan > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><Inbox size="1em" aria-hidden /> {t.choNhan} chờ nhận</span>}

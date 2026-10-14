@@ -110,8 +110,20 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
   const nguoi = (c: CongDoanHex) => (c.trangThai === 'dang_lam' && c.dangChayTu
     ? ` · ${c.soNguoi ?? 0} người · từ ${ngayGio(Date.parse(c.dangChayTu))}` : '');
 
+  // Giờ chạy dạng "17 giờ 5 phút" (trước "17,08" — số thập phân khó đọc)
+  const chay = (g: number) => (g > 0 ? khoangThoiGian(g * 3_600_000) : '—');
   return (
     <div className="space-y-3 text-sm">
+      {/* Tên hạng mục, công trình, đơn hàng (Tra cứu trước chỉ có mã) */}
+      {d.hangMuc && (d.hangMuc.ten || d.hangMuc.tenCongTrinh) && (
+        <div className="space-y-0.5">
+          {d.hangMuc.ten && <p className="text-base font-medium text-slate-900">{d.hangMuc.ten}</p>}
+          <p className="text-sm text-slate-600">
+            {d.hangMuc.tenCongTrinh ?? ''}
+            {d.hangMuc.soLuongDonHang ? `${d.hangMuc.tenCongTrinh ? ' · ' : ''}đơn hàng ${so(d.hangMuc.soLuongDonHang)}${d.hangMuc.dvt ? ` ${d.hangMuc.dvt}` : ''}` : ''}
+          </p>
+        </div>
+      )}
       {d.thoiGianMra.length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
           <p className="text-sm font-semibold text-slate-800">Lịch sử MRA (đến 2/2026)</p>
@@ -152,7 +164,7 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
                 <td className="px-3 py-2 text-right tabular-nums">{so(c.slNhan)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{so(c.slHoanThanh)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{so(c.slGiao)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{so(c.gioChay)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{chay(c.gioChay)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{gioCongO(c)}</td>
               </tr>
             ))}
@@ -168,10 +180,13 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
               <span className="font-medium text-slate-900">{c.ten ?? c.congDoanId} <span className="font-normal text-slate-500">· xưởng {c.xuong}</span></span>
               <span><TrangThai t={c.trangThai} />{nhanMra(c)}<span className="text-slate-600">{nguoi(c)}</span></span>
             </p>
-            <p className="flex flex-wrap gap-x-4 gap-y-0.5 tabular-nums text-slate-700">
-              {c.slGiaoDen > 0 && <span>Giao tới {so(c.slGiaoDen)}</span>}
-              <span>Nhận {so(c.slNhan)}</span><span>Hoàn thành {so(c.slHoanThanh)}</span><span>Giao {so(c.slGiao)}</span>
-              <span>Giờ chạy {so(c.gioChay)}</span><span>{c.nguon === 'mra' ? `Nhân công MRA ${gioCongO(c)}` : `Giờ công sản phẩm ${so(c.gioCong)}`}</span>
+            {/* Gọn: số lượng 1 dòng (bỏ số 0), thời gian 1 dòng */}
+            <p className="tabular-nums text-slate-700">
+              {[c.slGiaoDen > c.slNhan ? `Giao tới ${so(c.slGiaoDen)}` : null, `Nhận ${so(c.slNhan)}`,
+                c.slHoanThanh > 0 ? `Xong ${so(c.slHoanThanh)}` : null, c.slGiao > 0 ? `Giao ${so(c.slGiao)}` : null].filter(Boolean).join(' · ')}
+            </p>
+            <p className="tabular-nums text-slate-600">
+              Chạy {chay(c.gioChay)} · {c.nguon === 'mra' ? `Nhân công MRA ${gioCongO(c)}` : `Giờ công SP ${so(c.gioCong)}`}
             </p>
             {co(c)}
           </li>
