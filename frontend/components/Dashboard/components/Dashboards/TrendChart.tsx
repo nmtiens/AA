@@ -18,7 +18,8 @@ export type DisplayMetric = 'COUNT' | 'SUM';
 // [COUNT FIX] distinctTotalCount: số HEX DUY NHẤT trên CẢ KHOẢNG (server tính sẵn,
 // xem /api/trend). Optional vì nhánh 'stock' không trả field này.
 interface ApiPoint { period: string; total: number; totalCount: number; distinctTotalCount?: number; }
-interface TrendPoint { period: string; periodKey: string; total: number; plan?: number; }
+// total = null: kỳ không có dữ liệu (chỉ dùng cho tồn kho — số chụp theo ngày, thiếu ngày thì để trống, không vẽ 0)
+interface TrendPoint { period: string; periodKey: string; total: number | null; plan?: number; }
 
 const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
@@ -103,6 +104,7 @@ function formatChartData(
   dateFrom: string,
   dateTo: string,
   selectedDates: string[] = [], // ✅ [DATES FIX] danh sách ngày CHÍNH XÁC đã chọn (chỉ áp dụng khi granularity = 'day')
+  missingAsNull = false, // tồn kho: kỳ không có ảnh chụp tồn kho => null (để trống), không phải 0
 ): TrendPoint[] {
   const pickValue = (p: ApiPoint) => (metric === 'COUNT' ? p.totalCount : p.total);
 
@@ -121,7 +123,7 @@ function formatChartData(
   return fullKeys.map(key => ({
     period: formatLabel(key, granularity),
     periodKey: key,
-    total: dataMap.get(key) ?? 0,
+    total: dataMap.has(key) ? dataMap.get(key)! : (missingAsNull ? null : 0),
   }));
 }
 
@@ -214,7 +216,8 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
   const [detailTruncated, setDetailTruncated] = useState(false);
 
   const theme = THEME[source];
-  const unit = displayMode === 'COUNT' ? 'Số lượng HEX' : theme.unitValue;
+  // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -296,7 +299,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
   const chartData = useMemo(() => {
     if (!hasValidRange) return [];
     const points = isMoney ? raw.map(p => ({ ...p, total: trieuToTy(p.total) })) : raw;
-    const data = formatChartData(points, granularity, displayMode, dateFrom, dateTo, selectedDates);
+    const data = formatChartData(points, granularity, displayMode, dateFrom, dateTo, selectedDates, isStock);
     return showPlan ? data.map(p => ({ ...p, plan: planByMonth[p.periodKey] ?? 0 })) : data;
   }, [raw, granularity, displayMode, dateFrom, dateTo, hasValidRange, selectedDates, isMoney, showPlan, planByMonth]);
   const planTotal = useMemo(
@@ -305,14 +308,23 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
   );
 
   const avgAll = useMemo(() => {
+    // Tồn kho: chỉ tính các kỳ có ảnh chụp tồn kho
     const pointsForAvg = source === 'stock'
-      ? chartData.filter(p => p.total > 0)
+      ? chartData.filter(p => p.total != null && p.total > 0)
       : chartData;
 
     if (pointsForAvg.length === 0) return 0;
-    const sum = pointsForAvg.reduce((s, p) => s + p.total, 0);
+    const sum = pointsForAvg.reduce((s, p) => s + (p.total ?? 0), 0);
     return Number((sum / pointsForAvg.length).toFixed(2));
   }, [chartData, source]);
+
+  // Tồn kho là số chụp tại từng ngày => cộng các ngày lại vô nghĩa; ô tổng hiện số của kỳ MỚI NHẤT có dữ liệu
+  const stockLatest = useMemo(() => {
+    if (!isStock) return null;
+    for (let i = chartData.length - 1; i >= 0; i--) if (chartData[i].total != null) return chartData[i];
+    return null;
+  }, [chartData, isStock]);
+  const stockMissing = useMemo(() => (isStock ? chartData.filter(p => p.total == null).length : 0), [chartData, isStock]);
 
   // ✅ [COUNT FIX] Ở chế độ Số lượng, dùng distinctTotalCount do server tính sẵn
   // (HEX duy nhất trên CẢ KHOẢNG) thay vì cộng dồn totalCount của từng cột — tránh
@@ -323,7 +335,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
       const distinct = raw.find(p => p.distinctTotalCount != null)?.distinctTotalCount;
       if (distinct != null) return distinct;
     }
-    return Number(chartData.reduce((s, p) => s + p.total, 0).toFixed(2));
+    return Number(chartData.reduce((s, p) => s + (p.total ?? 0), 0).toFixed(2));
   }, [raw, chartData, displayMode]);
 
   const openDetailForPinned = async () => {
@@ -433,7 +445,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                   dataKey="total"
                   position="top"
                   offset={10}
-                  formatter={(v: number) => fmt(v)}
+                  formatter={(v: number | null) => (v == null ? '' : fmt(v))}
                   fontSize={embedded ? 9 : 10}
                   fill={theme.barDark}
                 />
@@ -483,7 +495,9 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
 
         {chartData.length > 0 && !loading && (
           <div
-            title={displayMode === 'COUNT' ? 'Số HEX duy nhất trong khoảng — 1 HEX nhập ở nhiều ngày chỉ tính 1' : undefined}
+            title={isStock
+              ? `Tồn kho là số chụp tại từng ngày nên không cộng các ngày — hiện số của ngày mới nhất có dữ liệu.${stockMissing ? ` ${stockMissing} ngày không có dữ liệu tồn kho (để trống).` : ''}`
+              : displayMode === 'COUNT' ? 'Số HEX duy nhất trong khoảng — 1 HEX nhập ở nhiều ngày chỉ tính 1' : undefined}
             className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
             style={{
               color: theme.barDark,
@@ -491,7 +505,12 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
               backgroundColor: `${theme.bar}1A`,
             }}
           >
-            Tổng: {fmt(totalAll)}
+            {isStock
+              ? (stockLatest ? `Mới nhất (${stockLatest.period}): ${fmt(stockLatest.total ?? 0)}` : 'Không có dữ liệu tồn kho')
+              : `Tổng: ${fmt(totalAll)}`}
+            {isStock && stockMissing > 0 && (
+              <span className="font-normal text-slate-500"> · {stockMissing} ngày không có dữ liệu</span>
+            )}
             {showPlan && (
               <span style={{ color: PLAN_DARK }}>
                 {' '}· KH: {fmt(planTotal)} · Đạt {planTotal > 0 ? ((totalAll / planTotal) * 100).toFixed(1) : '0'}%
@@ -512,7 +531,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
             y={pinned.y}
             containerWidth={wrapWidth}
             label={pinned.point.period}
-            value={pinned.point.total}
+            value={pinned.point.total ?? 0}
             unit={unit}
             onViewDetail={openDetailForPinned}
             onClose={() => setPinned(null)}
