@@ -31,13 +31,14 @@ export interface Rec {
   status: Status;
   total: number;      // trị giá đơn hàng — GỒM cả đơn HỦY (khớp file gốc); muốn bỏ thì lọc Tình trạng IPO
   done: number;       // giá trị đã nhập kho, tối đa = total (đơn HỦY = 0)
-  // Đã xuất / giao = TT xuất kho lũy kế (thanh_tien_xuat_kho_luy_ke), chặn ≤ đã nhập kho (đơn HỦY = 0) — khớp file gốc
+  // Đã xuất / giao = TT xuất kho lũy kế (thanh_tien_xuat_kho_luy_ke) đúng như file gốc, KHÔNG chặn theo đã nhập
+  // (xuất có thể ghi cao hơn nhập do lệch đơn giá); đơn HỦY = 0
   exported: number;
-  exportedRecorded: number; // TT xuất kho lũy kế gốc (không chặn) — để tham khảo
-  // Tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) chặn ≤ đã nhập − đã xuất (đơn HỦY = 0)
+  exportedRecorded: number; // TT xuất kho lũy kế gốc — để tham khảo
+  // Tồn kho hiện tại (thanh_tien_ton_kho_hien_tai) chặn ≤ đã nhập − đã xuất (không âm; đơn HỦY = 0)
   stock: number;
-  // Đã nhập kho nhưng không thấy trong xuất kho lũy kế lẫn tồn kho hiện tại (bảng xuất kho chỉ có từ 01/2025,
-  // giao không qua phiếu xuất…) => Đã nhập kho = Đã xuất + Tồn kho + phần này
+  // = Đã nhập − Đã xuất − Tồn kho => Đã nhập kho = Đã xuất + Tồn kho + phần này. Dương: đã nhập mà không thấy
+  // xuất lẫn tồn (bảng xuất kho chỉ có từ 01/2025, giao không qua phiếu xuất…); ÂM: xuất ghi vượt nhập
   unmatched: number;
   stockCut: number;   // phần tồn kho hiện tại vượt giá trị đã nhập (bị chặn) — để ghi chú
   qtyDone: boolean;   // đã nhập đủ số lượng đơn hàng (đếm là đã nhập kho dù thành tiền NK thấp hơn trị giá)
@@ -111,8 +112,8 @@ export function taoBanGhi(data: DataRow[], columns: ColumnDefinition[], today: n
     // Tồn kho chặn ≤ đã nhập (nhập/tồn có thể vượt trị giá đơn hàng); đơn HỦY không tính tồn
     const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
     const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
-    const exported = cancelled ? 0 : Math.min(exportedRecorded, done);
-    const stock = Math.min(stockRaw, done - exported);
+    const exported = cancelled ? 0 : exportedRecorded;
+    const stock = Math.min(stockRaw, Math.max(done - exported, 0));
     const qtyDone = isQtyComplete(row);
     // Cùng định nghĩa "còn theo dõi" với cửa sổ tổng quan công trình (ProjectHealthModal)
     const open = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);

@@ -25,9 +25,10 @@ describe('bản ghi Tổng quan công trình (máy chủ dựng sẵn)', () => {
     expect(r[0]).toMatchObject({ done: 40, stock: 10, exported: 25, unmatched: 5, open: true, overdue: true, month: '2026-10', ma: 'CT25-001' });
     expect(r[1]).toMatchObject({ status: 'HỦY', done: 0, bucket: 'cancelled', month: NO_MONTH, pc: NO_DATA });
   });
-  it('xuất kho lũy kế vượt đã nhập: chặn ≤ đã nhập, tồn kho chặn phần còn lại', () => {
-    const r = taoBanGhi([dong({ thanh_tien_xuat_kho_luy_ke: 38 })], COLS, HOM_NAY);
+  it('xuất kho lũy kế giữ đúng số file kể cả khi vượt đã nhập; phần vượt trừ vào "chưa thấy xuất / tồn"', () => {
+    const r = taoBanGhi([dong({ thanh_tien_xuat_kho_luy_ke: 38 }), dong({ thanh_tien_xuat_kho_luy_ke: 45 })], COLS, HOM_NAY);
     expect(r[0]).toMatchObject({ done: 40, exported: 38, stock: 2, stockCut: 8, unmatched: 0 });
+    expect(r[1]).toMatchObject({ done: 40, exported: 45, stock: 0, stockCut: 10, unmatched: -5 });
   });
   it('nén rồi giải nén qua JSON giữ nguyên mọi trường (dòng gốc còn hex)', () => {
     const goc = taoBanGhi(ROWS, COLS, HOM_NAY);

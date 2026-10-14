@@ -75142,8 +75142,8 @@ function taoBanGhi(data, columns, today) {
     const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
     const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
     const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
-    const exported = cancelled ? 0 : Math.min(exportedRecorded, done);
-    const stock = Math.min(stockRaw, done - exported);
+    const exported = cancelled ? 0 : exportedRecorded;
+    const stock = Math.min(stockRaw, Math.max(done - exported, 0));
     const qtyDone = isQtyComplete(row);
     const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
     out.push({

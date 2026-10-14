@@ -592,8 +592,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   // Đoạn của thanh tỷ trọng = đúng các ô bên dưới (cùng màu, cùng số hiển thị, bấm mở cùng cửa sổ chi tiết)
   type Seg = { key: string; label: string; v: number; bar: string; ink: string; hint: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'> };
-  const EXPORT_HINT = 'TT xuất kho lũy kế của hạng mục (khớp cột TT XK LŨY KẾ ở file gốc), mỗi hạng mục tối đa bằng giá trị đã nhập kho; đơn hủy không tính.';
-  const UNMATCHED_HINT = 'Đã nhập kho nhưng không thấy trong TT xuất kho lũy kế lẫn tồn kho hiện tại = Đã nhập − Đã xuất − Tồn kho, theo từng hạng mục. Thường do bảng xuất kho chỉ có dữ liệu từ 01/2025 (hạng mục giao trước đó không có số xuất), giao không qua phiếu xuất, hoặc SAP chưa cập nhật.';
+  const EXPORT_HINT = 'TT xuất kho lũy kế của hạng mục, đúng cột TT XK LŨY KẾ ở file gốc (có hạng mục ghi xuất cao hơn nhập do lệch đơn giá); đơn hủy không tính.';
+  const UNMATCHED_HINT = 'Đã nhập − Đã xuất − Tồn kho, theo từng hạng mục: phần đã nhập kho nhưng không thấy trong TT xuất kho lũy kế lẫn tồn kho hiện tại (bảng xuất kho chỉ có dữ liệu từ 01/2025, giao không qua phiếu xuất, SAP chưa cập nhật…), đã trừ phần xuất ghi vượt nhập.';
   const STOCK_HINT = kpi.stockOverItems > 0
     ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Mỗi hạng mục tối đa bằng đã nhập − đã xuất. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
     : 'Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất (đơn hủy = 0).';
