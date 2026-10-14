@@ -73,7 +73,7 @@ const apportionInt = (vals: number[], target: number): number[] => {
   return base;
 };
 const monthLabel = (key: string) => {
-  if (key === NO_MONTH) return 'Chưa có KH nhập kho';
+  if (key === NO_MONTH) return 'Không có hạn (chưa có KH / đạt KH kỳ)';
   // Cột gộp của biểu đồ tháng hạn: "<YYYY-MM" = trước tháng đó, ">YYYY-MM" = sau tháng đó
   if (key.startsWith('<') || key.startsWith('>')) {
     const [y, m] = key.slice(1).split('-');
@@ -252,18 +252,19 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       if (r.stockCut > 0.001) { stockOver += r.stockCut; stockOverItems++; }
     }
     // Cảnh báo: quá hạn KH nhập kho / chưa có KH / qua BOT dự án (hạng mục còn theo dõi)
-    let overdue = 0, overdueRemain = 0, noPlan = 0, noPlanRemain = 0, pastBot = 0, pastBotRemain = 0;
+    let overdue = 0, overdueRemain = 0, noPlan = 0, noPlanRemain = 0, metWait = 0, metWaitRemain = 0, pastBot = 0, pastBotRemain = 0;
     for (const r of rowsAll) {
       if (!r.open) continue;
       const rem = r.total - r.done;
       if (r.overdue) { overdue++; overdueRemain += rem; }
-      if (!r.deadline) { noPlan++; noPlanRemain += rem; }
+      if (r.planMet) { metWait++; metWaitRemain += rem; }
+      else if (!r.deadline) { noPlan++; noPlanRemain += rem; }
       if (r.botDuAn && r.botDuAn.getTime() < today) { pastBot++; pastBotRemain += rem; }
     }
     return {
       cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, stockedDone, partialDone, total, done, remain: total - done,
       exported, stock, exportedRecorded, unmatched, stockOver, stockOverItems, remainBy,
-      overdue, overdueRemain, noPlan, noPlanRemain, pastBot, pastBotRemain,
+      overdue, overdueRemain, noPlan, noPlanRemain, metWait, metWaitRemain, pastBot, pastBotRemain,
     };
   }, [rowsAll, today]);
 
@@ -411,7 +412,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       eyebrow: 'Tháng hạn (KH nhập kho tuần → tháng)', title: monthLabel(key), exclude: 'month',
       pred: r => chartMonthBucket(r.month, monthRange.from, monthRange.to) === key, focus: 'remain',
       ...(isBucket ? {} : { filter: { key: 'month' as FKey, value: key } }),
-      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng; không có KH => Chưa có KH nhập kho).',
+      note: 'Cột xanh = đã nhập kho, cột cam = chưa nhập kho (tháng hạn: KH nhập kho tuần → tháng; không có KH hoặc KH kỳ đã đạt => Không có hạn).',
     });
   };
 
@@ -824,7 +825,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         </div>
 
         {/* HẠNG MỤC + CẢNH BÁO (cảnh báo đếm hạng mục còn theo dõi: chưa nhập đủ, không hủy) */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 2xl:grid-cols-8">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9">
           <Kpi label="Công trình" value={fmtInt(kpi.cts)}
                spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
           <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
@@ -844,7 +845,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <Kpi label="Chưa có KH nhập kho" value={fmtInt(kpi.noPlan)} unit="mục" tone={kpi.noPlan ? 'text-amber-600' : 'text-slate-900'}
                sub={`${fmtTy(kpi.noPlanRemain)} tỷ chưa nhập kho`}
                hint="Hạng mục chưa nhập kho đủ mà không có KH nhập kho tuần / tháng — không theo dõi được quá hạn"
-               spec={{ pred: r => r.open && !r.deadline, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ, không có KH nhập kho tuần / tháng (chưa lập BOT).' }} />
+               spec={{ pred: r => r.open && !r.deadline && !r.planMet, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ, không có KH nhập kho tuần / tháng (chưa lập BOT).' }} />
+          <Kpi label="Đạt KH kỳ, chờ KH tiếp" value={fmtInt(kpi.metWait)} unit="mục" tone="text-sky-700"
+               sub={`${fmtTy(kpi.metWaitRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục đã nhập đủ số lượng KH nhập kho tuần / tháng của kỳ nhưng đơn hàng còn chưa nhập kho đủ — không trễ, chờ KH kỳ sau"
+               spec={{ pred: r => r.open && r.planMet, focus: 'remain', note: 'Hạng mục đã đạt KH nhập kho tuần / tháng của kỳ (nhập trong kỳ ≥ SL KH) nhưng đơn hàng còn chưa nhập kho đủ — chờ KH kỳ sau.' }} />
           <Kpi label="Qua BOT dự án chưa xong" value={fmtInt(kpi.pastBot)} unit="mục" tone={kpi.pastBot ? 'text-red-600' : 'text-slate-900'}
                sub={`${fmtTy(kpi.pastBotRemain)} tỷ chưa nhập kho`}
                hint="Hạng mục chưa nhập kho đủ đã qua BOT dự án (hạn chung của công trình — tham khảo, không tính hạn từng hạng mục)"
@@ -887,7 +892,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                   title="Hạng mục chưa có KH nhập kho tuần / tháng — bấm để xem chi tiết"
                   className="mb-1 text-left text-[0.6875rem] text-slate-500 hover:text-slate-800 hover:underline"
                 >
-                  Chưa có KH nhập kho (không vẽ):{' '}
+                  Không có hạn — chưa có KH / đạt KH kỳ (không vẽ):{' '}
                   <span className="tabular-nums" style={{ color: COLOR_DONE }}>{formatTy(noMonthBucket.done)}</span>
                   {' · '}
                   <span className="tabular-nums" style={{ color: COLOR_REMAIN }}>{formatTy(noMonthBucket.remain)}</span> tỷ

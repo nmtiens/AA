@@ -75158,6 +75158,7 @@ function taoBanGhi(data, columns, today) {
       tda: txt(row[tdaK]),
       ma: String(row[maK] ?? "").trim().toUpperCase(),
       deadline: d,
+      planMet: !d && (dl.tuanMet || dl.thangMet),
       open: open2,
       overdue: open2 && !!d && d.getTime() < today,
       botDuAn: dl.botDuAn,
@@ -75226,6 +75227,7 @@ function nenBanGhi(recs) {
     so: so3,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
+    planMet: recs.map((r) => r.planMet ? 1 : 0),
     deadline: recs.map((r) => ma(ngayChuoi(r.deadline))),
     botDuAn: recs.map((r) => ma(ngayChuoi(r.botDuAn))),
     hex: recs.map((r) => ma(String(r.row?.["hex"] ?? "").trim()))

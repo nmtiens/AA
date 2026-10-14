@@ -326,11 +326,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const overdue = open.filter(i => i.overdue);
     const dueSoon = open.filter(i => i.dueSoon);
     const dates = open.map(i => i.deadline).filter((d): d is Date => !!d).sort((a, b) => a.getTime() - b.getTime());
-    const noDate = open.filter(i => !i.deadline).length;
+    // Có KH nhưng KH kỳ đã đạt hết (không còn hạn) — tách khỏi "Chưa có KH nhập kho"
+    const metWait = open.filter(i => !i.deadline && (i.khnkTuanMet || i.khnkThangMet)).length;
+    const noDate = open.filter(i => !i.deadline).length - metWait;
     return {
       overdue: overdue.length, overdueRemain: overdue.reduce((s, i) => s + i.remain, 0),
       planAfterDue: open.filter(i => i.planAfterDue).length,
-      dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate,
+      dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate, metWait,
     };
   }, [items, today]);
 
@@ -622,6 +624,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
               {bot.noDate > 0 && <>
                 <dt className="text-slate-500">Chưa có KH nhập kho</dt>
                 <dd className="text-right tabular-nums text-slate-700">{fmtInt(bot.noDate)}</dd>
+              </>}
+              {bot.metWait > 0 && <>
+                <dt className="text-slate-500" title="Đã nhập đủ SL KH nhập kho tuần / tháng của kỳ nhưng đơn hàng còn chưa nhập kho đủ — không trễ, chờ KH kỳ sau">Đạt KH kỳ, chờ KH tiếp</dt>
+                <dd className="text-right tabular-nums text-sky-700">{fmtInt(bot.metWait)}</dd>
               </>}
             </dl>
           </Card>

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { DataRow, ColumnDefinition } from '../../../types';
 import { taoBanGhi, nenBanGhi, giaiNenBanGhi, NO_MONTH, NO_DATA } from './banGhiCongTrinh';
+import { setPlanMet } from '../../../utils/productionMetrics';
 
 const dong = (p: Partial<Record<string, unknown>>): DataRow => ({
   hex: '250301895', ten_cong_trinh: 'CT A', ma_cong_trinh: 'ct25-001', ten_pm: 'PM 1', ten_pc: 'PC 1',
@@ -29,6 +30,13 @@ describe('bản ghi Tổng quan công trình (máy chủ dựng sẵn)', () => {
     const r = taoBanGhi([dong({ thanh_tien_xuat_kho_luy_ke: 38 }), dong({ thanh_tien_xuat_kho_luy_ke: 45 })], COLS, HOM_NAY);
     expect(r[0]).toMatchObject({ done: 40, exported: 38, stock: 2, stockCut: 8, unmatched: 0 });
     expect(r[1]).toMatchObject({ done: 40, exported: 45, stock: 0, stockCut: 10, unmatched: -5 });
+  });
+  it('KH tuần của kỳ đã đạt (không có KH tháng): không còn hạn, planMet = true — không phải "chưa có KH"', () => {
+    setPlanMet({ tuan: ['250301895'], thang: [] });
+    try {
+      const r = taoBanGhi([dong({})], COLS, HOM_NAY);
+      expect(r[0]).toMatchObject({ deadline: null, planMet: true, overdue: false, month: NO_MONTH, open: true });
+    } finally { setPlanMet({ tuan: [], thang: [] }); }
   });
   it('nén rồi giải nén qua JSON giữ nguyên mọi trường (dòng gốc còn hex)', () => {
     const goc = taoBanGhi(ROWS, COLS, HOM_NAY);

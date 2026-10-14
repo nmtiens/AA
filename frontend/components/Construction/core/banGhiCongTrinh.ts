@@ -23,6 +23,8 @@ export interface Rec {
   tda: string;        // tình trạng dự án (tinh_trang_du_an) — SẢN XUẤT / ĐÓNG DỰ ÁN / CẦN XỬ LÝ
   ma: string;         // mã công trình (khớp vướng mắc theo mã)
   deadline: Date | null; // hạn = KH nhập kho tuần → tháng
+  // Có KH nhập kho tuần / tháng nhưng KH kỳ đã đạt hết (deadline = null) — chờ KH kỳ sau, KHÔNG phải "chưa có KH"
+  planMet: boolean;
   open: boolean;      // còn phải theo dõi (chưa nhập đủ giá trị / số lượng, không hủy)
   overdue: boolean;   // open và đã qua hạn
   botDuAn: Date | null;  // BOT dự án (tham khảo)
@@ -120,7 +122,7 @@ export function taoBanGhi(data: DataRow[], columns: ColumnDefinition[], today: n
     out.push({
       ct, ctKey: projectKey(row), pm: txt(row[pmK]), pc: txt(row[pcK]), kv: txt(row[kvK]), kh: txt(row[khK]), pl: txt(row[plK]),
       nct: txt(row[nctK]), tda: txt(row[tdaK]), ma: String(row[maK] ?? '').trim().toUpperCase(),
-      deadline: d, open, overdue: open && !!d && d.getTime() < today, botDuAn: dl.botDuAn,
+      deadline: d, planMet: !d && (dl.tuanMet || dl.thangMet), open, overdue: open && !!d && d.getTime() < today, botDuAn: dl.botDuAn,
       ipo: String(row[ipoK] ?? '').trim(),
       month, status,
       // Trang có bộ lọc Tình trạng IPO => trị giá gồm cả HỦY (khớp tổng cột trị giá ở file gốc);
@@ -170,8 +172,8 @@ export interface BanGhiNen {
   tu: string[];
   chu: Record<(typeof COT_CHU)[number], number[]>;
   so: Record<(typeof COT_SO)[number], number[]>;
-  /** open, qtyDone: 0/1 */
-  open: number[]; qtyDone: number[];
+  /** open, qtyDone, planMet: 0/1 */
+  open: number[]; qtyDone: number[]; planMet?: number[];
   /** chỉ số vào tu ('' = không có) */
   deadline: number[]; botDuAn: number[]; hex: number[];
 }
@@ -188,7 +190,7 @@ export function nenBanGhi(recs: Rec[]): BanGhiNen {
   const so = Object.fromEntries(COT_SO.map(k => [k, recs.map(r => r[k])])) as BanGhiNen['so'];
   return {
     n: recs.length, tu, chu, so,
-    open: recs.map(r => (r.open ? 1 : 0)), qtyDone: recs.map(r => (r.qtyDone ? 1 : 0)),
+    open: recs.map(r => (r.open ? 1 : 0)), qtyDone: recs.map(r => (r.qtyDone ? 1 : 0)), planMet: recs.map(r => (r.planMet ? 1 : 0)),
     deadline: recs.map(r => ma(ngayChuoi(r.deadline))), botDuAn: recs.map(r => ma(ngayChuoi(r.botDuAn))),
     hex: recs.map(r => ma(String(r.row?.['hex'] ?? '').trim())),
   };
@@ -206,7 +208,7 @@ export function giaiNenBanGhi(z: BanGhiNen, today: number): Rec[] {
       nct: t[z.chu.nct[i]], tda: t[z.chu.tda[i]], ma: t[z.chu.ma[i]], ctKey: t[z.chu.ctKey[i]], month: t[z.chu.month[i]],
       status: t[z.chu.status[i]] as Status, ipo: t[z.chu.ipo[i]], mk: t[z.chu.mk[i]],
       bucket: t[z.chu.bucket[i]] as Rec['bucket'],
-      deadline, open, overdue: open && !!deadline && deadline.getTime() < today, botDuAn: chuoiNgay(t[z.botDuAn[i]]),
+      deadline, planMet: z.planMet?.[i] === 1, open, overdue: open && !!deadline && deadline.getTime() < today, botDuAn: chuoiNgay(t[z.botDuAn[i]]),
       total: z.so.total[i], done: z.so.done[i], exported: z.so.exported[i], exportedRecorded: z.so.exportedRecorded[i],
       stock: z.so.stock[i], stockCut: z.so.stockCut[i], unmatched: z.so.unmatched?.[i] ?? 0, qtyDone: z.qtyDone[i] === 1,
       row: { hex: t[z.hex[i]] } as DataRow,
