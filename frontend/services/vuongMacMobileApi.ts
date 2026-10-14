@@ -108,10 +108,11 @@ async function getJson<T>(path: string): Promise<T> {
 export const fetchXuongList = () => getJson<string[]>('/api/vuong-mac/xuong');
 
 // Backend yêu cầu: từ khóa >= 2 ký tự HOẶC có chọn xưởng
-export const searchHex = (q: string, xuong: string) => {
+export const searchHex = (q: string, xuong: string, limit?: number) => {
   const qs = new URLSearchParams();
   if (q) qs.set('q', q);
   if (xuong) qs.set('xuong', xuong);
+  if (limit) qs.set('limit', String(limit));
   return getJson<HexHit[]>(`/api/vuong-mac/hex-search?${qs}`);
 };
 

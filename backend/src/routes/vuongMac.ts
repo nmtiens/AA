@@ -1565,9 +1565,11 @@ const mapHexHit = (row: any, met?: PlanMet) => ({
 });
 
 // Tìm hex: theo xưởng (tuỳ chọn) + từ khoá (mã hex / công trình / hạng mục / xưởng)
+// ?limit= số dòng tối đa (mặc định 50, tối đa 501). Trang Tra cứu xin 501 để biết còn nữa hay không (> 500 => bị cắt)
 app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q || '').trim();
+    const limit = Math.min(501, Math.max(1, Number(req.query.limit) || 50));
     const xuongList = expandWorkshops(String(req.query.xuong || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
     if (q.length < 2 && xuongList.length === 0) return res.json([]);
 
@@ -1592,7 +1594,7 @@ app.get('/api/vuong-mac/hex-search', authenticateJWT, async (req: Request, res: 
          ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
        ) t
        ORDER BY hex
-       LIMIT 50`,
+       LIMIT ${limit}`,
       params
     );
     const met = await planMetOf(r.rows.map(row => row.hex));

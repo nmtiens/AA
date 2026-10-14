@@ -40,6 +40,8 @@ type BulkInfo = {
 };
 
 const BULK_LIMIT = 200;
+// Tìm theo từ khoá: hiện tối đa bấy nhiêu hex (máy chủ trả thêm 1 dòng để biết còn nữa)
+const SEARCH_LIMIT = 500;
 
 const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base';
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
@@ -159,6 +161,8 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
   const [hits, setHits] = useState<HexHit[]>([]);
   const [missing, setMissing] = useState<string[]>([]);
   const [bulkInfo, setBulkInfo] = useState<BulkInfo | null>(null);
+  // Tìm theo từ khoá (công trình / hạng mục…) có hơn SEARCH_LIMIT hex => chỉ hiện SEARCH_LIMIT hex đầu
+  const [truncated, setTruncated] = useState(false);
   const [counts, setCounts] = useState<Counts>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -178,7 +182,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
     if (!getToken()) { setError(UNAUTHORIZED); setLoading(false); return; }
     if (!bulk && raw.length < 2) {
       reqId.current++;
-      setHits([]); setCounts({}); setMissing([]); setBulkInfo(null); setError(''); setLoading(false);
+      setHits([]); setCounts({}); setMissing([]); setBulkInfo(null); setTruncated(false); setError(''); setLoading(false);
       return;
     }
 
@@ -189,6 +193,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
         let r: HexHit[];
         let miss: string[] = [];
         let info: BulkInfo | null = null;
+        let cut = false;
         if (bulk) {
           const all = splitCodes(raw);
           const used = all.slice(0, BULK_LIMIT);
@@ -213,10 +218,13 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
             entered: raw.split(/[,;\s]+/).map(t => t.trim()).filter(Boolean).length,
           };
         } else {
-          r = await searchHex(raw, '');
+          // Xin thêm 1 dòng để biết kết quả có bị cắt không
+          r = await searchHex(raw, '', SEARCH_LIMIT + 1);
+          cut = r.length > SEARCH_LIMIT;
+          if (cut) r = r.slice(0, SEARCH_LIMIT);
         }
         if (id !== reqId.current) return;
-        setHits(r); setMissing(miss); setBulkInfo(info);
+        setHits(r); setMissing(miss); setBulkInfo(info); setTruncated(cut);
 
         const map = await fetchVuongMacList(r.map(h => h.hex));
         if (id !== reqId.current) return;
@@ -444,7 +452,7 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
       <header className="sticky top-0 z-10 space-y-2 bg-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] shadow-sm">
         <div className="flex items-center justify-between">
           <h1 className="text-base font-semibold text-red-800">Tra cứu hex</h1>
-          <span className="text-sm text-slate-500">{loading ? 'Đang tìm...' : hits.length ? `${hits.length} hex` : ''}</span>
+          <span className="text-sm text-slate-500">{loading ? 'Đang tìm...' : hits.length ? `${truncated ? 'hơn ' : ''}${hits.length} hex` : ''}</span>
         </div>
 
         <input
@@ -515,6 +523,12 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
               </div>
             )}
           </div>
+        )}
+
+        {truncated && !loading && !error && (
+          <p className="rounded-lg bg-amber-100 p-3 text-base text-amber-800">
+            ⚠️ Có hơn {SEARCH_LIMIT} hex khớp — đang hiện {SEARCH_LIMIT} hex đầu (theo mã hex). Gõ cụ thể hơn (tên hạng mục, mã hex…) để thu hẹp.
+          </p>
         )}
 
         {hint && <p className="py-12 text-center text-base text-slate-400">{hint}</p>}
