@@ -102,6 +102,29 @@ const BUCKET_COLOR: Record<RemainBucket, string> = {
   shortfall: 'bg-violet-400',
 };
 
+/** Thanh chia tỷ trọng có chữ ngay trên từng đoạn: đoạn rộng ghi "tên · %", đoạn hẹp chỉ ghi %, quá hẹp thì
+ *  để trống (rê chuột xem). Dùng cho thẻ BOT (số hạng mục) và BOP (trị giá). */
+type DoanThanh = { label: string; value: number; color: string; ink: string; title: string };
+function ThanhChia({ segs, total }: { segs: DoanThanh[]; total: number }) {
+  const hien = segs.filter(x => x.value > 0);
+  if (total <= 0 || !hien.length) return null;
+  return (
+    <div className="flex h-6 w-full gap-px overflow-hidden rounded-md bg-slate-100">
+      {hien.map(x => {
+        const pct = (x.value / total) * 100;
+        const pctTxt = pct >= 99.95 ? '100%' : pct < 1 ? '<1%' : `${Math.round(pct)}%`;
+        return (
+          <div key={x.label} title={x.title}
+               className={`${x.color} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden whitespace-nowrap px-1 text-[0.6875rem] font-semibold tabular-nums`}
+               style={{ width: `${pct}%` }}>
+            {pct >= 28 ? `${x.label} · ${pctTxt}` : pct >= 7 ? pctTxt : ''}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 type Tone = 'red' | 'amber' | 'green' | 'slate';
 const TONE: Record<Tone, { ring: string; text: string; dot: string }> = {
   red: { ring: 'border-red-200 bg-red-50/40', text: 'text-red-600', dot: 'bg-red-500' },
@@ -329,10 +352,12 @@ export const ProjectHealthModal: React.FC<Props> = ({
     // Có KH nhưng KH kỳ đã đạt hết (không còn hạn) — tách khỏi "Chưa có KH nhập kho"
     const metWait = open.filter(i => !i.deadline && (i.khnkTuanMet || i.khnkThangMet)).length;
     const noDate = open.filter(i => !i.deadline).length - metWait;
+    // Có hạn, chưa tới hạn và còn hơn DUE_SOON_DAYS ngày
+    const onTrack = open.filter(i => i.deadline && !i.overdue && !i.dueSoon).length;
     return {
       overdue: overdue.length, overdueRemain: overdue.reduce((s, i) => s + i.remain, 0),
       planAfterDue: open.filter(i => i.planAfterDue).length,
-      dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate, metWait,
+      dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate, metWait, onTrack, open: open.length,
     };
   }, [items, today]);
 
@@ -504,7 +529,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
       type="button"
       onClick={() => setTab(to)}
       title="Xem chi tiết"
-      className={`group block w-full cursor-pointer rounded-xl border p-4 text-left transition hover:shadow-md hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${TONE[tone].ring}`}
+      className={`group flex h-full w-full cursor-pointer flex-col justify-start rounded-xl border p-4 text-left transition hover:shadow-md hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${TONE[tone].ring}`}
     >
       <div className="flex w-full items-center gap-2">
         <span className={`h-2 w-2 rounded-full ${TONE[tone].dot}`} />
@@ -513,7 +538,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
         <span className="text-[0.6875rem] text-slate-400">{sub}</span>
         <span className="ml-auto text-[0.6875rem] text-slate-400 group-hover:text-slate-700">Chi tiết ›</span>
       </div>
-      <div className="mt-3">{children}</div>
+      <div className="mt-3 w-full">{children}</div>
     </button>
   );
 
@@ -610,9 +635,37 @@ export const ProjectHealthModal: React.FC<Props> = ({
               {fmtInt(bot.overdue)} <span className="text-sm font-medium text-slate-500">hạng mục quá hạn</span>
             </p>
             {bot.overdue > 0 && <p className="text-xs text-red-600">còn {fmtTy(bot.overdueRemain)} tỷ chưa nhập kho</p>}
-            <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 text-xs">
-              <dt className="text-slate-500">Sắp hạn (≤ {DUE_SOON_DAYS} ngày)</dt>
-              <dd className={`text-right font-semibold tabular-nums ${bot.dueSoon ? 'text-amber-600' : 'text-slate-700'}`}>{fmtInt(bot.dueSoon)}</dd>
+            {/* Thanh hạn của các hạng mục chưa nhập kho đủ: quá hạn / sắp hạn / còn hạn / đạt KH kỳ / chưa có KH */}
+            {(() => {
+              const segs = [
+                { k: 'Quá hạn', n: bot.overdue, c: 'bg-red-500', t: 'text-red-600' },
+                { k: `Sắp hạn (≤ ${DUE_SOON_DAYS} ngày)`, n: bot.dueSoon, c: 'bg-amber-400', t: 'text-amber-600' },
+                { k: 'Còn hạn', n: bot.onTrack, c: 'bg-emerald-400', t: 'text-emerald-700' },
+                { k: 'Đạt KH kỳ, chờ KH tiếp', n: bot.metWait, c: 'bg-sky-400', t: 'text-sky-700' },
+                { k: 'Chưa có KH nhập kho', n: bot.noDate, c: 'bg-slate-300', t: 'text-slate-700' },
+              ];
+              return bot.open > 0 ? (
+                <>
+                  <p className="mt-2 text-xs text-slate-500">{fmtInt(bot.open)} hạng mục chưa nhập kho đủ</p>
+                  <div className="mt-1">
+                    <ThanhChia total={bot.open} segs={segs.map(x => ({
+                      label: x.k, value: x.n, color: x.c, ink: x.c === 'bg-red-500' ? 'text-white' : 'text-slate-900',
+                      title: `${x.k}: ${fmtInt(x.n)} hạng mục`,
+                    }))} />
+                  </div>
+                  <dl className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 text-xs">
+                    {segs.map(x => (
+                      <React.Fragment key={x.k}>
+                        <span className={`h-2 w-2 rounded-sm ${x.c}`} />
+                        <dt className="text-slate-500">{x.k}</dt>
+                        <dd className={`text-right tabular-nums ${x.n ? `font-semibold ${x.t}` : 'text-slate-400'}`}>{fmtInt(x.n)}</dd>
+                      </React.Fragment>
+                    ))}
+                  </dl>
+                </>
+              ) : <p className="mt-2 text-xs text-emerald-700">Mọi hạng mục đã nhập kho đủ</p>;
+            })()}
+            <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 border-t border-slate-100 pt-2 text-xs">
               <dt className="text-slate-500">Hạn gần nhất chưa xong</dt>
               <dd className="text-right tabular-nums text-slate-700">{fmtDate(bot.nearest)}</dd>
               <dt className="text-slate-500">Hạn cuối</dt>
@@ -620,14 +673,6 @@ export const ProjectHealthModal: React.FC<Props> = ({
               {bot.planAfterDue > 0 && <>
                 <dt className="text-slate-500" title="KH nhập kho tuần / tháng đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ">KH nhập kho sau ngày cần giao</dt>
                 <dd className="text-right font-semibold tabular-nums text-amber-600">{fmtInt(bot.planAfterDue)}</dd>
-              </>}
-              {bot.noDate > 0 && <>
-                <dt className="text-slate-500">Chưa có KH nhập kho</dt>
-                <dd className="text-right tabular-nums text-slate-700">{fmtInt(bot.noDate)}</dd>
-              </>}
-              {bot.metWait > 0 && <>
-                <dt className="text-slate-500" title="Đã nhập đủ SL KH nhập kho tuần / tháng của kỳ nhưng đơn hàng còn chưa nhập kho đủ — không trễ, chờ KH kỳ sau">Đạt KH kỳ, chờ KH tiếp</dt>
-                <dd className="text-right tabular-nums text-sky-700">{fmtInt(bot.metWait)}</dd>
               </>}
             </dl>
           </Card>
@@ -639,13 +684,20 @@ export const ProjectHealthModal: React.FC<Props> = ({
               <span className="ml-1 text-sm font-medium text-slate-500">đã nhập kho</span>
             </p>
             <p className="text-xs text-slate-500">{fmtTy(bop.done)} / {fmtTy(bop.total)} tỷ · {fmtInt(bop.stockedItems)} hạng mục nhập đủ</p>
-            {/* Thanh phân bổ phần còn lại */}
-            <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-emerald-400">
-              {bop.total > 0 && (Object.keys(BUCKET_LABEL) as RemainBucket[]).map(b => (
-                <div key={b} className={BUCKET_COLOR[b]} style={{ width: `${(bop.remain[b] / bop.total) * 100}%` }} />
-              ))}
+            {/* Thanh trị giá đơn hàng: đã nhập kho + phần còn lại theo công đoạn */}
+            <div className="mt-3">
+              <ThanhChia total={bop.total} segs={[
+                { label: 'Đã nhập kho', value: bop.done, color: 'bg-emerald-500', ink: 'text-white', title: `Đã nhập kho: ${fmtTy(bop.done)} tỷ` },
+                ...(Object.keys(BUCKET_LABEL) as RemainBucket[]).map(b => ({
+                  label: BUCKET_LABEL[b], value: bop.remain[b], color: BUCKET_COLOR[b], ink: 'text-slate-900',
+                  title: `${BUCKET_LABEL[b]}: ${fmtTy(bop.remain[b])} tỷ`,
+                })),
+              ]} />
             </div>
             <dl className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 text-xs">
+              <span className="h-2 w-2 rounded-sm bg-emerald-500" />
+              <dt className="text-slate-500">Đã nhập kho</dt>
+              <dd className="text-right font-semibold tabular-nums text-emerald-700">{fmtTy(bop.done)} tỷ</dd>
               {(Object.keys(BUCKET_LABEL) as RemainBucket[]).map(b => (
                 <React.Fragment key={b}>
                   <span className={`h-2 w-2 rounded-sm ${BUCKET_COLOR[b]}`} />
@@ -664,8 +716,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
                   {fmtInt(bom.withMat)}<span className="text-lg text-slate-400">/{fmtInt(hexList.length)}</span>
                   <span className="ml-1 text-sm font-medium text-slate-500" title="Hạng mục có ít nhất 1 dòng PR ghi mã nhà máy của nó. Hạng mục còn lại: vật tư có thể ở PR chung của công trình (không mã), lấy từ tồn kho, hoặc chưa lên PR">hạng mục có PR ghi mã</span>
                 </p>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                  <div className={`h-2 ${TONE[bomTone].dot}`} style={{ width: `${coverPct}%` }} />
+                <div className="mt-2">
+                  <ThanhChia total={hexList.length} segs={[
+                    { label: 'Có PR ghi mã', value: bom.withMat, color: TONE[bomTone].dot, ink: bomTone === 'slate' ? 'text-slate-900' : 'text-white',
+                      title: `Có PR ghi mã nhà máy: ${fmtInt(bom.withMat)} hạng mục` },
+                    { label: 'Chưa thấy PR ghi mã', value: hexList.length - bom.withMat, color: 'bg-slate-200', ink: 'text-slate-700',
+                      title: `Chưa thấy PR ghi mã nhà máy: ${fmtInt(hexList.length - bom.withMat)} hạng mục (vật tư có thể ở PR chung công trình, lấy từ tồn kho, hoặc chưa lên PR)` },
+                  ]} />
                 </div>
               </>
             ) : <p className="text-sm text-slate-400">Đang kiểm tra vật tư…</p>}
