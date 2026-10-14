@@ -128,7 +128,7 @@ export default function TraCuuXuong() {
           <div className="space-y-3 rounded-2xl bg-white p-5">
             <p className={CHU_PHU}>
               Quét phiếu, gõ vài số của mã HEX hoặc tìm theo tên hạng mục / công trình để xem hạng mục đang ở tổ nào, đã nhận / xong / giao bao nhiêu,
-              thời gian trong xưởng, giờ công và ảnh tiến độ.
+              thời gian trong xưởng, giờ công sản phẩm và ảnh tiến độ.
             </p>
             {ganDay.length > 0 && (
               <div className="space-y-2">

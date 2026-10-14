@@ -125,7 +125,7 @@ function ChiTietNgay({ n }: { n: BaoCaoToNgay }) {
   return (
     <div className="grid gap-3 bg-slate-50 p-3 rmd:grid-cols-2 rmd:p-4 r2xl:grid-cols-4">
       <div className={KHUNG}>
-        <TieuDe>Giờ công theo hạng mục ({n.hangMuc.length})</TieuDe>
+        <TieuDe>Giờ công sản phẩm theo hạng mục ({n.hangMuc.length})</TieuDe>
         <ul className="divide-y divide-slate-100">
           {n.hangMuc.map(h => (
             <li key={`${h.hex}|${h.congDoanId}`} className="flex items-start gap-3 px-3 py-2 text-sm">
@@ -194,7 +194,7 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
                         {n.co.length > 0 && <AlertTriangle size={14} className="ml-1 text-amber-600" aria-label={n.co.map(tenCo).join(', ')} />}</p>
                       <div className="mt-2 grid grid-cols-3 gap-2 text-center tabular-nums">
                         <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Công nhân</p><p className="font-semibold text-slate-800">{qs.chinh ?? '—'}</p></div>
-                        <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công</p><p className="font-semibold text-slate-800">{so(n.gioCong)}</p></div>
+                        <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công SP</p><p className="font-semibold text-slate-800">{so(n.gioCong)}</p></div>
                         <div className={`rounded-lg py-1.5 ${mauDung(pt)}`}><p className="text-xs opacity-75">Tỷ lệ có việc</p><p className="font-semibold">{pt === null ? '—' : `${pt}%`}</p></div>
                       </div>
                       <p className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-slate-600">
@@ -215,8 +215,8 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
         <thead className="sticky top-0 bg-slate-50"><tr>
           <th className={TH}>Ngày · tổ</th>
           <th className={`${TH} text-right`}>Công nhân</th>
-          <th className={`${TH} text-right`}>Giờ có mặt</th>
           <th className={`${TH} text-right`}>Giờ công</th>
+          <th className={`${TH} text-right`}>Giờ công sản phẩm</th>
           <th className={`${TH} text-right`}>Giờ chờ việc</th>
           <th className={`${TH} text-right`}>Tỷ lệ có việc</th>
           <th className={`${TH} text-right`}>Nhận</th>
@@ -289,8 +289,8 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
         </tbody>
       </table>
       <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-        Công nhân = quân số tổ chốt ca chính. Giờ có mặt = quân số × giờ ca (trừ nghỉ). Giờ công = giờ có mặt chia cho hạng mục đang chạy theo số người khai;
-        phần còn lại là giờ chờ việc. Tỷ lệ có việc = giờ công / giờ có mặt (xanh ≥ 80%, vàng 50–79%, đỏ &lt; 50%). Bấm một tổ để xem chi tiết.
+        Công nhân = quân số tổ chốt ca chính. Giờ công = quân số × giờ ca (trừ nghỉ). Giờ công sản phẩm = giờ công chia cho hạng mục đang chạy theo số người khai;
+        phần còn lại là giờ chờ việc. Tỷ lệ có việc = giờ công sản phẩm / giờ công (xanh ≥ 80%, vàng 50–79%, đỏ &lt; 50%). Bấm một tổ để xem chi tiết.
       </p>
     </div>
   );
@@ -314,8 +314,8 @@ function TabTheoTo({ ds, d }: { ds: BaoCaoTo[]; d: BaoCao }) {
         <thead className="bg-slate-50"><tr>
           <th className={`${TH} sticky left-0 bg-slate-50`}>Tổ</th>
           {ngays.map(n => <th key={n} className={`${TH} text-center`}>{ddmm(n)}</th>)}
-          <th className={`${TH} border-l border-slate-200 text-right`}>Giờ có mặt</th>
-          <th className={`${TH} text-right`}>Giờ công</th>
+          <th className={`${TH} border-l border-slate-200 text-right`}>Giờ công</th>
+          <th className={`${TH} text-right`}>Giờ công sản phẩm</th>
           <th className={`${TH} text-right`}>Giờ chờ việc</th>
           <th className={`${TH} text-right`}>Tỷ lệ có việc</th>
           <th className={`${TH} text-right`}>Chốt quân số</th>
@@ -342,7 +342,7 @@ function TabTheoTo({ ds, d }: { ds: BaoCaoTo[]; d: BaoCao }) {
                     const n = theoNgay.get(ng);
                     const pn = n ? phanTram(n.gioCong, n.gioNguoi) : null;
                     return (
-                      <td key={ng} className="px-1 py-1.5 text-center" title={n ? `Giờ công ${so(n.gioCong)} / giờ có mặt ${so(n.gioNguoi)}` : 'Không có số liệu'}>
+                      <td key={ng} className="px-1 py-1.5 text-center" title={n ? `Giờ công sản phẩm ${so(n.gioCong)} / giờ công ${so(n.gioNguoi)}` : 'Không có số liệu'}>
                         <span className={`block rounded px-1 py-1 text-xs font-medium tabular-nums ${mauDung(n ? pn : null)}`}>
                           {n ? (pn === null ? so(n.gioCong) : `${pn}%`) : '·'}
                         </span>
@@ -384,7 +384,7 @@ function TabTheoTo({ ds, d }: { ds: BaoCaoTo[]; d: BaoCao }) {
         )}
       </table>
       <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-        Mỗi ô ngày = % có việc của tổ trong ngày (ca chưa chốt quân số thì hiện giờ công). Bấm một tổ để xem giờ công cả kỳ theo hạng mục và giờ chờ việc theo lý do.
+        Mỗi ô ngày = % có việc của tổ trong ngày (ca chưa chốt quân số thì hiện giờ công sản phẩm). Bấm một tổ để xem giờ công sản phẩm cả kỳ theo hạng mục và giờ chờ việc theo lý do.
       </p>
     </div>
   );
@@ -395,12 +395,12 @@ function ChiTietTo({ t }: { t: BaoCaoTo }) {
   return (
     <div className="grid gap-3 bg-slate-50 p-3 rmd:p-4 rxl:grid-cols-[2fr_1fr]">
       <div className={KHUNG}>
-        <TieuDe>Giờ công theo hạng mục (cộng cả kỳ)</TieuDe>
+        <TieuDe>Giờ công sản phẩm theo hạng mục (cộng cả kỳ)</TieuDe>
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full">
             <thead className="sticky top-0 bg-slate-50"><tr>
               <th className={TH}>Hạng mục · công đoạn</th><th className={`${TH} text-right`}>Giờ chạy</th>
-              <th className={`${TH} text-right`}>Giờ công thường</th><th className={`${TH} text-right`}>Giờ công tăng ca</th>
+              <th className={`${TH} text-right`}>Giờ công SP thường</th><th className={`${TH} text-right`}>Giờ công SP tăng ca</th>
             </tr></thead>
             <tbody>
               {t.theoHangMuc.map(h => (
@@ -472,7 +472,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
           <Search size={14} className="text-slate-400" aria-hidden />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm mã hạng mục, tên, công trình" className="w-full text-sm outline-none" aria-label="Tìm hạng mục" />
         </label>
-        <span className="text-sm text-slate-600">{hien.length} hạng mục · {so(hien.reduce((a, h) => a + h.gioCong, 0))} giờ công</span>
+        <span className="text-sm text-slate-600">{hien.length} hạng mục · {so(hien.reduce((a, h) => a + h.gioCong, 0))} giờ công sản phẩm</span>
       </div>
 
       <ul className="divide-y divide-slate-200">
@@ -491,9 +491,9 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-0.5 text-sm tabular-nums text-slate-700">
-                  <span><span className="text-slate-500">Tổng giờ công </span><b className="text-slate-900">{so(h.gioCong)}</b></span>
+                  <span><span className="text-slate-500">Tổng giờ công SP </span><b className="text-slate-900">{so(h.gioCong)}</b></span>
                   <span><span className="text-slate-500">Xong </span>{h.slXong ? `${hienSl(h.slXong)} ${dv(h.dvt)}` : '—'}</span>
-                  <span><span className="text-slate-500">Giờ công / {dv(h.dvt)} </span>{g === null ? <span className="text-slate-400">chưa đủ</span> : soNho(g)}</span>
+                  <span><span className="text-slate-500">Giờ công SP / {dv(h.dvt)} </span>{g === null ? <span className="text-slate-400">chưa đủ</span> : soNho(g)}</span>
                 </div>
               </div>
 
@@ -504,10 +504,10 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                     <th className={TH}>Công đoạn · tổ</th>
                     <th className={`${TH} text-right`}>Công nhân</th>
                     <th className={`${TH} text-right`}>Giờ chạy</th>
-                    <th className={`${TH} text-right`}>Giờ công / người</th>
-                    <th className={`${TH} text-right`}>Tổng giờ công</th>
+                    <th className={`${TH} text-right`}>Giờ công SP / người</th>
+                    <th className={`${TH} text-right`}>Tổng giờ công SP</th>
                     <th className={`${TH} text-right`}>SL xong</th>
-                    <th className={`${TH} text-right`}>Giờ công / {dv(h.dvt)}</th>
+                    <th className={`${TH} text-right`}>Giờ công SP / {dv(h.dvt)}</th>
                     <th className={TH}>Hiện tại (xong / nhận)</th>
                   </tr></thead>
                   <tbody>
@@ -548,7 +548,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                     <thead className="bg-slate-50"><tr>
                       <th className={TH}>Ngày</th><th className={TH}>Tổ · công đoạn</th>
                       <th className={`${TH} text-right`}>Công nhân</th><th className={`${TH} text-right`}>Giờ chạy</th>
-                      <th className={`${TH} text-right`}>Giờ công / người</th><th className={`${TH} text-right`}>Giờ công</th>
+                      <th className={`${TH} text-right`}>Giờ công SP / người</th><th className={`${TH} text-right`}>Giờ công sản phẩm</th>
                     </tr></thead>
                     <tbody>
                       {ngay.map((x, i) => {
@@ -575,7 +575,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
       </ul>
       <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
         Công nhân = số người tổ khai làm hạng mục lúc chạy ("5–7" khi tổ đổi số người giữa chừng). Giờ chạy = thời gian hạng mục chạy (mỗi người làm chừng đó giờ).
-        Tổng giờ công = công nhân × giờ chạy (co lại nếu khai vượt quân số). Giờ công / đơn vị = giờ công chia số lượng xong trong kỳ;
+        Tổng giờ công SP = công nhân × giờ chạy (co lại nếu khai vượt quân số). Giờ công SP / đơn vị = giờ công sản phẩm chia số lượng xong trong kỳ;
         "chưa đủ" khi có công đoạn đã tốn giờ nhưng chưa xong cái nào.
       </p>
     </div>
@@ -655,7 +655,7 @@ function BangCong({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: string 
         </tbody>
       </table>
       <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-        Mỗi ô = giờ có mặt trong ca chính (trừ nghỉ), dòng nhỏ "+" = giờ tăng ca. <b className="text-red-700">V</b> = vắng (có trong danh sách tổ, không có mặt ngày tổ điểm danh).
+        Mỗi ô = giờ công trong ca chính (trừ nghỉ), dòng nhỏ "+" = giờ tăng ca. <b className="text-red-700">V</b> = vắng (có trong danh sách tổ, không có mặt ngày tổ điểm danh).
         Ô vàng = có đi trễ / về sớm (rê chuột xem phút). Vắng tính theo danh sách tổ hiện tại.
       </p>
     </div>
@@ -705,8 +705,8 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
                 <p className="flex items-center gap-1 font-semibold text-slate-800">{m ? <ChevronDown size={16} /> : <ChevronRight size={16} />}{n.hoTen ?? n.mnv}</p>
                 <p className="pl-5 text-xs tabular-nums text-slate-500">{n.mnv}{n.tenTo ? ` · ${n.tenTo}` : ''}</p>
                 <div className="mt-2 grid grid-cols-3 gap-2 text-center tabular-nums">
-                  <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Có mặt</p><p className="font-semibold text-slate-800">{so(n.coMatThuong)}{n.coMatTangCa ? `+${so(n.coMatTangCa)}` : ''}</p></div>
-                  <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công</p><p className="font-semibold text-slate-800">{so(cong)}</p></div>
+                  <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công</p><p className="font-semibold text-slate-800">{so(n.coMatThuong)}{n.coMatTangCa ? `+${so(n.coMatTangCa)}` : ''}</p></div>
+                  <div className="rounded-lg bg-slate-50 py-1.5"><p className="text-xs text-slate-500">Giờ công SP</p><p className="font-semibold text-slate-800">{so(cong)}</p></div>
                   <div className={`rounded-lg py-1.5 ${mauDung(p)}`}><p className="text-xs opacity-75">Có việc</p><p className="font-semibold">{p === null ? '—' : `${p}%`}</p></div>
                 </div>
                 <p className="mt-2 flex flex-wrap gap-x-3 text-sm text-slate-600">
@@ -726,7 +726,7 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
                         <span className="tabular-nums">{x.vao ? hhmm(x.vao) : '—'}–{x.ra ? hhmm(x.ra) : 'hết ca'}</span>
                         {x.treP > 0 && <span className="text-amber-700">trễ {gioPhut(x.treP)}</span>}
                         {x.veSomP > 0 && <span className="text-amber-700">về sớm {gioPhut(x.veSomP)}</span>}
-                        <span className="text-slate-600">· {so(x.congThuong + x.congTangCa)} giờ công</span>
+                        <span className="text-slate-600">· {so(x.congThuong + x.congTangCa)} giờ công sản phẩm</span>
                       </>)}
                     </li>
                   ))}
@@ -740,9 +740,9 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
         <thead className="bg-slate-50"><tr>
           <th className={TH}>Người</th><th className={TH}>Tổ</th>
           <th className={`${TH} text-right`}>Ngày có mặt</th>
-          <th className={`${TH} text-right`}>Giờ có mặt</th>
-          <th className={`${TH} text-right`}>Tăng ca</th>
           <th className={`${TH} text-right`}>Giờ công</th>
+          <th className={`${TH} text-right`}>Tăng ca</th>
+          <th className={`${TH} text-right`}>Giờ công sản phẩm</th>
           <th className={`${TH} text-right`}>Giờ chờ việc</th>
           <th className={`${TH} text-right`}>% có việc</th>
           <th className={`${TH} text-right`}>Trễ / về sớm</th>
@@ -776,7 +776,7 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
                         <thead><tr>
                           <th className={TH}>Ngày</th><th className={TH}>Tổ</th><th className={TH}>Vào – ra</th>
                           <th className={`${TH} text-right`}>Trễ</th><th className={`${TH} text-right`}>Về sớm</th>
-                          <th className={`${TH} text-right`}>Có mặt</th><th className={`${TH} text-right`}>Giờ công</th><th className={`${TH} text-right`}>Chờ</th>
+                          <th className={`${TH} text-right`}>Giờ công</th><th className={`${TH} text-right`}>Giờ công SP</th><th className={`${TH} text-right`}>Chờ</th>
                           <th className={TH}>Hạng mục</th>
                         </tr></thead>
                         <tbody>
@@ -809,8 +809,8 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
       </table>
       </>)}
       {kieu === 'ds' && <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-        Giờ có mặt = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ giờ nghỉ. Giờ công = giờ được gắn tên vào hạng mục đang chạy. Giờ chờ việc = có mặt mà không gắn hạng mục.
-        % có việc = giờ công / giờ có mặt. Trễ / về sớm so với giờ ca chính (số lần trong kỳ).
+        Giờ công = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ giờ nghỉ. Giờ công sản phẩm = giờ được gắn tên vào hạng mục đang chạy. Giờ chờ việc = có mặt mà không gắn hạng mục.
+        % có việc = giờ công sản phẩm / giờ công. Trễ / về sớm so với giờ ca chính (số lần trong kỳ).
       </p>}
     </div>
   );
@@ -834,7 +834,7 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
         <p className="text-sm font-semibold text-slate-800">Đối chiếu chấm công (Dữ liệu Điểm danh, cả xưởng)</p>
         {lech !== null
           ? <p className={`text-sm ${lech <= 10 ? 'text-emerald-700' : 'text-amber-700'}`}>
-              Giờ có mặt (app) lệch {lech}% so với giờ công điểm danh ({caHai.length} ngày có cả hai) — {lech <= 10 ? 'đạt' : 'chưa đạt'} mục tiêu ≤ 10%
+              Giờ công (app) lệch {lech}% so với giờ công chấm công ({caHai.length} ngày có cả hai) — {lech <= 10 ? 'đạt' : 'chưa đạt'} mục tiêu ≤ 10%
             </p>
           : <p className="text-sm text-slate-600">
               Chưa có ngày nào có cả số điểm danh và số app trong kỳ{cc.moiNhat ? ` — điểm danh mới nhất ${ddmm(cc.moiNhat)}/${cc.moiNhat.slice(0, 4)}` : ' — bảng điểm danh chưa có số của xưởng này'}.
@@ -921,14 +921,14 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
   const dong: DongNgay[] = ds.flatMap(t => t.theoNgay.map(n => ({ t, n }))).sort((a, b) => a.n.ngay.localeCompare(b.n.ngay) || a.t.ten.localeCompare(b.t.ten));
   them('Theo ngay', dong.map(({ t, n }) => ({
     'Ngày': n.ngay, 'Tổ': t.ten, 'Công nhân (ca chính)': n.quanSo.chinh ?? null, 'Tăng ca': moTaQuanSo(n.quanSo).tangCa,
-    'Giờ có mặt': n.gioNguoi, 'Giờ công': n.gioCong, 'Giờ công tăng ca': n.gioCongTangCa, 'Giờ chờ việc': n.gioCho,
+    'Giờ công': n.gioNguoi, 'Giờ công sản phẩm': n.gioCong, 'Giờ công SP tăng ca': n.gioCongTangCa, 'Giờ chờ việc': n.gioCho,
     'Tỷ lệ có việc %': phanTram(n.gioCong, n.gioNguoi), 'Số hạng mục nhận': n.nhan.length, 'Số hạng mục chạy': n.hangMuc.length,
     'Xong': theoDonVi(n.xong), 'Cờ': n.co.map(tenCo).join(', '),
   })));
   them('Hang muc theo ngay', dong.flatMap(({ t, n }) => n.hangMuc.map(h => ({
     'Ngày': n.ngay, 'Tổ': t.ten, 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan,
     'Công nhân': moTaNguoi(h.soNguoiMin, h.soNguoiMax),
-    'Giờ chạy': h.gioChay, 'Giờ công thường': h.gioCongThuong, 'Giờ công tăng ca': h.gioCongTangCa, 'Đang chạy': h.dangChay ? 'x' : '',
+    'Giờ chạy': h.gioChay, 'Giờ công SP thường': h.gioCongThuong, 'Giờ công SP tăng ca': h.gioCongTangCa, 'Đang chạy': h.dangChay ? 'x' : '',
   }))));
   them('Nhan - Xong', dong.flatMap(({ t, n }) => [
     ...n.nhan.map(h => ({ 'Ngày': n.ngay, 'Tổ': t.ten, 'Loại': 'Nhận', 'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công đoạn': h.tenCongDoan, 'Số lượng': h.soLuong, 'Đơn vị': dv(h.dvt) })),
@@ -938,16 +938,16 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
   them('Theo to', ds.map(t => {
     const gn = t.gioNguoi.thuong + t.gioNguoi.tangCa; const gc = t.gioCong.thuong + t.gioCong.tangCa;
     return {
-      'Tổ': t.ten, 'Giờ có mặt': gn, 'Giờ công': gc, 'Giờ công tăng ca': t.gioCong.tangCa, 'Giờ chờ việc': t.gioCho.thuong + t.gioCho.tangCa,
+      'Tổ': t.ten, 'Giờ công': gn, 'Giờ công sản phẩm': gc, 'Giờ công SP tăng ca': t.gioCong.tangCa, 'Giờ chờ việc': t.gioCho.thuong + t.gioCho.tangCa,
       'Tỷ lệ có việc %': phanTram(gc, gn), 'Ngày chốt quân số': `${t.ngayChot}/${t.ngayCoChay}`, 'Đang chạy': t.dangChay, 'Tạm ngưng': t.tamNgung, 'Chờ nhận': t.choNhan,
     };
   }));
   them('Theo hang muc', d.hangMuc.flatMap(h => h.congDoan.map(c => ({
     'Mã hạng mục': h.hex, 'Tên hạng mục': h.tenHangMuc, 'Công trình': h.tenCongTrinh, 'Đơn vị': dv(h.dvt), 'SL đơn hàng': h.soLuongDonHang,
     'Công đoạn': c.tenCongDoan, 'Tổ': c.to.join(', '), 'Công nhân': moTaNguoi(c.soNguoiMin, c.soNguoiMax),
-    'Giờ chạy': c.gioChay, 'Giờ công / người': (() => { const g = gioMoiNguoi(c.gioCong, nguoiChia(c.soNguoiMin, c.soNguoiMax, c.soNguoiTb)); return g === null ? null : Math.round(g * 100) / 100; })(),
-    'Giờ công': c.gioCong, 'Giờ công tăng ca': c.gioCongTangCa,
-    'SL xong trong kỳ': c.slXong, 'Giờ công / đơn vị': c.slXong > 0 && c.gioCong > 0 ? Math.round((c.gioCong / c.slXong) * 100) / 100 : null,
+    'Giờ chạy': c.gioChay, 'Giờ công SP / người': (() => { const g = gioMoiNguoi(c.gioCong, nguoiChia(c.soNguoiMin, c.soNguoiMax, c.soNguoiTb)); return g === null ? null : Math.round(g * 100) / 100; })(),
+    'Giờ công sản phẩm': c.gioCong, 'Giờ công SP tăng ca': c.gioCongTangCa,
+    'SL xong trong kỳ': c.slXong, 'Giờ công SP / đơn vị': c.slXong > 0 && c.gioCong > 0 ? Math.round((c.gioCong / c.slXong) * 100) / 100 : null,
     'Trạng thái': c.trangThai ? TEN_TRANG_THAI[c.trangThai] ?? c.trangThai : '', 'Đã xong / đã nhận': `${c.slHoanThanh} / ${c.slNhan}`,
   }))));
   const nguoi = d.theoNguoi ?? [];
@@ -956,7 +956,7 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
       'Ngày': x.ngay, 'Mã NV': n.mnv, 'Họ tên': n.hoTen, 'Tổ': x.tenTo,
       'Giờ vào': x.vang ? 'Vắng' : x.vao ? hhmm(x.vao) : '', 'Giờ ra': x.ra ? hhmm(x.ra) : x.vao ? 'hết ca' : '',
       'Trễ (phút)': x.treP || null, 'Về sớm (phút)': x.veSomP || null,
-      'Giờ có mặt (thường)': x.coMatThuong, 'Giờ tăng ca': x.coMatTangCa, 'Giờ công': Math.round((x.congThuong + x.congTangCa) * 100) / 100,
+      'Giờ công (thường)': x.coMatThuong, 'Giờ tăng ca': x.coMatTangCa, 'Giờ công sản phẩm': Math.round((x.congThuong + x.congTangCa) * 100) / 100,
       'Giờ chờ việc': x.cho, 'Hạng mục': x.hangMuc.map(h => `${h.hex} (${h.tenCongDoan}) ${h.gio}g`).join('; '),
     }))));
     const ngays = cacNgay(d.tu, d.den);
@@ -970,7 +970,7 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
     }));
     them('Tong hop nguoi', nguoi.map(n => ({
       'Mã NV': n.mnv, 'Họ tên': n.hoTen, 'Tổ': n.tenTo, 'Chức vụ': n.chucVu, 'Ngày có mặt': n.soNgay, 'Ngày vắng': n.soNgayVang ?? 0,
-      'Giờ có mặt (thường)': n.coMatThuong, 'Giờ tăng ca': n.coMatTangCa, 'Giờ công': Math.round((n.congThuong + n.congTangCa) * 100) / 100,
+      'Giờ công (thường)': n.coMatThuong, 'Giờ tăng ca': n.coMatTangCa, 'Giờ công sản phẩm': Math.round((n.congThuong + n.congTangCa) * 100) / 100,
       'Giờ chờ việc': n.cho, 'Số lần trễ': n.lanTre, 'Số lần về sớm': n.lanVeSom,
     })));
   }
@@ -1070,12 +1070,12 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       {d && (
         <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
           <The ten="Công nhân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu · quân số chốt ca chính`} />
-          <The ten="Giờ công" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ có mặt${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}`} />
-          <The ten="Tỷ lệ có việc" giaTri={pDung === null ? '—' : `${pDung}%`} phu="giờ công ÷ giờ có mặt, mục tiêu ≥ 80%"
+          <The ten="Giờ công sản phẩm" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ công${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}`} />
+          <The ten="Tỷ lệ có việc" giaTri={pDung === null ? '—' : `${pDung}%`} phu="giờ công sản phẩm ÷ giờ công, mục tiêu ≥ 80%"
             mau={pDung === null ? undefined : pDung >= 80 ? 'text-emerald-700' : pDung >= 50 ? 'text-amber-700' : 'text-red-700'} />
           <The ten="Giờ chờ việc" giaTri={so(tom.ch)}
             phu={tom.lyDo.length
-              ? `${tom.gn ? `${Math.round((tom.ch / tom.gn) * 100)}% giờ có mặt · ` : ''}nhiều nhất: ${tenLyDoCho(tom.lyDo[0][0])} ${so(tom.lyDo[0][1])} giờ`
+              ? `${tom.gn ? `${Math.round((tom.ch / tom.gn) * 100)}% giờ công · ` : ''}nhiều nhất: ${tenLyDoCho(tom.lyDo[0][0])} ${so(tom.lyDo[0][1])} giờ`
               : 'không có giờ chờ việc'} />
           <The rong ten="Xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`} phu={tom.xong.length ? theoDonVi(tom.xong) : 'chưa xong hạng mục nào'} />
         </div>
@@ -1085,10 +1085,10 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
         <details className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
           <summary className="cursor-pointer font-medium text-slate-800">Cách đọc các số</summary>
           <dl className="mt-2 grid gap-x-6 gap-y-2 pb-2 sm:grid-cols-2">
-            <div><dt className="font-semibold">Giờ có mặt</dt><dd>Số người có mặt × giờ ca, trừ nghỉ trưa. Vd 15 người × 7,5 giờ = 112,5 giờ. Có điểm danh thì tính theo từng người (đến trễ, về sớm được trừ).</dd></div>
-            <div><dt className="font-semibold">Giờ công</dt><dd>Phần giờ có mặt mà người được gắn vào một hạng mục đang chạy — tức là thật sự làm hàng. Cộng theo hạng mục ra giờ công của hạng mục.</dd></div>
-            <div><dt className="font-semibold">Giờ chờ việc</dt><dd>Giờ có mặt − giờ công: có mặt nhưng không làm hạng mục nào. Lý do: không có hạng mục chạy (chưa có hàng / chưa triển khai), người rảnh (chưa được chia việc), hoặc hạng mục tạm ngưng (thiếu vật tư, chờ bản vẽ…). Xem lý do ở tab Theo ngày → bấm tổ.</dd></div>
-            <div><dt className="font-semibold">Tỷ lệ có việc</dt><dd>Giờ công ÷ giờ có mặt. 100% = mọi người có mặt đều đang làm hạng mục; 43% = hơn một nửa thời gian có mặt là chờ việc. Xanh ≥ 80%, vàng 50–79%, đỏ dưới 50%.</dd></div>
+            <div><dt className="font-semibold">Giờ công</dt><dd>Số người có mặt × giờ ca, trừ nghỉ trưa. Vd 15 người × 7,5 giờ = 112,5 giờ. Có điểm danh thì tính theo từng người (đến trễ, về sớm được trừ).</dd></div>
+            <div><dt className="font-semibold">Giờ công sản phẩm</dt><dd>Phần giờ công mà người được gắn vào một hạng mục đang chạy — tức là thật sự làm hàng. Cộng theo hạng mục ra giờ công sản phẩm của hạng mục.</dd></div>
+            <div><dt className="font-semibold">Giờ chờ việc</dt><dd>Giờ công − giờ công sản phẩm: có mặt nhưng không làm hạng mục nào. Lý do: không có hạng mục chạy (chưa có hàng / chưa triển khai), người rảnh (chưa được chia việc), hoặc hạng mục tạm ngưng (thiếu vật tư, chờ bản vẽ…). Xem lý do ở tab Theo ngày → bấm tổ.</dd></div>
+            <div><dt className="font-semibold">Tỷ lệ có việc</dt><dd>Giờ công sản phẩm ÷ giờ công. 100% = mọi người có mặt đều đang làm hạng mục; 43% = hơn một nửa thời gian có mặt là chờ việc. Xanh ≥ 80%, vàng 50–79%, đỏ dưới 50%.</dd></div>
           </dl>
         </details>
       )}

@@ -149,7 +149,7 @@ html { scroll-behavior: smooth; }
   <header class="dau">
     <p class="nhan-tren">App MRA · dành cho tổ trưởng</p>
     <h1>Sổ tay tổ trưởng</h1>
-    <p class="mo">App MRA ghi lại việc của tổ trong ngày: ai có mặt, hàng giao tới, ai làm hạng mục nào, tạm ngưng, xong và giao sang công đoạn sau, tăng ca. Từ đó hệ thống tự tính giờ công cho từng hạng mục và từng người. Tổ trưởng bấm đúng lúc, đúng người thì báo cáo mới đúng.</p>
+    <p class="mo">App MRA ghi lại việc của tổ trong ngày: ai có mặt, hàng giao tới, ai làm hạng mục nào, tạm ngưng, xong và giao sang công đoạn sau, tăng ca. Từ đó hệ thống tự tính giờ công sản phẩm cho từng hạng mục và từng người. Tổ trưởng bấm đúng lúc, đúng người thì báo cáo mới đúng.</p>
     <div class="link-app">
       <span class="ten">Địa chỉ app:</span>
       <code id="link">https://operationshub-dev.vercel.app/xuong</code>
@@ -286,7 +286,7 @@ html { scroll-behavior: smooth; }
           <p class="khi">Từ 15h30 · nhắc lúc 16h30</p>
           <h3>Xác nhận cuối ngày</h3>
           <p>Bấm <span class="nut phu">Xác nhận</span> trên thẻ vàng. Với từng hạng mục đang chạy chọn <b>Vẫn làm</b> hoặc <b>Đã dừng</b> (kèm giờ dừng). Có thể nhập tiến độ % và chụp ảnh tiến độ.</p>
-          <p class="goi loi">Bỏ qua bước này thì hạng mục bị tính là chạy suốt đêm, giờ công của tổ sẽ sai.</p>
+          <p class="goi loi">Bỏ qua bước này thì hạng mục bị tính là chạy suốt đêm, giờ công sản phẩm của tổ sẽ sai.</p>
         </div>
       </div>
 
@@ -331,13 +331,13 @@ html { scroll-behavior: smooth; }
     <p class="mo">Từ điểm danh và tên người làm, hệ thống tính cho <b>từng người</b>:</p>
     <div class="khung">
       <ol class="ds">
-        <li><b>Giờ có mặt</b> = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ nghỉ trưa 11:30–12:15. Ca chính đủ là 7,5 giờ.</li>
-        <li><b>Giờ công</b> của người đó cho từng hạng mục = thời gian họ được gắn tên vào hạng mục đang chạy.</li>
+        <li><b>Giờ công</b> = từ giờ vào tới giờ ra (hết ca thì tới hết ca), trừ nghỉ trưa 11:30–12:15. Ca chính đủ là 7,5 giờ.</li>
+        <li><b>Giờ công sản phẩm</b> của người đó cho từng hạng mục = thời gian họ được gắn tên vào hạng mục đang chạy.</li>
         <li>Có mặt mà không gắn hạng mục nào là <b>giờ chờ</b>, kèm lý do: người rảnh, không có hạng mục chạy, hoặc lý do tạm ngưng.</li>
-        <li>Giờ công hạng mục = cộng giờ của những người làm nó. Đi trễ, về sớm được ghi lại theo từng người.</li>
+        <li>Giờ công sản phẩm hạng mục = cộng giờ của những người làm nó. Đi trễ, về sớm được ghi lại theo từng người.</li>
       </ol>
     </div>
-    <p class="goi tot">Ví dụ: tổ có mặt 7 người. Hạng mục A chạy 4 giờ với An, Bình, Chi, Dũng → mỗi người 4 giờ công cho A, A được 16 giờ công. 3 người kia không gắn việc → mỗi người 4 giờ chờ "người rảnh".</p>
+    <p class="goi tot">Ví dụ: tổ có mặt 7 người. Hạng mục A chạy 4 giờ với An, Bình, Chi, Dũng → mỗi người 4 giờ công sản phẩm cho A, A được 16 giờ công sản phẩm. 3 người kia không gắn việc → mỗi người 4 giờ chờ "người rảnh".</p>
     <div class="khung">
       <h3>Nhiều hạng mục chạy cùng lúc</h3>
       <p>Sau mỗi thao tác, nếu còn người rảnh hoặc có hạng mục chưa có người, dải vàng hiện <b>"3 người đang rảnh"</b> với 2 nút:</p>
@@ -379,7 +379,7 @@ html { scroll-behavior: smooth; }
     <p>Mục <b>Tra cứu</b> ở thanh dưới: quét phiếu, hoặc gõ <b>vài số</b> của mã (từ 3 số), hoặc bấm <b>Tìm theo tên</b> để gõ tên hạng mục, công trình. Chạm vào kết quả để xem:</p>
     <ul class="ds">
       <li>Hạng mục đang ở công đoạn nào, tổ nào, đã nhận, xong, giao bao nhiêu.</li>
-      <li>Thời gian nằm trong xưởng, giờ chạy và giờ công từng công đoạn.</li>
+      <li>Thời gian nằm trong xưởng, giờ chạy và giờ công sản phẩm từng công đoạn.</li>
       <li>Ảnh lúc nhận, lúc giao và ảnh tiến độ của từng công đoạn.</li>
     </ul>
   </section>

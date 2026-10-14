@@ -140,7 +140,7 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
               <th className="px-3 py-2 text-right font-semibold">Hoàn thành</th>
               <th className="px-3 py-2 text-right font-semibold">Giao</th>
               <th className="px-3 py-2 text-right font-semibold">Giờ chạy</th>
-              <th className="px-3 py-2 text-right font-semibold">Giờ công</th>
+              <th className="px-3 py-2 text-right font-semibold">Giờ công sản phẩm</th>
             </tr>
           </thead>
           <tbody>
@@ -171,16 +171,16 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
             <p className="flex flex-wrap gap-x-4 gap-y-0.5 tabular-nums text-slate-700">
               {c.slGiaoDen > 0 && <span>Giao tới {so(c.slGiaoDen)}</span>}
               <span>Nhận {so(c.slNhan)}</span><span>Hoàn thành {so(c.slHoanThanh)}</span><span>Giao {so(c.slGiao)}</span>
-              <span>Giờ chạy {so(c.gioChay)}</span><span>{c.nguon === 'mra' ? `Nhân công MRA ${gioCongO(c)}` : `Giờ công ${so(c.gioCong)}`}</span>
+              <span>Giờ chạy {so(c.gioChay)}</span><span>{c.nguon === 'mra' ? `Nhân công MRA ${gioCongO(c)}` : `Giờ công sản phẩm ${so(c.gioCong)}`}</span>
             </p>
             {co(c)}
           </li>
         ))}
       </ul>
       {coMra && (
-        <p className="text-xs text-slate-600">* Lịch sử MRA (đến 2/2026): chỉ có thời gian chạy và số nhân công gốc MRA — số MRA gốc, có thể đếm trùng; không phân bổ giờ công (MRA không có quân số).</p>
+        <p className="text-xs text-slate-600">* Lịch sử MRA (đến 2/2026): chỉ có thời gian chạy và số nhân công gốc MRA — số MRA gốc, có thể đếm trùng; không phân bổ giờ công sản phẩm (MRA không có quân số).</p>
       )}
-      {d.gioCongTamTinh && <p className="text-xs text-slate-600">Giờ công cộng 20 ngày làm gần nhất — hạng mục chạy lâu hơn thì xem báo cáo giờ công của tổ.</p>}
+      {d.gioCongTamTinh && <p className="text-xs text-slate-600">Giờ công sản phẩm cộng 20 ngày làm gần nhất — hạng mục chạy lâu hơn thì xem báo cáo giờ công sản phẩm của tổ.</p>}
 
       {(() => {
         // Ảnh check-in (nhận) / xong / giao / cuối ngày, nhóm theo công đoạn theo thứ tự tuyến

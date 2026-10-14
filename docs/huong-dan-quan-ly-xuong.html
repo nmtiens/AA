@@ -150,7 +150,7 @@ table td:first-child { min-width: 9em; }
   <header class="dau">
     <p class="nhan-tren">App MRA · dành cho quản lý xưởng</p>
     <h1>Sổ tay quản lý xưởng</h1>
-    <p class="mo">Tổ trưởng điểm danh và ghi việc của tổ trên điện thoại. Quản lý xưởng chuẩn bị danh mục và danh sách công nhân, triển khai hạng mục cho các tổ, theo dõi tổ trong ngày, xử lý thao tác sai và đọc báo cáo giờ công, chấm công.</p>
+    <p class="mo">Tổ trưởng điểm danh và ghi việc của tổ trên điện thoại. Quản lý xưởng chuẩn bị danh mục và danh sách công nhân, triển khai hạng mục cho các tổ, theo dõi tổ trong ngày, xử lý thao tác sai và đọc báo cáo giờ công sản phẩm, chấm công.</p>
     <div class="link-app">
       <span class="ten">Địa chỉ app:</span>
       <code id="link">https://operationshub-dev.vercel.app/xuong</code>
@@ -299,8 +299,8 @@ table td:first-child { min-width: 9em; }
         <tbody>
           <tr><td><b>Nhận khi chưa thấy tổ trước giao</b></td><td>Tổ nhận hàng mà tổ trước chưa bấm giao</td><td>Nhắc tổ trước bấm Giao, hoặc kiểm tra hàng từ đâu tới</td></tr>
           <tr><td><b>Bắt đầu chưa khai số người</b></td><td>Máy chưa cập nhật app, gửi Bắt đầu không có số người</td><td>Nhắc tổ tải lại app; sửa số người qua nút Chia người ở màn Tổ</td></tr>
-          <tr><td><b>Khai nhiều người hơn quân số</b></td><td>Tổng người khai ở các hạng mục vượt quân số chốt</td><td>Giờ công đã co theo quân số; nhắc tổ chia lại người</td></tr>
-          <tr><td><b>Bắt đầu 2 lần</b>, <b>Tạm ngưng khi không chạy</b>, <b>Xong khi chưa bắt đầu</b></td><td>Bấm nhầm thứ tự</td><td>Thường không ảnh hưởng; huỷ nếu làm sai giờ công</td></tr>
+          <tr><td><b>Khai nhiều người hơn quân số</b></td><td>Tổng người khai ở các hạng mục vượt quân số chốt</td><td>Giờ công sản phẩm đã co theo quân số; nhắc tổ chia lại người</td></tr>
+          <tr><td><b>Bắt đầu 2 lần</b>, <b>Tạm ngưng khi không chạy</b>, <b>Xong khi chưa bắt đầu</b></td><td>Bấm nhầm thứ tự</td><td>Thường không ảnh hưởng; huỷ nếu làm sai giờ công sản phẩm</td></tr>
           <tr><td><b>Chưa xác nhận cuối ngày</b></td><td>Hạng mục đang chạy qua đêm không được xác nhận</td><td>Nhắc tổ xác nhận; quá 2 ngày liên tiếp hệ thống ngừng tính giờ cho hạng mục đó</td></tr>
           <tr><td><b>Đồng hồ máy lệch hơn 5 phút</b>, <b>Máy bị đổi giờ</b></td><td>Giờ điện thoại tổ sai</td><td>Nhắc bật giờ tự động trên điện thoại</td></tr>
           <tr><td><b>Gửi hộ người khác trên cùng máy</b></td><td>Nhiều người dùng chung một điện thoại</td><td>Mỗi người nên đăng xuất trước khi đưa máy</td></tr>
@@ -316,25 +316,25 @@ table td:first-child { min-width: 9em; }
     <div class="khung">
       <h3>Cách tính</h3>
       <ul class="ds">
-        <li><b>Giờ có mặt</b> = số người có mặt theo điểm danh, cộng dồn theo thời gian (đến trễ, về sớm được tính), trừ giờ nghỉ. Ca chính đủ là 7,5 giờ/người. Tổ chưa điểm danh tên thì dùng quân số chốt × giờ ca.</li>
-        <li><b>Giờ công</b> = giờ của những người được gắn tên vào hạng mục đang chạy (chỉ tính người đang có mặt). Tổ khai theo số thì chia theo số người khai, khai vượt quân số thì co lại theo tỷ lệ.</li>
-        <li><b>Giờ chờ việc</b> = phần giờ có mặt không chia cho hạng mục nào, kèm lý do: <i>Người rảnh</i> (khai ít hơn quân số), <i>Không có hạng mục chạy</i>, hoặc lý do tạm ngưng (thiếu vật tư, chờ bản vẽ…).</li>
-        <li><b>Tỷ lệ có việc</b> = giờ công ÷ giờ có mặt. Xanh từ 80%, vàng 50–79%, đỏ dưới 50%.</li>
+        <li><b>Giờ công</b> = số người có mặt theo điểm danh, cộng dồn theo thời gian (đến trễ, về sớm được tính), trừ giờ nghỉ. Ca chính đủ là 7,5 giờ/người. Tổ chưa điểm danh tên thì dùng quân số chốt × giờ ca.</li>
+        <li><b>Giờ công sản phẩm</b> = giờ của những người được gắn tên vào hạng mục đang chạy (chỉ tính người đang có mặt). Tổ khai theo số thì chia theo số người khai, khai vượt quân số thì co lại theo tỷ lệ.</li>
+        <li><b>Giờ chờ việc</b> = phần giờ công không chia cho hạng mục nào, kèm lý do: <i>Người rảnh</i> (khai ít hơn quân số), <i>Không có hạng mục chạy</i>, hoặc lý do tạm ngưng (thiếu vật tư, chờ bản vẽ…).</li>
+        <li><b>Tỷ lệ có việc</b> = giờ công sản phẩm ÷ giờ công. Xanh từ 80%, vàng 50–79%, đỏ dưới 50%.</li>
         <li>Ca chưa chốt quân số chỉ tính theo số người khai, không có giờ chờ.</li>
       </ul>
     </div>
     <div class="khung">
       <h3>Đầu báo cáo: 5 số của kỳ</h3>
-      <p>Công nhân bình quân mỗi ngày · Giờ công · Tỷ lệ có việc · Giờ chờ việc (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Bảng công</b> (người × ngày như màn hình), <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ có mặt, tăng ca, giờ công, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
+      <p>Công nhân bình quân mỗi ngày · Giờ công sản phẩm · Tỷ lệ có việc · Giờ chờ việc (kèm lý do nhiều nhất) · Số hạng mục xong (theo đơn vị). Nút <b>Xuất Excel</b> ra các sheet: Theo ngày, Hạng mục theo ngày, Nhận – Xong, Giờ chờ, Theo tổ, Theo hạng mục, và khi có điểm danh thêm <b>Bảng công</b> (người × ngày như màn hình), <b>Chấm công theo ngày</b> (mỗi người × ngày: giờ vào, ra, trễ, về sớm, giờ công, tăng ca, giờ công sản phẩm, giờ chờ, hạng mục) và <b>Tổng hợp người</b> — dùng cho tính lương.</p>
     </div>
     <div class="bang-boc">
       <table>
         <thead><tr><th>Tab</th><th>Xem gì</th><th>Dùng để</th></tr></thead>
         <tbody>
-          <tr><td><b>Theo ngày</b></td><td>Mỗi ngày × mỗi tổ: công nhân, giờ có mặt, giờ công, giờ chờ việc, % có việc, số hạng mục nhận, chạy, số xong. Bấm tổ: giờ công từng hạng mục, hàng nhận, hàng xong, giờ chờ vì sao.</td><td>Hỏi tổ về một ngày cụ thể</td></tr>
+          <tr><td><b>Theo ngày</b></td><td>Mỗi ngày × mỗi tổ: công nhân, giờ công, giờ công sản phẩm, giờ chờ việc, % có việc, số hạng mục nhận, chạy, số xong. Bấm tổ: giờ công sản phẩm từng hạng mục, hàng nhận, hàng xong, giờ chờ vì sao.</td><td>Hỏi tổ về một ngày cụ thể</td></tr>
           <tr><td><b>Theo tổ</b></td><td>Mỗi tổ một hàng, mỗi ngày một ô % dùng người tô màu, cuối hàng là tổng kỳ.</td><td>Thấy tổ nào yếu, xu hướng tốt lên hay kém đi</td></tr>
-          <tr><td><b>Theo hạng mục</b></td><td>Mỗi hạng mục: từng công đoạn với tổ, số công nhân, giờ chạy, giờ công/người, tổng giờ công, số xong, giờ công/đơn vị. Mở "Theo ngày" xem từng ngày.</td><td>Giờ công thực tế của hạng mục, so định mức, tính giá thành</td></tr>
-          <tr><td><b>Theo người</b></td><td><b>Danh sách</b>: mỗi công nhân có ngày có mặt / vắng, giờ có mặt, tăng ca, giờ công, giờ chờ, % làm việc, số lần trễ / về sớm; bấm vào người xem từng ngày. <b>Bảng công</b>: mỗi người một hàng, mỗi ngày một ô (giờ có mặt, "+" tăng ca, <b>V</b> = vắng, ô vàng = trễ / về sớm), cuối hàng ngày công, giờ, vắng, trễ.</td><td>Chấm công, tính lương / thưởng, xem ai hay chờ việc</td></tr>
+          <tr><td><b>Theo hạng mục</b></td><td>Mỗi hạng mục: từng công đoạn với tổ, số công nhân, giờ chạy, giờ công SP/người, tổng giờ công SP, số xong, giờ công SP/đơn vị. Mở "Theo ngày" xem từng ngày.</td><td>Giờ công sản phẩm thực tế của hạng mục, so định mức, tính giá thành</td></tr>
+          <tr><td><b>Theo người</b></td><td><b>Danh sách</b>: mỗi công nhân có ngày có mặt / vắng, giờ công, tăng ca, giờ công sản phẩm, giờ chờ, % có việc, số lần trễ / về sớm; bấm vào người xem từng ngày. <b>Bảng công</b>: mỗi người một hàng, mỗi ngày một ô (giờ công, "+" tăng ca, <b>V</b> = vắng, ô vàng = trễ / về sớm), cuối hàng ngày công, giờ, vắng, trễ.</td><td>Chấm công, tính lương / thưởng, xem ai hay chờ việc</td></tr>
           <tr><td><b>Chất lượng dữ liệu</b></td><td>Tỷ lệ nhật ký đủ Bắt đầu/Hoàn thành, ngày-tổ có chốt quân số, thao tác gửi trong 1 giờ, khai vượt quân số; các cờ trong kỳ; đối chiếu với điểm danh.</td><td>Biết số liệu đáng tin tới đâu, tổ nào cần nhắc</td></tr>
         </tbody>
       </table>
@@ -371,7 +371,7 @@ table td:first-child { min-width: 9em; }
       </details>
       <details>
         <summary>Số công nhân ghi "5–7"?</summary>
-        <p>Tổ đổi số người làm hạng mục giữa chừng (lúc 5 người, lúc 7 người). Giờ công vẫn tính đúng theo từng đoạn thời gian.</p>
+        <p>Tổ đổi số người làm hạng mục giữa chừng (lúc 5 người, lúc 7 người). Giờ công sản phẩm vẫn tính đúng theo từng đoạn thời gian.</p>
       </details>
       <details>
         <summary>Tổ trưởng cần hướng dẫn?</summary>
