@@ -267,8 +267,10 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       `SELECT hex, cong_doan_id, trang_thai, sl_nhan::float AS sl_nhan, sl_hoan_thanh::float AS sl_ht FROM xuong_trang_thai WHERE hex = ANY($1::text[])`,
       [[...hmKy.keys()]])).rows : [];
     const ttCua = new Map(ttHm.map(x => [`${x.hex}|${x.cong_doan_id}`, x]));
-    const cdTen = new Map((await pool.query('SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1', [xuong])).rows
-      .map(x => [String(x.id), String(x.cd_chi_tiet)]));
+    const cdRows = (await pool.query('SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1', [xuong])).rows;
+    const cdTen = new Map(cdRows.map(x => [String(x.id), String(x.cd_chi_tiet)]));
+    /** Thứ tự công đoạn (đường đi của hàng) — hạng mục liệt kê công đoạn theo thứ tự này */
+    const cdThuTu = new Map(cdRows.map(x => [String(x.id), Number(x.thu_tu ?? 999)]));
 
     // Đối chiếu chấm công (bảng diem_danh — Dữ liệu Điểm danh, theo xưởng × ngày): giờ người các tổ dùng app
     // (quân số × giờ ca) so với giờ công điểm danh của cả xưởng. Xưởng chưa đưa hết tổ lên app thì app < điểm danh.
@@ -401,7 +403,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
           soNguoiTb: c.gioChay > 0 ? lam(Math.min(c.max, c.gnk / c.gioChay)) : 0, soNguoiMax: c.max, soNguoiMin: c.min,
           trangThai: tt ? String(tt.trang_thai) : null, slNhan: tt ? lam(Number(tt.sl_nhan)) : 0, slHoanThanh: tt ? lam(Number(tt.sl_ht)) : 0,
         };
-      }).sort((a, b) => b.gioCong - a.gioCong);
+      }).sort((a, b) => (cdThuTu.get(a.congDoanId) ?? 999) - (cdThuTu.get(b.congDoanId) ?? 999) || b.gioCong - a.gioCong);
       const i = info.get(hex);
       return {
         hex, tenHangMuc: i?.ten_hang_muc ?? null, tenCongTrinh: i?.ten_cong_trinh ?? null, dvt: i?.dvt ?? null,

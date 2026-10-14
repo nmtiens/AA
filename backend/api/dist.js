@@ -72137,7 +72137,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       [[...hmKy.keys()]]
     )).rows : [];
     const ttCua = new Map(ttHm.map((x) => [`${x.hex}|${x.cong_doan_id}`, x]));
-    const cdTen = new Map((await pool.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong])).rows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+    const cdRows = (await pool.query("SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1", [xuong])).rows;
+    const cdTen = new Map(cdRows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+    const cdThuTu = new Map(cdRows.map((x) => [String(x.id), Number(x.thu_tu ?? 999)]));
     let chamCong = null;
     try {
       const [dd, moi, qs] = await Promise.all([
@@ -72298,7 +72300,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           slNhan: tt ? lam(Number(tt.sl_nhan)) : 0,
           slHoanThanh: tt ? lam(Number(tt.sl_ht)) : 0
         };
-      }).sort((a, b) => b.gioCong - a.gioCong);
+      }).sort((a, b) => (cdThuTu.get(a.congDoanId) ?? 999) - (cdThuTu.get(b.congDoanId) ?? 999) || b.gioCong - a.gioCong);
       const i = info.get(hex3);
       return {
         hex: hex3,

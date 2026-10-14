@@ -235,7 +235,9 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
             return (
               <Fragment key={ngay}>
                 <tr className="border-t-2 border-slate-200 bg-slate-50 font-semibold text-slate-800">
-                  <td className={TD}>{ddmm(ngay)}/{ngay.slice(0, 4)}</td>
+                  <td className={TD}>{ddmm(ngay)}/{ngay.slice(0, 4)}
+                    {/* Hôm nay: số còn tăng tới hết ca — đừng so với ngày đã xong */}
+                    {ngay === ngayVN() && <span className="ml-2 text-xs font-normal text-slate-500">hôm nay, tính đến {hhmm(Date.now())}</span>}</td>
                   <td className={`${TD} text-right tabular-nums`}>{s.cn || '—'}</td>
                   <td className={`${TD} text-right tabular-nums`}>{so(s.gn)}</td>
                   <td className={`${TD} text-right tabular-nums`}>{so(s.gc)}</td>
@@ -492,7 +494,10 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-0.5 text-sm tabular-nums text-slate-700">
                   <span><span className="text-slate-500">Tổng giờ công SP </span><b className="text-slate-900">{so(h.gioCong)}</b></span>
-                  <span><span className="text-slate-500">Xong </span>{h.slXong ? `${hienSl(h.slXong)} ${dv(h.dvt)}` : '—'}</span>
+                  {/* Mỗi công đoạn xong một lượt hàng — không cộng dồn các công đoạn */}
+                  <span><span className="text-slate-500">Xong </span>{h.congDoan.some(c => c.slXong > 0)
+                    ? h.congDoan.filter(c => c.slXong > 0).map(c => `${c.tenCongDoan} ${hienSl(c.slXong)}`).join(' · ') + ` ${dv(h.dvt)}`
+                    : '—'}</span>
                   <span><span className="text-slate-500">Giờ công SP / {dv(h.dvt)} </span>{g === null ? <span className="text-slate-400">chưa đủ</span> : soNho(g)}</span>
                 </div>
               </div>
@@ -515,7 +520,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                       const gn = gioMoiNguoi(c.gioCong, nguoiChia(c.soNguoiMin, c.soNguoiMax, c.soNguoiTb));
                       return (
                         <tr key={c.congDoanId} className="border-t border-slate-100">
-                          <td className={TD}>{c.tenCongDoan}<div className="text-xs text-slate-500">{c.to.join(', ')}</div></td>
+                          <td className={TD}>{c.tenCongDoan}{c.to.some(t => t !== c.tenCongDoan) && <div className="text-xs text-slate-500">tổ {c.to.join(', ')}</div>}</td>
                           <td className={`${TD} text-right tabular-nums`}>{moTaNguoi(c.soNguoiMin, c.soNguoiMax)}</td>
                           <td className={`${TD} text-right tabular-nums`}>{c.gioChay ? thoiGian(c.gioChay) : '—'}</td>
                           <td className={`${TD} text-right tabular-nums`}>{gn === null ? '—' : soNho(gn)}</td>
@@ -526,7 +531,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                           <td className={`${TD} text-right tabular-nums`}>{c.slXong > 0 && c.gioCong > 0 ? soNho(c.gioCong / c.slXong) : '—'}</td>
                           <td className={`${TD} ${MAU_TRANG_THAI[c.trangThai ?? ''] ?? ''}`}>
                             {c.trangThai ? TEN_TRANG_THAI[c.trangThai] ?? c.trangThai : '—'}
-                            <span className="ml-1 tabular-nums text-slate-500">({hienSl(c.slHoanThanh)} / {hienSl(c.slNhan)})</span>
+                            {' '}<span className="tabular-nums text-slate-500">({hienSl(c.slHoanThanh)} / {hienSl(c.slNhan)})</span>
                           </td>
                         </tr>
                       );
@@ -1077,7 +1082,8 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
             phu={tom.lyDo.length
               ? `${tom.gn ? `${Math.round((tom.ch / tom.gn) * 100)}% giờ công · ` : ''}nhiều nhất: ${tenLyDoCho(tom.lyDo[0][0])} ${so(tom.lyDo[0][1])} giờ`
               : 'không có giờ chờ việc'} />
-          <The rong ten="Xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`} phu={tom.xong.length ? theoDonVi(tom.xong) : 'chưa xong hạng mục nào'} />
+          <The rong ten="Tổ làm xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`}
+            phu={tom.xong.length ? `${theoDonVi(tom.xong)} (cộng các công đoạn)` : 'chưa tổ nào xong hạng mục'} />
         </div>
       )}
 
