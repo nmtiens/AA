@@ -800,10 +800,14 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
               <button key={x} type="button" aria-pressed={on} onClick={() => cham(x)}
                 aria-label={`${tenGon(x, ds)}${k ? ` — đang ở ${dangChay[i]?.hex}` : ' — chưa gắn'}`}
                 className={`flex min-h-12 min-w-0 items-center gap-2 rounded-2xl border px-3 py-1.5 text-left text-base active:opacity-80 ${
-                  on ? 'border-slate-900 bg-slate-900 text-white' : k ? 'border-slate-200 bg-slate-50 text-slate-600' : `border-dashed ${MAU.ngung.vien} bg-white text-slate-900`}`}>
+                  on ? 'border-slate-900 bg-slate-900 text-white' : k ? 'border-slate-200 bg-slate-50 text-slate-600'
+                    // Chưa gắn việc: nền vàng, viền đậm + nhãn — trước chỉ viền chấm vàng nhạt trên nền trắng, khó thấy
+                    : 'border-2 border-dashed border-amber-500 bg-amber-50 font-medium text-amber-900'}`}>
                 <span className="min-w-0 flex-1 truncate">{tenGon(x, ds)}</span>
-                {/* Chữ hạng mục người này đang làm; chưa gắn thì không có */}
-                {i >= 0 && <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>}
+                {/* Chữ hạng mục người này đang làm; chưa gắn thì ghi rõ */}
+                {i >= 0
+                  ? <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>
+                  : <span className="shrink-0 rounded-full bg-amber-700 px-2 text-base font-medium text-white">chưa gắn</span>}
               </button>
             );
           })}
