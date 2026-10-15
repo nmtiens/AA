@@ -65078,11 +65078,11 @@ var luuSnapshot = async (khoa, ver, buf) => {
     else console.error("[all-data] l\u01B0u b\u1EA3n n\xE9n l\u1ED7i", e);
   }
 };
-var guiGzip = (res, buf, timing) => {
+var guiGzip = (res, buf, timing, encoding = "gzip") => {
   if (timing) res.set("Server-Timing", timing);
   res.status(200).set({
     "Content-Type": "application/json; charset=utf-8",
-    "Content-Encoding": "gzip",
+    "Content-Encoding": encoding,
     "Content-Length": String(buf.length),
     "Vary": "Accept-Encoding",
     "Cache-Control": "no-store"
@@ -65091,15 +65091,34 @@ var guiGzip = (res, buf, timing) => {
 };
 
 // src/server/goiBang.ts
-import { gzip as gzipCb, gunzip as gunzipCb } from "zlib";
+import { gzip as gzipCb, gunzip as gunzipCb, brotliCompress as brCb, constants as Z } from "zlib";
 import { promisify } from "util";
 var gzip = promisify(gzipCb);
 var gunzip = promisify(gunzipCb);
-var khoaBang = (key, gia) => `bang:${key}|${key === "material" && !gia ? 0 : 1}`;
+var brotli = promisify(brCb);
+var nenBr = (s) => brotli(s, { params: { [Z.BROTLI_PARAM_QUALITY]: 5, [Z.BROTLI_PARAM_SIZE_HINT]: Buffer.byteLength(s) } });
+var khoaBang = (key, gia, cot) => `${cot ? "bangc" : "bang"}:${key}|${key === "material" && !gia ? 0 : 1}`;
 var verBang = (v) => v instanceof Date ? v.toISOString() : String(v ?? "");
+function sangCot(rows) {
+  const idx = /* @__PURE__ */ new Map();
+  for (const row of rows) for (const k of Object.keys(row)) if (!idx.has(k)) idx.set(k, idx.size);
+  const c = [...idx.keys()];
+  return { c, r: rows.map((row) => c.map((k) => row[k] === void 0 ? null : row[k])) };
+}
+function tuCot(v) {
+  if (Array.isArray(v)) return v;
+  const o = v;
+  if (!o || !Array.isArray(o.c) || !Array.isArray(o.r)) return null;
+  const c = o.c;
+  return o.r.map((a) => {
+    const row = {};
+    for (let i = 0; i < c.length; i++) row[c[i]] = a[i];
+    return row;
+  });
+}
 var manhDang = /* @__PURE__ */ new Map();
-async function manhBang(key, gia, verGoc, nguon) {
-  const khoa = khoaBang(key, gia);
+async function manhBang(key, gia, verGoc, nguon, cot = false) {
+  const khoa = khoaBang(key, gia, cot);
   const ver = verBang(verGoc);
   const n = { v: "" };
   const buf = await docSnapshot(khoa, ver, n);
@@ -65112,8 +65131,9 @@ async function manhBang(key, gia, verGoc, nguon) {
   if (!p) {
     p = (async () => {
       const { payload } = await getTablesData([key]);
-      const rows = payload[key] ?? [];
-      const json2 = JSON.stringify(key === "material" && !gia ? stripMaterialPriceColumns(rows) : rows);
+      const goc = payload[key] ?? [];
+      const rows = key === "material" && !gia ? stripMaterialPriceColumns(goc) : goc;
+      const json2 = JSON.stringify(cot ? sangCot(rows) : rows);
       await luuSnapshot(khoa, ver, await gzip(json2));
       return json2;
     })().finally(() => manhDang.delete(k));
@@ -65122,15 +65142,16 @@ async function manhBang(key, gia, verGoc, nguon) {
   if (nguon) nguon.v = "dung";
   return p;
 }
-async function dungGoi(keys, gia, versions) {
+async function dungGoi(keys, gia, versions, cot = false, br = false) {
   const nguon = [];
   const manh = [];
   for (const key of keys) {
     const n = { v: "" };
-    manh.push(`${JSON.stringify(key)}:${await manhBang(key, gia, versions[key], n)}`);
+    manh.push(`${JSON.stringify(key)}:${await manhBang(key, gia, versions[key], n, cot)}`);
     nguon.push(`${key}=${n.v}`);
   }
-  return { buf: await gzip(`{${manh.join(",")}}`), nguon: nguon.join(" ") };
+  const json2 = `{${manh.join(",")}}`;
+  return { buf: br ? await nenBr(json2) : await gzip(json2), nguon: nguon.join(" ") };
 }
 
 // src/server/lamNong.ts
@@ -65146,16 +65167,16 @@ async function lamNong(versions) {
   const kq = [];
   const coSan = /* @__PURE__ */ new Map();
   try {
-    const r = await pool.query("SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])", [BANG.map((k) => `bang:${k}|1`)]);
+    const r = await pool.query("SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])", [BANG.map((k) => `bangc:${k}|1`)]);
     for (const row of r.rows) coSan.set(String(row.khoa), String(row.ver));
   } catch {
   }
   for (const key of BANG) {
     if (!(key in versions)) continue;
-    if (coSan.get(`bang:${key}|1`) === verBang(versions[key])) continue;
+    if (coSan.get(`bangc:${key}|1`) === verBang(versions[key])) continue;
     const n = { v: "" };
     try {
-      await manhBang(key, true, versions[key], n);
+      await manhBang(key, true, versions[key], n, true);
       kq.push(`${key}:${n.v}`);
     } catch (e) {
       kq.push(`${key}:l\u1ED7i`);
@@ -65247,25 +65268,29 @@ app.get("/api/all-data", async (req, res) => {
     const nguon = { v: "none" };
     let tDoc = 0;
     let snap = null;
-    if (requested.length && req.acceptsEncodings("gzip")) {
+    const cot = req.query.fmt === "cot";
+    const br = cot && req.acceptsEncodings("br") === "br";
+    const enc = br ? "br" : "gzip";
+    if (requested.length && (br || req.acceptsEncodings("gzip"))) {
       const all = await getVersions();
       const gia = !requested.includes("material") || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
-      snap = { khoa: `${requested.join(",")}|${gia ? 1 : 0}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
+      snap = { khoa: `${requested.join(",")}|${gia ? 1 : 0}${cot ? "|cot" : ""}${br ? "|br" : ""}`, ver: JSON.stringify(requested.map((k) => all[k] ?? "")) };
       const t1 = Date.now();
       const buf2 = await docSnapshot(snap.khoa, snap.ver, nguon);
       tDoc = Date.now() - t1;
-      if (buf2) return guiGzip(res, buf2, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`);
+      if (buf2) return guiGzip(res, buf2, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`, enc);
       const known = requested.filter((k) => Object.prototype.hasOwnProperty.call(all, k));
       if (known.length === requested.length) {
         const t2 = Date.now();
-        const goi = await dungGoi(requested, gia, all);
+        const goi = await dungGoi(requested, gia, all, cot, br);
         const tGhep = Date.now() - t2;
         const tLuu2 = Date.now();
         await luuSnapshot(snap.khoa, snap.ver, goi.buf);
         return guiGzip(
           res,
           goi.buf,
-          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu2}, tong;dur=${Date.now() - t0}`
+          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu2}, tong;dur=${Date.now() - t0}`,
+          enc
         );
       }
     }
@@ -75433,11 +75458,12 @@ var chuanDang = null;
 var ketQuaNho = /* @__PURE__ */ new Map();
 var KET_QUA_NHO_MAX = 60;
 async function bangSanXuatTho(verSanXuat) {
-  const manh = await docSnapshot("bang:production|1", verBang(verSanXuat), { v: "" });
-  if (manh) {
+  for (const khoaManh of ["bangc:production|1", "bang:production|1"]) {
+    const manh = await docSnapshot(khoaManh, verBang(verSanXuat), { v: "" });
+    if (!manh) continue;
     try {
-      const rows = JSON.parse(gunzipSync(manh).toString("utf8"));
-      if (Array.isArray(rows)) return rows;
+      const rows = tuCot(JSON.parse(gunzipSync(manh).toString("utf8")));
+      if (rows) return rows;
     } catch {
     }
   }

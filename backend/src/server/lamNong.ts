@@ -29,14 +29,14 @@ async function lamNong(versions: Record<string, string>) {
   // trong khi pool chỉ có 2 (đọc bảng cũng cần kết nối => tắc)
   const coSan = new Map<string, string>();
   try {
-    const r = await pool.query('SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])', [BANG.map(k => `bang:${k}|1`)]);
+    const r = await pool.query('SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])', [BANG.map(k => `bangc:${k}|1`)]);
     for (const row of r.rows) coSan.set(String(row.khoa), String(row.ver));
   } catch { /* chưa có bảng all_data_snapshot: dựng như thường */ }
   for (const key of BANG) {
     if (!(key in versions)) continue;
-    if (coSan.get(`bang:${key}|1`) === verBang(versions[key])) continue;
+    if (coSan.get(`bangc:${key}|1`) === verBang(versions[key])) continue;
     const n = { v: '' };
-    try { await manhBang(key, true, versions[key], n); kq.push(`${key}:${n.v}`); }
+    try { await manhBang(key, true, versions[key], n, true); kq.push(`${key}:${n.v}`); }
     catch (e) { kq.push(`${key}:lỗi`); console.error(`[lam-nong] ${key}`, e); }
   }
   for (const v of viecThem) {

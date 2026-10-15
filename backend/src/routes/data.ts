@@ -78,24 +78,30 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
     const nguon = { v: 'none' };
     let tDoc = 0;
     let snap: { khoa: string; ver: string } | null = null;
-    if (requested.length && req.acceptsEncodings('gzip')) {
+    // ?fmt=cot: mỗi bảng {c: tên cột, r: mảng giá trị} (server/goiBang.ts) — trình duyệt bản mới xin, bản cũ vẫn nhận mảng dòng
+    const cot = req.query.fmt === 'cot';
+    // Định dạng cột + trình duyệt nhận brotli => nén brotli (nhỏ hơn gzip ~19%); bản cũ giữ gzip
+    // (trình duyệt gửi "gzip, deflate, br" — chọn theo thứ tự đó sẽ luôn ra gzip, nên chỉ cần có nhận br)
+    const br = cot && req.acceptsEncodings('br') === 'br';
+    const enc: 'br' | 'gzip' = br ? 'br' : 'gzip';
+    if (requested.length && (br || req.acceptsEncodings('gzip'))) {
       const all = await getVersions();
       const gia = !requested.includes('material') || await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
-      snap = { khoa: `${requested.join(',')}|${gia ? 1 : 0}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
+      snap = { khoa: `${requested.join(',')}|${gia ? 1 : 0}${cot ? '|cot' : ''}${br ? '|br' : ''}`, ver: JSON.stringify(requested.map(k => all[k] ?? '')) };
       const t1 = Date.now();
       const buf = await docSnapshot(snap.khoa, snap.ver, nguon);
       tDoc = Date.now() - t1;
-      if (buf) return guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`);
+      if (buf) return guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`, enc);
       // Trượt: ghép từ bản dựng sẵn của từng bảng (server/goiBang.ts) thay vì đọc lại cả bộ bảng từ DB
       const known = requested.filter(k => Object.prototype.hasOwnProperty.call(all, k));
       if (known.length === requested.length) {
         const t2 = Date.now();
-        const goi = await dungGoi(requested, gia, all);
+        const goi = await dungGoi(requested, gia, all, cot, br);
         const tGhep = Date.now() - t2;
         const tLuu = Date.now();
         await luuSnapshot(snap.khoa, snap.ver, goi.buf);
         return guiGzip(res, goi.buf,
-          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
+          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`, enc);
       }
     }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();

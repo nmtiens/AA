@@ -48,11 +48,11 @@ export const luuSnapshot = async (khoa: string, ver: string, buf: Buffer) => {
   }
 };
 
-export const guiGzip = (res: Response, buf: Buffer, timing?: string) => {
+export const guiGzip = (res: Response, buf: Buffer, timing?: string, encoding: 'gzip' | 'br' = 'gzip') => {
   if (timing) res.set('Server-Timing', timing);
   res.status(200).set({
     'Content-Type': 'application/json; charset=utf-8',
-    'Content-Encoding': 'gzip',
+    'Content-Encoding': encoding,
     'Content-Length': String(buf.length),
     'Vary': 'Accept-Encoding',
     'Cache-Control': 'no-store',

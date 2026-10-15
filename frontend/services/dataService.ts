@@ -300,6 +300,25 @@ const buildColumnsFromData = (rawData: DataRow[]): ColumnDefinition[] => {
   }));
 };
 
+/** Bảng định dạng cột của /api/all-data?fmt=cot ({c: tên cột, r: mảng giá trị}) -> mảng dòng như cũ. Máy chủ
+ *  bản cũ / nhánh dự phòng vẫn trả mảng dòng => giữ nguyên. Gửi tên cột 1 lần thay vì lặp ở mọi dòng: JSON nhỏ hơn
+ *  nhiều (sản xuất ~59 MB -> phần lớn là tên cột), tải + phân tích nhanh hơn. */
+export const giaiCot = (v: unknown): DataRow[] => {
+  if (Array.isArray(v)) return v as DataRow[];
+  const o = v as { c?: string[]; r?: unknown[][] } | null;
+  if (!o || !Array.isArray(o.c) || !Array.isArray(o.r)) return [];
+  const c = o.c;
+  const n = c.length;
+  const out: DataRow[] = new Array(o.r.length);
+  for (let j = 0; j < o.r.length; j++) {
+    const a = o.r[j];
+    const row: Record<string, unknown> = {};
+    for (let i = 0; i < n; i++) row[c[i]] = a[i];
+    out[j] = row as DataRow;
+  }
+  return out;
+};
+
 const ALL_DATA_CONCURRENCY = 2;
 const ALL_DATA_GROUP_MB = 3.5;
 // Dung lượng gzip ước lượng của từng bảng (đo 10/2026) — chỉ để chia nhóm request; bảng lạ coi 1 MB
@@ -341,10 +360,10 @@ export const fetchAllDataFromServer = async (
         // Nhóm lỗi thì bỏ qua (ghi log) — các nhóm khác vẫn trả về để lưu cache; trước 1 nhóm lỗi là bỏ cả kết quả,
         // lần mở sau lại tải lại từ đầu ~10 MB
         try {
-          const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(g.join(','))}`, { cache: 'no-store' });
+          const response = await fetch(`${API_BASE_URL}/all-data?tables=${encodeURIComponent(g.join(','))}&fmt=cot`, { cache: 'no-store' });
           if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
           const part = await response.json();
-          g.forEach(key => { raw[key] = part[key] || []; });
+          g.forEach(key => { raw[key] = giaiCot(part[key]); });
         } catch (e) {
           console.error(`Error fetching /api/all-data (${g.join(',')}):`, e);
         }

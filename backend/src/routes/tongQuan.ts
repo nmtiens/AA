@@ -8,7 +8,7 @@ import { getVersions, getTablesData } from '../server/data.js';
 import { layPlanMet } from './data.js';
 import { docSnapshot, luuSnapshot, guiGzip } from '../server/snapshot.js';
 import { dangKyLamNong } from '../server/lamNong.js';
-import { verBang } from '../server/goiBang.js';
+import { verBang, tuCot } from '../server/goiBang.js';
 import { ensureProjectAliases, listProjectAliases, projectAliasesVersion } from '../server/projectAlias.js';
 import { ensureWorkshopGroups, getWorkshopMapping, workshopGroupsVersion } from '../server/workshopGroups.js';
 import {
@@ -52,11 +52,12 @@ const KET_QUA_NHO_MAX = 60;
 /** Bảng sản xuất thô: ưu tiên bản nén của /api/all-data (đọc 1 khối, nhanh hơn truy vấn ~51 nghìn dòng) */
 async function bangSanXuatTho(verSanXuat: string): Promise<Record<string, unknown>[]> {
   // Mảnh riêng bảng sản xuất (server/goiBang.ts — mảng dòng, làm nóng sau ETL) trước
-  const manh = await docSnapshot('bang:production|1', verBang(verSanXuat), { v: '' });
-  if (manh) {
+  for (const khoaManh of ['bangc:production|1', 'bang:production|1']) {
+    const manh = await docSnapshot(khoaManh, verBang(verSanXuat), { v: '' });
+    if (!manh) continue;
     try {
-      const rows = JSON.parse(gunzipSync(manh).toString('utf8'));
-      if (Array.isArray(rows)) return rows;
+      const rows = tuCot(JSON.parse(gunzipSync(manh).toString('utf8')));
+      if (rows) return rows;
     } catch { /* bản nén hỏng: thử bản khác */ }
   }
   const ver = JSON.stringify([verSanXuat]);
