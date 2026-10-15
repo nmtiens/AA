@@ -36013,7 +36013,7 @@ var require_pg_pool = __commonJS({
     function throwOnDoubleRelease() {
       throw new Error("Release called on client which has already been released to the pool.");
     }
-    function promisify(Promise2, callback) {
+    function promisify2(Promise2, callback) {
       if (callback) {
         return { callback, result: void 0 };
       }
@@ -36151,7 +36151,7 @@ var require_pg_pool = __commonJS({
           const err = new Error("Cannot use a pool after calling end on the pool");
           return cb ? cb(err) : this.Promise.reject(err);
         }
-        const response = promisify(this.Promise, cb);
+        const response = promisify2(this.Promise, cb);
         const result = response.result;
         if (this._isFull() || this._idle.length) {
           if (this._idle.length) {
@@ -36336,7 +36336,7 @@ var require_pg_pool = __commonJS({
       }
       query(text, values, cb) {
         if (typeof text === "function") {
-          const response2 = promisify(this.Promise, text);
+          const response2 = promisify2(this.Promise, text);
           setImmediate(function() {
             return response2.callback(new Error("Passing a function as the first parameter to pool.query is not supported"));
           });
@@ -36346,7 +36346,7 @@ var require_pg_pool = __commonJS({
           cb = values;
           values = void 0;
         }
-        const response = promisify(this.Promise, cb);
+        const response = promisify2(this.Promise, cb);
         cb = response.callback;
         this.connect((err, client) => {
           if (err) {
@@ -36391,7 +36391,7 @@ var require_pg_pool = __commonJS({
           return cb ? cb(err) : this.Promise.reject(err);
         }
         this.ending = true;
-        const promised = promisify(this.Promise, cb);
+        const promised = promisify2(this.Promise, cb);
         this._endCallback = promised.callback;
         this._pulseQueue();
         return promised.result;
@@ -65090,6 +65090,103 @@ var guiGzip = (res, buf, timing) => {
   res.end(buf);
 };
 
+// src/server/goiBang.ts
+import { gzip as gzipCb, gunzip as gunzipCb } from "zlib";
+import { promisify } from "util";
+var gzip = promisify(gzipCb);
+var gunzip = promisify(gunzipCb);
+var khoaBang = (key, gia) => `bang:${key}|${key === "material" && !gia ? 0 : 1}`;
+var verBang = (v) => v instanceof Date ? v.toISOString() : String(v ?? "");
+var manhDang = /* @__PURE__ */ new Map();
+async function manhBang(key, gia, verGoc, nguon) {
+  const khoa = khoaBang(key, gia);
+  const ver = verBang(verGoc);
+  const n = { v: "" };
+  const buf = await docSnapshot(khoa, ver, n);
+  if (buf) {
+    if (nguon) nguon.v = n.v;
+    return (await gunzip(buf)).toString("utf8");
+  }
+  const k = `${khoa}|${ver}`;
+  let p = manhDang.get(k);
+  if (!p) {
+    p = (async () => {
+      const { payload } = await getTablesData([key]);
+      const rows = payload[key] ?? [];
+      const json2 = JSON.stringify(key === "material" && !gia ? stripMaterialPriceColumns(rows) : rows);
+      await luuSnapshot(khoa, ver, await gzip(json2));
+      return json2;
+    })().finally(() => manhDang.delete(k));
+    manhDang.set(k, p);
+  }
+  if (nguon) nguon.v = "dung";
+  return p;
+}
+async function dungGoi(keys, gia, versions) {
+  const nguon = [];
+  const manh = [];
+  for (const key of keys) {
+    const n = { v: "" };
+    manh.push(`${JSON.stringify(key)}:${await manhBang(key, gia, versions[key], n)}`);
+    nguon.push(`${key}=${n.v}`);
+  }
+  return { buf: await gzip(`{${manh.join(",")}}`), nguon: nguon.join(" ") };
+}
+
+// src/server/lamNong.ts
+var BANG = ["production", "inventory", "material", "order", "export", "pthsp", "tkbv", "khsx", "analysis", "stock", "attendance", "yearlyPlan"];
+var viecThem = [];
+var dangKyLamNong = (ten, chay) => {
+  viecThem.push({ ten, chay });
+};
+var daLamCho = "";
+var dangLam = null;
+async function lamNong(versions) {
+  const t0 = Date.now();
+  const kq = [];
+  const coSan = /* @__PURE__ */ new Map();
+  try {
+    const r = await pool.query("SELECT khoa, ver FROM all_data_snapshot WHERE khoa = ANY($1::text[])", [BANG.map((k) => `bang:${k}|1`)]);
+    for (const row of r.rows) coSan.set(String(row.khoa), String(row.ver));
+  } catch {
+  }
+  for (const key of BANG) {
+    if (!(key in versions)) continue;
+    if (coSan.get(`bang:${key}|1`) === verBang(versions[key])) continue;
+    const n = { v: "" };
+    try {
+      await manhBang(key, true, versions[key], n);
+      kq.push(`${key}:${n.v}`);
+    } catch (e) {
+      kq.push(`${key}:l\u1ED7i`);
+      console.error(`[lam-nong] ${key}`, e);
+    }
+  }
+  for (const v of viecThem) {
+    try {
+      await v.chay();
+      kq.push(`${v.ten}:ok`);
+    } catch (e) {
+      kq.push(`${v.ten}:l\u1ED7i`);
+      console.error(`[lam-nong] ${v.ten}`, e);
+    }
+  }
+  console.log(`[lam-nong] ${Date.now() - t0}ms ${kq.join(" ") || "\u0111\xE3 c\xF3 s\u1EB5n"}`);
+}
+function kichLamNong(versions) {
+  const khoa = JSON.stringify(versions);
+  if (khoa === daLamCho || dangLam) return;
+  daLamCho = khoa;
+  dangLam = lamNong(versions).catch((e) => {
+    daLamCho = "";
+    console.error("[lam-nong] l\u1ED7i", e);
+  }).finally(() => {
+    dangLam = null;
+  });
+  const ctx = globalThis[/* @__PURE__ */ Symbol.for("@vercel/request-context")]?.get?.();
+  ctx?.waitUntil?.(dangLam);
+}
+
 // src/routes/data.ts
 var ALL_DATA_GZIP_MAX = 8;
 var allDataGzipVkey = "";
@@ -65158,6 +65255,19 @@ app.get("/api/all-data", async (req, res) => {
       const buf2 = await docSnapshot(snap.khoa, snap.ver, nguon);
       tDoc = Date.now() - t1;
       if (buf2) return guiGzip(res, buf2, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`);
+      const known = requested.filter((k) => Object.prototype.hasOwnProperty.call(all, k));
+      if (known.length === requested.length) {
+        const t2 = Date.now();
+        const goi = await dungGoi(requested, gia, all);
+        const tGhep = Date.now() - t2;
+        const tLuu2 = Date.now();
+        await luuSnapshot(snap.khoa, snap.ver, goi.buf);
+        return guiGzip(
+          res,
+          goi.buf,
+          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu2}, tong;dur=${Date.now() - t0}`
+        );
+      }
     }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
@@ -65760,6 +65870,7 @@ app.get("/api/check-versions", async (_req, res) => {
   try {
     const versions = await getVersions();
     res.json(versions);
+    kichLamNong(versions);
   } catch (error61) {
     console.error("L\u1ED7i check version:", error61);
     res.status(500).json({ error: "Internal Server Error" });
@@ -75322,6 +75433,14 @@ var chuanDang = null;
 var ketQuaNho = /* @__PURE__ */ new Map();
 var KET_QUA_NHO_MAX = 60;
 async function bangSanXuatTho(verSanXuat) {
+  const manh = await docSnapshot("bang:production|1", verBang(verSanXuat), { v: "" });
+  if (manh) {
+    try {
+      const rows = JSON.parse(gunzipSync(manh).toString("utf8"));
+      if (Array.isArray(rows)) return rows;
+    } catch {
+    }
+  }
   const ver = JSON.stringify([verSanXuat]);
   for (const khoa of ["production|0", "production|1"]) {
     const buf = await docSnapshot(khoa, ver, { v: "" });
@@ -75445,6 +75564,9 @@ app.get("/api/tong-quan/cong-trinh", async (_req, res) => {
     if (!res.headersSent) res.status(500).json({ success: false, message: "Kh\xF4ng d\u1EF1ng \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u c\xF4ng tr\xECnh" });
   }
 });
+dangKyLamNong("tong-quan-cong-trinh", tongQuanCongTrinh);
+dangKyLamNong("tong-quan", () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
+dangKyLamNong("tong-quan-hang-muc", () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: "COUNT_HEX" }));
 app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
   const t0 = Date.now();
   const ketQua = {};

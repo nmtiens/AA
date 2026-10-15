@@ -12,6 +12,8 @@ import { ensureProjectAliases, listProjectAliases } from '../server/projectAlias
 import { parseQcEntries, summarizeQc } from '../server/qc.js';
 import { createGzip } from 'zlib';
 import { docSnapshot, luuSnapshot, guiGzip } from '../server/snapshot.js';
+import { dungGoi } from '../server/goiBang.js';
+import { kichLamNong } from '../server/lamNong.js';
 
 // ============================================================================
 // /api/all-data: ~150 MB JSON (12 bảng). Trước đây mỗi request đều JSON.stringify + gzip lại toàn bộ
@@ -84,6 +86,17 @@ app.get('/api/all-data', async (req: Request, res: Response) => {
       const buf = await docSnapshot(snap.khoa, snap.ver, nguon);
       tDoc = Date.now() - t1;
       if (buf) return guiGzip(res, buf, `snap;desc="${nguon.v}";dur=${tDoc}, tong;dur=${Date.now() - t0}`);
+      // Trượt: ghép từ bản dựng sẵn của từng bảng (server/goiBang.ts) thay vì đọc lại cả bộ bảng từ DB
+      const known = requested.filter(k => Object.prototype.hasOwnProperty.call(all, k));
+      if (known.length === requested.length) {
+        const t2 = Date.now();
+        const goi = await dungGoi(requested, gia, all);
+        const tGhep = Date.now() - t2;
+        const tLuu = Date.now();
+        await luuSnapshot(snap.khoa, snap.ver, goi.buf);
+        return guiGzip(res, goi.buf,
+          `snap;desc="${nguon.v}";dur=${tDoc}, ghep;desc="${goi.nguon}";dur=${tGhep}, luu;dur=${Date.now() - tLuu}, tong;dur=${Date.now() - t0}`);
+      }
     }
     const { payload, versions } = requested.length ? await getTablesData(requested) : await refreshAllDataCache();
     const keys = requested.length === 0 ? Object.keys(payload) : requested;
@@ -682,6 +695,8 @@ app.get('/api/check-versions', async (_req: Request, res: Response) => {
   try {
     const versions = await getVersions();
     res.json(versions);
+    // Dữ liệu vừa đổi (ETL) => dựng sẵn ở nền cho người mở web sau (server/lamNong.ts)
+    kichLamNong(versions);
   } catch (error) {
     console.error('Lỗi check version:', error);
     res.status(500).json({ error: 'Internal Server Error' });

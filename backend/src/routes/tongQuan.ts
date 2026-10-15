@@ -7,6 +7,8 @@ import { cronAuth } from '../vuongMacPush.js';
 import { getVersions, getTablesData } from '../server/data.js';
 import { layPlanMet } from './data.js';
 import { docSnapshot, luuSnapshot, guiGzip } from '../server/snapshot.js';
+import { dangKyLamNong } from '../server/lamNong.js';
+import { verBang } from '../server/goiBang.js';
 import { ensureProjectAliases, listProjectAliases, projectAliasesVersion } from '../server/projectAlias.js';
 import { ensureWorkshopGroups, getWorkshopMapping, workshopGroupsVersion } from '../server/workshopGroups.js';
 import {
@@ -49,6 +51,14 @@ const KET_QUA_NHO_MAX = 60;
 
 /** Bảng sản xuất thô: ưu tiên bản nén của /api/all-data (đọc 1 khối, nhanh hơn truy vấn ~51 nghìn dòng) */
 async function bangSanXuatTho(verSanXuat: string): Promise<Record<string, unknown>[]> {
+  // Mảnh riêng bảng sản xuất (server/goiBang.ts — mảng dòng, làm nóng sau ETL) trước
+  const manh = await docSnapshot('bang:production|1', verBang(verSanXuat), { v: '' });
+  if (manh) {
+    try {
+      const rows = JSON.parse(gunzipSync(manh).toString('utf8'));
+      if (Array.isArray(rows)) return rows;
+    } catch { /* bản nén hỏng: thử bản khác */ }
+  }
   const ver = JSON.stringify([verSanXuat]);
   for (const khoa of ['production|0', 'production|1']) {
     const buf = await docSnapshot(khoa, ver, { v: '' });
@@ -195,6 +205,11 @@ app.get('/api/tong-quan/cong-trinh', async (_req: Request, res: Response) => {
 // nút Hạng mục) + bản ghi Tổng quan công trình, để cả người ĐẦU TIÊN sau ETL cũng không phải chờ. Chưa đổi thì chỉ
 // kiểm tra phiên bản rồi trả "mem" / "db" (rất nhẹ).
 // ============================================================================
+// Tự làm nóng sau ETL (server/lamNong.ts, kích từ /api/check-versions): cùng các bản như lệnh hẹn giờ dưới
+dangKyLamNong('tong-quan-cong-trinh', tongQuanCongTrinh);
+dangKyLamNong('tong-quan', () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
+dangKyLamNong('tong-quan-hang-muc', () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: 'COUNT_HEX' }));
+
 app.get('/api/cron/tong-quan', cronAuth, async (_req: Request, res: Response) => {
   const t0 = Date.now();
   const ketQua: Record<string, string> = {};

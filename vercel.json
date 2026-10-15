@@ -38,6 +38,12 @@
       "dest": "frontend/manifest-desktop.webmanifest"
     },
 
+    {
+      "src": "/assets/(.*)",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "dest": "frontend/assets/$1"
+    },
+
     { "src": "/xuong(?:/.*)?", "dest": "frontend/xuong.html" },
     { "src": "/m/xuong(?:/.*)?", "dest": "frontend/xuong.html" },
     { "src": "/m(?:/.*)?", "dest": "frontend/index.html" },
