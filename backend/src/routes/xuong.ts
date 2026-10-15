@@ -65,6 +65,31 @@ export async function xuongQuanLy(userId: string | number): Promise<Set<string>>
 }
 export const quanLyDuoc = (ds: Set<string>, xuong: string | null) => ds.has('*') || (!!xuong && ds.has(xuong));
 
+/** Tổ mà tài khoản làm tổ trưởng (đang hoạt động) */
+export async function toTruongCua(userId: string | number): Promise<Array<{ id: number; xuong: string }>> {
+  const r = await pool.query('SELECT id, xuong FROM xuong_to WHERE active AND to_truong_user_id = $1', [Number(userId)]);
+  return r.rows.map(x => ({ id: Number(x.id), xuong: String(x.xuong) }));
+}
+
+/**
+ * Phạm vi XEM số liệu xưởng (báo cáo, theo dõi triển khai, cần xem):
+ *  - admin: cả xưởng;
+ *  - tài khoản tổ trưởng: chỉ các tổ mình phụ trách trong xưởng đó — kể cả khi có quyền quản lý xưởng;
+ *  - quản lý xưởng (không làm tổ trưởng): cả xưởng;
+ *  - còn lại: null (không được xem).
+ * chiTo = null là cả xưởng.
+ */
+export async function phamViXem(userId: string | number, xuong: string): Promise<{ chiTo: number[] | null } | null> {
+  const ds = await xuongQuanLy(userId);
+  if (ds.has('*')) return { chiTo: null };
+  const tt = await toTruongCua(userId);
+  if (tt.length) {
+    const cua = tt.filter(t => t.xuong === xuong).map(t => t.id);
+    return cua.length ? { chiTo: cua } : null;
+  }
+  return quanLyDuoc(ds, xuong) ? { chiTo: null } : null;
+}
+
 // ---------------------------------------------------------------------------
 // Đọc sổ
 // ---------------------------------------------------------------------------
@@ -230,7 +255,7 @@ app.post('/api/xuong/thiet-bi', async (req: Request, res: Response) => {
     const u = await pool.query('SELECT id, username, full_name, role, msnv FROM users WHERE id = $1', [userId]);
     const user = u.rows[0];
     const to = await pool.query(
-      `SELECT t.id, t.xuong, t.ten_to FROM xuong_to t
+      `SELECT t.id, t.xuong, t.ten_to, t.to_truong_user_id = $1 AS la_to_truong FROM xuong_to t
        WHERE t.active AND (t.to_truong_user_id = $1 OR EXISTS (
          SELECT 1 FROM xuong_to_thanh_vien tv WHERE tv.to_id = t.id AND tv.mnv = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)))
        ORDER BY t.xuong, t.ten_to`, [userId, user?.msnv ?? '']);
@@ -240,7 +265,7 @@ app.post('/api/xuong/thiet-bi', async (req: Request, res: Response) => {
       token: signXuongToken({ id: userId, username: user.username, role: access.role }, deviceId, access.tokenVersion ?? 0),
       deviceToken: signDeviceToken(deviceId),
       user: { id: userId, username: user.username, fullName: user.full_name, msnv: user.msnv },
-      to: to.rows.map(t => ({ id: Number(t.id), xuong: t.xuong, ten: t.ten_to })),
+      to: to.rows.map(t => ({ id: Number(t.id), xuong: t.xuong, ten: t.ten_to, toTruong: !!t.la_to_truong })),
     });
   } catch (e) { fail(res, e, '/api/xuong/thiet-bi'); }
 });
@@ -1007,7 +1032,10 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
       const ra = hl.filter(e => (e.loai === 'giao' && xuongCua(e.congDoanId) === xg && xuongCua(e.congDoanDenId) !== xg)
         || (e.loai === 'hoan_thanh' && xuongCua(e.congDoanId) === xg && cdMap.get(e.congDoanId ?? '')?.la_bao_bi))
         .map(e => ({ ts: e.ts, soLuong: e.soLuong ?? 0 }));
-      const tk = hl.filter(e => e.loai === 'trien_khai' && (e.duLieu?.xuong === xg)).reduce((a, e) => a + (e.soLuong ?? 0), 0);
+      // Mốc = số triển khai cho xưởng: xưởng chính, hoặc xưởng phụ được giao thành phần (mỗi thành phần đủ số bộ)
+      const choXuong = (e: SuKien) => e.duLieu?.xuong === xg || (Array.isArray(e.duLieu?.thanhPhan)
+        && (e.duLieu!.thanhPhan as Array<Record<string, unknown>>).some(t => String(t?.xuong ?? '').toUpperCase() === xg));
+      const tk = hl.filter(e => e.loai === 'trien_khai' && choXuong(e)).reduce((a, e) => a + (e.soLuong ?? 0), 0);
       const moc = tk > 0 ? { soLuong: tk, loai: 'trien_khai' as const }
         : p?.so_luong_don_hang_tong ? { soLuong: Number(p.so_luong_don_hang_tong), loai: 'don_hang' as const } : null;
       return { xuong: xg, ...thoiGianTheoLo(vao, ra, moc, now) };
@@ -1106,22 +1134,27 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 app.get('/api/xuong/can-xem', async (req: Request, res: Response) => {
   try {
-    const ds = await xuongQuanLy(req.user!.id);
     const xuong = typeof req.query.xuong === 'string' ? req.query.xuong.toUpperCase() : '';
-    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: 'Không có quyền quản lý xưởng này' });
+    const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
+    if (!pv) return res.status(403).json({ success: false, message: 'Không có quyền quản lý xưởng này' });
+    // Tổ trưởng: chỉ thao tác của tổ mình + trạng thái ở công đoạn tổ phụ trách
+    const chiTo = pv.chiTo;
     const [sk, st] = await Promise.all([
       pool.query(
         // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem)
         `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
                 so_luong, so_nguoi, ly_do_tam_ngung, du_lieu
          FROM xuong_su_kien e WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
+           AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-         ORDER BY server_ts DESC LIMIT 300`, [xuong]),
-      pool.query(`SELECT * FROM xuong_trang_thai WHERE xuong = $1 AND co <> '{}' ORDER BY cap_nhat DESC LIMIT 300`, [xuong]),
+         ORDER BY server_ts DESC LIMIT 300`, [xuong, chiTo]),
+      pool.query(`SELECT * FROM xuong_trang_thai t WHERE xuong = $1 AND co <> '{}'
+                    AND ($2::int[] IS NULL OR EXISTS (SELECT 1 FROM xuong_to_cong_doan tc WHERE tc.cong_doan_id = t.cong_doan_id AND tc.to_id = ANY($2::int[])))
+                  ORDER BY cap_nhat DESC LIMIT 300`, [xuong, chiTo]),
     ]);
     const info = await thongTinHangMuc([...new Set(st.rows.map(x => String(x.hex)))]);
     res.json({
-      success: true, available: true, xuong,
+      success: true, available: true, xuong, chiTo,
       suKien: sk.rows,
       trangThai: st.rows.map(x => dongTrangThai(x, info.get(String(x.hex)))),
     });

@@ -139,12 +139,12 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
       <main className="mx-auto max-w-5xl space-y-3 px-4">
         {/* Tóm tắt xưởng: cuộn theo trang (không dính) */}
         {d?.xuong && (
-          <p className="flex flex-wrap gap-x-4 gap-y-1 text-base text-slate-700">
+          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-slate-700">
             {/* Chỉ đếm tổ có việc mà chưa điểm danh — 0 thì không hiện */}
             {tong.chuaChot > 0 && (
               // Bấm để chỉ xem các tổ cần chú ý
               <button type="button" aria-pressed={chuY} onClick={() => setChuY(v => !v)}
-                className={`font-semibold underline underline-offset-4 ${MAU.loi.chu}`}>
+                className={`min-h-11 font-semibold underline underline-offset-4 ${MAU.loi.chu}`}>
                 {tong.chuaChot} tổ chưa {d.to.some(t => t.diemDanh !== undefined && t.diemDanh !== null) ? 'điểm danh' : 'chốt quân số'}
               </button>
             )}

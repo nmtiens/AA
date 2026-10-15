@@ -347,7 +347,11 @@ export function XuongQuanLySetup({ d, bao, tai }: MucProps) {
 // Cần xem: sự kiện và hạng mục có cờ trong 30 ngày; quản lý huỷ được từ máy tính (R7)
 // ---------------------------------------------------------------------------
 type Dong = Record<string, unknown>;
-export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congDoan: CongDoanSetup[]; to: ToSetup[]; bao: Bao }) {
+export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
+  xuong: string; congDoan: CongDoanSetup[]; to: ToSetup[]; bao: Bao;
+  /** Tổ trưởng: chỉ xem, không huỷ (huỷ từ máy tính chỉ quản lý; tổ trưởng huỷ ở Lịch sử trong app) */
+  chiXem?: boolean;
+}) {
   const [d, setD] = useState<{ suKien: Dong[]; trangThai: Dong[] } | null>(null);
   const [loi, setLoi] = useState('');
   // Mặc định chỉ cờ cần xử lý — cờ chỉ để biết (quản lý ghi hộ…) nhiều, làm chìm lỗi thật
@@ -391,12 +395,12 @@ export function XuongCanXem({ xuong, congDoan, to, bao }: { xuong: string; congD
                   <td className={TD}><span className="tabular-nums">{String(x.hex ?? '—')}</span>{x.cong_doan_id ? ` · ${tenCd(x.cong_doan_id)}` : ''}{x.to_id ? ` · ${tenTo(x.to_id)}` : ''}</td>
                   <td className={TD}>{((x.co as string[]) ?? []).map(c => <span key={c} className="mr-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">{tenCo(c)}</span>)}</td>
                   <td className={`${TD} text-right`}>
-                    <button type="button" className={BTN} onClick={async () => {
+                    {!chiXem && <button type="button" className={BTN} onClick={async () => {
                       const lyDo = window.prompt('Huỷ thao tác này? Ghi lý do (không bắt buộc):', '');
                       if (lyDo === null) return;
                       const r = await xuongSetupApi.huy(String(x.id), lyDo || undefined);
                       if (r.ok) { bao(true, 'Đã huỷ thao tác'); tai(); } else bao(false, r.message);
-                    }}>Huỷ</button>
+                    }}>Huỷ</button>}
                   </td>
                 </tr>
               ))}

@@ -366,7 +366,7 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
 
         {lanDau && <p className={CHU_PHU}>Lần điểm danh đầu tính mọi người vào đúng giờ đầu ca. Ai đến trễ: bấm <b>Trễ</b> cạnh tên và chỉnh giờ đến.</p>}
 
-        <button type="button" className="text-base font-medium text-slate-600 underline underline-offset-4" onClick={onChiNhapSo}>
+        <button type="button" className="min-h-11 w-full text-left text-base font-medium text-slate-600 underline underline-offset-4" onClick={onChiNhapSo}>
           Không điểm danh tên — chỉ nhập số người
         </button>
       </div>

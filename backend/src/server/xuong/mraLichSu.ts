@@ -1,5 +1,5 @@
 import { pool } from '../../db.js';
-import { tinhTrangThai } from './state.js';
+import { tinhTrangThai, suKienConHieuLuc } from './state.js';
 import type { SuKien, LichCaRow } from './types.js';
 
 // ============================================================================
@@ -65,19 +65,38 @@ const nho = new Map<string, { luc: number; caps: CapMra[] }>();
 
 /** Mọi cặp (hạng mục, công đoạn) MRA của xưởng — nhớ 1 giờ (dữ liệu cũ không đổi) */
 export async function taiMra(xuong: string, toSuKien: (r: Record<string, unknown>) => SuKien, cot: string, moi = false): Promise<CapMra[]> {
-  const n = nho.get(xuong);
-  if (n && !moi && Date.now() - n.luc < GIO) return n.caps;
+  return taiCap(xuong, 'mra', toSuKien, cot, moi);
+}
+
+/**
+ * Cặp (hạng mục, công đoạn) của xưởng dựng từ sổ sự kiện — dùng chung cho MRA cũ (nguon = 'mra', nhớ 1 giờ) và số liệu
+ * app hiện tại (nguon = 'app', bỏ thao tác đã huỷ, nhớ 5 phút) để phân tích cùng một cách: giờ trong ca từng công đoạn,
+ * ngày nằm trong xưởng, tạm ngưng. Số người: MRA = nhân công khai (chia_nguoi); app = số người khai lúc bắt đầu / tiếp tục /
+ * chia người.
+ */
+export async function taiCap(xuong: string, nguon: 'mra' | 'app', toSuKien: (r: Record<string, unknown>) => SuKien, cot: string, moi = false): Promise<CapMra[]> {
+  const khoa = `${nguon}|${xuong}`;
+  const n = nho.get(khoa);
+  if (n && !moi && Date.now() - n.luc < (nguon === 'mra' ? GIO : 5 * 60_000)) return n.caps;
   let rows: Array<Record<string, unknown>> = [];
   try {
-    rows = (await pool.query(`SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'mra' AND xuong = $1 AND hex IS NOT NULL AND cong_doan_id IS NOT NULL`, [xuong])).rows;
+    rows = (await pool.query(
+      nguon === 'mra'
+        ? `SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'mra' AND xuong = $1 AND hex IS NOT NULL AND cong_doan_id IS NOT NULL`
+        // App: kèm sự kiện huỷ (huỷ không luôn có công đoạn) để bỏ đúng thao tác bị huỷ
+        : `SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'app' AND xuong = $1 AND hex IS NOT NULL AND (cong_doan_id IS NOT NULL OR loai = 'huy')`,
+      [xuong])).rows;
   } catch { rows = []; }
+  const tatCa = rows.map(toSuKien);
+  const conLai = nguon === 'app' ? suKienConHieuLuc(tatCa) : tatCa;
   const theoCap = new Map<string, SuKien[]>();
-  for (const r of rows) {
-    const e = toSuKien(r);
+  for (const e of conLai) {
+    if (!e.congDoanId) continue;
     const k = `${e.hex}|${e.congDoanId}`;
     if (!theoCap.has(k)) theoCap.set(k, []);
     theoCap.get(k)!.push(e);
   }
+  const loaiSoNguoi = nguon === 'mra' ? new Set(['chia_nguoi']) : new Set(['bat_dau', 'tiep_tuc', 'chia_nguoi']);
   const caps: CapMra[] = [];
   for (const [k, evs] of theoCap) {
     const [hex, cd] = k.split('|');
@@ -89,18 +108,18 @@ export async function taiMra(xuong: string, toSuKien: (r: Record<string, unknown
       if (e.loai === 'tam_ngung') { soNgung++; ngungTu = e.ts; }
       else if (ngungTu !== null && (e.loai === 'tiep_tuc' || e.loai === 'bat_dau' || e.loai === 'hoan_thanh')) { gioNgung += (e.ts - ngungTu) / GIO; ngungTu = null; }
     }
-    const ncs = evs.filter(e => e.loai === 'chia_nguoi' && e.soNguoi !== null).map(e => e.soNguoi!);
+    const ncs = evs.filter(e => loaiSoNguoi.has(e.loai) && e.soNguoi !== null && e.soNguoi !== undefined && e.soNguoi > 0).map(e => e.soNguoi!);
     const xong = evs.filter(e => e.loai === 'hoan_thanh').map(e => ({ ts: e.ts, sl: e.soLuong ?? 0 }));
     const raTs = evs.filter(e => e.loai === 'hoan_thanh' || e.loai === 'giao').map(e => e.ts);
     caps.push({
-      hex, cd, doan: t.doanChay.map(d => ({ start: d.start, end: d.end ?? cuoi })).filter(d => d.end > d.start),
+      hex, cd, doan: t.doanChay.map(d => ({ start: d.start, end: d.end ?? (nguon === 'app' && t.trangThai === 'dang_lam' ? Date.now() : cuoi) })).filter(d => d.end > d.start),
       nc: ncs.length ? ncs.reduce((a, b) => a + b, 0) / ncs.length : null,
       nhan: evs.filter(e => e.loai === 'nhan').map(e => ({ ts: e.ts, sl: e.soLuong ?? 0 })), xong,
       soNgung, gioNgung, dau: evs[0].ts, xongCuoi: raTs.length ? Math.max(...raTs) : null,
       slNhan: t.slNhan, slXong: t.slHoanThanh, evs,
     });
   }
-  nho.set(xuong, { luc: Date.now(), caps });
+  nho.set(khoa, { luc: Date.now(), caps });
   return caps;
 }
 

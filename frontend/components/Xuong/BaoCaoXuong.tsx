@@ -6,7 +6,6 @@ import {
 import { gioVN, tenCo, hienSl, hhmm, TEN_CA, LY_DO_TAM_NGUNG, type LoaiCa } from '../../services/xuongModel';
 import { BTN, KHUNG, TH, TD } from './xuongDesktopUi';
 import KeHoachTuan from './KeHoachTuan';
-import LichSuMra from './LichSuMra';
 import { BieuDoNgay, BieuDoTo } from './BieuDoXuong';
 
 // ============================================================================
@@ -458,7 +457,7 @@ const gioMoiNguoi = (gioCong: number, nguoi: number) => (nguoi > 0 ? gioCong / n
 type NgayHm = { ngay: string; to: string; tenCongDoan: string; soNguoiTb: number; soNguoiMax: number; soNguoiMin: number; gioChay: number; gioCong: number; gioCongTangCa: number };
 
 /** Hạng mục so với kế hoạch: KHSX (đúng / trễ ngày KHNK) và kế hoạch triển khai (đã triển khai, đúng tuyến công đoạn) */
-function soKeHoach(h: BaoCaoHangMuc, homNay: string) {
+function soKeHoach(h: BaoCaoHangMuc, homNay: string, xuong: string) {
   const tienTr = (x: number) => (x >= 1000 ? `${so(x / 1000)} tỷ` : `${Math.round(x)} tr`);
   const kh = h.keHoach;
   let khsx: { chu: string; nhan: string; muc: number };
@@ -476,17 +475,22 @@ function soKeHoach(h: BaoCaoHangMuc, homNay: string) {
   }
   const tk = h.trienKhai;
   const tuyen = tk?.tuyen ?? [];
-  const ngoaiTuyen = tuyen.length ? h.congDoan.filter(c => !tuyen.some(t => t.congDoanId === c.congDoanId)) : [];
-  // Bỏ qua công đoạn: công đoạn sau trong tuyến đã có hàng trong khi công đoạn trước chưa tới
+  // Song song: đánh giá theo TỪNG thành phần (bản cũ: một tuyến không tên)
+  const cacTp = tk?.thanhPhan?.length ? tk.thanhPhan : tuyen.length ? [{ ten: '', tuyen }] : [];
+  const ngoaiTuyen = cacTp.length ? h.congDoan.filter(c => !cacTp.some(t => t.tuyen.some(x => x.congDoanId === c.congDoanId))) : [];
+  // Bỏ qua công đoạn: trong một tuyến, công đoạn sau đã có hàng trong khi công đoạn trước chưa tới
   const coHang = (id: string) => h.congDoan.some(c => c.congDoanId === id && (c.slNhan > 0 || c.gioChay > 0 || c.slXong > 0));
-  const xaNhat = tuyen.reduce((m, t, i) => (coHang(t.congDoanId) ? i : m), -1);
-  const boQua = tuyen.slice(0, Math.max(0, xaNhat)).filter(t => !h.congDoan.some(c => c.congDoanId === t.congDoanId));
+  const boQua = cacTp.flatMap(tp => {
+    const xaNhat = tp.tuyen.reduce((m, t, i) => (coHang(t.congDoanId) ? i : m), -1);
+    return tp.tuyen.slice(0, Math.max(0, xaNhat)).filter(t => !h.congDoan.some(c => c.congDoanId === t.congDoanId));
+  }).filter((t, i, a) => a.findIndex(y => y.congDoanId === t.congDoanId) === i);
+  const moTaTuyen = cacTp.map(tp => `${tp.ten ? `${tp.ten}: ` : 'tuyến '}${tp.tuyen.map(t => t.ten).join(' → ')}`).join(' · ');
   const trienKhai = !tk
     ? { chu: 'Chưa triển khai (Quản lý → Triển khai hạng mục) — tổ tự nhận làm', nhan: 'Chưa triển khai', muc: 3 }
     : tk.mra
     ? { chu: `Làm theo MRA cũ · nhận ${hienSl(tk.sl)} ${dv(h.dvt)} (không có tuyến triển khai)`, nhan: 'MRA cũ', muc: 1 }
     : {
-      chu: `Triển khai ${hienSl(tk.sl)} ${dv(h.dvt)}${tuyen.length ? ` · tuyến ${tuyen.map(t => t.ten).join(' → ')}` : ''}`,
+      chu: `${tk.xuongChinh && tk.xuongChinh !== xuong ? `Xưởng ${tk.xuongChinh} triển khai` : 'Triển khai'} ${hienSl(tk.sl)} ${dv(h.dvt)}${moTaTuyen ? ` · ${moTaTuyen}` : ''}`,
       ...(ngoaiTuyen.length || boQua.length
         ? { nhan: [ngoaiTuyen.length ? `Ngoài tuyến: ${ngoaiTuyen.map(c => c.tenCongDoan).join(', ')}` : '', boQua.length ? `Bỏ qua: ${boQua.map(t => t.ten).join(', ')}` : ''].filter(Boolean).join(' · '), muc: 2 }
         : { nhan: 'Đúng tuyến', muc: 0 }),
@@ -496,11 +500,11 @@ function soKeHoach(h: BaoCaoHangMuc, homNay: string) {
 const MAU_MUC = ['bg-emerald-50 text-emerald-800 border-emerald-200', 'bg-sky-50 text-sky-800 border-sky-200',
   'bg-amber-50 text-amber-800 border-amber-200', 'bg-red-50 text-red-800 border-red-200'];
 
-function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[] }) {
+function TabTheoHangMuc({ ds, theoTo, xuong }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[]; xuong: string }) {
   const [q, setQ] = useState('');
   const [chiLech, setChiLech] = useState(false);
   const homNay = ngayVN();
-  const danhGia = useMemo(() => new Map(ds.map(h => [h.hex, soKeHoach(h, homNay)])), [ds, homNay]);
+  const danhGia = useMemo(() => new Map(ds.map(h => [h.hex, soKeHoach(h, homNay, xuong)])), [ds, homNay, xuong]);
   const soLech = ds.filter(h => (danhGia.get(h.hex)?.muc ?? 0) >= 2).length;
   const [mo, setMo] = useState<Set<string>>(new Set());
   const loc = q.trim().toLowerCase();
@@ -585,7 +589,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                     <th className={`${TH} text-right`}>Tổng giờ công SP</th>
                     <th className={`${TH} text-right`}>SL xong</th>
                     <th className={`${TH} text-right`}>Giờ công SP / {dv(h.dvt)}</th>
-                    <th className={TH}>Hiện tại (xong / nhận)</th>
+                    <th className={TH}>Hiện tại</th>
                   </tr></thead>
                   <tbody>
                     {(() => {
@@ -594,7 +598,7 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                       const vt = (id: string) => { const i = tuyen.findIndex(t => t.congDoanId === id); return i < 0 ? 999 : i; };
                       const chuaToi = tuyen.filter(t => !h.congDoan.some(c => c.congDoanId === t.congDoanId)).map(t => ({
                         congDoanId: t.congDoanId, tenCongDoan: t.ten, to: [] as string[], gioChay: 0, gioCong: 0, gioCongTangCa: 0, slXong: 0,
-                        soNguoiTb: 0, soNguoiMax: 0, soNguoiMin: 0, trangThai: 'chua_toi', slNhan: 0, slHoanThanh: 0,
+                        soNguoiTb: 0, soNguoiMax: 0, soNguoiMin: 0, trangThai: 'chua_toi', slNhan: 0, slHoanThanh: 0, slGiaoDen: null, slGiao: null,
                       }));
                       return [...h.congDoan, ...chuaToi].sort((a, b) => vt(a.congDoanId) - vt(b.congDoanId));
                     })().map(c => {
@@ -616,7 +620,14 @@ function TabTheoHangMuc({ ds, theoTo }: { ds: BaoCaoHangMuc[]; theoTo: BaoCaoTo[
                           <td className={`${TD} text-right tabular-nums`}>{c.slXong > 0 && c.gioCong > 0 ? soNho(c.gioCong / c.slXong) : '—'}</td>
                           <td className={`${TD} ${MAU_TRANG_THAI[c.trangThai ?? ''] ?? ''}`}>
                             {c.trangThai ? TEN_TRANG_THAI[c.trangThai] ?? c.trangThai : '—'}
-                            {' '}<span className="tabular-nums text-slate-500">({hienSl(c.slHoanThanh)} / {hienSl(c.slNhan)})</span>
+                            {c.trangThai && c.trangThai !== 'chua_toi' && (
+                              <div className="text-xs tabular-nums text-slate-500">
+                                nhận {hienSl(c.slNhan)} · xong {hienSl(c.slHoanThanh)}
+                                {c.slGiao != null && c.slGiao > 0 ? ` · giao ${hienSl(c.slGiao)}` : ''}
+                                {c.slGiaoDen != null && c.slGiaoDen > c.slNhan + 0.0005 ? <span className="text-sky-700"> · còn {hienSl(c.slGiaoDen - c.slNhan)} chờ nhận</span> : null}
+                                {c.slGiao != null && c.slHoanThanh > c.slGiao + 0.0005 ? <span className="text-violet-700"> · còn {hienSl(c.slHoanThanh - c.slGiao)} chờ giao</span> : null}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -1068,10 +1079,10 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
 }
 
 // ---------------------------------------------------------------------------
-type Tab = 'keHoach' | 'ngay' | 'to' | 'hangMuc' | 'nguoi' | 'chatLuong' | 'mra';
+type Tab = 'keHoach' | 'ngay' | 'to' | 'hangMuc' | 'nguoi' | 'chatLuong';
 const TABS: Array<{ id: Tab; ten: string }> = [
-  { id: 'keHoach', ten: 'Kế hoạch tuần' }, { id: 'ngay', ten: 'Theo ngày' }, { id: 'to', ten: 'Theo tổ' }, { id: 'hangMuc', ten: 'Theo hạng mục' }, { id: 'nguoi', ten: 'Theo người' },
-  { id: 'chatLuong', ten: 'Chất lượng dữ liệu' }, { id: 'mra', ten: 'Lịch sử MRA' },
+  { id: 'keHoach', ten: 'Kế hoạch & phân tích' }, { id: 'ngay', ten: 'Theo ngày' }, { id: 'to', ten: 'Theo tổ' }, { id: 'hangMuc', ten: 'Theo hạng mục' }, { id: 'nguoi', ten: 'Theo người' },
+  { id: 'chatLuong', ten: 'Chất lượng dữ liệu' },
 ];
 const KHOA_TAB = 'xuong_bao_cao_tab';
 
@@ -1178,8 +1189,8 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       )}
       {d && d.conThieu > 0 && <p className="text-sm text-slate-600" aria-live="polite"><RefreshCw size={13} className="mr-1 inline animate-spin" /> Đang tính thêm {d.conThieu} ngày-tổ…</p>}
 
-      {/* Tab Kế hoạch tuần có số riêng theo tuần — ẩn 5 thẻ của khoảng ngày để khỏi lẫn */}
-      {d && tab !== 'keHoach' && tab !== 'mra' && (
+      {/* Tab Kế hoạch & phân tích có số riêng theo tuần — ẩn 5 thẻ của khoảng ngày để khỏi lẫn */}
+      {d && tab !== 'keHoach' && (
         <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
           <The ten="Công nhân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu · quân số chốt ca chính`} />
           <The ten="Giờ công sản phẩm" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ công${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}`} />
@@ -1189,12 +1200,12 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
             phu={tom.lyDo.length
               ? `${tom.gn ? `${Math.round((tom.ch / tom.gn) * 100)}% giờ công · ` : ''}nhiều nhất: ${tenLyDoCho(tom.lyDo[0][0])} ${so(tom.lyDo[0][1])} giờ`
               : tom.ch > 0 ? (tom.coMra ? 'MRA cũ không ghi lý do chờ' : 'chưa rõ lý do') : 'không có giờ chờ việc'} />
-          <The rong ten="Hạng mục xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`}
-            phu={tom.xong.length ? `${theoDonVi(tom.xong)} (cộng các công đoạn)` : 'chưa tổ nào xong hạng mục'} />
+          <The rong ten="Hạng mục có công đoạn xong" giaTri={`${tom.soHmXong} hạng mục`}
+            phu={tom.xong.length ? `${tom.xong.length} lượt công đoạn xong · ${theoDonVi(tom.xong)} (cộng các công đoạn)` : 'chưa công đoạn nào xong'} />
         </div>
       )}
 
-      {d && tab !== 'keHoach' && tab !== 'mra' && (
+      {d && tab !== 'keHoach' && (
         <details className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
           <summary className="cursor-pointer font-medium text-slate-800">Cách đọc các số</summary>
           <dl className="mt-2 grid gap-x-6 gap-y-2 pb-2 sm:grid-cols-2">
@@ -1219,10 +1230,9 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
           {tab === 'keHoach' && <KeHoachTuan xuong={xuong} />}
           {tab === 'ngay' && <><BieuDoNgay ds={ds} /><TabTheoNgay ds={ds} /></>}
           {tab === 'to' && <><BieuDoTo ds={ds} /><TabTheoTo ds={ds} d={d} /></>}
-          {tab === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} />}
+          {tab === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} xuong={xuong} />}
           {tab === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} tu={d.tu} den={d.den} />}
           {tab === 'chatLuong' && <TabChatLuong d={d} ds={ds} />}
-          {tab === 'mra' && <LichSuMra xuong={xuong} />}
         </>
       )}
     </div>

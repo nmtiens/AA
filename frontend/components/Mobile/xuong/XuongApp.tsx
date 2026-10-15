@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScanLine, ChevronDown, RefreshCw, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users } from 'lucide-react';
+import { ScanLine, ChevronDown, RefreshCw, Wifi, WifiOff, Check, Loader2, AlertTriangle, Users, LayoutGrid, ChevronRight } from 'lucide-react';
 import { BG, Toast } from '../mobileUi';
 import DangNhapXuong from './DangNhapXuong';
 import { getToken } from '../../../services/userService';
@@ -57,10 +57,17 @@ interface Phien { user: { id: number; fullName: string | null; username: string 
 /** Tổ quản lý chọn ở Tổng quan để xem / thao tác hộ (D25); `lan` đổi mỗi lần chọn để chọn lại cùng tổ vẫn mở */
 export interface ToMo { id: number; ten: string; xuong: string; lan: number }
 
-export default function XuongApp({ moTo, onTongQuan }: {
+/** Nút phụ trên dòng hạng mục: hẹp, chữ được xuống 2 dòng ("Tạm / ngưng") để nút chính đủ 1 dòng */
+const NUT_PHU_DOC = 'flex min-h-14 w-[4.75rem] shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white px-1 text-center text-base font-medium leading-tight text-slate-800 active:bg-slate-100';
+
+export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   moTo: ToMo | null;
   /** Sang mục Tổng quan của app (quản lý) */
   onTongQuan: () => void;
+  /** Mục Tổ đang hiện (app luôn gắn màn Tổ để gửi hàng đợi nền) */
+  dangXem?: boolean;
+  /** Báo số tổ tài khoản làm tổ trưởng (tổ trưởng => app ẩn Tổng quan, mục Quản lý chỉ số liệu tổ mình) */
+  onSoTo?: (n: number) => void;
 }) {
   const { hasPermission } = useAuth();
   // Quản lý / kế hoạch xưởng: triển khai gọn trên điện thoại (7A). Backend kiểm lại quyền theo xưởng.
@@ -68,6 +75,8 @@ export default function XuongApp({ moTo, onTongQuan }: {
   const quetDeTrienKhai = useRef(false);
   // Quản lý xem / thao tác hộ một tổ không phải của mình (D25)
   const [toNgoai, setToNgoai] = useState<ToCuaToi | null>(null);
+  const toNgoaiRef = useRef<ToCuaToi | null>(null);
+  toNgoaiRef.current = toNgoai;
   const [phien, setPhien] = useState<Phien | null>(() => docLS<Phien>(KHOA_PHIEN));
   const [dangKy, setDangKy] = useState<'dang' | 'ok' | 'loi'>('dang');
   const [loiDangKy, setLoiDangKy] = useState('');
@@ -106,7 +115,8 @@ export default function XuongApp({ moTo, onTongQuan }: {
     if (kq.ok && kq.user && kq.to) {
       const p: Phien = { user: kq.user, to: kq.to };
       setPhien(p); ghiLS(KHOA_PHIEN, p);
-      setToId(id => (id && kq.to!.some(t => t.id === id) ? id : kq.to![0]?.id ?? null));
+      // Giữ tổ đang ghi hộ (quản lý chọn ở Tổng quan trước khi đăng ký máy xong — mạng chậm)
+      setToId(id => (id && (kq.to!.some(t => t.id === id) || toNgoaiRef.current?.id === id) ? id : kq.to![0]?.id ?? null));
       setDangKy('ok');
       xinLuuBen();
       return;
@@ -119,6 +129,18 @@ export default function XuongApp({ moTo, onTongQuan }: {
   useEffect(() => { if (!canDangNhap) dangKyMay(); }, [canDangNhap, dangKyMay]);
 
   useEffect(() => { if (toId) localStorage.setItem(KHOA_TO, String(toId)); }, [toId]);
+  // Phiên lưu từ bản cũ chưa có cờ toTruong: coi như tổ trưởng (đăng ký máy lần sau sẽ có cờ)
+  const soToTruong = phien?.to.filter(t => t.toTruong !== false).length ?? 0;
+  useEffect(() => { if (phien) onSoTo?.(soToTruong); }, [phien, soToTruong, onSoTo]);
+  // Tổ trưởng không dùng Tổng quan — kể cả khi tài khoản có quyền quản lý xưởng
+  const coTongQuan = laQuanLy && !soToTruong;
+  // Quản lý chưa gán tổ: mở app vào thẳng Tổng quan (màn Tổ của họ trống) — chỉ lần đầu khi mở app ở mục Tổ
+  const daXetTongQuan = useRef(false);
+  useEffect(() => {
+    if (daXetTongQuan.current || !phien || dangKy !== 'ok') return;
+    daXetTongQuan.current = true;
+    if (dangXem && laQuanLy && phien.to.length === 0 && !toNgoai) onTongQuan();
+  }, [phien, dangKy, dangXem, laQuanLy, toNgoai, onTongQuan]);
   useEffect(() => {
     if (!cv || !toId || daChonTab.current === toId || cv.to?.id !== toId) return;
     daChonTab.current = toId;
@@ -358,7 +380,10 @@ export default function XuongApp({ moTo, onTongQuan }: {
   const xongGiao = async (r: DongViec, cheDo: 'xong' | 'giao', soLuong: number, den: string | null, anh: AnhChup[], lucXayRa?: number) => {
     const anhCho = anh.length ? await luuAnh(anh, r.hex) : [];
     if (anhCho === null) return;
-    // Khai bù ngày thực hiện trước hôm nay: ghi lúc 12:00 ngày đó + cờ khai bù
+    // Khai bù ngày thực hiện trước hôm nay: ghi lúc 12:00 ngày đó + cờ khai bù. Không được sớm hơn lúc hạng mục bắt đầu
+    // chạy (Xong trước Bắt đầu làm sai đồng hồ) => lùi về ngay sau lúc bắt đầu
+    const batDauLuc = r.dangChayTu ? Date.parse(r.dangChayTu) : null;
+    if (lucXayRa !== undefined && batDauLuc !== null && lucXayRa <= batDauLuc) lucXayRa = Math.min(Date.now(), batDauLuc + 60_000);
     const bu = lucXayRa !== undefined ? { lucXayRa } : {};
     const kemAnh = { duLieu: { ...(anhCho.length ? { anhCho } : {}), ...(lucXayRa !== undefined ? { khaiBu: true } : {}) } };
     const ds: SuKienNhap[] = [];
@@ -538,8 +563,9 @@ export default function XuongApp({ moTo, onTongQuan }: {
     if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'giao' }, 'giao')}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
     if (r.trangThai === 'dang_lam') return (<>
       <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, 'xong — giao')}>Xong — giao</button>
-      <button className={`${NUT_PHU} shrink-0`} onClick={() => moThaoTac({ loai: 'tamNgung', r }, 'tạm ngưng')}>Tạm ngưng</button>
-      <button className={`${NUT_PHU} shrink-0`} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>%</button>
+      {/* Nút phụ hẹp để "Xong — giao" đủ 1 dòng */}
+      <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'tamNgung', r }, 'tạm ngưng')}>Tạm ngưng</button>
+      <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
     </>);
     if (r.trangThai === 'tam_ngung') return <button className={NUT_DONG} onClick={() => batDau(r, 'tiep_tuc')}>Tiếp tục</button>;
     return <button className={NUT_DONG} onClick={() => batDau(r, 'bat_dau')}>Bắt đầu</button>;
@@ -578,7 +604,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
     <div className={`min-h-full ${BG}`} style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${10 + (hoanTac ? 5 : 0) + (hienRanh && canChia ? 5 : 0)}rem)` }}>
       {/* Tầng trên */}
       {/* Phần đầu cuộn theo trang (không dính) — chỉ thanh 3 tab dính trên cùng, để điện thoại còn chỗ cho danh sách */}
-      <header className="mx-auto max-w-3xl space-y-3 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)]">
+      <header className="mx-auto max-w-3xl space-y-2 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+12px)]">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             {phien && phien.to.length > 1 ? (
@@ -592,21 +618,27 @@ export default function XuongApp({ moTo, onTongQuan }: {
             <p className={`flex items-center gap-1.5 text-base font-medium ${thanhGui.mau.chu}`} aria-live="polite">
               {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}
             </p>
+            {/* Quản lý ghi hộ tổ khác: 1 dòng gọn (trước là băng riêng 2 nút, đẩy danh sách việc xuống thanh đáy) */}
+            {laToNgoai && (
+              <p className={`flex flex-wrap items-center gap-x-2 text-base ${MAU.ngung.chu}`}>
+                <span>Ghi hộ · xưởng {toHienTai?.xuong}</span>
+                {!!phien?.to.length && <button className="min-h-11 font-medium underline underline-offset-4" onClick={veToCuaToi}>Tổ của tôi</button>}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 gap-2">
+            {coTongQuan && (
+              <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Tổng quan xưởng" title="Tổng quan xưởng"
+                onClick={onTongQuan}>
+                <LayoutGrid size="1.4em" />
+              </button>
+            )}
             <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Làm mới" title="Làm mới"
               onClick={() => { gui(); taiCv(); taiDm(); flash('Đang làm mới'); }}>
               <RefreshCw size="1.4em" />
             </button>
           </div>
         </div>
-        {laToNgoai && (
-          <div className={`flex flex-wrap items-center gap-2 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} py-2 pl-3 pr-2`}>
-            <p className={`min-w-0 flex-1 text-base ${MAU.ngung.chu}`}>Xem tổ xưởng {toHienTai?.xuong} — quản lý ghi hộ</p>
-            <button className={`${NUT_PHU} min-h-12 shrink-0 px-3`} onClick={onTongQuan}>Về Tổng quan</button>
-            {!!phien?.to.length && <button className={`${NUT_PHU} min-h-12 shrink-0 px-3`} onClick={veToCuaToi}>Tổ của tôi</button>}
-          </div>
-        )}
         {loiLuu && (
           <div className={`space-y-2 rounded-2xl border ${MAU.loi.vien} ${MAU.loi.nen} p-4`} role="alert">
             <p className={`text-base font-semibold ${MAU.loi.chu}`}>Chưa lưu được trên máy. Thao tác vừa bấm CHƯA được ghi.</p>
@@ -627,12 +659,15 @@ export default function XuongApp({ moTo, onTongQuan }: {
         ))}
 
         {cv && caChot && (
-          <div className={`flex items-center justify-between gap-3 rounded-2xl border ${MAU.loi.vien} ${MAU.loi.nen} p-3`}>
-            <p className={`flex items-center gap-2 text-base font-semibold ${MAU.loi.chu}`}><Users size="1.1em" aria-hidden />
-              {cv.chamCong ? `Chưa điểm danh ${TEN_CA[caChot].toLowerCase()}` : `Chưa chốt quân số ${TEN_CA[caChot].toLowerCase()}`}</p>
-            <button className={`${NUT_PHU} shrink-0`} onClick={() => setSheet(cv.chamCong ? { loai: 'diemDanh', ca: caChot } : { loai: 'quanSo', ca: caChot })}>
-              {cv.chamCong ? 'Điểm danh' : 'Chốt quân số'}</button>
-          </div>
+          // Cả băng là 1 nút (trước: chữ + nút riêng, chữ xuống 2 dòng — băng cao gấp rưỡi)
+          <button className={`flex min-h-14 w-full items-center gap-2 rounded-2xl border px-3 text-left ${MAU.loi.vien} ${MAU.loi.nen} active:opacity-80`}
+            onClick={() => setSheet(cv.chamCong ? { loai: 'diemDanh', ca: caChot } : { loai: 'quanSo', ca: caChot })}>
+            <Users size="1.1em" className={`shrink-0 ${MAU.loi.chu}`} aria-hidden />
+            <span className={`min-w-0 flex-1 text-base font-semibold ${MAU.loi.chu}`}>
+              {cv.chamCong ? `Chưa điểm danh ${TEN_CA[caChot].toLowerCase()}` : `Chưa chốt quân số ${TEN_CA[caChot].toLowerCase()}`}</span>
+            <span className={`flex shrink-0 items-center text-base font-medium underline underline-offset-4 ${MAU.loi.chu}`}>
+              {cv.chamCong ? 'Điểm danh' : 'Chốt'}<ChevronRight size="1.1em" aria-hidden /></span>
+          </button>
         )}
         {cv?.chamCong && !caChot && ca && daDiemDanh(cv, ca) && (() => {
           const coMatNay = coMatLuc(cv, ca, now);
@@ -685,7 +720,7 @@ export default function XuongApp({ moTo, onTongQuan }: {
         <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-200/70 p-1" role="tablist">
           {([['choNhan', 'Chờ nhận'], ['dangLam', 'Đang làm'], ['choGiao', 'Chờ giao']] as [Tab, string][]).map(([t, ten]) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-              className={`min-h-14 rounded-xl px-1 text-base ${tab === t ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-700'}`}>
+              className={`min-h-12 rounded-xl px-1 text-base ${tab === t ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-700'}`}>
               {ten} <span className="tabular-nums">{soTab[t]}</span>
             </button>
           ))}

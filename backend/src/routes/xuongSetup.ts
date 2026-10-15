@@ -6,10 +6,10 @@ import { app } from '../server/app.js';
 import { invalidateUserAccess } from '../server/permissions.js';
 import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
-  fail, xuongQuanLy, quanLyDuoc, ghiVaTinhLai, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
-  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong,
+  fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
+  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc,
 } from './xuong.js';
-import { suKienConHieuLuc, THANH_PHAN } from '../server/xuong/state.js';
+import { suKienConHieuLuc, THANH_PHAN, tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { ensureWorkshopGroups, workshopGroupSql } from '../server/workshopGroups.js';
 import { doanCoMat, tomTatDiemDanh } from '../server/xuong/chamCong.js';
 import { vnDayKey } from '../server/common.js';
@@ -49,13 +49,17 @@ const khongQuyen = (res: Response, msg = 'Chỉ admin hoặc quản lý xưởng
 app.get('/api/xuong/setup', async (req: Request, res: Response) => {
   try {
     const { ds, admin } = await xuongDuocSua(req);
-    if (!ds.size) return khongQuyen(res, 'Cần quyền quản lý xưởng');
-    const tatCa = (await pool.query(
+    // Tổ trưởng (kể cả có quyền quản lý): chỉ xem số liệu tổ mình — danh sách xưởng = xưởng có tổ của mình
+    const toTruong = admin ? [] : await toTruongCua(req.user!.id);
+    if (!ds.size && !toTruong.length) return khongQuyen(res, 'Cần quyền quản lý xưởng');
+    const tatCa = toTruong.length ? [...new Set(toTruong.map(t => t.xuong))].sort() : (await pool.query(
       `SELECT DISTINCT xuong FROM (SELECT xuong FROM xuong_cong_doan UNION SELECT xuong FROM xuong_to) x ORDER BY xuong`)).rows
       .map(x => String(x.xuong)).filter(x => admin || ds.has(x));
-    const xuong = typeof req.query.xuong === 'string' && req.query.xuong ? req.query.xuong.toUpperCase() : tatCa[0] ?? null;
-    if (!xuong) return res.json({ success: true, available: true, admin, dsXuong: tatCa, xuong: null });
-    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    const yeuCau = typeof req.query.xuong === 'string' && req.query.xuong ? req.query.xuong.toUpperCase() : null;
+    const xuong = yeuCau && tatCa.includes(yeuCau) ? yeuCau : yeuCau && !toTruong.length ? yeuCau : tatCa[0] ?? null;
+    if (!xuong) return res.json({ success: true, available: true, admin, dsXuong: tatCa, xuong: null, chiTo: null });
+    const chiTo = toTruong.length ? toTruong.filter(t => t.xuong === xuong).map(t => t.id) : null;
+    if (!chiTo && !quanLyDuoc(ds, xuong)) return khongQuyen(res);
 
     const [cd, to, tc, tv, lc, ql] = await Promise.all([
       pool.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active FROM xuong_cong_doan
@@ -71,12 +75,13 @@ app.get('/api/xuong/setup', async (req: Request, res: Response) => {
                   WHERE q.xuong = $1 ORDER BY u.full_name`, [xuong]),
     ]);
     const coQuyen = (r: Row) => r.role === 'ADMIN' || (Array.isArray(r.permissions) && r.permissions.includes(PERM_XUONG));
+    const toXem = chiTo ? to.rows.filter(x => chiTo.includes(Number(x.id))) : to.rows;
     res.json({
-      success: true, available: true, admin, dsXuong: tatCa, xuong,
+      success: true, available: true, admin, dsXuong: tatCa, xuong, chiTo,
       congDoan: cd.rows.map(x => ({
         id: x.id, tenCd: x.ten_cd, cdTachMa: x.cd_tach_ma, ten: x.cd_chi_tiet, thuTu: x.thu_tu, laBaoBi: x.la_bao_bi, active: x.active,
       })),
-      to: to.rows.map(x => ({
+      to: toXem.map(x => ({
         id: Number(x.id), ten: x.ten_to, active: x.active,
         toTruong: x.to_truong_user_id ? {
           id: Number(x.to_truong_user_id), ten: x.full_name || x.username, msnv: x.msnv ?? null, coQuyenXuong: coQuyen(x),
@@ -85,7 +90,7 @@ app.get('/api/xuong/setup', async (req: Request, res: Response) => {
         thanhVien: tv.rows.filter(t => Number(t.to_id) === Number(x.id)).map(t => String(t.mnv)),
       })),
       lichCa: lc.rows.map(x => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] })),
-      quanLy: ql.rows.map(x => ({ userId: Number(x.user_id), ten: x.full_name || x.username })),
+      quanLy: chiTo ? [] : ql.rows.map(x => ({ userId: Number(x.user_id), ten: x.full_name || x.username })),
     });
   } catch (e) { fail(res, e, '/api/xuong/setup'); }
 });
@@ -669,4 +674,120 @@ app.post('/api/xuong/khai-chi-tiet', async (req: Request, res: Response) => {
     await baoHangChoNhan(kq.baoNhan, me);
     res.json({ success: true, available: true, soThanhPhan: kq.so });
   } catch (e) { fail(res, e, '/api/xuong/khai-chi-tiet'); }
+});
+
+
+// ---------------------------------------------------------------------------
+// THEO DÕI TRIỂN KHAI — các hạng mục xưởng đã triển khai trên app: từng thành phần, tuyến CĐ chi tiết, ở mỗi công đoạn
+// tổ nào phụ trách, trạng thái (chờ nhận / đang làm / tạm ngưng / chờ giao / xong) và số nhận / xong / giao.
+//   GET /api/xuong/theo-doi-trien-khai?xuong=&ngay=90&tatCa=1
+//   ngay: triển khai trong N ngày gần nhất (mặc định 90, tối đa 400); tatCa=1: gồm cả hạng mục đã xong hết.
+// ---------------------------------------------------------------------------
+app.get('/api/xuong/theo-doi-trien-khai', async (req: Request, res: Response) => {
+  try {
+    const xuong = String(req.query.xuong ?? '').toUpperCase();
+    const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
+    if (!pv) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    const soNgay = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
+    const tatCa = req.query.tatCa === '1';
+    // Hạng mục: xưởng này triển khai (xưởng chính) hoặc được giao thành phần (xưởng phụ)
+    const tk = await pool.query(
+      `SELECT e.hex, sum(e.so_luong)::float AS sl, min(e.device_ts_hieu_chinh) AS dau, max(e.device_ts_hieu_chinh) AS cuoi,
+              (array_agg(e.du_lieu->>'xuong' ORDER BY e.device_ts_hieu_chinh DESC))[1] AS xuong_chinh
+       FROM xuong_su_kien e
+       WHERE e.loai = 'trien_khai' AND e.device_ts_hieu_chinh >= now() - ($2 || ' days')::interval
+         AND (e.du_lieu->>'xuong' = $1 OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'thanhPhan') = 'array'
+               THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp WHERE upper(tp->>'xuong') = $1))
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       GROUP BY e.hex ORDER BY max(e.device_ts_hieu_chinh) DESC LIMIT 400`, [xuong, String(soNgay)]);
+    // Cộng hạng mục tổ trong xưởng đang có hàng / đang chạy mà chưa triển khai trên app (nhận thẳng, nhận ngoài app)
+    const dangCo = await pool.query(
+      `SELECT hex, max(su_kien_cuoi) AS cuoi FROM xuong_trang_thai
+       WHERE xuong = $1 AND (trang_thai <> 'xong' OR su_kien_cuoi >= now() - ($2 || ' days')::interval)
+       GROUP BY hex ORDER BY max(su_kien_cuoi) DESC NULLS LAST LIMIT 400`, [xuong, String(soNgay)]);
+    const daTk = new Set(tk.rows.map(x => String(x.hex)));
+    const chuaTk = dangCo.rows.filter(x => !daTk.has(String(x.hex)))
+      .map(x => ({ hex: String(x.hex), sl: 0, dau: null, cuoi: x.cuoi, xuong_chinh: null, chuaTrienKhai: true }));
+    const dsHm = [...tk.rows.map(x => ({ ...x, chuaTrienKhai: false })), ...chuaTk];
+    const hexes = dsHm.map(x => String(x.hex));
+    if (!hexes.length) return res.json({ success: true, available: true, xuong, chiTo: pv.chiTo, hangMuc: [] });
+    const [evRows, st, cd, toCd, info, kh] = await Promise.all([
+      suKienTheoHex(pool, hexes),
+      pool.query(`SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS g, sl_nhan::float AS n, sl_hoan_thanh::float AS h,
+                         sl_giao::float AS gi, so_nguoi, dang_chay_tu, su_kien_cuoi FROM xuong_trang_thai WHERE hex = ANY($1::text[])`, [hexes]),
+      pool.query('SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan'),
+      pool.query(`SELECT tc.cong_doan_id, tc.to_id, t.ten_to FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id AND t.active`),
+      thongTinHangMuc(hexes),
+      // Kế hoạch KHSX gần nhất của hạng mục (tuần / tháng): hạng mục đang chạy có nằm trong kế hoạch không
+      pool.query(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, upper(trim(phan_loai_kh)) AS loai, nam, thang, tuan,
+                to_char(ngay_khnk, 'YYYY-MM-DD') AS ngay_khnk
+         FROM khsx WHERE hex::text = ANY($1::text[]) AND phan_loai_kh IS NOT NULL
+         ORDER BY hex::text, nam DESC NULLS LAST, thang DESC NULLS LAST, tuan DESC NULLS LAST`, [hexes]),
+    ]);
+    const khCua = new Map(kh.rows.map(x => [String(x.hex), {
+      loai: String(x.loai ?? '').includes('TUẦN') ? 'tuan' as const : 'thang' as const,
+      nam: x.nam === null ? null : Number(x.nam), thang: x.thang === null ? null : Number(x.thang), tuan: x.tuan === null ? null : Number(x.tuan),
+      ngayKhnk: x.ngay_khnk ?? null,
+    }]));
+    const evts = evRows.map(toSuKien);
+    const cdMap = new Map(cd.rows.map(x => [String(x.id), x]));
+    const toCua = new Map<string, string[]>();
+    for (const x of toCd.rows) { const k = String(x.cong_doan_id); if (!toCua.has(k)) toCua.set(k, []); toCua.get(k)!.push(String(x.ten_to)); }
+    // Tổ trưởng: chỉ hạng mục đi qua công đoạn tổ mình phụ trách (vẫn hiện cả dòng hàng để thấy tổ trước / sau)
+    const cdCuaTo = pv.chiTo ? new Set(toCd.rows.filter(x => pv.chiTo!.includes(Number(x.to_id))).map(x => String(x.cong_doan_id))) : null;
+    const stMap = new Map(st.rows.map(x => [`${x.hex}|${x.cong_doan_id}`, x]));
+    const congDoan = (hex: string, id: string) => {
+      const c = cdMap.get(id); const s2 = stMap.get(`${hex}|${id}`);
+      return {
+        congDoanId: id, ten: c?.cd_chi_tiet ?? id, xuong: c?.xuong ?? null, laBaoBi: !!c?.la_bao_bi, to: toCua.get(id) ?? [],
+        trangThai: s2?.trang_thai ?? null, slGiaoDen: s2?.g ?? 0, slNhan: s2?.n ?? 0, slHoanThanh: s2?.h ?? 0, slGiao: s2?.gi ?? 0,
+        soNguoi: s2?.so_nguoi ?? null,
+        dangChayTu: s2?.dang_chay_tu ?? null,
+        suKienCuoi: s2?.su_kien_cuoi ?? null,
+      };
+    };
+    const hangMuc = dsHm.map(t => {
+      const hex = String(t.hex);
+      const ev = evts.filter(e => e.hex === hex);
+      const tuyen = tuyenTheoThanhPhan(ev);
+      // Thành phần giao xưởng phụ mà chưa khai CĐ chi tiết (QT2)
+      const choKhai: Array<{ thanhPhan: string; xuong: string }> = [];
+      for (const e of suKienConHieuLuc(ev)) {
+        if (e.loai !== 'trien_khai' || !Array.isArray(e.duLieu?.thanhPhan)) continue;
+        for (const tp of e.duLieu!.thanhPhan as Array<Record<string, unknown>>) {
+          const ten = String(tp.ten ?? '');
+          if (!tuyen.some(x => x.thanhPhan === ten) && !choKhai.some(x => x.thanhPhan === ten)) choKhai.push({ thanhPhan: ten, xuong: String(tp.xuong ?? '') });
+        }
+      }
+      const thanhPhan = tuyen.map(x => ({ thanhPhan: x.thanhPhan, tuyen: x.tuyen.map(id => congDoan(hex, id)) }));
+      // Công đoạn có hàng nhưng nằm ngoài tuyến (giao chỗ khác / nhận ngoài app)
+      const trongTuyen = new Set(tuyen.flatMap(x => x.tuyen));
+      // Thứ tự gần với dòng hàng: công đoạn đã xong trước, rồi theo thứ tự công đoạn trong danh mục
+      const thuTu = (id: string) => Number(cdMap.get(id)?.thu_tu ?? 999);
+      const ngoaiTuyen = st.rows.filter(x => String(x.hex) === hex && !trongTuyen.has(String(x.cong_doan_id)))
+        .map(x => congDoan(hex, String(x.cong_doan_id)))
+        .sort((a, b) => Number(b.trangThai === 'xong') - Number(a.trangThai === 'xong') || thuTu(a.congDoanId) - thuTu(b.congDoanId));
+      const tatCaCd = [...thanhPhan.flatMap(x => x.tuyen), ...ngoaiTuyen];
+      const sl = Number(t.sl);
+      // Xong: công đoạn cuối (bao bì) của mọi thành phần đã hoàn thành đủ số triển khai
+      const cuoi = thanhPhan.map(x => x.tuyen[x.tuyen.length - 1]).filter(Boolean);
+      const slXong = cuoi.length ? Math.min(...cuoi.map(c => c.slHoanThanh)) : 0;
+      // Chưa triển khai trên app: xong khi mọi công đoạn có hàng đều xong
+      const xong = t.chuaTrienKhai ? ngoaiTuyen.every(c => c.trangThai === 'xong')
+        : !choKhai.length && cuoi.length > 0 && slXong >= sl - 0.0005;
+      const i = info.get(hex);
+      return {
+        hex, ten: i?.ten_hang_muc ?? null, tenCongTrinh: i?.ten_cong_trinh ?? null, dvt: i?.dvt ? String(i.dvt).trim() : null,
+        xuongChinh: t.xuong_chinh ?? (i?.xuong_chinh ? String(i.xuong_chinh).trim() : null), slTrienKhai: sl, trienKhaiDau: t.dau, trienKhaiCuoi: t.cuoi,
+        chuaTrienKhai: t.chuaTrienKhai, keHoach: khCua.get(hex) ?? null, soLuongDonHang: i?.so_luong_don_hang_tong === null || i?.so_luong_don_hang_tong === undefined ? null : Number(i.so_luong_don_hang_tong),
+        thanhPhan, choKhai, ngoaiTuyen, slXong, xong,
+        dangLam: tatCaCd.filter(c => c.trangThai === 'dang_lam').length,
+        tamNgung: tatCaCd.filter(c => c.trangThai === 'tam_ngung').length,
+        choNhan: tatCaCd.filter(c => c.slGiaoDen > c.slNhan + 0.0005).length,
+        quaTo: !cdCuaTo || tatCaCd.some(c => cdCuaTo.has(c.congDoanId)),
+      };
+    }).filter(h => (tatCa || !h.xong) && h.quaTo).map(({ quaTo: _q, ...h }) => h);
+    res.json({ success: true, available: true, xuong, chiTo: pv.chiTo, hangMuc });
+  } catch (e) { fail(res, e, '/api/xuong/theo-doi-trien-khai'); }
 });

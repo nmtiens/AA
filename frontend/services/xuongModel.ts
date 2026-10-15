@@ -244,6 +244,15 @@ export function thoiLuong(ms: number): string {
   return p % 60 ? `${g} giờ ${p % 60} phút` : `${g} giờ`;
 }
 
+/** "Đang chạy từ lúc nào": cùng ngày (giờ VN) → thời lượng ("2 giờ 5 phút");
+ *  từ hôm trước → "từ 13/10 08:00" (thời lượng đồng hồ tính cả đêm dễ hiểu nhầm là giờ làm) */
+export function chayTu(iso: string, now: number): string {
+  const vn = (t: number) => new Date(t + 7 * 3_600_000).toISOString();
+  const tu = vn(Date.parse(iso));
+  if (tu.slice(0, 10) === vn(now).slice(0, 10)) return thoiLuong(now - Date.parse(iso));
+  return `từ ${tu.slice(8, 10)}/${tu.slice(5, 7)} ${tu.slice(11, 16)}`;
+}
+
 /** Cờ tổ trưởng tự sửa được (2B) — câu cụ thể; cờ khác chỉ quản lý thấy */
 export function cauCo(co: string, r: DongViec): string | null {
   switch (co) {

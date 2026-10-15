@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import type { VuongMacRow } from '../../services/vuongMacService';
 
@@ -73,8 +74,8 @@ export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
             <h2 className="min-w-0 text-lg font-semibold text-slate-900">{title}</h2>
             <div className="flex shrink-0 items-center">
               {headerExtra}
-              <button onClick={onClose} aria-label="Đóng" className="-mr-2 flex h-10 w-10 items-center justify-center rounded-full text-slate-500 active:bg-slate-100">
-                ✕
+              <button onClick={onClose} aria-label="Đóng" className="-mr-3 flex h-12 w-12 items-center justify-center rounded-full text-slate-600 active:bg-slate-100">
+                <X size={24} strokeWidth={2.25} />
               </button>
             </div>
           </div>

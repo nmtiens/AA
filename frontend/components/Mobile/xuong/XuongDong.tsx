@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Play, Pause, Circle, Inbox, PackageCheck, AlertTriangle, Clock, Check } from 'lucide-react';
-import { cauCo, thoiLuong, hienSl, tenGon, tenLyDo, type DongViec, type CongNhanTo } from '../../../services/xuongModel';
+import { cauCo, chayTu, hienSl, tenGon, tenLyDo, type DongViec, type CongNhanTo } from '../../../services/xuongModel';
 import { CHU_PHU, MAU } from './xuongUi';
 
 // ============================================================================
@@ -65,10 +65,10 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
       {/* Đang chạy: dòng 1 trạng thái · thời gian, dòng 2 người · số lượng — luôn 2 dòng, không xuống dòng lộn xộn */}
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base">
         <span className={`inline-flex items-center gap-1 font-medium ${m.mau.chu}`}><Icon size="1em" aria-hidden /> {m.ten}</span>
-        {r.trangThai === 'dang_lam' && r.dangChayTu && <span className="text-slate-700">{thoiLuong(now - Date.parse(r.dangChayTu))}</span>}
+        {r.trangThai === 'dang_lam' && r.dangChayTu && <span className="text-slate-700">{chayTu(r.dangChayTu, now)}</span>}
         {/* Tạm ngưng: vì sao, ngưng bao lâu */}
         {r.trangThai === 'tam_ngung' && r.ngung && (
-          <span className={`font-medium ${m.mau.chu}`}>{r.ngung.lyDo ? `${tenLyDo(r.ngung.lyDo)} · ` : ''}{thoiLuong(now - Date.parse(r.ngung.tu))}</span>
+          <span className={`font-medium ${m.mau.chu}`}>{r.ngung.lyDo ? `${tenLyDo(r.ngung.lyDo)} · ` : ''}{chayTu(r.ngung.tu, now)}</span>
         )}
         {r.trangThai !== 'dang_lam' && <span className="tabular-nums text-slate-600">{soLuong}</span>}
       </p>

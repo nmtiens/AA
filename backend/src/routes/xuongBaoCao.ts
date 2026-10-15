@@ -3,7 +3,8 @@ import { pool } from '../db.js';
 import { app } from '../server/app.js';
 import { vnDayKey, runWithLimit } from '../server/common.js';
 import { isMissingSchema } from '../notifications.js';
-import { fail, xuongQuanLy, quanLyDuoc, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan, COT_SU_KIEN, toSuKien, type Row } from './xuong.js';
+import { fail, phamViXem, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan, COT_SU_KIEN, toSuKien, suKienTheoHex, type Row } from './xuong.js';
+import { tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { taiMra, khungCaChinh, gioTrongCaNgay, dauNgayVN, ngayCuaTs, NGAY, trangThaiMraLuc, type CapMra } from '../server/xuong/mraLichSu.js';
 
 // ============================================================================
@@ -39,8 +40,10 @@ const minN = (a: number, b: number) => (a > 0 && b > 0 ? Math.min(a, b) : a || b
 app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
   try {
     const xuong = String(req.query.xuong ?? '').toUpperCase();
-    const ds = await xuongQuanLy(req.user!.id);
-    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
+    const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
+    if (!pv) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
+    // Tổ trưởng: chỉ số liệu tổ mình (tổ, hạng mục tổ làm, người trong tổ, chỉ số theo thao tác của tổ)
+    const chiTo = pv.chiTo;
     const homNay = vnDayKey(new Date());
     const den = typeof req.query.den === 'string' && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === 'string' && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
@@ -48,7 +51,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     const rutGon = soNgay > 62;
     if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: 'Khoảng ngày phải từ 1 tới 186 ngày (khoảng 6 tháng)' });
 
-    const toRows = (await pool.query('SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to', [xuong])).rows;
+    const toRows = (await pool.query('SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to', [xuong])).rows
+      .filter(t => !chiTo || chiTo.includes(Number(t.id)));
     const toIds = toRows.map(t => Number(t.id));
     const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay] = await Promise.all([
       pool.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
@@ -56,18 +60,20 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       // Nhật ký công đoạn có đủ Bắt đầu và Hoàn thành (cặp hex × công đoạn có bắt đầu / hoàn thành trong kỳ)
       pool.query(
         `WITH hl AS (SELECT * FROM xuong_su_kien e WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai IN ('bat_dau','hoan_thanh')
+                       AND ($4::int[] IS NULL OR e.to_id = ANY($4::int[]))
                        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)),
               cap AS (SELECT DISTINCT hex, cong_doan_id FROM hl
                       WHERE (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date)
          SELECT count(*)::int AS tong,
                 count(*) FILTER (WHERE EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai = 'bat_dau')
                                    AND EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai = 'hoan_thanh'))::int AS du
-         FROM cap`, [xuong, tu, den]),
+         FROM cap`, [xuong, tu, den, chiTo]),
       // Sự kiện tới server trong vòng 1 giờ sau khi bấm (chỉ sự kiện từ máy; bỏ sự kiện ghi lùi giờ "Đã dừng lúc…")
       pool.query(
         `SELECT count(*)::int AS tong, count(*) FILTER (WHERE server_ts - device_ts_hieu_chinh <= interval '1 hour')::int AS nhanh
          FROM xuong_su_kien WHERE xuong = $1 AND device_id IS NOT NULL AND COALESCE(du_lieu->>'ghiLui', '') <> 'true'
-           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date`, [xuong, tu, den]),
+           AND ($4::int[] IS NULL OR to_id = ANY($4::int[]))
+           AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date`, [xuong, tu, den, chiTo]),
       // Hiện tại: hạng mục đang chạy, hàng chờ nhận theo tổ
       pool.query(
         `SELECT tc.to_id, count(*) FILTER (WHERE t.trang_thai = 'dang_lam')::int AS dang_chay,
@@ -283,7 +289,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       }
     }
 
-    const theoTo = [...toRows, ...toGia].map(t => {
+    // Tổ giả "(MRA)" (công đoạn MRA chưa gắn tổ) chỉ quản lý xem
+    const theoTo = [...toRows, ...(chiTo ? [] : toGia)].map(t => {
       const toId = Number(t.id);
       const gioNguoi = { thuong: 0, tangCa: 0 };
       const gioCho = { thuong: 0, tangCa: 0 };
@@ -404,7 +411,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       }
     }
     const ttHm = hmKy.size ? (await pool.query(
-      `SELECT hex, cong_doan_id, trang_thai, sl_nhan::float AS sl_nhan, sl_hoan_thanh::float AS sl_ht FROM xuong_trang_thai WHERE hex = ANY($1::text[])`,
+      `SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS sl_gd, sl_nhan::float AS sl_nhan, sl_hoan_thanh::float AS sl_ht, sl_giao::float AS sl_gi
+       FROM xuong_trang_thai WHERE hex = ANY($1::text[])`,
       [[...hmKy.keys()]])).rows : [];
     const ttCua = new Map(ttHm.map(x => [`${x.hex}|${x.cong_doan_id}`, x]));
     const cdRows = (await pool.query('SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1', [xuong])).rows;
@@ -418,7 +426,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       moiNhat: string | null;
       theoNgay: Array<{ ngay: string; congNhan: number; gioHc: number; gioTc: number; quanSoApp: number; gioThuongApp: number; gioTangCaApp: number }>;
     } | null = null;
-    try {
+    // Đối chiếu điểm danh là số cả xưởng — tổ trưởng không xem
+    if (!chiTo) try {
       const [dd, moi, qs] = await Promise.all([
         pool.query(
           `SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn, sum(gio_cong_hanh_chinh)::float AS hc,
@@ -539,7 +548,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
           ?? (() => {
             const cap = mraCap.get(`${hex}|${c.congDoanId}`);
             const t = cap ? trangThaiMraLuc(cap, dauNgayVN(den) + NGAY) : null;
-            return t ? { trang_thai: t.trangThai, sl_nhan: t.slNhan, sl_ht: t.slHoanThanh } : undefined;
+            return t ? { trang_thai: t.trangThai, sl_gd: null, sl_nhan: t.slNhan, sl_ht: t.slHoanThanh, sl_gi: null } : undefined;
           })();
         return {
           congDoanId: c.congDoanId, tenCongDoan: cdTen.get(c.congDoanId) ?? c.congDoanId, to: [...c.to].sort(),
@@ -548,6 +557,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
           // giờ chạy rất ngắn (vài phút) làm tròn lệch => không cho vượt số người khai nhiều nhất
           soNguoiTb: c.gioChay > 0 ? lam(Math.min(c.max, c.gnk / c.gioChay)) : 0, soNguoiMax: c.max, soNguoiMin: c.min,
           trangThai: tt ? String(tt.trang_thai) : null, slNhan: tt ? lam(Number(tt.sl_nhan)) : 0, slHoanThanh: tt ? lam(Number(tt.sl_ht)) : 0,
+          // Giao đến / đã giao (MRA cũ không có => null)
+          slGiaoDen: tt && tt.sl_gd !== null ? lam(Number(tt.sl_gd)) : null, slGiao: tt && tt.sl_gi !== null ? lam(Number(tt.sl_gi)) : null,
         };
       }).sort((a, b) => (cdThuTu.get(a.congDoanId) ?? 999) - (cdThuTu.get(b.congDoanId) ?? 999) || b.gioCong - a.gioCong);
       const i = info.get(hex);
@@ -563,11 +574,14 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     // — để thấy hạng mục có đang chạy đúng tuyến / đúng hạn không (tab Theo hạng mục)
     const hexHm = hangMuc.map(h => h.hex);
     const [tkRows, khRows, nkRows] = hexHm.length ? await Promise.all([
+      // Triển khai của xưởng này (xưởng chính) hoặc giao thành phần cho xưởng này (xưởng phụ)
       pool.query(
         `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc,
-                (array_agg(du_lieu->'tuyen' ORDER BY device_ts_hieu_chinh DESC))[1] AS tuyen
+                (array_agg(du_lieu->>'xuong' ORDER BY device_ts_hieu_chinh DESC))[1] AS xuong_chinh
          FROM xuong_su_kien e
-         WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND upper(coalesce(du_lieu->>'xuong', xuong)) = $2
+         WHERE loai = 'trien_khai' AND hex = ANY($1::text[])
+           AND (upper(coalesce(du_lieu->>'xuong', xuong)) = $2 OR EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN
+                  jsonb_typeof(e.du_lieu->'thanhPhan') = 'array' THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp WHERE upper(tp->>'xuong') = $2))
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          GROUP BY hex`, [hexHm, xuong]),
       pool.query(
@@ -581,10 +595,17 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
         `SELECT hex::text AS hex, sum(thanh_tien_nhap_kho_num) AS tien FROM nhap_kho WHERE hex::text = ANY($1::text[]) GROUP BY hex::text`, [hexHm])
         .catch(() => ({ rows: [] as Row[] })),
     ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
-    const tkHm = new Map(tkRows.rows.map(x => [String(x.hex), {
-      sl: Number(x.sl) || 0, luc: x.luc,
-      tuyen: Array.isArray(x.tuyen) ? (x.tuyen as unknown[]).map(String).map(id => ({ congDoanId: id, ten: cdTen.get(id) ?? id })) : [],
-    }]));
+    // Tuyến từng thành phần (song song) — xưởng chính khai + xưởng phụ khai CĐ chi tiết (QT2)
+    const hexTk = tkRows.rows.map(x => String(x.hex));
+    const evTk = hexTk.length ? (await suKienTheoHex(pool, hexTk)).map(toSuKien) : [];
+    const tkHm = new Map(tkRows.rows.map(x => {
+      const thanhPhan = tuyenTheoThanhPhan(evTk.filter(e => e.hex === String(x.hex)))
+        .map(t => ({ ten: t.thanhPhan, tuyen: t.tuyen.map(id => ({ congDoanId: id, ten: cdTen.get(id) ?? id })) }));
+      // tuyen: hợp các tuyến theo thứ tự gặp (sắp bảng công đoạn); đánh giá đúng / bỏ qua dùng từng thành phần
+      const tuyen: Array<{ congDoanId: string; ten: string }> = [];
+      for (const t of thanhPhan) for (const c of t.tuyen) if (!tuyen.some(y => y.congDoanId === c.congDoanId)) tuyen.push(c);
+      return [String(x.hex), { sl: Number(x.sl) || 0, luc: x.luc, xuongChinh: x.xuong_chinh ?? null, thanhPhan, tuyen }];
+    }));
     const nkHm = new Map(nkRows.rows.map(x => [String(x.hex), Number(x.tien) || 0]));
     const khHm = new Map(khRows.rows.map(x => [String(x.hex), {
       nam: Number(x.nam), tuan: Number(x.tuan), kh: Number(x.kh) || 0,
@@ -602,7 +623,7 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       ngayCoChay: a.ngayCoChay + t.ngayCoChay, ngayChot: a.ngayChot + t.ngayChot, khaiVuot: a.khaiVuot + t.khaiVuot,
     }), { ngayCoChay: 0, ngayChot: 0, khaiVuot: 0 });
     res.json({
-      success: true, available: true, xuong, tu, den, banLuu,
+      success: true, available: true, xuong, chiTo, tu, den, banLuu,
       conThieu: Math.max(0, canTinh.length - lanNay.length),
       chamCong,
       hangMuc,

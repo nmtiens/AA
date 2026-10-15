@@ -3,7 +3,7 @@ import {
   PackageX, FileClock, AlertOctagon, Zap, Megaphone, MoreHorizontal, Minus, Plus, ChevronRight,
   History, Moon, ClipboardCheck, Users, Rocket, Camera, Image as ImageIcon, Search as SearchIcon,
 } from 'lucide-react';
-import { BottomSheet } from '../mobileUi';
+import { BottomSheet, NO_SCROLLBAR } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
@@ -88,7 +88,7 @@ export function QuanSoSheet({ ca, macDinh, homQua, sauDo, onChot, onClose }: {
 // ---------------------------------------------------------------------------
 // Bắt đầu / Tiếp tục — bắt buộc khai số người làm hạng mục (giờ công chia theo số người khai)
 // ---------------------------------------------------------------------------
-export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, onBatDau, onClose }: {
+export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca = null, now = Date.now(), onBatDau, onClose }: {
   r: DongViec; tiepTuc: boolean; quanSo: number | null; dangChayKhac: DongViec[];
   /** Tổ chấm công theo tên thì chọn người làm bằng tên */
   cv?: CongViec | null; ca?: LoaiCa | null; now?: number;
@@ -110,6 +110,9 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, onBatDau, on
   const soLam = theoTen ? chon.size : n;
   const chuyen = [...chon].filter(m => ban.has(m)).length;
   const vuot = !theoTen && ranh !== null && n > ranh;
+  // Chọn nhanh 1 chạm: người đã điểm danh có mặt và chưa làm hạng mục khác (vẫn chạm sửa từng tên được)
+  const ranhCoMat = cv && theoTen ? coMatLuc(cv, ca, now).filter(m => !ban.has(m)) : [];
+  const daChonHetRanh = ranhCoMat.length > 0 && ranhCoMat.every(m => chon.has(m));
   const dongTu = tiepTuc ? 'Tiếp tục' : 'Bắt đầu';
   return (
     <BottomSheet title={`${dongTu} ${r.hex} — ${theoTen ? 'ai làm?' : 'mấy người làm?'}`} onClose={onClose}
@@ -121,6 +124,11 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, onBatDau, on
             {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.`
               : 'Chạm tên người làm hạng mục này. Tên mờ là người đang làm hạng mục khác (chọn thì chuyển sang).'}
           </p>
+          {ranhCoMat.length > 0 && !daChonHetRanh && (
+            <button className={`${NUT_PHU} w-full`} onClick={() => setChon(s => new Set([...s, ...ranhCoMat]))}>
+              <Users size="1.1em" aria-hidden /> Chọn {ranhCoMat.length} người có mặt đang rảnh
+            </button>
+          )}
           <ChonNguoi coMat={caTo} ds={dsNguoi} chon={chon} onDoi={setChon} ban={ban} rong="Tổ chưa có danh sách người — thêm ở dưới." />
           {!moThem && <button className={`${NUT_PHU} w-full`} onClick={() => setMoThem(true)}>+ Thêm người tổ khác / người mới</button>}
           {moThem && cv?.to && (
@@ -931,8 +939,9 @@ export function ChonToSheet({ ds, toId, onChon, onClose }: {
 }
 
 /**
- * Thanh việc của tổ — các việc trước nằm trong menu "⋯ Việc khác" nay hiện thẳng ra ngoài:
- * hiện đủ hết (tự xuống hàng), không phải vuốt hay mở menu.
+ * Thanh việc của tổ — hiện thẳng ra ngoài (không menu "⋯").
+ * Điện thoại: 1 hàng vuốt ngang (trước lưới 2 hàng đẩy danh sách việc xuống dưới thanh Quét phiếu);
+ * màn rộng: tự xuống hàng.
  */
 export function ThanhViec({ muc }: {
   muc: Array<{ ten: string; icon: 'lichsu' | 'tangca' | 'xacnhan' | 'quanso' | 'trienkhai'; onClick: () => void; phu?: string; noi?: boolean }>;
@@ -942,13 +951,13 @@ export function ThanhViec({ muc }: {
     quanso: <Users size="1.1em" />, trienkhai: <Rocket size="1.1em" />,
   };
   return (
-    <nav aria-label="Việc của tổ" className="grid grid-cols-3 gap-2 rmd:flex rmd:flex-wrap">
+    <nav aria-label="Việc của tổ" className={`-mx-4 flex gap-2 overflow-x-auto px-4 ${NO_SCROLLBAR} rmd:mx-0 rmd:flex-wrap rmd:overflow-visible rmd:px-0`}>
       {muc.map(m => (
         <button key={m.ten} type="button" onClick={m.onClick}
-          className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl border px-1 py-1.5 text-sm leading-tight rmd:min-h-11 rmd:flex-row rmd:gap-1.5 rmd:whitespace-nowrap rmd:px-3 rmd:text-base active:opacity-80 ${
+          className={`flex min-h-12 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-base active:opacity-80 ${
             m.noi ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} font-medium` : 'border-slate-200 bg-white text-slate-800'}`}>
           <span className={m.noi ? '' : 'text-slate-600'} aria-hidden>{ICON[m.icon]}</span>
-          <span className="max-w-full truncate text-center">{m.ten}{m.phu && <span className={m.noi ? '' : 'text-slate-500'}> · {m.phu}</span>}</span>
+          <span>{m.ten}{m.phu && <span className={m.noi ? '' : 'text-slate-600'}> · {m.phu}</span>}</span>
         </button>
       ))}
     </nav>

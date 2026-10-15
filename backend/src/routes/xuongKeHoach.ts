@@ -4,7 +4,7 @@ import { app } from '../server/app.js';
 import { isoWeekRangeInYear } from '../server/common.js';
 import { numericCol, notCancelledHexCond } from '../server/data.js';
 import { ensureWorkshopGroups, workshopCondition } from '../server/workshopGroups.js';
-import { fail, xuongQuanLy, quanLyDuoc, COT_SU_KIEN, toSuKien } from './xuong.js';
+import { fail, phamViXem, COT_SU_KIEN, toSuKien } from './xuong.js';
 import { tinhTrangThai } from '../server/xuong/state.js';
 import { dauNgayVN, NGAY } from '../server/xuong/mraLichSu.js';
 import type { SuKien } from '../server/xuong/types.js';
@@ -16,15 +16,34 @@ import type { SuKien } from '../server/xuong/types.js';
 // - Thực hiện: nhap_kho trong khoảng ngày của tuần (cùng quy tắc "theo KH" của /api/khsx-nhapkho/summary).
 // - MRA: đã triển khai cho xưởng chưa, từng công đoạn đang ở đâu (xuong_trang_thai), tạm ngưng vì sao.
 // Tiền: triệu đồng. Giờ công sản phẩm từng hạng mục lấy ở /api/xuong/bao-cao (cùng khoảng ngày) phía máy khách.
+// Tổ trưởng: chỉ hạng mục ĐI QUA công đoạn tổ mình (có thao tác ở công đoạn của tổ — app hoặc MRA cũ — hoặc tuyến
+// triển khai / khai CĐ chi tiết có công đoạn của tổ); nhập kho, biểu đồ theo ngày cũng chỉ tính các hạng mục đó.
 // ============================================================================
+
+/** Hạng mục (trong `hexes`) đi qua một trong các công đoạn `cds` */
+async function hexQuaCongDoan(hexes: string[], cds: string[]): Promise<Set<string>> {
+  if (!hexes.length || !cds.length) return new Set();
+  const [coThaoTac, tuyen] = await Promise.all([
+    pool.query(`SELECT DISTINCT hex FROM xuong_su_kien WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])`, [hexes, cds]),
+    pool.query(
+      `SELECT hex, du_lieu::text AS dl FROM xuong_su_kien e WHERE loai IN ('trien_khai', 'khai_bao_cd') AND hex = ANY($1::text[])
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`, [hexes]),
+  ]);
+  const out = new Set(coThaoTac.rows.map(x => String(x.hex)));
+  for (const x of tuyen.rows) if (x.dl && cds.some(c => String(x.dl).includes(`"${c}"`))) out.add(String(x.hex));
+  return out;
+}
 
 app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
   try {
     const xuong = typeof req.query.xuong === 'string' ? req.query.xuong.trim().toUpperCase() : '';
     const nam = Number(req.query.nam);
     const tuan = Number(req.query.tuan);
-    const ds = await xuongQuanLy(req.user!.id);
-    if (!xuong || !quanLyDuoc(ds, xuong)) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
+    const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
+    if (!pv) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
+    const cdCuaTo = pv.chiTo
+      ? (await pool.query('SELECT DISTINCT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])', [pv.chiTo])).rows.map(x => String(x.cong_doan_id))
+      : null;
     const khoang = isoWeekRangeInYear(nam, tuan);
     if (!khoang) return res.status(400).json({ success: false, message: 'Tuần không hợp lệ' });
     await ensureWorkshopGroups();
@@ -40,7 +59,6 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
        WHERE upper(trim(phan_loai_kh)) LIKE '%TUẦN%' AND nam = $1::bigint AND tuan = $2::double precision AND hex IS NOT NULL
          AND ${notCancelledHexCond('hex')} AND ${workshopCondition('xuong_chinh', xuong, khP)}
        GROUP BY hex::text ORDER BY sum(${numericCol('khsx', 'thanh_tien_ke_hoach')}) DESC NULLS LAST`, khP);
-    const hexKh = kh.rows.map(x => String(x.hex));
 
     // ---- Nhập kho trong tuần của xưởng (cả hạng mục ngoài kế hoạch) ----
     const nkP: unknown[] = [khoang.start, khoang.end];
@@ -51,6 +69,13 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
        WHERE date_parsed BETWEEN $1::date AND $2::date AND hex IS NOT NULL AND ${notCancelledHexCond('hex')}
          AND ${workshopCondition('xuong_chinh', xuong, nkP)}
        GROUP BY hex::text`, nkP);
+    // Tổ trưởng: chỉ hạng mục đi qua công đoạn tổ mình (cả kế hoạch lẫn nhập kho ngoài kế hoạch)
+    const quaTo = cdCuaTo ? await hexQuaCongDoan([...new Set([...kh.rows, ...nk.rows].map(x => String(x.hex)))], cdCuaTo) : null;
+    if (quaTo) {
+      kh.rows = kh.rows.filter(x => quaTo.has(String(x.hex)));
+      nk.rows = nk.rows.filter(x => quaTo.has(String(x.hex)));
+    }
+    const hexKh = kh.rows.map(x => String(x.hex));
     const nkMap = new Map(nk.rows.map(x => [String(x.hex), { tien: Number(x.tien) || 0, sl: Number(x.sl) || 0, ten: x.ten_hang_muc as string | null }]));
     const nkMoiNhat = (await pool.query(`SELECT to_char(max(date_parsed),'YYYY-MM-DD') AS d FROM nhap_kho`)).rows[0]?.d ?? null;
     // Nhập kho luỹ kế tới hết tuần của hạng mục kế hoạch: đã nhập đủ đơn hàng từ trước tuần thì không phải "rớt"
@@ -60,13 +85,14 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
        WHERE hex::text = ANY($1::text[]) AND date_parsed <= $2::date GROUP BY hex::text`, [hexKh, khoang.end]) : { rows: [] };
     const lkMap = new Map(lk.rows.map(x => [String(x.hex), Number(x.tien) || 0]));
     // Nhập kho từng ngày trong tuần, tách theo / ngoài kế hoạch (biểu đồ)
-    const ngP: unknown[] = [khoang.start, khoang.end, hexKh];
+    const ngP: unknown[] = [khoang.start, khoang.end, hexKh, quaTo ? [...quaTo] : null];
     const theoNgay = await pool.query(
       `SELECT to_char(date_parsed,'YYYY-MM-DD') AS ngay,
               sum(CASE WHEN hex::text = ANY($3::text[]) THEN ${numericCol('nhap_kho', 'thanh_tien_nhap_kho')} ELSE 0 END) AS theo_kh,
               sum(CASE WHEN hex::text = ANY($3::text[]) THEN 0 ELSE ${numericCol('nhap_kho', 'thanh_tien_nhap_kho')} END) AS ngoai_kh
        FROM nhap_kho
        WHERE date_parsed BETWEEN $1::date AND $2::date AND hex IS NOT NULL AND ${notCancelledHexCond('hex')}
+         AND ($4::text[] IS NULL OR hex::text = ANY($4::text[]))
          AND ${workshopCondition('xuong_chinh', xuong, ngP)}
        GROUP BY date_parsed ORDER BY date_parsed`, ngP);
 
@@ -139,7 +165,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
 
     const daCoKh = new Set(hexKh);
     res.json({
-      success: true, xuong, nam, tuan, tu: khoang.start, den: khoang.end, nhapKhoMoiNhat: nkMoiNhat,
+      success: true, xuong, chiTo: pv.chiTo, nam, tuan, tu: khoang.start, den: khoang.end, nhapKhoMoiNhat: nkMoiNhat,
       nhapKhoTheoNgay: theoNgay.rows.map(x => ({ ngay: x.ngay, theoKh: Number(x.theo_kh) || 0, ngoaiKh: Number(x.ngoai_kh) || 0 })),
       keHoach: kh.rows.map(x => {
         const hex = String(x.hex);

@@ -33,14 +33,24 @@ export default function XuongShell() {
   const { user, hasPermission } = useAuth();
   const [daDangNhap, setDaDangNhap] = useState(dangNhapSan);
   const laQuanLy = hasPermission('xuong_quan_ly');
+  // Tổ trưởng: không hiện Tổng quan; mục Quản lý chỉ số liệu tổ mình (backend lọc) — kể cả tổ trưởng không có quyền
+  // quản lý. Lần đầu đọc phiên đã lưu để menu không nháy.
+  const [soTo, setSoTo] = useState<number>(() => {
+    try {
+      const to = JSON.parse(localStorage.getItem('xuong_phien') || 'null')?.to as Array<{ toTruong?: boolean }> | undefined;
+      return to?.filter(t => t.toTruong !== false).length ?? 0;
+    } catch { return 0; }
+  });
+  const coTongQuan = laQuanLy && soTo === 0;
+  const coQuanLy = laQuanLy || soTo > 0;
   // Điện thoại bật "Trang web cho máy tính" → vẫn dùng bố cục điện thoại (trước khi vẽ để không nháy bố cục máy tính)
   useLayoutEffect(() => apDungCheDoDienThoai(), []);
 
   const dsMuc: Array<{ id: Muc; ten: string; icon: ReactNode }> = [
     { id: 'to', ten: 'Tổ', icon: <ClipboardList size="1.375em" /> },
-    ...(laQuanLy ? [{ id: 'tongQuan' as const, ten: 'Tổng quan', icon: <LayoutGrid size="1.375em" /> }] : []),
+    ...(coTongQuan ? [{ id: 'tongQuan' as const, ten: 'Tổng quan', icon: <LayoutGrid size="1.375em" /> }] : []),
     { id: 'traCuu', ten: 'Tra cứu', icon: <Search size="1.375em" /> },
-    ...(laQuanLy ? [{ id: 'quanLy' as const, ten: 'Quản lý', icon: <Settings2 size="1.375em" /> }] : []),
+    ...(coQuanLy ? [{ id: 'quanLy' as const, ten: soTo > 0 ? 'Báo cáo' : 'Quản lý', icon: <Settings2 size="1.375em" /> }] : []),
     { id: 'taiKhoan', ten: 'Tài khoản', icon: <UserRound size="1.375em" /> },
   ];
 
@@ -121,7 +131,7 @@ export default function XuongShell() {
       <div className="relative min-w-0 flex-1">
         {/* Tổ: luôn gắn để hàng đợi tiếp tục gửi khi đang xem mục khác */}
         <div className={`absolute inset-0 overflow-y-auto overscroll-contain ${mucHienTai === 'to' ? '' : 'hidden'}`} role="tabpanel" aria-label="Tổ">
-          <XuongApp moTo={moTo} onTongQuan={() => chon('tongQuan')} />
+          <XuongApp moTo={moTo} onTongQuan={() => chon('tongQuan')} dangXem={mucHienTai === 'to'} onSoTo={setSoTo} />
         </div>
         {khung('tongQuan', <TongQuanXuong onChonTo={t => { setMoTo({ ...t, lan: Date.now() }); chon('to'); }} onMoKeHoach={moKeHoach} />)}
         {khung('traCuu', <TraCuuXuong />)}

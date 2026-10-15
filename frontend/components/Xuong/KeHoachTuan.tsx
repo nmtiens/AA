@@ -4,6 +4,7 @@ import { xuongSetupApi, type KeHoachTuan as KhTuan, type KeHoachTuanDong, type B
 import { gioVN, tenLyDo, hienSl } from '../../services/xuongModel';
 import { BTN, KHUNG, TH, TD } from './xuongDesktopUi';
 import { BieuDoKeHoach } from './BieuDoXuong';
+import PhanTichXuong from './PhanTichXuong';
 
 // ============================================================================
 // BÁO CÁO → KẾ HOẠCH TUẦN: kế hoạch tuần của xưởng (KHSX) đối chiếu nhập kho và tiến độ trong MRA.
@@ -16,6 +17,8 @@ import { BieuDoKeHoach } from './BieuDoXuong';
 // ============================================================================
 
 const ngayVN = (offset = 0) => gioVN(Date.now() + offset * 86_400_000).ngay;
+/** Ngày 'YYYY-MM-DD' lùi n ngày */
+const ngayTruoc = (ngay: string, n: number) => new Date(Date.parse(`${ngay}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
 const so = (n: number, le = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: le });
 const tien = (trieu: number) => (Math.abs(trieu) >= 1000 ? `${so(trieu / 1000, 2)} tỷ` : `${so(trieu, 0)} tr`);
 const ddmm = (s: string) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
@@ -98,6 +101,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
   const [loi, setLoi] = useState('');
   const [dang, setDang] = useState(false);
   const [mo, setMo] = useState<string | null>(null);
+  const [moMoc, setMoMoc] = useState(false);
   const lan = useRef(0);
 
   const tai = useCallback(async () => {
@@ -180,6 +184,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
       </div>
       <p className="text-xs text-slate-500">
         Xem theo tuần kế hoạch (KHSX), không theo khoảng ngày ở trên. Nhập kho có số liệu tới {kh?.nhapKhoMoiNhat ? ddmm(kh.nhapKhoMoiNhat) : '—'}.
+        {kh?.chiTo && <b> Chỉ hạng mục đi qua công đoạn tổ của bạn (kế hoạch, nhập kho, biểu đồ).</b>}
       </p>
 
       {loi && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
@@ -318,6 +323,22 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
           </div>
         )}
       </>)}
+
+      {/* Gộp tab "Phân tích": mốc chuẩn thời gian từ số liệu app 180 ngày tới hết tuần đang xem — đọc cùng kế hoạch tuần
+          (công đoạn nào chậm / hay tạm ngưng thì hạng mục kế hoạch đi qua đó dễ rớt) */}
+      {/* Thu gọn mặc định để mọi tuần cùng một bố cục (tuần chưa có kế hoạch không bị phần này chiếm cả trang); chỉ tải khi mở */}
+      {kh && (
+        <details className="group rounded-xl border border-slate-200 bg-white" open={moMoc} onToggle={e => setMoMoc((e.target as HTMLDetailsElement).open)}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3">
+            <ChevronRight size={16} className="shrink-0 text-slate-500 transition-transform group-open:rotate-90" aria-hidden />
+            <span>
+              <span className="block text-sm font-semibold text-slate-900">Mốc chuẩn thời gian</span>
+              <span className="block text-xs text-slate-500">Mỗi công đoạn / hạng mục thường mất bao lâu — số liệu app 180 ngày tới hết tuần {t.tuan}, dùng để lập và soát kế hoạch tuần</span>
+            </span>
+          </summary>
+          {moMoc && <div className="border-t border-slate-100 p-3"><PhanTichXuong xuong={xuong} tu={ngayTruoc(kh.den, 179)} den={kh.den} /></div>}
+        </details>
+      )}
     </div>
   );
 }

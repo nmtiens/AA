@@ -96,7 +96,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
             <button
               key={l}
               onClick={() => onSizeChange(i)}
-              className={`rounded-full py-2 text-base ${sizeIdx === i ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              className={`min-h-11 rounded-full text-base ${sizeIdx === i ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-700'}`}
             >
               {l}
             </button>
@@ -113,7 +113,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
             {([['tu_dong', 'Tự động'], ['dien_thoai', 'Điện thoại'], ['may_tinh', 'Máy tính']] as Array<[BoCuc, string]>).map(([k, l]) => (
               <button key={k} aria-pressed={docBoCuc() === k}
                 onClick={() => { luuBoCuc(k); location.reload(); }}
-                className={`rounded-full py-2 text-base ${docBoCuc() === k ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                className={`min-h-11 rounded-full text-base ${docBoCuc() === k ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-700'}`}>
                 {l}
               </button>
             ))}
@@ -182,6 +182,7 @@ export default function MobileAccount({ sizeIdx, sizeLabels, onSizeChange, onLog
 }
 
 function Switch({ on, disabled, onClick, label }: { on: boolean; disabled?: boolean; onClick: () => void; label: string }) {
+  // Vùng chạm 48×56 (công tắc nhìn thấy 28×48 ở giữa)
   return (
     <button
       role="switch"
@@ -189,9 +190,11 @@ function Switch({ on, disabled, onClick, label }: { on: boolean; disabled?: bool
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${on ? 'bg-emerald-500' : 'bg-slate-300'}`}
+      className="-mr-1 flex h-12 w-14 shrink-0 items-center justify-center disabled:opacity-50"
     >
-      <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      <span className={`relative h-7 w-12 rounded-full transition-colors ${on ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+        <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      </span>
     </button>
   );
 }

@@ -6,7 +6,7 @@ import type { CongViec } from './xuongModel';
 // Ghi thao tác KHÔNG gọi thẳng API: luôn qua hàng đợi (services/xuongQueue.ts).
 // ============================================================================
 
-export interface ToCuaToi { id: number; xuong: string; ten: string }
+export interface ToCuaToi { id: number; xuong: string; ten: string; /** Tài khoản là tổ trưởng tổ này (không phải chỉ thành viên) */ toTruong?: boolean }
 export interface DangKyKetQua {
   ok: boolean;
   available?: boolean;

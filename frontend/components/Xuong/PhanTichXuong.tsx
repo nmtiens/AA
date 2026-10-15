@@ -3,13 +3,14 @@ import { RefreshCw } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid,
 } from 'recharts';
-import { xuongSetupApi, type LichSuMra as Mra } from '../../services/xuongSetupApi';
+import { xuongSetupApi, type PhanTichXuong as PhanTich } from '../../services/xuongSetupApi';
 import { KHUNG, TH, TD } from './xuongDesktopUi';
 
 // ============================================================================
-// BÁO CÁO → LỊCH SỬ MRA: phân tích dữ liệu MRA cũ (03/2025 – 02/2026) của xưởng, TÁCH RIÊNG số liệu app mới.
-// MRA không có quân số tổ, số nhân công có thể đếm trùng => không có giờ công / % có việc. Dùng làm MỐC CHUẨN:
-// mỗi công đoạn chạy bao lâu (giờ trong ca), hạng mục nằm trong xưởng bao nhiêu ngày theo nhóm sản phẩm, tạm ngưng.
+// BÁO CÁO → KẾ HOẠCH & PHÂN TÍCH → MỐC CHUẨN THỜI GIAN: số liệu app, cùng cách phân tích của tab "Lịch sử MRA" cũ
+// (đã bỏ): mỗi công đoạn chạy bao lâu (giờ trong ca), hạng mục nằm trong xưởng bao nhiêu ngày theo nhóm sản phẩm,
+// tạm ngưng, theo tháng. Chỉ phân tích THỜI GIAN — giờ công (người) ở tab Theo tổ / Theo hạng mục, tiền ở kế hoạch tuần.
+// Lấy công đoạn có thao tác đầu trong [tu, den]; tổ trưởng chỉ công đoạn tổ mình (backend lọc).
 // ============================================================================
 
 const so = (n: number, le = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: le });
@@ -27,7 +28,7 @@ function The({ ten, giaTri, phu }: { ten: string; giaTri: string; phu?: string }
 }
 function Khung({ ten, phu, children }: { ten: string; phu?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
       <p className="text-sm font-semibold text-slate-800">{ten}</p>
       {phu && <p className="text-xs text-slate-500">{phu}</p>}
       <div className="mt-2">{children}</div>
@@ -35,33 +36,38 @@ function Khung({ ten, phu, children }: { ten: string; phu?: string; children: Re
   );
 }
 
-export default function LichSuMra({ xuong }: { xuong: string }) {
-  const [d, setD] = useState<Mra | null>(null);
+export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: string; den: string }) {
+  const [d, setD] = useState<PhanTich | null>(null);
   const [loi, setLoi] = useState('');
   useEffect(() => {
     let huy = false;
     setD(null); setLoi('');
-    xuongSetupApi.lichSuMra(xuong).then(r => { if (huy) return; if (r.ok) setD(r.data); else setLoi(r.message); });
+    xuongSetupApi.phanTich(xuong, tu, den).then(r => { if (huy) return; if (r.ok) setD(r.data); else setLoi(r.message); });
     return () => { huy = true; };
-  }, [xuong]);
+  }, [xuong, tu, den]);
 
   if (loi) return <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>;
   if (!d) return <div className="flex justify-center py-10 text-slate-400"><RefreshCw className="animate-spin" size={18} /></div>;
   if (!d.coDuLieu || !d.tong) {
-    return <p className={`${KHUNG} p-4 text-sm text-slate-600`}>Chưa có lịch sử MRA của xưởng {xuong} (chưa nạp, hoặc xưởng không dùng MRA).</p>;
+    return <p className={`${KHUNG} p-4 text-sm text-slate-600`}>Chưa có công đoạn nào bắt đầu trên app trong khoảng ngày này{d.chiTo ? ' ở tổ của bạn' : ''}.</p>;
   }
   const t = d.tong;
   const cd = (d.congDoan ?? []).filter(c => c.soHm >= 3);
-  const cdBieuDo = [...cd].sort((a, b) => b.gioCaTv - a.gioCaTv).slice(0, 14).map(c => ({ ten: c.ten, tv: c.gioCaTv, p75: Math.max(0, c.gioCaP75 - c.gioCaTv) }));
-  const nhom = (d.nhom ?? []).filter(n => n.soXong >= 3);
+  // Chỉ vẽ khi đủ số liệu làm mốc (≥ 3 hạng mục, có giờ trong ca) — ít số liệu thì biểu đồ ra thanh 0,1 giờ / "0 ngày" gây hiểu nhầm
+  const cdBieuDo = [...cd].filter(c => c.gioCaTv >= 0.1).sort((a, b) => b.gioCaTv - a.gioCaTv).slice(0, 14)
+    .map(c => ({ ten: c.ten, tv: c.gioCaTv, p75: Math.max(0, c.gioCaP75 - c.gioCaTv) }));
+  const nhom = (d.nhom ?? []).filter(n => n.soXong >= 3 && n.ngayTv > 0);
+  const theoThang = d.theoThang ?? [];
+  const lauNhat = (d.lauNhat ?? []).filter(h => h.ngay >= 0.1);
+  const coBieuDo = cdBieuDo.length > 0 || nhom.length > 0 || theoThang.length >= 2 || lauNhat.length > 0;
 
   return (
     <div className="space-y-4">
       <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-        Dữ liệu MRA cũ ({ngayVi(t.tu)} – {ngayVi(t.den)}), tách riêng số liệu app mới. MRA không có quân số tổ và số nhân công có thể đếm trùng,
-        nên không tính giờ công / tỷ lệ có việc. <b>Giờ trong ca</b> = phần thời gian chạy nằm trong ca chính (trừ nghỉ trưa, bỏ Chủ nhật);
-        <b> ngày lịch</b> = tính cả đêm. Trung vị (TV) = mức giữa, P75 = 3/4 số hạng mục nhanh hơn mức này — dùng làm mốc khi lập kế hoạch.
-        {t.khongKhopCd > 0 && ` ${so(t.khongKhopCd, 0)} thao tác MRA chưa khớp công đoạn của danh mục nên chưa tính.`}
+        Số liệu app: các công đoạn bắt đầu từ {ngayVi(t.tu)} tới {ngayVi(t.den)}{d.chiTo ? ' — chỉ công đoạn tổ của bạn' : ''} (bỏ thao tác đã huỷ).
+        <b> Giờ trong ca</b> = phần thời gian chạy nằm trong ca chính (trừ nghỉ trưa, bỏ Chủ nhật, không gồm tăng ca); công đoạn đang chạy tính tới bây giờ;
+        <b> ngày lịch</b> = tính cả đêm. <b>Ngày trong xưởng</b> chỉ tính hạng mục đã xong mọi công đoạn đã nhận.
+        Trung vị (TV) = mức giữa, P75 = 3/4 số hạng mục nhanh hơn mức này — dùng làm mốc khi lập kế hoạch. Giờ công theo người xem ở tab Theo tổ / Theo hạng mục.
       </p>
 
       <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
@@ -72,8 +78,14 @@ export default function LichSuMra({ xuong }: { xuong: string }) {
         <The ten="Công đoạn có số liệu" giaTri={so((d.congDoan ?? []).length, 0)} phu="xem bảng bên dưới" />
       </div>
 
-      <div className="grid gap-3 rlg:grid-cols-2">
-        <Khung ten="Mỗi hạng mục chạy bao lâu ở từng công đoạn" phu="Giờ trong ca: xanh = trung vị, vàng = thêm tới P75 (công đoạn chậm lên trên)">
+      {!coBieuDo && (
+        <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-600">
+          Chưa đủ số liệu app để vẽ mốc chuẩn (cần mỗi công đoạn ≥ 3 hạng mục có chạy trong ca, hạng mục xong đủ công đoạn).
+          Số liệu đến đâu xem ở bảng dưới; biểu đồ tự hiện khi tổ dùng app thêm vài tuần.
+        </p>
+      )}
+      {coBieuDo && <div className="grid gap-3 rlg:grid-cols-2">
+        {cdBieuDo.length > 0 && <Khung ten="Mỗi hạng mục chạy bao lâu ở từng công đoạn" phu="Giờ trong ca: xanh = trung vị, vàng = thêm tới P75 (công đoạn chậm lên trên)">
           <div style={{ height: Math.max(180, cdBieuDo.length * 28 + 40) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cdBieuDo} layout="vertical" margin={{ top: 4, right: 12, left: 8, bottom: 0 }}>
@@ -86,9 +98,9 @@ export default function LichSuMra({ xuong }: { xuong: string }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Khung>
+        </Khung>}
 
-        <Khung ten="Ngày nằm trong xưởng theo nhóm sản phẩm" phu="Từ thao tác đầu tới lần xong / giao cuối · trung vị và P75">
+        {nhom.length > 0 && <Khung ten="Ngày nằm trong xưởng theo nhóm sản phẩm" phu="Từ thao tác đầu tới lần xong / giao cuối · trung vị và P75">
           <div style={{ height: Math.max(180, nhom.length * 30 + 40) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={nhom.map(n => ({ ten: n.ten, tv: n.ngayTv, p75: n.ngayP75 }))} layout="vertical" margin={{ top: 4, right: 12, left: 8, bottom: 0 }}>
@@ -102,45 +114,44 @@ export default function LichSuMra({ xuong }: { xuong: string }) {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Khung>
+        </Khung>}
 
-        <Khung ten="Theo tháng" phu="Cột: hạng mục xong trong tháng · đường: giờ trong ca của các công đoạn bắt đầu trong tháng">
+        {theoThang.length >= 2 && <Khung ten="Theo tháng" phu="Cột: hạng mục xong mọi công đoạn trong tháng (không phải nhập kho) · đường: giờ trong ca của các công đoạn bắt đầu trong tháng">
           <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={(d.theoThang ?? []).map(m => ({ ...m, thang: `${m.thang.slice(5)}/${m.thang.slice(2, 4)}` }))} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+              <ComposedChart data={theoThang.map(m => ({ ...m, thang: `${m.thang.slice(5)}/${m.thang.slice(2, 4)}` }))} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="thang" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="a" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="b" orientation="right" tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar yAxisId="a" dataKey="soXong" name="Hạng mục xong" fill={XANH} radius={[3, 3, 0, 0]} />
+                <Bar yAxisId="a" dataKey="soXong" name="Hạng mục xong công đoạn" fill={XANH} radius={[3, 3, 0, 0]} />
                 <Line yAxisId="b" dataKey="gioCa" name="Giờ trong ca" stroke={TIM} strokeWidth={2} dot={{ r: 3 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </Khung>
+        </Khung>}
 
-        <Khung ten="Hạng mục nằm lâu nhất trong xưởng" phu="Đã xong · số ngày lịch từ thao tác đầu tới xong / giao cuối">
+        {lauNhat.length > 0 && <Khung ten="Hạng mục nằm lâu nhất trong xưởng" phu="Đã xong · số ngày lịch từ thao tác đầu tới xong / giao cuối">
           <ul className="divide-y divide-slate-100 text-sm">
-            {(d.lauNhat ?? []).slice(0, 10).map(h => (
+            {lauNhat.slice(0, 10).map(h => (
               <li key={h.hex} className="flex items-center justify-between gap-3 py-1.5">
                 <span className="min-w-0 truncate"><b className="tabular-nums">{h.hex}</b> {h.ten ?? ''} <span className="text-xs text-slate-500">· {h.nhom}</span></span>
                 <span className="shrink-0 tabular-nums text-slate-700">{so(h.ngay)} ngày</span>
               </li>
             ))}
           </ul>
-        </Khung>
-      </div>
+        </Khung>}
+      </div>}
 
       <div className={KHUNG}>
         <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Mốc chuẩn theo công đoạn ({(d.congDoan ?? []).length})</p>
-        <table className="w-full min-w-[56rem] text-sm rmd:min-w-0">
+        <table className="w-full min-w-[44rem] text-sm rmd:min-w-0">
           <thead className="bg-slate-50"><tr>
             <th className={TH}>Công đoạn</th><th className={`${TH} text-right`}>Hạng mục</th><th className={`${TH} text-right`}>SL xong</th>
             <th className={`${TH} text-right`}>Giờ trong ca TV</th><th className={`${TH} text-right`}>P75</th><th className={`${TH} text-right`}>Ngày lịch TV</th>
-            <th className={`${TH} text-right`}>Giờ / đơn vị TV</th><th className={`${TH} text-right`}>Nhân công TB*</th>
-            <th className={`${TH} text-right`}>NC × giờ*</th><th className={`${TH} text-right`}>Tạm ngưng</th>
+            <th className={`${TH} text-right`}>Giờ / đơn vị TV</th><th className={`${TH} text-right`}>Tạm ngưng</th>
           </tr></thead>
           <tbody>
             {(d.congDoan ?? []).map(c => (
@@ -152,16 +163,14 @@ export default function LichSuMra({ xuong }: { xuong: string }) {
                 <td className={`${TD} text-right tabular-nums`}>{c.gioCaP75 ? so(c.gioCaP75) : '—'}</td>
                 <td className={`${TD} text-right tabular-nums`}>{c.ngayChayTv ? so(c.ngayChayTv) : '—'}</td>
                 <td className={`${TD} text-right tabular-nums`}>{c.gioTrenDvTv ? so(c.gioTrenDvTv, 2) : '—'}</td>
-                <td className={`${TD} text-right tabular-nums`}>{c.ncTb === null ? '—' : so(c.ncTb)}</td>
-                <td className={`${TD} text-right tabular-nums`}>{c.ncGio ? so(c.ncGio, 0) : '—'}</td>
                 <td className={`${TD} text-right tabular-nums`}>{c.soNgung ? `${so(c.soNgung, 0)} lần · ${c.hmNgung} HM` : '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-          * Số nhân công MRA gốc (có thể đếm trùng khi một người khai ở nhiều hạng mục) — chỉ để tham khảo, không phải giờ công.
-          Giờ / đơn vị theo đơn vị MRA ghi (có công đoạn đếm theo tấm, không theo bộ).
+          Giờ trong ca TV / P75: thời gian công đoạn đang chạy (tính trong ca chính) (không phải giờ công người — xem tab Theo tổ / Theo hạng mục).
+          Giờ / đơn vị theo đơn vị của hạng mục (bộ, cái, tấm…).
         </p>
       </div>
 

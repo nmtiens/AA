@@ -15,6 +15,8 @@ export interface ToSetup {
 export interface LichCaSetup { xuong: string; loaiCa: LoaiCa; gioBatDau: string; gioKetThuc: string; nghi: Array<[string, string]> }
 export interface SetupXuong {
   admin: boolean; dsXuong: string[]; xuong: string | null;
+  /** Tài khoản tổ trưởng: chỉ xem các tổ này (danh sách tổ đã lọc); null = cả xưởng */
+  chiTo?: number[] | null;
   congDoan: CongDoanSetup[]; to: ToSetup[]; lichCa: LichCaSetup[]; quanLy: Array<{ userId: number; ten: string }>;
 }
 export interface CongDoanHex {
@@ -58,6 +60,24 @@ export interface DanhSachTrienKhai {
   xuong: string; hangMuc: HangMucTrienKhai[];
   congDoan: CongDoanTk[];
   thanhPhan: string[];
+}
+/** Theo dõi triển khai: một công đoạn trên tuyến của hạng mục */
+export interface TheoDoiCongDoan {
+  congDoanId: string; ten: string; xuong: string | null; laBaoBi: boolean; to: string[];
+  trangThai: TrangThai | null; slGiaoDen: number; slNhan: number; slHoanThanh: number; slGiao: number;
+  soNguoi: number | null; dangChayTu: string | null; suKienCuoi: string | null;
+}
+export interface TheoDoiHangMuc {
+  hex: string; ten: string | null; tenCongTrinh: string | null; dvt: string | null; xuongChinh: string | null;
+  /** Hạng mục tổ đang có hàng / đang chạy mà chưa triển khai trên app (slTrienKhai = 0, mọi công đoạn ở ngoaiTuyen) */
+  chuaTrienKhai: boolean;
+  slTrienKhai: number; trienKhaiDau: string | null; trienKhaiCuoi: string | null; soLuongDonHang: number | null;
+  /** Kế hoạch KHSX gần nhất của hạng mục */
+  keHoach: { loai: 'tuan' | 'thang'; nam: number | null; thang: number | null; tuan: number | null; ngayKhnk: string | null } | null;
+  thanhPhan: Array<{ thanhPhan: string; tuyen: TheoDoiCongDoan[] }>;
+  choKhai: Array<{ thanhPhan: string; xuong: string }>;
+  ngoaiTuyen: TheoDoiCongDoan[];
+  slXong: number; xong: boolean; dangLam: number; tamNgung: number; choNhan: number;
 }
 /** QT2 — thành phần xưởng chính giao cho xưởng này, chờ khai CĐ chi tiết */
 export interface ChoKhaiChiTiet {
@@ -108,19 +128,25 @@ export interface BaoCaoHangMuc {
     congDoanId: string; tenCongDoan: string; to: string[]; gioChay: number; gioCong: number; gioCongTangCa: number; slXong: number;
     /** Số công nhân bình quân lúc chạy (theo số người khai) / nhiều nhất */
     soNguoiTb: number; soNguoiMax: number; soNguoiMin: number;
-    trangThai: string | null; slNhan: number; slHoanThanh: number;
+    trangThai: string | null; slNhan: number; slHoanThanh: number; slGiaoDen?: number | null; slGiao?: number | null;
   }>;
   /** Kế hoạch đã triển khai trên MRA cho xưởng: tổng số lượng + tuyến công đoạn (lần triển khai mới nhất); null = chưa triển khai */
-  trienKhai?: { sl: number; luc: string; tuyen: Array<{ congDoanId: string; ten: string }>; mra?: boolean } | null;
+  trienKhai?: {
+    sl: number; luc: string; tuyen: Array<{ congDoanId: string; ten: string }>; mra?: boolean;
+    /** Xưởng chính đã triển khai (khác xưởng đang xem => xưởng này là xưởng phụ được giao thành phần) */
+    xuongChinh?: string | null;
+    /** Tuyến từng thành phần (song song); tuyen = hợp các tuyến */
+    thanhPhan?: Array<{ ten: string; tuyen: Array<{ congDoanId: string; ten: string }> }>;
+  } | null;
   /** Kế hoạch tuần KHSX gần nhất (đã tới hạn trước): tuần, ngày KHNK, giá trị (triệu); nhập kho luỹ kế để biết đã xong chưa */
   keHoach?: { nam: number; tuan: number; kh: number; ngayKhnk: string | null; giaTriDon: number | null; nhapKhoLuyKe: number } | null;
 }
-/** Phân tích lịch sử MRA cũ của xưởng (giờ trong ca = phần đoạn chạy nằm trong ca chính, bỏ Chủ nhật) */
-export interface LichSuMra {
-  xuong: string; coDuLieu: boolean;
-  tong?: { soHm: number; soHmXong: number; soCap: number; tu: string; den: string; gioCa: number; soNgung: number; gioNgung: number; ngayTv: number; ngayP75: number; khongKhopCd: number };
+/** Phân tích số liệu app của xưởng (cùng cách phân tích lịch sử MRA cũ): giờ trong ca = phần đoạn chạy nằm trong ca chính, bỏ Chủ nhật */
+export interface PhanTichXuong {
+  xuong: string; coDuLieu: boolean; chiTo?: number[] | null;
+  tong?: { soHm: number; soHmXong: number; soCap: number; tu: string; den: string; gioCa: number; soNgung: number; gioNgung: number; ngayTv: number; ngayP75: number };
   congDoan?: Array<{ congDoanId: string; ten: string; thuTu: number; soHm: number; slXong: number; gioCaTv: number; gioCaP75: number; gioCa: number;
-    ngayChayTv: number; gioTrenDvTv: number; ncTb: number | null; ncGio: number; soNgung: number; gioNgung: number; hmNgung: number }>;
+    ngayChayTv: number; gioTrenDvTv: number; soNgung: number; gioNgung: number; hmNgung: number }>;
   nhom?: Array<{ ten: string; soHm: number; soXong: number; ngayTv: number; ngayP75: number; gioCaTv: number }>;
   theoThang?: Array<{ thang: string; soXong: number; soBatDau: number; gioCa: number }>;
   lauNhat?: Array<{ hex: string; ten: string | null; congTrinh: string | null; nhom: string; ngay: number; gioCa: number; soCd: number }>;
@@ -140,6 +166,8 @@ export interface KeHoachTuanDong {
 }
 export interface KeHoachTuan {
   xuong: string; nam: number; tuan: number; tu: string; den: string; nhapKhoMoiNhat: string | null;
+  /** Tổ trưởng: chỉ hạng mục đi qua công đoạn của các tổ này; null = cả xưởng */
+  chiTo?: number[] | null;
   nhapKhoTheoNgay: Array<{ ngay: string; theoKh: number; ngoaiKh: number }>;
   keHoach: KeHoachTuanDong[];
   ngoaiKeHoach: Array<{ hex: string; tenHangMuc: string | null; nhapKho: number; slNhapKho: number }>;
@@ -261,11 +289,13 @@ export const xuongSetupApi = {
   napCongNhan: (rows: DongNapNhanSu[], nghiNguoiVang: boolean) =>
     goi<{ daNap: number; boQua: number; nghi: number; loi: string[]; toKhongKhop: string[] }>('POST', '/api/xuong/cong-nhan/nap', { rows, nghiNguoiVang }),
   baoCao: (xuong: string, tu: string, den: string) => goi<BaoCaoXuong>('GET', `/api/xuong/bao-cao?${q({ xuong, tu, den })}`),
-  lichSuMra: (xuong: string) => goi<LichSuMra>('GET', `/api/xuong/lich-su-mra?${q({ xuong })}`),
+  phanTich: (xuong: string, tu: string, den: string) => goi<PhanTichXuong>('GET', `/api/xuong/phan-tich?${q({ xuong, tu, den })}`),
   keHoachTuan: (xuong: string, nam: number, tuan: number) =>
     goi<KeHoachTuan>('GET', `/api/xuong/ke-hoach-tuan?${q({ xuong, nam: String(nam), tuan: String(tuan) })}`),
   trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; thanhPhan: ThanhPhanTrienKhai[] }>) =>
     goi<{ soHangMuc: number }>('POST', '/api/xuong/trien-khai', { xuong, items }),
+  theoDoiTrienKhai: (xuong: string, ngay: number) =>
+    goi<{ xuong: string; hangMuc: TheoDoiHangMuc[] }>('GET', `/api/xuong/theo-doi-trien-khai?${q({ xuong, ngay: String(ngay), tatCa: '1' })}`),
   dsKhaiChiTiet: (xuong: string) => goi<{ xuong: string; cho: ChoKhaiChiTiet[]; congDoan: CongDoanTk[] }>('GET', `/api/xuong/khai-chi-tiet?${q({ xuong })}`),
   khaiChiTiet: (xuong: string, items: Array<{ trienKhaiId: string; thanhPhan: string; tuyen: string[] }>) =>
     goi<{ soThanhPhan: number }>('POST', '/api/xuong/khai-chi-tiet', { xuong, items }),
