@@ -27,6 +27,7 @@ import { ProjectSummarySection } from './Dashboard/components/sections/ProjectSu
 import { PivotProjectSection } from './Dashboard/components/sections/PivotProjectSection';
 import { FactoryRevenueSection, type CustomFunnelItem } from './Dashboard/components/sections/FactoryRevenueSection';
 import { HexDetailModal, type HexDetailColumnKeys } from './Dashboard/components/modals/HexDetailModal';
+import { DanhSachHexProvider } from './Dashboard/components/Dashboards/DanhSachHex';
 import { TOTAL_STAGE, extractStage } from './Dashboard/components/modals/OnLineStageDetailModal';
 import { resolveFunnelHexTarget, FUNNEL_HEX_COLUMN_LABELS, type FunnelHexColumn } from './Dashboard/utils/funnelHexTarget';
 import { useAuth } from '../context/AuthContext';
@@ -549,7 +550,7 @@ const handleContinueToOrderColumnStep = () => {
   const activeFunnelPivotData = useMemo(() => {
     if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> tổng theo BOP
     if (activeFunnelItem.id === 'P022') {
-      // Chế độ Hạng mục: lấy số mã tồn (count) — value là triệu đồng, không được in như số đếm
+      // Chế độ Hạng mục: lấy số hạng mục tồn (count, HEX) — value là triệu đồng, không được in như số đếm
       const isCount = workshopMetric === 'COUNT_HEX';
       const data = stockByProjectData.map(r => ({ name: r.name, value: isCount ? r.count : r.value }));
       return { data, total: data.reduce((sum, r) => sum + r.value, 0) };
@@ -559,12 +560,12 @@ const handleContinueToOrderColumnStep = () => {
 
   const [stockItems, setStockItems] = useState<{ open: boolean; projectName: string | null }>({ open: false, projectName: null });
   const [funnelHex, setFunnelHex] = useState<{
-    open: boolean; column: FunnelHexColumn | null; projectName: string | null; stage: string | null;
-  }>({ open: false, column: null, projectName: null, stage: null });
+    open: boolean; column: FunnelHexColumn | null; projectName: string | null; stage: string | null; stages: string[] | null;
+  }>({ open: false, column: null, projectName: null, stage: null, stages: null });
 
   const { showToast } = useToast();
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
-    // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
+    // Tồn kho (P022): mở danh sách từng hạng mục tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
     // (dòng "P022" khi chưa chọn thanh nào là hạng mục sản xuất P022 chưa nhập đủ — mở danh sách HEX, không phải tồn kho)
     if (item?.id === 'P022') {
       setStockItems({ open: true, projectName: item ? name : null });
@@ -580,16 +581,24 @@ const handleContinueToOrderColumnStep = () => {
   const funnelHexRows = useMemo(() => {
     if (!funnelHex.open || !funnelHex.column) return [];
     // Danh sách cho phễu: cùng nguồn + nút Giá trị / Hạng mục của phễu (khớp số trong ô)
-    let source = funnelHexRowsByColumn[funnelHex.column] ?? [];
+    // Bấm 1 thanh / công đoạn: hạng mục còn lại có BOP thuộc thanh đó (cùng cách thanh phễu đếm — xem funnelHexTarget)
+    const stageSet = funnelHex.stages && bopKey ? new Set(funnelHex.stages) : null;
+    let source = stageSet
+      ? funnelHexRowsByColumn.remaining.filter(row => stageSet.has(String(row[bopKey] ?? '').trim()))
+      : funnelHexRowsByColumn[funnelHex.column] ?? [];
     if (funnelHex.projectName && congTrinhKey) {
       // Tên trống = dòng 'Chưa xác định' của phễu
       source = source.filter(row => projectNameOf(row[congTrinhKey]) === funnelHex.projectName);
     }
-    if (funnelHex.stage && funnelHex.stage !== TOTAL_STAGE && bopKey) {
+    if (!stageSet && funnelHex.stage && funnelHex.stage !== TOTAL_STAGE && bopKey) {
       source = source.filter(row => extractStage(row[bopKey]) === funnelHex.stage);
     }
     return source;
   }, [funnelHex, funnelHexRowsByColumn, congTrinhKey, bopKey]);
+
+  // Bấm 1 số ở bảng chi tiết theo Xưởng / Công trình / biểu đồ (Báo cáo tổng quan): danh sách hạng mục qua
+  // DanhSachHexProvider (HexDetailModal như phễu); Tồn kho => StockItemsModal như bước P022
+  const handleOpenStockItems = (projectName: string) => setStockItems({ open: true, projectName });
 
   const funnelHexColumnKeys: HexDetailColumnKeys = useMemo(() => ({
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
@@ -779,6 +788,7 @@ const handleContinueToOrderColumnStep = () => {
 
         {/* --- MOVED SECTION: ORDER OVERVIEW (RENAMED TO BÁO CÁO TỔNG QUAN) --- */}
         {/* ... (Order Overview content unchanged) ... */}
+    <DanhSachHexProvider rows={productionData} columnKeys={funnelHexColumnKeys} currentUser={user?.username ?? ''}>
     <OrderOverviewSection
   sectionRef={orderOverviewRef}
   isSidebarCollapsed={isSidebarCollapsed}
@@ -808,7 +818,9 @@ const handleContinueToOrderColumnStep = () => {
   handleOpenGenericExport={handleOpenGenericExport}
   loadStockByProject={loadStockByProject}  
   getGroupAnalysisFilterKey={getGroupAnalysisFilterKey}
+  onOpenStockItems={handleOpenStockItems}
 />
+    </DanhSachHexProvider>
 
         {/* --- Từ đây trở xuống: vẽ khi cuộn tới (khung giữ chỗ giữ ref để nút cuộn vẫn tới đúng chỗ) --- */}
         <LazyRender anchorRef={productionStatusRef} force={forcedLazyUpTo >= LAZY.productionStatus} minHeight={600} className="scroll-mt-24">
@@ -991,7 +1003,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
         currentUser={user?.username ?? ''}
       />
 
-      {/* Danh sách mã tồn kho khi bấm số của bước "P022. TỒN KHO" */}
+      {/* Danh sách hạng mục tồn kho khi bấm số của bước "P022. TỒN KHO" */}
       <StockItemsModal
         open={stockItems.open}
         onClose={() => setStockItems(s => ({ ...s, open: false }))}

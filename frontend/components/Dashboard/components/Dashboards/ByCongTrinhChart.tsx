@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
+import { useMoDanhSachHex, layHexChiTiet } from './DanhSachHex';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
@@ -150,14 +151,17 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   const [pinned, setPinned] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
 
   const [detailOpen, setDetailOpen] = useState(false);
+  // Trang có DanhSachHexProvider: nút xem chi tiết mở danh sách HẠNG MỤC (HexDetailModal, -> BOT/BOP/BOM) thay vì
+  // dòng thô; tồn kho giữ danh sách dòng tồn (đã gom theo hạng mục)
+  const moDanhSachHex = useMoDanhSachHex();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailRows, setDetailRows] = useState<Record<string, any>[]>([]);
   const [detailColumns, setDetailColumns] = useState<string[]>([]);
   const [detailTruncated, setDetailTruncated] = useState(false);
 
   const theme = THEME[source];
-  // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
+  // Tồn kho cũng đếm theo hạng mục (HEX); dòng tồn không có HEX mỗi mã SAP tính 1 hạng mục (máy chủ: stockHangMucSql)
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số hạng mục tồn (HEX)' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -262,7 +266,8 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const openDetailForPinned = async () => {
     if (!pinned) return;
-    setDetailOpen(true);
+    const theoHangMuc = !!moDanhSachHex && source !== 'stock';
+    if (!theoHangMuc) setDetailOpen(true);
     setDetailLoading(true);
     try {
       const params = new URLSearchParams({
@@ -277,6 +282,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       if (phanLoai) params.set('phanLoai', phanLoai);
       if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
+      if (theoHangMuc) { moDanhSachHex!(`Chi tiết ${theme.label} — Công trình: ${pinned?.point.congTrinh ?? ''}`, await layHexChiTiet(params)); return; }
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();

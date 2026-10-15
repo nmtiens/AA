@@ -184,7 +184,7 @@ const App: React.FC = () => {
                       path={item.path}
                       element={
                         <RequirePermission viewId={item.permId}>
-                          <ChartOverview source={item.key as any} title={item.label} />
+                          <ChartOverviewWrapper source={item.key as any} title={item.label} />
                         </RequirePermission>
                       }
                     />
@@ -249,6 +249,14 @@ const useViewMappingReady = () => {
   }, [mappingReady]);
 
   return mappingReady;
+};
+
+// Trang biểu đồ: nút xem chi tiết mở danh sách hạng mục (HexDetailModal) từ bảng sản xuất — như Báo cáo tổng quan
+const ChartOverviewWrapper = ({ source, title }: { source: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock'; title: string }) => {
+  const context = useOutletContext<MainLayoutContext>();
+  const { user } = useAuth();
+  return <ChartOverview source={source} title={title} productionData={context.productionData}
+    productionColumns={context.productionColumns} currentUser={user?.username ?? ''} />;
 };
 
 const ConstructionOverviewWrapper = () => {

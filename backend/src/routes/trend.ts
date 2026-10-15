@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
-import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified, hangMucSql } from '../server/data.js';
 import { workshopCondition, workshopGroupSql, workshopGroupOf, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { canonicalProjectName, normNameSql } from '../server/projectAlias.js';
 import { createCache, cachedByVersions, queryKey, type VersionedCache } from '../server/cache.js';
@@ -14,7 +14,7 @@ import { app } from '../server/app.js';
 const trendCache = createCache<unknown>(120);
 const detailCache = createCache<unknown>(10);   // tới 10.000 dòng / entry
 const filterCache = createCache<unknown>(8);
-const TREND_PARAMS = ['source', 'granularity', 'dateFrom', 'dateTo', 'dates', 'xuong', 'congTrinh', 'dvt', 'phanLoai', 'ctWhitelist', 'dimension', 'value'];
+const TREND_PARAMS = ['source', 'granularity', 'dateFrom', 'dateTo', 'dates', 'xuong', 'congTrinh', 'dvt', 'phanLoai', 'ctWhitelist', 'dimension', 'value', 'chiHex'];
 const sourceVersionKeys = (source: string) => [source === 'stock' ? 'stock' : source, 'production'];
 
 class BadRequest extends Error { status = 400; }
@@ -117,7 +117,7 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
     const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
     const limit = granularity === 'day' ? 15 : 12;
 
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${hangMucSql(cfg, colBare)})` : `COUNT(*)`;
     const valueColExpr = needsJoin
       ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
       : numericCol(cfg.table, cfg.valueCol);
@@ -355,7 +355,7 @@ cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req
     const q = `
       ${withClause ? `${withClause},` : 'WITH'} base AS (
         SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
-               ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? hangMucSql(cfg, colBare) : 'NULL'} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -441,7 +441,7 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
       ${withClause ? `${withClause},` : 'WITH'} base AS (
         SELECT ${normNameSql(colBare(cfg.congTrinhCol))} AS g,
                TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g')) AS ten,
-               ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? hangMucSql(cfg, colBare) : 'NULL'} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -540,7 +540,7 @@ cachedGet('/api/trend-by-dvt', trendCache, req => sourceVersionKeys(String(req.q
     const q = `
       ${withClause ? `${withClause},` : 'WITH'} base AS (
         SELECT COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Chưa xác định') AS g,
-               ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? hangMucSql(cfg, colBare) : 'NULL'} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -619,7 +619,7 @@ cachedGet('/api/trend-by-phanloai', trendCache, req => sourceVersionKeys(String(
     const q = `
       ${withClause}, base AS (
         SELECT COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Chưa xác định') AS g,
-               ${colBare(cfg.hexCol)} AS hx, ${valueRowExpr} AS v
+               ${hangMucSql(cfg, colBare)} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -792,6 +792,44 @@ cachedGet('/api/detail', detailCache, req => sourceVersionKeys(String(req.query.
       ? `LEFT JOIN p ON p."${joinKey}"::text = ${colBare(cfg.hexCol!)}::text`
       : '';
     const withClause = needsJoin ? `WITH ${buildMatchedProductionCTE(joinKey)}` : '';
+
+    // ?chiHex=1: chỉ danh sách HẠNG MỤC (HEX khác nhau) tạo nên 1 số — bấm số ở bảng Xưởng / Công trình mở HexDetailModal.
+    // Không giới hạn 10.000 dòng như chi tiết thô (toàn bộ thời gian nhập kho ~89k dòng bị cắt => thiếu HEX), và khi
+    // không lọc ngày thì giữ cả dòng chưa có ngày như số trên bảng (/api/overview/by-group, toàn bộ thời gian).
+    if (req.query.chiHex === '1' && cfg.hexCol && cfg !== STOCK_TREND_CONFIG) {
+      const khongLocNgay = dimension !== 'period' && explicitDates.length === 0 && !dateFrom && !dateTo;
+      const dk = khongLocNgay ? conditions.slice(1) : conditions;
+      // Kèm thông tin HEX KHÔNG còn trong bảng sản xuất (bảng sản xuất là ảnh chụp hiện tại — hạng mục cũ đã nhập kho
+      // từ lâu không còn, đo 15/10/2026: nhập kho 13.875 HEX) để danh sách vẫn đủ số hạng mục như con số đã bấm
+      const cotBang = new Set(REPORT_COLUMNS[cfg.table] || []);
+      const cotChu = (c: string) => (cotBang.has(c) ? `MIN(${colBare(c)})` : 'NULL');
+      const rh = await timedQuery(`
+        ${withClause}${withClause ? ',' : 'WITH'} ds AS (
+          SELECT ${colBare(cfg.hexCol)}::text AS hex, ${cfg.congTrinhCol ? cotChu(cfg.congTrinhCol) : 'NULL'} AS ten_cong_trinh,
+                 ${cfg.xuongCol ? cotChu(cfg.xuongCol) : 'NULL'} AS xuong_chinh, ${cotChu('ten_hang_muc')} AS ten_hang_muc,
+                 SUM(${alias ? numericColQualified(cfg.table, alias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol)}) AS gia_tri
+          FROM ${cfg.table} ${alias}
+          ${joinClause}
+          ${dk.length ? `WHERE ${dk.join(' AND ')}` : ''}
+          GROUP BY 1
+        )
+        -- Nối 1 lần với tập HEX sản xuất (hash join) — NOT EXISTS từng HEX vượt statement timeout khi xem toàn bộ thời gian
+        SELECT ds.*, sx.h IS NULL AS ngoai_sx
+        FROM ds LEFT JOIN (SELECT DISTINCT hex::text AS h FROM production_status_app WHERE hex IS NOT NULL) sx ON sx.h = ds.hex
+      `, params, { workMemMb: 32 });
+      const hexes: string[] = [];
+      const ngoaiSanXuat: Record<string, unknown>[] = [];
+      for (const x of rh.rows) {
+        const hex = String(x.hex ?? '').trim();
+        if (!hex) continue;
+        hexes.push(hex);
+        if (x.ngoai_sx) {
+          ngoaiSanXuat.push({ hex, ten_cong_trinh: x.ten_cong_trinh, xuong_chinh: x.xuong_chinh, ten_hang_muc: x.ten_hang_muc,
+            [cfg.valueCol]: Number(x.gia_tri) || 0 });
+        }
+      }
+      return { hexes, ngoaiSanXuat, cotGiaTri: cfg.valueCol };
+    }
 
     const cols = REPORT_COLUMNS[cfg.table] || [];
     if (cols.length === 0) throw new BadRequest('Bảng không được hỗ trợ');

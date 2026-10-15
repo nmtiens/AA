@@ -16,6 +16,7 @@ import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './u
 import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
+import { hexColumnKeysOf } from '../Dashboard/components/Dashboards/DanhSachHex';
 import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
@@ -471,22 +472,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     };
   }, [columns]);
 
-  const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => {
-    const key = (target: string) => findColumnKey(columns, target) || target;
-    return {
-      hexKey: key(TARGET_COLUMN_NAMES.HEX),
-      congTrinhKey: key(TARGET_COLUMN_NAMES.CONG_TRINH),
-      hangMucKey: key(TARGET_COLUMN_NAMES.TEN_HANG_MUC),
-      xuongKey: key(TARGET_COLUMN_NAMES.XUONG),
-      bopKey: key(TARGET_COLUMN_NAMES.BOP),
-      tinhTrangKey: key(TARGET_COLUMN_NAMES.TINH_TRANG),
-      phanLoaiNhomSanPhamKey: key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM),
-      triGiaDonHangTongKey: key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG),
-      thanhTienTinhPhieuKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU),
-      thanhTienNhapKhoKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO),
-      ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || findColumnKey(columns, 'ngay_can') || 'ngay_can_giao',
-    };
-  }, [columns]);
+  const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => hexColumnKeysOf(columns), [columns]);
 
   // Danh sách cho các ô chọn (lấy từ toàn bộ dữ liệu, không phụ thuộc bộ lọc IPO)
   const options = useMemo(() => {

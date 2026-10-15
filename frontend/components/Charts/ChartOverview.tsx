@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { DataRow, ColumnDefinition } from '../../types';
+import { DanhSachHexProvider, hexColumnKeysOf } from '../Dashboard/components/Dashboards/DanhSachHex';
 import TrendChart from '../Dashboard/components/Dashboards/TrendChart';
 import ByXuongChart from '../Dashboard/components/Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboard/components/Dashboards/ByCongTrinhChart';
@@ -12,6 +14,10 @@ type DisplayMetric = 'COUNT' | 'SUM';
 interface ChartOverviewProps {
   source: ChartSource;
   title: string;
+  /** Bảng sản xuất: nút xem chi tiết của biểu đồ mở danh sách hạng mục (HexDetailModal -> BOT/BOP/BOM) */
+  productionData: DataRow[];
+  productionColumns: ColumnDefinition[];
+  currentUser: string;
 }
 
 // Màu badge tiêu đề ăn theo đúng bảng màu đang dùng ở các biểu đồ (THEME trong ByXuongChart/ByCongTrinhChart/...)
@@ -24,10 +30,12 @@ const TITLE_BADGE_THEME: Record<ChartSource, string> = {
   stock: 'text-slate-800 bg-slate-100',
 };
 
-const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title }) => {
+const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title, productionData, productionColumns, currentUser }) => {
   const [displayMode, setDisplayMode] = useState<DisplayMetric>('COUNT');
+  const hexKeys = useMemo(() => hexColumnKeysOf(productionColumns), [productionColumns]);
 
   return (
+    <DanhSachHexProvider rows={productionData} columnKeys={hexKeys} currentUser={currentUser}>
     <TrendFilterProvider>
       <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
   <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between sticky top-0 z-20">
@@ -68,6 +76,7 @@ const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title }) => {
   </div>
 </div>
     </TrendFilterProvider>
+    </DanhSachHexProvider>
   );
 };
 

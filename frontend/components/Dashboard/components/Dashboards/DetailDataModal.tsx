@@ -11,8 +11,9 @@ const ROWS_PER_PAGE = 200;
 // nếu không có (một số bảng chi tiết khác không có HEX) thì fallback về hiển thị phẳng như cũ.
 const GROUP_BY_COLUMN = 'hex';
 
-// Các cột số lượng cần CỘNG DỒN khi gom nhóm (chỉnh lại theo tên cột thật của bạn nếu cần thêm).
-const SUM_COLUMNS = new Set(['so_luong_xuat_kho', 'so_luong']);
+// Các cột CỘNG DỒN khi gom nhóm: số lượng + thành tiền / giá trị của từng dòng (nhiều lần nhập / xuất / lô tồn của
+// cùng 1 HEX). Trị giá đơn hàng là của cả hạng mục (lặp lại mỗi dòng) nên KHÔNG cộng.
+const isSumColumn = (col: string) => /^so_luong/.test(col) || /^thanh_tien/.test(col) || col === 'gia_tri';
 
 interface DetailDataModalProps {
   open: boolean;
@@ -45,10 +46,28 @@ const MONEY_COLUMN_RE = /^(tri_gia|thanh_tien|gia_tri)/;
 const isMoneyColumn = (col: string) => MONEY_COLUMN_RE.test(col);
 const formatColumnLabel = (col: string) =>
   col.toUpperCase().replace(/_/g, ' ') + (isMoneyColumn(col) ? ' (TỶ)' : '');
+// Ngày "2026-10-10" (kể cả "… 00:00:00" / "…T00:00:00.000Z") -> "10/10/2026" như mọi nơi khác trên web; ngày giờ đầy đủ
+// -> "10/10/2026 14:30" giờ VN. Chỉ đổi cách HIỂN THỊ, xuất CSV vẫn giữ giá trị gốc.
+const NGAY_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]00:00(?::00(?:\.0+)?)?Z?)?$/;
+const NGAY_GIO_RE = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
+const formatNgay = (s: string): string | null => {
+  const m = NGAY_RE.exec(s);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  if (NGAY_GIO_RE.test(s)) {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      // Giờ VN (UTC+7), ghép tay để luôn là "ngày giờ" (vi-VN tự đặt giờ lên trước)
+      const v = new Date(d.getTime() + 7 * 3600_000).toISOString();
+      return `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)} ${v.slice(11, 16)}`;
+    }
+  }
+  return null;
+};
 const formatCellValue = (v: any, col?: string) => {
   if (v === null || v === undefined) return '';
   if (col && isMoneyColumn(col) && v !== '' && Number.isFinite(Number(v))) return formatTrieuAsTy(Number(v));
   if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+  if (typeof v === 'string') { const ngay = formatNgay(v.trim()); if (ngay) return ngay; }
   return String(v);
 };
 
@@ -66,7 +85,7 @@ const slugify = (s: string) =>
     .replace(/^_+|_+$/g, '');
 
 // Gộp nhiều dòng có cùng giá trị GROUP_BY_COLUMN thành 1 dòng đại diện:
-// - Cột nằm trong SUM_COLUMNS => cộng dồn (số lượng)
+// - Cột số lượng / thành tiền / giá trị (isSumColumn) => cộng dồn
 // - Cột khác: nếu tất cả dòng con giống nhau thì giữ nguyên giá trị đó,
 //   nếu khác nhau thì hiển thị "Nhiều giá trị" để không đánh lừa người xem.
 // ✅ LƯU Ý: luôn gộp trên TOÀN BỘ `columns` gốc (không phải danh sách cột đang
@@ -76,14 +95,17 @@ function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow
   const map = new Map<string, Record<string, any>[]>();
   const order: string[] = [];
 
-  for (const row of rows) {
-    const key = String(row[GROUP_BY_COLUMN] ?? '');
+  rows.forEach((row, i) => {
+    // Gom theo hạng mục (HEX). Dòng không có HEX (vd tồn kho hàng chuẩn) không gộp chung 1 nhóm rỗng: theo mã SAP nếu
+    // có (cùng cách đếm hạng mục tồn kho ở máy chủ), không thì mỗi dòng 1 nhóm
+    const hex = String(row[GROUP_BY_COLUMN] ?? '').trim();
+    const key = hex || (row.ma_id_sap != null && row.ma_id_sap !== '' ? `SAP${row.ma_id_sap}` : `#${i}`);
     if (!map.has(key)) {
       map.set(key, []);
       order.push(key);
     }
     map.get(key)!.push(row);
-  }
+  });
 
   return order.map((key) => {
     const groupRows = map.get(key)!;
@@ -91,10 +113,10 @@ function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow
 
     for (const col of columns) {
       if (col === GROUP_BY_COLUMN) {
-        merged[col] = key;
+        merged[col] = groupRows[0][col] ?? '';
         continue;
       }
-      if (SUM_COLUMNS.has(col)) {
+      if (isSumColumn(col)) {
         merged[col] = groupRows.reduce((sum, r) => sum + (Number(r[col]) || 0), 0);
         continue;
       }
@@ -204,7 +226,7 @@ export default function DetailDataModal({
             {title}
             {canGroup && (
               <span className="text-[0.6875rem] font-normal text-slate-400">
-                ({groups.length.toLocaleString('vi-VN')} {GROUP_BY_COLUMN.toUpperCase()} · {rows.length.toLocaleString('vi-VN')} dòng)
+                ({groups.length.toLocaleString('vi-VN')} hạng mục · {rows.length.toLocaleString('vi-VN')} dòng)
               </span>
             )}
           </h3>
@@ -333,7 +355,7 @@ export default function DetailDataModal({
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 shrink-0 bg-white">
             <span className="text-[0.6875rem] text-slate-500">
               {canGroup
-                ? <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} {GROUP_BY_COLUMN.toUpperCase()} ({rows.length.toLocaleString('vi-VN')} dòng gốc)</>
+                ? <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} hạng mục ({rows.length.toLocaleString('vi-VN')} dòng gốc)</>
                 : <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} dòng</>
               }
               {truncated ? ' (server đã giới hạn số dòng trả về)' : ''}

@@ -6,7 +6,11 @@
 // - P001 ứng với cột "notDeployed".
 // - P002 ứng với cột "p002".
 // - P012 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó.
-// - P022 (TỒN KHO) lấy từ nguồn khác nên KHÔNG có hex gốc -> không mở danh sách HEX.
+// - P022 (TỒN KHO) mở danh sách tồn kho (StockItemsModal, theo hạng mục) ở Dashboard, không qua đây.
+//
+// stages: danh sách = hạng mục CÒN LẠI có công đoạn (BOP) thuộc các mã này — đúng cách thanh phễu đếm (gom theo
+// BOP, tinhPivotFunnel). Không dùng nhóm remainBucketOf: hạng mục tình trạng "15. CHƯA TRIỂN KHAI" nằm ở P002 /
+// P022… bị xếp vào P001 => thanh P002 đếm nhưng danh sách P002 không có, danh sách P001 lại dư.
 // ---------------------------------------------------------------------------
 
 export type FunnelHexColumn = 'totalOrder' | 'notDeployed' | 'p002' | 'onLine' | 'shortfall' | 'remaining';
@@ -38,6 +42,9 @@ const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: FunnelHexColumn; st
   P022: { column: 'shortfall', stage: 'P022' },
 };
 
+/** Mã BOP mà 1 thanh phễu gom (thanh gộp P022/P025 = 2 công đoạn) */
+const stagesOf = (id: string): string[] => (id === 'P022_SHORT' ? ['P022', 'P025'] : [id]);
+
 /**
  * Xác định (column, stage, projectName) cho danh sách HEX khi bấm 1 con số trong bảng pivot của Phễu.
  * - Đã chọn 1 bước (itemId != null): bảng đang hiển thị theo CÔNG TRÌNH -> `name` = tên công trình
@@ -48,16 +55,16 @@ const FUNNEL_TO_HEX_TARGET: Partial<Record<string, { column: FunnelHexColumn; st
 export function resolveFunnelHexTarget(
   name: string | null,
   itemId: string | null,
-): { column: FunnelHexColumn; stage: string | null; projectName: string | null } | null {
+): { column: FunnelHexColumn; stage: string | null; stages: string[] | null; projectName: string | null } | null {
   if (itemId) {
-    if (itemId === 'P022') return null; // Tồn kho: không có dữ liệu hex gốc
+    if (itemId === 'P022') return null; // Tồn kho: Dashboard mở StockItemsModal
     const mapping = FUNNEL_TO_HEX_TARGET[itemId];
     if (!mapping) return null;
-    return { column: mapping.column, stage: mapping.stage, projectName: name };
+    return { column: mapping.column, stage: mapping.stage, stages: stagesOf(itemId), projectName: name };
   }
   // Dòng TỔNG CỘNG của phễu = tổng phần CÒN LẠI (không phải tổng đơn hàng)
-  if (name === null) return { column: 'remaining', stage: null, projectName: null };
+  if (name === null) return { column: 'remaining', stage: null, stages: null, projectName: null };
   const mapping = FUNNEL_TO_HEX_TARGET[name];
   if (!mapping) return null;
-  return { column: mapping.column, stage: mapping.stage, projectName: null };
+  return { column: mapping.column, stage: mapping.stage, stages: stagesOf(name), projectName: null };
 }

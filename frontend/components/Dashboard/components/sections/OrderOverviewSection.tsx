@@ -16,7 +16,8 @@ import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
 import TrendByCategoryChart from '../Dashboards/TrendByCategoryChart';
 import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
-import { getYesterdayDateOption, parseVNDate } from '../../utils/dateHelpers';
+import { useMoDanhSachHex, layHexChiTiet } from '../Dashboards/DanhSachHex';
+import { getYesterdayDateOption, parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 import { formatTrieuAsTy } from '../../../../utils/money';
 // ---------------------------------------------------------------------------
 // Types
@@ -109,6 +110,8 @@ interface OrderOverviewSectionProps {
   // ✅ MỚI: tính filterKey THEO ĐÚNG công thức mà loadGroupAnalysis dùng để ghi cache —
   // dùng ở đây để ĐỌC cache, tránh lệch key giữa ghi và đọc.
   getGroupAnalysisFilterKey: (override?: GroupAnalysisOverride) => string;
+  /** Bấm 1 số ở bảng chi tiết Tồn kho theo Công trình => Dashboard mở StockItemsModal của công trình */
+  onOpenStockItems?: (projectName: string) => void;
   handleOpenOrderExport: () => void;
   handleOpenGenericExport: (flow: 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock') => void;
   loadStockByProject: () => void;
@@ -167,6 +170,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   toAnalysisItems,
   loadGroupAnalysis,
   getGroupAnalysisFilterKey, // MỚI
+  onOpenStockItems,
   handleOpenOrderExport,
   handleOpenGenericExport,
   loadStockByProject,
@@ -279,6 +283,38 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     isInventoryDetailModalOpen,
     isExportDetailModalOpen,
   ]);
+
+  // ---------- Bấm 1 ô số ở bảng "Chi tiết theo Xưởng / Công trình" => danh sách hạng mục (view có sẵn của Dashboard) ----------
+  // Như phễu (OnLineStageDetailModal.onValueClick -> HexDetailModal): lấy các HEX tạo nên số đó rồi Dashboard mở
+  // HexDetailModal từ bảng sản xuất; Tồn kho -> StockItemsModal (danh sách hạng mục tồn của công trình, ngày tồn đang lọc).
+  // HEX lấy qua /api/detail?chiHex=1 (chỉ danh sách HEX, không giới hạn dòng) cùng phạm vi với số trên bảng (/api/overview/by-group): cột "trong ngày" = các ngày đang
+  // chọn (không chọn ngày => toàn bộ thời gian), cột "lũy kế" = đầu tháng -> ngày đang xem; cùng bộ lọc xưởng / công
+  // trình đang áp trong cửa sổ.
+  const moDanhSachHex = useMoDanhSachHex();
+  const dsReq = useRef(0);
+  const moDanhSach = (source: string, dimension: 'xuong' | 'congtrinh', ten: string) => (name: string, kind: 'daily' | 'mtd') => {
+    if (source === 'stock') { onOpenStockItems?.(name); return; }
+    if (!moDanhSachHex) return;
+    const params = new URLSearchParams({ source, dimension, value: name, granularity: 'day' });
+    const ngay = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null).map(toISODateLocal).sort();
+    const moc = ngay.length ? ngay[ngay.length - 1] : (overviewSummary?.date ?? '');
+    let nhan = '';
+    if (kind === 'daily') {
+      if (ngay.length) { params.set('dates', ngay.join(',')); nhan = ngay.length === 1 ? `ngày ${ngay[0].split('-').reverse().join('/')}` : `${ngay.length} ngày đang chọn`; }
+      else nhan = 'toàn bộ thời gian';
+    } else if (moc) {
+      params.set('dateFrom', `${moc.slice(0, 7)}-01`);
+      params.set('dateTo', moc);
+      nhan = `lũy kế tháng ${moc.slice(5, 7)}/${moc.slice(0, 4)}`;
+    }
+    if (activeTrendFilter.xuong && dimension !== 'xuong') params.set('xuong', activeTrendFilter.xuong);
+    if (activeTrendFilter.congTrinh && dimension !== 'congtrinh') params.set('congTrinh', activeTrendFilter.congTrinh);
+    if (viewProjectWhitelist !== undefined) params.set('ctWhitelist', viewProjectWhitelist.map(x => x.trim().toUpperCase()).join('|') + '|');
+    const id = ++dsReq.current;
+    layHexChiTiet(params)
+      .then(d => { if (id === dsReq.current) moDanhSachHex(`${ten} — ${name} · ${nhan}`, d); })
+      .catch(() => { /* lỗi mạng: không mở */ });
+  };
 
   // value (triệu đồng) -> Tỷ, 2 chữ số thập phân (dùng chung toàn app)
   const formatValueNumber = formatTrieuAsTy;
@@ -752,7 +788,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-[0.625rem] font-bold text-slate-600 uppercase leading-tight">
-                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất (
+                    {overviewMetric === 'COUNT' ? 'Số hạng mục tồn' : 'Giá trị tồn'} mới nhất (
                     {latestStockStats.date
                       ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1)
                           .toString()
@@ -768,7 +804,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center gap-2 mt-2">
                   <span className="text-[0.5625rem] font-bold text-slate-500 uppercase leading-tight">
-                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất của tháng {prevMonthNo} (
+                    {overviewMetric === 'COUNT' ? 'Số hạng mục tồn' : 'Giá trị tồn'} mới nhất của tháng {prevMonthNo} (
                     {latestStockStatsPrevMonth.date
                       ? `${latestStockStatsPrevMonth.date.getDate().toString().padStart(2, '0')}/${(
                           latestStockStatsPrevMonth.date.getMonth() + 1
@@ -858,6 +894,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
+                    onValueClick={moDanhSach('order', 'xuong', 'Đơn hàng mới')}
                     data={toAnalysisItems(groupAnalysisCache[`order-xuong-${filterKey}`] ?? [], ipoMetric)}
                     title="Chi tiết theo Xưởng"
                     icon={Layers}
@@ -872,6 +909,7 @@ const periodLabel = overviewDateFilters.length > 1
 
                   <div className="border-t border-slate-200 pt-6">
                     <DetailModalTable
+                      onValueClick={moDanhSach('order', 'congtrinh', 'Đơn hàng mới')}
                       data={toAnalysisItems(groupAnalysisCache[`order-congtrinh-${filterKey}`] ?? [], ipoMetric)}
                       unitLabel={ipoMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
                       formatValue={ipoMetric === 'COUNT' ? undefined : formatTrieuAsTy}
@@ -957,6 +995,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
+                    onValueClick={moDanhSach('tkbv', 'xuong', 'Triển khai BV')}
                     data={toAnalysisItems(groupAnalysisCache[`tkbv-xuong-${filterKey}`] ?? [], tkbvMetric)}
                     title="Chi tiết theo Xưởng"
                     icon={Layers}
@@ -970,6 +1009,7 @@ const periodLabel = overviewDateFilters.length > 1
 
                   <div className="border-t border-slate-200 pt-6">
                     <DetailModalTable
+                      onValueClick={moDanhSach('tkbv', 'congtrinh', 'Triển khai BV')}
                       data={toAnalysisItems(groupAnalysisCache[`tkbv-congtrinh-${filterKey}`] ?? [], tkbvMetric)}
                       title="Chi tiết theo Công trình"
                       icon={Building2}
@@ -1056,6 +1096,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
+                    onValueClick={moDanhSach('pthsp', 'xuong', 'Tính phiếu')}
                     data={toAnalysisItems(groupAnalysisCache[`pthsp-xuong-${filterKey}`] ?? [], pthspMetric)}
                     title="Chi tiết theo Xưởng"
                     icon={Layers}
@@ -1069,6 +1110,7 @@ const periodLabel = overviewDateFilters.length > 1
 
                   <div className="border-t border-slate-200 pt-6">
                     <DetailModalTable
+                      onValueClick={moDanhSach('pthsp', 'congtrinh', 'Tính phiếu')}
                       data={toAnalysisItems(groupAnalysisCache[`pthsp-congtrinh-${filterKey}`] ?? [], pthspMetric)}
                       title="Chi tiết theo Công trình"
                       icon={Building2}
@@ -1164,6 +1206,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
+                    onValueClick={moDanhSach('inventory', 'xuong', 'Nhập kho')}
                     data={toAnalysisItems(groupAnalysisCache[`inventory-xuong-${filterKey}`] ?? [], inventoryMetric)}
                     title="Chi tiết theo Xưởng"
                     icon={Layers}
@@ -1177,6 +1220,7 @@ const periodLabel = overviewDateFilters.length > 1
 
                   <div className="border-t border-slate-200 pt-6">
                     <DetailModalTable
+                      onValueClick={moDanhSach('inventory', 'congtrinh', 'Nhập kho')}
                       data={toAnalysisItems(groupAnalysisCache[`inventory-congtrinh-${filterKey}`] ?? [], inventoryMetric)}
                       title="Chi tiết theo Công trình"
                       icon={Building2}
@@ -1264,6 +1308,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
+                    onValueClick={moDanhSach('export', 'xuong', 'Xuất kho')}
                     data={toAnalysisItems(groupAnalysisCache[`export-xuong-${filterKey}`] ?? [], exportMetric)}
                     title="Chi tiết theo Xưởng"
                     icon={Layers}
@@ -1276,6 +1321,7 @@ const periodLabel = overviewDateFilters.length > 1
 
                   <div className="mt-8 pt-8 border-t border-slate-200">
                     <DetailModalTable
+                      onValueClick={moDanhSach('export', 'congtrinh', 'Xuất kho')}
                       data={toAnalysisItems(groupAnalysisCache[`export-congtrinh-${filterKey}`] ?? [], exportMetric)}
                       title="Chi tiết theo Công trình"
                       icon={Briefcase}
@@ -1372,6 +1418,7 @@ const periodLabel = overviewDateFilters.length > 1
               ) : (
                 <div className="p-6">
                   <DetailModalTable
+                    onValueClick={moDanhSach('stock', 'congtrinh', 'Tồn kho')}
                     data={stockByProjectData.map((r) => ({
                       name: r.name,
                       daily: stockMetric === 'COUNT' ? r.count : r.value,
@@ -1395,7 +1442,7 @@ const periodLabel = overviewDateFilters.length > 1
                             .padStart(2, '0')}/${latestStockStats.date.getFullYear()})`
                         : ''
                     }`}
-                    unitLabel={stockMetric === 'COUNT' ? '(SL Mã SAP)' : '(Tỷ đồng)'}
+                    unitLabel={stockMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
                     formatValue={stockMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-slate-700"
                     secondaryColorClass="text-slate-900"

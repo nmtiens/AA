@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
-import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql, stockHangMucSql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { app, warmupLimiter } from '../server/app.js';
 import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
@@ -67,7 +67,7 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
   const q = `
     ${cteClause}
     SELECT s.date_parsed AS d,
-          COUNT(DISTINCT s.ma_id_sap) AS count,
+          COUNT(DISTINCT ${stockHangMucSql(c => `s.${c}`)}) AS count,
            COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
     FROM ton_kho s
     ${joinClause}
@@ -189,7 +189,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const q = `
       ${cteClause}
       SELECT COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(s.ten_cong_trinh, '\\s+', ' ', 'g'))), ''), 'Chưa xác định') AS name,
-            COUNT(DISTINCT s.ma_id_sap) AS count,
+            COUNT(DISTINCT ${stockHangMucSql(c => `s.${c}`)}) AS count,
              COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
       FROM ton_kho s
       ${joinClause}
@@ -251,14 +251,25 @@ app.get('/api/stock/items', async (req: Request, res: Response) => {
          FROM production_status_app
          WHERE ma_id_sap IS NOT NULL
          ORDER BY ${PSA_SAP_KEY}, updated_at DESC NULLS LAST, id DESC
+       ),
+       -- Hạng mục của CHÍNH HEX tồn kho (công trình -> hạng mục -> ...): nhiều HEX dùng chung 1 mã SAP nên tra theo mã
+       -- có thể ra tên / xưởng của HEX khác; chỉ dòng tồn không có HEX mới lấy theo mã SAP
+       h AS (
+         SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, xuong_chinh, phan_loai_nhom_san_pham
+         FROM production_status_app
+         WHERE hex IS NOT NULL AND hex::text IN (SELECT DISTINCT hex::bigint::text FROM ton_kho WHERE date_parsed = $1 AND hex IS NOT NULL)
+         ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC
        )
        -- Nối xong rồi mới sắp + LIMIT (OFFSET 0 chặn đẩy LIMIT vào trong: không có nó Postgres chọn
        -- nested loop so từng dòng tồn với ~30k mã => ~2–8s khi không lọc)
        SELECT * FROM (
-         SELECT s.hex::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
-                p.ten_hang_muc, ${workshopGroupSql('p.xuong_chinh')} AS xuong_chinh, p.phan_loai_nhom_san_pham,
+         SELECT s.hex::bigint::text AS hex, s.ma_id_sap::text AS ma_id_sap, s.ten_cong_trinh,
+                COALESCE(h.ten_hang_muc, p.ten_hang_muc) AS ten_hang_muc,
+                ${workshopGroupSql('COALESCE(h.xuong_chinh, p.xuong_chinh)')} AS xuong_chinh,
+                COALESCE(h.phan_loai_nhom_san_pham, p.phan_loai_nhom_san_pham) AS phan_loai_nhom_san_pham,
                 ${numericColQualified('ton_kho', 's', 'gia_tri')} AS gia_tri
          FROM ton_kho s
+         LEFT JOIN h ON h.hex = s.hex::bigint::text
          LEFT JOIN p ON p.sap_id = s.ma_id_sap::text
          WHERE ${conds.join(' AND ')}
          OFFSET 0

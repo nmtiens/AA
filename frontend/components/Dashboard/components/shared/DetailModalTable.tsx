@@ -16,7 +16,8 @@ export const DetailModalTable = ({
   formatValue = defaultFormatValue,
   primaryColorClass,
   secondaryColorClass,
-  defaultExcludedKeys = []
+  defaultExcludedKeys = [],
+  onValueClick,
 }: {
   data: AnalysisItem[];
   title: string;
@@ -29,7 +30,16 @@ export const DetailModalTable = ({
   primaryColorClass: string;
   secondaryColorClass: string;
   defaultExcludedKeys?: string[];
+  /** Bấm 1 ô số => danh sách hạng mục tạo nên số đó (tên nhóm, cột trong ngày / lũy kế) — như OnLineStageDetailModal */
+  onValueClick?: (name: string, kind: 'daily' | 'mtd') => void;
 }) => {
+  // Ô có số + có onValueClick: hiện thành nút (gạch chân khi rê chuột)
+  const oSo = (name: string, kind: 'daily' | 'mtd', v: number) => (isZeroCell(v) ? '-' : !onValueClick ? formatValue(v) : (
+    <button type="button" onClick={() => onValueClick(name, kind)} title="Bấm để xem danh sách"
+            className="cursor-pointer underline-offset-2 hover:underline focus:outline-none focus-visible:underline">
+      {formatValue(v)}
+    </button>
+  ));
   const [sortConfig, setSortConfig] = useState<{ key: 'name' | 'daily' | 'mtd'; direction: 'asc' | 'desc' }>({ key: 'mtd', direction: 'desc' });
   
   // ✅ Đã sửa: Khởi tạo giá trị ban đầu trực tiếp trong useState để tránh lặp vô tận
@@ -258,10 +268,10 @@ useEffect(() => {
                   <td className="px-4 py-3 text-left font-medium text-slate-700">{item.name}</td>
                   {/* Chỉ ô ≈ 0 (dưới 0,005 — dư số thực) hiện "-"; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
                   <td className={`px-4 py-3 ${isZeroCell(item.daily) ? 'text-slate-300' : item.daily > 0 ? `${primaryColorClass} font-bold` : 'text-red-600 font-bold'}`}>
-                    {isZeroCell(item.daily) ? '-' : formatValue(item.daily)}
+                    {oSo(item.name, 'daily', item.daily)}
                   </td>
                   <td className={`px-4 py-3 ${isZeroCell(item.mtd) ? 'text-slate-300' : item.mtd > 0 ? `${secondaryColorClass} font-bold` : 'text-red-600 font-bold'}`}>
-                    {isZeroCell(item.mtd) ? '-' : formatValue(item.mtd)}
+                    {oSo(item.name, 'mtd', item.mtd)}
                   </td>
                 </tr>
               )) : (
