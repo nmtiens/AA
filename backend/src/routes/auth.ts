@@ -6,6 +6,7 @@ import { signAuthToken, authenticateJWT, requireSelfOrRole } from '../server/aut
 import { validateBody, loginSchema, forgotPasswordSchema, verifyOtpSchema, changePasswordSchema } from '../server/validation.js';
 import { app, loginLimiter, otpRequestLimiter, otpVerifyLimiter } from '../server/app.js';
 import { bumpTokenVersion } from '../server/xuong/auth.js';
+import { coGuiMail, guiMail, noiDungOtp } from '../server/mail.js';
 
 // ============================================================================
 // AUTH API — TRUY XUẤT BẢNG users TRONG POSTGRES
@@ -73,25 +74,38 @@ app.post('/api/auth/forgot-password', otpRequestLimiter, validateBody(forgotPass
   const genericMessage = 'Nếu email tồn tại trong hệ thống, mã OTP đã được gửi tới email đó';
   try {
     const { email } = req.body;
+    // Chưa cấu hình SMTP (production): báo rõ thay vì "đã gửi" mà không ai nhận được — không lộ email có tồn tại hay không
+    if (!coGuiMail() && process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ success: false, message: 'Hệ thống chưa bật gửi email — liên hệ quản trị viên để đặt lại mật khẩu.' });
+    }
 
-    const result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    // Không phân biệt hoa / thường (người dùng hay gõ Email@... khác lúc tạo tài khoản)
+    const result = await pool.query('SELECT id, email, full_name FROM users WHERE lower(trim(email)) = lower(trim($1)) AND is_active IS NOT FALSE LIMIT 1', [email]);
     const user = result.rows[0];
 
-   if (user) {
-  // crypto.randomInt: bộ sinh số ngẫu nhiên an toàn (Math.random có thể đoán được)
-  const otp = crypto.randomInt(100000, 1000000).toString();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    if (user) {
+      // crypto.randomInt: bộ sinh số ngẫu nhiên an toàn (Math.random có thể đoán được)
+      const otp = crypto.randomInt(100000, 1000000).toString();
+      const PHUT = 5;
+      const expiresAt = new Date(Date.now() + PHUT * 60 * 1000);
 
-  await pool.query(
-    `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = now() WHERE id = $3`,
-    [otp, expiresAt, user.id]
-  );
+      await pool.query(
+        `UPDATE users SET otp_code = $1, otp_expires_at = $2, updated_at = now() WHERE id = $3`,
+        [otp, expiresAt, user.id]
+      );
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] OTP cho ${email}: ${otp}`);
-  }
-  // TODO: gọi service gửi email thật ở đây khi có (nodemailer/SES/...)
-}
+      if (coGuiMail()) {
+        try {
+          await guiMail({ to: String(user.email).trim(), ...noiDungOtp(otp, PHUT, user.full_name) });
+        } catch (e) {
+          // Lỗi SMTP: ghi log (không lộ cho người gọi email có tồn tại) — quản trị xem log Vercel
+          console.error('Lỗi gửi email OTP:', e instanceof Error ? e.message : e);
+        }
+      } else {
+        // Máy dev chưa cấu hình SMTP: in mã ra log để thử
+        console.log(`[DEV] OTP cho ${email}: ${otp}`);
+      }
+    }
 
     res.json({ success: true, message: genericMessage });
   } catch (error) {
@@ -106,7 +120,7 @@ app.post('/api/auth/verify-otp', otpVerifyLimiter, validateBody(verifyOtpSchema)
     const { email, otp, newPassword } = req.body;
 
     const result = await pool.query(
-      `SELECT id, otp_code, otp_expires_at FROM users WHERE email = $1`,
+      `SELECT id, otp_code, otp_expires_at FROM users WHERE lower(trim(email)) = lower(trim($1)) AND otp_code IS NOT NULL LIMIT 1`,
       [email]
     );
     const user = result.rows[0];
