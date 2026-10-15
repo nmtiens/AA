@@ -311,7 +311,7 @@ export function usePivotTables({
         const d = parseVNDate(s.date) || new Date(s.date);
         return toISODateLocal(d) === targetISO;
       });
-      // Cùng đơn vị với các bước khác: đếm hạng mục thì lấy số hạng mục tồn kho (HEX), không thì giá trị
+      // Cùng đơn vị với các bước khác: đếm hạng mục thì lấy số mã tồn kho (mã SAP), không thì giá trị
       p022Val = (workshopMetric === 'COUNT_HEX' ? entry?.count : entry?.value) ?? 0;
     }
 

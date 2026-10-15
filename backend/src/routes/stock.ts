@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
-import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql, stockHangMucSql } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { app, warmupLimiter } from '../server/app.js';
 import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
@@ -67,7 +67,7 @@ const refreshStockDatesCache = async (filters: StockFilterParams) => {
   const q = `
     ${cteClause}
     SELECT s.date_parsed AS d,
-          COUNT(DISTINCT ${stockHangMucSql(c => `s.${c}`)}) AS count,
+          COUNT(DISTINCT s.ma_id_sap) AS count,
            COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
     FROM ton_kho s
     ${joinClause}
@@ -189,7 +189,7 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
     const q = `
       ${cteClause}
       SELECT COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(s.ten_cong_trinh, '\\s+', ' ', 'g'))), ''), 'Chưa xác định') AS name,
-            COUNT(DISTINCT ${stockHangMucSql(c => `s.${c}`)}) AS count,
+            COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified('ton_kho', 's', 'gia_tri')}), 0) AS value
       FROM ton_kho s
       ${joinClause}

@@ -6,7 +6,7 @@
 // - P001 ứng với cột "notDeployed".
 // - P002 ứng với cột "p002".
 // - P012 -> P021, GCVT ứng với cột "onLine", lọc thêm theo đúng mã BOP đó.
-// - P022 (TỒN KHO) mở danh sách tồn kho (StockItemsModal, theo hạng mục) ở Dashboard, không qua đây.
+// - P022 (TỒN KHO) mở danh sách tồn kho (StockItemsModal, theo mã SAP) ở Dashboard, không qua đây.
 //
 // stages: danh sách = hạng mục CÒN LẠI có công đoạn (BOP) thuộc các mã này — đúng cách thanh phễu đếm (gom theo
 // BOP, tinhPivotFunnel). Không dùng nhóm remainBucketOf: hạng mục tình trạng "15. CHƯA TRIỂN KHAI" nằm ở P002 /

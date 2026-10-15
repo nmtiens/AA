@@ -3,7 +3,7 @@ import DetailDataModal from '../Dashboards/DetailDataModal';
 import { fetchStockItems } from '../../../../services/dataService';
 
 // ============================================================================
-// Chi tiết TỒN KHO (bước "P022. TỒN KHO" của phễu): từng hạng mục (HEX) tồn kho tại ngày tồn kho đang xem,
+// Chi tiết TỒN KHO (bước "P022. TỒN KHO" của phễu): từng mã tồn kho (mã ID SAP) tại ngày tồn kho đang xem,
 // của 1 công trình (projectName) hoặc mọi công trình trong phạm vi lọc (projectName = null).
 // ============================================================================
 
@@ -48,13 +48,9 @@ export function StockItemsModal({ open, onClose, date, projectName, congTrinh, x
   }, [open, dateISO, projectName, scopeKey, xuongKey]);
 
   const dateLabel = date ? date.toLocaleDateString('vi-VN') : '';
-  // Số trên phễu / bảng (chế độ Hạng mục) đếm HẠNG MỤC: HEX khác nhau, dòng tồn không có HEX thì mỗi mã SAP là 1
-  // hạng mục (giống máy chủ — stockHangMucSql); danh sách liệt kê từng DÒNG tồn
-  const hangMuc = new Set(rows.map(r => {
-    const h = Number(r.hex);
-    return r.hex != null && r.hex !== '' && Number.isFinite(h) ? String(Math.trunc(h)) : `SAP${r.ma_id_sap ?? ''}`;
-  })).size;
-  const countNote = rows.length ? ` · ${hangMuc.toLocaleString('vi-VN')} hạng mục${hangMuc !== rows.length ? ` / ${rows.length.toLocaleString('vi-VN')} dòng` : ''}` : '';
+  // Số trên phễu / bảng (chế độ Số lượng) đếm MÃ ID SAP khác nhau; danh sách gom theo mã (1 mã có thể nhiều HEX / lô)
+  const idCount = new Set(rows.map(r => String(r.ma_id_sap ?? ''))).size;
+  const countNote = rows.length ? ` · ${idCount.toLocaleString('vi-VN')} mã / ${rows.length.toLocaleString('vi-VN')} dòng` : '';
   return (
     <DetailDataModal
       open={open}
@@ -65,6 +61,7 @@ export function StockItemsModal({ open, onClose, date, projectName, congTrinh, x
       columns={COLUMNS}
       loading={loading}
       truncated={truncated}
+      groupBy={{ col: 'ma_id_sap', label: 'mã' }}
     />
   );
 }

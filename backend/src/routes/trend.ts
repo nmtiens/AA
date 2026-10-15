@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
-import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified, hangMucSql } from '../server/data.js';
+import { REPORT_COLUMNS, parseSafeDate, parseExplicitDates, applyNonStockDateFilter, getPeriodRangeFromKey, buildStockSnapshotCondition, eqNormalized, projectNameCondition, notCancelledHexCond, applyCtWhitelist, buildMatchedProductionCTE, TrendTableConfig, STOCK_TREND_CONFIG, ANALYSIS_TABLES, TREND_SOURCES, numericCol, numericColQualified } from '../server/data.js';
 import { workshopCondition, workshopGroupSql, workshopGroupOf, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { canonicalProjectName, normNameSql } from '../server/projectAlias.js';
 import { createCache, cachedByVersions, queryKey, type VersionedCache } from '../server/cache.js';
@@ -117,7 +117,7 @@ cachedGet('/api/trend', trendCache, req => sourceVersionKeys(String(req.query.so
     const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
     const limit = granularity === 'day' ? 15 : 12;
 
-    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${hangMucSql(cfg, colBare)})` : `COUNT(*)`;
+    const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
     const valueColExpr = needsJoin
       ? numericColQualified(cfg.table, mainAlias, cfg.valueCol)
       : numericCol(cfg.table, cfg.valueCol);
@@ -355,7 +355,7 @@ cachedGet('/api/trend-by-xuong', trendCache, req => sourceVersionKeys(String(req
     const q = `
       ${withClause ? `${withClause},` : 'WITH'} base AS (
         SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
-               ${cfg.hexCol ? hangMucSql(cfg, colBare) : 'NULL'} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -441,7 +441,7 @@ cachedGet('/api/trend-by-congtrinh', trendCache, req => sourceVersionKeys(String
       ${withClause ? `${withClause},` : 'WITH'} base AS (
         SELECT ${normNameSql(colBare(cfg.congTrinhCol))} AS g,
                TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g')) AS ten,
-               ${cfg.hexCol ? hangMucSql(cfg, colBare) : 'NULL'} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -540,7 +540,7 @@ cachedGet('/api/trend-by-dvt', trendCache, req => sourceVersionKeys(String(req.q
     const q = `
       ${withClause ? `${withClause},` : 'WITH'} base AS (
         SELECT COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Chưa xác định') AS g,
-               ${cfg.hexCol ? hangMucSql(cfg, colBare) : 'NULL'} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? colBare(cfg.hexCol) : 'NULL'} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}
@@ -619,7 +619,7 @@ cachedGet('/api/trend-by-phanloai', trendCache, req => sourceVersionKeys(String(
     const q = `
       ${withClause}, base AS (
         SELECT COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Chưa xác định') AS g,
-               ${hangMucSql(cfg, colBare)} AS hx, ${valueRowExpr} AS v
+               ${colBare(cfg.hexCol)} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(' AND ')}

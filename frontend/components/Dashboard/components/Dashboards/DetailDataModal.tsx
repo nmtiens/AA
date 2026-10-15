@@ -33,6 +33,8 @@ interface DetailDataModalProps {
   // suy ra 1 id ổn định từ fileName/title (kém ổn định hơn khi đổi ngôn ngữ
   // tiêu đề, nên khuyến khích luôn truyền modalId tường minh).
   modalId?: string;
+  /** Cột gom nhóm + tên đơn vị đếm ở đầu / cuối bảng. Mặc định theo hạng mục (hex); tồn kho đếm theo mã ID SAP */
+  groupBy?: { col: string; label: string };
 }
 
 interface GroupedRow {
@@ -91,15 +93,13 @@ const slugify = (s: string) =>
 // ✅ LƯU Ý: luôn gộp trên TOÀN BỘ `columns` gốc (không phải danh sách cột đang
 // hiển thị sau khi setup), để dữ liệu merge luôn đúng dù Admin có ẩn bớt cột
 // nào đó khỏi giao diện.
-function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow[] {
+function buildGroups(rows: Record<string, any>[], columns: string[], groupCol: string): GroupedRow[] {
   const map = new Map<string, Record<string, any>[]>();
   const order: string[] = [];
 
   rows.forEach((row, i) => {
-    // Gom theo hạng mục (HEX). Dòng không có HEX (vd tồn kho hàng chuẩn) không gộp chung 1 nhóm rỗng: theo mã SAP nếu
-    // có (cùng cách đếm hạng mục tồn kho ở máy chủ), không thì mỗi dòng 1 nhóm
-    const hex = String(row[GROUP_BY_COLUMN] ?? '').trim();
-    const key = hex || (row.ma_id_sap != null && row.ma_id_sap !== '' ? `SAP${row.ma_id_sap}` : `#${i}`);
+    // Dòng trống cột gom nhóm không gộp chung 1 nhóm rỗng — mỗi dòng 1 nhóm
+    const key = String(row[groupCol] ?? '').trim() || `#${i}`;
     if (!map.has(key)) {
       map.set(key, []);
       order.push(key);
@@ -112,7 +112,7 @@ function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow
     const merged: Record<string, any> = {};
 
     for (const col of columns) {
-      if (col === GROUP_BY_COLUMN) {
+      if (col === groupCol) {
         merged[col] = groupRows[0][col] ?? '';
         continue;
       }
@@ -131,11 +131,13 @@ function buildGroups(rows: Record<string, any>[], columns: string[]): GroupedRow
 
 export default function DetailDataModal({
   open, onClose, title, accentColor, rows, columns, loading, truncated, fileName, modalId,
+  groupBy = { col: GROUP_BY_COLUMN, label: 'hạng mục' },
 }: DetailDataModalProps) {
+  const groupCol = groupBy.col;
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const canGroup = columns.includes(GROUP_BY_COLUMN);
+  const canGroup = columns.includes(groupCol);
 
   // Reset về trang 1 + đóng hết các nhóm đang mở mỗi khi mở modal hoặc dữ liệu (rows) đổi —
   // tránh trường hợp đang đứng ở trang 3 của dữ liệu cũ khi xem dữ liệu mới.
@@ -170,8 +172,8 @@ export default function DetailDataModal({
   );
 
   const groups = useMemo(
-    () => (canGroup ? buildGroups(rows, columns) : []),
-    [rows, columns, canGroup]
+    () => (canGroup ? buildGroups(rows, columns, groupCol) : []),
+    [rows, columns, canGroup, groupCol]
   );
 
   // Khi có group: phân trang theo SỐ NHÓM (khớp với số lượng HEX hiển thị ngoài biểu đồ).
@@ -226,7 +228,7 @@ export default function DetailDataModal({
             {title}
             {canGroup && (
               <span className="text-[0.6875rem] font-normal text-slate-400">
-                ({groups.length.toLocaleString('vi-VN')} hạng mục · {rows.length.toLocaleString('vi-VN')} dòng)
+                ({groups.length.toLocaleString('vi-VN')} {groupBy.label} · {rows.length.toLocaleString('vi-VN')} dòng)
               </span>
             )}
           </h3>
@@ -311,7 +313,7 @@ export default function DetailDataModal({
                                 className={`px-2 py-1 border-b border-slate-100 whitespace-nowrap ${isMulti ? 'font-bold text-slate-800' : ''}`}
                               >
                                 {formatCellValue(g.merged[col], col)}
-                                {col === GROUP_BY_COLUMN && isMulti && (
+                                {col === groupCol && isMulti && (
                                   <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-full text-[0.625rem] font-extrabold bg-indigo-600 text-white shadow-sm">
                                     x{g.rows.length}
                                   </span>
@@ -355,7 +357,7 @@ export default function DetailDataModal({
           <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 shrink-0 bg-white">
             <span className="text-[0.6875rem] text-slate-500">
               {canGroup
-                ? <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} hạng mục ({rows.length.toLocaleString('vi-VN')} dòng gốc)</>
+                ? <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} {groupBy.label} ({rows.length.toLocaleString('vi-VN')} dòng gốc)</>
                 : <>Hiển thị {startIdx.toLocaleString('vi-VN')}–{endIdx.toLocaleString('vi-VN')} / {totalUnits.toLocaleString('vi-VN')} dòng</>
               }
               {truncated ? ' (server đã giới hạn số dòng trả về)' : ''}

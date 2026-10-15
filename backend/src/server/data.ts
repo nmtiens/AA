@@ -454,16 +454,7 @@ export interface TrendTableConfig {
   joinProductionForFilters?: boolean;
   xuongViaProductionJoin?: boolean;
   productionJoinCol?: string; // MỚI: cột bên production_status_app dùng để join (mặc định 'hex')
-  /** Khoá HẠNG MỤC để đếm "Số lượng" khi khác hexCol (hexCol vẫn là cột nối sang sản xuất) — xem hangMucSql */
-  hangMucKey?: (col: (name: string) => string) => string;
 }
-/** Biểu thức đếm hạng mục (COUNT DISTINCT) của 1 nguồn: công trình -> hạng mục (HEX) -> BOT/BOP/BOM */
-export const hangMucSql = (cfg: TrendTableConfig, col: (name: string) => string): string =>
-  cfg.hangMucKey ? cfg.hangMucKey(col) : col(cfg.hexCol!);
-/** Tồn kho: đếm theo HEX (hạng mục); dòng tồn không có HEX (hàng chuẩn / showroom…) mỗi mã SAP tính 1 hạng mục.
- *  ton_kho.hex là double precision => ép bigint cho khớp dạng chữ số của HEX. */
-export const stockHangMucSql = (col: (name: string) => string): string =>
-  `COALESCE(${col('hex')}::bigint::text, 'SAP' || ${col('ma_id_sap')}::text)`;
 export const STOCK_TREND_CONFIG: TrendTableConfig = {
   table: 'ton_kho',
   dateCol: 'date_parsed',
@@ -475,7 +466,6 @@ export const STOCK_TREND_CONFIG: TrendTableConfig = {
   joinProductionForFilters: true,
   xuongViaProductionJoin: true,
   productionJoinCol: 'ma_id_sap', // ton_kho <-> production_status_app khớp qua ma_id_sap (phía sản xuất chuẩn hoá — sapKeySql)
-  hangMucKey: stockHangMucSql, // Số lượng = số hạng mục (HEX), không phải số mã SAP (nhiều HEX cùng 1 mã)
 };
 export const ANALYSIS_TABLES: Record<string, TrendTableConfig> = {
   order:     { table: 'dht',        dateCol: 'ngay_nhan_tu_pm', valueCol: 'tri_gia_don_hang_tong', hexCol: 'hex', xuongCol: 'xuong_chinh', congTrinhCol: 'ten_cong_trinh', valueDivisor: 1,  dvtCol: 'dvt', joinProductionForFilters: true, productionJoinCol: 'hex' },

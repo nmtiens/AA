@@ -64859,8 +64859,6 @@ var getTablesData = async (keys) => {
   }), 2);
   return { payload, versions };
 };
-var hangMucSql = (cfg, col) => cfg.hangMucKey ? cfg.hangMucKey(col) : col(cfg.hexCol);
-var stockHangMucSql = (col) => `COALESCE(${col("hex")}::bigint::text, 'SAP' || ${col("ma_id_sap")}::text)`;
 var STOCK_TREND_CONFIG = {
   table: "ton_kho",
   dateCol: "date_parsed",
@@ -64871,10 +64869,8 @@ var STOCK_TREND_CONFIG = {
   dvtCol: "dvt",
   joinProductionForFilters: true,
   xuongViaProductionJoin: true,
-  productionJoinCol: "ma_id_sap",
+  productionJoinCol: "ma_id_sap"
   // ton_kho <-> production_status_app khớp qua ma_id_sap (phía sản xuất chuẩn hoá — sapKeySql)
-  hangMucKey: stockHangMucSql
-  // Số lượng = số hạng mục (HEX), không phải số mã SAP (nhiều HEX cùng 1 mã)
 };
 var ANALYSIS_TABLES = {
   order: { table: "dht", dateCol: "ngay_nhan_tu_pm", valueCol: "tri_gia_don_hang_tong", hexCol: "hex", xuongCol: "xuong_chinh", congTrinhCol: "ten_cong_trinh", valueDivisor: 1, dvtCol: "dvt", joinProductionForFilters: true, productionJoinCol: "hex" },
@@ -66220,7 +66216,7 @@ app.get("/api/overview/summary", async (req, res) => {
         const baseIdx = allParams.length;
         localParams.forEach((p) => allParams.push(p));
         const remap = (cond) => cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
-        const countExpr = `COUNT(DISTINCT ${hangMucSql(cfg, colBare)})`;
+        const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol)})`;
         const outerConds = [];
         if (!useAllTime) {
           allParams.push(outerLo, outerHi);
@@ -66353,9 +66349,9 @@ app.get("/api/overview/by-group", async (req, res) => {
       SELECT
         -- C\xF4ng tr\xECnh: gom theo t\xEAn \u0111\xE3 chu\u1EA9n ho\xE1 (hoa/th\u01B0\u1EDDng, kho\u1EA3ng tr\u1EAFng) nh\u01B0 khi l\u1ECDc / xem chi ti\u1EBFt
         COALESCE(NULLIF(${groupBy === "congtrinh" ? `MIN(TRIM(REGEXP_REPLACE(${groupCol}, '\\s+', ' ', 'g')))` : workshopGroupSql(groupCol)}, ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
-        COUNT(DISTINCT ${hangMucSql(cfg, colBare)}) FILTER (WHERE ${periodCond}) AS daily_count,
+        COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
-        COUNT(DISTINCT ${hangMucSql(cfg, colBare)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
+        COUNT(DISTINCT ${colBare(cfg.hexCol)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
       -- To\xE0n b\u1ED9 th\u1EDDi gian: kh\xF4ng ch\u1EB7n ng\xE0y \u2014 g\u1ED3m d\xF2ng kh\xF4ng c\xF3 ng\xE0y (vd. \u0111\u01A1n h\xE0ng thi\u1EBFu ng\xE0y nh\u1EADn t\u1EEB PM) v\xE0 d\xF2ng ng\xE0y
@@ -66423,7 +66419,7 @@ var refreshStockDatesCache = async (filters) => {
   const q = `
     ${cteClause}
     SELECT s.date_parsed AS d,
-          COUNT(DISTINCT ${stockHangMucSql((c) => `s.${c}`)}) AS count,
+          COUNT(DISTINCT s.ma_id_sap) AS count,
            COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
     FROM ton_kho s
     ${joinClause}
@@ -66526,7 +66522,7 @@ app.get("/api/stock/by-project", async (req, res) => {
       const q = `
       ${cteClause}
       SELECT COALESCE(NULLIF(MIN(TRIM(REGEXP_REPLACE(s.ten_cong_trinh, '\\s+', ' ', 'g'))), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS name,
-            COUNT(DISTINCT ${stockHangMucSql((c) => `s.${c}`)}) AS count,
+            COUNT(DISTINCT s.ma_id_sap) AS count,
              COALESCE(SUM(${numericColQualified("ton_kho", "s", "gia_tri")}), 0) AS value
       FROM ton_kho s
       ${joinClause}
@@ -67646,7 +67642,7 @@ cachedGet("/api/trend", trendCache, (req) => sourceVersionKeys(String(req.query.
   }
   const useDefaultLimit = !dateFrom && !dateTo && explicitDates.length === 0;
   const limit = granularity === "day" ? 15 : 12;
-  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${hangMucSql(cfg, colBare)})` : `COUNT(*)`;
+  const countExpr = cfg.hexCol ? `COUNT(DISTINCT ${colBare(cfg.hexCol)})` : `COUNT(*)`;
   const valueColExpr = needsJoin ? numericColQualified(cfg.table, mainAlias, cfg.valueCol) : numericCol(cfg.table, cfg.valueCol);
   const valueExpr = `SUM(${valueColExpr})`;
   const joinKey = cfg.productionJoinCol || "hex";
@@ -67855,7 +67851,7 @@ cachedGet("/api/trend-by-xuong", trendCache, (req) => sourceVersionKeys(String(r
   const q = `
       ${withClause ? `${withClause},` : "WITH"} base AS (
         SELECT COALESCE(NULLIF(${workshopGroupSql(xuongExpr)}, ''), '${noXuongLabel}') AS g,
-               ${cfg.hexCol ? hangMucSql(cfg, colBare) : "NULL"} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(" AND ")}
@@ -67933,7 +67929,7 @@ cachedGet("/api/trend-by-congtrinh", trendCache, (req) => sourceVersionKeys(Stri
       ${withClause ? `${withClause},` : "WITH"} base AS (
         SELECT ${normNameSql(colBare(cfg.congTrinhCol))} AS g,
                TRIM(REGEXP_REPLACE(${colBare(cfg.congTrinhCol)}, '\\s+', ' ', 'g')) AS ten,
-               ${cfg.hexCol ? hangMucSql(cfg, colBare) : "NULL"} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(" AND ")}
@@ -68016,7 +68012,7 @@ cachedGet("/api/trend-by-dvt", trendCache, (req) => sourceVersionKeys(String(req
   const q = `
       ${withClause ? `${withClause},` : "WITH"} base AS (
         SELECT COALESCE(NULLIF(UPPER(TRIM(${dvtExpr})), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS g,
-               ${cfg.hexCol ? hangMucSql(cfg, colBare) : "NULL"} AS hx, ${valueRowExpr} AS v
+               ${cfg.hexCol ? colBare(cfg.hexCol) : "NULL"} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(" AND ")}
@@ -68088,7 +68084,7 @@ cachedGet("/api/trend-by-phanloai", trendCache, (req) => sourceVersionKeys(Strin
   const q = `
       ${withClause}, base AS (
         SELECT COALESCE(NULLIF(TRIM(p.phan_loai_nhom_san_pham), ''), 'Ch\u01B0a x\xE1c \u0111\u1ECBnh') AS g,
-               ${hangMucSql(cfg, colBare)} AS hx, ${valueRowExpr} AS v
+               ${colBare(cfg.hexCol)} AS hx, ${valueRowExpr} AS v
         FROM ${cfg.table} ${mainAlias}
         ${joinClause}
         WHERE ${conditions.join(" AND ")}

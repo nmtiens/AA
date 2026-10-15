@@ -550,7 +550,7 @@ const handleContinueToOrderColumnStep = () => {
   const activeFunnelPivotData = useMemo(() => {
     if (!activeFunnelItem) return pivotFunnelData; // chưa chọn bước nào -> tổng theo BOP
     if (activeFunnelItem.id === 'P022') {
-      // Chế độ Hạng mục: lấy số hạng mục tồn (count, HEX) — value là triệu đồng, không được in như số đếm
+      // Chế độ Hạng mục: lấy số mã tồn (count, mã SAP) — value là triệu đồng, không được in như số đếm
       const isCount = workshopMetric === 'COUNT_HEX';
       const data = stockByProjectData.map(r => ({ name: r.name, value: isCount ? r.count : r.value }));
       return { data, total: data.reduce((sum, r) => sum + r.value, 0) };
@@ -565,7 +565,7 @@ const handleContinueToOrderColumnStep = () => {
 
   const { showToast } = useToast();
   const handleFunnelPivotValueClick = (name: string | null, item: CustomFunnelItem | null) => {
-    // Tồn kho (P022): mở danh sách từng hạng mục tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
+    // Tồn kho (P022): mở danh sách từng mã tồn kho (của 1 công trình, hoặc tất cả ở dòng Tổng cộng / dòng P022)
     // (dòng "P022" khi chưa chọn thanh nào là hạng mục sản xuất P022 chưa nhập đủ — mở danh sách HEX, không phải tồn kho)
     if (item?.id === 'P022') {
       setStockItems({ open: true, projectName: item ? name : null });
@@ -1003,7 +1003,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
         currentUser={user?.username ?? ''}
       />
 
-      {/* Danh sách hạng mục tồn kho khi bấm số của bước "P022. TỒN KHO" */}
+      {/* Danh sách mã tồn kho khi bấm số của bước "P022. TỒN KHO" */}
       <StockItemsModal
         open={stockItems.open}
         onClose={() => setStockItems(s => ({ ...s, open: false }))}

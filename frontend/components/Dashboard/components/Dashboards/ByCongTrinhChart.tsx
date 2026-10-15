@@ -160,8 +160,8 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   const [detailTruncated, setDetailTruncated] = useState(false);
 
   const theme = THEME[source];
-  // Tồn kho cũng đếm theo hạng mục (HEX); dòng tồn không có HEX mỗi mã SAP tính 1 hạng mục (máy chủ: stockHangMucSql)
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số hạng mục tồn (HEX)' : 'Số lượng HEX') : theme.unitValue;
+  // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));

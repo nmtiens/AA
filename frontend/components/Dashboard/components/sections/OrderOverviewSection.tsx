@@ -286,7 +286,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
 
   // ---------- Bấm 1 ô số ở bảng "Chi tiết theo Xưởng / Công trình" => danh sách hạng mục (view có sẵn của Dashboard) ----------
   // Như phễu (OnLineStageDetailModal.onValueClick -> HexDetailModal): lấy các HEX tạo nên số đó rồi Dashboard mở
-  // HexDetailModal từ bảng sản xuất; Tồn kho -> StockItemsModal (danh sách hạng mục tồn của công trình, ngày tồn đang lọc).
+  // HexDetailModal từ bảng sản xuất; Tồn kho -> StockItemsModal (danh sách mã tồn của công trình, ngày tồn đang lọc).
   // HEX lấy qua /api/detail?chiHex=1 (chỉ danh sách HEX, không giới hạn dòng) cùng phạm vi với số trên bảng (/api/overview/by-group): cột "trong ngày" = các ngày đang
   // chọn (không chọn ngày => toàn bộ thời gian), cột "lũy kế" = đầu tháng -> ngày đang xem; cùng bộ lọc xưởng / công
   // trình đang áp trong cửa sổ.
@@ -788,7 +788,7 @@ const periodLabel = overviewDateFilters.length > 1
               <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-[0.625rem] font-bold text-slate-600 uppercase leading-tight">
-                    {overviewMetric === 'COUNT' ? 'Số hạng mục tồn' : 'Giá trị tồn'} mới nhất (
+                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất (
                     {latestStockStats.date
                       ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1)
                           .toString()
@@ -804,7 +804,7 @@ const periodLabel = overviewDateFilters.length > 1
                 </div>
                 <div className="flex justify-between items-center gap-2 mt-2">
                   <span className="text-[0.5625rem] font-bold text-slate-500 uppercase leading-tight">
-                    {overviewMetric === 'COUNT' ? 'Số hạng mục tồn' : 'Giá trị tồn'} mới nhất của tháng {prevMonthNo} (
+                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất của tháng {prevMonthNo} (
                     {latestStockStatsPrevMonth.date
                       ? `${latestStockStatsPrevMonth.date.getDate().toString().padStart(2, '0')}/${(
                           latestStockStatsPrevMonth.date.getMonth() + 1
@@ -1442,7 +1442,7 @@ const periodLabel = overviewDateFilters.length > 1
                             .padStart(2, '0')}/${latestStockStats.date.getFullYear()})`
                         : ''
                     }`}
-                    unitLabel={stockMetric === 'COUNT' ? '(SL HEX)' : '(Tỷ đồng)'}
+                    unitLabel={stockMetric === 'COUNT' ? '(SL Mã SAP)' : '(Tỷ đồng)'}
                     formatValue={stockMetric === 'COUNT' ? undefined : formatTrieuAsTy}
                     primaryColorClass="text-slate-700"
                     secondaryColorClass="text-slate-900"

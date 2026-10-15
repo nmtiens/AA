@@ -3,7 +3,7 @@ import type { Request, Response } from 'express';
 import { timedQuery } from '../db.js';
 import { expandWorkshops, workshopGroupSql, workshopGroupsVersion } from '../server/workshopGroups.js';
 import { vnDayKey, vnTodayUtc } from '../server/common.js';
-import { parseSafeDate, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified, notCancelledHexCond, CANCELLED_HEX_SQL, productionKeySql, hangMucSql } from '../server/data.js';
+import { parseSafeDate, ANALYSIS_TABLES, ALLOWED_ANALYSIS_KEYS, numericColQualified, notCancelledHexCond, CANCELLED_HEX_SQL, productionKeySql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
 import { app } from '../server/app.js';
 
@@ -132,7 +132,7 @@ app.get('/api/overview/summary', async (req: Request, res: Response) => {
         localParams.forEach(p => allParams.push(p));
         const remap = (cond: string) => cond.replace(/\$P(\d+)/g, (_, n) => `$${baseIdx + Number(n)}`);
 
-        const countExpr = `COUNT(DISTINCT ${hangMucSql(cfg, colBare)})`;
+        const countExpr = `COUNT(DISTINCT ${colBare(cfg.hexCol!)})`;
 
         const outerConds: string[] = [];
         if (!useAllTime) {
@@ -285,9 +285,9 @@ app.get('/api/overview/by-group', async (req: Request, res: Response) => {
       SELECT
         -- Công trình: gom theo tên đã chuẩn hoá (hoa/thường, khoảng trắng) như khi lọc / xem chi tiết
         COALESCE(NULLIF(${groupBy === 'congtrinh' ? `MIN(TRIM(REGEXP_REPLACE(${groupCol}, '\\s+', ' ', 'g')))` : workshopGroupSql(groupCol)}, ''), 'Chưa xác định') AS name,
-        COUNT(DISTINCT ${hangMucSql(cfg, colBare)}) FILTER (WHERE ${periodCond}) AS daily_count,
+        COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${periodCond}) AS daily_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${periodCond}), 0) / ${cfg.valueDivisor} AS daily_value,
-        COUNT(DISTINCT ${hangMucSql(cfg, colBare)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
+        COUNT(DISTINCT ${colBare(cfg.hexCol!)}) FILTER (WHERE ${mtdCond}) AS mtd_count,
         COALESCE(SUM(${numericColQualified(cfg.table, alias, cfg.valueCol)}) FILTER (WHERE ${mtdCond}), 0) / ${cfg.valueDivisor} AS mtd_value
       FROM ${cfg.table} ${alias}
       -- Toàn bộ thời gian: không chặn ngày — gồm dòng không có ngày (vd. đơn hàng thiếu ngày nhận từ PM) và dòng ngày

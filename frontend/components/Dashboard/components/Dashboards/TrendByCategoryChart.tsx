@@ -163,8 +163,8 @@ export default function TrendByCategoryChart({
   const [detailTruncated, setDetailTruncated] = useState(false);
 
   const theme = THEME[source];
-  // Tồn kho cũng đếm theo hạng mục (HEX); dòng tồn không có HEX mỗi mã SAP tính 1 hạng mục (máy chủ: stockHangMucSql)
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số hạng mục tồn (HEX)' : 'Số lượng HEX') : theme.unitValue;
+  // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -233,7 +233,7 @@ export default function TrendByCategoryChart({
     return Number((sum / chartData.length).toFixed(2));
   }, [chartData]);
 
-  // Số lượng: 1 hạng mục có thể nằm ở nhiều nhóm (vd 1 HEX tồn có 2 ĐVT) => cộng các cột bị đếm trùng; dùng số hạng mục khác
+  // Số lượng: 1 mã có thể nằm ở nhiều nhóm (vd 1 mã tồn có 2 ĐVT) => cộng các cột bị đếm trùng; dùng số mã khác
   // nhau trên cả khoảng do máy chủ tính (distinctTotalCount). Giá trị (tiền) cộng các cột vẫn đúng.
   const totalAll = useMemo(() => {
     if (displayMode === 'COUNT') {
