@@ -6,3 +6,15 @@ export const BTN_CHINH = 'inline-flex items-center gap-1.5 rounded-lg bg-wood-60
 export const KHUNG = 'overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm';
 export const TH = 'px-3 py-2 text-left text-xs font-semibold text-slate-600';
 export const TD = 'px-3 py-2 align-top text-sm text-slate-700';
+
+/**
+ * Khổ điện thoại (app MRA → Báo cáo / Quản lý / Tra cứu dùng lại màn máy tính): bọc ngoài để mọi nút / ô chọn / ô nhập
+ * cao ≥ 44px và chữ nhỏ lên một cỡ (12 → 14, 14 → 16px) — sửa một chỗ thay vì từng màn. Chỉ dùng khi đang ở điện thoại.
+ */
+export const KHO_DIEN_THOAI = [
+  '[&_button]:min-h-11', '[&_select]:min-h-11', '[&_summary]:min-h-11', '[&_summary]:flex', '[&_summary]:items-center',
+  '[&_input[type=date]]:min-h-11', '[&_input[type=month]]:min-h-11', '[&_input[type=text]]:min-h-11', '[&_input[type=search]]:min-h-11',
+  '[&_input:not([type])]:min-h-11', '[&_input[type=number]]:min-h-11',
+  '[&_label:has(input[type=checkbox])]:min-h-11', '[&_label:has(input[type=checkbox])]:inline-flex', '[&_label:has(input[type=checkbox])]:items-center',
+  '[&_.text-xs]:text-sm', '[&_.text-sm]:text-base',
+].join(' ');

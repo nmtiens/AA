@@ -266,7 +266,7 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
                       <tr className="cursor-pointer border-t border-slate-100 hover:bg-slate-50" onClick={() => bat(k)} aria-expanded={m}>
                         <td className={`${TD} pl-6 font-medium text-slate-800`}>
                           <span className="inline-flex items-center gap-1">{m ? <ChevronDown size={14} /> : <ChevronRight size={14} />}{t.ten}
-                            {n.nguon === 'mra' && <span className="rounded border border-violet-200 bg-violet-50 px-1 text-[10px] font-semibold text-violet-700" title="Số liệu từ MRA cũ (ước tính)">MRA</span>}</span>
+                            {n.nguon === 'mra' && <span className="rounded border border-violet-200 bg-violet-50 px-1 text-xs font-semibold text-violet-700" title="Số liệu từ MRA cũ (ước tính)">MRA</span>}</span>
                         </td>
                         <td className={`${TD} text-right tabular-nums`}>
                           {qs.chinh !== null ? qs.chinh : n.nguon === 'mra' ? '—' : <span className="text-amber-700">chưa chốt</span>}
@@ -1225,7 +1225,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Kiểu xem báo cáo">
             {TABS.map(x => (
               <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} onClick={() => chonTab(x.id)}
-                className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${tab === x.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${tab === x.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900'}`}>
                 {x.ten}{x.id === 'hangMuc' && d.hangMuc.length ? ` (${d.hangMuc.length})` : ''}{x.id === 'nguoi' && d.theoNguoi?.length ? ` (${d.theoNguoi.length})` : ''}
               </button>
             ))}

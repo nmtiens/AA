@@ -6,6 +6,9 @@ import {
 import { xuongSetupApi, type PhanTichXuong as PhanTich } from '../../services/xuongSetupApi';
 import { KHUNG, TH, TD } from './xuongDesktopUi';
 
+/** Chữ chú thích biểu đồ màu chữ thường (mặc định theo màu cột — vàng / xanh nhạt khó đọc) */
+const chuChuThich = (v: string) => <span style={{ color: '#334155' }}>{v}</span>;
+
 // ============================================================================
 // BÁO CÁO → KẾ HOẠCH & PHÂN TÍCH → MỐC CHUẨN THỜI GIAN: số liệu app, cùng cách phân tích của tab "Lịch sử MRA" cũ
 // (đã bỏ): mỗi công đoạn chạy bao lâu (giờ trong ca), hạng mục nằm trong xưởng bao nhiêu ngày theo nhóm sản phẩm,
@@ -109,7 +112,7 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
                 <XAxis type="number" tick={{ fontSize: 11 }} unit=" ng" />
                 <YAxis type="category" dataKey="ten" width={110} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number, ten: string) => [`${so(v)} ngày`, ten]} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 14 }} formatter={chuChuThich} />
                 <Bar dataKey="tv" name="Thường mất" fill={LAM} />
                 <Bar dataKey="p75" name="Nên hẹn" fill="#93c5fd" />
               </BarChart>
@@ -126,7 +129,7 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
                 <YAxis yAxisId="a" tick={{ fontSize: 11 }} />
                 <YAxis yAxisId="b" orientation="right" tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 14 }} formatter={chuChuThich} />
                 <Bar yAxisId="a" dataKey="soXong" name="Hạng mục xong công đoạn" fill={XANH} radius={[3, 3, 0, 0]} />
                 <Line yAxisId="b" dataKey="gioCa" name="Giờ trong ca" stroke={TIM} strokeWidth={2} dot={{ r: 3 }} />
               </ComposedChart>

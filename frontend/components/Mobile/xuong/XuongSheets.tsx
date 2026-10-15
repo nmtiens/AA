@@ -762,7 +762,7 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
               return (
                 <button key={k} type="button" role="radio" aria-checked={on} onClick={() => setDich(k)}
                   className={`flex min-h-11 w-full items-center gap-3 rounded-2xl border px-3 py-1 text-left ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-800'}`}>
-                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>
                   <span className="min-w-0 flex-1 truncate text-base"><b className="tabular-nums">{r.hex}</b> {r.tenHangMuc ?? ''}</span>
                   <span className="shrink-0 text-base font-semibold tabular-nums">{(ten[k] ?? []).length} người</span>
                 </button>
@@ -772,11 +772,11 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
           <div className="flex items-center gap-2">
             {([['tat_ca', `Cả tổ ${coMat.length}`], ['chua_gan', `Chưa gắn ${chuaGan.length}`]] as const).map(([k, t]) => (
               <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
-                className={`h-10 shrink-0 whitespace-nowrap rounded-full border px-3 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : chuaGan.length && k === 'chua_gan' ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>{t}</button>
+                className={`h-11 shrink-0 whitespace-nowrap rounded-full border px-3 text-base tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 text-white' : chuaGan.length && k === 'chua_gan' ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu}` : 'border-slate-300 bg-white text-slate-700'}`}>{t}</button>
             ))}
             {gon && (
               <input value={tim} onChange={e => setTim(e.target.value)} placeholder="Tìm tên" aria-label="Tìm người"
-                className="h-10 min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-slate-500" />
+                className="h-11 min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-3 text-base text-slate-900 outline-none focus:border-slate-500" />
             )}
           </div>
           {chuaGan.length > 0 && (
@@ -803,7 +803,7 @@ function ChiaTheoTen({ dangChay, coMat, cv, ten, setTen, onLuu, onClose }: {
                   on ? 'border-slate-900 bg-slate-900 text-white' : k ? 'border-slate-200 bg-slate-50 text-slate-600' : `border-dashed ${MAU.ngung.vien} bg-white text-slate-900`}`}>
                 <span className="min-w-0 flex-1 truncate">{tenGon(x, ds)}</span>
                 {/* Chữ hạng mục người này đang làm; chưa gắn thì không có */}
-                {i >= 0 && <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>}
+                {i >= 0 && <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-base font-bold ${on ? 'bg-white text-slate-900' : 'bg-slate-200 text-slate-700'}`}>{chu(i)}</span>}
               </button>
             );
           })}

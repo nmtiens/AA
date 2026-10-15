@@ -427,7 +427,7 @@ export function ChonNguoi({ coMat, ds, chon, onDoi, ban, rong }: {
             <button key={m} type="button" aria-pressed={on} className={`${chipNguoi(on, !!o && !on)} ${gon ? '!min-h-12 !py-1.5' : ''}`}
               onClick={() => { const t = new Set(chon); if (on) t.delete(m); else t.add(m); onDoi(t); }}>
               <span className="min-w-0 flex-1 truncate">{tenGon(m, ds)}</span>
-              {on ? <Check size="1em" aria-hidden /> : o ? <span className="shrink-0 text-xs tabular-nums">…{o.slice(-4)}</span> : null}
+              {on ? <Check size="1em" aria-hidden /> : o ? <span className="shrink-0 text-base tabular-nums">…{o.slice(-4)}</span> : null}
             </button>
           );
         })}

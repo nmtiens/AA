@@ -4,6 +4,9 @@ import {
 } from 'recharts';
 import type { BaoCaoTo } from '../../services/xuongSetupApi';
 
+/** Chữ chú thích biểu đồ màu chữ thường (mặc định theo màu cột — vàng / xanh nhạt khó đọc) */
+const chuChuThich = (v: string) => <span style={{ color: '#334155' }}>{v}</span>;
+
 // ============================================================================
 // BIỂU ĐỒ BÁO CÁO XƯỞNG (recharts — cùng thư viện Dashboard)
 //   BieuDoNgay   : mỗi ngày giờ công = giờ công SP + giờ chờ việc (cột chồng) + % có việc (đường)
@@ -52,7 +55,7 @@ export function BieuDoNgay({ ds }: { ds: BaoCaoTo[] }) {
             <YAxis yAxisId="g" tick={{ fontSize: 11 }} />
             <YAxis yAxisId="p" orientation="right" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} />
             <Tooltip formatter={(v: number, ten: string) => (ten === 'Tỷ lệ có việc' ? [`${v}%`, ten] : [`${so(v)} giờ`, ten])} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Legend wrapperStyle={{ fontSize: 14 }} formatter={chuChuThich} />
             {/* maxBarSize: kỳ ít ngày thì cột không phình hết chiều ngang */}
             <Bar yAxisId="g" dataKey="sp" name="Giờ công SP" stackId="a" fill={XANH} maxBarSize={56} />
             <Bar yAxisId="g" dataKey="cho" name="Giờ chờ việc" stackId="a" fill={VANG} radius={[3, 3, 0, 0]} maxBarSize={56} />
@@ -191,7 +194,7 @@ export function BieuDoKeHoach({ tongKh, nkTheoKh, conThieu, nkNgoai, vuot = 0, n
               <YAxis yAxisId="d" tick={{ fontSize: 11 }} tickFormatter={v => so(v / 1000, 1)} />
               <YAxis yAxisId="l" orientation="right" tick={{ fontSize: 11 }} tickFormatter={v => so(v / 1000, 1)} domain={[0, (max: number) => Math.max(max, tongKh) * 1.05]} />
               <Tooltip formatter={(v: number, ten: string) => [tien(v), ten]} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 14 }} formatter={chuChuThich} />
               <Bar yAxisId="d" dataKey="theoKh" name="Theo KH" stackId="a" fill={LAM} />
               <Bar yAxisId="d" dataKey="ngoaiKh" name="Ngoài KH" stackId="a" fill={LAM_NHAT} radius={[3, 3, 0, 0]} />
               <Line yAxisId="l" dataKey="luyKe" name="Luỹ kế theo KH" stroke={XANH} strokeWidth={2} dot={{ r: 3 }} />

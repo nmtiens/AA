@@ -8,6 +8,7 @@ import KhaiChiTietXuong from './KhaiChiTietXuong';
 import TheoDoiTrienKhai from './TheoDoiTrienKhai';
 import BaoCaoXuong from './BaoCaoXuong';
 import NhanSuXuong from './NhanSuXuong';
+import { KHO_DIEN_THOAI } from './xuongDesktopUi';
 
 // ============================================================================
 // THẺ "XƯỞNG" TRONG SETUP DỮ LIỆU (T8 — docs/designs/xuong-checkin.md).
@@ -108,7 +109,7 @@ export default function XuongSetup({ trongApp = false }: { trongApp?: boolean })
           <RefreshCw size={16} className={dang ? 'animate-spin' : ''} />
         </button>
       </div>
-      <div className={`min-h-0 flex-1 overflow-auto p-4 rmd:p-6 ${trongApp ? 'pb-[calc(env(safe-area-inset-bottom)+6rem)] rmd:pb-6' : ''}`}>
+      <div className={`min-h-0 flex-1 overflow-auto p-4 rmd:p-6 ${trongApp ? 'pb-[calc(env(safe-area-inset-bottom)+6rem)] rmd:pb-6' : ''} ${lon ? KHO_DIEN_THOAI : ''}`}>
         {loi && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
         {!d && dang && <div className="flex justify-center py-16 text-slate-400"><RefreshCw className="animate-spin" size={20} /></div>}
         {d && !d.xuong && <p className="text-sm text-slate-600">Chưa có xưởng nào trong danh mục. Chạy file SQL danh mục (backend/sql/2026-10-12_xuong_danh_muc_mra.sql) hoặc thêm công đoạn.</p>}

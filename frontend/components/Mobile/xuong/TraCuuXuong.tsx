@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ScanLine, Search, X, Loader2 } from 'lucide-react';
 import XuongHexChiTiet from '../../Xuong/XuongHexChiTiet';
+import { KHO_DIEN_THOAI } from '../../Xuong/xuongDesktopUi';
 import { trichHex } from '../../../services/xuongModel';
 import { xuongApi, type GoiYHex } from '../../../services/xuongApi';
 import QuetQr from './QuetQr';
@@ -81,7 +82,7 @@ export default function TraCuuXuong() {
               className="h-14 w-full rounded-2xl border border-slate-300 bg-white pl-4 pr-11 text-lg tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400" />
             {q && (
               <button type="button" aria-label="Xoá" onClick={() => { setQ(''); setHex(null); setLoi(''); setGoiY(null); }}
-                className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 active:bg-slate-100">
+                className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-slate-600 active:bg-slate-100">
                 <X size="1.1em" />
               </button>
             )}
@@ -94,7 +95,7 @@ export default function TraCuuXuong() {
             <ScanLine size="1.3em" />
           </button>
         </form>
-        <button type="button" onClick={doiBanPhim} className="text-base font-medium text-slate-600 underline underline-offset-4">
+        <button type="button" onClick={doiBanPhim} className="min-h-11 self-start text-base font-medium text-slate-600 underline underline-offset-4">
           {banPhimChu ? 'Gõ mã số' : 'Tìm theo tên hạng mục / công trình'}
         </button>
         {loi && <p className={`rounded-2xl ${MAU.loi.nen} p-3 text-base ${MAU.loi.chu}`} role="alert">{loi}</p>}
@@ -122,7 +123,8 @@ export default function TraCuuXuong() {
         ) : hex ? (
           <section className="space-y-2 rounded-2xl bg-white p-3 rmd:p-4" aria-label={`Hạng mục ${hex}`}>
             <p className="text-lg font-semibold text-slate-900">Hạng mục <span className="tabular-nums">{hex}</span></p>
-            <XuongHexChiTiet key={hex} hex={hex} />
+            {/* Màn chi tiết dùng chung với máy tính: nút / chữ cỡ điện thoại */}
+            <div className={KHO_DIEN_THOAI}><XuongHexChiTiet key={hex} hex={hex} /></div>
           </section>
         ) : (
           <div className="space-y-3 rounded-2xl bg-white p-5">

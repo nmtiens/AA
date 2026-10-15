@@ -26,8 +26,9 @@ function oCongDoan(c: TheoDoiCongDoan) {
   if (c.slGiaoDen > c.slNhan + 0.0005) return { ten: 'Chờ nhận', mau: 'border-sky-300 bg-sky-50 text-sky-900', Icon: Inbox };
   if (c.trangThai === 'cho_giao') return { ten: 'Chờ giao', mau: 'border-violet-300 bg-violet-50 text-violet-900', Icon: PackageCheck };
   if (c.trangThai === 'da_nhan') return { ten: 'Đã nhận, chưa làm', mau: 'border-sky-300 bg-white text-sky-900', Icon: Clock };
-  if (c.trangThai === 'xong') return { ten: 'Xong', mau: 'border-slate-200 bg-slate-50 text-slate-500', Icon: Check };
-  return { ten: 'Chưa tới', mau: 'border-dashed border-slate-300 bg-white text-slate-400', Icon: null };
+  // Tương phản ≥ 4,5:1 (trước slate-400 / slate-500 + mờ 80% ≈ 2,6:1 — khó đọc ngoài xưởng)
+  if (c.trangThai === 'xong') return { ten: 'Xong', mau: 'border-slate-200 bg-slate-50 text-slate-600', Icon: Check };
+  return { ten: 'Chưa tới', mau: 'border-dashed border-slate-300 bg-white text-slate-600', Icon: null };
 }
 
 /** "13/10 08:00" giờ VN */
@@ -43,11 +44,11 @@ function OCd({ c, dv }: { c: TheoDoiCongDoan; dv: string }) {
     <div className={`min-w-[9.5rem] max-w-[12rem] shrink-0 rounded-lg border px-2 py-1.5 text-xs ${o.mau}`}
       title={`${c.ten}${c.xuong ? ` (${c.xuong})` : ''} — ${o.ten}\nTổ: ${c.to.join(', ') || 'chưa gán tổ'}\nGiao đến ${hienSl(c.slGiaoDen)} · nhận ${hienSl(c.slNhan)} · xong ${hienSl(c.slHoanThanh)} · giao ${hienSl(c.slGiao)} ${dv}`}>
       <p className="flex items-center gap-1 truncate font-semibold">{o.Icon && <o.Icon size={11} aria-hidden />}{c.ten}</p>
-      <p className="truncate text-[11px] opacity-80">{c.to.join(', ') || 'chưa gán tổ'}{c.xuong ? ` · ${c.xuong}` : ''}</p>
+      <p className="truncate text-xs">{c.to.join(', ') || 'chưa gán tổ'}{c.xuong ? ` · ${c.xuong}` : ''}</p>
       <p className="mt-0.5 font-medium">
         {o.ten}{c.trangThai === 'dang_lam' && c.soNguoi ? ` · ${c.soNguoi} người` : ''}{c.dangChayTu ? ` · từ ${lucNgan(c.dangChayTu)}` : ''}
       </p>
-      {coSo && <p className="tabular-nums opacity-80">nhận {hienSl(c.slNhan)} · xong {hienSl(c.slHoanThanh)} · giao {hienSl(c.slGiao)}</p>}
+      {coSo && <p className="tabular-nums">nhận {hienSl(c.slNhan)} · xong {hienSl(c.slHoanThanh)} · giao {hienSl(c.slGiao)}</p>}
     </div>
   );
 }
@@ -124,7 +125,7 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
                       : ` · triển khai ${hienSl(h.slTrienKhai)} ${dv} · ${h.trienKhaiCuoi ? new Date(h.trienKhaiCuoi).toLocaleDateString('vi-VN') : ''}`}
                     {h.xuongChinh && h.xuongChinh !== xuong ? ` · xưởng chính ${h.xuongChinh}` : ''}
                   </p>
-                  <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                  <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
                     {kh ? <span className="rounded bg-sky-50 px-1.5 py-0.5 text-sky-800">{kh}</span>
                       : <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-700">Không có trong KHSX</span>}
                     {h.chuaTrienKhai && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-800">Chưa triển khai trên app (nhận thẳng)</span>}

@@ -182,7 +182,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
         {!laTuanNay && <button type="button" className={BTN} onClick={() => setT(tuanNay)}>Tuần này</button>}
         <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
       </div>
-      <p className="text-xs text-slate-500">
+      <p className="text-xs text-slate-600">
         Xem theo tuần kế hoạch (KHSX), không theo khoảng ngày ở trên. Nhập kho có số liệu tới {kh?.nhapKhoMoiNhat ? ddmm(kh.nhapKhoMoiNhat) : '—'}.
         {kh?.chiTo && <b> Chỉ hạng mục đi qua công đoạn tổ của bạn (kế hoạch, nhập kho, biểu đồ).</b>}
       </p>
