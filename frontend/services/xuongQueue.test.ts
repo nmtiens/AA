@@ -44,6 +44,17 @@ describe('themSuKien', () => {
     expect(ds.map(e => e.id)).toEqual([ev.id]);
   });
 
+  it('nhiều sự kiện cùng mili-giây (Xong rồi Giao) giữ đúng thứ tự bấm khi gửi', async () => {
+    const t = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-15T08:00:00Z'));
+    for (let lan = 0; lan < 20; lan++) {
+      await q.themSuKien({ loai: 'hoan_thanh', hex: '250301895', congDoanId: 'CD1', toId: 1, soLuong: 1 }, 7);
+      await q.themSuKien({ loai: 'giao', hex: '250301895', congDoanId: 'CD1', toId: 1, soLuong: 1, congDoanDenId: 'CD2' }, 7);
+    }
+    t.mockRestore();
+    const ds = await q.danhSachCho();
+    expect(ds.map(e => e.loai)).toEqual(Array.from({ length: 20 }, () => ['hoan_thanh', 'giao']).flat());
+  });
+
   it('lệch quá 12 giờ coi như chưa đo', async () => {
     localStorage.setItem('xuong_lech_dong_ho', JSON.stringify({ lechMs: 1500, doLuc: Date.now() - 13 * 3_600_000 }));
     const ev = await q.themSuKien({ loai: 'quan_so', toId: 1 }, 7);

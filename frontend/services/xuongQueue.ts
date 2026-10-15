@@ -94,6 +94,14 @@ const uuid = (): string => (crypto as Crypto & { randomUUID?: () => string }).ra
   ?? '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, c =>
     (Number(c) ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (Number(c) / 4)))).toString(16));
 
+/**
+ * Mốc xếp hàng tăng dần NGẶT: một lần bấm ghi nhiều sự kiện cùng mili-giây (Xong + Giao, Vào ca + Quân số, Chia người +
+ * Bắt đầu) phải gửi đúng thứ tự bấm — trước trùng queuedAt thì xếp theo id ngẫu nhiên, ~1/2 số lần "Giao" đi trước
+ * "Xong" và máy chủ từ chối "Giao nhiều hơn số đã xong".
+ */
+let queuedCuoi = 0;
+const mocXepHang = (now: number) => { queuedCuoi = Math.max(now, queuedCuoi + 0.001); return queuedCuoi; };
+
 /** Ghi một lần bấm vào hàng đợi trên máy. Ném LoiLuuMay nếu không ghi được. */
 export async function themSuKien(input: SuKienNhap, userId: number | null): Promise<SuKienCho> {
   const { lechMs, sauDoiGio } = lechLucBam();
@@ -101,7 +109,7 @@ export async function themSuKien(input: SuKienNhap, userId: number | null): Prom
   const { lucXayRa, ...nhap } = input;
   const ev: SuKienCho = {
     ...nhap, id: uuid(), deviceTs: lucXayRa !== undefined && lucXayRa <= now ? lucXayRa : now,
-    lechMs, sauDoiGio, userId, queuedAt: now,
+    lechMs, sauDoiGio, userId, queuedAt: mocXepHang(now),
   };
   try {
     const db = await moDb();

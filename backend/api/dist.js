@@ -71321,6 +71321,13 @@ app.post("/api/xuong/events", async (req, res) => {
       }
       hopLe.push(p.data);
     }
+    for (let i = 1; i < hopLe.length; i++) {
+      const a = hopLe[i - 1], b = hopLe[i];
+      if (a.loai === "giao" && b.loai === "hoan_thanh" && a.hex === b.hex && a.congDoanId === b.congDoanId && a.deviceTs === b.deviceTs) {
+        hopLe[i - 1] = b;
+        hopLe[i] = a;
+      }
+    }
     const ketQua = await withTransaction(async (client) => {
       const phien = await client.query(
         "SELECT user_id, thu_hoi FROM xuong_phien_thiet_bi WHERE device_id = $1",

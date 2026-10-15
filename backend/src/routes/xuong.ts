@@ -419,6 +419,14 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
       if (why) { tuChoi.push({ id: p.data.id, reason: why }); continue; }
       hopLe.push(p.data);
     }
+    // Cùng một hạng mục × công đoạn, cùng giờ bấm: Xong phải xét trước Giao (máy bản cũ có thể gửi Giao trước Xong
+    // khi hai sự kiện của một lần bấm "Xong — giao" trùng mốc xếp hàng) — giữ nguyên thứ tự còn lại
+    for (let i = 1; i < hopLe.length; i++) {
+      const a = hopLe[i - 1], b = hopLe[i];
+      if (a.loai === 'giao' && b.loai === 'hoan_thanh' && a.hex === b.hex && a.congDoanId === b.congDoanId && a.deviceTs === b.deviceTs) {
+        hopLe[i - 1] = b; hopLe[i] = a;
+      }
+    }
 
     const ketQua = await withTransaction(async client => {
       // Máy phải đã đăng ký cho người gửi và chưa bị thu hồi
