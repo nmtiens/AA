@@ -625,7 +625,10 @@ function TabTheoHangMuc({ ds, theoTo, xuong }: { ds: BaoCaoHangMuc[]; theoTo: Ba
                                 nhận {hienSl(c.slNhan)} · xong {hienSl(c.slHoanThanh)}
                                 {c.slGiao != null && c.slGiao > 0 ? ` · giao ${hienSl(c.slGiao)}` : ''}
                                 {c.slGiaoDen != null && c.slGiaoDen > c.slNhan + 0.0005 ? <span className="text-sky-700"> · còn {hienSl(c.slGiaoDen - c.slNhan)} chờ nhận</span> : null}
-                                {c.slGiao != null && c.slHoanThanh > c.slGiao + 0.0005 ? <span className="text-violet-700"> · còn {hienSl(c.slHoanThanh - c.slGiao)} chờ giao</span> : null}
+                                {/* "Xong" mà còn số chưa giao = công đoạn cuối tuyến (xong là hết, không giao tiếp) */}
+                                {c.slGiao != null && c.slHoanThanh > c.slGiao + 0.0005
+                                  ? c.trangThai === 'xong' ? ' · hết tuyến' : <span className="text-violet-700"> · còn {hienSl(c.slHoanThanh - c.slGiao)} chờ giao</span>
+                                  : null}
                               </div>
                             )}
                           </td>

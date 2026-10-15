@@ -30,6 +30,8 @@ export function khoangThoiGian(ms: number): string {
   return `${p} phút`;
 }
 const so = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+/** Giờ: 1 chữ số lẻ (như báo cáo) */
+const so1 = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 const ngayGio = (ms: number) => `${hhmm(ms)} ${gioVN(ms).ngay.split('-').reverse().join('/')}`;
 
 function TrangThai({ t }: { t: string }) {
@@ -97,7 +99,9 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
     return <p className="p-4 text-sm text-slate-600">Hạng mục {hex} chưa có dữ liệu ở mục Xưởng (chưa triển khai / chưa tổ nào ghi nhận).</p>;
   }
   const tenCd = (id: string | null) => (id ? (d.congDoan.find(c => c.congDoanId === id)?.ten ?? ten?.(id) ?? id) : '');
-  const ds = [...d.congDoan].sort((a, b) => (a.xuong ?? '').localeCompare(b.xuong ?? '') || (a.thuTu ?? 0) - (b.thuTu ?? 0) || (a.ten ?? '').localeCompare(b.ten ?? ''));
+  // Xếp theo tuyến của hạng mục (thứ tự hàng đi), ngoài tuyến / MRA theo thứ tự công đoạn trong danh mục
+  const ds = [...d.congDoan].sort((a, b) => (a.xuong ?? '').localeCompare(b.xuong ?? '')
+    || (a.viTriTuyen ?? 999) - (b.viTriTuyen ?? 999) || (a.thuTu ?? 0) - (b.thuTu ?? 0) || (a.ten ?? '').localeCompare(b.ten ?? ''));
   const co = (c: CongDoanHex) => c.co.length > 0 && (
     <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700"><AlertTriangle size="1em" aria-hidden /> {c.co.join(', ')}</span>
   );
@@ -106,12 +110,15 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
     <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600">Lịch sử MRA</span>
   );
   const gioCongO = (c: CongDoanHex) => (c.nguon === 'mra'
-    ? (c.nhanCongMra !== null ? `${so(c.nhanCongMra)} người*` : '—') : so(c.gioCong));
+    ? (c.nhanCongMra !== null ? `${so(c.nhanCongMra)} người*` : '—') : so1(c.gioCong));
   const nguoi = (c: CongDoanHex) => (c.trangThai === 'dang_lam' && c.dangChayTu
     ? ` · ${c.soNguoi ?? 0} người · từ ${ngayGio(Date.parse(c.dangChayTu))}` : '');
 
   // Giờ chạy dạng "17 giờ 5 phút" (trước "17,08" — số thập phân khó đọc)
   const chay = (g: number) => (g > 0 ? khoangThoiGian(g * 3_600_000) : '—');
+  // App: giờ chạy trong ca (khớp báo cáo); MRA cũ: giờ đồng hồ như trước
+  const chayO = (c: CongDoanHex) => (c.gioChayCa !== null && c.gioChayCa !== undefined
+    ? (c.gioChayCa > 0 ? `${so1(c.gioChayCa)} giờ trong ca` : '—') : chay(c.gioChay));
   return (
     <div className="space-y-3 text-sm">
       {/* Tên hạng mục, công trình, đơn hàng (Tra cứu trước chỉ có mã) */}
@@ -164,7 +171,7 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
                 <td className="px-3 py-2 text-right tabular-nums">{so(c.slNhan)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{so(c.slHoanThanh)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{so(c.slGiao)}</td>
-                <td className="px-3 py-2 text-right tabular-nums">{chay(c.gioChay)}</td>
+                <td className="px-3 py-2 text-right tabular-nums">{chayO(c)}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{gioCongO(c)}</td>
               </tr>
             ))}
@@ -186,7 +193,7 @@ export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId
                 c.slHoanThanh > 0 ? `Xong ${so(c.slHoanThanh)}` : null, c.slGiao > 0 ? `Giao ${so(c.slGiao)}` : null].filter(Boolean).join(' · ')}
             </p>
             <p className="tabular-nums text-slate-600">
-              Chạy {chay(c.gioChay)} · {c.nguon === 'mra' ? `Nhân công MRA ${gioCongO(c)}` : `Giờ công SP ${so(c.gioCong)}`}
+              Chạy {chayO(c)} · {c.nguon === 'mra' ? `Nhân công MRA ${gioCongO(c)}` : `Giờ công SP ${so1(c.gioCong)}`}
             </p>
             {co(c)}
           </li>

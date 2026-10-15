@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { tinhTrangThai, suKienConHieuLuc, tuyenTheoThanhPhan, slGiaoDenDongBo } from '../src/server/xuong/state.js';
+import { tinhTrangThai, suKienConHieuLuc, tuyenTheoThanhPhan, slGiaoDenDongBo, laCuoiTuyen } from '../src/server/xuong/state.js';
 import type { SuKien } from '../src/server/xuong/types.js';
 
 // Chạy: npm test. Trạng thái (hex, công đoạn) tính lại từ sổ sự kiện — quyết định R3 trong docs/designs/xuong-checkin.md
@@ -129,6 +129,24 @@ describe('Công đoạn thành phần — song song (QT1 / QT2)', () => {
     assert.equal(tinhTrangThai([], [giao('FIT', 'BB', 5, 50)], tuyen, 'BB').slGiaoDen, 5);
     // Công đoạn chỉ một thành phần đi qua: cộng thẳng
     assert.equal(tinhTrangThai([], [giao('KL1', 'KL2', 7, 20)], tuyen, 'KL2').slGiaoDen, 7);
+  });
+
+  it('công đoạn cuối tuyến: xong là hết, không "chờ giao"; công đoạn giữa tuyến vẫn chờ giao', () => {
+    const tuyen = tuyenTheoThanhPhan([tk, khaiKl]);
+    assert.equal(laCuoiTuyen(tuyen, 'BB'), true);   // cuối cả 2 tuyến
+    assert.equal(laCuoiTuyen(tuyen, 'FIT'), false);
+    assert.equal(laCuoiTuyen(tuyen, 'XX'), false);  // không nằm trong tuyến
+    assert.equal(laCuoiTuyen([], 'BB'), false);     // chưa có tuyến (nhận thẳng) => vẫn phải giao
+    const lam = (cd: string) => [
+      ev({ loai: 'nhan', congDoanId: cd, soLuong: 5 }, 60), ev({ loai: 'bat_dau', congDoanId: cd, soNguoi: 2 }, 61),
+      ev({ loai: 'hoan_thanh', congDoanId: cd, soLuong: 5 }, 90),
+    ];
+    assert.equal(tinhTrangThai(lam('BB'), [giao('FIT', 'BB', 5, 50)], tuyen, 'BB').trangThai, 'xong');
+    assert.equal(tinhTrangThai(lam('FIT'), [giao('MOC', 'FIT', 5, 30), giao('KL2', 'FIT', 5, 40)], tuyen, 'FIT').trangThai, 'cho_giao');
+    // Xong một phần ở cuối tuyến: còn lại vẫn đang nhận làm (không chờ giao)
+    const motPhan = [ev({ loai: 'nhan', congDoanId: 'BB', soLuong: 5 }, 60), ev({ loai: 'bat_dau', congDoanId: 'BB', soNguoi: 2 }, 61),
+      ev({ loai: 'hoan_thanh', congDoanId: 'BB', soLuong: 2 }, 70)];
+    assert.equal(tinhTrangThai(motPhan, [giao('FIT', 'BB', 5, 50)], tuyen, 'BB').trangThai, 'dang_lam');
   });
 
   it('không có thành phần (bản cũ): như trước', () => {

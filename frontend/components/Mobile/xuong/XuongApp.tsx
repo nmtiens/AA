@@ -562,7 +562,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     }
     if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'giao' }, 'giao')}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
     if (r.trangThai === 'dang_lam') return (<>
-      <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, 'xong — giao')}>Xong — giao</button>
+      <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
       {/* Nút phụ hẹp để "Xong — giao" đủ 1 dòng */}
       <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'tamNgung', r }, 'tạm ngưng')}>Tạm ngưng</button>
       <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>

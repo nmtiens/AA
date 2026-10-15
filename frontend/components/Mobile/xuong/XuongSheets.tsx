@@ -353,19 +353,26 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
   const conLai = lamTronSl(cheDo === 'xong' ? slConLam(r) : slChoGiao(r));
   const toiDa = Math.max(duoi, conLai);
   const [sl, setSl] = useState(toiDa);
+  // Công đoạn cuối tuyến: Xong là hết (không có nơi giao tiếp); vẫn cho "Giao chỗ khác" nếu thật sự chuyển hàng đi
+  const hetTuyen = cheDo === 'xong' && !!r.cuoiTuyen;
   const [den, setDen] = useState<string | null>(r.goiYKe.length === 1 ? r.goiYKe[0] : null);
-  const [doiCho, setDoiCho] = useState(r.goiYKe.length === 0);
+  const [doiCho, setDoiCho] = useState(r.goiYKe.length === 0 && !r.cuoiTuyen);
   const ten = den ? tenCd(dm, den) : '…';
   const dv = r.dvt?.trim() || 'cái';
-  const tieuDe = cheDo === 'xong' ? `Xong ${hienSl(sl)} ${dv} — giao sang ${ten}` : `Giao ${hienSl(sl)} ${dv} sang ${ten}`;
+  const tieuDe = hetTuyen && !den ? `Xong ${hienSl(sl)} ${dv} — hết tuyến`
+    : cheDo === 'xong' ? `Xong ${hienSl(sl)} ${dv} — giao sang ${ten}` : `Giao ${hienSl(sl)} ${dv} sang ${ten}`;
   return (
     <BottomSheet title={tieuDe} onClose={onClose}
       footer={
         <div className="space-y-3">
+          {hetTuyen && !den ? (
+            <button className={NUT_CHINH} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong — hết tuyến</button>
+          ) : (
           <button className={NUT_CHINH} disabled={!den} onClick={() => onXacNhan({ soLuong: sl, den, anh, lucXayRa: lucCuaNgay(ngay) })}>
             {cheDo === 'xong' ? 'Xong — giao' : 'Giao'}{den ? '' : ' (chọn nơi giao)'}
           </button>
-          {cheDo === 'xong' && (
+          )}
+          {cheDo === 'xong' && !hetTuyen && (
             <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong, hàng chưa chuyển — giao sau</button>
           )}
         </div>
@@ -378,7 +385,13 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
         </div>
         <div className="space-y-2">
           <p className="text-base font-medium text-slate-800">Giao sang</p>
-          {r.goiYKe.length === 0 && <p className={`text-base ${MAU.ngung.chu}`}>Hạng mục chưa có tuyến — chọn nơi giao.</p>}
+          {hetTuyen && !doiCho && (
+            <p className="flex flex-wrap items-center gap-x-2 text-base text-slate-700">
+              Công đoạn cuối tuyến — xong là hạng mục xong ở xưởng, không cần giao.
+              <button className="min-h-11 font-medium underline underline-offset-4" onClick={() => setDoiCho(true)}>Giao chỗ khác</button>
+            </p>
+          )}
+          {r.goiYKe.length === 0 && !r.cuoiTuyen && <p className={`text-base ${MAU.ngung.chu}`}>Hạng mục chưa có tuyến — chọn nơi giao.</p>}
           {!doiCho && r.goiYKe.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {r.goiYKe.map(id => <button key={id} className={chip(den === id)} onClick={() => setDen(id)}>{tenCd(dm, id)}</button>)}

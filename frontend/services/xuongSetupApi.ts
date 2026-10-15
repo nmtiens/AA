@@ -23,6 +23,10 @@ export interface CongDoanHex {
   hex: string; congDoanId: string; ten: string | null; xuong: string | null; thuTu: number | null; trangThai: TrangThai;
   slGiaoDen: number; slNhan: number; slHoanThanh: number; slGiao: number; soNguoi: number | null;
   dangChayTu: string | null; suKienCuoi: string | null; co: string[]; gioChay: number; gioCong: number;
+  /** Giờ chạy trong ca chính (trừ nghỉ, bỏ Chủ nhật) — số liệu app; gioChay là giờ đồng hồ (cả đêm) */
+  gioChayCa?: number | null;
+  /** Vị trí công đoạn theo tuyến của hạng mục (null = ngoài tuyến) — xếp đúng thứ tự hàng đi */
+  viTriTuyen?: number | null;
   /** 'mra' = lịch sử nạp từ MRA (không phân bổ giờ công; nhanCongMra = số nhân công gốc, có thể đếm trùng) */
   nguon: 'app' | 'mra'; nhanCongMra: number | null;
 }

@@ -6,7 +6,7 @@ import { app } from '../server/app.js';
 import { invalidateUserAccess } from '../server/permissions.js';
 import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
-  fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
+  fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, suaChoGiaoCuoiTuyen, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
   coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc,
 } from './xuong.js';
 import { suKienConHieuLuc, THANH_PHAN, tuyenTheoThanhPhan } from '../server/xuong/state.js';
@@ -108,6 +108,9 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
     const xuong = typeof req.query.xuong === 'string' && req.query.xuong ? req.query.xuong.toUpperCase() : dsXuong[0] ?? null;
     if (!xuong) return res.json({ success: true, available: true, dsXuong, xuong: null, to: [] });
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến (trước khi có quy tắc cuối tuyến = xong): tính lại
+    await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong]))
+      .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
     const r = await pool.query(
       `WITH homnay AS (SELECT (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS d)
        SELECT t.id, t.ten_to, u.full_name AS to_truong,
@@ -688,6 +691,9 @@ app.get('/api/xuong/theo-doi-trien-khai', async (req: Request, res: Response) =>
     const xuong = String(req.query.xuong ?? '').toUpperCase();
     const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
     if (!pv) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại
+    await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong]))
+      .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
     const soNgay = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
     const tatCa = req.query.tatCa === '1';
     // Hạng mục: xưởng này triển khai (xưởng chính) hoặc được giao thành phần (xưởng phụ)

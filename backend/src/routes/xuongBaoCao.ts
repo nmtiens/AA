@@ -3,7 +3,7 @@ import { pool } from '../db.js';
 import { app } from '../server/app.js';
 import { vnDayKey, runWithLimit } from '../server/common.js';
 import { isMissingSchema } from '../notifications.js';
-import { fail, phamViXem, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan, COT_SU_KIEN, toSuKien, suKienTheoHex, type Row } from './xuong.js';
+import { fail, phamViXem, suaChoGiaoCuoiTuyen, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan, COT_SU_KIEN, toSuKien, suKienTheoHex, type Row } from './xuong.js';
 import { tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { taiMra, khungCaChinh, gioTrongCaNgay, dauNgayVN, ngayCuaTs, NGAY, trangThaiMraLuc, type CapMra } from '../server/xuong/mraLichSu.js';
 
@@ -44,6 +44,9 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     if (!pv) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
     // Tổ trưởng: chỉ số liệu tổ mình (tổ, hạng mục tổ làm, người trong tổ, chỉ số theo thao tác của tổ)
     const chiTo = pv.chiTo;
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại trước khi đọc trạng thái
+    await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong]))
+      .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
     const homNay = vnDayKey(new Date());
     const den = typeof req.query.den === 'string' && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === 'string' && NGAY_RE.test(req.query.tu) ? req.query.tu : den;

@@ -46,6 +46,8 @@ export interface DongViec {
   tenCongTrinh: string | null;
   dvt: string | null;
   goiYKe: string[];
+  /** Công đoạn cuối tuyến: Xong là hết (không giao tiếp, không vào Chờ giao) */
+  cuoiTuyen?: boolean;
   /** Mã NV người đang làm (khai theo tên — chấm công theo người); null = khai theo số */
   nguoi?: string[] | null;
   /** Chờ nhận: số còn nhận được (đã triển khai / đơn hàng − đã nhận); null = không giới hạn */
@@ -186,7 +188,7 @@ export function chiaDeu(tong: number, keys: string[]): Record<string, number> {
 export function trangThaiTheoSo(r: Omit<DongViec, 'trangThai'> & { trangThai?: TrangThai }): TrangThai {
   if (r.dangChayTu) return 'dang_lam';
   if (r.trangThai === 'tam_ngung') return 'tam_ngung';
-  if (r.slHoanThanh > r.slGiao) return 'cho_giao';
+  if (r.slHoanThanh > r.slGiao && !r.cuoiTuyen) return 'cho_giao';
   if (r.slNhan > r.slHoanThanh) return 'da_nhan';
   if (r.slGiaoDen > r.slNhan) return 'cho_nhan';
   return r.slNhan > 0 || r.slGiao > 0 ? 'xong' : 'cho_nhan';
@@ -209,7 +211,7 @@ export function apDung(cv: CongViec, key: string, doi: (r: DongViec) => DongViec
     ...cv,
     choNhan: ds.filter(r => r.slGiaoDen > r.slNhan),
     dangLam: ds.filter(r => ['dang_lam', 'tam_ngung', 'da_nhan'].includes(r.trangThai)),
-    choGiao: ds.filter(r => r.slHoanThanh > r.slGiao),
+    choGiao: ds.filter(r => r.slHoanThanh > r.slGiao && !r.cuoiTuyen),
   };
 }
 

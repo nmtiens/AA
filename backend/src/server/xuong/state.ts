@@ -96,6 +96,16 @@ export function slGiaoDenDongBo(incoming: SuKien[], tuyen: TuyenThanhPhan[], con
   return chung + Math.min(...theoTp.values());
 }
 
+/**
+ * Công đoạn CUỐI TUYẾN: nằm trong ít nhất một tuyến của hạng mục và là bước cuối của mọi tuyến đi qua nó.
+ * Xong ở đây là xong hạng mục (hàng ra khỏi tuyến / nhập kho) — không còn nơi để giao, nên không tính "chờ giao".
+ */
+export function laCuoiTuyen(tuyen: TuyenThanhPhan[], congDoanId: string | null): boolean {
+  if (!congDoanId) return false;
+  const qua = tuyen.filter(t => t.tuyen.includes(congDoanId));
+  return qua.length > 0 && qua.every(t => t.tuyen[t.tuyen.length - 1] === congDoanId);
+}
+
 /** Nhận có ghi nguồn ngoài app (xưởng chưa bật) thì không cần sự kiện giao tương ứng (R10) */
 const nhanNgoaiApp = (e: SuKien) => !!(e.congDoanNguonId || e.xuongNguon);
 
@@ -175,7 +185,8 @@ export function tinhTrangThai(cuaCongDoan: SuKien[], giaoDen: SuKien[], tuyen: T
   let trangThai: TrangThai;
   if (dangChayTu !== null) trangThai = 'dang_lam';
   else if (tamNgung) trangThai = 'tam_ngung';
-  else if (slHoanThanh > slGiao) trangThai = 'cho_giao';
+  // Công đoạn cuối tuyến: xong là hết, không chờ giao
+  else if (slHoanThanh > slGiao && !laCuoiTuyen(tuyen, congDoanId)) trangThai = 'cho_giao';
   else if (slNhan > slHoanThanh) trangThai = 'da_nhan';
   else if (slGiaoDen > slNhan) trangThai = 'cho_nhan';
   else if (slNhan > 0 || slGiao > 0) trangThai = 'xong';

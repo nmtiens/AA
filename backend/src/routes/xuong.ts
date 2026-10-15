@@ -11,7 +11,8 @@ import {
   xuongLimiter, verifyDeviceToken, signDeviceToken, newDeviceId, signXuongToken, bumpTokenVersion,
 } from '../server/xuong/auth.js';
 import { hieuChinhGio } from '../server/xuong/clock.js';
-import { tinhTrangThai, suKienConHieuLuc, tuyenTheoThanhPhan, type TuyenThanhPhan } from '../server/xuong/state.js';
+import { tinhTrangThai, suKienConHieuLuc, tuyenTheoThanhPhan, laCuoiTuyen, type TuyenThanhPhan } from '../server/xuong/state.js';
+import { khungCaChinh, gioTrongCa } from '../server/xuong/mraLichSu.js';
 import { doanCoMat, tomTatDiemDanh, kiemTraDiemDanh, chuanMnv } from '../server/xuong/chamCong.js';
 import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, type ThayDoiSoNguoi } from '../server/xuong/allocation.js';
 import { thoiGianTheoLo } from '../server/xuong/metrics.js';
@@ -595,9 +596,10 @@ const dongTrangThai = (x: Row, info?: Row) => ({
  * (du_lieu.tuyen = [id công đoạn theo thứ tự]); chưa có tuyến thì các công đoạn cùng xưởng ở bậc `thu_tu` kế tiếp
  * (theo cd_tach_ma). Mảng rỗng = chưa có tuyến, màn hình bắt chọn nơi giao.
  */
-async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<Map<string, string[]>> {
+async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<{ ke: Map<string, string[]>; cuoi: Set<string> }> {
   const out = new Map<string, string[]>();
-  if (!pairs.length) return out;
+  const cuoi = new Set<string>();
+  if (!pairs.length) return { ke: out, cuoi };
   const hexes = [...new Set(pairs.map(p => p[0]))];
   const [evRows, cd] = await Promise.all([
     suKienTheoHex(pool, hexes),
@@ -608,6 +610,8 @@ async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<Map<strin
   for (const hex of hexes) tuyen.set(hex, tuyenTheoThanhPhan(evts.filter(e => e.hex === hex)));
   const cdMap = new Map(cd.rows.map(x => [String(x.id), { xuong: String(x.xuong), thuTu: Number(x.thu_tu) }]));
   for (const [hex, cdId] of pairs) {
+    // Cuối tuyến: xong là hết, không gợi ý nơi giao (trước đây rơi xuống gợi ý theo thứ tự công đoạn / báo "chưa có tuyến")
+    if (laCuoiTuyen(tuyen.get(hex) ?? [], cdId)) { cuoi.add(pairKey(hex, cdId)); continue; }
     // Công đoạn kế theo tuyến của (các) thành phần đi qua công đoạn này
     const qua = (tuyen.get(hex) ?? []).filter(t => t.tuyen.includes(cdId));
     const ke = [...new Set(qua.map(t => t.tuyen[t.tuyen.indexOf(cdId) + 1]).filter((x): x is string => !!x))];
@@ -619,7 +623,20 @@ async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<Map<strin
     const bac = Math.min(...sau.map(([, v]) => v.thuTu));
     out.set(pairKey(hex, cdId), sau.filter(([, v]) => v.thuTu === bac).map(([id]) => id));
   }
-  return out;
+  return { ke: out, cuoi };
+}
+
+/**
+ * Tự sửa trạng thái lưu từ trước khi có quy tắc "cuối tuyến xong là hết": cặp còn "chờ giao" ở công đoạn cuối tuyến
+ * => tính lại (thành "xong"). Chỉ xét cặp đang cho_giao nên sau lần đầu gần như không tốn gì.
+ */
+export async function suaChoGiaoCuoiTuyen(pairs: Array<[string, string]>): Promise<number> {
+  if (!pairs.length) return 0;
+  const { cuoi } = await goiYCongDoanKe(pairs);
+  const can = pairs.filter(([h, c]) => cuoi.has(pairKey(h, c)));
+  if (!can.length) return 0;
+  await withTransaction(client => luuTrangThai(client, can));
+  return can.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -687,6 +704,11 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
        WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`, [toId]);
     const cds = cdRows.rows.map(x => String(x.id));
+    // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại trước khi đọc
+    if (cds.length) {
+      await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds]))
+        .rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    }
     const st = cds.length
       ? (await pool.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows
       : [];
@@ -729,7 +751,7 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
     const quanSoTruoc: Record<string, number> = {};
     for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
 
-    const goiY = await goiYCongDoanKe(st.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+    const { ke: goiY, cuoi: cuoiTuyen } = await goiYCongDoanKe(st.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
     // Số người đang làm: lần chia người (3D) sau lần bắt đầu / tiếp tục gần nhất thì thay số khai lúc bắt đầu
     // (cùng cách phân bổ giờ công đọc soNguoi theo thời gian — allocation.ts)
     const chia = await pool.query(
@@ -778,6 +800,8 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       return {
         ...d, soNguoi: n ?? d.soNguoi, nguoi: x.trang_thai === 'dang_lam' ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : null,
         goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [],
+        // Công đoạn cuối tuyến: Xong là hết (app hiện "Xong — hết tuyến", không vào Chờ giao)
+        cuoiTuyen: cuoiTuyen.has(pairKey(String(x.hex), String(x.cong_doan_id))),
         ngung: x.trang_thai === 'tam_ngung' ? ngung.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? null : null,
       };
     });
@@ -817,7 +841,7 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       }).filter(x => x.toiDaNhan === null || x.toiDaNhan > 0),
       dangLam: rows.filter(x => ['dang_lam', 'tam_ngung', 'da_nhan'].includes(x.trangThai)),
       // Theo số lượng, không theo trạng thái: xong một phần mà vẫn chạy / đang tạm ngưng vẫn giao được phần đã xong
-      choGiao: rows.filter(x => x.slHoanThanh > x.slGiao),
+      choGiao: rows.filter(x => x.slHoanThanh > x.slGiao && !x.cuoiTuyen),
       quanSo, tangCa, quanSoTruoc,
       chamCong, congNhan, coMat: coMatHomNay,
       soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
@@ -1059,6 +1083,21 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
         for (const to of toCua) toNgay.add(`${to}|${vnDayKey(new Date(d.end ?? now))}`);
       }
     }
+    // Giờ chạy TRONG CA (ca chính, trừ nghỉ, bỏ Chủ nhật) — cùng cách đo với báo cáo / mốc chuẩn; giờ đồng hồ tính cả đêm
+    // ("1 ngày 22 giờ") dễ hiểu nhầm là giờ làm
+    const khungXuong = new Map<string, Array<[number, number]>>();
+    for (const xg of [...new Set(st.rows.map(x => String(x.xuong ?? '')).filter(Boolean))]) khungXuong.set(xg, khungCaChinh(await lichCaCuaXuong(xg)));
+    const gioChayCa = new Map<string, number>();
+    for (const x of st.rows) {
+      const cdId = String(x.cong_doan_id);
+      const khung = khungXuong.get(String(x.xuong ?? ''));
+      if (!khung) continue;
+      const doan = tinhTrangThai(evtsApp.filter(e => e.congDoanId === cdId), []).doanChay;
+      gioChayCa.set(cdId, doan.reduce((a, d) => a + gioTrongCa(d.start, d.end ?? now, khung), 0));
+    }
+    // Vị trí theo tuyến của hạng mục (thành phần nối nhau theo thứ tự gặp) — hiện công đoạn đúng thứ tự hàng đi
+    const viTri = new Map<string, number>();
+    for (const t of tuyenTheoThanhPhan(evtsApp)) t.tuyen.forEach(id => { if (!viTri.has(id)) viTri.set(id, viTri.size); });
     const capNgay = [...toNgay].sort((a, b) => (a.split('|')[1] < b.split('|')[1] ? 1 : -1));
     const gioCong = new Map<string, number>();
     await runWithLimit(capNgay.slice(0, 20).map(k => async () => {
@@ -1114,6 +1153,8 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
         ...dongTrangThai(x), ten: cdMap.get(String(x.cong_doan_id))?.cd_chi_tiet ?? null,
         xuong: x.xuong ?? null, thuTu: cdMap.get(String(x.cong_doan_id))?.thu_tu ?? null,
         gioChay: lam(gioChay.get(String(x.cong_doan_id)) ?? 0), gioCong: lam(gioCong.get(String(x.cong_doan_id)) ?? 0),
+        gioChayCa: lam(gioChayCa.get(String(x.cong_doan_id)) ?? 0) as number | null,
+        viTriTuyen: viTri.get(String(x.cong_doan_id)) ?? null,
         nguon: 'app' as const, nhanCongMra: null as number | null,
       })), ...congDoanMra],
       thoiGianXuong,
