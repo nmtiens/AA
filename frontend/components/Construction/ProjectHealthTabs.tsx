@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { Fragment, useMemo, useState } from 'react';
 import { Search, Package, AlertTriangle, Download } from 'lucide-react';
 import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
@@ -424,13 +424,15 @@ const BOP_GROUP: Record<RemainBucket, { label: string; dot: string }> = {
 };
 
 // Thời gian ở công đoạn hiện tại — cùng nhóm với biểu đồ điểm nghẽn (utils/productionMetrics.dwellBucket)
-export const DWELL: { key: DwellKey; label: string; bar: string }[] = [
-  { key: '<3 NGÀY', label: '<3 ngày', bar: 'bg-green-500' },
-  { key: '4-7 NGÀY', label: '4-7 ngày', bar: 'bg-blue-500' },
-  { key: '2 tuần', label: '2 tuần', bar: 'bg-yellow-500' },
-  { key: '3 tuần', label: '3 tuần', bar: 'bg-orange-500' },
-  { key: DWELL_STUCK, label: '≥ 4 tuần', bar: 'bg-red-500' },
-  { key: DWELL_NONE, label: 'Chưa có số ngày', bar: 'bg-slate-300' },
+// Màu theo thứ tự thời gian (càng lâu càng đỏ): xanh đậm → xanh nhạt → vàng → cam → đỏ; trước xen xanh dương và
+// vàng / cam gần trùng màu nên khó đọc. `chu`: màu số trong thanh (chữ tối trên nền nhạt).
+export const DWELL: { key: DwellKey; label: string; bar: string; chu: string }[] = [
+  { key: '<3 NGÀY', label: '< 3 ngày', bar: 'bg-emerald-600', chu: 'text-white' },
+  { key: '4-7 NGÀY', label: '4–7 ngày', bar: 'bg-emerald-300', chu: 'text-emerald-950' },
+  { key: '2 tuần', label: '2 tuần', bar: 'bg-amber-300', chu: 'text-amber-950' },
+  { key: '3 tuần', label: '3 tuần', bar: 'bg-orange-500', chu: 'text-white' },
+  { key: DWELL_STUCK, label: '≥ 4 tuần', bar: 'bg-red-600', chu: 'text-white' },
+  { key: DWELL_NONE, label: 'Chưa có số ngày', bar: 'bg-slate-200', chu: 'text-slate-700' },
 ];
 const dwellOf = (v: string | null): DwellKey => dwellBucket(v);
 
@@ -787,16 +789,21 @@ export const BopTab = ({ items, onHexClick, extra }: {
               {sel && <span className="ml-1 font-normal text-amber-700">· theo lọc: {[sel.stage, sel.status, sel.area].filter(Boolean).join(' · ')}</span>}
             </p>
             {DWELL.map(d => (
-              <span key={d.key} className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-500">
-                <span className={`h-2 w-2 rounded-sm ${d.bar}`} />{d.label}
+              <span key={d.key} className="inline-flex items-center gap-1.5 text-xs text-slate-700">
+                <span className={`h-3 w-3 rounded-sm ${d.bar}`} />{d.label}
               </span>
             ))}
           </div>
           <div className="space-y-1.5">
-            {dwell.rows.map(r => (
-              <div key={r.stage} className="flex items-center gap-2 text-xs">
-                <span className="w-12 shrink-0 font-semibold text-slate-700">{r.stage}</span>
-                <div className="flex h-5 flex-1 overflow-hidden rounded bg-slate-100">
+            {dwell.rows.map((r, i) => (
+              <Fragment key={r.stage}>
+              {/* P001 = chờ triển khai bản vẽ (chưa vào xưởng) — tách khỏi các công đoạn sản xuất */}
+              {i > 0 && dwell.rows[i - 1].stage === 'P001' && (
+                <p className="border-t border-dashed border-slate-300 pt-1.5 text-xs font-medium text-slate-500">Công đoạn sản xuất</p>
+              )}
+              <div className="flex items-center gap-2 text-xs">
+                <span className="w-12 shrink-0 font-semibold text-slate-800" title={r.stage === 'P001' ? 'Chờ triển khai bản vẽ' : undefined}>{r.stage}</span>
+                <div className="flex h-6 flex-1 overflow-hidden rounded bg-slate-100">
                   {DWELL.map(d => {
                     const v = r.c[d.key] ?? 0;
                     if (!v) return null;
@@ -807,16 +814,17 @@ export const BopTab = ({ items, onHexClick, extra }: {
                         type="button"
                         onClick={() => pickDwell(next)}
                         title={`${r.stage} · ${d.label}: ${v} hạng mục`}
-                        className={`${d.bar} flex items-center justify-center text-[0.625rem] font-semibold text-white hover:brightness-110 ${isDwellSel(next) ? 'ring-2 ring-inset ring-slate-900' : ''}`}
+                        className={`${d.bar} ${d.chu} flex items-center justify-center text-xs font-semibold tabular-nums hover:brightness-110 ${isDwellSel(next) ? 'ring-2 ring-inset ring-slate-900' : ''}`}
                         style={{ width: `${(v / r.n) * 100}%` }}
                       >
-                        {v / r.n >= 0.06 ? v : ''}
+                        {v / r.n >= 0.05 ? fmtInt(v) : ''}
                       </button>
                     );
                   })}
                 </div>
-                <span className="w-10 shrink-0 text-right tabular-nums text-slate-500">{fmtInt(r.n)}</span>
+                <span className="w-12 shrink-0 text-right font-semibold tabular-nums text-slate-800" title="Tổng hạng mục ở công đoạn">{fmtInt(r.n)}</span>
               </div>
+              </Fragment>
             ))}
             {dwell.rows.length === 0 && <p className="py-4 text-center text-xs text-slate-400">Không có dữ liệu thời gian ở công đoạn.</p>}
           </div>
