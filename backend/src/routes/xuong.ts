@@ -11,7 +11,7 @@ import {
   xuongLimiter, verifyDeviceToken, signDeviceToken, newDeviceId, signXuongToken, bumpTokenVersion,
 } from '../server/xuong/auth.js';
 import { hieuChinhGio } from '../server/xuong/clock.js';
-import { tinhTrangThai, suKienConHieuLuc } from '../server/xuong/state.js';
+import { tinhTrangThai, suKienConHieuLuc, tuyenTheoThanhPhan, type TuyenThanhPhan } from '../server/xuong/state.js';
 import { doanCoMat, tomTatDiemDanh, kiemTraDiemDanh, chuanMnv } from '../server/xuong/chamCong.js';
 import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, type ThayDoiSoNguoi } from '../server/xuong/allocation.js';
 import { thoiGianTheoLo } from '../server/xuong/metrics.js';
@@ -107,11 +107,13 @@ export async function suKienTheoHex(db: Pick<PoolClient, 'query'>, hexes: string
 /** Tính trạng thái các cặp (hex, công đoạn) từ sự kiện của các hạng mục đó */
 function trangThaiCacCap(rows: Row[], pairs: Array<[string, string]>) {
   const evts = rows.map(toSuKien);
+  const tuyenHex = new Map<string, TuyenThanhPhan[]>();
   return pairs.map(([hex, cd]) => {
     const cua = evts.filter(e => e.hex === hex && e.congDoanId === cd);
     const den = evts.filter(e => e.hex === hex && (e.loai === 'giao' || e.loai === 'khai_bao_cd' || e.loai === 'huy')
       && (e.congDoanDenId === cd || e.loai === 'huy'));
-    return { hex, cd, state: tinhTrangThai(cua, den) };
+    if (!tuyenHex.has(hex)) tuyenHex.set(hex, tuyenTheoThanhPhan(evts.filter(e => e.hex === hex)));
+    return { hex, cd, state: tinhTrangThai(cua, den, tuyenHex.get(hex), cd) };
   });
 }
 
@@ -138,8 +140,10 @@ export async function gioiHanNhan(db: Pick<PoolClient, 'query'>, pairs: Array<[s
   const tk = new Map<string, number>(); // `${hex}|${xuong}` -> tổng triển khai còn hiệu lực
   for (const e of suKienConHieuLuc(evRows.map(toSuKien))) {
     if (e.loai !== 'trien_khai' || !e.hex) continue;
-    const k = `${e.hex}|${String(e.duLieu?.xuong ?? '')}`;
-    tk.set(k, (tk.get(k) ?? 0) + (e.soLuong ?? 0));
+    // Xưởng chính + xưởng thực hiện từng thành phần (song song: mỗi thành phần nhận đủ số bộ triển khai)
+    const tp = Array.isArray(e.duLieu?.thanhPhan) ? (e.duLieu!.thanhPhan as Array<Record<string, unknown>>) : [];
+    const cacXuong = new Set([String(e.duLieu?.xuong ?? ''), ...tp.map(x => String(x?.xuong ?? '')).filter(Boolean)]);
+    for (const x of cacXuong) tk.set(`${e.hex}|${x}`, (tk.get(`${e.hex}|${x}`) ?? 0) + (e.soLuong ?? 0));
   }
   for (const [hex, cd] of pairs) {
     const daTk = tk.get(`${hex}|${xuongCd.get(cd) ?? ''}`) ?? 0;
@@ -505,6 +509,8 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
         if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && !e.soNguoi) co.push('thieu_so_nguoi');
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
         co.push(...gio.co);
+        // Khai bù: tổ trưởng chọn ngày thực hiện trước hôm nay khi nhận / giao (QT3 / QT4 — "ngày thực hiện")
+        if (e.duLieu && (e.duLieu as Record<string, unknown>).khaiBu === true) co.push('khai_bu');
         ghi.push({
           id: e.id, loai: e.loai, hex, cong_doan_id: congDoanId, to_id: toId, xuong,
           so_luong: e.soLuong ?? null, cong_doan_den_id: e.congDoanDenId ?? null,
@@ -568,21 +574,19 @@ async function goiYCongDoanKe(pairs: Array<[string, string]>): Promise<Map<strin
   const out = new Map<string, string[]>();
   if (!pairs.length) return out;
   const hexes = [...new Set(pairs.map(p => p[0]))];
-  const [tk, cd] = await Promise.all([
-    pool.query(
-      `SELECT hex, du_lieu->'tuyen' AS tuyen FROM xuong_su_kien e
-       WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND jsonb_typeof(du_lieu->'tuyen') = 'array'
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       ORDER BY device_ts_hieu_chinh`, [hexes]),
+  const [evRows, cd] = await Promise.all([
+    suKienTheoHex(pool, hexes),
     pool.query('SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active'),
   ]);
-  const tuyen = new Map<string, string[]>();
-  for (const x of tk.rows) tuyen.set(String(x.hex), (x.tuyen as unknown[]).map(String));
+  const evts = evRows.map(toSuKien);
+  const tuyen = new Map<string, TuyenThanhPhan[]>();
+  for (const hex of hexes) tuyen.set(hex, tuyenTheoThanhPhan(evts.filter(e => e.hex === hex)));
   const cdMap = new Map(cd.rows.map(x => [String(x.id), { xuong: String(x.xuong), thuTu: Number(x.thu_tu) }]));
   for (const [hex, cdId] of pairs) {
-    const t = tuyen.get(hex);
-    const i = t ? t.indexOf(cdId) : -1;
-    if (t && i >= 0 && i + 1 < t.length) { out.set(pairKey(hex, cdId), [t[i + 1]]); continue; }
+    // Công đoạn kế theo tuyến của (các) thành phần đi qua công đoạn này
+    const qua = (tuyen.get(hex) ?? []).filter(t => t.tuyen.includes(cdId));
+    const ke = [...new Set(qua.map(t => t.tuyen[t.tuyen.indexOf(cdId) + 1]).filter((x): x is string => !!x))];
+    if (ke.length) { out.set(pairKey(hex, cdId), ke); continue; }
     const cur = cdMap.get(cdId);
     if (!cur) continue;
     const sau = [...cdMap.entries()].filter(([, v]) => v.xuong === cur.xuong && v.thuTu > cur.thuTu);
@@ -814,7 +818,7 @@ const gioCongCache = new Map<string, { v: string; payload: KetQuaGioCong }>();
 
 /** Dấu ngắn của lịch ca (giờ, nghỉ) — kết quả phân bổ giờ công phụ thuộc lịch ca */
 // PHIEN_BAN_TINH: đổi khi cách tính / dạng kết quả phân bổ đổi (vd thêm gioChoLyDo) — kết quả đã lưu tự tính lại
-const PHIEN_BAN_TINH = 'pb6'; // pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người; pb6: chỉ tính người có mặt
+const PHIEN_BAN_TINH = 'pb7'; // pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người; pb6: chỉ tính người có mặt; pb7: người gắn tên không điểm danh (mượn / mới) coi như có mặt, trễ / về sớm theo vào đầu / ra cuối
 export const dauLichCa = (lichCa: LichCaRow[]) => createHash('sha1')
   .update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
 const GIO_CONG_CACHE_MAX = 300;

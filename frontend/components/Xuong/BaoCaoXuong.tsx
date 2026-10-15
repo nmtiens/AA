@@ -1189,7 +1189,7 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
             phu={tom.lyDo.length
               ? `${tom.gn ? `${Math.round((tom.ch / tom.gn) * 100)}% giờ công · ` : ''}nhiều nhất: ${tenLyDoCho(tom.lyDo[0][0])} ${so(tom.lyDo[0][1])} giờ`
               : tom.ch > 0 ? (tom.coMra ? 'MRA cũ không ghi lý do chờ' : 'chưa rõ lý do') : 'không có giờ chờ việc'} />
-          <The rong ten="Tổ làm xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`}
+          <The rong ten="Hạng mục xong trong kỳ" giaTri={`${tom.soHmXong} hạng mục`}
             phu={tom.xong.length ? `${theoDonVi(tom.xong)} (cộng các công đoạn)` : 'chưa tổ nào xong hạng mục'} />
         </div>
       )}

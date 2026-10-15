@@ -53,10 +53,12 @@ export function BieuDoNgay({ ds }: { ds: BaoCaoTo[] }) {
             <YAxis yAxisId="p" orientation="right" domain={[0, 100]} unit="%" tick={{ fontSize: 11 }} />
             <Tooltip formatter={(v: number, ten: string) => (ten === 'Tỷ lệ có việc' ? [`${v}%`, ten] : [`${so(v)} giờ`, ten])} />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar yAxisId="g" dataKey="sp" name="Giờ công SP" stackId="a" fill={XANH} />
-            <Bar yAxisId="g" dataKey="cho" name="Giờ chờ việc" stackId="a" fill={VANG} radius={[3, 3, 0, 0]} />
+            {/* maxBarSize: kỳ ít ngày thì cột không phình hết chiều ngang */}
+            <Bar yAxisId="g" dataKey="sp" name="Giờ công SP" stackId="a" fill={XANH} maxBarSize={56} />
+            <Bar yAxisId="g" dataKey="cho" name="Giờ chờ việc" stackId="a" fill={VANG} radius={[3, 3, 0, 0]} maxBarSize={56} />
             <Line yAxisId="p" dataKey="pct" name="Tỷ lệ có việc" stroke={TIM} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-            <ReferenceLine yAxisId="p" y={80} stroke={TIM} strokeDasharray="4 4" />
+            <ReferenceLine yAxisId="p" y={80} stroke={TIM} strokeDasharray="4 4"
+              label={{ value: 'Mục tiêu 80%', fontSize: 11, fill: TIM, position: 'insideTopRight' }} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

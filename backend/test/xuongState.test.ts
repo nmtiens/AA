@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { tinhTrangThai, suKienConHieuLuc } from '../src/server/xuong/state.js';
+import { tinhTrangThai, suKienConHieuLuc, tuyenTheoThanhPhan, slGiaoDenDongBo } from '../src/server/xuong/state.js';
 import type { SuKien } from '../src/server/xuong/types.js';
 
 // Chạy: npm test. Trạng thái (hex, công đoạn) tính lại từ sổ sự kiện — quyết định R3 trong docs/designs/xuong-checkin.md
@@ -98,5 +98,40 @@ describe('suKienConHieuLuc — huỷ một cấp', () => {
     assert.equal(tinhTrangThai([], [g]).slGiaoDen, 4);
     const st = tinhTrangThai([], [g, ev({ loai: 'huy', suaCho: g.id, congDoanId: 'CD0' }, 1)]);
     assert.equal(st.slGiaoDen, 0);
+  });
+});
+
+describe('Công đoạn thành phần — song song (QT1 / QT2)', () => {
+  // Gỗ: MOC → FIT; Kim loại: KL1 → KL2 → FIT; hợp nhánh ở FIT, sau đó BB (chung)
+  const tk = ev({ loai: 'trien_khai', congDoanId: null, soLuong: 10, duLieu: { xuong: '3A', thanhPhan: [
+    { ten: 'GỖ', xuong: '3A', tuyen: ['MOC', 'FIT', 'BB'] },
+    { ten: 'KIM LOẠI', xuong: '8C', tuyen: [] },
+  ] } });
+  const khaiKl = ev({ loai: 'khai_bao_cd', congDoanId: null, congDoanDenId: 'KL1', soLuong: 10,
+    duLieu: { thanhPhan: 'KIM LOẠI', trienKhaiId: tk.id, tuyen: ['KL1', 'KL2', 'FIT', 'BB'] } }, 1);
+  const giao = (tu: string, den: string, sl: number, phut: number) => ev({ loai: 'giao', congDoanId: tu, congDoanDenId: den, soLuong: sl }, phut);
+
+  it('tuyenTheoThanhPhan: lấy tuyến xưởng chính khai + tuyến xưởng phụ khai CĐ chi tiết; bỏ thành phần chưa có tuyến', () => {
+    assert.deepEqual(tuyenTheoThanhPhan([tk, khaiKl]), [
+      { thanhPhan: 'GỖ', tuyen: ['MOC', 'FIT', 'BB'] },
+      { thanhPhan: 'KIM LOẠI', tuyen: ['KL1', 'KL2', 'FIT', 'BB'] },
+    ]);
+    // Bản cũ: 1 tuyến không tên
+    assert.deepEqual(tuyenTheoThanhPhan([ev({ loai: 'trien_khai', duLieu: { xuong: '3A', tuyen: ['A', 'B'] } })]), [{ thanhPhan: '', tuyen: ['A', 'B'] }]);
+  });
+
+  it('công đoạn hợp nhánh chỉ tính số bộ đã về đủ mọi thành phần', () => {
+    const tuyen = tuyenTheoThanhPhan([tk, khaiKl]);
+    const den = [giao('MOC', 'FIT', 10, 30), giao('KL2', 'FIT', 6, 40)];
+    assert.equal(tinhTrangThai([], den, tuyen, 'FIT').slGiaoDen, 6);
+    assert.equal(slGiaoDenDongBo([giao('MOC', 'FIT', 10, 30)], tuyen, 'FIT'), 0); // kim loại chưa về
+    // Công đoạn sau hợp nhánh (chung mọi nhánh): cộng thẳng
+    assert.equal(tinhTrangThai([], [giao('FIT', 'BB', 5, 50)], tuyen, 'BB').slGiaoDen, 5);
+    // Công đoạn chỉ một thành phần đi qua: cộng thẳng
+    assert.equal(tinhTrangThai([], [giao('KL1', 'KL2', 7, 20)], tuyen, 'KL2').slGiaoDen, 7);
+  });
+
+  it('không có thành phần (bản cũ): như trước', () => {
+    assert.equal(tinhTrangThai([], [giaoDen(4), giaoDen(3, 1)]).slGiaoDen, 7);
   });
 });

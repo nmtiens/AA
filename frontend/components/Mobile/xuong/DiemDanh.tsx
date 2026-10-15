@@ -48,7 +48,7 @@ function chipNguoi(on: boolean, ban = false) {
 }
 
 /** Tìm người (mượn tổ khác) hoặc thêm người mới vào tổ — cần có sóng */
-function ThemNguoi({ toId, xuong, daCo, onChon }: {
+export function ThemNguoi({ toId, xuong, daCo, onChon }: {
   toId: number; xuong: string | null; daCo: Set<string>;
   onChon: (c: CongNhanTo, laNguoiMoiCuaTo: boolean) => void;
 }) {
@@ -379,12 +379,14 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
  * Tổ đông (> 12 người): thanh dính trên cùng — đếm, lọc (Cả tổ / Đã chọn / Rảnh), tìm không dấu, Chọn hết / Bỏ hết
  * (áp cho những người đang hiện). Tên xếp theo ABC.
  */
-export function ChonNguoi({ coMat, ds, chon, onDoi, ban }: {
+export function ChonNguoi({ coMat, ds, chon, onDoi, ban, rong }: {
   coMat: string[]; ds: CongNhanTo[]; chon: Set<string>; onDoi: (s: Set<string>) => void; ban?: Map<string, string>;
+  /** Câu khi danh sách trống */
+  rong?: string;
 }) {
   const [tim, setTim] = useState('');
   const [loc, setLoc] = useState<'tat_ca' | 'chon' | 'ranh'>('tat_ca');
-  if (!coMat.length) return <p className={CHU_PHU}>Chưa có ai điểm danh có mặt.</p>;
+  if (!coMat.length) return <p className={CHU_PHU}>{rong ?? 'Chưa có ai điểm danh có mặt.'}</p>;
   const gon = coMat.length > 12;
   const tu = boDau(tim.trim());
   const ten = (m: string) => ds.find(c => c.mnv === m)?.hoTen ?? m;

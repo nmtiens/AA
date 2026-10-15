@@ -189,6 +189,8 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
     return tot ? tot.lyDo : 'khong_viec';
   };
 
+  // Người có điểm danh (bất kỳ ca nào) trong ngày ở tổ
+  const coDiemDanhNgay = new Set<string>(Object.values(input.coMat ?? {}).flatMap(ds => (ds ?? []).map(d => d.mnv)));
   for (const cs of input.cuaSo) {
     const laTangCa = cs.loaiCa !== 'chinh';
     const boChon = new Set(laTangCa ? input.boChonTangCa?.[cs.loaiCa] ?? [] : []);
@@ -223,18 +225,18 @@ export function phanBoGioCong(input: DauVaoPhanBo): KetQuaPhanBo {
       const chay = ks.filter(k => dangChayLuc(k, s));
       for (const k of chay) out[k].gioChay += gio;
 
-      // Ca có điểm danh: chỉ người đang có mặt mới được tính — gắn tên mà đã về sớm / đánh vắng / không ở lại tăng ca
-      // thì không cộng giờ (số người khai của hạng mục cũng chỉ đếm người có mặt). Ca không điểm danh: người gắn tên
-      // coi như có mặt.
+      // "Ai làm" không phụ thuộc điểm danh: người gắn tên vào hạng mục đang chạy mà KHÔNG có điểm danh nào trong ngày
+      // ở tổ (mượn tổ khác, người mới) coi như có mặt lúc đó. Người CÓ điểm danh trong ngày mà lúc đó không có mặt ở ca
+      // này (đã ra ca / về sớm, chưa vào, không ở lại tăng ca) thì không cộng giờ (số người khai cũng không đếm người đó).
       const coMatDd = new Set<string>();
       if (coDiemDanh) for (const d of coMat) if (d.start <= s && s < (d.end ?? input.now)) coMatDd.add(d.mnv);
       const tenLuc = (k: string): string[] | null => {
         const ds = nguoiLuc(k, s);
-        return ds && coDiemDanh ? ds.filter(m => coMatDd.has(m)) : ds;
+        return ds && coDiemDanh ? ds.filter(m => coMatDd.has(m) || !coDiemDanhNgay.has(m)) : ds;
       };
       const khai = chay.map(k => { const t = tenLuc(k); return [k, t ? t.length : soNguoiLuc(k, s)] as const; });
       const coMatLuc = new Set<string>(coMatDd);
-      if (!coDiemDanh) for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
+      for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;

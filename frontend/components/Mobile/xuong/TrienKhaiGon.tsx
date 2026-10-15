@@ -80,19 +80,21 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
   const soLe = !!h && choSoLe(h.dvt, h.soLuongDonHang, h.daTrienKhai);
   const conLai = h && h.soLuongDonHang !== null ? lamTronSl(h.soLuongDonHang - h.daTrienKhai) : null;
   const tenCd = (id: string) => d?.congDoan.find(c => c.id === id)?.ten ?? id;
-  const tuyen = h?.goiYTuyen ?? [];
+  // Thành phần + tuyến gợi ý theo lần triển khai trước của cùng nhóm sản phẩm (sửa chi tiết trên máy tính)
+  const thanhPhan = h?.goiYThanhPhan ?? [];
+  const duTuyen = thanhPhan.length > 0 && thanhPhan.every(t => t.xuong !== xuong || t.tuyen.length > 0);
   const trienKhai = async () => {
     if (!xuong || !h) return;
     setGui(true);
-    const r = await xuongSetupApi.trienKhai(xuong, [{ hex: h.hex, soLuong: sl, tuyen }]);
+    const r = await xuongSetupApi.trienKhai(xuong, [{ hex: h.hex, soLuong: sl, thanhPhan }]);
     setGui(false);
-    if (r.ok) onXong(`Đã triển khai ${hienSl(sl)} ${dv} ${h.hex} — ${tenCd(tuyen[0])} thấy "Chờ nhận"`);
+    if (r.ok) onXong(`Đã triển khai ${hienSl(sl)} ${dv} ${h.hex} — ${thanhPhan.filter(t => t.tuyen.length).map(t => tenCd(t.tuyen[0])).join(', ')} thấy "Chờ nhận"`);
     else setLoi(r.message);
   };
 
   return (
     <BottomSheet title="Triển khai hạng mục" onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={!h || !tuyen.length || gui} onClick={trienKhai}>Triển khai {hienSl(sl)} {dv}</button>}>
+      footer={<button className={NUT_CHINH} disabled={!h || !duTuyen || gui} onClick={trienKhai}>Triển khai {hienSl(sl)} {dv}</button>}>
       <div className="space-y-4 pb-2">
         {dsXuong.length > 1 && (
           <div className="flex flex-wrap gap-2">
@@ -158,10 +160,14 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-base font-medium text-slate-800">Tuyến (gợi ý theo nhóm sản phẩm {h.nhom ?? '—'})</p>
-              {tuyen.length
-                ? <p className="text-base text-slate-800">{tuyen.map(tenCd).join(' → ')}</p>
-                : <p className={`text-base ${MAU.ngung.chu}`}>Chưa có tuyến gợi ý cho nhóm này — triển khai trên máy tính (Setup dữ liệu → Xưởng) để chọn tuyến.</p>}
+              <p className="text-base font-medium text-slate-800">Thành phần & tuyến (gợi ý theo nhóm sản phẩm {h.nhom ?? '—'})</p>
+              {duTuyen
+                ? thanhPhan.map(t => (
+                  <p key={t.ten} className="text-base text-slate-800">
+                    <b>{t.ten}</b>{t.xuong !== xuong ? ` (xưởng ${t.xuong})` : ''}: {t.tuyen.length ? t.tuyen.map(tenCd).join(' → ') : `xưởng ${t.xuong} tự khai CĐ chi tiết`}
+                  </p>
+                ))
+                : <p className={`text-base ${MAU.ngung.chu}`}>Chưa có thành phần / tuyến gợi ý cho nhóm này — triển khai trên máy tính (Setup dữ liệu → Xưởng) để chọn.</p>}
             </div>
           </div>
         )}

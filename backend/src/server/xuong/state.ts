@@ -42,6 +42,60 @@ export function suKienConHieuLuc(events: SuKien[]): SuKien[] {
 
 const so = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 
+// ---------------------------------------------------------------------------
+// CÔNG ĐOẠN THÀNH PHẦN (QT1) — trường hợp "song song": một hạng mục tách thành các thành phần (Gỗ / Sofa / Kim loại /
+// Kính / Đá), mỗi thành phần đi tuyến công đoạn chi tiết riêng rồi hợp lại ở một công đoạn chung (vd Fitting).
+// Tuyến lấy từ trien_khai.du_lieu.thanhPhan[] (xưởng chính khai) và khai_bao_cd.du_lieu (xưởng phụ khai CĐ chi tiết
+// cho thành phần được giao — QT2). Bản cũ chỉ có trien_khai.du_lieu.tuyen = một tuyến (thành phần không tên).
+// ---------------------------------------------------------------------------
+export const THANH_PHAN = ['GỖ', 'SOFA', 'KIM LOẠI', 'KÍNH', 'ĐÁ'] as const;
+export interface TuyenThanhPhan { thanhPhan: string; tuyen: string[] }
+
+const dsChuoi = (v: unknown): string[] => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
+
+/** Tuyến theo thành phần của một hạng mục (sự kiện của hex, đã hay chưa bỏ huỷ đều được). Cùng thành phần: lần sau đè. */
+export function tuyenTheoThanhPhan(evts: SuKien[]): TuyenThanhPhan[] {
+  const m = new Map<string, string[]>();
+  for (const e of suKienConHieuLuc(evts)) {
+    if (e.loai === 'trien_khai') {
+      const tp = Array.isArray(e.duLieu?.thanhPhan) ? (e.duLieu!.thanhPhan as Array<Record<string, unknown>>) : null;
+      if (tp) for (const x of tp) { const t = dsChuoi(x?.tuyen); if (t.length) m.set(String(x?.ten ?? ''), t); }
+      else { const t = dsChuoi(e.duLieu?.tuyen); if (t.length) m.set('', t); }
+    } else if (e.loai === 'khai_bao_cd' && typeof e.duLieu?.thanhPhan === 'string') {
+      const t = dsChuoi(e.duLieu?.tuyen);
+      if (t.length) m.set(e.duLieu.thanhPhan as string, t);
+    }
+  }
+  return [...m.entries()].map(([thanhPhan, tuyen]) => ({ thanhPhan, tuyen }));
+}
+
+/**
+ * Số lượng "giao đến" một công đoạn, đồng bộ theo thành phần: ở công đoạn hợp nhánh (nhiều thành phần cùng đi qua),
+ * một bộ chỉ tính là đã về khi đủ mọi thành phần => min theo thành phần (+ phần giao từ công đoạn chung phía trước).
+ * Công đoạn chỉ một thành phần đi qua: cộng thẳng như cũ.
+ */
+export function slGiaoDenDongBo(incoming: SuKien[], tuyen: TuyenThanhPhan[], congDoanId: string | null): number {
+  const tong = incoming.reduce((a, e) => a + so(e.soLuong), 0);
+  if (!congDoanId) return tong;
+  const qua = tuyen.filter(t => t.tuyen.includes(congDoanId));
+  if (qua.length < 2) return tong;
+  const theoTp = new Map<string, number>(qua.map(t => [t.thanhPhan, 0]));
+  let chung = 0;
+  for (const e of incoming) {
+    let tp: string | null = null;
+    if (e.loai === 'khai_bao_cd' && typeof e.duLieu?.thanhPhan === 'string' && theoTp.has(e.duLieu.thanhPhan as string)) {
+      tp = e.duLieu.thanhPhan as string;
+    } else if (e.congDoanId) {
+      // Nguồn nằm trước công đoạn này trong đúng một nhánh => hàng của thành phần đó; nguồn chung mọi nhánh => phần chung
+      const nhanh = qua.filter(t => { const i = t.tuyen.indexOf(e.congDoanId!); return i >= 0 && i < t.tuyen.indexOf(congDoanId); });
+      if (nhanh.length && nhanh.length < qua.length) tp = nhanh[0].thanhPhan;
+    }
+    if (tp === null) chung += so(e.soLuong);
+    else theoTp.set(tp, (theoTp.get(tp) ?? 0) + so(e.soLuong));
+  }
+  return chung + Math.min(...theoTp.values());
+}
+
 /** Nhận có ghi nguồn ngoài app (xưởng chưa bật) thì không cần sự kiện giao tương ứng (R10) */
 const nhanNgoaiApp = (e: SuKien) => !!(e.congDoanNguonId || e.xuongNguon);
 
@@ -49,14 +103,15 @@ const nhanNgoaiApp = (e: SuKien) => !!(e.congDoanNguonId || e.xuongNguon);
  * Tính trạng thái của một cặp (hex, công đoạn).
  * @param cuaCongDoan  sự kiện có cong_doan_id = công đoạn này (đã bỏ sự kiện bị huỷ hay chưa đều được)
  * @param giaoDen      sự kiện giao / khai_bao_cd có cong_doan_den_id = công đoạn này
+ * @param tuyen        tuyến theo thành phần của hạng mục (tuyenTheoThanhPhan) — đồng bộ số giao đến ở công đoạn hợp nhánh
+ * @param congDoanId   công đoạn đang tính
  */
-export function tinhTrangThai(cuaCongDoan: SuKien[], giaoDen: SuKien[]): StageState {
+export function tinhTrangThai(cuaCongDoan: SuKien[], giaoDen: SuKien[], tuyen: TuyenThanhPhan[] = [], congDoanId: string | null = null): StageState {
   const own = suKienConHieuLuc(cuaCongDoan);
   const incoming = suKienConHieuLuc(giaoDen).filter(e => e.loai === 'giao' || e.loai === 'khai_bao_cd');
 
   const co = new Set<string>();
-  let slGiaoDen = 0;
-  for (const e of incoming) slGiaoDen += so(e.soLuong);
+  const slGiaoDen = slGiaoDenDongBo(incoming, tuyen, congDoanId);
 
   let slNhan = 0;
   let slNhanTrongApp = 0;

@@ -312,6 +312,7 @@ export const TEN_CO: Record<string, string> = {
   khai_vuot_quan_so: 'Khai nhiều người hơn quân số',
   quan_ly_ghi_ho: 'Quản lý ghi hộ tổ',
   chua_chot_quan_so: 'Chưa chốt quân số',
+  khai_bu: 'Khai bù ngày trước (chọn ngày thực hiện)',
 };
 export const tenCo = (c: string) => TEN_CO[c] ?? c;
 

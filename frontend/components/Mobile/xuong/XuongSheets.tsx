@@ -8,12 +8,12 @@ import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
   choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon,
-  type CongViec, type DongViec, type LoaiCa, type MaLyDo,
+  type CongViec, type DongViec, type LoaiCa, type MaLyDo, type CongNhanTo,
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
 import { NUT_CHINH, NUT_PHU, NUT_DEM, SO, SO_LON, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
 import XuongHexChiTiet from '../../Xuong/XuongHexChiTiet';
-import { ChonNguoi, boDau } from './DiemDanh';
+import { ChonNguoi, ThemNguoi, boDau } from './DiemDanh';
 
 // ============================================================================
 // CÁC CỬA SỔ THAO TÁC MÀN XƯỞNG (docs/designs/xuong-checkin.md — Pass 3, quyết định 3A–3H, 7B)
@@ -88,39 +88,45 @@ export function QuanSoSheet({ ca, macDinh, homQua, sauDo, onChot, onClose }: {
 // ---------------------------------------------------------------------------
 // Bắt đầu / Tiếp tục — bắt buộc khai số người làm hạng mục (giờ công chia theo số người khai)
 // ---------------------------------------------------------------------------
-export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca, now, onBatDau, onClose }: {
+export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, onBatDau, onClose }: {
   r: DongViec; tiepTuc: boolean; quanSo: number | null; dangChayKhac: DongViec[];
-  /** Có điểm danh theo tên thì chọn người bằng tên */
+  /** Tổ chấm công theo tên thì chọn người làm bằng tên */
   cv?: CongViec | null; ca?: LoaiCa | null; now?: number;
-  onBatDau: (soNguoi: number, nguoi: string[] | null) => void; onClose: () => void;
+  /** them: người tổ khác (mượn) / người mới thêm vào tổ ngay lúc chọn */
+  onBatDau: (soNguoi: number, nguoi: string[] | null, them: CongNhanTo[]) => void; onClose: () => void;
 }) {
   const dangLamKhac = dangChayKhac.reduce((a, x) => a + (x.soNguoi ?? 0), 0);
   const ranh = quanSo === null ? null : Math.max(0, quanSo - dangLamKhac);
   const goiY = tiepTuc && r.soNguoi && (ranh === null || r.soNguoi <= ranh) ? r.soNguoi : (ranh || r.soNguoi || 1);
   const [n, setN] = useState(Math.max(1, goiY));
-  // Theo tên: người có mặt; gợi ý người rảnh (tiếp tục thì người cũ còn có mặt)
-  const theoTen = !!cv?.chamCong && daDiemDanh(cv, ca ?? null);
-  const coMat = theoTen ? coMatLuc(cv!, ca ?? null, now ?? Date.now()) : [];
+  // "Ai làm?" KHÔNG phụ thuộc điểm danh: chọn trong cả tổ (+ người mượn tổ khác). Tiếp tục: chọn sẵn người lần trước.
+  const theoTen = !!cv?.chamCong;
+  const [them, setThem] = useState<CongNhanTo[]>([]);
+  const dsNguoi = [...(cv?.congNhan ?? []), ...them.filter(t => !(cv?.congNhan ?? []).some(c => c.mnv === t.mnv))];
+  const caTo = dsNguoi.map(c => c.mnv);
   const ban = nguoiDangBan(dangChayKhac);
-  const [chon, setChon] = useState<Set<string>>(() => new Set(
-    tiepTuc && r.nguoi?.length ? r.nguoi.filter(m => coMat.includes(m)) : coMat.filter(m => !ban.has(m))));
+  const [chon, setChon] = useState<Set<string>>(() => new Set(tiepTuc && r.nguoi?.length ? r.nguoi : []));
+  const [moThem, setMoThem] = useState(false);
   const soLam = theoTen ? chon.size : n;
   const chuyen = [...chon].filter(m => ban.has(m)).length;
   const vuot = !theoTen && ranh !== null && n > ranh;
   const dongTu = tiepTuc ? 'Tiếp tục' : 'Bắt đầu';
   return (
     <BottomSheet title={`${dongTu} ${r.hex} — ${theoTen ? 'ai làm?' : 'mấy người làm?'}`} onClose={onClose}
-      footer={<button className={NUT_CHINH} disabled={soLam < 1} onClick={() => onBatDau(soLam, theoTen ? [...chon] : null)}>{dongTu} với {soLam} người</button>}>
+      footer={<button className={NUT_CHINH} disabled={soLam < 1} onClick={() => onBatDau(soLam, theoTen ? [...chon] : null, them)}>{dongTu} với {soLam} người</button>}>
       <div className="space-y-5 pb-2">
         {r.tenHangMuc && <p className="text-base text-slate-700">{r.tenHangMuc}</p>}
         {theoTen && (<>
           <p className={chuyen ? `text-base font-medium ${MAU.ngung.chu}` : CHU_PHU}>
             {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.`
-              : !chon.size && coMat.length && coMat.every(m => ban.has(m))
-                ? `Cả ${coMat.length} người có mặt đang làm hạng mục khác — chạm tên người muốn chuyển sang ${r.hex}.`
-                : 'Chạm tên để chọn / bỏ. Tên mờ là người đang làm hạng mục khác.'}
+              : 'Chạm tên người làm hạng mục này. Tên mờ là người đang làm hạng mục khác (chọn thì chuyển sang).'}
           </p>
-          <ChonNguoi coMat={coMat} ds={cv!.congNhan ?? []} chon={chon} onDoi={setChon} ban={ban} />
+          <ChonNguoi coMat={caTo} ds={dsNguoi} chon={chon} onDoi={setChon} ban={ban} rong="Tổ chưa có danh sách người — thêm ở dưới." />
+          {!moThem && <button className={`${NUT_PHU} w-full`} onClick={() => setMoThem(true)}>+ Thêm người tổ khác / người mới</button>}
+          {moThem && cv?.to && (
+            <ThemNguoi toId={cv.to.id} xuong={cv.to.xuong} daCo={new Set(caTo)}
+              onChon={c => { setThem(t => [...t, c]); setChon(s => new Set([...s, c.mnv])); setMoThem(false); }} />
+          )}
         </>)}
         {!theoTen && (<>
         <BoDem value={n} onChange={setN} lon min={1} max={500} nhan="số người làm hạng mục" />
@@ -148,14 +154,20 @@ const ICON_LY_DO: Record<MaLyDo, typeof PackageX> = {
   chuyen_viec_gap: Zap, lenh_cap_tren: Megaphone, khac: MoreHorizontal,
 };
 
-export function TamNgungSheet({ r, onChon, onClose }: { r: DongViec; onChon: (ma: MaLyDo) => void; onClose: () => void }) {
+export function TamNgungSheet({ r, onChon, onClose }: { r: DongViec; onChon: (ma: MaLyDo, tienDo: number | null) => void; onClose: () => void }) {
+  // Tạm ngưng kèm cập nhật tiến độ % (MRA: "Cập nhật tiến độ" bật khi chọn Tạm ngưng) — không bắt buộc
+  const [tienDo, setTienDo] = useState<number | null>(null);
   return (
     <BottomSheet title={`Tạm ngưng ${r.hex} — vì sao?`} onClose={onClose}>
+      <div className="mb-4 space-y-2">
+        <p className="text-base font-medium text-slate-800">Tiến độ đến lúc ngưng</p>
+        <ChonTienDo value={tienDo} onChange={setTienDo} />
+      </div>
       <div className="grid grid-cols-2 gap-3 pb-2">
         {LY_DO_TAM_NGUNG.map(l => {
           const Icon = ICON_LY_DO[l.ma];
           return (
-            <button key={l.ma} onClick={() => onChon(l.ma)}
+            <button key={l.ma} onClick={() => onChon(l.ma, tienDo)}
               className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white p-3 text-base font-medium text-slate-800 active:bg-slate-100">
               <Icon size="1.75em" className={MAU.ngung.chu} aria-hidden />
               {l.ten}
@@ -166,6 +178,58 @@ export function TamNgungSheet({ r, onChon, onClose }: { r: DongViec; onChon: (ma
     </BottomSheet>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Tiến độ % (QT3 / QT4 "Cập nhật tiến độ") và ngày thực hiện (nhận / giao khai bù)
+// ---------------------------------------------------------------------------
+export const MUC_TIEN_DO = [25, 50, 75, 100] as const;
+export function ChonTienDo({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Tiến độ">
+      {MUC_TIEN_DO.map(p => <button key={p} className={chip(value === p)} onClick={() => onChange(value === p ? null : p)}>{p}%</button>)}
+    </div>
+  );
+}
+
+export function TienDoSheet({ r, onLuu, onClose }: { r: DongViec; onLuu: (tienDo: number) => void; onClose: () => void }) {
+  const [tienDo, setTienDo] = useState<number | null>(null);
+  return (
+    <BottomSheet title={`Cập nhật tiến độ ${r.hex}`} onClose={onClose}
+      footer={<button className={NUT_CHINH} disabled={tienDo === null} onClick={() => tienDo !== null && onLuu(tienDo)}>
+        {tienDo === null ? 'Chọn tiến độ' : `Lưu tiến độ ${tienDo}%`}</button>}>
+      <div className="space-y-2 pb-2">
+        {r.tenHangMuc && <p className="text-base text-slate-800">{r.tenHangMuc}</p>}
+        <p className="text-base font-medium text-slate-800">Hạng mục đã làm được bao nhiêu?</p>
+        <ChonTienDo value={tienDo} onChange={setTienDo} />
+      </div>
+    </BottomSheet>
+  );
+}
+
+const ngayVN = (t: number) => new Date(t).toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+/** Mốc giờ của ngày thực hiện: hôm nay => undefined (giờ bấm); ngày trước => 12:00 giờ VN ngày đó (khai bù) */
+export const lucCuaNgay = (ngay: string): number | undefined =>
+  ngay === ngayVN(Date.now()) ? undefined : Date.parse(`${ngay}T12:00:00+07:00`);
+/** Khai bù tối đa 7 ngày trước */
+export function ChonNgayThucHien({ value, onChange }: { value: string; onChange: (ngay: string) => void }) {
+  const homNay = ngayVN(Date.now());
+  const homQua = ngayVN(Date.now() - 86_400_000);
+  const toiThieu = ngayVN(Date.now() - 7 * 86_400_000);
+  return (
+    <div className="space-y-2">
+      <p className="text-base font-medium text-slate-800">Ngày thực hiện</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className={chip(value === homNay)} onClick={() => onChange(homNay)}>Hôm nay</button>
+        <button className={chip(value === homQua)} onClick={() => onChange(homQua)}>Hôm qua</button>
+        <input type="date" className="min-h-14 rounded-2xl border border-slate-300 bg-white px-3 text-base" value={value}
+          min={toiThieu} max={homNay} aria-label="Chọn ngày thực hiện"
+          onChange={e => { const v = e.target.value; if (v && v >= toiThieu && v <= homNay) onChange(v); }} />
+      </div>
+      {value !== homNay && <p className={CHU_PHU}>Khai bù ngày {value.split('-').reverse().join('/')} — ghi lúc 12:00 ngày đó, quản lý thấy cờ "khai bù".</p>}
+    </div>
+  );
+}
+export const ngayHomNay = () => ngayVN(Date.now());
 
 // ---------------------------------------------------------------------------
 // Chọn nơi giao / nơi nhận từ: công đoạn trong xưởng, hoặc xưởng khác
@@ -270,9 +334,10 @@ function ChonAnh({ anh, onDoi, goiY = `Không bắt buộc, tối đa 3 ảnh.`,
 // ---------------------------------------------------------------------------
 export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
   r: DongViec; cheDo: 'xong' | 'giao'; dm: DanhMucXuong | null; xuong: string | null; anhBat: boolean;
-  onXacNhan: (p: { soLuong: number; den: string | null; anh: AnhChup[] }) => void; onClose: () => void;
+  onXacNhan: (p: { soLuong: number; den: string | null; anh: AnhChup[]; lucXayRa?: number }) => void; onClose: () => void;
 }) {
   const [anh, setAnh] = useState<AnhChup[]>([]);
+  const [ngay, setNgay] = useState(ngayHomNay);
   useGiaiPhongAnh([anh]);
   // Theo đơn vị của hạng mục: đơn vị đo / số lẻ => nhập số lẻ, giới hạn đúng số còn lại (không làm tròn)
   const soLe = choSoLe(r.dvt, r.slNhan, r.slHoanThanh, r.slGiao);
@@ -289,11 +354,11 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
     <BottomSheet title={tieuDe} onClose={onClose}
       footer={
         <div className="space-y-3">
-          <button className={NUT_CHINH} disabled={!den} onClick={() => onXacNhan({ soLuong: sl, den, anh })}>
+          <button className={NUT_CHINH} disabled={!den} onClick={() => onXacNhan({ soLuong: sl, den, anh, lucXayRa: lucCuaNgay(ngay) })}>
             {cheDo === 'xong' ? 'Xong — giao' : 'Giao'}{den ? '' : ' (chọn nơi giao)'}
           </button>
           {cheDo === 'xong' && (
-            <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null, anh })}>Xong, hàng chưa chuyển — giao sau</button>
+            <button className={`${NUT_PHU} w-full`} onClick={() => onXacNhan({ soLuong: sl, den: null, anh, lucXayRa: lucCuaNgay(ngay) })}>Xong, hàng chưa chuyển — giao sau</button>
           )}
         </div>
       }>
@@ -314,6 +379,7 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
           )}
           {doiCho && <ChonCongDoan dm={dm} xuong={xuong} chon={den} setChon={id => setDen(id)} boQua={[r.congDoanId]} />}
         </div>
+        <ChonNgayThucHien value={ngay} onChange={setNgay} />
         {anhBat && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Ảnh hàng lúc giao</p>
@@ -328,7 +394,7 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
 // ---------------------------------------------------------------------------
 // Nhận (R10: nhận hàng không có sự kiện giao thì bắt chọn nguồn)
 // ---------------------------------------------------------------------------
-export interface NhanKetQua { congDoanId: string; soLuong: number; congDoanNguonId?: string; xuongNguon?: string; anh: AnhChup[] }
+export interface NhanKetQua { congDoanId: string; soLuong: number; congDoanNguonId?: string; xuongNguon?: string; anh: AnhChup[]; lucXayRa?: number }
 
 export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
   hex: string; ten: string | null; cv: CongViec; dm: DanhMucXuong | null;
@@ -367,9 +433,10 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
     if (goiY === null || goiY === undefined) return;
     setSl(Math.max(duoi, toiDa !== null ? Math.min(goiY, toiDa) : goiY));
   }, [cd, toiDa]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [ngay, setNgay] = useState(ngayHomNay);
   const canNguon = !dongCho;
   const xong = () => onNhan({
-    congDoanId: cd, soLuong: sl, anh,
+    congDoanId: cd, soLuong: sl, anh, lucXayRa: lucCuaNgay(ngay),
     ...(canNguon && nguon ? (nguon.startsWith('xuong:') ? { xuongNguon: nguon.slice(6) } : { congDoanNguonId: nguon }) : {}),
   });
   return (
@@ -402,6 +469,7 @@ export function NhanSheet({ hex, ten, cv, dm, onNhan, onClose }: {
           )}
           {dongCho && <p className={CHU_PHU}>Tổ trước đã giao {hienSl(dongCho.slGiaoDen)} {dv}, tổ đã nhận {hienSl(dongCho.slNhan)}.</p>}
         </div>
+        <ChonNgayThucHien value={ngay} onChange={setNgay} />
         {canNguon && (
           <div className="space-y-2">
             <p className="text-base font-medium text-slate-800">Hàng từ đâu tới?</p>

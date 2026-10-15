@@ -46,13 +46,23 @@ export interface ChiTietHex {
   thoiGianMra: Array<{ xuong: string; tu: string; den: string | null }>;
 }
 export interface TomTatHex { soCongDoan: number; dangO: Array<{ xuong: string | null; ten: string | null; trangThai: TrangThai }> }
+/** Công đoạn thành phần (QT1): Gỗ / Sofa / Kim loại / Kính / Đá — mỗi thành phần một xưởng thực hiện và tuyến CĐ chi tiết.
+ *  Xưởng phụ để trống tuyến => xưởng phụ tự khai CĐ chi tiết (QT2). */
+export interface ThanhPhanTrienKhai { ten: string; xuong: string; tuyen: string[] }
 export interface HangMucTrienKhai {
   hex: string; ten: string | null; maCongTrinh: string | null; tenCongTrinh: string | null; dvt: string | null;
-  soLuongDonHang: number | null; nhom: string | null; daTrienKhai: number; goiYTuyen: string[] | null;
+  soLuongDonHang: number | null; nhom: string | null; daTrienKhai: number; goiYThanhPhan: ThanhPhanTrienKhai[] | null;
 }
+export type CongDoanTk = { id: string; xuong: string; ten: string; cdTachMa: string | null; thuTu: number };
 export interface DanhSachTrienKhai {
   xuong: string; hangMuc: HangMucTrienKhai[];
-  congDoan: Array<{ id: string; xuong: string; ten: string; cdTachMa: string | null; thuTu: number }>;
+  congDoan: CongDoanTk[];
+  thanhPhan: string[];
+}
+/** QT2 — thành phần xưởng chính giao cho xưởng này, chờ khai CĐ chi tiết */
+export interface ChoKhaiChiTiet {
+  trienKhaiId: string; hex: string; thanhPhan: string; soLuong: number; xuongChinh: string; luc: string;
+  ten: string | null; tenCongTrinh: string | null; dvt: string | null;
 }
 
 export interface GioTach { thuong: number; tangCa: number }
@@ -254,6 +264,9 @@ export const xuongSetupApi = {
   lichSuMra: (xuong: string) => goi<LichSuMra>('GET', `/api/xuong/lich-su-mra?${q({ xuong })}`),
   keHoachTuan: (xuong: string, nam: number, tuan: number) =>
     goi<KeHoachTuan>('GET', `/api/xuong/ke-hoach-tuan?${q({ xuong, nam: String(nam), tuan: String(tuan) })}`),
-  trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; tuyen: string[] }>) =>
+  trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; thanhPhan: ThanhPhanTrienKhai[] }>) =>
     goi<{ soHangMuc: number }>('POST', '/api/xuong/trien-khai', { xuong, items }),
+  dsKhaiChiTiet: (xuong: string) => goi<{ xuong: string; cho: ChoKhaiChiTiet[]; congDoan: CongDoanTk[] }>('GET', `/api/xuong/khai-chi-tiet?${q({ xuong })}`),
+  khaiChiTiet: (xuong: string, items: Array<{ trienKhaiId: string; thanhPhan: string; tuyen: string[] }>) =>
+    goi<{ soThanhPhan: number }>('POST', '/api/xuong/khai-chi-tiet', { xuong, items }),
 };

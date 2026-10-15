@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, thuTrongTuan } from '../src/server/xuong/allocation.js';
 import type { LichCaRow } from '../src/server/xuong/types.js';
+import { tomTatDiemDanh } from '../src/server/xuong/chamCong.js';
 
 // Phân bổ giờ công theo quân số tổ — không bao giờ nhân "thời gian × số người khai" như MRA (từng có 664 người / ngày)
 
@@ -201,8 +202,9 @@ describe('phanBoGioCong — chấm công theo người', () => {
     assert.equal(H(coMat), H(kq.theoHangMuc.A.gioCongThuong + kq.theoHangMuc.B.gioCongThuong + kq.gioCho.thuong));
   });
 
-  it('ca có điểm danh: người gắn tên mà về sớm / không điểm danh thì không được cộng giờ', () => {
-    // An, Bình làm A cả buổi sáng; Bình về sớm 9:30 nhưng tên vẫn gắn ở A; MOI gắn tên mà không điểm danh
+  it('ca có điểm danh: gắn tên mà về sớm thì không cộng giờ; người không điểm danh (mượn / mới) gắn tên thì có mặt', () => {
+    // An, Bình làm A cả buổi sáng; Bình về sớm 9:30 nhưng tên vẫn gắn ở A; MOI (mượn tổ khác) gắn tên, không điểm danh
+    // — "ai làm" không phụ thuộc điểm danh: MOI được tính có mặt + giờ công trong lúc A chạy
     const kq = phanBoGioCong({
       cuaSo: ca, quanSo: {}, now,
       coMat: { chinh: [{ mnv: 'AN', start: t('07:30'), end: null }, { mnv: 'BINH', start: t('07:30'), end: t('09:30') }] },
@@ -211,8 +213,9 @@ describe('phanBoGioCong — chấm công theo người', () => {
     });
     assert.equal(kq.theoNguoi.AN.theoHangMuc.A, 4);
     assert.equal(kq.theoNguoi.BINH.theoHangMuc.A, 2);
-    assert.equal(kq.theoNguoi.MOI, undefined);
-    assert.equal(kq.theoHangMuc.A.gioCongThuong, 6);
+    assert.equal(kq.theoNguoi.MOI.theoHangMuc.A, 4);
+    assert.equal(kq.theoNguoi.MOI.coMatThuong, 4);
+    assert.equal(kq.theoHangMuc.A.gioCongThuong, 10);
     assert.ok(!kq.co.includes('khai_vuot_quan_so'));
   });
 
@@ -241,5 +244,21 @@ describe('phanBoGioCong — chấm công theo người', () => {
     });
     assert.equal(kq.theoHangMuc.A.gioCongThuong, 6);
     assert.deepEqual(kq.theoNguoi, {});
+  });
+});
+
+describe('tomTatDiemDanh — trễ / về sớm', () => {
+  it('ra giữa chừng rồi vào lại: trễ theo lần vào đầu, về sớm theo lần ra cuối (còn có mặt => không về sớm)', () => {
+    const NG = '2026-10-14';
+    const at = (h: string) => Date.parse(`${NG}T${h}:00+07:00`);
+    const lich = [{ loaiCa: 'chinh' as const, gioBatDau: '07:30', gioKetThuc: '15:45' }];
+    const tt = tomTatDiemDanh({ chinh: [
+      { mnv: 'X', start: at('08:00'), end: at('09:40') }, { mnv: 'X', start: at('09:41'), end: null },
+      { mnv: 'Y', start: at('07:30'), end: at('10:00') }, { mnv: 'Y', start: at('10:30'), end: at('14:45') },
+    ] }, NG, lich as never);
+    assert.equal(tt.X.treP, 30);
+    assert.equal(tt.X.veSomP, 0);
+    assert.equal(tt.Y.treP, 0);
+    assert.equal(tt.Y.veSomP, 60);
   });
 });

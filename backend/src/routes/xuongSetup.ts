@@ -9,7 +9,8 @@ import {
   fail, xuongQuanLy, quanLyDuoc, ghiVaTinhLai, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
   coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong,
 } from './xuong.js';
-import { suKienConHieuLuc } from '../server/xuong/state.js';
+import { suKienConHieuLuc, THANH_PHAN } from '../server/xuong/state.js';
+import { ensureWorkshopGroups, workshopGroupSql } from '../server/workshopGroups.js';
 import { doanCoMat, tomTatDiemDanh } from '../server/xuong/chamCong.js';
 import { vnDayKey } from '../server/common.js';
 import { xoaGioCongLuu } from './xuongBaoCao.js';
@@ -466,67 +467,206 @@ app.get('/api/xuong/trien-khai', async (req: Request, res: Response) => {
       pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
       // Tuyến lần triển khai gần nhất theo nhóm sản phẩm (gợi ý — cải tiến 8)
       pool.query(
-        `SELECT DISTINCT ON (p.phan_loai_nhom_san_pham) p.phan_loai_nhom_san_pham AS nhom, e.du_lieu->'tuyen' AS tuyen
+        `SELECT DISTINCT ON (p.phan_loai_nhom_san_pham) p.phan_loai_nhom_san_pham AS nhom, e.du_lieu->'tuyen' AS tuyen,
+                e.du_lieu->'thanhPhan' AS thanh_phan
          FROM xuong_su_kien e JOIN LATERAL (SELECT phan_loai_nhom_san_pham FROM production_status_app WHERE hex::text = e.hex LIMIT 1) p ON true
-         WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1 AND jsonb_typeof(e.du_lieu->'tuyen') = 'array'
+         WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1
+           AND (jsonb_typeof(e.du_lieu->'tuyen') = 'array' OR jsonb_typeof(e.du_lieu->'thanhPhan') = 'array')
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY p.phan_loai_nhom_san_pham, e.device_ts_hieu_chinh DESC`, [xuong]),
     ]);
     const daTk = new Map(tk.rows.map(x => [String(x.hex), Number(x.sl)]));
-    const goiY = new Map(lanTruoc.rows.map(x => [String(x.nhom ?? ''), (x.tuyen as unknown[]).map(String)]));
+    // Gợi ý theo lần triển khai trước của cùng nhóm sản phẩm: các thành phần (bản cũ chỉ có 1 tuyến => 1 thành phần GỖ)
+    const goiY = new Map(lanTruoc.rows.map(x => [String(x.nhom ?? ''), Array.isArray(x.thanh_phan)
+      ? (x.thanh_phan as Array<Record<string, unknown>>).map(t => ({ ten: String(t.ten ?? ''), xuong: String(t.xuong ?? xuong), tuyen: Array.isArray(t.tuyen) ? (t.tuyen as unknown[]).map(String) : [] }))
+      : [{ ten: 'GỖ', xuong, tuyen: ((x.tuyen as unknown[]) ?? []).map(String) }]]));
     const ds2 = sp.rows.map(x => ({
       hex: String(x.hex), ten: x.ten_hang_muc, maCongTrinh: x.ma_cong_trinh, tenCongTrinh: x.ten_cong_trinh, dvt: x.dvt,
       soLuongDonHang: x.so_luong_don_hang_tong === null ? null : Number(x.so_luong_don_hang_tong),
       nhom: x.phan_loai_nhom_san_pham ?? null,
       daTrienKhai: daTk.get(String(x.hex)) ?? 0,
-      goiYTuyen: goiY.get(String(x.phan_loai_nhom_san_pham ?? '')) ?? null,
+      goiYThanhPhan: goiY.get(String(x.phan_loai_nhom_san_pham ?? '')) ?? null,
     })).filter(x => !chiChua || x.soLuongDonHang === null || x.daTrienKhai < x.soLuongDonHang);
     res.json({
       success: true, available: true, xuong,
       hangMuc: ds2,
       congDoan: cd.rows.map(x => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu })),
+      thanhPhan: THANH_PHAN,
     });
   } catch (e) { fail(res, e, '/api/xuong/trien-khai'); }
 });
 
+// Thành phần (QT1): tên (Gỗ / Sofa / Kim loại / Kính / Đá), xưởng thực hiện, tuyến CĐ chi tiết. Xưởng phụ để trống tuyến
+// thì xưởng phụ tự khai ở QT2 (/api/xuong/khai-chi-tiet). Bản cũ gửi `tuyen` (1 tuyến) => 1 thành phần GỖ của xưởng chính.
+const thanhPhanSchema = z.object({
+  ten: z.enum(THANH_PHAN),
+  xuong: z.string().trim().min(1).max(20),
+  tuyen: z.array(z.string().max(40)).max(30),
+});
 const trienKhaiSchema = z.object({
   xuong: z.string().trim().min(1).max(20),
   items: z.array(z.object({
     hex: z.string().regex(HEX_RE),
     soLuong: z.number().positive().max(1_000_000),
-    tuyen: z.array(z.string().max(40)).min(1).max(30),
-  })).min(1).max(200),
+    tuyen: z.array(z.string().max(40)).min(1).max(30).optional(),
+    thanhPhan: z.array(thanhPhanSchema).min(1).max(THANH_PHAN.length).optional(),
+  }).refine(i => !!i.tuyen || !!i.thanhPhan)).min(1).max(200),
 });
 
 app.post('/api/xuong/trien-khai', async (req: Request, res: Response) => {
   try {
     const p = trienKhaiSchema.safeParse(req.body);
-    if (!p.success) return res.status(400).json({ success: false, message: 'Mỗi hạng mục cần mã 9 số, số lượng > 0 và ít nhất một công đoạn' });
+    if (!p.success) return res.status(400).json({ success: false, message: 'Mỗi hạng mục cần mã 9 số, số lượng > 0 và ít nhất một thành phần / công đoạn' });
+    const xuong = p.data.xuong.toUpperCase();
+    const me = Number(req.user!.id);
+    const { ds } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    const items = p.data.items.map(it => ({
+      hex: it.hex, soLuong: it.soLuong,
+      thanhPhan: (it.thanhPhan ?? [{ ten: 'GỖ' as const, xuong, tuyen: it.tuyen ?? [] }]).map(t => ({ ...t, xuong: t.xuong.toUpperCase() })),
+    }));
+    for (const it of items) {
+      const ten = it.thanhPhan.map(t => t.ten);
+      if (new Set(ten).size !== ten.length) return res.status(400).json({ success: false, message: `${it.hex}: mỗi thành phần chỉ khai một lần` });
+      // Thành phần của xưởng chính phải có tuyến; xưởng phụ để trống thì xưởng phụ tự khai CĐ chi tiết (QT2)
+      if (it.thanhPhan.some(t => t.xuong === xuong && !t.tuyen.length)) {
+        return res.status(400).json({ success: false, message: `${it.hex}: thành phần của xưởng chính cần tuyến công đoạn chi tiết` });
+      }
+    }
+    // QT1 chỉ xưởng chính của hạng mục triển khai (theo bảng sản xuất, đã gộp xưởng)
+    await ensureWorkshopGroups();
+    const hexes = [...new Set(items.map(i => i.hex))];
+    const dung = new Set((await pool.query(
+      `SELECT DISTINCT hex::text AS hex FROM production_status_app
+       WHERE hex::text = ANY($1::text[]) AND (UPPER(TRIM(xuong_chinh)) = $2 OR ${workshopGroupSql('xuong_chinh')} = $2)`, [hexes, xuong])).rows.map(x => String(x.hex)));
+    const sai = hexes.filter(h => !dung.has(h));
+    if (sai.length) return res.status(400).json({ success: false, message: `Không thuộc xưởng chính ${xuong}: ${sai.slice(0, 8).join(', ')}${sai.length > 8 ? '…' : ''}` });
+
+    const kq = await withTransaction(async client => {
+      const cdIds = [...new Set(items.flatMap(i => i.thanhPhan.flatMap(t => t.tuyen)))];
+      const cd = await client.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND active', [cdIds]);
+      const xuongCd = new Map(cd.rows.map(x => [String(x.id), String(x.xuong)]));
+      const thieu = cdIds.filter(id => !xuongCd.has(id));
+      if (thieu.length) return { loi: `Công đoạn không tồn tại / đã tắt: ${thieu.join(', ')}` } as const;
+      for (const it of items) for (const t of it.thanhPhan) {
+        if (t.tuyen.length && xuongCd.get(t.tuyen[0]) !== t.xuong) return { loi: `${it.hex} · ${t.ten}: công đoạn đầu tuyến phải thuộc xưởng ${t.xuong}` } as const;
+      }
+      const ghi: Row[] = [];
+      for (const it of items) {
+        const tk = dongServer({
+          loai: 'trien_khai', hex: it.hex, xuong, so_luong: it.soLuong,
+          // tuyen: tuyến thành phần đầu tiên có tuyến (báo cáo / bản cũ đọc)
+          du_lieu: { xuong, thanhPhan: it.thanhPhan, tuyen: it.thanhPhan.find(t => t.tuyen.length)?.tuyen ?? [] },
+        }, me);
+        ghi.push(tk);
+        // Song song: mỗi thành phần đã có tuyến => cấp đủ số bộ cho công đoạn đầu tuyến của thành phần đó
+        for (const t of it.thanhPhan) {
+          if (!t.tuyen.length) continue;
+          ghi.push(dongServer({
+            loai: 'khai_bao_cd', hex: it.hex, xuong: xuongCd.get(t.tuyen[0]) ?? xuong, so_luong: it.soLuong, cong_doan_den_id: t.tuyen[0],
+            du_lieu: { xuongTrienKhai: xuong, trienKhaiId: tk.id, thanhPhan: t.ten, tuyen: t.tuyen },
+          }, me));
+        }
+      }
+      await ghiVaTinhLai(client, ghi);
+      return { so: items.length } as const;
+    });
+    if ('loi' in kq) return res.status(400).json({ success: false, message: kq.loi });
+    // Thông báo: tổ đầu tuyến có hàng chờ nhận; xưởng phụ được giao thành phần / công đoạn
+    await baoHangChoNhan(items.flatMap(i => i.thanhPhan.filter(t => t.tuyen.length).map(t => ({ hex: i.hex, congDoanDenId: t.tuyen[0], soLuong: i.soLuong }))), me);
+    await baoXuongPhu(xuong, items, me);
+    res.json({ success: true, available: true, soHangMuc: kq.so,
+      cap: items.flatMap(i => i.thanhPhan.filter(t => t.tuyen.length).map(t => pairKey(i.hex, t.tuyen[0]))) });
+  } catch (e) { fail(res, e, '/api/xuong/trien-khai'); }
+});
+
+// ---------------------------------------------------------------------------
+// QT2 — XƯỞNG PHỤ KHAI CĐ CHI TIẾT cho thành phần được xưởng chính giao (triển khai để trống tuyến)
+//   GET  /api/xuong/khai-chi-tiet?xuong=  → thành phần đang chờ xưởng này khai tuyến
+//   POST /api/xuong/khai-chi-tiet { xuong, items: [{ trienKhaiId, thanhPhan, tuyen }] }
+// ---------------------------------------------------------------------------
+async function choKhaiChiTiet(xuong: string, trienKhaiIds?: string[]) {
+  const r = await pool.query(
+    `SELECT e.id, e.hex, e.so_luong::float AS so_luong, e.du_lieu->>'xuong' AS xuong_chinh, tp->>'ten' AS thanh_phan,
+            to_char(e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:MI') AS luc
+     FROM xuong_su_kien e, jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'thanhPhan') = 'array' THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp
+     WHERE e.loai = 'trien_khai' AND upper(tp->>'xuong') = $1 AND jsonb_array_length(COALESCE(tp->'tuyen', '[]'::jsonb)) = 0
+       AND ($2::uuid[] IS NULL OR e.id = ANY($2::uuid[]))
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien k WHERE k.loai = 'khai_bao_cd' AND k.du_lieu->>'trienKhaiId' = e.id::text
+                         AND k.du_lieu->>'thanhPhan' = tp->>'ten'
+                         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = k.id))
+     ORDER BY e.device_ts_hieu_chinh DESC LIMIT 500`, [xuong, trienKhaiIds ?? null]);
+  return r.rows;
+}
+
+app.get('/api/xuong/khai-chi-tiet', async (req: Request, res: Response) => {
+  try {
+    const xuong = String(req.query.xuong ?? '').toUpperCase();
+    const { ds } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    const rows = await choKhaiChiTiet(xuong);
+    const hexes = [...new Set(rows.map(x => String(x.hex)))];
+    const [sp, cd] = await Promise.all([
+      hexes.length ? pool.query(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, dvt FROM production_status_app
+         WHERE hex::text = ANY($1::text[]) ORDER BY hex::text, updated_at DESC NULLS LAST`, [hexes]) : Promise.resolve({ rows: [] as Row[] }),
+      pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
+    ]);
+    const info = new Map(sp.rows.map(x => [String(x.hex), x]));
+    res.json({
+      success: true, available: true, xuong,
+      cho: rows.map(x => ({
+        trienKhaiId: String(x.id), hex: String(x.hex), thanhPhan: x.thanh_phan, soLuong: Number(x.so_luong), xuongChinh: x.xuong_chinh, luc: x.luc,
+        ten: info.get(String(x.hex))?.ten_hang_muc ?? null, tenCongTrinh: info.get(String(x.hex))?.ten_cong_trinh ?? null, dvt: info.get(String(x.hex))?.dvt ?? null,
+      })),
+      congDoan: cd.rows.map(x => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu })),
+    });
+  } catch (e) { fail(res, e, '/api/xuong/khai-chi-tiet'); }
+});
+
+const khaiChiTietSchema = z.object({
+  xuong: z.string().trim().min(1).max(20),
+  items: z.array(z.object({
+    trienKhaiId: z.string().uuid(),
+    thanhPhan: z.enum(THANH_PHAN),
+    tuyen: z.array(z.string().max(40)).min(1).max(30),
+  })).min(1).max(200),
+});
+
+app.post('/api/xuong/khai-chi-tiet', async (req: Request, res: Response) => {
+  try {
+    const p = khaiChiTietSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: 'Mỗi thành phần cần ít nhất một công đoạn chi tiết' });
     const xuong = p.data.xuong.toUpperCase();
     const me = Number(req.user!.id);
     const { ds } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
     const kq = await withTransaction(async client => {
+      const cho = await choKhaiChiTiet(xuong, [...new Set(p.data.items.map(i => i.trienKhaiId))]);
+      const conCho = new Map(cho.map(x => [`${x.id}|${x.thanh_phan}`, x]));
       const cdIds = [...new Set(p.data.items.flatMap(i => i.tuyen))];
       const cd = await client.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND active', [cdIds]);
       const xuongCd = new Map(cd.rows.map(x => [String(x.id), String(x.xuong)]));
       const thieu = cdIds.filter(id => !xuongCd.has(id));
       if (thieu.length) return { loi: `Công đoạn không tồn tại / đã tắt: ${thieu.join(', ')}` } as const;
       const ghi: Row[] = [];
+      const baoNhan: Array<{ hex: string; congDoanDenId: string; soLuong: number }> = [];
       for (const it of p.data.items) {
-        ghi.push(dongServer({ loai: 'trien_khai', hex: it.hex, xuong, so_luong: it.soLuong, du_lieu: { xuong, tuyen: it.tuyen } }, me));
+        const t = conCho.get(`${it.trienKhaiId}|${it.thanhPhan}`);
+        if (!t) return { loi: `Thành phần ${it.thanhPhan} không còn chờ xưởng ${xuong} khai (đã khai hoặc triển khai đã huỷ)` } as const;
+        if (xuongCd.get(it.tuyen[0]) !== xuong) return { loi: `${t.hex} · ${it.thanhPhan}: công đoạn đầu tuyến phải thuộc xưởng ${xuong}` } as const;
         ghi.push(dongServer({
-          loai: 'khai_bao_cd', hex: it.hex, xuong: xuongCd.get(it.tuyen[0]) ?? xuong, so_luong: it.soLuong, cong_doan_den_id: it.tuyen[0],
-          du_lieu: { xuongTrienKhai: xuong },
+          loai: 'khai_bao_cd', hex: String(t.hex), xuong, so_luong: Number(t.so_luong), cong_doan_den_id: it.tuyen[0],
+          du_lieu: { xuongTrienKhai: t.xuong_chinh, trienKhaiId: it.trienKhaiId, thanhPhan: it.thanhPhan, tuyen: it.tuyen },
         }, me));
+        baoNhan.push({ hex: String(t.hex), congDoanDenId: it.tuyen[0], soLuong: Number(t.so_luong) });
       }
       await ghiVaTinhLai(client, ghi);
-      return { so: p.data.items.length } as const;
+      return { so: ghi.length, baoNhan } as const;
     });
     if ('loi' in kq) return res.status(400).json({ success: false, message: kq.loi });
-    // Thông báo: tổ đầu tuyến có hàng chờ nhận; xưởng phụ được giao công đoạn
-    await baoHangChoNhan(p.data.items.map(i => ({ hex: i.hex, congDoanDenId: i.tuyen[0], soLuong: i.soLuong })), me);
-    await baoXuongPhu(xuong, p.data.items, me);
-    res.json({ success: true, available: true, soHangMuc: kq.so, cap: p.data.items.map(i => pairKey(i.hex, i.tuyen[0])) });
-  } catch (e) { fail(res, e, '/api/xuong/trien-khai'); }
+    await baoHangChoNhan(kq.baoNhan, me);
+    res.json({ success: true, available: true, soThanhPhan: kq.so });
+  } catch (e) { fail(res, e, '/api/xuong/khai-chi-tiet'); }
 });

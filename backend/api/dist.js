@@ -70038,13 +70038,57 @@ function suKienConHieuLuc(events) {
   return events.filter((e) => e.loai !== "huy" && !biHuy.has(e.id)).sort(soSanhSuKien);
 }
 var so = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var THANH_PHAN = ["G\u1ED6", "SOFA", "KIM LO\u1EA0I", "K\xCDNH", "\u0110\xC1"];
+var dsChuoi = (v) => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
+function tuyenTheoThanhPhan(evts) {
+  const m = /* @__PURE__ */ new Map();
+  for (const e of suKienConHieuLuc(evts)) {
+    if (e.loai === "trien_khai") {
+      const tp = Array.isArray(e.duLieu?.thanhPhan) ? e.duLieu.thanhPhan : null;
+      if (tp) for (const x of tp) {
+        const t = dsChuoi(x?.tuyen);
+        if (t.length) m.set(String(x?.ten ?? ""), t);
+      }
+      else {
+        const t = dsChuoi(e.duLieu?.tuyen);
+        if (t.length) m.set("", t);
+      }
+    } else if (e.loai === "khai_bao_cd" && typeof e.duLieu?.thanhPhan === "string") {
+      const t = dsChuoi(e.duLieu?.tuyen);
+      if (t.length) m.set(e.duLieu.thanhPhan, t);
+    }
+  }
+  return [...m.entries()].map(([thanhPhan, tuyen]) => ({ thanhPhan, tuyen }));
+}
+function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
+  const tong = incoming.reduce((a, e) => a + so(e.soLuong), 0);
+  if (!congDoanId) return tong;
+  const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
+  if (qua.length < 2) return tong;
+  const theoTp = new Map(qua.map((t) => [t.thanhPhan, 0]));
+  let chung = 0;
+  for (const e of incoming) {
+    let tp = null;
+    if (e.loai === "khai_bao_cd" && typeof e.duLieu?.thanhPhan === "string" && theoTp.has(e.duLieu.thanhPhan)) {
+      tp = e.duLieu.thanhPhan;
+    } else if (e.congDoanId) {
+      const nhanh = qua.filter((t) => {
+        const i = t.tuyen.indexOf(e.congDoanId);
+        return i >= 0 && i < t.tuyen.indexOf(congDoanId);
+      });
+      if (nhanh.length && nhanh.length < qua.length) tp = nhanh[0].thanhPhan;
+    }
+    if (tp === null) chung += so(e.soLuong);
+    else theoTp.set(tp, (theoTp.get(tp) ?? 0) + so(e.soLuong));
+  }
+  return chung + Math.min(...theoTp.values());
+}
 var nhanNgoaiApp = (e) => !!(e.congDoanNguonId || e.xuongNguon);
-function tinhTrangThai(cuaCongDoan, giaoDen) {
+function tinhTrangThai(cuaCongDoan, giaoDen, tuyen = [], congDoanId = null) {
   const own2 = suKienConHieuLuc(cuaCongDoan);
   const incoming = suKienConHieuLuc(giaoDen).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
   const co = /* @__PURE__ */ new Set();
-  let slGiaoDen = 0;
-  for (const e of incoming) slGiaoDen += so(e.soLuong);
+  const slGiaoDen = slGiaoDenDongBo(incoming, tuyen, congDoanId);
   let slNhan = 0;
   let slNhanTrongApp = 0;
   let slHoanThanh = 0;
@@ -70216,6 +70260,11 @@ function doanCoMat(evts) {
   for (const ca of Object.keys(out)) out[ca] = out[ca].filter((d) => d.end === null || d.end > d.start);
   return out;
 }
+var gomTheoNguoi = (ds) => {
+  const m = {};
+  for (const d of ds) (m[d.mnv] ??= []).push(d);
+  return m;
+};
 function tomTatDiemDanh(coMat, ngay, lichCa) {
   const moc2 = (hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00+07:00`);
   const chinh = lichCa.find((c) => c.loaiCa === "chinh");
@@ -70228,15 +70277,17 @@ function tomTatDiemDanh(coMat, ngay, lichCa) {
       x.vao = Math.min(x.vao, d.start);
       x.ra = x.ra === null || d.end === null ? null : Math.max(x.ra, d.end);
       if (!x.ca.includes(ca)) x.ca.push(ca);
-      if (ca === "chinh" && bd !== null && kt !== null) {
-        x.treP = Math.max(x.treP, Math.round((d.start - bd) / 6e4));
-        if (d.end !== null && d.end < kt) x.veSomP = Math.max(x.veSomP, Math.round((kt - d.end) / 6e4));
-      }
     }
   }
-  for (const x of Object.values(out)) {
-    x.treP = Math.max(0, x.treP);
-    x.veSomP = Math.max(0, x.veSomP);
+  if (bd !== null && kt !== null) {
+    for (const [mnv, ds] of Object.entries(gomTheoNguoi(coMat.chinh ?? []))) {
+      const x = out[mnv];
+      if (!x) continue;
+      const vao = Math.min(...ds.map((d) => d.start));
+      const ra = ds.some((d) => d.end === null) ? null : Math.max(...ds.map((d) => d.end));
+      x.treP = Math.max(0, Math.round((vao - bd) / 6e4));
+      x.veSomP = ra !== null && ra < kt ? Math.round((kt - ra) / 6e4) : 0;
+    }
   }
   return out;
 }
@@ -70342,6 +70393,7 @@ function phanBoGioCong(input2) {
     }
     return tot ? tot.lyDo : "khong_viec";
   };
+  const coDiemDanhNgay = new Set(Object.values(input2.coMat ?? {}).flatMap((ds) => (ds ?? []).map((d) => d.mnv)));
   for (const cs of input2.cuaSo) {
     const laTangCa = cs.loaiCa !== "chinh";
     const boChon = new Set(laTangCa ? input2.boChonTangCa?.[cs.loaiCa] ?? [] : []);
@@ -70377,14 +70429,14 @@ function phanBoGioCong(input2) {
       }
       const tenLuc = (k) => {
         const ds2 = nguoiLuc(k, s);
-        return ds2 && coDiemDanh ? ds2.filter((m) => coMatDd.has(m)) : ds2;
+        return ds2 && coDiemDanh ? ds2.filter((m) => coMatDd.has(m) || !coDiemDanhNgay.has(m)) : ds2;
       };
       const khai = chay.map((k) => {
         const t = tenLuc(k);
         return [k, t ? t.length : soNguoiLuc(k, s)];
       });
       const coMatLuc = new Set(coMatDd);
-      if (!coDiemDanh) for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
+      for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -70649,16 +70701,25 @@ async function baoHangChoNhan(ds, actorId) {
 }
 async function baoXuongPhu(xuongChinh, items, actorId) {
   try {
-    const cdIds = [...new Set(items.flatMap((i) => i.tuyen))];
+    const cdIds = [...new Set(items.flatMap((i) => i.thanhPhan.flatMap((t) => t.tuyen)))];
     const cd = await pool.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds]);
     const cdMap = new Map(cd.rows.map((x) => [String(x.id), x]));
     const theoXuong = /* @__PURE__ */ new Map();
+    const them = (x, dong2) => {
+      if (!theoXuong.has(x)) theoXuong.set(x, []);
+      theoXuong.get(x).push(dong2);
+    };
     for (const it of items) {
-      for (const id of it.tuyen) {
-        const c = cdMap.get(id);
-        if (!c || c.xuong === xuongChinh) continue;
-        if (!theoXuong.has(c.xuong)) theoXuong.set(c.xuong, []);
-        theoXuong.get(c.xuong).push(`${it.hex} \xB7 ${so2(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+      for (const t of it.thanhPhan) {
+        if (t.xuong !== xuongChinh && !t.tuyen.length) {
+          them(t.xuong, `${it.hex} \xB7 ${so2(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
+          continue;
+        }
+        for (const id of t.tuyen) {
+          const c = cdMap.get(id);
+          if (!c || c.xuong === xuongChinh) continue;
+          them(c.xuong, `${it.hex} \xB7 ${so2(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+        }
       }
     }
     if (!theoXuong.size) return;
@@ -70873,10 +70934,12 @@ async function suKienTheoHex(db, hexes, kemMra = false) {
 }
 function trangThaiCacCap(rows, pairs) {
   const evts = rows.map(toSuKien);
+  const tuyenHex = /* @__PURE__ */ new Map();
   return pairs.map(([hex3, cd]) => {
     const cua = evts.filter((e) => e.hex === hex3 && e.congDoanId === cd);
     const den = evts.filter((e) => e.hex === hex3 && (e.loai === "giao" || e.loai === "khai_bao_cd" || e.loai === "huy") && (e.congDoanDenId === cd || e.loai === "huy"));
-    return { hex: hex3, cd, state: tinhTrangThai(cua, den) };
+    if (!tuyenHex.has(hex3)) tuyenHex.set(hex3, tuyenTheoThanhPhan(evts.filter((e) => e.hex === hex3)));
+    return { hex: hex3, cd, state: tinhTrangThai(cua, den, tuyenHex.get(hex3), cd) };
   });
 }
 async function gioiHanNhan(db, pairs) {
@@ -70895,8 +70958,9 @@ async function gioiHanNhan(db, pairs) {
   const tk = /* @__PURE__ */ new Map();
   for (const e of suKienConHieuLuc(evRows.map(toSuKien))) {
     if (e.loai !== "trien_khai" || !e.hex) continue;
-    const k = `${e.hex}|${String(e.duLieu?.xuong ?? "")}`;
-    tk.set(k, (tk.get(k) ?? 0) + (e.soLuong ?? 0));
+    const tp = Array.isArray(e.duLieu?.thanhPhan) ? e.duLieu.thanhPhan : [];
+    const cacXuong = /* @__PURE__ */ new Set([String(e.duLieu?.xuong ?? ""), ...tp.map((x) => String(x?.xuong ?? "")).filter(Boolean)]);
+    for (const x of cacXuong) tk.set(`${e.hex}|${x}`, (tk.get(`${e.hex}|${x}`) ?? 0) + (e.soLuong ?? 0));
   }
   for (const [hex3, cd] of pairs) {
     const daTk = tk.get(`${hex3}|${xuongCd.get(cd) ?? ""}`) ?? 0;
@@ -71261,6 +71325,7 @@ app.post("/api/xuong/events", async (req, res) => {
         if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && !e.soNguoi) co.push("thieu_so_nguoi");
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
         co.push(...gio.co);
+        if (e.duLieu && e.duLieu.khaiBu === true) co.push("khai_bu");
         ghi.push({
           id: e.id,
           loai: e.loai,
@@ -71336,24 +71401,19 @@ async function goiYCongDoanKe(pairs) {
   const out = /* @__PURE__ */ new Map();
   if (!pairs.length) return out;
   const hexes = [...new Set(pairs.map((p) => p[0]))];
-  const [tk, cd] = await Promise.all([
-    pool.query(
-      `SELECT hex, du_lieu->'tuyen' AS tuyen FROM xuong_su_kien e
-       WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND jsonb_typeof(du_lieu->'tuyen') = 'array'
-         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-       ORDER BY device_ts_hieu_chinh`,
-      [hexes]
-    ),
+  const [evRows, cd] = await Promise.all([
+    suKienTheoHex(pool, hexes),
     pool.query("SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active")
   ]);
+  const evts = evRows.map(toSuKien);
   const tuyen = /* @__PURE__ */ new Map();
-  for (const x of tk.rows) tuyen.set(String(x.hex), x.tuyen.map(String));
+  for (const hex3 of hexes) tuyen.set(hex3, tuyenTheoThanhPhan(evts.filter((e) => e.hex === hex3)));
   const cdMap = new Map(cd.rows.map((x) => [String(x.id), { xuong: String(x.xuong), thuTu: Number(x.thu_tu) }]));
   for (const [hex3, cdId] of pairs) {
-    const t = tuyen.get(hex3);
-    const i = t ? t.indexOf(cdId) : -1;
-    if (t && i >= 0 && i + 1 < t.length) {
-      out.set(pairKey(hex3, cdId), [t[i + 1]]);
+    const qua = (tuyen.get(hex3) ?? []).filter((t) => t.tuyen.includes(cdId));
+    const ke = [...new Set(qua.map((t) => t.tuyen[t.tuyen.indexOf(cdId) + 1]).filter((x) => !!x))];
+    if (ke.length) {
+      out.set(pairKey(hex3, cdId), ke);
       continue;
     }
     const cur = cdMap.get(cdId);
@@ -71579,7 +71639,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 });
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH = "pb6";
+var PHIEN_BAN_TINH = "pb7";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
@@ -73364,16 +73424,18 @@ app.get("/api/xuong/trien-khai", async (req, res) => {
       pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
       // Tuyến lần triển khai gần nhất theo nhóm sản phẩm (gợi ý — cải tiến 8)
       pool.query(
-        `SELECT DISTINCT ON (p.phan_loai_nhom_san_pham) p.phan_loai_nhom_san_pham AS nhom, e.du_lieu->'tuyen' AS tuyen
+        `SELECT DISTINCT ON (p.phan_loai_nhom_san_pham) p.phan_loai_nhom_san_pham AS nhom, e.du_lieu->'tuyen' AS tuyen,
+                e.du_lieu->'thanhPhan' AS thanh_phan
          FROM xuong_su_kien e JOIN LATERAL (SELECT phan_loai_nhom_san_pham FROM production_status_app WHERE hex::text = e.hex LIMIT 1) p ON true
-         WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1 AND jsonb_typeof(e.du_lieu->'tuyen') = 'array'
+         WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1
+           AND (jsonb_typeof(e.du_lieu->'tuyen') = 'array' OR jsonb_typeof(e.du_lieu->'thanhPhan') = 'array')
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY p.phan_loai_nhom_san_pham, e.device_ts_hieu_chinh DESC`,
         [xuong]
       )
     ]);
     const daTk = new Map(tk.rows.map((x) => [String(x.hex), Number(x.sl)]));
-    const goiY = new Map(lanTruoc.rows.map((x) => [String(x.nhom ?? ""), x.tuyen.map(String)]));
+    const goiY = new Map(lanTruoc.rows.map((x) => [String(x.nhom ?? ""), Array.isArray(x.thanh_phan) ? x.thanh_phan.map((t) => ({ ten: String(t.ten ?? ""), xuong: String(t.xuong ?? xuong), tuyen: Array.isArray(t.tuyen) ? t.tuyen.map(String) : [] })) : [{ ten: "G\u1ED6", xuong, tuyen: (x.tuyen ?? []).map(String) }]]));
     const ds2 = sp.rows.map((x) => ({
       hex: String(x.hex),
       ten: x.ten_hang_muc,
@@ -73383,62 +73445,212 @@ app.get("/api/xuong/trien-khai", async (req, res) => {
       soLuongDonHang: x.so_luong_don_hang_tong === null ? null : Number(x.so_luong_don_hang_tong),
       nhom: x.phan_loai_nhom_san_pham ?? null,
       daTrienKhai: daTk.get(String(x.hex)) ?? 0,
-      goiYTuyen: goiY.get(String(x.phan_loai_nhom_san_pham ?? "")) ?? null
+      goiYThanhPhan: goiY.get(String(x.phan_loai_nhom_san_pham ?? "")) ?? null
     })).filter((x) => !chiChua || x.soLuongDonHang === null || x.daTrienKhai < x.soLuongDonHang);
     res.json({
       success: true,
       available: true,
       xuong,
       hangMuc: ds2,
-      congDoan: cd.rows.map((x) => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu }))
+      congDoan: cd.rows.map((x) => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu })),
+      thanhPhan: THANH_PHAN
     });
   } catch (e) {
     fail(res, e, "/api/xuong/trien-khai");
   }
+});
+var thanhPhanSchema = external_exports.object({
+  ten: external_exports.enum(THANH_PHAN),
+  xuong: external_exports.string().trim().min(1).max(20),
+  tuyen: external_exports.array(external_exports.string().max(40)).max(30)
 });
 var trienKhaiSchema = external_exports.object({
   xuong: external_exports.string().trim().min(1).max(20),
   items: external_exports.array(external_exports.object({
     hex: external_exports.string().regex(HEX_RE),
     soLuong: external_exports.number().positive().max(1e6),
-    tuyen: external_exports.array(external_exports.string().max(40)).min(1).max(30)
-  })).min(1).max(200)
+    tuyen: external_exports.array(external_exports.string().max(40)).min(1).max(30).optional(),
+    thanhPhan: external_exports.array(thanhPhanSchema).min(1).max(THANH_PHAN.length).optional()
+  }).refine((i) => !!i.tuyen || !!i.thanhPhan)).min(1).max(200)
 });
 app.post("/api/xuong/trien-khai", async (req, res) => {
   try {
     const p = trienKhaiSchema.safeParse(req.body);
-    if (!p.success) return res.status(400).json({ success: false, message: "M\u1ED7i h\u1EA1ng m\u1EE5c c\u1EA7n m\xE3 9 s\u1ED1, s\u1ED1 l\u01B0\u1EE3ng > 0 v\xE0 \xEDt nh\u1EA5t m\u1ED9t c\xF4ng \u0111o\u1EA1n" });
+    if (!p.success) return res.status(400).json({ success: false, message: "M\u1ED7i h\u1EA1ng m\u1EE5c c\u1EA7n m\xE3 9 s\u1ED1, s\u1ED1 l\u01B0\u1EE3ng > 0 v\xE0 \xEDt nh\u1EA5t m\u1ED9t th\xE0nh ph\u1EA7n / c\xF4ng \u0111o\u1EA1n" });
+    const xuong = p.data.xuong.toUpperCase();
+    const me2 = Number(req.user.id);
+    const { ds } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const items = p.data.items.map((it) => ({
+      hex: it.hex,
+      soLuong: it.soLuong,
+      thanhPhan: (it.thanhPhan ?? [{ ten: "G\u1ED6", xuong, tuyen: it.tuyen ?? [] }]).map((t) => ({ ...t, xuong: t.xuong.toUpperCase() }))
+    }));
+    for (const it of items) {
+      const ten = it.thanhPhan.map((t) => t.ten);
+      if (new Set(ten).size !== ten.length) return res.status(400).json({ success: false, message: `${it.hex}: m\u1ED7i th\xE0nh ph\u1EA7n ch\u1EC9 khai m\u1ED9t l\u1EA7n` });
+      if (it.thanhPhan.some((t) => t.xuong === xuong && !t.tuyen.length)) {
+        return res.status(400).json({ success: false, message: `${it.hex}: th\xE0nh ph\u1EA7n c\u1EE7a x\u01B0\u1EDFng ch\xEDnh c\u1EA7n tuy\u1EBFn c\xF4ng \u0111o\u1EA1n chi ti\u1EBFt` });
+      }
+    }
+    await ensureWorkshopGroups();
+    const hexes = [...new Set(items.map((i) => i.hex))];
+    const dung = new Set((await pool.query(
+      `SELECT DISTINCT hex::text AS hex FROM production_status_app
+       WHERE hex::text = ANY($1::text[]) AND (UPPER(TRIM(xuong_chinh)) = $2 OR ${workshopGroupSql("xuong_chinh")} = $2)`,
+      [hexes, xuong]
+    )).rows.map((x) => String(x.hex)));
+    const sai = hexes.filter((h) => !dung.has(h));
+    if (sai.length) return res.status(400).json({ success: false, message: `Kh\xF4ng thu\u1ED9c x\u01B0\u1EDFng ch\xEDnh ${xuong}: ${sai.slice(0, 8).join(", ")}${sai.length > 8 ? "\u2026" : ""}` });
+    const kq = await withTransaction(async (client) => {
+      const cdIds = [...new Set(items.flatMap((i) => i.thanhPhan.flatMap((t) => t.tuyen)))];
+      const cd = await client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND active", [cdIds]);
+      const xuongCd = new Map(cd.rows.map((x) => [String(x.id), String(x.xuong)]));
+      const thieu = cdIds.filter((id) => !xuongCd.has(id));
+      if (thieu.length) return { loi: `C\xF4ng \u0111o\u1EA1n kh\xF4ng t\u1ED3n t\u1EA1i / \u0111\xE3 t\u1EAFt: ${thieu.join(", ")}` };
+      for (const it of items) for (const t of it.thanhPhan) {
+        if (t.tuyen.length && xuongCd.get(t.tuyen[0]) !== t.xuong) return { loi: `${it.hex} \xB7 ${t.ten}: c\xF4ng \u0111o\u1EA1n \u0111\u1EA7u tuy\u1EBFn ph\u1EA3i thu\u1ED9c x\u01B0\u1EDFng ${t.xuong}` };
+      }
+      const ghi = [];
+      for (const it of items) {
+        const tk = dongServer({
+          loai: "trien_khai",
+          hex: it.hex,
+          xuong,
+          so_luong: it.soLuong,
+          // tuyen: tuyến thành phần đầu tiên có tuyến (báo cáo / bản cũ đọc)
+          du_lieu: { xuong, thanhPhan: it.thanhPhan, tuyen: it.thanhPhan.find((t) => t.tuyen.length)?.tuyen ?? [] }
+        }, me2);
+        ghi.push(tk);
+        for (const t of it.thanhPhan) {
+          if (!t.tuyen.length) continue;
+          ghi.push(dongServer({
+            loai: "khai_bao_cd",
+            hex: it.hex,
+            xuong: xuongCd.get(t.tuyen[0]) ?? xuong,
+            so_luong: it.soLuong,
+            cong_doan_den_id: t.tuyen[0],
+            du_lieu: { xuongTrienKhai: xuong, trienKhaiId: tk.id, thanhPhan: t.ten, tuyen: t.tuyen }
+          }, me2));
+        }
+      }
+      await ghiVaTinhLai(client, ghi);
+      return { so: items.length };
+    });
+    if ("loi" in kq) return res.status(400).json({ success: false, message: kq.loi });
+    await baoHangChoNhan(items.flatMap((i) => i.thanhPhan.filter((t) => t.tuyen.length).map((t) => ({ hex: i.hex, congDoanDenId: t.tuyen[0], soLuong: i.soLuong }))), me2);
+    await baoXuongPhu(xuong, items, me2);
+    res.json({
+      success: true,
+      available: true,
+      soHangMuc: kq.so,
+      cap: items.flatMap((i) => i.thanhPhan.filter((t) => t.tuyen.length).map((t) => pairKey(i.hex, t.tuyen[0])))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/trien-khai");
+  }
+});
+async function choKhaiChiTiet(xuong, trienKhaiIds) {
+  const r = await pool.query(
+    `SELECT e.id, e.hex, e.so_luong::float AS so_luong, e.du_lieu->>'xuong' AS xuong_chinh, tp->>'ten' AS thanh_phan,
+            to_char(e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:MI') AS luc
+     FROM xuong_su_kien e, jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'thanhPhan') = 'array' THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp
+     WHERE e.loai = 'trien_khai' AND upper(tp->>'xuong') = $1 AND jsonb_array_length(COALESCE(tp->'tuyen', '[]'::jsonb)) = 0
+       AND ($2::uuid[] IS NULL OR e.id = ANY($2::uuid[]))
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien k WHERE k.loai = 'khai_bao_cd' AND k.du_lieu->>'trienKhaiId' = e.id::text
+                         AND k.du_lieu->>'thanhPhan' = tp->>'ten'
+                         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = k.id))
+     ORDER BY e.device_ts_hieu_chinh DESC LIMIT 500`,
+    [xuong, trienKhaiIds ?? null]
+  );
+  return r.rows;
+}
+app.get("/api/xuong/khai-chi-tiet", async (req, res) => {
+  try {
+    const xuong = String(req.query.xuong ?? "").toUpperCase();
+    const { ds } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const rows = await choKhaiChiTiet(xuong);
+    const hexes = [...new Set(rows.map((x) => String(x.hex)))];
+    const [sp, cd] = await Promise.all([
+      hexes.length ? pool.query(
+        `SELECT DISTINCT ON (hex::text) hex::text AS hex, ten_hang_muc, ten_cong_trinh, dvt FROM production_status_app
+         WHERE hex::text = ANY($1::text[]) ORDER BY hex::text, updated_at DESC NULLS LAST`,
+        [hexes]
+      ) : Promise.resolve({ rows: [] }),
+      pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`)
+    ]);
+    const info = new Map(sp.rows.map((x) => [String(x.hex), x]));
+    res.json({
+      success: true,
+      available: true,
+      xuong,
+      cho: rows.map((x) => ({
+        trienKhaiId: String(x.id),
+        hex: String(x.hex),
+        thanhPhan: x.thanh_phan,
+        soLuong: Number(x.so_luong),
+        xuongChinh: x.xuong_chinh,
+        luc: x.luc,
+        ten: info.get(String(x.hex))?.ten_hang_muc ?? null,
+        tenCongTrinh: info.get(String(x.hex))?.ten_cong_trinh ?? null,
+        dvt: info.get(String(x.hex))?.dvt ?? null
+      })),
+      congDoan: cd.rows.map((x) => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/khai-chi-tiet");
+  }
+});
+var khaiChiTietSchema = external_exports.object({
+  xuong: external_exports.string().trim().min(1).max(20),
+  items: external_exports.array(external_exports.object({
+    trienKhaiId: external_exports.string().uuid(),
+    thanhPhan: external_exports.enum(THANH_PHAN),
+    tuyen: external_exports.array(external_exports.string().max(40)).min(1).max(30)
+  })).min(1).max(200)
+});
+app.post("/api/xuong/khai-chi-tiet", async (req, res) => {
+  try {
+    const p = khaiChiTietSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: "M\u1ED7i th\xE0nh ph\u1EA7n c\u1EA7n \xEDt nh\u1EA5t m\u1ED9t c\xF4ng \u0111o\u1EA1n chi ti\u1EBFt" });
     const xuong = p.data.xuong.toUpperCase();
     const me2 = Number(req.user.id);
     const { ds } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     const kq = await withTransaction(async (client) => {
+      const cho = await choKhaiChiTiet(xuong, [...new Set(p.data.items.map((i) => i.trienKhaiId))]);
+      const conCho = new Map(cho.map((x) => [`${x.id}|${x.thanh_phan}`, x]));
       const cdIds = [...new Set(p.data.items.flatMap((i) => i.tuyen))];
       const cd = await client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND active", [cdIds]);
       const xuongCd = new Map(cd.rows.map((x) => [String(x.id), String(x.xuong)]));
       const thieu = cdIds.filter((id) => !xuongCd.has(id));
       if (thieu.length) return { loi: `C\xF4ng \u0111o\u1EA1n kh\xF4ng t\u1ED3n t\u1EA1i / \u0111\xE3 t\u1EAFt: ${thieu.join(", ")}` };
       const ghi = [];
+      const baoNhan = [];
       for (const it of p.data.items) {
-        ghi.push(dongServer({ loai: "trien_khai", hex: it.hex, xuong, so_luong: it.soLuong, du_lieu: { xuong, tuyen: it.tuyen } }, me2));
+        const t = conCho.get(`${it.trienKhaiId}|${it.thanhPhan}`);
+        if (!t) return { loi: `Th\xE0nh ph\u1EA7n ${it.thanhPhan} kh\xF4ng c\xF2n ch\u1EDD x\u01B0\u1EDFng ${xuong} khai (\u0111\xE3 khai ho\u1EB7c tri\u1EC3n khai \u0111\xE3 hu\u1EF7)` };
+        if (xuongCd.get(it.tuyen[0]) !== xuong) return { loi: `${t.hex} \xB7 ${it.thanhPhan}: c\xF4ng \u0111o\u1EA1n \u0111\u1EA7u tuy\u1EBFn ph\u1EA3i thu\u1ED9c x\u01B0\u1EDFng ${xuong}` };
         ghi.push(dongServer({
           loai: "khai_bao_cd",
-          hex: it.hex,
-          xuong: xuongCd.get(it.tuyen[0]) ?? xuong,
-          so_luong: it.soLuong,
+          hex: String(t.hex),
+          xuong,
+          so_luong: Number(t.so_luong),
           cong_doan_den_id: it.tuyen[0],
-          du_lieu: { xuongTrienKhai: xuong }
+          du_lieu: { xuongTrienKhai: t.xuong_chinh, trienKhaiId: it.trienKhaiId, thanhPhan: it.thanhPhan, tuyen: it.tuyen }
         }, me2));
+        baoNhan.push({ hex: String(t.hex), congDoanDenId: it.tuyen[0], soLuong: Number(t.so_luong) });
       }
       await ghiVaTinhLai(client, ghi);
-      return { so: p.data.items.length };
+      return { so: ghi.length, baoNhan };
     });
     if ("loi" in kq) return res.status(400).json({ success: false, message: kq.loi });
-    await baoHangChoNhan(p.data.items.map((i) => ({ hex: i.hex, congDoanDenId: i.tuyen[0], soLuong: i.soLuong })), me2);
-    await baoXuongPhu(xuong, p.data.items, me2);
-    res.json({ success: true, available: true, soHangMuc: kq.so, cap: p.data.items.map((i) => pairKey(i.hex, i.tuyen[0])) });
+    await baoHangChoNhan(kq.baoNhan, me2);
+    res.json({ success: true, available: true, soThanhPhan: kq.so });
   } catch (e) {
-    fail(res, e, "/api/xuong/trien-khai");
+    fail(res, e, "/api/xuong/khai-chi-tiet");
   }
 });
 
@@ -75483,16 +75695,16 @@ var cotTuDuLieu = (rows) => {
 };
 
 // src/routes/tongQuan.ts
-var dsChuoi = external_exports.array(external_exports.string().max(300)).max(3e3);
+var dsChuoi2 = external_exports.array(external_exports.string().max(300)).max(3e3);
 var BodySchema = external_exports.object({
   filters: external_exports.object({
-    congTrinh: dsChuoi,
-    xuong: dsChuoi,
-    tinhTrang: dsChuoi,
-    tinhTrangIpo: dsChuoi,
-    khachHang: dsChuoi,
-    khuVucDuAn: dsChuoi,
-    phanLoai: dsChuoi
+    congTrinh: dsChuoi2,
+    xuong: dsChuoi2,
+    tinhTrang: dsChuoi2,
+    tinhTrangIpo: dsChuoi2,
+    khachHang: dsChuoi2,
+    khuVucDuAn: dsChuoi2,
+    phanLoai: dsChuoi2
   }).partial().default({}),
   tuyChon: external_exports.object({
     workshopMetric: external_exports.enum(["SUM_GT_DON_HANG", "SUM_GT_CON_LAI", "COUNT_HEX"]),

@@ -123,19 +123,29 @@ export async function baoHangChoNhan(ds: Array<{ hex: string; congDoanDenId: str
   }
 }
 
-/** Triển khai có công đoạn ở xưởng khác (xưởng phụ): báo quản lý xưởng đó (cải tiến 8) */
-export async function baoXuongPhu(xuongChinh: string, items: Array<{ hex: string; soLuong: number; tuyen: string[] }>, actorId?: number | null) {
+/**
+ * Triển khai giao thành phần / công đoạn cho xưởng khác (xưởng phụ): báo quản lý xưởng đó (cải tiến 8). Thành phần
+ * xưởng phụ chưa có tuyến => nhắc khai CĐ chi tiết (QT2).
+ */
+export async function baoXuongPhu(
+  xuongChinh: string,
+  items: Array<{ hex: string; soLuong: number; thanhPhan: Array<{ ten: string; xuong: string; tuyen: string[] }> }>,
+  actorId?: number | null,
+) {
   try {
-    const cdIds = [...new Set(items.flatMap(i => i.tuyen))];
+    const cdIds = [...new Set(items.flatMap(i => i.thanhPhan.flatMap(t => t.tuyen)))];
     const cd = await pool.query('SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds]);
     const cdMap = new Map(cd.rows.map(x => [String(x.id), x]));
     const theoXuong = new Map<string, string[]>();
+    const them = (x: string, dong: string) => { if (!theoXuong.has(x)) theoXuong.set(x, []); theoXuong.get(x)!.push(dong); };
     for (const it of items) {
-      for (const id of it.tuyen) {
-        const c = cdMap.get(id);
-        if (!c || c.xuong === xuongChinh) continue;
-        if (!theoXuong.has(c.xuong)) theoXuong.set(c.xuong, []);
-        theoXuong.get(c.xuong)!.push(`${it.hex} · ${so(it.soLuong)} cái (${c.cd_chi_tiet})`);
+      for (const t of it.thanhPhan) {
+        if (t.xuong !== xuongChinh && !t.tuyen.length) { them(t.xuong, `${it.hex} · ${so(it.soLuong)} cái — ${t.ten.toLowerCase()}: cần khai CĐ chi tiết`); continue; }
+        for (const id of t.tuyen) {
+          const c = cdMap.get(id);
+          if (!c || c.xuong === xuongChinh) continue;
+          them(c.xuong, `${it.hex} · ${so(it.soLuong)} cái (${c.cd_chi_tiet})`);
+        }
       }
     }
     if (!theoXuong.size) return;

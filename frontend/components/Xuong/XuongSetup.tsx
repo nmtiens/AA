@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Factory, RefreshCw, Rocket, Users, ListOrdered, Clock, ShieldCheck, AlertTriangle, BarChart3, Contact } from 'lucide-react';
+import { Factory, RefreshCw, Rocket, ListTree, Users, ListOrdered, Clock, ShieldCheck, AlertTriangle, BarChart3, Contact } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { xuongSetupApi, type SetupXuong } from '../../services/xuongSetupApi';
 import { XuongToSetup, XuongCongDoanSetup, XuongLichCaSetup, XuongQuanLySetup, XuongCanXem } from './XuongSetupMuc';
 import TrienKhaiXuong from './TrienKhaiXuong';
+import KhaiChiTietXuong from './KhaiChiTietXuong';
 import BaoCaoXuong from './BaoCaoXuong';
 import NhanSuXuong from './NhanSuXuong';
 
@@ -14,10 +15,11 @@ import NhanSuXuong from './NhanSuXuong';
 // Dùng chung cho mục "Quản lý" của app Xưởng (/xuong): `trongApp` = chừa chỗ thanh điều hướng dưới, tiêu đề lớn hơn.
 // ============================================================================
 
-type Muc = 'bao-cao' | 'trien-khai' | 'to' | 'nhan-su' | 'cong-doan' | 'lich-ca' | 'quan-ly' | 'can-xem';
+type Muc = 'bao-cao' | 'trien-khai' | 'khai-chi-tiet' | 'to' | 'nhan-su' | 'cong-doan' | 'lich-ca' | 'quan-ly' | 'can-xem';
 const MUC: Array<{ id: Muc; ten: string; icon: React.ReactNode }> = [
   { id: 'bao-cao', ten: 'Báo cáo', icon: <BarChart3 size={15} /> },
   { id: 'trien-khai', ten: 'Triển khai hạng mục', icon: <Rocket size={15} /> },
+  { id: 'khai-chi-tiet', ten: 'Khai CĐ chi tiết', icon: <ListTree size={15} /> },
   { id: 'to', ten: 'Tổ & tổ trưởng', icon: <Users size={15} /> },
   { id: 'nhan-su', ten: 'Nhân sự', icon: <Contact size={15} /> },
   { id: 'cong-doan', ten: 'Công đoạn', icon: <ListOrdered size={15} /> },
@@ -83,6 +85,7 @@ export default function XuongSetup({ trongApp = false }: { trongApp?: boolean })
           <>
             {muc === 'bao-cao' && <BaoCaoXuong xuong={d.xuong} />}
             {muc === 'trien-khai' && <TrienKhaiXuong xuong={d.xuong} bao={bao} />}
+            {muc === 'khai-chi-tiet' && <KhaiChiTietXuong xuong={d.xuong} bao={bao} />}
             {muc === 'to' && <XuongToSetup d={d} bao={bao} tai={tai} />}
             {muc === 'nhan-su' && <NhanSuXuong d={d} bao={bao} />}
             {muc === 'cong-doan' && <XuongCongDoanSetup d={d} bao={bao} tai={tai} />}

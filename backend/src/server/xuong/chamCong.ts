@@ -77,6 +77,12 @@ export function doanCoMat(evts: SuKien[]): Partial<Record<LoaiCa, DoanCoMat[]>> 
   return out;
 }
 
+const gomTheoNguoi = (ds: DoanCoMat[]) => {
+  const m: Record<string, DoanCoMat[]> = {};
+  for (const d of ds) (m[d.mnv] ??= []).push(d);
+  return m;
+};
+
 /** Giờ vào / ra, phút trễ / về sớm so với ca chính của từng người trong ngày */
 export function tomTatDiemDanh(coMat: Partial<Record<LoaiCa, DoanCoMat[]>>, ngay: string, lichCa: LichCaRow[]) {
   const moc = (hhmm: string) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00+07:00`);
@@ -90,12 +96,19 @@ export function tomTatDiemDanh(coMat: Partial<Record<LoaiCa, DoanCoMat[]>>, ngay
       x.vao = Math.min(x.vao, d.start);
       x.ra = x.ra === null || d.end === null ? null : Math.max(x.ra, d.end);
       if (!x.ca.includes(ca)) x.ca.push(ca);
-      if (ca === 'chinh' && bd !== null && kt !== null) {
-        x.treP = Math.max(x.treP, Math.round((d.start - bd) / 60_000));
-        if (d.end !== null && d.end < kt) x.veSomP = Math.max(x.veSomP, Math.round((kt - d.end) / 60_000));
-      }
     }
   }
-  for (const x of Object.values(out)) { x.treP = Math.max(0, x.treP); x.veSomP = Math.max(0, x.veSomP); }
+  // Trễ theo lần VÀO ĐẦU TIÊN, về sớm theo lần RA CUỐI CÙNG của ca chính (ra giữa chừng rồi vào lại không tính
+  // là trễ / về sớm; còn đang có mặt thì không về sớm)
+  if (bd !== null && kt !== null) {
+    for (const [mnv, ds] of Object.entries(gomTheoNguoi(coMat.chinh ?? []))) {
+      const x = out[mnv];
+      if (!x) continue;
+      const vao = Math.min(...ds.map(d => d.start));
+      const ra = ds.some(d => d.end === null) ? null : Math.max(...ds.map(d => d.end as number));
+      x.treP = Math.max(0, Math.round((vao - bd) / 60_000));
+      x.veSomP = ra !== null && ra < kt ? Math.round((kt - ra) / 60_000) : 0;
+    }
+  }
   return out;
 }

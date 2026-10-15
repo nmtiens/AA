@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, RefreshCw, ArrowUp, ArrowDown, X, Plus, Rocket, Check } from 'lucide-react';
-import { xuongSetupApi, type DanhSachTrienKhai, type HangMucTrienKhai } from '../../services/xuongSetupApi';
+import { Search, RefreshCw, X, Plus, Rocket, Check } from 'lucide-react';
+import { xuongSetupApi, type DanhSachTrienKhai, type HangMucTrienKhai, type ThanhPhanTrienKhai } from '../../services/xuongSetupApi';
 import { INPUT, BTN, BTN_CHINH, KHUNG, TH, TD } from './xuongDesktopUi';
+import ChonTuyen, { tenCongDoan } from './ChonTuyen';
 
 // ============================================================================
 // TRIỂN KHAI HẠNG MỤC (QT1 + QT2 gộp một màn — cải tiến 8, quyết định 7A: máy tính trước).
-// Kế hoạch xưởng chính chọn nhiều hạng mục, nhập số triển khai, chọn tuyến công đoạn MỘT lần áp cho cả nhóm
-// (gợi ý theo lần triển khai trước của cùng nhóm sản phẩm). Triển khai xong: công đoạn đầu tuyến thấy "Chờ nhận";
-// tuyến dùng để gợi ý "giao sang" ở màn tổ trưởng.
+// Kế hoạch xưởng chính chọn nhiều hạng mục, nhập số triển khai, khai CÔNG ĐOẠN THÀNH PHẦN (Gỗ / Sofa / Kim loại / Kính /
+// Đá — trường hợp "song song") MỘT lần áp cho cả nhóm: mỗi thành phần một xưởng thực hiện + tuyến CĐ chi tiết (gợi ý
+// theo lần triển khai trước của cùng nhóm sản phẩm). Thành phần giao xưởng phụ để trống tuyến => xưởng phụ tự khai CĐ
+// chi tiết (QT2, mục "Khai CĐ chi tiết"). Triển khai xong: công đoạn đầu tuyến từng thành phần thấy "Chờ nhận"; công
+// đoạn hợp nhánh (vd Fitting) chỉ nhận được số bộ đã về đủ thành phần.
 // ============================================================================
 
 type Bao = (ok: boolean, msg: string) => void;
@@ -21,9 +24,8 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
   const [loi, setLoi] = useState('');
   const [chon, setChon] = useState<Set<string>>(new Set());
   const [sl, setSl] = useState<Record<string, number>>({});
-  const [tuyen, setTuyen] = useState<Record<string, string[]>>({});
-  const [mau, setMau] = useState<string[]>([]);
-  const [them, setThem] = useState('');
+  const [tp, setTp] = useState<Record<string, ThanhPhanTrienKhai[]>>({});
+  const [mau, setMau] = useState<ThanhPhanTrienKhai[]>([]);
   const [gui, setGui] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => setQTim(q.trim()), 400); return () => clearTimeout(t); }, [q]);
@@ -35,29 +37,32 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
     if (!r.ok) { setLoi(r.message); return; }
     setLoi(''); setD(r.data); setChon(new Set());
     setSl(Object.fromEntries(r.data.hangMuc.map(h => [h.hex, conLai(h)])));
-    setTuyen(Object.fromEntries(r.data.hangMuc.map(h => [h.hex, h.goiYTuyen ?? []])));
+    setTp(Object.fromEntries(r.data.hangMuc.map(h => [h.hex, h.goiYThanhPhan ?? []])));
   }, [xuong, qTim, chiChua]);
   useEffect(() => { tai(); }, [tai]);
 
-  const tenCd = useMemo(() => {
-    const m = new Map((d?.congDoan ?? []).map(c => [c.id, c]));
-    return (id: string) => { const c = m.get(id); return c ? (c.xuong === xuong ? c.ten : `${c.ten} (${c.xuong})`) : id; };
-  }, [d, xuong]);
-  const nhomCd = useMemo(() => {
-    const g = new Map<string, DanhSachTrienKhai['congDoan']>();
-    for (const c of d?.congDoan ?? []) { if (!g.has(c.xuong)) g.set(c.xuong, []); g.get(c.xuong)!.push(c); }
-    return [...g.entries()].sort(([a], [b]) => (a === xuong ? -1 : b === xuong ? 1 : a.localeCompare(b)));
-  }, [d, xuong]);
+  const tenCd = useMemo(() => tenCongDoan(d?.congDoan ?? [], xuong), [d, xuong]);
+  const dsXuong = useMemo(() => [...new Set((d?.congDoan ?? []).map(c => c.xuong))].sort((a, b) => (a === xuong ? -1 : b === xuong ? 1 : a.localeCompare(b))), [d, xuong]);
+  const xuongCd = useMemo(() => new Map((d?.congDoan ?? []).map(c => [c.id, c.xuong])), [d]);
+  // Hợp lệ: có thành phần; thành phần xưởng chính có tuyến; đầu tuyến thuộc xưởng thực hiện
+  const loiTp = (ds: ThanhPhanTrienKhai[]): string | null => {
+    if (!ds.length) return 'chưa có thành phần';
+    for (const t of ds) {
+      if (t.xuong === xuong && !t.tuyen.length) return `${t.ten}: chưa có tuyến`;
+      if (t.tuyen.length && xuongCd.get(t.tuyen[0]) !== t.xuong) return `${t.ten}: đầu tuyến phải thuộc xưởng ${t.xuong}`;
+    }
+    return null;
+  };
 
   const dsChon = (d?.hangMuc ?? []).filter(h => chon.has(h.hex));
-  const sanSang = dsChon.filter(h => (sl[h.hex] ?? 0) > 0 && (tuyen[h.hex] ?? []).length > 0);
+  const sanSang = dsChon.filter(h => (sl[h.hex] ?? 0) > 0 && !loiTp(tp[h.hex] ?? []));
   const tatCa = !!d && d.hangMuc.length > 0 && d.hangMuc.every(h => chon.has(h.hex));
 
   const trienKhai = async () => {
     setGui(true);
-    const r = await xuongSetupApi.trienKhai(xuong, sanSang.map(h => ({ hex: h.hex, soLuong: sl[h.hex], tuyen: tuyen[h.hex] })));
+    const r = await xuongSetupApi.trienKhai(xuong, sanSang.map(h => ({ hex: h.hex, soLuong: sl[h.hex], thanhPhan: tp[h.hex] })));
     setGui(false);
-    if (r.ok) { bao(true, `Đã triển khai ${r.data.soHangMuc} hạng mục — công đoạn đầu tuyến đã thấy "Chờ nhận"`); tai(); }
+    if (r.ok) { bao(true, `Đã triển khai ${r.data.soHangMuc} hạng mục — công đoạn đầu tuyến từng thành phần đã thấy "Chờ nhận"; thành phần giao xưởng phụ chờ xưởng phụ khai CĐ chi tiết`); tai(); }
     else bao(false, r.message);
   };
 
@@ -83,12 +88,13 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                 onChange={() => setChon(tatCa ? new Set() : new Set(d?.hangMuc.map(h => h.hex)))} /></th>
               <th className={TH}>Hex</th><th className={TH}>Hạng mục · công trình</th><th className={TH}>Nhóm sản phẩm</th>
               <th className={`${TH} text-right`}>Đơn hàng</th><th className={`${TH} text-right`}>Đã triển khai</th>
-              <th className={`${TH} w-28 text-right`}>Triển khai lần này</th><th className={TH}>Tuyến công đoạn</th>
+              <th className={`${TH} w-28 text-right`}>Triển khai lần này</th><th className={TH}>Thành phần · tuyến công đoạn</th>
             </tr></thead>
             <tbody>
               {(d?.hangMuc ?? []).map(h => {
-                const t = tuyen[h.hex] ?? [];
-                const laGoiY = !!h.goiYTuyen && JSON.stringify(h.goiYTuyen) === JSON.stringify(t);
+                const t = tp[h.hex] ?? [];
+                const laGoiY = !!h.goiYThanhPhan && JSON.stringify(h.goiYThanhPhan) === JSON.stringify(t);
+                const loi = loiTp(t);
                 return (
                   <tr key={h.hex} className={`border-t border-slate-100 ${chon.has(h.hex) ? 'bg-wood-50' : ''}`}>
                     <td className={TD}><input type="checkbox" aria-label={`Chọn ${h.hex}`} checked={chon.has(h.hex)}
@@ -101,8 +107,11 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                     <td className={TD}><input type="number" min={0} className={`${INPUT} min-w-[4.5rem] text-right tabular-nums`} value={sl[h.hex] ?? 0}
                       onChange={e => setSl(s => ({ ...s, [h.hex]: Math.max(0, Number(e.target.value) || 0) }))} aria-label={`Số lượng triển khai ${h.hex}`} /></td>
                     <td className={`${TD} text-xs`}>
-                      {t.length ? <>{t.map(tenCd).join(' → ')}{laGoiY && <span className="ml-1 rounded bg-emerald-50 px-1 text-emerald-700">gợi ý</span>}</>
-                        : <span className="text-amber-700">Chưa có tuyến — chọn ở dưới</span>}
+                      {t.map(x => (
+                        <div key={x.ten}><b>{x.ten}</b>{x.xuong !== xuong ? ` (${x.xuong})` : ''}: {x.tuyen.length ? x.tuyen.map(tenCd).join(' → ') : <i className="text-slate-500">xưởng {x.xuong} tự khai CĐ chi tiết</i>}</div>
+                      ))}
+                      {laGoiY && t.length > 0 && <span className="rounded bg-emerald-50 px-1 text-emerald-700">gợi ý</span>}
+                      {loi && <span className="text-amber-700">{t.length ? loi : 'Chưa có thành phần — khai ở dưới'}</span>}
                     </td>
                   </tr>
                 );
@@ -114,42 +123,51 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
       </div>
 
       <div className={`${KHUNG} space-y-3 p-4`}>
-        <p className="text-sm font-semibold text-slate-800">Tuyến công đoạn ({dsChon.length} hạng mục đã chọn)</p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {mau.length === 0 && <span className="text-sm text-slate-500">Chưa có công đoạn — thêm theo thứ tự hàng đi qua.</span>}
-          {mau.map((id, i) => (
-            <span key={`${id}-${i}`} className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm">
-              <span className="text-xs text-slate-400">{i + 1}.</span> {tenCd(id)}
-              <button type="button" aria-label="Lên" disabled={i === 0} className="text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                onClick={() => setMau(m => { const n = [...m]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; return n; })}><ArrowUp size={13} /></button>
-              <button type="button" aria-label="Xuống" disabled={i === mau.length - 1} className="text-slate-400 hover:text-slate-700 disabled:opacity-30"
-                onClick={() => setMau(m => { const n = [...m]; [n[i + 1], n[i]] = [n[i], n[i + 1]]; return n; })}><ArrowDown size={13} /></button>
-              <button type="button" aria-label="Bỏ" className="text-slate-400 hover:text-red-600" onClick={() => setMau(m => m.filter((_, j) => j !== i))}><X size={13} /></button>
-            </span>
-          ))}
-        </div>
+        <p className="text-sm font-semibold text-slate-800">Công đoạn thành phần ({dsChon.length} hạng mục đã chọn)</p>
+        <p className="text-xs text-slate-500">
+          Mỗi thành phần đi tuyến công đoạn chi tiết riêng (song song), hợp lại ở công đoạn chung (vd Fitting). Thành phần giao
+          xưởng phụ có thể để trống tuyến — xưởng phụ tự khai CĐ chi tiết.
+        </p>
+        {mau.length === 0 && <p className="text-sm text-slate-500">Chưa có thành phần — thêm ít nhất một (hạng mục một khối: chỉ GỖ).</p>}
+        {mau.map((t, k) => (
+          <div key={k} className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={t.ten} aria-label="Thành phần" className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold"
+                onChange={e => setMau(m => m.map((x, j2) => (j2 === k ? { ...x, ten: e.target.value } : x)))}>
+                {(d?.thanhPhan ?? []).filter(n => n === t.ten || !mau.some(x => x.ten === n)).map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <label className="flex items-center gap-1.5 text-sm text-slate-700">Xưởng thực hiện
+                <select value={t.xuong} aria-label="Xưởng thực hiện" className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
+                  onChange={e => setMau(m => m.map((x, j2) => (j2 === k ? { ...x, xuong: e.target.value, tuyen: [] } : x)))}>
+                  {dsXuong.map(x => <option key={x} value={x}>{x}{x === xuong ? ' (xưởng chính)' : ' — xưởng phụ'}</option>)}
+                </select>
+              </label>
+              <button type="button" className="ml-auto text-slate-400 hover:text-red-600" aria-label={`Bỏ thành phần ${t.ten}`}
+                onClick={() => setMau(m => m.filter((_, j2) => j2 !== k))}><X size={15} /></button>
+            </div>
+            {t.xuong !== xuong && !t.tuyen.length && <p className="text-xs text-slate-500">Để trống: xưởng {t.xuong} nhận thông báo và tự khai CĐ chi tiết.</p>}
+            <ChonTuyen tuyen={t.tuyen} onDoi={tuyen => setMau(m => m.map((x, j2) => (j2 === k ? { ...x, tuyen } : x)))}
+              congDoan={d?.congDoan ?? []} xuong={t.xuong} xuongGoc={xuong} />
+          </div>
+        ))}
         <div className="flex flex-wrap items-center gap-2">
-          <select value={them} onChange={e => setThem(e.target.value)} className="min-w-72 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm" aria-label="Chọn công đoạn thêm vào tuyến">
-            <option value="">— Chọn công đoạn —</option>
-            {nhomCd.map(([x, ds]) => (
-              <optgroup key={x} label={`Xưởng ${x}${x === xuong ? ' (xưởng chính)' : ' — giao xưởng phụ'}`}>
-                {ds.map(c => <option key={c.id} value={c.id}>{c.cdTachMa ? `${c.cdTachMa} · ` : ''}{c.ten}</option>)}
-              </optgroup>
-            ))}
-          </select>
-          <button type="button" className={BTN} disabled={!them} onClick={() => { setMau(m => [...m, them]); setThem(''); }}><Plus size={14} /> Thêm vào tuyến</button>
-          {dsChon.length === 1 && (tuyen[dsChon[0].hex] ?? []).length > 0 && (
-            <button type="button" className={BTN} onClick={() => setMau(tuyen[dsChon[0].hex])}>Lấy tuyến của {dsChon[0].hex}</button>
-          )}
-          <button type="button" className={BTN} disabled={!mau.length || !dsChon.length}
-            onClick={() => setTuyen(t => ({ ...t, ...Object.fromEntries(dsChon.map(h => [h.hex, mau])) }))}>
-            <Check size={14} /> Áp tuyến cho {dsChon.length} hạng mục đã chọn
+          <button type="button" className={BTN} disabled={!d || mau.length >= (d?.thanhPhan.length ?? 0)}
+            onClick={() => setMau(m => [...m, { ten: (d?.thanhPhan ?? []).find(n => !m.some(x => x.ten === n)) ?? 'GỖ', xuong, tuyen: [] }])}>
+            <Plus size={14} /> Thêm thành phần
           </button>
+          {dsChon.length === 1 && (tp[dsChon[0].hex] ?? []).length > 0 && (
+            <button type="button" className={BTN} onClick={() => setMau(tp[dsChon[0].hex])}>Lấy thành phần của {dsChon[0].hex}</button>
+          )}
+          <button type="button" className={BTN} disabled={!mau.length || !dsChon.length || !!loiTp(mau)}
+            onClick={() => setTp(x => ({ ...x, ...Object.fromEntries(dsChon.map(h => [h.hex, mau])) }))}>
+            <Check size={14} /> Áp cho {dsChon.length} hạng mục đã chọn
+          </button>
+          {mau.length > 0 && loiTp(mau) && <span className="text-xs text-amber-700">{loiTp(mau)}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
           <p className="text-sm text-slate-600">
-            {sanSang.length} / {dsChon.length} hạng mục sẵn sàng (có số lượng &gt; 0 và tuyến).
-            {dsChon.length > sanSang.length && <span className="text-amber-700"> Hạng mục thiếu số lượng hoặc tuyến sẽ không được triển khai.</span>}
+            {sanSang.length} / {dsChon.length} hạng mục sẵn sàng (có số lượng &gt; 0 và thành phần hợp lệ).
+            {dsChon.length > sanSang.length && <span className="text-amber-700"> Hạng mục thiếu số lượng hoặc thành phần / tuyến sẽ không được triển khai.</span>}
           </p>
           <button type="button" className={`${BTN_CHINH} ml-auto`} disabled={!sanSang.length || gui} onClick={trienKhai}>
             <Rocket size={14} /> Triển khai {sanSang.length} hạng mục
