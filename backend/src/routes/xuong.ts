@@ -772,6 +772,12 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       }
       return ten;
     };
+    /** Lúc bắt đầu / tiếp tục gần nhất của cặp — hạng mục tạm ngưng: "Tiếp tục" chọn sẵn người của lần chạy trước */
+    const lanChayCuoi = (hex: string, cd: string): Date | null => {
+      let t: Date | null = null;
+      for (const c of chia.rows) if (c.loai !== 'chia_nguoi' && String(c.hex) === hex && String(c.cong_doan_id) === cd) t = new Date(c.ts);
+      return t;
+    };
     const soNguoiChia = (hex: string, cd: string, tu: Date | null): number | null => {
       if (!tu) return null;
       let n: number | null = null;
@@ -798,7 +804,10 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
       const tu = x.dang_chay_tu ? new Date(x.dang_chay_tu) : null;
       return {
-        ...d, soNguoi: n ?? d.soNguoi, nguoi: x.trang_thai === 'dang_lam' ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : null,
+        ...d, soNguoi: n ?? d.soNguoi,
+        nguoi: x.trang_thai === 'dang_lam' ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu)
+          : x.trang_thai === 'tam_ngung' ? tenDangLam(String(x.hex), String(x.cong_doan_id), lanChayCuoi(String(x.hex), String(x.cong_doan_id)))
+          : null,
         goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [],
         // Công đoạn cuối tuyến: Xong là hết (app hiện "Xong — hết tuyến", không vào Chờ giao)
         cuoiTuyen: cuoiTuyen.has(pairKey(String(x.hex), String(x.cong_doan_id))),
@@ -1235,6 +1244,8 @@ app.get('/api/xuong/lich-su', async (req: Request, res: Response) => {
         tenCongDoanDen: x.ten_cd_den, soLuong: num(x.so_luong), soNguoi: x.so_nguoi, lyDo: x.ly_do_tam_ngung,
         duLieu: x.du_lieu, luc: x.device_ts_hieu_chinh, nguoi: x.full_name || x.username || null,
         tenHangMuc: x.hex ? (info.get(String(x.hex))?.ten_hang_muc ?? null) : null,
+        // Đơn vị của hạng mục ("Giao 1 SET", trước luôn "cái")
+        dvt: x.hex ? (info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex))!.dvt).trim() : null) : null,
         daHuy: !!x.da_huy,
         huyDuoc: !x.da_huy && ((Number(x.sent_by) === me && now - new Date(x.server_ts).getTime() <= HUY_TRONG_MS)
           || quanLyDuoc(quanLy, x.xuong ?? null)),

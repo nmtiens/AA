@@ -384,7 +384,7 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
           {sl < toiDa && <p className={CHU_PHU}>Còn {hienSl(toiDa - sl)} {dv} ở lại tổ.</p>}
         </div>
         <div className="space-y-2">
-          <p className="text-base font-medium text-slate-800">Giao sang</p>
+          {!(hetTuyen && !doiCho) && <p className="text-base font-medium text-slate-800">Giao sang</p>}
           {hetTuyen && !doiCho && (
             <p className="flex flex-wrap items-center gap-x-2 text-base text-slate-700">
               Công đoạn cuối tuyến — xong là hạng mục xong ở xưởng, không cần giao.
@@ -403,7 +403,7 @@ export function GiaoSheet({ r, cheDo, dm, xuong, anhBat, onXacNhan, onClose }: {
         <ChonNgayThucHien value={ngay} onChange={setNgay} />
         {anhBat && (
           <div className="space-y-2">
-            <p className="text-base font-medium text-slate-800">Ảnh hàng lúc giao</p>
+            <p className="text-base font-medium text-slate-800">{hetTuyen && !den ? 'Ảnh hàng lúc xong' : 'Ảnh hàng lúc giao'}</p>
             <ChonAnh anh={anh} onDoi={setAnh} />
           </div>
         )}

@@ -21,7 +21,15 @@ const docJson = async (r: Response) => r.json().catch(() => ({ success: false, m
  * Đăng ký máy với server (lần đầu bằng JWT thường của app; về sau gia hạn bằng chính token Xưởng).
  * Lưu token Xưởng + mã thiết bị vào localStorage và đo lệch đồng hồ ngay.
  */
-export async function dangKyThietBi(): Promise<DangKyKetQua> {
+/** Lượt đăng ký đang chạy — gọi trùng (2 màn cùng mở, bấm "Thử lại" liên tục, React dev chạy hiệu ứng 2 lần) dùng chung,
+ *  khỏi cấp 2 mã máy cho cùng một máy */
+let dangDangKy: Promise<DangKyKetQua> | null = null;
+export function dangKyThietBi(): Promise<DangKyKetQua> {
+  if (!dangDangKy) dangDangKy = dangKyMot().finally(() => { dangDangKy = null; });
+  return dangDangKy;
+}
+
+async function dangKyMot(): Promise<DangKyKetQua> {
   let deviceToken: string | null = null;
   try { deviceToken = localStorage.getItem(XUONG_DEVICE_KEY); } catch { /* bỏ qua */ }
   try {
@@ -75,6 +83,8 @@ export interface DongLichSu {
   id: string; loai: string; hex: string | null; congDoanId: string | null; tenCongDoan: string | null;
   tenCongDoanDen: string | null; soLuong: number | null; soNguoi: number | null; lyDo: string | null;
   duLieu: Record<string, unknown> | null; luc: string; nguoi: string | null; tenHangMuc: string | null;
+  /** Đơn vị của hạng mục */
+  dvt?: string | null;
   daHuy: boolean; huyDuoc: boolean;
 }
 export interface CongNhanTim {

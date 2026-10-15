@@ -67,12 +67,13 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
         Số liệu app: các công đoạn bắt đầu từ {ngayVi(t.tu)} tới {ngayVi(t.den)}{d.chiTo ? ' — chỉ công đoạn tổ của bạn' : ''} (bỏ thao tác đã huỷ).
         <b> Giờ trong ca</b> = phần thời gian chạy nằm trong ca chính (trừ nghỉ trưa, bỏ Chủ nhật, không gồm tăng ca); công đoạn đang chạy tính tới bây giờ;
         <b> ngày lịch</b> = tính cả đêm. <b>Ngày trong xưởng</b> chỉ tính hạng mục đã xong mọi công đoạn đã nhận.
-        Trung vị (TV) = mức giữa, P75 = 3/4 số hạng mục nhanh hơn mức này — dùng làm mốc khi lập kế hoạch. Giờ công theo người xem ở tab Theo tổ / Theo hạng mục.
+        <b>Thường mất</b> = mức giữa (một nửa hạng mục nhanh hơn, một nửa chậm hơn); <b>Nên hẹn</b> = 3/4 số hạng mục xong trong mức này —
+        dùng làm mốc khi lập kế hoạch. Giờ công theo người xem ở tab Theo tổ / Theo hạng mục.
       </p>
 
       <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
         <The ten="Hạng mục đã qua xưởng" giaTri={so(t.soHm, 0)} phu={`${so(t.soHmXong, 0)} đã xong · ${so(t.soCap, 0)} lượt công đoạn`} />
-        <The ten="Ngày trong xưởng (TV)" giaTri={`${so(t.ngayTv)} ngày`} phu={`P75: ${so(t.ngayP75)} ngày`} />
+        <The ten="Ngày trong xưởng (thường mất)" giaTri={`${so(t.ngayTv)} ngày`} phu={`Nên hẹn: ${so(t.ngayP75)} ngày`} />
         <The ten="Giờ trong ca (tổng)" giaTri={so(t.gioCa, 0)} phu="cộng mọi công đoạn" />
         <The ten="Tạm ngưng" giaTri={`${so(t.soNgung, 0)} lần`} phu={`${so(t.gioNgung / 24, 0)} ngày lịch cộng dồn`} />
         <The ten="Công đoạn có số liệu" giaTri={so((d.congDoan ?? []).length, 0)} phu="xem bảng bên dưới" />
@@ -85,7 +86,7 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
         </p>
       )}
       {coBieuDo && <div className="grid gap-3 rlg:grid-cols-2">
-        {cdBieuDo.length > 0 && <Khung ten="Mỗi hạng mục chạy bao lâu ở từng công đoạn" phu="Giờ trong ca: xanh = trung vị, vàng = thêm tới P75 (công đoạn chậm lên trên)">
+        {cdBieuDo.length > 0 && <Khung ten="Mỗi hạng mục chạy bao lâu ở từng công đoạn" phu="Giờ trong ca: xanh = thường mất, vàng = thêm cho tới mức nên hẹn (công đoạn chậm lên trên)">
           <div style={{ height: Math.max(180, cdBieuDo.length * 28 + 40) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={cdBieuDo} layout="vertical" margin={{ top: 4, right: 12, left: 8, bottom: 0 }}>
@@ -93,14 +94,14 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
                 <XAxis type="number" tick={{ fontSize: 11 }} unit=" g" />
                 <YAxis type="category" dataKey="ten" width={110} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number, ten: string) => [`${so(v)} giờ`, ten]} />
-                <Bar dataKey="tv" name="Trung vị" stackId="a" fill={XANH} />
-                <Bar dataKey="p75" name="Thêm tới P75" stackId="a" fill={VANG} radius={[0, 3, 3, 0]} />
+                <Bar dataKey="tv" name="Thường mất" stackId="a" fill={XANH} />
+                <Bar dataKey="p75" name="Thêm cho tới mức nên hẹn" stackId="a" fill={VANG} radius={[0, 3, 3, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Khung>}
 
-        {nhom.length > 0 && <Khung ten="Ngày nằm trong xưởng theo nhóm sản phẩm" phu="Từ thao tác đầu tới lần xong / giao cuối · trung vị và P75">
+        {nhom.length > 0 && <Khung ten="Ngày nằm trong xưởng theo nhóm sản phẩm" phu="Từ thao tác đầu tới lần xong / giao cuối · thường mất và nên hẹn (3/4 hạng mục xong kịp)">
           <div style={{ height: Math.max(180, nhom.length * 30 + 40) }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={nhom.map(n => ({ ten: n.ten, tv: n.ngayTv, p75: n.ngayP75 }))} layout="vertical" margin={{ top: 4, right: 12, left: 8, bottom: 0 }}>
@@ -109,8 +110,8 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
                 <YAxis type="category" dataKey="ten" width={110} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number, ten: string) => [`${so(v)} ngày`, ten]} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="tv" name="Trung vị" fill={LAM} />
-                <Bar dataKey="p75" name="P75" fill="#93c5fd" />
+                <Bar dataKey="tv" name="Thường mất" fill={LAM} />
+                <Bar dataKey="p75" name="Nên hẹn" fill="#93c5fd" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -150,8 +151,8 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
         <table className="w-full min-w-[44rem] text-sm rmd:min-w-0">
           <thead className="bg-slate-50"><tr>
             <th className={TH}>Công đoạn</th><th className={`${TH} text-right`}>Hạng mục</th><th className={`${TH} text-right`}>SL xong</th>
-            <th className={`${TH} text-right`}>Giờ trong ca TV</th><th className={`${TH} text-right`}>P75</th><th className={`${TH} text-right`}>Ngày lịch TV</th>
-            <th className={`${TH} text-right`}>Giờ / đơn vị TV</th><th className={`${TH} text-right`}>Tạm ngưng</th>
+            <th className={`${TH} text-right`}>Giờ trong ca (thường mất)</th><th className={`${TH} text-right`}>Giờ nên hẹn</th><th className={`${TH} text-right`}>Ngày lịch (thường mất)</th>
+            <th className={`${TH} text-right`}>Giờ / đơn vị (thường mất)</th><th className={`${TH} text-right`}>Tạm ngưng</th>
           </tr></thead>
           <tbody>
             {(d.congDoan ?? []).map(c => (
@@ -169,7 +170,8 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
           </tbody>
         </table>
         <p className="border-t border-slate-100 px-4 py-2 text-xs text-slate-500">
-          Giờ trong ca TV / P75: thời gian công đoạn đang chạy (tính trong ca chính) (không phải giờ công người — xem tab Theo tổ / Theo hạng mục).
+          Giờ trong ca: thời gian công đoạn chạy, chỉ tính trong ca chính (không phải giờ công người — xem tab Theo tổ / Theo hạng mục).
+          Ngày lịch: tính cả đêm và ngày nghỉ.
           Giờ / đơn vị theo đơn vị của hạng mục (bộ, cái, tấm…).
         </p>
       </div>
@@ -180,7 +182,7 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
           <table className="w-full text-sm">
             <thead className="bg-slate-50"><tr>
               <th className={TH}>Nhóm</th><th className={`${TH} text-right`}>Hạng mục</th><th className={`${TH} text-right`}>Đã xong</th>
-              <th className={`${TH} text-right`}>Ngày trong xưởng TV</th><th className={`${TH} text-right`}>P75</th><th className={`${TH} text-right`}>Giờ trong ca TV / HM</th>
+              <th className={`${TH} text-right`}>Ngày trong xưởng (thường mất)</th><th className={`${TH} text-right`}>Ngày nên hẹn</th><th className={`${TH} text-right`}>Giờ trong ca / hạng mục (thường mất)</th>
             </tr></thead>
             <tbody>
               {(d.nhom ?? []).map(n => (

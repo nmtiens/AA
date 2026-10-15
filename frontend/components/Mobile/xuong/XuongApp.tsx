@@ -69,7 +69,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   /** Báo số tổ tài khoản làm tổ trưởng (tổ trưởng => app ẩn Tổng quan, mục Quản lý chỉ số liệu tổ mình) */
   onSoTo?: (n: number) => void;
 }) {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   // Quản lý / kế hoạch xưởng: triển khai gọn trên điện thoại (7A). Backend kiểm lại quyền theo xưởng.
   const laQuanLy = hasPermission('xuong_quan_ly');
   const quetDeTrienKhai = useRef(false);
@@ -137,10 +137,11 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   // Quản lý chưa gán tổ: mở app vào thẳng Tổng quan (màn Tổ của họ trống) — chỉ lần đầu khi mở app ở mục Tổ
   const daXetTongQuan = useRef(false);
   useEffect(() => {
-    if (daXetTongQuan.current || !phien || dangKy !== 'ok') return;
+    // Chờ tải xong tài khoản (quyền quản lý) — trước đó laQuanLy luôn false, xét sớm thì không bao giờ mở Tổng quan
+    if (daXetTongQuan.current || !phien || dangKy !== 'ok' || !user) return;
     daXetTongQuan.current = true;
     if (dangXem && laQuanLy && phien.to.length === 0 && !toNgoai) onTongQuan();
-  }, [phien, dangKy, dangXem, laQuanLy, toNgoai, onTongQuan]);
+  }, [phien, dangKy, dangXem, laQuanLy, toNgoai, onTongQuan, user]);
   useEffect(() => {
     if (!cv || !toId || daChonTab.current === toId || cv.to?.id !== toId) return;
     daChonTab.current = toId;

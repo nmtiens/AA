@@ -71688,6 +71688,11 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       }
       return ten;
     };
+    const lanChayCuoi = (hex3, cd) => {
+      let t = null;
+      for (const c of chia.rows) if (c.loai !== "chia_nguoi" && String(c.hex) === hex3 && String(c.cong_doan_id) === cd) t = new Date(c.ts);
+      return t;
+    };
     const soNguoiChia = (hex3, cd, tu) => {
       if (!tu) return null;
       let n = null;
@@ -71717,7 +71722,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       return {
         ...d,
         soNguoi: n ?? d.soNguoi,
-        nguoi: x.trang_thai === "dang_lam" ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : null,
+        nguoi: x.trang_thai === "dang_lam" ? tenDangLam(String(x.hex), String(x.cong_doan_id), tu) : x.trang_thai === "tam_ngung" ? tenDangLam(String(x.hex), String(x.cong_doan_id), lanChayCuoi(String(x.hex), String(x.cong_doan_id))) : null,
         goiYKe: goiY.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? [],
         // Công đoạn cuối tuyến: Xong là hết (app hiện "Xong — hết tuyến", không vào Chờ giao)
         cuoiTuyen: cuoiTuyen.has(pairKey(String(x.hex), String(x.cong_doan_id))),
@@ -72161,6 +72166,8 @@ app.get("/api/xuong/lich-su", async (req, res) => {
         luc: x.device_ts_hieu_chinh,
         nguoi: x.full_name || x.username || null,
         tenHangMuc: x.hex ? info.get(String(x.hex))?.ten_hang_muc ?? null : null,
+        // Đơn vị của hạng mục ("Giao 1 SET", trước luôn "cái")
+        dvt: x.hex ? info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex)).dvt).trim() : null : null,
         daHuy: !!x.da_huy,
         huyDuoc: !x.da_huy && (Number(x.sent_by) === me2 && now - new Date(x.server_ts).getTime() <= HUY_TRONG_MS || quanLyDuoc(quanLy, x.xuong ?? null))
       }))
