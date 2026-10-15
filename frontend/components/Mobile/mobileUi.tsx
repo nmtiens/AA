@@ -1,7 +1,7 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { X, ClipboardList } from 'lucide-react';
+import { TrangDangNhap } from '../DangNhapChung';
 import type { VuongMacRow } from '../../services/vuongMacService';
 
 // ============================================================================
@@ -95,76 +95,14 @@ export function BottomSheet({ title, onClose, children, footer, headerExtra }: {
 }
 
 // ---------------- Đăng nhập ----------------
-// Đăng nhập ngay trong /m/ (không phải sang trang desktop nên không ra khỏi scope của app đã cài)
-export function MobileLogin({ onSuccess, tieuDe = 'Vướng mắc sản xuất', bieuTuong = '📋' }: { onSuccess: () => void; tieuDe?: string; bieuTuong?: string }) {
-  const { login } = useAuth();
-  const [username, setUsername] = useState(localStorage.getItem('saved_username') || '');
-  const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!username.trim() || !password) { setErr('Vui lòng nhập đầy đủ thông tin'); return; }
-    setBusy(true); setErr('');
-    // rememberMe = true: token vào localStorage để app đã cài giữ được phiên
-    const r = await login(username.trim(), password, true);
-    setBusy(false);
-    if (r.success) {
-      localStorage.setItem('saved_username', username.trim());
-      onSuccess();
-    } else {
-      setErr(r.message || 'Đăng nhập thất bại');
-    }
-  };
-
+// Đăng nhập ngay trong /m/ (không phải sang trang desktop nên không ra khỏi scope của app đã cài).
+// Luồng và giao diện dùng chung với trang máy tính (components/DangNhapChung.tsx: Đăng nhập · Ghi nhớ · Quên mật khẩu
+// qua mã OTP); "Ghi nhớ" bật sẵn để app đã cài giữ được phiên.
+export function MobileLogin({ onSuccess, tieuDe = 'Vướng mắc sản xuất', bieuTuong }: { onSuccess: () => void; tieuDe?: string; bieuTuong?: ReactNode }) {
   return (
-    <div className={`flex min-h-[100dvh] flex-col justify-center ${BG} px-5 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]`}>
-      <div className="mx-auto w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-3xl text-white">{bieuTuong}</div>
-          <h1 className="text-2xl font-semibold text-slate-900">{tieuDe}</h1>
-          <p className="mt-1 text-base text-slate-500">Đăng nhập bằng tài khoản Operations Hub</p>
-        </div>
-        <form onSubmit={submit} className={`${CARD} space-y-3 p-5`}>
-          <LabeledField label="Tài khoản">
-            <input
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Nhập tài khoản"
-              autoCapitalize="none"
-              autoCorrect="off"
-              autoComplete="username"
-              className={inputCls}
-            />
-          </LabeledField>
-          <LabeledField label="Mật khẩu">
-            <div className="relative">
-              <input
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu"
-                autoComplete="current-password"
-                className={`${inputCls} pr-16`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPw(v => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-base text-slate-500 active:bg-slate-100"
-              >
-                {showPw ? 'Ẩn' : 'Hiện'}
-              </button>
-            </div>
-          </LabeledField>
-          {err && <p className="rounded-xl bg-red-50 px-3 py-2 text-base text-red-700">{err}</p>}
-          <button type="submit" disabled={busy} className={btnPrimary}>
-            {busy ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </button>
-        </form>
-      </div>
-    </div>
+    <TrangDangNhap bieuTuong={bieuTuong ?? <ClipboardList className="h-7 w-7" strokeWidth={2} aria-hidden />}
+      ten={tieuDe} moTa="Báo và theo dõi vướng mắc sản xuất" chan="Tài khoản do quản trị viên cấp · © 2026 Operations Hub"
+      macDinhGhiNho baoMatSong sauDangNhap={onSuccess} />
   );
 }
 
