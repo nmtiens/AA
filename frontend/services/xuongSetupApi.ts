@@ -231,6 +231,8 @@ function dauXacThuc(): Record<string, string> {
 export interface TongQuanTo {
   id: number; ten: string; toTruong: string | null; quanSo: number | null;
   dangChay: number; tamNgung: number; choNhan: number; choGiao: number; canXem: number; thaoTacCuoi: string | null;
+  /** Đã nhận, chưa bắt đầu */
+  chuaBatDau?: number;
   /** Chấm công hôm nay (null = máy chủ chưa bật chấm công theo người) */
   diemDanh?: {
     daDiemDanh: boolean; coMat: number; tong: number;

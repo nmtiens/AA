@@ -73115,6 +73115,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
             ORDER BY e.device_ts_hieu_chinh DESC LIMIT 1) AS quan_so,
          count(s.*) FILTER (WHERE s.trang_thai = 'dang_lam')::int AS dang_chay,
          count(s.*) FILTER (WHERE s.trang_thai = 'tam_ngung')::int AS tam_ngung,
+         count(s.*) FILTER (WHERE s.trang_thai = 'da_nhan')::int AS da_nhan,
          count(s.*) FILTER (WHERE s.sl_giao_den > s.sl_nhan)::int AS cho_nhan,
          count(s.*) FILTER (WHERE s.sl_hoan_thanh > s.sl_giao)::int AS cho_giao,
          count(s.*) FILTER (WHERE s.co <> '{}')::int AS can_xem,
@@ -73129,6 +73130,21 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
        ORDER BY t.ten_to`,
       [xuong]
     );
+    const choNhanTo = /* @__PURE__ */ new Map();
+    {
+      const cap = (await pool.query(
+        `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
+           JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
+         WHERE t.xuong = $1 AND t.active`,
+        [xuong]
+      )).rows;
+      const gh = await gioiHanNhan(pool, cap.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+      for (const x of cap) {
+        const g = gh.get(`${x.hex}|${x.cong_doan_id}`);
+        if (g && g.moc !== null && g.moc - g.daNhan <= 5e-4) continue;
+        choNhanTo.set(Number(x.to_id), (choNhanTo.get(Number(x.to_id)) ?? 0) + 1);
+      }
+    }
     const diemDanh = /* @__PURE__ */ new Map();
     if (r.rows.length && await coBangCongNhan()) {
       const ids = r.rows.map((x) => Number(x.id));
@@ -73185,9 +73201,11 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         quanSo: x.quan_so === null ? null : Number(x.quan_so),
         dangChay: x.dang_chay,
         tamNgung: x.tam_ngung,
-        choNhan: x.cho_nhan,
+        choNhan: choNhanTo.get(Number(x.id)) ?? 0,
         choGiao: x.cho_giao,
         canXem: x.can_xem,
+        // Đã nhận, chưa bắt đầu (màn tổ: tab Đang làm, nhóm "Chưa bắt đầu")
+        chuaBatDau: x.da_nhan,
         thaoTacCuoi: x.thao_tac_cuoi,
         diemDanh: diemDanh.get(Number(x.id)) ?? null
       }))

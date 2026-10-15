@@ -7,7 +7,7 @@ import { invalidateUserAccess } from '../server/permissions.js';
 import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
   fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, suaChoGiaoCuoiTuyen, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
-  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc,
+  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc, gioiHanNhan,
 } from './xuong.js';
 import { suKienConHieuLuc, THANH_PHAN, tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { ensureWorkshopGroups, workshopGroupSql } from '../server/workshopGroups.js';
@@ -121,6 +121,7 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
             ORDER BY e.device_ts_hieu_chinh DESC LIMIT 1) AS quan_so,
          count(s.*) FILTER (WHERE s.trang_thai = 'dang_lam')::int AS dang_chay,
          count(s.*) FILTER (WHERE s.trang_thai = 'tam_ngung')::int AS tam_ngung,
+         count(s.*) FILTER (WHERE s.trang_thai = 'da_nhan')::int AS da_nhan,
          count(s.*) FILTER (WHERE s.sl_giao_den > s.sl_nhan)::int AS cho_nhan,
          count(s.*) FILTER (WHERE s.sl_hoan_thanh > s.sl_giao)::int AS cho_giao,
          count(s.*) FILTER (WHERE s.co <> '{}')::int AS can_xem,
@@ -133,6 +134,21 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
        WHERE t.xuong = $1 AND t.active
        GROUP BY t.id, t.ten_to, u.full_name
        ORDER BY t.ten_to`, [xuong]);
+    // Chờ nhận: cùng quy tắc màn tổ — bỏ dòng đã nhận đủ số triển khai / đơn hàng (số chỉ có đủ, không vượt;
+    // dữ liệu ghi trước khi có giới hạn có thể "giao tới" nhiều hơn)
+    const choNhanTo = new Map<number, number>();
+    {
+      const cap = (await pool.query(
+        `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
+           JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
+         WHERE t.xuong = $1 AND t.active`, [xuong])).rows;
+      const gh = await gioiHanNhan(pool, cap.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+      for (const x of cap) {
+        const g = gh.get(`${x.hex}|${x.cong_doan_id}`);
+        if (g && g.moc !== null && g.moc - g.daNhan <= 0.0005) continue;
+        choNhanTo.set(Number(x.to_id), (choNhanTo.get(Number(x.to_id)) ?? 0) + 1);
+      }
+    }
     // Chấm công hôm nay theo tổ: có mặt / tổng danh sách, vắng, trễ, về sớm (ca chính / Chủ nhật)
     type NguoiDd = { mnv: string; hoTen: string };
     const diemDanh = new Map<number, {
@@ -180,7 +196,9 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
       success: true, available: true, dsXuong, xuong,
       to: r.rows.map(x => ({
         id: Number(x.id), ten: x.ten_to, toTruong: x.to_truong ?? null, quanSo: x.quan_so === null ? null : Number(x.quan_so),
-        dangChay: x.dang_chay, tamNgung: x.tam_ngung, choNhan: x.cho_nhan, choGiao: x.cho_giao, canXem: x.can_xem,
+        dangChay: x.dang_chay, tamNgung: x.tam_ngung, choNhan: choNhanTo.get(Number(x.id)) ?? 0, choGiao: x.cho_giao, canXem: x.can_xem,
+        // Đã nhận, chưa bắt đầu (màn tổ: tab Đang làm, nhóm "Chưa bắt đầu")
+        chuaBatDau: x.da_nhan,
         thaoTacCuoi: x.thao_tac_cuoi, diemDanh: diemDanh.get(Number(x.id)) ?? null,
       })),
     });

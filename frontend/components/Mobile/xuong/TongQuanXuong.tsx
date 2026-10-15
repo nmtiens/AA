@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ChevronRight, AlertTriangle, Users, Play, Pause, Inbox, PackageCheck, Rocket } from 'lucide-react';
+import { RefreshCw, ChevronRight, AlertTriangle, Users, Play, Pause, Inbox, PackageCheck, Rocket, Circle } from 'lucide-react';
 import { BottomSheet, Toast } from '../mobileUi';
 import TrienKhaiGon from './TrienKhaiGon';
 import QuetQr from './QuetQr';
@@ -103,7 +103,7 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
   const [moVang, setMoVang] = useState(false);
   // Lọc "cần chú ý": tổ có việc mà chưa điểm danh / chốt quân số, có thao tác cần xem, hoặc hạng mục tạm ngưng
   const [chuY, setChuY] = useState(false);
-  const canChuY = (t: TongQuanTo) => (t.quanSo === null && !t.diemDanh?.daDiemDanh && (t.dangChay + t.tamNgung + t.choNhan) > 0)
+  const canChuY = (t: TongQuanTo) => (t.quanSo === null && !t.diemDanh?.daDiemDanh && (t.dangChay + t.tamNgung + t.choNhan + (t.chuaBatDau ?? 0)) > 0)
     || t.canXem > 0 || t.tamNgung > 0;
   const coDd = (d?.to ?? []).filter(t => t.diemDanh?.daDiemDanh);
   const dd = coDd.reduce((a, t) => ({
@@ -112,7 +112,7 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
   }), { coMat: 0, tong: 0, vang: 0, tre: 0, veSom: 0 });
 
   const tong = (d?.to ?? []).reduce((a, t) => ({
-    chuaChot: a.chuaChot + (t.quanSo === null && (t.dangChay + t.tamNgung + t.choNhan) > 0 ? 1 : 0),
+    chuaChot: a.chuaChot + (t.quanSo === null && (t.dangChay + t.tamNgung + t.choNhan + (t.chuaBatDau ?? 0)) > 0 ? 1 : 0),
     dangChay: a.dangChay + t.dangChay, choNhan: a.choNhan + t.choNhan, canXem: a.canXem + t.canXem,
   }), { chuaChot: 0, dangChay: 0, choNhan: 0, canXem: 0 });
 
@@ -212,7 +212,7 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
         {d && d.to.length > 0 && (
           <ul className={`${KHOI} ${KE} rmd:grid rmd:grid-cols-2 rmd:gap-px rmd:divide-y-0 rmd:bg-slate-100`}>
             {d.to.filter(t => !chuY || canChuY(t)).map(t => {
-              const coViec = t.dangChay + t.tamNgung + t.choNhan > 0;
+              const coViec = t.dangChay + t.tamNgung + t.choNhan + (t.chuaBatDau ?? 0) > 0;
               return (
                 <li key={t.id} className="bg-white">
                   <button className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50" onClick={() => onChonTo({ id: t.id, ten: t.ten, xuong: d.xuong! })}>
@@ -229,6 +229,7 @@ export default function TongQuanXuong({ onChonTo, onMoKeHoach }: {
                           : coViec && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><Users size="1em" aria-hidden /> {t.diemDanh ? 'Chưa điểm danh' : 'Chưa chốt quân số'}</span>}
                         {t.dangChay > 0 && <span className={`inline-flex items-center gap-1 ${MAU.chay.chu}`}><Play size="1em" aria-hidden /> {t.dangChay} đang chạy</span>}
                         {t.tamNgung > 0 && <span className={`inline-flex items-center gap-1 ${MAU.ngung.chu}`}><Pause size="1em" aria-hidden /> {t.tamNgung} tạm ngưng</span>}
+                        {(t.chuaBatDau ?? 0) > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><Circle size="1em" aria-hidden /> {t.chuaBatDau} chưa bắt đầu</span>}
                         {t.choNhan > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><Inbox size="1em" aria-hidden /> {t.choNhan} chờ nhận</span>}
                         {t.choGiao > 0 && <span className="inline-flex items-center gap-1 text-slate-700"><PackageCheck size="1em" aria-hidden /> {t.choGiao} chờ giao</span>}
                         {t.canXem > 0 && <span className={`inline-flex items-center gap-1 font-medium ${MAU.loi.chu}`}><AlertTriangle size="1em" aria-hidden /> {t.canXem} cần xem</span>}
