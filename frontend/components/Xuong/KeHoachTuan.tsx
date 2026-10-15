@@ -70,6 +70,13 @@ export function tinhTrang(r: KeHoachTuanDong, tuanDaQua: boolean, homNay: string
   else if (dangO.length) t = { ma: 'dang_lam', ten: 'Đang làm', muc: 1, chiTiet: dangO.join(', ') };
   else if (cd.length && cd.every(c => c.slHoanThanh > 0 && c.slHoanThanh >= c.slNhan)) t = { ma: 'cho_nk', ten: 'Xong xưởng, chờ nhập kho', muc: 1 };
   else t = { ma: 'cho_chay', ten: 'Đã nhận, chưa chạy', muc: 2, chiTiet: cd.filter(c => c.slNhan > c.slHoanThanh).map(c => c.ten).join(', ') };
+  // Dự báo theo mốc "thường mất" các công đoạn còn lại (MRA cũ / app): không kịp ngày KHNK => cảnh báo trước khi rớt
+  const db = r.duBao;
+  if (db && !tuanDaQua && t.ma !== 'cho_nk' && t.muc < 3) {
+    const cau = `cần ~${so(db.canNgay)} ngày (${db.tenConLai.join(' → ')}), còn ${so(db.conNgay)} ngày tới ${r.ngayKhnk ? `KHNK ${ddmm(r.ngayKhnk)}` : 'hết tuần'}`;
+    if (db.muc === 'rot') t = { ma: 'nguy_co', ten: 'Nguy cơ rớt', muc: 3, chiTiet: [`Nguy cơ rớt: ${cau}`, t.chiTiet].filter(Boolean).join(' · ') };
+    else if (db.muc === 'sat') t = { ...t, muc: Math.max(t.muc, 2) as Muc, chiTiet: [`Sát hạn: ${cau}`, t.chiTiet].filter(Boolean).join(' · ') };
+  }
   if (quaKhnk && t.muc < 3 && t.ma !== 'dat') {
     t = { ...t, muc: Math.max(t.muc, 2) as Muc, chiTiet: [`Quá ngày KHNK ${ddmm(r.ngayKhnk!)}`, t.chiTiet].filter(Boolean).join(' · ') };
   }
@@ -185,6 +192,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
       <p className="text-xs text-slate-600">
         Xem theo tuần kế hoạch (KHSX), không theo khoảng ngày ở trên. Nhập kho có số liệu tới {kh?.nhapKhoMoiNhat ? ddmm(kh.nhapKhoMoiNhat) : '—'}.
         {kh?.chiTo && <b> Chỉ hạng mục đi qua công đoạn tổ của bạn (kế hoạch, nhập kho, biểu đồ).</b>}
+        {kh?.keHoach.some(r => r.duBao) && ' Dự báo nguy cơ rớt: cộng số ngày "thường mất" của các công đoạn còn lại (số liệu app; công đoạn chưa đủ 10 hạng mục trên app dùng lịch sử MRA cũ).'}
       </p>
 
       {loi && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
@@ -209,6 +217,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
             <p className="flex items-center gap-2 text-sm font-semibold text-red-800"><AlertTriangle size={16} /> Cần xử lý</p>
             <ul className="space-y-1 text-sm">
               {[
+                ['nguy_co', 'hạng mục NGUY CƠ RỚT — các công đoạn còn lại thường mất lâu hơn số ngày còn tới KHNK', 'text-red-800', 'Ưu tiên, thêm người / tăng ca, hoặc báo kế hoạch dời ngày'],
                 ['chua_tk', 'hạng mục kế hoạch CHƯA TRIỂN KHAI cho tổ', 'text-red-800', 'Mở Triển khai hạng mục để giao cho tổ'],
                 ['rot', 'hạng mục RỚT KẾ HOẠCH (tuần đã qua, chưa nhập kho)', 'text-red-800', 'Đưa vào kế hoạch tuần sau / báo kế hoạch'],
                 ['mot_phan', 'hạng mục NHẬP KHO CHƯA ĐỦ (tuần đã qua)', 'text-red-800', 'Làm nốt phần còn lại, báo kế hoạch'],

@@ -167,6 +167,11 @@ export interface KeHoachTuanDong {
   /** Nhập kho luỹ kế tới hết tuần (mọi lần) và giá trị đơn hàng — để nhận ra hạng mục đã nhập đủ từ trước tuần */
   nhapKhoLuyKe: number; giaTriDon: number | null;
   trienKhai: { sl: number; luc: string } | null; congDoan: KeHoachTuanCongDoan[];
+  /** Dự báo (tuần chưa qua, hạng mục có tuyến): ngày lịch còn cần theo mốc "thường mất" từng công đoạn còn lại */
+  duBao?: {
+    canNgay: number; conNgay: number; muc: 'rot' | 'sat' | 'kip'; nguonMoc: 'app' | 'mra' | 'ca_hai';
+    tenConLai: string[]; tenThieuMoc: string[];
+  } | null;
 }
 export interface KeHoachTuan {
   xuong: string; nam: number; tuan: number; tu: string; den: string; nhapKhoMoiNhat: string | null;

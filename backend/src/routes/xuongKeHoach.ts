@@ -4,7 +4,8 @@ import { app } from '../server/app.js';
 import { isoWeekRangeInYear } from '../server/common.js';
 import { numericCol, notCancelledHexCond } from '../server/data.js';
 import { ensureWorkshopGroups, workshopCondition } from '../server/workshopGroups.js';
-import { fail, phamViXem, COT_SU_KIEN, toSuKien } from './xuong.js';
+import { fail, phamViXem, COT_SU_KIEN, toSuKien, suKienTheoHex } from './xuong.js';
+import { mocChuanTheoCd, duBaoHangMuc, type DuBao } from '../server/xuong/duBao.js';
 import { tinhTrangThai } from '../server/xuong/state.js';
 import { dauNgayVN, NGAY } from '../server/xuong/mraLichSu.js';
 import type { SuKien } from '../server/xuong/types.js';
@@ -163,6 +164,36 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
     }
     for (const ds2 of cdTheoHex.values()) ds2.sort((a, b) => (Number(a.thuTu ?? 999) - Number(b.thuTu ?? 999)));
 
+    // ---- Dự báo nguy cơ rớt (tuần chưa qua): ngày lịch còn cần theo mốc "thường mất" từng công đoạn còn lại ----
+    const duBao = new Map<string, DuBao & { tenConLai: string[]; tenThieuMoc: string[] }>();
+    const now = Date.now();
+    const cuoiNgay = (ngay: string) => dauNgayVN(ngay) + NGAY;
+    if (hexKh.length && cuoiNgay(khoang.end) > now) {
+      const evApp = (await suKienTheoHex(pool, hexKh)).map(toSuKien);
+      const cdIdsTuyen = [...new Set(evApp.flatMap(e => {
+        const tp = Array.isArray(e.duLieu?.thanhPhan) ? (e.duLieu!.thanhPhan as Array<Record<string, unknown>>) : [];
+        const t = [...tp.flatMap(x => (Array.isArray(x?.tuyen) ? x.tuyen : [])), ...(Array.isArray(e.duLieu?.tuyen) ? (e.duLieu!.tuyen as unknown[]) : [])];
+        return t.map(String);
+      }))];
+      const cdR = cdIdsTuyen.length ? (await pool.query('SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIdsTuyen])).rows : [];
+      const tenCd = new Map(cdR.map(x => [String(x.id), String(x.cd_chi_tiet)]));
+      const moc = await mocChuanTheoCd([xuong, ...cdR.map(x => String(x.xuong))], toSuKien, COT_SU_KIEN);
+      for (const x of kh.rows) {
+        const hex = String(x.hex);
+        const daNhapDu = (Number(x.kh) || 0) > 0 && (nkMap.get(hex)?.tien ?? 0) >= (Number(x.kh) || 0) * 0.98;
+        if (daNhapDu) continue;
+        const slTk = tkMap.get(hex)?.sl ?? 0;
+        const st = new Map((cdTheoHex.get(hex) ?? []).map(c => [String(c.congDoanId), c]));
+        const xong = (cd: string) => {
+          const c = st.get(cd);
+          return !!c && (c.trangThai === 'xong' || (slTk > 0 && Number(c.slHoanThanh) >= slTk - 0.0005));
+        };
+        const han = x.ngay_khnk && cuoiNgay(String(x.ngay_khnk)) > now ? cuoiNgay(String(x.ngay_khnk)) : cuoiNgay(khoang.end);
+        const d = duBaoHangMuc(evApp.filter(e => e.hex === hex), moc, xong, han, now);
+        if (d) duBao.set(hex, { ...d, tenConLai: d.conLai.map(c => tenCd.get(c) ?? c), tenThieuMoc: d.thieuMoc.map(c => tenCd.get(c) ?? c) });
+      }
+    }
+
     const daCoKh = new Set(hexKh);
     res.json({
       success: true, xuong, chiTo: pv.chiTo, nam, tuan, tu: khoang.start, den: khoang.end, nhapKhoMoiNhat: nkMoiNhat,
@@ -179,6 +210,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
           // Không triển khai trên app nhưng có lịch sử MRA: coi như đã triển khai (làm theo MRA)
           trienKhai: tkMap.get(hex) ?? (mraTk.has(hex) ? { ...mraTk.get(hex)!, mra: true } : null),
           congDoan: cdTheoHex.get(hex) ?? [],
+          duBao: duBao.get(hex) ?? null,
         };
       }),
       // Nhập kho trong tuần của hạng mục KHÔNG có trong kế hoạch tuần

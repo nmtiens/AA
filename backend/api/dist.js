@@ -74054,6 +74054,72 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
   }
 });
 
+// src/server/xuong/duBao.ts
+var APP_TOI_THIEU = 10;
+var MRA_TOI_THIEU = 3;
+var trungVi2 = (a) => {
+  const s = [...a].sort((x, y) => x - y);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+async function mocChuanTheoCd(xuongs, toSuKien2, cot) {
+  const out = /* @__PURE__ */ new Map();
+  for (const xg of [...new Set(xuongs)]) {
+    const [app2, mra] = await Promise.all([taiCap(xg, "app", toSuKien2, cot), taiMra(xg, toSuKien2, cot)]);
+    const gom = (caps) => {
+      const m = /* @__PURE__ */ new Map();
+      for (const c of caps) {
+        if (c.xongCuoi === null || c.xongCuoi <= c.dau) continue;
+        if (!m.has(c.cd)) m.set(c.cd, []);
+        m.get(c.cd).push((c.xongCuoi - c.dau) / NGAY);
+      }
+      return m;
+    };
+    const a = gom(app2), b = gom(mra);
+    for (const cd of /* @__PURE__ */ new Set([...a.keys(), ...b.keys()])) {
+      const da = a.get(cd) ?? [], db = b.get(cd) ?? [];
+      if (da.length >= APP_TOI_THIEU) out.set(cd, { ngay: trungVi2(da), n: da.length, nguon: "app" });
+      else if (db.length >= MRA_TOI_THIEU) out.set(cd, { ngay: trungVi2(db), n: db.length, nguon: "mra" });
+      else if (da.length >= MRA_TOI_THIEU) out.set(cd, { ngay: trungVi2(da), n: da.length, nguon: "app" });
+    }
+  }
+  return out;
+}
+function duBaoHangMuc(evts, moc2, xong, hanCuoi, now) {
+  const tuyen = tuyenTheoThanhPhan(evts);
+  if (!tuyen.length) return null;
+  const hl = suKienConHieuLuc(evts);
+  const dauTai = /* @__PURE__ */ new Map();
+  for (const e of hl) if (e.congDoanId && e.loai !== "trien_khai" && e.loai !== "khai_bao_cd") {
+    dauTai.set(e.congDoanId, Math.min(dauTai.get(e.congDoanId) ?? Infinity, e.ts));
+  }
+  let tot = null;
+  const thieuMoc = /* @__PURE__ */ new Set();
+  for (const t of tuyen) {
+    let can = 0;
+    const conLai = [];
+    const nguon = /* @__PURE__ */ new Set();
+    for (const cd of t.tuyen) {
+      if (xong(cd)) continue;
+      conLai.push(cd);
+      const m = moc2.get(cd);
+      if (!m) {
+        thieuMoc.add(cd);
+        continue;
+      }
+      nguon.add(m.nguon);
+      const daQua = dauTai.has(cd) ? (now - dauTai.get(cd)) / NGAY : 0;
+      can += dauTai.has(cd) ? Math.max(0.5, m.ngay - daQua) : m.ngay;
+    }
+    if (!tot || can > tot.can) tot = { can, conLai, nguon };
+  }
+  if (!tot || !tot.conLai.length) return null;
+  const conNgay = Math.max(0, (hanCuoi - now) / NGAY);
+  const muc = tot.can > conNgay ? "rot" : tot.can > conNgay * 0.8 ? "sat" : "kip";
+  const nguonMoc = tot.nguon.size > 1 ? "ca_hai" : tot.nguon.has("app") ? "app" : "mra";
+  return { canNgay: Math.round(tot.can * 10) / 10, conNgay: Math.round(conNgay * 10) / 10, muc, nguonMoc, thieuMoc: [...thieuMoc], conLai: tot.conLai };
+}
+
 // src/routes/xuongKeHoach.ts
 async function hexQuaCongDoan(hexes, cds) {
   if (!hexes.length || !cds.length) return /* @__PURE__ */ new Set();
@@ -74213,6 +74279,34 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
       }
     }
     for (const ds2 of cdTheoHex.values()) ds2.sort((a, b) => Number(a.thuTu ?? 999) - Number(b.thuTu ?? 999));
+    const duBao = /* @__PURE__ */ new Map();
+    const now = Date.now();
+    const cuoiNgay = (ngay) => dauNgayVN(ngay) + NGAY;
+    if (hexKh.length && cuoiNgay(khoang.end) > now) {
+      const evApp = (await suKienTheoHex(pool, hexKh)).map(toSuKien);
+      const cdIdsTuyen = [...new Set(evApp.flatMap((e) => {
+        const tp = Array.isArray(e.duLieu?.thanhPhan) ? e.duLieu.thanhPhan : [];
+        const t = [...tp.flatMap((x) => Array.isArray(x?.tuyen) ? x.tuyen : []), ...Array.isArray(e.duLieu?.tuyen) ? e.duLieu.tuyen : []];
+        return t.map(String);
+      }))];
+      const cdR = cdIdsTuyen.length ? (await pool.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIdsTuyen])).rows : [];
+      const tenCd = new Map(cdR.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+      const moc2 = await mocChuanTheoCd([xuong, ...cdR.map((x) => String(x.xuong))], toSuKien, COT_SU_KIEN);
+      for (const x of kh.rows) {
+        const hex3 = String(x.hex);
+        const daNhapDu = (Number(x.kh) || 0) > 0 && (nkMap.get(hex3)?.tien ?? 0) >= (Number(x.kh) || 0) * 0.98;
+        if (daNhapDu) continue;
+        const slTk = tkMap.get(hex3)?.sl ?? 0;
+        const st = new Map((cdTheoHex.get(hex3) ?? []).map((c) => [String(c.congDoanId), c]));
+        const xong = (cd) => {
+          const c = st.get(cd);
+          return !!c && (c.trangThai === "xong" || slTk > 0 && Number(c.slHoanThanh) >= slTk - 5e-4);
+        };
+        const han = x.ngay_khnk && cuoiNgay(String(x.ngay_khnk)) > now ? cuoiNgay(String(x.ngay_khnk)) : cuoiNgay(khoang.end);
+        const d = duBaoHangMuc(evApp.filter((e) => e.hex === hex3), moc2, xong, han, now);
+        if (d) duBao.set(hex3, { ...d, tenConLai: d.conLai.map((c) => tenCd.get(c) ?? c), tenThieuMoc: d.thieuMoc.map((c) => tenCd.get(c) ?? c) });
+      }
+    }
     const daCoKh = new Set(hexKh);
     res.json({
       success: true,
@@ -74241,7 +74335,8 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
           giaTriDon: x.gia_tri_don === null ? null : Number(x.gia_tri_don),
           // Không triển khai trên app nhưng có lịch sử MRA: coi như đã triển khai (làm theo MRA)
           trienKhai: tkMap.get(hex3) ?? (mraTk.has(hex3) ? { ...mraTk.get(hex3), mra: true } : null),
-          congDoan: cdTheoHex.get(hex3) ?? []
+          congDoan: cdTheoHex.get(hex3) ?? [],
+          duBao: duBao.get(hex3) ?? null
         };
       }),
       // Nhập kho trong tuần của hạng mục KHÔNG có trong kế hoạch tuần
