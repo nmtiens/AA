@@ -19,12 +19,18 @@ const COLS = Object.keys(ROWS[0]).map(key => ({ key, label: key })) as ColumnDef
 const HOM_NAY = new Date(2026, 9, 13).getTime();
 
 describe('bản ghi Tổng quan công trình (máy chủ dựng sẵn)', () => {
-  it('dựng bản ghi: bỏ dòng không tên công trình, HỦY = 0 đã nhập, quá hạn theo KH tuần', () => {
+  it('dựng bản ghi: bỏ dòng không tên công trình, HỦY chỉ tính phần còn tồn, quá hạn theo KH tuần', () => {
     const r = taoBanGhi(ROWS, COLS, HOM_NAY);
     expect(r).toHaveLength(2);
     // Đã nhập 40 = xuất lũy kế 25 + tồn 10 + 5 không thấy xuất / tồn
     expect(r[0]).toMatchObject({ done: 40, stock: 10, exported: 25, unmatched: 5, open: true, overdue: true, month: '2026-10', ma: 'CT25-001' });
-    expect(r[1]).toMatchObject({ status: 'HỦY', done: 0, bucket: 'cancelled', month: NO_MONTH, pc: NO_DATA });
+    // HỦY: không tính xuất; đã nhập = tồn 10 (nhập 40 − xuất ghi nhận 25 = 15 ≥ 10)
+    expect(r[1]).toMatchObject({ status: 'HỦY', done: 10, stock: 10, exported: 0, unmatched: 0, bucket: 'cancelled', month: NO_MONTH, pc: NO_DATA });
+  });
+  it('tồn kho lấy mọi tình trạng: đơn HỦY còn hàng trong kho tính tồn (= đã nhập của HỦY), không tính xuất', () => {
+    const r = taoBanGhi([dong({ tinh_trang_ipo: '05. HỦY', thanh_tien_xuat_kho_luy_ke: 15, thanh_tien_ton_kho_hien_tai: 30 })], COLS, HOM_NAY);
+    // nhập 40 − xuất ghi nhận 15 = 25 => tồn 30 chặn còn 25
+    expect(r[0]).toMatchObject({ status: 'HỦY', done: 25, stock: 25, exported: 0, unmatched: 0, open: false, bucket: 'cancelled' });
   });
   it('xuất kho lũy kế giữ đúng số file kể cả khi vượt đã nhập; phần vượt trừ vào "chưa thấy xuất / tồn"', () => {
     const r = taoBanGhi([dong({ thanh_tien_xuat_kho_luy_ke: 38 }), dong({ thanh_tien_xuat_kho_luy_ke: 45 })], COLS, HOM_NAY);

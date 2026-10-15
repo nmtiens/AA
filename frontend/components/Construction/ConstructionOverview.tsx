@@ -241,12 +241,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     // Giá trị đã nhập kho tách theo hạng mục nhập đủ / nhập một phần (cộng lại = done, trừ phần của đơn hủy)
     let stockedDone = 0, partialDone = 0;
     let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho vượt giá trị đã nhập (tồn bị chặn ≤ đã nhập)
+    let stockHuy = 0; // tồn kho của đơn HỦY (đã nhập của HỦY = phần còn trong kho — banGhiCongTrinh)
     // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
     const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
     for (const r of rowsAll) {
       cts.add(r.ctKey);
       remainBy[r.bucket] += Math.max(r.total - r.done, 0);
-      if (r.status === 'HỦY') cancelled++;
+      if (r.status === 'HỦY') { cancelled++; stockHuy += r.stock; }
       else if (isStocked(r)) { stocked++; stockedDone += r.done; }
       else { notStocked++; if (r.done > 0) { partial++; partialDone += r.done; } }
       total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded; unmatched += r.unmatched;
@@ -264,7 +265,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     }
     return {
       cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, stockedDone, partialDone, total, done, remain: total - done,
-      exported, stock, exportedRecorded, unmatched, stockOver, stockOverItems, remainBy,
+      exported, stock, stockHuy, exportedRecorded, unmatched, stockOver, stockOverItems, remainBy,
       overdue, overdueRemain, noPlan, noPlanRemain, metWait, metWaitRemain, pastBot, pastBotRemain,
     };
   }, [rowsAll, today]);
@@ -582,13 +583,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const EXPORT_HINT = 'TT xuất kho lũy kế của hạng mục, đúng cột TT XK LŨY KẾ ở file gốc (có hạng mục ghi xuất cao hơn nhập do lệch đơn giá); đơn hủy không tính.';
   const UNMATCHED_HINT = 'Đã nhập − Đã xuất − Tồn kho, theo từng hạng mục: phần đã nhập kho nhưng không thấy trong TT xuất kho lũy kế lẫn tồn kho hiện tại (bảng xuất kho chỉ có dữ liệu từ 01/2025, giao không qua phiếu xuất, SAP chưa cập nhật…), đã trừ phần xuất ghi vượt nhập.';
   const STOCK_HINT = kpi.stockOverItems > 0
-    ? `Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho (đơn hủy = 0) => Mỗi hạng mục tối đa bằng đã nhập − đã xuất. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
-    : 'Tồn kho hiện tại, mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất (đơn hủy = 0).';
+    ? `Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng đã nhập − đã xuất. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
+    : 'Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất.';
   const doneSegs: Seg[] = [
     { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, bar: 'bg-emerald-600', ink: 'text-white', hint: EXPORT_HINT,
       spec: { pred: r => r.exported > 0, focus: 'exported', note: EXPORT_HINT } },
     { key: 'stock', label: 'Tồn kho', v: roundTy(kpi.stock), bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
-      spec: { pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất; đơn hủy không tính.' } },
+      spec: { pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất; gồm cả đơn hủy còn tồn.' } },
     ...(shownUnmatched > 0.0005 ? [{ key: 'unmatched', label: 'Chưa thấy xuất / tồn', v: shownUnmatched, bar: 'bg-lime-200', ink: 'text-lime-950', hint: UNMATCHED_HINT,
       spec: { pred: (r: Rec) => r.unmatched > 0.0005, focus: 'done' as DetailFocus, note: UNMATCHED_HINT } }] : []),
   ];
@@ -789,7 +790,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
               <Mini label="Đã nhập kho (P022)" value={roundTy(kpi.done)} tone="text-emerald-700" strong
-                    hint={`Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng) = ${fmtTy(kpi.stockedDone)} tỷ của ${fmtInt(kpi.stocked)} mục nhập đủ + ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
+                    hint={`Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng) = ${fmtTy(kpi.stockedDone)} tỷ của ${fmtInt(kpi.stocked)} mục nhập đủ + ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần${kpi.stockHuy > 0.0005 ? ` + ${fmtTy(kpi.stockHuy)} tỷ đơn hủy còn trong kho` : ''}.`}
                     spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
               <div className={`mt-2 grid gap-2 ${doneSegs.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                 {doneSegs.map(x => (

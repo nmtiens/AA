@@ -75345,11 +75345,12 @@ function taoBanGhi(data, columns, today) {
     const d = dl.date;
     const month = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : NO_MONTH;
     const cancelled = status === "H\u1EE6Y";
-    const done = cancelled ? 0 : Math.min(Math.max(invRaw, 0), totalRaw);
-    const stockRaw = cancelled ? 0 : Math.max(parseNumber(row[tkK]), 0);
+    const stockRaw = Math.max(parseNumber(row[tkK]), 0);
     const exportedRecorded = Math.max(parseNumber(row[xkK]), 0);
     const exported = cancelled ? 0 : exportedRecorded;
-    const stock = Math.min(stockRaw, Math.max(done - exported, 0));
+    const stockHuy = cancelled ? Math.min(stockRaw, Math.max(Math.max(invRaw, 0) - exportedRecorded, 0), Math.max(totalRaw, 0)) : 0;
+    const done = cancelled ? stockHuy : Math.min(Math.max(invRaw, 0), totalRaw);
+    const stock = cancelled ? stockHuy : Math.min(stockRaw, Math.max(done - exported, 0));
     const qtyDone = isQtyComplete(row);
     const open2 = !cancelled && !qtyDone && (totalRaw - done > 0 || totalRaw <= 0);
     out.push({
