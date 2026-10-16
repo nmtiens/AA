@@ -68,7 +68,7 @@ export default function XuongDong({ r, now, tenCongDoan, gui, children, congNhan
         {r.trangThai === 'dang_lam' && r.dangChayTu && <span className="text-slate-700">{chayTu(r.dangChayTu, now)}</span>}
         {/* Tạm ngưng: vì sao, ngưng bao lâu */}
         {r.trangThai === 'tam_ngung' && r.ngung && (
-          <span className={`font-medium ${m.mau.chu}`}>{r.ngung.lyDo ? `${tenLyDo(r.ngung.lyDo)} · ` : ''}{chayTu(r.ngung.tu, now)}</span>
+          <span className={`font-medium ${m.mau.chu}`}>{r.ngung.lyDo ? `${tenLyDo(r.ngung.lyDo)} · ` : r.ngung.moTa ? `${r.ngung.moTa} · ` : ''}{chayTu(r.ngung.tu, now)}</span>
         )}
         {r.trangThai !== 'dang_lam' && <span className="tabular-nums text-slate-600">{soLuong}</span>}
       </p>

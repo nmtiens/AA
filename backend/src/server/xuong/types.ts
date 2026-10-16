@@ -8,6 +8,8 @@ export const LOAI_SU_KIEN = [
   'tang_ca', 'chia_nguoi', 'quan_so', 'xac_nhan_cuoi_ngay', 'tien_do', 'huy',
   // Chấm công theo người (backend/sql/2026-10-13_xuong_cham_cong.sql)
   'vao_ca', 'ra_ca',
+  // Trạm quét theo tổ (backend/sql/2026-10-16_xuong_tram.sql)
+  'nguoi_vao', 'nguoi_ra',
 ] as const;
 export type LoaiSuKien = typeof LOAI_SU_KIEN[number];
 

@@ -55856,7 +55856,16 @@ var signXuongToken = (u, deviceId, tokenVersion) => import_jsonwebtoken.default.
   JWT_SECRET_SAFE,
   { expiresIn: XUONG_TOKEN_TTL }
 );
+var TRAM_PREFIX = "/api/xuong/tram/may/";
+var signTramToken = (u, deviceId, toId) => import_jsonwebtoken.default.sign(
+  { id: u.id, username: u.username, role: u.role, scope: "tram", did: deviceId, to: toId },
+  JWT_SECRET_SAFE,
+  { expiresIn: XUONG_TOKEN_TTL }
+);
+var isTramPath = (path) => path.toLowerCase().startsWith(TRAM_PREFIX);
 var xuongScopeError = (claims, path) => {
+  if (claims?.scope === "tram") return isTramPath(path) ? null : "Token tr\u1EA1m ch\u1EC9 d\xF9ng \u0111\u01B0\u1EE3c cho m\xE1y tr\u1EA1m";
+  if (isTramPath(path)) return "API n\xE0y ch\u1EC9 d\xE0nh cho m\xE1y tr\u1EA1m \u0111\xE3 \u0111\u0103ng k\xFD";
   if (claims?.scope === void 0) return null;
   if (claims.scope !== "xuong") return "Token kh\xF4ng h\u1EE3p l\u1EC7";
   return isXuongPath(path) ? null : "Token m\u1EE5c X\u01B0\u1EDFng ch\u1EC9 d\xF9ng \u0111\u01B0\u1EE3c trong m\u1EE5c X\u01B0\u1EDFng";
@@ -55874,7 +55883,7 @@ async function bumpTokenVersion(userId) {
     invalidateUserAccess(userId);
   }
 }
-var xuongRateKey = (req) => `xuong-user:${req.user?.id ?? "anon"}`;
+var xuongRateKey = (req) => req.user?.scope === "tram" && req.user.did ? `xuong-tram:${req.user.did}` : `xuong-user:${req.user?.id ?? "anon"}`;
 var xuongLimiter = rate_limit_default({
   windowMs: 60 * 1e3,
   max: XUONG_RATE_PER_MIN,
@@ -81536,7 +81545,10 @@ var LOAI_SU_KIEN = [
   "huy",
   // Chấm công theo người (backend/sql/2026-10-13_xuong_cham_cong.sql)
   "vao_ca",
-  "ra_ca"
+  "ra_ca",
+  // Trạm quét theo tổ (backend/sql/2026-10-16_xuong_tram.sql)
+  "nguoi_vao",
+  "nguoi_ra"
 ];
 var LY_DO_TAM_NGUNG = [
   "thieu_vat_tu",
@@ -81941,6 +81953,257 @@ function thoiGianTheoLo(vao, ra, moc2, now) {
   };
 }
 
+// src/server/xuong/tram.ts
+var CHE_DO_CHAM = ["cu", "song_song", "tram"];
+var GIO_MS2 = 36e5;
+var NOI_CA_MS = 60 * 6e4;
+var SOM_TOI_DA_MS = 90 * 6e4;
+var ngayCa = (ts) => new Date(ts + 7 * GIO_MS2 - 6 * GIO_MS2).toISOString().slice(0, 10);
+var laSuKienTram = (e) => e.loai === "nguoi_vao" || e.loai === "nguoi_ra" || (e.loai === "vao_ca" || e.loai === "ra_ca") && e.duLieu?.tram === true;
+var LOAI_BAM_TAY = /* @__PURE__ */ new Set(["bat_dau", "tiep_tuc", "tam_ngung", "chia_nguoi"]);
+var mnvCua = (e) => {
+  const m = chuanMnv(e.duLieu?.mnv);
+  return MNV_RE.test(m) ? m : null;
+};
+function cheDoTheoNgay(ds) {
+  const theoTo = /* @__PURE__ */ new Map();
+  for (const m of [...ds].sort((a, b) => a.tuNgay.localeCompare(b.tuNgay))) {
+    if (!theoTo.has(m.toId)) theoTo.set(m.toId, []);
+    theoTo.get(m.toId).push(m);
+  }
+  return (toId, ngay) => {
+    if (toId === null) return "cu";
+    let v = "cu";
+    for (const m of theoTo.get(toId) ?? []) {
+      if (m.tuNgay <= ngay) v = m.cheDo;
+      else break;
+    }
+    return v;
+  };
+}
+function locTheoCheDo(evts, cheDo, cach = "chinh_thuc") {
+  return evts.filter((e) => {
+    const cd = cheDo(e.toId, ngayCa(e.ts));
+    const dungTram = cach === "chinh_thuc" ? cd === "tram" : cd !== "cu";
+    if (laSuKienTram(e)) return dungTram;
+    if (!dungTram) return true;
+    if (LOAI_BAM_TAY.has(e.loai)) return false;
+    if (cach === "so_khop" && (e.loai === "vao_ca" || e.loai === "ra_ca")) return false;
+    return true;
+  });
+}
+function dungBamTayKhiChuyen(own2, moc2) {
+  const toId = own2.find((e) => LOAI_BAM_TAY.has(e.loai) && e.toId !== null)?.toId ?? null;
+  if (toId === null) return [];
+  const cheDo = cheDoTheoNgay(moc2);
+  const out = [];
+  for (const m of [...new Set(moc2.filter((x) => x.toId === toId && x.cheDo === "tram").map((x) => x.tuNgay))].sort()) {
+    const truoc = new Date(Date.parse(`${m}T12:00:00+07:00`) - 864e5).toISOString().slice(0, 10);
+    if (cheDo(toId, truoc) === "tram") continue;
+    const t = Date.parse(`${m}T06:00:00+07:00`);
+    const st = tinhTrangThai([...own2.filter((e) => e.ts < t), ...out], []);
+    if (st.dangChayTu === null) continue;
+    out.push({
+      id: `tram:chuyen:${toId}:${m}:${own2[0]?.hex}|${own2[0]?.congDoanId}`,
+      loai: "tam_ngung",
+      hex: own2[0]?.hex ?? null,
+      congDoanId: own2[0]?.congDoanId ?? null,
+      toId,
+      soLuong: null,
+      congDoanDenId: null,
+      congDoanNguonId: null,
+      xuongNguon: null,
+      soNguoi: null,
+      lyDoTamNgung: null,
+      duLieu: { tram: true, chuyenCheDo: true },
+      ts: t,
+      serverTs: t,
+      suaCho: null
+    });
+  }
+  return out;
+}
+function noiCoMatTangCa(coMat, cuaSo) {
+  const chinh = coMat.chinh ?? [];
+  const csChinh = cuaSo.filter((c) => c.loaiCa === "chinh");
+  if (!chinh.length || !csChinh.length) return coMat;
+  const hetChinh = Math.max(...csChinh.map((c) => c.end));
+  const out = { ...coMat };
+  for (const loai of new Set(cuaSo.filter((c) => c.loaiCa !== "chinh").map((c) => c.loaiCa))) {
+    const bd = Math.min(...cuaSo.filter((c) => c.loaiCa === loai).map((c) => c.start));
+    if (bd < hetChinh) continue;
+    const coSan = new Set((out[loai] ?? []).map((d) => d.mnv));
+    const them = chinh.filter((d) => !coSan.has(d.mnv) && (d.end === null || d.end > bd)).map((d) => ({ mnv: d.mnv, start: bd, end: d.end }));
+    if (them.length) out[loai] = [...out[loai] ?? [], ...them];
+  }
+  return out;
+}
+function khoiCa(cuaSo) {
+  const out = [];
+  for (const c of [...cuaSo].sort((a, b) => a.start - b.start)) {
+    const cuoi = out[out.length - 1];
+    if (cuoi && c.start - cuoi.end <= NOI_CA_MS) cuoi.end = Math.max(cuoi.end, c.end);
+    else out.push({ start: c.start, end: c.end });
+  }
+  return out;
+}
+function mocTuDong(khoi, t) {
+  if (!khoi) return { end: Number.POSITIVE_INFINITY, ngoaiCa: false };
+  for (const k of khoi) if (k.start - SOM_TOI_DA_MS <= t && t < k.end) return { end: k.end, ngoaiCa: false };
+  return { end: t, ngoaiCa: true };
+}
+function chuyenDoiTram(evts, opts) {
+  const cuaSoTo = opts.cuaSoTheoTo instanceof Map ? opts.cuaSoTheoTo : new Map(Object.entries(opts.cuaSoTheoTo ?? {}).map(([k, v]) => [Number(k), v]));
+  const khoiTheoTo = /* @__PURE__ */ new Map();
+  const khoiCua = (toId) => {
+    if (toId === null || !cuaSoTo.has(toId)) return null;
+    if (!khoiTheoTo.has(toId)) khoiTheoTo.set(toId, khoiCa(cuaSoTo.get(toId)));
+    return khoiTheoTo.get(toId);
+  };
+  const doanNguoi = [];
+  const soNguoi = [];
+  const doanChay = {};
+  const suKienGia = {};
+  const mo = /* @__PURE__ */ new Map();
+  const oHang = /* @__PURE__ */ new Map();
+  const sl = /* @__PURE__ */ new Map();
+  let thuTuGia = 0;
+  const gia = (loai, key, d, t, n, ten) => {
+    (suKienGia[key] ??= []).push({
+      id: `tram:${loai}:${key}:${t}:${thuTuGia++}`,
+      loai,
+      hex: d.hex,
+      congDoanId: d.congDoanId,
+      toId: d.toId,
+      soLuong: null,
+      congDoanDenId: null,
+      congDoanNguonId: null,
+      xuongNguon: null,
+      soNguoi: loai === "bat_dau" ? n : null,
+      lyDoTamNgung: null,
+      duLieu: { tram: true, nguoi: ten },
+      ts: t,
+      serverTs: t,
+      suaCho: null
+    });
+  };
+  const doiHang = (key, d, t, truoc, laXong) => {
+    const ds = [...oHang.get(key) ?? []].sort();
+    const sau = ds.length;
+    soNguoi.push({ key, at: t, soNguoi: sau, nguoi: ds });
+    if (truoc === 0) {
+      (doanChay[key] ??= []).push({ start: t, end: null });
+      gia("bat_dau", key, d, t, sau, ds);
+    } else if (sau === 0) {
+      const ds2 = doanChay[key];
+      if (ds2?.length) ds2[ds2.length - 1].end = t;
+      if (!laXong) gia("tam_ngung", key, d, t, 0, []);
+    }
+  };
+  const dong2 = (mnv, t, ketThuc, suKienRa) => {
+    const m = mo.get(mnv);
+    if (!m) return;
+    mo.delete(mnv);
+    const d = m.d;
+    d.end = Math.max(d.start, t);
+    d.ketThuc = ketThuc;
+    d.suKienRa = suKienRa;
+    const set2 = oHang.get(d.key);
+    const truoc = set2.size;
+    set2.delete(mnv);
+    doiHang(d.key, d, d.end, truoc, ketThuc === "xong");
+  };
+  const tuDongDen = (t) => {
+    const den = [...mo.entries()].filter(([, m]) => m.tuDong <= t).sort((a, b) => a[1].tuDong - b[1].tuDong);
+    for (const [mnv, m] of den) dong2(mnv, m.tuDong, "tu_dong", null);
+  };
+  for (const e of [...evts].sort(soSanhSuKien)) {
+    tuDongDen(e.ts);
+    if (e.loai === "nhan" || e.loai === "hoan_thanh") {
+      if (!e.hex || !e.congDoanId) continue;
+      const key = pairKey(e.hex, e.congDoanId);
+      const s = sl.get(key) ?? { nhan: 0, ht: 0 };
+      if (e.loai === "nhan") s.nhan += e.soLuong ?? 0;
+      else s.ht += e.soLuong ?? 0;
+      sl.set(key, s);
+      if (e.loai === "hoan_thanh" && s.nhan > 0 && s.ht >= s.nhan) {
+        for (const mnv2 of [...oHang.get(key) ?? []]) dong2(mnv2, e.ts, "xong", e.id);
+      }
+      continue;
+    }
+    if (!laSuKienTram(e)) continue;
+    const mnv = mnvCua(e);
+    if (!mnv) continue;
+    if (e.loai === "nguoi_vao") {
+      if (!e.hex || !e.congDoanId) continue;
+      const key = pairKey(e.hex, e.congDoanId);
+      const dang = mo.get(mnv);
+      if (dang?.d.key === key) continue;
+      if (dang) dong2(mnv, e.ts, "doi_hang", e.id);
+      const d = {
+        mnv,
+        key,
+        hex: e.hex,
+        congDoanId: e.congDoanId,
+        toId: e.toId,
+        start: e.ts,
+        end: null,
+        ketThuc: null,
+        suKienVao: e.id,
+        suKienRa: null
+      };
+      doanNguoi.push(d);
+      const td = mocTuDong(khoiCua(e.toId), e.ts);
+      if (td.ngoaiCa) {
+        d.end = e.ts;
+        d.ketThuc = "ngoai_ca";
+        continue;
+      }
+      mo.set(mnv, { d, tuDong: td.end });
+      if (!oHang.has(key)) oHang.set(key, /* @__PURE__ */ new Set());
+      const set2 = oHang.get(key);
+      const truoc = set2.size;
+      set2.add(mnv);
+      doiHang(key, d, e.ts, truoc, false);
+    } else if (e.loai === "nguoi_ra" || e.loai === "ra_ca") {
+      dong2(mnv, e.ts, "ra", e.id);
+    }
+  }
+  tuDongDen(opts.now);
+  for (const k of Object.keys(doanChay)) {
+    doanChay[k] = doanChay[k].filter((d) => d.end === null || d.end > d.start);
+    if (!doanChay[k].length) delete doanChay[k];
+  }
+  const dangO = {};
+  for (const [k, set2] of oHang) if (set2.size) dangO[k] = [...set2].sort();
+  return { doanNguoi, soNguoi, doanChay, suKienGia, dangO };
+}
+var TRONG_TOI_DA_MS = 30 * 6e4;
+var DOAN_TOI_DA_MS = 4 * GIO_MS2;
+function coSuaNgay(doan, coMat, now) {
+  const co = /* @__PURE__ */ new Set();
+  const ds = [...doan].sort((a, b) => a.start - b.start);
+  for (const d of ds) {
+    if (d.ketThuc === "tu_dong") co.add("tu_dong");
+    if (d.ketThuc === "ngoai_ca") co.add("ngoai_ca");
+    if ((d.end ?? now) - d.start > DOAN_TOI_DA_MS) co.add("doan_dai");
+  }
+  if (coMat.length && !ds.length) co.add("khong_vao_hang");
+  for (const c of coMat) {
+    const cEnd = c.end ?? now;
+    let t = c.start;
+    for (const d of ds) {
+      const s = Math.max(d.start, c.start);
+      const e = Math.min(d.end ?? now, cEnd);
+      if (e <= s) continue;
+      if (s - t > TRONG_TOI_DA_MS) co.add("khoang_trong");
+      t = Math.max(t, e);
+    }
+    if (ds.length && cEnd - t > TRONG_TOI_DA_MS && c.end !== null) co.add("khoang_trong");
+  }
+  return [...co].sort();
+}
+
 // src/routes/xuongThongBao.ts
 var URL_XUONG = "/xuong";
 var clip2 = (s, n = 140) => s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
@@ -82232,6 +82495,8 @@ var PERM_XUONG = "xuong";
 var PERM_QUAN_LY = "xuong_quan_ly";
 var LO_TOI_DA = 200;
 var HUY_TRONG_MS = 24 * 36e5;
+var HUY_TRAM_TRONG_MS = 7 * 24 * 36e5;
+var toTruongHuyDuoc = (d, laToTruong, now) => d.to_id !== null && d.to_id !== void 0 && laToTruong.has(Number(d.to_id)) && Array.isArray(d.co) && (d.co.includes("tram") || d.co.includes("to_truong_ghi_ho")) && now - new Date(String(d.server_ts)).getTime() <= HUY_TRAM_TRONG_MS;
 var HEX_RE = /^\d{9}$/;
 var fail = (res, e, where) => {
   if (isMissingSchema(e)) return res.json({ success: true, available: false });
@@ -82290,15 +82555,102 @@ async function suKienTheoHex(db, hexes, kemMra = false) {
   );
   return r.rows;
 }
-function trangThaiCacCap(rows, pairs) {
+function trangThaiCacCap(rows, pairs, tram = null, moc2 = []) {
   const evts = rows.map(toSuKien);
+  const coTram = moc2.some((m) => m.cheDo === "tram");
   const tuyenHex = /* @__PURE__ */ new Map();
   return pairs.map(([hex3, cd]) => {
-    const cua = evts.filter((e) => e.hex === hex3 && e.congDoanId === cd);
+    const k = pairKey(hex3, cd);
+    const cua0 = evts.filter((e) => e.hex === hex3 && e.congDoanId === cd);
+    const cheDo = tram?.cheDo ?? cheDoTheoNgay(moc2);
+    const cua = tram || coTram ? [...locTheoCheDo(cua0, cheDo), ...tram?.kq.suKienGia[k] ?? [], ...coTram ? dungBamTayKhiChuyen(suKienConHieuLuc(cua0), moc2) : []] : cua0;
     const den = evts.filter((e) => e.hex === hex3 && (e.loai === "giao" || e.loai === "khai_bao_cd" || e.loai === "huy") && (e.congDoanDenId === cd || e.loai === "huy"));
     if (!tuyenHex.has(hex3)) tuyenHex.set(hex3, tuyenTheoThanhPhan(evts.filter((e) => e.hex === hex3)));
-    return { hex: hex3, cd, state: tinhTrangThai(cua, den, tuyenHex.get(hex3), cd) };
+    const state = tinhTrangThai(cua, den, tuyenHex.get(hex3), cd);
+    if (tram?.kq.dangO[k]) state.soNguoi = tram.kq.dangO[k].length;
+    return { hex: hex3, cd, state };
   });
+}
+var bangTram = null;
+async function coBangTram(db = pool) {
+  if (bangTram && (bangTram.co || Date.now() - bangTram.luc < 3e5)) return bangTram.co;
+  const r = await db.query(`SELECT to_regclass('xuong_to_che_do') IS NOT NULL AS co`);
+  bangTram = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangTram.co;
+}
+async function mocCheDo(db, toIds) {
+  if (!toIds.length || !await coBangTram(db)) return [];
+  const r = await db.query(
+    `SELECT to_id, che_do, to_char(tu_ngay, 'YYYY-MM-DD') AS tu FROM xuong_to_che_do WHERE to_id = ANY($1::int[])`,
+    [toIds]
+  );
+  return r.rows.map((x) => ({ toId: Number(x.to_id), cheDo: x.che_do, tuNgay: String(x.tu) }));
+}
+async function cuaSoCacTo(db, toIds, tu, den) {
+  const out = /* @__PURE__ */ new Map();
+  if (!toIds.length) return out;
+  const [toRows, tc] = await Promise.all([
+    db.query("SELECT id, xuong FROM xuong_to WHERE id = ANY($1::int[])", [toIds]),
+    db.query(
+      `SELECT to_id, du_lieu->>'loaiCa' AS ca, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+       WHERE to_id = ANY($1::int[]) AND loai = 'tang_ca'
+         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+      [toIds, tu, den]
+    )
+  ]);
+  const lichTheoXuong = /* @__PURE__ */ new Map();
+  for (const x of toRows.rows) {
+    const xg = String(x.xuong);
+    if (!lichTheoXuong.has(xg)) lichTheoXuong.set(xg, await lichCaCuaXuong(xg, db));
+    const lich = lichTheoXuong.get(xg);
+    if (!lich.length) continue;
+    const cs = [];
+    for (let d = Date.parse(`${tu}T12:00:00+07:00`); vnDayKey(new Date(d)) <= den; d += 864e5) {
+      const ngay = vnDayKey(new Date(d));
+      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay).map((r) => String(r.ca));
+      cs.push(...cuaSoTrongNgay(ngay, lich, ca));
+    }
+    out.set(Number(x.id), cs);
+  }
+  return out;
+}
+var lanSuaTuDong = /* @__PURE__ */ new Map();
+async function suaTramTuDong(toId) {
+  const now = Date.now();
+  if (now - (lanSuaTuDong.get(toId) ?? 0) < 6e4) return;
+  lanSuaTuDong.set(toId, now);
+  if (cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngayCa(now)) !== "tram") return;
+  const r = await pool.query(
+    `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
+     WHERE tc.to_id = $1 AND t.trang_thai = 'dang_lam'`,
+    [toId]
+  );
+  if (!r.rows.length) return;
+  await withTransaction((client) => luuTrangThai(client, r.rows.map((x) => [String(x.hex), String(x.cong_doan_id)])));
+}
+async function soTram(db, evs, cach, now) {
+  const tram = evs.filter((e) => (e.loai === "nguoi_vao" || e.loai === "nguoi_ra") && mnvCua(e));
+  if (!tram.length) return null;
+  const mnvs = [...new Set(tram.map((e) => mnvCua(e)))];
+  const tu = Math.max(Math.min(...tram.map((e) => e.ts)) - 36 * 36e5, now - 35 * 864e5);
+  const nguoi = (await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+     WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
+    [mnvs, new Date(tu).toISOString()]
+  )).rows;
+  const huy = nguoi.length ? (await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
+    [nguoi.map((x) => String(x.id))]
+  )).rows : [];
+  const theoId = new Map(evs.map((e) => [e.id, e]));
+  for (const x of [...nguoi, ...huy]) if (!theoId.has(String(x.id))) theoId.set(String(x.id), toSuKien(x));
+  const tatCa = [...theoId.values()];
+  const toIds = [...new Set(tatCa.filter(laSuKienTram).map((e) => e.toId).filter((x) => x !== null))];
+  const cheDo = cheDoTheoNgay(await mocCheDo(db, toIds));
+  const conLai = locTheoCheDo(suKienConHieuLuc(tatCa), cheDo, cach).filter((e) => laSuKienTram(e) || e.loai === "nhan" || e.loai === "hoan_thanh");
+  const cuaSo = await cuaSoCacTo(db, toIds, ngayCa(tu), ngayCa(now));
+  return { kq: chuyenDoiTram(conLai, { now, cuaSoTheoTo: cuaSo }), cheDo };
 }
 async function gioiHanNhan(db, pairs) {
   const out = /* @__PURE__ */ new Map();
@@ -82336,7 +82688,9 @@ async function luuTrangThai(client, pairs) {
   const cds = [...new Set(pairs.map((p) => p[1]))];
   const r = await client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cds]);
   r.rows.forEach((x) => xuongCd.set(String(x.id), x.xuong));
-  const out = trangThaiCacCap(rows, pairs).map(({ hex: hex3, cd, state }) => ({
+  const tram = await soTram(client, rows.map(toSuKien), "chinh_thuc", Date.now());
+  const moc2 = await mocCheDo(client, [...new Set(rows.map((x) => Number(x.to_id)).filter((x) => x > 0))]);
+  const out = trangThaiCacCap(rows, pairs, tram, moc2).map(({ hex: hex3, cd, state }) => ({
     hex: hex3,
     cong_doan_id: cd,
     xuong: xuongCd.get(cd) ?? null,
@@ -82446,9 +82800,9 @@ var loSchema = external_exports.object({
   deviceToken: external_exports.string().max(200),
   events: external_exports.array(external_exports.unknown()).min(1).max(LO_TOI_DA)
 });
-var CAN_HEX = /* @__PURE__ */ new Set(["trien_khai", "khai_bao_cd", "nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do"]);
-var CAN_CONG_DOAN = /* @__PURE__ */ new Set(["nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do"]);
-var CAN_TO = /* @__PURE__ */ new Set(["tang_ca", "chia_nguoi", "quan_so", "xac_nhan_cuoi_ngay", "vao_ca", "ra_ca"]);
+var CAN_HEX = /* @__PURE__ */ new Set(["trien_khai", "khai_bao_cd", "nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do", "nguoi_vao"]);
+var CAN_CONG_DOAN = /* @__PURE__ */ new Set(["nhan", "bat_dau", "tam_ngung", "tiep_tuc", "hoan_thanh", "giao", "tien_do", "nguoi_vao"]);
+var CAN_TO = /* @__PURE__ */ new Set(["tang_ca", "chia_nguoi", "quan_so", "xac_nhan_cuoi_ngay", "vao_ca", "ra_ca", "nguoi_vao", "nguoi_ra"]);
 function kiemTraTheoLoai(e) {
   if (CAN_HEX.has(e.loai) && !(e.hex && HEX_RE.test(e.hex))) return "M\xE3 h\u1EA1ng m\u1EE5c ph\u1EA3i c\xF3 9 s\u1ED1";
   if (CAN_CONG_DOAN.has(e.loai) && !e.congDoanId) return "Thi\u1EBFu c\xF4ng \u0111o\u1EA1n";
@@ -82468,6 +82822,12 @@ function kiemTraTheoLoai(e) {
   if (e.loai === "vao_ca" || e.loai === "ra_ca") {
     const loi = kiemTraDiemDanh(e.duLieu);
     if (loi) return loi;
+  }
+  if ((e.loai === "nguoi_vao" || e.loai === "nguoi_ra") && !mnvCua({ duLieu: e.duLieu ?? null })) return "M\xE3 nh\xE2n vi\xEAn kh\xF4ng h\u1EE3p l\u1EC7";
+  if ((e.loai === "vao_ca" || e.loai === "ra_ca") && e.duLieu?.tram === true) {
+    const m = mnvCua({ duLieu: e.duLieu });
+    const ds = Array.isArray(e.duLieu.nguoi) ? e.duLieu.nguoi : [];
+    if (!m || ds.length !== 1 || chuanMnv(ds[0]?.mnv ?? ds[0]) !== m) return "V\xE0o / ra ca t\u1EEB tr\u1EA1m ph\u1EA3i \u0111\xFAng m\u1ED9t ng\u01B0\u1EDDi";
   }
   if (e.loai === "quan_so") {
     const ca = e.duLieu?.loaiCa;
@@ -82578,16 +82938,17 @@ app.post("/api/xuong/events", async (req, res) => {
       const xuongCd = new Map(cdRows.rows.map((x) => [String(x.id), String(x.xuong)]));
       const xuongTo = new Map(toRows.rows.map((x) => [Number(x.id), String(x.xuong)]));
       const huyIds = hopLe.filter((e) => e.loai === "huy").map((e) => e.suaCho);
-      const dichDb = huyIds.length ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows : [];
+      const dichDb = huyIds.length ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai, co FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows : [];
       const dich = new Map(dichDb.map((x) => [String(x.id), x]));
       const quanLy = await xuongQuanLy(sentBy);
+      const laToTruong = new Set((await toTruongCua(sentBy)).map((x) => x.id));
       const toCuaToi = new Set((await client.query(
         `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
          UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $1
            WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
         [sentBy]
       )).rows.map((x) => Number(x.id)));
-      const SAI_SO = 5e-4;
+      const SAI_SO2 = 5e-4;
       const capSl = hopLe.filter((e) => ["nhan", "hoan_thanh", "giao"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
       const gioiHan = await gioiHanNhan(client, capSl.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
       const soCap = /* @__PURE__ */ new Map();
@@ -82626,8 +82987,8 @@ app.post("/api/xuong/events", async (req, res) => {
             continue;
           }
           const laNguoiGui = Number(d.sent_by) === sentBy && serverNow - new Date(d.server_ts).getTime() <= HUY_TRONG_MS;
-          if (!laNguoiGui && !quanLyDuoc(quanLy, d.xuong ?? null)) {
-            tuChoi.push({ id: e.id, reason: "Ch\u1EC9 ng\u01B0\u1EDDi g\u1EEDi (trong 24 gi\u1EDD) ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c hu\u1EF7" });
+          if (!laNguoiGui && !quanLyDuoc(quanLy, d.xuong ?? null) && !toTruongHuyDuoc(d, laToTruong, serverNow)) {
+            tuChoi.push({ id: e.id, reason: "Ch\u1EC9 ng\u01B0\u1EDDi g\u1EEDi (trong 24 gi\u1EDD), t\u1ED5 tr\u01B0\u1EDFng (s\u1EF1 ki\u1EC7n tr\u1EA1m c\u1EE7a t\u1ED5, 7 ng\xE0y) ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c hu\u1EF7" });
             continue;
           }
           hex3 = d.hex ?? null;
@@ -82636,6 +82997,15 @@ app.post("/api/xuong/events", async (req, res) => {
           xuong = d.xuong ?? null;
         }
         const co = [];
+        let duLieu = e.duLieu ?? null;
+        if (e.loai === "nguoi_vao" || e.loai === "nguoi_ra" || (e.loai === "vao_ca" || e.loai === "ra_ca") && duLieu?.tram === true) {
+          if (!(toId && (laToTruong.has(toId) || quanLyDuoc(quanLy, xuongTo.get(toId) ?? null)))) {
+            tuChoi.push({ id: e.id, reason: "Ch\u1EC9 t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c ghi h\u1ED9 ng\u01B0\u1EDDi v\xE0o / ra" });
+            continue;
+          }
+          duLieu = { ...duLieu ?? {}, tram: true };
+          co.push("to_truong_ghi_ho");
+        }
         if (e.loai !== "huy") {
           if (toId) {
             if (!toCuaToi.has(toId)) {
@@ -82667,19 +83037,19 @@ app.post("/api/xuong/events", async (req, res) => {
           const sl = e.soLuong ?? 0;
           if (e.loai === "nhan") {
             const gh = gioiHan.get(k);
-            if (gh && gh.moc !== null && c.nhan + sl > gh.moc + SAI_SO) {
+            if (gh && gh.moc !== null && c.nhan + sl > gh.moc + SAI_SO2) {
               tuChoi.push({ id: e.id, reason: `Nh\u1EADn v\u01B0\u1EE3t s\u1ED1 ${gh.loai === "trien_khai" ? "\u0111\xE3 tri\u1EC3n khai" : "l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng"} ${hienSo(gh.moc)} \u2014 c\xF2n nh\u1EADn \u0111\u01B0\u1EE3c ${hienSo(gh.moc - c.nhan)}` });
               continue;
             }
             c.nhan += sl;
           } else if (e.loai === "hoan_thanh") {
-            if (c.ht + sl > c.nhan + SAI_SO) {
+            if (c.ht + sl > c.nhan + SAI_SO2) {
               tuChoi.push({ id: e.id, reason: `Xong nhi\u1EC1u h\u01A1n s\u1ED1 \u0111\xE3 nh\u1EADn \u2014 c\xF2n ${hienSo(c.nhan - c.ht)}` });
               continue;
             }
             c.ht += sl;
           } else {
-            if (c.giao + sl > c.ht + SAI_SO) {
+            if (c.giao + sl > c.ht + SAI_SO2) {
               tuChoi.push({ id: e.id, reason: `Giao nhi\u1EC1u h\u01A1n s\u1ED1 \u0111\xE3 xong \u2014 c\xF2n ${hienSo(c.ht - c.giao)}` });
               continue;
             }
@@ -82706,7 +83076,7 @@ app.post("/api/xuong/events", async (req, res) => {
           ly_do_tam_ngung: e.lyDoTamNgung ?? null,
           tien_do: e.tienDo ?? null,
           ghi_chu: e.ghiChu ?? null,
-          du_lieu: e.duLieu ?? null,
+          du_lieu: duLieu,
           device_ts: new Date(e.deviceTs).toISOString(),
           lech_ms: e.lechMs === void 0 || e.lechMs === null ? null : Math.round(e.lechMs),
           device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
@@ -82861,6 +83231,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       [toId]
     );
     const cds = cdRows.rows.map((x) => String(x.id));
+    await suaTramTuDong(toId);
     if (cds.length) {
       await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     }
@@ -82956,8 +83327,44 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       );
       for (const x of q.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
     }
+    const cheDoHom = cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngayCa(Date.now()));
+    const kqTram = cheDoHom === "tram" ? (await soTram(pool, (await suKienTheoHex(pool, [...new Set(st.filter((x) => x.trang_thai === "dang_lam" || x.trang_thai === "tam_ngung").map((x) => String(x.hex)))])).map(toSuKien), "chinh_thuc", Date.now()))?.kq ?? null : null;
+    const dangOTram = cheDoHom === "tram" ? kqTram?.dangO ?? {} : null;
+    const hoTenTram = /* @__PURE__ */ new Map();
+    if (kqTram?.doanNguoi.length) {
+      const ds = [...new Set(kqTram.doanNguoi.map((d) => d.mnv))];
+      for (const x of (await pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [ds])).rows) hoTenTram.set(String(x.mnv), String(x.ho_ten));
+    }
+    const viSaoHetNguoi = (k) => {
+      const ds = (kqTram?.doanNguoi ?? []).filter((d) => d.key === k && d.end !== null && d.end > d.start);
+      if (!ds.length) return null;
+      const T = Math.max(...ds.map((d) => d.end));
+      const ten = (m) => (hoTenTram.get(m) ?? m).split(" ").slice(-1)[0];
+      const cau = ds.filter((d) => d.end === T).map((d) => {
+        if (d.ketThuc === "doi_hang") {
+          const sau = kqTram.doanNguoi.find((x) => x.mnv === d.mnv && x.start === T && x.key !== k);
+          const ten2 = sau ? info.get(sau.hex)?.ten_hang_muc ?? sau.hex : "h\xE0ng kh\xE1c";
+          return `${ten(d.mnv)} chuy\u1EC3n sang ${ten2}`;
+        }
+        if (d.ketThuc === "tu_dong") return `${ten(d.mnv)} h\u1EBFt ca (qu\xEAn ra)`;
+        return `${ten(d.mnv)} ra kh\u1ECFi h\xE0ng`;
+      });
+      return { tu: new Date(T).toISOString(), moTa: `H\u1EBFt ng\u01B0\u1EDDi: ${cau.join(", ")}` };
+    };
     const rows = st.map((x) => {
       const d = dongTrangThai(x, info.get(String(x.hex)));
+      const k = pairKey(String(x.hex), String(x.cong_doan_id));
+      if (dangOTram) {
+        return {
+          ...d,
+          soNguoi: dangOTram[k]?.length ?? d.soNguoi,
+          nguoi: x.trang_thai === "dang_lam" ? dangOTram[k] ?? null : null,
+          goiYKe: goiY.get(k) ?? [],
+          cuoiTuyen: cuoiTuyen.has(k),
+          // Tạm ngưng ở tổ trạm = hết người: ghi rõ ai rời / chuyển đi đâu; lý do tổ trưởng chọn sau lúc hàng dừng thì ưu tiên
+          ngung: x.trang_thai !== "tam_ngung" ? null : ngung.get(k) && x.su_kien_cuoi && new Date(ngung.get(k).tu) >= new Date(x.su_kien_cuoi) ? ngung.get(k) : viSaoHetNguoi(k) ? { lyDo: null, ...viSaoHetNguoi(k) } : null
+        };
+      }
       const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
       const tu = x.dang_chay_tu ? new Date(x.dang_chay_tu) : null;
       return {
@@ -82981,7 +83388,8 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
         [toId, ngay]
       )).rows;
-      const evs = suKienConHieuLuc(dd.map(toSuKien)).filter((e) => vnDayKey(new Date(e.ts)) === ngay || e.loai === "ra_ca");
+      const cheDoTo = cheDoTheoNgay(await mocCheDo(pool, [toId]));
+      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay || e.loai === "ra_ca");
       for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
@@ -83019,7 +83427,9 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       soNguoiTangCaTruoc: tcTruoc.rows[0] ? Number(tcTruoc.rows[0].so_nguoi) : null,
       daXacNhanHomNay: xacNhan.rows.length > 0,
       anhBat: await coBangAnh(),
-      lichCa
+      lichCa,
+      // Chế độ chấm hôm nay (trạm quét): 'tram' thì app ẩn Bắt đầu / Chia người / Tạm ngưng / điểm danh tay
+      cheDo: cheDoHom
     });
   } catch (e) {
     fail(res, e, "/api/xuong/cong-viec");
@@ -83027,12 +83437,12 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
 });
 var dsTen = (v) => Array.isArray(v) ? [...new Set(v.map(chuanMnv).filter(Boolean))] : null;
 var gioCongCache = /* @__PURE__ */ new Map();
-var PHIEN_BAN_TINH = "pb7";
+var PHIEN_BAN_TINH = "pb8";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
-async function lichCaCuaXuong(xuong) {
-  const r = await pool.query(
+async function lichCaCuaXuong(xuong, db = pool) {
+  const r = await db.query(
     `SELECT DISTINCT ON (loai_ca) loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
      FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY loai_ca, (xuong = '*')`,
     [xuong]
@@ -83060,91 +83470,19 @@ async function gioCongToNgay(toId, ngay) {
   const lichSu = (await suKienTheoHex(pool, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
   const theoId = /* @__PURE__ */ new Map();
   for (const x of [...r.rows, ...lichSu]) theoId.set(String(x.id), x);
-  const conHieuLuc = suKienConHieuLuc([...theoId.values()].map(toSuKien));
-  const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay;
-  const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
-  const boChon = {};
-  for (const e of conHieuLuc.filter((x) => x.loai === "tang_ca" && trongNgay(x))) {
-    const ca = String(e.duLieu?.loaiCa);
-    const ds = Array.isArray(e.duLieu?.boChon) ? e.duLieu.boChon.map(String) : [];
-    boChon[ca] = [...boChon[ca] ?? [], ...ds];
-  }
-  const quanSo = {};
-  for (const e of conHieuLuc.filter((x) => x.loai === "quan_so" && trongNgay(x))) {
-    quanSo[String(e.duLieu?.loaiCa)] = Number(e.duLieu?.soNguoi);
-  }
-  const doanChay = {};
-  const soNguoi = [];
-  const ngayCuoi = /* @__PURE__ */ new Map();
-  const capCuaTo = /* @__PURE__ */ new Map();
-  for (const e of conHieuLuc) {
-    if (e.hex && e.congDoanId) {
-      const k = pairKey(e.hex, e.congDoanId);
-      if (!capCuaTo.has(k)) capCuaTo.set(k, []);
-      capCuaTo.get(k).push(e);
-      if (e.loai !== "tien_do") {
-        const d = vnDayKey(new Date(e.ts));
-        if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
-      }
-      if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) {
-        soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
-      }
-    }
-    if (e.loai === "chia_nguoi" && Array.isArray(e.duLieu?.phanBo)) {
-      for (const p of e.duLieu.phanBo) {
-        if (typeof p.hex === "string" && typeof p.congDoanId === "string" && typeof p.soNguoi === "number") {
-          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi, nguoi: dsTen(p.nguoi) });
-        }
-      }
-    }
-    if (e.loai === "xac_nhan_cuoi_ngay" && Array.isArray(e.duLieu?.hangMuc)) {
-      const d = vnDayKey(new Date(e.ts));
-      for (const p of e.duLieu.hangMuc) {
-        if (typeof p.hex === "string" && typeof p.congDoanId === "string" && p.trangThai === "van_lam") {
-          const k = pairKey(p.hex, p.congDoanId);
-          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
-        }
-      }
-    }
-  }
-  const ngungTinh = [];
-  const chuaXacNhan = [];
-  for (const [k, evts] of capCuaTo) {
-    const st = tinhTrangThai(evts, []);
-    if (st.doanChay.length) doanChay[k] = st.doanChay;
-    if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
-      const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
-      if (tt === "ngung") ngungTinh.push(k);
-      if (tt === "chua_xac_nhan") chuaXacNhan.push(k);
-    }
-  }
-  const doanNgung = {};
-  for (const [k, evts] of capCuaTo) {
-    let dangNgung = null;
-    for (const e of [...evts].sort((a, b) => a.ts - b.ts || a.serverTs - b.serverTs)) {
-      if (e.loai === "tam_ngung" && !dangNgung) {
-        dangNgung = { start: e.ts, end: null, lyDo: e.lyDoTamNgung || "khac" };
-        (doanNgung[k] ??= []).push(dangNgung);
-      } else if (dangNgung && (e.loai === "bat_dau" || e.loai === "tiep_tuc" || e.loai === "hoan_thanh")) {
-        dangNgung.end = e.ts;
-        dangNgung = null;
-      }
-    }
-  }
-  const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 36e5;
-  const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)));
-  const payload = { ...phanBoGioCong({
-    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa),
-    quanSo,
-    doanChay,
-    soNguoi,
-    doanNgung,
-    coMat,
-    boChonTangCa: boChon,
-    ngungTinh,
-    chuaXacNhan,
-    now: Date.now()
-  }), bamLichCa, diemDanh: tomTatDiemDanh(coMat, ngay, lichCa) };
+  const tatCa = [...theoId.values()].map(toSuKien);
+  const now = Date.now();
+  const mocTo = await mocCheDo(pool, [toId]);
+  const cheDo = cheDoTheoNgay(mocTo);
+  const chinhThuc = await phanBoTheoCach(tatCa, "chinh_thuc");
+  const soKhop = cheDo(toId, ngay) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
+  const payload = {
+    ...chinhThuc.pb,
+    bamLichCa,
+    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay, lichCa),
+    cheDo: cheDo(toId, ngay),
+    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay, lichCa) } } : {}
+  };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
   while (gioCongCache.size > GIO_CONG_CACHE_MAX) {
@@ -83153,6 +83491,105 @@ async function gioCongToNgay(toId, ngay) {
     gioCongCache.delete(oldest);
   }
   return payload;
+  async function phanBoTheoCach(tatCa2, cach) {
+    const conHieuLuc = locTheoCheDo(suKienConHieuLuc(tatCa2), cheDo, cach);
+    const tram = await soTram(pool, tatCa2, cach, now);
+    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay;
+    const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
+    const boChon = {};
+    for (const e of conHieuLuc.filter((x) => x.loai === "tang_ca" && trongNgay(x))) {
+      const ca = String(e.duLieu?.loaiCa);
+      const ds = Array.isArray(e.duLieu?.boChon) ? e.duLieu.boChon.map(String) : [];
+      boChon[ca] = [...boChon[ca] ?? [], ...ds];
+    }
+    const quanSo = {};
+    for (const e of conHieuLuc.filter((x) => x.loai === "quan_so" && trongNgay(x))) {
+      quanSo[String(e.duLieu?.loaiCa)] = Number(e.duLieu?.soNguoi);
+    }
+    const doanChay = {};
+    const soNguoi = [];
+    const ngayCuoi = /* @__PURE__ */ new Map();
+    const capCuaTo = /* @__PURE__ */ new Map();
+    for (const e of conHieuLuc) {
+      if (e.hex && e.congDoanId) {
+        const k = pairKey(e.hex, e.congDoanId);
+        if (!capCuaTo.has(k)) capCuaTo.set(k, []);
+        capCuaTo.get(k).push(e);
+        if (e.loai !== "tien_do") {
+          const d = vnDayKey(new Date(e.ts));
+          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+        }
+        if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) {
+          soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
+        }
+      }
+      if (e.loai === "chia_nguoi" && Array.isArray(e.duLieu?.phanBo)) {
+        for (const p of e.duLieu.phanBo) {
+          if (typeof p.hex === "string" && typeof p.congDoanId === "string" && typeof p.soNguoi === "number") {
+            soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi, nguoi: dsTen(p.nguoi) });
+          }
+        }
+      }
+      if (e.loai === "xac_nhan_cuoi_ngay" && Array.isArray(e.duLieu?.hangMuc)) {
+        const d = vnDayKey(new Date(e.ts));
+        for (const p of e.duLieu.hangMuc) {
+          if (typeof p.hex === "string" && typeof p.congDoanId === "string" && p.trangThai === "van_lam") {
+            const k = pairKey(p.hex, p.congDoanId);
+            if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+          }
+        }
+      }
+    }
+    if (cach === "chinh_thuc" && mocTo.some((m) => m.cheDo === "tram")) {
+      for (const [, evts] of capCuaTo) evts.push(...dungBamTayKhiChuyen(evts, mocTo));
+    }
+    if (tram) {
+      for (const [k, evts] of capCuaTo) evts.push(...tram.kq.suKienGia[k] ?? []);
+      soNguoi.push(...tram.kq.soNguoi.filter((x) => capCuaTo.has(x.key)));
+    }
+    const ngungTinh = [];
+    const chuaXacNhan = [];
+    for (const [k, evts] of capCuaTo) {
+      const st = tinhTrangThai(evts, []);
+      if (st.doanChay.length) doanChay[k] = st.doanChay;
+      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
+        const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
+        if (tt === "ngung") ngungTinh.push(k);
+        if (tt === "chua_xac_nhan") chuaXacNhan.push(k);
+      }
+    }
+    const doanNgung = {};
+    for (const [k, evts] of capCuaTo) {
+      let dangNgung = null;
+      for (const e of [...evts].sort((a, b) => a.ts - b.ts || a.serverTs - b.serverTs)) {
+        if (e.loai === "tam_ngung" && !dangNgung) {
+          dangNgung = { start: e.ts, end: null, lyDo: e.lyDoTamNgung || (e.duLieu?.tram === true ? "het_nguoi" : "khac") };
+          (doanNgung[k] ??= []).push(dangNgung);
+        } else if (dangNgung && (e.loai === "bat_dau" || e.loai === "tiep_tuc" || e.loai === "hoan_thanh")) {
+          dangNgung.end = e.ts;
+          dangNgung = null;
+        }
+      }
+    }
+    const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 36e5;
+    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)));
+    const cuaSo = cuaSoTrongNgay(ngay, lichCa, caTangCa);
+    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay) === "tram" : cheDo(toId, ngay) !== "cu";
+    const coMatTinh = dungTram ? noiCoMatTangCa(coMat, cuaSo) : coMat;
+    const pb2 = phanBoGioCong({
+      cuaSo,
+      quanSo,
+      doanChay,
+      soNguoi,
+      doanNgung,
+      coMat: coMatTinh,
+      boChonTangCa: boChon,
+      ngungTinh,
+      chuaXacNhan,
+      now
+    });
+    return { pb: pb2, coMat: coMatTinh };
+  }
 }
 app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
   try {
@@ -83382,6 +83819,8 @@ app.get("/api/xuong/lich-su", async (req, res) => {
          LEFT JOIN xuong_cong_doan c ON c.id = e.cong_doan_id
          LEFT JOIN xuong_cong_doan d ON d.id = e.cong_doan_den_id
          WHERE e.loai <> 'huy' AND e.server_ts > now() - interval '24 hours'
+           -- S\u1ED5 tr\u1EA1m (m\u1ED7i l\u1EA7n qu\xE9t m\u1ED9t d\xF2ng) xem / s\u1EEDa \u1EDF m\xE0n S\u1EEDa ng\xE0y, kh\xF4ng l\u1EABn v\xE0o l\u1ECBch s\u1EED thao t\xE1c
+           AND e.loai NOT IN ('nguoi_vao', 'nguoi_ra') AND NOT (e.loai IN ('vao_ca', 'ra_ca') AND e.du_lieu->>'tram' = 'true')
            AND (e.to_id = $1 OR e.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1))
          ORDER BY e.device_ts_hieu_chinh DESC LIMIT 300`,
         [toId]
@@ -83520,7 +83959,7 @@ app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
     if (access.role !== "ADMIN") return res.status(403).json({ success: false, message: "Ch\u1EC9 admin \u0111\u01B0\u1EE3c thu h\u1ED3i" });
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
-    await pool.query("UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1", [userId]);
+    await pool.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1${await coBangTram() ? " AND loai <> 'tram'" : ""}`, [userId]);
     await bumpTokenVersion(userId);
     res.json({ success: true, available: true });
   } catch (e) {
@@ -84306,6 +84745,18 @@ app.get("/api/xuong/setup", async (req, res) => {
       pool.query(`SELECT q.user_id, u.full_name, u.username FROM xuong_quan_ly q JOIN users u ON u.id = q.user_id
                   WHERE q.xuong = $1 ORDER BY u.full_name`, [xuong])
     ]);
+    const toIds = to.rows.map((x) => Number(x.id));
+    const moc2 = await mocCheDo(pool, toIds);
+    const cheDoNgay = cheDoTheoNgay(moc2);
+    const homNay = ngayCa(Date.now());
+    const soTram2 = /* @__PURE__ */ new Map();
+    if (moc2.length || toIds.length) {
+      try {
+        const r = await pool.query(`SELECT to_id, count(*) AS n FROM xuong_phien_thiet_bi WHERE loai = 'tram' AND NOT thu_hoi AND to_id = ANY($1::int[]) GROUP BY to_id`, [toIds]);
+        for (const x of r.rows) soTram2.set(Number(x.to_id), Number(x.n));
+      } catch {
+      }
+    }
     const coQuyen = (r) => r.role === "ADMIN" || Array.isArray(r.permissions) && r.permissions.includes(PERM_XUONG);
     const toXem = chiTo ? to.rows.filter((x) => chiTo.includes(Number(x.id))) : to.rows;
     res.json({
@@ -84335,7 +84786,13 @@ app.get("/api/xuong/setup", async (req, res) => {
           coQuyenXuong: coQuyen(x)
         } : null,
         congDoan: tc.rows.filter((t) => Number(t.to_id) === Number(x.id)).map((t) => String(t.cong_doan_id)),
-        thanhVien: tv.rows.filter((t) => Number(t.to_id) === Number(x.id)).map((t) => String(t.mnv))
+        thanhVien: tv.rows.filter((t) => Number(t.to_id) === Number(x.id)).map((t) => String(t.mnv)),
+        cheDo: cheDoNgay(Number(x.id), homNay),
+        cheDoSau: (() => {
+          const m = moc2.filter((c) => c.toId === Number(x.id) && c.tuNgay > homNay).sort((a, b) => a.tuNgay.localeCompare(b.tuNgay))[0];
+          return m ? { cheDo: m.cheDo, tuNgay: m.tuNgay } : null;
+        })(),
+        soTram: soTram2.get(Number(x.id)) ?? 0
       })),
       lichCa: lc.rows.map((x) => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] })),
       quanLy: chiTo ? [] : ql.rows.map((x) => ({ userId: Number(x.user_id), ten: x.full_name || x.username }))
@@ -84419,8 +84876,9 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         if (!theoTo.has(k)) theoTo.set(k, []);
         theoTo.get(k).push(x);
       }
+      const cheDo = cheDoTheoNgay(await mocCheDo(pool, ids));
       for (const id of ids) {
-        const coMat = doanCoMat(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)));
+        const coMat = doanCoMat(locTheoCheDo(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)), cheDo));
         const caChinh = [...coMat.chinh ?? [], ...coMat.chu_nhat ?? []];
         const daDiemDanh = caChinh.length > 0;
         const dangCo = new Set(caChinh.filter((d) => d.end === null || d.end > now).map((d) => d.mnv));
@@ -85807,6 +86265,487 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
     });
   } catch (e) {
     fail(res, e, "/api/xuong/cong-nhan/nap");
+  }
+});
+
+// src/routes/xuongTram.ts
+var LOAI_TRAM = /* @__PURE__ */ new Set(["vao_ca", "ra_ca", "nguoi_vao", "nguoi_ra", "nhan", "hoan_thanh"]);
+var TRAM_CHI_GHI = "Tr\u1EA1m ch\u1EC9 ghi v\xE0o / ra ca, ng\u01B0\u1EDDi v\xE0o / ra h\xE0ng, Nh\u1EADn \u0111\u1EE7 v\xE0 Xong h\u1EBFt";
+var SAI_SO = 5e-4;
+var lamTron3 = (n) => Math.round(n * 1e3) / 1e3;
+var LO_TRAM_TOI_DA = 200;
+var chuaBat2 = (res) => res.json({ success: true, available: false, message: "Ch\u01B0a b\u1EADt tr\u1EA1m qu\xE9t (ch\u01B0a ch\u1EA1y SQL 2026-10-16_xuong_tram.sql)" });
+async function quyenTo2(req, toId) {
+  const r = await pool.query("SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1 AND active", [toId]);
+  const to = r.rows[0];
+  if (!to) return null;
+  const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(to.xuong));
+  if (quanLy || Number(to.to_truong_user_id) === Number(req.user.id)) return { xuong: String(to.xuong), quanLy };
+  return null;
+}
+async function tramCuaToi(req, db = pool) {
+  const u = req.user;
+  if (u.scope !== "tram" || !u.did || !u.to) return { loi: "Token tr\u1EA1m kh\xF4ng h\u1EE3p l\u1EC7" };
+  const r = await db.query(
+    `SELECT p.cong_doan, p.ten, p.thu_hoi, t.xuong FROM xuong_phien_thiet_bi p JOIN xuong_to t ON t.id = p.to_id
+     WHERE p.device_id = $1 AND p.user_id = $2 AND p.loai = 'tram' AND p.to_id = $3`,
+    [u.did, Number(u.id), Number(u.to)]
+  );
+  const x = r.rows[0];
+  if (!x || x.thu_hoi) return { loi: "Tr\u1EA1m \u0111\xE3 b\u1ECB thu h\u1ED3i ho\u1EB7c ch\u01B0a \u0111\u0103ng k\xFD \u2014 c\u1EA7n \u0111\u0103ng k\xFD l\u1EA1i" };
+  return { deviceId: u.did, toId: Number(u.to), xuong: String(x.xuong), congDoan: (x.cong_doan ?? []).map(String), sentBy: Number(u.id), ten: x.ten ?? null };
+}
+var giaHan = (req, t) => signTramToken({ id: t.sentBy, username: req.user.username, role: req.user.role }, t.deviceId, t.toId);
+var dangKySchema = external_exports.object({
+  toId: external_exports.number().int().positive(),
+  congDoan: external_exports.array(external_exports.string().max(40)).max(20).default([]),
+  ten: external_exports.string().trim().max(80).nullish()
+});
+app.post("/api/xuong/tram/dang-ky", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const p = dangKySchema.safeParse(req.body ?? {});
+    if (!p.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u kh\xF4ng h\u1EE3p l\u1EC7" });
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const quyen = await quyenTo2(req, p.data.toId);
+    if (!quyen) return res.status(403).json({ success: false, message: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng ho\u1EB7c t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 \u0111\u01B0\u1EE3c \u0111\u0103ng k\xFD tr\u1EA1m" });
+    const cdTo = (await pool.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [p.data.toId])).rows.map((x) => String(x.cong_doan_id));
+    const congDoan = [...new Set(p.data.congDoan)];
+    if (congDoan.some((c) => !cdTo.includes(c))) return res.status(400).json({ success: false, message: "C\xF4ng \u0111o\u1EA1n kh\xF4ng thu\u1ED9c t\u1ED5" });
+    const deviceId = newDeviceId();
+    await pool.query(
+      `INSERT INTO xuong_phien_thiet_bi (device_id, user_id, loai, to_id, cong_doan, ten) VALUES ($1, $2, 'tram', $3, $4, $5)`,
+      [deviceId, Number(req.user.id), p.data.toId, congDoan, p.data.ten || null]
+    );
+    res.json({
+      success: true,
+      available: true,
+      deviceId,
+      token: signTramToken({ id: req.user.id, username: req.user.username, role: req.user.role }, deviceId, p.data.toId),
+      deviceToken: signDeviceToken(deviceId)
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tram/dang-ky");
+  }
+});
+app.get("/api/xuong/tram/ds", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const toId = Number(req.query.toId);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
+    if (!await quyenTo2(req, toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n v\u1EDBi t\u1ED5 n\xE0y" });
+    const r = await pool.query(
+      `SELECT p.device_id, p.ten, p.cong_doan, p.lan_dau, p.lan_cuoi, p.thu_hoi, u.full_name, u.username
+       FROM xuong_phien_thiet_bi p LEFT JOIN users u ON u.id = p.user_id
+       WHERE p.loai = 'tram' AND p.to_id = $1 ORDER BY p.thu_hoi, p.lan_dau DESC`,
+      [toId]
+    );
+    res.json({
+      success: true,
+      available: true,
+      tram: r.rows.map((x) => ({
+        deviceId: String(x.device_id),
+        ten: x.ten,
+        congDoan: x.cong_doan ?? [],
+        lanDau: x.lan_dau,
+        lanCuoi: x.lan_cuoi,
+        thuHoi: !!x.thu_hoi,
+        nguoiDangKy: x.full_name || x.username || null
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tram/ds");
+  }
+});
+app.post("/api/xuong/tram/thu-hoi", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const deviceId = typeof req.body?.deviceId === "string" ? req.body.deviceId : "";
+    const r = await pool.query(`SELECT to_id FROM xuong_phien_thiet_bi WHERE device_id = $1 AND loai = 'tram' LIMIT 1`, [deviceId]).catch(() => ({ rows: [] }));
+    const toId = Number(r.rows[0]?.to_id);
+    if (!toId) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y tr\u1EA1m" });
+    if (!await quyenTo2(req, toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n v\u1EDBi t\u1ED5 n\xE0y" });
+    await pool.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE device_id = $1 AND loai = 'tram'`, [deviceId]);
+    res.json({ success: true, available: true });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tram/thu-hoi");
+  }
+});
+var ngayCaKeTiep = (now) => new Date(Date.parse(`${ngayCa(now)}T12:00:00+07:00`) + 864e5).toISOString().slice(0, 10);
+app.post("/api/xuong/to/:id/che-do", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const toId = Number(req.params.id);
+    const cheDo = req.body?.cheDo;
+    if (!Number.isInteger(toId) || toId <= 0 || !CHE_DO_CHAM.includes(cheDo)) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u kh\xF4ng h\u1EE3p l\u1EC7" });
+    const quyen = await quyenTo2(req, toId);
+    if (!quyen?.quanLy) return res.status(403).json({ success: false, message: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c \u0111\u1ED5i ch\u1EBF \u0111\u1ED9 ch\u1EA5m c\u1EE7a t\u1ED5" });
+    const tuNgay = req.body?.homNay === true ? ngayCa(Date.now()) : ngayCaKeTiep(Date.now());
+    await withTransaction(async (client) => {
+      await client.query("DELETE FROM xuong_to_che_do WHERE to_id = $1 AND tu_ngay = $2::date", [toId, tuNgay]);
+      await client.query(
+        "INSERT INTO xuong_to_che_do (to_id, che_do, tu_ngay, nguoi_doi) VALUES ($1, $2, $3::date, $4)",
+        [toId, cheDo, tuNgay, Number(req.user.id)]
+      );
+      await client.query("UPDATE xuong_to SET che_do_cham = $2 WHERE id = $1", [toId, cheDo]);
+    });
+    const dang = cheDo === "tram" ? (await pool.query(
+      `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
+       WHERE tc.to_id = $1 AND t.trang_thai = 'dang_lam'`,
+      [toId]
+    )).rows : [];
+    res.json({ success: true, available: true, cheDo, tuNgay, dangLamBamTay: dang.map((x) => ({ hex: x.hex, congDoanId: x.cong_doan_id })) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/to/:id/che-do");
+  }
+});
+async function soTramCuaTo(toId, tu, den) {
+  const r = await pool.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+     WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca','nguoi_vao','nguoi_ra') AND device_ts_hieu_chinh BETWEEN $2 AND $3`,
+    [toId, new Date(tu).toISOString(), new Date(den).toISOString()]
+  );
+  const rows = r.rows.filter((x) => laSuKienTram(toSuKien(x)));
+  const huy = rows.length ? (await pool.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
+    [rows.map((x) => String(x.id))]
+  )).rows : [];
+  const hexes = [...new Set(rows.filter((x) => x.hex).map((x) => String(x.hex)))];
+  const sl = (await suKienTheoHex(pool, hexes)).filter((x) => x.loai === "nhan" || x.loai === "hoan_thanh" || x.loai === "huy");
+  const theoId = /* @__PURE__ */ new Map();
+  for (const x of [...rows, ...huy, ...sl]) theoId.set(String(x.id), x);
+  return [...theoId.values()].map(toSuKien);
+}
+app.get("/api/xuong/tram/may/bang", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const t = await tramCuaToi(req);
+    if ("loi" in t) return res.status(401).json({ success: false, message: t.loi, dangKyLai: true });
+    pool.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
+    });
+    const now = Date.now();
+    const ngay = ngayCa(now);
+    const [toRow, cdRows, lichCa, tangCa, moc2] = await Promise.all([
+      pool.query("SELECT ten_to FROM xuong_to WHERE id = $1", [t.toId]),
+      pool.query(
+        `SELECT c.id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
+         WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`,
+        [t.toId]
+      ),
+      lichCaCuaXuong(t.xuong),
+      pool.query(
+        `SELECT DISTINCT du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e
+         WHERE to_id = $1 AND loai = 'tang_ca' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+        [t.toId, ngay]
+      ),
+      mocCheDo(pool, [t.toId])
+    ]);
+    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay);
+    const cds = cdRows.rows.map((x) => String(x.id));
+    const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
+    const st = await soTram(pool, evs, "so_khop", now);
+    const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
+    const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
+    const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
+    const oHang = new Set(dangO.flatMap(([, ds]) => ds));
+    const chuaVaoHang = [...new Set(coMat)].filter((m) => !oHang.has(m));
+    const hm = cds.length ? (await pool.query(
+      `SELECT hex, cong_doan_id, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh FROM xuong_trang_thai
+       WHERE cong_doan_id = ANY($1::text[]) AND (sl_nhan > sl_hoan_thanh OR sl_giao_den > sl_nhan)`,
+      [cds]
+    )).rows : [];
+    const ghNhan = await gioiHanNhan(pool, hm.filter((x) => Number(x.sl_giao_den) > Number(x.sl_nhan)).map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    const conNhanCua = (x) => {
+      const g = ghNhan.get(`${x.hex}|${x.cong_doan_id}`);
+      let con = Number(x.sl_giao_den) - Number(x.sl_nhan);
+      if (g && g.moc !== null) con = Math.min(con, g.moc - g.daNhan);
+      return Math.max(0, lamTron3(con));
+    };
+    const mnvs = [.../* @__PURE__ */ new Set([...oHang, ...chuaVaoHang])];
+    const [info, ten] = await Promise.all([
+      thongTinHangMuc([.../* @__PURE__ */ new Set([...hm.map((x) => String(x.hex)), ...dangO.map(([k]) => k.split("|")[0])])]),
+      mnvs.length ? pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] })
+    ]);
+    const hoTen = new Map(ten.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
+    const nguoi = (m) => ({ mnv: m, hoTen: hoTen.get(m) ?? m });
+    res.json({
+      success: true,
+      available: true,
+      serverNow: now,
+      ngay,
+      cheDo,
+      token: giaHan(req, t),
+      tram: { ten: t.ten, congDoan: t.congDoan },
+      to: { id: t.toId, xuong: t.xuong, ten: toRow.rows[0]?.ten_to ?? null },
+      congDoan: cdRows.rows.map((x) => ({ id: String(x.id), ten: x.cd_chi_tiet })),
+      lichCa,
+      tangCa: tangCa.rows.map((x) => String(x.ca)),
+      dangO: dangO.map(([k, ds]) => {
+        const [hex3, congDoanId] = k.split("|");
+        return { hex: hex3, congDoanId, tenHangMuc: info.get(hex3)?.ten_hang_muc ?? null, nguoi: ds.map(nguoi) };
+      }),
+      chuaVaoHang: chuaVaoHang.map(nguoi),
+      hangMuc: hm.map((x) => ({
+        hex: String(x.hex),
+        congDoanId: String(x.cong_doan_id),
+        trangThai: x.trang_thai,
+        tenHangMuc: info.get(String(x.hex))?.ten_hang_muc ?? null,
+        conLam: Math.max(0, lamTron3(Number(x.sl_nhan) - Number(x.sl_hoan_thanh))),
+        conNhan: conNhanCua(x),
+        dvt: info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex)).dvt).trim() : null
+      })).filter((x) => x.conLam > 0 || x.conNhan > 0)
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tram/may/bang");
+  }
+});
+app.get("/api/xuong/tram/may/time", (_req, res) => {
+  res.json({ success: true, serverNow: Date.now() });
+});
+app.get("/api/xuong/tram/may/cong-nhan", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const t = await tramCuaToi(req);
+    if ("loi" in t) return res.status(401).json({ success: false, message: t.loi, dangKyLai: true });
+    const r = await pool.query(
+      `SELECT c.mnv, c.ho_ten, c.to_id, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.active`
+    );
+    res.json({
+      success: true,
+      available: true,
+      congNhan: r.rows.map((x) => ({ mnv: String(x.mnv), hoTen: String(x.ho_ten), toId: x.to_id === null ? null : Number(x.to_id), tenTo: x.ten_to ?? null }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tram/may/cong-nhan");
+  }
+});
+var laCongNhan = async (mnv) => (await pool.query("SELECT 1 FROM xuong_cong_nhan WHERE active AND mnv = $1", [mnv])).rows.length > 0;
+var loTramSchema = external_exports.object({
+  deviceToken: external_exports.string().max(200),
+  events: external_exports.array(external_exports.unknown()).min(1).max(LO_TRAM_TOI_DA)
+});
+function kiemTraSuKienTram(e, ctx) {
+  if (!LOAI_TRAM.has(e.loai)) return TRAM_CHI_GHI;
+  const mnv = mnvCua({ duLieu: e.duLieu ?? null });
+  if (!mnv || !ctx.congNhan.has(mnv)) return "Th\u1EBB ch\u01B0a c\xF3 trong danh s\xE1ch \u2014 b\xE1o t\u1ED5 tr\u01B0\u1EDFng";
+  if (e.loai === "nhan" || e.loai === "hoan_thanh") {
+    if (!e.congDoanId || !ctx.cdCuaTo.has(e.congDoanId)) return "C\xF4ng \u0111o\u1EA1n kh\xF4ng thu\u1ED9c t\u1ED5 c\u1EE7a tr\u1EA1m";
+    if (e.loai === "nhan" && e.duLieu?.nhanDu !== true) return "Tr\u1EA1m ch\u1EC9 Nh\u1EADn \u0111\u1EE7 \u2014 nh\u1EADn m\u1ED9t ph\u1EA7n l\xE0m tr\xEAn app t\u1ED5 tr\u01B0\u1EDFng";
+    if (e.loai === "hoan_thanh" && e.duLieu?.xongHet !== true) return "Tr\u1EA1m ch\u1EC9 ghi Xong h\u1EBFt \u2014 xong m\u1ED9t ph\u1EA7n l\xE0m tr\xEAn app t\u1ED5 tr\u01B0\u1EDFng";
+  }
+  if (e.loai === "nguoi_vao") {
+    if (!e.congDoanId || !ctx.cdCuaTo.has(e.congDoanId)) return "C\xF4ng \u0111o\u1EA1n kh\xF4ng thu\u1ED9c t\u1ED5 c\u1EE7a tr\u1EA1m";
+    if (!ctx.lamDuoc.has(pairKey(e.hex, e.congDoanId))) return "H\u1EA1ng m\u1EE5c ch\u01B0a nh\u1EADn \u1EDF t\u1ED5 n\xE0y ho\u1EB7c \u0111\xE3 xong h\u1EBFt";
+  }
+  return null;
+}
+app.post("/api/xuong/tram/may/events", async (req, res) => {
+  const serverNow = Date.now();
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    const body = loTramSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ success: false, message: `L\xF4 ph\u1EA3i c\xF3 1\u2013${LO_TRAM_TOI_DA} s\u1EF1 ki\u1EC7n v\xE0 m\xE3 thi\u1EBFt b\u1ECB` });
+    const t = await tramCuaToi(req);
+    if ("loi" in t) return res.status(401).json({ success: false, message: t.loi, dangKyLai: true });
+    if (verifyDeviceToken(body.data.deviceToken) !== t.deviceId) return res.status(401).json({ success: false, message: "Token kh\xF4ng thu\u1ED9c m\xE1y n\xE0y" });
+    const tuChoi = [];
+    const hopLe = [];
+    for (const raw of body.data.events) {
+      const p = suKienSchema.safeParse(raw);
+      const id = raw?.id;
+      if (!p.success) {
+        tuChoi.push({ id: typeof id === "string" ? id : "", reason: "D\u1EEF li\u1EC7u s\u1EF1 ki\u1EC7n kh\xF4ng h\u1EE3p l\u1EC7" });
+        continue;
+      }
+      const e = { ...p.data, toId: t.toId, userId: null, suaCho: null, duLieu: { ...p.data.duLieu ?? {}, tram: true } };
+      if (e.duLieu && typeof e.duLieu.mnv === "string") e.duLieu.mnv = chuanMnv(e.duLieu.mnv);
+      const why = LOAI_TRAM.has(e.loai) ? kiemTraTheoLoai(e) : TRAM_CHI_GHI;
+      if (why) {
+        tuChoi.push({ id: e.id, reason: why });
+        continue;
+      }
+      hopLe.push(e);
+    }
+    const mnvs = [...new Set(hopLe.map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x))];
+    const [cn, cdRows] = await Promise.all([
+      mnvs.length ? pool.query("SELECT mnv FROM xuong_cong_nhan WHERE active AND mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
+      pool.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [t.toId])
+    ]);
+    const cdCuaTo = new Set(cdRows.rows.map((x) => String(x.cong_doan_id)));
+    const capLo = [...new Map(hopLe.filter((e) => ["nguoi_vao", "nhan", "hoan_thanh"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [pairKey(e.hex, e.congDoanId), [e.hex, e.congDoanId]])).values()];
+    const soCap = /* @__PURE__ */ new Map();
+    const lamDuoc = /* @__PURE__ */ new Set();
+    let ghNhan = /* @__PURE__ */ new Map();
+    if (capLo.length) {
+      const tt = await pool.query(
+        `SELECT t.hex, t.cong_doan_id, t.sl_giao_den, t.sl_nhan, t.sl_hoan_thanh FROM xuong_trang_thai t
+         JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
+        [capLo.map((x) => x[0]), capLo.map((x) => x[1])]
+      );
+      for (const x of tt.rows) {
+        const k = pairKey(String(x.hex), String(x.cong_doan_id));
+        soCap.set(k, { den: Number(x.sl_giao_den), nhan: Number(x.sl_nhan), ht: Number(x.sl_hoan_thanh) });
+        if (Number(x.sl_nhan) > Number(x.sl_hoan_thanh) + SAI_SO) lamDuoc.add(k);
+      }
+      if (hopLe.some((e) => e.loai === "nhan")) ghNhan = await gioiHanNhan(pool, capLo.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
+    }
+    const ctx = { congNhan: new Set(cn.rows.map((x) => String(x.mnv))), cdCuaTo, lamDuoc };
+    const duocKhai = hopLe.filter((e) => typeof e.duLieu?.khaiBoi === "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x);
+    const daVaoCa = new Set(hopLe.filter((e) => e.loai === "vao_ca" && typeof e.duLieu?.khaiBoi !== "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x));
+    if (duocKhai.length) {
+      const r = await pool.query(
+        `SELECT DISTINCT du_lieu->>'mnv' AS mnv FROM xuong_su_kien e
+         WHERE loai = 'vao_ca' AND du_lieu->>'tram' = 'true' AND du_lieu->>'mnv' = ANY($1::text[])
+           AND NOT (du_lieu ? 'khaiBoi') AND device_ts_hieu_chinh >= $2
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+        [[...new Set(duocKhai)], new Date(Date.parse(`${ngayCa(serverNow)}T05:00:00+07:00`)).toISOString()]
+      );
+      for (const x of r.rows) daVaoCa.add(String(x.mnv));
+    }
+    const ghi = [];
+    for (const e of hopLe) {
+      const why = kiemTraSuKienTram(e, ctx);
+      if (why) {
+        tuChoi.push({ id: e.id, reason: why });
+        continue;
+      }
+      const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
+      const co = ["tram", ...gio.co];
+      if (e.duLieu?.ngoaiCa === true) co.push("ngoai_ca");
+      let soLuong = null;
+      if (e.loai === "nhan" || e.loai === "hoan_thanh") {
+        const k = pairKey(e.hex, e.congDoanId);
+        const c = soCap.get(k) ?? { den: 0, nhan: 0, ht: 0 };
+        if (e.loai === "nhan") {
+          let con = c.den - c.nhan;
+          const g = ghNhan.get(`${e.hex}|${e.congDoanId}`);
+          if (g && g.moc !== null) con = Math.min(con, g.moc - g.daNhan - (c.nhan - (soCap.get(k)?.nhan ?? 0)));
+          if (con <= SAI_SO) {
+            tuChoi.push({ id: e.id, reason: "Kh\xF4ng c\xF2n h\xE0ng ch\u1EDD nh\u1EADn \u1EDF h\u1EA1ng m\u1EE5c n\xE0y" });
+            continue;
+          }
+          soLuong = lamTron3(con);
+          c.nhan += soLuong;
+          lamDuoc.add(k);
+          co.push("nhan_du");
+        } else {
+          const con = c.nhan - c.ht;
+          if (con <= SAI_SO) {
+            tuChoi.push({ id: e.id, reason: "H\u1EA1ng m\u1EE5c \u0111\xE3 xong h\u1EBFt s\u1ED1 \u0111\xE3 nh\u1EADn" });
+            continue;
+          }
+          soLuong = lamTron3(con);
+          c.ht += soLuong;
+          lamDuoc.delete(k);
+          co.push("xong_het");
+        }
+        soCap.set(k, c);
+      }
+      if (typeof e.duLieu?.khaiBoi === "string") {
+        if (e.loai === "vao_ca") {
+          tuChoi.push({ id: e.id, reason: "M\u1ED7i ng\u01B0\u1EDDi t\u1EF1 qu\xE9t th\u1EBB v\xE0o ca" });
+          continue;
+        }
+        if (e.loai === "nguoi_vao" && !daVaoCa.has(mnvCua({ duLieu: e.duLieu }))) {
+          tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi n\xE0y ch\u01B0a t\u1EF1 qu\xE9t th\u1EBB v\xE0o ca" });
+          continue;
+        }
+        const kb = chuanMnv(e.duLieu.khaiBoi);
+        if (!ctx.congNhan.has(kb) && !await laCongNhan(kb)) {
+          tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi khai kh\xF4ng c\xF3 trong danh s\xE1ch" });
+          continue;
+        }
+        e.duLieu.khaiBoi = kb;
+        co.push("khai_ho");
+      }
+      ghi.push({
+        id: e.id,
+        loai: e.loai,
+        hex: e.hex ?? null,
+        cong_doan_id: e.congDoanId ?? null,
+        to_id: t.toId,
+        xuong: t.xuong,
+        so_luong: soLuong,
+        cong_doan_den_id: null,
+        cong_doan_nguon_id: null,
+        xuong_nguon: null,
+        so_nguoi: null,
+        ly_do_tam_ngung: null,
+        tien_do: null,
+        ghi_chu: null,
+        du_lieu: e.duLieu,
+        device_ts: new Date(e.deviceTs).toISOString(),
+        lech_ms: e.lechMs === void 0 || e.lechMs === null ? null : Math.round(e.lechMs),
+        device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
+        user_id: t.sentBy,
+        user_id_khai: null,
+        sent_by: t.sentBy,
+        device_id: t.deviceId,
+        sua_cho: null,
+        co
+      });
+    }
+    if (ghi.length) await withTransaction((client) => ghiVaTinhLai(client, ghi));
+    pool.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
+    });
+    res.json({ success: true, available: true, saved: ghi.map((x) => String(x.id)), rejected: tuChoi, serverNow, token: giaHan(req, t) });
+  } catch (e) {
+    fail(res, e, "/api/xuong/tram/may/events");
+  }
+});
+app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const toId = Number(req.params.id);
+    const now = Date.now();
+    const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const toRow = (await pool.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
+    if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
+    const pv = await phamViXem(req.user.id, String(toRow.xuong));
+    if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
+    const dau = Date.parse(`${ngay}T05:00:00+07:00`);
+    const cuoi = dau + 25 * 36e5;
+    const evs = await soTramCuaTo(toId, dau, cuoi);
+    const st = await soTram(pool, evs, "so_khop", now);
+    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay);
+    const hl = suKienConHieuLuc(evs);
+    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
+    const coMat = Object.values(doanCoMat(dd)).flat().filter((d) => !!d);
+    const mnvs = [.../* @__PURE__ */ new Set([...doan.map((d) => d.mnv), ...coMat.map((d) => d.mnv)])];
+    const [ten, info] = await Promise.all([
+      mnvs.length ? pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
+      thongTinHangMuc([...new Set(doan.map((d) => d.hex))])
+    ]);
+    const hoTen = new Map(ten.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
+    const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(toRow.xuong));
+    const laToTruong = (await toTruongCua(req.user.id)).some((x) => x.id === toId);
+    res.json({
+      success: true,
+      available: true,
+      ngay,
+      serverNow: now,
+      cheDo: cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngay),
+      // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
+      suaDuoc: quanLy || laToTruong,
+      nguoi: mnvs.sort().map((m) => {
+        const cm = coMat.filter((d) => d.mnv === m);
+        const ds = doan.filter((d) => d.mnv === m).sort((a, b) => a.start - b.start);
+        return {
+          mnv: m,
+          hoTen: hoTen.get(m) ?? m,
+          coMat: cm.map((d) => ({ start: d.start, end: d.end })),
+          doan: ds.map((d) => ({ ...d, tenHangMuc: info.get(d.hex)?.ten_hang_muc ?? null })),
+          co: coSuaNgay(ds, cm, now)
+        };
+      }),
+      // Sự kiện trạm của ngày (để huỷ từng dòng)
+      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/to/:id/sua-ngay");
   }
 });
 

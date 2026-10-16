@@ -29,11 +29,11 @@ const mocHienTai = () => Date.now() - performance.now();
 /** Lệch tính từ một lần gọi: t0/t1 là giờ máy lúc gửi / nhận, serverNow là giờ server */
 export const tinhLech = (t0: number, t1: number, serverNow: number): number => Math.round(serverNow - (t0 + t1) / 2);
 
-/** Đo lệch bằng /api/xuong/time và lưu lại. Lỗi mạng thì giữ lệch cũ. */
-export async function doLech(fetchImpl: typeof fetch = fetch): Promise<number | null> {
+/** Đo lệch bằng /api/xuong/time (máy trạm: /api/xuong/tram/may/time) và lưu lại. Lỗi mạng thì giữ lệch cũ. */
+export async function doLech(fetchImpl: typeof fetch = fetch, duongDan = '/api/xuong/time', auth: () => Record<string, string> = authXuong): Promise<number | null> {
   try {
     const t0 = Date.now();
-    const r = await fetchImpl('/api/xuong/time', { cache: 'no-store', headers: authXuong() });
+    const r = await fetchImpl(duongDan, { cache: 'no-store', headers: auth() });
     const t1 = Date.now();
     if (!r.ok) return docLech()?.lechMs ?? null;
     const { serverNow } = await r.json() as { serverNow: number };

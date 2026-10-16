@@ -16,11 +16,15 @@ import { khungCaChinh, gioTrongCa } from '../server/xuong/mraLichSu.js';
 import { doanCoMat, tomTatDiemDanh, kiemTraDiemDanh, chuanMnv } from '../server/xuong/chamCong.js';
 import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, type ThayDoiSoNguoi } from '../server/xuong/allocation.js';
 import { thoiGianTheoLo } from '../server/xuong/metrics.js';
+import {
+  chuyenDoiTram, locTheoCheDo, cheDoTheoNgay, laSuKienTram, mnvCua, ngayCa, dungBamTayKhiChuyen, noiCoMatTangCa,
+  type CheDoCham, type KetQuaTram, type MocCheDo,
+} from '../server/xuong/tram.js';
 import { baoHangChoNhan } from './xuongThongBao.js';
 import { khoaAnhHopLe, kieuAnh, ANH_TOI_DA_BYTE } from '../server/xuong/anh.js';
 import {
   LOAI_SU_KIEN, LY_DO_TAM_NGUNG, LOAI_CA, LOAI_CA_TANG_CA, pairKey,
-  type SuKien, type LichCaRow, type LoaiCa, type DoanChay,
+  type SuKien, type LichCaRow, type LoaiCa, type DoanChay, type CuaSo,
 } from '../server/xuong/types.js';
 
 // ============================================================================
@@ -45,6 +49,15 @@ export const PERM_XUONG = 'xuong';
 export const PERM_QUAN_LY = 'xuong_quan_ly';
 const LO_TOI_DA = 200;
 const HUY_TRONG_MS = 24 * 3_600_000;
+const HUY_TRAM_TRONG_MS = 7 * 24 * 3_600_000;
+/**
+ * Tổ trưởng huỷ được sự kiện sổ trạm của tổ mình (gửi từ trạm — cờ 'tram' — hoặc tổ trưởng / quản lý ghi hộ) trong
+ * 7 ngày (mở rộng R7 — docs/designs/xuong-tram-quet.md). Quyền người gửi 24 giờ / quản lý xưởng giữ nguyên.
+ */
+export const toTruongHuyDuoc = (d: { to_id?: unknown; co?: unknown; server_ts?: unknown }, laToTruong: Set<number>, now: number): boolean =>
+  d.to_id !== null && d.to_id !== undefined && laToTruong.has(Number(d.to_id))
+  && Array.isArray(d.co) && (d.co.includes('tram') || d.co.includes('to_truong_ghi_ho'))
+  && now - new Date(String(d.server_ts)).getTime() <= HUY_TRAM_TRONG_MS;
 export const HEX_RE = /^\d{9}$/;
 
 export const fail = (res: Response, e: unknown, where: string) => {
@@ -130,17 +143,127 @@ export async function suKienTheoHex(db: Pick<PoolClient, 'query'>, hexes: string
   return r.rows;
 }
 
-/** Tính trạng thái các cặp (hex, công đoạn) từ sự kiện của các hạng mục đó */
-function trangThaiCacCap(rows: Row[], pairs: Array<[string, string]>) {
+/**
+ * Tính trạng thái các cặp (hex, công đoạn) từ sự kiện của các hạng mục đó. Có sổ trạm (tổ chế độ trạm): bỏ bấm tay
+ * Bắt đầu / Tạm ngưng của ngày trạm, thêm sự kiện giả "có người / hết người" từ bộ chuyển đổi (tram.ts).
+ */
+function trangThaiCacCap(rows: Row[], pairs: Array<[string, string]>, tram: SoTram | null = null, moc: MocCheDo[] = []) {
   const evts = rows.map(toSuKien);
+  const coTram = moc.some(m => m.cheDo === 'tram');
   const tuyenHex = new Map<string, TuyenThanhPhan[]>();
   return pairs.map(([hex, cd]) => {
-    const cua = evts.filter(e => e.hex === hex && e.congDoanId === cd);
+    const k = pairKey(hex, cd);
+    const cua0 = evts.filter(e => e.hex === hex && e.congDoanId === cd);
+    const cheDo = tram?.cheDo ?? cheDoTheoNgay(moc);
+    const cua = tram || coTram
+      ? [...locTheoCheDo(cua0, cheDo), ...(tram?.kq.suKienGia[k] ?? []), ...(coTram ? dungBamTayKhiChuyen(suKienConHieuLuc(cua0), moc) : [])]
+      : cua0;
     const den = evts.filter(e => e.hex === hex && (e.loai === 'giao' || e.loai === 'khai_bao_cd' || e.loai === 'huy')
       && (e.congDoanDenId === cd || e.loai === 'huy'));
     if (!tuyenHex.has(hex)) tuyenHex.set(hex, tuyenTheoThanhPhan(evts.filter(e => e.hex === hex)));
-    return { hex, cd, state: tinhTrangThai(cua, den, tuyenHex.get(hex), cd) };
+    const state = tinhTrangThai(cua, den, tuyenHex.get(hex), cd);
+    if (tram?.kq.dangO[k]) state.soNguoi = tram.kq.dangO[k].length;
+    return { hex, cd, state };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Trạm quét (docs/designs/xuong-tram-quet.md): chế độ tổ + sổ trạm theo người
+// ---------------------------------------------------------------------------
+let bangTram: { co: boolean; luc: number } | null = null;
+/** Đã chạy backend/sql/2026-10-16_xuong_tram.sql (chế độ tổ, thiết bị trạm, loại nguoi_vao / nguoi_ra) */
+export async function coBangTram(db: Pick<PoolClient, 'query'> = pool): Promise<boolean> {
+  if (bangTram && (bangTram.co || Date.now() - bangTram.luc < 300_000)) return bangTram.co;
+  const r = await db.query(`SELECT to_regclass('xuong_to_che_do') IS NOT NULL AS co`);
+  bangTram = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangTram.co;
+}
+
+/** Lịch đổi chế độ của các tổ (chưa chạy SQL trạm: rỗng = mọi tổ 'cu') */
+export async function mocCheDo(db: Pick<PoolClient, 'query'>, toIds: number[]): Promise<MocCheDo[]> {
+  if (!toIds.length || !(await coBangTram(db))) return [];
+  const r = await db.query(
+    `SELECT to_id, che_do, to_char(tu_ngay, 'YYYY-MM-DD') AS tu FROM xuong_to_che_do WHERE to_id = ANY($1::int[])`, [toIds]);
+  return r.rows.map(x => ({ toId: Number(x.to_id), cheDo: x.che_do as CheDoCham, tuNgay: String(x.tu) }));
+}
+
+/** Cửa sổ ca của tổ từ ngày `tu` tới `den` (ca chính + tăng ca tổ đã khai) — để tự đóng cuối ca */
+export async function cuaSoCacTo(db: Pick<PoolClient, 'query'>, toIds: number[], tu: string, den: string): Promise<Map<number, CuaSo[]>> {
+  const out = new Map<number, CuaSo[]>();
+  if (!toIds.length) return out;
+  const [toRows, tc] = await Promise.all([
+    db.query('SELECT id, xuong FROM xuong_to WHERE id = ANY($1::int[])', [toIds]),
+    db.query(
+      `SELECT to_id, du_lieu->>'loaiCa' AS ca, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
+       WHERE to_id = ANY($1::int[]) AND loai = 'tang_ca'
+         AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date
+         AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`, [toIds, tu, den]),
+  ]);
+  const lichTheoXuong = new Map<string, LichCaRow[]>();
+  for (const x of toRows.rows) {
+    const xg = String(x.xuong);
+    if (!lichTheoXuong.has(xg)) lichTheoXuong.set(xg, await lichCaCuaXuong(xg, db));
+    const lich = lichTheoXuong.get(xg)!;
+    if (!lich.length) continue;
+    const cs: CuaSo[] = [];
+    for (let d = Date.parse(`${tu}T12:00:00+07:00`); vnDayKey(new Date(d)) <= den; d += 86_400_000) {
+      const ngay = vnDayKey(new Date(d));
+      const ca = tc.rows.filter(r => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay).map(r => String(r.ca) as LoaiCa);
+      cs.push(...cuaSoTrongNgay(ngay, lich, ca));
+    }
+    out.set(Number(x.id), cs);
+  }
+  return out;
+}
+
+/**
+ * Tự đóng cuối ca tính lúc đọc: dòng "đang làm" của tổ chế độ trạm được tính lại khi màn tổ mở (≤ 1 lần / phút / tổ)
+ * — quên ra hàng thì sau cuối ca hạng mục về tạm ngưng mà không cần tác nhân chạy ngầm.
+ */
+const lanSuaTuDong = new Map<number, number>();
+export async function suaTramTuDong(toId: number): Promise<void> {
+  const now = Date.now();
+  if (now - (lanSuaTuDong.get(toId) ?? 0) < 60_000) return;
+  lanSuaTuDong.set(toId, now);
+  if (cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngayCa(now)) !== 'tram') return;
+  const r = await pool.query(
+    `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
+     WHERE tc.to_id = $1 AND t.trang_thai = 'dang_lam'`, [toId]);
+  if (!r.rows.length) return;
+  await withTransaction(client => luuTrangThai(client, r.rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string])));
+}
+
+export interface SoTram {
+  kq: KetQuaTram;
+  cheDo: (toId: number | null, ngay: string) => CheDoCham;
+}
+
+/**
+ * Sổ trạm liên quan tới các sự kiện `evs` (thô, gồm cả huy) đang tính: lấy thêm dòng thời gian của từng người có trong
+ * sổ trạm (vd rời hàng bằng cách vào hàng ở trạm tổ khác), lọc theo chế độ tổ từng ngày ca, rồi chuyển đổi (tram.ts).
+ * null khi `evs` không có người vào / ra hàng nào — tổ chế độ cũ không tốn thêm truy vấn nào.
+ */
+export async function soTram(db: Pick<PoolClient, 'query'>, evs: SuKien[], cach: 'chinh_thuc' | 'so_khop', now: number): Promise<SoTram | null> {
+  const tram = evs.filter(e => (e.loai === 'nguoi_vao' || e.loai === 'nguoi_ra') && mnvCua(e));
+  if (!tram.length) return null;
+  const mnvs = [...new Set(tram.map(e => mnvCua(e)!))];
+  // Đoạn đang mở trước sự kiện sớm nhất: lùi 36 giờ (đoạn ở hàng tự đóng cuối ca nên không dài hơn)
+  const tu = Math.max(Math.min(...tram.map(e => e.ts)) - 36 * 3_600_000, now - 35 * 86_400_000);
+  const nguoi = (await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+     WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
+    [mnvs, new Date(tu).toISOString()])).rows;
+  const huy = nguoi.length ? (await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`, [nguoi.map(x => String(x.id))])).rows : [];
+  const theoId = new Map<string, SuKien>(evs.map(e => [e.id, e]));
+  for (const x of [...nguoi, ...huy]) if (!theoId.has(String(x.id))) theoId.set(String(x.id), toSuKien(x));
+  const tatCa = [...theoId.values()];
+  const toIds = [...new Set(tatCa.filter(laSuKienTram).map(e => e.toId).filter((x): x is number => x !== null))];
+  const cheDo = cheDoTheoNgay(await mocCheDo(db, toIds));
+  const conLai = locTheoCheDo(suKienConHieuLuc(tatCa), cheDo, cach)
+    .filter(e => laSuKienTram(e) || e.loai === 'nhan' || e.loai === 'hoan_thanh');
+  const cuaSo = await cuaSoCacTo(db, toIds, ngayCa(tu), ngayCa(now));
+  return { kq: chuyenDoiTram(conLai, { now, cuaSoTheoTo: cuaSo }), cheDo };
 }
 
 export interface GioiHanNhan { moc: number | null; loai: 'trien_khai' | 'don_hang' | null; daNhan: number; dvt: string | null }
@@ -181,7 +304,7 @@ export async function gioiHanNhan(db: Pick<PoolClient, 'query'>, pairs: Array<[s
   return out;
 }
 
-async function luuTrangThai(client: PoolClient, pairs: Array<[string, string]>) {
+export async function luuTrangThai(client: PoolClient, pairs: Array<[string, string]>) {
   if (!pairs.length) return;
   const hexes = [...new Set(pairs.map(p => p[0]))];
   const rows = await suKienTheoHex(client, hexes);
@@ -189,7 +312,9 @@ async function luuTrangThai(client: PoolClient, pairs: Array<[string, string]>) 
   const cds = [...new Set(pairs.map(p => p[1]))];
   const r = await client.query('SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cds]);
   r.rows.forEach(x => xuongCd.set(String(x.id), x.xuong));
-  const out = trangThaiCacCap(rows, pairs).map(({ hex, cd, state }) => ({
+  const tram = await soTram(client, rows.map(toSuKien), 'chinh_thuc', Date.now());
+  const moc = await mocCheDo(client, [...new Set(rows.map(x => Number(x.to_id)).filter(x => x > 0))]);
+  const out = trangThaiCacCap(rows, pairs, tram, moc).map(({ hex, cd, state }) => ({
     hex, cong_doan_id: cd, xuong: xuongCd.get(cd) ?? null, trang_thai: state.trangThai,
     sl_giao_den: state.slGiaoDen, sl_nhan: state.slNhan, sl_hoan_thanh: state.slHoanThanh, sl_giao: state.slGiao,
     so_nguoi: state.soNguoi,
@@ -275,7 +400,7 @@ app.post('/api/xuong/thiet-bi', async (req: Request, res: Response) => {
 // POST /api/xuong/events — nhận lô sự kiện
 // ---------------------------------------------------------------------------
 const soHuuHan = z.number().finite();
-const suKienSchema = z.object({
+export const suKienSchema = z.object({
   id: z.string().uuid(),
   loai: z.enum(LOAI_SU_KIEN),
   hex: z.string().max(20).nullish(),
@@ -300,14 +425,14 @@ const loSchema = z.object({
   deviceToken: z.string().max(200),
   events: z.array(z.unknown()).min(1).max(LO_TOI_DA),
 });
-type SuKienVao = z.infer<typeof suKienSchema>;
+export type SuKienVao = z.infer<typeof suKienSchema>;
 
-const CAN_HEX = new Set(['trien_khai', 'khai_bao_cd', 'nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do']);
-const CAN_CONG_DOAN = new Set(['nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do']);
-const CAN_TO = new Set(['tang_ca', 'chia_nguoi', 'quan_so', 'xac_nhan_cuoi_ngay', 'vao_ca', 'ra_ca']);
+const CAN_HEX = new Set(['trien_khai', 'khai_bao_cd', 'nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do', 'nguoi_vao']);
+const CAN_CONG_DOAN = new Set(['nhan', 'bat_dau', 'tam_ngung', 'tiep_tuc', 'hoan_thanh', 'giao', 'tien_do', 'nguoi_vao']);
+const CAN_TO = new Set(['tang_ca', 'chia_nguoi', 'quan_so', 'xac_nhan_cuoi_ngay', 'vao_ca', 'ra_ca', 'nguoi_vao', 'nguoi_ra']);
 
 /** Kiểm tra theo loại; trả lý do từ chối hoặc null */
-function kiemTraTheoLoai(e: SuKienVao): string | null {
+export function kiemTraTheoLoai(e: SuKienVao): string | null {
   if (CAN_HEX.has(e.loai) && !(e.hex && HEX_RE.test(e.hex))) return 'Mã hạng mục phải có 9 số';
   if (CAN_CONG_DOAN.has(e.loai) && !e.congDoanId) return 'Thiếu công đoạn';
   if (CAN_TO.has(e.loai) && !e.toId) return 'Thiếu tổ';
@@ -326,6 +451,13 @@ function kiemTraTheoLoai(e: SuKienVao): string | null {
   if (e.loai === 'vao_ca' || e.loai === 'ra_ca') {
     const loi = kiemTraDiemDanh(e.duLieu);
     if (loi) return loi;
+  }
+  // Trạm quét: người vào / ra hàng mang mã NV người đó; vào / ra ca từ trạm chỉ một người và đúng người đó
+  if ((e.loai === 'nguoi_vao' || e.loai === 'nguoi_ra') && !mnvCua({ duLieu: e.duLieu ?? null })) return 'Mã nhân viên không hợp lệ';
+  if ((e.loai === 'vao_ca' || e.loai === 'ra_ca') && e.duLieu?.tram === true) {
+    const m = mnvCua({ duLieu: e.duLieu });
+    const ds = Array.isArray(e.duLieu.nguoi) ? (e.duLieu.nguoi as unknown[]) : [];
+    if (!m || ds.length !== 1 || chuanMnv((ds[0] as Record<string, unknown>)?.mnv ?? ds[0]) !== m) return 'Vào / ra ca từ trạm phải đúng một người';
   }
   if (e.loai === 'quan_so') {
     const ca = e.duLieu?.loaiCa;
@@ -448,10 +580,12 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
       // Sự kiện bị huỷ: lấy từ DB (hoặc cùng lô) để kiểm quyền và gắn hex / công đoạn cho sự kiện huy
       const huyIds = hopLe.filter(e => e.loai === 'huy').map(e => e.suaCho!);
       const dichDb = huyIds.length
-        ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows
+        ? (await client.query(`SELECT id, hex, cong_doan_id, to_id, xuong, sent_by, server_ts, loai, co FROM xuong_su_kien WHERE id = ANY($1::uuid[])`, [huyIds])).rows
         : [];
       const dich = new Map<string, Row>(dichDb.map(x => [String(x.id), x]));
       const quanLy = await xuongQuanLy(sentBy);
+      // Tổ mà người gửi là tổ trưởng: huỷ sự kiện trạm của tổ trong 7 ngày, ghi hộ người vào / ra (Sửa ngày)
+      const laToTruong = new Set((await toTruongCua(sentBy)).map(x => x.id));
       // Tổ người gửi được ghi: tổ trưởng, hoặc thành viên đang trong tổ (theo mã NV — một người có thể có nhiều tài khoản)
       const toCuaToi = new Set((await client.query(
         `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
@@ -491,8 +625,8 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
           const d: Row | undefined = dich.get(e.suaCho!) ?? (cungLo ? { ...cungLo, server_ts: new Date(serverNow) } : undefined);
           if (!d) { tuChoi.push({ id: e.id, reason: 'Không tìm thấy sự kiện cần huỷ' }); continue; }
           const laNguoiGui = Number(d.sent_by) === sentBy && serverNow - new Date(d.server_ts).getTime() <= HUY_TRONG_MS;
-          if (!laNguoiGui && !quanLyDuoc(quanLy, d.xuong ?? null)) {
-            tuChoi.push({ id: e.id, reason: 'Chỉ người gửi (trong 24 giờ) hoặc quản lý xưởng được huỷ' });
+          if (!laNguoiGui && !quanLyDuoc(quanLy, d.xuong ?? null) && !toTruongHuyDuoc(d, laToTruong, serverNow)) {
+            tuChoi.push({ id: e.id, reason: 'Chỉ người gửi (trong 24 giờ), tổ trưởng (sự kiện trạm của tổ, 7 ngày) hoặc quản lý xưởng được huỷ' });
             continue;
           }
           hex = d.hex ?? null; congDoanId = d.cong_doan_id ?? null;
@@ -500,6 +634,16 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
         }
 
         const co: string[] = [];
+        let duLieu = e.duLieu ?? null;
+        // Sổ trạm ghi từ app (màn Sửa ngày): chỉ tổ trưởng của tổ hoặc quản lý xưởng, gắn cờ ghi hộ
+        if (e.loai === 'nguoi_vao' || e.loai === 'nguoi_ra' || ((e.loai === 'vao_ca' || e.loai === 'ra_ca') && duLieu?.tram === true)) {
+          if (!(toId && (laToTruong.has(toId) || quanLyDuoc(quanLy, xuongTo.get(toId) ?? null)))) {
+            tuChoi.push({ id: e.id, reason: 'Chỉ tổ trưởng của tổ hoặc quản lý xưởng được ghi hộ người vào / ra' });
+            continue;
+          }
+          duLieu = { ...(duLieu ?? {}), tram: true };
+          co.push('to_truong_ghi_ho');
+        }
         // Quyền ghi theo tổ: người của tổ; quản lý xưởng ghi hộ được (gắn cờ để đối chiếu); người khác bị từ chối
         if (e.loai !== 'huy') {
           if (toId) {
@@ -550,7 +694,7 @@ app.post('/api/xuong/events', async (req: Request, res: Response) => {
           so_luong: e.soLuong ?? null, cong_doan_den_id: e.congDoanDenId ?? null,
           cong_doan_nguon_id: e.congDoanNguonId ?? null, xuong_nguon: e.xuongNguon ?? null,
           so_nguoi: e.soNguoi ?? null, ly_do_tam_ngung: e.lyDoTamNgung ?? null, tien_do: e.tienDo ?? null,
-          ghi_chu: e.ghiChu ?? null, du_lieu: e.duLieu ?? null,
+          ghi_chu: e.ghiChu ?? null, du_lieu: duLieu,
           device_ts: new Date(e.deviceTs).toISOString(), lech_ms: e.lechMs === undefined || e.lechMs === null ? null : Math.round(e.lechMs),
           device_ts_hieu_chinh: new Date(gio.ts).toISOString(),
           user_id: userId, user_id_khai: userIdKhai, sent_by: sentBy, device_id: deviceId,
@@ -712,6 +856,8 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
        WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`, [toId]);
     const cds = cdRows.rows.map(x => String(x.id));
+    // Tổ chế độ trạm: đoạn ở hàng quá cuối ca tự đóng (tính lại trước khi đọc)
+    await suaTramTuDong(toId);
     // Dòng cũ còn "chờ giao" ở công đoạn cuối tuyến: tính lại trước khi đọc
     if (cds.length) {
       await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds]))
@@ -807,8 +953,48 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
          ORDER BY hex, cong_doan_id, device_ts_hieu_chinh DESC`, [toId, dsNgung.map(x => String(x.hex))]);
       for (const x of q.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
     }
+    // Tổ chế độ trạm: người đang ở từng hàng theo lượt quét (thay tên khai lúc Bắt đầu / Chia người)
+    const cheDoHom = cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngayCa(Date.now()));
+    const kqTram = cheDoHom === 'tram'
+      ? (await soTram(pool, (await suKienTheoHex(pool, [...new Set(st.filter(x => x.trang_thai === 'dang_lam' || x.trang_thai === 'tam_ngung')
+        .map(x => String(x.hex)))])).map(toSuKien), 'chinh_thuc', Date.now()))?.kq ?? null
+      : null;
+    const dangOTram = cheDoHom === 'tram' ? kqTram?.dangO ?? {} : null;
+    const hoTenTram = new Map<string, string>();
+    if (kqTram?.doanNguoi.length) {
+      const ds = [...new Set(kqTram.doanNguoi.map(d => d.mnv))];
+      for (const x of (await pool.query('SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])', [ds])).rows) hoTenTram.set(String(x.mnv), String(x.ho_ten));
+    }
+    /** Hàng tổ trạm tạm ngưng vì hết người: ai rời lúc nào, đi đâu (vd "Bình chuyển sang TỦ BẾP TREO") */
+    const viSaoHetNguoi = (k: string): { tu: string; moTa: string } | null => {
+      const ds = (kqTram?.doanNguoi ?? []).filter(d => d.key === k && d.end !== null && d.end > d.start);
+      if (!ds.length) return null;
+      const T = Math.max(...ds.map(d => d.end!));
+      const ten = (m: string) => (hoTenTram.get(m) ?? m).split(' ').slice(-1)[0];
+      const cau = ds.filter(d => d.end === T).map(d => {
+        if (d.ketThuc === 'doi_hang') {
+          const sau = kqTram!.doanNguoi.find(x => x.mnv === d.mnv && x.start === T && x.key !== k);
+          const ten2 = sau ? (info.get(sau.hex)?.ten_hang_muc ?? sau.hex) : 'hàng khác';
+          return `${ten(d.mnv)} chuyển sang ${ten2}`;
+        }
+        if (d.ketThuc === 'tu_dong') return `${ten(d.mnv)} hết ca (quên ra)`;
+        return `${ten(d.mnv)} ra khỏi hàng`;
+      });
+      return { tu: new Date(T).toISOString(), moTa: `Hết người: ${cau.join(', ')}` };
+    };
     const rows = st.map(x => {
       const d = dongTrangThai(x, info.get(String(x.hex)));
+      const k = pairKey(String(x.hex), String(x.cong_doan_id));
+      if (dangOTram) {
+        return {
+          ...d, soNguoi: dangOTram[k]?.length ?? d.soNguoi, nguoi: x.trang_thai === 'dang_lam' ? dangOTram[k] ?? null : null,
+          goiYKe: goiY.get(k) ?? [], cuoiTuyen: cuoiTuyen.has(k),
+          // Tạm ngưng ở tổ trạm = hết người: ghi rõ ai rời / chuyển đi đâu; lý do tổ trưởng chọn sau lúc hàng dừng thì ưu tiên
+          ngung: x.trang_thai !== 'tam_ngung' ? null
+            : ngung.get(k) && x.su_kien_cuoi && new Date(ngung.get(k)!.tu) >= new Date(x.su_kien_cuoi) ? ngung.get(k)!
+            : viSaoHetNguoi(k) ? { lyDo: null, ...viSaoHetNguoi(k)! } : null,
+        };
+      }
       const n = soNguoiChia(String(x.hex), String(x.cong_doan_id), x.dang_chay_tu ? new Date(x.dang_chay_tu) : null);
       const tu = x.dang_chay_tu ? new Date(x.dang_chay_tu) : null;
       return {
@@ -834,7 +1020,10 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
          WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`, [toId, ngay])).rows;
-      const evs = suKienConHieuLuc(dd.map(toSuKien)).filter(e => vnDayKey(new Date(e.ts)) === ngay || e.loai === 'ra_ca');
+      // Tổ chế độ cũ / song song: lượt quét vào ca ở trạm không tính là điểm danh chính thức (R3)
+      const cheDoTo = cheDoTheoNgay(await mocCheDo(pool, [toId]));
+      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo)
+        .filter(e => vnDayKey(new Date(e.ts)) === ngay || e.loai === 'ra_ca');
       for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds ?? []).map(d => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
@@ -865,6 +1054,8 @@ app.get('/api/xuong/cong-viec', async (req: Request, res: Response) => {
       daXacNhanHomNay: xacNhan.rows.length > 0,
       anhBat: await coBangAnh(),
       lichCa,
+      // Chế độ chấm hôm nay (trạm quét): 'tram' thì app ẩn Bắt đầu / Chia người / Tạm ngưng / điểm danh tay
+      cheDo: cheDoHom,
     });
   } catch (e) { fail(res, e, '/api/xuong/cong-viec'); }
 });
@@ -876,6 +1067,10 @@ export type KetQuaGioCong = ReturnType<typeof phanBoGioCong> & {
   bamLichCa: string;
   /** Giờ vào / ra, phút trễ / về sớm từng người (chấm công) */
   diemDanh?: ReturnType<typeof tomTatDiemDanh>;
+  /** Chế độ chấm của tổ trong ngày (trạm quét) */
+  cheDo?: CheDoCham;
+  /** Tuần song song: giờ công tính theo sổ trạm, chỉ để so khớp với số chính thức */
+  soKhopTram?: ReturnType<typeof phanBoGioCong> & { diemDanh: ReturnType<typeof tomTatDiemDanh> };
 };
 /** du_lieu.nguoi của bat_dau / tiep_tuc / phanBo chia_nguoi → mã NV; không có = null (khai theo số) */
 const dsTen = (v: unknown): string[] | null =>
@@ -884,15 +1079,15 @@ const gioCongCache = new Map<string, { v: string; payload: KetQuaGioCong }>();
 
 /** Dấu ngắn của lịch ca (giờ, nghỉ) — kết quả phân bổ giờ công phụ thuộc lịch ca */
 // PHIEN_BAN_TINH: đổi khi cách tính / dạng kết quả phân bổ đổi (vd thêm gioChoLyDo) — kết quả đã lưu tự tính lại
-const PHIEN_BAN_TINH = 'pb7'; // pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người; pb6: chỉ tính người có mặt; pb7: người gắn tên không điểm danh (mượn / mới) coi như có mặt, trễ / về sớm theo vào đầu / ra cuối
+const PHIEN_BAN_TINH = 'pb8'; // pb8: chế độ tổ / sổ trạm quét; pb3: gioNguoiKhai / soNguoiMax; pb4: soNguoiMin; pb5: chấm công theo người; pb6: chỉ tính người có mặt; pb7: người gắn tên không điểm danh (mượn / mới) coi như có mặt, trễ / về sớm theo vào đầu / ra cuối
 export const dauLichCa = (lichCa: LichCaRow[]) => createHash('sha1')
   .update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest('hex').slice(0, 12);
 const GIO_CONG_CACHE_MAX = 300;
 /** Lịch ca đổi (thẻ Xưởng trong Setup) thì giờ công mọi ngày phải tính lại */
 export const xoaCacheGioCong = () => gioCongCache.clear();
 
-export async function lichCaCuaXuong(xuong: string): Promise<LichCaRow[]> {
-  const r = await pool.query(
+export async function lichCaCuaXuong(xuong: string, db: Pick<PoolClient, 'query'> = pool): Promise<LichCaRow[]> {
+  const r = await db.query(
     `SELECT DISTINCT ON (loai_ca) loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
      FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY loai_ca, (xuong = '*')`, [xuong]);
   return r.rows.map(x => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
@@ -925,91 +1120,19 @@ export async function gioCongToNgay(toId: number, ngay: string) {
     .filter(x => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
   const theoId = new Map<string, Row>();
   for (const x of [...r.rows, ...lichSu]) theoId.set(String(x.id), x);
-  const conHieuLuc = suKienConHieuLuc([...theoId.values()].map(toSuKien));
+  const tatCa = [...theoId.values()].map(toSuKien);
+  const now = Date.now();
+  // Chế độ chấm của tổ theo ngày ca (trạm quét): 'cu' bỏ qua sổ trạm — số y hệt trước khi có trạm
+  const mocTo = await mocCheDo(pool, [toId]);
+  const cheDo = cheDoTheoNgay(mocTo);
+  const chinhThuc = await phanBoTheoCach(tatCa, 'chinh_thuc');
+  // Tuần song song: số chính thức theo bấm tay, số của trạm tính riêng để so khớp (không lẫn vào số chính thức)
+  const soKhop = cheDo(toId, ngay) === 'song_song' ? await phanBoTheoCach(tatCa, 'so_khop') : null;
 
-  const trongNgay = (e: SuKien) => vnDayKey(new Date(e.ts)) === ngay;
-  const caTangCa = conHieuLuc.filter(e => e.loai === 'tang_ca' && trongNgay(e)).map(e => String(e.duLieu?.loaiCa) as LoaiCa);
-  const boChon: Partial<Record<LoaiCa, string[]>> = {};
-  for (const e of conHieuLuc.filter(x => x.loai === 'tang_ca' && trongNgay(x))) {
-    const ca = String(e.duLieu?.loaiCa) as LoaiCa;
-    const ds = Array.isArray(e.duLieu?.boChon) ? (e.duLieu!.boChon as unknown[]).map(String) : [];
-    boChon[ca] = [...(boChon[ca] ?? []), ...ds];
-  }
-  const quanSo: Partial<Record<LoaiCa, number | null>> = {};
-  for (const e of conHieuLuc.filter(x => x.loai === 'quan_so' && trongNgay(x))) {
-    quanSo[String(e.duLieu?.loaiCa) as LoaiCa] = Number(e.duLieu?.soNguoi);
-  }
-
-  // Đoạn chạy + số người theo cặp; ngày hoạt động cuối để áp R3-3
-  const doanChay: Record<string, DoanChay[]> = {};
-  const soNguoi: ThayDoiSoNguoi[] = [];
-  const ngayCuoi = new Map<string, string>();
-  const capCuaTo = new Map<string, SuKien[]>();
-  for (const e of conHieuLuc) {
-    if (e.hex && e.congDoanId) {
-      const k = pairKey(e.hex, e.congDoanId);
-      if (!capCuaTo.has(k)) capCuaTo.set(k, []);
-      capCuaTo.get(k)!.push(e);
-      if (e.loai !== 'tien_do') {
-        const d = vnDayKey(new Date(e.ts));
-        if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
-      }
-      if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && e.soNguoi !== null) {
-        soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
-      }
-    }
-    if (e.loai === 'chia_nguoi' && Array.isArray(e.duLieu?.phanBo)) {
-      for (const p of e.duLieu!.phanBo as Array<Record<string, unknown>>) {
-        if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && typeof p.soNguoi === 'number') {
-          soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi, nguoi: dsTen(p.nguoi) });
-        }
-      }
-    }
-    if (e.loai === 'xac_nhan_cuoi_ngay' && Array.isArray(e.duLieu?.hangMuc)) {
-      const d = vnDayKey(new Date(e.ts));
-      for (const p of e.duLieu!.hangMuc as Array<Record<string, unknown>>) {
-        if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && p.trangThai === 'van_lam') {
-          const k = pairKey(p.hex, p.congDoanId);
-          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
-        }
-      }
-    }
-  }
-  const ngungTinh: string[] = [];
-  const chuaXacNhan: string[] = [];
-  for (const [k, evts] of capCuaTo) {
-    const st = tinhTrangThai(evts, []);
-    if (st.doanChay.length) doanChay[k] = st.doanChay;
-    if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
-      const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
-      if (tt === 'ngung') ngungTinh.push(k);
-      if (tt === 'chua_xac_nhan') chuaXacNhan.push(k);
-    }
-  }
-
-  // Đoạn tạm ngưng (tam_ngung → bat_dau / tiep_tuc / hoan_thanh) — tách lý do giờ chờ
-  const doanNgung: Record<string, Array<{ start: number; end: number | null; lyDo: string }>> = {};
-  for (const [k, evts] of capCuaTo) {
-    let dangNgung: { start: number; end: number | null; lyDo: string } | null = null;
-    for (const e of [...evts].sort((a, b) => a.ts - b.ts || a.serverTs - b.serverTs)) {
-      if (e.loai === 'tam_ngung' && !dangNgung) {
-        dangNgung = { start: e.ts, end: null, lyDo: e.lyDoTamNgung || 'khac' };
-        (doanNgung[k] ??= []).push(dangNgung);
-      } else if (dangNgung && (e.loai === 'bat_dau' || e.loai === 'tiep_tuc' || e.loai === 'hoan_thanh')) {
-        dangNgung.end = e.ts; dangNgung = null;
-      }
-    }
-  }
-
-  // Điểm danh (chấm công theo người): vao_ca trong ngày; ra_ca trong ngày hoặc sáng hôm sau (ca qua đêm)
-  const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 3_600_000;
-  const coMat = doanCoMat(conHieuLuc.filter(e => (e.loai === 'vao_ca' && trongNgay(e))
-    || (e.loai === 'ra_ca' && (trongNgay(e) || (e.duLieu?.loaiCa !== 'chinh' && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)))));
-
-  const payload: KetQuaGioCong = { ...phanBoGioCong({
-    cuaSo: cuaSoTrongNgay(ngay, lichCa, caTangCa), quanSo, doanChay, soNguoi, doanNgung, coMat,
-    boChonTangCa: boChon, ngungTinh, chuaXacNhan, now: Date.now(),
-  }), bamLichCa, diemDanh: tomTatDiemDanh(coMat, ngay, lichCa) };
+  const payload: KetQuaGioCong = {
+    ...chinhThuc.pb, bamLichCa, diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay, lichCa), cheDo: cheDo(toId, ngay),
+    ...(soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay, lichCa) } } : {}),
+  };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
   while (gioCongCache.size > GIO_CONG_CACHE_MAX) {
@@ -1018,6 +1141,110 @@ export async function gioCongToNgay(toId: number, ngay: string) {
     gioCongCache.delete(oldest);
   }
   return payload;
+
+  async function phanBoTheoCach(tatCa: SuKien[], cach: 'chinh_thuc' | 'so_khop') {
+    const conHieuLuc = locTheoCheDo(suKienConHieuLuc(tatCa), cheDo, cach);
+    const tram = await soTram(pool, tatCa, cach, now);
+
+    const trongNgay = (e: SuKien) => vnDayKey(new Date(e.ts)) === ngay;
+    const caTangCa = conHieuLuc.filter(e => e.loai === 'tang_ca' && trongNgay(e)).map(e => String(e.duLieu?.loaiCa) as LoaiCa);
+    const boChon: Partial<Record<LoaiCa, string[]>> = {};
+    for (const e of conHieuLuc.filter(x => x.loai === 'tang_ca' && trongNgay(x))) {
+      const ca = String(e.duLieu?.loaiCa) as LoaiCa;
+      const ds = Array.isArray(e.duLieu?.boChon) ? (e.duLieu!.boChon as unknown[]).map(String) : [];
+      boChon[ca] = [...(boChon[ca] ?? []), ...ds];
+    }
+    const quanSo: Partial<Record<LoaiCa, number | null>> = {};
+    for (const e of conHieuLuc.filter(x => x.loai === 'quan_so' && trongNgay(x))) {
+      quanSo[String(e.duLieu?.loaiCa) as LoaiCa] = Number(e.duLieu?.soNguoi);
+    }
+
+    // Đoạn chạy + số người theo cặp; ngày hoạt động cuối để áp R3-3
+    const doanChay: Record<string, DoanChay[]> = {};
+    const soNguoi: ThayDoiSoNguoi[] = [];
+    const ngayCuoi = new Map<string, string>();
+    const capCuaTo = new Map<string, SuKien[]>();
+    for (const e of conHieuLuc) {
+      if (e.hex && e.congDoanId) {
+        const k = pairKey(e.hex, e.congDoanId);
+        if (!capCuaTo.has(k)) capCuaTo.set(k, []);
+        capCuaTo.get(k)!.push(e);
+        if (e.loai !== 'tien_do') {
+          const d = vnDayKey(new Date(e.ts));
+          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
+        }
+        if ((e.loai === 'bat_dau' || e.loai === 'tiep_tuc') && e.soNguoi !== null) {
+          soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
+        }
+      }
+      if (e.loai === 'chia_nguoi' && Array.isArray(e.duLieu?.phanBo)) {
+        for (const p of e.duLieu!.phanBo as Array<Record<string, unknown>>) {
+          if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && typeof p.soNguoi === 'number') {
+            soNguoi.push({ key: pairKey(p.hex, p.congDoanId), at: e.ts, soNguoi: p.soNguoi, nguoi: dsTen(p.nguoi) });
+          }
+        }
+      }
+      if (e.loai === 'xac_nhan_cuoi_ngay' && Array.isArray(e.duLieu?.hangMuc)) {
+        const d = vnDayKey(new Date(e.ts));
+        for (const p of e.duLieu!.hangMuc as Array<Record<string, unknown>>) {
+          if (typeof p.hex === 'string' && typeof p.congDoanId === 'string' && p.trangThai === 'van_lam') {
+            const k = pairKey(p.hex, p.congDoanId);
+            if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k)! < d)) ngayCuoi.set(k, d);
+          }
+        }
+      }
+    }
+    // Sổ trạm: người vào / ra hàng → số người có tên + sự kiện giả có người / hết người (tram.ts) cho các cặp của tổ
+    // Hạng mục còn chạy theo bấm tay lúc tổ chuyển sang trạm: dừng ở đầu ngày ca chuyển
+    if (cach === 'chinh_thuc' && mocTo.some(m => m.cheDo === 'tram')) {
+      for (const [, evts] of capCuaTo) evts.push(...dungBamTayKhiChuyen(evts, mocTo));
+    }
+    if (tram) {
+      for (const [k, evts] of capCuaTo) evts.push(...(tram.kq.suKienGia[k] ?? []));
+      soNguoi.push(...tram.kq.soNguoi.filter(x => capCuaTo.has(x.key)));
+    }
+    const ngungTinh: string[] = [];
+    const chuaXacNhan: string[] = [];
+    for (const [k, evts] of capCuaTo) {
+      const st = tinhTrangThai(evts, []);
+      if (st.doanChay.length) doanChay[k] = st.doanChay;
+      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
+        const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
+        if (tt === 'ngung') ngungTinh.push(k);
+        if (tt === 'chua_xac_nhan') chuaXacNhan.push(k);
+      }
+    }
+
+    // Đoạn tạm ngưng (tam_ngung → bat_dau / tiep_tuc / hoan_thanh) — tách lý do giờ chờ
+    const doanNgung: Record<string, Array<{ start: number; end: number | null; lyDo: string }>> = {};
+    for (const [k, evts] of capCuaTo) {
+      let dangNgung: { start: number; end: number | null; lyDo: string } | null = null;
+      for (const e of [...evts].sort((a, b) => a.ts - b.ts || a.serverTs - b.serverTs)) {
+        if (e.loai === 'tam_ngung' && !dangNgung) {
+          // Hết người ở trạm: tạm ngưng không lý do (tổ trưởng chọn lý do sau nếu muốn)
+          dangNgung = { start: e.ts, end: null, lyDo: e.lyDoTamNgung || (e.duLieu?.tram === true ? 'het_nguoi' : 'khac') };
+          (doanNgung[k] ??= []).push(dangNgung);
+        } else if (dangNgung && (e.loai === 'bat_dau' || e.loai === 'tiep_tuc' || e.loai === 'hoan_thanh')) {
+          dangNgung.end = e.ts; dangNgung = null;
+        }
+      }
+    }
+
+    // Điểm danh (chấm công theo người): vao_ca trong ngày; ra_ca trong ngày hoặc sáng hôm sau (ca qua đêm)
+    const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 3_600_000;
+    const coMat = doanCoMat(conHieuLuc.filter(e => (e.loai === 'vao_ca' && trongNgay(e))
+      || (e.loai === 'ra_ca' && (trongNgay(e) || (e.duLieu?.loaiCa !== 'chinh' && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)))));
+
+    const cuaSo = cuaSoTrongNgay(ngay, lichCa, caTangCa);
+    // Sổ trạm (tổ trạm / số so khớp): người ở lại tăng ca không quét lại thẻ vẫn có mặt trong tăng ca
+    const dungTram = cach === 'chinh_thuc' ? cheDo(toId, ngay) === 'tram' : cheDo(toId, ngay) !== 'cu';
+    const coMatTinh = dungTram ? noiCoMatTangCa(coMat, cuaSo) : coMat;
+    const pb = phanBoGioCong({
+      cuaSo, quanSo, doanChay, soNguoi, doanNgung, coMat: coMatTinh,
+      boChonTangCa: boChon, ngungTinh, chuaXacNhan, now,
+    });
+    return { pb, coMat: coMatTinh };
+  }
 }
 
 app.get('/api/xuong/to/:id/gio-cong', async (req: Request, res: Response) => {
@@ -1239,6 +1466,8 @@ app.get('/api/xuong/lich-su', async (req: Request, res: Response) => {
          LEFT JOIN xuong_cong_doan c ON c.id = e.cong_doan_id
          LEFT JOIN xuong_cong_doan d ON d.id = e.cong_doan_den_id
          WHERE e.loai <> 'huy' AND e.server_ts > now() - interval '24 hours'
+           -- Sổ trạm (mỗi lần quét một dòng) xem / sửa ở màn Sửa ngày, không lẫn vào lịch sử thao tác
+           AND e.loai NOT IN ('nguoi_vao', 'nguoi_ra') AND NOT (e.loai IN ('vao_ca', 'ra_ca') AND e.du_lieu->>'tram' = 'true')
            AND (e.to_id = $1 OR e.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1))
          ORDER BY e.device_ts_hieu_chinh DESC LIMIT 300`, [toId]),
       xuongQuanLy(me),
@@ -1360,7 +1589,8 @@ app.post('/api/xuong/thu-hoi/:userId', async (req: Request, res: Response) => {
     if (access.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Chỉ admin được thu hồi' });
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ success: false, message: 'ID không hợp lệ' });
-    await pool.query('UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1', [userId]);
+    // Trạm quét người này đăng ký không bị kéo theo (thu hồi riêng từng trạm — docs/designs/xuong-tram-quet.md)
+    await pool.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1${(await coBangTram()) ? " AND loai <> 'tram'" : ''}`, [userId]);
     await bumpTokenVersion(userId);
     res.json({ success: true, available: true });
   } catch (e) { fail(res, e, '/api/xuong/thu-hoi/:userId'); }

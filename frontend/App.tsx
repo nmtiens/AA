@@ -41,6 +41,8 @@ const DataSetupPage = lazyPage(() => import('./components/Setup/DataSetupPage'))
 const XuongSetup = React.lazy(() => import('./components/Xuong/XuongSetup'));
 // App Xưởng riêng (/xuong; đường cũ /m/xuong của bản đã cài vẫn mở được) — tải riêng
 const XuongShell = lazyPage(() => import('./components/Mobile/xuong/XuongShell'));
+// Trạm quét chung của tổ (/xuong/tram — docs/designs/xuong-tram-quet.md): token trạm riêng, không vào app tổ trưởng
+const TramQuet = lazyPage(() => import('./components/Mobile/xuong/TramQuet'));
 // Bản mobile (PWA) chạy tại /m/ — file này phải có `export default`
 const MobileApp = lazyPage(() => import('./components/Mobile/VuongMacMobile'));
 // Tra cứu hex: dùng chung component với bản mobile (đã có bố cục riêng cho desktop)
@@ -125,6 +127,7 @@ const preloadPageChunk = (path: string) => {
 };
 const App: React.FC = () => {
   // Vào qua /m hoặc /m/... -> chạy giao diện mobile (PWA), ngược lại chạy app desktop
+  const isTramEntry = /^\/xuong\/tram(\/|$)/.test(window.location.pathname);
   const isXuongEntry = /^\/(m\/)?xuong(\/|$)/.test(window.location.pathname);
   const isMobileEntry = window.location.pathname.startsWith('/m');
 
@@ -137,7 +140,9 @@ const App: React.FC = () => {
       <AuthProvider>
         {/* Suspense bao bọc để hiển thị Loader trong lúc tải Lazy Component */}
         <Suspense fallback={<FullScreenLoader />}>
-          {isXuongEntry ? (
+          {isTramEntry ? (
+            <div className="fixed inset-0 overflow-y-auto"><TramQuet /></div>
+          ) : isXuongEntry ? (
             <XuongShell />
           ) : isMobileEntry ? (
             <MobileApp />

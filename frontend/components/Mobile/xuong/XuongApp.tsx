@@ -18,6 +18,7 @@ import {
 import XuongDong, { type TrangThaiGui } from './XuongDong';
 import QuetQr from './QuetQr';
 import { DiemDanhSheet, type KetQuaDiemDanh } from './DiemDanh';
+import { SuaNgaySheet } from './SuaNgay';
 import type { CongNhanTo } from '../../../services/xuongModel';
 import {
   QuanSoSheet, BatDauSheet, TamNgungSheet, TienDoSheet, GiaoSheet, NhanSheet, TangCaSheet, XacNhanSheet, ChiaNguoiSheet, LichSuSheet, GoMaSheet,
@@ -43,7 +44,8 @@ type Sheet =
   | { loai: 'goMa' } | { loai: 'quet' } | { loai: 'chonTo' }
   | { loai: 'trienKhai'; hex: string | null }
   | { loai: 'batDau'; r: DongViec; suKien: 'bat_dau' | 'tiep_tuc'; quanSo: number | null }
-  | { loai: 'diemDanh'; ca: LoaiCa; sau?: { nhan: string; chay: (quanSoMoi?: number) => void } };
+  | { loai: 'diemDanh'; ca: LoaiCa; sau?: { nhan: string; chay: (quanSoMoi?: number) => void } }
+  | { loai: 'suaNgay' };
 
 const KHOA_PHIEN = 'xuong_phien';
 const KHOA_TO = 'xuong_to_cuoi';
@@ -277,7 +279,10 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
 
   // ---------- Dẫn xuất ----------
   const nhom = useMemo(() => nhomDangLam(cv?.dangLam ?? []), [cv]);
-  const caChot = cv ? caCanChot(cv, now) : null;
+  // Tổ chế độ trạm quét (docs/designs/xuong-tram-quet.md): công nhân quét thẻ + phiếu ở trạm thay điểm danh tay,
+  // Bắt đầu / Tạm ngưng / Tiếp tục / Chia người — các nút đó ẩn, không bắt điểm danh trước khi ghi
+  const laTram = cv?.cheDo === 'tram';
+  const caChot = cv && !laTram ? caCanChot(cv, now) : null;
   const ca = cv ? caHienTai(cv, now) : null;
   const quanSo = ca && cv ? cv.quanSo[ca] : undefined;
   const ranh = soNguoiRanh(quanSo, nhom.dangChay);
@@ -562,6 +567,14 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       return <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'nhan', hex: r.hex, ten: r.tenHangMuc }, 'nhận')}>Nhận {hienSl(td !== null ? Math.min(con, td) : con)}</button>;
     }
     if (o === 'choGiao') return <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'giao' }, 'giao')}>Giao {hienSl(r.slHoanThanh - r.slGiao)}</button>;
+    if (laTram) {
+      // Trạm: hàng chạy khi có người quét vào; tổ trưởng vẫn ghi Xong / Giao, tiến độ
+      if (r.trangThai === 'da_nhan') return <p className="flex min-h-14 flex-1 items-center text-base text-slate-600">Quét thẻ + phiếu ở trạm để bắt đầu</p>;
+      return (<>
+        <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
+        <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
+      </>);
+    }
     if (r.trangThai === 'dang_lam') return (<>
       <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
       {/* Nút phụ hẹp để "Xong — giao" đủ 1 dòng */}
@@ -670,7 +683,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
               {cv.chamCong ? 'Điểm danh' : 'Chốt'}<ChevronRight size="1.1em" aria-hidden /></span>
           </button>
         )}
-        {cv?.chamCong && !caChot && ca && daDiemDanh(cv, ca) && (() => {
+        {cv?.chamCong && !laTram && !caChot && ca && daDiemDanh(cv, ca) && (() => {
           const coMatNay = coMatLuc(cv, ca, now);
           const gan = new Set(nhom.dangChay.flatMap(r => r.nguoi ?? []));
           // Dải vàng "N người đang rảnh" ở đáy đang hiện thì không lặp lại nút ở đầu
@@ -704,13 +717,15 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
         {cv && (
           <ThanhViec muc={[
             // Chia người: sửa số người / người từng hạng mục bất cứ lúc nào
-            ...(typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }) }] : []),
+            ...(!laTram && typeof quanSo === 'number' && nhom.dangChay.length ? [{ ten: 'Chia người', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'chiaNguoi' }) }] : []),
             // Không điểm danh tên: nút chốt quân số (điểm danh tên đã có ô riêng ở trên)
-            ...(ca && !cv.chamCong ? [{ ten: `Quân số ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'quanSo', ca }),
+            ...(ca && !cv.chamCong && !laTram ? [{ ten: `Quân số ${TEN_CA[ca].toLowerCase()}`, icon: 'quanso' as const, onClick: () => setSheet({ loai: 'quanSo', ca }),
               phu: typeof quanSo === 'number' ? `${quanSo} người` : 'chưa chốt', noi: typeof quanSo !== 'number' }] : []),
             { ten: 'Tăng ca', icon: 'tangca' as const, onClick: () => setSheet({ loai: 'tangCa' }), phu: cv.tangCa.length ? cv.tangCa.map(l => TEN_CA[l]).join(', ') : undefined },
             { ten: 'Cuối ngày', icon: 'xacnhan' as const, onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv.daXacNhanHomNay ? '✓' : undefined },
             { ten: 'Lịch sử', icon: 'lichsu' as const, onClick: () => setSheet({ loai: 'lichSu' }) },
+            // Trạm quét (chạy thật hoặc tuần song song): xem / sửa lượt quét từng người
+            ...(cv.cheDo && cv.cheDo !== 'cu' ? [{ ten: 'Sửa ngày', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'suaNgay' }) }] : []),
             ...(laQuanLy ? [{ ten: 'Triển khai', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),
           ]} />
         )}
@@ -818,6 +833,12 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       {sheet?.loai === 'tangCa' && cv && <TangCaSheet cv={cv} dangChay={nhom.dangChay} onKhai={khaiTangCa} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'xacNhan' && cv && <XacNhanSheet cv={cv} dangChay={nhom.dangChay} anhBat={!!cv.anhBat} onXacNhan={xacNhan} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'chiaNguoi' && <ChiaNguoiSheet dangChay={nhom.dangChay} quanSo={quanSo ?? 0} cv={cv} ca={ca} now={now} onLuu={chiaNguoi} onClose={() => setSheet(null)} />}
+      {sheet?.loai === 'suaNgay' && toId && cv && (
+        <SuaNgaySheet toId={toId} dong={cv.dangLam}
+          // Ghi / huỷ đóng mọi sheet (ghi()) — Sửa ngày thường sửa nhiều dòng liền nên mở lại
+          onGhi={async (evs, moTa) => { const ok = !!(await ghi(evs, moTa)); setSheet({ loai: 'suaNgay' }); return ok; }}
+          onHuy={async (ids, moTa) => { await huy(ids, moTa); setSheet({ loai: 'suaNgay' }); }} onClose={() => setSheet(null)} />
+      )}
       {sheet?.loai === 'lichSu' && toId && <LichSuSheet toId={toId} onHuy={async (id, moTa) => { await huy([id], moTa); }} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'chonTo' && phien && <ChonToSheet ds={phien.to} toId={toId} onChon={id => { setToId(id); setSheet(null); setHienRanh(false); }} onClose={() => setSheet(null)} />}
       {sheetTrienKhai}

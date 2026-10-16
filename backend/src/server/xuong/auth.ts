@@ -68,11 +68,38 @@ export const signXuongToken = (u: { id: string | number; username: string; role:
   jwt.sign({ id: u.id, username: u.username, role: u.role, scope: 'xuong', did: deviceId, tv: tokenVersion } satisfies XuongTokenClaims,
     JWT_SECRET_SAFE, { expiresIn: XUONG_TOKEN_TTL });
 
+// ---------------- Token trạm quét (docs/designs/xuong-tram-quet.md) ----------------
+// Trạm là máy chung của một tổ, do quản lý / tổ trưởng đăng ký. Token trạm CHỈ gọi được API máy trạm
+// (/api/xuong/tram/may/*): ghi vào / ra ca, người vào / ra hàng cho tổ của trạm và đọc bảng "ai đang ở hàng nào".
+// Không mở màn tổ trưởng / quản lý, không huỷ, không đổi cờ. 30 ngày, tự gia hạn mỗi lô gửi thành công; thu hồi riêng
+// theo máy (xuong_phien_thiet_bi.thu_hoi) — đổi mật khẩu / thu hồi người đăng ký không kéo theo trạm.
+export const TRAM_PREFIX = '/api/xuong/tram/may/';
+
+export interface TramTokenClaims {
+  /** Người đăng ký trạm (sent_by) */
+  id: string | number;
+  username: string;
+  role: string;
+  scope: 'tram';
+  did: string;
+  /** Tổ của trạm */
+  to: number;
+}
+
+export const signTramToken = (u: { id: string | number; username: string; role: string }, deviceId: string, toId: number): string =>
+  jwt.sign({ id: u.id, username: u.username, role: u.role, scope: 'tram', did: deviceId, to: toId } satisfies TramTokenClaims,
+    JWT_SECRET_SAFE, { expiresIn: XUONG_TOKEN_TTL });
+
+export const isTramPath = (path: string): boolean => path.toLowerCase().startsWith(TRAM_PREFIX);
+
 /**
- * Token Xưởng chỉ dùng được ở /api/xuong/*. Token thường (không có scope) dùng được mọi nơi, kể cả /api/xuong/*
- * (quản lý xem trên máy tính). Trả thông báo lỗi nếu không hợp lệ, null nếu được đi tiếp.
+ * Token Xưởng chỉ dùng được ở /api/xuong/*; token trạm chỉ ở /api/xuong/tram/may/*. Token thường (không có scope)
+ * dùng được mọi nơi, kể cả /api/xuong/* (quản lý xem trên máy tính) — nhưng không gọi được API máy trạm.
+ * Trả thông báo lỗi nếu không hợp lệ, null nếu được đi tiếp.
  */
 export const xuongScopeError = (claims: { scope?: unknown } | undefined, path: string): string | null => {
+  if (claims?.scope === 'tram') return isTramPath(path) ? null : 'Token trạm chỉ dùng được cho máy trạm';
+  if (isTramPath(path)) return 'API này chỉ dành cho máy trạm đã đăng ký';
   if (claims?.scope === undefined) return null;
   if (claims.scope !== 'xuong') return 'Token không hợp lệ';
   return isXuongPath(path) ? null : 'Token mục Xưởng chỉ dùng được trong mục Xưởng';
@@ -96,8 +123,12 @@ export async function bumpTokenVersion(userId: string | number): Promise<void> {
 }
 
 // ---------------- Giới hạn request theo người ----------------
-/** Khoá giới hạn: theo user id đã xác thực (middleware đăng nhập chạy trước) */
-export const xuongRateKey = (req: Request): string => `xuong-user:${req.user?.id ?? 'anon'}`;
+/**
+ * Khoá giới hạn: theo user id đã xác thực (middleware đăng nhập chạy trước). Token trạm khoá theo mã máy trạm:
+ * nhiều trạm do một quản lý đăng ký không chia chung 120 lượt / phút lúc đầu ca (R1 trạm quét).
+ */
+export const xuongRateKey = (req: Request): string =>
+  req.user?.scope === 'tram' && req.user.did ? `xuong-tram:${req.user.did}` : `xuong-user:${req.user?.id ?? 'anon'}`;
 
 export const xuongLimiter = rateLimit({
   windowMs: 60 * 1000,

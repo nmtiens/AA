@@ -11,7 +11,10 @@ export interface CongDoanSetup { id: string; tenCd: string; cdTachMa: string | n
 export interface NguoiDung { id: number; ten: string; msnv: string | null; coQuyenXuong: boolean; username?: string }
 export interface ToSetup {
   id: number; ten: string; active: boolean; toTruong: NguoiDung | null; congDoan: string[]; thanhVien: string[];
+  /** Trạm quét: chế độ chấm hôm nay, lần đổi đã hẹn, số trạm đang dùng */
+  cheDo?: CheDoCham; cheDoSau?: { cheDo: CheDoCham; tuNgay: string } | null; soTram?: number;
 }
+export type CheDoCham = 'cu' | 'song_song' | 'tram';
 export interface LichCaSetup { xuong: string; loaiCa: LoaiCa; gioBatDau: string; gioKetThuc: string; nghi: Array<[string, string]> }
 export interface SetupXuong {
   admin: boolean; dsXuong: string[]; xuong: string | null;

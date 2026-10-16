@@ -8,7 +8,7 @@ import { globalLimiter } from '../src/server/app.js';
 import { JWT_SECRET_SAFE } from '../src/server/config.js';
 import {
   signDeviceToken, verifyDeviceToken, newDeviceId, signXuongToken, xuongScopeError, xuongTokenVersionOk,
-  isXuongPath, xuongLimiter, XUONG_RATE_PER_MIN,
+  isXuongPath, xuongLimiter, XUONG_RATE_PER_MIN, signTramToken, xuongRateKey,
 } from '../src/server/xuong/auth.js';
 
 // Hợp đồng chống hồi quy R12 (1)(2) + token / thiết bị mục Xưởng (R1, R4, R5)
@@ -70,6 +70,36 @@ describe('phạm vi token (R5) — regression R12 (2)', () => {
     assert.ok(isXuongPath('/API/Xuong/time'));
     assert.ok(!isXuongPath('/api/xuongx'));
     assert.ok(!isXuongPath('/api/overview'));
+  });
+});
+
+describe('token trạm quét (docs/designs/xuong-tram-quet.md)', () => {
+  const u = { id: 7, username: 'ql3', role: 'USER' };
+  it('token trạm chỉ mở API máy trạm; không mở màn tổ trưởng / quản lý hay API khác', () => {
+    const tok = signTramToken(u, newDeviceId(), 3);
+    const claims = jwt.verify(tok, JWT_SECRET_SAFE) as jwt.JwtPayload;
+    assert.equal(claims.scope, 'tram');
+    assert.equal(claims.to, 3);
+    assert.equal((claims.exp! - claims.iat!) / 86400, 30);
+    assert.ok(chay(authenticateJWT, '/api/xuong/tram/may/events', tok).goiNext);
+    assert.equal(chay(authenticateJWT, '/api/xuong/events', tok).status, 401);
+    assert.equal(chay(authenticateJWT, '/api/xuong/cong-viec', tok).status, 401);
+    assert.equal(chay(authenticateJWT, '/api/xuong/tram/dang-ky', tok).status, 401);
+    assert.equal(chay(authenticateJWT, '/api/all-data', tok).status, 401);
+  });
+  it('token người dùng (thường / Xưởng) không gọi được API máy trạm — hành vi cũ giữ nguyên', () => {
+    assert.equal(chay(authenticateJWT, '/api/xuong/tram/may/events', signAuthToken(u)).status, 401);
+    assert.equal(chay(authenticateJWT, '/api/xuong/tram/may/bang', signXuongToken(u, newDeviceId(), 1)).status, 401);
+    assert.ok(chay(authenticateJWT, '/api/xuong/tram/dang-ky', signAuthToken(u)).goiNext);
+    assert.equal(xuongScopeError(undefined, '/api/xuong/events'), null);
+    assert.equal(xuongScopeError({ scope: 'xuong' }, '/api/xuong/events'), null);
+  });
+  it('hạn mức khoá theo mã trạm; token người dùng giữ khoá theo user id (R1)', () => {
+    const r = (user: unknown) => ({ user } as unknown as express.Request);
+    assert.equal(xuongRateKey(r({ id: 7, scope: 'tram', did: 'abc' })), 'xuong-tram:abc');
+    assert.equal(xuongRateKey(r({ id: 7, scope: 'tram', did: 'xyz' })), 'xuong-tram:xyz');
+    assert.equal(xuongRateKey(r({ id: 7, scope: 'xuong', did: 'abc' })), 'xuong-user:7');
+    assert.equal(xuongRateKey(r({ id: 7 })), 'xuong-user:7');
   });
 });
 

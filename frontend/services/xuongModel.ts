@@ -39,7 +39,8 @@ export interface DongViec {
   dangChayTu: string | null;
   suKienCuoi: string | null;
   /** Tạm ngưng: lý do + lúc ngưng (API cong-viec) */
-  ngung?: { lyDo: string | null; tu: string } | null;
+  /** moTa: tổ chế độ trạm — vì sao hết người (vd "Hết người: Bình chuyển sang TỦ BẾP TREO") */
+  ngung?: { lyDo: string | null; tu: string; moTa?: string } | null;
   co: string[];
   tenHangMuc: string | null;
   maCongTrinh: string | null;
@@ -80,6 +81,8 @@ export interface CongViec {
   lichCa: LichCa[];
   /** Máy chủ đã cấu hình kho ảnh (R2) */
   anhBat?: boolean;
+  /** Chế độ chấm của tổ hôm nay (trạm quét): 'tram' ẩn Bắt đầu / Tạm ngưng / Chia người / điểm danh tay */
+  cheDo?: 'cu' | 'song_song' | 'tram';
 }
 
 export const khoa = (hex: string, congDoanId: string) => `${hex}|${congDoanId}`;

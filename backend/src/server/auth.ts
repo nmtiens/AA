@@ -11,12 +11,14 @@ export interface AuthTokenPayload {
   id: string | number;
   username: string;
   role: string;
-  /** Chỉ có ở token mục Xưởng (server/xuong/auth.ts): dùng được riêng /api/xuong/* */
-  scope?: 'xuong';
-  /** Token Xưởng: device_id đã ký */
+  /** Chỉ có ở token mục Xưởng (server/xuong/auth.ts): 'xuong' dùng được riêng /api/xuong/*, 'tram' riêng máy trạm */
+  scope?: 'xuong' | 'tram';
+  /** Token Xưởng / trạm: device_id đã ký */
   did?: string;
   /** Token Xưởng: token_version lúc cấp */
   tv?: number;
+  /** Token trạm: tổ của trạm */
+  to?: number;
 }
 
 declare global {

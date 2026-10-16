@@ -7,11 +7,12 @@ import { invalidateUserAccess } from '../server/permissions.js';
 import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
   fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, suaChoGiaoCuoiTuyen, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
-  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc, gioiHanNhan,
+  coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc, gioiHanNhan, mocCheDo,
 } from './xuong.js';
 import { suKienConHieuLuc, THANH_PHAN, tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { ensureWorkshopGroups, workshopGroupSql } from '../server/workshopGroups.js';
 import { doanCoMat, tomTatDiemDanh } from '../server/xuong/chamCong.js';
+import { cheDoTheoNgay, locTheoCheDo, ngayCa } from '../server/xuong/tram.js';
 import { vnDayKey } from '../server/common.js';
 import { xoaGioCongLuu } from './xuongBaoCao.js';
 import { baoHangChoNhan, baoXuongPhu } from './xuongThongBao.js';
@@ -74,6 +75,18 @@ app.get('/api/xuong/setup', async (req: Request, res: Response) => {
       pool.query(`SELECT q.user_id, u.full_name, u.username FROM xuong_quan_ly q JOIN users u ON u.id = q.user_id
                   WHERE q.xuong = $1 ORDER BY u.full_name`, [xuong]),
     ]);
+    // Trạm quét: chế độ chấm hôm nay, lần đổi đã hẹn (ngày ca sau), số trạm đang dùng
+    const toIds = to.rows.map(x => Number(x.id));
+    const moc = await mocCheDo(pool, toIds);
+    const cheDoNgay = cheDoTheoNgay(moc);
+    const homNay = ngayCa(Date.now());
+    const soTram = new Map<number, number>();
+    if (moc.length || toIds.length) {
+      try {
+        const r = await pool.query(`SELECT to_id, count(*) AS n FROM xuong_phien_thiet_bi WHERE loai = 'tram' AND NOT thu_hoi AND to_id = ANY($1::int[]) GROUP BY to_id`, [toIds]);
+        for (const x of r.rows) soTram.set(Number(x.to_id), Number(x.n));
+      } catch { /* chưa chạy SQL trạm */ }
+    }
     const coQuyen = (r: Row) => r.role === 'ADMIN' || (Array.isArray(r.permissions) && r.permissions.includes(PERM_XUONG));
     const toXem = chiTo ? to.rows.filter(x => chiTo.includes(Number(x.id))) : to.rows;
     res.json({
@@ -88,6 +101,12 @@ app.get('/api/xuong/setup', async (req: Request, res: Response) => {
         } : null,
         congDoan: tc.rows.filter(t => Number(t.to_id) === Number(x.id)).map(t => String(t.cong_doan_id)),
         thanhVien: tv.rows.filter(t => Number(t.to_id) === Number(x.id)).map(t => String(t.mnv)),
+        cheDo: cheDoNgay(Number(x.id), homNay),
+        cheDoSau: (() => {
+          const m = moc.filter(c => c.toId === Number(x.id) && c.tuNgay > homNay).sort((a, b) => a.tuNgay.localeCompare(b.tuNgay))[0];
+          return m ? { cheDo: m.cheDo, tuNgay: m.tuNgay } : null;
+        })(),
+        soTram: soTram.get(Number(x.id)) ?? 0,
       })),
       lichCa: lc.rows.map(x => ({ xuong: x.xuong, loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] })),
       quanLy: chiTo ? [] : ql.rows.map(x => ({ userId: Number(x.user_id), ten: x.full_name || x.username })),
@@ -176,8 +195,10 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
       const tenCua = (m: string) => ten.get(m) ?? m;
       const theoTo = new Map<number, Row[]>();
       for (const x of ev.rows) { const k = Number(x.to_id); if (!theoTo.has(k)) theoTo.set(k, []); theoTo.get(k)!.push(x); }
+      // Tổ chế độ cũ / song song: lượt quét vào ca ở trạm không tính là điểm danh chính thức
+      const cheDo = cheDoTheoNgay(await mocCheDo(pool, ids));
       for (const id of ids) {
-        const coMat = doanCoMat(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)));
+        const coMat = doanCoMat(locTheoCheDo(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)), cheDo));
         const caChinh = [...(coMat.chinh ?? []), ...(coMat.chu_nhat ?? [])];
         const daDiemDanh = caChinh.length > 0;
         const dangCo = new Set(caChinh.filter(d => d.end === null || d.end > now).map(d => d.mnv));

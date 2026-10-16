@@ -1,10 +1,83 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Plus, Pencil, X, Check, AlertTriangle, Trash2, RefreshCw, Search } from 'lucide-react';
+import { Plus, Pencil, X, Check, AlertTriangle, Trash2, RefreshCw, Search, QrCode } from 'lucide-react';
+import InTheQr from './InTheQr';
 import {
   xuongSetupApi, type SetupXuong, type ToSetup, type NguoiDung, type CongDoanSetup, type LichCaSetup,
 } from '../../services/xuongSetupApi';
 import { TEN_CA, LOAI_CA_TANG_CA, tenCo, moTaSuKien, hhmm, gioVN, type LoaiCa } from '../../services/xuongModel';
 import { INPUT, BTN, BTN_CHINH, KHUNG, TH, TD } from './xuongDesktopUi';
+import { authXuong } from '../../services/xuongClock';
+import { tramQuanLyApi, type TramDs } from '../../services/xuongTramApi';
+import type { CheDoCham } from '../../services/xuongSetupApi';
+
+const TEN_CHE_DO: Record<CheDoCham, string> = { cu: 'Bấm tay (cũ)', song_song: 'Song song', tram: 'Trạm quét' };
+const MAU_CHE_DO: Record<CheDoCham, string> = {
+  cu: 'border-slate-200 bg-slate-50 text-slate-700', song_song: 'border-sky-200 bg-sky-50 text-sky-800', tram: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+};
+const ngayVN = (ngay: string) => ngay.split('-').reverse().slice(0, 2).join('/');
+
+/**
+ * Chế độ chấm của tổ (trạm quét — docs/designs/xuong-tram-quet.md): Bấm tay (cũ) · Song song (tổ trưởng vẫn bấm, trạm
+ * chỉ để so khớp) · Trạm quét (công nhân quét thẻ + phiếu thay Bắt đầu / Tạm ngưng / Chia người / điểm danh tay).
+ * Đổi có hiệu lực từ ngày ca sau; "Áp dụng ngay hôm nay" để bắt đầu thử từ đầu ca. Kèm danh sách trạm + thu hồi.
+ */
+function CheDoTo({ to, bao, xong }: { to: ToSetup; bao: Bao; xong: () => void }) {
+  const [cheDo, setCheDo] = useState<CheDoCham>(to.cheDoSau?.cheDo ?? to.cheDo ?? 'cu');
+  const [homNay, setHomNay] = useState(false);
+  const [dang, setDang] = useState(false);
+  const [tram, setTram] = useState<TramDs[] | null>(null);
+  const api = tramQuanLyApi(authXuong);
+  useEffect(() => { void api.ds(to.id).then(r => setTram(r.ok ? r.data.tram : [])); }, [to.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const luu = async () => {
+    setDang(true);
+    const r = await api.doiCheDo(to.id, cheDo, homNay);
+    setDang(false);
+    if (!r.ok) { bao(false, r.message); return; }
+    const canhBao = r.data.dangLamBamTay.length ? ` — ${r.data.dangLamBamTay.length} hạng mục đang chạy theo bấm tay sẽ tạm ngưng, chạy lại khi có người quét` : '';
+    bao(true, `${to.ten}: ${TEN_CHE_DO[cheDo]} từ ${ngayVN(r.data.tuNgay)}${canhBao}`);
+    xong();
+  };
+  const thuHoi = async (id: string) => {
+    if (!window.confirm('Thu hồi trạm này? Máy trạm sẽ phải đăng ký lại.')) return;
+    const r = await api.thuHoi(id);
+    if (!r.ok) { bao(false, r.message); return; }
+    setTram(ds => (ds ?? []).map(x => (x.deviceId === id ? { ...x, thuHoi: true } : x)));
+  };
+  return (
+    <div className="space-y-3 rounded-md border border-slate-200 bg-white p-3">
+      <p className="text-sm font-semibold text-slate-800">Chấm công · trạm quét</p>
+      <div className="flex flex-wrap gap-2">
+        {(['cu', 'song_song', 'tram'] as const).map(c => (
+          <label key={c} className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm ${cheDo === c ? MAU_CHE_DO[c] + ' font-medium' : 'border-slate-200 text-slate-700'}`}>
+            <input type="radio" name={`che-do-${to.id}`} checked={cheDo === c} onChange={() => setCheDo(c)} /> {TEN_CHE_DO[c]}
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-slate-600">
+        {cheDo === 'cu' && 'Tổ trưởng bấm Bắt đầu / Tạm ngưng / Chia người và điểm danh tay như hiện nay.'}
+        {cheDo === 'song_song' && 'Tổ trưởng vẫn bấm như cũ (số chính thức); công nhân quét ở trạm để so khớp trong Báo cáo.'}
+        {cheDo === 'tram' && 'Công nhân tự quét thẻ đầu ca; một người quét phiếu + thẻ khai cả nhóm vào hàng. App tổ trưởng ẩn Bắt đầu / Tạm ngưng / Chia người / điểm danh.'}
+      </p>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" checked={homNay} onChange={e => setHomNay(e.target.checked)} /> Áp dụng ngay hôm nay (mặc định: từ ngày ca mai)
+      </label>
+      <button type="button" className={BTN_CHINH} disabled={dang || (cheDo === (to.cheDo ?? 'cu') && !to.cheDoSau && !homNay)} onClick={() => void luu()}>
+        <Check size={14} /> Lưu chế độ
+      </button>
+      <div className="border-t border-slate-100 pt-2 text-sm">
+        <p className="font-medium text-slate-700">Trạm của tổ {tram === null ? '…' : `(${tram.filter(x => !x.thuHoi).length})`}
+          <span className="ml-2 font-normal text-slate-500">Đăng ký: mở <b>/xuong/tram</b> trên máy đặt ở tổ</span></p>
+        {tram?.map(x => (
+          <div key={x.deviceId} className={`mt-1 flex items-center gap-2 ${x.thuHoi ? 'text-slate-400' : 'text-slate-700'}`}>
+            <span>{x.ten || 'Trạm'} · {x.nguoiDangKy ?? ''} · lần cuối {new Date(x.lanCuoi).toLocaleString('vi-VN')}</span>
+            {x.thuHoi ? <span className="text-xs">(đã thu hồi)</span>
+              : <button type="button" className={`${BTN} ml-auto`} onClick={() => void thuHoi(x.deviceId)}><Trash2 size={13} /> Thu hồi</button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ============================================================================
 // CÁC MỤC CON CỦA THẺ XƯỞNG (Setup dữ liệu): tổ, công đoạn, lịch ca, quản lý xưởng, cần xem.
@@ -105,6 +178,7 @@ function SuaTo({ d, to, bao, xong, huy }: { d: SetupXuong; to: ToSetup | null; b
           ))}
         </div>
       </div>
+      {to && to.cheDo !== undefined && <CheDoTo to={to} bao={bao} xong={xong} />}
       <label className="block text-sm font-medium text-slate-700">Thành viên (mã NV, mỗi dòng một mã — người có tài khoản trùng mã NV được ghi cho tổ)
         <textarea className={`${INPUT} mt-1 h-24 font-mono`} value={tv} onChange={e => setTv(e.target.value)} placeholder="AAF00123" />
       </label>
@@ -122,6 +196,7 @@ function SuaTo({ d, to, bao, xong, huy }: { d: SetupXuong; to: ToSetup | null; b
 export function XuongToSetup({ d, bao, tai }: MucProps) {
   const [sua, setSua] = useState<number | 'moi' | null>(null);
   const [loc, setLoc] = useState<'tat_ca' | 'chua_tt'>('tat_ca');
+  const [inThe, setInThe] = useState(false);
   const tenCd = (id: string) => d.congDoan.find(c => c.id === id)?.ten ?? id;
   const ds = d.to.filter(t => loc === 'tat_ca' || !t.toTruong);
   const chuaTt = d.to.filter(t => t.active && !t.toTruong).length;
@@ -133,12 +208,14 @@ export function XuongToSetup({ d, bao, tai }: MucProps) {
         <select value={loc} onChange={e => setLoc(e.target.value as 'tat_ca' | 'chua_tt')} className="rounded-md border border-slate-300 px-2 py-1 text-sm">
           <option value="tat_ca">Tất cả tổ</option><option value="chua_tt">Chưa có tổ trưởng</option>
         </select>
-        <button type="button" className={`${BTN_CHINH} ml-auto`} onClick={() => setSua('moi')}><Plus size={14} /> Thêm tổ</button>
+        <button type="button" className={`${BTN} ml-auto`} onClick={() => setInThe(true)}><QrCode size={14} /> In nhãn QR mã NV</button>
+        <button type="button" className={BTN_CHINH} onClick={() => setSua('moi')}><Plus size={14} /> Thêm tổ</button>
       </div>
+      {inThe && d.xuong && <InTheQr xuong={d.xuong} dsTo={d.to.filter(t => t.active)} onClose={() => setInThe(false)} />}
       {sua === 'moi' && <SuaTo d={d} to={null} bao={bao} xong={() => { setSua(null); tai(); }} huy={() => setSua(null)} />}
       <table className="w-full min-w-[36rem] rmd:min-w-0">
         <thead className="bg-slate-50"><tr>
-          <th className={TH}>Tổ</th><th className={TH}>Tổ trưởng</th><th className={TH}>Công đoạn phụ trách</th>
+          <th className={TH}>Tổ</th><th className={TH}>Tổ trưởng</th><th className={TH}>Chấm công</th><th className={TH}>Công đoạn phụ trách</th>
           <th className={`${TH} text-right`}>Thành viên</th><th className={TH} />
         </tr></thead>
         <tbody>
@@ -164,11 +241,16 @@ function FragmentTo({ t, tenCd, mo, onSua, children }: { t: ToSetup; tenCd: (id:
                 {!t.toTruong.coQuyenXuong && <span className="ml-1 text-xs text-amber-700">chưa có quyền Xưởng</span>}</>
             : <span className="text-amber-700">Chưa có</span>}
         </td>
+        <td className={TD}>
+          <span className={`inline-block rounded-md border px-2 py-0.5 text-xs ${MAU_CHE_DO[t.cheDo ?? 'cu']}`}>{TEN_CHE_DO[t.cheDo ?? 'cu']}</span>
+          {t.cheDoSau && <span className="ml-1 text-xs text-slate-500">→ {TEN_CHE_DO[t.cheDoSau.cheDo]} từ {ngayVN(t.cheDoSau.tuNgay)}</span>}
+          {(t.soTram ?? 0) > 0 && <span className="ml-1 text-xs text-slate-500">· {t.soTram} trạm</span>}
+        </td>
         <td className={TD}>{t.congDoan.map(tenCd).join(', ') || <span className="text-amber-700">Chưa gán</span>}</td>
         <td className={`${TD} text-right tabular-nums`}>{t.thanhVien.length || '—'}</td>
         <td className={`${TD} text-right`}><button type="button" className={BTN} onClick={onSua}><Pencil size={13} /> {mo ? 'Đóng' : 'Sửa'}</button></td>
       </tr>
-      {mo && <tr><td colSpan={5} className="p-0">{children}</td></tr>}
+      {mo && <tr><td colSpan={6} className="p-0">{children}</td></tr>}
     </>
   );
 }
