@@ -1,4 +1,4 @@
-import { pool } from '../../db.js';
+import { poolMra } from '../../db.js';
 import { tinhTrangThai, suKienConHieuLuc } from './state.js';
 import type { SuKien, LichCaRow } from './types.js';
 
@@ -80,7 +80,7 @@ export async function taiCap(xuong: string, nguon: 'mra' | 'app', toSuKien: (r: 
   if (n && !moi && Date.now() - n.luc < (nguon === 'mra' ? GIO : 5 * 60_000)) return n.caps;
   let rows: Array<Record<string, unknown>> = [];
   try {
-    rows = (await pool.query(
+    rows = (await poolMra.query(
       nguon === 'mra'
         ? `SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'mra' AND xuong = $1 AND hex IS NOT NULL AND cong_doan_id IS NOT NULL`
         // App: kèm sự kiện huỷ (huỷ không luôn có công đoạn) để bỏ đúng thao tác bị huỷ

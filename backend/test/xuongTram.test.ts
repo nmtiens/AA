@@ -195,6 +195,56 @@ describe('chuyển tổ sang trạm: hạng mục còn chạy theo bấm tay', (
   });
 });
 
+describe('phân công đầu ca + tự gán (công nhân không thao tác)', () => {
+  const HOM_QUA = '2026-10-12';
+  const phanCong = (mnv: string, hex: string, ts: number) =>
+    ev({ loai: 'nguoi_vao', hex, congDoanId: 'CD1', duLieu: { mnv, tram: true, phanCong: true } }, ts);
+  const nhanHq = nhan(A, 10, t('07:00', HOM_QUA));
+
+  it('phân công trước khi tới: có hiệu lực từ lúc vào ca; vắng cả ngày thì không tính', () => {
+    const kq = chuyenDoiTram([phanCong('NV1', A, t('07:00')), phanCong('NV2', A, t('07:00')), vaoCa('NV1', t('07:40'))],
+      { now: t('09:00'), cuaSoTheoTo: CUA_SO });
+    assert.deepEqual(kq.doanNguoi.map(d => [d.mnv, d.start, d.nguon]), [['NV1', t('07:40'), 'phan_cong']]);
+    assert.deepEqual(kq.dangO, { [KA]: ['NV1'] });
+  });
+
+  it('có mặt quá 30 phút chưa vào hàng nào: tự gán từ lúc vào ca vào hàng làm dở hôm trước', () => {
+    const evts = [nhanHq, vao('NV1', A, t('08:00', HOM_QUA)), raCa('NV1', t('15:45', HOM_QUA)), vaoCa('NV1', t('07:30'))];
+    const truoc = chuyenDoiTram(evts, { now: t('07:50'), cuaSoTheoTo: CUA_SO });
+    assert.equal(truoc.doanNguoi.filter(d => d.nguon === 'tu_gan').length, 0); // chưa đủ 30 phút
+    const kq = chuyenDoiTram(evts, { now: t('09:00'), cuaSoTheoTo: CUA_SO });
+    const tg = kq.doanNguoi.find(d => d.nguon === 'tu_gan')!;
+    assert.deepEqual([tg.key, tg.start, tg.end], [KA, t('07:30'), null]);
+  });
+
+  it('không tự gán khi: đã quét / được phân công trong 30 phút đầu, hàng hôm trước đã xong hết, không có hàng hôm trước', () => {
+    const goc = [nhanHq, vao('NV1', A, t('08:00', HOM_QUA)), raCa('NV1', t('15:45', HOM_QUA)), vaoCa('NV1', t('07:30'))];
+    const daQuet = chuyenDoiTram([...goc, vao('NV1', B, t('07:45'))], { now: t('09:00'), cuaSoTheoTo: CUA_SO });
+    assert.equal(daQuet.doanNguoi.filter(d => d.nguon === 'tu_gan').length, 0);
+    const daXong = chuyenDoiTram([...goc, xong(A, 10, t('15:00', HOM_QUA))], { now: t('09:00'), cuaSoTheoTo: CUA_SO });
+    assert.equal(daXong.doanNguoi.filter(d => d.nguon === 'tu_gan').length, 0);
+    const moi = chuyenDoiTram([vaoCa('NV9', t('07:30'))], { now: t('09:00'), cuaSoTheoTo: CUA_SO });
+    assert.equal(moi.doanNguoi.length, 0);
+  });
+
+  it('tổ trưởng giữ nguyên hàng đang tự gán (phân công lại) = xác nhận: đoạn đổi nguồn, không mở đoạn mới', () => {
+    const evts = [nhanHq, vao('NV1', A, t('08:00', HOM_QUA)), raCa('NV1', t('15:45', HOM_QUA)), vaoCa('NV1', t('07:30')),
+      phanCong('NV1', A, t('10:00'))];
+    const kq = chuyenDoiTram(evts, { now: t('11:00'), cuaSoTheoTo: CUA_SO });
+    const homNay = kq.doanNguoi.filter(d => d.start >= t('07:00'));
+    assert.deepEqual(homNay.map(d => [d.start, d.nguon]), [[t('07:30'), 'phan_cong']]);
+  });
+
+  it('tự gán rồi quét sang hàng khác: rời hàng tự gán tại mốc quét', () => {
+    const evts = [nhanHq, vao('NV1', A, t('08:00', HOM_QUA)), raCa('NV1', t('15:45', HOM_QUA)), vaoCa('NV1', t('07:30')),
+      vao('NV1', B, t('09:00'))];
+    const kq = chuyenDoiTram(evts, { now: t('10:00'), cuaSoTheoTo: CUA_SO });
+    const tg = kq.doanNguoi.find(d => d.nguon === 'tu_gan')!;
+    assert.deepEqual([tg.end, tg.ketThuc], [t('09:00'), 'doi_hang']);
+    assert.deepEqual(kq.dangO, { [KB]: ['NV1'] });
+  });
+});
+
 describe('tăng ca ở tổ trạm: ở lại không quét lại thẻ', () => {
   it('người chưa ra ca được tính có mặt + giờ ở hàng trong tăng ca đã khai; người ra ca 15:45 thì không', () => {
     const cs = cuaSoTrongNgay(NGAY, LICH, ['ca1']);

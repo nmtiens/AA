@@ -19,12 +19,14 @@ import XuongDong, { type TrangThaiGui } from './XuongDong';
 import QuetQr from './QuetQr';
 import { DiemDanhSheet, type KetQuaDiemDanh } from './DiemDanh';
 import { SuaNgaySheet } from './SuaNgay';
+import { PhanCongSheet } from './PhanCong';
 import type { CongNhanTo } from '../../../services/xuongModel';
 import {
   QuanSoSheet, BatDauSheet, TamNgungSheet, TienDoSheet, GiaoSheet, NhanSheet, TangCaSheet, XacNhanSheet, ChiaNguoiSheet, LichSuSheet, GoMaSheet,
   ChonToSheet, ThanhViec, type NhanKetQua, type XacNhanDong, type AnhChup,
 } from './XuongSheets';
 import { NUT_CHINH, NUT_DONG, NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
+import { LogoAANgang } from '../../LogoAA';
 
 // ============================================================================
 // MÀN TỔ TRƯỞNG — mục "Tổ" của app Xưởng (/xuong, XuongShell). Thiết kế: docs/designs/xuong-checkin.md — Design Review Pass 1–7.
@@ -45,7 +47,7 @@ type Sheet =
   | { loai: 'trienKhai'; hex: string | null }
   | { loai: 'batDau'; r: DongViec; suKien: 'bat_dau' | 'tiep_tuc'; quanSo: number | null }
   | { loai: 'diemDanh'; ca: LoaiCa; sau?: { nhan: string; chay: (quanSoMoi?: number) => void } }
-  | { loai: 'suaNgay' };
+  | { loai: 'suaNgay' } | { loai: 'phanCong' };
 
 const KHOA_PHIEN = 'xuong_phien';
 const KHOA_TO = 'xuong_to_cuoi';
@@ -619,8 +621,9 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       {/* Tầng trên */}
       {/* Phần đầu cuộn theo trang (không dính) — chỉ thanh 3 tab dính trên cùng, để điện thoại còn chỗ cho danh sách */}
       <header className="mx-auto max-w-3xl space-y-2 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+12px)]">
+        <LogoAANgang co="nho" className="rmd:hidden" />
         <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {phien && phien.to.length > 1 ? (
               <button className="flex min-h-12 min-w-0 items-center gap-1 text-left" onClick={() => setSheet({ loai: 'chonTo' })} aria-label="Chọn tổ">
                 <span className="truncate text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'Chọn tổ'}</span>
@@ -725,6 +728,8 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
             { ten: 'Cuối ngày', icon: 'xacnhan' as const, onClick: () => setSheet({ loai: 'xacNhan' }), phu: cv.daXacNhanHomNay ? '✓' : undefined },
             { ten: 'Lịch sử', icon: 'lichsu' as const, onClick: () => setSheet({ loai: 'lichSu' }) },
             // Trạm quét (chạy thật hoặc tuần song song): xem / sửa lượt quét từng người
+            // Tổ trạm: phân công đầu ca (giữ như hôm qua) — công nhân không phải quét phiếu
+            ...(laTram ? [{ ten: 'Phân công', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'phanCong' }) }] : []),
             ...(cv.cheDo && cv.cheDo !== 'cu' ? [{ ten: 'Sửa ngày', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'suaNgay' }) }] : []),
             ...(laQuanLy ? [{ ten: 'Triển khai', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),
           ]} />
@@ -833,6 +838,9 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       {sheet?.loai === 'tangCa' && cv && <TangCaSheet cv={cv} dangChay={nhom.dangChay} onKhai={khaiTangCa} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'xacNhan' && cv && <XacNhanSheet cv={cv} dangChay={nhom.dangChay} anhBat={!!cv.anhBat} onXacNhan={xacNhan} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'chiaNguoi' && <ChiaNguoiSheet dangChay={nhom.dangChay} quanSo={quanSo ?? 0} cv={cv} ca={ca} now={now} onLuu={chiaNguoi} onClose={() => setSheet(null)} />}
+      {sheet?.loai === 'phanCong' && toId && (
+        <PhanCongSheet toId={toId} onGhi={async (evs, moTa) => !!(await ghi(evs, moTa))} onClose={() => setSheet(null)} />
+      )}
       {sheet?.loai === 'suaNgay' && toId && cv && (
         <SuaNgaySheet toId={toId} dong={cv.dangLam}
           // Ghi / huỷ đóng mọi sheet (ghi()) — Sửa ngày thường sửa nhiều dòng liền nên mở lại

@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { pool } from '../db.js';
+import { pool, poolMra } from '../db.js';
 import { app } from '../server/app.js';
 import { taiCap, khungCaChinh, gioTrongCa, dauNgayVN, GIO, NGAY } from '../server/xuong/mraLichSu.js';
 import { fail, phamViXem, COT_SU_KIEN, toSuKien, lichCaCuaXuong } from './xuong.js';
@@ -32,8 +32,8 @@ app.get('/api/xuong/phan-tich', async (req: Request, res: Response) => {
     const [capsGoc, lich, cdR, tcR] = await Promise.all([
       taiCap(xuong, 'app', toSuKien, COT_SU_KIEN, req.query.moi === '1'),
       lichCaCuaXuong(xuong),
-      pool.query(`SELECT id, cd_chi_tiet, thu_tu FROM xuong_cong_doan WHERE xuong = $1`, [xuong]),
-      pv.chiTo ? pool.query(`SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])`, [pv.chiTo]) : Promise.resolve(null),
+      poolMra.query(`SELECT id, cd_chi_tiet, thu_tu FROM xuong_cong_doan WHERE xuong = $1`, [xuong]),
+      pv.chiTo ? poolMra.query(`SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])`, [pv.chiTo]) : Promise.resolve(null),
     ]);
     const cdCuaTo = tcR ? new Set(tcR.rows.map(x => String(x.cong_doan_id))) : null;
     const capsKy = capsGoc.filter(c => c.dau >= t0 && c.dau < t1 && (!cdCuaTo || cdCuaTo.has(c.cd)));

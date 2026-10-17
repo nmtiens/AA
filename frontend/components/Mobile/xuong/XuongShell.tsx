@@ -6,6 +6,7 @@ import { BG, Toast } from '../mobileUi';
 import DangNhapXuong from './DangNhapXuong';
 import XuongApp, { type ToMo } from './XuongApp';
 import { apDungCheDoDienThoai } from './cheDoDienThoai';
+import { LogoAANgang } from '../../LogoAA';
 
 // ============================================================================
 // APP XƯỞNG RIÊNG (/xuong — đường cũ /m/xuong của bản đã cài vẫn vào đây). Cài riêng thành app "Xưởng".
@@ -108,12 +109,10 @@ export default function XuongShell() {
     <div className={`fixed inset-0 flex ${BG}`}>
       {/* Máy tính: cột menu trái */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white rmd:flex">
-        <div className="flex items-center gap-3 px-5 py-5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-xl text-white" aria-hidden>🏭</span>
-          <div className="min-w-0">
-            <p className="text-lg font-semibold leading-tight text-slate-900">MRA</p>
-            <p className="truncate text-sm text-slate-500">{ten}</p>
-          </div>
+        <div className="px-4 py-5">
+          <LogoAANgang co="vua" />
+          <p className="mt-3 text-lg font-semibold leading-tight text-slate-900">MRA</p>
+          <p className="truncate text-sm text-slate-500">{ten}</p>
         </div>
         <nav className="flex flex-col gap-1 px-3" aria-label="Mục app MRA">
           {dsMuc.map(m => (

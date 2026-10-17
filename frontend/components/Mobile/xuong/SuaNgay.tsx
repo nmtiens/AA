@@ -48,6 +48,14 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
   useEffect(tai, [tai]);
 
   const huy = async (ids: string[], moTa: string) => { await onHuy(ids, moTa); setTimeout(tai, 1500); };
+  // Xác nhận đoạn tự gán = ghi hộ người đó vào đúng hàng từ đúng lúc (đoạn đổi nguồn thành ghi hộ)
+  const xacNhan = async (ds: DoanNguoiSua[], moTa: string) => {
+    if (!ds.length) return;
+    const ok = await onGhi(ds.map(d => ({ loai: 'nguoi_vao', toId, hex: d.hex, congDoanId: d.congDoanId, lucXayRa: d.start,
+      duLieu: { mnv: d.mnv, tram: true } })), moTa);
+    if (ok) setTimeout(tai, 1500);
+  };
+  const tuGan = (data?.nguoi ?? []).flatMap(n => n.doan.filter(d => d.nguon === 'tu_gan'));
   const now = data?.serverNow ?? Date.now();
 
   return (
@@ -60,6 +68,16 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
       </div>
       {loi && <p className="text-base text-red-700" role="alert">{loi}</p>}
       {data && !data.nguoi.length && <p className="text-base text-slate-600">Ngày này trạm chưa ghi lượt quét nào.</p>}
+      {data?.gioTheoNguon && data.nguoi.length > 0 && (
+        <p className="pb-2 text-base text-slate-700">
+          Giờ ở hàng: quét {data.gioTheoNguon.quet} · phân công {data.gioTheoNguon.phan_cong} · tự gán {data.gioTheoNguon.tu_gan} · ghi hộ {data.gioTheoNguon.ghi_ho}
+        </p>
+      )}
+      {data?.suaDuoc && tuGan.length > 0 && (
+        <button className={`${NUT_CHINH} mb-3`} onClick={() => void xacNhan(tuGan, `Xác nhận ${tuGan.length} đoạn tự gán`)}>
+          Xác nhận cả tổ — {tuGan.length} đoạn tự gán đúng
+        </button>
+      )}
       <ul className="space-y-3 pb-4">
         {data?.nguoi.map(n => (
           <li key={n.mnv} className="rounded-2xl border border-slate-200 p-3">
@@ -76,7 +94,10 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
               {n.coMat.map((c, i) => <li key={`cm${i}`}>Có mặt {hhmm(c.start)} – {c.end === null ? 'đang trong ca' : hhmm(c.end)}</li>)}
               {n.doan.map(d => (
                 <DongDoan key={d.suKienVao} d={d} suaDuoc={data.suaDuoc}
-                  onHuy={() => void huy([d.suKienVao], `Huỷ lượt vào ${d.tenHangMuc ?? d.hex} của ${n.hoTen}`)} />
+                  onHuy={() => void huy([d.suKienVao], `Huỷ lượt vào ${d.tenHangMuc ?? d.hex} của ${n.hoTen}`)}
+                  onDung={() => void xacNhan([d], `Xác nhận ${n.hoTen} làm ${d.tenHangMuc ?? d.hex}`)}
+                  onSai={() => void onGhi([{ loai: 'nguoi_ra', toId, hex: d.hex, congDoanId: d.congDoanId, lucXayRa: d.start, duLieu: { mnv: d.mnv, tram: true } }],
+                    `${n.hoTen} không làm ${d.tenHangMuc ?? d.hex}`).then(ok => { if (ok) setTimeout(tai, 1500); })} />
               ))}
             </ul>
           </li>
@@ -93,15 +114,27 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
   );
 }
 
-function DongDoan({ d, suaDuoc, onHuy }: { d: DoanNguoiSua; suaDuoc: boolean; onHuy: () => void }) {
-  const lech = d.ketThuc === 'tu_dong' || d.ketThuc === 'ngoai_ca';
+const TEN_NGUON: Record<string, string> = { quet: 'quét', phan_cong: 'phân công', tu_gan: 'tự gán', ghi_ho: 'ghi hộ' };
+
+function DongDoan({ d, suaDuoc, onHuy, onDung, onSai }: {
+  d: DoanNguoiSua; suaDuoc: boolean; onHuy: () => void; onDung: () => void; onSai: () => void;
+}) {
+  const tuGan = d.nguon === 'tu_gan';
+  const lech = d.ketThuc === 'tu_dong' || d.ketThuc === 'ngoai_ca' || tuGan;
   return (
-    <li className={`flex items-center justify-between gap-2 rounded-xl px-2 py-1 ${lech ? MAU.ngung.nen : ''}`}>
+    <li className={`flex flex-wrap items-center justify-between gap-2 rounded-xl px-2 py-1 ${lech ? MAU.ngung.nen : ''}`}>
       <span className="min-w-0">
         <b className="tabular-nums">{hhmm(d.start)}–{d.end === null ? 'nay' : hhmm(d.end)}</b> {d.tenHangMuc ?? d.hex}
         {d.ketThuc && <span className="text-slate-600"> · {TEN_KET_THUC[d.ketThuc] ?? d.ketThuc}</span>}
+        {d.nguon && d.nguon !== 'quet' && <span className={tuGan ? `font-medium ${MAU.ngung.chu}` : 'text-slate-600'}> · {TEN_NGUON[d.nguon]}</span>}
       </span>
-      {suaDuoc && <button className="min-h-12 shrink-0 px-2 text-base font-medium text-red-700 underline underline-offset-4" onClick={onHuy}>Huỷ</button>}
+      {suaDuoc && (tuGan ? (
+        // Tự gán: không có lượt quét để huỷ — xác nhận đúng, hoặc báo không làm hàng này
+        <span className="flex shrink-0 gap-3">
+          <button className="min-h-12 px-2 text-base font-medium text-emerald-800 underline underline-offset-4" onClick={onDung}>Đúng</button>
+          <button className="min-h-12 px-2 text-base font-medium text-red-700 underline underline-offset-4" onClick={onSai}>Không làm</button>
+        </span>
+      ) : <button className="min-h-12 shrink-0 px-2 text-base font-medium text-red-700 underline underline-offset-4" onClick={onHuy}>Huỷ</button>)}
     </li>
   );
 }

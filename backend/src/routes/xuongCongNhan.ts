@@ -1,9 +1,9 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { pool } from '../db.js';
+import { poolMra } from '../db.js';
 import { app } from '../server/app.js';
 import { chuanMnv, MNV_RE } from '../server/xuong/chamCong.js';
-import { fail, coQuyenXuong, coBangCongNhan, xuongQuanLy, quanLyDuoc } from './xuong.js';
+import { fail, coQuyenXuong, coBangCongNhan, xuongQuanLy, quanLyDuoc, msnvCua } from './xuong.js';
 
 // ============================================================================
 // DANH SÁCH CÔNG NHÂN — chấm công theo người (docs/designs/xuong-cham-cong.md, backend/sql/2026-10-13_xuong_cham_cong.sql)
@@ -21,15 +21,16 @@ const chuaBat = (res: Response) => res.json({ success: true, available: false })
 /** Quyền sửa danh sách của tổ: tổ trưởng / thành viên tổ (theo mã NV) hoặc quản lý xưởng của tổ */
 async function quyenTo(req: Request, toId: number): Promise<{ duoc: boolean; quanLy: boolean; xuong: string | null }> {
   const me = Number(req.user!.id);
-  const to = (await pool.query('SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1', [toId])).rows[0];
+  const to = (await poolMra.query('SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1', [toId])).rows[0];
   if (!to) return { duoc: false, quanLy: false, xuong: null };
   const xuong = String(to.xuong);
   const quanLy = quanLyDuoc(await xuongQuanLy(me), xuong);
   if (quanLy || Number(to.to_truong_user_id) === me) return { duoc: true, quanLy, xuong };
-  const tv = await pool.query(
-    `SELECT 1 FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $2
-     WHERE tv.to_id = $1 AND u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv))
-       AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) LIMIT 1`, [toId, me]);
+  const msnv = await msnvCua(me);
+  if (!msnv) return { duoc: false, quanLy: false, xuong };
+  const tv = await poolMra.query(
+    `SELECT 1 FROM xuong_to_thanh_vien tv
+     WHERE tv.to_id = $1 AND upper(tv.mnv) = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) LIMIT 1`, [toId, msnv]);
   return { duoc: tv.rows.length > 0, quanLy: false, xuong };
 }
 
@@ -47,7 +48,7 @@ app.get('/api/xuong/cong-nhan/tim', async (req: Request, res: Response) => {
     if (q.length < 2) return res.json({ success: true, available: true, ketQua: [] });
     const xuong = typeof req.query.xuong === 'string' && req.query.xuong ? req.query.xuong.toUpperCase() : null;
     const mau = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`;
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
        WHERE c.active AND (c.mnv ILIKE $1 OR c.ho_ten ILIKE $1) AND ($2::text IS NULL OR c.xuong = $2)
        ORDER BY (upper(c.mnv) = upper($3)) DESC, c.ho_ten LIMIT 20`, [mau, xuong, q]);
@@ -67,7 +68,7 @@ app.post('/api/xuong/cong-nhan', async (req: Request, res: Response) => {
     if (!MNV_RE.test(mnv)) return res.status(400).json({ success: false, message: 'Mã nhân viên chỉ gồm chữ, số (vd AAF7615)' });
     const q = await quyenTo(req, p.data.toId);
     if (!q.duoc) return res.status(403).json({ success: false, message: 'Chỉ tổ trưởng của tổ hoặc quản lý xưởng được sửa danh sách' });
-    const cu = (await pool.query(
+    const cu = (await poolMra.query(
       `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.mnv = $1`, [mnv])).rows[0];
     if (cu && cu.active && cu.to_id !== null && Number(cu.to_id) !== p.data.toId && !q.quanLy) {
       return res.status(409).json({
@@ -76,7 +77,7 @@ app.post('/api/xuong/cong-nhan', async (req: Request, res: Response) => {
     }
     const hoTen = p.data.hoTen?.trim() || (cu ? String(cu.ho_ten) : '');
     if (!hoTen) return res.status(400).json({ success: false, message: 'Nhập họ tên người mới' });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, nguon) VALUES ($1, $2, $3, $4, 'app')
        ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, active = true, cap_nhat = now(),
          xuong = EXCLUDED.xuong, ho_ten = CASE WHEN xuong_cong_nhan.nguon = 'file' THEN xuong_cong_nhan.ho_ten ELSE EXCLUDED.ho_ten END
@@ -93,7 +94,7 @@ app.post('/api/xuong/cong-nhan/roi-to', async (req: Request, res: Response) => {
     if (!p.success) return res.status(400).json({ success: false, message: 'Thiếu tổ / mã nhân viên' });
     const q = await quyenTo(req, p.data.toId);
     if (!q.duoc) return res.status(403).json({ success: false, message: 'Chỉ tổ trưởng của tổ hoặc quản lý xưởng được sửa danh sách' });
-    await pool.query(`UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE mnv = $1 AND to_id = $2`, [chuanMnv(p.data.mnv), p.data.toId]);
+    await poolMra.query(`UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE mnv = $1 AND to_id = $2`, [chuanMnv(p.data.mnv), p.data.toId]);
     res.json({ success: true, available: true });
   } catch (e) { fail(res, e, '/api/xuong/cong-nhan/roi-to'); }
 });
@@ -103,7 +104,7 @@ app.get('/api/xuong/cong-nhan', async (req: Request, res: Response) => {
     const xuong = String(req.query.xuong ?? '').toUpperCase();
     if (!xuong || !quanLyDuoc(await xuongQuanLy(req.user!.id), xuong)) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
     if (!(await coBangCongNhan())) return chuaBat(res);
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
        WHERE c.xuong = $1 OR t.xuong = $1 ORDER BY c.active DESC, t.ten_to NULLS LAST, c.ho_ten`, [xuong]);
     res.json({ success: true, available: true, congNhan: r.rows.map(dong) });
@@ -123,17 +124,17 @@ app.post('/api/xuong/cong-nhan/sua', async (req: Request, res: Response) => {
     const p = suaSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ' });
     const mnv = chuanMnv(p.data.mnv);
-    const cu = (await pool.query('SELECT * FROM xuong_cong_nhan WHERE mnv = $1', [mnv])).rows[0];
+    const cu = (await poolMra.query('SELECT * FROM xuong_cong_nhan WHERE mnv = $1', [mnv])).rows[0];
     if (!cu) return res.status(404).json({ success: false, message: 'Không có người này' });
     const ds = await xuongQuanLy(req.user!.id);
     let xuongMoi: string | null = cu.xuong ?? null;
     if (p.data.toId) {
-      const to = (await pool.query('SELECT xuong FROM xuong_to WHERE id = $1', [p.data.toId])).rows[0];
+      const to = (await poolMra.query('SELECT xuong FROM xuong_to WHERE id = $1', [p.data.toId])).rows[0];
       if (!to) return res.status(404).json({ success: false, message: 'Tổ không tồn tại' });
       xuongMoi = String(to.xuong);
     }
     if (!quanLyDuoc(ds, cu.xuong ?? null) || !quanLyDuoc(ds, xuongMoi)) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
          active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
       [mnv, p.data.toId !== undefined, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]);
@@ -157,7 +158,7 @@ app.post('/api/xuong/cong-nhan/nap', async (req: Request, res: Response) => {
     if (!p.success) return res.status(400).json({ success: false, message: 'File không đúng dạng (cần mã NV, họ tên)' });
     const ds = await xuongQuanLy(req.user!.id);
     if (!ds.size) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng' });
-    const toRows = (await pool.query('SELECT id, xuong, ten_to FROM xuong_to WHERE active')).rows;
+    const toRows = (await poolMra.query('SELECT id, xuong, ten_to FROM xuong_to WHERE active')).rows;
     const timTo = (xuong: string | null, ten: string | null) => {
       if (!ten) return null;
       const t = ten.trim().toUpperCase();
@@ -175,7 +176,7 @@ app.post('/api/xuong/cong-nhan/nap', async (req: Request, res: Response) => {
       if (!quanLyDuoc(ds, xuong)) { if (loi.length < 20) loi.push(`Dòng ${i + 2}: không có quyền xưởng ${xuong ?? '(trống)'}`); continue; }
       hopLe.push({ mnv, hoTen: x.hoTen.trim(), xuong, toId: to ? Number(to.id) : null, chucVu: x.chucVu?.trim() || null });
     }
-    const client = await pool.connect();
+    const client = await poolMra.connect();
     let nghi = 0;
     try {
       await client.query('BEGIN');

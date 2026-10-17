@@ -88,15 +88,27 @@ export interface DoanNguoiSua {
   mnv: string; key: string; hex: string; congDoanId: string; start: number; end: number | null;
   ketThuc: 'ra' | 'doi_hang' | 'xong' | 'tu_dong' | 'ngoai_ca' | null; suKienVao: string; suKienRa: string | null;
   tenHangMuc: string | null;
+  /** quét ở trạm / tổ trưởng phân công / hệ thống tự gán / ghi hộ */
+  nguon: NguonDoan;
+}
+export type NguonDoan = 'quet' | 'phan_cong' | 'tu_gan' | 'ghi_ho';
+export interface HangCuaNguoi { key: string; hex: string; congDoanId: string; nguon?: NguonDoan }
+export interface PhanCongData {
+  ngay: string; serverNow: number; suaDuoc: boolean; cheDo: 'cu' | 'song_song' | 'tram';
+  nguoi: Array<{ mnv: string; hoTen: string; coMat: boolean; dangO: HangCuaNguoi | null; homQua: HangCuaNguoi | null }>;
+  hangMuc: Array<{ key: string; hex: string; congDoanId: string; tenHangMuc: string | null; tenCongDoan: string | null; trangThai: string }>;
 }
 export interface SuaNgayData {
   ngay: string; serverNow: number; cheDo: 'cu' | 'song_song' | 'tram'; suaDuoc: boolean;
+  /** Giờ ở hàng theo nguồn — đo mức tự động */
+  gioTheoNguon?: Record<NguonDoan, number>;
   nguoi: Array<{ mnv: string; hoTen: string; coMat: Array<{ start: number; end: number | null }>; doan: DoanNguoiSua[]; co: string[] }>;
   suKien: Array<{ id: string; loai: string; mnv: string | null; hex: string | null; congDoanId: string | null; ts: number }>;
 }
 export interface TramDs { deviceId: string; ten: string | null; congDoan: string[]; lanDau: string; lanCuoi: string; thuHoi: boolean; nguoiDangKy: string | null }
 
 export const tramQuanLyApi = (auth: () => Record<string, string>) => ({
+  phanCong: (toId: number) => goi<PhanCongData>(`/api/xuong/to/${toId}/phan-cong`, undefined, auth),
   suaNgay: (toId: number, ngay?: string) => goi<SuaNgayData>(`/api/xuong/to/${toId}/sua-ngay${ngay ? `?ngay=${ngay}` : ''}`, undefined, auth),
   ds: (toId: number) => goi<{ tram: TramDs[] }>(`/api/xuong/tram/ds?toId=${toId}`, undefined, auth),
   thuHoi: (deviceId: string) => goi<Record<string, never>>('/api/xuong/tram/thu-hoi', { method: 'POST', body: JSON.stringify({ deviceId }) }, auth),

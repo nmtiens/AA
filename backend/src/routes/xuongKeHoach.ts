@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { pool } from '../db.js';
+import { pool, poolMra } from '../db.js';
 import { app } from '../server/app.js';
 import { isoWeekRangeInYear } from '../server/common.js';
 import { numericCol, notCancelledHexCond } from '../server/data.js';
@@ -25,8 +25,8 @@ import type { SuKien } from '../server/xuong/types.js';
 async function hexQuaCongDoan(hexes: string[], cds: string[]): Promise<Set<string>> {
   if (!hexes.length || !cds.length) return new Set();
   const [coThaoTac, tuyen] = await Promise.all([
-    pool.query(`SELECT DISTINCT hex FROM xuong_su_kien WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])`, [hexes, cds]),
-    pool.query(
+    poolMra.query(`SELECT DISTINCT hex FROM xuong_su_kien WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])`, [hexes, cds]),
+    poolMra.query(
       `SELECT hex, du_lieu::text AS dl FROM xuong_su_kien e WHERE loai IN ('trien_khai', 'khai_bao_cd') AND hex = ANY($1::text[])
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`, [hexes]),
   ]);
@@ -43,7 +43,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
     const pv = xuong ? await phamViXem(req.user!.id, xuong) : null;
     if (!pv) return res.status(403).json({ success: false, message: 'Cần quyền quản lý xưởng này' });
     const cdCuaTo = pv.chiTo
-      ? (await pool.query('SELECT DISTINCT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])', [pv.chiTo])).rows.map(x => String(x.cong_doan_id))
+      ? (await poolMra.query('SELECT DISTINCT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])', [pv.chiTo])).rows.map(x => String(x.cong_doan_id))
       : null;
     const khoang = isoWeekRangeInYear(nam, tuan);
     if (!khoang) return res.status(400).json({ success: false, message: 'Tuần không hợp lệ' });
@@ -99,17 +99,17 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
 
     // ---- MRA: triển khai + trạng thái công đoạn của các hạng mục kế hoạch ----
     const [tk, tt, ngung] = hexKh.length ? await Promise.all([
-      pool.query(
+      poolMra.query(
         `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc FROM xuong_su_kien e
          WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND upper(coalesce(du_lieu->>'xuong', xuong)) = $2
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          GROUP BY hex`, [hexKh, xuong]),
-      pool.query(
+      poolMra.query(
         `SELECT t.hex, t.cong_doan_id, t.trang_thai, t.sl_giao_den::float AS giao_den, t.sl_nhan::float AS nhan,
                 t.sl_hoan_thanh::float AS xong, t.sl_giao::float AS giao, c.cd_chi_tiet AS ten, c.thu_tu, c.xuong
          FROM xuong_trang_thai t LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id
          WHERE t.hex = ANY($1::text[])`, [hexKh]),
-      pool.query(
+      poolMra.query(
         `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS luc FROM xuong_su_kien e
          WHERE loai = 'tam_ngung' AND hex = ANY($1::text[]) AND nguon = 'app'
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -132,7 +132,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
     const canMra = hexKh.filter(h => !cdTheoHex.has(h));
     if (canMra.length) {
       const cuoiTuan = dauNgayVN(khoang.end) + NGAY;
-      const ev = await pool.query(
+      const ev = await poolMra.query(
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE nguon = 'mra' AND hex = ANY($1::text[]) AND cong_doan_id IS NOT NULL
            AND device_ts_hieu_chinh < to_timestamp($2::double precision / 1000)`, [canMra, cuoiTuan]);
       const theoCap = new Map<string, SuKien[]>();
@@ -143,7 +143,7 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
         theoCap.get(k)!.push(e);
       }
       const cdIds = [...new Set([...theoCap.keys()].map(k => k.split('|')[1]))];
-      const cdInfo = new Map(cdIds.length ? (await pool.query('SELECT id, cd_chi_tiet, thu_tu, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds])).rows
+      const cdInfo = new Map(cdIds.length ? (await poolMra.query('SELECT id, cd_chi_tiet, thu_tu, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds])).rows
         .map(x => [String(x.id), x]) : []);
       for (const [k, evs] of theoCap) {
         const [hex, cd] = k.split('|');
@@ -169,13 +169,13 @@ app.get('/api/xuong/ke-hoach-tuan', async (req: Request, res: Response) => {
     const now = Date.now();
     const cuoiNgay = (ngay: string) => dauNgayVN(ngay) + NGAY;
     if (hexKh.length && cuoiNgay(khoang.end) > now) {
-      const evApp = (await suKienTheoHex(pool, hexKh)).map(toSuKien);
+      const evApp = (await suKienTheoHex(poolMra, hexKh)).map(toSuKien);
       const cdIdsTuyen = [...new Set(evApp.flatMap(e => {
         const tp = Array.isArray(e.duLieu?.thanhPhan) ? (e.duLieu!.thanhPhan as Array<Record<string, unknown>>) : [];
         const t = [...tp.flatMap(x => (Array.isArray(x?.tuyen) ? x.tuyen : [])), ...(Array.isArray(e.duLieu?.tuyen) ? (e.duLieu!.tuyen as unknown[]) : [])];
         return t.map(String);
       }))];
-      const cdR = cdIdsTuyen.length ? (await pool.query('SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIdsTuyen])).rows : [];
+      const cdR = cdIdsTuyen.length ? (await poolMra.query('SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIdsTuyen])).rows : [];
       const tenCd = new Map(cdR.map(x => [String(x.id), String(x.cd_chi_tiet)]));
       const moc = await mocChuanTheoCd([xuong, ...cdR.map(x => String(x.xuong))], toSuKien, COT_SU_KIEN);
       for (const x of kh.rows) {

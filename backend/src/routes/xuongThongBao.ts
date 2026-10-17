@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { pool } from '../db.js';
+import { pool, poolMra } from '../db.js';
 import { app } from '../server/app.js';
 import { vnDayKey } from '../server/common.js';
 import { activeUsers, PREF_OF, isMissingSchema, type NotifyKind } from '../notifications.js';
@@ -71,11 +71,19 @@ export async function guiTinXuong(tins: TinXuong[], actorId?: number | null): Pr
 async function nguoiCuaTo(toIds: number[]): Promise<Map<number, string[]>> {
   const out = new Map<number, string[]>();
   if (!toIds.length) return out;
-  const r = await pool.query(
-    `SELECT t.id AS to_id, t.to_truong_user_id::text AS uid FROM xuong_to t WHERE t.id = ANY($1::int[]) AND t.active AND t.to_truong_user_id IS NOT NULL
-     UNION
-     SELECT tv.to_id, u.id::text FROM xuong_to_thanh_vien tv JOIN users u ON upper(u.msnv) = upper(tv.mnv) AND u.is_active
-     WHERE tv.to_id = ANY($1::int[]) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`, [toIds]);
+  // Tổ / thành viên ở DB MRA; tài khoản (users.msnv) ở Layerbase
+  const [tt, tv] = await Promise.all([
+    poolMra.query(`SELECT t.id AS to_id, t.to_truong_user_id::text AS uid FROM xuong_to t
+                   WHERE t.id = ANY($1::int[]) AND t.active AND t.to_truong_user_id IS NOT NULL`, [toIds]),
+    poolMra.query(`SELECT tv.to_id, upper(tv.mnv) AS mnv FROM xuong_to_thanh_vien tv
+                   WHERE tv.to_id = ANY($1::int[]) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`, [toIds]),
+  ]);
+  const tk = tv.rows.length ? await pool.query(
+    `SELECT id::text AS uid, upper(trim(msnv)) AS mnv FROM users WHERE is_active AND upper(trim(msnv)) = ANY($1::text[])`,
+    [[...new Set(tv.rows.map(x => String(x.mnv)))]]) : { rows: [] as Array<{ uid: string; mnv: string }> };
+  const uidTheoMnv = new Map<string, string[]>();
+  for (const x of tk.rows) uidTheoMnv.set(String(x.mnv), [...(uidTheoMnv.get(String(x.mnv)) ?? []), String(x.uid)]);
+  const r = { rows: [...tt.rows, ...tv.rows.flatMap(x => (uidTheoMnv.get(String(x.mnv)) ?? []).map(uid => ({ to_id: x.to_id, uid })))] };
   for (const x of r.rows) {
     const k = Number(x.to_id);
     if (!out.has(k)) out.set(k, []);
@@ -87,7 +95,7 @@ async function nguoiCuaTo(toIds: number[]): Promise<Map<number, string[]>> {
 async function quanLyCuaXuong(xuongs: string[]): Promise<Map<string, string[]>> {
   const out = new Map<string, string[]>();
   if (!xuongs.length) return out;
-  const r = await pool.query('SELECT xuong, user_id::text AS uid FROM xuong_quan_ly WHERE xuong = ANY($1::text[])', [xuongs]);
+  const r = await poolMra.query('SELECT xuong, user_id::text AS uid FROM xuong_quan_ly WHERE xuong = ANY($1::text[])', [xuongs]);
   for (const x of r.rows) {
     if (!out.has(x.xuong)) out.set(x.xuong, []);
     out.get(x.xuong)!.push(String(x.uid));
@@ -102,7 +110,7 @@ export async function baoHangChoNhan(ds: Array<{ hex: string; congDoanDenId: str
   try {
     if (!ds.length) return;
     const cds = [...new Set(ds.map(d => d.congDoanDenId))];
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT tc.to_id, tc.cong_doan_id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
        WHERE tc.cong_doan_id = ANY($1::text[])`, [cds]);
     const nguoi = await nguoiCuaTo([...new Set(r.rows.map(x => Number(x.to_id)))]);
@@ -134,7 +142,7 @@ export async function baoXuongPhu(
 ) {
   try {
     const cdIds = [...new Set(items.flatMap(i => i.thanhPhan.flatMap(t => t.tuyen)))];
-    const cd = await pool.query('SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds]);
+    const cd = await poolMra.query('SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds]);
     const cdMap = new Map(cd.rows.map(x => [String(x.id), x]));
     const theoXuong = new Map<string, string[]>();
     const them = (x: string, dong: string) => { if (!theoXuong.has(x)) theoXuong.set(x, []); theoXuong.get(x)!.push(dong); };
@@ -168,7 +176,7 @@ async function nhacSang(ngay: string) {
   const thu = new Date(`${ngay}T12:00:00+07:00`).getUTCDay();
   // 1) Chưa chốt quân số ca chính (ngày thường), tổ đang có việc
   if (thu !== 0) {
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT t.id, t.ten_to FROM xuong_to t
        WHERE t.active AND EXISTS (SELECT 1 FROM xuong_to_cong_doan tc JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id
                                   WHERE tc.to_id = t.id AND (s.trang_thai IN ('dang_lam','tam_ngung','da_nhan') OR s.sl_giao_den > s.sl_nhan))
@@ -182,7 +190,7 @@ async function nhacSang(ngay: string) {
     }
   }
   // 2) Hạng mục đang chạy hơn 2 ngày không có thao tác mới
-  const lau = await pool.query(
+  const lau = await poolMra.query(
     // "Cập nhật" = thao tác của chính tổ trên cặp (hex, công đoạn) hoặc xác nhận cuối ngày có hạng mục đó;
     // hàng giao tới từ tổ khác không tính (su_kien_cuoi của bảng trạng thái có tính cả giao tới)
     `SELECT tc.to_id, s.hex, c.cd_chi_tiet FROM xuong_trang_thai s
@@ -206,7 +214,7 @@ async function nhacSang(ngay: string) {
       body: `${ds.length} hạng mục: ${ds.slice(0, 5).join(' · ')} — kiểm tra: còn làm, tạm ngưng hay đã xong?` });
   }
   // 3) Thao tác bị gắn cờ trong 24 giờ qua: báo quản lý xưởng
-  const co = await pool.query(
+  const co = await poolMra.query(
     `SELECT xuong, count(*)::int AS n FROM xuong_su_kien WHERE co <> '{}' AND server_ts > now() - interval '24 hours' AND xuong IS NOT NULL
      GROUP BY xuong`);
   const ql = await quanLyCuaXuong(co.rows.map(x => String(x.xuong)));
@@ -222,7 +230,7 @@ async function nhacSang(ngay: string) {
 /** Ảnh đã gửi lên nhưng không sự kiện nào tham chiếu sau 2 ngày (sự kiện kèm ảnh bị từ chối) — xoá cho nhẹ DB */
 async function donAnhMoCoi() {
   try {
-    const r = await pool.query(
+    const r = await poolMra.query(
       `DELETE FROM xuong_anh a WHERE a.created_at < now() - interval '2 days'
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`);
     if (r.rowCount) console.log(`[xuong] xoá ${r.rowCount} ảnh không còn sự kiện nào dùng`);
@@ -234,7 +242,7 @@ async function donAnhMoCoi() {
 async function nhacChieu(ngay: string) {
   const tins: TinXuong[] = [];
   // 1) Đã khai tăng ca hôm nay nhưng chưa chốt quân số ca đó
-  const tc = await pool.query(
+  const tc = await poolMra.query(
     `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
      WHERE e.loai = 'tang_ca' AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -247,7 +255,7 @@ async function nhacChieu(ngay: string) {
       title: `${x.ten_to}: chưa chốt quân số tăng ca`, body: 'Bấm "Chốt quân số" cho ca tăng ca để giờ tăng ca được phân bổ đúng.' });
   }
   // 2) Có hạng mục đang chạy mà chưa xác nhận cuối ngày
-  const xn = await pool.query(
+  const xn = await poolMra.query(
     `SELECT t.id, t.ten_to, count(*)::int AS n FROM xuong_to t
      JOIN xuong_to_cong_doan tc ON tc.to_id = t.id JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai = 'dang_lam'
      WHERE t.active AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'xac_nhan_cuoi_ngay'

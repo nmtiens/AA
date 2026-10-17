@@ -3,6 +3,7 @@ import { Lock, User, ArrowRight, ArrowLeft, Loader2, Eye, EyeOff, WifiOff, Mail,
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { userService } from '../services/userService';
+import { LogoAADayDu } from './LogoAA';
 
 // ============================================================================
 // KHUNG ĐĂNG NHẬP DÙNG CHUNG cho 3 trang: Operations Hub (máy tính), app Vướng mắc (/m), app MRA (/xuong) —
@@ -43,11 +44,11 @@ export function NenDangNhap({ children }: { children: ReactNode }) {
 }
 
 /** Biểu tượng + tên app + mô tả ngắn */
-export function ThuongHieu({ bieuTuong, ten, moTa }: { bieuTuong: ReactNode; ten: string; moTa: string }) {
+export function ThuongHieu({ ten, moTa }: { bieuTuong?: ReactNode; ten: string; moTa: string }) {
   return (
     <div className="mb-6 flex flex-col items-center text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-wood-600 text-white shadow-sm">{bieuTuong}</div>
-      <p className="mt-3 text-xl font-semibold tracking-tight text-slate-900">{ten}</p>
+      <LogoAADayDu className="h-28 w-auto sm:h-32" />
+      <p className="mt-4 text-xl font-semibold tracking-tight text-slate-900">{ten}</p>
       <p className="text-base text-slate-600">{moTa}</p>
     </div>
   );

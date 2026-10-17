@@ -4,6 +4,7 @@ import { fetchVuongMacStats, UNAUTHORIZED, type VuongMacStats, type FiveMCategor
 import { useAuth } from '../../context/AuthContext';
 import { BG, CARD, CAT_CODE, CAT_NAME, catIcon, fmtAgo, InstallBanner } from './mobileUi';
 import type { ListFilters } from './listFilters';
+import { LogoAANgang } from '../LogoAA';
 
 // ============================================================================
 // Màn "Tổng quan" của app điện thoại.
@@ -56,8 +57,9 @@ export default function MobileHome({ active, onOpenList, onCreate, onUnauthorize
 
   return (
     <div className={`min-h-[100dvh] ${BG} px-4 pb-[calc(env(safe-area-inset-bottom)+6rem)] pt-[calc(env(safe-area-inset-top)+16px)]`}>
+      <LogoAANgang co="nho" className="mb-3" />
       <header className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-base text-slate-500">{WEEKDAYS[now.getDay()]}, {now.toLocaleDateString('vi-VN')}</p>
           <h1 className="truncate text-2xl font-semibold text-slate-900">Xin chào{name ? `, ${name}` : ''}</h1>
           {stats && <p className="text-sm text-slate-400">Cập nhật {fmtAgo(stats.generatedAt)}</p>}

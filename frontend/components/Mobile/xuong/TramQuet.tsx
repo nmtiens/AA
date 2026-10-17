@@ -15,6 +15,7 @@ import { hhmm } from '../../../services/xuongModel';
 import DangNhapXuong from './DangNhapXuong';
 import QuetQr from './QuetQr';
 import { NUT_CHINH, NUT_PHU, MAU } from './xuongUi';
+import { LogoAANgang, LogoAADayDu } from '../../LogoAA';
 
 // ============================================================================
 // MÀN TRẠM QUÉT (/xuong/tram — docs/designs/xuong-tram-quet.md, T4). Máy chung của tổ, để cố định ở xưởng.
@@ -546,6 +547,7 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
   if (mang === 'dang_ky_lai') {
     return (
       <div className="flex min-h-full flex-col items-center justify-center gap-4 bg-white p-6 text-center">
+        <LogoAADayDu className="h-24 w-auto" />
         <p className="text-2xl font-semibold text-slate-900">Trạm cần đăng ký lại</p>
         <p className="text-lg text-slate-600">Trạm đã bị thu hồi hoặc lâu không dùng. Nhờ quản lý / tổ trưởng đăng ký lại máy này.</p>
         <button className={`${NUT_CHINH} max-w-sm`} onClick={onDangKyLai}>Đăng ký lại</button>
@@ -561,6 +563,7 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
     <div className="flex min-h-dvh flex-col bg-[#f4f6fa]">
       <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
         <div className="min-w-0 flex-1">
+          <LogoAANgang co="vua" className="mb-1" />
           <p className="truncate text-xl font-semibold text-slate-900">Trạm {bang?.to.ten ?? '…'}{bang?.tram.ten ? ` · ${bang.tram.ten}` : ''}</p>
           <p className="text-base text-slate-600">{bang?.to.xuong ?? ''} · {hhmm(now)}{cho.length ? ` · ${cho.length} lượt chờ gửi` : ''}</p>
         </div>
@@ -729,6 +732,7 @@ function DangKyTram({ onXong }: { onXong: () => void }) {
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col gap-4 bg-white p-6">
+      <LogoAADayDu className="mx-auto h-24 w-auto" />
       <h1 className="text-2xl font-semibold text-slate-900">Đăng ký máy này làm trạm quét</h1>
       <p className="text-base text-slate-600">Trạm gắn với một tổ. Đăng ký xong, máy tự đăng xuất tài khoản của bạn — công nhân chỉ quét được thẻ và phiếu.</p>
       <label className="text-base font-semibold text-slate-800" htmlFor="tram-to">Tổ</label>

@@ -22,6 +22,7 @@ import {
   DEFAULT_FILTERS, DATE_LABELS, MINE_LABELS, STATUS_TAB_ST, toQuery, activeChips,
   type ListFilters, type DateMode, type StatusTab, type MineMode,
 } from './listFilters';
+import { LogoAANgang } from '../LogoAA';
 
 
 // ============================================================================
@@ -217,8 +218,9 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
   return (
     <div className={`min-h-[100dvh] ${BG} pb-[calc(env(safe-area-inset-bottom)+6rem)]`}>
       <header className={`sticky top-0 z-10 space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur`}>
-        <div className="flex items-center justify-between">
-          <div>
+        <LogoAANgang co="nho" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold text-slate-900">Vướng mắc</h1>
             <p className="text-sm text-slate-500">{loading ? 'Đang tải...' : `${total} mục${rows.length < total ? ` · đã tải ${rows.length}` : ''}`}</p>
           </div>

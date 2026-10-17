@@ -36,6 +36,7 @@ const ConstructionOverview = lazyPage(loadConstructionPage);
 const TableColumnSetup = lazyPage(() => import('./components/Construction/TableColumnSetup'));
 const WorkshopGroupSetup = lazyPage(() => import('./components/Construction/WorkshopGroupSetup'));
 import type { SetupTab } from './components/Setup/DataSetupPage';
+import { LogoAANgang } from './components/LogoAA';
 const DataSetupPage = lazyPage(() => import('./components/Setup/DataSetupPage'));
 // Thẻ Xưởng trong Setup (mục Xưởng: triển khai, tổ, công đoạn, lịch ca, cần xem) — tải riêng khi mở thẻ
 const XuongSetup = React.lazy(() => import('./components/Xuong/XuongSetup'));
@@ -468,9 +469,7 @@ const ICON_MAP_SM: Record<string, React.ReactNode> = {
 // Các viewId luôn hiển thị riêng lẻ, không gộp vào nhóm "Dữ liệu"
 const STANDALONE_VIEW_IDS = ['dashboard', 'hex_lookup', 'vuong_mac', 'users'];
 
-const AppLogo = () => (
-  <div className="w-8 h-8 rounded-lg bg-wood-600 flex items-center justify-center text-white shrink-0"><TrendingUp size={16} strokeWidth={2.25} /></div>
-);
+const AppLogo = () => <LogoAANgang co="nho" />;
 
 // ------------------------------------------------------------
 // Style dùng chung cho sidebar (sáng, tối giản)
@@ -998,10 +997,7 @@ const MainLayout: React.FC = () => {
     <div className="flex h-screen bg-wood-50 overflow-hidden relative">
       {/* Thanh trên cùng cho điện thoại */}
       <div className="md:hidden absolute top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 z-20">
-        <div className="flex items-center gap-2 font-semibold text-slate-900">
-          <AppLogo />
-          <span>Operations Hub</span>
-        </div>
+        <AppLogo />
         <button onClick={toggleMobileSidebar} className="p-2 text-slate-600 hover:bg-slate-100 rounded-md">
           {isMobileSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -1022,7 +1018,6 @@ const MainLayout: React.FC = () => {
         <div className={`h-14 flex items-center bg-white border-b border-slate-200 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
           <div className={`flex items-center gap-2.5 font-semibold text-slate-900 text-[0.9375rem] tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
             <AppLogo />
-            <span>Operations Hub</span>
           </div>
           <button onClick={toggleDesktopSidebar} className={`hidden md:flex p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors ${isCollapsed ? 'mx-auto' : ''}`}>
             <Menu size={18} />

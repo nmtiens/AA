@@ -683,6 +683,15 @@ None in this review.
 - Hàng tạm ngưng vì hết người ghi rõ ai rời / chuyển đi đâu.
 - Setup → Xưởng → Tổ: chọn chế độ chấm (có "Áp dụng ngay hôm nay"), danh sách trạm + thu hồi.
 
+## Giai đoạn A — phân công đầu ca + tự gán (16/10/2026, người dùng chốt)
+
+Mục tiêu: công nhân (già / trẻ, ít chữ) gần như không thao tác; tổ trưởng chỉ phân công và xác nhận.
+- **Phân công đầu ca** (app tổ trưởng, tổ chế độ trạm): gán người vào hàng, "Giữ như hôm qua" một chạm. Ghi là `nguoi_vao` có `du_lieu.phanCong`; chỉ có hiệu lực khi người đó có mặt trong ngày ca (dời tới lúc vào ca, vắng thì bỏ).
+- **Tự gán (tính lúc đọc):** có mặt quá 30 phút (`TU_GAN_SAU_MS`) chưa vào hàng nào và chưa ra ca → gán từ lúc vào ca vào hàng làm dở lần trước, nếu hàng đó chưa xong hết. Cờ nguồn `tu_gan`.
+- **Nguồn đoạn ở hàng:** quét / phân công / tự gán / ghi hộ. Sửa ngày hiện giờ theo nguồn, nút "Đúng" / "Không làm" cho đoạn tự gán và "Xác nhận cả tổ".
+- Đổi việc giữa ca: công nhân chạm thẻ ở trạm hoặc tổ trưởng phân công lại.
+- Chưa làm: điểm danh từ máy chấm công (giai đoạn B, chờ file mẫu), trạm theo khu / cảm biến máy (giai đoạn C).
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |

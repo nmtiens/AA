@@ -55599,8 +55599,7 @@ var defaults = import_lib.default.defaults;
 var import_dotenv2 = __toESM(require_main(), 1);
 import_dotenv2.default.config();
 types.setTypeParser(1082, (val) => val);
-var connectionString = (() => {
-  const raw = process.env.DATABASE_URL;
+var boSslmode = (raw) => {
   if (!raw) return raw;
   try {
     const u = new URL(raw);
@@ -55610,7 +55609,8 @@ var connectionString = (() => {
   } catch {
     return raw;
   }
-})();
+};
+var connectionString = boSslmode(process.env.DATABASE_URL);
 var pool = new Pool({
   connectionString,
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
@@ -55644,27 +55644,54 @@ pool.on("error", (err) => {
 });
 var isPoolerFull = (err) => /max_client_conn|too many clients|remaining connection slots/i.test(String(err?.message ?? err));
 var CONNECT_RETRY_DELAYS_MS = [250, 500, 900, 1400];
-var rawConnect = pool.connect.bind(pool);
-var connectWithRetry = async () => {
-  for (let i = 0; ; i++) {
-    try {
-      return await rawConnect();
-    } catch (err) {
-      if (!isPoolerFull(err) || i >= CONNECT_RETRY_DELAYS_MS.length) throw err;
-      await new Promise((r) => setTimeout(r, CONNECT_RETRY_DELAYS_MS[i]));
+function boRetry(p) {
+  const rawConnect = p.connect.bind(p);
+  const connectWithRetry = async () => {
+    for (let i = 0; ; i++) {
+      try {
+        return await rawConnect();
+      } catch (err) {
+        if (!isPoolerFull(err) || i >= CONNECT_RETRY_DELAYS_MS.length) throw err;
+        await new Promise((r) => setTimeout(r, CONNECT_RETRY_DELAYS_MS[i]));
+      }
     }
-  }
-};
-pool.connect = (cb) => {
-  if (typeof cb === "function") {
-    connectWithRetry().then(
-      (client) => cb(void 0, client, client.release),
-      (err) => cb(err)
-    );
-    return void 0;
-  }
-  return connectWithRetry();
-};
+  };
+  p.connect = (cb) => {
+    if (typeof cb === "function") {
+      connectWithRetry().then(
+        (client) => cb(void 0, client, client.release),
+        (err) => cb(err)
+      );
+      return void 0;
+    }
+    return connectWithRetry();
+  };
+}
+boRetry(pool);
+var urlMra = boSslmode(process.env.DATABASE_URL_MRA);
+var poolMra = urlMra ? new Pool({
+  connectionString: urlMra,
+  // Supabase luôn bắt SSL (kể cả chạy ở máy)
+  ssl: { rejectUnauthorized: false },
+  max: 2,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 1e4,
+  idleTimeoutMillis: 1e3,
+  connectionTimeoutMillis: 15e3,
+  application_name: "vercel-backend-mra",
+  allowExitOnIdle: false
+}) : pool;
+if (poolMra !== pool) {
+  poolMra.on("connect", (client) => {
+    client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
+      console.error("Kh\xF4ng set \u0111\u01B0\u1EE3c statement_timeout (MRA):", err.message);
+    });
+  });
+  poolMra.on("error", (err) => {
+    console.error("Unexpected DB error on idle client (MRA):", err);
+  });
+  boRetry(poolMra);
+}
 var Semaphore = class {
   constructor(max) {
     this.max = max;
@@ -55731,7 +55758,13 @@ async function timedQuery(text, params, opts = {}) {
   }
 }
 async function withTransaction(fn) {
-  const client = await pool.connect();
+  return giaoDich(pool, fn);
+}
+async function withTransactionMra(fn) {
+  return giaoDich(poolMra, fn);
+}
+async function giaoDich(p, fn) {
+  const client = await p.connect();
   try {
     await client.query("BEGIN");
     const result = await fn(client);
@@ -55748,6 +55781,7 @@ async function withTransaction(fn) {
 process.on("SIGINT", async () => {
   console.log("Closing PostgreSQL pool...");
   await pool.end();
+  if (poolMra !== pool) await poolMra.end();
   console.log("PostgreSQL pool closed.");
   process.exit(0);
 });
@@ -81464,7 +81498,7 @@ async function taiCap(xuong, nguon, toSuKien2, cot, moi = false) {
   if (n && !moi && Date.now() - n.luc < (nguon === "mra" ? GIO : 5 * 6e4)) return n.caps;
   let rows = [];
   try {
-    rows = (await pool.query(
+    rows = (await poolMra.query(
       nguon === "mra" ? `SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'mra' AND xuong = $1 AND hex IS NOT NULL AND cong_doan_id IS NOT NULL` : `SELECT ${cot} FROM xuong_su_kien WHERE nguon = 'app' AND xuong = $1 AND hex IS NOT NULL AND (cong_doan_id IS NOT NULL OR loai = 'huy')`,
       [xuong]
     )).rows;
@@ -82052,6 +82086,57 @@ function mocTuDong(khoi, t) {
   for (const k of khoi) if (k.start - SOM_TOI_DA_MS <= t && t < k.end) return { end: k.end, ngoaiCa: false };
   return { end: t, ngoaiCa: true };
 }
+var nguonCua = (e) => e.duLieu?.tuGan === true ? "tu_gan" : e.duLieu?.phanCong === true ? "phan_cong" : e.duLieu?.ghiHo === true ? "ghi_ho" : "quet";
+var TU_GAN_SAU_MS = 30 * 6e4;
+function boSungPhanCongTuGan(evts, now) {
+  const ds = [...evts].sort(soSanhSuKien);
+  const coMat = /* @__PURE__ */ new Map();
+  for (const e of ds) {
+    if (e.loai !== "vao_ca") continue;
+    for (const n of nguoiTrongSuKien(e.duLieu)) {
+      const t = n.luc ?? e.ts;
+      const k = `${n.mnv}|${ngayCa(t)}`;
+      if (!coMat.has(k) || coMat.get(k) > t) coMat.set(k, t);
+    }
+  }
+  const out = [];
+  for (const e of ds) {
+    if (e.loai === "nguoi_vao" && e.duLieu?.phanCong === true) {
+      const mnv = mnvCua(e);
+      const p = mnv ? coMat.get(`${mnv}|${ngayCa(e.ts)}`) : void 0;
+      if (p === void 0) continue;
+      out.push(p > e.ts ? { ...e, ts: p } : e);
+      continue;
+    }
+    out.push(e);
+  }
+  const vaoHang = out.filter((e) => e.loai === "nguoi_vao" && e.hex && e.congDoanId && mnvCua(e));
+  const raCa = out.filter((e) => e.loai === "ra_ca" && mnvCua(e));
+  for (const [k, p] of coMat) {
+    const [mnv, ngay] = k.split("|");
+    if (now < p + TU_GAN_SAU_MS) continue;
+    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    if (raCa.some((e) => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay).sort(soSanhSuKien).pop();
+    if (!truoc) continue;
+    let nhan = 0, ht = 0;
+    for (const e of out) {
+      if (e.hex !== truoc.hex || e.congDoanId !== truoc.congDoanId || e.ts > p) continue;
+      if (e.loai === "nhan") nhan += e.soLuong ?? 0;
+      if (e.loai === "hoan_thanh") ht += e.soLuong ?? 0;
+    }
+    if (nhan > 0 && ht >= nhan) continue;
+    out.push({
+      ...truoc,
+      id: `tugan:${mnv}:${ngay}`,
+      ts: p,
+      serverTs: p,
+      suaCho: null,
+      duLieu: { mnv, tram: true, tuGan: true }
+    });
+  }
+  return out.sort(soSanhSuKien);
+}
 function chuyenDoiTram(evts, opts) {
   const cuaSoTo = opts.cuaSoTheoTo instanceof Map ? opts.cuaSoTheoTo : new Map(Object.entries(opts.cuaSoTheoTo ?? {}).map(([k, v]) => [Number(k), v]));
   const khoiTheoTo = /* @__PURE__ */ new Map();
@@ -82117,7 +82202,7 @@ function chuyenDoiTram(evts, opts) {
     const den = [...mo.entries()].filter(([, m]) => m.tuDong <= t).sort((a, b) => a[1].tuDong - b[1].tuDong);
     for (const [mnv, m] of den) dong2(mnv, m.tuDong, "tu_dong", null);
   };
-  for (const e of [...evts].sort(soSanhSuKien)) {
+  for (const e of boSungPhanCongTuGan(evts, opts.now)) {
     tuDongDen(e.ts);
     if (e.loai === "nhan" || e.loai === "hoan_thanh") {
       if (!e.hex || !e.congDoanId) continue;
@@ -82138,7 +82223,10 @@ function chuyenDoiTram(evts, opts) {
       if (!e.hex || !e.congDoanId) continue;
       const key = pairKey(e.hex, e.congDoanId);
       const dang = mo.get(mnv);
-      if (dang?.d.key === key) continue;
+      if (dang?.d.key === key) {
+        if (dang.d.nguon === "tu_gan" && nguonCua(e) !== "tu_gan") dang.d.nguon = nguonCua(e);
+        continue;
+      }
       if (dang) dong2(mnv, e.ts, "doi_hang", e.id);
       const d = {
         mnv,
@@ -82150,7 +82238,8 @@ function chuyenDoiTram(evts, opts) {
         end: null,
         ketThuc: null,
         suKienVao: e.id,
-        suKienRa: null
+        suKienRa: null,
+        nguon: nguonCua(e)
       };
       doanNguoi.push(d);
       const td = mocTuDong(khoiCua(e.toId), e.ts);
@@ -82176,7 +82265,7 @@ function chuyenDoiTram(evts, opts) {
   }
   const dangO = {};
   for (const [k, set2] of oHang) if (set2.size) dangO[k] = [...set2].sort();
-  return { doanNguoi, soNguoi, doanChay, suKienGia, dangO };
+  return { doanNguoi: doanNguoi.filter((d) => !(d.nguon === "tu_gan" && d.end !== null && d.end <= d.start)), soNguoi, doanChay, suKienGia, dangO };
 }
 var TRONG_TOI_DA_MS = 30 * 6e4;
 var DOAN_TOI_DA_MS = 4 * GIO_MS2;
@@ -82254,13 +82343,19 @@ async function guiTinXuong(tins, actorId) {
 async function nguoiCuaTo(toIds) {
   const out = /* @__PURE__ */ new Map();
   if (!toIds.length) return out;
-  const r = await pool.query(
-    `SELECT t.id AS to_id, t.to_truong_user_id::text AS uid FROM xuong_to t WHERE t.id = ANY($1::int[]) AND t.active AND t.to_truong_user_id IS NOT NULL
-     UNION
-     SELECT tv.to_id, u.id::text FROM xuong_to_thanh_vien tv JOIN users u ON upper(u.msnv) = upper(tv.mnv) AND u.is_active
-     WHERE tv.to_id = ANY($1::int[]) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
-    [toIds]
-  );
+  const [tt, tv] = await Promise.all([
+    poolMra.query(`SELECT t.id AS to_id, t.to_truong_user_id::text AS uid FROM xuong_to t
+                   WHERE t.id = ANY($1::int[]) AND t.active AND t.to_truong_user_id IS NOT NULL`, [toIds]),
+    poolMra.query(`SELECT tv.to_id, upper(tv.mnv) AS mnv FROM xuong_to_thanh_vien tv
+                   WHERE tv.to_id = ANY($1::int[]) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`, [toIds])
+  ]);
+  const tk = tv.rows.length ? await pool.query(
+    `SELECT id::text AS uid, upper(trim(msnv)) AS mnv FROM users WHERE is_active AND upper(trim(msnv)) = ANY($1::text[])`,
+    [[...new Set(tv.rows.map((x) => String(x.mnv)))]]
+  ) : { rows: [] };
+  const uidTheoMnv = /* @__PURE__ */ new Map();
+  for (const x of tk.rows) uidTheoMnv.set(String(x.mnv), [...uidTheoMnv.get(String(x.mnv)) ?? [], String(x.uid)]);
+  const r = { rows: [...tt.rows, ...tv.rows.flatMap((x) => (uidTheoMnv.get(String(x.mnv)) ?? []).map((uid) => ({ to_id: x.to_id, uid })))] };
   for (const x of r.rows) {
     const k = Number(x.to_id);
     if (!out.has(k)) out.set(k, []);
@@ -82271,7 +82366,7 @@ async function nguoiCuaTo(toIds) {
 async function quanLyCuaXuong(xuongs) {
   const out = /* @__PURE__ */ new Map();
   if (!xuongs.length) return out;
-  const r = await pool.query("SELECT xuong, user_id::text AS uid FROM xuong_quan_ly WHERE xuong = ANY($1::text[])", [xuongs]);
+  const r = await poolMra.query("SELECT xuong, user_id::text AS uid FROM xuong_quan_ly WHERE xuong = ANY($1::text[])", [xuongs]);
   for (const x of r.rows) {
     if (!out.has(x.xuong)) out.set(x.xuong, []);
     out.get(x.xuong).push(String(x.uid));
@@ -82283,7 +82378,7 @@ async function baoHangChoNhan(ds, actorId) {
   try {
     if (!ds.length) return;
     const cds = [...new Set(ds.map((d) => d.congDoanDenId))];
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT tc.to_id, tc.cong_doan_id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
        WHERE tc.cong_doan_id = ANY($1::text[])`,
       [cds]
@@ -82309,7 +82404,7 @@ async function baoHangChoNhan(ds, actorId) {
 async function baoXuongPhu(xuongChinh, items, actorId) {
   try {
     const cdIds = [...new Set(items.flatMap((i) => i.thanhPhan.flatMap((t) => t.tuyen)))];
-    const cd = await pool.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds]);
+    const cd = await poolMra.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds]);
     const cdMap = new Map(cd.rows.map((x) => [String(x.id), x]));
     const theoXuong = /* @__PURE__ */ new Map();
     const them = (x, dong2) => {
@@ -82345,7 +82440,7 @@ async function nhacSang(ngay) {
   const tins = [];
   const thu = (/* @__PURE__ */ new Date(`${ngay}T12:00:00+07:00`)).getUTCDay();
   if (thu !== 0) {
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT t.id, t.ten_to FROM xuong_to t
        WHERE t.active AND EXISTS (SELECT 1 FROM xuong_to_cong_doan tc JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id
                                   WHERE tc.to_id = t.id AND (s.trang_thai IN ('dang_lam','tam_ngung','da_nhan') OR s.sl_giao_den > s.sl_nhan))
@@ -82365,7 +82460,7 @@ async function nhacSang(ngay) {
       });
     }
   }
-  const lau = await pool.query(
+  const lau = await poolMra.query(
     // "Cập nhật" = thao tác của chính tổ trên cặp (hex, công đoạn) hoặc xác nhận cuối ngày có hạng mục đó;
     // hàng giao tới từ tổ khác không tính (su_kien_cuoi của bảng trạng thái có tính cả giao tới)
     `SELECT tc.to_id, s.hex, c.cd_chi_tiet FROM xuong_trang_thai s
@@ -82393,7 +82488,7 @@ async function nhacSang(ngay) {
       body: `${ds.length} h\u1EA1ng m\u1EE5c: ${ds.slice(0, 5).join(" \xB7 ")} \u2014 ki\u1EC3m tra: c\xF2n l\xE0m, t\u1EA1m ng\u01B0ng hay \u0111\xE3 xong?`
     });
   }
-  const co = await pool.query(
+  const co = await poolMra.query(
     `SELECT xuong, count(*)::int AS n FROM xuong_su_kien WHERE co <> '{}' AND server_ts > now() - interval '24 hours' AND xuong IS NOT NULL
      GROUP BY xuong`
   );
@@ -82413,7 +82508,7 @@ async function nhacSang(ngay) {
 }
 async function donAnhMoCoi() {
   try {
-    const r = await pool.query(
+    const r = await poolMra.query(
       `DELETE FROM xuong_anh a WHERE a.created_at < now() - interval '2 days'
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.hex = a.hex AND e.du_lieu->'anh' ? a.id::text)`
     );
@@ -82424,7 +82519,7 @@ async function donAnhMoCoi() {
 }
 async function nhacChieu(ngay) {
   const tins = [];
-  const tc = await pool.query(
+  const tc = await poolMra.query(
     `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
      WHERE e.loai = 'tang_ca' AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -82443,7 +82538,7 @@ async function nhacChieu(ngay) {
       body: 'B\u1EA5m "Ch\u1ED1t qu\xE2n s\u1ED1" cho ca t\u0103ng ca \u0111\u1EC3 gi\u1EDD t\u0103ng ca \u0111\u01B0\u1EE3c ph\xE2n b\u1ED5 \u0111\xFAng.'
     });
   }
-  const xn = await pool.query(
+  const xn = await poolMra.query(
     `SELECT t.id, t.ten_to, count(*)::int AS n FROM xuong_to t
      JOIN xuong_to_cong_doan tc ON tc.to_id = t.id JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai = 'dang_lam'
      WHERE t.active AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'xac_nhan_cuoi_ngay'
@@ -82508,12 +82603,12 @@ async function xuongQuanLy(userId) {
   const access = await loadUserAccess(userId);
   if (access.role === "ADMIN") return /* @__PURE__ */ new Set(["*"]);
   if (!access.perms.has(PERM_QUAN_LY)) return /* @__PURE__ */ new Set();
-  const r = await pool.query("SELECT xuong FROM xuong_quan_ly WHERE user_id = $1", [Number(userId)]);
+  const r = await poolMra.query("SELECT xuong FROM xuong_quan_ly WHERE user_id = $1", [Number(userId)]);
   return new Set(r.rows.map((x) => String(x.xuong)));
 }
 var quanLyDuoc = (ds, xuong) => ds.has("*") || !!xuong && ds.has(xuong);
 async function toTruongCua(userId) {
-  const r = await pool.query("SELECT id, xuong FROM xuong_to WHERE active AND to_truong_user_id = $1", [Number(userId)]);
+  const r = await poolMra.query("SELECT id, xuong FROM xuong_to WHERE active AND to_truong_user_id = $1", [Number(userId)]);
   return r.rows.map((x) => ({ id: Number(x.id), xuong: String(x.xuong) }));
 }
 async function phamViXem(userId, xuong) {
@@ -82529,6 +82624,18 @@ async function phamViXem(userId, xuong) {
 var COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
   so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
   user_id_khai, sent_by, device_id, sua_cho, nguon, nguoi_thao_tac_goc, co`;
+async function nguoiDungTheoId(ids) {
+  const ds = [...new Set(ids.map(Number).filter((x) => Number.isInteger(x) && x > 0))];
+  if (!ds.length) return /* @__PURE__ */ new Map();
+  const r = await pool.query("SELECT id, full_name, username, msnv, permissions, role, is_active FROM users WHERE id = ANY($1::int[])", [ds]);
+  return new Map(r.rows.map((x) => [Number(x.id), { ...x, id: Number(x.id) }]));
+}
+async function msnvCua(userId) {
+  const r = await pool.query("SELECT msnv FROM users WHERE id = $1", [Number(userId)]);
+  const m = String(r.rows[0]?.msnv ?? "").trim().toUpperCase();
+  return m || null;
+}
+var tenNguoi = (u) => u ? u.full_name || u.username || null : null;
 var num = (v) => v === null || v === void 0 || v === "" ? null : Number(v);
 var toSuKien = (r) => ({
   id: String(r.id),
@@ -82572,7 +82679,7 @@ function trangThaiCacCap(rows, pairs, tram = null, moc2 = []) {
   });
 }
 var bangTram = null;
-async function coBangTram(db = pool) {
+async function coBangTram(db = poolMra) {
   if (bangTram && (bangTram.co || Date.now() - bangTram.luc < 3e5)) return bangTram.co;
   const r = await db.query(`SELECT to_regclass('xuong_to_che_do') IS NOT NULL AS co`);
   bangTram = { co: !!r.rows[0]?.co, luc: Date.now() };
@@ -82620,17 +82727,17 @@ async function suaTramTuDong(toId) {
   const now = Date.now();
   if (now - (lanSuaTuDong.get(toId) ?? 0) < 6e4) return;
   lanSuaTuDong.set(toId, now);
-  if (cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngayCa(now)) !== "tram") return;
-  const r = await pool.query(
+  if (cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngayCa(now)) !== "tram") return;
+  const r = await poolMra.query(
     `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
-     WHERE tc.to_id = $1 AND t.trang_thai = 'dang_lam'`,
+     WHERE tc.to_id = $1 AND t.trang_thai IN ('dang_lam', 'tam_ngung')`,
     [toId]
   );
   if (!r.rows.length) return;
-  await withTransaction((client) => luuTrangThai(client, r.rows.map((x) => [String(x.hex), String(x.cong_doan_id)])));
+  await withTransactionMra((client) => luuTrangThai(client, r.rows.map((x) => [String(x.hex), String(x.cong_doan_id)])));
 }
 async function soTram(db, evs, cach, now) {
-  const tram = evs.filter((e) => (e.loai === "nguoi_vao" || e.loai === "nguoi_ra") && mnvCua(e));
+  const tram = evs.filter((e) => (e.loai === "nguoi_vao" || e.loai === "nguoi_ra" || e.loai === "vao_ca" && laSuKienTram(e)) && mnvCua(e));
   if (!tram.length) return null;
   const mnvs = [...new Set(tram.map((e) => mnvCua(e)))];
   const tu = Math.max(Math.min(...tram.map((e) => e.ts)) - 36 * 36e5, now - 35 * 864e5);
@@ -82639,6 +82746,15 @@ async function soTram(db, evs, cach, now) {
      WHERE loai IN ('nguoi_vao','nguoi_ra','ra_ca') AND du_lieu->>'mnv' = ANY($1::text[]) AND device_ts_hieu_chinh >= $2`,
     [mnvs, new Date(tu).toISOString()]
   )).rows;
+  const vao = (await db.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
+     WHERE loai = 'vao_ca' AND device_ts_hieu_chinh >= $2
+       AND (du_lieu->>'mnv' = ANY($1::text[]) OR EXISTS (
+         SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(du_lieu->'nguoi') = 'array' THEN du_lieu->'nguoi' ELSE '[]'::jsonb END) x
+         WHERE upper(COALESCE(x->>'mnv', x #>> '{}')) = ANY($1::text[])))`,
+    [mnvs, new Date(now - 3 * 864e5).toISOString()]
+  )).rows;
+  nguoi.push(...vao);
   const huy = nguoi.length ? (await db.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
     [nguoi.map((x) => String(x.id))]
@@ -82648,7 +82764,7 @@ async function soTram(db, evs, cach, now) {
   const tatCa = [...theoId.values()];
   const toIds = [...new Set(tatCa.filter(laSuKienTram).map((e) => e.toId).filter((x) => x !== null))];
   const cheDo = cheDoTheoNgay(await mocCheDo(db, toIds));
-  const conLai = locTheoCheDo(suKienConHieuLuc(tatCa), cheDo, cach).filter((e) => laSuKienTram(e) || e.loai === "nhan" || e.loai === "hoan_thanh");
+  const conLai = locTheoCheDo(suKienConHieuLuc(tatCa), cheDo, cach).filter((e) => laSuKienTram(e) || e.loai === "nhan" || e.loai === "hoan_thanh" || e.loai === "vao_ca");
   const cuaSo = await cuaSoCacTo(db, toIds, ngayCa(tu), ngayCa(now));
   return { kq: chuyenDoiTram(conLai, { now, cuaSoTheoTo: cuaSo }), cheDo };
 }
@@ -82745,7 +82861,7 @@ app.post("/api/xuong/thiet-bi", async (req, res) => {
     const cu = verifyDeviceToken(parsed.data.deviceToken);
     const deviceId = req.user.scope === "xuong" ? req.user.did ?? null : cu ?? newDeviceId();
     if (!deviceId) return res.status(401).json({ success: false, message: "M\xE3 thi\u1EBFt b\u1ECB kh\xF4ng h\u1EE3p l\u1EC7" });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `INSERT INTO xuong_phien_thiet_bi (device_id, user_id) VALUES ($1, $2)
        ON CONFLICT (device_id, user_id) DO UPDATE SET lan_cuoi = now()
        RETURNING thu_hoi`,
@@ -82755,7 +82871,7 @@ app.post("/api/xuong/thiet-bi", async (req, res) => {
     const access = await loadUserAccess(userId);
     const u = await pool.query("SELECT id, username, full_name, role, msnv FROM users WHERE id = $1", [userId]);
     const user = u.rows[0];
-    const to = await pool.query(
+    const to = await poolMra.query(
       `SELECT t.id, t.xuong, t.ten_to, t.to_truong_user_id = $1 AS la_to_truong FROM xuong_to t
        WHERE t.active AND (t.to_truong_user_id = $1 OR EXISTS (
          SELECT 1 FROM xuong_to_thanh_vien tv WHERE tv.to_id = t.id AND tv.mnv = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)))
@@ -82922,7 +83038,7 @@ app.post("/api/xuong/events", async (req, res) => {
         hopLe[i] = a;
       }
     }
-    const ketQua = await withTransaction(async (client) => {
+    const ketQua = await withTransactionMra(async (client) => {
       const phien = await client.query(
         "SELECT user_id, thu_hoi FROM xuong_phien_thiet_bi WHERE device_id = $1",
         [deviceId]
@@ -82942,11 +83058,12 @@ app.post("/api/xuong/events", async (req, res) => {
       const dich = new Map(dichDb.map((x) => [String(x.id), x]));
       const quanLy = await xuongQuanLy(sentBy);
       const laToTruong = new Set((await toTruongCua(sentBy)).map((x) => x.id));
+      const msnvToi = await msnvCua(sentBy);
       const toCuaToi = new Set((await client.query(
         `SELECT t.id FROM xuong_to t WHERE t.to_truong_user_id = $1
-         UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $1
-           WHERE u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv)) AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
-        [sentBy]
+         UNION SELECT tv.to_id FROM xuong_to_thanh_vien tv
+           WHERE $2::text IS NOT NULL AND upper(tv.mnv) = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)`,
+        [sentBy, msnvToi]
       )).rows.map((x) => Number(x.id)));
       const SAI_SO2 = 5e-4;
       const capSl = hopLe.filter((e) => ["nhan", "hoan_thanh", "giao"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [e.hex, e.congDoanId]);
@@ -83003,8 +83120,8 @@ app.post("/api/xuong/events", async (req, res) => {
             tuChoi.push({ id: e.id, reason: "Ch\u1EC9 t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c ghi h\u1ED9 ng\u01B0\u1EDDi v\xE0o / ra" });
             continue;
           }
-          duLieu = { ...duLieu ?? {}, tram: true };
-          co.push("to_truong_ghi_ho");
+          duLieu = { ...duLieu ?? {}, tram: true, ...duLieu?.phanCong === true ? {} : { ghiHo: true } };
+          co.push(duLieu.phanCong === true ? "phan_cong" : "to_truong_ghi_ho");
         }
         if (e.loai !== "huy") {
           if (toId) {
@@ -83138,8 +83255,8 @@ async function goiYCongDoanKe(pairs) {
   if (!pairs.length) return { ke: out, cuoi };
   const hexes = [...new Set(pairs.map((p) => p[0]))];
   const [evRows, cd] = await Promise.all([
-    suKienTheoHex(pool, hexes),
-    pool.query("SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active")
+    suKienTheoHex(poolMra, hexes),
+    poolMra.query("SELECT id, xuong, thu_tu FROM xuong_cong_doan WHERE active")
   ]);
   const evts = evRows.map(toSuKien);
   const tuyen = /* @__PURE__ */ new Map();
@@ -83170,20 +83287,20 @@ async function suaChoGiaoCuoiTuyen(pairs) {
   const { cuoi } = await goiYCongDoanKe(pairs);
   const can = pairs.filter(([h, c]) => cuoi.has(pairKey(h, c)));
   if (!can.length) return 0;
-  await withTransaction((client) => luuTrangThai(client, can));
+  await withTransactionMra((client) => luuTrangThai(client, can));
   return can.length;
 }
 var bangAnh = null;
 var bangCongNhan = null;
 async function coBangCongNhan() {
   if (bangCongNhan && (bangCongNhan.co || Date.now() - bangCongNhan.luc < 3e5)) return bangCongNhan.co;
-  const r = await pool.query(`SELECT to_regclass('xuong_cong_nhan') IS NOT NULL AS co`);
+  const r = await poolMra.query(`SELECT to_regclass('xuong_cong_nhan') IS NOT NULL AS co`);
   bangCongNhan = { co: !!r.rows[0]?.co, luc: Date.now() };
   return bangCongNhan.co;
 }
 async function coBangAnh() {
   if (bangAnh && (bangAnh.co || Date.now() - bangAnh.luc < 3e5)) return bangAnh.co;
-  const r = await pool.query(`SELECT to_regclass('xuong_anh') IS NOT NULL AS co`);
+  const r = await poolMra.query(`SELECT to_regclass('xuong_anh') IS NOT NULL AS co`);
   bangAnh = { co: !!r.rows[0]?.co, luc: Date.now() };
   return bangAnh.co;
 }
@@ -83197,7 +83314,7 @@ app.post("/api/xuong/anh", import_express4.default.raw({ type: "image/*", limit:
     const buf = req.body;
     const mime = Buffer.isBuffer(buf) ? kieuAnh(buf) : null;
     if (!mime || buf.length > ANH_TOI_DA_BYTE) return res.status(400).json({ success: false, message: "Ch\u1EC9 nh\u1EADn \u1EA3nh WebP / JPEG d\u01B0\u1EDBi 1 MB" });
-    await pool.query(
+    await poolMra.query(
       `INSERT INTO xuong_anh (id, hex, mime, size, data, user_id) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING`,
       [id, hex3, mime, buf.length, buf, Number(req.user.id)]
     );
@@ -83210,7 +83327,7 @@ app.get("/api/xuong/anh/:id", async (req, res) => {
   try {
     const id = String(req.params.id);
     if (!khoaAnhHopLe(id)) return res.status(400).json({ success: false, message: "M\xE3 \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7" });
-    const r = await pool.query("SELECT mime, data FROM xuong_anh WHERE id = $1", [id]);
+    const r = await poolMra.query("SELECT mime, data FROM xuong_anh WHERE id = $1", [id]);
     if (!r.rows[0]) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y \u1EA3nh" });
     res.setHeader("Content-Type", r.rows[0].mime === "image/webp" ? "image/webp" : "image/jpeg");
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -83225,7 +83342,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.query.toId);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
-    const cdRows = await pool.query(
+    const cdRows = await poolMra.query(
       `SELECT c.id, c.cd_chi_tiet, c.xuong FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
        WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`,
       [toId]
@@ -83233,12 +83350,12 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const cds = cdRows.rows.map((x) => String(x.id));
     await suaTramTuDong(toId);
     if (cds.length) {
-      await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+      await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai = 'cho_giao'`, [cds])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     }
-    const st = cds.length ? (await pool.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
+    const st = cds.length ? (await poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
     const info = await thongTinHangMuc([...new Set(st.map((x) => String(x.hex)))]);
     const ngay = vnDayKey(/* @__PURE__ */ new Date());
-    const hom = await pool.query(
+    const hom = await poolMra.query(
       `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
        WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
          AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
@@ -83253,10 +83370,10 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       if (x.loai === "quan_so" && typeof d.loaiCa === "string") quanSo[d.loaiCa] = Number(d.soNguoi);
       if (x.loai === "tang_ca" && typeof d.loaiCa === "string" && !tangCa.includes(d.loaiCa)) tangCa.push(d.loaiCa);
     }
-    const toRow = (await pool.query("SELECT xuong, ten_to FROM xuong_to WHERE id = $1", [toId])).rows[0];
+    const toRow = (await poolMra.query("SELECT xuong, ten_to FROM xuong_to WHERE id = $1", [toId])).rows[0];
     const xuongTo = toRow?.xuong ? String(toRow.xuong) : cdRows.rows[0]?.xuong ?? null;
     const [truoc, tcTruoc, xacNhan, lichCa] = await Promise.all([
-      pool.query(
+      poolMra.query(
         `SELECT DISTINCT ON (du_lieu->>'loaiCa') du_lieu->>'loaiCa' AS ca, du_lieu->>'soNguoi' AS so
          FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'quan_so'
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
@@ -83264,13 +83381,13 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
          ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`,
         [toId, ngay]
       ),
-      pool.query(
+      poolMra.query(
         `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY device_ts_hieu_chinh DESC LIMIT 1`,
         [toId]
       ),
-      pool.query(
+      poolMra.query(
         `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`,
@@ -83281,7 +83398,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const quanSoTruoc = {};
     for (const x of truoc.rows) if (x.ca && x.so !== null) quanSoTruoc[x.ca] = Number(x.so);
     const { ke: goiY, cuoi: cuoiTuyen } = await goiYCongDoanKe(st.map((x) => [String(x.hex), String(x.cong_doan_id)]));
-    const chia = await pool.query(
+    const chia = await poolMra.query(
       `SELECT loai, hex, cong_doan_id, du_lieu->'phanBo' AS pb, du_lieu->'nguoi' AS nguoi, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
        WHERE to_id = $1 AND loai IN ('chia_nguoi','bat_dau','tiep_tuc') AND device_ts_hieu_chinh > now() - interval '30 days'
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -83318,7 +83435,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const dsNgung = st.filter((x) => x.trang_thai === "tam_ngung");
     const ngung = /* @__PURE__ */ new Map();
     if (dsNgung.length) {
-      const q = await pool.query(
+      const q = await poolMra.query(
         `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS ts FROM xuong_su_kien e
          WHERE to_id = $1 AND loai = 'tam_ngung' AND hex = ANY($2::text[])
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -83327,13 +83444,13 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       );
       for (const x of q.rows) ngung.set(pairKey(String(x.hex), String(x.cong_doan_id)), { lyDo: x.ly_do_tam_ngung ?? null, tu: new Date(x.ts).toISOString() });
     }
-    const cheDoHom = cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngayCa(Date.now()));
-    const kqTram = cheDoHom === "tram" ? (await soTram(pool, (await suKienTheoHex(pool, [...new Set(st.filter((x) => x.trang_thai === "dang_lam" || x.trang_thai === "tam_ngung").map((x) => String(x.hex)))])).map(toSuKien), "chinh_thuc", Date.now()))?.kq ?? null : null;
+    const cheDoHom = cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngayCa(Date.now()));
+    const kqTram = cheDoHom === "tram" ? (await soTram(poolMra, (await suKienTheoHex(poolMra, [...new Set(st.filter((x) => x.trang_thai === "dang_lam" || x.trang_thai === "tam_ngung").map((x) => String(x.hex)))])).map(toSuKien), "chinh_thuc", Date.now()))?.kq ?? null : null;
     const dangOTram = cheDoHom === "tram" ? kqTram?.dangO ?? {} : null;
     const hoTenTram = /* @__PURE__ */ new Map();
     if (kqTram?.doanNguoi.length) {
       const ds = [...new Set(kqTram.doanNguoi.map((d) => d.mnv))];
-      for (const x of (await pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [ds])).rows) hoTenTram.set(String(x.mnv), String(x.ho_ten));
+      for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [ds])).rows) hoTenTram.set(String(x.mnv), String(x.ho_ten));
     }
     const viSaoHetNguoi = (k) => {
       const ds = (kqTram?.doanNguoi ?? []).filter((d) => d.key === k && d.end !== null && d.end > d.start);
@@ -83377,24 +83494,24 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         ngung: x.trang_thai === "tam_ngung" ? ngung.get(pairKey(String(x.hex), String(x.cong_doan_id))) ?? null : null
       };
     });
-    const ghChoNhan = await gioiHanNhan(pool, rows.filter((x) => x.slGiaoDen > x.slNhan).map((x) => [String(x.hex), String(x.congDoanId)]));
+    const ghChoNhan = await gioiHanNhan(poolMra, rows.filter((x) => x.slGiaoDen > x.slNhan).map((x) => [String(x.hex), String(x.congDoanId)]));
     const chamCong = await coBangCongNhan();
     let congNhan = [];
     const coMatHomNay = {};
     if (chamCong) {
-      const dd = (await pool.query(
+      const dd = (await poolMra.query(
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
          WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
         [toId, ngay]
       )).rows;
-      const cheDoTo = cheDoTheoNgay(await mocCheDo(pool, [toId]));
+      const cheDoTo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]));
       const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay || e.loai === "ra_ca");
       for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
       const muon = [...new Set(Object.values(coMatHomNay).flat().map((x) => x.mnv))];
-      const cn = await pool.query(
+      const cn = await poolMra.query(
         `SELECT c.mnv, c.ho_ten, c.to_id, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
          WHERE c.active AND (c.to_id = $1 OR c.mnv = ANY($2::text[])) ORDER BY c.ho_ten`,
         [toId, muon]
@@ -83441,7 +83558,7 @@ var PHIEN_BAN_TINH = "pb8";
 var dauLichCa = (lichCa) => createHash4("sha1").update(PHIEN_BAN_TINH + JSON.stringify([...lichCa].sort((a, b) => a.loaiCa.localeCompare(b.loaiCa)))).digest("hex").slice(0, 12);
 var GIO_CONG_CACHE_MAX = 300;
 var xoaCacheGioCong = () => gioCongCache.clear();
-async function lichCaCuaXuong(xuong, db = pool) {
+async function lichCaCuaXuong(xuong, db = poolMra) {
   const r = await db.query(
     `SELECT DISTINCT ON (loai_ca) loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
      FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY loai_ca, (xuong = '*')`,
@@ -83450,8 +83567,8 @@ async function lichCaCuaXuong(xuong, db = pool) {
   return r.rows.map((x) => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
 }
 async function gioCongToNgay(toId, ngay) {
-  const pb = await pool.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay]);
-  const toRow = await pool.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
+  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay]);
+  const toRow = await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
   const xuong = toRow.rows[0]?.xuong;
   if (!xuong) return null;
   const lichCa = await lichCaCuaXuong(String(xuong));
@@ -83461,18 +83578,18 @@ async function gioCongToNgay(toId, ngay) {
   const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay;
   const hit = gioCongCache.get(key);
   if (hit && hit.v === v && !today) return hit.payload;
-  const r = await pool.query(
+  const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ($2::date - 7) AND ($2::date + 1)`,
     [toId, ngay]
   );
   const capTrongCuaSo = new Set(r.rows.filter((x) => x.hex && x.cong_doan_id).map((x) => pairKey(x.hex, x.cong_doan_id)));
-  const lichSu = (await suKienTheoHex(pool, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
+  const lichSu = (await suKienTheoHex(poolMra, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
   const theoId = /* @__PURE__ */ new Map();
   for (const x of [...r.rows, ...lichSu]) theoId.set(String(x.id), x);
   const tatCa = [...theoId.values()].map(toSuKien);
   const now = Date.now();
-  const mocTo = await mocCheDo(pool, [toId]);
+  const mocTo = await mocCheDo(poolMra, [toId]);
   const cheDo = cheDoTheoNgay(mocTo);
   const chinhThuc = await phanBoTheoCach(tatCa, "chinh_thuc");
   const soKhop = cheDo(toId, ngay) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
@@ -83493,7 +83610,7 @@ async function gioCongToNgay(toId, ngay) {
   return payload;
   async function phanBoTheoCach(tatCa2, cach) {
     const conHieuLuc = locTheoCheDo(suKienConHieuLuc(tatCa2), cheDo, cach);
-    const tram = await soTram(pool, tatCa2, cach, now);
+    const tram = await soTram(poolMra, tatCa2, cach, now);
     const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay;
     const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
     const boChon = {};
@@ -83609,8 +83726,8 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const hex3 = String(req.params.hex);
     if (!HEX_RE.test(hex3)) return res.status(400).json({ success: false, message: "M\xE3 h\u1EA1ng m\u1EE5c ph\u1EA3i c\xF3 9 s\u1ED1" });
     const [rows, st, info] = await Promise.all([
-      suKienTheoHex(pool, [hex3], true),
-      pool.query("SELECT * FROM xuong_trang_thai WHERE hex = $1", [hex3]),
+      suKienTheoHex(poolMra, [hex3], true),
+      poolMra.query("SELECT * FROM xuong_trang_thai WHERE hex = $1", [hex3]),
       thongTinHangMuc([hex3])
     ]);
     const now = Date.now();
@@ -83619,7 +83736,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const evtsApp = evts.filter((e) => !laMra.has(e.id));
     const conHieuLuc = new Set(suKienConHieuLuc(evts).map((e) => e.id));
     const cdIds = [...new Set(evts.flatMap((e) => [e.congDoanId, e.congDoanDenId]).filter((x) => !!x))];
-    const cd = cdIds.length ? (await pool.query("SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows : [];
+    const cd = cdIds.length ? (await poolMra.query("SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows : [];
     const cdMap = new Map(cd.map((x) => [String(x.id), x]));
     const xuongCua = (id) => id ? cdMap.get(id)?.xuong ?? null : null;
     const hl = suKienConHieuLuc(evtsApp);
@@ -83775,7 +83892,7 @@ app.get("/api/xuong/can-xem", async (req, res) => {
     if (!pv) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
     const chiTo = pv.chiTo;
     const [sk, st] = await Promise.all([
-      pool.query(
+      poolMra.query(
         // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem)
         `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
                 so_luong, so_nguoi, ly_do_tam_ngung, du_lieu
@@ -83785,7 +83902,7 @@ app.get("/api/xuong/can-xem", async (req, res) => {
          ORDER BY server_ts DESC LIMIT 300`,
         [xuong, chiTo]
       ),
-      pool.query(`SELECT * FROM xuong_trang_thai t WHERE xuong = $1 AND co <> '{}'
+      poolMra.query(`SELECT * FROM xuong_trang_thai t WHERE xuong = $1 AND co <> '{}'
                     AND ($2::int[] IS NULL OR EXISTS (SELECT 1 FROM xuong_to_cong_doan tc WHERE tc.cong_doan_id = t.cong_doan_id AND tc.to_id = ANY($2::int[])))
                   ORDER BY cap_nhat DESC LIMIT 300`, [xuong, chiTo])
     ]);
@@ -83809,13 +83926,12 @@ app.get("/api/xuong/lich-su", async (req, res) => {
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
     const me2 = Number(req.user.id);
     const [r, quanLy] = await Promise.all([
-      pool.query(
+      poolMra.query(
         `SELECT e.id, e.loai, e.hex, e.cong_doan_id, e.cong_doan_den_id, e.so_luong, e.so_nguoi, e.ly_do_tam_ngung,
-                e.du_lieu, e.device_ts_hieu_chinh, e.server_ts, e.sent_by, e.xuong, u.full_name, u.username,
+                e.du_lieu, e.device_ts_hieu_chinh, e.server_ts, e.sent_by, e.xuong,
                 c.cd_chi_tiet AS ten_cd, d.cd_chi_tiet AS ten_cd_den,
                 EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) AS da_huy
          FROM xuong_su_kien e
-         LEFT JOIN users u ON u.id = e.sent_by
          LEFT JOIN xuong_cong_doan c ON c.id = e.cong_doan_id
          LEFT JOIN xuong_cong_doan d ON d.id = e.cong_doan_den_id
          WHERE e.loai <> 'huy' AND e.server_ts > now() - interval '24 hours'
@@ -83827,7 +83943,10 @@ app.get("/api/xuong/lich-su", async (req, res) => {
       ),
       xuongQuanLy(me2)
     ]);
-    const info = await thongTinHangMuc([...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))]);
+    const [info, nd] = await Promise.all([
+      thongTinHangMuc([...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))]),
+      nguoiDungTheoId(r.rows.map((x) => x.sent_by))
+    ]);
     const now = Date.now();
     res.json({
       success: true,
@@ -83844,7 +83963,7 @@ app.get("/api/xuong/lich-su", async (req, res) => {
         lyDo: x.ly_do_tam_ngung,
         duLieu: x.du_lieu,
         luc: x.device_ts_hieu_chinh,
-        nguoi: x.full_name || x.username || null,
+        nguoi: tenNguoi(nd.get(Number(x.sent_by))),
         tenHangMuc: x.hex ? info.get(String(x.hex))?.ten_hang_muc ?? null : null,
         // Đơn vị của hạng mục ("Giao 1 SET", trước luôn "cái")
         dvt: x.hex ? info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex)).dvt).trim() : null : null,
@@ -83862,8 +83981,8 @@ app.get("/api/xuong/gioi-han-nhan", async (req, res) => {
     const hex3 = String(req.query.hex ?? "");
     const toId = Number(req.query.toId);
     if (!HEX_RE.test(hex3) || !Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu m\xE3 h\u1EA1ng m\u1EE5c / t\u1ED5" });
-    const cds = (await pool.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [toId])).rows.map((x) => String(x.cong_doan_id));
-    const gh = await gioiHanNhan(pool, cds.map((cd) => [hex3, cd]));
+    const cds = (await poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [toId])).rows.map((x) => String(x.cong_doan_id));
+    const gh = await gioiHanNhan(poolMra, cds.map((cd) => [hex3, cd]));
     res.json({ success: true, available: true, congDoan: cds.map((cd) => ({ congDoanId: cd, ...gh.get(`${hex3}|${cd}`) })) });
   } catch (e) {
     fail(res, e, "/api/xuong/gioi-han-nhan");
@@ -83897,7 +84016,7 @@ app.get("/api/xuong/tim-hex", async (req, res) => {
     if (q.length < 3) return res.json({ success: true, available: true, ketQua: [] });
     const toId = Number(req.query.toId);
     const mau = `%${q}%`;
-    const cuaTo = Number.isInteger(toId) && toId > 0 ? (await pool.query(
+    const cuaTo = Number.isInteger(toId) && toId > 0 ? (await poolMra.query(
       `SELECT DISTINCT t.hex FROM xuong_trang_thai t
            WHERE t.hex LIKE $1 AND t.trang_thai <> 'xong'
              AND (t.cong_doan_id IN (SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $2)) LIMIT 10`,
@@ -83928,12 +84047,12 @@ app.get("/api/xuong/danh-muc", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : null;
     const [cd, to, tc, lc] = await Promise.all([
-      pool.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi FROM xuong_cong_doan
+      poolMra.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi FROM xuong_cong_doan
                   WHERE active AND ($1::text IS NULL OR xuong = $1) ORDER BY xuong, thu_tu, cd_chi_tiet`, [xuong]),
-      pool.query(`SELECT id, xuong, ten_to, to_truong_user_id FROM xuong_to WHERE active AND ($1::text IS NULL OR xuong = $1)
+      poolMra.query(`SELECT id, xuong, ten_to, to_truong_user_id FROM xuong_to WHERE active AND ($1::text IS NULL OR xuong = $1)
                   ORDER BY xuong, ten_to`, [xuong]),
-      pool.query(`SELECT to_id, cong_doan_id FROM xuong_to_cong_doan`),
-      pool.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+      poolMra.query(`SELECT to_id, cong_doan_id FROM xuong_to_cong_doan`),
+      poolMra.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
                   FROM xuong_lich_ca WHERE $1::text IS NULL OR xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong])
     ]);
     res.json({
@@ -83959,7 +84078,7 @@ app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
     if (access.role !== "ADMIN") return res.status(403).json({ success: false, message: "Ch\u1EC9 admin \u0111\u01B0\u1EE3c thu h\u1ED3i" });
     const userId = Number(req.params.userId);
     if (!Number.isInteger(userId) || userId <= 0) return res.status(400).json({ success: false, message: "ID kh\xF4ng h\u1EE3p l\u1EC7" });
-    await pool.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1${await coBangTram() ? " AND loai <> 'tram'" : ""}`, [userId]);
+    await poolMra.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE user_id = $1${await coBangTram() ? " AND loai <> 'tram'" : ""}`, [userId]);
     await bumpTokenVersion(userId);
     res.json({ success: true, available: true });
   } catch (e) {
@@ -83975,8 +84094,8 @@ var TINH_TOI_DA = 30;
 var NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 async function xoaGioCongLuu(xuong) {
   try {
-    if (xuong === "*") await pool.query("DELETE FROM xuong_gio_cong_ngay");
-    else await pool.query("DELETE FROM xuong_gio_cong_ngay WHERE to_id IN (SELECT id FROM xuong_to WHERE xuong = $1)", [xuong]);
+    if (xuong === "*") await poolMra.query("DELETE FROM xuong_gio_cong_ngay");
+    else await poolMra.query("DELETE FROM xuong_gio_cong_ngay WHERE to_id IN (SELECT id FROM xuong_to WHERE xuong = $1)", [xuong]);
   } catch (e) {
     if (!isMissingSchema(e)) throw e;
   }
@@ -83993,20 +84112,20 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
     if (!pv) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
     const chiTo = pv.chiTo;
-    await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const homNay = vnDayKey(/* @__PURE__ */ new Date());
     const den = typeof req.query.den === "string" && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === "string" && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
     const soNgay = (Date.parse(den) - Date.parse(tu)) / 864e5;
     const rutGon = soNgay > 62;
     if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
-    const toRows = (await pool.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows.filter((t) => !chiTo || chiTo.includes(Number(t.id)));
+    const toRows = (await poolMra.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows.filter((t) => !chiTo || chiTo.includes(Number(t.id)));
     const toIds = toRows.map((t) => Number(t.id));
     const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay] = await Promise.all([
-      pool.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
+      poolMra.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
                   WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, tu, den]),
       // Nhật ký công đoạn có đủ Bắt đầu và Hoàn thành (cặp hex × công đoạn có bắt đầu / hoàn thành trong kỳ)
-      pool.query(
+      poolMra.query(
         `WITH hl AS (SELECT * FROM xuong_su_kien e WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai IN ('bat_dau','hoan_thanh')
                        AND ($4::int[] IS NULL OR e.to_id = ANY($4::int[]))
                        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)),
@@ -84019,7 +84138,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         [xuong, tu, den, chiTo]
       ),
       // Sự kiện tới server trong vòng 1 giờ sau khi bấm (chỉ sự kiện từ máy; bỏ sự kiện ghi lùi giờ "Đã dừng lúc…")
-      pool.query(
+      poolMra.query(
         `SELECT count(*)::int AS tong, count(*) FILTER (WHERE server_ts - device_ts_hieu_chinh <= interval '1 hour')::int AS nhanh
          FROM xuong_su_kien WHERE xuong = $1 AND device_id IS NOT NULL AND COALESCE(du_lieu->>'ghiLui', '') <> 'true'
            AND ($4::int[] IS NULL OR to_id = ANY($4::int[]))
@@ -84027,7 +84146,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         [xuong, tu, den, chiTo]
       ),
       // Hiện tại: hạng mục đang chạy, hàng chờ nhận theo tổ
-      pool.query(
+      poolMra.query(
         `SELECT tc.to_id, count(*) FILTER (WHERE t.trang_thai = 'dang_lam')::int AS dang_chay,
                 count(*) FILTER (WHERE t.sl_giao_den > t.sl_nhan)::int AS cho_nhan,
                 count(*) FILTER (WHERE t.trang_thai = 'tam_ngung')::int AS tam_ngung
@@ -84036,7 +84155,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         [toIds]
       ),
       // Quân số chốt theo (tổ, ngày, loại ca) — lần chốt cuối còn hiệu lực
-      pool.query(
+      poolMra.query(
         `SELECT DISTINCT ON (e.to_id, 2, e.du_lieu->>'loaiCa') e.to_id,
                 to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay,
                 e.du_lieu->>'loaiCa' AS loai_ca, (e.du_lieu->>'soNguoi')::float AS so
@@ -84048,7 +84167,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         [toIds, tu, den]
       ),
       // Hạng mục tổ nhận theo ngày
-      pool.query(
+      poolMra.query(
         `SELECT e.to_id, to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay,
                 e.hex, e.cong_doan_id, sum(e.so_luong)::float AS sl
          FROM xuong_su_kien e
@@ -84059,7 +84178,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         [toIds, tu, den]
       ),
       // Số lượng tổ làm xong theo ngày
-      pool.query(
+      poolMra.query(
         `SELECT e.to_id, to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay,
                 e.hex, e.cong_doan_id, sum(e.so_luong)::float AS sl
          FROM xuong_su_kien e
@@ -84073,7 +84192,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     let banLuu = true;
     const daLuu = /* @__PURE__ */ new Map();
     try {
-      const r = await pool.query(
+      const r = await poolMra.query(
         `SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v, ket_qua FROM xuong_gio_cong_ngay
          WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date`,
         [toIds, tu, den]
@@ -84099,7 +84218,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       if (!kq) return;
       ketQua.set(`${c.toId}|${c.ngay}`, kq);
       if (banLuu && c.ngay < homNay) {
-        await pool.query(
+        await poolMra.query(
           `INSERT INTO xuong_gio_cong_ngay (to_id, ngay, v, ket_qua) VALUES ($1, $2::date, $3, $4::jsonb)
            ON CONFLICT (to_id, ngay) DO UPDATE SET v = EXCLUDED.v, ket_qua = EXCLUDED.ket_qua, tinh_luc = now()`,
           [c.toId, c.ngay, c.v, JSON.stringify(kq)]
@@ -84127,7 +84246,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       xongCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam(Number(x.sl)) });
       tatCaHex.add(String(x.hex));
     }
-    const dangChayNay = new Set((await pool.query(
+    const dangChayNay = new Set((await poolMra.query(
       `SELECT DISTINCT t.hex, t.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_trang_thai t ON t.cong_doan_id = tc.cong_doan_id
        WHERE tc.to_id = ANY($1::int[]) AND t.trang_thai = 'dang_lam'`,
       [toIds]
@@ -84143,9 +84262,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       if (capsKy.length) {
         const khung = khungCaChinh(await lichCaCuaXuong(xuong));
         const [tcR, cdR2, ddR] = await Promise.all([
-          pool.query(`SELECT tc.cong_doan_id, min(tc.to_id) AS to_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id
+          poolMra.query(`SELECT tc.cong_doan_id, min(tc.to_id) AS to_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id
                       WHERE t.xuong = $1 GROUP BY tc.cong_doan_id`, [xuong]),
-          pool.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong]),
+          poolMra.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE xuong = $1", [xuong]),
           pool.query(`SELECT to_char(date,'YYYY-MM-DD') AS ngay, sum(so_luong_cong_nhan)::float AS cn,
                              sum(coalesce(gio_cong_hanh_chinh,0) + coalesce(gio_cong_tang_ca,0))::float AS gio
                       FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1 AND date BETWEEN $2::date AND $3::date GROUP BY date`, [xuong, tu, den]).catch(() => ({ rows: [] }))
@@ -84420,13 +84539,13 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         c.slXong += x.soLuong;
       }
     }
-    const ttHm = hmKy.size ? (await pool.query(
+    const ttHm = hmKy.size ? (await poolMra.query(
       `SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS sl_gd, sl_nhan::float AS sl_nhan, sl_hoan_thanh::float AS sl_ht, sl_giao::float AS sl_gi
        FROM xuong_trang_thai WHERE hex = ANY($1::text[])`,
       [[...hmKy.keys()]]
     )).rows : [];
     const ttCua = new Map(ttHm.map((x) => [`${x.hex}|${x.cong_doan_id}`, x]));
-    const cdRows = (await pool.query("SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1", [xuong])).rows;
+    const cdRows = (await poolMra.query("SELECT id, cd_chi_tiet, thu_tu, cd_tach_ma FROM xuong_cong_doan WHERE xuong = $1", [xuong])).rows;
     const cdTen = new Map(cdRows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
     const cdThuTu = new Map(cdRows.map((x) => [String(x.id), Number(x.thu_tu ?? 999)]));
     let chamCong = null;
@@ -84439,7 +84558,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           [xuong, tu, den]
         ),
         pool.query(`SELECT to_char(max(date),'YYYY-MM-DD') AS d FROM diem_danh WHERE upper(trim(xuong_chinh)) = $1`, [xuong]),
-        pool.query(
+        poolMra.query(
           `SELECT ngay, sum(so)::float AS so FROM (
              SELECT DISTINCT ON (e.to_id, (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date)
                     to_char((e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date,'YYYY-MM-DD') AS ngay, (e.du_lieu->>'soNguoi')::float AS so
@@ -84485,7 +84604,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const tenToCua = new Map(toRows.map((t) => [Number(t.id), String(t.ten_to)]));
     const doiTo = /* @__PURE__ */ new Map();
     if (await coBangCongNhan()) {
-      for (const x of (await pool.query("SELECT mnv, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])", [toIds])).rows) {
+      for (const x of (await poolMra.query("SELECT mnv, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])", [toIds])).rows) {
         const k = Number(x.to_id);
         if (!doiTo.has(k)) doiTo.set(k, []);
         doiTo.get(k).push(String(x.mnv));
@@ -84537,16 +84656,16 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         }
       }
     }
-    const tenNguoi = /* @__PURE__ */ new Map();
+    const tenNguoi2 = /* @__PURE__ */ new Map();
     if (nguoiNgay.size && await coBangCongNhan()) {
-      const r = await pool.query(
+      const r = await poolMra.query(
         `SELECT c.mnv, c.ho_ten, c.chuc_vu, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.mnv = ANY($1::text[])`,
         [[...nguoiNgay.keys()]]
       );
-      for (const x of r.rows) tenNguoi.set(String(x.mnv), { hoTen: String(x.ho_ten), tenTo: x.ten_to ?? null, chucVu: x.chuc_vu ?? null });
+      for (const x of r.rows) tenNguoi2.set(String(x.mnv), { hoTen: String(x.ho_ten), tenTo: x.ten_to ?? null, chucVu: x.chuc_vu ?? null });
     }
     const theoNguoi = [...nguoiNgay.entries()].map(([mnv, ds]) => {
-      const t = tenNguoi.get(mnv);
+      const t = tenNguoi2.get(mnv);
       const cong2 = (f) => lam(ds.reduce((a, x) => a + f(x), 0));
       return {
         mnv,
@@ -84612,7 +84731,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const hexHm = hangMuc.map((h) => h.hex);
     const [tkRows, khRows, nkRows] = hexHm.length ? await Promise.all([
       // Triển khai của xưởng này (xưởng chính) hoặc giao thành phần cho xưởng này (xưởng phụ)
-      pool.query(
+      poolMra.query(
         `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc,
                 (array_agg(du_lieu->>'xuong' ORDER BY device_ts_hieu_chinh DESC))[1] AS xuong_chinh
          FROM xuong_su_kien e
@@ -84638,7 +84757,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       ).catch(() => ({ rows: [] }))
     ]) : [{ rows: [] }, { rows: [] }, { rows: [] }];
     const hexTk = tkRows.rows.map((x) => String(x.hex));
-    const evTk = hexTk.length ? (await suKienTheoHex(pool, hexTk)).map(toSuKien) : [];
+    const evTk = hexTk.length ? (await suKienTheoHex(poolMra, hexTk)).map(toSuKien) : [];
     const tkHm = new Map(tkRows.rows.map((x) => {
       const thanhPhan = tuyenTheoThanhPhan(evTk.filter((e) => e.hex === String(x.hex))).map((t) => ({ ten: t.thanhPhan, tuyen: t.tuyen.map((id) => ({ congDoanId: id, ten: cdTen.get(id) ?? id })) }));
       const tuyen = [];
@@ -84719,12 +84838,34 @@ async function xuongDuocSua(req) {
   return { ds, admin: ds.has("*") };
 }
 var khongQuyen = (res, msg = "Ch\u1EC9 admin ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y \u0111\u01B0\u1EE3c thay \u0111\u1ED5i") => res.status(403).json({ success: false, message: msg });
+async function lanTrienKhaiTruoc(xuong) {
+  const ev = (await poolMra.query(
+    `SELECT e.hex, e.du_lieu->'tuyen' AS tuyen, e.du_lieu->'thanhPhan' AS thanh_phan FROM xuong_su_kien e
+     WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1
+       AND (jsonb_typeof(e.du_lieu->'tuyen') = 'array' OR jsonb_typeof(e.du_lieu->'thanhPhan') = 'array')
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
+     ORDER BY e.device_ts_hieu_chinh DESC LIMIT 1000`,
+    [xuong]
+  )).rows;
+  if (!ev.length) return { rows: [] };
+  const nhom = new Map((await pool.query(
+    `SELECT DISTINCT ON (hex::text) hex::text AS hex, phan_loai_nhom_san_pham AS nhom FROM production_status_app WHERE hex::text = ANY($1::text[])`,
+    [[...new Set(ev.map((x) => String(x.hex)))]]
+  )).rows.map((x) => [String(x.hex), x.nhom]));
+  const out = /* @__PURE__ */ new Map();
+  for (const x of ev) {
+    const n = nhom.get(String(x.hex));
+    if (n === void 0 || out.has(String(n))) continue;
+    out.set(String(n), { nhom: n, tuyen: x.tuyen, thanh_phan: x.thanh_phan });
+  }
+  return { rows: [...out.values()] };
+}
 app.get("/api/xuong/setup", async (req, res) => {
   try {
     const { ds, admin } = await xuongDuocSua(req);
     const toTruong = admin ? [] : await toTruongCua(req.user.id);
     if (!ds.size && !toTruong.length) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
-    const tatCa = toTruong.length ? [...new Set(toTruong.map((t) => t.xuong))].sort() : (await pool.query(
+    const tatCa = toTruong.length ? [...new Set(toTruong.map((t) => t.xuong))].sort() : (await poolMra.query(
       `SELECT DISTINCT xuong FROM (SELECT xuong FROM xuong_cong_doan UNION SELECT xuong FROM xuong_to) x ORDER BY xuong`
     )).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
     const yeuCau = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : null;
@@ -84733,26 +84874,29 @@ app.get("/api/xuong/setup", async (req, res) => {
     const chiTo = toTruong.length ? toTruong.filter((t) => t.xuong === xuong).map((t) => t.id) : null;
     if (!chiTo && !quanLyDuoc(ds, xuong)) return khongQuyen(res);
     const [cd, to, tc, tv, lc, ql] = await Promise.all([
-      pool.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active FROM xuong_cong_doan
+      poolMra.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active FROM xuong_cong_doan
                   WHERE xuong = $1 ORDER BY thu_tu, cd_tach_ma, cd_chi_tiet`, [xuong]),
-      pool.query(`SELECT t.id, t.ten_to, t.active, t.to_truong_user_id, u.full_name, u.username, u.msnv, u.permissions, u.role
-                  FROM xuong_to t LEFT JOIN users u ON u.id = t.to_truong_user_id WHERE t.xuong = $1 ORDER BY t.ten_to`, [xuong]),
-      pool.query(`SELECT tc.to_id, tc.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id WHERE t.xuong = $1`, [xuong]),
-      pool.query(`SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
+      poolMra.query(`SELECT t.id, t.ten_to, t.active, t.to_truong_user_id FROM xuong_to t WHERE t.xuong = $1 ORDER BY t.ten_to`, [xuong]),
+      poolMra.query(`SELECT tc.to_id, tc.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id WHERE t.xuong = $1`, [xuong]),
+      poolMra.query(`SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
                   WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) ORDER BY tv.mnv`, [xuong]),
-      pool.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
+      poolMra.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
                   FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong]),
-      pool.query(`SELECT q.user_id, u.full_name, u.username FROM xuong_quan_ly q JOIN users u ON u.id = q.user_id
-                  WHERE q.xuong = $1 ORDER BY u.full_name`, [xuong])
+      poolMra.query(`SELECT q.user_id FROM xuong_quan_ly q WHERE q.xuong = $1`, [xuong])
     ]);
+    const nd = await nguoiDungTheoId([...to.rows.map((x) => x.to_truong_user_id), ...ql.rows.map((x) => x.user_id)]);
+    for (const x of to.rows) Object.assign(x, (({ full_name, username, msnv, permissions, role }) => ({ full_name, username, msnv, permissions, role }))(
+      nd.get(Number(x.to_truong_user_id)) ?? { full_name: null, username: null, msnv: null, permissions: null, role: null }
+    ));
+    ql.rows = ql.rows.map((x) => ({ ...x, full_name: nd.get(Number(x.user_id))?.full_name ?? null, username: nd.get(Number(x.user_id))?.username ?? null })).sort((a, b) => String(a.full_name ?? a.username ?? "").localeCompare(String(b.full_name ?? b.username ?? "")));
     const toIds = to.rows.map((x) => Number(x.id));
-    const moc2 = await mocCheDo(pool, toIds);
+    const moc2 = await mocCheDo(poolMra, toIds);
     const cheDoNgay = cheDoTheoNgay(moc2);
     const homNay = ngayCa(Date.now());
     const soTram2 = /* @__PURE__ */ new Map();
     if (moc2.length || toIds.length) {
       try {
-        const r = await pool.query(`SELECT to_id, count(*) AS n FROM xuong_phien_thiet_bi WHERE loai = 'tram' AND NOT thu_hoi AND to_id = ANY($1::int[]) GROUP BY to_id`, [toIds]);
+        const r = await poolMra.query(`SELECT to_id, count(*) AS n FROM xuong_phien_thiet_bi WHERE loai = 'tram' AND NOT thu_hoi AND to_id = ANY($1::int[]) GROUP BY to_id`, [toIds]);
         for (const x of r.rows) soTram2.set(Number(x.to_id), Number(x.n));
       } catch {
       }
@@ -84805,14 +84949,14 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
   try {
     const { ds, admin } = await xuongDuocSua(req);
     if (!ds.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
-    const dsXuong = (await pool.query(`SELECT DISTINCT xuong FROM xuong_to WHERE active ORDER BY xuong`)).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
+    const dsXuong = (await poolMra.query(`SELECT DISTINCT xuong FROM xuong_to WHERE active ORDER BY xuong`)).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
     const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : dsXuong[0] ?? null;
     if (!xuong) return res.json({ success: true, available: true, dsXuong, xuong: null, to: [] });
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
-    await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
-    const r = await pool.query(
+    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    const r = await poolMra.query(
       `WITH homnay AS (SELECT (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS d)
-       SELECT t.id, t.ten_to, u.full_name AS to_truong,
+       SELECT t.id, t.ten_to, t.to_truong_user_id,
          (SELECT (e.du_lieu->>'soNguoi')::int FROM xuong_su_kien e, homnay
             WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' IN ('chinh','chu_nhat')
               AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = homnay.d
@@ -84827,23 +84971,26 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
          (SELECT max(e.server_ts) FROM xuong_su_kien e, homnay WHERE e.to_id = t.id
             AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = homnay.d) AS thao_tac_cuoi
        FROM xuong_to t
-       LEFT JOIN users u ON u.id = t.to_truong_user_id
        LEFT JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
        LEFT JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong'
        WHERE t.xuong = $1 AND t.active
-       GROUP BY t.id, t.ten_to, u.full_name
+       GROUP BY t.id, t.ten_to, t.to_truong_user_id
        ORDER BY t.ten_to`,
       [xuong]
     );
+    {
+      const nd = await nguoiDungTheoId(r.rows.map((x) => x.to_truong_user_id));
+      for (const x of r.rows) x.to_truong = nd.get(Number(x.to_truong_user_id))?.full_name ?? null;
+    }
     const choNhanTo = /* @__PURE__ */ new Map();
     {
-      const cap = (await pool.query(
+      const cap = (await poolMra.query(
         `SELECT tc.to_id, s.hex, s.cong_doan_id FROM xuong_to t JOIN xuong_to_cong_doan tc ON tc.to_id = t.id
            JOIN xuong_trang_thai s ON s.cong_doan_id = tc.cong_doan_id AND s.trang_thai <> 'xong' AND s.sl_giao_den > s.sl_nhan
          WHERE t.xuong = $1 AND t.active`,
         [xuong]
       )).rows;
-      const gh = await gioiHanNhan(pool, cap.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+      const gh = await gioiHanNhan(poolMra, cap.map((x) => [String(x.hex), String(x.cong_doan_id)]));
       for (const x of cap) {
         const g = gh.get(`${x.hex}|${x.cong_doan_id}`);
         if (g && g.moc !== null && g.moc - g.daNhan <= 5e-4) continue;
@@ -84856,18 +85003,18 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
       const ngay = vnDayKey(/* @__PURE__ */ new Date());
       const now = Date.now();
       const [ev, ds2, lichCa] = await Promise.all([
-        pool.query(
+        poolMra.query(
           `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
              AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date`,
           [ids, ngay]
         ),
-        pool.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
+        poolMra.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
         lichCaCuaXuong(xuong)
       ]);
       const ten = new Map(ds2.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
       const thieu = [...new Set(ev.rows.flatMap((x) => (Array.isArray(x.du_lieu?.nguoi) ? x.du_lieu.nguoi : []).map((n) => String(n?.mnv ?? ""))))].filter((m) => m && !ten.has(m));
       if (thieu.length) {
-        for (const x of (await pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [thieu])).rows) ten.set(String(x.mnv), String(x.ho_ten));
+        for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [thieu])).rows) ten.set(String(x.mnv), String(x.ho_ten));
       }
       const tenCua = (m) => ten.get(m) ?? m;
       const theoTo = /* @__PURE__ */ new Map();
@@ -84876,7 +85023,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         if (!theoTo.has(k)) theoTo.set(k, []);
         theoTo.get(k).push(x);
       }
-      const cheDo = cheDoTheoNgay(await mocCheDo(pool, ids));
+      const cheDo = cheDoTheoNgay(await mocCheDo(poolMra, ids));
       for (const id of ids) {
         const coMat = doanCoMat(locTheoCheDo(suKienConHieuLuc((theoTo.get(id) ?? []).map(toSuKien)), cheDo));
         const caChinh = [...coMat.chinh ?? [], ...coMat.chu_nhat ?? []];
@@ -84938,17 +85085,17 @@ app.post("/api/xuong/setup/cong-doan", async (req, res) => {
     const { ds } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
     if (d.id) {
-      const cu = await pool.query("SELECT xuong FROM xuong_cong_doan WHERE id = $1", [d.id]);
+      const cu = await poolMra.query("SELECT xuong FROM xuong_cong_doan WHERE id = $1", [d.id]);
       if (!cu.rows[0]) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y c\xF4ng \u0111o\u1EA1n" });
       if (cu.rows[0].xuong !== d.xuong) return res.status(400).json({ success: false, message: "Kh\xF4ng \u0111\u1ED5i \u0111\u01B0\u1EE3c x\u01B0\u1EDFng c\u1EE7a c\xF4ng \u0111o\u1EA1n \u0111\xE3 c\xF3" });
-      await pool.query(
+      await poolMra.query(
         `UPDATE xuong_cong_doan SET ten_cd = $2, cd_tach_ma = $3, cd_chi_tiet = $4, thu_tu = $5, la_bao_bi = $6, active = $7 WHERE id = $1`,
         [d.id, d.tenCd, d.cdTachMa ?? null, d.ten, d.thuTu, d.laBaoBi, d.active]
       );
       return res.json({ success: true, available: true, id: d.id });
     }
     const id = `CD-${d.xuong}-${crypto3.randomBytes(3).toString("hex").toUpperCase()}`;
-    await pool.query(
+    await poolMra.query(
       `INSERT INTO xuong_cong_doan (id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [id, d.xuong, d.tenCd, d.cdTachMa ?? null, d.ten, d.thuTu, d.laBaoBi, d.active]
     );
@@ -84976,7 +85123,7 @@ app.post("/api/xuong/setup/to", async (req, res) => {
     const { ds, admin } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
     if (d.capQuyen && !admin) return khongQuyen(res, "Ch\u1EC9 admin \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n t\xE0i kho\u1EA3n");
-    const kq = await withTransaction(async (client) => {
+    const kq = await withTransactionMra(async (client) => {
       const cds = d.congDoan.length ? (await client.query("SELECT id FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND xuong = $2", [d.congDoan, d.xuong])).rows : [];
       if (cds.length !== d.congDoan.length) return { loi: "C\xF4ng \u0111o\u1EA1n ph\u1EE5 tr\xE1ch ph\u1EA3i thu\u1ED9c x\u01B0\u1EDFng c\u1EE7a t\u1ED5" };
       let id = d.id;
@@ -85015,17 +85162,17 @@ app.post("/api/xuong/setup/to", async (req, res) => {
           [id, d.thanhVien]
         );
       }
-      if (d.capQuyen && d.toTruongUserId) {
-        await client.query(
-          `UPDATE users SET permissions = array_append(COALESCE(permissions, '{}'), $2)
-           WHERE id = $1 AND NOT ($2 = ANY(COALESCE(permissions, '{}')))`,
-          [d.toTruongUserId, PERM_XUONG]
-        );
-      }
       return { id };
     });
     if ("loi" in kq) return res.status(400).json({ success: false, message: kq.loi });
-    if (d.capQuyen && d.toTruongUserId) invalidateUserAccess(d.toTruongUserId);
+    if (d.capQuyen && d.toTruongUserId) {
+      await pool.query(
+        `UPDATE users SET permissions = array_append(COALESCE(permissions, '{}'), $2)
+         WHERE id = $1 AND NOT ($2 = ANY(COALESCE(permissions, '{}')))`,
+        [d.toTruongUserId, PERM_XUONG]
+      );
+      invalidateUserAccess(d.toTruongUserId);
+    }
     res.json({ success: true, available: true, id: kq.id });
   } catch (e) {
     if (e?.code === "23505") return res.status(400).json({ success: false, message: "X\u01B0\u1EDFng \u0111\xE3 c\xF3 t\u1ED5 tr\xF9ng t\xEAn" });
@@ -85046,7 +85193,7 @@ app.put("/api/xuong/setup/lich-ca", async (req, res) => {
     const d = { ...p.data, xuong: p.data.xuong === "*" ? "*" : p.data.xuong.toUpperCase() };
     const { ds, admin } = await xuongDuocSua(req);
     if (d.xuong === "*" ? !admin : !quanLyDuoc(ds, d.xuong)) return khongQuyen(res, d.xuong === "*" ? "Ch\u1EC9 admin s\u1EEDa l\u1ECBch m\u1EB7c \u0111\u1ECBnh" : void 0);
-    await pool.query(
+    await poolMra.query(
       `INSERT INTO xuong_lich_ca (xuong, loai_ca, gio_bat_dau, gio_ket_thuc, nghi) VALUES ($1,$2,$3,$4,$5::jsonb)
        ON CONFLICT (xuong, loai_ca) DO UPDATE SET gio_bat_dau = EXCLUDED.gio_bat_dau, gio_ket_thuc = EXCLUDED.gio_ket_thuc, nghi = EXCLUDED.nghi`,
       [d.xuong, d.loaiCa, d.gioBatDau, d.gioKetThuc, JSON.stringify(d.nghi)]
@@ -85067,7 +85214,7 @@ app.delete("/api/xuong/setup/lich-ca", async (req, res) => {
     }
     const { ds } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
-    await pool.query("DELETE FROM xuong_lich_ca WHERE xuong = $1 AND loai_ca = $2", [xuong, loaiCa]);
+    await poolMra.query("DELETE FROM xuong_lich_ca WHERE xuong = $1 AND loai_ca = $2", [xuong, loaiCa]);
     xoaCacheGioCong();
     await xoaGioCongLuu(xuong);
     res.json({ success: true, available: true });
@@ -85083,9 +85230,9 @@ app.post("/api/xuong/setup/quan-ly", async (req, res) => {
     const xuong = String(req.body?.xuong ?? "").toUpperCase();
     if (!Number.isInteger(userId) || userId <= 0 || !xuong) return res.status(400).json({ success: false, message: "Thi\u1EBFu ng\u01B0\u1EDDi / x\u01B0\u1EDFng" });
     if (req.body?.bo) {
-      await pool.query("DELETE FROM xuong_quan_ly WHERE user_id = $1 AND xuong = $2", [userId, xuong]);
+      await poolMra.query("DELETE FROM xuong_quan_ly WHERE user_id = $1 AND xuong = $2", [userId, xuong]);
     } else {
-      await pool.query("INSERT INTO xuong_quan_ly (user_id, xuong) VALUES ($1,$2) ON CONFLICT DO NOTHING", [userId, xuong]);
+      await poolMra.query("INSERT INTO xuong_quan_ly (user_id, xuong) VALUES ($1,$2) ON CONFLICT DO NOTHING", [userId, xuong]);
       await pool.query(
         `UPDATE users SET permissions = array_append(COALESCE(permissions, '{}'), 'xuong_quan_ly')
          WHERE id = $1 AND NOT ('xuong_quan_ly' = ANY(COALESCE(permissions, '{}')))`,
@@ -85159,7 +85306,7 @@ app.post("/api/xuong/huy", async (req, res) => {
     const id = String(req.body?.suKienId ?? "");
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ success: false, message: "Thi\u1EBFu s\u1EF1 ki\u1EC7n c\u1EA7n hu\u1EF7" });
     const me2 = Number(req.user.id);
-    const kq = await withTransaction(async (client) => {
+    const kq = await withTransactionMra(async (client) => {
       const d = (await client.query("SELECT id, loai, hex, cong_doan_id, to_id, xuong FROM xuong_su_kien WHERE id = $1", [id])).rows[0];
       if (!d) return { loi: "Kh\xF4ng t\xECm th\u1EA5y s\u1EF1 ki\u1EC7n", ma: 404 };
       if (!quanLyDuoc(await xuongQuanLy(me2), d.xuong ?? null)) return { loi: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c hu\u1EF7 t\u1EEB m\xE1y t\xEDnh", ma: 403 };
@@ -85186,7 +85333,7 @@ app.post("/api/xuong/hex-tom-tat", async (req, res) => {
   try {
     const hexes = Array.isArray(req.body?.hexes) ? [...new Set(req.body.hexes.map(String).filter((h) => HEX_RE.test(h)))].slice(0, 1e3) : [];
     if (!hexes.length) return res.json({ success: true, available: true, tomTat: {} });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT t.hex, t.xuong, t.trang_thai, c.cd_chi_tiet FROM xuong_trang_thai t
        LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id WHERE t.hex = ANY($1::text[])`,
       [hexes]
@@ -85229,24 +85376,15 @@ app.get("/api/xuong/trien-khai", async (req, res) => {
     );
     const hexes = sp.rows.map((x) => String(x.hex));
     const [tk, cd, lanTruoc] = await Promise.all([
-      hexes.length ? pool.query(
+      hexes.length ? poolMra.query(
         `SELECT hex, sum(so_luong)::float AS sl FROM xuong_su_kien e WHERE loai = 'trien_khai' AND hex = ANY($1::text[])
            AND du_lieu->>'xuong' = $2 AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          GROUP BY hex`,
         [hexes, xuong]
       ) : Promise.resolve({ rows: [] }),
-      pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
+      poolMra.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
       // Tuyến lần triển khai gần nhất theo nhóm sản phẩm (gợi ý — cải tiến 8)
-      pool.query(
-        `SELECT DISTINCT ON (p.phan_loai_nhom_san_pham) p.phan_loai_nhom_san_pham AS nhom, e.du_lieu->'tuyen' AS tuyen,
-                e.du_lieu->'thanhPhan' AS thanh_phan
-         FROM xuong_su_kien e JOIN LATERAL (SELECT phan_loai_nhom_san_pham FROM production_status_app WHERE hex::text = e.hex LIMIT 1) p ON true
-         WHERE e.loai = 'trien_khai' AND e.du_lieu->>'xuong' = $1
-           AND (jsonb_typeof(e.du_lieu->'tuyen') = 'array' OR jsonb_typeof(e.du_lieu->'thanhPhan') = 'array')
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-         ORDER BY p.phan_loai_nhom_san_pham, e.device_ts_hieu_chinh DESC`,
-        [xuong]
-      )
+      lanTrienKhaiTruoc(xuong)
     ]);
     const daTk = new Map(tk.rows.map((x) => [String(x.hex), Number(x.sl)]));
     const goiY = new Map(lanTruoc.rows.map((x) => [String(x.nhom ?? ""), Array.isArray(x.thanh_phan) ? x.thanh_phan.map((t) => ({ ten: String(t.ten ?? ""), xuong: String(t.xuong ?? xuong), tuyen: Array.isArray(t.tuyen) ? t.tuyen.map(String) : [] })) : [{ ten: "G\u1ED6", xuong, tuyen: (x.tuyen ?? []).map(String) }]]));
@@ -85316,7 +85454,7 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     )).rows.map((x) => String(x.hex)));
     const sai = hexes.filter((h) => !dung.has(h));
     if (sai.length) return res.status(400).json({ success: false, message: `Kh\xF4ng thu\u1ED9c x\u01B0\u1EDFng ch\xEDnh ${xuong}: ${sai.slice(0, 8).join(", ")}${sai.length > 8 ? "\u2026" : ""}` });
-    const kq = await withTransaction(async (client) => {
+    const kq = await withTransactionMra(async (client) => {
       const cdIds = [...new Set(items.flatMap((i) => i.thanhPhan.flatMap((t) => t.tuyen)))];
       const cd = await client.query("SELECT id, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND active", [cdIds]);
       const xuongCd = new Map(cd.rows.map((x) => [String(x.id), String(x.xuong)]));
@@ -85365,7 +85503,7 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
   }
 });
 async function choKhaiChiTiet(xuong, trienKhaiIds) {
-  const r = await pool.query(
+  const r = await poolMra.query(
     `SELECT e.id, e.hex, e.so_luong::float AS so_luong, e.du_lieu->>'xuong' AS xuong_chinh, tp->>'ten' AS thanh_phan,
             to_char(e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:MI') AS luc
      FROM xuong_su_kien e, jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'thanhPhan') = 'array' THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp
@@ -85393,7 +85531,7 @@ app.get("/api/xuong/khai-chi-tiet", async (req, res) => {
          WHERE hex::text = ANY($1::text[]) ORDER BY hex::text, updated_at DESC NULLS LAST`,
         [hexes]
       ) : Promise.resolve({ rows: [] }),
-      pool.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`)
+      poolMra.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`)
     ]);
     const info = new Map(sp.rows.map((x) => [String(x.hex), x]));
     res.json({
@@ -85433,7 +85571,7 @@ app.post("/api/xuong/khai-chi-tiet", async (req, res) => {
     const me2 = Number(req.user.id);
     const { ds } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
-    const kq = await withTransaction(async (client) => {
+    const kq = await withTransactionMra(async (client) => {
       const cho = await choKhaiChiTiet(xuong, [...new Set(p.data.items.map((i) => i.trienKhaiId))]);
       const conCho = new Map(cho.map((x) => [`${x.id}|${x.thanh_phan}`, x]));
       const cdIds = [...new Set(p.data.items.flatMap((i) => i.tuyen))];
@@ -85472,10 +85610,10 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
     const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
     if (!pv) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
-    await suaChoGiaoCuoiTuyen((await pool.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const soNgay = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
     const tatCa = req.query.tatCa === "1";
-    const tk = await pool.query(
+    const tk = await poolMra.query(
       `SELECT e.hex, sum(e.so_luong)::float AS sl, min(e.device_ts_hieu_chinh) AS dau, max(e.device_ts_hieu_chinh) AS cuoi,
               (array_agg(e.du_lieu->>'xuong' ORDER BY e.device_ts_hieu_chinh DESC))[1] AS xuong_chinh
        FROM xuong_su_kien e
@@ -85486,7 +85624,7 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
        GROUP BY e.hex ORDER BY max(e.device_ts_hieu_chinh) DESC LIMIT 400`,
       [xuong, String(soNgay)]
     );
-    const dangCo = await pool.query(
+    const dangCo = await poolMra.query(
       `SELECT hex, max(su_kien_cuoi) AS cuoi FROM xuong_trang_thai
        WHERE xuong = $1 AND (trang_thai <> 'xong' OR su_kien_cuoi >= now() - ($2 || ' days')::interval)
        GROUP BY hex ORDER BY max(su_kien_cuoi) DESC NULLS LAST LIMIT 400`,
@@ -85498,11 +85636,11 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
     const hexes = dsHm.map((x) => String(x.hex));
     if (!hexes.length) return res.json({ success: true, available: true, xuong, chiTo: pv.chiTo, hangMuc: [] });
     const [evRows, st, cd, toCd, info, kh] = await Promise.all([
-      suKienTheoHex(pool, hexes),
-      pool.query(`SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS g, sl_nhan::float AS n, sl_hoan_thanh::float AS h,
+      suKienTheoHex(poolMra, hexes),
+      poolMra.query(`SELECT hex, cong_doan_id, trang_thai, sl_giao_den::float AS g, sl_nhan::float AS n, sl_hoan_thanh::float AS h,
                          sl_giao::float AS gi, so_nguoi, dang_chay_tu, su_kien_cuoi FROM xuong_trang_thai WHERE hex = ANY($1::text[])`, [hexes]),
-      pool.query("SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan"),
-      pool.query(`SELECT tc.cong_doan_id, tc.to_id, t.ten_to FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id AND t.active`),
+      poolMra.query("SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan"),
+      poolMra.query(`SELECT tc.cong_doan_id, tc.to_id, t.ten_to FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id AND t.active`),
       thongTinHangMuc(hexes),
       // Kế hoạch KHSX gần nhất của hạng mục (tuần / tháng): hạng mục đang chạy có nằm trong kế hoạch không
       pool.query(
@@ -85626,8 +85764,8 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
     const [capsGoc, lich, cdR, tcR] = await Promise.all([
       taiCap(xuong, "app", toSuKien, COT_SU_KIEN, req.query.moi === "1"),
       lichCaCuaXuong(xuong),
-      pool.query(`SELECT id, cd_chi_tiet, thu_tu FROM xuong_cong_doan WHERE xuong = $1`, [xuong]),
-      pv.chiTo ? pool.query(`SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])`, [pv.chiTo]) : Promise.resolve(null)
+      poolMra.query(`SELECT id, cd_chi_tiet, thu_tu FROM xuong_cong_doan WHERE xuong = $1`, [xuong]),
+      pv.chiTo ? poolMra.query(`SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])`, [pv.chiTo]) : Promise.resolve(null)
     ]);
     const cdCuaTo = tcR ? new Set(tcR.rows.map((x) => String(x.cong_doan_id))) : null;
     const capsKy = capsGoc.filter((c) => c.dau >= t0 && c.dau < t1 && (!cdCuaTo || cdCuaTo.has(c.cd)));
@@ -85816,8 +85954,8 @@ function duBaoHangMuc(evts, moc2, xong, hanCuoi, now) {
 async function hexQuaCongDoan(hexes, cds) {
   if (!hexes.length || !cds.length) return /* @__PURE__ */ new Set();
   const [coThaoTac, tuyen] = await Promise.all([
-    pool.query(`SELECT DISTINCT hex FROM xuong_su_kien WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])`, [hexes, cds]),
-    pool.query(
+    poolMra.query(`SELECT DISTINCT hex FROM xuong_su_kien WHERE hex = ANY($1::text[]) AND cong_doan_id = ANY($2::text[])`, [hexes, cds]),
+    poolMra.query(
       `SELECT hex, du_lieu::text AS dl FROM xuong_su_kien e WHERE loai IN ('trien_khai', 'khai_bao_cd') AND hex = ANY($1::text[])
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
       [hexes]
@@ -85834,7 +85972,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
     const tuan = Number(req.query.tuan);
     const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
     if (!pv) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
-    const cdCuaTo = pv.chiTo ? (await pool.query("SELECT DISTINCT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])", [pv.chiTo])).rows.map((x) => String(x.cong_doan_id)) : null;
+    const cdCuaTo = pv.chiTo ? (await poolMra.query("SELECT DISTINCT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])", [pv.chiTo])).rows.map((x) => String(x.cong_doan_id)) : null;
     const khoang = isoWeekRangeInYear(nam, tuan);
     if (!khoang) return res.status(400).json({ success: false, message: "Tu\u1EA7n kh\xF4ng h\u1EE3p l\u1EC7" });
     await ensureWorkshopGroups();
@@ -85887,21 +86025,21 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
       ngP
     );
     const [tk, tt, ngung] = hexKh.length ? await Promise.all([
-      pool.query(
+      poolMra.query(
         `SELECT hex, sum(so_luong)::float AS sl, min(device_ts_hieu_chinh) AS luc FROM xuong_su_kien e
          WHERE loai = 'trien_khai' AND hex = ANY($1::text[]) AND upper(coalesce(du_lieu->>'xuong', xuong)) = $2
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          GROUP BY hex`,
         [hexKh, xuong]
       ),
-      pool.query(
+      poolMra.query(
         `SELECT t.hex, t.cong_doan_id, t.trang_thai, t.sl_giao_den::float AS giao_den, t.sl_nhan::float AS nhan,
                 t.sl_hoan_thanh::float AS xong, t.sl_giao::float AS giao, c.cd_chi_tiet AS ten, c.thu_tu, c.xuong
          FROM xuong_trang_thai t LEFT JOIN xuong_cong_doan c ON c.id = t.cong_doan_id
          WHERE t.hex = ANY($1::text[])`,
         [hexKh]
       ),
-      pool.query(
+      poolMra.query(
         `SELECT DISTINCT ON (hex, cong_doan_id) hex, cong_doan_id, ly_do_tam_ngung, device_ts_hieu_chinh AS luc FROM xuong_su_kien e
          WHERE loai = 'tam_ngung' AND hex = ANY($1::text[]) AND nguon = 'app'
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -85932,7 +86070,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
     const canMra = hexKh.filter((h) => !cdTheoHex.has(h));
     if (canMra.length) {
       const cuoiTuan = dauNgayVN(khoang.end) + NGAY;
-      const ev = await pool.query(
+      const ev = await poolMra.query(
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE nguon = 'mra' AND hex = ANY($1::text[]) AND cong_doan_id IS NOT NULL
            AND device_ts_hieu_chinh < to_timestamp($2::double precision / 1000)`,
         [canMra, cuoiTuan]
@@ -85945,7 +86083,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
         theoCap.get(k).push(e);
       }
       const cdIds = [...new Set([...theoCap.keys()].map((k) => k.split("|")[1]))];
-      const cdInfo = new Map(cdIds.length ? (await pool.query("SELECT id, cd_chi_tiet, thu_tu, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows.map((x) => [String(x.id), x]) : []);
+      const cdInfo = new Map(cdIds.length ? (await poolMra.query("SELECT id, cd_chi_tiet, thu_tu, xuong FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows.map((x) => [String(x.id), x]) : []);
       for (const [k, evs] of theoCap) {
         const [hex3, cd] = k.split("|");
         evs.sort((a, b) => a.ts - b.ts);
@@ -85975,13 +86113,13 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
     const now = Date.now();
     const cuoiNgay = (ngay) => dauNgayVN(ngay) + NGAY;
     if (hexKh.length && cuoiNgay(khoang.end) > now) {
-      const evApp = (await suKienTheoHex(pool, hexKh)).map(toSuKien);
+      const evApp = (await suKienTheoHex(poolMra, hexKh)).map(toSuKien);
       const cdIdsTuyen = [...new Set(evApp.flatMap((e) => {
         const tp2 = Array.isArray(e.duLieu?.thanhPhan) ? e.duLieu.thanhPhan : [];
         const t = [...tp2.flatMap((x) => Array.isArray(x?.tuyen) ? x.tuyen : []), ...Array.isArray(e.duLieu?.tuyen) ? e.duLieu.tuyen : []];
         return t.map(String);
       }))];
-      const cdR = cdIdsTuyen.length ? (await pool.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIdsTuyen])).rows : [];
+      const cdR = cdIdsTuyen.length ? (await poolMra.query("SELECT id, xuong, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIdsTuyen])).rows : [];
       const tenCd = new Map(cdR.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
       const moc2 = await mocChuanTheoCd([xuong, ...cdR.map((x) => String(x.xuong))], toSuKien, COT_SU_KIEN);
       for (const x of kh.rows) {
@@ -86043,16 +86181,17 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
 var chuaBat = (res) => res.json({ success: true, available: false });
 async function quyenTo(req, toId) {
   const me2 = Number(req.user.id);
-  const to = (await pool.query("SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1", [toId])).rows[0];
+  const to = (await poolMra.query("SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1", [toId])).rows[0];
   if (!to) return { duoc: false, quanLy: false, xuong: null };
   const xuong = String(to.xuong);
   const quanLy = quanLyDuoc(await xuongQuanLy(me2), xuong);
   if (quanLy || Number(to.to_truong_user_id) === me2) return { duoc: true, quanLy, xuong };
-  const tv = await pool.query(
-    `SELECT 1 FROM xuong_to_thanh_vien tv JOIN users u ON u.id = $2
-     WHERE tv.to_id = $1 AND u.msnv IS NOT NULL AND upper(tv.mnv) = upper(trim(u.msnv))
-       AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) LIMIT 1`,
-    [toId, me2]
+  const msnv = await msnvCua(me2);
+  if (!msnv) return { duoc: false, quanLy: false, xuong };
+  const tv = await poolMra.query(
+    `SELECT 1 FROM xuong_to_thanh_vien tv
+     WHERE tv.to_id = $1 AND upper(tv.mnv) = $2 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) LIMIT 1`,
+    [toId, msnv]
   );
   return { duoc: tv.rows.length > 0, quanLy: false, xuong };
 }
@@ -86074,7 +86213,7 @@ app.get("/api/xuong/cong-nhan/tim", async (req, res) => {
     if (q.length < 2) return res.json({ success: true, available: true, ketQua: [] });
     const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : null;
     const mau = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
        WHERE c.active AND (c.mnv ILIKE $1 OR c.ho_ten ILIKE $1) AND ($2::text IS NULL OR c.xuong = $2)
        ORDER BY (upper(c.mnv) = upper($3)) DESC, c.ho_ten LIMIT 20`,
@@ -86096,7 +86235,7 @@ app.post("/api/xuong/cong-nhan", async (req, res) => {
     if (!MNV_RE.test(mnv)) return res.status(400).json({ success: false, message: "M\xE3 nh\xE2n vi\xEAn ch\u1EC9 g\u1ED3m ch\u1EEF, s\u1ED1 (vd AAF7615)" });
     const q = await quyenTo(req, p.data.toId);
     if (!q.duoc) return res.status(403).json({ success: false, message: "Ch\u1EC9 t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c s\u1EEDa danh s\xE1ch" });
-    const cu = (await pool.query(
+    const cu = (await poolMra.query(
       `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.mnv = $1`,
       [mnv]
     )).rows[0];
@@ -86108,7 +86247,7 @@ app.post("/api/xuong/cong-nhan", async (req, res) => {
     }
     const hoTen = p.data.hoTen?.trim() || (cu ? String(cu.ho_ten) : "");
     if (!hoTen) return res.status(400).json({ success: false, message: "Nh\u1EADp h\u1ECD t\xEAn ng\u01B0\u1EDDi m\u1EDBi" });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, nguon) VALUES ($1, $2, $3, $4, 'app')
        ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, active = true, cap_nhat = now(),
          xuong = EXCLUDED.xuong, ho_ten = CASE WHEN xuong_cong_nhan.nguon = 'file' THEN xuong_cong_nhan.ho_ten ELSE EXCLUDED.ho_ten END
@@ -86128,7 +86267,7 @@ app.post("/api/xuong/cong-nhan/roi-to", async (req, res) => {
     if (!p.success) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5 / m\xE3 nh\xE2n vi\xEAn" });
     const q = await quyenTo(req, p.data.toId);
     if (!q.duoc) return res.status(403).json({ success: false, message: "Ch\u1EC9 t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c s\u1EEDa danh s\xE1ch" });
-    await pool.query(`UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE mnv = $1 AND to_id = $2`, [chuanMnv(p.data.mnv), p.data.toId]);
+    await poolMra.query(`UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE mnv = $1 AND to_id = $2`, [chuanMnv(p.data.mnv), p.data.toId]);
     res.json({ success: true, available: true });
   } catch (e) {
     fail(res, e, "/api/xuong/cong-nhan/roi-to");
@@ -86139,7 +86278,7 @@ app.get("/api/xuong/cong-nhan", async (req, res) => {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
     if (!xuong || !quanLyDuoc(await xuongQuanLy(req.user.id), xuong)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
     if (!await coBangCongNhan()) return chuaBat(res);
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT c.*, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id
        WHERE c.xuong = $1 OR t.xuong = $1 ORDER BY c.active DESC, t.ten_to NULLS LAST, c.ho_ten`,
       [xuong]
@@ -86161,17 +86300,17 @@ app.post("/api/xuong/cong-nhan/sua", async (req, res) => {
     const p = suaSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u kh\xF4ng h\u1EE3p l\u1EC7" });
     const mnv = chuanMnv(p.data.mnv);
-    const cu = (await pool.query("SELECT * FROM xuong_cong_nhan WHERE mnv = $1", [mnv])).rows[0];
+    const cu = (await poolMra.query("SELECT * FROM xuong_cong_nhan WHERE mnv = $1", [mnv])).rows[0];
     if (!cu) return res.status(404).json({ success: false, message: "Kh\xF4ng c\xF3 ng\u01B0\u1EDDi n\xE0y" });
     const ds = await xuongQuanLy(req.user.id);
     let xuongMoi = cu.xuong ?? null;
     if (p.data.toId) {
-      const to = (await pool.query("SELECT xuong FROM xuong_to WHERE id = $1", [p.data.toId])).rows[0];
+      const to = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [p.data.toId])).rows[0];
       if (!to) return res.status(404).json({ success: false, message: "T\u1ED5 kh\xF4ng t\u1ED3n t\u1EA1i" });
       xuongMoi = String(to.xuong);
     }
     if (!quanLyDuoc(ds, cu.xuong ?? null) || !quanLyDuoc(ds, xuongMoi)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
          active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
       [mnv, p.data.toId !== void 0, p.data.toId ?? null, xuongMoi, p.data.active ?? null, p.data.hoTen ?? null]
@@ -86199,7 +86338,7 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
     if (!p.success) return res.status(400).json({ success: false, message: "File kh\xF4ng \u0111\xFAng d\u1EA1ng (c\u1EA7n m\xE3 NV, h\u1ECD t\xEAn)" });
     const ds = await xuongQuanLy(req.user.id);
     if (!ds.size) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng" });
-    const toRows = (await pool.query("SELECT id, xuong, ten_to FROM xuong_to WHERE active")).rows;
+    const toRows = (await poolMra.query("SELECT id, xuong, ten_to FROM xuong_to WHERE active")).rows;
     const timTo = (xuong, ten) => {
       if (!ten) return null;
       const t = ten.trim().toUpperCase();
@@ -86223,7 +86362,7 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
       }
       hopLe.push({ mnv, hoTen: x.hoTen.trim(), xuong, toId: to ? Number(to.id) : null, chucVu: x.chucVu?.trim() || null });
     }
-    const client = await pool.connect();
+    const client = await poolMra.connect();
     let nghi = 0;
     try {
       await client.query("BEGIN");
@@ -86276,14 +86415,14 @@ var lamTron3 = (n) => Math.round(n * 1e3) / 1e3;
 var LO_TRAM_TOI_DA = 200;
 var chuaBat2 = (res) => res.json({ success: true, available: false, message: "Ch\u01B0a b\u1EADt tr\u1EA1m qu\xE9t (ch\u01B0a ch\u1EA1y SQL 2026-10-16_xuong_tram.sql)" });
 async function quyenTo2(req, toId) {
-  const r = await pool.query("SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1 AND active", [toId]);
+  const r = await poolMra.query("SELECT xuong, to_truong_user_id FROM xuong_to WHERE id = $1 AND active", [toId]);
   const to = r.rows[0];
   if (!to) return null;
   const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(to.xuong));
   if (quanLy || Number(to.to_truong_user_id) === Number(req.user.id)) return { xuong: String(to.xuong), quanLy };
   return null;
 }
-async function tramCuaToi(req, db = pool) {
+async function tramCuaToi(req, db = poolMra) {
   const u = req.user;
   if (u.scope !== "tram" || !u.did || !u.to) return { loi: "Token tr\u1EA1m kh\xF4ng h\u1EE3p l\u1EC7" };
   const r = await db.query(
@@ -86309,11 +86448,11 @@ app.post("/api/xuong/tram/dang-ky", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const quyen = await quyenTo2(req, p.data.toId);
     if (!quyen) return res.status(403).json({ success: false, message: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng ho\u1EB7c t\u1ED5 tr\u01B0\u1EDFng c\u1EE7a t\u1ED5 \u0111\u01B0\u1EE3c \u0111\u0103ng k\xFD tr\u1EA1m" });
-    const cdTo = (await pool.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [p.data.toId])).rows.map((x) => String(x.cong_doan_id));
+    const cdTo = (await poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [p.data.toId])).rows.map((x) => String(x.cong_doan_id));
     const congDoan = [...new Set(p.data.congDoan)];
     if (congDoan.some((c) => !cdTo.includes(c))) return res.status(400).json({ success: false, message: "C\xF4ng \u0111o\u1EA1n kh\xF4ng thu\u1ED9c t\u1ED5" });
     const deviceId = newDeviceId();
-    await pool.query(
+    await poolMra.query(
       `INSERT INTO xuong_phien_thiet_bi (device_id, user_id, loai, to_id, cong_doan, ten) VALUES ($1, $2, 'tram', $3, $4, $5)`,
       [deviceId, Number(req.user.id), p.data.toId, congDoan, p.data.ten || null]
     );
@@ -86334,12 +86473,12 @@ app.get("/api/xuong/tram/ds", async (req, res) => {
     const toId = Number(req.query.toId);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\u1ED5" });
     if (!await quyenTo2(req, toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n v\u1EDBi t\u1ED5 n\xE0y" });
-    const r = await pool.query(
-      `SELECT p.device_id, p.ten, p.cong_doan, p.lan_dau, p.lan_cuoi, p.thu_hoi, u.full_name, u.username
-       FROM xuong_phien_thiet_bi p LEFT JOIN users u ON u.id = p.user_id
-       WHERE p.loai = 'tram' AND p.to_id = $1 ORDER BY p.thu_hoi, p.lan_dau DESC`,
+    const r = await poolMra.query(
+      `SELECT p.device_id, p.ten, p.cong_doan, p.lan_dau, p.lan_cuoi, p.thu_hoi, p.user_id
+       FROM xuong_phien_thiet_bi p WHERE p.loai = 'tram' AND p.to_id = $1 ORDER BY p.thu_hoi, p.lan_dau DESC`,
       [toId]
     );
+    const nd = await nguoiDungTheoId(r.rows.map((x) => x.user_id));
     res.json({
       success: true,
       available: true,
@@ -86350,7 +86489,7 @@ app.get("/api/xuong/tram/ds", async (req, res) => {
         lanDau: x.lan_dau,
         lanCuoi: x.lan_cuoi,
         thuHoi: !!x.thu_hoi,
-        nguoiDangKy: x.full_name || x.username || null
+        nguoiDangKy: tenNguoi(nd.get(Number(x.user_id)))
       }))
     });
   } catch (e) {
@@ -86361,11 +86500,11 @@ app.post("/api/xuong/tram/thu-hoi", async (req, res) => {
   try {
     if (!await coBangTram()) return chuaBat2(res);
     const deviceId = typeof req.body?.deviceId === "string" ? req.body.deviceId : "";
-    const r = await pool.query(`SELECT to_id FROM xuong_phien_thiet_bi WHERE device_id = $1 AND loai = 'tram' LIMIT 1`, [deviceId]).catch(() => ({ rows: [] }));
+    const r = await poolMra.query(`SELECT to_id FROM xuong_phien_thiet_bi WHERE device_id = $1 AND loai = 'tram' LIMIT 1`, [deviceId]).catch(() => ({ rows: [] }));
     const toId = Number(r.rows[0]?.to_id);
     if (!toId) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y tr\u1EA1m" });
     if (!await quyenTo2(req, toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n v\u1EDBi t\u1ED5 n\xE0y" });
-    await pool.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE device_id = $1 AND loai = 'tram'`, [deviceId]);
+    await poolMra.query(`UPDATE xuong_phien_thiet_bi SET thu_hoi = true WHERE device_id = $1 AND loai = 'tram'`, [deviceId]);
     res.json({ success: true, available: true });
   } catch (e) {
     fail(res, e, "/api/xuong/tram/thu-hoi");
@@ -86381,7 +86520,7 @@ app.post("/api/xuong/to/:id/che-do", async (req, res) => {
     const quyen = await quyenTo2(req, toId);
     if (!quyen?.quanLy) return res.status(403).json({ success: false, message: "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c \u0111\u1ED5i ch\u1EBF \u0111\u1ED9 ch\u1EA5m c\u1EE7a t\u1ED5" });
     const tuNgay = req.body?.homNay === true ? ngayCa(Date.now()) : ngayCaKeTiep(Date.now());
-    await withTransaction(async (client) => {
+    await withTransactionMra(async (client) => {
       await client.query("DELETE FROM xuong_to_che_do WHERE to_id = $1 AND tu_ngay = $2::date", [toId, tuNgay]);
       await client.query(
         "INSERT INTO xuong_to_che_do (to_id, che_do, tu_ngay, nguoi_doi) VALUES ($1, $2, $3::date, $4)",
@@ -86389,7 +86528,7 @@ app.post("/api/xuong/to/:id/che-do", async (req, res) => {
       );
       await client.query("UPDATE xuong_to SET che_do_cham = $2 WHERE id = $1", [toId, cheDo]);
     });
-    const dang = cheDo === "tram" ? (await pool.query(
+    const dang = cheDo === "tram" ? (await poolMra.query(
       `SELECT t.hex, t.cong_doan_id FROM xuong_trang_thai t JOIN xuong_to_cong_doan tc ON tc.cong_doan_id = t.cong_doan_id
        WHERE tc.to_id = $1 AND t.trang_thai = 'dang_lam'`,
       [toId]
@@ -86400,18 +86539,18 @@ app.post("/api/xuong/to/:id/che-do", async (req, res) => {
   }
 });
 async function soTramCuaTo(toId, tu, den) {
-  const r = await pool.query(
+  const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca','nguoi_vao','nguoi_ra') AND device_ts_hieu_chinh BETWEEN $2 AND $3`,
     [toId, new Date(tu).toISOString(), new Date(den).toISOString()]
   );
   const rows = r.rows.filter((x) => laSuKienTram(toSuKien(x)));
-  const huy = rows.length ? (await pool.query(
+  const huy = rows.length ? (await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien WHERE loai = 'huy' AND sua_cho = ANY($1::uuid[])`,
     [rows.map((x) => String(x.id))]
   )).rows : [];
   const hexes = [...new Set(rows.filter((x) => x.hex).map((x) => String(x.hex)))];
-  const sl = (await suKienTheoHex(pool, hexes)).filter((x) => x.loai === "nhan" || x.loai === "hoan_thanh" || x.loai === "huy");
+  const sl = (await suKienTheoHex(poolMra, hexes)).filter((x) => x.loai === "nhan" || x.loai === "hoan_thanh" || x.loai === "huy");
   const theoId = /* @__PURE__ */ new Map();
   for (const x of [...rows, ...huy, ...sl]) theoId.set(String(x.id), x);
   return [...theoId.values()].map(toSuKien);
@@ -86421,41 +86560,41 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     if (!await coBangTram()) return chuaBat2(res);
     const t = await tramCuaToi(req);
     if ("loi" in t) return res.status(401).json({ success: false, message: t.loi, dangKyLai: true });
-    pool.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
+    poolMra.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
     });
     const now = Date.now();
     const ngay = ngayCa(now);
     const [toRow, cdRows, lichCa, tangCa, moc2] = await Promise.all([
-      pool.query("SELECT ten_to FROM xuong_to WHERE id = $1", [t.toId]),
-      pool.query(
+      poolMra.query("SELECT ten_to FROM xuong_to WHERE id = $1", [t.toId]),
+      poolMra.query(
         `SELECT c.id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
          WHERE tc.to_id = $1 AND c.active ORDER BY c.thu_tu, c.cd_chi_tiet`,
         [t.toId]
       ),
       lichCaCuaXuong(t.xuong),
-      pool.query(
+      poolMra.query(
         `SELECT DISTINCT du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e
          WHERE to_id = $1 AND loai = 'tang_ca' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
         [t.toId, ngay]
       ),
-      mocCheDo(pool, [t.toId])
+      mocCheDo(poolMra, [t.toId])
     ]);
     const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay);
     const cds = cdRows.rows.map((x) => String(x.id));
     const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
-    const st = await soTram(pool, evs, "so_khop", now);
+    const st = await soTram(poolMra, evs, "so_khop", now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
     const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
     const oHang = new Set(dangO.flatMap(([, ds]) => ds));
     const chuaVaoHang = [...new Set(coMat)].filter((m) => !oHang.has(m));
-    const hm = cds.length ? (await pool.query(
+    const hm = cds.length ? (await poolMra.query(
       `SELECT hex, cong_doan_id, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh FROM xuong_trang_thai
        WHERE cong_doan_id = ANY($1::text[]) AND (sl_nhan > sl_hoan_thanh OR sl_giao_den > sl_nhan)`,
       [cds]
     )).rows : [];
-    const ghNhan = await gioiHanNhan(pool, hm.filter((x) => Number(x.sl_giao_den) > Number(x.sl_nhan)).map((x) => [String(x.hex), String(x.cong_doan_id)]));
+    const ghNhan = await gioiHanNhan(poolMra, hm.filter((x) => Number(x.sl_giao_den) > Number(x.sl_nhan)).map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const conNhanCua = (x) => {
       const g = ghNhan.get(`${x.hex}|${x.cong_doan_id}`);
       let con = Number(x.sl_giao_den) - Number(x.sl_nhan);
@@ -86465,7 +86604,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     const mnvs = [.../* @__PURE__ */ new Set([...oHang, ...chuaVaoHang])];
     const [info, ten] = await Promise.all([
       thongTinHangMuc([.../* @__PURE__ */ new Set([...hm.map((x) => String(x.hex)), ...dangO.map(([k]) => k.split("|")[0])])]),
-      mnvs.length ? pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] })
+      mnvs.length ? poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] })
     ]);
     const hoTen = new Map(ten.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
     const nguoi = (m) => ({ mnv: m, hoTen: hoTen.get(m) ?? m });
@@ -86508,7 +86647,7 @@ app.get("/api/xuong/tram/may/cong-nhan", async (req, res) => {
     if (!await coBangTram()) return chuaBat2(res);
     const t = await tramCuaToi(req);
     if ("loi" in t) return res.status(401).json({ success: false, message: t.loi, dangKyLai: true });
-    const r = await pool.query(
+    const r = await poolMra.query(
       `SELECT c.mnv, c.ho_ten, c.to_id, t.ten_to FROM xuong_cong_nhan c LEFT JOIN xuong_to t ON t.id = c.to_id WHERE c.active`
     );
     res.json({
@@ -86520,7 +86659,7 @@ app.get("/api/xuong/tram/may/cong-nhan", async (req, res) => {
     fail(res, e, "/api/xuong/tram/may/cong-nhan");
   }
 });
-var laCongNhan = async (mnv) => (await pool.query("SELECT 1 FROM xuong_cong_nhan WHERE active AND mnv = $1", [mnv])).rows.length > 0;
+var laCongNhan = async (mnv) => (await poolMra.query("SELECT 1 FROM xuong_cong_nhan WHERE active AND mnv = $1", [mnv])).rows.length > 0;
 var loTramSchema = external_exports.object({
   deviceToken: external_exports.string().max(200),
   events: external_exports.array(external_exports.unknown()).min(1).max(LO_TRAM_TOI_DA)
@@ -86569,8 +86708,8 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
     }
     const mnvs = [...new Set(hopLe.map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x))];
     const [cn, cdRows] = await Promise.all([
-      mnvs.length ? pool.query("SELECT mnv FROM xuong_cong_nhan WHERE active AND mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
-      pool.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [t.toId])
+      mnvs.length ? poolMra.query("SELECT mnv FROM xuong_cong_nhan WHERE active AND mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
+      poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = $1", [t.toId])
     ]);
     const cdCuaTo = new Set(cdRows.rows.map((x) => String(x.cong_doan_id)));
     const capLo = [...new Map(hopLe.filter((e) => ["nguoi_vao", "nhan", "hoan_thanh"].includes(e.loai) && e.hex && e.congDoanId).map((e) => [pairKey(e.hex, e.congDoanId), [e.hex, e.congDoanId]])).values()];
@@ -86578,7 +86717,7 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
     const lamDuoc = /* @__PURE__ */ new Set();
     let ghNhan = /* @__PURE__ */ new Map();
     if (capLo.length) {
-      const tt = await pool.query(
+      const tt = await poolMra.query(
         `SELECT t.hex, t.cong_doan_id, t.sl_giao_den, t.sl_nhan, t.sl_hoan_thanh FROM xuong_trang_thai t
          JOIN unnest($1::text[], $2::text[]) AS c(hex, cd) ON c.hex = t.hex AND c.cd = t.cong_doan_id`,
         [capLo.map((x) => x[0]), capLo.map((x) => x[1])]
@@ -86588,13 +86727,13 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
         soCap.set(k, { den: Number(x.sl_giao_den), nhan: Number(x.sl_nhan), ht: Number(x.sl_hoan_thanh) });
         if (Number(x.sl_nhan) > Number(x.sl_hoan_thanh) + SAI_SO) lamDuoc.add(k);
       }
-      if (hopLe.some((e) => e.loai === "nhan")) ghNhan = await gioiHanNhan(pool, capLo.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
+      if (hopLe.some((e) => e.loai === "nhan")) ghNhan = await gioiHanNhan(poolMra, capLo.filter(([h, c]) => hopLe.some((e) => e.loai === "nhan" && e.hex === h && e.congDoanId === c)));
     }
     const ctx = { congNhan: new Set(cn.rows.map((x) => String(x.mnv))), cdCuaTo, lamDuoc };
     const duocKhai = hopLe.filter((e) => typeof e.duLieu?.khaiBoi === "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x);
     const daVaoCa = new Set(hopLe.filter((e) => e.loai === "vao_ca" && typeof e.duLieu?.khaiBoi !== "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x));
     if (duocKhai.length) {
-      const r = await pool.query(
+      const r = await poolMra.query(
         `SELECT DISTINCT du_lieu->>'mnv' AS mnv FROM xuong_su_kien e
          WHERE loai = 'vao_ca' AND du_lieu->>'tram' = 'true' AND du_lieu->>'mnv' = ANY($1::text[])
            AND NOT (du_lieu ? 'khaiBoi') AND device_ts_hieu_chinh >= $2
@@ -86686,12 +86825,90 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
         co
       });
     }
-    if (ghi.length) await withTransaction((client) => ghiVaTinhLai(client, ghi));
-    pool.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
+    if (ghi.length) await withTransactionMra((client) => ghiVaTinhLai(client, ghi));
+    poolMra.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
     });
     res.json({ success: true, available: true, saved: ghi.map((x) => String(x.id)), rejected: tuChoi, serverNow, token: giaHan(req, t) });
   } catch (e) {
     fail(res, e, "/api/xuong/tram/may/events");
+  }
+});
+app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
+  try {
+    if (!await coBangTram()) return chuaBat2(res);
+    if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
+    const toId = Number(req.params.id);
+    if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
+    if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
+    const pv = await phamViXem(req.user.id, String(toRow.xuong));
+    if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
+    const now = Date.now();
+    const ngay = ngayCa(now);
+    const dauNgay = Date.parse(`${ngay}T06:00:00+07:00`);
+    const evs = await soTramCuaTo(toId, now - 4 * 864e5, now + 6e4);
+    const st = await soTram(poolMra, evs, "so_khop", now);
+    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId);
+    const cdRows = (await poolMra.query(
+      `SELECT c.id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id WHERE tc.to_id = $1`,
+      [toId]
+    )).rows;
+    const cds = cdRows.map((x) => String(x.id));
+    const [cn, vao, hm] = await Promise.all([
+      poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE active AND to_id = $1 ORDER BY ho_ten", [toId]),
+      // Có mặt hôm nay ở tổ (vào ca ở trạm hoặc điểm danh tay)
+      poolMra.query(
+        `SELECT du_lieu FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'vao_ca' AND device_ts_hieu_chinh >= $2
+           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+        [toId, new Date(dauNgay - 36e5 * 1.5).toISOString()]
+      ),
+      cds.length ? poolMra.query(
+        `SELECT hex, cong_doan_id, trang_thai, sl_nhan, sl_hoan_thanh FROM xuong_trang_thai
+         WHERE cong_doan_id = ANY($1::text[]) AND sl_nhan > sl_hoan_thanh`,
+        [cds]
+      ) : Promise.resolve({ rows: [] })
+    ]);
+    const coMat = new Set(vao.rows.flatMap((x) => nguoiTrongSuKien(x.du_lieu).map((n) => n.mnv)));
+    const tenCd = new Map(cdRows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+    const conLam = new Set(hm.rows.map((x) => pairKey(String(x.hex), String(x.cong_doan_id))));
+    const hang = (d) => ({ key: d.key, hex: d.hex, congDoanId: d.congDoanId, ...d.nguon ? { nguon: d.nguon } : {} });
+    const mnvs = [.../* @__PURE__ */ new Set([...cn.rows.map((x) => String(x.mnv)), ...coMat, ...doan.filter((d) => d.end === null).map((d) => d.mnv)])];
+    const tenThem = mnvs.filter((m) => !cn.rows.some((x) => String(x.mnv) === m));
+    const hoTen = new Map(cn.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
+    if (tenThem.length) for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [tenThem])).rows) hoTen.set(String(x.mnv), String(x.ho_ten));
+    const info = await thongTinHangMuc([.../* @__PURE__ */ new Set([...hm.rows.map((x) => String(x.hex)), ...doan.map((d) => d.hex)])]);
+    const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(toRow.xuong));
+    const laToTruong = (await toTruongCua(req.user.id)).some((x) => x.id === toId);
+    res.json({
+      success: true,
+      available: true,
+      ngay,
+      serverNow: now,
+      suaDuoc: quanLy || laToTruong,
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
+      nguoi: mnvs.map((m) => {
+        const dang = doan.find((d) => d.mnv === m && d.end === null);
+        const truoc = doan.filter((d) => d.mnv === m && d.start < dauNgay).sort((a, b) => b.start - a.start)[0];
+        return {
+          mnv: m,
+          hoTen: hoTen.get(m) ?? m,
+          coMat: coMat.has(m),
+          dangO: dang ? hang(dang) : null,
+          // Hàng làm dở lần trước — chỉ gợi ý nếu hàng đó còn làm được
+          homQua: truoc && conLam.has(truoc.key) ? hang(truoc) : null
+        };
+      }).sort((a, b) => Number(b.coMat) - Number(a.coMat) || a.hoTen.localeCompare(b.hoTen)),
+      hangMuc: hm.rows.map((x) => ({
+        key: pairKey(String(x.hex), String(x.cong_doan_id)),
+        hex: String(x.hex),
+        congDoanId: String(x.cong_doan_id),
+        tenHangMuc: info.get(String(x.hex))?.ten_hang_muc ?? null,
+        tenCongDoan: tenCd.get(String(x.cong_doan_id)) ?? null,
+        trangThai: x.trang_thai
+      }))
+    });
+  } catch (e) {
+    fail(res, e, "/api/xuong/to/:id/phan-cong");
   }
 });
 app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
@@ -86702,32 +86919,36 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     const now = Date.now();
     const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const toRow = (await pool.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
+    const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const dau = Date.parse(`${ngay}T05:00:00+07:00`);
     const cuoi = dau + 25 * 36e5;
     const evs = await soTramCuaTo(toId, dau, cuoi);
-    const st = await soTram(pool, evs, "so_khop", now);
+    const st = await soTram(poolMra, evs, "so_khop", now);
     const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay);
     const hl = suKienConHieuLuc(evs);
     const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
     const coMat = Object.values(doanCoMat(dd)).flat().filter((d) => !!d);
     const mnvs = [.../* @__PURE__ */ new Set([...doan.map((d) => d.mnv), ...coMat.map((d) => d.mnv)])];
     const [ten, info] = await Promise.all([
-      mnvs.length ? pool.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
+      mnvs.length ? poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [mnvs]) : Promise.resolve({ rows: [] }),
       thongTinHangMuc([...new Set(doan.map((d) => d.hex))])
     ]);
     const hoTen = new Map(ten.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
     const quanLy = quanLyDuoc(await xuongQuanLy(req.user.id), String(toRow.xuong));
     const laToTruong = (await toTruongCua(req.user.id)).some((x) => x.id === toId);
+    const gioTheoNguon = { quet: 0, phan_cong: 0, tu_gan: 0, ghi_ho: 0 };
+    for (const d of doan) gioTheoNguon[d.nguon] += Math.max(0, ((d.end ?? now) - d.start) / 36e5);
+    for (const k of Object.keys(gioTheoNguon)) gioTheoNguon[k] = Math.round(gioTheoNguon[k] * 100) / 100;
     res.json({
       success: true,
       available: true,
       ngay,
       serverNow: now,
-      cheDo: cheDoTheoNgay(await mocCheDo(pool, [toId]))(toId, ngay),
+      gioTheoNguon,
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
       // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
       suaDuoc: quanLy || laToTruong,
       nguoi: mnvs.sort().map((m) => {

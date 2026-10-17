@@ -1,7 +1,7 @@
 import type { CuaSo, DoanChay, LoaiCa, SuKien } from './types.js';
 import { pairKey } from './types.js';
 import type { DoanCoMat, ThayDoiSoNguoi } from './allocation.js';
-import { chuanMnv, MNV_RE } from './chamCong.js';
+import { chuanMnv, MNV_RE, nguoiTrongSuKien } from './chamCong.js';
 import { soSanhSuKien, tinhTrangThai } from './state.js';
 
 // ============================================================================
@@ -172,6 +172,74 @@ export interface DoanNguoi {
   /** id sự kiện nguoi_vao mở đoạn / sự kiện đóng đoạn (để Sửa ngày huỷ) */
   suKienVao: string;
   suKienRa: string | null;
+  /** Nguồn đoạn: quét ở trạm, tổ trưởng phân công, hệ thống tự gán theo hàng hôm trước, tổ trưởng / quản lý ghi hộ */
+  nguon: NguonDoan;
+}
+export type NguonDoan = 'quet' | 'phan_cong' | 'tu_gan' | 'ghi_ho';
+export const nguonCua = (e: Pick<SuKien, 'duLieu'>): NguonDoan =>
+  e.duLieu?.tuGan === true ? 'tu_gan' : e.duLieu?.phanCong === true ? 'phan_cong' : e.duLieu?.ghiHo === true ? 'ghi_ho' : 'quet';
+
+// ---------------------------------------------------------------------------
+// Phân công đầu ca + tự gán (giai đoạn A — công nhân gần như không thao tác)
+// ---------------------------------------------------------------------------
+/** Có mặt mà sau mốc này chưa ở hàng nào → tự gán vào hàng đang làm dở lần trước (cờ "tự gán", tổ trưởng xác nhận) */
+export const TU_GAN_SAU_MS = 30 * 60_000;
+
+/**
+ * Chuẩn bị sổ trước khi chuyển đổi (tính lúc đọc, không ghi sự kiện):
+ *  - Phân công của tổ trưởng (nguoi_vao có du_lieu.phanCong) chỉ có hiệu lực khi người đó có mặt trong ngày ca: dời tới
+ *    lúc vào ca nếu phân công trước khi tới; vắng cả ngày thì bỏ (không cộng giờ cho người vắng).
+ *  - Có mặt quá 30 phút mà chưa có lần vào hàng nào (quét / phân công / ghi hộ) trong 30 phút đầu, chưa ra ca: tự gán từ
+ *    lúc vào ca vào hàng gần nhất người đó làm trước hôm nay, nếu hàng đó chưa xong hết số đã nhận.
+ * Có mặt = vao_ca (trạm hoặc điểm danh tay) — sau này nạp từ máy chấm công.
+ */
+export function boSungPhanCongTuGan(evts: SuKien[], now: number): SuKien[] {
+  const ds = [...evts].sort(soSanhSuKien);
+  // Lúc có mặt đầu tiên theo (mã NV, ngày ca)
+  const coMat = new Map<string, number>();
+  for (const e of ds) {
+    if (e.loai !== 'vao_ca') continue;
+    for (const n of nguoiTrongSuKien(e.duLieu)) {
+      const t = n.luc ?? e.ts;
+      const k = `${n.mnv}|${ngayCa(t)}`;
+      if (!coMat.has(k) || coMat.get(k)! > t) coMat.set(k, t);
+    }
+  }
+  const out: SuKien[] = [];
+  for (const e of ds) {
+    if (e.loai === 'nguoi_vao' && e.duLieu?.phanCong === true) {
+      const mnv = mnvCua(e);
+      const p = mnv ? coMat.get(`${mnv}|${ngayCa(e.ts)}`) : undefined;
+      if (p === undefined) continue; // chưa / không có mặt trong ngày ca: phân công chưa có hiệu lực
+      out.push(p > e.ts ? { ...e, ts: p } : e);
+      continue;
+    }
+    out.push(e);
+  }
+  // Tự gán
+  const vaoHang = out.filter(e => e.loai === 'nguoi_vao' && e.hex && e.congDoanId && mnvCua(e));
+  const raCa = out.filter(e => e.loai === 'ra_ca' && mnvCua(e));
+  for (const [k, p] of coMat) {
+    const [mnv, ngay] = k.split('|');
+    if (now < p + TU_GAN_SAU_MS) continue;
+    if (vaoHang.some(e => mnvCua(e) === mnv && ngayCa(e.ts) === ngay && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    if (raCa.some(e => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    const truoc = vaoHang.filter(e => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay).sort(soSanhSuKien).pop();
+    if (!truoc) continue;
+    // Hàng đó đã xong hết số đã nhận trước lúc vào ca thì không gán
+    let nhan = 0, ht = 0;
+    for (const e of out) {
+      if (e.hex !== truoc.hex || e.congDoanId !== truoc.congDoanId || e.ts > p) continue;
+      if (e.loai === 'nhan') nhan += e.soLuong ?? 0;
+      if (e.loai === 'hoan_thanh') ht += e.soLuong ?? 0;
+    }
+    if (nhan > 0 && ht >= nhan) continue;
+    out.push({
+      ...truoc, id: `tugan:${mnv}:${ngay}`, ts: p, serverTs: p, suaCho: null,
+      duLieu: { mnv, tram: true, tuGan: true },
+    });
+  }
+  return out.sort(soSanhSuKien);
 }
 
 export interface KetQuaTram {
@@ -262,7 +330,7 @@ export function chuyenDoiTram(evts: SuKien[], opts: TuyChonTram): KetQuaTram {
     for (const [mnv, m] of den) dong(mnv, m.tuDong, 'tu_dong', null);
   };
 
-  for (const e of [...evts].sort(soSanhSuKien)) {
+  for (const e of boSungPhanCongTuGan(evts, opts.now)) {
     tuDongDen(e.ts);
     if (e.loai === 'nhan' || e.loai === 'hoan_thanh') {
       if (!e.hex || !e.congDoanId) continue;
@@ -283,11 +351,15 @@ export function chuyenDoiTram(evts: SuKien[], opts: TuyChonTram): KetQuaTram {
       if (!e.hex || !e.congDoanId) continue;
       const key = pairKey(e.hex, e.congDoanId);
       const dang = mo.get(mnv);
-      if (dang?.d.key === key) continue; // đã ở hàng này
+      if (dang?.d.key === key) {
+        // Đã ở hàng này; tự gán được tổ trưởng / người đó xác nhận (phân công, quét, ghi hộ) thì đổi nguồn đoạn
+        if (dang.d.nguon === 'tu_gan' && nguonCua(e) !== 'tu_gan') dang.d.nguon = nguonCua(e);
+        continue;
+      }
       if (dang) dong(mnv, e.ts, 'doi_hang', e.id);
       const d: DoanNguoi = {
         mnv, key, hex: e.hex, congDoanId: e.congDoanId, toId: e.toId, start: e.ts, end: null, ketThuc: null,
-        suKienVao: e.id, suKienRa: null,
+        suKienVao: e.id, suKienRa: null, nguon: nguonCua(e),
       };
       doanNguoi.push(d);
       const td = mocTuDong(khoiCua(e.toId), e.ts);
@@ -312,7 +384,8 @@ export function chuyenDoiTram(evts: SuKien[], opts: TuyChonTram): KetQuaTram {
   }
   const dangO: Record<string, string[]> = {};
   for (const [k, set] of oHang) if (set.size) dangO[k] = [...set].sort();
-  return { doanNguoi, soNguoi, doanChay, suKienGia, dangO };
+  // Tự gán bị tổ trưởng báo "không làm" (ra ngay tại mốc gán): bỏ đoạn rỗng
+  return { doanNguoi: doanNguoi.filter(d => !(d.nguon === 'tu_gan' && d.end !== null && d.end <= d.start)), soNguoi, doanChay, suKienGia, dangO };
 }
 
 // ---------------------------------------------------------------------------

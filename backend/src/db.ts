@@ -8,8 +8,7 @@ types.setTypeParser(1082, (val: string) => val);
 // Bỏ tham số sslmode khỏi chuỗi kết nối: SSL đã cấu hình riêng ở `ssl` bên dưới. pg hiện cảnh báo sslmode=require
 // sẽ bị hiểu là verify-full ở bản pg sau (kiểm tra chứng chỉ) => có thể không kết nối được pooler; bỏ đi thì `ssl`
 // bên dưới quyết định (production: mã hoá, không kiểm tra chứng chỉ — như hiện tại).
-const connectionString = (() => {
-  const raw = process.env.DATABASE_URL;
+const boSslmode = (raw: string | undefined) => {
   if (!raw) return raw;
   try {
     const u = new URL(raw);
@@ -19,7 +18,8 @@ const connectionString = (() => {
   } catch {
     return raw;
   }
-})();
+};
+const connectionString = boSslmode(process.env.DATABASE_URL);
 
 export const pool = new Pool({
   connectionString,
@@ -72,28 +72,62 @@ pool.on('error', (err) => {
 const isPoolerFull = (err: unknown) =>
   /max_client_conn|too many clients|remaining connection slots/i.test(String((err as Error)?.message ?? err));
 const CONNECT_RETRY_DELAYS_MS = [250, 500, 900, 1400];
-const rawConnect = pool.connect.bind(pool) as () => Promise<PoolClient>;
-const connectWithRetry = async (): Promise<PoolClient> => {
-  for (let i = 0; ; i++) {
-    try {
-      return await rawConnect();
-    } catch (err) {
-      if (!isPoolerFull(err) || i >= CONNECT_RETRY_DELAYS_MS.length) throw err;
-      await new Promise(r => setTimeout(r, CONNECT_RETRY_DELAYS_MS[i]));
+function boRetry(p: Pool) {
+  const rawConnect = p.connect.bind(p) as () => Promise<PoolClient>;
+  const connectWithRetry = async (): Promise<PoolClient> => {
+    for (let i = 0; ; i++) {
+      try {
+        return await rawConnect();
+      } catch (err) {
+        if (!isPoolerFull(err) || i >= CONNECT_RETRY_DELAYS_MS.length) throw err;
+        await new Promise(r => setTimeout(r, CONNECT_RETRY_DELAYS_MS[i]));
+      }
     }
-  }
-};
-// pg-pool gọi this.connect(cb) (kiểu callback) bên trong pool.query; code dự án gọi kiểu promise
-(pool as unknown as { connect: unknown }).connect = (cb?: (err: Error | undefined, client?: PoolClient, done?: PoolClient["release"]) => void) => {
-  if (typeof cb === 'function') {
-    connectWithRetry().then(
-      client => cb(undefined, client, client.release),
-      err => cb(err as Error),
-    );
-    return undefined;
-  }
-  return connectWithRetry();
-};
+  };
+  // pg-pool gọi this.connect(cb) (kiểu callback) bên trong pool.query; code dự án gọi kiểu promise
+  (p as unknown as { connect: unknown }).connect = (cb?: (err: Error | undefined, client?: PoolClient, done?: PoolClient["release"]) => void) => {
+    if (typeof cb === 'function') {
+      connectWithRetry().then(
+        client => cb(undefined, client, client.release),
+        err => cb(err as Error),
+      );
+      return undefined;
+    }
+    return connectWithRetry();
+  };
+}
+boRetry(pool);
+
+// ============================================================================
+// DỮ LIỆU MRA (mục Xưởng — bảng xuong_*) Ở SUPABASE (backend/sql/supabase/2026-10-16_mra_supabase.sql).
+// DATABASE_URL_MRA = chuỗi "Transaction pooler" (cổng 6543) của project Supabase, vùng us-east-1 (cạnh hàm iad1).
+// Chưa đặt biến: poolMra = pool (bảng Xưởng vẫn ở Layerbase như trước). users / dữ liệu sản xuất luôn ở `pool`.
+// ============================================================================
+const urlMra = boSslmode(process.env.DATABASE_URL_MRA);
+export const coDbMra = !!urlMra;
+export const poolMra: Pool = urlMra ? new Pool({
+  connectionString: urlMra,
+  // Supabase luôn bắt SSL (kể cả chạy ở máy)
+  ssl: { rejectUnauthorized: false },
+  max: 2,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
+  idleTimeoutMillis: 1000,
+  connectionTimeoutMillis: 15000,
+  application_name: 'vercel-backend-mra',
+  allowExitOnIdle: false,
+}) : pool;
+if (poolMra !== pool) {
+  poolMra.on('connect', (client) => {
+    client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
+      console.error('Không set được statement_timeout (MRA):', err.message);
+    });
+  });
+  poolMra.on('error', (err) => {
+    console.error('Unexpected DB error on idle client (MRA):', err);
+  });
+  boRetry(poolMra);
+}
 
 // ============================================================================
 // Semaphore: giới hạn số query "nặng" chạy đồng thời trên mỗi instance,
@@ -191,7 +225,16 @@ export async function timedQuery<T extends QueryResultRow = any>(
  * Trong `fn` phải dùng `client.query`, KHÔNG dùng pool.query (sẽ chạy ngoài transaction).
  */
 export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
+  return giaoDich(pool, fn);
+}
+
+/** Như withTransaction nhưng trên DB MRA (bảng xuong_*). Không ghi bảng Layerbase (users…) trong `fn`. */
+export async function withTransactionMra<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  return giaoDich(poolMra, fn);
+}
+
+async function giaoDich<T>(p: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await p.connect();
   try {
     await client.query('BEGIN');
     const result = await fn(client);
@@ -208,6 +251,7 @@ export async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>)
 process.on('SIGINT', async () => {
   console.log('Closing PostgreSQL pool...');
   await pool.end();
+  if (poolMra !== pool) await poolMra.end();
   console.log('PostgreSQL pool closed.');
   process.exit(0);
 });
