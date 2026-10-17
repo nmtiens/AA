@@ -224,6 +224,9 @@ export function boSungPhanCongTuGan(evts: SuKien[], now: number): SuKien[] {
     if (now < p + TU_GAN_SAU_MS) continue;
     if (vaoHang.some(e => mnvCua(e) === mnv && ngayCa(e.ts) === ngay && e.ts <= p + TU_GAN_SAU_MS)) continue;
     if (raCa.some(e => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    // Tổ trưởng báo "Không làm" cho lần tự gán ngày này (Sửa ngày) — không phụ thuộc giờ ghi
+    if (out.some(e => e.loai === 'nguoi_ra' && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv
+      && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay)) continue;
     const truoc = vaoHang.filter(e => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay).sort(soSanhSuKien).pop();
     if (!truoc) continue;
     // Hàng đó đã xong hết số đã nhận trước lúc vào ca thì không gán
@@ -372,6 +375,9 @@ export function chuyenDoiTram(evts: SuKien[], opts: TuyChonTram): KetQuaTram {
       set.add(mnv);
       doiHang(key, d, e.ts, truoc, false);
     } else if (e.loai === 'nguoi_ra' || e.loai === 'ra_ca') {
+      if (e.duLieu?.tuChoiTuGan === true) continue; // chỉ là cờ cho boSungPhanCongTuGan
+      // Ra khỏi một hàng cụ thể (trạm, ghi hộ lùi giờ): người đó lúc ấy không ở hàng này thì bỏ qua
+      if (e.loai === 'nguoi_ra' && e.hex && e.congDoanId && mo.get(mnv) && mo.get(mnv)!.d.key !== pairKey(e.hex, e.congDoanId)) continue;
       dong(mnv, e.ts, 'ra', e.id);
     }
   }

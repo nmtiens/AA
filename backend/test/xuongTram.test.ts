@@ -235,6 +235,27 @@ describe('phân công đầu ca + tự gán (công nhân không thao tác)', () 
     assert.deepEqual(homNay.map(d => [d.start, d.nguon]), [[t('07:30'), 'phan_cong']]);
   });
 
+  it('tổ trưởng báo "Không làm" (cờ theo ngày ca, ghi lúc nào cũng được): bỏ tự gán, không đóng hàng người đó đang ở', () => {
+    const goc = [nhanHq, vao('NV1', A, t('08:00', HOM_QUA)), raCa('NV1', t('15:45', HOM_QUA)), vaoCa('NV1', t('07:30'))];
+    const tuChoi = ev({ loai: 'nguoi_ra', hex: A, congDoanId: 'CD1', duLieu: { mnv: 'NV1', tram: true, tuChoiTuGan: true, ngayCa: NGAY } }, t('10:00'));
+    const kq = chuyenDoiTram([...goc, vao('NV1', B, t('09:30')), tuChoi], { now: t('11:00'), cuaSoTheoTo: CUA_SO });
+    assert.equal(kq.doanNguoi.filter(d => d.nguon === 'tu_gan').length, 0);
+    assert.deepEqual(kq.dangO, { [KB]: ['NV1'] });
+    // Cờ ngày khác không ảnh hưởng hôm nay
+    const ngayKhac = { ...tuChoi, duLieu: { ...tuChoi.duLieu, ngayCa: HOM_QUA } };
+    const kq2 = chuyenDoiTram([...goc, ngayKhac], { now: t('11:00'), cuaSoTheoTo: CUA_SO });
+    assert.equal(kq2.doanNguoi.filter(d => d.nguon === 'tu_gan').length, 1);
+  });
+
+  it('xác nhận cuối ngày ở tổ trạm: ra hàng lùi giờ đóng đoạn đúng lúc; ra hàng khác (người không ở đó) bị bỏ qua', () => {
+    const evts = [vao('NV1', A, t('08:00')), vao('NV2', B, t('08:00')),
+      ev({ loai: 'nguoi_ra', hex: A, congDoanId: 'CD1', duLieu: { mnv: 'NV1', tram: true, ghiLui: true } }, t('14:00')),
+      ev({ loai: 'nguoi_ra', hex: A, congDoanId: 'CD1', duLieu: { mnv: 'NV2', tram: true, ghiLui: true } }, t('14:00'))];
+    const kq = chuyenDoiTram(evts, { now: t('15:30'), cuaSoTheoTo: CUA_SO });
+    assert.deepEqual(kq.doanChay[KA], [{ start: t('08:00'), end: t('14:00') }]);
+    assert.deepEqual(kq.dangO, { [KB]: ['NV2'] });
+  });
+
   it('tự gán rồi quét sang hàng khác: rời hàng tự gán tại mốc quét', () => {
     const evts = [nhanHq, vao('NV1', A, t('08:00', HOM_QUA)), raCa('NV1', t('15:45', HOM_QUA)), vaoCa('NV1', t('07:30')),
       vao('NV1', B, t('09:00'))];

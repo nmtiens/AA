@@ -479,8 +479,18 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     const evs: SuKienNhap[] = [];
     for (const x of ds) {
       if (!x.vanLam && x.dungLuc !== null) {
-        evs.push({ loai: 'tam_ngung', hex: x.r.hex, congDoanId: x.r.congDoanId, toId: toId!, lyDoTamNgung: 'khac',
-          ghiChu: `Đã dừng lúc ${hhmm(x.dungLuc)} (xác nhận cuối ngày)`, lucXayRa: x.dungLuc, duLieu: { ghiLui: true } });
+        if (laTram) {
+          // Tổ trạm: hàng chạy theo người ở hàng (tam_ngung bấm tay bị bỏ ở ngày trạm) → ghi từng người ra hàng lúc dừng
+          // (không sớm hơn lúc hàng bắt đầu chạy)
+          const luc = Math.max(x.dungLuc, x.r.dangChayTu ? Date.parse(x.r.dangChayTu) : 0);
+          for (const mnv of x.r.nguoi ?? []) {
+            evs.push({ loai: 'nguoi_ra', hex: x.r.hex, congDoanId: x.r.congDoanId, toId: toId!, lucXayRa: luc,
+              duLieu: { mnv, tram: true, ghiLui: true } });
+          }
+        } else {
+          evs.push({ loai: 'tam_ngung', hex: x.r.hex, congDoanId: x.r.congDoanId, toId: toId!, lyDoTamNgung: 'khac',
+            ghiChu: `Đã dừng lúc ${hhmm(x.dungLuc)} (xác nhận cuối ngày)`, lucXayRa: x.dungLuc, duLieu: { ghiLui: true } });
+        }
       }
       const anhCho = anhCua.get(x);
       if (x.tienDo !== null || anhCho) {
@@ -494,7 +504,8 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     } });
     const dung = ds.filter(x => !x.vanLam);
     ghi(evs, dung.length ? `Xác nhận cuối ngày · ${dung.length} hạng mục đã dừng` : 'Xác nhận cuối ngày · tất cả vẫn làm',
-      c => dung.reduce<CongViec>((acc, x) => apDung(acc, khoaDong(x.r), y => ({ ...y, dangChayTu: null, trangThai: 'tam_ngung' })),
+      c => dung.reduce<CongViec>((acc, x) => apDung(acc, khoaDong(x.r), y => ({ ...y, dangChayTu: null, trangThai: 'tam_ngung',
+        ...(laTram ? { nguoi: [], soNguoi: 0 } : {}) })),
         { ...c, daXacNhanHomNay: true }));
   };
 

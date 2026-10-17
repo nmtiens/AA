@@ -82117,6 +82117,7 @@ function boSungPhanCongTuGan(evts, now) {
     if (now < p + TU_GAN_SAU_MS) continue;
     if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay && e.ts <= p + TU_GAN_SAU_MS)) continue;
     if (raCa.some((e) => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay)) continue;
     const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay).sort(soSanhSuKien).pop();
     if (!truoc) continue;
     let nhan = 0, ht = 0;
@@ -82255,6 +82256,8 @@ function chuyenDoiTram(evts, opts) {
       set2.add(mnv);
       doiHang(key, d, e.ts, truoc, false);
     } else if (e.loai === "nguoi_ra" || e.loai === "ra_ca") {
+      if (e.duLieu?.tuChoiTuGan === true) continue;
+      if (e.loai === "nguoi_ra" && e.hex && e.congDoanId && mo.get(mnv) && mo.get(mnv).d.key !== pairKey(e.hex, e.congDoanId)) continue;
       dong2(mnv, e.ts, "ra", e.id);
     }
   }

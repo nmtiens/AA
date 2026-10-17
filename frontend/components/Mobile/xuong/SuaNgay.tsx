@@ -96,7 +96,8 @@ export function SuaNgaySheet({ toId, dong, onGhi, onHuy, onClose }: {
                 <DongDoan key={d.suKienVao} d={d} suaDuoc={data.suaDuoc}
                   onHuy={() => void huy([d.suKienVao], `Huỷ lượt vào ${d.tenHangMuc ?? d.hex} của ${n.hoTen}`)}
                   onDung={() => void xacNhan([d], `Xác nhận ${n.hoTen} làm ${d.tenHangMuc ?? d.hex}`)}
-                  onSai={() => void onGhi([{ loai: 'nguoi_ra', toId, hex: d.hex, congDoanId: d.congDoanId, lucXayRa: d.start, duLieu: { mnv: d.mnv, tram: true } }],
+                  onSai={() => void onGhi([{ loai: 'nguoi_ra', toId, hex: d.hex, congDoanId: d.congDoanId,
+                    duLieu: { mnv: d.mnv, tram: true, tuChoiTuGan: true, ngayCa: ngay ?? data.ngay } }],
                     `${n.hoTen} không làm ${d.tenHangMuc ?? d.hex}`).then(ok => { if (ok) setTimeout(tai, 1500); })} />
               ))}
             </ul>
