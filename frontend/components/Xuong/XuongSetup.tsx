@@ -76,26 +76,25 @@ export default function XuongSetup({ trongApp = false }: { trongApp?: boolean })
   const lon = dienThoai;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#f5f6f8]">
+    <div className="flex h-full flex-col overflow-hidden bg-wood-50">
       <div className={`flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 rmd:px-6 ${trongApp ? 'pt-[calc(env(safe-area-inset-top)+12px)]' : ''}`}>
-        {/* Máy tính: tiêu đề "MRA" đã ở đầu trang => chỉ hiện ô chọn xưởng (trừ tài khoản tổ trưởng) */}
-        {(trongApp || toTruong) && <Factory size={18} className={`text-slate-500 ${trongApp ? 'hidden rsm:block' : ''}`} aria-hidden />}
-        {(trongApp || toTruong) && <h2 className={trongApp ? 'text-xl font-semibold text-slate-900' : 'text-base font-semibold text-slate-900'}>
-          {toTruong ? `Tổ ${d!.to.map(t => t.ten).join(', ')}` : 'Quản lý xưởng'}</h2>}
+        <Factory size={18} className={`text-wood-700 ${trongApp ? 'hidden rsm:block' : ''}`} aria-hidden />
+        <h2 className={trongApp ? 'text-xl font-semibold text-slate-900' : 'text-base font-bold text-slate-800'}>
+          {toTruong ? `Tổ ${d!.to.map(t => t.ten).join(', ')}` : trongApp ? 'Quản lý xưởng' : 'Xưởng'}</h2>
         {/* Tổ trưởng 1 xưởng: không cần chọn xưởng */}
         {!(toTruong && (d?.dsXuong.length ?? 0) <= 1) && (
         <label className={`flex items-center gap-2 text-slate-600 ${trongApp ? 'text-base' : 'text-sm'}`}>
           <span className={trongApp ? 'sr-only rsm:not-sr-only' : ''}>Xưởng</span>
           <select value={xuong ?? ''} onChange={e => setXuong(e.target.value)}
-            className={`rounded-md border border-slate-300 bg-white px-2 font-semibold text-slate-800 focus:border-slate-500 focus:outline-none ${lon ? 'min-h-11 text-base' : 'py-1.5 text-sm'}`}>
+            className={`rounded-md border border-slate-300 bg-white px-2 font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-wood-300 ${lon ? 'min-h-11 text-base' : 'py-1.5 text-sm'}`}>
             {(d?.dsXuong ?? (xuong ? [xuong] : [])).map(x => <option key={x} value={x}>{x}</option>)}
           </select>
         </label>
         )}
-        <nav className="order-last -mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rmd:order-none rmd:mx-0 rmd:w-auto rmd:min-w-0 rmd:flex-1 rmd:px-0" aria-label="Mục cấu hình Xưởng">
+        <nav className="order-last -mx-4 flex w-[calc(100%+2rem)] gap-1 overflow-x-auto px-4 [scrollbar-width:none] rmd:order-none rmd:mx-0 rmd:w-auto rmd:flex-wrap rmd:overflow-visible rmd:px-0" aria-label="Mục cấu hình Xưởng">
           {dsMuc.map(m => (
             <button key={m.id} type="button" onClick={() => setMuc(m.id)} aria-pressed={mucHien === m.id}
-              className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 ${lon ? 'min-h-11 text-base' : 'py-1.5 text-sm'} ${mucHien === m.id ? 'bg-slate-900 font-semibold text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}>
+              className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 ${lon ? 'min-h-11 text-base' : 'py-1.5 text-sm'} ${mucHien === m.id ? 'bg-wood-600 font-semibold text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
               {m.icon}{m.ten}
             </button>
           ))}

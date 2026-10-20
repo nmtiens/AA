@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { RefreshCw, Plus, Download, Search as SearchIcon, AlertTriangle, Clock, CheckCircle2, Lock, Flame, Siren } from 'lucide-react';
+import { RefreshCw, Plus, Download, Search as SearchIcon, AlertTriangle, Clock, CheckCircle2, Lock, Hourglass, Flame, Siren } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
   fetchVuongMacDashboard, fetchVuongMacAllStrict, fetchHandlerNames, UNAUTHORIZED,
@@ -47,8 +47,6 @@ const NONE_LABEL = 'Chưa giao';
 const UNKNOWN_LABEL = 'Chưa rõ';
 const CT_NONE = '__none__';
 const PAGE = 50;
-type NhomTab = 'cat' | 'xuong' | 'stage' | 'handler' | 'project';
-const NHOM_TABS: Array<[NhomTab, string]> = [['cat', 'Loại 5M'], ['xuong', 'Khu vực SX'], ['stage', 'Công đoạn'], ['handler', 'Người xử lý'], ['project', 'Công trình']];
 
 export default function VuongMacManager() {
   const { user } = useAuth();
@@ -113,7 +111,6 @@ export default function VuongMacManager() {
   const [detail, setDetail] = useState<VuongMacItem | null>(null);
   const [creating, setCreating] = useState(false);
   const [qInput, setQInput] = useState('');
-  const [nhomTab, setNhomTab] = useState<NhomTab>('cat');
   // Giữ nguyên object khi q không đổi (vd. pick vừa xoá ô tìm) => không tải lại danh sách thừa
   useEffect(() => { const t = setTimeout(() => setF(x => (x.q === qInput ? x : { ...x, q: qInput })), 400); return () => clearTimeout(t); }, [qInput]);
 
@@ -195,7 +192,7 @@ export default function VuongMacManager() {
       {/* Tiêu đề + kỳ */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="page-title">Vướng mắc sản xuất</h1>
+          <h1 className="text-xl font-semibold text-slate-900">Vướng mắc sản xuất</h1>
           <p className="text-sm text-slate-500">
             Quy trình: Mới → Đang xử lý → Chờ xác nhận → Đã đóng. Số "trong kỳ" tính theo ngày báo / xử lý / đóng trong khoảng đã chọn.
             {dash && !dash.workflow && <span className="ml-1 font-medium text-amber-700">Máy chủ chưa chạy file SQL quy trình (2026-10-10).</span>}
@@ -204,13 +201,9 @@ export default function VuongMacManager() {
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <label className="flex items-center gap-1 text-slate-600">Từ <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" /></label>
           <label className="flex items-center gap-1 text-slate-600">đến <input type="date" value={to} min={from} max={todayISO()} onChange={e => setTo(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5" /></label>
-          {[['7 ngày', 6], ['30 ngày', 29], ['90 ngày', 89]].map(([l, n]) => {
-            const on = from === daysAgoISO(Number(n)) && to === todayISO();
-            return (
-              <button key={String(l)} onClick={() => { setFrom(daysAgoISO(Number(n))); setTo(todayISO()); }} aria-pressed={on}
-                className={`rounded-full border px-3 py-1.5 font-medium ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>{l}</button>
-            );
-          })}
+          {[['7 ngày', 6], ['30 ngày', 29], ['90 ngày', 89]].map(([l, n]) => (
+            <button key={String(l)} onClick={() => { setFrom(daysAgoISO(Number(n))); setTo(todayISO()); }} className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-slate-600 hover:bg-slate-50">{l}</button>
+          ))}
           <select value={xuong} onChange={e => setXuong(e.target.value)} className="rounded-lg border border-slate-300 px-2 py-1.5">
             <option value="">Mọi khu vực SX</option>
             {xuongs.map(x => <option key={x} value={x}>{x}</option>)}
@@ -225,46 +218,36 @@ export default function VuongMacManager() {
       </div>
       {dashErr && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">⚠️ {dashErr}</p>}
 
-      {/* 1. KPI: 4 thẻ chính (bấm => lọc danh sách) + dòng chỉ số phụ */}
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <Kpi icon={<Clock size={16} />} label="Chưa xong" value={t?.open} tone="text-slate-900"
-          sub={t ? `${t.open - t.doing} mới · ${t.doing} đang xử lý` : ''} onClick={() => pick({ tab: 'active', due: '' }, 'chưa xong')} />
-        <Kpi icon={<AlertTriangle size={16} />} label="Quá hạn BOT" value={t?.overdue} tone={t?.overdue ? 'text-red-600' : 'text-slate-900'}
-          sub={t ? (t.soon ? `${t.soon} sắp đến hạn (≤ 24 giờ)` : 'không có vướng mắc sắp đến hạn') : ''}
-          subTone={t?.soon ? 'text-amber-700' : undefined} onClick={() => pick({ tab: 'active', due: 'overdue' }, 'quá hạn BOT')} />
-        <Kpi icon={<CheckCircle2 size={16} />} label="Chờ xác nhận" value={t?.waiting} tone="text-slate-900"
-          sub="đã xử lý xong, chờ người báo xác nhận" onClick={() => pick({ tab: 'waiting', due: '' }, 'chờ xác nhận')} />
-        <Kpi icon={<Plus size={16} />} label="Báo mới trong kỳ" value={t?.created} tone="text-slate-900"
-          sub={t ? `xử lý xong ${t.done} · đóng ${t.closed}` : ''} />
+      {/* 1. KPI */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <Kpi icon={<Clock size={15} />} label="Chưa xong" value={t?.open} tone="text-blue-700" sub={t ? `${t.open - t.doing} mới · ${t.doing} đang xử lý` : ''} onClick={() => pick({ tab: 'active', due: '' }, 'chưa xong')} />
+        <Kpi icon={<AlertTriangle size={15} />} label="Quá hạn BOT" value={t?.overdue} tone="text-red-600" onClick={() => pick({ tab: 'active', due: 'overdue' }, 'quá hạn BOT')} />
+        <Kpi icon={<Hourglass size={15} />} label="Sắp đến hạn" value={t?.soon} tone="text-amber-600" sub="≤ 24 giờ" onClick={() => pick({ tab: 'active', due: 'soon' }, 'sắp đến hạn')} />
+        <Kpi icon={<CheckCircle2 size={15} />} label="Chờ xác nhận" value={t?.waiting} tone="text-teal-700" onClick={() => pick({ tab: 'waiting', due: '' }, 'chờ xác nhận')} />
+        <Kpi icon={<Siren size={15} />} label="Đã báo quản lý" value={t?.escalated} tone="text-red-700" sub="quá hạn > 24 giờ" />
+        <Kpi icon={<Flame size={15} />} label="Khẩn" value={t?.urgent} tone="text-orange-600" />
+        <Kpi icon={<Plus size={15} />} label="Báo mới trong kỳ" value={t?.created} tone="text-slate-900" sub={t ? `xử lý xong ${t.done} · đóng ${t.closed}` : ''} />
+        <Kpi icon={<Lock size={15} />} label="TG xử lý TB" value={null} display={fmtHours(t?.avgDoneHours)} tone="text-slate-900"
+          sub={t ? `nhận ${fmtHours(t.avgAcceptHours)} · đóng ${fmtHours(t.avgCloseHours)}` : ''} />
       </div>
-      {t && (
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600">
-          <span className="inline-flex items-center gap-1.5"><Lock size={14} className="text-slate-400" />TG xử lý TB <b className="font-semibold text-slate-900">{fmtHours(t.avgDoneHours)}</b></span>
-          <span>nhận việc TB <b className="font-semibold text-slate-900">{fmtHours(t.avgAcceptHours)}</b></span>
-          <span>đóng TB <b className="font-semibold text-slate-900">{fmtHours(t.avgCloseHours)}</b></span>
-          <span className="inline-flex items-center gap-1.5"><Flame size={14} className={t.urgent ? 'text-orange-600' : 'text-slate-400'} />Khẩn <b className={`font-semibold ${t.urgent ? 'text-orange-600' : 'text-slate-900'}`}>{fmtInt(t.urgent)}</b></span>
-          <span className="inline-flex items-center gap-1.5"><Siren size={14} className={t.escalated ? 'text-red-600' : 'text-slate-400'} />Đã báo quản lý <b className={`font-semibold ${t.escalated ? 'text-red-600' : 'text-slate-900'}`}>{fmtInt(t.escalated)}</b> <span className="text-slate-400">(quá hạn &gt; 24 giờ)</span></span>
-          {(t.noBot ?? 0) > 0 && <span className="text-amber-700">Chưa có BOT: <b className="font-semibold">{fmtInt(t.noBot)}</b> — nên đặt hạn để theo dõi quá hạn</span>}
-        </div>
-      )}
 
       {/* 2. Xu hướng + tuổi + loại */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="12 tuần gần nhất" sub="báo mới · xử lý xong · đóng (theo tuần, thứ Hai)" className="lg:col-span-2">
-          <div className="h-64">
+          <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={(dash?.weekly ?? []).map(w => ({ ...w, name: fmtDay(w.start).slice(0, 5) }))} margin={{ top: 8, right: 8, left: -16, bottom: 0 }} barGap={2} barCategoryGap="18%">
-                <CartesianGrid stroke="#eef0f3" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#5b6170' }} tickLine={false} axisLine={{ stroke: '#d5d9e0' }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#8a90a0' }} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{ fill: '#f5f6f8' }} labelFormatter={l => `Tuần từ ${l}`} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
+              <BarChart data={(dash?.weekly ?? []).map(w => ({ ...w, name: fmtDay(w.start).slice(0, 5) }))} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip />
                 {/* Chữ chú thích màu mực (ô màu bên cạnh đã cho biết cột nào) */}
                 <Legend wrapperStyle={{ fontSize: 12 }} formatter={(v: string) => <span className="text-slate-600">{v}</span>} />
                 {/* Bộ 3 màu xanh dương (báo mới) / xanh lá sáng (xử lý xong) / xám (đã đóng — đã kết thúc) tách được
                     cả với người mù màu đỏ–lục (đã kiểm bằng công cụ mô phỏng). Trước teal / xanh lá gần như trùng nhau */}
-                <Bar dataKey="created" name="Báo mới" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                <Bar dataKey="done" name="Xử lý xong" fill="#22c55e" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                <Bar dataKey="closed" name="Đã đóng" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                <Bar dataKey="created" name="Báo mới" fill="#2563eb" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="done" name="Xử lý xong" fill="#22c55e" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="closed" name="Đã đóng" fill="#94a3b8" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -276,37 +259,28 @@ export default function VuongMacManager() {
               ['7–14 ngày', dash.aging.d14, 'bg-orange-500'], ['> 14 ngày', dash.aging.more, 'bg-red-500'],
             ]} />
           )}
+          <p className="mt-3 text-xs text-slate-500">Chưa có BOT: <b>{fmtInt(t?.noBot)}</b> — nên đặt hạn để theo dõi quá hạn.</p>
         </Panel>
       </div>
 
-      {/* 3. Theo nhóm: 1 khung có thẻ (trước 5 bảng nhỏ chật) + Cần xử lý ngay */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <Panel title="Phân tích theo nhóm" sub="bấm 1 dòng để lọc danh sách bên dưới · bấm lại để bỏ lọc"
-          right={
-            <div className="flex flex-wrap gap-1" role="tablist">
-              {NHOM_TABS.map(([k, l]) => (
-                <button key={k} type="button" role="tab" aria-selected={nhomTab === k} onClick={() => setNhomTab(k)}
-                  className={`rounded-full border px-3 py-1 text-sm ${nhomTab === k ? 'border-slate-900 bg-slate-900 font-medium text-white' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}>{l}</button>
-              ))}
-            </div>
-          }>
-          {nhomTab === 'cat' && <GroupTable rows={dash?.byCategory ?? []} label={n => `${catIcon(n)} ${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`}
-            onPick={n => pick({ cat: n as FiveMCategory, tab: 'active' }, `${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`)} active={f.cat} />}
-          {nhomTab === 'xuong' && <GroupTable rows={dash?.byXuong ?? []} onPick={n => pickRow('xuong', n, `khu vực ${n}`, 'bỏ lọc khu vực')} active={f.xuong} />}
-          {nhomTab === 'stage' && <>
-            <p className="mb-2 text-xs text-slate-500">Công đoạn (BOP) của hạng mục lúc báo vướng mắc — biết khâu nào hay vướng</p>
-            <GroupTable rows={dash?.byStage ?? []} onPick={n => pickRow('stage', n, `công đoạn ${n}`, 'bỏ lọc công đoạn')} active={f.stage} />
-          </>}
-          {nhomTab === 'handler' && <GroupTable rows={dash?.byHandler ?? []} onPick={n => {
-              // "Chưa giao" = handler rỗng => lọc bằng giá trị đặc biệt (trước bỏ lọc nên hiện tất cả)
-              const v = n === NONE_LABEL ? HANDLER_NONE : n;
-              pickRow('handler', v, `người xử lý ${n}`, 'bỏ lọc người xử lý');
-            }} active={f.handler === HANDLER_NONE ? NONE_LABEL : f.handler} showAvg />}
-          {nhomTab === 'project' && <GroupTable rows={dash?.byProject ?? []} onPick={n => {
-              const v = n === UNKNOWN_LABEL ? CT_NONE : n;
-              pickRow('congTrinh', v, `công trình ${n}`, 'bỏ lọc công trình');
-            }} active={f.congTrinh === CT_NONE ? UNKNOWN_LABEL : f.congTrinh} />}
-        </Panel>
+      {/* 3. Theo nhóm */}
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <GroupTable title="Theo loại 5M" rows={dash?.byCategory ?? []} label={n => `${catIcon(n)} ${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`}
+          onPick={n => pick({ cat: n as FiveMCategory, tab: 'active' }, `${CAT_CODE[n] ?? ''} ${CAT_NAME[n] ?? n}`)} active={f.cat} />
+        <GroupTable title="Theo khu vực sản xuất" rows={dash?.byXuong ?? []} onPick={n => pickRow('xuong', n, `khu vực ${n}`, 'bỏ lọc khu vực')} active={f.xuong} />
+        <GroupTable title="Theo công đoạn lúc báo" rows={dash?.byStage ?? []} hint="Công đoạn (BOP) của hạng mục lúc báo vướng mắc — biết khâu nào hay vướng"
+          onPick={n => pickRow('stage', n, `công đoạn ${n}`, 'bỏ lọc công đoạn')} active={f.stage} />
+        <GroupTable title="Theo người xử lý" rows={dash?.byHandler ?? []} onPick={n => {
+            // "Chưa giao" = handler rỗng => lọc bằng giá trị đặc biệt (trước bỏ lọc nên hiện tất cả)
+            const v = n === NONE_LABEL ? HANDLER_NONE : n;
+            pickRow('handler', v, `người xử lý ${n}`, 'bỏ lọc người xử lý');
+          }} active={f.handler === HANDLER_NONE ? NONE_LABEL : f.handler} showAvg />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <GroupTable title="Theo công trình (nhiều vướng mắc nhất)" rows={dash?.byProject ?? []} onPick={n => {
+            const v = n === UNKNOWN_LABEL ? CT_NONE : n;
+            pickRow('congTrinh', v, `công trình ${n}`, 'bỏ lọc công trình');
+          }} active={f.congTrinh === CT_NONE ? UNKNOWN_LABEL : f.congTrinh} />
         <Panel title="Cần xử lý ngay" sub="chưa xong, quá hạn lâu nhất / tuổi lớn nhất · bấm 1 dòng để mở chi tiết">
           <ul className="max-h-80 divide-y divide-slate-100 overflow-auto">
             {(dash?.oldest ?? []).map(o => (
@@ -455,26 +429,24 @@ export default function VuongMacManager() {
   }
 }
 
-function Kpi({ icon, label, value, display, tone, sub, subTone, onClick }: {
-  icon: ReactNode; label: string; value: number | null | undefined; display?: string; tone: string; sub?: string; subTone?: string; onClick?: () => void;
+function Kpi({ icon, label, value, display, tone, sub, onClick }: {
+  icon: ReactNode; label: string; value: number | null | undefined; display?: string; tone: string; sub?: string; onClick?: () => void;
 }) {
   const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag onClick={onClick} title={onClick ? 'Bấm để lọc danh sách' : undefined}
-      className={`group flex flex-col rounded-2xl border border-slate-200 bg-white px-5 py-4 text-left ${onClick ? 'transition hover:border-slate-400' : ''}`}>
-      <span className="flex items-center gap-1.5 text-base text-slate-700"><span className="text-slate-400">{icon}</span>{label}
-        {onClick && <SearchIcon size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />}</span>
-      <span className={`mt-1 text-[2rem] font-bold leading-tight tabular-nums ${tone}`}>{display ?? fmtInt(value)}</span>
-      {sub && <span className={`mt-1 truncate text-sm ${subTone ?? 'text-slate-500'}`} title={sub}>{sub}</span>}
+    <Tag onClick={onClick} className={`rounded-xl border border-slate-200 bg-white p-3 text-left ${onClick ? 'hover:border-slate-400' : ''}`}>
+      <p className="flex items-center gap-1.5 text-xs text-slate-500">{icon}{label}</p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tone}`}>{display ?? fmtInt(value)}</p>
+      {sub && <p className="truncate text-xs text-slate-400" title={sub}>{sub}</p>}
     </Tag>
   );
 }
 
 function Panel({ title, sub, right, className = '', children }: { title: string; sub?: string; right?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section className={`rounded-2xl border border-slate-200 bg-white p-5 ${className}`}>
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
-        <div><h2 className="text-lg font-semibold text-slate-900">{title}</h2>{sub && <p className="mt-0.5 text-sm text-slate-500">{sub}</p>}</div>
+    <section className={`rounded-xl border border-slate-200 bg-white p-4 ${className}`}>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div><h2 className="text-sm font-semibold text-slate-800">{title}</h2>{sub && <p className="text-xs text-slate-500">{sub}</p>}</div>
         {right}
       </div>
       {children}
@@ -497,45 +469,30 @@ function Bars({ rows }: { rows: [string, number, string][] }) {
   );
 }
 
-function GroupTable({ rows, label, onPick, active, showAvg }: {
-  rows: VmGroupStat[]; label?: (name: string) => string; onPick?: (name: string) => void; active?: string; showAvg?: boolean;
+function GroupTable({ title, rows, label, onPick, active, hint, showAvg }: {
+  title: string; rows: VmGroupStat[]; label?: (name: string) => string; onPick?: (name: string) => void; active?: string; hint?: string; showAvg?: boolean;
 }) {
-  const shown = useMemo(() => rows.filter(r => r.open || r.waiting || r.created || r.done).slice(0, 15), [rows]);
-  const maxOpen = Math.max(1, ...shown.map(r => r.open));
+  const shown = useMemo(() => rows.filter(r => r.open || r.waiting || r.created || r.done).slice(0, 12), [rows]);
   return (
-    <div className="overflow-auto">
+    <Panel title={title} sub={hint}>
       <table className="w-full text-sm">
-        <thead className="border-b border-slate-200 text-xs text-slate-500">
-          <tr>
-            <th className="py-2 text-left font-medium">Nhóm</th>
-            <th className="py-2 text-right font-medium">Chưa xong</th>
-            <th className="py-2 text-right font-medium">Quá hạn</th>
-            <th className="py-2 text-right font-medium">Chờ XN</th>
-            <th className="py-2 text-right font-medium" title="báo mới / xử lý xong trong kỳ">Mới / xong kỳ</th>
-            {showAvg && <th className="py-2 text-right font-medium">TG xử lý</th>}
-          </tr>
+        <thead className="text-xs text-slate-500">
+          <tr><th className="pb-1 text-left font-medium">Nhóm</th><th className="pb-1 text-right font-medium">Chưa xong</th><th className="pb-1 text-right font-medium text-red-600">Quá hạn</th><th className="pb-1 text-right font-medium text-teal-700">Chờ XN</th><th className="pb-1 text-right font-medium">Mới / xong kỳ</th>{showAvg && <th className="pb-1 text-right font-medium">TG xử lý</th>}</tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {shown.map(r => (
-            <tr key={r.name} onClick={onPick ? () => onPick(r.name) : undefined}
-              className={`${onPick ? 'cursor-pointer hover:bg-slate-50' : ''} ${active && active === r.name ? 'bg-slate-100 font-medium' : ''}`}>
-              <td className="max-w-[280px] py-2 pr-3" title={r.name}>
-                <span className="block truncate text-slate-800">{label ? label(r.name) : r.name}</span>
-                {/* thanh nhỏ = số chưa xong so với nhóm nhiều nhất */}
-                <span className="mt-1 block h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                  <span className="block h-full rounded-full bg-slate-500" style={{ width: `${(r.open / maxOpen) * 100}%` }} />
-                </span>
-              </td>
-              <td className="py-2 text-right font-semibold tabular-nums text-slate-900">{r.open}</td>
-              <td className={`py-2 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '–'}</td>
-              <td className={`py-2 text-right tabular-nums ${r.waiting ? 'text-slate-900' : 'text-slate-300'}`}>{r.waiting || '–'}</td>
-              <td className="py-2 text-right tabular-nums text-slate-600">{r.created} / {r.done}</td>
-              {showAvg && <td className="py-2 text-right tabular-nums text-slate-600">{fmtHours(r.avgDoneHours)}</td>}
+            <tr key={r.name} onClick={onPick ? () => onPick(r.name) : undefined} className={`${onPick ? 'cursor-pointer hover:bg-slate-50' : ''} ${active && active === r.name ? 'bg-amber-50' : ''}`}>
+              <td className="max-w-[180px] truncate py-1.5 text-slate-800" title={r.name}>{label ? label(r.name) : r.name}</td>
+              <td className="py-1.5 text-right font-semibold tabular-nums text-slate-900">{r.open}</td>
+              <td className={`py-1.5 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '–'}</td>
+              <td className={`py-1.5 text-right tabular-nums ${r.waiting ? 'text-teal-700' : 'text-slate-300'}`}>{r.waiting || '–'}</td>
+              <td className="py-1.5 text-right tabular-nums text-slate-600">{r.created} / {r.done}</td>
+              {showAvg && <td className="py-1.5 text-right tabular-nums text-slate-600">{fmtHours(r.avgDoneHours)}</td>}
             </tr>
           ))}
-          {shown.length === 0 && <tr><td colSpan={showAvg ? 6 : 5} className="py-6 text-center text-slate-400">Không có dữ liệu</td></tr>}
+          {shown.length === 0 && <tr><td colSpan={showAvg ? 6 : 5} className="py-4 text-center text-slate-400">Không có dữ liệu</td></tr>}
         </tbody>
       </table>
-    </div>
+    </Panel>
   );
 }

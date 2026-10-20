@@ -22,7 +22,7 @@ import {
   DEFAULT_FILTERS, DATE_LABELS, MINE_LABELS, STATUS_TAB_ST, toQuery, activeChips,
   type ListFilters, type DateMode, type StatusTab, type MineMode,
 } from './listFilters';
-import { LogoAA } from '../LogoAA';
+import { LogoAANgang } from '../LogoAA';
 
 
 // ============================================================================
@@ -53,7 +53,7 @@ function FilterSheet({ f, set, onClose, onReset, xuongs }: {
       footer={
         <div className="flex gap-3">
           <button onClick={onReset} className="flex-1 rounded-full border border-slate-300 py-3 text-base text-slate-700 active:bg-slate-100">Đặt lại</button>
-          <button onClick={onClose} className="flex-1 rounded-full bg-aa-600 py-3 text-base font-medium text-white active:bg-aa-700">Xong</button>
+          <button onClick={onClose} className="flex-1 rounded-full bg-slate-900 py-3 text-base font-medium text-white active:opacity-80">Xong</button>
         </div>
       }
     >
@@ -217,15 +217,15 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
 
   return (
     <div className={`min-h-[100dvh] ${BG} pb-[calc(env(safe-area-inset-bottom)+6rem)]`}>
-      <header className="sticky top-0 z-10 mb-3 space-y-3 rounded-b-3xl border-b border-slate-200/70 bg-white/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur">
+      <header className={`sticky top-0 z-10 space-y-3 bg-[#f4f6fa]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur`}>
+        <LogoAANgang co="nho" />
         <div className="flex items-center justify-between gap-3">
-          <LogoAA className="h-10 w-10" />
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold text-slate-900">Vướng mắc</h1>
             <p className="text-sm text-slate-500">{loading ? 'Đang tải...' : `${total} mục${rows.length < total ? ` · đã tải ${rows.length}` : ''}`}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={reload} aria-label="Làm mới" className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 active:bg-slate-200">
+            <button onClick={reload} aria-label="Làm mới" className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-600 shadow-sm active:bg-slate-100">
               <RefreshCw size="1.125em" className={loading ? 'animate-spin' : ''} />
             </button>
             {bell}
@@ -236,7 +236,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
           <div className="relative min-w-0 flex-1">
             <SearchIcon size="1.125em" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
             <input value={qInput} onChange={e => setQInput(e.target.value)} placeholder="Tìm nội dung, công trình, HEX, người xử lý"
-              className="w-full rounded-full bg-slate-100 py-3 pl-11 pr-10 text-base text-slate-900 outline-none placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-aa-600/20" />
+              className="w-full rounded-full bg-white py-3 pl-11 pr-10 text-base text-slate-900 shadow-sm outline-none placeholder:text-slate-400" />
             {qInput && (
               <button onClick={() => { setQInput(''); setFilters({ q: '' }); }} aria-label="Xóa tìm kiếm"
                 className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 active:bg-slate-100">
@@ -245,16 +245,16 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
             )}
           </div>
           <button onClick={() => setShowFilter(true)} aria-label="Bộ lọc"
-            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-700 active:bg-slate-200">
+            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm active:bg-slate-100">
             <SlidersHorizontal size="1.125em" />
             {chips.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-aa-600 px-1 text-xs font-semibold text-white">{chips.length}</span>
+              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900 px-1 text-xs font-semibold text-white">{chips.length}</span>
             )}
           </button>
         </div>
 
         {/* Nhóm trạng thái (nhãn ngắn để vừa 1 dòng trên điện thoại) */}
-        <div className="grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1">
+        <div className="grid grid-cols-4 gap-1 rounded-full bg-slate-200/70 p-1">
           {([['active', 'Chưa xong'], ['waiting', 'Chờ XN'], ['closed', 'Đã đóng'], ['all', 'Tất cả']] as [StatusTab, string][]).map(([s, label]) => (
             <button key={s} onClick={() => setFilters({ tab: s, st: '', ...(s !== 'active' ? { due: '' as const } : {}) })}
               className={`whitespace-nowrap rounded-full py-2 text-sm ${filters.tab === s ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500'}`}>
@@ -283,7 +283,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
         {error && (
           <div className="space-y-3 rounded-2xl bg-white p-4">
             <p className="rounded-xl bg-red-50 p-3 text-base text-red-700">⚠️ {error}</p>
-            <button onClick={reload} className="w-full rounded-full bg-aa-600 py-3 text-base font-medium text-white active:bg-aa-700">Thử lại</button>
+            <button onClick={reload} className="w-full rounded-full bg-slate-900 py-3 text-base font-medium text-white">Thử lại</button>
           </div>
         )}
 
@@ -313,7 +313,7 @@ function VuongMacList({ active, filters, setFilters, target, onUnauthorized, onC
 
       {active && createPortal(
         <button onClick={() => setCreating(true)} aria-label="Báo vướng mắc"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-aa-600 pl-4 pr-5 text-base font-semibold text-white shadow-[0_8px_20px_-4px_rgba(227,30,36,0.45)] active:bg-aa-700">
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-30 flex h-14 items-center gap-2 rounded-2xl bg-slate-900 px-4 text-base font-medium text-white shadow-lg active:opacity-80">
           <Plus size="1.375em" /> Báo vướng mắc
         </button>,
         document.body
@@ -458,8 +458,8 @@ export default function VuongMacMobile() {
             const on = tab === n.id;
             return (
               <button key={n.id} onClick={() => setTab(n.id)} aria-current={on ? 'page' : undefined}
-                className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 whitespace-nowrap pb-2 pt-2 text-[0.6875rem] ${on ? 'font-semibold text-aa-600' : 'text-slate-500'}`}>
-                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${on ? 'bg-aa-50 text-aa-600' : ''}`}>{n.icon}</span>
+                className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 whitespace-nowrap pb-2 pt-2 text-[0.6875rem] ${on ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>
+                <span className={`flex h-8 w-14 items-center justify-center rounded-full transition-colors ${on ? 'bg-slate-900 text-white' : ''}`}>{n.icon}</span>
                 {n.label}
               </button>
             );

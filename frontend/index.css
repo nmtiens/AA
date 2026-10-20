@@ -7,24 +7,24 @@
   body {
     font-family: Inter, system-ui, sans-serif;
     color: #0f172a;
-    background: #f5f6f8;
+    background: #f7f8fa;
     text-rendering: optimizeLegibility;
     font-feature-settings: 'cv11', 'ss01';
   }
-  ::selection { background: #fbd5d6; }
+  ::selection { background: #dbe4f3; }
   h1, h2, h3 { letter-spacing: -0.01em; }
 
   /* Số trong bảng báo cáo căn đều theo cột */
   table { font-variant-numeric: tabular-nums; }
 
   /* Focus rõ ràng cho bàn phím, ô nhập dùng ring riêng của Tailwind */
-  :focus-visible { outline: 2px solid #16181d; outline-offset: 2px; }
+  :focus-visible { outline: 2px solid #1f2a44; outline-offset: 2px; }
   input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; }
 }
 
 @layer components {
   /* Dùng cho các khối mới: <div className="card"> */
-  .card { @apply bg-white border border-slate-200 rounded-2xl shadow-sm; }
+  .card { @apply bg-white border border-slate-200 rounded-xl shadow-sm; }
   .page-title { @apply text-lg font-semibold tracking-tight text-slate-900; }
   .section-title { @apply text-sm font-semibold text-slate-700; }
   .kpi-label { @apply text-[0.6875rem] font-medium tracking-wide text-slate-500; }

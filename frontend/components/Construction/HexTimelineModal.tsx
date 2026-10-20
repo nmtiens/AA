@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Check, Package, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { X, Package, AlertTriangle, CheckCircle2, Circle, CircleDot, XCircle, CalendarClock, Image as ImageIcon } from 'lucide-react';
 import { LinkLightbox } from '../shared/LinkLightbox';
 import { ModalShell } from '../shared/ModalShell';
 import { getToken } from '../../services/userService';
@@ -90,10 +90,6 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
   const [row, setRow] = useState<Row | null>(null);
   // Xem ảnh QC ngay trong app (link Google Drive) — urls của 1 lần kiểm + ảnh đang xem
   const [photoView, setPhotoView] = useState<{ urls: string[]; idx: number; title: string } | null>(null);
-  // Phần dưới chia tab (trước xếp chồng dài): tiến trình & hạn · vật tư · nhập kho · QC · ghi chú
-  type TabHex = 'tien' | 'nvl' | 'nhap' | 'qc' | 'ghichu';
-  const [tab, setTab] = useState<TabHex>('tien');
-  useEffect(() => { setTab('tien'); }, [hex]);
   const [error, setError] = useState<string | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
 
@@ -218,14 +214,6 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
   }, [row, d]);
   const openIssues = (issues ?? []).filter(v => !v.isResolved);
   const qcEntries = useMemo(() => parseQcEntries(row?.tong_hop_thong_tin_qc), [row]);
-  const ghiChu = row ? [
-    { title: 'Ghi chú phiếu', text: row.ghi_chu_phieu },
-    { title: 'Thông tin QC', text: qcEntries.length ? '' : row.tong_hop_thong_tin_qc },
-    { title: 'Mô tả sản phẩm', text: row.mo_ta_san_pham },
-    { title: 'Ghi chú đơn hàng / xuất kho', text: [row.ghi_chu_don_hang_tong, row.tong_hop_ghi_chu_xuat_kho].filter(Boolean).join('\n') },
-  ].filter(b => String(b.text ?? '').trim()) : [];
-  const nvlCho = nvl.status.filter(nvlLinePending).length;
-  const qcLoi = qcEntries.reduce((n, e) => n + e.fail, 0);
 
   return (
     <ModalShell
@@ -233,151 +221,124 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
       onClose={onClose}
       labelledBy="hex-timeline-title"
       overlayClassName="fixed inset-0 z-[9994] flex items-center justify-center bg-slate-900/50 p-4"
-      panelClassName="w-[92vw] max-w-[1400px] max-h-[90vh] flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl outline-none"
+      panelClassName="w-[92vw] max-w-[1400px] h-[90vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
     >
       <div onClick={e => e.stopPropagation()} className="flex min-h-0 flex-1 flex-col">
         {/* Header */}
-        <div className="shrink-0 border-b border-slate-200 bg-white px-6 pt-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Chi tiết hạng mục</p>
-              <h3 id="hex-timeline-title" className="text-xl font-semibold text-slate-900">
-                {hex}{row?.ten_hang_muc ? ` · ${row.ten_hang_muc}` : ''}
-              </h3>
-              {row && (
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {names?.project ?? row.ten_cong_trinh} · Xưởng {xuongText(row.xuong_chinh)} · PM {names?.pm || row.ten_pm || '—'} · PC {names?.pc || row.ten_pc || '—'}
-                  {row.ma_hang_muc_boq ? ` · BOQ ${row.ma_hang_muc_boq}` : ''}
-                </p>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {hex && onOpenMaterial && (
-                <button type="button" onClick={() => onOpenMaterial(hex)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                  <Package size={15} aria-hidden /> Vật tư theo PR
-                </button>
-              )}
-              <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800">
-                <X size={18} />
-              </button>
-            </div>
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div className="min-w-0">
+            <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">Chi tiết hạng mục · BOP × BOT</p>
+            <h3 id="hex-timeline-title" className="text-lg font-semibold text-slate-900">
+              {hex}{row?.ten_hang_muc ? ` · ${row.ten_hang_muc}` : ''}
+            </h3>
+            {row && (
+              <p className="mt-0.5 text-[0.6875rem] text-slate-500">
+                {names?.project ?? row.ten_cong_trinh} · Xưởng {xuongText(row.xuong_chinh)} · PM {names?.pm || row.ten_pm || '—'} · PC {names?.pc || row.ten_pc || '—'}
+                {row.ma_hang_muc_boq ? ` · BOQ ${row.ma_hang_muc_boq}` : ''}
+              </p>
+            )}
           </div>
-          <div className="mt-3 flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
-            {([
-              ['tien', 'Tiến trình & hạn', null],
-              ['nvl', 'Vật tư', nvlCho > 0 ? { n: `${nvlCho} còn chờ`, c: 'bg-amber-50 text-amber-800' } : null],
-              ['nhap', 'Nhập kho', d ? { n: `${d.stockIn.length} lần`, c: 'bg-slate-100 text-slate-600' } : null],
-              ['qc', 'QC', qcEntries.length ? (qcLoi > 0 ? { n: `${qcLoi} lỗi`, c: 'bg-red-50 text-red-700' } : { n: `${qcEntries.length} lần`, c: 'bg-slate-100 text-slate-600' }) : null],
-              ['ghichu', 'Ghi chú', ghiChu.length ? { n: String(ghiChu.length), c: 'bg-slate-100 text-slate-600' } : null],
-            ] as const).map(([k, label, badge]) => (
-              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-                className={`-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm transition ${tab === k ? 'border-slate-900 font-semibold text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>
-                {label}
-                {badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.c}`}>{badge.n}</span>}
+          <div className="flex shrink-0 items-center gap-2">
+            {hex && onOpenMaterial && (
+              <button
+                type="button"
+                onClick={() => onOpenMaterial(hex)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
+              >
+                <Package size={14} /> Vật tư
               </button>
-            ))}
+            )}
+            <button type="button" onClick={onClose} aria-label="Đóng" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+              <X size={18} />
+            </button>
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-wood-50 p-6 custom-scrollbar">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
           {error ? (
             <p className="rounded-lg bg-red-50 p-6 text-center text-sm text-red-600">{error}</p>
           ) : !row || !d ? (
             <p className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-400">Đang tải…</p>
           ) : (
             <div className="space-y-5">
-              {/* Tóm tắt: 4 thẻ (công đoạn + thời gian ở công đoạn; hạn đang dùng; đã nhập kho; đơn hàng + SL tính phiếu) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {/* Tóm tắt */}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                 {[
+                  { label: 'Công đoạn (BOP)', value: d.stage ?? '—', sub: row.tinh_trang ?? '' },
                   {
-                    label: 'Công đoạn (BOP)', value: d.stage ?? '—', unit: row.tinh_trang ?? '',
-                    sub: dwell === DWELL_NONE || !dwell ? 'chưa có số ngày ở công đoạn' : `ở công đoạn ${dwell}`,
-                    tone: dwell === DWELL_STUCK ? 'text-red-600' : 'text-slate-900',
-                  },
-                  {
-                    label: 'Hạn đang dùng (BOT)', value: fmtDate(d.dl.date), unit: d.dl.source ? `KH ${d.dl.source}` : '',
-                    sub: d.cancelled ? 'Đơn HỦY — không theo dõi hạn' : !d.dl.source ? 'Chưa có KH nhập kho' : d.full ? 'đã nhập kho đủ' : d.days !== null ? (d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`) : '',
+                    label: 'Hạn (BOT)', value: fmtDate(d.dl.date),
+                    sub: d.cancelled ? 'Đơn HỦY — không theo dõi hạn' : d.dl.source ? `KH nhập kho ${d.dl.source}${d.full ? ' · đã nhập kho đủ' : d.days !== null ? ` · ${d.days < 0 ? `quá ${-d.days} ngày` : `còn ${d.days} ngày`}` : ''}` : 'Chưa có KH nhập kho',
                     tone: d.cancelled ? 'text-slate-400' : d.days !== null && d.days < 0 && !d.full ? 'text-red-600' : d.days !== null && d.days <= 14 && !d.full ? 'text-amber-600' : 'text-slate-900',
                   },
                   {
-                    label: 'Đã nhập kho', value: `${fmtNum(d.qtyIn, 3)} / ${fmtNum(d.qtyOrder, 3)}`, unit: row.dvt ?? '',
-                    sub: d.cancelled ? 'Đơn HỦY — không tính giá trị' : `${d.pctValue.toFixed(0)}% giá trị · còn ${fmtTy(d.valRemain)} tỷ`,
-                    tone: d.full ? 'text-emerald-700' : 'text-slate-900', bar: d.cancelled ? null : Math.min(100, d.pctValue),
+                    label: 'Ở công đoạn hiện tại', value: dwell === DWELL_NONE || !dwell ? 'Chưa có số ngày' : dwell, sub: dwell === DWELL_NONE ? '' : row.so_ngay_cd_hien_tai ?? '',
+                    tone: dwell === DWELL_STUCK ? 'text-red-600' : 'text-slate-900',
                   },
+                  { label: 'Đơn hàng', value: `${fmtNum(d.qtyOrder, 3)} ${row.dvt ?? ''}`, sub: `${fmtTy(row.tri_gia_don_hang_tong)} tỷ` },
+                  { label: 'SL tính phiếu', value: fmtNum(d.qtyTicket, 3), sub: `${fmtTy(row.thanh_tien_tinh_phieu)} tỷ` },
                   {
-                    label: 'Đơn hàng', value: fmtNum(d.qtyOrder, 3), unit: row.dvt ?? '',
-                    sub: `${fmtTy(row.tri_gia_don_hang_tong)} tỷ · SL tính phiếu ${fmtNum(d.qtyTicket, 3)}`,
+                    label: 'Đã nhập kho', value: `${fmtNum(d.qtyIn, 3)} / ${fmtNum(d.qtyOrder, 3)}`,
+                    sub: d.cancelled ? 'Đơn HỦY — không tính giá trị' : `${d.pctValue.toFixed(0)}% giá trị · ${fmtTy(d.valDone)} tỷ · còn ${fmtTy(d.valRemain)} tỷ`,
+                    tone: d.full ? 'text-emerald-600' : 'text-slate-900',
                   },
                 ].map(k => (
-                  <div key={k.label} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <p className="text-sm text-slate-600">{k.label}</p>
-                    <p className={`mt-1 truncate text-[1.5rem] font-bold leading-tight tabular-nums ${k.tone ?? 'text-slate-900'}`}>
-                      {k.value}{k.unit && <span className="ml-1.5 text-sm font-medium text-slate-400">{k.unit}</span>}
-                    </p>
-                    {'bar' in k && k.bar !== null && k.bar !== undefined && (
-                      <span className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-slate-100" aria-hidden><i className="bg-emerald-600" style={{ width: `${k.bar}%` }} /></span>
-                    )}
-                    <p className="mt-1 truncate text-sm text-slate-600" title={k.sub}>{k.sub}</p>
+                  <div key={k.label} className="rounded-lg border border-slate-200 px-3 py-2">
+                    <p className="text-[0.6875rem] text-slate-500">{k.label}</p>
+                    <p className={`text-base font-semibold tabular-nums ${k.tone ?? 'text-slate-900'}`}>{k.value}</p>
+                    <p className="truncate text-[0.6875rem] text-slate-400" title={k.sub}>{k.sub}</p>
                   </div>
                 ))}
               </div>
 
-              {tab === 'tien' && <>
               {/* Mốc ngày bất thường (chỉ hiện khi có) */}
               {checks && checks.warnings.length > 0 && (
-                <div className="space-y-1 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
-                  {checks.warnings.map(w => (
-                    <p key={w} className="flex items-start gap-2"><AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden />{w}</p>
-                  ))}
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-xs">
+                  <p className="mb-1.5 font-semibold text-slate-700">Kiểm tra mốc ngày</p>
+                  <ul className="space-y-1">
+                    {checks.warnings.map(w => (
+                      <li key={w} className="text-amber-800"><AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />{w}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
-              <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-                {/* BOP — tiến trình dạng dòng thời gian */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h4 className="flex flex-wrap items-baseline gap-x-2 text-lg font-semibold text-slate-900">
-                    Tiến trình (BOP) <span className="text-sm font-normal text-slate-500">SL đã giao theo công đoạn / SL đơn hàng</span>
-                  </h4>
-                  <ol className="mt-4">
-                    {d.milestones.map((m, idx) => {
-                      const cuoi = idx === d.milestones.length - 1;
-                      const cham = m.st === 'done' ? 'bg-emerald-600 text-white' : m.st === 'current' ? 'bg-amber-500 text-white' : m.st === 'cancelled' ? 'bg-rose-400 text-white' : 'bg-slate-200 text-slate-400';
-                      const nhat = m.st === 'todo' || m.st === 'cancelled';
+              <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+                {/* BOP — tiến trình */}
+                <div className="rounded-lg border border-slate-200 p-4">
+                  <p className="mb-3 text-xs font-semibold text-slate-700">Tiến trình (BOP) <span className="font-normal text-slate-400">· SL đã giao theo công đoạn / SL đơn hàng</span></p>
+                  <ol className="space-y-3">
+                    {d.milestones.map(m => {
+                      const Icon = m.st === 'done' ? CheckCircle2 : m.st === 'current' ? CircleDot : m.st === 'cancelled' ? XCircle : Circle;
+                      const color = m.st === 'done' ? 'text-emerald-600' : m.st === 'current' ? 'text-amber-600' : m.st === 'cancelled' ? 'text-rose-400' : 'text-slate-300';
                       return (
-                        <li key={m.key} className="relative flex gap-3 pb-5 last:pb-0">
-                          {!cuoi && <span className="absolute bottom-0 left-[11px] top-7 w-0.5 bg-slate-200" aria-hidden />}
-                          <span className={`relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${cham}`} aria-hidden>
-                            {m.st === 'done' ? <Check size={14} strokeWidth={3} /> : m.st === 'cancelled' ? <X size={14} strokeWidth={3} /> : m.st === 'current' ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
-                          </span>
+                        <li key={m.key} className="flex gap-3">
+                          <Icon size={18} className={`mt-0.5 shrink-0 ${color}`} />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-baseline gap-x-2">
-                              <span className={`text-[0.9375rem] font-semibold ${nhat ? 'text-slate-400' : 'text-slate-900'}`}>{m.title}</span>
-                              <span className="text-xs text-slate-400">{m.stage}</span>
-                              {m.st === 'cancelled' && <span className="rounded-full bg-rose-50 px-2 text-xs font-medium text-rose-600">Hủy</span>}
-                              <span className="ml-auto text-sm tabular-nums text-slate-600">
+                              <span className={`text-sm font-semibold ${m.st === 'todo' || m.st === 'cancelled' ? 'text-slate-400' : 'text-slate-800'}`}>{m.title}</span>
+                              <span className="text-[0.6875rem] text-slate-400">{m.stage}</span>
+                              {m.st === 'cancelled' && <span className="rounded bg-rose-50 px-1.5 text-[0.625rem] font-semibold text-rose-600">Hủy</span>}
+                              <span className="ml-auto text-xs tabular-nums text-slate-600">
                                 {m.date ? fmtDate(m.date) : ''}
                                 {'date2' in m && m.date2 && m.date2.getTime() !== m.date?.getTime() ? ` → ${fmtDate(m.date2)}` : ''}
                               </span>
                             </div>
-                            {m.note && <p className="mt-0.5 text-sm text-slate-600">{m.note}</p>}
-                            {m.gap && <p className="text-xs text-slate-400">{m.gap}</p>}
-                            {/* Sản xuất: SL đã giao theo từng công đoạn so với SL đơn hàng */}
+                            {m.note && <p className="text-xs text-slate-500">{m.note}</p>}
+                            {m.gap && <p className="text-[0.6875rem] text-slate-400">{m.gap}</p>}
+                            {/* Sản xuất: SL đã giao theo từng công đoạn so với SL tính phiếu */}
                             {m.key === 'sx' && (
-                              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 xl:grid-cols-5">
+                              <div className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
                                 {WORK_STEPS.filter(w => !w.flag || String(row[w.flag] ?? '').toLowerCase() === 'yes' || Number(row[w.key]) > 0).map(w => {
                                   const done = Number(row[w.key]) || 0;
                                   const base = d.qtyOrder || d.qtyTicket; // so với SL đơn hàng
                                   const pct = base > 0 ? Math.min(100, (done / base) * 100) : 0;
                                   return (
-                                    <div key={w.key} title={`${w.label}: ${fmtNum(done, 3)} / ${fmtNum(base, 3)}`}>
-                                      <p className="flex justify-between gap-1 text-xs text-slate-600">
-                                        <span className="truncate">{w.label}</span><span className="tabular-nums">{pct.toFixed(0)}%</span>
-                                      </p>
-                                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                        <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-600' : pct > 0 ? 'bg-amber-500' : ''}`} style={{ width: `${pct}%` }} />
+                                    <div key={w.key} className="flex items-center gap-2 text-xs">
+                                      <span className="w-14 shrink-0 text-slate-600">{w.label}</span>
+                                      <div className="h-1.5 flex-1 rounded-full bg-slate-100">
+                                        <div className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-400' : ''}`} style={{ width: `${pct}%` }} />
                                       </div>
-                                      <p className="mt-0.5 text-[0.6875rem] tabular-nums text-slate-400">{fmtNum(done, 3)} / {fmtNum(base, 3)}</p>
+                                      <span className="w-20 shrink-0 text-right tabular-nums text-slate-500">{fmtNum(done, 3)} / {fmtNum(base, 3)}</span>
                                     </div>
                                   );
                                 })}
@@ -390,23 +351,25 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   </ol>
                 </div>
 
+                {/* BOT — các mốc hạn */}
                 <div className="space-y-4">
-                  {/* BOT — các mốc hạn */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <h4 className="text-lg font-semibold text-slate-900">Thời hạn (BOT)</h4>
-                    <p className="text-sm text-slate-500">Hạn dùng: KH nhập kho tuần → tháng; các ngày khác chỉ tham khảo</p>
-                    <ul className="mt-2 divide-y divide-slate-100">
+                  <div className="rounded-lg border border-slate-200 p-4">
+                    <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                      <CalendarClock size={14} /> Thời hạn (BOT)
+                      <span className="font-normal text-slate-400">· hạn dùng: KH nhập kho tuần → KH nhập kho tháng (các ngày khác chỉ tham khảo)</span>
+                    </p>
+                    <ul className="divide-y divide-slate-100 text-xs">
                       {d.deadlines.map(x => {
                         const dd = x.date ? Math.floor((x.date.getTime() - today) / DAY) : null;
                         const late = !x.ref && dd !== null && dd < 0 && !d.full && !d.cancelled;
                         return (
-                          <li key={x.label} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-2.5 text-[0.9375rem]">
-                            <span className={x.used ? 'font-semibold text-slate-900' : x.ref ? 'text-slate-400' : 'text-slate-700'}>{x.label}</span>
-                            {x.used && <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-medium text-white">đang dùng</span>}
-                            {x.extra && <span className="text-xs text-slate-400">{x.extra}</span>}
-                            <span className={`ml-auto tabular-nums ${!x.date ? 'text-slate-300' : late ? 'font-semibold text-red-600' : x.ref ? 'text-slate-400' : 'text-slate-700'}`}>
+                          <li key={x.label} className={`flex items-center gap-2 py-1.5 ${x.used ? 'font-semibold' : ''}`}>
+                            <span className={x.used ? 'text-slate-900' : 'text-slate-500'}>{x.label}</span>
+                            {x.used && <span className="rounded bg-slate-800 px-1.5 text-[0.625rem] font-medium text-white">đang dùng</span>}
+                            {x.extra && <span className="text-[0.6875rem] font-normal text-slate-400">{x.extra}</span>}
+                            <span className={`ml-auto tabular-nums ${!x.date ? 'text-slate-300' : late ? 'text-red-600' : 'text-slate-700'}`}>
                               {fmtDate(x.date)}
-                              {dd !== null && <span className="ml-1 text-sm">({dd < 0 ? `−${-dd}` : `+${dd}`}n)</span>}
+                              {dd !== null && <span className="ml-1 font-normal text-slate-400">({dd < 0 ? `-${-dd}` : `+${dd}`}d)</span>}
                             </span>
                           </li>
                         );
@@ -415,56 +378,46 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                   </div>
 
                   {/* Vật tư + vướng mắc */}
-                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <h4 className="text-lg font-semibold text-slate-900">Vật tư & vướng mắc</h4>
+                  <div className="rounded-lg border border-slate-200 p-4 text-xs">
+                    <p className="mb-2 font-semibold text-slate-700">Vật tư & vướng mắc</p>
                     {bom ? (
-                      <dl className="mt-2 divide-y divide-slate-100 text-[0.9375rem]">
-                        <div className="flex justify-between py-2.5"><dt className="text-slate-700">Dòng PR</dt><dd className="font-semibold tabular-nums text-slate-900">{bom.lines || '—'}</dd></div>
-                        {([
-                          ['Chưa mua', bom.byLine.notOrdered ?? 0, 'text-red-600'],
-                          ['Trễ hẹn', bom.byLine.late ?? 0, 'text-orange-600'],
-                          ['Về theo nhu cầu SX', bom.byLine.deferred ?? 0, 'text-amber-700'],
-                          ['Chưa tới hẹn', bom.byLine.onTrack ?? 0, 'text-slate-900'],
-                        ] as const).filter(([, n]) => n > 0).map(([l, n, c]) => (
-                          <div key={l} className="flex justify-between py-2.5"><dt className="text-slate-700">{l}</dt><dd className={`font-semibold tabular-nums ${c}`}>{n}</dd></div>
-                        ))}
-                        <div className="flex justify-between gap-3 py-2.5"><dt className="text-slate-700">Ngày cần VT · dự kiến giao</dt>
-                          <dd className="tabular-nums text-slate-900">
-                            <span className={bom.needDate && bom.needDate.getTime() < today ? 'font-semibold text-red-600' : ''}>{fmtDate(bom.needDate)}</span> · {fmtDate(bom.dueDate)}
-                          </dd></div>
-                        <div className="flex justify-between py-2.5"><dt className="text-slate-700">Vướng mắc đang mở</dt>
-                          <dd className={openIssues.length ? 'font-semibold text-red-600' : 'text-emerald-700'}>{openIssues.length ? openIssues.length : 'Không có'}</dd></div>
+                      <dl className="grid grid-cols-[1fr_auto] gap-y-1">
+                        <dt className="text-slate-500">Số dòng PR</dt><dd className="text-right tabular-nums">{bom.lines || '—'}</dd>
+                        <dt className="text-slate-500">Chưa mua / trễ hẹn / theo nhu cầu SX / chưa tới hẹn</dt>
+                        <dd className="text-right tabular-nums">
+                          <span className="text-rose-600">{bom.byLine.notOrdered ?? 0}</span> / <span className="text-orange-600">{bom.byLine.late ?? 0}</span> / <span className="text-yellow-700">{bom.byLine.deferred ?? 0}</span> / {bom.byLine.onTrack ?? 0}
+                        </dd>
+                        <dt className="text-slate-500">Ngày cần VT · dự kiến giao PMH</dt>
+                        <dd className="text-right tabular-nums">{fmtDate(bom.needDate)} · {fmtDate(bom.dueDate)}</dd>
                       </dl>
-                    ) : <p className="mt-2 text-sm text-slate-400">Đang tải vật tư…</p>}
+                    ) : <p className="text-slate-400">Đang tải vật tư…</p>}
                     {bom && bom.lines === 0 && (
-                      <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Chưa có dòng PR nào ghi mã nhà máy của hạng mục — vật tư có thể mua gộp theo công trình hoặc lấy từ tồn kho. Xem tab Vật tư.</p>
+                      <p className="mt-1 text-amber-700">Chưa có dòng PR nào ghi mã nhà máy của hạng mục — vật tư có thể mua gộp theo công trình (khối "Vật tư chung" ở tab BOM) hoặc lấy từ tồn kho. Xem định mức NVL bên dưới.</p>
                     )}
-                    {openIssues.length > 0 && (
-                      <ul className="mt-2 space-y-2">
-                        {openIssues.map(v => (
-                          <li key={v.id} className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800">
-                            <p className="flex items-start gap-1.5"><AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden /><span className="whitespace-pre-line">{v.content}</span></p>
-                            <p className="mt-0.5 text-xs text-red-600/80">
-                              {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT ${new Date(v.bot).toLocaleDateString('vi-VN')}` : ''}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <div className="mt-3 border-t border-slate-100 pt-2">
+                      {openIssues.length === 0 ? (
+                        <p className="text-slate-400">Không có vướng mắc đang mở.</p>
+                      ) : (
+                        <ul className="space-y-1.5">
+                          {openIssues.map(v => (
+                            <li key={v.id} className="rounded-md bg-red-50 px-2.5 py-1.5 text-red-800">
+                              <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />
+                              <span className="whitespace-pre-line">{v.content}</span>
+                              <span className="block text-[0.6875rem] text-red-600/80">
+                                {v.handler ? `Xử lý: ${v.handler} · ` : ''}{v.bot ? `BOT ${new Date(v.bot).toLocaleDateString('vi-VN')}` : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              </>}
-
               {/* Định mức + tình trạng NVL theo hạng mục (bảng sản xuất, kế hoạch cập nhật) */}
-              {tab === 'nvl' && !(nvl.needs.length > 0 || nvl.status.length > 0 || row.co_gia_cong_ngoai) && (
-                <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-                  Bảng sản xuất chưa ghi định mức / tình trạng mua của hạng mục này. Bấm "Vật tư theo PR" để xem các dòng PR.
-                </p>
-              )}
-              {tab === 'nvl' && (nvl.needs.length > 0 || nvl.status.length > 0 || row.co_gia_cong_ngoai) && (
-                <div className="rounded-2xl border border-slate-200 bg-white">
+              {(nvl.needs.length > 0 || nvl.status.length > 0 || row.co_gia_cong_ngoai) && (
+                <div className="rounded-lg border border-slate-200">
                   <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
                     Định mức & tình trạng NVL{' '}
                     <span className="font-normal text-slate-400">
@@ -539,7 +492,7 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
               )}
 
               {/* Lịch sử nhập kho */}
-              {tab === 'nhap' && <div className="rounded-2xl border border-slate-200 bg-white">
+              <div className="rounded-lg border border-slate-200">
                 <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
                   Lịch sử nhập kho <span className="font-normal text-slate-400">· {d.stockIn.length} lần</span>
                 </p>
@@ -571,14 +524,11 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
                     </table>
                   </div>
                 )}
-              </div>}
+              </div>
 
               {/* QC: bảng từng lần kiểm (parse từ cột tổng hợp QC) */}
-              {tab === 'qc' && qcEntries.length === 0 && (
-                <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Chưa có lần kiểm QC nào.</p>
-              )}
-              {tab === 'qc' && qcEntries.length > 0 && (
-                <div className="rounded-2xl border border-slate-200 bg-white">
+              {qcEntries.length > 0 && (
+                <div className="rounded-lg border border-slate-200">
                   <p className="border-b border-slate-100 px-4 py-2 text-xs font-semibold text-slate-700">
                     Kiểm tra QC <span className="font-normal text-slate-400">· {qcEntries.length} lần · {qcEntries.reduce((n, e) => n + e.fail, 0)} sản phẩm lỗi · mới nhất trước</span>
                   </p>
@@ -637,18 +587,19 @@ export const HexTimelineModal: React.FC<Props> = ({ hex, onClose, bom, issues, o
               )}
 
               {/* Ghi chú phiếu, mô tả (QC đã có bảng riêng; chỉ hiện nguyên văn khi không parse được) */}
-              {tab === 'ghichu' && (ghiChu.length === 0 ? (
-                <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Không có ghi chú.</p>
-              ) : (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {ghiChu.map(b => (
-                    <div key={b.title} className="rounded-2xl border border-slate-200 bg-white p-4">
-                      <p className="mb-1 text-sm font-semibold text-slate-800">{b.title}</p>
-                      <p className="max-h-64 overflow-auto whitespace-pre-line break-words text-sm text-slate-600 custom-scrollbar">{b.text}</p>
-                    </div>
-                  ))}
-                </div>
-              ))}
+              <div className="grid gap-4 lg:grid-cols-2">
+                {[
+                  { title: 'Ghi chú phiếu', text: row.ghi_chu_phieu },
+                  { title: 'Thông tin QC', text: qcEntries.length ? '' : row.tong_hop_thong_tin_qc },
+                  { title: 'Mô tả sản phẩm', text: row.mo_ta_san_pham },
+                  { title: 'Ghi chú đơn hàng / xuất kho', text: [row.ghi_chu_don_hang_tong, row.tong_hop_ghi_chu_xuat_kho].filter(Boolean).join('\n') },
+                ].filter(b => String(b.text ?? '').trim()).map(b => (
+                  <div key={b.title} className="rounded-lg border border-slate-200 p-3">
+                    <p className="mb-1 text-xs font-semibold text-slate-700">{b.title}</p>
+                    <p className="max-h-48 overflow-auto whitespace-pre-line break-words text-xs text-slate-600 custom-scrollbar">{b.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import DesktopModeHint from './components/shared/DesktopModeHint';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate, Outlet, useOutletContext } from 'react-router-dom';
-import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Settings, Columns, Smartphone, Search, Factory, Hammer, Database } from 'lucide-react';
+import { LayoutDashboard, Table, Menu, RefreshCw, X, Box, Package, LogOut, Shield, BarChart3, Key, Loader, Check, AlertTriangle, Calendar, ShoppingCart, Import, FileText, ClipboardList, TrendingUp, CalendarRange, Upload, Clock, ChevronDown, Database, Settings, Columns, Smartphone, Search, Factory, Hammer } from 'lucide-react';
 import { getCachedData, getCachedVersion, saveToCache, fetchAllDataFromServer, fetchPlanMet, fetchProjectAliases, getCacheGeneration, fetchTongQuanCongTrinh } from './services/dataService';
 import { giaiNenBanGhi, type Rec as CongTrinhRec } from './components/Construction/core/banGhiCongTrinh';
 import { DataRow, ColumnDefinition, PRODUCTION_DEFAULT_VIEW_COLUMNS, TARGET_COLUMN_NAMES, APP_VIEWS } from './types';
@@ -25,7 +25,6 @@ import { ModalShell } from './components/shared/ModalShell';
 import { lazyPage } from './utils/chunkReload';
 // Áp dụng Lazy Loading: Tách các component ra khỏi bundle ban đầu
 const ChartOverview = lazyPage(() => import('./components/Charts/ChartOverview'));
-const HoiDapPopup = React.lazy(() => import('./components/HoiDap/HoiDapPopup'));
 const loadDashboardPage = () => import('./components/Dashboard');
 const Dashboard = lazyPage(loadDashboardPage);
 const DataGrid = lazyPage(() => import('./components/DataGrid'));
@@ -72,12 +71,12 @@ const FullScreenLoader = () => (
 // Phải khớp với PERMISSION_GROUPS trong types.ts
 // ============================================================
 const CHART_SUB_ITEMS: { key: string; label: string; path: string; permId: string }[] = [
-  { key: 'order', label: '1. Đơn hàng mới (P001)', path: '/charts/order', permId: 'chart_order' },
-  { key: 'tkbv', label: '2. Triển khai BV (P002)', path: '/charts/tkbv', permId: 'chart_tkbv' },
-  { key: 'pthsp', label: '3. Đã tính phiếu (P012)', path: '/charts/pthsp', permId: 'chart_pthsp' },
-  { key: 'inventory', label: '4. Nhập kho (P022)', path: '/charts/inventory', permId: 'chart_inventory' },
-  { key: 'export', label: '5. Xuất kho (P025)', path: '/charts/export', permId: 'chart_export' },
-  { key: 'stock', label: '6. Tồn kho', path: '/charts/stock', permId: 'chart_stock' },
+  { key: 'order', label: '1. ĐƠN HÀNG MỚI (P001)', path: '/charts/order', permId: 'chart_order' },
+  { key: 'tkbv', label: '2. TRIỂN KHAI BV (P002)', path: '/charts/tkbv', permId: 'chart_tkbv' },
+  { key: 'pthsp', label: '3. ĐÃ TÍNH PHIẾU (P012)', path: '/charts/pthsp', permId: 'chart_pthsp' },
+  { key: 'inventory', label: '4. NHẬP KHO (P022)', path: '/charts/inventory', permId: 'chart_inventory' },
+  { key: 'export', label: '5. XUẤT KHO (P025)', path: '/charts/export', permId: 'chart_export' },
+  { key: 'stock', label: '6. TỒN KHO', path: '/charts/stock', permId: 'chart_stock' },
 ];
 
 const CONSTRUCTION_PATH = '/cong-trinh/tong-quan';
@@ -105,7 +104,7 @@ const tablesForPath = (path: string): string[] => {
   if (path === '/tra-cuu-hex' || path === '/vuong-mac' || path === '/users' || path.startsWith('/charts/')) return [];
   // Setup dữ liệu: theo thẻ đang mở (trangKey) — Xưởng / Gộp xưởng chỉ gọi API; Nhóm công trình cần bảng sản xuất;
   // Cột dữ liệu (và thẻ mặc định chưa rõ) cần cột của đủ 12 bảng
-  if (path === '/mra' || path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
+  if (path === '/setup?tab=xuong' || path === '/setup?tab=gop-xuong') return [];
   if (path === '/setup?tab=nhom-cong-trinh') return ['production'];
   return ALL_TABLE_ENDPOINTS;
 };
@@ -182,7 +181,6 @@ const App: React.FC = () => {
                   <Route path="/cong-trinh/can-mau" element={<Navigate to="/cong-trinh/tong-quan" replace />} />
                   {/* Setup dữ liệu: 1 trang chung, chọn mục bằng thẻ (?tab=). Đường dẫn cũ của 3 trang setup chuyển về đúng thẻ */}
                   <Route path="/setup" element={<DataSetupWrapper />} />
-                  <Route path="/mra" element={<MraWrapper />} />
                   <Route path="/cong-trinh/setup" element={<Navigate to="/setup?tab=nhom-cong-trinh" replace />} />
 
                   {/* --- Nhóm Quản trị (Biểu đồ): mỗi biểu đồ 1 quyền riêng --- */}
@@ -339,14 +337,11 @@ const TableColumnSetupWrapper = () => {
 
 // Trang chung Setup dữ liệu: mỗi thẻ hiện theo đúng quyền của trang setup cũ tương ứng
 //   Nhóm công trình (Luồng đỏ / Căn mẫu): quyền construction_setup · Cột dữ liệu: table_column_setup ·
-//   Gộp xưởng: chỉ ADMIN (lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang). Mục Xưởng => trang MRA (/mra)
+//   Gộp xưởng: chỉ ADMIN (lưu xong báo MainLayout gộp lại dữ liệu đã tải + tải lại trang) · Xưởng: ADMIN hoặc xuong_quan_ly
 const DataSetupWrapper = () => {
   const { user, isLoading, hasPermission } = useAuth();
-  const loc = useLocation();
   if (isLoading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
-  // Thẻ "Xưởng" đã thành trang MRA riêng — giữ link cũ (thông báo, dấu trang) chạy được
-  if (new URLSearchParams(loc.search).get('tab') === 'xuong') return <Navigate to="/mra" replace />;
   const tabs: SetupTab[] = [];
   if (hasPermission('construction_setup')) tabs.push({
     id: 'nhom-cong-trinh', label: 'Nhóm công trình', desc: 'Công trình thuộc nhóm Luồng đỏ / Căn mẫu',
@@ -356,33 +351,16 @@ const DataSetupWrapper = () => {
     id: 'cot-du-lieu', label: 'Cột dữ liệu', desc: 'Cột được hiện & thứ tự cột từng bảng',
     icon: <Columns size={16} />, render: () => <TableColumnSetupWrapper />,
   });
+  if (user.role === 'ADMIN' || hasPermission('xuong_quan_ly')) tabs.push({
+    id: 'xuong', label: 'Xưởng', desc: 'Triển khai hạng mục, tổ, công đoạn, lịch ca',
+    icon: <Hammer size={16} />, render: () => <XuongSetup />,
+  });
   if (user.role === 'ADMIN') tabs.push({
     id: 'gop-xuong', label: 'Gộp xưởng', desc: 'Gộp mã xưởng nhỏ vào 1 xưởng (chỉ Admin)',
     icon: <Factory size={16} />,
     render: () => <WorkshopGroupSetup embedded onSaved={() => window.dispatchEvent(new Event('workshop-groups-changed'))} />,
   });
   return <DataSetupPage tabs={tabs} />;
-};
-
-// MRA: triển khai hạng mục, tổ, công đoạn, lịch ca (trước là thẻ "Xưởng" trong Setup dữ liệu) — ADMIN hoặc xuong_quan_ly
-const MraWrapper = () => {
-  const { user, isLoading, hasPermission } = useAuth();
-  if (isLoading) return <FullScreenLoader />;
-  if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== 'ADMIN' && !hasPermission('xuong_quan_ly')) return <Navigate to="/" replace />;
-  return (
-    <div className="flex h-full flex-col overflow-hidden bg-wood-50">
-      <div className="shrink-0 border-b border-slate-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-bold text-slate-800">MRA</h1>
-        <p className="text-xs text-slate-500">Triển khai hạng mục, tổ, công đoạn, lịch ca</p>
-      </div>
-      <div className="min-h-0 flex-1">
-        <Suspense fallback={<div className="flex h-full items-center justify-center text-slate-400"><RefreshCw size={18} className="animate-spin" /></div>}>
-          <XuongSetup />
-        </Suspense>
-      </div>
-    </div>
-  );
 };
 
 const YearlyPlanDataWrapper = () => {
@@ -476,32 +454,28 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   'Shield': <Shield size={18} />, 'Calendar': <Calendar size={18} />, 'ShoppingCart': <ShoppingCart size={18} />,
   'Import': <Import size={18} />, 'FileText': <FileText size={18} />, 'ClipboardList': <ClipboardList size={18} />,
   'TrendingUp': <TrendingUp size={18} />, 'CalendarRange': <CalendarRange size={18} />, 'Export': <Upload size={18} />,
-  'Clock': <Clock size={18} />, 'Search': <Search size={18} />, 'AlertTriangle': <AlertTriangle size={18} />, 'Box': <Box size={18} />
+  'Clock': <Clock size={18} />, 'Search': <Search size={18} />, 'AlertTriangle': <AlertTriangle size={18} />
+};
+
+// Icon nhỏ hơn dùng cho các mục con trong nhóm gộp
+const ICON_MAP_SM: Record<string, React.ReactNode> = {
+  'LayoutDashboard': <LayoutDashboard size={15} />, 'Table': <Table size={15} />, 'Package': <Package size={15} />,
+  'Shield': <Shield size={15} />, 'Calendar': <Calendar size={15} />, 'ShoppingCart': <ShoppingCart size={15} />,
+  'Import': <Import size={15} />, 'FileText': <FileText size={15} />, 'ClipboardList': <ClipboardList size={15} />,
+  'TrendingUp': <TrendingUp size={15} />, 'CalendarRange': <CalendarRange size={15} />, 'Export': <Upload size={15} />,
+  'Clock': <Clock size={15} />, 'Search': <Search size={15} />
 };
 
 // Các viewId luôn hiển thị riêng lẻ, không gộp vào nhóm "Dữ liệu"
 const STANDALONE_VIEW_IDS = ['dashboard', 'hex_lookup', 'vuong_mac', 'users'];
-
-// Cụm trong nhóm "Dữ liệu" trên thanh bên
-const CUM_DU_LIEU: Array<{ ten: string; ids: string[] }> = [
-  { ten: 'Đơn hàng & sản xuất', ids: ['production', 'orders', 'tkbv', 'pthsp'] },
-  { ten: 'Kế hoạch', ids: ['yearly_plan_data', 'khsx', 'analysis'] },
-  { ten: 'Kho', ids: ['inventory', 'export', 'stock'] },
-  { ten: 'Khác', ids: ['materials', 'attendance'] },
-];
 
 const AppLogo = () => <LogoAANgang co="nho" />;
 
 // ------------------------------------------------------------
 // Style dùng chung cho sidebar (sáng, tối giản)
 // ------------------------------------------------------------
-const NAV_ACTIVE = 'bg-aa-50 text-aa-600 font-semibold';
-const NAV_IDLE = 'text-slate-600 hover:bg-slate-50 hover:text-slate-900';
-/** Chữ viết tắt cho ảnh đại diện: chữ cái đầu của họ + tên ("Nguyễn Minh Tiến" → "NT") */
-const vietTat = (ten: string) => {
-  const t = ten.trim().split(/\s+/).filter(Boolean);
-  return ((t[0]?.[0] ?? '') + (t.length > 1 ? t[t.length - 1][0] : '')).toUpperCase() || '?';
-};
+const NAV_ACTIVE = 'bg-slate-100 text-slate-900 font-semibold';
+const NAV_IDLE = 'text-slate-500 hover:bg-slate-50 hover:text-slate-900';
 const FOOT_BTN = 'flex items-center gap-3 w-full px-3 py-2 text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors';
 
 const MainLayout: React.FC = () => {
@@ -535,8 +509,8 @@ const MainLayout: React.FC = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Trạng thái đóng/mở của các nhóm menu - mặc định đóng
-  const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
+  const [isChartMenuOpen, setIsChartMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -601,11 +575,13 @@ const MainLayout: React.FC = () => {
 
   // Tự mở nhóm menu chứa trang hiện tại
   useEffect(() => {
+    const currentView = APP_VIEWS.find(v => v.path === location.pathname);
+    if (currentView && !STANDALONE_VIEW_IDS.includes(currentView.id)) {
+      setIsDataMenuOpen(true);
+    }
     if (CHART_SUB_ITEMS.some(item => item.path === location.pathname)) {
       setIsChartMenuOpen(true);
     }
-    const v = APP_VIEWS.find(x => x.path === location.pathname);
-    if (v && !STANDALONE_VIEW_IDS.includes(v.id)) setIsDataMenuOpen(true);
   }, [location.pathname]);
 
   // Mở rộng sidebar trước nếu đang thu gọn, rồi mới đóng/mở nhóm
@@ -1007,12 +983,13 @@ const MainLayout: React.FC = () => {
   const canSeeConstruction = hasPermission('construction_overview');
   const visibleChartItems = CHART_SUB_ITEMS.filter(i => hasPermission(i.permId));
   const groupedViews = APP_VIEWS.filter(v => !STANDALONE_VIEW_IDS.includes(v.id) && hasPermission(v.id));
-  const coXuong = user?.role === 'ADMIN' || hasPermission('xuong_quan_ly');
-  const canSeeAnySetup = hasPermission('construction_setup') || hasPermission('table_column_setup') || user?.role === 'ADMIN';
+  const canSeeAnySetup = hasPermission('construction_setup') || hasPermission('table_column_setup') || hasPermission('xuong_quan_ly') || user?.role === 'ADMIN';
 
   const isChartGroupActive = visibleChartItems.some(i => i.path === location.pathname);
+  const isGroupActive = groupedViews.some(v => v.path === location.pathname);
 
   const handleChartGroupToggle = makeGroupToggle(isChartMenuOpen, setIsChartMenuOpen);
+  const handleGroupToggle = makeGroupToggle(isDataMenuOpen, setIsDataMenuOpen);
 
   // Render 1 nhóm menu con dạng chỉ có chữ (Công trình, Biểu đồ)
   const renderSubLinks = (items: { key: string; label: string; path: string }[]) =>
@@ -1052,7 +1029,7 @@ const MainLayout: React.FC = () => {
   ${isMobileSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
   ${isCollapsed ? 'md:w-20' : 'md:w-64'}
 `}>
-        <div className={`h-16 flex items-center bg-white transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
+        <div className={`h-14 flex items-center bg-white border-b border-slate-200 transition-all duration-300 ${isCollapsed ? 'justify-center px-0' : 'justify-between px-4'}`}>
           <div className={`flex items-center gap-2.5 font-semibold text-slate-900 text-[0.9375rem] tracking-tight overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-auto opacity-100'}`}>
             <AppLogo />
           </div>
@@ -1063,6 +1040,20 @@ const MainLayout: React.FC = () => {
             <X size={18} />
           </button>
         </div>
+
+        {user && (
+          <div className={`px-4 py-3.5 flex items-center gap-3 border-b border-slate-200 ${isCollapsed ? 'justify-center !gap-0' : ''}`}>
+            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-semibold text-xs shrink-0 cursor-help" title={`Permissions: ${user.permissions.length} views`}>
+              {user.fullName.charAt(0).toUpperCase()}
+            </div>
+            <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+              <div className="text-sm text-slate-900 font-medium truncate w-40">{user.fullName}</div>
+              <div className="text-[0.6875rem] text-slate-500">
+                {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
+              </div>
+            </div>
+          </div>
+        )}
 
         <nav className="flex-1 py-3 space-y-0.5 px-3 overflow-y-auto overflow-x-hidden custom-scrollbar">
           {/* Tổng quan - luôn hiển thị riêng, ở đầu */}
@@ -1103,47 +1094,7 @@ const MainLayout: React.FC = () => {
             />
           )}
 
-          {/* Biểu đồ (gập/mở như cũ vì nhiều mục) */}
-          {visibleChartItems.length > 0 && (
-            <NavGroup
-              icon={<BarChart3 size={18} className="shrink-0" />}
-              label="Biểu đồ"
-              collapsed={isCollapsed}
-              open={isChartMenuOpen}
-              active={isChartGroupActive}
-              onToggle={handleChartGroupToggle}
-            >
-              {renderSubLinks(visibleChartItems)}
-            </NavGroup>
-          )}
-
-          {/* Dữ liệu: 1 nhóm gập/mở, bên trong chia 4 cụm, tên ngắn (bỏ chữ "Dữ liệu") */}
-          {groupedViews.length > 0 && (
-            <NavGroup
-              icon={<Database size={18} className="shrink-0" />}
-              label="Dữ liệu"
-              collapsed={isCollapsed}
-              open={isDataMenuOpen}
-              active={groupedViews.some(v => v.path === location.pathname)}
-              onToggle={makeGroupToggle(isDataMenuOpen, setIsDataMenuOpen)}
-            >
-              {CUM_DU_LIEU.map(cum => {
-                const ds = cum.ids.map(id => groupedViews.find(v => v.id === id)).filter((v): v is NonNullable<typeof v> => !!v);
-                if (!ds.length) return null;
-                return (
-                  <div key={cum.ten} className="pb-1">
-                    <p className="px-3 pb-0.5 pt-1.5 text-[0.625rem] font-semibold uppercase tracking-wider text-slate-400">{cum.ten}</p>
-                    {renderSubLinks(ds.map(v => ({ key: v.id, label: v.label.replace(/^Dữ liệu\s+/i, '').replace(/^./, c => c.toUpperCase()), path: v.path })))}
-                  </div>
-                );
-              })}
-              {/* Trang dữ liệu mới chưa xếp cụm */}
-              {renderSubLinks(groupedViews.filter(v => !CUM_DU_LIEU.some(c => c.ids.includes(v.id)))
-                .map(v => ({ key: v.id, label: v.label.replace(/^Dữ liệu\s+/i, ''), path: v.path })))}
-            </NavGroup>
-          )}
-
-          {(vuongMacView || coXuong) && <TieuDeNhom ten="Ứng dụng" collapsed={isCollapsed} />}
+          {/* Vướng mắc sản xuất (quản lý) */}
           {vuongMacView && (
             <NavLink
               key={vuongMacView.id}
@@ -1156,28 +1107,49 @@ const MainLayout: React.FC = () => {
             />
           )}
 
-          {coXuong && (
-            <NavLink
-              to="/mra"
-              icon={<Hammer size={18} />}
-              label="MRA"
-              active={location.pathname === '/mra'}
-              onClick={closeMobileSidebar}
+          {/* Nhóm Quản trị (Biểu đồ) */}
+          {visibleChartItems.length > 0 && (
+            <NavGroup
+              icon={<BarChart3 size={18} className="shrink-0" />}
+              label="Quản trị"
+              tooltip="Biểu đồ"
               collapsed={isCollapsed}
-            />
+              open={isChartMenuOpen}
+              active={isChartGroupActive}
+              onToggle={handleChartGroupToggle}
+            >
+              {renderSubLinks(visibleChartItems)}
+            </NavGroup>
           )}
 
-          {(usersView || canSeeAnySetup) && <TieuDeNhom ten="Quản trị" collapsed={isCollapsed} />}
-          {canSeeAnySetup && (
-            <NavLink
-              to="/setup"
-              icon={<Settings size={18} />}
-              label="Setup dữ liệu"
-              active={location.pathname === '/setup'}
-              onClick={closeMobileSidebar}
+          {/* Nhóm Dữ liệu */}
+          {groupedViews.length > 0 && (
+            <NavGroup
+              icon={<Database size={18} className="shrink-0" />}
+              label="Dữ liệu"
               collapsed={isCollapsed}
-            />
+              open={isDataMenuOpen}
+              active={isGroupActive}
+              onToggle={handleGroupToggle}
+            >
+              {groupedViews.map((view) => {
+                const active = location.pathname === view.path;
+                return (
+                  <Link
+                    key={view.id}
+                    to={view.path}
+                    onClick={closeMobileSidebar}
+                    className={`flex items-center gap-2.5 py-1.5 px-3 rounded-md text-[0.8125rem] transition-colors duration-150 ${active ? NAV_ACTIVE : NAV_IDLE}`}
+                  >
+                    <div className="shrink-0">{ICON_MAP_SM[view.iconName || 'Table']}</div>
+                    <span className="whitespace-nowrap overflow-hidden">{view.label}</span>
+                  </Link>
+                );
+              })}
+            </NavGroup>
           )}
+
+          {/* Quản trị User - luôn hiển thị riêng, cuối danh sách */}
           {usersView && (
             <NavLink
               key={usersView.id}
@@ -1189,29 +1161,21 @@ const MainLayout: React.FC = () => {
               collapsed={isCollapsed}
             />
           )}
+
+          {/* Setup dữ liệu: 1 mục chung (nhóm công trình / cột dữ liệu / gộp xưởng — thẻ trong trang) */}
+          {canSeeAnySetup && (
+            <NavLink
+              to="/setup"
+              icon={<Settings size={18} />}
+              label="Setup dữ liệu"
+              active={location.pathname === '/setup'}
+              onClick={closeMobileSidebar}
+              collapsed={isCollapsed}
+            />
+          )}
         </nav>
 
         <div className="p-3 border-t border-slate-200 space-y-0.5">
-          {user && (
-            <div className={`mb-2 flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 ${isCollapsed ? 'justify-center !gap-0 !bg-transparent !p-0' : ''}`}>
-              <div className="w-9 h-9 rounded-full bg-aa-600 flex items-center justify-center text-white font-semibold text-xs shrink-0 cursor-help" title={`Permissions: ${user.permissions.length} views`}>
-                {vietTat(user.fullName)}
-              </div>
-              <div className={`min-w-0 overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'flex-1 opacity-100'}`}>
-                <div className="text-sm text-slate-900 font-medium truncate">{user.fullName}</div>
-                <div className="text-xs text-slate-500 truncate">
-                  {user.role === 'ADMIN' ? 'Admin' : (user.department || 'User')}
-                </div>
-              </div>
-              {!isCollapsed && (
-                <button onClick={handleLogoutClick} title="Đăng xuất" aria-label="Đăng xuất"
-                  className="shrink-0 rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600">
-                  <LogOut size={18} />
-                </button>
-              )}
-            </div>
-          )}
-
           {user?.role === 'USER' && (
             <button
               onClick={() => { setIsChangePasswordOpen(true); closeMobileSidebar(); }}
@@ -1225,7 +1189,7 @@ const MainLayout: React.FC = () => {
 
           <button
             onClick={handleLogoutClick}
-            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center !gap-0' : 'hidden'}`}
+            className={`${FOOT_BTN} hover:!text-red-600 hover:!bg-red-50 ${isCollapsed ? 'justify-center !gap-0' : ''}`}
             title="Đăng xuất"
           >
             <LogOut size={18} />
@@ -1291,9 +1255,6 @@ const MainLayout: React.FC = () => {
           )
         )}
       </main>
-
-      {/* Hỏi số liệu (nút tròn góc phải dưới) — tải riêng khi cần */}
-      <Suspense fallback={null}><HoiDapPopup /></Suspense>
 
       {/* Change Password Modal */}
       <ModalShell
@@ -1383,7 +1344,7 @@ const NavGroup: React.FC<NavGroupProps> = ({ icon, label, tooltip, collapsed, op
       title={collapsed ? (tooltip || label) : undefined}
       className={`flex items-center w-full py-2 rounded-lg text-sm transition-colors duration-150
         ${collapsed ? 'justify-center gap-0 px-2' : 'gap-3 px-3'}
-        ${active ? 'text-aa-600 font-semibold' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+        ${active ? 'text-slate-900 bg-slate-100 font-semibold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
     >
       {icon}
       {/* Thu gọn: bỏ hẳn chữ (flex-1 dù rộng 0 vẫn chiếm chỗ trống, đẩy icon lệch trái) */}
@@ -1407,12 +1368,6 @@ const NavGroup: React.FC<NavGroupProps> = ({ icon, label, tooltip, collapsed, op
     )}
   </div>
 );
-
-/** Tiêu đề nhóm trên thanh bên (thu gọn: chỉ 1 vạch ngăn) */
-const TieuDeNhom: React.FC<{ ten: string; collapsed: boolean }> = ({ ten, collapsed }) =>
-  collapsed
-    ? <div className="mx-3 my-2 border-t border-slate-200" aria-hidden />
-    : <div className="px-3 pb-1 pt-4 text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-400">{ten}</div>;
 
 interface NavLinkProps {
   to: string;

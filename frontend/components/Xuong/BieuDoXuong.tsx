@@ -23,7 +23,7 @@ const XANH = '#16a34a', VANG = '#f59e0b', DO = '#dc2626', XAM = '#cbd5e1', LAM =
 function Khung({ ten, children, phu }: { ten: string; children: React.ReactNode; phu?: string }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-base font-semibold text-slate-900">{ten}</p>
+      <p className="text-sm font-semibold text-slate-800">{ten}</p>
       {phu && <p className="text-xs text-slate-500">{phu}</p>}
       <div className="mt-2">{children}</div>
     </div>

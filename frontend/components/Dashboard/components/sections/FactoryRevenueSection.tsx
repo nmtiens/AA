@@ -63,15 +63,6 @@ interface FactoryRevenueSectionProps {
   onFunnelModalClose?: () => void;
   /** Bấm 1 con số trong bảng chi tiết (name = công trình / mã BOP, null = dòng Tổng cộng) */
   onPivotValueClick?: (name: string | null, item: CustomFunnelItem | null) => void;
-  /**
-   * Bố cục mới (docs/designs/figma-thiet-ke-lai/9-tong-quan): hàng 4 thẻ đầu trang = thẻ "Thực hiện năm" (vẽ ở đây)
-   * + 3 thẻ truyền vào; bỏ khung trắng bọc ngoài & biểu đồ tiến độ cũ. Không truyền => giữ bố cục cũ.
-   */
-  theDau?: React.ReactNode;
-  /** Năm hiển thị trên thẻ "Thực hiện năm" */
-  namLabel?: string;
-  /** Chỉ vẽ phễu + nội dung bên phải (đầu trang Tổng quan đã có số doanh số năm) */
-  chiPheu?: boolean;
 }
 
 // ---- Helpers đo & xếp hàng nhãn quý (giữ nguyên như cũ) ----
@@ -113,9 +104,6 @@ export const FactoryRevenueSection = ({
   onFunnelItemClick,
   onFunnelModalClose,
   onPivotValueClick,
-  theDau,
-  namLabel,
-  chiPheu,
 }: FactoryRevenueSectionProps) => {
   const [isFunnelPivotModalOpen, setIsFunnelPivotModalOpen] = useState(false);
   // Bước phễu đang xem chi tiết (null = bảng tổng theo BOP)
@@ -214,42 +202,7 @@ export const FactoryRevenueSection = ({
 
   return (
     <>
-      <div ref={sectionRef} className={theDau || chiPheu ? 'scroll-mt-24 w-full flex flex-col gap-4' : 'scroll-mt-24 w-full bg-white px-5 py-4 rounded-xl shadow-sm border border-slate-200 flex flex-col'}>
-        {chiPheu ? null : theDau ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {/* Thẻ 1: Thực hiện năm (nhập kho) — thanh tiến độ + vạch đỏ = mốc quý; bấm số => chi tiết nhập kho theo năm */}
-            <div className="flex flex-col rounded-2xl border border-slate-200 bg-white px-5 py-4">
-              <button type="button" onClick={onActualClick} disabled={!onActualClick}
-                title="Bấm để xem chi tiết nhập kho theo năm"
-                className="group -mx-1 rounded-lg px-1 text-left enabled:cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
-                <span className="flex items-center gap-1.5 text-base text-slate-700">
-                  Thực hiện năm {namLabel ?? ''} (nhập kho)
-                  {onActualClick && <Eye size={15} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />}
-                </span>
-                <span className="mt-1 block text-[2rem] font-bold leading-tight tabular-nums text-emerald-700">
-                  {formatTy(factoryRevenueStats.actual)}
-                  <span className="ml-1.5 text-base font-medium text-slate-400">tỷ · {formatDecimal(factoryRevenueStats.percent)}%</span>
-                </span>
-              </button>
-              <div className="relative mt-3 h-2 rounded-full bg-slate-100" aria-hidden>
-                <i className="absolute inset-y-0 left-0 rounded-full bg-emerald-600" style={{ width: `${Math.min(100, Math.max(0, factoryRevenueStats.percent))}%` }} />
-                {targetRevenue2026 > 0 && quarterDefs.map(q => (
-                  <b key={q.key} className="absolute -top-1 h-4 w-0.5 bg-red-500/70" style={{ left: `${Math.min(100, (q.value / targetRevenue2026) * 100)}%` }} title={q.label} />
-                ))}
-              </div>
-              <p className="mt-2 text-base text-slate-700">
-                {onPlanClick ? (
-                  <button type="button" onClick={onPlanClick} className="underline decoration-slate-300 underline-offset-2 hover:decoration-slate-700"
-                    title="Bấm để xem nhập kho so với kế hoạch năm theo tháng / xưởng">
-                    Kế hoạch năm {formatTy(targetRevenue2026)} tỷ
-                  </button>
-                ) : <>Kế hoạch năm {formatTy(targetRevenue2026)} tỷ</>}
-                <span className="text-slate-500"> · vạch đỏ = mốc quý</span>
-              </p>
-            </div>
-            {theDau}
-          </div>
-        ) : (<>
+      <div ref={sectionRef} className="scroll-mt-24 w-full bg-white px-5 py-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
         <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100">
           <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
             <Target size={18} />
@@ -390,10 +343,8 @@ export const FactoryRevenueSection = ({
           </div>
         </div>
 
-        </>)}
-
         {/* ===== HÀNG DƯỚI: PHỄU TÌNH TRẠNG ĐƠN HÀNG AATN (trái) + CƠ CẤU (phải) ===== */}
-        <div className={`${theDau || chiPheu ? '' : 'mt-6 '}grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch`}>
+        <div className="mt-6 grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
           {/* Phễu (thẻ dùng chung với Luồng đỏ / Căn mẫu): cao bằng cột bên phải, hàng tự giãn đều */}
           <FunnelCard
             className={sideContent ? 'xl:col-span-8' : 'xl:col-span-12'}

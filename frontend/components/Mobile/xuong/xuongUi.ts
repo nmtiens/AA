@@ -5,16 +5,15 @@
 // - Nút chính ≥ 64px, nút phụ / dòng ≥ 56px, hai vùng chạm cách nhau ≥ 12px.
 // - Số lượng / quân số 24px tabular-nums; ô chốt quân số 40px.
 // - Chữ nhỏ nhất 16px (text-base), màu slate-600 trở lên. Màu trạng thái luôn kèm chữ + icon (6B).
-// - Nút chính màu đỏ AA (thiết kế Figma "Operations Hub – Thiết kế lại"); nút phụ trắng viền xám.
 // ============================================================================
 
 export const NUT_CHINH =
-  'flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-aa-600 px-4 text-lg font-semibold text-white active:bg-aa-700 disabled:opacity-40';
+  'flex h-16 w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 text-lg font-semibold text-white active:opacity-80 disabled:opacity-40';
 export const NUT_PHU =
   'flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 text-base font-medium text-slate-800 active:bg-slate-100 disabled:opacity-40';
 /** Nút hành động chính trên một dòng hạng mục (Xong — giao / Tiếp tục / Bắt đầu / Nhận) */
 export const NUT_DONG =
-  'flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-aa-600 px-3 text-base font-semibold text-white active:bg-aa-700 disabled:opacity-40';
+  'flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-3 text-base font-semibold text-white active:opacity-80 disabled:opacity-40';
 /** Nút −/+ 64px */
 export const NUT_DEM =
   'flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white text-3xl font-semibold text-slate-800 active:bg-slate-100 disabled:opacity-30';

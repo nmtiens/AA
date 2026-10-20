@@ -162,12 +162,10 @@ interface DonutProps {
   metric: Metric;
   /** Bản to hơn (dùng khi thẻ nằm trong cột rộng, không bị giới hạn chiều cao) */
   large?: boolean;
-  /** Ẩn tiêu đề (tiêu đề đã nằm trên tab) */
-  hideTitle?: boolean;
 }
 
 // Khai báo ở module scope (không đặt trong component cha) để không bị mount lại mỗi lần render
-const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf, metric, large = false, hideTitle = false }) => {
+const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf, metric, large = false }) => {
   const sum = data.reduce((s, d) => s + d.value, 0);
   // Khung vẽ rộng hơn vòng tròn để có chỗ cho nhãn ngoài
   const W = large ? 272 : 200, H = large ? 224 : 168;
@@ -211,12 +209,11 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
   };
   const picked = data.filter(d => selected.includes(d.name));
   const pickedSum = picked.reduce((s, d) => s + d.value, 0);
-  const maxVal = Math.max(...data.map(d => d.value), 0);
   const isPicked = (n: string) => selected.length === 0 || selected.includes(n);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 py-3 first:pt-0 last:pb-0">
-      {!hideTitle && <p className="text-xs font-semibold text-slate-700 mb-2">{title}</p>}
+      <p className="text-xs font-semibold text-slate-700 mb-2">{title}</p>
       {data.length === 0 ? (
         <p className="flex-1 flex items-center justify-center text-xs text-slate-400">Không có dữ liệu</p>
       ) : (
@@ -279,29 +276,18 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
           </div>
 
           {/* Chú thích: đủ mọi lát, cùng thứ tự với vòng tròn, kèm số hạng mục / giá trị (Tỷ) theo chế độ đang xem */}
-          <ul className={`flex-1 min-w-[10rem] space-y-1 overflow-y-auto pr-1 custom-scrollbar ${large ? 'max-h-80' : 'max-h-48'}`}>
+          <ul className={`flex-1 min-w-[8rem] max-w-[16rem] space-y-0.5 overflow-y-auto custom-scrollbar ${large ? 'max-h-56' : 'max-h-40'}`}>
             {data.map((d, i) => (
               <li key={d.name}>
                 <button
                   type="button"
                   onClick={() => onSelect(d.name)}
                   title={`${d.name}: ${fmtInt(d.cts.size)} công trình · ${fmtInt(d.items)} hạng mục · ${fmtTy(d.totalTy)} Tỷ`}
-                  className={`w-full flex items-center gap-2 rounded-md px-1.5 py-1 text-left ${large ? 'text-sm' : 'text-xs'} hover:bg-slate-50 ${selected.includes(d.name) ? 'bg-slate-100 font-semibold' : ''} ${isPicked(d.name) ? '' : 'opacity-50'} ${d.name === OTHERS ? 'cursor-default' : ''}`}
+                  className={`w-full flex items-center gap-2 rounded px-1.5 py-0.5 text-left ${large ? 'text-xs' : 'text-[0.6875rem]'} hover:bg-slate-50 ${selected.includes(d.name) ? 'bg-slate-100 font-semibold' : ''} ${isPicked(d.name) ? '' : 'opacity-50'} ${d.name === OTHERS ? 'cursor-default' : ''}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: colorOf(d.name, i) }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate flex-1 text-slate-700">{d.name}</span>
-                      <span className="tabular-nums font-semibold text-slate-900">{metric === 'count' ? fmtInt(d.value) : fmtTy(d.value)}</span>
-                      <span className="w-9 text-right tabular-nums text-slate-400">
-                        {sum > 0 ? ((d.value / sum) * 100 < 1 && d.value > 0 ? '<1%' : `${Math.round((d.value / sum) * 100)}%`) : '—'}
-                      </span>
-                    </span>
-                    {/* Thanh nhỏ: so sánh nhanh với lát lớn nhất */}
-                    <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-                      <span className="block h-full rounded-full" style={{ width: `${maxVal > 0 ? (d.value / maxVal) * 100 : 0}%`, background: colorOf(d.name, i) }} />
-                    </span>
-                  </span>
+                  <span className="truncate flex-1 text-slate-700">{d.name}</span>
+                  <span className="tabular-nums text-slate-600">{metric === 'count' ? fmtInt(d.value) : fmtTy(d.value)}</span>
                 </button>
               </li>
             ))}
@@ -438,9 +424,6 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
   metric, onMetricChange, onClear, charts, summary, onExport, className = 'flex-1', large = true, scopeNote,
 }) => {
   const picked = charts.flatMap(c => c.selected ?? []);
-  // 1 biểu đồ mỗi lúc (tab Khu vực / Khách hàng / Nhóm SP) thay vì 3 biểu đồ xếp chồng — khung thấp, cao bằng phễu
-  const [tab, setTab] = useState(0);
-  const chart = charts[Math.min(tab, charts.length - 1)];
   const [exporting, setExporting] = useState(false);
   const runExport = async () => {
     if (!onExport || exporting) return;
@@ -455,17 +438,20 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
     }
   };
   return (
-    <div className={`${className} flex flex-col bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 min-h-0`}>
+    <div className={`${className} flex flex-col bg-white rounded-xl border border-slate-200 p-5 shadow-sm min-h-0`}>
       {/* Tiêu đề: cùng kiểu với thẻ phễu bên trái */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">Nhóm đơn hàng</h3>
-          <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1">
-            Hạng mục đang theo dõi · bấm biểu đồ để lọc cả trang
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800">
+            Nhóm đơn hàng
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+            Hạng mục đang theo dõi · không theo ngày
             <span title={MIX_SCOPE_HELP} aria-label={MIX_SCOPE_HELP} className="inline-flex cursor-help text-slate-400 hover:text-slate-600">
-              <Info size={14} />
+              <Info size={13} />
             </span>
           </p>
+          <p className="text-[0.6875rem] text-slate-400">Theo khu vực, khách hàng, nhóm sản phẩm</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {onClear && (
@@ -484,18 +470,30 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
               onClick={runExport}
               disabled={exporting}
               title="Xuất Excel: tóm tắt, cơ cấu theo khu vực / khách hàng / nhóm SP và danh sách hạng mục của phạm vi đang chọn"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60"
             >
               {exporting ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
               {exporting ? 'Đang xuất...' : 'Xuất Excel'}
             </button>
           )}
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+            {(['count', 'value'] as const).map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => onMetricChange(m)}
+                className={`px-3 py-1 rounded-md font-medium ${metric === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                {m === 'count' ? 'Hạng mục' : 'Giá trị'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Dải tóm tắt phạm vi đang chọn — đổi ngay khi bấm vào lát */}
       {summary && (
-        <div className={`mb-4 rounded-xl px-3 py-2.5 ${picked.length ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-slate-50'}`}>
+        <div className={`mb-4 rounded-lg border px-3 py-2.5 ${picked.length ? 'border-blue-200 bg-blue-50/60' : 'border-slate-200 bg-slate-50'}`}>
           <p className="text-[0.6875rem] text-slate-500 truncate" title={picked.join(' · ')}>
             {picked.length
               ? <>Đang chọn: <span className="font-semibold text-slate-800">{picked.join(' · ')}</span></>
@@ -511,8 +509,8 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
               { label: 'Giá trị', value: fmtTy(summary.totalTy), unit: 'Tỷ' },
             ].map(s => (
               <div key={s.label} className="px-1">
-                <p className="text-xs text-slate-500">{s.label}</p>
-                <p className="text-lg font-bold tabular-nums text-slate-900 leading-tight">
+                <p className="text-[0.625rem] uppercase tracking-wide text-slate-500">{s.label}</p>
+                <p className="text-base font-semibold tabular-nums text-slate-900 leading-tight">
                   {s.value}{s.unit && <span className="ml-0.5 text-[0.6875rem] font-medium text-slate-400">{s.unit}</span>}
                 </p>
               </div>
@@ -521,37 +519,12 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
         </div>
       )}
 
-      {/* Tab: Khu vực / Khách hàng / Nhóm SP (chấm = tab đó đang lọc) + nút Hạng mục / Giá trị */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-slate-200">
-        <div className="flex gap-1" role="tablist">
-          {charts.map((c, i) => (
-            <button key={c.title} type="button" role="tab" aria-selected={chart === c} onClick={() => setTab(i)}
-              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition ${chart === c ? 'border-slate-900 font-semibold text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>
-              {c.title.replace(/^Theo /, '').replace(/^\w/, ch => ch.toUpperCase())}
-              {(c.selected?.length ?? 0) > 0 && <i className="h-1.5 w-1.5 rounded-full bg-blue-600" aria-label="đang lọc" />}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto pb-1.5">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
-              {(['count', 'value'] as const).map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => onMetricChange(m)}
-                  className={`px-3 py-1 rounded-md font-medium ${metric === m ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'}`}
-                >
-                  {m === 'count' ? 'Hạng mục' : 'Giá trị'}
-                </button>
-              ))}
-            </div>
-        </div>
-      </div>
-      <div className="flex-1 flex flex-col min-h-0">
-        {chart && (
-          <Donut key={chart.title} title={chart.title} data={chart.data} selected={chart.selected ?? []} onSelect={chart.onSelect}
-                 colorOf={chart.colorOf ?? pickMixColor} metric={metric} large={large} hideTitle />
-        )}
+      {/* Các biểu đồ chia đều chiều cao, ngăn cách bằng đường kẻ mảnh */}
+      <div className="flex-1 flex flex-col divide-y divide-slate-100 min-h-0">
+        {charts.map(c => (
+          <Donut key={c.title} title={c.title} data={c.data} selected={c.selected ?? []} onSelect={c.onSelect}
+                 colorOf={c.colorOf ?? pickMixColor} metric={metric} large={large} />
+        ))}
       </div>
     </div>
   );

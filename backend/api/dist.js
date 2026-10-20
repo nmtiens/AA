@@ -21559,7 +21559,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name, options, callback) {
-      var cache2 = this.cache;
+      var cache = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21573,7 +21573,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache2[name];
+        view = cache[name];
       }
       if (!view) {
         var View2 = this.get("view");
@@ -21589,7 +21589,7 @@ var require_application = __commonJS({
           return done(err);
         }
         if (renderOptions.cache) {
-          cache2[name] = view;
+          cache[name] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -29737,7 +29737,7 @@ var require_range2 = __commonJS({
         range = range.replace(BUILDSTRIPRE, "");
         const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
         const memoKey = memoOpts + ":" + range;
-        const cached2 = cache2.get(memoKey);
+        const cached2 = cache.get(memoKey);
         if (cached2) {
           return cached2;
         }
@@ -29771,7 +29771,7 @@ var require_range2 = __commonJS({
           rangeMap.delete("");
         }
         const result = [...rangeMap.values()];
-        cache2.set(memoKey, result);
+        cache.set(memoKey, result);
         return result;
       }
       intersects(range, options) {
@@ -29810,7 +29810,7 @@ var require_range2 = __commonJS({
     };
     module.exports = Range;
     var LRU = require_lrucache();
-    var cache2 = new LRU();
+    var cache = new LRU();
     var parseOptions2 = require_parse_options();
     var Comparator = require_comparator();
     var debug = require_debug();
@@ -74969,21 +74969,21 @@ function visit(schema, fnOrHandlers) {
     const h = fnOrHandlers[node2._zod.def.type];
     return h ? h(node2, rewritten) : node2;
   };
-  const cache2 = /* @__PURE__ */ new Map();
+  const cache = /* @__PURE__ */ new Map();
   function run(s) {
-    const cached2 = cache2.get(s);
+    const cached2 = cache.get(s);
     if (cached2 === RESOLVING) {
       return new $ZodLazy({
         type: "lazy",
-        getter: () => cache2.get(s)
+        getter: () => cache.get(s)
       });
     }
     if (cached2 !== void 0)
       return cached2;
-    cache2.set(s, RESOLVING);
+    cache.set(s, RESOLVING);
     const inner = mapInner(s);
     const mapped = fn(inner, inner !== s);
-    cache2.set(s, mapped);
+    cache.set(s, mapped);
     return mapped;
   }
   function mapInner(s) {
@@ -75874,8 +75874,8 @@ var getPeriodRangeFromKey = (value, granularity) => {
     const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
     return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
   }
-  const iso2 = d.toISOString().slice(0, 10);
-  return { start: iso2, end: iso2 };
+  const iso = d.toISOString().slice(0, 10);
+  return { start: iso, end: iso };
 };
 var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, params) => {
   if (upperBound) {
@@ -75997,10 +75997,10 @@ var getRelevantVersions = async (keys) => {
   return out;
 };
 var CACHE_MAX_ENTRIES = 50;
-var trimCache = (cache2) => {
-  if (cache2.size <= CACHE_MAX_ENTRIES) return;
-  const oldestKey = cache2.keys().next().value;
-  if (oldestKey !== void 0) cache2.delete(oldestKey);
+var trimCache = (cache) => {
+  if (cache.size <= CACHE_MAX_ENTRIES) return;
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey !== void 0) cache.delete(oldestKey);
 };
 var cachedData = null;
 var cachedVersions = null;
@@ -76166,13 +76166,13 @@ var numericColQualified = (table, alias, col) => {
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-async function cachedByVersions(cache2, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
+async function cachedByVersions(cache, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
   const versions = await getRelevantVersions(versionKeys);
   const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
-  const hit = cache2.map.get(key);
+  const hit = cache.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
   const flightKey = `${key}|${vkey}`;
-  const pending = cache2.inflight.get(flightKey);
+  const pending = cache.inflight.get(flightKey);
   if (pending) return pending;
   const p = (async () => {
     try {
@@ -76182,19 +76182,19 @@ async function cachedByVersions(cache2, key, versionKeys, compute2, extraVersion
         payload = await compute2();
         if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
       }
-      cache2.map.delete(key);
-      cache2.map.set(key, { vkey, payload });
-      while (cache2.map.size > cache2.max) {
-        const oldest = cache2.map.keys().next().value;
+      cache.map.delete(key);
+      cache.map.set(key, { vkey, payload });
+      while (cache.map.size > cache.max) {
+        const oldest = cache.map.keys().next().value;
         if (oldest === void 0) break;
-        cache2.map.delete(oldest);
+        cache.map.delete(oldest);
       }
       return payload;
     } finally {
-      cache2.inflight.delete(flightKey);
+      cache.inflight.delete(flightKey);
     }
   })();
-  cache2.inflight.set(flightKey, p);
+  cache.inflight.set(flightKey, p);
   return p;
 }
 var hashKey = (value) => createHash3("sha1").update(JSON.stringify(value)).digest("hex");
@@ -76375,8 +76375,8 @@ async function manhBang(key, gia, verGoc, nguon, cot = false) {
   if (!p) {
     p = (async () => {
       const { payload } = await getTablesData([key]);
-      const goc2 = payload[key] ?? [];
-      const rows = key === "material" && !gia ? stripMaterialPriceColumns(goc2) : goc2;
+      const goc = payload[key] ?? [];
+      const rows = key === "material" && !gia ? stripMaterialPriceColumns(goc) : goc;
       const json2 = JSON.stringify(cot ? sangCot(rows) : rows);
       await luuSnapshot(khoa, ver, await gzip(json2));
       return json2;
@@ -76401,8 +76401,8 @@ async function dungGoi(keys, gia, versions, cot = false, br = false) {
 // src/server/lamNong.ts
 var BANG = ["production", "inventory", "material", "order", "export", "pthsp", "tkbv", "khsx", "analysis", "stock", "attendance", "yearlyPlan"];
 var viecThem = [];
-var dangKyLamNong = (ten, chay2) => {
-  viecThem.push({ ten, chay: chay2 });
+var dangKyLamNong = (ten, chay) => {
+  viecThem.push({ ten, chay });
 };
 var daLamCho = "";
 var dangLam = null;
@@ -78690,15 +78690,15 @@ var khsxNhapKhoCache = createCache(50);
 var KHSX_NHAPKHO_VERSION_KEYS = ["khsx", "inventory", "production"];
 app.get("/api/khsx-nhapkho/summary", async (req, res) => {
   try {
-    const { nam, thang: thang2, mode = "month", tuan, ngay: ngay2, congTrinh, xuong } = req.query;
+    const { nam, thang: thang2, mode = "month", tuan, ngay, congTrinh, xuong } = req.query;
     if (!nam) return res.status(400).json({ error: "Missing nam" });
-    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay: ngay2, congTrinh, xuong });
+    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay, congTrinh, xuong });
     const khsxPayload = await cachedByVersions(khsxNhapKhoCache, khsxCacheKey, KHSX_NHAPKHO_VERSION_KEYS, async () => {
       const isWeek = mode === "week";
       const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
       const normalize = (s) => s.trim().toUpperCase();
       const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
-      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay2);
+      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay);
       const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
       const congTrinhList = expandProjectNames(parseNameList(congTrinh));
       const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
@@ -78864,11 +78864,11 @@ var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "pro
 var BadRequest = class extends Error {
   status = 400;
 };
-var cachedGet = (path, cache2, versionKeysOf, compute2, shared = false) => {
+var cachedGet = (path, cache, versionKeysOf, compute2, shared = false) => {
   app.get(path, async (req, res) => {
     try {
       const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache2, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
+      const data = await cachedByVersions(cache, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
       res.json(data);
     } catch (error61) {
       if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
@@ -79434,9 +79434,9 @@ cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.quer
   if (dimension === "period") {
     if (!parseSafeDate(value)) throw new BadRequest("Invalid period value");
     const range = getPeriodRangeFromKey(value, granularity);
-    const iso2 = (d) => d.toISOString().slice(0, 10);
-    const start = dateFrom && iso2(dateFrom) > String(range.start).slice(0, 10) ? iso2(dateFrom) : range.start;
-    const end = dateTo && iso2(dateTo) < String(range.end).slice(0, 10) ? iso2(dateTo) : range.end;
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const start = dateFrom && iso(dateFrom) > String(range.start).slice(0, 10) ? iso(dateFrom) : range.start;
+    const end = dateTo && iso(dateTo) < String(range.end).slice(0, 10) ? iso(dateTo) : range.end;
     if (!isStock && explicitDates.length > 0) {
       params.push(explicitDates);
       conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
@@ -81497,7 +81497,7 @@ function khungCaChinh(lich) {
   }
   return khung;
 }
-var dauNgayVN = (ngay2) => Date.parse(`${ngay2}T00:00:00Z`) - VN;
+var dauNgayVN = (ngay) => Date.parse(`${ngay}T00:00:00Z`) - VN;
 var ngayCuaTs = (ts) => new Date(ts + VN).toISOString().slice(0, 10);
 function gioTrongCaNgay(a, b, d, khung, tinhChuNhat = false) {
   if (b <= a || !tinhChuNhat && new Date(d + VN).getUTCDay() === 0) return 0;
@@ -81678,8 +81678,8 @@ var gomTheoNguoi = (ds) => {
   for (const d of ds) (m[d.mnv] ??= []).push(d);
   return m;
 };
-function tomTatDiemDanh(coMat, ngay2, lichCa) {
-  const moc2 = (hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00+07:00`);
+function tomTatDiemDanh(coMat, ngay, lichCa) {
+  const moc2 = (hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00+07:00`);
   const chinh = lichCa.find((c) => c.loaiCa === "chinh");
   const bd = chinh ? moc2(chinh.gioBatDau) : null;
   const kt = chinh ? moc2(chinh.gioKetThuc) : null;
@@ -81708,8 +81708,8 @@ function tomTatDiemDanh(coMat, ngay2, lichCa) {
 // src/server/xuong/allocation.ts
 var VN_OFFSET = "+07:00";
 var GIO_MS = 36e5;
-var moc = (ngay2, hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
-var thuTrongTuan = (ngay2) => (/* @__PURE__ */ new Date(`${ngay2}T12:00:00${VN_OFFSET}`)).getUTCDay();
+var moc = (ngay, hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
+var thuTrongTuan = (ngay) => (/* @__PURE__ */ new Date(`${ngay}T12:00:00${VN_OFFSET}`)).getUTCDay();
 function truNghi(start, end, nghi) {
   let doan = [[start, end]];
   for (const [ns, ne] of nghi) {
@@ -81726,13 +81726,13 @@ function truNghi(start, end, nghi) {
   }
   return doan.filter(([s, e]) => e > s);
 }
-function cuaSoCuaCa(ngay2, ca) {
-  const start = moc(ngay2, ca.gioBatDau);
-  let end = moc(ngay2, ca.gioKetThuc);
+function cuaSoCuaCa(ngay, ca) {
+  const start = moc(ngay, ca.gioBatDau);
+  let end = moc(ngay, ca.gioKetThuc);
   if (end <= start) end += 24 * GIO_MS;
   const nghi = (ca.nghi ?? []).map(([a, b]) => {
-    let ns = moc(ngay2, a);
-    let ne = moc(ngay2, b);
+    let ns = moc(ngay, a);
+    let ne = moc(ngay, b);
     if (ns < start) {
       ns += 24 * GIO_MS;
       ne += 24 * GIO_MS;
@@ -81742,15 +81742,15 @@ function cuaSoCuaCa(ngay2, ca) {
   });
   return truNghi(start, end, nghi).map(([s, e]) => ({ loaiCa: ca.loaiCa, start: s, end: e }));
 }
-function cuaSoTrongNgay(ngay2, lichCa, caTangCaDaKhai) {
+function cuaSoTrongNgay(ngay, lichCa, caTangCaDaKhai) {
   const theoLoai = new Map(lichCa.map((c) => [c.loaiCa, c]));
   const out = [];
   const chinh = theoLoai.get("chinh");
-  if (chinh && thuTrongTuan(ngay2) !== 0) out.push(...cuaSoCuaCa(ngay2, chinh));
+  if (chinh && thuTrongTuan(ngay) !== 0) out.push(...cuaSoCuaCa(ngay, chinh));
   for (const loai of new Set(caTangCaDaKhai)) {
     if (!LOAI_CA_TANG_CA.includes(loai)) continue;
     const ca = theoLoai.get(loai);
-    if (ca) out.push(...cuaSoCuaCa(ngay2, ca));
+    if (ca) out.push(...cuaSoCuaCa(ngay, ca));
   }
   return out.sort((a, b) => a.start - b.start);
 }
@@ -81834,8 +81834,8 @@ function phanBoGioCong(input2) {
       const s = ds[i];
       const gio = (ds[i + 1] - s) / GIO_MS;
       if (gio <= 0) continue;
-      const chay2 = ks.filter((k) => dangChayLuc(k, s));
-      for (const k of chay2) out[k].gioChay += gio;
+      const chay = ks.filter((k) => dangChayLuc(k, s));
+      for (const k of chay) out[k].gioChay += gio;
       const coMatDd = /* @__PURE__ */ new Set();
       if (coDiemDanh) {
         for (const d of coMat) if (d.start <= s && s < (d.end ?? input2.now)) coMatDd.add(d.mnv);
@@ -81844,12 +81844,12 @@ function phanBoGioCong(input2) {
         const ds2 = nguoiLuc(k, s);
         return ds2 && coDiemDanh ? ds2.filter((m) => coMatDd.has(m) || !coDiemDanhNgay.has(m)) : ds2;
       };
-      const khai = chay2.map((k) => {
+      const khai = chay.map((k) => {
         const t = tenLuc(k);
         return [k, t ? t.length : soNguoiLuc(k, s)];
       });
       const coMatLuc = new Set(coMatDd);
-      for (const k of chay2) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
+      for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -81862,7 +81862,7 @@ function phanBoGioCong(input2) {
       };
       const tinhNguoi = (heSo) => {
         const daGan = /* @__PURE__ */ new Set();
-        for (const k of chay2) {
+        for (const k of chay) {
           for (const m of tenLuc(k) ?? []) {
             const x = nguoi(m);
             const h = gio * heSo;
@@ -81932,14 +81932,14 @@ function phanBoGioCong(input2) {
     co: [...coTo].sort()
   };
 }
-function trangThaiXacNhan(ngay2, ngayHoatDongCuoi) {
-  if (ngayHoatDongCuoi >= ngay2) return "tinh";
+function trangThaiXacNhan(ngay, ngayHoatDongCuoi) {
+  if (ngayHoatDongCuoi >= ngay) return "tinh";
   let d = /* @__PURE__ */ new Date(`${ngayHoatDongCuoi}T12:00:00${VN_OFFSET}`);
   let boQua = 0;
   for (; ; ) {
     d = new Date(d.getTime() + 24 * GIO_MS);
     const key = d.toISOString().slice(0, 10);
-    if (key >= ngay2) break;
+    if (key >= ngay) break;
     if (d.getUTCDay() !== 0) boQua++;
   }
   if (boQua === 0) return "tinh";
@@ -82028,11 +82028,11 @@ function cheDoTheoNgay(ds) {
     if (!theoTo.has(m.toId)) theoTo.set(m.toId, []);
     theoTo.get(m.toId).push(m);
   }
-  return (toId, ngay2) => {
+  return (toId, ngay) => {
     if (toId === null) return "cu";
     let v = "cu";
     for (const m of theoTo.get(toId) ?? []) {
-      if (m.tuNgay <= ngay2) v = m.cheDo;
+      if (m.tuNgay <= ngay) v = m.cheDo;
       else break;
     }
     return v;
@@ -82136,12 +82136,12 @@ function boSungPhanCongTuGan(evts, now) {
   const vaoHang = out.filter((e) => e.loai === "nguoi_vao" && e.hex && e.congDoanId && mnvCua(e));
   const raCa = out.filter((e) => e.loai === "ra_ca" && mnvCua(e));
   for (const [k, p] of coMat) {
-    const [mnv, ngay2] = k.split("|");
+    const [mnv, ngay] = k.split("|");
     if (now < p + TU_GAN_SAU_MS) continue;
-    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay2 && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay && e.ts <= p + TU_GAN_SAU_MS)) continue;
     if (raCa.some((e) => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
-    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay2)) continue;
-    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay2).sort(soSanhSuKien).pop();
+    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay)) continue;
+    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay).sort(soSanhSuKien).pop();
     if (!truoc) continue;
     let nhan = 0, ht = 0;
     for (const e of out) {
@@ -82152,7 +82152,7 @@ function boSungPhanCongTuGan(evts, now) {
     if (nhan > 0 && ht >= nhan) continue;
     out.push({
       ...truoc,
-      id: `tugan:${mnv}:${ngay2}`,
+      id: `tugan:${mnv}:${ngay}`,
       ts: p,
       serverTs: p,
       suaCho: null,
@@ -82462,9 +82462,9 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     console.error("[xuong-thong-bao] x\u01B0\u1EDFng ph\u1EE5", e);
   }
 }
-async function nhacSang(ngay2) {
+async function nhacSang(ngay) {
   const tins = [];
-  const thu = (/* @__PURE__ */ new Date(`${ngay2}T12:00:00+07:00`)).getUTCDay();
+  const thu = (/* @__PURE__ */ new Date(`${ngay}T12:00:00+07:00`)).getUTCDay();
   if (thu !== 0) {
     const r = await poolMra.query(
       `SELECT t.id, t.ten_to FROM xuong_to t
@@ -82473,7 +82473,7 @@ async function nhacSang(ngay2) {
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' = 'chinh'
                            AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))`,
-      [ngay2]
+      [ngay]
     );
     const nguoi = await nguoiCuaTo(r.rows.map((x) => Number(x.id)));
     for (const x of r.rows) {
@@ -82543,7 +82543,7 @@ async function donAnhMoCoi() {
     if (!isMissingSchema(e)) console.error("[xuong] d\u1ECDn \u1EA3nh m\u1ED3 c\xF4i l\u1ED7i", e);
   }
 }
-async function nhacChieu(ngay2) {
+async function nhacChieu(ngay) {
   const tins = [];
   const tc = await poolMra.query(
     `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
@@ -82552,7 +82552,7 @@ async function nhacChieu(ngay2) {
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien q WHERE q.to_id = t.id AND q.loai = 'quan_so' AND q.du_lieu->>'loaiCa' = e.du_lieu->>'loaiCa'
                          AND (q.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = q.id))`,
-    [ngay2]
+    [ngay]
   );
   const nguoiTc = await nguoiCuaTo([...new Set(tc.rows.map((x) => Number(x.id)))]);
   for (const x of tc.rows) {
@@ -82571,7 +82571,7 @@ async function nhacChieu(ngay2) {
                                       AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                                       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))
      GROUP BY t.id, t.ten_to`,
-    [ngay2]
+    [ngay]
   );
   const nguoiXn = await nguoiCuaTo(xn.rows.map((x) => Number(x.id)));
   for (const x of xn.rows) {
@@ -82588,11 +82588,11 @@ async function nhacChieu(ngay2) {
 app.get("/api/cron/xuong", cronAuth, async (req, res) => {
   try {
     const t0 = Date.now();
-    const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay = vnDayKey(/* @__PURE__ */ new Date());
     const gio = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }).format(/* @__PURE__ */ new Date()));
     const dot = req.query.dot === "sang" || req.query.dot === "chieu" ? req.query.dot : gio < 12 ? "sang" : "chieu";
-    const daGui = dot === "sang" ? await nhacSang(ngay2) : await nhacChieu(ngay2);
-    res.json({ ok: true, dot, ngay: ngay2, daGui, ms: Date.now() - t0 });
+    const daGui = dot === "sang" ? await nhacSang(ngay) : await nhacChieu(ngay);
+    res.json({ ok: true, dot, ngay, daGui, ms: Date.now() - t0 });
   } catch (e) {
     if (isMissingSchema(e)) return res.json({ ok: true, available: false });
     console.error("L\u1ED7i cron xuong:", e);
@@ -82740,9 +82740,9 @@ async function cuaSoCacTo(db, toIds, tu, den) {
     if (!lich.length) continue;
     const cs = [];
     for (let d = Date.parse(`${tu}T12:00:00+07:00`); vnDayKey(new Date(d)) <= den; d += 864e5) {
-      const ngay2 = vnDayKey(new Date(d));
-      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay2).map((r) => String(r.ca));
-      cs.push(...cuaSoTrongNgay(ngay2, lich, ca));
+      const ngay = vnDayKey(new Date(d));
+      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay).map((r) => String(r.ca));
+      cs.push(...cuaSoTrongNgay(ngay, lich, ca));
     }
     out.set(Number(x.id), cs);
   }
@@ -83011,8 +83011,8 @@ async function ghiVaTinhLai(client, ghi, dichDb = []) {
     const pb = /* @__PURE__ */ new Map();
     for (const x of ghi) {
       if (!x.to_id) continue;
-      const ngay2 = vnDayKey(new Date(x.device_ts_hieu_chinh));
-      pb.set(`${x.to_id}|${ngay2}`, { to_id: x.to_id, ngay: ngay2 });
+      const ngay = vnDayKey(new Date(x.device_ts_hieu_chinh));
+      pb.set(`${x.to_id}|${ngay}`, { to_id: x.to_id, ngay });
       if (x.loai === "ra_ca" && new Date(new Date(x.device_ts_hieu_chinh).getTime() + 7 * 36e5).getUTCHours() < 12) {
         const truoc = vnDayKey(new Date(new Date(x.device_ts_hieu_chinh).getTime() - 24 * 36e5));
         pb.set(`${x.to_id}|${truoc}`, { to_id: x.to_id, ngay: truoc });
@@ -83380,14 +83380,14 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     }
     const st = cds.length ? (await poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
     const info = await thongTinHangMuc([...new Set(st.map((x) => String(x.hex)))]);
-    const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay = vnDayKey(/* @__PURE__ */ new Date());
     const hom = await poolMra.query(
       `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
        WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
          AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
        ORDER BY device_ts_hieu_chinh`,
-      [toId, ngay2]
+      [toId, ngay]
     );
     const quanSo = {};
     const tangCa = [];
@@ -83405,7 +83405,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`,
-        [toId, ngay2]
+        [toId, ngay]
       ),
       poolMra.query(
         `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
@@ -83417,7 +83417,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`,
-        [toId, ngay2]
+        [toId, ngay]
       ),
       xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([])
     ]);
@@ -83529,10 +83529,10 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
          WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
-        [toId, ngay2]
+        [toId, ngay]
       )).rows;
       const cheDoTo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]));
-      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay2 || e.loai === "ra_ca");
+      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay || e.loai === "ra_ca");
       for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
@@ -83549,7 +83549,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       success: true,
       available: true,
       serverNow: Date.now(),
-      ngay: ngay2,
+      ngay,
       to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
       congDoan: cdRows.rows.map((x) => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
       // Kèm số còn nhận được (đã triển khai / đơn hàng − đã nhận); đã nhận đủ thì không còn chờ nhận
@@ -83592,22 +83592,22 @@ async function lichCaCuaXuong(xuong, db = poolMra) {
   );
   return r.rows.map((x) => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
 }
-async function gioCongToNgay(toId, ngay2) {
-  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay2]);
+async function gioCongToNgay(toId, ngay) {
+  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay]);
   const toRow = await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
   const xuong = toRow.rows[0]?.xuong;
   if (!xuong) return null;
   const lichCa = await lichCaCuaXuong(String(xuong));
   const bamLichCa = dauLichCa(lichCa);
   const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
-  const key = `${toId}|${ngay2}`;
-  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay2;
+  const key = `${toId}|${ngay}`;
+  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay;
   const hit = gioCongCache.get(key);
   if (hit && hit.v === v && !today) return hit.payload;
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ($2::date - 7) AND ($2::date + 1)`,
-    [toId, ngay2]
+    [toId, ngay]
   );
   const capTrongCuaSo = new Set(r.rows.filter((x) => x.hex && x.cong_doan_id).map((x) => pairKey(x.hex, x.cong_doan_id)));
   const lichSu = (await suKienTheoHex(poolMra, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
@@ -83618,13 +83618,13 @@ async function gioCongToNgay(toId, ngay2) {
   const mocTo = await mocCheDo(poolMra, [toId]);
   const cheDo = cheDoTheoNgay(mocTo);
   const chinhThuc = await phanBoTheoCach(tatCa, "chinh_thuc");
-  const soKhop = cheDo(toId, ngay2) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
+  const soKhop = cheDo(toId, ngay) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
   const payload = {
     ...chinhThuc.pb,
     bamLichCa,
-    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay2, lichCa),
-    cheDo: cheDo(toId, ngay2),
-    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay2, lichCa) } } : {}
+    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay, lichCa),
+    cheDo: cheDo(toId, ngay),
+    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay, lichCa) } } : {}
   };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
@@ -83637,7 +83637,7 @@ async function gioCongToNgay(toId, ngay2) {
   async function phanBoTheoCach(tatCa2, cach) {
     const conHieuLuc = locTheoCheDo(suKienConHieuLuc(tatCa2), cheDo, cach);
     const tram = await soTram(poolMra, tatCa2, cach, now);
-    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay2;
+    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay;
     const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
     const boChon = {};
     for (const e of conHieuLuc.filter((x) => x.loai === "tang_ca" && trongNgay(x))) {
@@ -83660,7 +83660,7 @@ async function gioCongToNgay(toId, ngay2) {
         capCuaTo.get(k).push(e);
         if (e.loai !== "tien_do") {
           const d = vnDayKey(new Date(e.ts));
-          if (d <= ngay2 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
         }
         if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) {
           soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
@@ -83678,7 +83678,7 @@ async function gioCongToNgay(toId, ngay2) {
         for (const p of e.duLieu.hangMuc) {
           if (typeof p.hex === "string" && typeof p.congDoanId === "string" && p.trangThai === "van_lam") {
             const k = pairKey(p.hex, p.congDoanId);
-            if (d <= ngay2 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+            if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
           }
         }
       }
@@ -83695,8 +83695,8 @@ async function gioCongToNgay(toId, ngay2) {
     for (const [k, evts] of capCuaTo) {
       const st = tinhTrangThai(evts, []);
       if (st.doanChay.length) doanChay[k] = st.doanChay;
-      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay2}T00:00:00+07:00`)) {
-        const tt = trangThaiXacNhan(ngay2, ngayCuoi.get(k) ?? ngay2);
+      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
+        const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
         if (tt === "ngung") ngungTinh.push(k);
         if (tt === "chua_xac_nhan") chuaXacNhan.push(k);
       }
@@ -83714,10 +83714,10 @@ async function gioCongToNgay(toId, ngay2) {
         }
       }
     }
-    const truaMai = Date.parse(`${ngay2}T12:00:00+07:00`) + 24 * 36e5;
-    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay2}T00:00:00+07:00`) && e.ts < truaMai)));
-    const cuaSo = cuaSoTrongNgay(ngay2, lichCa, caTangCa);
-    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay2) === "tram" : cheDo(toId, ngay2) !== "cu";
+    const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 36e5;
+    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)));
+    const cuaSo = cuaSoTrongNgay(ngay, lichCa, caTangCa);
+    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay) === "tram" : cheDo(toId, ngay) !== "cu";
     const coMatTinh = dungTram ? noiCoMatTangCa(coMat, cuaSo) : coMat;
     const pb2 = phanBoGioCong({
       cuaSo,
@@ -83738,11 +83738,11 @@ app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
   try {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.params.id);
-    const ngay2 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
+    const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const kq = await gioCongToNgay(toId, ngay2);
+    const kq = await gioCongToNgay(toId, ngay);
     if (!kq) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
-    res.json({ success: true, available: true, toId, ngay: ngay2, ...kq });
+    res.json({ success: true, available: true, toId, ngay, ...kq });
   } catch (e) {
     fail(res, e, "/api/xuong/to/:id/gio-cong");
   }
@@ -83814,8 +83814,8 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const capNgay = [...toNgay].sort((a, b) => a.split("|")[1] < b.split("|")[1] ? 1 : -1);
     const gioCong = /* @__PURE__ */ new Map();
     await runWithLimit(capNgay.slice(0, 20).map((k) => async () => {
-      const [to, ngay2] = k.split("|");
-      const kq = await gioCongToNgay(Number(to), ngay2);
+      const [to, ngay] = k.split("|");
+      const kq = await gioCongToNgay(Number(to), ngay);
       if (!kq) return;
       for (const x of st.rows) {
         const h = kq.theoHangMuc[pairKey(hex3, String(x.cong_doan_id))];
@@ -84366,9 +84366,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           }
           for (const xs of theoCd.values()) {
             if (xs.length < 2) continue;
-            const dem2 = /* @__PURE__ */ new Map();
-            for (const x of xs) dem2.set(x.soNguoiMax, (dem2.get(x.soNguoiMax) ?? 0) + 1);
-            const [moThuong, lan] = [...dem2.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
+            const dem = /* @__PURE__ */ new Map();
+            for (const x of xs) dem.set(x.soNguoiMax, (dem.get(x.soNguoiMax) ?? 0) + 1);
+            const [moThuong, lan] = [...dem.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
             const lonNhat = Math.max(...xs.map((x) => x.soNguoiMax));
             if (!(lan >= 2 && lan / xs.length >= 0.5 && moThuong === lonNhat)) continue;
             const tong2 = xs.reduce((a, x) => a + x.gioCongThuong, 0);
@@ -84427,7 +84427,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         for (const [ly, h2] of Object.entries(kq.gioChoLyDo ?? {})) gioChoLyDo[ly] = (gioChoLyDo[ly] ?? 0) + h2;
         let gcNgay = 0;
         let tcNgay = 0;
-        let chay2 = 0;
+        let chay = 0;
         const hmNgay = [];
         for (const [k, h2] of Object.entries(kq.theoHangMuc)) {
           tcNgay += h2.gioCongTangCa;
@@ -84447,7 +84447,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           gioCong.thuong += h2.gioCongThuong;
           gioCong.tangCa += h2.gioCongTangCa;
           gcNgay += h2.gioCongThuong + h2.gioCongTangCa;
-          chay2 += h2.gioChay;
+          chay += h2.gioChay;
           const cur = hm.get(k) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0, min: 0 };
           cur.gioChay += h2.gioChay;
           cur.thuong += h2.gioCongThuong;
@@ -84458,7 +84458,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           hm.set(k, cur);
           tatCaHex.add(k.split("|")[0]);
         }
-        if (chay2 > 0) {
+        if (chay > 0) {
           ngayCoChay++;
           if (!kq.co.includes("chua_chot_quan_so")) ngayChot++;
         }
@@ -84479,7 +84479,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       }
       for (const [k, m] of mraNgay) {
         if (!k.startsWith(`${toId}|`)) continue;
-        const ngay2 = k.slice(k.indexOf("|") + 1);
+        const ngay = k.slice(k.indexOf("|") + 1);
         gioNguoi.thuong += m.gioNguoi;
         gioCho.thuong += m.gioCho;
         gioCong.thuong += m.gioCong;
@@ -84497,7 +84497,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         }
         for (const x of [...m.nhan, ...m.xong]) tatCaHex.add(x.hex);
         theoNgay.push({
-          ngay: ngay2,
+          ngay,
           gioNguoi: lam(m.gioNguoi),
           gioCong: lam(m.gioCong),
           gioCongTangCa: 0,
@@ -85026,13 +85026,13 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
     const diemDanh = /* @__PURE__ */ new Map();
     if (r.rows.length && await coBangCongNhan()) {
       const ids = r.rows.map((x) => Number(x.id));
-      const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
+      const ngay = vnDayKey(/* @__PURE__ */ new Date());
       const now = Date.now();
       const [ev, ds2, lichCa] = await Promise.all([
         poolMra.query(
           `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
              AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date`,
-          [ids, ngay2]
+          [ids, ngay]
         ),
         poolMra.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
         lichCaCuaXuong(xuong)
@@ -85055,7 +85055,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         const caChinh = [...coMat.chinh ?? [], ...coMat.chu_nhat ?? []];
         const daDiemDanh = caChinh.length > 0;
         const dangCo = new Set(caChinh.filter((d) => d.end === null || d.end > now).map((d) => d.mnv));
-        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay2, lichCa);
+        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay, lichCa);
         const doi = ds2.rows.filter((x) => Number(x.to_id) === id).map((x) => String(x.mnv));
         const daTung = new Set(caChinh.map((d) => d.mnv));
         diemDanh.set(id, {
@@ -85861,13 +85861,13 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
       theoNhom.get(h.nhom).push(h);
     }
     const nhom = [...theoNhom.entries()].map(([ten, hs]) => {
-      const ngay2 = hs.map((h) => h.ngay).filter((x) => x !== null);
+      const ngay = hs.map((h) => h.ngay).filter((x) => x !== null);
       return {
         ten,
         soHm: hs.length,
-        soXong: ngay2.length,
-        ngayTv: lam2(trungVi(ngay2) ?? 0, 1),
-        ngayP75: lam2(phanVi(ngay2, 0.75) ?? 0, 1),
+        soXong: ngay.length,
+        ngayTv: lam2(trungVi(ngay) ?? 0, 1),
+        ngayP75: lam2(phanVi(ngay, 0.75) ?? 0, 1),
         gioCaTv: lam2(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
       };
     }).sort((a, b) => b.soHm - a.soHm);
@@ -86137,7 +86137,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
     for (const ds2 of cdTheoHex.values()) ds2.sort((a, b) => Number(a.thuTu ?? 999) - Number(b.thuTu ?? 999));
     const duBao = /* @__PURE__ */ new Map();
     const now = Date.now();
-    const cuoiNgay = (ngay2) => dauNgayVN(ngay2) + NGAY;
+    const cuoiNgay = (ngay) => dauNgayVN(ngay) + NGAY;
     if (hexKh.length && cuoiNgay(khoang.end) > now) {
       const evApp = (await suKienTheoHex(poolMra, hexKh)).map(toSuKien);
       const cdIdsTuyen = [...new Set(evApp.flatMap((e) => {
@@ -86589,7 +86589,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     poolMra.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
     });
     const now = Date.now();
-    const ngay2 = ngayCa(now);
+    const ngay = ngayCa(now);
     const [toRow, cdRows, lichCa, tangCa, moc2] = await Promise.all([
       poolMra.query("SELECT ten_to FROM xuong_to WHERE id = $1", [t.toId]),
       poolMra.query(
@@ -86602,16 +86602,16 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
         `SELECT DISTINCT du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e
          WHERE to_id = $1 AND loai = 'tang_ca' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
-        [t.toId, ngay2]
+        [t.toId, ngay]
       ),
       mocCheDo(poolMra, [t.toId])
     ]);
-    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay2);
+    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay);
     const cds = cdRows.rows.map((x) => String(x.id));
     const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
-    const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay2);
+    const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
     const oHang = new Set(dangO.flatMap(([, ds]) => ds));
     const chuaVaoHang = [...new Set(coMat)].filter((m) => !oHang.has(m));
@@ -86638,7 +86638,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
       success: true,
       available: true,
       serverNow: now,
-      ngay: ngay2,
+      ngay,
       cheDo,
       token: giaHan(req, t),
       tram: { ten: t.ten, congDoan: t.congDoan },
@@ -86870,8 +86870,8 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const now = Date.now();
-    const ngay2 = ngayCa(now);
-    const dauNgay = Date.parse(`${ngay2}T06:00:00+07:00`);
+    const ngay = ngayCa(now);
+    const dauNgay = Date.parse(`${ngay}T06:00:00+07:00`);
     const evs = await soTramCuaTo(toId, now - 4 * 864e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId);
@@ -86908,10 +86908,10 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     res.json({
       success: true,
       available: true,
-      ngay: ngay2,
+      ngay,
       serverNow: now,
       suaDuoc: quanLy || laToTruong,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay2),
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
       nguoi: mnvs.map((m) => {
         const dang = doan.find((d) => d.mnv === m && d.end === null);
         const truoc = doan.filter((d) => d.mnv === m && d.start < dauNgay).sort((a, b) => b.start - a.start)[0];
@@ -86943,19 +86943,19 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.params.id);
     const now = Date.now();
-    const ngay2 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
+    const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
     const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
-    const dau = Date.parse(`${ngay2}T05:00:00+07:00`);
+    const dau = Date.parse(`${ngay}T05:00:00+07:00`);
     const cuoi = dau + 25 * 36e5;
     const evs = await soTramCuaTo(toId, dau, cuoi);
     const st = await soTram(poolMra, evs, "so_khop", now);
-    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay2);
+    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay);
     const hl = suKienConHieuLuc(evs);
-    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay2);
+    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
     const coMat = Object.values(doanCoMat(dd)).flat().filter((d) => !!d);
     const mnvs = [.../* @__PURE__ */ new Set([...doan.map((d) => d.mnv), ...coMat.map((d) => d.mnv)])];
     const [ten, info] = await Promise.all([
@@ -86971,10 +86971,10 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     res.json({
       success: true,
       available: true,
-      ngay: ngay2,
+      ngay,
       serverNow: now,
       gioTheoNguon,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay2),
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
       // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
       suaDuoc: quanLy || laToTruong,
       nguoi: mnvs.sort().map((m) => {
@@ -86989,7 +86989,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
         };
       }),
       // Sự kiện trạm của ngày (để huỷ từng dòng)
-      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay2 && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
+      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
     });
   } catch (e) {
     fail(res, e, "/api/xuong/to/:id/sua-ngay");
@@ -88434,12 +88434,12 @@ function nenBanGhi(recs) {
     return i;
   };
   const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so4 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  const so3 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
   return {
     n: recs.length,
     tu,
     chu,
-    so: so4,
+    so: so3,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
     planMet: recs.map((r) => r.planMet ? 1 : 0),
@@ -88654,7 +88654,7 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
   if (laGioNghiDb()) return res.json({ ok: true, boQua: "gio-nghi-db" });
   const t0 = Date.now();
   const ketQua = {};
-  const chay2 = async (ten, f) => {
+  const chay = async (ten, f) => {
     const t = Date.now();
     try {
       ketQua[ten] = `${(await f()).nguon} ${Date.now() - t}ms`;
@@ -88663,1035 +88663,10 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
       console.error(`[cron/tong-quan] ${ten}`, e);
     }
   };
-  await chay2("cong-trinh", tongQuanCongTrinh);
-  await chay2("tong-quan", () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
-  await chay2("tong-quan-hang-muc", () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: "COUNT_HEX" }));
+  await chay("cong-trinh", tongQuanCongTrinh);
+  await chay("tong-quan", () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
+  await chay("tong-quan-hang-muc", () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: "COUNT_HEX" }));
   res.json({ ok: true, ketQua, ms: Date.now() - t0 });
-});
-
-// src/server/hoiDapDanhMuc.ts
-var so3 = (col) => numericExprQualified(`t."${col}"`);
-var XUONG = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
-var CT = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
-var MA_CT = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
-var HM = { id: "ten_hang_muc", ten: "H\u1EA1ng m\u1EE5c", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn h\u1EA1ng m\u1EE5c", "s\u1EA3n ph\u1EA9m"], kieu: "chu" };
-var HEX = { id: "hex", ten: "HEX", dn: ["hex", "m\xE3 hex"], kieu: "ma", sql: `t.hex::text` };
-var DANH_MUC = [
-  {
-    id: "nhap_kho",
-    noiSx: true,
-    ten: "Nh\u1EADp kho",
-    dn: ["nh\u1EADp kho", "p022", "nh\u1EADp", "nk", "th\xE0nh ph\u1EA9m nh\u1EADp", "doanh thu", "doanh s\u1ED1"],
-    quyen: ["inventory", "chart_inventory", "dashboard"],
-    ngay: "date",
-    huy: "hex",
-    phienBan: "inventory",
-    dong: "d\xF2ng nh\u1EADp kho",
-    soChinh: "thanh_tien_nhap_kho",
-    mac: [{ ham: "tong", cot: "thanh_tien_nhap_kho" }, { ham: "dem_khac", cot: "hex" }],
-    hien: ["date", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "so_luong_nhap_kho", "thanh_tien_nhap_kho"],
-    cot: [
-      { id: "date", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "ng\xE0y"], kieu: "ngay" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "ten_chi_tiet", ten: "Chi ti\u1EBFt", dn: ["t\xEAn chi ti\u1EBFt"], kieu: "chu" },
-      { id: "ghi_chu", ten: "Ghi ch\xFA", kieu: "chu" },
-      { id: "thanh_tien_nhap_kho", ten: "Gi\xE1 tr\u1ECB nh\u1EADp kho", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n", "ti\u1EC1n", "gi\xE1 tr\u1ECB nh\u1EADp"], kieu: "so", sql: "t.thanh_tien_nhap_kho_num", tien: true },
-      { id: "so_luong_nhap_kho", ten: "S\u1ED1 l\u01B0\u1EE3ng nh\u1EADp kho", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
-    ]
-  },
-  {
-    id: "xuat_kho",
-    noiSx: true,
-    ten: "Xu\u1EA5t kho",
-    dn: ["xu\u1EA5t kho", "p025", "xu\u1EA5t", "xk", "giao h\xE0ng"],
-    quyen: ["export", "chart_export", "dashboard"],
-    ngay: "date",
-    huy: "hex",
-    phienBan: "export",
-    dong: "d\xF2ng xu\u1EA5t kho",
-    soChinh: "thanh_tien_xuat_kho",
-    mac: [{ ham: "tong", cot: "thanh_tien_xuat_kho" }, { ham: "dem_khac", cot: "hex" }],
-    hien: ["date", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "so_luong_xuat_kho", "thanh_tien_xuat_kho"],
-    cot: [
-      { id: "date", ten: "Ng\xE0y xu\u1EA5t kho", dn: ["ng\xE0y xu\u1EA5t", "ng\xE0y"], kieu: "ngay" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "so_phieu", ten: "S\u1ED1 phi\u1EBFu", dn: ["phi\u1EBFu xu\u1EA5t"], kieu: "ma" },
-      { id: "tinh_doi_voi_hang_tp", ten: "Lo\u1EA1i xu\u1EA5t", tuDien: true, dn: ["t\xEDnh \u0111\u1ED1i v\u1EDBi h\xE0ng tp", "lo\u1EA1i"], kieu: "chu" },
-      { id: "ghi_chu", ten: "Ghi ch\xFA", kieu: "chu" },
-      { id: "thanh_tien_xuat_kho", ten: "Gi\xE1 tr\u1ECB xu\u1EA5t kho", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n", "ti\u1EC1n"], kieu: "so", tien: true },
-      { id: "so_luong_xuat_kho", ten: "S\u1ED1 l\u01B0\u1EE3ng xu\u1EA5t kho", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: "t.so_luong_xuat_kho_num" }
-    ]
-  },
-  {
-    id: "ton_kho",
-    noiSx: true,
-    ten: "T\u1ED3n kho",
-    dn: ["t\u1ED3n kho", "t\u1ED3n", "h\xE0ng t\u1ED3n"],
-    quyen: ["stock", "dashboard"],
-    ngay: "date",
-    chot: true,
-    phienBan: "stock",
-    dong: "d\xF2ng t\u1ED3n kho",
-    soChinh: "gia_tri",
-    mac: [{ ham: "tong", cot: "gia_tri" }, { ham: "dem_khac", cot: "ma_id_sap" }],
-    hien: ["date", "ma_id_sap", "ten_cong_trinh", "ten_san_pham", "so_luong", "gia_tri", "so_thang_ton_kho"],
-    cot: [
-      { id: "date", ten: "Ng\xE0y ch\u1ED1t t\u1ED3n", dn: ["ng\xE0y ch\u1ED1t", "ng\xE0y"], kieu: "ngay" },
-      CT,
-      MA_CT,
-      HEX,
-      { id: "ten_san_pham", ten: "S\u1EA3n ph\u1EA9m", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn s\u1EA3n ph\u1EA9m"], kieu: "chu" },
-      { id: "ma_id_sap", ten: "M\xE3 SAP", dn: ["m\xE3 id sap", "sap", "id sap"], kieu: "ma", sql: "t.ma_id_sap::text" },
-      { id: "nhom_ct", ten: "Nh\xF3m c\xF4ng tr\xECnh", dn: ["nh\xF3m ct"], kieu: "chu" },
-      { id: "tinh_trang_ke_hoach_giao_hang", ten: "K\u1EBF ho\u1EA1ch giao h\xE0ng", tuDien: true, dn: ["t\xECnh tr\u1EA1ng giao h\xE0ng", "giao h\xE0ng"], kieu: "chu" },
-      { id: "ngay_nhap_kho", ten: "Ng\xE0y nh\u1EADp kho", kieu: "ngay" },
-      { id: "so_thang_ton_kho", ten: "S\u1ED1 th\xE1ng t\u1ED3n", dn: ["th\xE1ng t\u1ED3n", "tu\u1ED5i t\u1ED3n"], kieu: "so" },
-      { id: "gia_tri", ten: "Gi\xE1 tr\u1ECB t\u1ED3n", dn: ["gi\xE1 tr\u1ECB", "ti\u1EC1n", "th\xE0nh ti\u1EC1n"], kieu: "so", sql: "t.gia_tri_num", tien: true },
-      { id: "so_luong", ten: "S\u1ED1 l\u01B0\u1EE3ng t\u1ED3n", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
-    ]
-  },
-  {
-    id: "dht",
-    noiSx: true,
-    ten: "\u0110\u01A1n h\xE0ng t\u1ED5ng",
-    dn: ["\u0111\u01A1n h\xE0ng", "\u0111\u01A1n h\xE0ng m\u1EDBi", "\u0111\u01A1n h\xE0ng t\u1ED5ng", "p001", "\u0111\u01A1n m\u1EDBi", "dht", "\u0111\u01A1n"],
-    quyen: ["orders", "chart_order", "dashboard"],
-    ngay: "ngay_nhan_tu_pm",
-    huy: "hex",
-    phienBan: "order",
-    dong: "d\xF2ng \u0111\u01A1n h\xE0ng",
-    soChinh: "tri_gia_don_hang_tong",
-    mac: [{ ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "dem_khac", cot: "hex" }],
-    hien: ["ngay_nhan_tu_pm", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "ten_pm", "tri_gia_don_hang_tong"],
-    cot: [
-      { id: "ngay_nhan_tu_pm", ten: "Ng\xE0y nh\u1EADn t\u1EEB PM", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
-      { id: "ngay_can", ten: "Ng\xE0y c\u1EA7n", kieu: "ngay" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
-      { id: "ten_pc", ten: "PC", dn: ["t\xEAn pc"], kieu: "chu", tuDien: true },
-      { id: "khu_vuc", ten: "Khu v\u1EF1c", kieu: "chu" },
-      { id: "so_ipo", ten: "S\u1ED1 IPO", dn: ["ipo"], kieu: "ma" },
-      { id: "tam_ngung_huy_dht", ten: "T\u1EA1m ng\u01B0ng / h\u1EE7y", dn: ["t\u1EA1m ng\u01B0ng", "h\u1EE7y"], kieu: "chu" },
-      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB", "ti\u1EC1n"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true },
-      { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
-    ]
-  },
-  {
-    id: "tkbv_full",
-    noiSx: true,
-    ten: "Tri\u1EC3n khai b\u1EA3n v\u1EBD",
-    dn: ["tri\u1EC3n khai b\u1EA3n v\u1EBD", "tri\u1EC3n khai", "tkbv", "p002", "b\u1EA3n v\u1EBD"],
-    quyen: ["tkbv", "chart_tkbv", "dashboard"],
-    ngay: "ngay_nhan",
-    huy: "hex",
-    phienBan: "tkbv",
-    dong: "d\xF2ng tri\u1EC3n khai",
-    soChinh: "tri_gia_don_hang_tong",
-    mac: [{ ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "dem_khac", cot: "hex" }],
-    hien: ["ngay_nhan", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "nguoi_trien_khai", "tri_gia_don_hang_tong"],
-    cot: [
-      { id: "ngay_nhan", ten: "Ng\xE0y tri\u1EC3n khai", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "nguoi_trien_khai", ten: "Ng\u01B0\u1EDDi tri\u1EC3n khai", tuDien: true, dn: ["ng\u01B0\u1EDDi v\u1EBD", "k\u1EF9 thu\u1EADt"], kieu: "chu" },
-      { id: "so_luong_trien_khai", ten: "S\u1ED1 l\u01B0\u1EE3ng tri\u1EC3n khai", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
-      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB", "ti\u1EC1n"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true }
-    ]
-  },
-  {
-    id: "pthsp_full",
-    noiSx: true,
-    ten: "T\xEDnh phi\u1EBFu",
-    dn: ["t\xEDnh phi\u1EBFu", "pthsp", "p012", "phi\u1EBFu", "ph\xE2n t\xEDch h\u1ED3 s\u01A1"],
-    quyen: ["pthsp", "chart_pthsp", "dashboard"],
-    ngay: "ngay_hoan_thanh",
-    huy: "hex",
-    phienBan: "pthsp",
-    dong: "d\xF2ng t\xEDnh phi\u1EBFu",
-    soChinh: "tri_gia_don_hang_tong",
-    mac: [{ ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "dem_khac", cot: "hex" }],
-    hien: ["ngay_hoan_thanh", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "tinh_trang_phieu", "tri_gia_don_hang_tong"],
-    cot: [
-      { id: "ngay_hoan_thanh", ten: "Ng\xE0y t\xEDnh phi\u1EBFu xong", dn: ["ng\xE0y ho\xE0n th\xE0nh", "ng\xE0y"], kieu: "ngay" },
-      { id: "ngay_duyet", ten: "Ng\xE0y duy\u1EC7t phi\u1EBFu", dn: ["ng\xE0y duy\u1EC7t"], kieu: "ngay" },
-      { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", dn: ["tr\u1EA1ng th\xE1i phi\u1EBFu", "t\xECnh tr\u1EA1ng"], kieu: "chu", tuDien: true },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "so_luong_tinh", ten: "S\u1ED1 l\u01B0\u1EE3ng t\xEDnh", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
-      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB", "ti\u1EC1n"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true }
-    ]
-  },
-  {
-    id: "production_status_app",
-    ten: "S\u1EA3n xu\u1EA5t (h\u1EA1ng m\u1EE5c)",
-    dn: ["s\u1EA3n xu\u1EA5t", "h\u1EA1ng m\u1EE5c", "\u0111ang s\u1EA3n xu\u1EA5t", "t\xECnh tr\u1EA1ng s\u1EA3n xu\u1EA5t", "sx", "\u0111\u01A1n \u0111ang l\xE0m", "tr\xEAn chuy\u1EC1n"],
-    quyen: ["production", "construction_overview", "hex_lookup", "dashboard"],
-    ngay: "ngay_nhan_tu_pm",
-    huy: "ipo",
-    phienBan: "production",
-    dong: "h\u1EA1ng m\u1EE5c",
-    soChinh: "tri_gia_don_hang_tong",
-    mac: [{ ham: "dem" }, { ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "tong", cot: "gia_tri_con_lai" }],
-    hien: ["hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "tinh_trang", "tri_gia_don_hang_tong", "gia_tri_con_lai"],
-    cot: [
-      { id: "tinh_trang", ten: "C\xF4ng \u0111o\u1EA1n hi\u1EC7n t\u1EA1i", tuDien: true, dn: ["c\xF4ng \u0111o\u1EA1n", "t\xECnh tr\u1EA1ng", "tr\u1EA1ng th\xE1i", "\u0111ang \u1EDF"], kieu: "chu" },
-      { id: "tinh_trang_ipo", ten: "T\xECnh tr\u1EA1ng IPO", dn: ["ipo"], kieu: "chu" },
-      { id: "tinh_trang_du_an", ten: "T\xECnh tr\u1EA1ng d\u1EF1 \xE1n", tuDien: true, kieu: "chu" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
-      { id: "ten_pc", ten: "PC", dn: ["t\xEAn pc"], kieu: "chu", tuDien: true },
-      { id: "khach_hang", ten: "Kh\xE1ch h\xE0ng", tuDien: true, dn: ["kh", "ch\u1EE7 \u0111\u1EA7u t\u01B0"], kieu: "chu" },
-      { id: "khu_vuc_du_an", ten: "Khu v\u1EF1c", tuDien: true, dn: ["khu v\u1EF1c d\u1EF1 \xE1n", "v\xF9ng"], kieu: "chu" },
-      { id: "phan_loai_nhom_san_pham", ten: "Nh\xF3m s\u1EA3n ph\u1EA9m", tuDien: true, dn: ["lo\u1EA1i s\u1EA3n ph\u1EA9m", "ph\xE2n lo\u1EA1i"], kieu: "chu" },
-      { id: "nhom_ct", ten: "Nh\xF3m c\xF4ng tr\xECnh", dn: ["nh\xF3m ct"], kieu: "chu" },
-      { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", kieu: "chu", tuDien: true },
-      { id: "tinh_trang_trien_khai_ban_ve", ten: "T\xECnh tr\u1EA1ng b\u1EA3n v\u1EBD", tuDien: true, dn: ["tri\u1EC3n khai b\u1EA3n v\u1EBD"], kieu: "chu" },
-      { id: "tinh_trang_gcn", ten: "Gia c\xF4ng ngo\xE0i", dn: ["gcn", "t\xECnh tr\u1EA1ng gcn"], kieu: "chu" },
-      { id: "bop", ten: "BOP", kieu: "chu" },
-      { id: "ngay_nhan_tu_pm", ten: "Ng\xE0y nh\u1EADn t\u1EEB PM", dn: ["ng\xE0y nh\u1EADn"], kieu: "ngay" },
-      { id: "ngay_can_giao", ten: "Ng\xE0y c\u1EA7n giao", dn: ["h\u1EA1n giao"], kieu: "ngay" },
-      { id: "bot_du_an", ten: "BOT d\u1EF1 \xE1n", dn: ["bot"], kieu: "ngay" },
-      { id: "ngay_khnk_thang", ten: "KH nh\u1EADp kho th\xE1ng", dn: ["k\u1EBF ho\u1EA1ch nh\u1EADp kho", "k\u1EBF ho\u1EA1ch th\xE1ng"], kieu: "ngay" },
-      // Cột chữ dạng '2026-10-18 00:00:00' => đổi sang ngày (chữ khác dạng coi như trống)
-      { id: "ngay_khnk_tuan", ten: "KH nh\u1EADp kho tu\u1EA7n", dn: ["k\u1EBF ho\u1EA1ch tu\u1EA7n"], kieu: "ngay", sql: `(CASE WHEN t.ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(t.ngay_khnk_tuan, 10)::date END)` },
-      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB", "ti\u1EC1n"], kieu: "so", tien: true },
-      { id: "thanh_tien_tinh_phieu", ten: "\u0110\xE3 t\xEDnh phi\u1EBFu", dn: ["gi\xE1 tr\u1ECB t\xEDnh phi\u1EBFu"], kieu: "so", tien: true },
-      { id: "thanh_tien_nhap_kho_luy_ke", ten: "\u0110\xE3 nh\u1EADp kho", dn: ["nh\u1EADp kho l\u0169y k\u1EBF", "\u0111\xE3 nh\u1EADp"], kieu: "so", tien: true },
-      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so3("thanh_tien_xuat_kho_luy_ke"), tien: true },
-      { id: "thanh_tien_ton_kho_hien_tai", ten: "T\u1ED3n kho hi\u1EC7n t\u1EA1i", dn: ["gi\xE1 tr\u1ECB t\u1ED3n"], kieu: "so", tien: true },
-      { id: "gia_tri_con_lai", ten: "Gi\xE1 tr\u1ECB c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "ch\u01B0a nh\u1EADp"], kieu: "so", tien: true },
-      { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
-      { id: "so_luong_nhap_kho_luy_ke", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\xE3 nh\u1EADp", dn: ["sl nh\u1EADp"], kieu: "so" },
-      // Cột là NHÓM chữ ('<3 NGÀY', '2 TUẦN', 'TỪ 8 TUẦN TRỞ LÊN'), không phải số ngày
-      { id: "so_ngay_cd_hien_tai", ten: "Th\u1EDDi gian \u1EDF c\xF4ng \u0111o\u1EA1n", tuDien: true, dn: ["s\u1ED1 ng\xE0y \u1EDF c\xF4ng \u0111o\u1EA1n", "n\u1EB1m bao l\xE2u", "bao l\xE2u"], kieu: "chu" }
-    ]
-  },
-  {
-    id: "vat_tu",
-    ten: "V\u1EADt t\u01B0",
-    dn: ["v\u1EADt t\u01B0", "pr", "po", "mua h\xE0ng", "nvl", "nguy\xEAn v\u1EADt li\u1EC7u"],
-    quyen: ["materials"],
-    ngay: "ngay_pr",
-    phienBan: "material",
-    dong: "d\xF2ng PR",
-    mac: [{ ham: "dem" }, { ham: "dem_khac", cot: "so_pr" }],
-    hien: ["ngay_pr", "so_pr", "ten_cong_trinh", "ten_vat_tu", "so_luong_yeu_cau", "so_luong_da_nhan_sap", "trang_thai"],
-    cot: [
-      { id: "trang_thai", ten: "Tr\u1EA1ng th\xE1i", tuDien: true, dn: ["t\xECnh tr\u1EA1ng"], kieu: "chu" },
-      { id: "trang_thai_sap", ten: "Tr\u1EA1ng th\xE1i SAP", kieu: "chu" },
-      { id: "tinh_trang_po", ten: "T\xECnh tr\u1EA1ng PO", kieu: "chu" },
-      { id: "tinh_trang_pr", ten: "T\xECnh tr\u1EA1ng PR", tuDien: true, kieu: "chu" },
-      { id: "nguoi_tao", ten: "Ng\u01B0\u1EDDi t\u1EA1o", kieu: "chu" },
-      { id: "nguoi_yeu_cau", ten: "Ng\u01B0\u1EDDi y\xEAu c\u1EA7u", tuDien: true, kieu: "chu" },
-      CT,
-      { id: "so_pr", ten: "S\u1ED1 PR", kieu: "ma", sql: "t.so_pr::bigint::text" },
-      { id: "so_po", ten: "S\u1ED1 PO", kieu: "ma", sql: "t.so_po::bigint::text" },
-      { id: "ten_vat_tu", ten: "T\xEAn v\u1EADt t\u01B0", dn: ["v\u1EADt li\u1EC7u"], kieu: "chu" },
-      { id: "ma_vat_tu_sap", ten: "M\xE3 v\u1EADt t\u01B0 SAP", dn: ["m\xE3 v\u1EADt t\u01B0"], kieu: "ma", sql: "t.ma_vat_tu_sap::bigint::text" },
-      { id: "nhom_vt", ten: "Nh\xF3m v\u1EADt t\u01B0", tuDien: true, dn: ["nh\xF3m vt", "lo\u1EA1i v\u1EADt t\u01B0"], kieu: "chu" },
-      { id: "nha_cung_cap", ten: "Nh\xE0 cung c\u1EA5p", dn: ["ncc"], kieu: "chu", quyen: "materials_view_price" },
-      { id: "dvt", ten: "\u0110\u01A1n v\u1ECB t\xEDnh", dn: ["\u0111vt"], kieu: "chu" },
-      { id: "ngay_pr", ten: "Ng\xE0y PR", kieu: "ngay" },
-      { id: "ngay_can_vat_tu", ten: "Ng\xE0y c\u1EA7n v\u1EADt t\u01B0", kieu: "ngay" },
-      { id: "ngay_du_kien_giao_hang_pmh_nhap", ten: "Ng\xE0y d\u1EF1 ki\u1EBFn v\u1EC1", dn: ["d\u1EF1 ki\u1EBFn v\u1EC1", "ng\xE0y h\u1EB9n"], kieu: "ngay" },
-      { id: "ngay_thuc_te_ve", ten: "Ng\xE0y th\u1EF1c t\u1EBF v\u1EC1", dn: ["ng\xE0y v\u1EC1"], kieu: "ngay" },
-      { id: "so_luong_yeu_cau", ten: "SL y\xEAu c\u1EA7u", dn: ["s\u1ED1 l\u01B0\u1EE3ng y\xEAu c\u1EA7u", "s\u1ED1 l\u01B0\u1EE3ng"], kieu: "so" },
-      { id: "so_luong_da_nhan_sap", ten: "SL \u0111\xE3 nh\u1EADn", dn: ["\u0111\xE3 nh\u1EADn"], kieu: "so" },
-      { id: "so_luong_con_lai", ten: "SL c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "c\xF2n thi\u1EBFu"], kieu: "so" },
-      { id: "don_gia", ten: "\u0110\u01A1n gi\xE1", kieu: "so", quyen: "materials_view_price" },
-      { id: "thanh_tien", ten: "Th\xE0nh ti\u1EC1n", dn: ["gi\xE1 tr\u1ECB", "ti\u1EC1n"], kieu: "so", quyen: "materials_view_price" }
-    ]
-  },
-  {
-    id: "khsx",
-    noiSx: true,
-    ten: "K\u1EBF ho\u1EA1ch s\u1EA3n xu\u1EA5t",
-    dn: ["k\u1EBF ho\u1EA1ch s\u1EA3n xu\u1EA5t", "khsx", "k\u1EBF ho\u1EA1ch nh\u1EADp kho", "d\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch"],
-    quyen: ["khsx", "dashboard"],
-    ngay: "ngay_khnk",
-    huy: "hex",
-    phienBan: "khsx",
-    dong: "d\xF2ng k\u1EBF ho\u1EA1ch",
-    soChinh: "thanh_tien_ke_hoach",
-    mac: [{ ham: "tong", cot: "thanh_tien_ke_hoach" }, { ham: "dem_khac", cot: "hex" }],
-    hien: ["ngay_khnk", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "phan_loai_kh", "thanh_tien_ke_hoach"],
-    cot: [
-      { id: "ngay_khnk", ten: "Ng\xE0y KH nh\u1EADp kho", dn: ["ng\xE0y k\u1EBF ho\u1EA1ch", "ng\xE0y"], kieu: "ngay" },
-      { id: "phan_loai_kh", ten: "Lo\u1EA1i k\u1EBF ho\u1EA1ch", tuDien: true, dn: ["ph\xE2n lo\u1EA1i"], kieu: "chu" },
-      { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
-      { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
-      { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::int::text" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "ti\u1EC1n", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
-      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so3("so_luong_kh") }
-    ]
-  },
-  {
-    id: "khsx_nam",
-    ten: "K\u1EBF ho\u1EA1ch n\u0103m",
-    dn: ["d\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m", "b\u1EA3ng k\u1EBF ho\u1EA1ch n\u0103m", "m\u1EE5c ti\xEAu n\u0103m"],
-    quyen: ["yearly_plan_data", "dashboard"],
-    ngay: "thoi_gian",
-    phienBan: "yearlyPlan",
-    dong: "d\xF2ng k\u1EBF ho\u1EA1ch",
-    soChinh: "thanh_tien_ke_hoach",
-    mac: [{ ham: "tong", cot: "thanh_tien_ke_hoach" }],
-    hien: ["nam", "thang", "xuong_chinh", "thanh_tien_ke_hoach"],
-    cot: [
-      { id: "thoi_gian", ten: "Th\xE1ng k\u1EBF ho\u1EA1ch", kieu: "ngay", sql: "make_date(t.nam::int, GREATEST(LEAST(t.thang::int, 12), 1), 1)" },
-      { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
-      { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
-      XUONG,
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "ti\u1EC1n", "k\u1EBF ho\u1EA1ch", "m\u1EE5c ti\xEAu"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true }
-    ]
-  },
-  {
-    id: "phan_tich_kh_th",
-    noiSx: true,
-    ten: "Ph\xE2n t\xEDch KH-TH",
-    dn: ["ph\xE2n t\xEDch kh-th", "kh-th", "khth", "kh th", "th\u1EF1c hi\u1EC7n k\u1EBF ho\u1EA1ch", "\u0111\xFAng k\u1EBF ho\u1EA1ch", "r\u1EDBt k\u1EBF ho\u1EA1ch"],
-    quyen: ["analysis"],
-    ngay: "thoi_gian",
-    phienBan: "analysis",
-    dong: "d\xF2ng",
-    soChinh: "thanh_tien_ke_hoach",
-    mac: [{ ham: "tong", cot: "thanh_tien_ke_hoach" }, { ham: "tong", cot: "nhap_kho_tuan" }],
-    hien: ["nam", "tuan", "hex", "ten_cong_trinh", "xuong_chinh", "tinh_trang_thuc_hien_ke_hoach", "thanh_tien_ke_hoach", "nhap_kho_tuan"],
-    cot: [
-      { id: "thoi_gian", ten: "Tu\u1EA7n k\u1EBF ho\u1EA1ch", kieu: "ngay", sql: `to_date(t.nam::text || '-' || lpad(t.tuan::text, 2, '0'), 'IYYY-IW')` },
-      { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
-      { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::text" },
-      XUONG,
-      CT,
-      MA_CT,
-      HM,
-      HEX,
-      { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so3("thanh_tien_ke_hoach"), tien: true },
-      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so3("nhap_kho_tuan"), tien: true },
-      { id: "dung_ke_hoach", ten: "\u0110\xFAng k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
-      { id: "thuc_hien_dung_ke_hoach_1_phan", ten: "\u0110\xFAng KH 1 ph\u1EA7n", kieu: "so", tien: true },
-      { id: "rot_ke_hoach", ten: "R\u1EDBt k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
-      { id: "thuc_hien_rot_ke_hoach_1_phan", ten: "R\u1EDBt KH 1 ph\u1EA7n", kieu: "so", tien: true },
-      { id: "nhap_kho_truoc_ke_hoach", ten: "Nh\u1EADp tr\u01B0\u1EDBc k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
-      { id: "vuot_ke_hoach", ten: "V\u01B0\u1EE3t k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
-      { id: "nhap_kho_ngoai_ke_hoach", ten: "Nh\u1EADp ngo\xE0i k\u1EBF ho\u1EA1ch", kieu: "so", tien: true }
-    ]
-  },
-  {
-    id: "diem_danh",
-    ten: "\u0110i\u1EC3m danh",
-    dn: ["\u0111i\u1EC3m danh", "nh\xE2n s\u1EF1", "\u0111\u1ECBnh bi\xEAn", "s\u1ED1 c\xF4ng nh\xE2n"],
-    quyen: ["attendance"],
-    ngay: "date",
-    phienBan: "attendance",
-    dong: "d\xF2ng \u0111i\u1EC3m danh",
-    mac: [{ ham: "tb", cot: "so_luong_cong_nhan" }, { ham: "tong", cot: "gio_cong_hanh_chinh" }, { ham: "tong", cot: "gio_cong_tang_ca" }],
-    hien: ["date", "xuong_chinh", "so_luong_cong_nhan", "dinh_bien", "gio_cong_hanh_chinh", "gio_cong_tang_ca"],
-    cot: [
-      { id: "date", ten: "Ng\xE0y", kieu: "ngay" },
-      XUONG,
-      { id: "so_luong_cong_nhan", ten: "S\u1ED1 c\xF4ng nh\xE2n", dn: ["c\xF4ng nh\xE2n", "s\u1ED1 ng\u01B0\u1EDDi", "nh\xE2n s\u1EF1"], kieu: "so" },
-      { id: "dinh_bien", ten: "\u0110\u1ECBnh bi\xEAn", kieu: "so" },
-      { id: "gio_cong_hanh_chinh", ten: "Gi\u1EDD c\xF4ng h\xE0nh ch\xEDnh", dn: ["gi\u1EDD h\xE0nh ch\xEDnh", "gi\u1EDD c\xF4ng"], kieu: "so" },
-      { id: "gio_cong_tang_ca", ten: "Gi\u1EDD t\u0103ng ca", dn: ["t\u0103ng ca", "gi\u1EDD c\xF4ng t\u0103ng ca"], kieu: "so" }
-    ]
-  },
-  {
-    id: "vuong_mac",
-    ten: "V\u01B0\u1EDBng m\u1EAFc",
-    dn: ["v\u01B0\u1EDBng m\u1EAFc", "v\u1EA5n \u0111\u1EC1", "s\u1EF1 c\u1ED1", "vm"],
-    quyen: ["vuong_mac"],
-    ngay: "created_at",
-    dong: "v\u01B0\u1EDBng m\u1EAFc",
-    mac: [{ ham: "dem" }],
-    hien: ["created_at", "hex", "ten_cong_trinh", "xuong", "category", "status", "handler", "bot_end"],
-    cot: [
-      { id: "created_at", ten: "Ng\xE0y b\xE1o", dn: ["ng\xE0y t\u1EA1o", "ng\xE0y"], kieu: "ngay", sql: `(t.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` },
-      {
-        id: "status",
-        ten: "Tr\u1EA1ng th\xE1i",
-        dn: ["t\xECnh tr\u1EA1ng"],
-        kieu: "chu",
-        gt: ["\u0110ang x\u1EED l\xFD", "\u0110\xE3 xong", "\u0110\xE3 \u0111\xF3ng"],
-        sql: `(CASE t.status WHEN 'open' THEN 'M\u1EDBi' WHEN 'doing' THEN '\u0110ang x\u1EED l\xFD' WHEN 'done' THEN '\u0110\xE3 xong' WHEN 'closed' THEN '\u0110\xE3 \u0111\xF3ng' ELSE COALESCE(t.status, CASE WHEN t.is_resolved THEN '\u0110\xE3 xong' ELSE 'M\u1EDBi' END) END)`
-      },
-      { id: "is_resolved", ten: "\u0110\xE3 x\u1EED l\xFD", dn: ["x\u1EED l\xFD xong", "\u0111\xE3 gi\u1EA3i quy\u1EBFt"], kieu: "chu", gt: ["\u0110\xE3 x\u1EED l\xFD", "Ch\u01B0a x\u1EED l\xFD"], sql: `(CASE WHEN t.is_resolved THEN '\u0110\xE3 x\u1EED l\xFD' ELSE 'Ch\u01B0a x\u1EED l\xFD' END)` },
-      {
-        id: "qua_han",
-        ten: "Qu\xE1 h\u1EA1n",
-        dn: ["tr\u1EC5 h\u1EA1n", "qu\xE1 h\u1EA1n bot"],
-        kieu: "chu",
-        gt: ["Qu\xE1 h\u1EA1n"],
-        sql: `(CASE WHEN NOT COALESCE(t.is_resolved, false) AND t.bot_end IS NOT NULL AND t.bot_end < now() THEN 'Qu\xE1 h\u1EA1n' ELSE 'Kh\xF4ng' END)`
-      },
-      { id: "category", ten: "Lo\u1EA1i v\u01B0\u1EDBng m\u1EAFc", tuDien: true, dn: ["lo\u1EA1i", "nh\xF3m"], kieu: "chu" },
-      { id: "priority", ten: "M\u1EE9c \u01B0u ti\xEAn", tuDien: true, dn: ["\u01B0u ti\xEAn"], kieu: "chu" },
-      { id: "stage", ten: "C\xF4ng \u0111o\u1EA1n", tuDien: true, kieu: "chu" },
-      { ...XUONG, id: "xuong", sql: "t.xuong" },
-      CT,
-      MA_CT,
-      HM,
-      { ...HEX, sql: "t.hex" },
-      { id: "handler", ten: "Ng\u01B0\u1EDDi x\u1EED l\xFD", tuDien: true, dn: ["ng\u01B0\u1EDDi ph\u1EE5 tr\xE1ch"], kieu: "chu" },
-      { id: "created_by", ten: "Ng\u01B0\u1EDDi b\xE1o", dn: ["ng\u01B0\u1EDDi t\u1EA1o"], kieu: "chu" },
-      { id: "bot_end", ten: "H\u1EA1n BOT", dn: ["h\u1EA1n", "bot"], kieu: "ngay", sql: `(t.bot_end AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` },
-      { id: "resolved_at", ten: "Ng\xE0y x\u1EED l\xFD xong", kieu: "ngay", sql: `(t.resolved_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` }
-    ]
-  }
-];
-var bangTheoId = new Map(DANH_MUC.map((b) => [b.id, b]));
-var sqlCot = (c) => c.sql ?? `t."${c.id}"`;
-
-// src/server/hoiDapAi.ts
-var aiBat = () => !!process.env.HOI_DAP_AI_KEY;
-var URL_AI = () => (process.env.HOI_DAP_AI_URL || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/+$/, "");
-var MODEL_AI = () => process.env.HOI_DAP_AI_MODEL || "gemini-flash-latest";
-var SUY_NGHI = () => process.env.HOI_DAP_AI_SUY_NGHI ?? "low";
-var MAX_NGAY = () => Number(process.env.HOI_DAP_AI_MAX_NGAY) || 1e3;
-var CO_TEN_RIENG = /* @__PURE__ */ new Set(["ten_pm", "ten_pc", "khach_hang", "handler", "created_by", "nguoi_yeu_cau", "nguoi_tao", "nguoi_trien_khai", "nha_cung_cap", "ten_cong_trinh", "ma_cong_trinh"]);
-var THU = ["Ch\u1EE7 nh\u1EADt", "Th\u1EE9 hai", "Th\u1EE9 ba", "Th\u1EE9 t\u01B0", "Th\u1EE9 n\u0103m", "Th\u1EE9 s\xE1u", "Th\u1EE9 b\u1EA3y"];
-var iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-function taoLoiDan(bangs, sx, gt, homNay) {
-  const dong2 = [];
-  bangs.forEach(({ b, cot }) => {
-    dong2.push(`## ${b.id} \u2014 ${b.ten} (c\xE1ch g\u1ECDi: ${b.dn.join(", ")}). C\u1ED9t ng\xE0y ch\xEDnh: ${b.ngay}.${b.chot ? " \u1EA2nh ch\u1EE5p t\u1ED3n theo ng\xE0y (kh\xF4ng c\u1ED9ng nhi\u1EC1u ng\xE0y)." : ""}${b.noiSx && sx.length ? " D\xF9ng \u0111\u01B0\u1EE3c c\u1ED9t sx:*." : ""} \u0110\u1EBFm: 1 d\xF2ng = 1 ${b.dong}.`);
-    cot.forEach((c) => {
-      const ds = !CO_TEN_RIENG.has(c.id) ? (gt[b.id]?.[c.id] ?? c.gt ?? []).slice(0, 30) : [];
-      dong2.push(`- ${c.id}: ${c.ten}${c.dn?.length ? ` (g\u1ECDi l\xE0: ${c.dn.join(", ")})` : ""} [${c.kieu}${c.tien ? ", ti\u1EC1n TRI\u1EC6U \u0111\u1ED3ng" : ""}]${ds.length ? ` gi\xE1 tr\u1ECB: ${ds.join(" | ")}` : ""}`);
-    });
-  });
-  if (sx.length) {
-    dong2.push("## C\u1ED9t sx:<id> \u2014 th\xF4ng tin h\u1EA1ng m\u1EE5c t\u1EEB b\u1EA3ng s\u1EA3n xu\u1EA5t, n\u1ED1i qua HEX (ch\u1EC9 d\xF9ng \u0111\u1EC3 l\u1ECDc / chia nh\xF3m, kh\xF4ng c\u1ED9ng)");
-    sx.forEach((c) => {
-      const ds = !CO_TEN_RIENG.has(c.id) ? (gt.production_status_app?.[c.id] ?? []).slice(0, 30) : [];
-      dong2.push(`- sx:${c.id}: ${c.ten} [${c.kieu}]${ds.length ? ` gi\xE1 tr\u1ECB: ${ds.join(" | ")}` : ""}`);
-    });
-  }
-  const hn = iso(homNay);
-  return `B\u1EA1n chuy\u1EC3n c\xE2u h\u1ECFi ti\u1EBFng Vi\u1EC7t v\u1EC1 s\u1ED1 li\u1EC7u c\u1EE7a nh\xE0 m\xE1y n\u1ED9i th\u1EA5t th\xE0nh 1 truy v\u1EA5n JSON theo danh m\u1EE5c b\xEAn d\u01B0\u1EDBi. B\u1EA1n KH\xD4NG c\xF3 s\u1ED1 li\u1EC7u v\xE0 KH\xD4NG tr\u1EA3 l\u1EDDi s\u1ED1 li\u1EC7u \u2014 ch\u1EC9 d\u1ECBch c\xE2u.
-H\xF4m nay: ${hn} (${THU[homNay.getDay()]}). Tu\u1EA7n b\u1EAFt \u0111\u1EA7u th\u1EE9 hai. "Th\xE1ng n\xE0y" = t\u1EEB ng\xE0y 1 t\u1EDBi h\xF4m nay.
-
-Tr\u1EA3 v\u1EC1 \u0111\xFAng 1 JSON object, m\u1ED9t trong ba d\u1EA1ng:
-{"loai":"truy_van","tv":{...},"giai_thich":"<1 c\xE2u ti\u1EBFng Vi\u1EC7t: b\u1EA1n hi\u1EC3u c\xE2u h\u1ECFi th\u1EBF n\xE0o>"}
-{"loai":"tim_kiem"}  \u2014 c\xE2u ch\u1EC9 l\xE0 m\xE3 / t\xEAn c\u1EA7n tra c\u1EE9u (m\xE3 HEX, t\xEAn h\u1EA1ng m\u1EE5c, t\xEAn c\xF4ng tr\xECnh\u2026), kh\xF4ng h\u1ECFi s\u1ED1 li\u1EC7u
-{"loai":"khong_hieu","giai_thich":"<v\xEC sao danh m\u1EE5c kh\xF4ng tr\u1EA3 l\u1EDDi \u0111\u01B0\u1EE3c>"}
-
-tv g\u1ED3m:
-- bang: id b\u1EA3ng.
-- kieu: "tong" (t\u1ED5ng h\u1EE3p s\u1ED1) ho\u1EB7c "dong" (li\u1EC7t k\xEA t\u1EEBng d\xF2ng).
-- do: [{"ham":..., "cot":...}]. ham: tong (c\u1ED9ng c\u1ED9t s\u1ED1) | dem (\u0111\u1EBFm d\xF2ng, kh\xF4ng c\xF3 cot) | dem_khac (\u0111\u1EBFm s\u1ED1 gi\xE1 tr\u1ECB kh\xE1c nhau, vd. s\u1ED1 HEX) | tb | max | min. \u0110\u1EC3 [] = ph\xE9p t\xEDnh m\u1EB7c \u0111\u1ECBnh c\u1EE7a b\u1EA3ng.
-- nhom: t\u1ED1i \u0111a 2 ph\u1EA7n t\u1EED \u2014 id c\u1ED9t, ho\u1EB7c "<id c\u1ED9t ng\xE0y>@ngay|tuan|thang|quy|nam" \u0111\u1EC3 chia theo th\u1EDDi gian.
-- loc: [{"cot":..., "op":..., "gt":...}]. op: bang | khac | chua | khong_chua | lon_hon | lon_hon_bang | nho_hon | nho_hon_bang | trong_khoang | rong | co. gt: chu\u1ED7i, s\u1ED1, ho\u1EB7c m\u1EA3ng (bang nhi\u1EC1u gi\xE1 tr\u1ECB; trong_khoang [a,b]). Ng\xE0y d\u1EA1ng YYYY-MM-DD.
-- tu, den: k\u1EF3 theo c\u1ED9t ng\xE0y ch\xEDnh c\u1EE7a b\u1EA3ng (YYYY-MM-DD). C\xE2u kh\xF4ng n\xF3i k\u1EF3 th\xEC b\u1ECF tu, den.
-- soSanh: {"tu":..., "den":...} \u2014 k\u1EF3 th\u1EE9 hai khi h\u1ECFi so s\xE1nh hai k\u1EF3.
-- binhQuan: "ngay" | "tuan" | "thang" \u2014 khi h\u1ECFi b\xECnh qu\xE2n m\u1ED7i ng\xE0y / tu\u1EA7n / th\xE1ng; khi \u0111\xF3 nhom ph\u1EA3i c\xF3 "<c\u1ED9t ng\xE0y ch\xEDnh>@<m\u1ED1c>".
-- sap: {"cot": s\u1ED1 th\u1EE9 t\u1EF1 c\u1ED9t k\u1EBFt qu\u1EA3 (c\xE1c c\u1ED9t nhom tr\u01B0\u1EDBc r\u1ED3i t\u1EDBi c\xE1c ph\xE9p t\xEDnh, b\u1EAFt \u0111\u1EA7u t\u1EEB 0), "giam": true|false}; gioiHan: s\u1ED1 d\xF2ng t\u1ED1i \u0111a (top N).
-- gomHuy: true n\u1EBFu mu\u1ED1n t\xEDnh c\u1EA3 h\u1EA1ng m\u1EE5c \u0111\xE3 h\u1EE7y (m\u1EB7c \u0111\u1ECBnh b\u1ECF).
-
-Quy t\u1EAFc:
-- Ch\u1EC9 d\xF9ng id b\u1EA3ng / c\u1ED9t c\xF3 trong danh m\u1EE5c. C\u1ED9t ti\u1EC1n t\xEDnh b\u1EB1ng TRI\u1EC6U \u0111\u1ED3ng: 1 t\u1EF7 = 1000.
-- giai_thich: ti\u1EBFng Vi\u1EC7t \u0111\u01A1n gi\u1EA3n cho nh\xE2n vi\xEAn nh\xE0 m\xE1y, KH\xD4NG d\xF9ng t\u1EEB k\u1EF9 thu\u1EADt (SQL, NOT IN, t\u1EADp h\u1EE3p, id c\u1ED9t\u2026).
-- C\u1ED9t c\xF3 danh s\xE1ch gi\xE1 tr\u1ECB: l\u1ECDc op "bang" v\u1EDBi \u0111\xFAng gi\xE1 tr\u1ECB trong danh s\xE1ch. T\xEAn ng\u01B0\u1EDDi, kh\xE1ch h\xE0ng, c\xF4ng tr\xECnh, nh\xE0 cung c\u1EA5p: op "chua" v\u1EDBi ch\u1EEF ng\u01B0\u1EDDi d\xF9ng g\xF5.
-- X\u01B0\u1EDFng (2A, 3A, 4A, 5A, 8AB, 8C, KH\xC1C): op "bang".
-- "Qu\xE1 h\u1EA1n giao / tr\u1EC5 h\u1EA1n" (h\u1EA1ng m\u1EE5c): b\u1EA3ng production_status_app, loc ngay_can_giao nho_hon h\xF4m nay v\xE0 gia_tri_con_lai lon_hon 0. "Ch\u01B0a nh\u1EADp kho / c\xF2n l\u1EA1i": gia_tri_con_lai lon_hon 0.
-- PR "tr\u1EC5 h\u1EB9n": b\u1EA3ng vat_tu, loc ngay_du_kien_giao_hang_pmh_nhap nho_hon h\xF4m nay v\xE0 so_luong_con_lai lon_hon 0. "Ch\u01B0a v\u1EC1": so_luong_con_lai lon_hon 0.
-- "Doanh thu" = gi\xE1 tr\u1ECB nh\u1EADp kho (b\u1EA3ng nhap_kho).
-- "X n\xE0o nhi\u1EC1u nh\u1EA5t / top N X": nhom theo X, sap gi\u1EA3m theo ph\xE9p t\xEDnh \u0111\u1EA7u, gioiHan N (kh\xF4ng n\xF3i N th\xEC 10).
-
-Danh m\u1EE5c:
-${dong2.join("\n")}
-
-V\xED d\u1EE5:
-C\xE2u: "x\u01B0\u1EDFng n\xE0o nh\u1EADp kho \xEDt nh\u1EA5t th\xE1ng 9" => {"loai":"truy_van","tv":{"bang":"nhap_kho","kieu":"tong","do":[{"ham":"tong","cot":"thanh_tien_nhap_kho"}],"nhom":["xuong_chinh"],"loc":[],"tu":"${homNay.getFullYear()}-09-01","den":"${homNay.getFullYear()}-09-30","sap":{"cot":1,"giam":false}},"giai_thich":"T\u1ED5ng gi\xE1 tr\u1ECB nh\u1EADp kho th\xE1ng 9 theo x\u01B0\u1EDFng, x\u1EBFp \xEDt tr\u01B0\u1EDBc"}
-C\xE2u: "\u0111\u01A1n h\xE0ng tr\xEAn 1 t\u1EF7 c\u1EE7a PM tu\u1EA5n" => {"loai":"truy_van","tv":{"bang":"dht","kieu":"dong","do":[],"nhom":[],"loc":[{"cot":"tri_gia_don_hang_tong","op":"lon_hon","gt":1000},{"cot":"ten_pm","op":"chua","gt":"tu\u1EA5n"}]},"giai_thich":"Li\u1EC7t k\xEA \u0111\u01A1n h\xE0ng tr\u1ECB gi\xE1 tr\xEAn 1 t\u1EF7 c\u1EE7a PM c\xF3 t\xEAn ch\u1EE9a tu\u1EA5n"}
-C\xE2u: "TOWEL CABINET BF11" => {"loai":"tim_kiem"}`;
-}
-function docKetQuaAI(text) {
-  const s = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const dau = s.indexOf("{"), cuoi = s.lastIndexOf("}");
-  if (dau < 0 || cuoi < dau) return null;
-  try {
-    const j = JSON.parse(s.slice(dau, cuoi + 1));
-    return j && ["truy_van", "tim_kiem", "khong_hieu"].includes(j.loai) ? j : null;
-  } catch {
-    return null;
-  }
-}
-var cache = /* @__PURE__ */ new Map();
-var ngay = "";
-var dem = 0;
-var LoiAI = class extends Error {
-};
-async function hoiAI(loiDan, cau, khoaCache) {
-  const hit = cache.get(khoaCache);
-  if (hit && Date.now() - hit.at < 864e5) return hit.kq;
-  const hn = iso(/* @__PURE__ */ new Date());
-  if (hn !== ngay) {
-    ngay = hn;
-    dem = 0;
-  }
-  if (dem >= MAX_NGAY()) throw new LoiAI("H\u1EBFt l\u01B0\u1EE3t h\u1ECFi AI h\xF4m nay");
-  dem++;
-  const ctrl = new AbortController();
-  const hen = setTimeout(() => ctrl.abort(), 4e4);
-  let r;
-  try {
-    r = await fetch(`${URL_AI()}/chat/completions`, {
-      method: "POST",
-      signal: ctrl.signal,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.HOI_DAP_AI_KEY}` },
-      body: JSON.stringify({
-        model: MODEL_AI(),
-        temperature: 0,
-        ...SUY_NGHI() ? { reasoning_effort: SUY_NGHI() } : {},
-        response_format: { type: "json_object" },
-        messages: [{ role: "system", content: loiDan }, { role: "user", content: cau }]
-      })
-    });
-  } catch (e) {
-    throw new LoiAI(e.name === "AbortError" ? "AI tr\u1EA3 l\u1EDDi qu\xE1 l\xE2u" : "Kh\xF4ng g\u1ECDi \u0111\u01B0\u1EE3c AI");
-  } finally {
-    clearTimeout(hen);
-  }
-  if (r.status === 429) throw new LoiAI("AI \u0111ang h\u1EBFt h\u1EA1n m\u1EE9c mi\u1EC5n ph\xED, th\u1EED l\u1EA1i sau");
-  if (!r.ok) throw new LoiAI(`AI b\xE1o l\u1ED7i ${r.status}`);
-  const j = await r.json().catch(() => null);
-  const kq = docKetQuaAI(j?.choices?.[0]?.message?.content ?? "");
-  if (!kq) throw new LoiAI("AI tr\u1EA3 l\u1EDDi kh\xF4ng \u0111\xFAng d\u1EA1ng");
-  cache.set(khoaCache, { at: Date.now(), kq });
-  if (cache.size > 500) {
-    const k = cache.keys().next().value;
-    if (k !== void 0) cache.delete(k);
-  }
-  return kq;
-}
-
-// src/routes/hoiDap.ts
-var limiter = rate_limit_default({
-  windowMs: 60 * 1e3,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => `hoi-dap:${req.user?.id ?? "anon"}`,
-  message: { success: false, message: "H\u1ECFi qu\xE1 nhanh, ch\u1EDD v\xE0i gi\xE2y r\u1ED3i h\u1ECFi ti\u1EBFp" }
-});
-async function quyenCua(req) {
-  if (!req.user) return null;
-  const a = await loadUserAccess(req.user.id);
-  if (!a.active) return null;
-  return (q) => a.role === "ADMIN" || a.perms.has(q);
-}
-var xemBang = (b, co) => b.quyen.some(co);
-var xemCot = (c, co) => !c.quyen || co(c.quyen);
-var cotNgay = (b) => b.cot.find((x) => x.id === b.ngay);
-var CO_DAU = "\xE0\xE1\u1EA3\xE3\u1EA1\u0103\u1EB1\u1EAF\u1EB3\u1EB5\u1EB7\xE2\u1EA7\u1EA5\u1EA9\u1EAB\u1EAD\xE8\xE9\u1EBB\u1EBD\u1EB9\xEA\u1EC1\u1EBF\u1EC3\u1EC5\u1EC7\xEC\xED\u1EC9\u0129\u1ECB\xF2\xF3\u1ECF\xF5\u1ECD\xF4\u1ED3\u1ED1\u1ED5\u1ED7\u1ED9\u01A1\u1EDD\u1EDB\u1EDF\u1EE1\u1EE3\xF9\xFA\u1EE7\u0169\u1EE5\u01B0\u1EEB\u1EE9\u1EED\u1EEF\u1EF1\u1EF3\xFD\u1EF7\u1EF9\u1EF5\u0111\xF0";
-var goc = (ch) => ch === "\u0111" || ch === "\xF0" ? "d" : ch.normalize("NFD").replace(/[̀-ͯ]/g, "");
-var TU = CO_DAU + CO_DAU.toUpperCase();
-var SANG = [...CO_DAU].map(goc).join("").repeat(2);
-var khongDau = (e) => `translate(lower(COALESCE((${e})::text, '')), '${TU}', '${SANG}')`;
-var boDau = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
-var thich = (s) => `%${boDau(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-var gonTen = (e) => `NULLIF(TRIM(REGEXP_REPLACE(COALESCE((${e})::text, ''), '\\s+', ' ', 'g')), '')`;
-var NGAY_RE3 = /^\d{4}-\d{2}-\d{2}$/;
-var GiaTri = external_exports.union([external_exports.string().max(300), external_exports.number()]);
-var LocSchema = external_exports.object({
-  cot: external_exports.string().max(64),
-  op: external_exports.enum(["bang", "khac", "chua", "khong_chua", "lon_hon", "lon_hon_bang", "nho_hon", "nho_hon_bang", "trong_khoang", "rong", "co"]),
-  gt: external_exports.union([GiaTri, external_exports.array(GiaTri).max(200)]).optional()
-});
-var DoSchema = external_exports.object({
-  ham: external_exports.enum(["tong", "dem", "dem_khac", "tb", "max", "min"]),
-  cot: external_exports.string().max(64).optional()
-});
-var TruyVanSchema = external_exports.object({
-  bang: external_exports.string().max(64),
-  kieu: external_exports.enum(["tong", "dong"]).default("tong"),
-  do: external_exports.array(DoSchema).max(4).default([]),
-  /** id cột, hoặc "cotNgay@thang" (ngay | tuan | thang | quy | nam) để nhóm theo mốc thời gian */
-  nhom: external_exports.array(external_exports.string().max(80)).max(2).default([]),
-  loc: external_exports.array(LocSchema).max(12).default([]),
-  tu: external_exports.string().regex(NGAY_RE3).optional(),
-  den: external_exports.string().regex(NGAY_RE3).optional(),
-  /** Sắp theo cột kết quả thứ `cot` (0 = cột đầu) */
-  sap: external_exports.object({ cot: external_exports.number().int().min(0).max(10), giam: external_exports.boolean() }).optional(),
-  gioiHan: external_exports.number().int().min(1).max(500).optional(),
-  /** Tính cả hạng mục HỦY (mặc định bỏ — cùng quy tắc với Tổng quan) */
-  gomHuy: external_exports.boolean().optional(),
-  cotXem: external_exports.array(external_exports.string().max(64)).max(12).optional()
-});
-var LoiHoi = class extends Error {
-};
-var MOC = {
-  ngay: (e) => `to_char(${e}, 'YYYY-MM-DD')`,
-  tuan: (e) => `to_char(${e}, 'IYYY-"T"IW')`,
-  thang: (e) => `to_char(${e}, 'YYYY-MM')`,
-  quy: (e) => `to_char(${e}, 'YYYY-"Q"Q')`,
-  nam: (e) => `to_char(${e}, 'YYYY')`
-};
-var SX = "production_status_app";
-var laSx = (id) => id.startsWith("sx:");
-var NOI_SX = `LEFT JOIN ${SX} p ON p.hex::text = t.hex::text`;
-var tuBang = (b, ids) => `${b.id} t${ids.some(laSx) ? ` ${NOI_SX}` : ""}`;
-function timCot(b, id, co) {
-  if (laSx(id)) {
-    const sx = bangTheoId.get(SX);
-    if (!b.noiSx) throw new LoiHoi(`B\u1EA3ng ${b.ten} kh\xF4ng n\u1ED1i \u0111\u01B0\u1EE3c sang b\u1EA3ng s\u1EA3n xu\u1EA5t`);
-    if (!xemBang(sx, co)) throw new LoiHoi("B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem b\u1EA3ng s\u1EA3n xu\u1EA5t");
-    const g = sx.cot.find((x) => x.id === id.slice(3));
-    if (!g || !xemCot(g, co)) throw new LoiHoi(`B\u1EA3ng s\u1EA3n xu\u1EA5t kh\xF4ng c\xF3 c\u1ED9t "${id.slice(3)}"`);
-    return { ...g, id, sql: sqlCot(g).replace(/(?<![\w."])t\./g, "p.") };
-  }
-  const c = b.cot.find((x) => x.id === id);
-  if (!c) throw new LoiHoi(`B\u1EA3ng ${b.ten} kh\xF4ng c\xF3 c\u1ED9t "${id}"`);
-  if (!xemCot(c, co)) throw new LoiHoi(`B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem c\u1ED9t ${c.ten}`);
-  return c;
-}
-var mangGt = (gt) => (gt === void 0 ? [] : Array.isArray(gt) ? gt : [gt]).map((v) => String(v).trim()).filter(Boolean);
-function dieuKienLoc(b, l, co, p) {
-  const c = timCot(b, l.cot, co);
-  const e = sqlCot(c);
-  const ds = mangGt(l.gt);
-  const thamSo = (v) => {
-    p.push(v);
-    return `$${p.length}`;
-  };
-  if (l.op === "rong") return c.kieu === "so" || c.kieu === "ngay" ? `${e} IS NULL` : `${gonTen(e)} IS NULL`;
-  if (l.op === "co") return c.kieu === "so" || c.kieu === "ngay" ? `${e} IS NOT NULL` : `${gonTen(e)} IS NOT NULL`;
-  if (!ds.length) throw new LoiHoi(`Thi\u1EBFu gi\xE1 tr\u1ECB l\u1ECDc cho ${c.ten}`);
-  if (c.kieu === "so" || c.kieu === "ngay") {
-    const doi = (v) => {
-      if (c.kieu === "ngay") {
-        if (!NGAY_RE3.test(v)) throw new LoiHoi(`${c.ten}: ng\xE0y ph\u1EA3i d\u1EA1ng n\u0103m-th\xE1ng-ng\xE0y`);
-        return v;
-      }
-      const n = Number(v.replace(/,/g, ""));
-      if (!Number.isFinite(n)) throw new LoiHoi(`${c.ten}: "${v}" kh\xF4ng ph\u1EA3i s\u1ED1`);
-      return n;
-    };
-    const ep = c.kieu === "ngay" ? "::date" : "::numeric";
-    const so1 = () => `${thamSo(doi(ds[0]))}${ep}`;
-    switch (l.op) {
-      case "bang":
-        return ds.length > 1 ? `${e} = ANY(${thamSo(ds.map(doi))}${ep}[])` : `${e} = ${so1()}`;
-      case "khac":
-        return `(${e} IS NULL OR ${e} <> ${so1()})`;
-      case "lon_hon":
-        return `${e} > ${so1()}`;
-      case "lon_hon_bang":
-        return `${e} >= ${so1()}`;
-      case "nho_hon":
-        return `${e} < ${so1()}`;
-      case "nho_hon_bang":
-        return `${e} <= ${so1()}`;
-      case "trong_khoang": {
-        if (ds.length < 2) throw new LoiHoi(`${c.ten}: "trong kho\u1EA3ng" c\u1EA7n 2 gi\xE1 tr\u1ECB`);
-        return `${e} BETWEEN ${thamSo(doi(ds[0]))}${ep} AND ${thamSo(doi(ds[1]))}${ep}`;
-      }
-      default:
-        throw new LoiHoi(`${c.ten}: kh\xF4ng l\u1ECDc "${l.op}" v\u1EDBi c\u1ED9t s\u1ED1 / ng\xE0y`);
-    }
-  }
-  const coMaCt = !laSx(c.id) && b.cot.some((x) => x.id === "ma_cong_trinh");
-  const giongChu = (phu) => {
-    const a = thamSo(ds.map(thich));
-    const k = `${khongDau(e)} LIKE ANY(${a}::text[])`;
-    return phu && c.kieu === "ct" && coMaCt ? `(${k} OR ${khongDau(sqlCot(timCot(b, "ma_cong_trinh", co)))} LIKE ANY(${a}::text[]))` : k;
-  };
-  const bangChu = () => {
-    if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds))}::text[])`;
-    if (c.kieu === "ct") return `${normNameSql(e)} = ANY(${thamSo(expandProjectNames(ds))}::text[])`;
-    return `${khongDau(e)} = ANY(${thamSo(ds.map(boDau))}::text[])`;
-  };
-  switch (l.op) {
-    case "bang":
-      return bangChu();
-    case "khac":
-      return `NOT COALESCE(${bangChu()}, false)`;
-    case "chua":
-      return giongChu(true);
-    case "khong_chua":
-      return `NOT (${giongChu(true)})`;
-    default:
-      throw new LoiHoi(`${c.ten}: ch\u1EC9 l\u1ECDc b\u1EB1ng / kh\xE1c / ch\u1EE9a v\u1EDBi c\u1ED9t ch\u1EEF`);
-  }
-}
-async function phanLoc(b, q, co, p, coNhomNgay) {
-  const dk = [];
-  if (!q.gomHuy && b.huy === "hex") dk.push(notCancelledHexCond("t.hex"));
-  if (!q.gomHuy && b.huy === "ipo") dk.push(`UPPER(COALESCE(t.tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'`);
-  const eNgay = sqlCot(cotNgay(b));
-  if (q.tu) {
-    p.push(q.tu);
-    dk.push(`${eNgay} >= $${p.length}::date`);
-  }
-  if (q.den) {
-    p.push(q.den);
-    dk.push(`${eNgay} <= $${p.length}::date`);
-  }
-  q.loc.forEach((l) => dk.push(dieuKienLoc(b, l, co, p)));
-  let ngayChot;
-  if (b.chot && !coNhomNgay && !q.loc.some((l) => l.cot === b.ngay)) {
-    const pp = [];
-    const dd = [];
-    if (q.tu) {
-      pp.push(q.tu);
-      dd.push(`${eNgay} >= $${pp.length}::date`);
-    }
-    if (q.den) {
-      pp.push(q.den);
-      dd.push(`${eNgay} <= $${pp.length}::date`);
-    }
-    const r = await timedQuery(
-      `SELECT to_char(MAX(${eNgay}), 'YYYY-MM-DD') AS d FROM ${b.id} t${dd.length ? ` WHERE ${dd.join(" AND ")}` : ""}`,
-      pp,
-      { timeoutMs: 15e3 }
-    );
-    ngayChot = r.rows[0]?.d ?? void 0;
-    if (ngayChot) {
-      p.push(ngayChot);
-      dk.push(`${eNgay} = $${p.length}::date`);
-    }
-  }
-  return { where: dk.length ? `WHERE ${dk.join(" AND ")}` : "", ngayChot };
-}
-var soHoa = (v) => v === null || v === void 0 || v === "" ? null : Number(v);
-async function chay(b, q, co) {
-  const p = [];
-  const nhom = q.nhom.map((n) => {
-    const [id, moc2] = n.split("@");
-    const c = timCot(b, id, co);
-    if (moc2) {
-      if (c.kieu !== "ngay" || !Object.hasOwn(MOC, moc2)) throw new LoiHoi(`Kh\xF4ng nh\xF3m ${c.ten} theo "${moc2}"`);
-      return { c, moc: moc2, sql: MOC[moc2](sqlCot(c)) };
-    }
-    if (c.kieu === "ngay") return { c, moc: "ngay", sql: MOC.ngay(sqlCot(c)) };
-    const sql2 = c.kieu === "xuong" ? `NULLIF(${workshopGroupSql(sqlCot(c))}, '')` : c.kieu === "so" ? sqlCot(c) : gonTen(sqlCot(c));
-    return { c, moc: "", sql: sql2 };
-  });
-  const coNhomNgay = nhom.some((n) => n.c.kieu === "ngay");
-  const { where, ngayChot } = await phanLoc(b, q, co, p, coNhomNgay);
-  const tu = tuBang(b, [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot ?? ""), ...q.loc.map((l) => l.cot), ...q.kieu === "dong" ? q.cotXem ?? [] : []]);
-  const boHuy = !q.gomHuy && !!b.huy;
-  if (q.kieu === "dong") {
-    const ids = (q.cotXem?.length ? q.cotXem : b.hien).filter((id) => {
-      const c = b.cot.find((x) => x.id === id);
-      return c && xemCot(c, co);
-    });
-    const cots = ids.map((id) => timCot(b, id, co));
-    const chon = cots.map((c, i) => `${c.kieu === "ngay" ? MOC.ngay(sqlCot(c)) : sqlCot(c)} AS c${i}`);
-    const gioiHan = Math.min(q.gioiHan ?? 100, 200);
-    const sapCot = q.sap && cots[q.sap.cot] ? `c${q.sap.cot} ${q.sap.giam ? "DESC" : "ASC"} NULLS LAST` : `${sqlCot(cotNgay(b))} DESC NULLS LAST`;
-    const r2 = await timedQuery(
-      `SELECT ${chon.join(", ")}, count(*) OVER () AS so_dong FROM ${tu} ${where} ORDER BY ${sapCot} LIMIT ${gioiHan}`,
-      p,
-      { timeoutMs: 2e4, heavy: true }
-    );
-    return {
-      cot: cots.map((c) => ({ ten: c.ten, kieu: c.kieu === "so" ? "so" : c.kieu === "ngay" ? "ngay" : "chu", tien: c.tien })),
-      dong: r2.rows.map((row) => cots.map((c, i) => {
-        const v = row[`c${i}`];
-        if (c.kieu === "so") return soHoa(v);
-        if (c.kieu === "ct") return v ? canonicalProjectName(v) : null;
-        return v === null || v === void 0 ? null : String(v);
-      })),
-      tong: null,
-      soDong: Number(r2.rows[0]?.so_dong ?? 0),
-      ngayChot,
-      boHuy
-    };
-  }
-  const doList = q.do.length ? q.do : b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co)));
-  const doDa = doList.map((d) => {
-    if (d.ham === "dem") return { d, c: void 0, sql: ["COUNT(*)"] };
-    if (!d.cot) throw new LoiHoi("Thi\u1EBFu c\u1ED9t c\u1EA7n t\xEDnh");
-    const c = timCot(b, d.cot, co);
-    const e = sqlCot(c);
-    if (d.ham === "dem_khac") return { d, c, sql: [`COUNT(DISTINCT ${c.kieu === "ngay" || c.kieu === "so" ? e : gonTen(e)})`] };
-    if (d.ham === "max" || d.ham === "min") {
-      if (c.kieu !== "so" && c.kieu !== "ngay") throw new LoiHoi(`${c.ten} kh\xF4ng ph\u1EA3i s\u1ED1 / ng\xE0y`);
-      const f = d.ham === "max" ? "MAX" : "MIN";
-      return { d, c, sql: [c.kieu === "ngay" ? `to_char(${f}(${e}), 'YYYY-MM-DD')` : `${f}(${e})`] };
-    }
-    if (c.kieu !== "so") throw new LoiHoi(`${c.ten} kh\xF4ng ph\u1EA3i c\u1ED9t s\u1ED1 \u0111\u1EC3 ${d.ham === "tong" ? "c\u1ED9ng" : "t\xEDnh trung b\xECnh"}`);
-    return { d, c, sql: d.ham === "tb" ? [`SUM(${e})`, `COUNT(${e})`] : [`SUM(${e})`] };
-  });
-  const chonDo = [];
-  doDa.forEach((x, i) => x.sql.forEach((s, j) => chonDo.push(`${s} AS m${i}_${j}`)));
-  const chonNhom = nhom.map((n, i) => `${n.sql} AS g${i}`);
-  const TRAN = 2e4;
-  const sql = nhom.length ? `SELECT ${[...chonNhom, ...chonDo, `GROUPING(${nhom.map((n) => n.sql).join(", ")}) AS la_tong`].join(", ")}
-       FROM ${tu} ${where}
-       GROUP BY GROUPING SETS ((${nhom.map((n) => n.sql).join(", ")}), ())
-       ORDER BY la_tong DESC LIMIT ${TRAN + 1}` : `SELECT ${chonDo.join(", ")} FROM ${tu} ${where}`;
-  const r = await timedQuery(sql, p, { timeoutMs: 2e4, heavy: true, workMemMb: 32 });
-  const docDo = (row) => doDa.map((x, i) => x.sql.map((_, j) => {
-    const v = row[`m${i}_${j}`];
-    return x.c?.kieu === "ngay" && (x.d.ham === "max" || x.d.ham === "min") ? v === null || v === void 0 ? null : String(v) : soHoa(v);
-  }));
-  const raVal = (m) => doDa.map((x, i) => {
-    const a = m[i];
-    if (x.d.ham === "tb") return a[1] ? Number(a[0]) / Number(a[1]) : null;
-    return a[0];
-  });
-  const rows = r.rows;
-  const dongTong = nhom.length ? rows.find((x) => Number(x.la_tong) !== 0) : rows[0];
-  const tong = dongTong ? [...nhom.map(() => null), ...raVal(docDo(dongTong)).map((v) => typeof v === "number" ? v : null)] : null;
-  const gop = /* @__PURE__ */ new Map();
-  rows.filter((x) => !nhom.length || Number(x.la_tong) === 0).forEach((row) => {
-    const g = nhom.map((n, i) => {
-      const v = row[`g${i}`];
-      if (v === null || v === void 0) return null;
-      if (n.c.kieu === "ct") return canonicalProjectName(v);
-      return n.c.kieu === "so" ? soHoa(v) : String(v);
-    });
-    const k = JSON.stringify(g);
-    const m = docDo(row);
-    const cu = gop.get(k);
-    if (!cu) {
-      gop.set(k, { g, m });
-      return;
-    }
-    doDa.forEach((x, i) => x.sql.forEach((_, j) => {
-      const a = cu.m[i][j], v = m[i][j];
-      if (v === null) return;
-      if (a === null) {
-        cu.m[i][j] = v;
-        return;
-      }
-      if (x.d.ham === "max") cu.m[i][j] = v > a ? v : a;
-      else if (x.d.ham === "min") cu.m[i][j] = v < a ? v : a;
-      else cu.m[i][j] = Number(a) + Number(v);
-    }));
-  });
-  let dong2 = [...gop.values()].map((t) => [...t.g, ...raVal(t.m)]);
-  const nCot = nhom.length + doDa.length;
-  const sapTheo = q.sap && q.sap.cot < nCot ? q.sap : coNhomNgay ? { cot: nhom.findIndex((n) => n.c.kieu === "ngay"), giam: false } : { cot: nhom.length, giam: true };
-  const ss = (a, b2) => {
-    if (a === null) return 1;
-    if (b2 === null) return -1;
-    return typeof a === "number" && typeof b2 === "number" ? a - b2 : String(a).localeCompare(String(b2), "vi", { numeric: true });
-  };
-  dong2.sort((a, b2) => {
-    const k = ss(a[sapTheo.cot], b2[sapTheo.cot]);
-    return a[sapTheo.cot] === null || b2[sapTheo.cot] === null ? k : sapTheo.giam ? -k : k;
-  });
-  const soDong = dong2.length;
-  dong2 = dong2.slice(0, q.gioiHan ?? (nhom.length ? 50 : 1));
-  const cot = [
-    ...nhom.map((n) => ({ ten: n.moc && n.moc !== "ngay" ? `${n.c.ten} (${{ tuan: "tu\u1EA7n", thang: "th\xE1ng", quy: "qu\xFD", nam: "n\u0103m" }[n.moc]})` : n.c.ten, kieu: n.c.kieu === "so" ? "so" : n.c.kieu === "ngay" ? "ngay" : "chu", nhom: true })),
-    ...doDa.map((x) => ({
-      ten: tenDo(b, x.d.ham, x.c),
-      kieu: x.c?.kieu === "ngay" && (x.d.ham === "max" || x.d.ham === "min") ? "ngay" : "so",
-      tien: x.d.ham !== "dem" && x.d.ham !== "dem_khac" && !!x.c?.tien
-    }))
-  ];
-  return { cot, dong: dong2, tong: nhom.length ? tong : null, soDong: nhom.length ? soDong : 1, ngayChot, boHuy };
-}
-var tenDo = (b, ham, c) => {
-  if (ham === "dem" || !c) return `S\u1ED1 ${b.dong}`;
-  const ten = new RegExp("^\\p{Lu}{2}", "u").test(c.ten) ? c.ten : c.ten.charAt(0).toLowerCase() + c.ten.slice(1);
-  if (c.kieu === "ngay" && (ham === "max" || ham === "min")) return `${c.ten} ${ham === "max" ? "m\u1EDBi nh\u1EA5t" : "s\u1EDBm nh\u1EA5t"}`;
-  if (ham === "dem_khac" && /^Số /.test(c.ten)) return c.ten;
-  return `${{ tong: "T\u1ED5ng", dem_khac: "S\u1ED1", tb: "Trung b\xECnh", max: "L\u1EDBn nh\u1EA5t", min: "Nh\u1ECF nh\u1EA5t" }[ham]} ${ten}`;
-};
-var cacheKq = createCache(200);
-var cacheGt = createCache(300);
-var phienBanCua = (b) => [b.phienBan, ...b.huy ? ["production"] : []];
-app.get("/api/hoi-dap/danh-muc", limiter, async (req, res) => {
-  try {
-    const co = await quyenCua(req);
-    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
-    const bang = DANH_MUC.filter((b) => xemBang(b, co)).map((b) => ({
-      id: b.id,
-      ten: b.ten,
-      dn: b.dn,
-      ngay: b.ngay,
-      chot: !!b.chot,
-      huy: !!b.huy,
-      dong: b.dong,
-      soChinh: b.soChinh,
-      noiSx: !!b.noiSx && xemBang(bangTheoId.get(SX), co),
-      mac: b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co))),
-      cot: b.cot.filter((c) => xemCot(c, co)).map((c) => ({ id: c.id, ten: c.ten, dn: c.dn ?? [], kieu: c.kieu, tien: !!c.tien, ...c.gt ? { gt: c.gt } : {} }))
-    }));
-    res.json({ success: true, bang, ai: aiBat() });
-  } catch (e) {
-    console.error("hoi-dap/danh-muc", e);
-    res.status(500).json({ success: false, message: "L\u1ED7i \u0111\u1ECDc danh m\u1EE5c" });
-  }
-});
-var cacheTd = createCache(40);
-async function layTuDien(co, coTenCt = true) {
-  const gt = {};
-  for (const b of DANH_MUC.filter((x) => xemBang(x, co))) {
-    const cots = b.cot.filter((c) => c.tuDien && xemCot(c, co));
-    if (!cots.length) continue;
-    const tinh = async () => {
-      const out = {};
-      for (const c of cots) {
-        const e = gonTen(sqlCot(c));
-        const r = await timedQuery(
-          `SELECT ${e} AS v FROM ${b.id} t WHERE ${e} IS NOT NULL GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 80`,
-          [],
-          { timeoutMs: 15e3, heavy: true }
-        );
-        out[c.id] = r.rows.map((x) => x.v);
-      }
-      return out;
-    };
-    gt[b.id] = b.phienBan ? await cachedByVersions(cacheTd, `${b.id}|${cots.map((c) => c.id).join(",")}`, [b.phienBan], tinh) : await tinh();
-  }
-  let ct = [];
-  if (coTenCt && DANH_MUC.some((b) => xemBang(b, co) && b.cot.some((c) => c.kieu === "ct"))) {
-    const r = await cachedByVersions(cacheTd, "ct", ["production"], async () => {
-      const x = await timedQuery(`SELECT DISTINCT ${gonTen("t.ten_cong_trinh")} AS v FROM ${SX} t`, [], { timeoutMs: 15e3 });
-      return { ct: [...new Set(x.rows.map((y) => canonicalProjectName(y.v)).filter(Boolean))] };
-    });
-    ct = r.ct;
-  }
-  return { gt, ct };
-}
-app.get("/api/hoi-dap/tu-dien", limiter, async (req, res) => {
-  try {
-    const co = await quyenCua(req);
-    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
-    res.json({ success: true, ...await layTuDien(co) });
-  } catch (e) {
-    console.error("hoi-dap/tu-dien", e);
-    res.status(500).json({ success: false, message: "L\u1ED7i \u0111\u1ECDc t\u1EEB \u0111i\u1EC3n gi\xE1 tr\u1ECB" });
-  }
-});
-app.get("/api/hoi-dap/gia-tri", limiter, async (req, res) => {
-  try {
-    const co = await quyenCua(req);
-    const b = bangTheoId.get(String(req.query.bang ?? ""));
-    if (!co || !b || !xemBang(b, co)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem b\u1EA3ng n\xE0y" });
-    const c = timCot(b, String(req.query.cot ?? ""), co);
-    if (c.kieu === "so" || c.kieu === "ngay") return res.json({ success: true, gt: [] });
-    const q = String(req.query.q ?? "").slice(0, 100).trim();
-    const tinh = async () => {
-      const p = [];
-      const { where } = await phanLoc(b, { loc: [], gomHuy: false }, co, p, false);
-      const e = c.kieu === "xuong" ? `NULLIF(${workshopGroupSql(sqlCot(c))}, '')` : gonTen(sqlCot(c));
-      const dk = [`${e} IS NOT NULL`];
-      if (q) {
-        p.push(thich(q));
-        dk.push(`${khongDau(sqlCot(c))} LIKE $${p.length}`);
-      }
-      const r = await timedQuery(
-        `SELECT ${e} AS v, COUNT(*) AS n FROM ${tuBang(b, [c.id])} ${where ? `${where} AND` : "WHERE"} ${dk.join(" AND ")} GROUP BY 1 ORDER BY 2 DESC LIMIT 60`,
-        p,
-        { timeoutMs: 15e3, heavy: true }
-      );
-      const m = /* @__PURE__ */ new Map();
-      r.rows.forEach((x) => {
-        const v = c.kieu === "ct" ? canonicalProjectName(x.v) : x.v;
-        m.set(v, (m.get(v) ?? 0) + Number(x.n));
-      });
-      return [...m.entries()].map(([v, n]) => ({ v, n })).sort((a, b2) => b2.n - a.n).slice(0, 30);
-    };
-    const gt = b.phienBan ? await cachedByVersions(cacheGt, `${b.id}|${c.id}|${boDau(q)}`, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
-    res.json({ success: true, gt });
-  } catch (e) {
-    if (e instanceof LoiHoi) return res.status(400).json({ success: false, message: e.message });
-    console.error("hoi-dap/gia-tri", e);
-    res.status(500).json({ success: false, message: "L\u1ED7i l\u1EA5y gi\xE1 tr\u1ECB g\u1EE3i \xFD" });
-  }
-});
-app.post("/api/hoi-dap/truy-van", limiter, async (req, res) => {
-  const kq = TruyVanSchema.safeParse(req.body);
-  if (!kq.success) return res.status(400).json({ success: false, message: "Truy v\u1EA5n kh\xF4ng h\u1EE3p l\u1EC7" });
-  const q = kq.data;
-  try {
-    const co = await quyenCua(req);
-    const b = bangTheoId.get(q.bang);
-    if (!co || !b || !xemBang(b, co)) return res.status(403).json({ success: false, message: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem s\u1ED1 li\u1EC7u b\u1EA3ng n\xE0y" });
-    [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot).filter((x) => !!x), ...q.loc.map((l) => l.cot), ...q.cotXem ?? []].forEach((id) => timCot(b, id, co));
-    const tinh = () => chay(b, q, co);
-    const khoa = hashKey({ q, gia: co("materials_view_price") });
-    const ketQua = b.phienBan ? await cachedByVersions(cacheKq, khoa, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
-    res.json({ success: true, ...ketQua });
-  } catch (e) {
-    if (e instanceof LoiHoi) return res.status(400).json({ success: false, message: e.message });
-    const code = e?.code;
-    if (code === "57014") return res.status(504).json({ success: false, message: "Truy v\u1EA5n qu\xE1 l\xE2u \u2014 thu h\u1EB9p k\u1EF3 ho\u1EB7c th\xEAm \u0111i\u1EC1u ki\u1EC7n l\u1ECDc" });
-    console.error("hoi-dap/truy-van", e);
-    res.status(500).json({ success: false, message: "L\u1ED7i ch\u1EA1y truy v\u1EA5n" });
-  }
-});
-var aiLimiter = rate_limit_default({
-  windowMs: 60 * 1e3,
-  max: 15,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => `hoi-dap-ai:${req.user?.id ?? "anon"}`,
-  message: { success: false, message: "H\u1ECFi AI qu\xE1 nhanh, ch\u1EDD \xEDt gi\xE2y" }
-});
-var TruyVanAISchema = TruyVanSchema.extend({
-  soSanh: external_exports.object({ tu: external_exports.string().regex(NGAY_RE3), den: external_exports.string().regex(NGAY_RE3) }).optional(),
-  binhQuan: external_exports.enum(["ngay", "tuan", "thang", "quy", "nam"]).optional()
-});
-app.post("/api/hoi-dap/ai", aiLimiter, async (req, res) => {
-  const cau = String(req.body?.cau ?? "").trim().slice(0, 300);
-  const truoc = String(req.body?.truoc ?? "").trim().slice(0, 300);
-  if (!cau) return res.status(400).json({ success: false, message: "Thi\u1EBFu c\xE2u h\u1ECFi" });
-  if (!aiBat()) return res.status(503).json({ success: false, message: "Ch\u01B0a b\u1EADt AI" });
-  try {
-    const co = await quyenCua(req);
-    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
-    const bangs = DANH_MUC.filter((b2) => xemBang(b2, co)).map((b2) => ({ b: b2, cot: b2.cot.filter((c) => xemCot(c, co)) }));
-    if (!bangs.length) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 b\u1EA3ng n\xE0o \u0111\u01B0\u1EE3c xem" });
-    const sxB = bangTheoId.get(SX);
-    const sx = xemBang(sxB, co) ? sxB.cot.filter((c) => xemCot(c, co) && c.kieu !== "so" && c.kieu !== "ct" && c.kieu !== "xuong" && c.id !== "hex") : [];
-    const { gt } = await layTuDien(co, false);
-    const homNay = /* @__PURE__ */ new Date();
-    const loiDan = taoLoiDan(bangs, sx, gt, homNay);
-    const noiDung = truoc ? `C\xE2u h\u1ECFi tr\u01B0\u1EDBc (ch\u1EC9 \u0111\u1EC3 hi\u1EC3u c\xE2u n\u1ED1i ti\u1EBFp, n\u1EBFu c\xE2u b\xE2y gi\u1EDD kh\xF4ng n\xF3i \u0111\u1ED1i t\u01B0\u1EE3ng th\xEC d\xF9ng \u0111\u1ED1i t\u01B0\u1EE3ng c\u1EE7a c\xE2u tr\u01B0\u1EDBc): "${truoc}"
-C\xE2u h\u1ECFi b\xE2y gi\u1EDD: "${cau}"` : cau;
-    const kq = await hoiAI(loiDan, noiDung, hashKey({ cau: cau.toLowerCase(), truoc: truoc.toLowerCase(), d: homNay.toDateString(), b: bangs.map((x) => [x.b.id, x.cot.length]), sx: sx.length }));
-    if (kq.loai !== "truy_van") return res.json({ success: true, loai: kq.loai, giaiThich: kq.giai_thich ?? "" });
-    const tv = TruyVanAISchema.safeParse(kq.tv);
-    if (!tv.success) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI vi\u1EBFt truy v\u1EA5n sai d\u1EA1ng" });
-    const b = bangTheoId.get(tv.data.bang);
-    if (!b || !xemBang(b, co)) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI ch\u1ECDn b\u1EA3ng kh\xF4ng c\xF3 ho\u1EB7c b\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem" });
-    try {
-      [...tv.data.nhom.map((n) => n.split("@")[0]), ...tv.data.do.map((d) => d.cot).filter((x) => !!x), ...tv.data.loc.map((l) => l.cot), ...tv.data.cotXem ?? []].forEach((id) => timCot(b, id, co));
-    } catch (e) {
-      return res.json({ success: true, loai: "khong_hieu", giaiThich: e instanceof LoiHoi ? `AI d\xF9ng c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7: ${e.message}` : "AI d\xF9ng c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7" });
-    }
-    res.json({ success: true, loai: "truy_van", tv: tv.data, giaiThich: kq.giai_thich ?? "" });
-  } catch (e) {
-    if (e instanceof LoiAI) return res.status(502).json({ success: false, message: e.message });
-    console.error("hoi-dap/ai", e);
-    res.status(500).json({ success: false, message: "L\u1ED7i h\u1ECFi AI" });
-  }
 });
 
 // api/index.ts

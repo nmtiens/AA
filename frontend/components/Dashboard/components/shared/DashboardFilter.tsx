@@ -52,7 +52,7 @@ export const DashboardFilter = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full min-w-[150px] px-3 py-1.5 text-xs border rounded-lg bg-white hover:bg-slate-50 transition-colors shadow-sm ${activeCount > 0 ? 'border-slate-900 ring-1 ring-slate-300' : 'border-slate-200'}`}
+        className={`flex items-center justify-between w-full min-w-[150px] px-3 py-1.5 text-xs border rounded-lg bg-white hover:bg-slate-50 transition-colors shadow-sm ${activeCount > 0 ? 'border-wood-500 ring-1 ring-wood-200' : 'border-slate-200'}`}
       >
         <div className="flex flex-col items-start truncate mr-2">
           <span className="text-[0.5625rem] text-slate-400 uppercase font-bold tracking-wider">{label}</span>

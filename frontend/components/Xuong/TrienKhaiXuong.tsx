@@ -96,7 +96,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                 const laGoiY = !!h.goiYThanhPhan && JSON.stringify(h.goiYThanhPhan) === JSON.stringify(t);
                 const loi = loiTp(t);
                 return (
-                  <tr key={h.hex} className={`border-t border-slate-100 ${chon.has(h.hex) ? 'bg-slate-50' : ''}`}>
+                  <tr key={h.hex} className={`border-t border-slate-100 ${chon.has(h.hex) ? 'bg-wood-50' : ''}`}>
                     <td className={TD}><input type="checkbox" aria-label={`Chọn ${h.hex}`} checked={chon.has(h.hex)}
                       onChange={() => setChon(s => { const n = new Set(s); if (n.has(h.hex)) n.delete(h.hex); else n.add(h.hex); return n; })} /></td>
                     <td className={`${TD} font-medium tabular-nums text-slate-800`}>{h.hex}</td>
@@ -123,7 +123,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
       </div>
 
       <div className={`${KHUNG} space-y-3 p-4`}>
-        <p className="text-base font-semibold text-slate-900">Công đoạn thành phần ({dsChon.length} hạng mục đã chọn)</p>
+        <p className="text-sm font-semibold text-slate-800">Công đoạn thành phần ({dsChon.length} hạng mục đã chọn)</p>
         <p className="text-xs text-slate-500">
           Mỗi thành phần đi tuyến công đoạn chi tiết riêng (song song), hợp lại ở công đoạn chung (vd Fitting). Thành phần giao
           xưởng phụ có thể để trống tuyến — xưởng phụ tự khai CĐ chi tiết.

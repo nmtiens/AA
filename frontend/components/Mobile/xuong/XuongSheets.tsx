@@ -972,8 +972,8 @@ export function ThanhViec({ muc }: {
       {muc.map(m => (
         <button key={m.ten} type="button" onClick={m.onClick}
           className={`flex min-h-12 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-base active:opacity-80 ${
-            m.noi ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} font-medium` : 'border-slate-300 bg-white text-slate-800'}`}>
-          <span className={m.noi ? '' : 'text-aa-600'} aria-hidden>{ICON[m.icon]}</span>
+            m.noi ? `${MAU.ngung.vien} ${MAU.ngung.nen} ${MAU.ngung.chu} font-medium` : 'border-slate-200 bg-white text-slate-800'}`}>
+          <span className={m.noi ? '' : 'text-slate-600'} aria-hidden>{ICON[m.icon]}</span>
           <span>{m.ten}{m.phu && <span className={m.noi ? '' : 'text-slate-600'}> · {m.phu}</span>}</span>
         </button>
       ))}

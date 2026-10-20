@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Search } from 'lucide-react';
 import {
   FIVE_M_CATEGORIES, FIVE_M_LABELS, UNAUTHORIZED, fetchVuongMacList,
   type FiveMCategory, type VuongMacItem,
@@ -44,6 +43,7 @@ const BULK_LIMIT = 200;
 // Tìm theo từ khoá: hiện tối đa bấy nhiêu hex (máy chủ trả thêm 1 dòng để biết còn nữa)
 const SEARCH_LIMIT = 500;
 
+const inputCls = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-base';
 const fmtTime = (s?: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { hour12: false }) : '');
 
 // Giá trị tiền gốc là triệu đồng (xem utils/money.ts) — hiển thị Tỷ, 2 chữ số thập phân
@@ -449,23 +449,19 @@ export default function HexLookup({ presetQ = '' }: { presetQ?: string } = {}) {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[calc(env(safe-area-inset-bottom)+72px)]">
-      <header className="sticky top-0 z-10 space-y-2 border-b border-slate-200 bg-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] md:px-6 md:pb-4 md:pt-5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-lg font-semibold text-slate-900 md:text-xl">Tra cứu HEX</h1>
+      <header className="sticky top-0 z-10 space-y-2 bg-white px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)] shadow-sm">
+        <div className="flex items-center justify-between">
+          <h1 className="text-base font-semibold text-red-800">Tra cứu hex</h1>
           <span className="text-sm text-slate-500">{loading ? 'Đang tìm...' : hits.length ? `${truncated ? 'hơn ' : ''}${hits.length} hex` : ''}</span>
         </div>
 
-        <div className="relative">
-          <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
-          <input
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            placeholder="Mã HEX / mã nhà máy (nhiều mã cách nhau bằng dấu phẩy hoặc dấu cách), công trình, hạng mục…"
-            className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none"
-            inputMode="search"
-            autoFocus
-          />
-        </div>
+        <input
+          value={q}
+          onChange={e => setQ(e.target.value)}
+          placeholder="Mã hex / mã nhà máy (nhiều mã cách nhau bằng , hoặc dấu cách), công trình..."
+          className={inputCls}
+          inputMode="search"
+        />
       </header>
 
       <main className="mx-auto max-w-[1800px] space-y-3 p-4">

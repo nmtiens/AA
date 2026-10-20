@@ -7,18 +7,12 @@ export default {
     extend: {
       fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
       colors: {
-        // "wood" là tên cũ (nhiều chỗ dùng wood-600, wood-50...). Giữ tên để không phải sửa component:
-        // 50–300 = nền/viền xám trung tính; 400–900 = đỏ thương hiệu AA cho nút chính, mục đang chọn, liên kết.
-        // Thiết kế: Figma "Operations Hub – Thiết kế lại" (docs/designs/figma-thiet-ke-lai/).
+        // "wood" là tên cũ (78 chỗ dùng wood-600, 59 chỗ wood-50...). Giữ tên để không phải sửa component,
+        // chỉ đổi giá trị: nền xám nhạt -> viền -> navy đậm cho nút/mục đang chọn.
         wood: {
-          50: '#f5f6f8', 100: '#eef0f3', 200: '#e3e6ec', 300: '#c9ced8', 400: '#f07479',
-          500: '#e8484d', 600: '#e31e24', 700: '#b3141a', 800: '#8e1015', 900: '#5e0a0e',
+          50: '#f7f8fa', 100: '#eff1f5', 200: '#e3e7ed', 300: '#cbd2dc', 400: '#8f9bad',
+          500: '#5b6b82', 600: '#1f2a44', 700: '#172036', 800: '#111827', 900: '#0b1220',
         },
-        // Màu thương hiệu AA (logo): đỏ + cam
-        aa: {
-          50: '#fdecec', 100: '#fbd5d6', 200: '#f6a9ab', 500: '#e8484d', 600: '#e31e24', 700: '#b3141a', 800: '#8e1015',
-        },
-        cam: { 50: '#fef3e2', 500: '#f7941d', 600: '#e07f0a' },
         // Các thẻ/bảng báo cáo đang dùng viền + nền tiêu đề emerald-50/100/200 (xanh lá nhạt).
         // Đổi 3 mức nhạt này sang xám trung tính; emerald-500..900 vẫn xanh để giữ ý nghĩa "tăng/tốt".
         emerald: {

@@ -1,18 +1,17 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
+import { LazyRender } from './shared/LazyRender';
 import { collectCancelledHexes } from './Dashboard/utils/cancelledHexes';
 import { findColumnKey } from './Dashboard/utils/columnKeyResolver';
 import { materialRowClass } from './Dashboard/utils/materialRowClass';
 import { DataRow, ColumnDefinition } from '../types';
-import { XCircle as CloseIcon, AlertTriangle, SlidersHorizontal, X } from 'lucide-react';
-import { fetchVuongMacByProject, type VmByProjectRow } from '../services/vuongMacService';
+import { CheckCircle, Filter, XCircle as CloseIcon, ShoppingCart, BarChart2, AlertTriangle, Target } from 'lucide-react';
 import { fetchRevenue2026, fetchTongQuanSanXuat, type Revenue2026Data } from '../services/dataService';
 import type { TongQuanSanXuat } from './Dashboard/core/tongQuanSanXuat';
 import { useToast } from '../context/ToastContext';
 import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
 import { ProductionDonutPanel, type OrderMixSelection } from './Dashboard/components/shared/ProductionDonutPanel';
 import { categoryOptions } from './Dashboard/utils/filterMatch';
-import { parseVNDate } from './Dashboard/utils/dateHelpers';
-import { DEFAULT_FILTERS } from './Dashboard/core/tongQuanSanXuat';
 import { useColumnKeys } from './Dashboard/hooks/useColumnKeys';
 import { useDashboardOptions } from './Dashboard/hooks/useDashboardOptions';
 import { useDashboardFilters } from './Dashboard/hooks/useDashboardFilters';
@@ -37,7 +36,6 @@ import { BottleneckSection } from './Dashboard/components/sections/BottleneckSec
 import { ProductionStatusSection } from './Dashboard/components/sections/ProductionStatusSection';
 import { KhsxPlanActualSection } from './Dashboard/components/sections/KhsxPlanActualSection';
 import { OrderOverviewSection } from './Dashboard/components/sections/OrderOverviewSection';
-import { TongQuanDauTrang, type KhoaChiTiet } from './Dashboard/components/sections/TongQuanDauTrang';
 import { OrderExportScopeModal } from './Dashboard/components/modals/OrderExportScopeModal';
 import { OrderExportColumnModal } from './Dashboard/components/modals/OrderExportColumnModal';
 import { OverviewExportScopeModal } from './Dashboard/components/modals/OverviewExportScopeModal';
@@ -101,8 +99,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   const factoryRevenueRef = useRef<HTMLDivElement>(null);
   const productionStatusRef = useRef<HTMLDivElement>(null);
   const pivotWorkshopRef = useRef<HTMLDivElement>(null);
+  const pivotProjectRef = useRef<HTMLDivElement>(null);
+  const pivotMaterialStatusRef = useRef<HTMLDivElement>(null);
+  const materialListRef = useRef<HTMLDivElement>(null);
+  const khsxSectionRef = useRef<HTMLDivElement>(null);
   const inventorySectionRef = useRef<HTMLDivElement>(null);
+  const projectSummaryRef = useRef<HTMLDivElement>(null);
   const orderOverviewRef = useRef<HTMLDivElement>(null);
+  const bottleneckSectionRef = useRef<HTMLDivElement>(null);
 
 
   const {
@@ -497,50 +501,16 @@ const {
     return { all: drop(orderData), filtered: drop(filteredOrderData), mtd: drop(mtdOrderData) };
   }, [orderExportOpen, cancelledHexInfo, orderColumns, orderData, filteredOrderData, mtdOrderData]);
 
-  // Các khu phía dưới gom vào 1 khung tab (chỉ vẽ tab đang mở). Nút neo trên đầu trang: chọn tab rồi cuộn tới khung.
-  type TabDuoi = 'sx' | 'nghen' | 'kh' | 'ct' | 'vt';
-  const [tabDuoi, setTabDuoi] = useState<TabDuoi>('sx');
-  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>) => {
+  // Các section phía dưới vẽ khi cuộn tới (LazyRender). Bấm nút cuộn tới section thứ i trong danh sách vẽ-sau
+  // => ép vẽ ngay mọi section từ đầu tới i (để vị trí đích không bị xô khi khung giữ chỗ phía trên đổi cao) rồi mới cuộn.
+  const [forcedLazyUpTo, setForcedLazyUpTo] = useState(-1);
+  const LAZY = { productionStatus: 0, bottleneck: 1, khsx: 2, projectSummary: 3, pivotProject: 4, pivotMaterialStatus: 5, materialList: 6 } as const;
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement | null>, lazyIndex?: number) => {
+    if (lazyIndex !== undefined && lazyIndex > forcedLazyUpTo) {
+      flushSync(() => setForcedLazyUpTo(lazyIndex));
+    }
     if (ref.current) ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-  const moTab = (t: TabDuoi) => {
-    setTabDuoi(t);
-    requestAnimationFrame(() => scrollToRef(productionStatusRef));
-  };
-  const TAB_DUOI: Array<[TabDuoi, string]> = [
-    ['sx', 'Tình trạng sản xuất'], ['nghen', 'Điểm nghẽn'], ['kh', 'Kế hoạch & Nhập kho'], ['ct', 'Công trình'], ['vt', 'Vật tư'],
-  ];
-
-  // Bộ lọc tổng: nhãn đang lọc (bấm ✕ bỏ) + nút "Bộ lọc" mở bảng chọn
-  const [moBoLoc, setMoBoLoc] = useState(false);
-  type KhoaLoc = keyof typeof filters;
-  const BO_LOC: Array<{ k: KhoaLoc; label: string; options: string[]; co: boolean }> = [
-    { k: 'tinhTrangIpo', label: 'Tình trạng IPO', options: tinhTrangIpoOptions, co: !!tinhTrangIpoKey },
-    { k: 'khachHang', label: 'Khách hàng', options: khachHangOptions, co: !!khachHangKey },
-    { k: 'khuVucDuAn', label: 'Khu vực dự án', options: khuVucDuAnOptions, co: !!khuVucDuAnKey },
-    { k: 'phanLoai', label: 'Nhóm sản phẩm', options: phanLoaiOptions, co: phanLoaiOptions.length > 0 },
-    { k: 'congTrinh', label: 'Công trình', options: scopedProjects ? congTrinhOptions.filter(c => scopedProjects.has(c)) : congTrinhOptions, co: !!congTrinhKey },
-    { k: 'xuong', label: 'Khu vực sản xuất', options: xuongOptions, co: !!xuongKey },
-    { k: 'tinhTrang', label: 'Tình trạng', options: tinhTrangOptions, co: !!tinhTrangKey },
-  ];
-  const datLoc = (k: KhoaLoc, vals: string[]) => setFilters(prev => ({ ...prev, [k]: vals }));
-  // Ngày mới nhất có số liệu (hợp các nguồn đơn hàng / TKBV / phiếu / nhập / xuất)
-  const ngayDuLieu = useMemo(() => {
-    let m: Date | null = null;
-    for (const o of unifiedDateOptions) { const d = parseVNDate(o); if (d && (!m || d > m)) m = d; }
-    return m ? `${String(m.getDate()).padStart(2, '0')}/${String(m.getMonth() + 1).padStart(2, '0')}/${m.getFullYear()}` : '';
-  }, [unifiedDateOptions]);
-  const [moChiTiet, setMoChiTiet] = useState<{ nonce: number; k: KhoaChiTiet } | null>(null);
-
-  // Thẻ "Vướng mắc đang mở": cộng theo công trình (lọc theo công trình nếu đang chọn)
-  const [vmRows, setVmRows] = useState<VmByProjectRow[]>([]);
-  useEffect(() => { let on = true; fetchVuongMacByProject().then(r => { if (on) setVmRows(r); }); return () => { on = false; }; }, []);
-  const vm = useMemo(() => {
-    const chon = appliedFilters.congTrinh;
-    const ds = chon.length ? vmRows.filter(r => chon.includes(r.ten) || chon.includes(r.ma)) : vmRows;
-    return ds.reduce((a, r) => ({ open: a.open + r.open, overdue: a.overdue + r.overdue }), { open: 0, overdue: 0 });
-  }, [vmRows, appliedFilters.congTrinh]);
-
+  }
 const handleContinueToOrderColumnStep = () => {
     setIsOrderExportScopeModalOpen(false);
     setSelectedOrderExportColumns(effectiveOrderColumns.map(c => c.key));
@@ -667,55 +637,105 @@ const handleContinueToOrderColumnStep = () => {
     </div>
   </div>
 )}
-      {/* Đầu trang (docs/designs/figma-thiet-ke-lai/9-tong-quan): tiêu đề + nút neo; hàng nhãn bộ lọc đang áp + nút "Bộ lọc" */}
-      <div className="sticky top-0 z-40 border-b border-slate-200 bg-[#f5f6f8]/90 px-4 py-3 backdrop-blur md:px-8">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="shrink-0">
-            <h2 className="page-title">Tổng quan</h2>
-            {ngayDuLieu && <p className="text-sm text-slate-500">Dữ liệu đến {ngayDuLieu}</p>}
-          </div>
-          <nav className="ml-auto flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Đến khu">
-            {([['Đơn hàng AATN', () => scrollToRef(factoryRevenueRef)]] as Array<[string, () => void]>)
-              .concat(TAB_DUOI.map(([t, l]) => [l, () => moTab(t)] as [string, () => void]))
-              .map(([l, f]) => (
-                <button key={l} type="button" onClick={f}
-                  className="shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-white hover:text-slate-900">
-                  {l}
-                </button>
-              ))}
-          </nav>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {BO_LOC.filter(f => f.co && filters[f.k].length > 0).map(f => {
-            const macDinh = [...filters[f.k]].sort().join('|') === [...DEFAULT_FILTERS[f.k]].sort().join('|');
-            return (
-            <span key={f.k} title={macDinh ? 'Lọc mặc định của trang' : undefined}
-              className={`inline-flex max-w-full items-center gap-1 rounded-full border py-1 pl-3 pr-1 text-sm ${macDinh ? 'border-slate-300 bg-white text-slate-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-              <span className="truncate">{f.label}: {filters[f.k].length > 2 ? `${filters[f.k].length} mục` : filters[f.k].join(', ')}</span>
-              {macDinh && <span className="text-xs text-slate-400">mặc định</span>}
-              <button type="button" onClick={() => datLoc(f.k, [])} className={`rounded-full p-0.5 ${macDinh ? 'hover:bg-slate-100' : 'hover:bg-red-100'}`} aria-label={`Bỏ lọc ${f.label}`}>
-                <X size={14} />
+      {/* Sticky Header & Filters */}
+      <div className="sticky top-0 z-40 bg-wood-50/90 backdrop-blur border-b border-slate-200 px-4 py-3">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4 w-full min-w-0 md:w-auto">
+            <div className="shrink-0">
+              <h2 className="page-title">Tổng quan</h2>
+            </div>
+            {/* Anchor Buttons — màn hẹp: 1 hàng, vuốt ngang (không đẩy trang rộng ra) */}
+            <div className="flex min-w-0 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>button]:shrink-0 [&>button]:whitespace-nowrap">
+              <button onClick={() => scrollToRef(factoryRevenueRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Doanh số nhà máy">
+                <Target size={14} className="text-slate-400" /> Doanh số
               </button>
-            </span>
-            );
-          })}
-          <button type="button" onClick={() => setMoBoLoc(v => !v)} aria-expanded={moBoLoc}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${moBoLoc ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
-            <SlidersHorizontal size={14} aria-hidden /> Bộ lọc
-          </button>
-          {hasActiveFilters ? (
-            <button type="button" onClick={clearFilters} className="text-sm text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline">Về mặc định</button>
-          ) : (
-            <span className="text-sm text-slate-400">Lọc thêm theo {BO_LOC.filter(f => f.co && !filters[f.k].length).map(f => f.label.toLowerCase()).join(' · ')}</span>
-          )}
-        </div>
-        {moBoLoc && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
-            {BO_LOC.filter(f => f.co).map(f => (
-              <DashboardFilter key={f.k} label={f.label} options={f.options} selectedValues={filters[f.k]} onChange={vals => datLoc(f.k, vals)} />
-            ))}
+              <button onClick={() => scrollToRef(orderOverviewRef)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tổng quan Đơn hàng">
+                <ShoppingCart size={14} className="text-slate-400" /> Tổng quan
+              </button>
+              <button onClick={() => scrollToRef(productionStatusRef, LAZY.productionStatus)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Tình trạng sản xuất">
+                <CheckCircle size={14} className="text-slate-400" /> Tình trạng sản xuất
+              </button>
+              <button onClick={() => scrollToRef(bottleneckSectionRef, LAZY.bottleneck)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Báo cáo Điểm nghẽn">
+                <AlertTriangle size={14} className="text-slate-400" /> Điểm nghẽn
+              </button>
+              <button onClick={() => scrollToRef(khsxSectionRef, LAZY.khsx)} className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md hover:bg-slate-50 text-slate-600 flex items-center gap-1.5" title="Đến Kế hoạch & Nhập kho">
+                <BarChart2 size={14} className="text-slate-400" /> Kế hoạch-Thực hiện
+              </button>
+            </div>
           </div>
-        )}
+
+          {/* Dashboard Filters */}
+          <div className="flex flex-wrap gap-2 items-center w-full md:w-auto justify-end">
+            <div className="flex items-center gap-2 mr-1 text-slate-500">
+              <Filter size={14} /> <span className="text-[0.625rem] uppercase font-bold">Bộ lọc tổng:</span>
+            </div>
+                        {khachHangKey && (
+              <DashboardFilter
+                label="Khách Hàng"
+                options={khachHangOptions}
+                selectedValues={filters.khachHang}
+                onChange={(vals) => setFilters(prev => ({ ...prev, khachHang: vals }))}
+              />
+            )}
+            {khuVucDuAnKey && (
+              <DashboardFilter
+                label="Khu Vực Dự Án"
+                options={khuVucDuAnOptions}
+                selectedValues={filters.khuVucDuAn}
+                onChange={(vals) => setFilters(prev => ({ ...prev, khuVucDuAn: vals }))}
+              />
+            )}
+            {phanLoaiOptions.length > 0 && (
+              <DashboardFilter
+                label="Nhóm Sản Phẩm"
+                options={phanLoaiOptions}
+                selectedValues={filters.phanLoai}
+                onChange={(vals) => setFilters(prev => ({ ...prev, phanLoai: vals }))}
+              />
+            )}
+            {congTrinhKey && (
+              <DashboardFilter
+                label="Tên Công Trình"
+                options={scopedProjects ? congTrinhOptions.filter(c => scopedProjects.has(c)) : congTrinhOptions}
+                selectedValues={filters.congTrinh}
+                onChange={(vals) => setFilters(prev => ({ ...prev, congTrinh: vals }))}
+              />
+            )}
+            {xuongKey && (
+              <DashboardFilter
+                label="Khu Vực Sản Xuất"
+                options={xuongOptions}
+                selectedValues={filters.xuong}
+                onChange={(vals) => setFilters(prev => ({ ...prev, xuong: vals }))}
+              />
+            )}
+            {tinhTrangIpoKey && (
+              <DashboardFilter
+                label="Tình Trạng IPO"
+                options={tinhTrangIpoOptions}
+                selectedValues={filters.tinhTrangIpo}
+                onChange={(vals) => setFilters(prev => ({ ...prev, tinhTrangIpo: vals }))}
+              />
+            )}
+            {tinhTrangKey && (
+              <DashboardFilter
+                label="Tình Trạng"
+                options={tinhTrangOptions}
+                selectedValues={filters.tinhTrang}
+                onChange={(vals) => setFilters(prev => ({ ...prev, tinhTrang: vals }))}
+              />
+            )}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                title="Xóa bộ lọc"
+              >
+                <CloseIcon size={18} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Đang chờ số liệu theo bộ lọc mới (giá trị hoãn chưa kịp) -> làm mờ nhẹ khu vực số liệu */}
@@ -724,37 +744,6 @@ const handleContinueToOrderColumnStep = () => {
         style={isFilterPending ? { opacity: 0.55 } : undefined}
         aria-busy={isFilterPending || undefined}
       >
-
-        <TongQuanDauTrang
-          unifiedDateOptions={unifiedDateOptions}
-          setOverviewDateFilters={setOverviewDateFilters}
-          congTrinh={appliedFilters.congTrinh}
-          xuong={appliedFilters.xuong}
-          vm={vm}
-          namLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
-          thucHienNam={factoryRevenueStats.actual}
-          keHoachNam={targetRevenue2026}
-          phanTramNam={factoryRevenueStats.percent}
-          chuaTheSX={cardMetrics.chuaTheSX}
-          vuongSL={cardMetrics.vuongSL}
-          chuaTrienKhai={cardMetrics.chuaTrienKhai}
-          diemNghen={topBottlenecks[0]}
-          onMoChiTiet={k => setMoChiTiet(r => ({ nonce: (r?.nonce ?? 0) + 1, k }))}
-          metric={overviewMetric}
-          setMetric={setOverviewMetric}
-          onXuatExcel={handleOpenOverviewExport}
-          quy={quarterlyTargets}
-          tonKho={stockOverviewCardValue}
-          tonNgay={closestStockDate}
-          tonCuoiThangTruoc={latestStockStatsPrevMonth}
-          onMoTab={moTab}
-          onKeHoachNam={() =>
-            setInventoryOpenRequest(r => ({ nonce: (r?.nonce ?? 0) + 1, year: Number(selectedRevenueYear) || new Date().getFullYear(), withPlan: true }))
-          }
-          onThucHienNam={() =>
-            setInventoryOpenRequest(r => ({ nonce: (r?.nonce ?? 0) + 1, year: Number(selectedRevenueYear) || new Date().getFullYear() }))
-          }
-        />
 
                      <FactoryRevenueSection
   sectionRef={factoryRevenueRef}
@@ -768,8 +757,6 @@ const handleContinueToOrderColumnStep = () => {
   onFunnelItemClick={setActiveFunnelItem}
   onFunnelModalClose={() => setActiveFunnelItem(null)}
   onPivotValueClick={handleFunnelPivotValueClick}
-  namLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
-  chiPheu
   sideContent={
     <ProductionDonutPanel
       data={crossFilterBaseData}
@@ -807,9 +794,7 @@ const handleContinueToOrderColumnStep = () => {
   isSidebarCollapsed={isSidebarCollapsed}
   hasAnyData={orderData.length > 0 || tkbvData.length > 0 || pthspData.length > 0}
    filters={appliedFilters}   // bộ lọc đã áp (hoãn) — khớp với số liệu đang hiện
-  openInventoryRequest={inventoryOpenRequest}
-  moChiTietRequest={moChiTiet}
-  anDai  // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
+  openInventoryRequest={inventoryOpenRequest}  // MỚI — filters đã tồn tại sẵn ở Dashboard.tsx (từ useDashboardFilters)
   overviewMetric={overviewMetric}
   setOverviewMetric={setOverviewMetric}
   getContextLabel={getContextLabel}
@@ -837,18 +822,8 @@ const handleContinueToOrderColumnStep = () => {
 />
     </DanhSachHexProvider>
 
-        {/* --- Các khu phía dưới: 1 khung tab, chỉ vẽ tab đang mở (thay 7 khu xếp dọc) --- */}
-        <div ref={productionStatusRef} className="scroll-mt-28 space-y-4">
-          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
-            {TAB_DUOI.map(([t, l]) => (
-              <button key={t} type="button" role="tab" aria-selected={tabDuoi === t} onClick={() => setTabDuoi(t)}
-                className={`shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-[0.9375rem] transition ${tabDuoi === t ? 'border-slate-900 font-semibold text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-6" role="tabpanel">
-            {tabDuoi === 'sx' && (<>
+        {/* --- Từ đây trở xuống: vẽ khi cuộn tới (khung giữ chỗ giữ ref để nút cuộn vẫn tới đúng chỗ) --- */}
+        <LazyRender anchorRef={productionStatusRef} force={forcedLazyUpTo >= LAZY.productionStatus} minHeight={600} className="scroll-mt-24">
         <ProductionStatusSection
   sectionRef={null}
   pivotWorkshopRef={pivotWorkshopRef}
@@ -860,8 +835,8 @@ const handleContinueToOrderColumnStep = () => {
   setExpandedBops={setExpandedBops}
   handleExportProductionStatus={handleExportProductionStatus}
 />
-            </>)}
-            {tabDuoi === 'nghen' && (<>
+        </LazyRender>
+        <LazyRender anchorRef={bottleneckSectionRef} force={forcedLazyUpTo >= LAZY.bottleneck} minHeight={520} className="scroll-mt-24">
         <BottleneckSection
           sectionRef={null}
           bottleneckData={bottleneckData}
@@ -870,8 +845,9 @@ const handleContinueToOrderColumnStep = () => {
           setBottleneckViewMode={setBottleneckViewMode}
           handleExportBottlenecks={handleExportBottlenecks}
         />
-            </>)}
-            {tabDuoi === 'kh' && (<>
+        </LazyRender>
+
+        <LazyRender anchorRef={khsxSectionRef} force={forcedLazyUpTo >= LAZY.khsx} minHeight={1200} className="scroll-mt-24">
          <KhsxPlanActualSection
   sectionRef={null}
   inventorySectionRef={inventorySectionRef}
@@ -897,14 +873,18 @@ const handleContinueToOrderColumnStep = () => {
 yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
   selectedRevenueYearLabel={revenue2026?.year ? String(revenue2026.year) : selectedRevenueYear}
 />
-            </>)}
-            {tabDuoi === 'ct' && (<>
+        </LazyRender>
+
+        <LazyRender anchorRef={projectSummaryRef} force={forcedLazyUpTo >= LAZY.projectSummary} minHeight={700} className="scroll-mt-24">
           <ProjectSummarySection
      sectionRef={null}
      projectStatusSummary={projectStatusSummary}
      projectSummaryMetric={projectSummaryMetric}
      setProjectSummaryMetric={setProjectSummaryMetric}
    />
+        </LazyRender>
+
+        <LazyRender anchorRef={pivotProjectRef} force={forcedLazyUpTo >= LAZY.pivotProject} minHeight={650} className="scroll-mt-24">
            <PivotProjectSection
      sectionRef={null}
      pivotProjectData={pivotProjectData}
@@ -913,8 +893,9 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
      excludeFabrics={excludeFabrics}
      setExcludeFabrics={setExcludeFabrics}
    />
-            </>)}
-            {tabDuoi === 'vt' && (<>
+        </LazyRender>
+
+        <LazyRender anchorRef={pivotMaterialStatusRef} force={forcedLazyUpTo >= LAZY.pivotMaterialStatus} minHeight={600} className="scroll-mt-24">
    <PivotMaterialStatusSection
   sectionRef={null}
   pivotMaterialStatusData={pivotMaterialStatusData}
@@ -924,14 +905,15 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
   setSelectedMaterialGroups={setSelectedMaterialGroups}
   toggleMaterialGroup={toggleMaterialGroup}
 />
+        </LazyRender>
+
+        <LazyRender anchorRef={materialListRef} force={forcedLazyUpTo >= LAZY.materialList} minHeight={750} className="scroll-mt-24">
            <MaterialListSection
      sectionRef={null}
      displayedMaterialData={displayedMaterialData}
      getMaterialRowClassName={getMaterialRowClassName}
    />
-            </>)}
-          </div>
-        </div>
+        </LazyRender>
 
       </div>
 

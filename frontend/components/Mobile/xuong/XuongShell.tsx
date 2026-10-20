@@ -117,7 +117,7 @@ export default function XuongShell() {
         <nav className="flex flex-col gap-1 px-3" aria-label="Mục app MRA">
           {dsMuc.map(m => (
             <button key={m.id} onClick={() => chon(m.id)} aria-current={mucHienTai === m.id ? 'page' : undefined}
-              className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-base ${mucHienTai === m.id ? 'bg-aa-50 font-semibold text-aa-600' : 'text-slate-700 hover:bg-slate-100'}`}>
+              className={`flex min-h-12 items-center gap-3 rounded-xl px-3 text-left text-base ${mucHienTai === m.id ? 'bg-slate-900 font-semibold text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
               {m.icon}{m.ten}
             </button>
           ))}
@@ -148,7 +148,7 @@ export default function XuongShell() {
         <div className="mx-auto flex h-16 max-w-xl">
           {dsMuc.map(m => (
             <button key={m.id} onClick={() => chon(m.id)} aria-current={mucHienTai === m.id ? 'page' : undefined}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${mucHienTai === m.id ? 'font-semibold text-aa-600' : 'text-slate-500'}`}>
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs ${mucHienTai === m.id ? 'font-semibold text-slate-900' : 'text-slate-500'}`}>
               {m.icon}<span className="truncate">{m.ten}</span>
             </button>
           ))}

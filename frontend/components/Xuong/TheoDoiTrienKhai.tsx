@@ -92,7 +92,7 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
       <div className={`${KHUNG} flex flex-wrap items-center gap-2 px-4 py-3`}>
         {(Object.keys(TEN_LOC) as Loc[]).map(k => (
           <button key={k} type="button" aria-pressed={loc === k} onClick={() => setLoc(k)}
-            className={`rounded-full border px-3 py-1 text-sm tabular-nums ${loc === k ? 'border-slate-900 bg-slate-900 font-semibold text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
+            className={`rounded-full border px-3 py-1 text-sm tabular-nums ${loc === k ? 'border-wood-600 bg-wood-600 font-semibold text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
             {TEN_LOC[k]} {dem[k]}
           </button>
         ))}

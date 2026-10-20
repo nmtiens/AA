@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type KeyboardEvent } from 'react';
-import { Lock, User, ArrowRight, ArrowLeft, Loader2, Eye, EyeOff, WifiOff, Mail, Key, BarChart3, Factory, AlertTriangle } from 'lucide-react';
+import { Lock, User, ArrowRight, ArrowLeft, Loader2, Eye, EyeOff, WifiOff, Mail, Key } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { userService } from '../services/userService';
@@ -23,51 +23,33 @@ export const NUT_CHINH_DN =
   'flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-wood-600 text-base font-semibold text-white transition-colors ' +
   'hover:bg-wood-700 active:bg-wood-800 disabled:cursor-not-allowed disabled:opacity-70 focus:outline-none focus-visible:ring-4 focus-visible:ring-wood-600/25';
 
-const DIEM_NOI_BAT = [
-  { icon: BarChart3, ten: 'Biểu đồ & bảng dữ liệu', moTa: 'P001 → P025, tồn kho, điểm danh' },
-  { icon: Factory, ten: 'App Xưởng (MRA)', moTa: 'Tổ trưởng, trạm quét thẻ, phân công đầu ca' },
-  { icon: AlertTriangle, ten: 'App Vướng mắc', moTa: 'Báo và xử lý vướng mắc tại công trình' },
-];
-
-/**
- * Bố cục trang đăng nhập: máy tính chia 2 cột (trái: logo, tên app, 3 app của hệ thống; phải: thẻ đăng nhập);
- * điện thoại 1 cột với logo + tên gọn ở trên thẻ. Dùng rlg: để điện thoại bật "trang cho máy tính" vẫn ra 1 cột.
- */
-export function BoCucDangNhap({ ten, moTa, children }: { ten: string; moTa: string; children: ReactNode }) {
+/** Nền trang đăng nhập (lưới chấm + quầng màu) và cột giữa */
+export function NenDangNhap({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-wood-50 rlg:grid rlg:grid-cols-[minmax(0,45%)_minmax(0,1fr)]">
-      <aside className="hidden flex-col justify-between border-r border-slate-200 bg-white px-16 py-14 rlg:flex rxl:px-20">
-        <div className="space-y-10">
-          <LogoAADayDu className="h-36 w-auto" />
-          <div className="space-y-4">
-            <div className="h-1.5 w-14 rounded-full bg-aa-600" aria-hidden />
-            <h1 className="text-[2rem] font-bold leading-tight text-slate-900">{ten}</h1>
-            <p className="max-w-md text-lg text-slate-600">{moTa}</p>
-          </div>
-          <ul className="space-y-4">
-            {DIEM_NOI_BAT.map(({ icon: Icon, ten: t, moTa: m }) => (
-              <li key={t} className="flex items-center gap-3.5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-aa-50 text-aa-600"><Icon className="h-5 w-5" aria-hidden /></span>
-                <span>
-                  <span className="block text-base font-semibold text-slate-900">{t}</span>
-                  <span className="block text-sm text-slate-500">{m}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <p className="text-sm text-slate-400">© 1989–2026 AA Corporation · Interior Solutions</p>
-      </aside>
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-[calc(env(safe-area-inset-top)+24px)]">
-        <div className="w-full max-w-[440px]">
-          <div className="mb-6 flex flex-col items-center text-center rlg:hidden">
-            <LogoAADayDu className="h-24 w-auto" />
-            <p className="mt-4 text-xl font-semibold tracking-tight text-slate-900">{ten}</p>
-            <p className="text-base text-slate-600">{moTa}</p>
-          </div>
-          {children}
-        </div>
+    <div className="relative min-h-[100dvh] overflow-x-hidden bg-wood-50">
+      <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.55]" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, #cbd2dc 1px, transparent 0)', backgroundSize: '24px 24px',
+          maskImage: 'radial-gradient(ellipse 70% 60% at 50% 45%, #000 30%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 45%, #000 30%, transparent 100%)',
+        }} />
+        <div className="absolute -left-32 -top-32 h-[460px] w-[460px] rounded-full bg-sky-200/60 blur-3xl" />
+        <div className="absolute -bottom-40 -right-24 h-[520px] w-[520px] rounded-full bg-wood-300/60 blur-3xl" />
       </div>
+      <div className="relative flex min-h-[100dvh] flex-col items-center justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-[calc(env(safe-area-inset-top)+24px)]">
+        <div className="w-full max-w-[400px]">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Biểu tượng + tên app + mô tả ngắn */
+export function ThuongHieu({ ten, moTa }: { bieuTuong?: ReactNode; ten: string; moTa: string }) {
+  return (
+    <div className="mb-6 flex flex-col items-center text-center">
+      <LogoAADayDu className="h-28 w-auto sm:h-32" />
+      <p className="mt-4 text-xl font-semibold tracking-tight text-slate-900">{ten}</p>
+      <p className="text-base text-slate-600">{moTa}</p>
     </div>
   );
 }
@@ -75,7 +57,7 @@ export function BoCucDangNhap({ ten, moTa, children }: { ten: string; moTa: stri
 /** Thẻ trắng chứa form */
 export function TheDangNhap({ tieuDe, moTa, truoc, children }: { tieuDe: string; moTa?: string; truoc?: ReactNode; children: ReactNode }) {
   return (
-    <div className="rounded-[1.25rem] border border-slate-200 bg-white p-6 shadow-[0_12px_32px_-8px_rgba(22,24,29,0.12)] sm:p-10">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(16,24,40,0.18)] sm:p-8">
       {truoc}
       <div className="mb-6">
         <h2 className="text-xl font-semibold tracking-tight text-slate-900">{tieuDe}</h2>
@@ -192,7 +174,7 @@ export function FormDangNhap({ dangNhap, quenMatKhau, ghiNho, baoMatSong = false
       {ghiNho && (
         <label className="flex min-h-11 w-fit cursor-pointer select-none items-center gap-2.5">
           <input type="checkbox" checked={ghiNho.value} onChange={e => ghiNho.onChange(e.target.checked)}
-            className="h-5 w-5 cursor-pointer rounded border-slate-300 accent-aa-600 focus:ring-wood-600" />
+            className="h-5 w-5 cursor-pointer rounded border-slate-300 text-wood-600 focus:ring-wood-600" />
           <span className="text-base text-slate-700">Ghi nhớ đăng nhập</span>
         </label>
       )}
@@ -216,9 +198,8 @@ type Buoc = 'DANG_NHAP' | 'QUEN_MAT_KHAU' | 'NHAP_OTP';
  * `macDinhGhiNho`: lần đầu (chưa lưu tài khoản) có tick "Ghi nhớ" sẵn không — app đã cài trên điện thoại bật để mở lại
  * app không phải đăng nhập lại.
  */
-export function TrangDangNhap({ ten, moTa, chan, sauDangNhap, macDinhGhiNho = false, baoMatSong = false, ghiChu }: {
-  /** Không còn hiển thị (logo AA thay biểu tượng riêng) — giữ để các app cũ truyền vào không lỗi */
-  bieuTuong?: ReactNode; ten: string; moTa: string; chan: ReactNode;
+export function TrangDangNhap({ bieuTuong, ten, moTa, chan, sauDangNhap, macDinhGhiNho = false, baoMatSong = false, ghiChu }: {
+  bieuTuong: ReactNode; ten: string; moTa: string; chan: ReactNode;
   sauDangNhap: () => void;
   macDinhGhiNho?: boolean; baoMatSong?: boolean; ghiChu?: ReactNode;
 }) {
@@ -269,7 +250,8 @@ export function TrangDangNhap({ ten, moTa, chan, sauDangNhap, macDinhGhiNho = fa
   return (
     // Trang có thể nằm trong vùng khoá cuộn (body h-screen overflow-hidden / khung app cố định) => tự cuộn khi màn thấp
     <div className="h-[100dvh] overflow-y-auto">
-      <BoCucDangNhap ten={ten} moTa={moTa}>
+      <NenDangNhap>
+        <ThuongHieu bieuTuong={bieuTuong} ten={ten} moTa={moTa} />
         <TheDangNhap tieuDe={dau.title} moTa={dau.desc} truoc={<>
           {buoc !== 'DANG_NHAP' && (
             <button type="button" onClick={() => den(buoc === 'NHAP_OTP' ? 'QUEN_MAT_KHAU' : 'DANG_NHAP')}
@@ -325,7 +307,7 @@ export function TrangDangNhap({ ten, moTa, chan, sauDangNhap, macDinhGhiNho = fa
           )}
         </TheDangNhap>
         <ChanDangNhap>{chan}</ChanDangNhap>
-      </BoCucDangNhap>
+      </NenDangNhap>
     </div>
   );
 }

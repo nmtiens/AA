@@ -182,7 +182,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
       {/* Chọn tuần — tab này xem theo tuần kế hoạch, không theo khoảng ngày ở trên */}
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={BTN} onClick={() => setT(x => doiTuan(x, -1))} aria-label="Tuần trước"><ChevronLeft size={14} /></button>
-        <p className="text-base font-semibold text-slate-900">
+        <p className="text-sm font-semibold text-slate-800">
           Tuần {t.tuan}/{t.nam}{kh ? ` (${ddmm(kh.tu)} – ${ddmm(kh.den)})` : ''}
         </p>
         <button type="button" className={BTN} onClick={() => setT(x => doiTuan(x, 1))} aria-label="Tuần sau"><ChevronRight size={14} /></button>
@@ -285,7 +285,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
 
         {/* Từng hạng mục kế hoạch — cần xử lý lên trước */}
         <div className={KHUNG}>
-          <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Hạng mục kế hoạch tuần ({kh.keHoach.length})</p>
+          <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Hạng mục kế hoạch tuần ({kh.keHoach.length})</p>
           <table className="w-full min-w-[52rem] rmd:min-w-0">
             <thead className="bg-slate-50"><tr>
               <th className={TH}>Hạng mục</th><th className={`${TH} text-right`}>Kế hoạch</th><th className={TH}>Ngày KHNK</th>
@@ -304,7 +304,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
           <div className="grid gap-3 rlg:grid-cols-2">
             {kh.ngoaiKeHoach.length > 0 && (
               <div className={KHUNG}>
-                <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Nhập kho ngoài kế hoạch tuần ({kh.ngoaiKeHoach.length}) — {tien(phanTich.nkNgoai)}</p>
+                <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Nhập kho ngoài kế hoạch tuần ({kh.ngoaiKeHoach.length}) — {tien(phanTich.nkNgoai)}</p>
                 <ul className="divide-y divide-slate-100 text-sm">
                   {kh.ngoaiKeHoach.slice(0, 10).map(x => (
                     <li key={x.hex} className="flex items-center justify-between gap-3 px-4 py-2">
@@ -318,7 +318,7 @@ export default function KeHoachTuan({ xuong }: { xuong: string }) {
             )}
             {phanTich.ngoaiGio.length > 0 && (
               <div className={KHUNG}>
-                <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Giờ công SP cho hạng mục ngoài kế hoạch — {so(phanTich.gioSpTong - phanTich.gioSpKh)} giờ</p>
+                <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Giờ công SP cho hạng mục ngoài kế hoạch — {so(phanTich.gioSpTong - phanTich.gioSpKh)} giờ</p>
                 <ul className="divide-y divide-slate-100 text-sm">
                   {phanTich.ngoaiGio.slice(0, 10).map(h => (
                     <li key={h.hex} className="flex items-center justify-between gap-3 px-4 py-2">

@@ -7,7 +7,6 @@ import {
   type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
-import { NHOM_BOT, nhomBot, type NhomBot } from './core/chiSoCongTrinh';
 import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
@@ -125,34 +124,20 @@ const SortPicker = <K extends string>({ value, onChange, options }: {
   </div>
 );
 
-/** Thẻ số liệu đầu tab (cùng kiểu thẻ trang Báo cáo tiến độ / Tổng quan công trình) */
-const TheSo = ({ label, value, unit, sub, tone = 'text-slate-900', hint }: {
-  label: string; value: string; unit?: string; sub?: string; tone?: string; hint?: string;
-}) => (
-  <div className="rounded-2xl border border-slate-200 bg-white p-4" title={hint}>
-    <p className="text-sm text-slate-600">{label}</p>
-    <p className={`mt-1 text-[1.5rem] font-bold leading-tight tabular-nums ${tone}`}>
-      {value}{unit && <span className="ml-1.5 text-sm font-medium text-slate-400">{unit}</span>}
-    </p>
-    {sub && <p className="mt-1.5 text-base text-slate-700">{sub}</p>}
-  </div>
-);
-
 const matchQ = (i: HexInfo, q: string) =>
   !q || i.hex.includes(q) || i.hangMuc.toLowerCase().includes(q) || (i.stage ?? '').toLowerCase().includes(q);
 
 // ============================================================================
 // BOT — CHỈ KH nhập kho tuần → KH nhập kho tháng (ngày cần giao / ngày cần PM / BOT dự án chỉ tham khảo)
 // ============================================================================
-// 6 nhóm thời hạn — MỘT định nghĩa chung với trang Báo cáo tiến độ (core/chiSoCongTrinh.ts). Trước đây tab này gộp
-// "Đạt KH kỳ, chờ KH tiếp" vào "Chưa có KH nhập kho" còn thẻ Tổng quan thì tách => cùng nhãn mà khác số.
-type BotGroup = NhomBot;
-const BOT_GROUPS = NHOM_BOT.map(g => ({ ...g, tone: (g.key === 'quaHan' ? 'red' : g.key === 'den14' || g.key === 'den30' ? 'amber' : 'slate') as 'red' | 'amber' | 'slate' }));
-/** Nhóm thời hạn của 1 hạng mục (null = đã nhập kho đủ / hủy) */
-export const nhomBotHex = (i: HexInfo, today: number) => nhomBot({
-  open: i.open, overdue: !!i.overdue, deadline: i.deadline ?? null,
-  planMet: !i.deadline && !!(i.khnkTuanMet || i.khnkThangMet),
-}, today);
+type BotGroup = 'overdue' | 'd14' | 'd30' | 'later' | 'none';
+const BOT_GROUPS: { key: BotGroup; label: string; tone: 'red' | 'amber' | 'slate'; hint: string }[] = [
+  { key: 'overdue', label: 'Quá hạn KH', tone: 'red', hint: 'Đã qua ngày KH nhập kho tuần / tháng mà chưa nhập kho đủ (KH kỳ đã nhập đủ SL thì không tính)' },
+  { key: 'd14', label: '≤ 14 ngày', tone: 'amber', hint: 'Hạn trong 14 ngày tới' },
+  { key: 'd30', label: '15–30 ngày', tone: 'amber', hint: 'Hạn trong 15–30 ngày tới' },
+  { key: 'later', label: 'Sau 30 ngày', tone: 'slate', hint: 'Hạn sau 30 ngày' },
+  { key: 'none', label: 'Chưa có KH nhập kho', tone: 'slate', hint: 'Không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL mà hạng mục chưa nhập kho đủ)' },
+];
 const SOURCE_SHORT: Record<DeadlineSource, string> = { 'tuần': 'KH tuần', 'tháng': 'KH tháng' };
 
 // Mốc tham khảo (không tính hạn): hạng mục chưa nhập kho đủ đã qua ngày cần giao / BOT dự án / ngày cần (PM)
@@ -191,7 +176,14 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const monthOf = (i: HexInfo) =>
     i.deadline ? `${i.deadline.getFullYear()}-${String(i.deadline.getMonth() + 1).padStart(2, '0')}` : '~';
   const monthLabel = (k: string) => (k === '~' ? 'Chưa có KH nhập kho' : `${k.slice(5)}/${k.slice(0, 4)}`);
-  const groupOf = (i: HexInfo): BotGroup => nhomBotHex(i, today) ?? 'chuaCoKh';
+  const groupOf = (i: HexInfo): BotGroup => {
+    if (!i.deadline) return 'none';
+    const days = Math.floor((i.deadline.getTime() - today) / DAY);
+    if (days < 0) return 'overdue';
+    if (days <= 14) return 'd14';
+    if (days <= 30) return 'd30';
+    return 'later';
+  };
   const inGroup = (i: HexInfo) =>
     group === 'all' ? true
       : group === 'planAfterDue' ? !!i.planAfterDue
@@ -233,40 +225,22 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <p className="text-base font-semibold text-slate-900">
-          {fmtInt(open.length)} hạng mục chưa nhập kho đủ <span className="text-sm font-normal text-slate-500">· theo KH nhập kho tuần → tháng · bấm 1 nhóm để lọc</span>
-        </p>
-        {open.length > 0 && (
-          <div className="mt-3 flex h-7 gap-0.5 overflow-hidden rounded-lg" aria-hidden>
-            {BOT_GROUPS.filter(g => counts[g.key].n > 0).map(g => {
-              const pct = (counts[g.key].n / open.length) * 100;
-              return (
-                <button key={g.key} type="button" tabIndex={-1} onClick={() => setGroup(group === g.key ? 'all' : g.key)}
-                  className="flex items-center justify-center text-xs font-semibold" title={`${g.label}: ${fmtInt(counts[g.key].n)} hạng mục`}
-                  style={{ width: `${pct}%`, background: g.mau, color: g.key === 'quaHan' ? '#fff' : '#16181d' }}>
-                  {pct >= 6 ? `${Math.round(pct)}%` : ''}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-          {BOT_GROUPS.map(g => (
-            <button
-              key={g.key}
-              type="button"
-              title={g.giaiThich}
-              onClick={() => setGroup(group === g.key ? 'all' : g.key)}
-              className={`rounded-xl px-3 py-2.5 text-left transition ${group === g.key ? 'bg-white ring-2 ring-slate-900' : g.key === 'quaHan' && counts[g.key].n ? 'bg-red-50 hover:bg-red-100' : 'bg-slate-50 hover:bg-slate-100'}`}
-            >
-              <p className="flex items-center gap-1.5 text-xs text-slate-600"><i className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: g.mau }} />{g.label}</p>
-              <p className={`mt-0.5 text-xl font-bold tabular-nums ${g.tone === 'red' && counts[g.key].n ? 'text-red-600' : 'text-slate-900'}`}>
-                {fmtInt(counts[g.key].n)}<span className="ml-1 text-xs font-normal text-slate-400">{fmtTy(counts[g.key].remain)} tỷ</span>
-              </p>
-            </button>
-          ))}
-        </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+        {BOT_GROUPS.map(g => (
+          <button
+            key={g.key}
+            type="button"
+            title={g.hint}
+            onClick={() => setGroup(group === g.key ? 'all' : g.key)}
+            className={`rounded-lg border px-3 py-2 text-left transition ${group === g.key ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400'}`}
+          >
+            <p className="text-[0.6875rem] text-slate-500">{g.label}</p>
+            <p className={`text-xl font-semibold tabular-nums ${g.tone === 'red' && counts[g.key].n ? 'text-red-600' : g.tone === 'amber' && counts[g.key].n ? 'text-amber-600' : 'text-slate-900'}`}>
+              {fmtInt(counts[g.key].n)}
+            </p>
+            <p className="text-[0.625rem] text-slate-400">{fmtTy(counts[g.key].remain)} tỷ chưa nhập kho</p>
+          </button>
+        ))}
       </div>
       {extra.planAfterDue > 0 && (
         <div className="-mt-2 flex flex-wrap items-center gap-2">
@@ -352,11 +326,11 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
                           type="button"
                           onClick={e => {
                             e.stopPropagation();
-                            const on = month === m.key && group === 'quaHan';
-                            setMonth(on ? null : m.key); setGroup(on ? 'all' : 'quaHan');
+                            const on = month === m.key && group === 'overdue';
+                            setMonth(on ? null : m.key); setGroup(on ? 'all' : 'overdue');
                           }}
                           title="Lọc hạng mục quá hạn của tháng này"
-                          className={`rounded px-1 hover:bg-red-50 hover:underline ${month === m.key && group === 'quaHan' ? 'bg-red-100' : ''}`}
+                          className={`rounded px-1 hover:bg-red-50 hover:underline ${month === m.key && group === 'overdue' ? 'bg-red-100' : ''}`}
                         >
                           {fmtInt(m.overdue)}
                         </button>
@@ -691,27 +665,8 @@ export const BopTab = ({ items, onHexClick, extra }: {
     </td>
   );
 
-  // 4 thẻ đầu tab — theo mọi hạng mục chưa nhập kho đủ (không theo ô đang chọn)
-  const tomTat = {
-    conLai: items.reduce((s, i) => s + (i.bucket ? i.remain : 0), 0),
-    chuyen: open.filter(i => i.bucket === 'onLine'),
-    nghen: open.filter(i => dwellOf(i.dwell) === DWELL_STUCK),
-  };
-  const nghenSx = tomTat.nghen.filter(i => stageOf(i) !== 'P001').length;
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <TheSo label="Còn chưa nhập kho" value={fmtTy(tomTat.conLai)} unit="tỷ" sub={`${fmtInt(open.length)} hạng mục chưa nhập kho đủ`} />
-        <TheSo label="Đang trên chuyền" value={fmtTy(tomTat.chuyen.reduce((s, i) => s + i.remain, 0))} unit="tỷ" tone="text-amber-600"
-          sub={`${fmtInt(tomTat.chuyen.length)} hạng mục · P012 → P021`} />
-        <TheSo label="Nghẽn ≥ 4 tuần ở công đoạn" value={fmtInt(tomTat.nghen.length)} unit="mục" tone={tomTat.nghen.length ? 'text-red-600' : 'text-slate-900'}
-          sub={`sản xuất ${fmtInt(nghenSx)} · chờ triển khai (P001) ${fmtInt(tomTat.nghen.length - nghenSx)}`}
-          hint="Theo cột số ngày ở công đoạn hiện tại của bảng sản xuất" />
-        <TheSo label="QC lỗi ở lần kiểm gần nhất" value={qc ? fmtInt(qc.bad) : '…'} unit="mục" tone={qc?.bad ? 'text-red-600' : 'text-slate-900'}
-          sub={qc ? `${fmtInt(qc.fail)} sản phẩm lỗi · ${fmtInt(qc.wait)} chờ kiểm` : 'đang tải QC…'} />
-      </div>
-
       {/* 1. Công đoạn × Khu vực sản xuất */}
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -1769,46 +1724,15 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
     <td className={`${td} whitespace-nowrap tabular-nums ${d ? cls : 'text-slate-300'}`}>{d ? fmtDate(d) : '—'}</td>
   );
 
-  // 4 thẻ đầu tab: đếm hạng mục chưa nhập kho đủ có ÍT NHẤT 1 dòng PR ở nhóm đó (cùng cách với Tổng quan công trình —
-  // hạng mục vừa có dòng chưa mua vừa có dòng trễ hẹn được đếm ở cả 2)
-  const theBom = useMemo(() => {
-    if (!bom) return null;
-    const seen = new Set<string>();
-    let coPr = 0, chuaMua = 0, chuaMuaDong = 0, tre = 0, treDong = 0;
-    for (const i of items) {
-      if (seen.has(i.hex)) continue;
-      seen.add(i.hex);
-      const b = bom.byHex[i.hex];
-      if ((b?.lines ?? matCount?.[i.hex] ?? 0) > 0) coPr++;
-      if (!i.open) continue;
-      const nm = b?.byLine.notOrdered ?? 0, lt = b?.byLine.late ?? 0;
-      if (nm > 0) { chuaMua++; chuaMuaDong += nm; }
-      if (lt > 0) { tre++; treDong += lt; }
-    }
-    return { coPr, chuaMua, chuaMuaDong, tre, treDong };
-  }, [bom, items, matCount]);
-  const phuPr = total > 0 && theBom ? (theBom.coPr / total) * 100 : 0;
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <TheSo label="Hạng mục có PR ghi mã" value={theBom ? `${phuPr.toFixed(0)}%` : '…'} unit={theBom ? `${fmtInt(theBom.coPr)} / ${fmtInt(total)}` : ''}
-          tone={!theBom ? 'text-slate-900' : phuPr >= 80 ? 'text-emerald-700' : phuPr >= 40 ? 'text-amber-600' : 'text-red-600'}
-          sub="còn lại: mua gộp theo công trình, tồn kho hoặc chưa lên PR" />
-        <TheSo label="HM có dòng chưa mua" value={theBom ? fmtInt(theBom.chuaMua) : '…'} unit="hạng mục" tone={theBom?.chuaMua ? 'text-red-600' : 'text-slate-900'}
-          sub={theBom ? `${fmtInt(theBom.chuaMuaDong)} dòng PR` : 'đang kiểm tra vật tư…'} />
-        <TheSo label="HM có dòng đang mua – trễ hẹn" value={theBom ? fmtInt(theBom.tre) : '…'} unit="hạng mục" tone={theBom?.tre ? 'text-red-600' : 'text-slate-900'}
-          sub={theBom ? `${fmtInt(theBom.treDong)} dòng PR` : ''} />
-        <TheSo label="Vật tư về sau ngày cần" value={bom ? fmtInt(bom.afterNeed) : '…'} unit="hạng mục" tone={bom?.afterNeed ? 'text-amber-600' : 'text-slate-900'}
-          sub="ảnh hưởng hạn nhập kho" />
-      </div>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => onOpenMaterial('matched')}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
         >
-          <Package size={15} /> Vật tư theo hạng mục / Theo PR
+          <Package size={14} /> Vật tư theo hạng mục / Theo PR
         </button>
       </div>
 

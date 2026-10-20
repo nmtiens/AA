@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Keyboard, LogOut, MoveRight, RefreshCw, ScanLine, UserRound, Wifi, WifiOff, X as XIcon } from 'lucide-react';
+import { Camera, Keyboard, LogOut, MoveRight, RefreshCw, UserRound, Wifi, WifiOff, X as XIcon } from 'lucide-react';
 import { getToken } from '../../../services/userService';
 import { xuongApi } from '../../../services/xuongApi';
 import { authXuong } from '../../../services/xuongClock';
@@ -561,17 +561,15 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f4f6fa]">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
-        <LogoAANgang co="nho" className="hidden sm:block" />
-        <span className="hidden h-9 w-px bg-slate-200 sm:block" aria-hidden />
+      <header className="flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
         <div className="min-w-0 flex-1">
+          <LogoAANgang co="vua" className="mb-1" />
           <p className="truncate text-xl font-semibold text-slate-900">Trạm {bang?.to.ten ?? '…'}{bang?.tram.ten ? ` · ${bang.tram.ten}` : ''}</p>
-          <p className="text-base text-slate-600">{bang?.to.xuong ?? ''}{cho.length ? ` · ${cho.length} lượt chờ gửi` : ''}</p>
+          <p className="text-base text-slate-600">{bang?.to.xuong ?? ''} · {hhmm(now)}{cho.length ? ` · ${cho.length} lượt chờ gửi` : ''}</p>
         </div>
-        <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-base font-medium ${mang === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-          {mang === 'ok' ? <Wifi size="1.1em" aria-hidden /> : <WifiOff size="1.1em" aria-hidden />}{mang === 'ok' ? 'Có sóng' : 'Mất sóng — vẫn quét được'}
+        <span className={`flex items-center gap-1 text-base ${mang === 'ok' ? 'text-emerald-700' : 'text-amber-700'}`}>
+          {mang === 'ok' ? <Wifi size="1.25em" aria-hidden /> : <WifiOff size="1.25em" aria-hidden />}{mang === 'ok' ? 'Có sóng' : 'Mất sóng — vẫn quét được'}
         </span>
-        <span className="text-4xl font-bold tabular-nums text-slate-900">{hhmm(now)}</span>
         <button className={NUT_PHU} onClick={() => void gui().then(taiBang)} aria-label="Tải lại"><RefreshCw size="1.25em" /></button>
       </header>
 
@@ -586,7 +584,7 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
       <main className="grid flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Bên trái: người vừa quét + hành động */}
         <section className="flex flex-col gap-4" aria-label="Quét">
-          <div className={`rounded-2xl border-2 p-4 ${mau.nen} ${mau.vien} ${((nhom || phieuCho) && thongBao?.loai !== 'loi') || (!thongBao && !nguoi) ? 'hidden' : ''}`} aria-live="assertive">
+          <div className={`rounded-2xl border p-4 ${mau.nen} ${mau.vien} ${(nhom || phieuCho) && thongBao?.loai !== 'loi' ? 'hidden' : ''}`} aria-live="assertive">
             <p className={`text-xl font-semibold ${mau.chu}`}>{thongBao?.chu ?? 'Quét phiếu hạng mục, rồi quét thẻ của bạn'}</p>
           </div>
 
@@ -632,18 +630,9 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
               <p className="mt-3 text-base text-slate-600">Quét phiếu PTHSP để vào hàng (tự rời hàng đang làm).</p>
             </div>
           ) : (
-            // Chờ quét: khối tối lớn, khung quét bấm được để mở camera (thiết kế "Trạm quét thẻ")
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-3xl bg-slate-900 p-6 text-center sm:p-8">
-              <button onClick={() => setCamera(true)} aria-label="Quét bằng camera"
-                className="flex aspect-square w-full max-w-[18rem] flex-col items-center justify-center gap-3 rounded-[1.75rem] border-4 border-dashed border-aa-600 bg-white/5 text-white active:bg-white/10">
-                <ScanLine size="5em" strokeWidth={1.5} aria-hidden />
-                <span className="flex items-center gap-2 text-lg font-semibold"><Camera size="1.1em" aria-hidden /> Bấm để quét bằng camera</span>
-              </button>
-              <div>
-                <p className="text-2xl font-semibold text-white">Quét phiếu hạng mục, rồi quét thẻ của bạn</p>
-                <p className="mt-1 text-lg text-slate-400">Đầu ca / cuối ca: chỉ cần quét thẻ</p>
-              </div>
-              <button className={`${NUT_PHU} h-16 w-full max-w-xs text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> Gõ mã</button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button className={NUT_CHINH} onClick={() => setCamera(true)}><Camera size="1.25em" /> Quét bằng camera</button>
+              <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> Gõ mã</button>
             </div>
           )}
           {nguoi && !nhom && (
@@ -656,22 +645,15 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
 
         {/* Bên phải: ai đang ở hàng nào */}
         <section className="flex flex-col gap-3" aria-label="Ai đang ở hàng nào">
-          <div className="rounded-3xl border border-slate-200 bg-white px-5 py-4">
-            <h2 className="pb-2 text-lg font-semibold text-slate-900">Ai đang ở hàng nào</h2>
-            {board.dangO.length === 0 && <p className="py-3 text-base text-slate-600">Chưa ai ở hàng nào.</p>}
-            <ul className="divide-y divide-slate-100">
-              {board.dangO.map(h => (
-                <li key={`${h.hex}|${h.congDoanId}`} className="py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="min-w-0 text-lg font-semibold text-slate-900">{h.tenHangMuc ?? h.hex}</p>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-base font-medium ${MAU.chay.nen} ${MAU.chay.chu}`}>{h.nguoi.length} người</span>
-                  </div>
-                  <p className="text-base text-slate-600">{h.hex} · {bang?.congDoan.find(c => c.id === h.congDoanId)?.ten ?? h.congDoanId}</p>
-                  <p className="mt-1 text-base text-slate-800">{h.nguoi.map(n => n.hoTen).join(', ')}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <h2 className="text-lg font-semibold text-slate-900">Ai đang ở hàng nào</h2>
+          {board.dangO.length === 0 && <p className="rounded-2xl bg-white p-4 text-base text-slate-600">Chưa ai ở hàng nào.</p>}
+          {board.dangO.map(h => (
+            <div key={`${h.hex}|${h.congDoanId}`} className="rounded-2xl bg-white p-4">
+              <p className="text-lg font-semibold text-slate-900">{h.tenHangMuc ?? h.hex}</p>
+              <p className="text-base text-slate-600">{h.hex} · {bang?.congDoan.find(c => c.id === h.congDoanId)?.ten ?? h.congDoanId} · {h.nguoi.length} người</p>
+              <p className="mt-1 text-base text-slate-800">{h.nguoi.map(n => n.hoTen).join(', ')}</p>
+            </div>
+          ))}
           {board.chuaVaoHang.length > 0 && (
             <div className={`rounded-2xl border p-4 ${MAU.ngung.nen} ${MAU.ngung.vien}`}>
               <p className={`text-base font-semibold ${MAU.ngung.chu}`}>Đã vào ca, chưa ở hàng nào ({board.chuaVaoHang.length})</p>

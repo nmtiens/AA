@@ -1,17 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts';
-import { Search, X, Filter, ChevronRight, HelpCircle, SlidersHorizontal } from 'lucide-react';
+import { Search, X, Filter, ChevronRight, AlertTriangle } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { DashboardFilter } from '../Dashboard/components/shared/DashboardFilter';
 import { exportOrderMixExcel } from '../Dashboard/utils/orderMixExport';
 import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../../types';
 import { findColumnKey } from '../Dashboard/utils/columnKeyResolver';
 import { projectMatchKey } from '../../utils/productionMetrics';
+import type { RemainBucket } from '../Dashboard/core/tongQuanSanXuat';
 import { taoBanGhi, NO_MONTH, type Rec } from './core/banGhiCongTrinh';
-import { tinhChiSo, nhomBot, GIAI_THICH } from './core/chiSoCongTrinh';
 import { useToast } from '../../context/ToastContext';
 import { CONFIGURABLE_VIEWS, getProjectsForView, type ProjectGroupId } from './utils/viewDataConfig';
 import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuongMacService';
@@ -28,25 +27,6 @@ import { fmtInt } from '../../utils/format';
 // ============================================================
 
 type FKey = 'ct' | 'pm' | 'pc' | 'kv' | 'kh' | 'pl' | 'month' | 'nct' | 'tda';
-const FKEYS: FKey[] = ['ct', 'pm', 'pc', 'kv', 'kh', 'pl', 'month', 'nct', 'tda'];
-/** "Chưa triển khai (P001)" → ["Chưa triển khai", "P001"] */
-const tachMa = (label: string): [string, string] => {
-  const m = label.match(/^(.*?)\s*\((.*)\)$/);
-  return m ? [m[1], m[2]] : [label, ''];
-};
-/** Sắp xếp bảng công trình — mặc định công trình nhiều hạng mục quá hạn lên đầu */
-type XepCt = 'quaHan' | 'giaTri' | 'hoanThanh';
-type DongXep = { overdue: number; total: number; done: number; items: number };
-const tiLe = (r: DongXep) => (r.total > 0 ? r.done / r.total : 0);
-const XEP_CT: Array<{ key: XepCt; label: string; cmp: (a: DongXep, b: DongXep) => number }> = [
-  { key: 'quaHan', label: 'Quá hạn nhiều nhất', cmp: (a, b) => b.overdue - a.overdue || b.total - a.total },
-  { key: 'giaTri', label: 'Giá trị lớn nhất', cmp: (a, b) => b.total - a.total || b.items - a.items },
-  { key: 'hoanThanh', label: 'Hoàn thành thấp nhất', cmp: (a, b) => tiLe(a) - tiLe(b) || b.total - a.total },
-];
-/** Dấu "?" giải thích cách tính (rê chuột) */
-const GiaiThich = ({ text }: { text: string }) => (
-  <span title={text} aria-label={text} className="inline-flex shrink-0 cursor-help text-slate-400 hover:text-slate-700"><HelpCircle size={14} aria-hidden /></span>
-);
 type Filters = Partial<Record<FKey, string | undefined>>;
 
 // Mặc định không lọc Tình trạng IPO: các ô KPI hiện tổng toàn bộ công trình, chỉ đổi khi người dùng chọn lọc
@@ -59,11 +39,13 @@ const FILTER_LABEL: Record<FKey, string> = {
   ct: 'Công trình', pm: 'PM', pc: 'PC', kv: 'Khu vực', kh: 'Khách hàng', pl: 'Nhóm SP', month: 'Tháng hạn',
   nct: 'Nhóm CT', tda: 'Tình trạng dự án',
 };
+
 const COLOR_DONE = '#16a34a';
 const COLOR_REMAIN = '#f59e0b';
 // Giá trị gốc tính theo triệu đồng (khớp backend TRIEU_TO_TY) => Tỷ = giá trị gốc / 1,000
 const UNIT = 1000;
 const fmtTy = formatTrieuAsTy;
+const pctOf = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toFixed(v / total < 0.01 && v > 0 ? 1 : 0)}%` : '—');
 // Làm tròn triệu đồng về bội 10 (= 0,01 tỷ, đúng số hiển thị của fmtTy)
 const roundTy = (trieu: number) => Math.round(trieu / 10) * 10 + 0; // + 0: bỏ -0
 /** Chia `target` (đã làm tròn 0,01 tỷ) cho các phần theo phần dư lớn nhất => các ô con cộng đúng ô cha. */
@@ -114,27 +96,17 @@ const chartMonthBucket = (month: string, from: string, to: string) =>
 const chartMonthOrder = (k: string) => (k === NO_MONTH ? 3 : k.startsWith('<') ? 0 : k.startsWith('>') ? 2 : 1);
 
 // Ô số liệu trong cửa sổ chi tiết PC
-// Ô số trong cửa sổ chi tiết: có onClick => bấm để xếp bảng công trình theo cột đó (ô đang chọn tô viền đen)
-const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = false, onClick }: {
-  label: string; value: string; unit?: string; sub?: string; tone?: string; active?: boolean; onClick?: () => void;
-}) => {
-  const noi = (
-    <>
-      <p className="text-[0.6875rem] text-slate-500">{label}</p>
-      <p className={`text-xl font-semibold tabular-nums ${tone}`}>
-        {value}{unit && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
-      </p>
-      {sub && <p className="text-[0.625rem] tabular-nums text-slate-400">{sub}</p>}
-    </>
-  );
-  const cls = `rounded-lg border px-3 py-2 text-left ${active ? 'border-slate-900 bg-white ring-1 ring-slate-900' : 'border-slate-200 bg-slate-50'}`;
-  return onClick ? (
-    <button type="button" onClick={onClick} aria-pressed={active} title={`Xếp danh sách công trình theo ${label.toLowerCase()}`}
-      className={`${cls} transition hover:border-slate-400 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}>
-      {noi}
-    </button>
-  ) : <div className={cls}>{noi}</div>;
-};
+const PcStat = ({ label, value, unit, sub, tone = 'text-slate-900', active = false }: {
+  label: string; value: string; unit?: string; sub?: string; tone?: string; active?: boolean;
+}) => (
+  <div className={`rounded-lg border px-3 py-2 ${active ? 'border-slate-900 bg-white ring-1 ring-slate-900' : 'border-slate-200 bg-slate-50'}`}>
+    <p className="text-[0.6875rem] text-slate-500">{label}</p>
+    <p className={`text-xl font-semibold tabular-nums ${tone}`}>
+      {value}{unit && <span className="ml-1 text-xs font-medium text-slate-400">{unit}</span>}
+    </p>
+    {sub && <p className="text-[0.625rem] tabular-nums text-slate-400">{sub}</p>}
+  </div>
+);
 
 // Mô tả 1 cửa sổ chi tiết (cấp 1)
 type DetailFocus = 'items' | 'total' | 'done' | 'remain' | 'exported' | 'stock';
@@ -172,13 +144,8 @@ interface Props {
 }
 
 const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null }) => {
-  // Trạng thái trang nằm trên địa chỉ (#/…?nhom=&ct=&mo=…): copy link gửi người khác, mở ra đúng màn đó
-  const [sp, setSp] = useSearchParams();
   // Nhóm công trình (Luồng đỏ / Căn mẫu = danh sách setup ở Công trình → Setup); null = mọi công trình
-  const [group, setGroup] = useState<ProjectGroupId | null>(() => {
-    const g = sp.get('nhom');
-    return CONFIGURABLE_VIEWS.some(v => v.id === g) ? g as ProjectGroupId : null;
-  });
+  const [group, setGroup] = useState<ProjectGroupId | null>(null);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
   const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(null);
@@ -209,40 +176,20 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const [hexScope, setHexScope] = useState<{ ct: string | null; inDetail: boolean } | null>(null);
   // Tổng quan 1 công trình (BOT / BOP / BOM) — mở khi bấm 1 dòng trong bảng công trình
   // inDetail = mở từ cửa sổ chi tiết (vd PC): chỉ tính các dòng trong phạm vi cửa sổ đó
-  const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(() => {
-    const ct = sp.get('mo');
-    return ct ? { ct, inDetail: false } : null;
-  });
+  const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
   const healthCt = health?.ct ?? null;
-  const [f, setF] = useState<Filters>(() => Object.fromEntries(FKEYS.flatMap(k => (sp.get(k) ? [[k, sp.get(k)!]] : []))));
-  // null = chưa chọn gì => dùng mặc định (Đang sản xuất) khi đã có dữ liệu; [] = tất cả (trên địa chỉ: ipo=*)
-  const [ipoPicked, setIpoSel] = useState<string[] | null>(() => {
-    const v = sp.get('ipo');
-    return v === null ? null : v === '*' ? [] : v.split('|');
-  });
-  const [ctSearch, setCtSearch] = useState(() => sp.get('q') ?? '');
-  const [xep, setXep] = useState<XepCt>(() => XEP_CT.find(x => x.key === sp.get('xep'))?.key ?? 'quaHan');
-  const [metric, setMetric] = useState<'count' | 'value'>('count'); // cho 2 biểu đồ tròn
-  const [moLoc, setMoLoc] = useState(false);
-  // Ghi trạng thái lên địa chỉ (thay, không thêm lịch sử). Chỉ đụng các khoá của trang này.
-  useEffect(() => {
-    setSp(prev => {
-      const p = new URLSearchParams(prev);
-      const dat = (k: string, v?: string | null) => { if (v) p.set(k, v); else p.delete(k); };
-      FKEYS.forEach(k => dat(k, f[k]));
-      dat('nhom', group);
-      dat('ipo', ipoPicked === null ? null : ipoPicked.length ? ipoPicked.join('|') : '*');
-      dat('q', ctSearch.trim());
-      dat('xep', xep === 'quaHan' ? null : xep);
-      dat('mo', health && !health.inDetail ? health.ct : null);
-      return p.toString() === prev.toString() ? prev : p;
-    }, { replace: true });
-  }, [f, group, ipoPicked, ctSearch, xep, health, setSp]);
+  const [f, setF] = useState<Filters>({});
+  // null = chưa chọn gì => dùng mặc định (Đang sản xuất) khi đã có dữ liệu
+  const [ipoPicked, setIpoSel] = useState<string[] | null>(null);
+  const [metric, setMetric] = useState<'count' | 'value'>('count'); // cho 3 biểu đồ tròn
+  const [ctSearch, setCtSearch] = useState('');
 
   const toggle = (k: FKey, v: string) => setF(p => ({ ...p, [k]: p[k] === v ? undefined : v }));
   const setKey = (k: FKey, v: string) => setF(p => ({ ...p, [k]: v || undefined }));
   const activeKeys = (Object.keys(f) as FKey[]).filter(k => f[k]);
 
+  // Đã nhập kho đủ trị giá đơn hàng HOẶC đủ số lượng (dùng chung cho ô KPI và popup chi tiết)
+  const isStocked = (r: Rec) => r.status !== 'HỦY' && ((r.total > 0 && r.done >= r.total) || r.qtyDone);
 
   // ---------- 1. Chuẩn hoá từng dòng 1 lần (lõi dùng chung với máy chủ: core/banGhiCongTrinh.ts) ----------
   // Chưa có bảng sản xuất mà máy chủ đã gửi bản ghi => dùng bản ghi máy chủ (dòng gốc chỉ có hex)
@@ -285,8 +232,43 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const rowsAll = useMemo(() => apply(), [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- 2. KPI — một nơi định nghĩa: core/chiSoCongTrinh.ts ----------
-  const kpi = useMemo(() => tinhChiSo(rowsAll, today), [rowsAll, today]);
+  // ---------- 2. KPI ----------
+  // Hạng mục "đã nhập kho" = đã nhập kho ĐỦ trị giá đơn hàng (cùng nguồn với giá trị đã nhập kho);
+  // còn lại (chưa nhập hoặc mới nhập 1 phần) là "chưa nhập kho". Đơn HỦY tính riêng.
+  const kpi = useMemo(() => {
+    const cts = new Set<string>();
+    let cancelled = 0, stocked = 0, notStocked = 0, partial = 0, total = 0, done = 0, exported = 0, stock = 0, exportedRecorded = 0, unmatched = 0;
+    // Giá trị đã nhập kho tách theo hạng mục nhập đủ / nhập một phần (cộng lại = done, trừ phần của đơn hủy)
+    let stockedDone = 0, partialDone = 0;
+    let stockOver = 0, stockOverItems = 0; // hạng mục tồn kho vượt giá trị đã nhập (tồn bị chặn ≤ đã nhập)
+    let stockHuy = 0; // tồn kho của đơn HỦY (đã nhập của HỦY = phần còn trong kho — banGhiCongTrinh)
+    // Phần chưa nhập kho theo công đoạn — cộng lại đúng bằng Giá trị chưa nhập kho
+    const remainBy: Record<RemainBucket | 'cancelled', number> = { notDeployed: 0, p002: 0, onLine: 0, shortfall: 0, cancelled: 0 };
+    for (const r of rowsAll) {
+      cts.add(r.ctKey);
+      remainBy[r.bucket] += Math.max(r.total - r.done, 0);
+      if (r.status === 'HỦY') { cancelled++; stockHuy += r.stock; }
+      else if (isStocked(r)) { stocked++; stockedDone += r.done; }
+      else { notStocked++; if (r.done > 0) { partial++; partialDone += r.done; } }
+      total += r.total; done += r.done; exported += r.exported; stock += r.stock; exportedRecorded += r.exportedRecorded; unmatched += r.unmatched;
+      if (r.stockCut > 0.001) { stockOver += r.stockCut; stockOverItems++; }
+    }
+    // Cảnh báo: quá hạn KH nhập kho / chưa có KH / qua BOT dự án (hạng mục còn theo dõi)
+    let overdue = 0, overdueRemain = 0, noPlan = 0, noPlanRemain = 0, metWait = 0, metWaitRemain = 0, pastBot = 0, pastBotRemain = 0;
+    for (const r of rowsAll) {
+      if (!r.open) continue;
+      const rem = r.total - r.done;
+      if (r.overdue) { overdue++; overdueRemain += rem; }
+      if (r.planMet) { metWait++; metWaitRemain += rem; }
+      else if (!r.deadline) { noPlan++; noPlanRemain += rem; }
+      if (r.botDuAn && r.botDuAn.getTime() < today) { pastBot++; pastBotRemain += rem; }
+    }
+    return {
+      cts: cts.size, items: rowsAll.length, cancelled, stocked, notStocked, partial, stockedDone, partialDone, total, done, remain: total - done,
+      exported, stock, stockHuy, exportedRecorded, unmatched, stockOver, stockOverItems, remainBy,
+      overdue, overdueRemain, noPlan, noPlanRemain, metWait, metWaitRemain, pastBot, pastBotRemain,
+    };
+  }, [rowsAll, today]);
 
   // ---------- 3. Cột chồng theo tháng hạn giao ----------
   const monthRange = useMemo(() => ({ from: monthKeyOffset(-MONTHS_BACK), to: monthKeyOffset(MONTHS_AHEAD) }), []);
@@ -317,29 +299,30 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const khData = useMemo(() => orderMix(groupTopN(donut('kh'), TOP_CUSTOMERS, f.kh ? [f.kh] : [])), [records, f, metric]); // eslint-disable-line react-hooks/exhaustive-deps
   const plData = useMemo(() => orderMix(donut('pl')), [records, f, metric]);       // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ---------- 5. Bảng theo PC và theo công trình ----------
   const pcTable = useMemo(() => {
-    const m = new Map<string, { name: string; cts: Set<string>; items: number; total: number; done: number; overdue: number }>();
+    const m = new Map<string, { name: string; cts: Set<string>; items: number; total: number }>();
     for (const r of apply('pc')) {
-      const e = m.get(r.pc) ?? { name: r.pc, cts: new Set<string>(), items: 0, total: 0, done: 0, overdue: 0 };
-      e.cts.add(r.ctKey); e.items++; e.total += r.total; e.done += r.done;
-      if (r.open && r.overdue) e.overdue++;
+      const e = m.get(r.pc) ?? { name: r.pc, cts: new Set<string>(), items: 0, total: 0 };
+      e.cts.add(r.ctKey); e.items++; e.total += r.total;
       m.set(r.pc, e);
     }
     return [...m.values()].sort((a, b) => b.total - a.total || b.items - a.items);
   }, [records, f]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- 4. Bảng công trình ----------
-  const ctRows = useMemo(() => {
+  const ctTable = useMemo(() => {
+    const q = ctSearch.trim().toLowerCase();
     type Row = { name: string; ctKey: string; pms: Set<string>; mas: Set<string>; items: number; total: number; cancelled: number; done: number; open: number; overdue: number; botDates: string[] };
     const m = new Map<string, Row>();
     for (const r of apply('ct')) {
+      if (q && !r.ct.toLowerCase().includes(q)) continue;
       const e = m.get(r.ct) ?? { name: r.ct, ctKey: r.ctKey, pms: new Set<string>(), mas: new Set<string>(), items: 0, total: 0, cancelled: 0, done: 0, open: 0, overdue: 0, botDates: [] };
       e.pms.add(r.pm); if (r.ma) e.mas.add(r.ma); e.items++; e.total += r.total; e.done += r.done;
       // Trị giá đơn hủy nằm trong Tổng GT (cửa sổ công trình thì bỏ hủy) — tách riêng để ghi chú trên bảng
       if (r.status === 'HỦY') e.cancelled += r.total;
-      if (r.open) e.open++;
-      if (r.open && r.overdue) e.overdue++;
-      // Khoá ngày giờ địa phương (toISOString lùi 1 ngày ở +7); bỏ đơn HỦY khi gom BOT dự án (khớp ProjectHealthModal)
+      if (r.open) e.open++; if (r.overdue) e.overdue++;
+      // Khoá ngày giờ địa phương (toISOString lùi 1 ngày ở +7)
+      // Bỏ đơn HỦY khi gom BOT dự án (khớp ProjectHealthModal)
       if (r.botDuAn && r.status !== 'HỦY') e.botDates.push(`${r.botDuAn.getFullYear()}-${String(r.botDuAn.getMonth() + 1).padStart(2, '0')}-${String(r.botDuAn.getDate()).padStart(2, '0')}`);
       m.set(r.ct, e);
     }
@@ -350,15 +333,8 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       let best = '', n = -1; cnt.forEach((c, d) => { if (c > n) { best = d; n = c; } });
       const botDuAn = best ? new Date(Number(best.slice(0, 4)), Number(best.slice(5, 7)) - 1, Number(best.slice(8, 10))) : null;
       return { ...e, botDuAn, vm: vmOf(e.mas, e.ctKey) };
-    });
-  }, [records, f, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
-  const ctTable = useMemo(() => {
-    const q = ctSearch.trim().toLowerCase();
-    const list = q ? ctRows.filter(r => r.name.toLowerCase().includes(q) || [...r.pms].some(p => p.toLowerCase().includes(q))) : ctRows;
-    return [...list].sort(XEP_CT.find(x => x.key === xep)!.cmp);
-  }, [ctRows, ctSearch, xep]);
-  // Công trình nhiều hạng mục quá hạn nhất (theo bộ lọc trang, không theo ô tìm) — cho khung "Cần chú ý"
-  const ctTreNhat = useMemo(() => ctRows.reduce<typeof ctRows[number] | null>((m, r) => (r.overdue > (m?.overdue ?? 0) ? r : m), null), [ctRows]);
+    }).sort((a, b) => b.total - a.total || b.items - a.items);
+  }, [records, f, ctSearch, vmIndex]); // eslint-disable-line react-hooks/exhaustive-deps
   // Phạm vi bảng có đơn hủy => cột Tổng GT ghi chú "gồm cả đơn hủy"
   const ctHasCancel = ctTable.some(r => r.cancelled > 0);
   // Ô "Vướng mắc đang mở": theo MỌI bộ lọc trang (rowsAll, không theo ô tìm của bảng);
@@ -428,8 +404,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   }, [detailData, detailSearch]);
 
   const openDetail = (spec: DetailSpec) => { setDetailSearch(''); setDetail(spec); };
-  // Bấm ô số trong cửa sổ chi tiết: đổi cột đang xem => bảng xếp lại theo cột đó + tô đậm tiêu đề cột
-  const doiFocus = (focus: DetailFocus) => setDetail(d => (d ? { ...d, focus } : d));
 
   // Cột tháng hạn giao: đúng tập dòng của cột (mọi bộ lọc trừ "Tháng hạn", tháng = cột đã bấm)
   const openMonthDetail = (key?: string) => {
@@ -533,50 +507,101 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     );
   }
 
-  const cardCls = 'rounded-2xl border border-slate-200 bg-white';
+  const cardCls = 'bg-white border border-slate-200 rounded-xl shadow-sm';
 
-  // Phần chưa nhập kho theo công đoạn, theo dòng chảy sản xuất: P001 -> P002 -> Trên chuyền [-> P022–P025 nhập chưa đủ]
-  // [-> đơn hủy]; màu xám -> cam đậm dần theo độ "gần xong". P022–P025 nhập chưa đủ / đơn hủy chỉ hiện khi có số.
+  // Ô KPI bấm được: mở cửa sổ chi tiết đúng tập dòng tạo ra con số đó
+  const Kpi = ({ label, value, unit, tone = 'text-slate-900', sub, spec, hint }: {
+    label: string; value: string; unit?: string; tone?: string; sub?: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
+    /** Giải thích cách tính (rê chuột) */
+    hint?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={() => openDetail({ eyebrow: 'Chỉ số', title: label, ...spec })}
+      title={hint ? `${hint}\nBấm để xem chi tiết` : 'Bấm để xem chi tiết'}
+      className={`${cardCls} group px-4 py-3 text-left transition hover:border-slate-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}
+    >
+      <p className="flex items-center justify-between text-[0.6875rem] font-medium tracking-wide text-slate-500">
+        {label}
+        <ChevronRight size={13} className="text-slate-300 group-hover:text-slate-600" />
+      </p>
+      <p className={`mt-1 text-2xl font-semibold tabular-nums ${tone}`}>
+        {value}{unit && <span className="ml-1 text-sm font-medium text-slate-400">{unit}</span>}
+      </p>
+      {sub && <p className="mt-0.5 text-[0.6875rem] text-slate-500">{sub}</p>}
+    </button>
+  );
+
+  // Ô giá trị trong thanh "Giá trị": bấm mở cửa sổ chi tiết đúng tập dòng tạo ra con số
+  const Mini = ({ label, value, tone, bar, hint, spec, strong = false }: {
+    label: string; value: number; tone: string; bar?: string; hint?: string; strong?: boolean;
+    spec: Omit<DetailSpec, 'eyebrow' | 'title'>;
+  }) => (
+    <button
+      type="button"
+      onClick={() => openDetail({ eyebrow: 'Chỉ số', title: label, ...spec })}
+      title={hint ? `${hint}\nBấm để xem chi tiết` : 'Bấm để xem chi tiết'}
+      className={`group w-full rounded-md px-2 py-1.5 text-left transition hover:bg-white hover:shadow-sm ${strong ? '' : 'border border-slate-200 bg-white/70'}`}
+    >
+      <p className="flex items-center gap-1.5 text-[0.6875rem] font-medium text-slate-500">
+        {bar && <i className={`h-2.5 w-2.5 shrink-0 rounded-sm ${bar}`} />}
+        <span className="truncate">{label}</span>
+        <ChevronRight size={12} className="ml-auto shrink-0 text-slate-300 group-hover:text-slate-600" />
+      </p>
+      <p className={`${strong ? 'text-2xl' : 'text-lg'} font-semibold tabular-nums ${strong ? tone : 'text-slate-900'}`}>
+        {fmtTy(value)}<span className="ml-1 text-xs font-medium text-slate-400">Tỷ</span>
+        <span className="ml-1.5 text-[0.6875rem] font-normal text-slate-400">{pctOf(value, kpi.total)}</span>
+      </p>
+    </button>
+  );
+
+  // Phần chưa nhập kho theo công đoạn, giữ thứ tự cột của bảng công trình: P001 -> P002 -> Trên chuyền
+  // (cùng thứ tự với thanh tỷ trọng). Màu cùng 1 họ xám / cam theo độ "gần xong": xám = chưa triển khai,
+  // càng đậm càng gần nhập kho. Đơn hủy tách màu đỏ nhạt.
+  // P022–P025 nhập chưa đủ / đơn hủy chỉ hiện khi có số.
   const remainTiles = ([
-    { key: 'notDeployed', label: 'Chưa triển khai (P001)', bar: 'bg-slate-300',
+    { key: 'notDeployed', label: 'Chưa triển khai (P001)', bar: 'bg-slate-300', ink: 'text-slate-800',
       hint: 'Phần chưa nhập kho của hạng mục ở P001 / 15. CHƯA TRIỂN KHAI.' },
-    { key: 'p002', label: 'Chưa tính phiếu (P002)', bar: 'bg-amber-300',
+    { key: 'p002', label: 'Chưa tính phiếu (P002)', bar: 'bg-amber-300', ink: 'text-amber-950',
       hint: 'Phần chưa nhập kho của hạng mục ở P002 (bản vẽ kỹ thuật, chưa tính phiếu).' },
-    { key: 'onLine', label: 'Đang trên chuyền (P012 → P021)', bar: 'bg-amber-500',
+    { key: 'onLine', label: 'Đang trên chuyền (P012→P021)', bar: 'bg-amber-500', ink: 'text-white',
       hint: 'Phần chưa nhập kho của hạng mục ở P012 → P021 (gồm GCVT).' },
-    { key: 'shortfall', label: 'Nhập chưa đủ (P022–P025)', bar: 'bg-orange-600',
+    { key: 'shortfall', label: 'P022–P025 nhập chưa đủ', bar: 'bg-orange-600', ink: 'text-white',
       hint: 'Hạng mục đã ở P022 / P025 nhưng giá trị nhập kho chưa đủ trị giá đơn hàng (lệch đơn giá / nhập thiếu).' },
-    { key: 'cancelled', label: 'Đơn hủy', bar: 'bg-rose-200',
+    { key: 'cancelled', label: 'Đơn hủy', bar: 'bg-rose-200', ink: 'text-rose-900',
       hint: 'Trị giá đơn hàng của hạng mục có Tình trạng IPO = HỦY (tính trong tổng để khớp file gốc — lọc Tình trạng IPO để bỏ).' },
   ] as const).filter(t => t.key === 'notDeployed' || t.key === 'p002' || t.key === 'onLine' || kpi.remainBy[t.key] > 0.0005);
-  // Số HIỂN THỊ (làm tròn 0,01 tỷ) cộng khớp tuyệt đối trên màn hình:
-  // Đã nhập = Tồn + Chưa thấy xuất / tồn + Đã xuất; Tổng = Đã nhập + Chưa nhập; các phần Chưa nhập chia theo phần dư lớn nhất.
+  // Số HIỂN THỊ (làm tròn 0,01 tỷ) của các ô giá trị, cộng khớp tuyệt đối trên màn hình:
+  // Đã nhập = Đã xuất + Tồn + Chưa thấy xuất / tồn; Tổng = Đã nhập + Chưa nhập; các ô con Chưa nhập chia theo phần dư lớn nhất.
   const shownExported = roundTy(kpi.exported);
   const shownUnmatched = roundTy(kpi.done) - shownExported - roundTy(kpi.stock);
   const shownRemain = roundTy(kpi.total) - roundTy(kpi.done);
   const shownRemainBy = apportionTy(remainTiles.map(t => kpi.remainBy[t.key]), shownRemain);
 
-  type Seg = { key: string; label: string; v: number; bar: string; hint: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'> };
+  // Đoạn của thanh tỷ trọng = đúng các ô bên dưới (cùng màu, cùng số hiển thị, bấm mở cùng cửa sổ chi tiết)
+  type Seg = { key: string; label: string; v: number; bar: string; ink: string; hint: string; spec: Omit<DetailSpec, 'eyebrow' | 'title'> };
   const EXPORT_HINT = 'TT xuất kho lũy kế của hạng mục, đúng cột TT XK LŨY KẾ ở file gốc (có hạng mục ghi xuất cao hơn nhập do lệch đơn giá); đơn hủy không tính.';
   const UNMATCHED_HINT = 'Đã nhập − Đã xuất − Tồn kho, theo từng hạng mục: phần đã nhập kho nhưng không thấy trong TT xuất kho lũy kế lẫn tồn kho hiện tại (bảng xuất kho chỉ có dữ liệu từ 01/2025, giao không qua phiếu xuất, SAP chưa cập nhật…), đã trừ phần xuất ghi vượt nhập.';
   const STOCK_HINT = kpi.stockOverItems > 0
-    ? `Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng đã nhập − đã xuất. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên số này có thể thấp hơn bảng tồn kho đúng phần đó.`
+    ? `Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng đã nhập − đã xuất. ${fmtInt(kpi.stockOverItems)} mục tồn kho vượt giá trị đã nhập — phần vượt ${fmtTy(kpi.stockOver)} tỷ không tính, nên ô này có thể thấp hơn bảng tồn kho đúng phần đó.`
     : 'Tồn kho hiện tại (mọi tình trạng, kể cả đơn hủy), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất.';
-  // Thứ tự đã nhập theo dòng chảy: còn trong kho -> chưa khớp -> đã xuất / giao (cuối dòng chảy)
   const doneSegs: Seg[] = [
-    { key: 'stock', label: 'Tồn kho', v: roundTy(kpi.stock), bar: 'bg-emerald-300', hint: STOCK_HINT,
-      spec: { pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất; gồm cả đơn hủy còn tồn.' } },
-    ...(shownUnmatched > 0.0005 ? [{ key: 'unmatched', label: 'Chưa thấy xuất / tồn', v: shownUnmatched, bar: 'bg-lime-200', hint: UNMATCHED_HINT,
-      spec: { pred: (r: Rec) => r.unmatched > 0.0005, focus: 'done' as DetailFocus, note: UNMATCHED_HINT } }] : []),
-    { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, bar: 'bg-emerald-600', hint: EXPORT_HINT,
+    { key: 'exported', label: 'Đã xuất / giao (P025)', v: shownExported, bar: 'bg-emerald-600', ink: 'text-white', hint: EXPORT_HINT,
       spec: { pred: r => r.exported > 0, focus: 'exported', note: EXPORT_HINT } },
+    { key: 'stock', label: 'Tồn kho', v: roundTy(kpi.stock), bar: 'bg-emerald-300', ink: 'text-emerald-950', hint: STOCK_HINT,
+      spec: { pred: r => r.stock > 0, focus: 'stock', note: 'Giá trị tồn kho hiện tại của các hạng mục (thành tiền tồn kho hiện tại theo bảng sản xuất), mỗi hạng mục tối đa bằng giá trị đã nhập kho − đã xuất; gồm cả đơn hủy còn tồn.' } },
+    ...(shownUnmatched > 0.0005 ? [{ key: 'unmatched', label: 'Chưa thấy xuất / tồn', v: shownUnmatched, bar: 'bg-lime-200', ink: 'text-lime-950', hint: UNMATCHED_HINT,
+      spec: { pred: (r: Rec) => r.unmatched > 0.0005, focus: 'done' as DetailFocus, note: UNMATCHED_HINT } }] : []),
   ];
   const remainSegs: Seg[] = remainTiles.map((t, i) => ({
-    key: t.key, label: t.label, v: shownRemainBy[i], bar: t.bar, hint: t.hint,
+    key: t.key, label: t.label, v: shownRemainBy[i], bar: t.bar, ink: t.ink, hint: t.hint,
     spec: { pred: (r: Rec) => r.bucket === t.key && r.total - r.done > 0, focus: 'remain' as DetailFocus, note: t.hint },
   }));
   const segTotal = [...doneSegs, ...remainSegs].reduce((a, x) => a + Math.max(x.v, 0), 0);
-  // % IN RA (số nguyên) theo phần dư lớn nhất: chia 100% cho 2 nhóm trước, rồi chia % nhóm cho các cột
+  const segPct = (v: number) => (segTotal > 0 ? (Math.max(v, 0) / segTotal) * 100 : 0);
+  const doneW = doneSegs.reduce((a, x) => a + segPct(x.v), 0);
+  // % IN RA (số nguyên) theo phần dư lớn nhất: chia 100% cho 2 nhóm trước, rồi chia % nhóm cho các đoạn
+  // => % ngoặc nhóm = tổng % các đoạn trong nhóm, Đã nhập + Chưa nhập = 100%
   const sumV = (segs: Seg[]) => segs.reduce((a, x) => a + Math.max(x.v, 0), 0);
   const [donePctInt, remainPctInt] = apportionInt([sumV(doneSegs), sumV(remainSegs)], 100);
   const segPctInt = new Map<string, number>();
@@ -584,231 +609,264 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     const parts = apportionInt(segs.map(x => x.v), p);
     segs.forEach((x, i) => segPctInt.set(x.key, parts[i]));
   });
+  // Nhóm có giá trị nhưng làm tròn ra 0% thì ghi "<1%" (thay vì 0%)
   const groupPctLabel = (p: number, v: number) => (segTotal <= 0 ? '—' : p === 0 && v > 0 ? '<1%' : `${p}%`);
   const donePctLabel = groupPctLabel(donePctInt, sumV(doneSegs));
   const remainPctLabel = groupPctLabel(remainPctInt, sumV(remainSegs));
-  const cotCd = [...remainSegs, ...doneSegs];
-  const maxCd = Math.max(...cotCd.map(x => x.v), 0);
-
-  // Khung "Cần chú ý": CHỈ hiện việc cần làm (không có dòng "ổn" / số 0)
-  const nOpen = kpi.openItems;
-  const chuY = ([
-    kpi.bot.quaHan.n > 0 && {
-      key: 'quaHan', tieuDe: `${fmtInt(kpi.bot.quaHan.n)} hạng mục quá hạn KH nhập kho`, phu: `${fmtTy(kpi.bot.quaHan.remain)} tỷ chưa nhập kho`,
-      nhan: 'Trễ', mau: 'bg-red-50 text-red-700',
-      mo: () => openDetail({ eyebrow: 'Cần chú ý', title: 'Quá hạn KH nhập kho', pred: r => nhomBot(r, today) === 'quaHan', focus: 'remain', note: GIAI_THICH.quaHan }),
-    },
-    kpi.bot.chuaCoKh.n > 0 && {
-      key: 'chuaCoKh', tieuDe: `${fmtInt(kpi.bot.chuaCoKh.n)} hạng mục chưa có KH nhập kho`,
-      phu: `${nOpen > 0 ? Math.round((kpi.bot.chuaCoKh.n / nOpen) * 100) : 0}% hạng mục chưa nhập kho đủ · không theo dõi được trễ hạn`,
-      nhan: 'Thiếu KH', mau: 'bg-amber-50 text-amber-800',
-      mo: () => openDetail({ eyebrow: 'Cần chú ý', title: 'Chưa có KH nhập kho', pred: r => nhomBot(r, today) === 'chuaCoKh', focus: 'remain', note: 'Hạng mục chưa nhập kho đủ, không có KH nhập kho tuần / tháng — không theo dõi được trễ hạn.' }),
-    },
-    ctTreNhat && {
-      key: 'ctTre', tieuDe: ctTreNhat.name, phu: `${fmtInt(ctTreNhat.overdue)} hạng mục quá hạn KH — nhiều nhất · ${[...ctTreNhat.pms].slice(0, 2).join(', ')}`,
-      nhan: 'Trễ nhiều nhất', mau: 'bg-red-50 text-red-700',
-      mo: () => { if (canBang()) setHealth({ ct: ctTreNhat.name, inDetail: false }); },
-    },
-    vmTotal > 0 && {
-      key: 'vm', tieuDe: `${fmtInt(vmTotal)} vướng mắc đang mở`, phu: `${fmtInt(vmSum.cts)} công trình · ${fmtInt(vmSum.overdue)} quá hạn BOT`,
-      nhan: 'Vướng mắc', mau: 'bg-amber-50 text-amber-800', href: '#/vuong-mac',
-    },
-    kpi.bot.datKy.n > 0 && {
-      key: 'datKy', tieuDe: `${fmtInt(kpi.bot.datKy.n)} hạng mục đạt KH kỳ, chờ KH tiếp`, phu: `${fmtTy(kpi.bot.datKy.remain)} tỷ · cần lập KH kỳ sau`,
-      nhan: 'Chờ KH', mau: 'bg-blue-50 text-blue-700',
-      mo: () => openDetail({ eyebrow: 'Cần chú ý', title: 'Đạt KH kỳ, chờ KH tiếp', pred: r => nhomBot(r, today) === 'datKy', focus: 'remain', note: 'Hạng mục đã đạt KH nhập kho tuần / tháng của kỳ nhưng đơn hàng còn chưa nhập kho đủ — chờ KH kỳ sau.' }),
-    },
-  ].filter(Boolean)) as Array<{ key: string; tieuDe: string; phu: string; nhan: string; mau: string; mo?: () => void; href?: string }>;
-
-  // Thẻ số liệu (bấm mở cửa sổ chi tiết đúng tập dòng tạo ra con số)
-  const The = ({ label, hint, value, unit, sub, tone = 'text-slate-900', onClick, children }: {
-    label: string; hint: string; value: string; unit?: string; sub?: string; tone?: string; onClick: () => void; children?: React.ReactNode;
-  }) => (
-    <button type="button" onClick={onClick}
-      className={`${cardCls} group p-5 text-left transition hover:border-slate-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}>
-      <p className="flex items-center gap-1.5 text-base text-slate-700">
-        {label}<GiaiThich text={hint} />
-        <ChevronRight size={15} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
-      </p>
-      <p className={`mt-1.5 text-[2rem] font-bold leading-tight tabular-nums ${tone}`}>
-        {value}{unit && <span className="ml-1.5 text-lg font-medium text-slate-400">{unit}</span>}
-      </p>
-      {children}
-      {sub && <p className="mt-2 text-base text-slate-700">{sub}</p>}
-    </button>
-  );
-  // Nút / nhãn trên trang số liệu: đang chọn = đen; đỏ chỉ dành cho rủi ro (trễ, quá hạn)
-  const chip = (on: boolean) => `inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition ${on ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`;
-  const selectCls = 'text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5';
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
-      {/* Thanh tiêu đề + lọc */}
-      <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:px-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Báo cáo tiến độ công trình</h2>
-            <p className="text-sm text-slate-500">Giá trị tính bằng tỷ đồng · bấm thẻ, cột hoặc dòng để xem chi tiết · địa chỉ trang giữ bộ lọc, copy để gửi người khác</p>
+      {/* Thanh tiêu đề + bộ lọc */}
+      <div className="sticky top-0 z-30 bg-wood-50/90 backdrop-blur border-b border-slate-200 px-4 md:px-6 py-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+              Báo cáo tiến độ công trình{group && <span className="text-red-700"> · {GROUP_SHORT[group]}</span>}
+            </h2>
+            <p className="text-xs text-slate-500">Giá trị tính bằng Tỷ đồng · Bấm biểu đồ tròn để lọc chéo · Bấm ô số liệu, cột tháng, tên PC / công trình để xem chi tiết</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định tất cả */}
+            <DashboardFilter
+              label="Tình Trạng IPO"
+              options={ipoOptions}
+              selectedValues={ipoSel}
+              onChange={setIpoSel}
+            />
+            <SearchableSelect
+              value={f.ct ?? ''}
+              onChange={v => setKey('ct', v)}
+              options={options.ct.map(o => ({ code: o, name: o }))}
+              allLabel="Công trình: Tất cả"
+              widthClass="w-56"
+              className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+            />
+            <SearchableSelect
+              value={f.pm ?? ''}
+              onChange={v => setKey('pm', v)}
+              options={options.pm.map(o => ({ code: o, name: o }))}
+              allLabel="PM: Tất cả"
+              widthClass="w-40"
+              className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+            />
+            <SearchableSelect
+              value={f.kv ?? ''}
+              onChange={v => setKey('kv', v)}
+              options={options.kv.map(o => ({ code: o, name: o }))}
+              allLabel="Khu vực: Tất cả"
+              widthClass="w-44"
+              className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+            />
+            <SearchableSelect
+              value={f.month ?? ''}
+              onChange={v => setKey('month', v)}
+              options={options.month.map(o => ({ code: o, name: monthLabel(o) }))}
+              allLabel="Tháng hạn: Tất cả"
+              widthClass="w-40"
+              className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+            />
+            {/* Nhóm CT (vd. "CỤM TÂY HỒ VIEW", "OUT TOP 33 CT") và tình trạng dự án — cột có từ 10/2026 */}
+            {showCol.nct && (
+              <SearchableSelect
+                value={f.nct ?? ''}
+                onChange={v => setKey('nct', v)}
+                options={options.nct.map(o => ({ code: o, name: o }))}
+                allLabel="Nhóm CT: Tất cả"
+                widthClass="w-44"
+                className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+              />
+            )}
+            {showCol.tda && (
+              <SearchableSelect
+                value={f.tda ?? ''}
+                onChange={v => setKey('tda', v)}
+                options={options.tda.map(o => ({ code: o, name: o }))}
+                allLabel="Dự án: Tất cả"
+                widthClass="w-40"
+                className="text-sm [&>button]:h-9 [&>button]:rounded-lg [&>button]:px-2.5"
+              />
+            )}
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {/* Nhóm công trình: thay cho 2 trang riêng Luồng đỏ / Căn mẫu trước đây */}
-          {([null, ...CONFIGURABLE_VIEWS.map(v => v.id)] as (ProjectGroupId | null)[]).map(g => (
-            <button key={g ?? 'all'} type="button" onClick={() => { setGroup(g); setF({}); }} className={g !== 'luong-do' ? chip(group === g) : group === g ? chip(true).replace('border-slate-900 bg-slate-900', 'border-red-600 bg-red-600') : chip(false).replace('border-slate-300 bg-white text-slate-700 hover:bg-slate-50', 'border-red-300 bg-white font-semibold text-red-600 hover:bg-red-50')}
-              title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}>
-              {g === 'luong-do' && <i className={`h-2 w-2 rounded-full ${group === g ? 'bg-white' : 'bg-red-600'}`} aria-hidden />}
-              {g ? GROUP_SHORT[g] : 'Tất cả công trình'}
+        {activeKeys.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {activeKeys.map(k => (
+              <button
+                key={k}
+                onClick={() => setKey(k, '')}
+                className="inline-flex items-center gap-1 rounded-full bg-slate-900 text-white text-[0.6875rem] px-2.5 py-1 hover:bg-slate-700"
+              >
+                {FILTER_LABEL[k]}: {display(k, f[k]!)} <X size={11} />
+              </button>
+            ))}
+            <button onClick={() => setF({})} className="text-[0.6875rem] text-slate-500 hover:text-slate-900 underline ml-1">
+              Xóa tất cả bộ lọc
             </button>
-          ))}
-          <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden />
-          {/* Giống "Tình Trạng IPO" ở Bộ lọc tổng trang Tổng quan: chọn nhiều, mặc định Đang sản xuất */}
-          <DashboardFilter label="Tình Trạng IPO" options={ipoOptions} selectedValues={ipoSel} onChange={setIpoSel} />
-          {activeKeys.map(k => (
-            <button key={k} type="button" onClick={() => setKey(k, '')} className={chip(true)} title="Bỏ lọc này">
-              {FILTER_LABEL[k]}: {display(k, f[k]!)} <X size={14} aria-hidden />
-            </button>
-          ))}
-          <button type="button" onClick={() => setMoLoc(v => !v)} className={chip(false)} aria-expanded={moLoc}>
-            <SlidersHorizontal size={15} aria-hidden /> Bộ lọc{activeKeys.length ? ` (${activeKeys.length})` : ''}
-          </button>
-          {activeKeys.length > 0 && (
-            <button type="button" onClick={() => setF({})} className="text-sm text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline">Xóa lọc</button>
-          )}
-        </div>
-        {moLoc && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-3">
-            <SearchableSelect value={f.ct ?? ''} onChange={v => setKey('ct', v)} options={options.ct.map(o => ({ code: o, name: o }))}
-              allLabel="Công trình: Tất cả" widthClass="w-56" className={selectCls} />
-            <SearchableSelect value={f.pm ?? ''} onChange={v => setKey('pm', v)} options={options.pm.map(o => ({ code: o, name: o }))}
-              allLabel="PM: Tất cả" widthClass="w-40" className={selectCls} />
-            <SearchableSelect value={f.kv ?? ''} onChange={v => setKey('kv', v)} options={options.kv.map(o => ({ code: o, name: o }))}
-              allLabel="Khu vực: Tất cả" widthClass="w-44" className={selectCls} />
-            <SearchableSelect value={f.month ?? ''} onChange={v => setKey('month', v)} options={options.month.map(o => ({ code: o, name: monthLabel(o) }))}
-              allLabel="Tháng hạn: Tất cả" widthClass="w-40" className={selectCls} />
-            {/* Nhóm CT (vd. "CỤM TÂY HỒ VIEW", "OUT TOP 33 CT") và tình trạng dự án — cột có từ 10/2026 */}
-            {showCol.nct && (
-              <SearchableSelect value={f.nct ?? ''} onChange={v => setKey('nct', v)} options={options.nct.map(o => ({ code: o, name: o }))}
-                allLabel="Nhóm CT: Tất cả" widthClass="w-44" className={selectCls} />
-            )}
-            {showCol.tda && (
-              <SearchableSelect value={f.tda ?? ''} onChange={v => setKey('tda', v)} options={options.tda.map(o => ({ code: o, name: o }))}
-                allLabel="Dự án: Tất cả" widthClass="w-40" className={selectCls} />
-            )}
           </div>
         )}
       </div>
 
-      <div className="space-y-5 p-4 md:p-8">
+      <div className="p-4 md:p-6 space-y-4">
+        {/* Nhóm công trình: thay cho 2 trang riêng Luồng đỏ / Căn mẫu trước đây */}
+        <div className="flex h-9 w-fit items-center rounded-lg border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Nhóm công trình">
+          {([null, ...CONFIGURABLE_VIEWS.map(v => v.id)] as (ProjectGroupId | null)[]).map(g => (
+            <button
+              key={g ?? 'all'}
+              type="button"
+              onClick={() => { setGroup(g); setF({}); }}
+              title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
+              className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : g === 'luong-do' ? 'font-semibold text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              {g ? GROUP_SHORT[g] : 'Tất cả CT'}
+            </button>
+          ))}
+        </div>
         {group && groupSize === 0 && (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
             Chưa có công trình nào được setup cho nhóm {GROUP_SHORT[group]}. Vào Công trình → Setup phân loại để chọn công trình.
           </p>
         )}
 
-        {/* 4 thẻ */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <The label="Tổng giá trị đơn hàng" hint={GIAI_THICH.tongGiaTri} value={fmtTy(kpi.total)} unit="tỷ"
-            sub={`${fmtInt(kpi.cts)} công trình · ${fmtInt(kpi.items)} hạng mục${kpi.cancelled ? ` · ${fmtInt(kpi.cancelled)} hủy` : ''}`}
-            onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Tổng giá trị đơn hàng', pred: () => true, focus: 'total', note: GIAI_THICH.tongGiaTri })} />
-          <The label="Đã nhập kho (P022)" hint={GIAI_THICH.daNhapKho} value={fmtTy(roundTy(kpi.done))} unit={`tỷ · ${donePctLabel}`} tone="text-emerald-700"
-            sub={`Chưa nhập ${fmtTy(shownRemain)} tỷ · ${remainPctLabel} · ${fmtInt(kpi.stocked)} mục nhập đủ`}
-            onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Đã nhập kho (P022)', pred: r => r.done > 0, focus: 'done', note: GIAI_THICH.daNhapKho })}>
-            <span className="mt-3 flex h-2 overflow-hidden rounded-full bg-amber-400" aria-hidden>
-              <i className="bg-emerald-600" style={{ width: `${donePctInt}%` }} />
-            </span>
-          </The>
-          <The label="Quá hạn KH nhập kho" hint={GIAI_THICH.quaHan} value={fmtInt(kpi.bot.quaHan.n)} unit="mục"
-            tone={kpi.bot.quaHan.n ? 'text-red-600' : 'text-slate-900'} sub={`${fmtTy(kpi.bot.quaHan.remain)} tỷ chưa nhập kho`}
-            onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Quá hạn KH nhập kho', pred: r => nhomBot(r, today) === 'quaHan', focus: 'remain', note: GIAI_THICH.quaHan })} />
-          <The label="Quá BOT dự án, chưa xong" hint={GIAI_THICH.quaBot} value={fmtInt(kpi.pastBot)} unit="mục"
-            tone={kpi.pastBot ? 'text-red-600' : 'text-slate-900'} sub={`${fmtTy(kpi.pastBotRemain)} tỷ chưa nhập kho`}
-            onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Quá BOT dự án, chưa xong', pred: r => r.open && !!r.botDuAn && r.botDuAn.getTime() < today, focus: 'remain', note: GIAI_THICH.quaBot })} />
-        </div>
-
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-          {/* Biểu đồ: giá trị theo công đoạn (dòng chảy sản xuất). Theo PC xem bảng PC; theo khu vực / khách hàng xem
-              khung Nhóm đơn hàng phía dưới — không lặp lại ở đây */}
-          <div className={`${cardCls} p-5`}>
-            <h3 className="flex items-center gap-1.5 text-lg font-semibold text-slate-900">
-              Giá trị theo công đoạn <span className="text-sm font-normal text-slate-400">(tỷ)</span>
-              <GiaiThich text={GIAI_THICH.congDoan} />
-            </h3>
-            <>
-                <div className="mt-6 flex h-72 items-end gap-3 border-b border-slate-200 px-1">
-                  {cotCd.map(x => (
-                    <button key={x.key} type="button" onClick={() => openDetail({ eyebrow: 'Công đoạn', title: x.label, ...x.spec })}
-                      title={`${x.label}: ${fmtTy(x.v)} tỷ\n${x.hint}\nBấm để xem chi tiết`}
-                      className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end focus:outline-none">
-                      <span className="mb-1 whitespace-nowrap text-sm font-semibold tabular-nums text-slate-900">
-                        {fmtTy(x.v)} <span className="text-xs font-normal text-slate-400">{segPctInt.get(x.key) ?? 0}%</span>
-                      </span>
-                      <span className={`w-3/5 max-w-[5.5rem] rounded-t-md ${x.bar} transition group-hover:brightness-95 group-focus-visible:ring-2 group-focus-visible:ring-slate-900`}
-                        style={{ height: maxCd > 0 ? Math.max(2, (Math.max(x.v, 0) / maxCd) * 244) : 0 }} />
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-3 px-1 pt-2">
-                  {cotCd.map(x => {
-                    const [ten, ma] = tachMa(x.label);
-                    return (
-                      <div key={x.key} className="min-w-0 flex-1 text-center leading-tight">
-                        <p className="text-xs font-medium text-slate-800">{ten}</p>
-                        {ma && <p className="text-[0.6875rem] text-slate-400">{ma}</p>}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 flex gap-3 px-1 text-xs font-semibold">
-                  <div className="border-t-[3px] border-amber-500 pt-1.5 text-center text-amber-700" style={{ flex: remainSegs.length }}>
-                    Chưa nhập kho · {fmtTy(shownRemain)} tỷ · {remainPctLabel}
-                  </div>
-                  <div className="border-t-[3px] border-emerald-600 pt-1.5 text-center text-emerald-700" style={{ flex: doneSegs.length }}>
-                    Đã nhập kho · {fmtTy(roundTy(kpi.done))} tỷ · {donePctLabel}
-                  </div>
-                </div>
-            </>
+        {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
+            Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
+            Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn kho
+            Chưa nhập kho = Chưa triển khai (P001) + Chưa tính phiếu (P002) + Đang trên chuyền (P012→P021)
+                            [+ P022–P025 nhập chưa đủ] [+ đơn hủy] */}
+        <div className={`${cardCls} p-4`}>
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+            <button
+              type="button"
+              onClick={() => openDetail({ eyebrow: 'Chỉ số', title: 'Tổng giá trị đơn hàng', pred: () => true, focus: 'total', note: 'Tổng trị giá đơn hàng, gồm cả đơn hủy (khớp file gốc) — lọc Tình trạng IPO để bỏ hủy.' })}
+              title="Bấm để xem chi tiết"
+              className="group text-left"
+            >
+              <p className="flex items-center gap-1 text-[0.6875rem] font-medium tracking-wide text-slate-500">
+                Tổng giá trị đơn hàng <ChevronRight size={13} className="text-slate-300 group-hover:text-slate-600" />
+              </p>
+              <p className="text-3xl font-semibold tabular-nums text-slate-900">
+                {fmtTy(kpi.total)}<span className="ml-1 text-sm font-medium text-slate-400">Tỷ</span>
+              </p>
+            </button>
+            <p className="text-[0.6875rem] text-slate-500">
+              {fmtInt(kpi.cts)} công trình · {fmtInt(kpi.items)} hạng mục · đã nhập kho <b className="text-emerald-700">{donePctLabel}</b> giá trị
+            </p>
           </div>
-
-          {/* Cần chú ý — chỉ việc cần làm */}
-          <div className={`${cardCls} p-5`}>
-            <h3 className="text-lg font-semibold text-slate-900">Cần chú ý</h3>
-            {chuY.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">Không có gì cần xử lý theo bộ lọc hiện tại.</p>
-            ) : (
-              <ul className="mt-1 divide-y divide-slate-100">
-                {chuY.map(x => {
-                  const noiDung = (
-                    <>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[0.9375rem] text-slate-900 group-hover:underline">{x.tieuDe}</span>
-                        <span className="mt-0.5 block text-sm text-slate-500">{x.phu}</span>
-                      </span>
-                      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${x.mau}`}>
-                        <i className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />{x.nhan}
-                      </span>
-                    </>
-                  );
-                  return (
-                    <li key={x.key}>
-                      {x.href
-                        ? <a href={x.href} className="group flex items-start gap-3 py-3">{noiDung}</a>
-                        : <button type="button" onClick={x.mo} className="group flex w-full items-start gap-3 py-3 text-left">{noiDung}</button>}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+          {/* Thanh tỷ trọng: 2 nhóm (xanh = đã nhập kho, cam / xám = chưa nhập kho), mỗi đoạn = 1 ô bên dưới.
+              Ngoặc nhóm phía trên; % in trên đoạn đủ rộng; rê chuột xem số, bấm mở chi tiết. */}
+          <div className="mt-4" role="img" aria-label={`Tổng ${fmtTy(kpi.total)} tỷ: ${[...doneSegs, ...remainSegs].map(x => `${x.label} ${fmtTy(x.v)} tỷ`).join(', ')}`}>
+            <div className="mb-1 flex text-[0.6875rem] font-medium">
+              {doneW > 0 && (
+                <div className="min-w-0 pr-1" style={{ width: `${doneW}%` }}>
+                  <div className="truncate border-b-2 border-emerald-500 pb-0.5 text-emerald-800" title={`Đã nhập kho: ${fmtTy(roundTy(kpi.done))} tỷ`}>
+                    Đã nhập kho · {donePctLabel}
+                  </div>
+                </div>
+              )}
+              <div className="min-w-0 flex-1 pl-1">
+                <div className="truncate border-b-2 border-amber-400 pb-0.5 text-right text-amber-800" title={`Chưa nhập kho: ${fmtTy(shownRemain)} tỷ`}>
+                  Chưa nhập kho · {remainPctLabel}
+                </div>
+              </div>
+            </div>
+            <div className="flex h-8 gap-[2px] overflow-hidden rounded-md bg-white">
+              {[...doneSegs, ...remainSegs].filter(x => x.v > 0).map(x => {
+                const w = segPct(x.v);
+                return (
+                  <button
+                    key={x.key}
+                    type="button"
+                    onClick={() => openDetail({ eyebrow: 'Chỉ số', title: x.label, ...x.spec })}
+                    title={`${x.label}: ${fmtTy(x.v)} tỷ (${pctOf(x.v, segTotal)})\n${x.hint}\nBấm để xem chi tiết`}
+                    className={`${x.bar} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden text-[0.6875rem] font-semibold tabular-nums transition hover:brightness-95 hover:ring-2 hover:ring-inset hover:ring-slate-900/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-900`}
+                    style={{ width: `${w}%` }}
+                  >
+                    {w >= 4 && <span className="truncate px-1">{w >= 14 ? `${x.label.replace(/ \(.*\)$/, '')} · ` : ''}{segPctInt.get(x.key) ?? 0}%</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_3fr]">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/40 p-2.5">
+              <Mini label="Đã nhập kho (P022)" value={roundTy(kpi.done)} tone="text-emerald-700" strong
+                    hint={`Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng) = ${fmtTy(kpi.stockedDone)} tỷ của ${fmtInt(kpi.stocked)} mục nhập đủ + ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần${kpi.stockHuy > 0.0005 ? ` + ${fmtTy(kpi.stockHuy)} tỷ đơn hủy còn trong kho` : ''}.`}
+                    spec={{ pred: r => r.done > 0, focus: 'done', note: 'Giá trị đã nhập kho lũy kế (tối đa bằng trị giá đơn hàng).' }} />
+              <div className={`mt-2 grid gap-2 ${doneSegs.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {doneSegs.map(x => (
+                  <Mini key={x.key} label={x.label} value={x.v} tone="text-slate-900" bar={x.bar} hint={x.hint} spec={x.spec} />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+              <Mini label="Chưa nhập kho" value={shownRemain} tone="text-amber-700" strong
+                    hint="Trị giá đơn hàng − giá trị đã nhập kho, chia theo công đoạn BOP hiện tại của hạng mục."
+                    spec={{ pred: r => r.total - r.done > 0, focus: 'remain', note: 'Trị giá đơn hàng trừ giá trị đã nhập kho (gồm cả trị giá đơn hủy — lọc Tình trạng IPO để bỏ).' }} />
+              <div className={`mt-2 grid gap-2 ${remainSegs.length > 3 ? 'grid-cols-2 xl:grid-cols-4' : 'grid-cols-3'}`}>
+                {remainSegs.map(x => (
+                  <Mini key={x.key} label={x.label} value={x.v} tone="text-slate-900" bar={x.bar} hint={x.hint} spec={x.spec} />
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Bố cục cũ: trái (tháng hạn + PC) · giữa (danh sách công trình) · phải (cơ cấu đơn hàng) */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,3.3fr)_minmax(0,1.25fr)]">
+        {/* HẠNG MỤC + CẢNH BÁO (cảnh báo đếm hạng mục còn theo dõi: chưa nhập đủ, không hủy) */}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9">
+          <Kpi label="Công trình" value={fmtInt(kpi.cts)}
+               spec={{ pred: () => true, focus: 'total', note: 'Mọi hạng mục của các công trình (đếm công trình theo tên chuẩn — gộp các cách viết của cùng công trình).' }} />
+          <Kpi label="Tổng số mục" value={fmtInt(kpi.items)}
+               sub={kpi.cancelled > 0 ? `trong đó ${fmtInt(kpi.cancelled)} hủy` : undefined}
+               spec={{ pred: () => true, focus: 'items', note: 'Mọi hạng mục, kể cả đơn hủy.' }} />
+          <Kpi label="Đã nhập kho đủ" value={fmtInt(kpi.stocked)} unit="mục" tone="text-emerald-600"
+               sub={`${fmtTy(kpi.stockedDone)} tỷ`}
+               hint={`Đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng — ${fmtTy(kpi.stockedDone)} tỷ. Ô "Đã nhập kho (P022)" ${fmtTy(roundTy(kpi.done))} tỷ còn gồm ${fmtTy(kpi.partialDone)} tỷ của ${fmtInt(kpi.partial)} mục mới nhập một phần.`}
+               spec={{ pred: r => isStocked(r), focus: 'items', note: 'Hạng mục đã nhập kho đủ trị giá hoặc đủ số lượng đơn hàng (không tính đơn hủy).' }} />
+          <Kpi label="Chưa nhập kho đủ" value={fmtInt(kpi.notStocked)} unit="mục" tone="text-amber-600"
+               sub={kpi.partial > 0 ? `trong đó ${fmtInt(kpi.partial)} nhập một phần (${fmtTy(kpi.partialDone)} tỷ)` : undefined}
+               spec={{ pred: r => r.status !== 'HỦY' && !isStocked(r), focus: 'items', note: 'Hạng mục chưa nhập kho hoặc mới nhập một phần (không tính đơn hủy).' }} />
+          <Kpi label="Quá hạn KH nhập kho" value={fmtInt(kpi.overdue)} unit="mục" tone={kpi.overdue ? 'text-red-600' : 'text-slate-900'}
+               sub={`${fmtTy(kpi.overdueRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng (KH kỳ đã nhập đủ SL thì không tính)"
+               spec={{ pred: r => r.open && r.overdue, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ (giá trị / số lượng), đã qua KH nhập kho tuần → tháng.' }} />
+          <Kpi label="Chưa có KH nhập kho" value={fmtInt(kpi.noPlan)} unit="mục" tone={kpi.noPlan ? 'text-amber-600' : 'text-slate-900'}
+               sub={`${fmtTy(kpi.noPlanRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục chưa nhập kho đủ mà không có KH nhập kho tuần / tháng — không theo dõi được quá hạn"
+               spec={{ pred: r => r.open && !r.deadline && !r.planMet, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ, không có KH nhập kho tuần / tháng (chưa lập BOT).' }} />
+          <Kpi label="Đạt KH kỳ, chờ KH tiếp" value={fmtInt(kpi.metWait)} unit="mục" tone="text-sky-700"
+               sub={`${fmtTy(kpi.metWaitRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục đã nhập đủ số lượng KH nhập kho tuần / tháng của kỳ nhưng đơn hàng còn chưa nhập kho đủ — không trễ, chờ KH kỳ sau"
+               spec={{ pred: r => r.open && r.planMet, focus: 'remain', note: 'Hạng mục đã đạt KH nhập kho tuần / tháng của kỳ (nhập trong kỳ ≥ SL KH) nhưng đơn hàng còn chưa nhập kho đủ — chờ KH kỳ sau.' }} />
+          <Kpi label="Qua BOT dự án chưa xong" value={fmtInt(kpi.pastBot)} unit="mục" tone={kpi.pastBot ? 'text-red-600' : 'text-slate-900'}
+               sub={`${fmtTy(kpi.pastBotRemain)} tỷ chưa nhập kho`}
+               hint="Hạng mục chưa nhập kho đủ đã qua BOT dự án (hạn chung của công trình — tham khảo, không tính hạn từng hạng mục)"
+               spec={{ pred: r => r.open && !!r.botDuAn && r.botDuAn.getTime() < today, focus: 'remain', note: 'Hạng mục chưa nhập kho đủ đã qua BOT dự án (tham khảo).' }} />
+          <a
+            href="#/vuong-mac"
+            title="Vướng mắc chưa xử lý xong của các công trình trong danh sách — bấm để mở màn quản lý vướng mắc"
+            className={`${cardCls} group px-4 py-3 text-left transition hover:border-slate-400 hover:shadow-md`}
+          >
+            <p className="flex items-center justify-between text-[0.6875rem] font-medium tracking-wide text-slate-500">
+              Vướng mắc đang mở <AlertTriangle size={13} className={vmTotal ? 'text-red-500' : 'text-slate-300'} />
+            </p>
+            <p className={`mt-1 text-2xl font-semibold tabular-nums ${vmTotal ? 'text-red-600' : 'text-slate-900'}`}>
+              {vmRows === null ? '…' : fmtInt(vmTotal)}<span className="ml-1 text-sm font-medium text-slate-400">vướng mắc</span>
+            </p>
+            <p className="mt-0.5 text-[0.6875rem] text-slate-400">
+              {vmRows === null ? 'Đang tải' : `${fmtInt(vmSum.cts)} công trình · ${fmtInt(vmSum.overdue)} quá hạn BOT`}
+            </p>
+          </a>
+        </div>
+
+        {/* 1280–1535px: trái 4 / giữa 8, thẻ Nhóm đơn hàng xuống hàng dưới (bảng công trình 9 cột cần ≥ 800px);
+            từ 1536px: 3 / 6 / 3 */}
+        {/* Màn hình rộng: cột trái hẹp (biểu đồ + PC), cột giữa rộng để danh sách công trình hiện đủ, không viết tắt */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,3.4fr)_minmax(0,1.5fr)] gap-4">
           {/* Cột trái: biểu đồ theo tháng + bảng theo PC */}
-          <div className="xl:col-span-4 2xl:col-span-1 flex flex-col gap-4">
-            <div className={`${cardCls} p-5`}>
+          <div className="xl:col-span-4 2xl:col-span-1 space-y-4">
+            <div className={`${cardCls} p-4`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                <p className="text-sm font-semibold text-slate-800">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng</span></p>
+                <p className="text-xs font-semibold text-slate-700">Giá trị theo tháng hạn (Tỷ) <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng</span></p>
                 <div className="flex items-center gap-3 whitespace-nowrap text-[0.6875rem] text-slate-500">
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_DONE }} />Đã nhập kho</span>
                   <span className="inline-flex items-center gap-1"><i className="w-2 h-2 rounded-sm" style={{ background: COLOR_REMAIN }} />Chưa nhập kho</span>
@@ -866,30 +924,29 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
               </div>
             </div>
 
-            {/* Bảng PC giãn hết phần còn lại của cột (cao bằng bảng công trình bên cạnh), cuộn bên trong */}
-            <div className={`${cardCls} flex min-h-[22rem] flex-1 flex-col overflow-hidden`}>
-              <p className="text-sm font-semibold text-slate-800 px-4 pt-3 pb-2">Theo người phụ trách (PC) <span className="font-normal text-slate-400">· {pcTable.length} PC</span></p>
-              <div className="relative min-h-0 flex-1">
-              <div className="absolute inset-0 overflow-auto custom-scrollbar">
+            <div className={`${cardCls} overflow-hidden`}>
+              <p className="text-xs font-semibold text-slate-700 px-4 pt-3 pb-2">Theo người phụ trách (PC)</p>
+              <div className="max-h-[340px] overflow-auto custom-scrollbar">
                 <table className="w-full table-fixed text-xs">
                   <thead className="sticky top-0 bg-slate-50 text-slate-500">
                     <tr>
-                      <th className="text-left font-medium pl-3 pr-1.5 py-2">Tên PC</th>
+                      <th className="text-right font-medium pl-3 pr-1.5 py-2 w-8">STT</th>
+                      <th className="text-left font-medium px-1.5 py-2">Tên PC</th>
+                      <th className="text-right font-medium px-1.5 py-2 w-8" title="Số công trình">CT</th>
                       <th className="text-right font-medium px-1.5 py-2 w-12" title="Số hạng mục">Mục</th>
-                      <th className="text-right font-medium px-1.5 py-2 w-[3.75rem]" title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
-                      <th className="text-right font-medium px-1.5 py-2 w-12 whitespace-nowrap" title="Giá trị đã nhập kho / tổng giá trị">% NK</th>
-                      <th className="text-right font-medium pl-1.5 pr-3 py-2 w-[4.25rem] whitespace-nowrap" title={GIAI_THICH.quaHan}>Quá hạn</th>
+                      <th className="text-right font-medium pl-1.5 pr-3 py-2 w-[3.75rem]" title="Tổng giá trị (tỷ)">GT (Tỷ)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {pcTable.map(r => (
+                    {pcTable.map((r, idx) => (
                       <tr key={r.name} onClick={() => openDetail({
                             eyebrow: 'Người phụ trách (PC)', title: r.name, exclude: 'pc',
                             pred: rec => rec.pc === r.name, focus: 'total', filter: { key: 'pc', value: r.name },
                           })}
                           title="Bấm để xem các công trình PC đang quản lý"
                           className={`group cursor-pointer hover:bg-slate-50 ${f.pc === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
-                        <td className="pl-3 pr-1.5 py-1.5 text-slate-800">
+                        <td className="pl-3 pr-1.5 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                        <td className="px-1.5 py-1.5 text-slate-800">
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="min-w-0 break-words group-hover:text-blue-700 group-hover:underline">{r.name}</span>
                             {/* Lọc chéo theo PC (tách riêng để bấm dòng là mở chi tiết PC) */}
@@ -904,74 +961,54 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                             </button>
                           </div>
                         </td>
-                        <td className="px-1.5 py-1.5 text-right tabular-nums" title={`${r.cts.size} công trình`}>{fmtInt(r.items)}</td>
-                        <td className="px-1.5 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
-                        <td className="px-1.5 py-1.5">
-                          {(() => {
-                            const p = r.total > 0 ? Math.min(100, (r.done / r.total) * 100) : 0;
-                            return (
-                              <span className="flex justify-end" title={`Đã nhập kho ${fmtTy(r.done)} / ${fmtTy(r.total)} tỷ`}>
-                                <span className={`tabular-nums ${p >= 70 ? 'text-emerald-700' : 'text-slate-600'}`}>{p.toFixed(0)}%</span>
-                              </span>
-                            );
-                          })()}
-                        </td>
-                        <td className="pl-1.5 pr-3 py-1.5 text-right tabular-nums">
-                          {r.overdue ? <span className="rounded-full bg-red-50 px-1.5 py-0.5 font-semibold text-red-600">{fmtInt(r.overdue)}</span> : <span className="text-slate-300">—</span>}
-                        </td>
+                        <td className="px-1.5 py-1.5 text-right tabular-nums">{r.cts.size}</td>
+                        <td className="px-1.5 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
+                        <td className="pl-1.5 pr-3 py-1.5 text-right tabular-nums">{fmtTy(r.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="sticky bottom-0 bg-slate-50 font-semibold text-slate-800">
                     <tr>
-                      <td className="pl-3 pr-1.5 py-2">Tổng cộng</td>
+                      <td />
+                      <td className="px-1.5 py-2">Tổng cộng</td>
+                      <td className="px-1.5 py-2 text-right tabular-nums">{new Set(pcTable.flatMap(r => [...r.cts])).size}</td>
                       <td className="px-1.5 py-2 text-right tabular-nums">{fmtInt(pcTable.reduce((s, r) => s + r.items, 0))}</td>
-                      <td className="px-1.5 py-2 text-right tabular-nums">{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
-                      <td className="px-1.5 py-2 text-right tabular-nums text-slate-600">
-                        {(() => { const t = pcTable.reduce((s, r) => s + r.total, 0); return t > 0 ? `${((pcTable.reduce((s, r) => s + r.done, 0) / t) * 100).toFixed(0)}%` : '—'; })()}
-                      </td>
-                      <td className="pl-1.5 pr-3 py-2 text-right tabular-nums text-red-600">{fmtInt(pcTable.reduce((s, r) => s + r.overdue, 0)) || ''}</td>
+                      <td className="pl-1.5 pr-3 py-2 text-right tabular-nums">{fmtTy(pcTable.reduce((s, r) => s + r.total, 0))}</td>
                     </tr>
                   </tfoot>
                 </table>
               </div>
-              </div>
             </div>
           </div>
 
-          {/* Bảng công trình */}
-            <div className={`xl:col-span-8 2xl:col-span-1 ${cardCls} flex flex-col overflow-hidden`}>
-            <div className="flex flex-wrap items-center gap-3 px-5 py-4">
-              <h3 className="text-lg font-semibold text-slate-900">Công trình</h3>
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{fmtInt(ctTable.length)}</span>
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <label className="text-sm text-slate-500" htmlFor="ct-xep">Sắp xếp</label>
-                <select id="ct-xep" value={xep} onChange={e => setXep(e.target.value as XepCt)}
-                  className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 focus:border-slate-500 focus:outline-none">
-                  {XEP_CT.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}
-                </select>
-                <div className="relative">
-                  <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
-                  <input value={ctSearch} onChange={e => setCtSearch(e.target.value)} placeholder="Tìm công trình, PM…" aria-label="Tìm công trình"
-                    className="h-9 w-56 rounded-lg bg-slate-100 pl-8 pr-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300" />
-                </div>
+          {/* Cột giữa: danh sách công trình (rộng 6/12 cột, tên công trình hiện đầy đủ) */}
+          <div className={`xl:col-span-8 2xl:col-span-1 ${cardCls} overflow-hidden flex flex-col`}>
+            <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
+              <p className="text-xs font-semibold text-slate-700">Danh sách công trình ({fmtInt(ctTable.length)})</p>
+              <div className="relative">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={ctSearch} onChange={e => setCtSearch(e.target.value)} placeholder="Tìm công trình..."
+                  className="h-8 w-48 rounded-lg border border-slate-300 pl-8 pr-2 text-xs focus:outline-none focus:ring-2 focus:ring-wood-600/15 focus:border-wood-600"
+                />
               </div>
             </div>
-            <div className="max-h-[760px] overflow-auto custom-scrollbar">
+            <div className="flex-1 max-h-[720px] overflow-auto custom-scrollbar">
               <table className="w-full text-xs">
-                <thead className="sticky top-0 z-10 whitespace-nowrap bg-slate-50 text-[0.6875rem] uppercase text-slate-500">
+                <thead className="sticky top-0 bg-slate-50 text-slate-500">
                   <tr>
-                    <th className="w-10 py-2.5 pl-5 pr-2 text-right font-medium">#</th>
-                    <th className="px-2 py-2 text-left font-medium">Công trình · PM</th>
-                    <th className="px-2 py-2 text-right font-medium">Hạng mục</th>
-                    <th className="px-2 py-2 text-right font-medium"
+                    <th className="text-right font-medium pl-4 pr-2 py-2 w-10">STT</th>
+                    <th className="text-left font-medium px-2 py-2">Tên công trình</th>
+                    <th className="text-left font-medium px-2 py-2">PM</th>
+                    <th className="text-right font-medium px-2 py-2 whitespace-nowrap">Hạng mục</th>
+                    <th className="text-right font-medium px-2 py-2"
                         title={ctHasCancel ? 'Tổng trị giá đơn hàng, gồm cả đơn hủy (dòng phụ "hủy …" = phần trị giá đơn hủy). Cửa sổ công trình không tính đơn hủy — lọc Tình trạng IPO để bỏ.' : undefined}>
-                      Giá trị (tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
+                      Tổng giá trị (Tỷ){ctHasCancel && <span className="text-rose-500">*</span>}
                     </th>
-                    <th className="px-2 py-2 text-left font-medium" title={GIAI_THICH.hoanThanh}>Hoàn thành</th>
-                    <th className="px-2 py-2 text-left font-medium" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án</th>
-                    <th className="px-2 py-2 text-right font-medium" title={GIAI_THICH.quaHan}>Quá hạn</th>
-                    <th className="whitespace-nowrap py-2.5 pl-2 pr-5 text-right font-medium" title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc</th>
+                    <th className="text-left font-medium px-2 py-2 w-20">Hoàn thành</th>
+                    <th className="text-left font-medium px-2 py-2" title="BOT dự án — hạn chung của công trình (tham khảo); đỏ = đã qua mà còn hạng mục chưa xong">BOT dự án</th>
+                    <th className="text-right font-medium px-2 py-2" title="Hạng mục chưa nhập kho đủ đã qua KH nhập kho tuần / tháng">Quá hạn</th>
+                    <th className="text-right font-medium pl-2 pr-4 py-2" title="Vướng mắc chưa xử lý xong (theo mã công trình)">Vướng mắc</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -982,45 +1019,47 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     return (
                       <tr key={r.name} onClick={() => { if (canBang()) setHealth({ ct: r.name, inDetail: false }); }}
                           title="Bấm để xem tổng quan công trình (BOT · BOP · BOM)"
-                          className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100' : ''}`}>
-                        <td className="py-2.5 pl-5 pr-2 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                        <td className="min-w-[200px] px-2 py-2">
-                          <div className="flex items-start gap-1.5">
-                            <span className="min-w-0 break-words text-slate-900 group-hover:underline">{r.name}</span>
-                            {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở tổng quan công trình) */}
-                            <button type="button" onClick={e => { e.stopPropagation(); toggle('ct', r.name); }}
-                              title={f.ct === r.name ? 'Bỏ lọc công trình này' : 'Lọc cả trang theo công trình này'} aria-label="Lọc theo công trình"
-                              className={`mt-0.5 shrink-0 rounded p-0.5 hover:bg-slate-200 ${f.ct === r.name ? 'text-slate-900' : 'text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100'}`}>
-                              <Filter size={13} />
+                          className={`group cursor-pointer hover:bg-slate-50 ${f.ct === r.name ? 'bg-slate-100 font-semibold' : ''}`}>
+                        <td className="pl-4 pr-2 py-1.5 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                        <td className="px-2 py-1.5 text-slate-800 min-w-[260px]">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="break-words group-hover:text-blue-700 group-hover:underline" title={r.name}>{r.name}</span>
+                            {/* Lọc chéo theo công trình (tách riêng để bấm dòng là mở HEX) */}
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); toggle('ct', r.name); }}
+                              title={f.ct === r.name ? 'Bỏ lọc công trình này' : 'Lọc cả trang theo công trình này'}
+                              aria-label="Lọc theo công trình"
+                              className={`shrink-0 rounded p-0.5 hover:bg-slate-200 ${f.ct === r.name ? 'text-blue-600' : 'text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100'}`}
+                            >
+                              <Filter size={12} />
                             </button>
                           </div>
-                          <div className="text-xs text-slate-500" title={pms.join(', ')}>{pms.slice(0, 2).join(' · ')}{pms.length > 2 ? ` +${pms.length - 2}` : ''}</div>
                         </td>
-                        <td className="px-2 py-2 text-right tabular-nums text-slate-600">{fmtInt(r.items)}</td>
-                        <td className="px-2 py-2 text-right font-medium tabular-nums text-slate-900">
+                        <td className="min-w-[140px] px-2 py-1.5 text-slate-600" title={pms.join(', ')}>
+                          {pms.map(pm => <div key={pm} className="whitespace-nowrap">{pm}</div>)}
+                        </td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtInt(r.items)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">
                           {fmtTy(r.total)}
                           {r.cancelled > 0 && (
-                            <div className="text-[0.6875rem] font-normal leading-tight text-rose-500" title="Trị giá đơn hủy (đã tính trong Tổng GT)">hủy {fmtTy(r.cancelled)}</div>
+                            <div className="text-[0.625rem] font-normal leading-tight text-rose-500" title="Trị giá đơn hủy (đã tính trong Tổng GT)">hủy {fmtTy(r.cancelled)}</div>
                           )}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
                               <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="w-9 text-right text-xs tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
+                            <span className="w-9 text-right tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
                           </div>
                         </td>
-                        <td className={`whitespace-nowrap px-2 py-2 tabular-nums ${!r.botDuAn ? 'text-slate-300' : r.open === 0 ? 'text-emerald-600' : botLeft! < 0 ? 'font-semibold text-red-600' : botLeft! <= 30 ? 'text-amber-600' : 'text-slate-500'}`}
+                        <td className={`px-2 py-1.5 whitespace-nowrap tabular-nums ${!r.botDuAn ? 'text-slate-300' : r.open === 0 ? 'text-emerald-600' : botLeft! < 0 ? 'font-semibold text-red-600' : botLeft! <= 30 ? 'text-amber-600' : 'text-slate-500'}`}
                             title={r.botDuAn ? (r.open === 0 ? 'Đã nhập kho đủ' : botLeft! < 0 ? `Quá BOT dự án ${-botLeft!} ngày · còn ${fmtInt(r.open)} hạng mục` : `Còn ${botLeft} ngày · ${fmtInt(r.open)} hạng mục chưa xong`) : 'Chưa có BOT dự án'}>
                           {r.botDuAn ? r.botDuAn.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
                         </td>
-                        <td className="px-2 py-2 text-right tabular-nums">
-                          {r.overdue
-                            ? <span className="inline-block min-w-[2.25rem] rounded-full bg-red-50 px-2 py-0.5 text-center text-xs font-semibold text-red-600">{fmtInt(r.overdue)}</span>
-                            : <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className={`py-2.5 pl-2 pr-5 text-right tabular-nums ${r.vm.open ? 'font-semibold text-red-600' : 'text-slate-300'}`}
+                        <td className={`px-2 py-1.5 text-right tabular-nums ${r.overdue ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{r.overdue || '—'}</td>
+                        <td className={`pl-2 pr-4 py-1.5 text-right tabular-nums ${r.vm.open ? 'font-semibold text-red-600' : 'text-slate-300'}`}
                             title={r.vm.open ? `${r.vm.open} vướng mắc đang mở · ${r.vm.overdue} quá hạn BOT` : undefined}>
                           {vmRows === null ? '…' : r.vm.open || '—'}
                         </td>
@@ -1028,12 +1067,13 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
                     );
                   })}
                   {ctTable.length === 0 && (
-                    <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400">Không có công trình phù hợp</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
+
           {/* Cột phải: thẻ "Cơ cấu đơn hàng" dùng chung với Tổng quan / Luồng đỏ / Căn mẫu */}
           <div className="xl:col-span-12 2xl:col-span-1 flex flex-col">
             <OrderMixCard
@@ -1106,22 +1146,22 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             {/* Số liệu tổng — ô đang xem được tô viền */}
             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 px-5 py-4">
               <PcStat label="Công trình" value={fmtInt(detailData.cts)} />
-              <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} onClick={() => doiFocus('items')} />
-              <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} onClick={() => doiFocus('total')} />
+              <PcStat label="Hạng mục" value={fmtInt(detailData.items)} active={detail.focus === 'items'} />
+              <PcStat label="Tổng giá trị" value={fmtTy(detailData.total)} unit="Tỷ" active={detail.focus === 'total'} />
               <PcStat
                 label="Đã nhập kho" value={fmtTy(detailData.done)} unit="Tỷ" tone="text-emerald-600"
-                active={detail.focus === 'done'} onClick={() => doiFocus('done')}
+                active={detail.focus === 'done'}
                 sub={`${(detailData.total > 0 ? (detailData.done / detailData.total) * 100 : 0).toFixed(1)}% tổng giá trị`}
               />
-              <PcStat label="Chưa nhập kho" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} onClick={() => doiFocus('remain')} />
-              <PcStat label="Đã xuất / giao" value={fmtTy(detailData.exported)} unit="Tỷ" tone="text-sky-700" active={detail.focus === 'exported'} onClick={() => doiFocus('exported')} />
-              <PcStat label="Tồn kho" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} onClick={() => doiFocus('stock')} />
+              <PcStat label="Chưa nhập kho" value={fmtTy(detailData.remain)} unit="Tỷ" tone="text-amber-600" active={detail.focus === 'remain'} />
+              <PcStat label="Đã xuất / giao" value={fmtTy(detailData.exported)} unit="Tỷ" tone="text-sky-700" active={detail.focus === 'exported'} />
+              <PcStat label="Tồn kho" value={fmtTy(detailData.stock)} unit="Tỷ" tone="text-violet-700" active={detail.focus === 'stock'} />
             </div>
 
             <div className="flex items-center justify-between gap-3 px-5 pb-2">
               <p className="text-xs font-semibold text-slate-700">
                 Danh sách công trình ({fmtInt(detailProjects.length)})
-                <span className="font-normal text-slate-400"> · bấm 1 ô số phía trên để xếp theo cột đó · bấm 1 dòng để xem tổng quan BOT · BOP · BOM</span>
+                <span className="font-normal text-slate-400"> · bấm 1 dòng để xem tổng quan BOT · BOP · BOM</span>
               </p>
               <div className="relative">
                 <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />

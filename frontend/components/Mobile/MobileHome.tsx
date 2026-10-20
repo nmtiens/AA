@@ -78,13 +78,13 @@ export default function MobileHome({ active, onOpenList, onCreate, onUnauthorize
       )}
 
       {/* Báo vướng mắc — thao tác chính của người ở xưởng */}
-      <button onClick={onCreate} className="mb-3 flex w-full items-center gap-3 rounded-3xl bg-aa-600 p-4 text-left text-white shadow-[0_8px_20px_-6px_rgba(227,30,36,0.45)] active:bg-aa-700">
+      <button onClick={onCreate} className="mb-3 flex w-full items-center gap-3 rounded-3xl bg-slate-900 p-4 text-left text-white active:opacity-90">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15"><Plus size="1.5em" /></span>
         <span className="min-w-0">
           <span className="block text-lg font-semibold">Báo vướng mắc</span>
-          <span className="block text-sm text-white/80">Chọn hạng mục → mô tả, chụp ảnh → giao người xử lý</span>
+          <span className="block text-sm text-slate-300">Chọn hạng mục → mô tả, chụp ảnh → giao người xử lý</span>
         </span>
-        <ChevronRight size="1.125em" className="ml-auto shrink-0 text-white/70" />
+        <ChevronRight size="1.125em" className="ml-auto shrink-0 text-slate-400" />
       </button>
 
       {/* Việc của tôi: tôi xử lý / tôi báo */}

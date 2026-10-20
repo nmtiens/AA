@@ -85,7 +85,7 @@ export default function MobileNotifications({ onClose, onOpenItem, onUnreadChang
     }
     if (n.vuongMacId) onOpenItem(n.vuongMacId, n.hex);
     // Thông báo mục Xưởng: mở màn tổ trưởng (thao tác cần xem: thẻ Xưởng trên máy tính)
-    else if (n.kind.startsWith('xuong_')) location.href = n.kind === 'xuong_co' ? '/#/mra' : '/xuong';
+    else if (n.kind.startsWith('xuong_')) location.href = n.kind === 'xuong_co' ? '/#/setup?tab=xuong' : '/xuong';
   };
 
   const today = dayKey(new Date());
