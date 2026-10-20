@@ -26,7 +26,7 @@ import {
   ChonToSheet, ThanhViec, type NhanKetQua, type XacNhanDong, type AnhChup,
 } from './XuongSheets';
 import { NUT_CHINH, NUT_DONG, NUT_PHU, CHU_PHU, KHOI, KE, MAU } from './xuongUi';
-import { LogoAANgang } from '../../LogoAA';
+import { LogoAA } from '../../LogoAA';
 
 // ============================================================================
 // MÀN TỔ TRƯỞNG — mục "Tổ" của app Xưởng (/xuong, XuongShell). Thiết kế: docs/designs/xuong-checkin.md — Design Review Pass 1–7.
@@ -631,9 +631,9 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     <div className={`min-h-full ${BG}`} style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + ${10 + (hoanTac ? 5 : 0) + (hienRanh && canChia ? 5 : 0)}rem)` }}>
       {/* Tầng trên */}
       {/* Phần đầu cuộn theo trang (không dính) — chỉ thanh 3 tab dính trên cùng, để điện thoại còn chỗ cho danh sách */}
-      <header className="mx-auto max-w-3xl space-y-2 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+12px)]">
-        <LogoAANgang co="nho" className="rmd:hidden" />
-        <div className="flex items-center justify-between gap-2">
+      <header className="mx-auto max-w-3xl space-y-3 rounded-b-3xl bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+12px)] rmd:mt-3 rmd:rounded-3xl">
+        <div className="flex items-center justify-between gap-3">
+          <LogoAA className="h-11 w-11 rmd:hidden" />
           <div className="min-w-0 flex-1">
             {phien && phien.to.length > 1 ? (
               <button className="flex min-h-12 min-w-0 items-center gap-1 text-left" onClick={() => setSheet({ loai: 'chonTo' })} aria-label="Chọn tổ">
@@ -643,7 +643,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
             ) : (
               <h1 className="min-w-0 break-words text-2xl font-semibold text-slate-900">{toHienTai?.ten ?? 'MRA'}</h1>
             )}
-            <p className={`flex items-center gap-1.5 text-base font-medium ${thanhGui.mau.chu}`} aria-live="polite">
+            <p className={`mt-0.5 inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-0.5 text-base font-medium ${thanhGui.mau.nen} ${thanhGui.mau.chu}`} aria-live="polite">
               {thanhGui.icon} {thanhGui.ten}{hangDoi.canhBao ? ' — quá 4 giờ, tìm chỗ có sóng' : ''}
             </p>
             {/* Quản lý ghi hộ tổ khác: 1 dòng gọn (trước là băng riêng 2 nút, đẩy danh sách việc xuống thanh đáy) */}
@@ -656,12 +656,12 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
           </div>
           <div className="flex shrink-0 gap-2">
             {coTongQuan && (
-              <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Tổng quan xưởng" title="Tổng quan xưởng"
+              <button className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-700 active:bg-slate-200" aria-label="Tổng quan xưởng" title="Tổng quan xưởng"
                 onClick={onTongQuan}>
                 <LayoutGrid size="1.4em" />
               </button>
             )}
-            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-slate-700 active:bg-slate-100" aria-label="Làm mới" title="Làm mới"
+            <button className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-700 active:bg-slate-200" aria-label="Làm mới" title="Làm mới"
               onClick={() => { gui(); taiCv(); taiDm(); flash('Đang làm mới'); }}>
               <RefreshCw size="1.4em" />
             </button>
@@ -704,7 +704,7 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
           const chuaGan = nhom.dangChay.length && !(hienRanh && canChia) ? coMatNay.filter(m => !gan.has(m)).length : 0;
           return (
             <div className="flex items-stretch gap-2">
-              <button className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-white px-4 py-2 text-left active:bg-slate-50"
+              <button className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-2 text-left active:bg-slate-100"
                 onClick={() => setSheet({ loai: 'diemDanh', ca })}>
                 <span className="flex items-center gap-2 whitespace-nowrap text-base text-slate-800"><Users size="1.1em" className="shrink-0" aria-hidden />
                   <b className="tabular-nums">{coMatNay.length}</b> có mặt</span>

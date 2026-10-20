@@ -61,7 +61,9 @@ export const isValidUserId = (v: unknown): boolean => {
 // Dùng cho middleware chung /api/*: tài khoản bị khoá / đã xoá -> 401 dù token còn hạn.
 export const authenticateActiveUser = (req: Request, res: Response, next: NextFunction) =>
   authenticateJWT(req, res, () => {
-    loadUserAccess(req.user!.id).then(access => {
+    // Máy trạm quét hỏi 30 giây / lần (cả đêm nếu để màn hình mở): giữ kết quả 6 giờ để không đánh thức DB chính
+    // (bảng users) liên tục. Thu hồi trạm vẫn có hiệu lực ngay — route trạm kiểm phiên máy ở Supabase mỗi lần.
+    loadUserAccess(req.user!.id, req.user!.scope === 'tram' ? 6 * 3_600_000 : undefined).then(access => {
       if (!access.active) return res.status(401).json({ success: false, message: 'Tài khoản đã bị khoá hoặc không còn tồn tại' });
       // Token Xưởng bị thu hồi (admin thu hồi / đổi mật khẩu => token_version tăng)
       if (!xuongTokenVersionOk(req.user, access.tokenVersion)) {

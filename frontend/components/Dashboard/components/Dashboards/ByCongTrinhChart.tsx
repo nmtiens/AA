@@ -315,7 +315,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-        <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+        <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
           Xu hướng {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
         </h4>
@@ -329,7 +329,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
       <div
         ref={chartWrapRef}
-        className="relative bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col p-4"
+        className="relative bg-white rounded-2xl border border-slate-200 flex flex-col p-4"
         style={{ height: hasValidRange ? chartHeight : (embedded ? 320 : 420) }}
       >
         {!hasValidRange ? (

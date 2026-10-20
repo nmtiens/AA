@@ -5,6 +5,7 @@ import { timedQuery } from '../db.js';
 import { requireWarmupSecret } from '../server/auth.js';
 import { REPORT_COLUMNS, parseSafeDate, getRelevantVersions, trimCache, refreshAllDataCache, numericColQualified, sapKeySql } from '../server/data.js';
 import { createCache, cachedByVersions } from '../server/cache.js';
+import { laGioNghiDb } from '../server/gioNghi.js';
 import { app, warmupLimiter } from '../server/app.js';
 import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
 
@@ -141,6 +142,7 @@ app.get('/api/stock/dates', async (req: Request, res: Response) => {
 // (trước đây public hoàn toàn, có thể bị gọi dồn dập để ép tính lại cache nặng)
 // ============================================================================
 app.get('/api/warmup', warmupLimiter, requireWarmupSecret, async (_req: Request, res: Response) => {
+  if (laGioNghiDb()) return res.json({ ok: true, boQua: 'gio-nghi-db' });
   const startedAt = Date.now();
   const warmed: string[] = [];
   try {

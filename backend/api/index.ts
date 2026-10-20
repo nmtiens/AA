@@ -39,6 +39,7 @@ import '../src/routes/xuongCongNhan.js'; // /api/xuong/cong-nhan (danh sách cô
 import '../src/routes/xuongTram.js';     // /api/xuong/tram/* (trạm quét theo tổ — docs/designs/xuong-tram-quet.md)
 import '../src/routes/xuongThongBao.js'; // thông báo mục Xưởng + /api/cron/xuong (8h00, 16h30)
 import '../src/routes/tongQuan.js';   // /api/tong-quan/san-xuat (máy chủ tính sẵn màn đầu Tổng quan bằng code của giao diện)
+import '../src/routes/hoiDap.js';    // /api/hoi-dap/* (Hỏi số liệu — tự tra theo danh mục bảng / cột, chỉ đọc)
 
 const PORT = process.env.PORT || 5000;
 

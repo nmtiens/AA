@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES } from '../types';
+import { DataRow, ColumnDefinition, TARGET_COLUMN_NAMES, APP_VIEWS } from '../types';
+import { useLocation } from 'react-router-dom';
 import { Search, Download, ArrowUpDown, ChevronLeft, ChevronRight, Check, Filter, ChevronDown, XCircle, LayoutTemplate } from 'lucide-react';
 import { exportToCSV } from '../services/dataService';
 import { parseNumber } from './Dashboard/utils/numberParsers';
@@ -22,6 +23,18 @@ type AggregationType = 'NONE' | 'SUM' | 'COUNT' | 'DISTINCT_COUNT' | 'AVERAGE';
 // --- Helper Functions ---
 // Dùng chung hàm đọc số với Dashboard để dòng SUM/AVG của bảng khớp số liệu Dashboard.
 // (Hàm riêng cũ đọc "1,000" thành 1 trong khi Dashboard đọc thành 1000.)
+
+// Ô số lẻ: tối đa 2 chữ số thập phân (trước hiện nguyên "4.493795899999999"). Số nguyên (mã HEX, năm…) giữ nguyên.
+const fmtSoLe = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+const hienO = (v: unknown): { text: React.ReactNode; so: boolean } => {
+  if (typeof v === 'number') return Number.isInteger(v) ? { text: v, so: true } : { text: fmtSoLe.format(v), so: true };
+  if (typeof v === 'string' && /^-?\d+\.\d{3,}$/.test(v.trim())) return { text: fmtSoLe.format(Number(v)), so: true };
+  return { text: v as React.ReactNode, so: false };
+};
+
+// Tên cột dữ liệu gốc viết HOA hết ("TRỊ GIÁ ĐƠN HÀNG TỔNG") => viết thường, hoa chữ đầu cho dễ đọc
+const tenCot = (label: string) =>
+  label !== label.toLocaleUpperCase('vi') ? label : label.toLocaleLowerCase('vi').replace(/^\p{L}/u, c => c.toLocaleUpperCase('vi')).replace(/\bhex\b/gi, 'HEX');
 
 const formatAggregationValue = (value: number, type: AggregationType): string => {
   if (type === 'COUNT' || type === 'DISTINCT_COUNT') return value.toLocaleString('vi-VN');
@@ -90,10 +103,10 @@ const ExcelColumnFilter = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full min-w-[160px] max-w-[200px] px-3 py-2 text-sm border rounded-lg bg-white hover:bg-slate-50 transition-colors ${activeCount > 0 ? 'border-wood-500 ring-1 ring-wood-200' : 'border-slate-200'}`}
+        className={`flex items-center justify-between w-full min-w-[160px] max-w-[200px] px-3 py-2 text-sm border rounded-lg bg-white hover:bg-slate-50 transition-colors ${activeCount > 0 ? 'border-slate-900 ring-1 ring-slate-300' : 'border-slate-300'}`}
       >
         <div className="flex flex-col items-start truncate mr-2">
-          <span className="text-[0.5625rem] text-black font-bold uppercase tracking-wider">{label}</span>
+          <span className="text-[0.6875rem] text-slate-500">{label}</span>
           <span className="truncate font-medium text-slate-700 w-full text-left">
             {activeCount === 0 ? 'Tất cả' : `${activeCount} đã chọn`}
           </span>
@@ -107,19 +120,19 @@ const ExcelColumnFilter = ({
             <input
               type="text"
               placeholder="Tìm kiếm..."
-              className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-wood-400 bg-white"
+              className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded focus:outline-none focus:border-slate-500 bg-white"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               autoFocus
             />
           </div>
           <div className="p-2 border-b border-slate-100 bg-slate-50">
-            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700 hover:text-wood-600">
+            <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900">
               <input
                 type="checkbox"
                 checked={isAllSelected}
                 onChange={handleSelectAll}
-                className="rounded border-slate-300 text-wood-600 focus:ring-wood-500"
+                className="rounded border-slate-300 accent-slate-900"
               />
               (Chọn tất cả)
             </label>
@@ -129,12 +142,12 @@ const ExcelColumnFilter = ({
               <div className="p-2 text-xs text-slate-400 text-center">Không tìm thấy dữ liệu</div>
             ) : (
               filteredOptions.map(opt => (
-                <label key={opt} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-wood-50 rounded text-sm text-slate-700">
+                <label key={opt} className="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-slate-50 rounded text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={selectedValues.includes(opt)}
                     onChange={() => toggleValue(opt)}
-                    className="rounded border-slate-300 text-wood-600 focus:ring-wood-500"
+                    className="rounded border-slate-300 accent-slate-900"
                   />
                   <span className="truncate">{opt}</span>
                 </label>
@@ -144,7 +157,7 @@ const ExcelColumnFilter = ({
           <div className="p-2 border-t border-slate-100 flex justify-end">
             <button
               onClick={() => setIsOpen(false)}
-              className="px-3 py-1 bg-wood-600 text-white text-xs rounded hover:bg-wood-700 transition-colors"
+              className="px-3 py-1 bg-slate-900 text-white text-xs rounded hover:bg-slate-700 transition-colors"
             >
               Đóng
             </button>
@@ -167,6 +180,8 @@ const DataGrid: React.FC<DataGridProps> = ({
   exportFileNamePrefix = 'data',
   enableAggregation = false
 }) => {
+  const { pathname } = useLocation();
+  const tenTrang = APP_VIEWS.find(v => v.path === pathname)?.label ?? 'Dữ liệu';
   // State
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -444,9 +459,17 @@ const DataGrid: React.FC<DataGridProps> = ({
   }, [searchTerm, primaryFilterValue, additionalSearchValues, advancedFilters]);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-sm border border-slate-200">
+    <div className="flex h-full flex-col bg-[#f5f6f8] p-4 md:p-6">
+    {/* Tiêu đề trang: tên trang dữ liệu (theo đường dẫn) + số dòng đang xem */}
+    <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h1 className="page-title">{tenTrang}</h1>
+      <span className="text-sm text-slate-500">
+        {processedData.length.toLocaleString('en-US')} dòng{processedData.length !== data.length ? ` / ${data.length.toLocaleString('en-US')} (đang lọc)` : ''}
+      </span>
+    </div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
       {/* Toolbar */}
-      <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-4 justify-between items-center bg-slate-50/50">
+      <div className="p-3 border-b border-slate-200 flex flex-col md:flex-row gap-3 justify-between items-center">
 
         {/* Left: Search & Filters */}
         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto items-center">
@@ -456,7 +479,7 @@ const DataGrid: React.FC<DataGridProps> = ({
             <input
               type="text"
               placeholder={primarySearchColumn.label}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-wood-400"
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-500"
               value={primaryFilterValue}
               onChange={e => setPrimaryFilterValue(e.target.value)}
             />
@@ -469,7 +492,7 @@ const DataGrid: React.FC<DataGridProps> = ({
               <input
                 type="text"
                 placeholder={colConfig.label}
-                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-wood-400"
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-500"
                 value={additionalSearchValues[colConfig.header] || ''}
                 onChange={e => setAdditionalSearchValues(prev => ({ ...prev, [colConfig.header]: e.target.value }))}
               />
@@ -482,7 +505,7 @@ const DataGrid: React.FC<DataGridProps> = ({
             <input
               type="text"
               placeholder="Lọc trong bảng..."
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-wood-400"
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-500"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -513,7 +536,7 @@ const DataGrid: React.FC<DataGridProps> = ({
             return (
               <ExcelColumnFilter
                 key={key}
-                label={header}
+                label={tenCot(columns.find(c => c.key === colKey)?.label ?? header)}
                 options={getUniqueOptions(colKey)}
                 selectedValues={advancedFilters[header] || []}
                 onChange={(vals) => setAdvancedFilters(prev => ({ ...prev, [header]: vals }))}
@@ -525,7 +548,7 @@ const DataGrid: React.FC<DataGridProps> = ({
           <div className="relative" ref={colMenuRef}>
             <button
               onClick={() => setIsColumnMenuOpen(!isColumnMenuOpen)}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
             >
               <LayoutTemplate size={16} />
               <span className="hidden sm:inline text-sm font-medium">Cột</span>
@@ -545,7 +568,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
                   {columns.map(col => (
                     <label key={col.key} className="flex items-center gap-2 px-2 py-1.5 hover:bg-slate-50 rounded cursor-pointer">
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${!hiddenColumns.includes(col.key) ? 'bg-wood-600 border-wood-600 text-white' : 'border-slate-300'}`}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${!hiddenColumns.includes(col.key) ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-300'}`}>
                         {!hiddenColumns.includes(col.key) && <Check size={12} />}
                       </div>
                       <input
@@ -554,7 +577,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                         checked={!hiddenColumns.includes(col.key)}
                         onChange={() => toggleColumnVisibility(col.key)}
                       />
-                      <span className="text-sm text-slate-700 truncate">{col.label}</span>
+                      <span className="text-sm text-slate-700 truncate">{tenCot(col.label)}</span>
                     </label>
                   ))}
                 </div>
@@ -564,7 +587,7 @@ const DataGrid: React.FC<DataGridProps> = ({
 
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 bg-wood-600 text-white rounded-lg hover:bg-wood-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
           >
             <Download size={16} />
             <span className="hidden sm:inline text-sm font-medium">Xuất CSV</span>
@@ -575,18 +598,18 @@ const DataGrid: React.FC<DataGridProps> = ({
       {/* Table Area */}
       <div className="flex-1 overflow-auto custom-scrollbar">
         <table className="w-full text-left border-collapse min-w-[1000px]">
-          <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+          <thead className="bg-white sticky top-0 z-10 shadow-[0_1px_0_#e2e8f0]">
             <tr>
-              <th className="px-4 py-3 text-center border-b border-slate-200 text-xs font-bold text-slate-500 uppercase w-12">#</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 w-12">#</th>
               {visibleColumns.map(col => (
                 <th
                   key={col.key}
-                  className="px-4 py-3 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap cursor-pointer hover:bg-slate-100 transition-colors group"
+                  className={`px-4 py-3 text-xs font-medium whitespace-nowrap cursor-pointer hover:bg-slate-50 transition-colors group ${sortConfig?.key === col.key ? 'text-slate-900' : 'text-slate-500'}`}
                   onClick={() => handleSort(col.key)}
                 >
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    <ArrowUpDown size={12} className={`text-slate-300 transition-colors ${sortConfig?.key === col.key ? 'text-wood-600' : 'group-hover:text-slate-400'}`} />
+                  <div className="flex items-center gap-1" title={col.label}>
+                    {tenCot(col.label)}
+                    <ArrowUpDown size={12} className={`text-slate-300 transition-colors ${sortConfig?.key === col.key ? 'text-slate-900' : 'group-hover:text-slate-400'}`} />
                   </div>
                 </th>
               ))}
@@ -599,11 +622,14 @@ const DataGrid: React.FC<DataGridProps> = ({
                   <td className="px-4 py-2.5 text-center text-xs text-slate-400 font-mono">
                     {(currentPage - 1) * ROWS_PER_PAGE + index + 1}
                   </td>
-                  {visibleColumns.map(col => (
-                    <td key={col.key} className="px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap">
-                      {row[col.key]}
-                    </td>
-                  ))}
+                  {visibleColumns.map(col => {
+                    const o = hienO(row[col.key]);
+                    return (
+                      <td key={col.key} className={`px-4 py-2.5 text-sm text-slate-700 whitespace-nowrap ${o.so ? 'tabular-nums' : ''}`}>
+                        {o.text}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             ) : (
@@ -620,10 +646,10 @@ const DataGrid: React.FC<DataGridProps> = ({
 
           {/* Aggregation Footer */}
           {enableAggregation && (
-            <tfoot className="bg-wood-50 sticky bottom-0 z-20 font-bold border-t-2 border-wood-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <tfoot className="bg-slate-50 sticky bottom-0 z-20 font-semibold shadow-[0_-1px_0_#cbd5e1]">
               <tr>
-                <td className="px-4 py-3 text-center text-xs text-wood-700 bg-wood-100/50">
-                  TỔNG
+                <td className="px-4 py-3 text-center text-xs text-slate-700">
+                  Tổng
                 </td>
                 {visibleColumns.map(col => {
                   const type = aggregationSettings[col.key] || 'NONE';
@@ -633,7 +659,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                     <td key={col.key} className="px-4 py-2 min-w-[120px]">
                       <div className="flex flex-col gap-1 w-full">
                         <select
-                          className="text-[0.625rem] uppercase font-bold text-slate-500 bg-transparent border-none focus:ring-0 cursor-pointer p-0 w-full hover:text-wood-600 transition-colors"
+                          className="text-[0.6875rem] font-medium text-slate-500 bg-transparent border-none focus:ring-0 cursor-pointer p-0 w-full hover:text-slate-900 transition-colors"
                           value={type}
                           onChange={(e) => setAggregationSettings(prev => ({ ...prev, [col.key]: e.target.value as AggregationType }))}
                         >
@@ -645,7 +671,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                         </select>
 
                         {type !== 'NONE' && result !== null && (
-                          <div className="text-right font-bold text-wood-700 text-sm animate-in fade-in slide-in-from-bottom-1 border-t border-wood-200/50 pt-1">
+                          <div className="text-right font-semibold tabular-nums text-slate-900 text-sm border-t border-slate-200 pt-1">
                             {formatAggregationValue(result, type)}
                           </div>
                         )}
@@ -660,7 +686,7 @@ const DataGrid: React.FC<DataGridProps> = ({
       </div>
 
       {/* Footer / Pagination */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div className="px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="text-xs text-slate-500">
           Hiển thị <span className="font-bold text-slate-700">{processedData.length > 0 ? (currentPage - 1) * ROWS_PER_PAGE + 1 : 0}</span> đến <span className="font-bold text-slate-700">{Math.min(currentPage * ROWS_PER_PAGE, processedData.length)}</span> trong tổng số <span className="font-bold text-slate-700">{processedData.length}</span> dòng
         </div>
@@ -687,6 +713,7 @@ const DataGrid: React.FC<DataGridProps> = ({
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };

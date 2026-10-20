@@ -66,14 +66,14 @@ export default function SharedDateFilterBar({
   return (
     <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm px-4 py-3 space-y-2">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <span className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Bộ lọc chung</span>
+        <span className="text-sm font-medium text-slate-600">Bộ lọc chung</span>
         <div className="flex gap-2">
           {(['day', 'week', 'month'] as Granularity[]).map((g) => (
             <button
               key={g}
               onClick={() => applyGranularity(g)}
               className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                granularity === g ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 text-slate-600'
+                granularity === g ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-300 text-slate-600'
               }`}
             >
               {g === 'day' ? 'Ngày' : g === 'week' ? 'Tuần' : 'Tháng'}
@@ -96,7 +96,7 @@ export default function SharedDateFilterBar({
       onClick={() => applyPreset(p.days)}
       className={`px-2 py-1 rounded-md border shrink-0 transition-colors ${
         active
-          ? 'bg-indigo-600 border-indigo-600 text-white'
+          ? 'bg-slate-900 border-slate-900 text-white'
           : 'border-slate-200 text-slate-600 hover:bg-slate-50'
       }`}
     >
@@ -105,7 +105,7 @@ export default function SharedDateFilterBar({
   );
 })}
         {(dateFrom || dateTo) && (
-          <button onClick={clearRange} className="px-2 py-1 rounded-md hover:underline text-indigo-600 shrink-0">
+          <button onClick={clearRange} className="px-2 py-1 rounded-md hover:underline text-slate-600 shrink-0">
             Xóa lọc ngày
           </button>
         )}
@@ -156,7 +156,7 @@ export default function SharedDateFilterBar({
         )}
 
         {hasExtraFilters && (
-          <button onClick={clearExtraFilters} className="px-2 py-1 rounded-md hover:underline text-indigo-600 shrink-0">
+          <button onClick={clearExtraFilters} className="px-2 py-1 rounded-md hover:underline text-slate-600 shrink-0">
             Xóa lọc xưởng/công trình/ĐVT/phân loại
           </button>
         )}

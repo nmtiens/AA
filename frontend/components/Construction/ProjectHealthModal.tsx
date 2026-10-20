@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListChecks, ArrowRight, TrendingUp } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { X, AlertTriangle, ArrowRight, ChevronRight, HelpCircle } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
@@ -10,7 +11,8 @@ import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTa
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import type { NvlRaw } from '../../utils/nvlParse';
-import { BotTab, BopTab, BomTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
+import { BotTab, BopTab, BomTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, nhomBotHex, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
+import { NHOM_BOT, type NhomBot } from './core/chiSoCongTrinh';
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
 import { formatTrieuAsTy } from '../../utils/money';
@@ -95,43 +97,13 @@ const BUCKET_LABEL: Record<RemainBucket, string> = {
   onLine: 'Đang trên chuyền',
   shortfall: 'Nhập kho chưa đủ',
 };
-const BUCKET_COLOR: Record<RemainBucket, string> = {
-  notDeployed: 'bg-slate-400',
-  p002: 'bg-sky-400',
-  onLine: 'bg-amber-400',
-  shortfall: 'bg-violet-400',
-};
-
-/** Thanh chia tỷ trọng có chữ ngay trên từng đoạn: đoạn rộng ghi "tên · %", đoạn hẹp chỉ ghi %, quá hẹp thì
- *  để trống (rê chuột xem). Dùng cho thẻ BOT (số hạng mục) và BOP (trị giá). */
-type DoanThanh = { label: string; value: number; color: string; ink: string; title: string };
-function ThanhChia({ segs, total }: { segs: DoanThanh[]; total: number }) {
-  const hien = segs.filter(x => x.value > 0);
-  if (total <= 0 || !hien.length) return null;
-  return (
-    <div className="flex h-6 w-full gap-px overflow-hidden rounded-md bg-slate-100">
-      {hien.map(x => {
-        const pct = (x.value / total) * 100;
-        const pctTxt = pct >= 99.95 ? '100%' : pct < 1 ? '<1%' : `${Math.round(pct)}%`;
-        return (
-          <div key={x.label} title={x.title}
-               className={`${x.color} ${x.ink} flex min-w-[3px] items-center justify-center overflow-hidden whitespace-nowrap px-1 text-[0.6875rem] font-semibold tabular-nums`}
-               style={{ width: `${pct}%` }}>
-            {pct >= 28 ? `${x.label} · ${pctTxt}` : pct >= 7 ? pctTxt : ''}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-type Tone = 'red' | 'amber' | 'green' | 'slate';
-const TONE: Record<Tone, { ring: string; text: string; dot: string }> = {
-  red: { ring: 'border-red-200 bg-red-50/40', text: 'text-red-600', dot: 'bg-red-500' },
-  amber: { ring: 'border-amber-200 bg-amber-50/40', text: 'text-amber-600', dot: 'bg-amber-500' },
-  green: { ring: 'border-emerald-200 bg-emerald-50/40', text: 'text-emerald-600', dot: 'bg-emerald-500' },
-  slate: { ring: 'border-slate-200 bg-white', text: 'text-slate-900', dot: 'bg-slate-300' },
-};
+/** Dấu "?" giải thích (rê chuột) — thay cho câu chú thích dài dưới khung */
+const GiaiThich = ({ text }: { text: string }) => (
+  <span title={text} aria-label={text} className="inline-flex shrink-0 cursor-help text-slate-400 hover:text-slate-700"><HelpCircle size={14} aria-hidden /></span>
+);
+const thangNam = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+type Tab = 'overview' | 'bot' | 'bop' | 'bom';
+const TABS: Tab[] = ['overview', 'bot', 'bop', 'bom'];
 
 // Tỷ đồng: luôn 2 chữ số thập phân — thống nhất với Báo cáo tiến độ
 const fmtTy = formatTrieuAsTy;
@@ -141,11 +113,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
   isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, inventory, paceHexes,
 }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
-  type Tab = 'overview' | 'bot' | 'bop' | 'bom';
-  const TAB_TITLE: Record<Exclude<Tab, 'overview'>, string> = {
-    bot: 'BOT · Thời hạn', bop: 'BOP · Công đoạn', bom: 'BOM · Vật tư',
-  };
+  // Tab đang xem nằm trên địa chỉ (…&mo=<công trình>&tab=bom) — copy link mở đúng tab
+  const [sp, setSp] = useSearchParams();
   const [tab, setTab] = useState<Tab>('overview');
+  const [bieuDo, setBieuDo] = useState<'luong' | 'nhip'>('luong');
   const [materialMode, setMaterialMode] = useState<MaterialViewMode | null>(null);
   // Bấm 1 HEX ở tab BOM: mở thẳng cửa sổ vật tư của riêng hạng mục đó
   const [materialHex, setMaterialHex] = useState<string | null>(null);
@@ -158,7 +129,21 @@ export const ProjectHealthModal: React.FC<Props> = ({
     return { project: projectName, pm: r ? String(r['ten_pm'] ?? '') : undefined, pc: r ? String(r['ten_pc'] ?? '') : undefined };
   }, [timelineHex, rows, keys.hexKey, projectName]);
   const openMaterial = (mode: MaterialViewMode, hex: string | null = null) => { setMaterialHex(hex); setMaterialMode(mode); };
-  useEffect(() => { if (isOpen) { setTab('overview'); setMaterialMode(null); setMaterialHex(null); setTimelineHex(null); } }, [isOpen, projectName]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = sp.get('tab') as Tab | null;
+    setTab(t && TABS.includes(t) ? t : 'overview'); setBieuDo('luong');
+    setMaterialMode(null); setMaterialHex(null); setTimelineHex(sp.get('hex'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, projectName]);
+  useEffect(() => {
+    setSp(prev => {
+      const p = new URLSearchParams(prev);
+      if (isOpen && tab !== 'overview') p.set('tab', tab); else p.delete('tab');
+      if (isOpen && timelineHex) p.set('hex', timelineHex); else p.delete('hex');
+      return p.toString() === prev.toString() ? prev : p;
+    }, { replace: true });
+  }, [isOpen, tab, timelineHex, setSp]);
 
   // ---------- Chuẩn hoá từng hạng mục ----------
   const items = useMemo<HexInfo[]>(() => {
@@ -343,22 +328,18 @@ export const ProjectHealthModal: React.FC<Props> = ({
     return () => ctrl.abort();
   }, [isOpen, hexList]);
 
-  // ---------- Tổng hợp 3 thẻ ----------
+  // ---------- Tổng hợp ----------
+  // Thời hạn: 6 nhóm chung (core/chiSoCongTrinh.ts) — cùng số với tab BOT và trang Báo cáo tiến độ
   const bot = useMemo(() => {
-    const open = items.filter(i => i.open);
-    const overdue = open.filter(i => i.overdue);
-    const dueSoon = open.filter(i => i.dueSoon);
-    const dates = open.map(i => i.deadline).filter((d): d is Date => !!d).sort((a, b) => a.getTime() - b.getTime());
-    // Có KH nhưng KH kỳ đã đạt hết (không còn hạn) — tách khỏi "Chưa có KH nhập kho"
-    const metWait = open.filter(i => !i.deadline && (i.khnkTuanMet || i.khnkThangMet)).length;
-    const noDate = open.filter(i => !i.deadline).length - metWait;
-    // Có hạn, chưa tới hạn và còn hơn DUE_SOON_DAYS ngày
-    const onTrack = open.filter(i => i.deadline && !i.overdue && !i.dueSoon).length;
-    return {
-      overdue: overdue.length, overdueRemain: overdue.reduce((s, i) => s + i.remain, 0),
-      planAfterDue: open.filter(i => i.planAfterDue).length,
-      dueSoon: dueSoon.length, nearest: dates[0] ?? null, last: dates[dates.length - 1] ?? null, noDate, metWait, onTrack, open: open.length,
-    };
+    const c = Object.fromEntries(NHOM_BOT.map(g => [g.key, { n: 0, remain: 0 }])) as Record<NhomBot, { n: number; remain: number }>;
+    let open = 0, planAfterDue = 0;
+    for (const i of items) {
+      const g = nhomBotHex(i, today);
+      if (!g) continue;
+      open++; c[g].n++; c[g].remain += i.remain;
+      if (i.planAfterDue) planAfterDue++;
+    }
+    return { ...c, open, planAfterDue };
   }, [items, today]);
 
   const bop = useMemo(() => {
@@ -516,31 +497,52 @@ export const ProjectHealthModal: React.FC<Props> = ({
   useEffect(() => { if (isOpen) setListTab('urgent'); }, [isOpen, projectName]);
   const shownList = listTab === 'urgent' ? urgent : listTab === 'noBot' ? noBot : rest;
 
-  const botTone: Tone = bot.overdue > 0 ? 'red' : bot.dueSoon > 0 ? 'amber' : 'green';
   const donePct = bop.total > 0 ? (bop.done / bop.total) * 100 : 0;
   const coverPct = bom && hexList.length ? (bom.withMat / hexList.length) * 100 : 0;
-  const bomTone: Tone = !bom ? 'slate' : coverPct >= 80 ? 'green' : coverPct >= 40 ? 'amber' : 'red';
+  const card = 'rounded-2xl border border-slate-200 bg-white';
+  const veTab = (t: Tab) => () => setTab(t);
 
-  const Card = ({ icon: Icon, title, sub, tone, to, children }: {
-    icon: typeof Package; title: string; sub: string; tone: Tone; to: Tab; children: React.ReactNode;
+  // Thẻ số liệu: bấm chuyển sang tab / khung chi tiết của con số
+  const The = ({ label, hint, value, unit, sub, tone = 'text-slate-900', onClick, children }: {
+    label: string; hint: string; value: string; unit?: string; sub?: string; tone?: string; onClick: () => void; children?: React.ReactNode;
   }) => (
-    // Bấm vào bất kỳ đâu trên thẻ để mở tab chi tiết
-    <button
-      type="button"
-      onClick={() => setTab(to)}
-      title="Xem chi tiết"
-      className={`group flex h-full w-full cursor-pointer flex-col justify-start rounded-xl border p-4 text-left transition hover:shadow-md hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${TONE[tone].ring}`}
-    >
-      <div className="flex w-full items-center gap-2">
-        <span className={`h-2 w-2 rounded-full ${TONE[tone].dot}`} />
-        <Icon size={15} className="text-slate-500" />
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-700 group-hover:underline">{title}</p>
-        <span className="text-[0.6875rem] text-slate-400">{sub}</span>
-        <span className="ml-auto text-[0.6875rem] text-slate-400 group-hover:text-slate-700">Chi tiết ›</span>
-      </div>
-      <div className="mt-3 w-full">{children}</div>
+    <button type="button" onClick={onClick}
+      className={`${card} group p-4 text-left transition hover:border-slate-400 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}>
+      <p className="flex items-center gap-1.5 text-sm text-slate-600">
+        {label}<GiaiThich text={hint} />
+        <ChevronRight size={15} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
+      </p>
+      <p className={`mt-1 text-[1.625rem] font-bold leading-tight tabular-nums ${tone}`}>
+        {value}{unit && <span className="ml-1.5 text-sm font-medium text-slate-400">{unit}</span>}
+      </p>
+      {children}
+      {sub && <p className="mt-1.5 text-base text-slate-700">{sub}</p>}
     </button>
   );
+
+  // "Cần chú ý": CHỈ việc cần làm (không có dòng "ổn" / số 0); bấm chuyển tới chỗ xem chi tiết
+  const kipBot = !!(weekly && forecast && forecast.remain > 0 && forecast.needPace !== null && forecast.needPace > weekly.pace);
+  const chuY = ([
+    bot.quaHan.n > 0 && { k: 'qh', t: `${fmtInt(bot.quaHan.n)} hạng mục quá hạn KH nhập kho`, p: `${fmtTy(bot.quaHan.remain)} tỷ chưa nhập kho`, b: 'Trễ', c: 'bg-red-50 text-red-700', go: veTab('bot') },
+    kipBot && { k: 'kip', t: `Cần ${fmtTy(forecast!.needPace!)} tỷ/tuần để kịp BOT dự án`, p: `đang nhập ${fmtTy(weekly!.pace)} tỷ/tuần · còn ${forecast!.weeksLeft!.toFixed(0)} tuần`, b: 'Không kịp', c: 'bg-red-50 text-red-700', go: () => setBieuDo('nhip') },
+    bot.chuaCoKh.n > 0 && { k: 'kh', t: `${fmtInt(bot.chuaCoKh.n)} hạng mục chưa có KH nhập kho`, p: `${bot.open ? Math.round((bot.chuaCoKh.n / bot.open) * 100) : 0}% hạng mục chưa nhập kho đủ · không theo dõi được trễ hạn`, b: 'Thiếu KH', c: 'bg-amber-50 text-amber-800', go: veTab('bot') },
+    !!bomDetail && bomDetail.counts.notOrdered > 0 && { k: 'vt', t: `${fmtInt(bomDetail!.counts.notOrdered)} hạng mục có vật tư chưa mua`, p: `${fmtInt(bomLineHexes.late)} hạng mục có dòng đang mua trễ hẹn`, b: 'Vật tư', c: 'bg-amber-50 text-amber-800', go: veTab('bom') },
+    !!bomDetail && bomDetail.afterNeed > 0 && { k: 'vtSau', t: `${fmtInt(bomDetail!.afterNeed)} hạng mục vật tư về sau ngày cần`, p: 'ảnh hưởng hạn nhập kho', b: 'Lệch hạn', c: 'bg-amber-50 text-amber-800', go: veTab('bom') },
+    bot.planAfterDue > 0 && { k: 'sauGiao', t: `${fmtInt(bot.planAfterDue)} hạng mục KH nhập kho sau ngày cần giao`, p: 'biết trước sẽ giao trễ — xem lại KH hoặc báo PM', b: 'Lệch hạn', c: 'bg-amber-50 text-amber-800', go: veTab('bot') },
+    !!openIssueTotal && { k: 'vm', t: `${fmtInt(openIssueTotal!)} vướng mắc đang mở`, p: bomDetail?.issueTotal ? `${fmtInt(bomDetail.issueTotal)} vướng mắc vật tư (M3)` : 'xem cột Vấn đề trong danh sách', b: 'Vướng mắc', c: 'bg-red-50 text-red-700', go: () => setListTab('urgent') },
+    gcnPending > 0 && { k: 'gcn', t: `${fmtInt(gcnPending)} hạng mục gia công ngoài còn chờ NCC`, p: 'theo tình trạng GCN ở bảng sản xuất', b: 'GCN', c: 'bg-fuchsia-50 text-fuchsia-700', go: veTab('bop') },
+    !!projectMat && projectMat.byState.notOrdered + projectMat.byState.late > 0 && { k: 'vtChung', t: `Vật tư chung công trình: ${[projectMat!.byState.notOrdered > 0 && `${fmtInt(projectMat!.byState.notOrdered)} dòng chưa mua`, projectMat!.byState.late > 0 && `${fmtInt(projectMat!.byState.late)} dòng trễ hẹn`].filter(Boolean).join(' · ')}`, p: 'PR không ghi mã nhà máy — cần bổ sung mã để gắn hạng mục', b: 'Thiếu mã', c: 'bg-amber-50 text-amber-800', go: veTab('bom') },
+  ].filter(Boolean)) as Array<{ k: string; t: string; p: string; b: string; c: string; go: () => void }>;
+  const dangTai = bomDetail === null || openIssues === null;
+
+  // Khoảng rơi lớn nhất giữa 2 bước liên tiếp của luồng tiến độ
+  const roiNhat = funnel.reduce<{ tu: string; den: string; n: number } | null>((m, f, idx) => {
+    const truoc = funnel[idx - 1];
+    if (!truoc || truoc.n === null || f.n === null) return m;
+    const n = truoc.n - f.n;
+    return n > (m?.n ?? 0) ? { tu: truoc.label, den: f.label, n } : m;
+  }, null);
+  const MAU_BUOC = ['bg-slate-500', 'bg-sky-400', 'bg-blue-500', 'bg-amber-500', 'bg-emerald-600'];
 
   return (
     <ModalShell
@@ -549,68 +551,59 @@ export const ProjectHealthModal: React.FC<Props> = ({
       onClose={onClose}
       labelledBy="health-title"
       overlayClassName="fixed inset-0 z-[9992] flex items-center justify-center bg-slate-900/50 p-4"
-      panelClassName="w-[97vw] h-[95vh] flex flex-col rounded-xl bg-white shadow-2xl outline-none"
+      panelClassName="w-[97vw] h-[95vh] flex flex-col overflow-hidden rounded-2xl bg-wood-50 shadow-2xl outline-none"
     >
-      <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
-        <div className="min-w-0">
-          <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-500">Tổng quan công trình</p>
-          <h3 id="health-title" className="truncate text-lg font-semibold text-slate-900">{projectName}</h3>
-          <p className="mt-0.5 text-[0.6875rem] text-slate-500">
-            {pmText ? `PM: ${pmText} · ` : ''}{meta.pc ? `PC: ${meta.pc} · ` : ''}{fmtInt(hexList.length)} hạng mục · Tổng {fmtTy(bop.total)} tỷ (không tính đơn hủy, theo bộ lọc trang)
-            {meta.nhomCt ? ` · Nhóm: ${meta.nhomCt}` : ''}{meta.tinhTrangDuAn ? ` · Dự án: ${meta.tinhTrangDuAn}` : ''}
-          </p>
-          {meta.botDuAn && (() => {
-            const left = Math.floor((meta.botDuAn.getTime() - today) / DAY);
-            const openN = items.filter(i => i.open).length;
-            const tone = openN === 0 ? 'text-emerald-700' : left < 0 ? 'text-red-600' : left <= 30 ? 'text-amber-600' : 'text-slate-700';
-            return (
-              <p className={`mt-0.5 text-xs font-semibold ${tone}`} title="BOT dự án: hạn chung của công trình (tham khảo, không tính hạn từng hạng mục)">
-                BOT dự án {fmtDate(meta.botDuAn)}{openN === 0 ? ' · đã nhập kho đủ' : left < 0 ? ` · đã quá ${-left} ngày, còn ${fmtInt(openN)} hạng mục` : ` · còn ${left} ngày, ${fmtInt(openN)} hạng mục chưa xong`}
-              </p>
-            );
-          })()}
+      <div className="shrink-0 border-b border-slate-200 bg-white px-6 pt-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Tổng quan công trình</p>
+            <h3 id="health-title" className="truncate text-xl font-semibold text-slate-900">{projectName}</h3>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-500">
+              <span>{pmText ? `PM ${pmText} · ` : ''}{meta.pc ? `PC ${meta.pc} · ` : ''}{fmtInt(hexList.length)} hạng mục · {fmtTy(bop.total)} tỷ</span>
+              <GiaiThich text="Không tính đơn hủy, theo bộ lọc của trang Báo cáo tiến độ" />
+              {meta.nhomCt && <span>· Nhóm: {meta.nhomCt}</span>}
+              {meta.tinhTrangDuAn && <span>· Dự án: {meta.tinhTrangDuAn}</span>}
+              {meta.botDuAn && (() => {
+                const left = Math.floor((meta.botDuAn.getTime() - today) / DAY);
+                const c = bot.open === 0 ? 'bg-emerald-50 text-emerald-700' : left < 0 ? 'bg-red-50 text-red-700' : left <= 30 ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-700';
+                return (
+                  <span className={`ml-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${c}`}
+                    title="BOT dự án: hạn chung của công trình (tham khảo, không tính hạn từng hạng mục)">
+                    <i className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+                    BOT dự án {fmtDate(meta.botDuAn)}{bot.open === 0 ? ' · đã nhập kho đủ' : left < 0 ? ` · đã quá ${-left} ngày, còn ${fmtInt(bot.open)} mục` : ` · còn ${left} ngày`}
+                  </span>
+                );
+              })()}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={onOpenHexList}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800">
+              Danh sách HEX <ArrowRight size={15} aria-hidden />
+            </button>
+            <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800">
+              <X size={18} />
+            </button>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onOpenHexList}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
-          >
-            Xem danh sách HEX <ArrowRight size={13} />
-          </button>
-          <button type="button" onClick={onClose} aria-label="Đóng" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
-      {/* Tab chi tiết chỉ mở khi bấm vào thẻ ở Tổng quan; có nút quay lại */}
-      {tab !== 'overview' && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-5 py-2">
-          <button
-            type="button"
-            onClick={() => setTab('overview')}
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <ArrowLeft size={14} /> Tổng quan
-          </button>
-          <span className="text-slate-300">/</span>
-          {(Object.keys(TAB_TITLE) as Exclude<Tab, 'overview'>[]).map(k => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setTab(k)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-                tab === k ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              {TAB_TITLE[k]}
+        {/* Thanh tab luôn hiện (trước phải bấm thẻ mới vào được tab) — số cảnh báo ngay trên tab */}
+        <div className="mt-3 flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
+          {([
+            ['overview', 'Tổng quan', null],
+            ['bot', 'BOT · Thời hạn', bot.quaHan.n > 0 ? { n: `${fmtInt(bot.quaHan.n)} quá hạn`, c: 'bg-red-50 text-red-700' } : null],
+            ['bop', 'BOP · Công đoạn', null],
+            ['bom', 'BOM · Vật tư', bomDetail && bomDetail.counts.notOrdered > 0 ? { n: `${fmtInt(bomDetail.counts.notOrdered)} chưa mua`, c: 'bg-amber-50 text-amber-800' } : null],
+          ] as const).map(([k, label, badge]) => (
+            <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
+              className={`-mb-px inline-flex shrink-0 items-center gap-2 border-b-2 px-4 py-2.5 text-sm transition ${tab === k ? 'border-slate-900 font-semibold text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>
+              {label}
+              {badge && <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.c}`}>{badge.n}</span>}
             </button>
           ))}
         </div>
-      )}
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
+      <div className="min-h-0 flex-1 overflow-y-auto p-6 custom-scrollbar">
         {tab === 'bot' && <BotTab items={items} today={today} openIssues={openIssues} onHexClick={setTimelineHex} />}
         {tab === 'bop' && <BopTab items={items} onHexClick={setTimelineHex} extra={extra} today={today} />}
         {tab === 'bom' && (
@@ -627,351 +620,225 @@ export const ProjectHealthModal: React.FC<Props> = ({
             materialIssues={materialIssues}
           />
         )}
-        {tab === 'overview' && <>
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          {/* BOT — thời hạn */}
-          <Card icon={CalendarClock} title="BOT" sub="KH nhập kho tuần → tháng" tone={botTone} to="bot">
-            <p className={`text-3xl font-semibold tabular-nums ${bot.overdue > 0 ? 'text-red-600' : 'text-slate-900'}`}>
-              {fmtInt(bot.overdue)} <span className="text-sm font-medium text-slate-500">hạng mục quá hạn</span>
-            </p>
-            {bot.overdue > 0 && <p className="text-xs text-red-600">còn {fmtTy(bot.overdueRemain)} tỷ chưa nhập kho</p>}
-            {/* Thanh hạn của các hạng mục chưa nhập kho đủ: quá hạn / sắp hạn / còn hạn / đạt KH kỳ / chưa có KH */}
-            {(() => {
-              const segs = [
-                { k: 'Quá hạn', n: bot.overdue, c: 'bg-red-500', t: 'text-red-600' },
-                { k: `Sắp hạn (≤ ${DUE_SOON_DAYS} ngày)`, n: bot.dueSoon, c: 'bg-amber-400', t: 'text-amber-600' },
-                { k: 'Còn hạn', n: bot.onTrack, c: 'bg-emerald-400', t: 'text-emerald-700' },
-                { k: 'Đạt KH kỳ, chờ KH tiếp', n: bot.metWait, c: 'bg-sky-400', t: 'text-sky-700' },
-                { k: 'Chưa có KH nhập kho', n: bot.noDate, c: 'bg-slate-300', t: 'text-slate-700' },
-              ];
-              return bot.open > 0 ? (
-                <>
-                  <p className="mt-2 text-xs text-slate-500">{fmtInt(bot.open)} hạng mục chưa nhập kho đủ</p>
-                  <div className="mt-1">
-                    <ThanhChia total={bot.open} segs={segs.map(x => ({
-                      label: x.k, value: x.n, color: x.c, ink: x.c === 'bg-red-500' ? 'text-white' : 'text-slate-900',
-                      title: `${x.k}: ${fmtInt(x.n)} hạng mục`,
-                    }))} />
-                  </div>
-                  <dl className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 text-xs">
-                    {segs.map(x => (
-                      <React.Fragment key={x.k}>
-                        <span className={`h-2 w-2 rounded-sm ${x.c}`} />
-                        <dt className="text-slate-500">{x.k}</dt>
-                        <dd className={`text-right tabular-nums ${x.n ? `font-semibold ${x.t}` : 'text-slate-400'}`}>{fmtInt(x.n)}</dd>
-                      </React.Fragment>
+        {tab === 'overview' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <The label="Đã nhập kho" hint="Giá trị đã nhập kho / tổng trị giá đơn hàng của công trình (không tính đơn hủy)."
+                value={`${donePct.toLocaleString('en-US', { maximumFractionDigits: 1 })}%`} unit={`${fmtTy(bop.done)} / ${fmtTy(bop.total)} tỷ`} tone="text-emerald-700"
+                sub={`${fmtInt(bop.stockedItems)} hạng mục nhập đủ · còn ${fmtTy(bop.remainSum)} tỷ`} onClick={veTab('bop')}>
+                <span className="mt-2 flex h-1.5 overflow-hidden rounded-full bg-amber-400" aria-hidden><i className="bg-emerald-600" style={{ width: `${donePct}%` }} /></span>
+              </The>
+              <The label="Quá hạn KH nhập kho" hint={NHOM_BOT[0].giaiThich} value={fmtInt(bot.quaHan.n)} unit="mục"
+                tone={bot.quaHan.n ? 'text-red-600' : 'text-slate-900'}
+                sub={`${fmtTy(bot.quaHan.remain)} tỷ chưa nhập · ${fmtInt(bot.den14.n)} mục đến hạn ≤ 14 ngày`} onClick={veTab('bot')} />
+              <The label="Ước xong theo nhịp" hint="Phần còn chưa nhập kho ÷ nhịp nhập kho trung bình các tuần gần nhất — ước tính thô, giả định nhịp không đổi."
+                value={!weekly || !forecast ? '…' : forecast.remain <= 0 ? 'Đã xong' : forecast.finish ? thangNam(forecast.finish) : 'Không ước được'}
+                tone={forecast?.lateWeeks && forecast.lateWeeks > 0 ? 'text-red-600' : 'text-slate-900'}
+                sub={!weekly ? (inventory && inventory.length > 0 ? 'chưa có bảng nhập kho' : 'đang tải bảng nhập kho…')
+                  : `nhịp ${fmtTy(weekly.pace)} tỷ/tuần (${weekly.paceWeeks} tuần)${forecast?.lateWeeks && forecast.lateWeeks > 0 ? ` · trễ ~${forecast.lateWeeks} tuần so với BOT dự án` : ''}`}
+                onClick={() => setBieuDo('nhip')} />
+              <The label="Vật tư" hint="Hạng mục có ít nhất 1 dòng PR ghi mã nhà máy của nó. Hạng mục còn lại: vật tư có thể ở PR chung công trình (không mã), lấy từ tồn kho, hoặc chưa lên PR."
+                value={bom ? `${coverPct.toFixed(0)}%` : '…'} unit="hạng mục có PR ghi mã"
+                tone={!bom ? 'text-slate-900' : coverPct >= 80 ? 'text-emerald-700' : coverPct >= 40 ? 'text-amber-600' : 'text-red-600'}
+                sub={bomDetail ? `${fmtInt(bomDetail.counts.notOrdered)} HM có dòng chưa mua · ${fmtInt(bomLineHexes.late)} HM có dòng trễ hẹn` : 'đang kiểm tra vật tư…'}
+                onClick={veTab('bom')} />
+            </div>
+
+            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <div className="min-w-0 space-y-4">
+              <div className={`${card} p-5`}>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h4 className="flex items-center gap-1.5 text-lg font-semibold text-slate-900">
+                    {bieuDo === 'luong' ? 'Luồng tiến độ' : `Nhịp nhập kho ${WEEKS_SHOWN} tuần`}
+                    <GiaiThich text={bieuDo === 'luong'
+                      ? 'Số hạng mục đã qua từng bước (theo cột tình trạng triển khai bản vẽ / phiếu ở bảng sản xuất; hạng mục đã vào sản xuất tính là đã qua). % so với tổng hạng mục.'
+                      : 'Giá trị nhập kho theo tuần (bảng nhập kho, mọi hạng mục không hủy của công trình). Tuần hiện tại đang dở (nhạt); vạch đứt = nhịp trung bình.'} />
+                  </h4>
+                  <div className="ml-auto flex rounded-lg bg-slate-100 p-1" role="tablist">
+                    {([['luong', 'Luồng tiến độ'], ['nhip', `Nhịp nhập kho ${WEEKS_SHOWN} tuần`]] as const).map(([k, l]) => (
+                      <button key={k} type="button" role="tab" aria-selected={bieuDo === k} onClick={() => setBieuDo(k)}
+                        className={`rounded-md px-3 py-1 text-sm ${bieuDo === k ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{l}</button>
                     ))}
-                  </dl>
-                </>
-              ) : <p className="mt-2 text-xs text-emerald-700">Mọi hạng mục đã nhập kho đủ</p>;
-            })()}
-            <dl className="mt-3 grid grid-cols-[1fr_auto] gap-y-1 border-t border-slate-100 pt-2 text-xs">
-              <dt className="text-slate-500">Hạn gần nhất chưa xong</dt>
-              <dd className="text-right tabular-nums text-slate-700">{fmtDate(bot.nearest)}</dd>
-              <dt className="text-slate-500">Hạn cuối</dt>
-              <dd className="text-right tabular-nums text-slate-700">{fmtDate(bot.last)}</dd>
-              {bot.planAfterDue > 0 && <>
-                <dt className="text-slate-500" title="KH nhập kho tuần / tháng đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ">KH nhập kho sau ngày cần giao</dt>
-                <dd className="text-right font-semibold tabular-nums text-amber-600">{fmtInt(bot.planAfterDue)}</dd>
-              </>}
-            </dl>
-          </Card>
-
-          {/* BOP — công đoạn */}
-          <Card icon={Factory} title="BOP" sub="Tiến độ công đoạn" tone="slate" to="bop">
-            <p className="text-3xl font-semibold tabular-nums text-emerald-600">
-              {donePct.toLocaleString('en-US', { maximumFractionDigits: 1 })}%
-              <span className="ml-1 text-sm font-medium text-slate-500">đã nhập kho</span>
-            </p>
-            <p className="text-xs text-slate-500">{fmtTy(bop.done)} / {fmtTy(bop.total)} tỷ · {fmtInt(bop.stockedItems)} hạng mục nhập đủ</p>
-            {/* Thanh trị giá đơn hàng: đã nhập kho + phần còn lại theo công đoạn */}
-            <div className="mt-3">
-              <ThanhChia total={bop.total} segs={[
-                { label: 'Đã nhập kho', value: bop.done, color: 'bg-emerald-500', ink: 'text-white', title: `Đã nhập kho: ${fmtTy(bop.done)} tỷ` },
-                ...(Object.keys(BUCKET_LABEL) as RemainBucket[]).map(b => ({
-                  label: BUCKET_LABEL[b], value: bop.remain[b], color: BUCKET_COLOR[b], ink: 'text-slate-900',
-                  title: `${BUCKET_LABEL[b]}: ${fmtTy(bop.remain[b])} tỷ`,
-                })),
-              ]} />
-            </div>
-            <dl className="mt-2 grid grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 text-xs">
-              <span className="h-2 w-2 rounded-sm bg-emerald-500" />
-              <dt className="text-slate-500">Đã nhập kho</dt>
-              <dd className="text-right font-semibold tabular-nums text-emerald-700">{fmtTy(bop.done)} tỷ</dd>
-              {(Object.keys(BUCKET_LABEL) as RemainBucket[]).map(b => (
-                <React.Fragment key={b}>
-                  <span className={`h-2 w-2 rounded-sm ${BUCKET_COLOR[b]}`} />
-                  <dt className="text-slate-500">{BUCKET_LABEL[b]}</dt>
-                  <dd className="text-right tabular-nums text-slate-700">{fmtTy(bop.remain[b])} tỷ</dd>
-                </React.Fragment>
-              ))}
-            </dl>
-          </Card>
-
-          {/* BOM — vật tư */}
-          <Card icon={Package} title="BOM" sub="Vật tư" tone={bomTone} to="bom">
-            {bom ? (
-              <>
-                <p className="text-3xl font-semibold tabular-nums text-slate-900">
-                  {fmtInt(bom.withMat)}<span className="text-lg text-slate-400">/{fmtInt(hexList.length)}</span>
-                  <span className="ml-1 text-sm font-medium text-slate-500" title="Hạng mục có ít nhất 1 dòng PR ghi mã nhà máy của nó. Hạng mục còn lại: vật tư có thể ở PR chung của công trình (không mã), lấy từ tồn kho, hoặc chưa lên PR">hạng mục có PR ghi mã</span>
-                </p>
-                <div className="mt-2">
-                  <ThanhChia total={hexList.length} segs={[
-                    { label: 'Có PR ghi mã', value: bom.withMat, color: TONE[bomTone].dot, ink: bomTone === 'slate' ? 'text-slate-900' : 'text-white',
-                      title: `Có PR ghi mã nhà máy: ${fmtInt(bom.withMat)} hạng mục` },
-                    { label: 'Chưa thấy PR ghi mã', value: hexList.length - bom.withMat, color: 'bg-slate-200', ink: 'text-slate-700',
-                      title: `Chưa thấy PR ghi mã nhà máy: ${fmtInt(hexList.length - bom.withMat)} hạng mục (vật tư có thể ở PR chung công trình, lấy từ tồn kho, hoặc chưa lên PR)` },
-                  ]} />
-                </div>
-              </>
-            ) : <p className="text-sm text-slate-400">Đang kiểm tra vật tư…</p>}
-            <dl className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-xs">
-              <dt className="flex items-center gap-1.5 text-slate-500" title="Hạng mục chưa nhập kho đủ có ít nhất 1 dòng PR 1.CHƯA MUA (không tính gia công ngoài) — tình trạng xấu nhất của hạng mục"><span className="h-2 w-2 shrink-0 rounded-sm bg-red-600" />HM có dòng Chưa mua</dt>
-              <dd className="text-right font-semibold tabular-nums text-red-600">{bomDetail ? fmtInt(bomDetail.counts.notOrdered) : '…'}</dd>
-              <dt className="flex items-center gap-1.5 text-slate-500" title="Hạng mục chưa nhập kho đủ có dòng PR gia công ngoài (nhóm 806 / ghi chú GC…) chưa đặt hoặc chưa về"><span className="h-2 w-2 shrink-0 rounded-sm bg-fuchsia-500" />HM có dòng Gia công ngoài</dt>
-              <dd className="text-right font-semibold tabular-nums text-fuchsia-700">{bomDetail ? fmtInt(bomLineHexes.outsourced) : '…'}</dd>
-              <dt className="flex items-center gap-1.5 text-slate-500" title="Hạng mục chưa nhập kho đủ có ít nhất 1 dòng PR đang mua đã quá hạn giao mà chưa về đủ (kể cả hạng mục đồng thời có dòng chưa mua)"><span className="h-2 w-2 shrink-0 rounded-sm bg-orange-500" />HM có dòng Đang mua – trễ hẹn</dt>
-              <dd className="text-right font-semibold tabular-nums text-orange-600">{bomDetail ? fmtInt(bomLineHexes.late) : '…'}</dd>
-              <dt className="flex items-center gap-1.5 text-slate-500" title="Hạng mục chưa nhập kho đủ có dòng PR quá hạn giao nhưng ghi chú về theo nhu cầu SX / dùng tồn kho trước"><span className="h-2 w-2 shrink-0 rounded-sm bg-amber-300" />HM có dòng Đang mua – về theo nhu cầu SX</dt>
-              <dd className="text-right tabular-nums text-amber-700">{bomDetail ? fmtInt(bomLineHexes.deferred) : '…'}</dd>
-              <dt className="text-slate-500" title="Có dòng PR còn chờ sẽ về sau Ngày cần vật tư">Hạng mục có VT về sau ngày cần</dt>
-              <dd className="text-right font-semibold tabular-nums text-red-600">{bomDetail ? fmtInt(bomDetail.afterNeed) : '…'}</dd>
-              <dt className="text-slate-500" title="PR thuộc công trình nhưng không ghi mã nhà máy => không gắn được hạng mục (xem tab BOM)">VT chung công trình (không mã)</dt>
-              <dd className="text-right tabular-nums text-slate-700">{projectMat ? `${fmtInt(projectMat.lines)} dòng` : '…'}</dd>
-              <dd className={`col-span-2 -mt-0.5 pl-3 text-[0.6875rem] tabular-nums ${projectMat && (projectMat.byState.notOrdered + projectMat.byState.late) > 0 ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>
-                {!projectMat ? '' : `${fmtInt(projectMat.byState.notOrdered)} chưa mua · ${fmtInt(projectMat.byState.outsourced + projectMat.byState.gcNotOrdered)} gia công · ${fmtInt(projectMat.byState.late)} trễ · ${fmtInt(projectMat.byState.deferred)} theo nhu cầu SX`}
-              </dd>
-              <dt className="text-slate-500" title="Theo cột tình trạng gia công ngoài của bảng sản xuất (khác nhóm PR 'Gia công ngoài' ở trên): hạng mục chưa nhập kho đủ có gia công ngoài mà NCC chưa giao xong (tình trạng GCN chưa HOÀN THÀNH / HỦY) — xem tab BOP">Gia công ngoài còn chờ NCC (bảng SX)</dt>
-              <dd className={`text-right tabular-nums ${gcnPending ? 'font-semibold text-orange-600' : 'text-slate-700'}`}>
-                {extra === null ? '…' : `${fmtInt(gcnPending)} HM`}
-              </dd>
-              <dt className="text-slate-500" title="Vướng mắc loại M3 – Vật tư chưa xử lý (số vướng mắc · số hạng mục)">Vướng mắc vật tư (M3) đang mở</dt>
-              <dd className={`text-right tabular-nums ${bomDetail?.issueTotal ? 'font-semibold text-red-600' : 'text-slate-700'}`}>
-                {!bomDetail || materialIssues === null ? '…' : `${fmtInt(bomDetail.issueTotal)} · ${fmtInt(bomDetail.issueHexes)} HM`}
-              </dd>
-              <dt className="text-slate-500" title="Mọi loại M1–M5 chưa xử lý">Vướng mắc tồn đọng (mọi loại)</dt>
-              <dd className={`text-right tabular-nums ${openIssueTotal ? 'font-semibold text-red-600' : 'text-slate-700'}`}>
-                {openIssueTotal === null ? '…' : fmtInt(openIssueTotal)}
-              </dd>
-            </dl>
-            {bom && hexList.length > 0 && coverPct < 50 && (
-              <p className="mt-2 text-[0.6875rem] text-slate-500">
-                Tỷ lệ nối vật tư thấp — nhiều PR chưa ghi mã nhà máy, số liệu BOM chỉ mang tính tham khảo.
-              </p>
-            )}
-          </Card>
-        </div>
-
-        {/* Luồng tiến độ + nhịp nhập kho / dự báo */}
-        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1.15fr]">
-          {/* Phễu ngang: mỗi bước 1 dòng, thanh = % hạng mục so với bước đầu */}
-          <div className="rounded-xl border border-slate-200 p-4">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">Luồng tiến độ</p>
-              <p className="text-[0.6875rem] text-slate-400">số hạng mục đã qua từng bước · % so với tổng · trị giá (tỷ)</p>
-            </div>
-            <div className="mt-3 space-y-2">
-              {funnel.map((f, idx) => {
-                const base = funnel[0].n || 1;
-                const pct = f.n === null ? 0 : (f.n / base) * 100;
-                const last = idx === funnel.length - 1;
-                const bar = last ? 'bg-emerald-500' : idx === 0 ? 'bg-slate-700' : 'bg-sky-500';
-                return (
-                  <div key={f.label} className="grid grid-cols-[112px_1fr_152px] items-center gap-2 text-xs" title={f.hint}>
-                    <span className="truncate text-slate-600">{f.label}</span>
-                    <div className="h-5 overflow-hidden rounded bg-slate-100">
-                      {f.n !== null && (
-                        <div className={`flex h-5 items-center rounded ${bar}`} style={{ width: `${Math.max(pct, f.n > 0 ? 1.5 : 0)}%` }}>
-                          {pct >= 18 && <span className="px-2 text-[0.6875rem] font-semibold text-white">{pct.toFixed(0)}%</span>}
-                        </div>
-                      )}
-                    </div>
-                    <span className="whitespace-nowrap text-right tabular-nums">
-                      {f.n === null ? <span className="text-slate-400">chưa có cột</span> : <>
-                        <span className="font-semibold text-slate-900">{fmtInt(f.n)}</span>
-                        {pct < 18 && <span className="ml-1 text-slate-500">{pct.toFixed(0)}%</span>}
-                        <span className="ml-1.5 text-slate-400">{fmtTy(f.value)} tỷ</span>
-                      </>}
-                    </span>
                   </div>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[0.6875rem] text-slate-500">
-              Theo cột tình trạng triển khai bản vẽ / phiếu ở bảng sản xuất (hạng mục đã vào sản xuất tính là đã qua). Bấm thẻ BOP để xem theo công đoạn.
-            </p>
-          </div>
-
-          {/* Nhịp nhập kho: biểu đồ cột theo tuần + đường nhịp trung bình + dự báo */}
-          <div className="rounded-xl border border-slate-200 p-4">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                <TrendingUp size={14} /> Nhịp nhập kho {WEEKS_SHOWN} tuần
-              </p>
-              <p className="flex flex-wrap items-center gap-x-2 text-[0.6875rem] text-slate-400">
-                {weekly && weekly.pace > 0 && (
-                  <span className="inline-flex items-center gap-1 font-medium text-amber-700">
-                    <span className="inline-block w-4 border-t-2 border-dashed border-amber-500" />
-                    TB {formatTrieuAsTy(weekly.pace)} tỷ/tuần
-                  </span>
-                )}
-                <span>tỷ / tuần · theo bảng nhập kho · tuần hiện tại đang dở (nhạt)</span>
-              </p>
-            </div>
-            {!weekly ? (
-              <p className="py-6 text-center text-xs text-slate-400">
-                {inventory && inventory.length > 0 ? 'Chưa có bảng nhập kho để tính nhịp.' : 'Đang tải bảng nhập kho để tính nhịp…'}
-              </p>
-            ) : (
-              <div className="mt-2 grid gap-3 md:grid-cols-[1fr_230px]">
-                <div className="h-40">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={weekly.chart} margin={{ top: 14, right: 6, left: -18, bottom: 0 }} barCategoryGap="22%">
-                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={0} />
-                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatTrieuAsTy(v)} width={48} />
-                      <Tooltip
-                        cursor={{ fill: 'rgba(148,163,184,0.12)' }}
-                        labelFormatter={(_l: unknown, p: any[]) => (p?.[0]?.payload ? `Tuần từ ${p[0].payload.full}${p[0].payload.cur ? ' (đang dở)' : ''}` : '')}
-                        formatter={(v: number, _n: string, p: any) => [`${formatTrieuAsTy(v)} tỷ · ${p.payload.hexes} hạng mục`, 'Nhập kho']}
-                      />
-                      <Bar dataKey="value" radius={[3, 3, 0, 0]}>
-                        {weekly.chart.map(w => <Cell key={w.start} fill={w.cur ? '#bae6fd' : '#0ea5e9'} />)}
-                      </Bar>
-                      {/* Đường nhịp TB vẽ SAU cột (nằm trên cột); nhãn đưa lên chú thích phía trên — nhãn trong vùng
-                          vẽ bị cột che */}
-                      {weekly.pace > 0 && (
-                        <ReferenceLine y={weekly.pace} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 3" ifOverflow="extendDomain" />
-                      )}
-                    </BarChart>
-                  </ResponsiveContainer>
                 </div>
-                {forecast && (
-                  <dl className="grid grid-cols-[1fr_auto] content-start gap-x-2 gap-y-1.5 text-xs">
-                    <dt className="text-slate-500">Nhịp TB {weekly.paceWeeks} tuần qua</dt>
-                    <dd className="text-right font-semibold tabular-nums text-slate-800">{fmtTy(weekly.pace)} tỷ/tuần</dd>
-                    <dt className="text-slate-500">Còn chưa nhập kho</dt>
-                    <dd className="text-right tabular-nums text-amber-700">{fmtTy(forecast.remain)} tỷ</dd>
-                    {forecast.remain > 0 && <>
-                      <dt className="text-slate-500" title="Còn lại ÷ nhịp trung bình — ước tính thô, giả định nhịp không đổi">Ước xong theo nhịp</dt>
-                      <dd className={`text-right font-semibold tabular-nums ${forecast.lateWeeks !== null && forecast.lateWeeks > 0 ? 'text-red-600' : 'text-slate-800'}`}>
-                        {forecast.finish ? <>{fmtDate(forecast.finish)}<span className="block text-[0.625rem] font-normal text-slate-400">~{Math.ceil(forecast.weeksNeeded!)} tuần</span></> : 'không ước được'}
-                      </dd>
-                      {forecast.weeksLeft !== null && <>
-                        <dt className="text-slate-500">Cần để kịp BOT dự án<span className="block text-[0.625rem] text-slate-400">còn {forecast.weeksLeft.toFixed(0)} tuần</span></dt>
-                        <dd className={`text-right tabular-nums ${forecast.needPace !== null && forecast.needPace > weekly.pace ? 'font-semibold text-red-600' : 'text-emerald-700'}`}>
-                          {forecast.needPace === null ? 'đã qua BOT' : `${fmtTy(forecast.needPace)} tỷ/tuần`}
-                          {forecast.lateWeeks !== null && forecast.lateWeeks > 0 && forecast.needPace !== null && <span className="block text-[0.625rem] font-normal">trễ ~{forecast.lateWeeks} tuần</span>}
-                        </dd>
-                      </>}
-                    </>}
-                  </dl>
+                {bieuDo === 'luong' ? (
+                  <>
+                    <div className="mt-5 space-y-3">
+                      {funnel.map((f, idx) => {
+                        const base = funnel[0].n || 1;
+                        const pct = f.n === null ? 0 : (f.n / base) * 100;
+                        return (
+                          <div key={f.label} className="grid grid-cols-[9.5rem_minmax(0,1fr)_11rem] items-center gap-3 text-sm" title={f.hint}>
+                            <span className="truncate text-slate-700">{f.label}</span>
+                            <div className="h-6 overflow-hidden rounded-md bg-slate-100">
+                              {f.n !== null && <div className={`h-full rounded-md ${MAU_BUOC[idx] ?? 'bg-slate-400'}`} style={{ width: `${Math.max(pct, f.n > 0 ? 1.5 : 0)}%` }} />}
+                            </div>
+                            <span className="whitespace-nowrap text-right tabular-nums">
+                              {f.n === null ? <span className="text-slate-400">chưa có cột</span> : <>
+                                <b className="font-semibold text-slate-900">{fmtInt(f.n)}</b>
+                                <span className="ml-1.5 text-xs text-slate-500">{pct.toFixed(0)}% · {fmtTy(f.value)} tỷ</span>
+                              </>}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {roiNhat && (
+                      <p className="mt-4 text-sm text-slate-600">
+                        Khoảng rơi lớn nhất: <b className="font-semibold text-slate-900">{roiNhat.tu} → {roiNhat.den}</b> ({fmtInt(roiNhat.n)} hạng mục).
+                      </p>
+                    )}
+                  </>
+                ) : !weekly ? (
+                  <p className="py-10 text-center text-sm text-slate-400">
+                    {inventory && inventory.length > 0 ? 'Chưa có bảng nhập kho để tính nhịp.' : 'Đang tải bảng nhập kho để tính nhịp…'}
+                  </p>
+                ) : (
+                  <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
+                    <div className="h-56">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weekly.chart} margin={{ top: 14, right: 6, left: -18, bottom: 0 }} barCategoryGap="22%">
+                          <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} interval={0} />
+                          <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatTrieuAsTy(v)} width={48} />
+                          <Tooltip
+                            cursor={{ fill: 'rgba(148,163,184,0.12)' }}
+                            labelFormatter={(_l: unknown, p: any[]) => (p?.[0]?.payload ? `Tuần từ ${p[0].payload.full}${p[0].payload.cur ? ' (đang dở)' : ''}` : '')}
+                            formatter={(v: number, _n: string, p: any) => [`${formatTrieuAsTy(v)} tỷ · ${p.payload.hexes} hạng mục`, 'Nhập kho']}
+                          />
+                          <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+                            {weekly.chart.map(w => <Cell key={w.start} fill={w.cur ? '#a7f3d0' : '#12805c'} />)}
+                          </Bar>
+                          {weekly.pace > 0 && (
+                            <ReferenceLine y={weekly.pace} stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 3" ifOverflow="extendDomain" />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {forecast && (
+                      <dl className="divide-y divide-slate-100 text-sm">
+                        <div className="flex justify-between py-2"><dt className="text-slate-500">Nhịp TB {weekly.paceWeeks} tuần qua</dt><dd className="font-semibold tabular-nums text-slate-900">{fmtTy(weekly.pace)} tỷ/tuần</dd></div>
+                        <div className="flex justify-between py-2"><dt className="text-slate-500">Còn chưa nhập kho</dt><dd className="tabular-nums text-amber-700">{fmtTy(forecast.remain)} tỷ</dd></div>
+                        {forecast.remain > 0 && (
+                          <div className="flex justify-between py-2"><dt className="text-slate-500">Ước xong theo nhịp</dt>
+                            <dd className={`text-right font-semibold tabular-nums ${forecast.lateWeeks !== null && forecast.lateWeeks > 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                              {forecast.finish ? <>{fmtDate(forecast.finish)}<span className="block text-xs font-normal text-slate-400">~{Math.ceil(forecast.weeksNeeded!)} tuần</span></> : 'không ước được'}
+                            </dd></div>
+                        )}
+                        {forecast.remain > 0 && forecast.weeksLeft !== null && (
+                          <div className="flex justify-between py-2"><dt className="text-slate-500">Cần để kịp BOT dự án<span className="block text-xs text-slate-400">còn {forecast.weeksLeft.toFixed(0)} tuần</span></dt>
+                            <dd className={`text-right tabular-nums ${forecast.needPace !== null && forecast.needPace > weekly.pace ? 'font-semibold text-red-600' : 'text-emerald-700'}`}>
+                              {forecast.needPace === null ? 'đã qua BOT' : `${fmtTy(forecast.needPace)} tỷ/tuần`}
+                            </dd></div>
+                        )}
+                      </dl>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-        {/* Cần xử lý ngay · Chú ý (không có BOT) · Còn lại */}
-        <div className="mt-5">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            {([
-              ['urgent', 'Cần xử lý ngay', urgent.length, ListChecks, 'red'],
-              ['noBot', 'Chú ý: không có BOT', noBot.length, AlertTriangle, 'amber'],
-              ['rest', 'Còn lại', rest.length, CalendarClock, 'slate'],
-            ] as const).map(([k, label, n, Icon, tone]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setListTab(k)}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  tone === 'red'
-                    ? (listTab === k ? 'bg-red-600 text-white' : 'bg-red-50 text-red-700 hover:bg-red-100')
-                    : tone === 'amber'
-                      ? (listTab === k ? 'bg-amber-500 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100')
-                      : (listTab === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100')
-                }`}
-              >
-                <Icon size={15} className={listTab === k ? 'text-white' : tone === 'red' ? 'text-red-600' : tone === 'amber' ? 'text-amber-500' : 'text-slate-500'} />
-                {label}
-                <span className={`rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ${
-                  listTab === k ? 'bg-white/20 text-white' : tone === 'red' ? 'bg-red-100 text-red-700' : tone === 'amber' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {k !== 'noBot' && (matCount === null || openIssues === null) ? '…' : fmtInt(n)}
-                </span>
-              </button>
-            ))}
-            <span className="text-[0.6875rem] text-slate-500">
-              {listTab === 'urgent'
-                ? <>Hạng mục quá hạn hoặc sắp hạn (≤ {DUE_SOON_DAYS} ngày) theo KH nhập kho tuần / tháng mà còn vướng: chưa triển khai / chưa tính phiếu, đã triển khai chưa thấy PR, có VT chưa mua / trễ hẹn giao, KH nhập kho sau ngày cần giao, hoặc có vướng mắc tồn đọng.</>
-                : listTab === 'noBot'
-                  ? <>Hạng mục chưa nhập kho đủ mà chưa có BOT: không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL mà hạng mục chưa nhập kho đủ) — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.</>
-                  : <>Hạng mục chưa nhập kho đủ, đã có BOT, không thuộc "Cần xử lý ngay": còn xa hạn (&gt; {DUE_SOON_DAYS} ngày), hoặc quá hạn / sắp hạn nhưng không vướng vấn đề nào. Sắp theo hạn gần nhất.</>}
-            </span>
-          </div>
-          {matCount === null || openIssues === null ? (
-            <p className="rounded-lg bg-slate-50 p-6 text-center text-sm text-slate-400">Đang tổng hợp…</p>
-          ) : shownList.length === 0 ? (
-            <p className="rounded-lg bg-emerald-50 p-6 text-center text-sm text-emerald-700">
-              {listTab === 'urgent' ? 'Không có hạng mục nào vừa gấp vừa đang vướng vấn đề.' : listTab === 'noBot' ? 'Mọi hạng mục đang sản xuất đều đã có BOT.' : 'Không còn hạng mục nào khác.'}
-            </p>
-          ) : (
-            <div className="max-h-[55vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-slate-50 text-slate-500">
-                  <tr>
-                    <th className="w-10 px-2 py-2 text-right font-medium">STT</th>
-                    <th className="px-3 py-2 text-left font-medium">Mã Hex</th>
-                    <th className="px-3 py-2 text-left font-medium">Hạng mục</th>
-                    <th className="px-3 py-2 text-left font-medium">Công đoạn</th>
-                    <th className="px-3 py-2 text-left font-medium">KH tuần</th>
-                    <th className="px-3 py-2 text-left font-medium">KH tháng</th>
-                    <th className="px-3 py-2 text-left font-medium">Cần giao</th>
-                    <th className="px-3 py-2 text-right font-medium">Còn lại (tỷ)</th>
-                    <th className="px-3 py-2 text-left font-medium">Vấn đề</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {shownList.map((i, idx) => (
-                    <tr key={i.hex} className="hover:bg-slate-50">
-                      <td className="px-2 py-2 text-right tabular-nums text-slate-400">{idx + 1}</td>
-                      <td className="px-3 py-2 font-medium">
-                        <button type="button" onClick={() => setTimelineHex(i.hex)} title="Xem chi tiết hạng mục (BOP × BOT)" className="text-blue-700 hover:underline">
-                          {i.hex}
-                        </button>
-                      </td>
-                      <td className="max-w-[320px] truncate px-3 py-2 text-slate-600" title={i.hangMuc}>{i.hangMuc}</td>
-                      <td className="px-3 py-2 text-slate-600">{i.stage ?? '—'}</td>
-                      <PlanDateCell i={i} which="tuần" />
-                      <PlanDateCell i={i} which="tháng" />
-                      <PlanDateCell i={i} which="cần giao" />
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-700">
-                        {fmtTy(i.remain)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-1">
-                          {i.flags.length === 0 && <span className="text-slate-300">—</span>}
-                          {i.flags.map(fl => (
-                            <span
-                              key={fl}
-                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-medium ${
-                                fl.startsWith('Vướng mắc') ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'
-                              }`}
-                            >
-                              {fl.startsWith('Vướng mắc') && <AlertTriangle size={10} className="text-red-500" />}
-                              {fl}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
+
+              {/* Hạng mục cần xử lý: Cần xử lý ngay · Chưa có KH · Còn lại */}
+              <div className={`${card} overflow-hidden`}>
+                <div className="flex flex-wrap items-center gap-2 px-5 py-4">
+                  <h4 className="mr-2 text-lg font-semibold text-slate-900">Hạng mục cần xử lý</h4>
+                  {([
+                    ['urgent', 'Cần xử lý ngay', urgent.length, `Quá hạn hoặc đến hạn ≤ ${DUE_SOON_DAYS} ngày (KH nhập kho tuần / tháng) mà còn vướng: chưa triển khai / chưa tính phiếu, đã triển khai chưa thấy PR, vật tư chưa mua / trễ hẹn, KH nhập kho sau ngày cần giao, hoặc có vướng mắc.`],
+                    ['noBot', 'Chưa có KH', noBot.length, 'Chưa nhập kho đủ mà không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL) — không theo dõi được quá hạn. Sắp theo công đoạn, giá trị còn lại.'],
+                    ['rest', 'Còn lại', rest.length, `Đã có KH, không thuộc "Cần xử lý ngay": còn xa hạn (> ${DUE_SOON_DAYS} ngày) hoặc gấp nhưng không vướng gì. Sắp theo hạn gần nhất.`],
+                  ] as const).map(([k, label, n, hint]) => (
+                    <button key={k} type="button" onClick={() => setListTab(k)} title={hint}
+                      className={`inline-flex h-9 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition ${listTab === k ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
+                      {label}
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${listTab === k ? 'bg-white/20 text-white' : k === 'urgent' && n > 0 ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {k !== 'noBot' && dangTai ? '…' : fmtInt(n)}
+                      </span>
+                    </button>
                   ))}
-                </tbody>
-              </table>
+                  <GiaiThich text={listTab === 'urgent' ? 'Cần xử lý ngay: quá hạn / sắp hạn VÀ có thêm ít nhất 1 vấn đề.' : listTab === 'noBot' ? 'Chưa có KH nhập kho tuần / tháng.' : 'Các hạng mục đã có KH còn lại.'} />
+                </div>
+                {dangTai && listTab !== 'noBot' ? (
+                  <p className="border-t border-slate-100 p-8 text-center text-sm text-slate-400">Đang tổng hợp…</p>
+                ) : shownList.length === 0 ? (
+                  <p className="border-t border-slate-100 p-8 text-center text-sm text-slate-500">
+                    {listTab === 'urgent' ? 'Không có hạng mục nào vừa gấp vừa đang vướng vấn đề.' : listTab === 'noBot' ? 'Mọi hạng mục đang sản xuất đều đã có KH nhập kho.' : 'Không còn hạng mục nào khác.'}
+                  </p>
+                ) : (
+                  <div className="max-h-[60vh] overflow-auto custom-scrollbar">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 z-10 whitespace-nowrap bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="w-10 py-2.5 pl-5 pr-2 text-right font-medium">#</th>
+                          <th className="px-3 py-2.5 text-left font-medium">Mã HEX</th>
+                          <th className="px-3 py-2.5 text-left font-medium">Hạng mục</th>
+                          <th className="px-3 py-2.5 text-left font-medium">Công đoạn</th>
+                          <th className="px-3 py-2.5 text-left font-medium">KH tuần</th>
+                          <th className="px-3 py-2.5 text-left font-medium">KH tháng</th>
+                          <th className="px-3 py-2.5 text-left font-medium">Cần giao</th>
+                          <th className="px-3 py-2.5 text-right font-medium">Còn lại (tỷ)</th>
+                          <th className="py-2.5 pl-3 pr-5 text-left font-medium">Vấn đề</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {shownList.map((i, idx) => (
+                          <tr key={i.hex} className="hover:bg-slate-50">
+                            <td className="py-2.5 pl-5 pr-2 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                            <td className="px-3 py-2.5 font-medium">
+                              <button type="button" onClick={() => setTimelineHex(i.hex)} title="Xem chi tiết hạng mục" className="text-blue-700 hover:underline">{i.hex}</button>
+                            </td>
+                            <td className="max-w-[320px] truncate px-3 py-2.5 text-slate-700" title={i.hangMuc}>{i.hangMuc}</td>
+                            <td className="px-3 py-2.5 text-slate-600">{i.stage ?? '—'}</td>
+                            <PlanDateCell i={i} which="tuần" />
+                            <PlanDateCell i={i} which="tháng" />
+                            <PlanDateCell i={i} which="cần giao" />
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-800">{fmtTy(i.remain)}</td>
+                            <td className="py-2.5 pl-3 pr-5">
+                              <div className="flex flex-wrap gap-1">
+                                {i.flags.length === 0 && <span className="text-slate-300">—</span>}
+                                {i.flags.map(fl => (
+                                  <span key={fl}
+                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fl.startsWith('Vướng mắc') || fl.startsWith('VT chưa mua') ? 'bg-red-50 text-red-700' : fl.startsWith('Gia công') ? 'bg-fuchsia-50 text-fuchsia-700' : fl.includes('trễ') || fl.startsWith('KH NK') ? 'bg-amber-50 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>
+                                    {fl.startsWith('Vướng mắc') && <AlertTriangle size={11} aria-hidden />}
+                                    {fl}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              </div>
+
+              <div className={`${card} p-5 xl:sticky xl:top-0`}>
+                <h4 className="text-lg font-semibold text-slate-900">Cần chú ý</h4>
+                {chuY.length === 0 ? (
+                  <p className="mt-3 text-sm text-slate-500">{dangTai ? 'Đang tổng hợp…' : 'Không có gì cần xử lý.'}</p>
+                ) : (
+                  <ul className="mt-1 divide-y divide-slate-100">
+                    {chuY.map(x => (
+                      <li key={x.k}>
+                        <button type="button" onClick={x.go} className="group flex w-full items-start gap-3 py-3 text-left">
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[0.9375rem] text-slate-900 group-hover:underline">{x.t}</span>
+                            <span className="mt-0.5 block text-sm text-slate-500">{x.p}</span>
+                          </span>
+                          <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${x.c}`}>
+                            <i className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />{x.b}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                    {dangTai && <li className="py-3 text-sm text-slate-400">Đang kiểm tra vật tư, vướng mắc…</li>}
+                  </ul>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-        </>}
+
+          </div>
+        )}
       </div>
 
       <HexTimelineModal

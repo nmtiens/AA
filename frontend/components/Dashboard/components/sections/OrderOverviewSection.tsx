@@ -4,7 +4,6 @@ import {
   Layers, Building2, Briefcase, XCircle as CloseIcon,
   TrendingUp,
   Table2,
-  Info,
 } from 'lucide-react';
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { DisplayModeToggle } from '../shared/DisplayModeToggle';
@@ -116,6 +115,10 @@ interface OrderOverviewSectionProps {
   handleOpenGenericExport: (flow: 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock') => void;
   loadStockByProject: () => void;
     openInventoryRequest?: { nonce: number; year: number; withPlan?: boolean } | null;
+  /** Bấm thẻ đầu trang (Đơn hàng mới / Tính phiếu / Nhập kho) => mở cửa sổ chi tiết của kỳ đang xem */
+  moChiTietRequest?: { nonce: number; k: 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock' } | null;
+  /** Ẩn dải "Dòng chảy" (đầu trang đã có 6 thẻ) — vẫn giữ các cửa sổ chi tiết */
+  anDai?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -175,6 +178,8 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   handleOpenGenericExport,
   loadStockByProject,
     openInventoryRequest,
+    moChiTietRequest,
+    anDai,
 }) => {
   const [ipoMetric, setIpoMetric] = useState<DisplayMetric>('COUNT');
   const [tkbvMetric, setTkbvMetric] = useState<DisplayMetric>('COUNT');
@@ -321,6 +326,16 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
 
   const valueUnitLabel = 'Tỷ';
 
+  useEffect(() => {
+    if (!moChiTietRequest) return;
+    const k = moChiTietRequest.k;
+    if (k === 'stock') { openModalWithTrendReset(() => { setIsStockDetailModalOpen(true); loadStockByProject(); }); return; }
+    const mo = { order: setIsIpoDetailModalOpen, tkbv: setIsTkbvDetailModalOpen, pthsp: setIsPthspDetailModalOpen,
+      inventory: setIsInventoryDetailModalOpen, export: setIsExportDetailModalOpen }[k];
+    openModalWithTrendReset(() => { mo(true); loadGroupAnalysis(k, activeTrendFilter); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [moChiTietRequest?.nonce]);
+
   if (!hasAnyData) return null;
 
   // ✅ SỬA: filterKey giờ tính qua getGroupAnalysisFilterKey(activeTrendFilter) — dùng
@@ -337,7 +352,8 @@ const periodLabel = overviewDateFilters.length > 1
   // Số tháng trước của ngày dữ liệu (getMonth() là 0–11: tháng 1 trước hiện "T0" => phải là T12)
   const prevMonthNo = latestUnifiedDate ? (latestUnifiedDate.getMonth() === 0 ? 12 : latestUnifiedDate.getMonth()) : '';
 
-   return (
+ 
+  return (
     <TrendFilterProvider
       overviewDateFilters={overviewDateFilters}
       setOverviewDateFilters={setOverviewDateFilters}
@@ -352,55 +368,32 @@ const periodLabel = overviewDateFilters.length > 1
         "Chi tiết dữ liệu" (bên ngoài phạm vi hook context) biết và tự refetch/tính key */}
     <TrendFilterBridge onChange={setActiveTrendFilter} />
     <>
-      <div
-        ref={sectionRef}
-        className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col"
-      >
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4 text-pink-600" />
-              BÁO CÁO TỔNG QUAN
+      {/* DÒNG CHẢY THÁNG (thay 6 thẻ to "Báo cáo tổng quan"): 6 ô 1 hàng — lũy kế tháng (số chính), tháng trước +
+          trong ngày (dòng phụ); 1 nút Số lượng / Giá trị + 1 bộ lọc ngày chung; bấm ô mở chi tiết & xu hướng như cũ */}
+      <div ref={sectionRef} className={anDai ? 'hidden' : 'scroll-mt-24 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white'}>
+        <div className="flex flex-wrap items-center gap-3 px-5 py-4 lg:px-6">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Dòng chảy {overviewDateFilters.length > 1
+                ? `${overviewDateFilters.length} ngày đã chọn`
+                : latestUnifiedDate ? `ngày ${String(latestUnifiedDate.getDate()).padStart(2, '0')}/${String(latestUnifiedDate.getMonth() + 1).padStart(2, '0')}` : 'trong ngày'}
             </h3>
-            <p className="text-xs font-medium text-slate-500 mt-1">{getContextLabel()}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[0.625rem] text-slate-400">
-                Dữ liệu từ nguồn Đơn hàng tổng & TKBV & PTHSP & Nhập Kho
-              </span>
-            </div>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {getContextLabel()} · số lớn = trong ngày, dòng dưới = lũy kế tháng và T{prevMonthNo} · bấm 1 ô để xem chi tiết & xu hướng
+            </p>
           </div>
-          <div className="flex max-w-full flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-            <div className="flex flex-col items-end">
-              <span className="text-[0.625rem] font-bold text-slate-500 uppercase">CHẾ ĐỘ HIỂN THỊ:</span>
-              <div className="flex items-center bg-white p-0.5 rounded border border-slate-200 shadow-sm mt-0.5">
-                <button
-                  onClick={() => setOverviewMetric('COUNT')}
-                  className={`px-2 py-0.5 text-[0.625rem] font-bold rounded-sm transition-all ${
-                    overviewMetric === 'COUNT' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Số lượng
-                </button>
-                <div className="w-px h-2.5 bg-slate-200 mx-0.5"></div>
-                <button
-                  onClick={() => setOverviewMetric('SUM')}
-                  className={`px-2 py-0.5 text-[0.625rem] font-bold rounded-sm transition-all ${
-                    overviewMetric === 'SUM' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Giá trị
-                </button>
-              </div>
-            </div>
-            <div className="w-px h-8 bg-slate-200 mx-1"></div>
-            <div className="flex flex-col items-end">
-              <span className="text-[0.625rem] font-bold text-slate-500 uppercase">BỘ LỌC NGÀY CHUNG (ALL):</span>
-              {overviewDateRangeDisplay && (
-                <span className="text-[0.625rem] text-indigo-600 font-semibold">{overviewDateRangeDisplay}</span>
-              )}
-            </div>
+          <div className="flex rounded-lg bg-slate-100 p-1" role="group" aria-label="Chế độ hiển thị">
+            {([['COUNT', 'Số lượng'], ['SUM', 'Giá trị']] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setOverviewMetric(k)}
+                className={`rounded-md px-3 py-1 text-sm ${overviewMetric === k ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {overviewDateRangeDisplay && <span className="text-sm text-slate-500">{overviewDateRangeDisplay}</span>}
             <DashboardFilter
-              label="NGÀY BÁO CÁO"
+              label="Ngày báo cáo"
               options={unifiedDateOptions}
               selectedValues={overviewDateFilters}
               onChange={(values: string[]) => {
@@ -413,10 +406,10 @@ const periodLabel = overviewDateFilters.length > 1
             />
             <button
               onClick={handleOpenOverviewExport}
-              className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg border border-emerald-100 bg-white ml-2"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               title="Xuất Excel tổng hợp"
             >
-              <Download size={16} />
+              <Download size={15} aria-hidden /> Xuất Excel
             </button>
             {overviewDateFilters.length > 0 && (
               <button
@@ -424,8 +417,9 @@ const periodLabel = overviewDateFilters.length > 1
                   const target = getYesterdayDateOption(unifiedDateOptions);
                   setOverviewDateFilters(target ? [target] : []);
                 }}
-                className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg border border-red-100 bg-white"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                 title="Về mặc định (Hôm qua)"
+                aria-label="Về mặc định (Hôm qua)"
               >
                 <CloseIcon size={16} />
               </button>
@@ -433,397 +427,59 @@ const periodLabel = overviewDateFilters.length > 1
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Card 1: Đơn hàng mới */}
-          <div className="flex flex-col gap-4">
-            <div className="p-5 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border border-pink-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-             <button
-  onClick={() => openModalWithTrendReset(() => {
-    setIsIpoDetailModalOpen(true);
-    loadGroupAnalysis('order', activeTrendFilter);
-  })}
-  className="absolute top-4 right-4 text-pink-400 hover:text-pink-700 transition-colors z-20"
-  title="Xem chi tiết"
->
-  <Eye size={18} />
-</button>
-              <div className="flex items-center gap-2 mb-3 z-10">
-                <div className="p-2 bg-pink-100 rounded-lg text-pink-600 shadow-sm group-hover:scale-110 transition-transform">
-                  <ShoppingCart size={20} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-pink-800 opacity-80 uppercase tracking-wide">1. Đơn hàng mới (P001)</p>
-                  <p className="text-[0.6875rem] text-pink-700/70 flex items-center gap-1">
-                    Nhận từ PM theo ngày
-                    <span
-                      title={'Đơn hàng có ngày nhận từ PM nằm trong ngày / tháng đang xem (bảng Đơn hàng tổng, không tính đơn HỦY).\nKhác thẻ "Nhóm đơn hàng": thẻ đó tính mọi hạng mục đang theo dõi theo bộ lọc Tình trạng IPO, không theo ngày.'}
-                      className="inline-flex cursor-help text-pink-400 hover:text-pink-700"
-                    >
-                      <Info size={12} />
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <div className="z-10 flex flex-col items-start">
-                <span className="text-[0.625rem] font-bold text-pink-500 uppercase tracking-wider opacity-70 mb-1 block">
-                  Trong ngày
+        {(() => {
+          const dem = overviewMetric === 'COUNT';
+          const so = (c: number | undefined, v: number | undefined) => (dem ? (c ?? 0).toLocaleString('en-US') : formatValueNumber(v ?? 0));
+          const ngay = (d: Date | null | undefined) => (d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` : 'N/A');
+          const luong = [
+            { k: 'order', ten: 'Đơn hàng mới', ma: 'P001', dv: 'đơn', s: overviewSummary?.order,
+              hint: 'Đơn hàng có ngày nhận từ PM trong ngày / tháng đang xem (bảng Đơn hàng tổng, không tính đơn HỦY). Khác thẻ "Nhóm đơn hàng": thẻ đó tính mọi hạng mục đang theo dõi, không theo ngày.',
+              mo: () => openModalWithTrendReset(() => { setIsIpoDetailModalOpen(true); loadGroupAnalysis('order', activeTrendFilter); }) },
+            { k: 'tkbv', ten: 'Triển khai BV', ma: 'P002', dv: 'bản vẽ', s: overviewSummary?.tkbv, hint: 'Bản vẽ đã triển khai (TKBV)',
+              mo: () => openModalWithTrendReset(() => { setIsTkbvDetailModalOpen(true); loadGroupAnalysis('tkbv', activeTrendFilter); }) },
+            { k: 'pthsp', ten: 'Tính phiếu', ma: 'P012', dv: 'phiếu', s: overviewSummary?.pthsp, hint: 'Phiếu đã tính (PTHSP)',
+              mo: () => openModalWithTrendReset(() => { setIsPthspDetailModalOpen(true); loadGroupAnalysis('pthsp', activeTrendFilter); }) },
+            { k: 'inventory', ten: 'Nhập kho', ma: 'P022', dv: 'mục', s: overviewSummary?.inventory, hint: 'Hạng mục nhập kho',
+              mo: () => openModalWithTrendReset(() => { setIsInventoryDetailModalOpen(true); loadGroupAnalysis('inventory', activeTrendFilter); }) },
+            { k: 'export', ten: 'Xuất kho', ma: 'P025', dv: 'mục', s: overviewSummary?.export, hint: 'Hạng mục xuất kho',
+              mo: () => openModalWithTrendReset(() => { setIsExportDetailModalOpen(true); loadGroupAnalysis('export', activeTrendFilter); }) },
+          ];
+          const o = 'group flex flex-col bg-white p-4 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400 lg:p-5';
+          return (
+            <div className="grid grid-cols-2 gap-px border-t border-slate-200 bg-slate-200 md:grid-cols-3 xl:grid-cols-6">
+              {luong.map((x, idx) => (
+                <button key={x.k} type="button" onClick={x.mo} className={o} title={`${x.hint}\nBấm để xem chi tiết & xu hướng`}>
+                  <span className="flex items-center gap-1.5 text-sm text-slate-600">
+                    {idx + 1}. {x.ten} <span className="text-xs text-slate-400">{x.ma}</span>
+                    <Eye size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
+                  </span>
+                  <span className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                    {so(x.s?.daily.count, x.s?.daily.value)}
+                    <span className="ml-1 text-sm font-medium text-slate-400">{dem ? x.dv : valueUnitLabel.toLowerCase()}</span>
+                  </span>
+                  <span className="mt-0.5 text-sm text-slate-500">
+                    Lũy kế tháng {so(x.s?.mtd.count, x.s?.mtd.value)} · T{prevMonthNo}: {so(x.s?.lastMonth?.count, x.s?.lastMonth?.value)}
+                  </span>
+                </button>
+              ))}
+              <button type="button" className={o}
+                onClick={() => openModalWithTrendReset(() => { setIsStockDetailModalOpen(true); loadStockByProject(); })}
+                title={`Tồn kho ngày ${ngay(closestStockDate)} · mới nhất ${ngay(latestStockStats.date)}: ${so(latestStockStats.count, latestStockStats.value)}\nBấm để xem chi tiết`}>
+                <span className="flex items-center gap-1.5 text-sm text-slate-600">
+                  6. Tồn kho <span className="text-xs text-slate-400">{ngay(closestStockDate)}</span>
+                  <Eye size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
                 </span>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-4xl font-extrabold text-pink-600 tracking-tight">
-                    {overviewMetric === 'COUNT'
-                      ? (overviewSummary?.order.daily.count ?? 0).toLocaleString('en-US')
-                      : formatValueNumber(overviewSummary?.order.daily.value ?? 0)}
-                  </h4>
-                  <span className="text-sm font-medium text-pink-400">
-                    {overviewMetric === 'COUNT' ? 'đơn hàng (HEX)' : valueUnitLabel}
-                  </span>
-                </div>
-              </div>
-              <div className="z-10 mt-3 pt-3 border-t border-pink-200/60 w-full">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-pink-800 uppercase">
-                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
-                  </span>
-                  <span className="text-3xl font-extrabold text-pink-700">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.order.mtd.count ?? 0).toLocaleString('en-US')} đơn`
-                      : `${formatValueNumber(overviewSummary?.order.mtd.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs font-bold text-pink-800/70 uppercase">
-                    Lũy kế T{prevMonthNo}:
-                  </span>
-                  <span className="text-lg font-extrabold text-pink-700/70">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.order.lastMonth?.count ?? 0).toLocaleString('en-US')} đơn`
-                      : `${formatValueNumber(overviewSummary?.order.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: TKBV */}
-          <div className="flex flex-col gap-4">
-            <div className="p-5 bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl border border-blue-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-             <button
-  onClick={() => openModalWithTrendReset(() => {
-    setIsTkbvDetailModalOpen(true);
-    loadGroupAnalysis('tkbv', activeTrendFilter);
-  })}
-  className="absolute top-4 right-4 text-blue-400 hover:text-blue-700 transition-colors z-20"
-  title="Xem chi tiết"
->
-  <Eye size={18} />
-</button>
-              <div className="flex items-center gap-2 mb-3 z-10">
-                <div className="p-2 bg-blue-100 rounded-lg text-blue-600 shadow-sm group-hover:scale-110 transition-transform">
-                  <FileText size={20} />
-                </div>
-                <p className="text-sm font-bold text-blue-800 opacity-80 uppercase tracking-wide">
-                  2. Đã Triển khai BV (P002)
-                </p>
-              </div>
-              <div className="z-10 flex flex-col items-start">
-                <span className="text-[0.625rem] font-bold text-blue-500 uppercase tracking-wider opacity-70 mb-1 block">
-                  Trong ngày
+                <span className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                  {dem ? stockOverviewCardValue.toLocaleString('en-US') : formatValueNumber(stockOverviewCardValue)}
+                  <span className="ml-1 text-sm font-medium text-slate-400">{dem ? 'mục' : valueUnitLabel.toLowerCase()}</span>
                 </span>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-4xl font-extrabold text-blue-600 tracking-tight">
-                    {overviewMetric === 'COUNT'
-                      ? (overviewSummary?.tkbv.daily.count ?? 0).toLocaleString('en-US')
-                      : formatValueNumber(overviewSummary?.tkbv.daily.value ?? 0)}
-                  </h4>
-                  <span className="text-sm font-medium text-blue-400">
-                    {overviewMetric === 'COUNT' ? 'bản vẽ (Items)' : valueUnitLabel}
-                  </span>
-                </div>
-              </div>
-              <div className="z-10 mt-3 pt-3 border-t border-blue-200/60 w-full">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-blue-800 uppercase">
-                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
-                  </span>
-                  <span className="text-3xl font-extrabold text-blue-700">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.tkbv.mtd.count ?? 0).toLocaleString('en-US')} bản vẽ`
-                      : `${formatValueNumber(overviewSummary?.tkbv.mtd.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs font-bold text-blue-800/70 uppercase">
-                    Lũy kế T{prevMonthNo}:
-                  </span>
-                  <span className="text-lg font-extrabold text-blue-700/70">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.tkbv.lastMonth?.count ?? 0).toLocaleString('en-US')} bản vẽ`
-                      : `${formatValueNumber(overviewSummary?.tkbv.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: PTHSP */}
-          <div className="flex flex-col gap-4">
-            <div className="p-5 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-xl border border-purple-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-             <button
-  onClick={() => openModalWithTrendReset(() => {
-    setIsPthspDetailModalOpen(true);
-    loadGroupAnalysis('pthsp', activeTrendFilter);
-  })}
-  className="absolute top-4 right-4 text-purple-400 hover:text-purple-700 transition-colors z-20"
-  title="Xem chi tiết"
->
-  <Eye size={18} />
-</button>
-              <div className="flex items-center gap-2 mb-3 z-10">
-                <div className="p-2 bg-purple-100 rounded-lg text-purple-600 shadow-sm group-hover:scale-110 transition-transform">
-                  <ClipboardList size={20} />
-                </div>
-                <p className="text-sm font-bold text-purple-800 opacity-80 uppercase tracking-wide">
-                  3. Đã Tính phiếu (P012)
-                </p>
-              </div>
-              <div className="z-10 flex flex-col items-start">
-                <span className="text-[0.625rem] font-bold text-purple-500 uppercase tracking-wider opacity-70 mb-1 block">
-                  Trong ngày
+                <span className="mt-0.5 text-sm text-slate-500">
+                  cuối T{prevMonthNo}: {so(latestStockStatsPrevMonth.count, latestStockStatsPrevMonth.value)}
                 </span>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-4xl font-extrabold text-purple-600 tracking-tight">
-                    {overviewMetric === 'COUNT'
-                      ? (overviewSummary?.pthsp.daily.count ?? 0).toLocaleString('en-US')
-                      : formatValueNumber(overviewSummary?.pthsp.daily.value ?? 0)}
-                  </h4>
-                  <span className="text-sm font-medium text-purple-400">
-                    {overviewMetric === 'COUNT' ? 'phiếu (Items)' : valueUnitLabel}
-                  </span>
-                </div>
-              </div>
-              <div className="z-10 mt-3 pt-3 border-t border-purple-200/60 w-full">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-purple-800 uppercase">
-                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
-                  </span>
-                  <span className="text-3xl font-extrabold text-purple-700">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.pthsp.mtd.count ?? 0).toLocaleString('en-US')} phiếu`
-                      : `${formatValueNumber(overviewSummary?.pthsp.mtd.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs font-bold text-purple-800/70 uppercase">
-                    Lũy kế T{prevMonthNo}:
-                  </span>
-                  <span className="text-lg font-extrabold text-purple-700/70">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.pthsp.lastMonth?.count ?? 0).toLocaleString('en-US')} phiếu`
-                      : `${formatValueNumber(overviewSummary?.pthsp.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-              </div>
+              </button>
             </div>
-          </div>
-
-          {/* Card 4: Nhập kho */}
-          <div className="flex flex-col gap-4">
-            <div className="p-5 bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl border border-teal-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-             <button
-  onClick={() => openModalWithTrendReset(() => {
-    setIsInventoryDetailModalOpen(true);
-    loadGroupAnalysis('inventory', activeTrendFilter);
-  })}
-  className="absolute top-4 right-4 text-teal-400 hover:text-teal-700 transition-colors z-20"
-  title="Xem chi tiết"
->
-  <Eye size={18} />
-</button>
-              <div className="flex items-center gap-2 mb-3 z-10">
-                <div className="p-2 bg-teal-100 rounded-lg text-teal-600 shadow-sm group-hover:scale-110 transition-transform">
-                  <Package size={20} />
-                </div>
-                <p className="text-sm font-bold text-teal-800 opacity-80 uppercase tracking-wide">4. Nhập kho (P022)</p>
-              </div>
-              <div className="z-10 flex flex-col items-start">
-                <span className="text-[0.625rem] font-bold text-teal-500 uppercase tracking-wider opacity-70 mb-1 block">
-                  Trong ngày
-                </span>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-4xl font-extrabold text-teal-600 tracking-tight">
-                    {overviewMetric === 'COUNT'
-                      ? (overviewSummary?.inventory.daily.count ?? 0).toLocaleString('en-US')
-                      : formatValueNumber(overviewSummary?.inventory.daily.value ?? 0)}
-                  </h4>
-                  <span className="text-sm font-medium text-teal-400">
-                    {overviewMetric === 'COUNT' ? 'items' : valueUnitLabel}
-                  </span>
-                </div>
-              </div>
-          
-                             <div className="z-10 mt-3 pt-3 border-t border-teal-200/60 w-full">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-teal-800 uppercase">
-                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
-                  </span>
-                  <span className="text-3xl font-extrabold text-teal-700">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.inventory.mtd.count ?? 0).toLocaleString('en-US')} items`
-                      : `${formatValueNumber(overviewSummary?.inventory.mtd.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs font-bold text-teal-800/70 uppercase">
-                    Lũy kế T{prevMonthNo}:
-                  </span>
-                  <span className="text-lg font-extrabold text-teal-700/70">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.inventory.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
-                      : `${formatValueNumber(overviewSummary?.inventory.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-              </div>
-           
-            </div>
-          </div>
-
-          {/* Card 5: Xuất kho */}
-          <div className="flex flex-col gap-4">
-            <div className="p-5 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-             <button
-  onClick={() => openModalWithTrendReset(() => {
-    setIsExportDetailModalOpen(true);
-    loadGroupAnalysis('export', activeTrendFilter);
-  })}
-  className="absolute top-4 right-4 text-amber-400 hover:text-amber-700 transition-colors z-20"
-  title="Xem chi tiết"
->
-  <Eye size={18} />
-</button>
-              <div className="flex items-center gap-2 mb-3 z-10">
-                <div className="p-2 bg-amber-100 rounded-lg text-amber-600 shadow-sm group-hover:scale-110 transition-transform">
-                  <Package size={20} />
-                </div>
-                <p className="text-sm font-bold text-amber-800 opacity-80 uppercase tracking-wide">5. Xuất kho (P025)</p>
-              </div>
-              <div className="z-10 flex flex-col items-start">
-                <span className="text-[0.625rem] font-bold text-amber-500 uppercase tracking-wider opacity-70 mb-1 block">
-                  Trong ngày
-                </span>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-4xl font-extrabold text-amber-600 tracking-tight">
-                    {overviewMetric === 'COUNT'
-                      ? (overviewSummary?.export.daily.count ?? 0).toLocaleString('en-US')
-                      : formatValueNumber(overviewSummary?.export.daily.value ?? 0)}
-                  </h4>
-                  <span className="text-sm font-medium text-amber-400">
-                    {overviewMetric === 'COUNT' ? 'items' : valueUnitLabel}
-                  </span>
-                </div>
-              </div>
-              <div className="z-10 mt-3 pt-3 border-t border-amber-200/60 w-full">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-amber-800 uppercase">
-                    Lũy kế T{(latestUnifiedDate?.getMonth() ?? 0) + 1}:
-                  </span>
-                  <span className="text-3xl font-extrabold text-amber-700">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.export.mtd.count ?? 0).toLocaleString('en-US')} items`
-                      : `${formatValueNumber(overviewSummary?.export.mtd.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center mt-1">
-                  <span className="text-xs font-bold text-amber-800/70 uppercase">
-                    Lũy kế T{prevMonthNo}:
-                  </span>
-                  <span className="text-lg font-extrabold text-amber-700/70">
-                    {overviewMetric === 'COUNT'
-                      ? `${(overviewSummary?.export.lastMonth?.count ?? 0).toLocaleString('en-US')} items`
-                      : `${formatValueNumber(overviewSummary?.export.lastMonth?.value ?? 0)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 6: Tồn kho */}
-          <div className="flex flex-col gap-4">
-            <div className="p-5 bg-gradient-to-br from-gray-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center relative overflow-hidden group hover:shadow-md transition-shadow h-full min-h-[160px]">
-             <button
-  onClick={() => openModalWithTrendReset(() => {
-    setIsStockDetailModalOpen(true);
-    loadStockByProject();
-  })}
-  className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors z-20"
-  title="Xem chi tiết"
->
-  <Eye size={18} />
-</button>
-              <div className="flex items-center gap-2 mb-3 z-10">
-                <div className="p-2 bg-slate-200 rounded-lg text-slate-600 shadow-sm group-hover:scale-110 transition-transform">
-                  <Box size={20} />
-                </div>
-                <p className="text-sm font-bold text-slate-800 opacity-80 uppercase tracking-wide">6. Tồn kho</p>
-              </div>
-              <div className="z-10 flex flex-col items-start">
-                <span className="text-[0.625rem] font-bold text-slate-500 uppercase tracking-wider opacity-70 mb-1 block">
-                  Dữ liệu ngày:{' '}
-                  {closestStockDate
-                    ? `${closestStockDate.getDate().toString().padStart(2, '0')}/${(closestStockDate.getMonth() + 1)
-                        .toString()
-                        .padStart(2, '0')}/${closestStockDate.getFullYear()}`
-                    : 'N/A'}
-                </span>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="text-4xl font-extrabold text-slate-700 tracking-tight">
-                    {overviewMetric === 'COUNT'
-                      ? stockOverviewCardValue.toLocaleString('en-US')
-                      : formatValueNumber(stockOverviewCardValue)}
-                  </h4>
-                  <span className="text-sm font-medium text-slate-500">
-                    {overviewMetric === 'COUNT' ? 'items' : valueUnitLabel}
-                  </span>
-                </div>
-              </div>
-              <div className="z-10 mt-3 pt-3 border-t border-slate-200/60 w-full">
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-[0.625rem] font-bold text-slate-600 uppercase leading-tight">
-                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất (
-                    {latestStockStats.date
-                      ? `${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(latestStockStats.date.getMonth() + 1)
-                          .toString()
-                          .padStart(2, '0')}/${latestStockStats.date.getFullYear()}`
-                      : 'N/A'}
-                    )
-                  </span>
-                  <span className="text-3xl font-extrabold text-slate-700 shrink-0">
-                    {overviewMetric === 'COUNT'
-                      ? `${latestStockStats.count.toLocaleString('en-US')} items`
-                      : `${formatValueNumber(latestStockStats.value)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center gap-2 mt-2">
-                  <span className="text-[0.5625rem] font-bold text-slate-500 uppercase leading-tight">
-                    {overviewMetric === 'COUNT' ? 'Số mã tồn' : 'Giá trị tồn'} mới nhất của tháng {prevMonthNo} (
-                    {latestStockStatsPrevMonth.date
-                      ? `${latestStockStatsPrevMonth.date.getDate().toString().padStart(2, '0')}/${(
-                          latestStockStatsPrevMonth.date.getMonth() + 1
-                        )
-                          .toString()
-                          .padStart(2, '0')}/${latestStockStatsPrevMonth.date.getFullYear()}`
-                      : 'N/A'}
-                    )
-                  </span>
-                  <span className="text-lg font-extrabold text-slate-500 shrink-0">
-                    {overviewMetric === 'COUNT'
-                      ? `${latestStockStatsPrevMonth.count.toLocaleString('en-US')} items`
-                      : `${formatValueNumber(latestStockStatsPrevMonth.value)} ${valueUnitLabel}`}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Modal: Chi tiết Đơn hàng mới (IPO) */}

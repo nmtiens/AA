@@ -43,12 +43,12 @@ const queryAccessRow = async (id: number) => {
 // Khoá cache chuẩn hoá: '01' và 1 là cùng user
 const accessKey = (userId: string | number): string => String(Number(userId));
 
-export const loadUserAccess = async (userId: string | number): Promise<UserAccess> => {
+export const loadUserAccess = async (userId: string | number, ttlMs = ACCESS_CACHE_TTL_MS): Promise<UserAccess> => {
   // id không phải số nguyên dương -> coi như không tồn tại (tránh query ép kiểu integer lỗi 500)
   if (!/^\d+$/.test(String(userId)) || !(Number(userId) > 0) || Number(userId) > 2147483647) return NO_ACCESS;
   const key = accessKey(userId);
   const hit = accessCache.get(key);
-  if (hit && Date.now() - hit.at < ACCESS_CACHE_TTL_MS) return hit.access;
+  if (hit && Date.now() - hit.at < ttlMs) return hit.access;
   const row = await queryAccessRow(Number(userId));
   const active = !!row && row.is_active === true;
   const access: UserAccess = {

@@ -116,11 +116,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // khi lần nạp đầu trên prod mất tới ~28 giây. Kết quả tính lúc chưa có bảng tên không bị giữ lâu: khoá cache
 // gồm projectAliasesVersion.
 const PROJECT_ALIAS_WAIT_MS = 0;
-const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup)(\/|$)/i;
+// xuong: các route mục Xưởng không dùng tên công trình (dữ liệu ở Supabase) — trước đây kích nạp bảng tên (truy vấn nặng
+// trên DB chính) 10 phút / lần theo nhịp máy trạm quét => DB chính không bao giờ ngủ được (Layerbase tạm dừng, 20/10/2026)
+const NO_WAIT_PROJECT_ALIASES = /^\/api\/(auth|users|notifications|push|check-versions|table-column-config|view-project-mapping|workshop-groups|data-update-log|cron|warmup|xuong)(\/|$)/i;
+// Không nạp setup gộp xưởng (bảng trên DB chính): máy trạm (chỉ dùng Supabase), cron / warmup (route nào cần thì tự nạp)
+const NO_WORKSHOP_GROUPS = /^\/api\/(cron|warmup|xuong\/tram)(\/|$)/i;
 app.use(async (req: Request, _res: Response, next: NextFunction) => {
   const path = req.path.toLowerCase();
   if (path.startsWith('/api/')) {
-    try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ }
+    if (!NO_WORKSHOP_GROUPS.test(path)) { try { await ensureWorkshopGroups(); } catch { /* giữ setup cũ */ } }
     if (NO_WAIT_PROJECT_ALIASES.test(path)) {
       // Route không dùng tên công trình: không kích nạp bảng tên (truy vấn nặng, chiếm thêm 1 kết nối DB tới ~28 giây
       // trên MỖI instance mới — đăng nhập / thông báo / kiểm tra phiên bản... từng làm pooler đầy)

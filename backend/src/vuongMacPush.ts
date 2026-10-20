@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import { z } from 'zod';
 import { pool } from '../src/db.js';
 import { notify, idsByFullName, adminIds, type NotifyKind } from './notifications.js';
+import { laGioNghiDb } from './server/gioNghi.js';
 
 // ---------------------------------------------------------------------------
 // Đọc env LAZY (trong hàm), vì server chính gọi dotenv.config() SAU các import.
@@ -239,6 +240,8 @@ export function registerVuongMacPush(app: Express, deps: { authenticateJWT: Requ
   });
 
   app.get('/api/cron/vuong-mac-bot', cronAuth, async (_req, res) => {
+    // Giờ để DB ngủ: không quét hạn BOT ban đêm (nhắc ban đêm cũng không ai xử lý)
+    if (laGioNghiDb()) return res.json({ ok: true, boQua: 'gio-nghi-db' });
     try {
       const startedAt = Date.now();
       const r = await scanBotDeadlines();

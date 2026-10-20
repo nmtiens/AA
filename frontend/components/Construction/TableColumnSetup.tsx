@@ -6,7 +6,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Settings2, Search, RefreshCw, Check, ChevronDown, ListFilter,
+  Search, RefreshCw, Check, ChevronDown,
   GripVertical, X, ListOrdered, Eye, EyeOff,
 } from 'lucide-react';
 import { ColumnDefinition } from '../../types';
@@ -53,11 +53,11 @@ const TableColumnSetup: React.FC<TableColumnSetupProps> = ({ columnsByTable, emb
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isTableDropdownOpen, setIsTableDropdownOpen] = useState(false);
-
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterPopoverRef = useRef<HTMLDivElement>(null);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  // Bản đã lưu (lúc nạp / lần lưu gần nhất) — so để báo "có thay đổi chưa lưu"
+  const [daLuu, setDaLuu] = useState<{ allowed: string[]; def: string[] }>({ allowed: [], def: [] });
+  const khoaLuu = (a: string[], d: Iterable<string>) => `${a.join('\u0001')}#${[...d].sort().join('\u0001')}`;
+  const chuaLuu = khoaLuu(allowedColumns, defaultVisible) !== khoaLuu(daLuu.allowed, daLuu.def);
+  const [chiChuaChon, setChiChuaChon] = useState(false);
 
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -92,23 +92,9 @@ useEffect(() => {
 
   setAllowedColumns(cleanedAllowed);
   setDefaultVisible(cleanedDefault);
+  setDaLuu({ allowed: cleanedAllowed, def: [...cleanedDefault] });
   loadedForTableRef.current = selectedTableId;
 }, [configReady, selectedTableId, allColumns]);
-
-  useEffect(() => {
-    if (!isFilterOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        filterPopoverRef.current && !filterPopoverRef.current.contains(target) &&
-        filterButtonRef.current && !filterButtonRef.current.contains(target)
-      ) {
-        setIsFilterOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isFilterOpen]);
 
   const toggleColumn = (key: string) => {
     setAllowedColumns((prev) => {
@@ -205,6 +191,7 @@ useEffect(() => {
         defaultVisibleColumns: Array.from(defaultVisible),
       });
       if (ok) {
+        setDaLuu({ allowed: allowedColumns, def: [...defaultVisible] });
         showToast(`Đã lưu setup cột cho "${selectedTable?.label}"`, 'success');
       } else {
         showToast('Lưu setup thất bại — vui lòng mở Console (F12) để xem lỗi chi tiết', 'error');
@@ -217,219 +204,158 @@ useEffect(() => {
   };
 
   const filteredColumns = allColumns.filter((c) =>
-    c.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.key.toLowerCase().includes(searchTerm.toLowerCase())
+    (c.label.toLowerCase().includes(searchTerm.toLowerCase()) || c.key.toLowerCase().includes(searchTerm.toLowerCase()))
+    && (!chiChuaChon || !allowedSet.has(c.key))
   );
+  // Đổi bảng khi đang có thay đổi chưa lưu => hỏi trước (trước đổi bảng là mất lựa chọn đang dở)
+  const doiBang = (id: string) => {
+    if (id === selectedTableId) return;
+    if (chuaLuu && !window.confirm('Bảng này có thay đổi chưa lưu. Đổi sang bảng khác sẽ bỏ các thay đổi đó?')) return;
+    loadedForTableRef.current = null;
+    setSearchTerm('');
+    setSelectedTableId(id);
+  };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-wood-50">
-      <div className={`px-6 ${embedded ? 'py-3' : 'py-5'} bg-white border-b border-slate-200 flex items-center justify-between shrink-0`}>
-        <div className="flex items-center gap-3">
-          {!embedded && (
-            <div className="w-10 h-10 rounded-lg bg-wood-600 flex items-center justify-center text-white shadow-sm">
-            <Settings2 size={20} />
-          </div>
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Thanh trên: chọn bảng + số cột + Lưu (báo khi có thay đổi chưa lưu) */}
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-6 py-3">
+        {!embedded && <h1 className="page-title mr-2">Setup cột dữ liệu</h1>}
+        <label className="flex items-center gap-2 text-sm text-slate-500">
+          Bảng
+          <select value={selectedTableId} onChange={e => doiBang(e.target.value)}
+            className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-900 focus:border-slate-500 focus:outline-none">
+            {CONFIGURABLE_TABLES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+        </label>
+        <span className="text-sm text-slate-500">
+          cho phép <b className="font-semibold text-slate-900">{allowedColumns.length}</b> / {allColumns.length} cột ·
+          mặc định hiện <b className="font-semibold text-slate-900">{defaultVisible.size}</b>
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {chuaLuu && <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Có thay đổi chưa lưu</span>}
+          {chuaLuu && (
+            <button type="button" onClick={() => { setAllowedColumns(daLuu.allowed); setDefaultVisible(new Set(daLuu.def)); }}
+              className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50">Huỷ thay đổi</button>
           )}
-          <div>
-            {embedded
-              ? <h2 className="text-base font-bold text-slate-800">Cột dữ liệu</h2>
-              : <h1 className="text-lg font-bold text-slate-800">Setup cột dữ liệu</h1>}
-            <p className="text-xs text-slate-500">Chọn cột được phép hiển thị, sắp xếp thứ tự & chọn cột mặc định hiện</p>
-          </div>
+          <button onClick={handleSave} disabled={isSaving || !selectedTableId || !chuaLuu}
+            className="inline-flex h-9 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700 disabled:bg-slate-200 disabled:text-slate-400">
+            {isSaving ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}
+            {isSaving ? 'Đang lưu...' : 'Lưu setup'}
+          </button>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={isSaving || !selectedTableId}
-          className={`flex items-center gap-2 px-5 py-2.5 bg-wood-600 text-white rounded-lg font-medium hover:bg-wood-700 transition-colors ${(isSaving || !selectedTableId) ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isSaving ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}
-          {isSaving ? 'Đang lưu...' : 'Lưu setup'}
-        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-5">
-
-          {/* Chọn bảng */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <label className="text-xs font-bold text-slate-500 block mb-2">Chọn bảng cần setup cột</label>
-            <div className="relative">
-              <button
-                onClick={() => setIsTableDropdownOpen(!isTableDropdownOpen)}
-                className="w-full flex items-center justify-between px-4 py-2.5 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:border-wood-400 transition-colors"
-              >
-                <span>{selectedTable?.label || 'Chọn bảng'}</span>
-                <ChevronDown size={16} className={`transition-transform ${isTableDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {isTableDropdownOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                  {CONFIGURABLE_TABLES.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => { setSelectedTableId(t.id); setIsTableDropdownOpen(false); }}
-                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-wood-50 transition-colors
-                        ${t.id === selectedTableId ? 'bg-wood-50 text-wood-700 font-semibold' : 'text-slate-700'}`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 mt-2">
-              Cho phép <span className="font-semibold text-wood-600">{allowedColumns.length}</span> / {allColumns.length} cột ·
-              Mặc định hiện <span className="font-semibold text-wood-600">{defaultVisible.size}</span> cột
-            </p>
+      <div className="grid min-h-0 flex-1 gap-4 p-6 lg:grid-cols-2">
+        {/* Trái: mọi cột của bảng — tìm + tick để cho phép hiện */}
+        <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
+            <h2 className="text-base font-semibold text-slate-900">Tất cả cột</h2>
+            <span className="text-sm text-slate-400">({allColumns.length})</span>
+            <label className="ml-auto inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-600">
+              <input type="checkbox" checked={chiChuaChon} onChange={e => setChiChuaChon(e.target.checked)} className="h-4 w-4 rounded border-slate-300 accent-slate-900" />
+              Chỉ hiện chưa chọn
+            </label>
           </div>
-
-          {/* Popover chọn cột kiểu Excel */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-bold text-slate-500">Chọn cột được phép hiển thị</label>
-              {allColumns.length === 0 && (
-                <span className="text-xs text-slate-400">Bảng này chưa có dữ liệu/cột để chọn</span>
-              )}
+          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2.5">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="text" placeholder="Tìm cột..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className="h-9 w-full rounded-lg border border-slate-300 pl-8 pr-3 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
-            <div className="relative inline-block">
-              <button
-                ref={filterButtonRef}
-                onClick={() => setIsFilterOpen((v) => !v)}
-                disabled={allColumns.length === 0}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-lg text-sm font-medium transition-colors
-                  ${isFilterOpen ? 'border-wood-500 text-wood-700 bg-wood-50' : 'border-slate-300 text-slate-700 hover:border-wood-400'}
-                  ${allColumns.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <ListFilter size={16} />
-                Chọn cột
-                <span className="px-1.5 py-0.5 rounded bg-wood-600 text-white text-[0.6875rem] font-bold">
-                  {allowedColumns.length}
-                </span>
-                <ChevronDown size={14} className={`transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isFilterOpen && (
-                <div
-                  ref={filterPopoverRef}
-                  className="absolute z-20 mt-1 w-96 bg-white border border-slate-200 rounded-lg shadow-xl flex flex-col overflow-hidden"
-                >
-                  <div className="p-3 border-b border-slate-100 flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        autoFocus
-                        type="text"
-                        placeholder="Tìm cột..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none"
-                      />
-                    </div>
-                    <button onClick={() => setIsFilterOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-md hover:bg-slate-100" title="Đóng">
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <div className="px-3 py-2 border-b border-slate-100 flex gap-2 bg-slate-50">
-                    <button onClick={handleSelectAllFiltered} className="flex-1 px-2 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-md text-slate-600 hover:bg-wood-50">
-                      Chọn tất cả{searchTerm.trim() ? ' (đang lọc)' : ''}
-                    </button>
-                    <button onClick={handleClearAllFiltered} className="flex-1 px-2 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-md text-slate-600 hover:bg-red-50 hover:text-red-600">
-                      Bỏ chọn hết
-                    </button>
-                  </div>
-
-                  <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
-                    {filteredColumns.length === 0 ? (
-                      <div className="p-6 text-center text-slate-400 text-sm">Không tìm thấy cột phù hợp.</div>
-                    ) : (
-                      filteredColumns.map((col) => {
-                        const checked = allowedSet.has(col.key);
-                        return (
-                          <label key={col.key} className="flex items-center gap-3 px-4 py-2.5 hover:bg-wood-50/40 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleColumn(col.key)}
-                              className="w-4 h-4 rounded border-slate-300 text-wood-600 focus:ring-wood-500/30"
-                            />
-                            <span className={`text-sm truncate ${checked ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>
-                              {col.label}
-                            </span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <button onClick={handleSelectAllFiltered} disabled={filteredColumns.length === 0}
+              className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-40">
+              Chọn {searchTerm.trim() ? 'kết quả' : 'tất cả'}
+            </button>
+            <button onClick={handleClearAllFiltered}
+              className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-red-50 hover:text-red-600">
+              Bỏ chọn {searchTerm.trim() ? 'kết quả' : 'hết'}
+            </button>
           </div>
-
-          {/* Danh sách cột được phép — kéo-thả sắp xếp + tick mặc định hiện */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-2">
-              <ListOrdered size={16} className="text-wood-600" />
-              <h2 className="text-sm font-bold text-slate-700">Cột được phép hiển thị</h2>
-              <span className="text-xs text-slate-400 ml-auto">
-                Kéo (⠿) để sắp xếp · bấm biểu tượng mắt để chọn cột mặc định hiện
-              </span>
-            </div>
-
-            {allowedColumns.length === 0 ? (
-              <div className="p-10 text-center text-slate-400 text-sm">
-                Chưa có cột nào được chọn. Nhấn "Chọn cột" ở trên để thêm.
-              </div>
+          <div className="min-h-[16rem] flex-1 overflow-y-auto custom-scrollbar">
+            {allColumns.length === 0 ? (
+              <div className="p-6 text-center text-sm text-slate-400">Bảng này chưa có dữ liệu / cột để chọn (bảng chưa tải xong?)</div>
+            ) : filteredColumns.length === 0 ? (
+              <div className="p-6 text-center text-sm text-slate-400">Không tìm thấy cột phù hợp.</div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100">
+                {filteredColumns.map(col => {
+                  const checked = allowedSet.has(col.key);
+                  const thu = checked ? allowedColumns.indexOf(col.key) + 1 : 0;
+                  return (
+                    <li key={col.key}>
+                      <label className={`flex cursor-pointer items-center gap-3 px-4 py-2 hover:bg-slate-50 ${checked ? 'bg-slate-50/60' : ''}`}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleColumn(col.key)} className="h-4 w-4 rounded border-slate-300 accent-slate-900" />
+                        <span className={`flex-1 truncate text-sm ${checked ? 'font-medium text-slate-900' : 'text-slate-600'}`} title={col.key}>{col.label}</span>
+                        {checked && <span className="shrink-0 text-xs text-slate-400">#{thu}{defaultVisible.has(col.key) ? ' · hiện' : ''}</span>}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {/* Phải: cột được phép — thứ tự hiển thị + bật "mặc định hiện" */}
+        <section className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white">
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
+            <ListOrdered size={16} className="text-slate-500" />
+            <h2 className="text-base font-semibold text-slate-900">Cột được phép · thứ tự hiển thị</h2>
+            <span className="text-sm text-slate-400">({allowedColumns.length})</span>
+            <span className="ml-auto flex gap-1">
+              <button type="button" onClick={() => setDefaultVisible(new Set(allowedColumns))} disabled={!allowedColumns.length}
+                className="rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-40">Hiện tất cả</button>
+              <button type="button" onClick={() => setDefaultVisible(new Set())} disabled={!defaultVisible.size}
+                className="rounded-md px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 disabled:opacity-40">Ẩn tất cả</button>
+            </span>
+          </div>
+          <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">
+            Kéo (⠿) hoặc mũi tên để đổi thứ tự cột · <Eye size={12} className="inline" /> = cột hiện sẵn khi mở bảng (các cột khác người dùng tự bật)
+          </p>
+          <div className="min-h-[16rem] flex-1 overflow-y-auto custom-scrollbar">
+            {allowedColumns.length === 0 ? (
+              <div className="p-10 text-center text-sm text-slate-400">Chưa cho phép cột nào. Tick cột ở cột bên trái để thêm.</div>
+            ) : (
+              <ol className="divide-y divide-slate-100">
                 {allowedColumns.map((key, index) => {
                   const isDefault = defaultVisible.has(key);
                   return (
-                    <div
+                    <li
                       key={key}
                       draggable
                       onDragStart={handleDragStart(index)}
                       onDragOver={handleDragOver(index)}
                       onDrop={handleDrop(index)}
                       onDragEnd={handleDragEnd}
-                      className={`flex items-center gap-3 px-4 py-2.5 bg-white transition-colors
+                      className={`group flex items-center gap-3 px-3 py-2 transition-colors
                         ${dragIndex === index ? 'opacity-40' : ''}
-                        ${dragOverIndex === index && dragIndex !== null && dragIndex !== index ? 'bg-wood-50 border-t-2 border-wood-400' : ''}
-                      `}
+                        ${dragOverIndex === index && dragIndex !== null && dragIndex !== index ? 'border-t-2 border-slate-900 bg-slate-50' : 'hover:bg-slate-50'}`}
                     >
-                      <span className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600" title="Kéo để sắp xếp">
-                        <GripVertical size={16} />
+                      <span className="cursor-grab text-slate-300 group-hover:text-slate-500 active:cursor-grabbing" title="Kéo để sắp xếp"><GripVertical size={16} /></span>
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{index + 1}</span>
+                      <span className={`flex-1 truncate text-sm ${isDefault ? 'font-medium text-slate-900' : 'text-slate-500'}`}>{columnLabelByKey.get(key) || key}</span>
+                      <button onClick={() => toggleDefaultVisible(key)} aria-pressed={isDefault}
+                        title={isDefault ? 'Đang hiện sẵn — bấm để ẩn mặc định' : 'Bấm để hiện sẵn khi mở bảng'}
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition ${isDefault ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-400 hover:bg-slate-100'}`}>
+                        {isDefault ? <Eye size={13} /> : <EyeOff size={13} />}
+                        {isDefault ? 'Hiện sẵn' : 'Ẩn'}
+                      </button>
+                      <span className="flex shrink-0 items-center opacity-40 transition group-hover:opacity-100">
+                        <button onClick={() => moveColumn(index, -1)} disabled={index === 0} title="Lên"
+                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-25"><ChevronDown size={15} className="rotate-180" /></button>
+                        <button onClick={() => moveColumn(index, 1)} disabled={index === allowedColumns.length - 1} title="Xuống"
+                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-25"><ChevronDown size={15} /></button>
+                        <button onClick={() => removeColumn(key)} title="Bỏ cho phép cột này"
+                          className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600"><X size={15} /></button>
                       </span>
-                      <span className="w-7 h-7 shrink-0 rounded-full bg-wood-100 text-wood-700 text-xs font-bold flex items-center justify-center">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm text-slate-800 font-medium flex-1 truncate">
-                        {columnLabelByKey.get(key) || key}
-                      </span>
-                      <button
-                        onClick={() => toggleDefaultVisible(key)}
-                        title={isDefault ? 'Đang mặc định hiện — bấm để bỏ' : 'Bấm để đặt hiện mặc định'}
-                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors
-                          ${isDefault ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100'}`}
-                      >
-                        {isDefault ? <Eye size={14} /> : <EyeOff size={14} />}
-                        Mặc định
-                      </button>
-                      <button onClick={() => moveColumn(index, -1)} disabled={index === 0} className="p-1 text-slate-400 hover:text-wood-600 disabled:opacity-25 disabled:cursor-not-allowed" title="Lên">
-                        <ChevronDown size={14} className="rotate-180" />
-                      </button>
-                      <button onClick={() => moveColumn(index, 1)} disabled={index === allowedColumns.length - 1} className="p-1 text-slate-400 hover:text-wood-600 disabled:opacity-25 disabled:cursor-not-allowed" title="Xuống">
-                        <ChevronDown size={14} />
-                      </button>
-                      <button onClick={() => removeColumn(key)} className="p-1 text-slate-400 hover:text-red-600" title="Bỏ chọn">
-                        <X size={16} />
-                      </button>
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
+              </ol>
             )}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

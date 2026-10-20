@@ -11,6 +11,7 @@ import { dangKyLamNong } from '../server/lamNong.js';
 import { verBang, tuCot } from '../server/goiBang.js';
 import { ensureProjectAliases, listProjectAliases, projectAliasesVersion } from '../server/projectAlias.js';
 import { ensureWorkshopGroups, getWorkshopMapping, workshopGroupsVersion } from '../server/workshopGroups.js';
+import { laGioNghiDb } from '../server/gioNghi.js';
 import {
   tinhTongQuanSanXuat, DEFAULT_FILTERS, TUY_CHON_MAC_DINH, canonicalizeProjectNames, canonicalizePersonNames,
   setServerProjectAliases, canonicalizeWorkshops, applyWorkshopMapping, cotTuDuLieu, setPlanMet, taoBanGhi, nenBanGhi,
@@ -212,6 +213,8 @@ dangKyLamNong('tong-quan', () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_D
 dangKyLamNong('tong-quan-hang-muc', () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: 'COUNT_HEX' }));
 
 app.get('/api/cron/tong-quan', cronAuth, async (_req: Request, res: Response) => {
+  // Giờ để DB ngủ (server/gioNghi.ts): không dựng lại — sáng ra người đầu tiên mở trang sẽ kích làm nóng
+  if (laGioNghiDb()) return res.json({ ok: true, boQua: 'gio-nghi-db' });
   const t0 = Date.now();
   const ketQua: Record<string, string> = {};
   const chay = async (ten: string, f: () => Promise<{ nguon: string }>) => {

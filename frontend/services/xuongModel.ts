@@ -277,6 +277,7 @@ const TEN_LOAI: Record<string, string> = {
   tang_ca: 'Khai tăng ca', chia_nguoi: 'Chia người', quan_so: 'Chốt quân số', xac_nhan_cuoi_ngay: 'Xác nhận cuối ngày',
   tien_do: 'Tiến độ', trien_khai: 'Triển khai', khai_bao_cd: 'Khai báo công đoạn',
   vao_ca: 'Điểm danh', ra_ca: 'Ra ca', huy: 'Huỷ thao tác',
+  nguoi_vao: 'Vào hàng', nguoi_ra: 'Ra hàng',
 };
 
 export function moTaSuKien(x: { loai: string; soLuong?: number | null; soNguoi?: number | null; lyDo?: string | null; tenCongDoanDen?: string | null; duLieu?: Record<string, unknown> | null; dvt?: string | null }) {
@@ -302,6 +303,8 @@ export function moTaSuKien(x: { loai: string; soLuong?: number | null; soNguoi?:
     if (typeof n === 'number') p.push(`${n} người`);
   } else if (x.soNguoi) p.push(`${x.soNguoi} người`);
   if (x.loai === 'tien_do' && typeof x.duLieu?.tienDo === 'number') p.push(`${x.duLieu.tienDo}%`);
+  // Trạm quét: người vào / ra hàng — kèm mã NV (trước hiện mã thô nguoi_vao)
+  if ((x.loai === 'nguoi_vao' || x.loai === 'nguoi_ra') && typeof x.duLieu?.mnv === 'string') p.push(`· ${x.duLieu.mnv}`);
   return p.join(' ');
 }
 
@@ -327,6 +330,15 @@ export const TEN_CO: Record<string, string> = {
   quan_ly_ghi_ho: 'Quản lý ghi hộ tổ',
   chua_chot_quan_so: 'Chưa chốt quân số',
   khai_bu: 'Khai bù ngày trước (chọn ngày thực hiện)',
+  // Trạm quét (backend routes/xuongTram.ts) — chỉ để biết, không phải lỗi
+  tram: 'Quét ở trạm',
+  nhan_du: 'Nhận đủ (máy tính số lượng)',
+  xong_het: 'Xong hết số đã nhận',
+  khai_ho: 'Khai hộ cả nhóm',
+  ngoai_ca: 'Ngoài giờ ca',
+  phan_cong: 'Phân công đầu ca',
+  to_truong_ghi_ho: 'Tổ trưởng ghi hộ',
+  bao_xong: 'Báo xong khi ra hàng',
 };
 export const tenCo = (c: string) => TEN_CO[c] ?? c;
 
