@@ -765,14 +765,18 @@ const DATA_AS_OF_DATE_COLUMN: Record<string, string> = {
   ton_kho: 'date_parsed',
 };
 
+// Bảng chụp nhanh tình trạng hiện tại (sản xuất, vật tư): "dữ liệu đến ngày" = ngày chạy cập nhật (giờ VN)
+const SNAPSHOT_TABLES = new Set(['production_status_app', 'vat_tu']);
+
 const fetchDataAsOfDates = async (): Promise<Record<string, string | null>> => {
   const entries = Object.entries(DATA_AS_OF_DATE_COLUMN);
   const results = await runWithLimit(
     entries.map(([table, col]) => async (): Promise<readonly [string, string | null]> => {
       try {
-        const r = await timedQuery(`SELECT MAX("${col}") AS max_date FROM ${table}`);
-        const maxDate = r.rows[0]?.max_date;
-        return [table, maxDate ? new Date(maxDate).toISOString().slice(0, 10) : null] as const;
+        // ::text — cột DATE đổi sang Date của JS rồi toISOString() lùi 1 ngày khi máy chủ chạy giờ +7
+        const r = await timedQuery(`SELECT MAX("${col}")::text AS max_date FROM ${table}`);
+        const maxDate: string | null = r.rows[0]?.max_date ?? null;
+        return [table, maxDate ? maxDate.slice(0, 10) : null] as const;
       } catch (error) {
         console.error(`Lỗi lấy "dữ liệu cập nhật đến ngày" cho ${table}:`, error);
         return [table, null] as const;
@@ -823,7 +827,8 @@ app.get('/api/data-update-log', async (_req: Request, res: Response) => {
       const hoursAgo = lastUpdated ? (now - lastUpdated.getTime()) / (1000 * 60 * 60) : Infinity;
       const dataAsOfDate = row.is_manual
         ? (row.manual_data_as_of_date ? new Date(row.manual_data_as_of_date).toISOString().slice(0, 10) : null)
-        : (asOfDates[row.table_name] ?? null);
+        // Bảng chụp nhanh (không có cột ngày nghiệp vụ): số liệu là tình trạng tại lúc chạy cập nhật
+        : (asOfDates[row.table_name] ?? (SNAPSHOT_TABLES.has(row.table_name) && lastUpdated ? vnDayKey(lastUpdated) : null));
 
       return {
         table: row.table_name,
