@@ -1,0 +1,30 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="hex.js"></script></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="row">
+    <div class="card np grow">
+      <div class="hd" style="padding:16px 18px"><span class="h2">Dòng PR của hạng mục</span><span class="badge t-sl">7</span><span class="sub">nối qua mã nhà máy</span><span class="sp"></span><div class="legend"><span style="--lc:#f97316">Trễ hẹn 2</span><span style="--lc:#7dd3fc">Chưa tới hẹn 2</span><span style="--lc:#15803d">Đã về 3</span></div></div>
+      <table id="t" class="mid"><tr><th>Số PR · line</th><th>Tên vật tư</th><th>Nhóm VT</th><th class="r">SL YC</th><th class="r">Đã nhận</th><th class="r">Còn lại</th><th>Ngày PR</th><th>Ngày cần VT</th><th>Dự kiến giao PMH</th><th>Tình trạng</th></tr></table>
+    </div>
+    <div class="col" style="width:440px;flex:none">
+      <div class="card np">
+        <div class="hd" style="padding:16px 18px 10px"><span class="h2">Định mức vật tư</span><span class="sub">bảng sản xuất</span></div>
+        <table class="tight" style="white-space:normal"><tr><th>Nhóm</th><th>Tên</th><th class="r">SL</th></tr>
+        <tr><td>Gỗ · tấm · veneer</td><td>VÁN ÉP E2 C/A 18 LY</td><td class="r">24 tấm</td></tr><tr><td>Gỗ · tấm · veneer</td><td>VÁN LẠNG YL V39004</td><td class="r">60 tấm</td></tr><tr><td>Kính · đá</td><td>KÍNH THỦY TRẮNG 5 LY</td><td class="r">8 m2</td></tr><tr><td>Kim loại</td><td>INOX HỘP 304</td><td class="r">85 kg</td></tr><tr><td>Vecni</td><td>AATN 01/26 K 20077 (mua gộp)</td><td class="r">0,54 m2/SP</td></tr></table>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:8px">
+        <div class="h2">Tình trạng NVL (bảng SX)</div><div class="sub" style="margin-top:-4px">cột tinh_trang_nvl_*_item_by_item</div>
+        <div class="hd"><span>GỖ-WHITE ASH XẺ SẤY</span><span class="sp"></span><span class="badge t-grn">Hoàn thành</span></div>
+        <div class="hd"><span>VÁN LẠNG YL V39004 · hẹn 20/10</span><span class="sp"></span><span class="badge t-org">Mở · trễ</span></div>
+        <div class="hd"><span>KÍNH THỦY TRẮNG 5LY · hẹn 24/10</span><span class="sp"></span><span class="badge t-amb">Mở</span></div>
+        <div class="sub">Gia công ngoài: không có</div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<script>
+hexHead(1);
+const R=[['PR2609-0412 · 10','VÁN LẠNG YL V39004 0.5X640X2500','102 - Tấm/ Ván','60 tấm','0','01/10','20/10',['Trễ hẹn 19 ngày','org'],1],['PR2609-0412 · 20','VÁN ÉP E2 C/A 18 LY','102 - Tấm/ Ván','24 tấm','0','01/10','20/10',['Trễ hẹn 19 ngày','org'],1],['PR2609-0388 · 10','KÍNH THỦY TRẮNG 5 LY','110 - Kính','8 m2','0','24/10','24/10',['Chưa tới hẹn','blu']],['PR2609-0390 · 10','Bản lề âm Hafele','115 - Phụ kiện','120 cái','0','24/10','24/10',['Chưa tới hẹn','blu']],['PR2608-0201 · 10','GỖ-WHITE ASH XẺ SẤY LOẠI AB','101 - Gỗ','1,2 m3','1,2','20/08','18/08',['Đã về','grn']],['PR2608-0215 · 10','Khoá tay gạt','115 - Phụ kiện','40 bộ','40','10/09','05/09',['Đã về','grn']],['PR2608-0215 · 20','INOX HỘP 304','105 - Kim loại','85 kg','85','10/09','05/09',['Đã về','grn']]];
+document.getElementById('t').insertAdjacentHTML('beforeend',R.map(r=>`<tr${r[8]?' style="background:#fff7ed"':''}><td class="c-sub" style="white-space:nowrap">${r[0]}</td><td style="font-weight:500">${r[1]}</td><td class="c-sub">${r[2]}</td><td class="r num">${r[3]}</td><td class="r num ${r[4]=='0'?'c-sub':''}">${r[4]}</td><td class="r num ${r[4]=='0'?'c-amb b':'c-sub'}">${r[4]=='0'?r[3].split(' ')[0]:'0'}</td><td class="c-sub">${r[0].slice(2,4)}/0${r[0][5]}</td><td class="${r[8]?'c-red b':''}">${r[5]}</td><td>${r[6]}</td><td><span class="badge t-${r[7][1]}">${r[7][0]}</span></td></tr>`).join(''));
+</script>
+</body></html>

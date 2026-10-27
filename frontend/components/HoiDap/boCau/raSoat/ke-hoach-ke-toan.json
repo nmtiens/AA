@@ -1,0 +1,1940 @@
+[
+ {
+  "id": "ke-hoach-ke-toan-001",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "kế hoạch nhập kho tháng này theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  },
+  "ghi_chu": "mơ hồ: không chấm lọc phan_loai_kh (THÁNG / TUẦN)"
+ },
+ {
+  "id": "ke-hoach-ke-toan-002",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "kh nk tuan nay xuong 3A bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_ke_hoach"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-25"
+   }
+  },
+  "ghi_chu": "mơ hồ: bảng kế hoạch lấy trọn tuần; có thể lọc thêm phan_loai_kh TUẦN"
+ },
+ {
+  "id": "ke-hoach-ke-toan-003",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tháng 11 có kế hoạch nhập kho những công trình nào",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-11-01",
+    "den": "2026-11-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-004",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tuần 43 xưởng nào rớt kế hoach",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "loc": [],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-25"
+   }
+  },
+  "ghi_chu": "mơ hồ: \"rớt\" có thể gồm cả \"TH 1 PHẦN, RỚT 1 PHẦN\"; tuần 43 có thể lọc cột tuan thay vì kỳ"
+ },
+ {
+  "id": "ke-hoach-ke-toan-005",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "ti le dat ke hoach tuan truoc",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "dung_ke_hoach"
+   },
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  },
+  "ghi_chu": "mơ hồ: tỷ lệ đạt = đúng KH / KH, hay nhập kho tuần / KH"
+ },
+ {
+  "id": "ke-hoach-ke-toan-006",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "giá trị rớt kế hoạch tháng 9 theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-007",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "ct nao dung kh tuan 42",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   },
+   "coDo": {
+    "ham": "tong",
+    "cot": "dung_ke_hoach"
+   }
+  },
+  "ghi_chu": "kv sửa 24/10 theo quy ước bộ câu chính"
+ },
+ {
+  "id": "ke-hoach-ke-toan-008",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "kế hoạch năm 2026 của 8AB là bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_ke_hoach"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-12-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-009",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "mục tiêu năm nay theo từng tháng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "nhom": [
+    "thoi_gian@thang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-12-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-010",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nhập kho thực tế so với kế hoạch tháng 9 ntn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "nhap_kho_tuan"
+   },
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  },
+  "ghi_chu": "mơ hồ: có thể hiểu là so bảng nhập kho với bảng kế hoạch"
+ },
+ {
+  "id": "ke-hoach-ke-toan-011",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "trị giá đơn hàng nhận tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "coDo": {
+    "ham": "tong",
+    "cot": "tri_gia_don_hang_tong"
+   },
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-012",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đơn hàng trên 2 tỷ năm nay nhé",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "tri_gia_don_hang_tong",
+     "op": "lon_hon",
+     "gt": 2000
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  },
+  "ghi_chu": "mơ hồ: liệt kê từng đơn hay tổng các đơn trên 2 tỷ"
+ },
+ {
+  "id": "ke-hoach-ke-toan-013",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tổng đơn hàng của SUN GROUP quý 3",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-014",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "don hang pm tailv thang truoc",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_pm",
+     "op": "bang",
+     "gt": [
+      "tailv"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-015",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đã tính phiếu bao nhiêu tiền tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "coDo": {
+    "ham": "tong",
+    "cot": "tri_gia_don_hang_tong"
+   },
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-016",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tinh phieu thang 9 theo xuong",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-017",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "phiếu sx bổ sung tháng này bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "tinh_trang_phieu",
+     "op": "bang",
+     "gt": [
+      "3.PHIẾU SX BỔ SUNG"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-018",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "ct nam phương còn lại bao nhiêu chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: có thể lọc thêm gia_tri_con_lai > 0 (cùng kết quả)"
+ },
+ {
+  "id": "ke-hoach-ke-toan-019",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "giá trị còn lại theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-020",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "các hạng mục chưa có kế hoạch nhập kho của xưởng 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ngay_khnk_thang",
+     "op": "rong"
+    },
+    {
+     "cot": "ngay_khnk_tuan",
+     "op": "rong"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-021",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "hm qua han kh theo ct",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-022",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "trị giá đơn còn lại của PM LÊ MINH TUẤN",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "ten_pm",
+     "op": "bang",
+     "gt": [
+      "LÊ MINH TUẤN"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: có lọc gia_tri_con_lai > 0 hay chỉ lọc PM (cùng kết quả) · kv sửa 24/10 theo quy ước bộ câu chính"
+ },
+ {
+  "id": "ke-hoach-ke-toan-023",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đơn nào sắp đến hạn giao mà chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-19",
+      "2026-11-02"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-024",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "quá hạn giao bao nhiêu tiền theo PM",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-025",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nhập kho bình quân mỗi ngày tg 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "binhQuan": "ngay",
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-026",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "trung binh 1 tuan nhap dc bn tien quy 3",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "binhQuan": "tuan",
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-027",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nhập kho tháng này so với tháng trước",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-028",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "xuất kho quý 3 so với quý 2",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-04-01",
+    "den": "2026-06-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-029",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "doanh thu năm nay so cùng kỳ năm ngoái theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-01-01",
+    "den": "2025-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-030",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "xưởng nào nhập kho tăng nhiều nhất tháng 9 so tháng 8",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-08-01",
+    "den": "2026-08-31"
+   },
+   "sapChenh": "tang"
+  },
+  "ghi_chu": "mơ hồ: giả định sapChenh \"tang\" = xếp xưởng tăng nhiều nhất lên đầu"
+ },
+ {
+  "id": "ke-hoach-ke-toan-031",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "top 5 công trình nhập kho nhiều nhất năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "gioiHan": 5,
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-032",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "3 pm có đơn hàng lớn nhất quý này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pm"
+   ],
+   "gioiHan": 3,
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-033",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "xk tu 1/9 den 15/9 theo ct",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-15"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-034",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tồn kho hơn 3 thang theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-035",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "gia tri ton kho hien tai cua xuong 2A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri"
+   },
+   "loc": [
+    {
+     "cot": "sx:xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "2A"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: bảng tồn kho không có cột xưởng (lấy qua HEX); \"tồn kho hiện tại\" cũng là cột của bảng sản xuất"
+ },
+ {
+  "id": "ke-hoach-ke-toan-036",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tồn kho theo khách hàng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "sx:khach_hang"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-037",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "mỗi tháng năm 2025 nhập kho được bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "date@thang"
+   ],
+   "ky": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-038",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "ad ơi cho e hỏi tổng trị giá đơn hàng 8C năm nay với",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8C"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-039",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "kế hoạch tuần 44 của 5A",
+  "kv": {
+   "loai": "mau",
+   "y": "ke_hoach_tuan"
+  },
+  "ghi_chu": "mơ hồ: tuần 44 có thể lọc cột tuan; có thể lọc thêm phan_loai_kh TUẦN"
+ },
+ {
+  "id": "ke-hoach-ke-toan-040",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "hạng mục ko có kế hoạch theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_khnk_thang",
+     "op": "rong"
+    },
+    {
+     "cot": "ngay_khnk_tuan",
+     "op": "rong"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-041",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nhap kho tuan truoc cua CT25-070",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-042",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "giá trị kế hoạch nhập kho công trình tây hồ view tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_ke_hoach"
+   },
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-043",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đơn hàng theo khu vực năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "khu_vuc"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  },
+  "ghi_chu": "mơ hồ: dht có cột khu_vuc sẵn; có thể lấy sx:khu_vuc_du_an"
+ },
+ {
+  "id": "ke-hoach-ke-toan-044",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "trị giá đơn hàng theo nhóm sp quý 3",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "sx:phan_loai_nhom_san_pham"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-045",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "hạng mục chưa phiếu theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "tinh_trang_phieu",
+     "op": "bang",
+     "gt": [
+      "CHƯA PHIẾU"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: có thể lọc tinh_trang_phieu = CHƯA PHIẾU, hoặc gồm cả 13. CHƯA PHIẾU PHẦN CÒN LẠI"
+ },
+ {
+  "id": "ke-hoach-ke-toan-046",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đơn hàng tổng tháng 9 có bn hex",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "hex"
+   },
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-047",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tính phiếu bình quân mỗi tuần năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "binhQuan": "tuan",
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-048",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tri gia da tinh phieu cua ct holiday inn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "holiday inn"
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: có thể hiểu là bảng tính phiếu (pthsp_full) lọc công trình"
+ },
+ {
+  "id": "ke-hoach-ke-toan-049",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "công trình nào có kế hoạch tuần này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-25"
+   }
+  },
+  "ghi_chu": "mơ hồ: có thể lọc thêm phan_loai_kh TUẦN"
+ },
+ {
+  "id": "ke-hoach-ke-toan-050",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "kh thang 10 theo ct",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-051",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "hạng mục đang tạm ngưng theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "bop",
+     "op": "bang",
+     "gt": [
+      "TẠM NGƯNG"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-052",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nk thang nay dat bn % ke hoach",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "nhap_kho_tuan"
+   },
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  },
+  "ghi_chu": "mơ hồ: có thể so bảng nhập kho với bảng kế hoạch"
+ },
+ {
+  "id": "ke-hoach-ke-toan-053",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "vượt kế hoạch tuần 41 bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "vuot_ke_hoach"
+   },
+   "ky": {
+    "tu": "2026-10-05",
+    "den": "2026-10-11"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-054",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nhập kho ngoài kế hoạch tháng 9 theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "nhap_kho_ngoai_ke_hoach"
+   },
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  },
+  "ghi_chu": "mơ hồ: có thể lọc tinh_trang_thuc_hien_ke_hoach = NK NGOÀI KH rồi cộng nhap_kho_tuan"
+ },
+ {
+  "id": "ke-hoach-ke-toan-055",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "so don hang moi nhan hom qua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "hex"
+   },
+   "ky": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-056",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "giá trị đơn hàng của khách CAPITALAND còn chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "khach_hang",
+     "op": "bang",
+     "gt": [
+      "CAPITALAND"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-057",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "cho em hỏi 30 ngày gần đây nhập kho đc bao nhiêu tỷ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-09-20",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-058",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nhập kho hôm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-059",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "xuat kho cho SUN GROUP thang nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-060",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tổng kế hoạch nhập kho năm nay theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-12-31"
+   }
+  },
+  "ghi_chu": "mơ hồ: có thể hiểu là bảng kế hoạch năm (khsx_nam)"
+ },
+ {
+  "id": "ke-hoach-ke-toan-061",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "kế hoạch nhập kho tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_ke_hoach"
+   },
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-062",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "theo xưởng đi",
+  "truoc": "kế hoạch nhập kho tháng này",
+  "chuoi": [
+   "kế hoạch nhập kho tháng này"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-063",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tháng sau thì sao",
+  "truoc": "theo xưởng đi",
+  "chuoi": [
+   "kế hoạch nhập kho tháng này",
+   "theo xưởng đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-11-01",
+    "den": "2026-11-30"
+   }
+  },
+  "ghi_chu": "mơ hồ: đổi kỳ nhưng giữ chia theo xưởng"
+ },
+ {
+  "id": "ke-hoach-ke-toan-064",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "trị giá đơn hàng tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "coDo": {
+    "ham": "tong",
+    "cot": "tri_gia_don_hang_tong"
+   },
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-065",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "theo PM",
+  "truoc": "trị giá đơn hàng tháng 9",
+  "chuoi": [
+   "trị giá đơn hàng tháng 9"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-066",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "so với tháng 8",
+  "truoc": "theo PM",
+  "chuoi": [
+   "trị giá đơn hàng tháng 9",
+   "theo PM"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-08-01",
+    "den": "2026-08-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-067",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tuần trước rớt kế hoạch bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-068",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "còn 4A?",
+  "truoc": "tuần trước rớt kế hoạch bao nhiêu",
+  "chuoi": [
+   "tuần trước rớt kế hoạch bao nhiêu"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-069",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "chi tiết đi",
+  "truoc": "còn 4A?",
+  "chuoi": [
+   "tuần trước rớt kế hoạch bao nhiêu",
+   "còn 4A?"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  },
+  "ghi_chu": "mơ hồ: liệt kê mọi dòng 4A tuần trước hay chỉ dòng rớt"
+ },
+ {
+  "id": "ke-hoach-ke-toan-070",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "công trình capella còn lại bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "capella"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-071",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "theo hạng mục",
+  "truoc": "công trình capella còn lại bao nhiêu",
+  "chuoi": [
+   "công trình capella còn lại bao nhiêu"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "capella"
+    }
+   ],
+   "nhom": [
+    "ten_hang_muc"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-072",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đã tính phiếu bao nhiêu",
+  "truoc": "theo hạng mục",
+  "chuoi": [
+   "công trình capella còn lại bao nhiêu",
+   "theo hạng mục"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_tinh_phieu"
+   },
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "capella"
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: giữ hay bỏ chia theo hạng mục (không chấm nhom)"
+ },
+ {
+  "id": "ke-hoach-ke-toan-073",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nk thang nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-074",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "so voi cung ky nam ngoai",
+  "truoc": "nk thang nay",
+  "chuoi": [
+   "nk thang nay"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-10-01",
+    "den": "2025-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-075",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "xuat thi sao",
+  "truoc": "so voi cung ky nam ngoai",
+  "chuoi": [
+   "nk thang nay",
+   "so voi cung ky nam ngoai"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-10-01",
+    "den": "2025-10-19"
+   }
+  },
+  "ghi_chu": "mơ hồ: đổi bảng nhưng giữ kỳ và so sánh"
+ },
+ {
+  "id": "ke-hoach-ke-toan-076",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tính phiếu quý 3 theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-077",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "chỉ 3A thôi",
+  "truoc": "tính phiếu quý 3 theo xưởng",
+  "chuoi": [
+   "tính phiếu quý 3 theo xưởng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-078",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "bình quân mỗi tuần",
+  "truoc": "chỉ 3A thôi",
+  "chuoi": [
+   "tính phiếu quý 3 theo xưởng",
+   "chỉ 3A thôi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "binhQuan": "tuan",
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-079",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tồn kho theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-080",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "chỉ lấy tồn trên 6 tháng",
+  "truoc": "tồn kho theo công trình",
+  "chuoi": [
+   "tồn kho theo công trình"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 6
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-081",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "top 5",
+  "truoc": "chỉ lấy tồn trên 6 tháng",
+  "chuoi": [
+   "tồn kho theo công trình",
+   "chỉ lấy tồn trên 6 tháng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 6
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "gioiHan": 5,
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-082",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "mục tiêu năm 2026 theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-12-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-083",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "năm 2025 thì sao",
+  "truoc": "mục tiêu năm 2026 theo xưởng",
+  "chuoi": [
+   "mục tiêu năm 2026 theo xưởng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-084",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "theo tháng đi",
+  "truoc": "năm 2025 thì sao",
+  "chuoi": [
+   "mục tiêu năm 2026 theo xưởng",
+   "năm 2025 thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "nhom": [
+    "thoi_gian@thang"
+   ],
+   "ky": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  },
+  "ghi_chu": "mơ hồ: thay chia xưởng bằng chia tháng, hay chia cả hai"
+ },
+ {
+  "id": "ke-hoach-ke-toan-085",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "đơn hàng của BIM GROUP năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "BIM GROUP"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-086",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "còn CAPITALAND",
+  "truoc": "đơn hàng của BIM GROUP năm nay",
+  "chuoi": [
+   "đơn hàng của BIM GROUP năm nay"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "CAPITALAND"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-087",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "theo tháng",
+  "truoc": "còn CAPITALAND",
+  "chuoi": [
+   "đơn hàng của BIM GROUP năm nay",
+   "còn CAPITALAND"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "CAPITALAND"
+     ]
+    }
+   ],
+   "nhom": [
+    "ngay_nhan_tu_pm@thang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-088",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "hạng mục quá hạn kế hoạch",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-089",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "theo PM đi",
+  "truoc": "hạng mục quá hạn kế hoạch",
+  "chuoi": [
+   "hạng mục quá hạn kế hoạch"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-090",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "còn quá hạn giao thì sao",
+  "truoc": "theo PM đi",
+  "chuoi": [
+   "hạng mục quá hạn kế hoạch",
+   "theo PM đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: đổi khái niệm lọc nhưng giữ chia theo PM"
+ },
+ {
+  "id": "ke-hoach-ke-toan-091",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tại sao tuần trước 4A rớt kế hoạch",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-092",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "cuối năm có đạt mục tiêu không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-093",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "lợi nhuận tháng 9 là bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-094",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "công nợ của SUN GROUP còn bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-095",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "hoá đơn đã xuất tháng 9 bao nhiêu tiền",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-096",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "ai duyệt kế hoạch tuần 43",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-097",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "chi phí nhân công tháng 9 bn",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-098",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "nên ưu tiên công trình nào tuần này",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-099",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "tỷ giá usd hôm nay",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "ke-hoach-ke-toan-100",
+  "nhom": "ke_hoach_ke_toan",
+  "cau": "vì sao đơn hàng tháng 9 giảm so với tháng 8",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ }
+]

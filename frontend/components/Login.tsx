@@ -10,7 +10,7 @@ const Login: React.FC = () => {
   return (
     <TrangDangNhap
       bieuTuong={<TrendingUp className="h-7 w-7" strokeWidth={2.25} aria-hidden />}
-      ten="Operations Hub" moTa="Hệ thống quản lý tiến độ sản xuất"
+      ten="Operations Hub" moTa="Theo dõi đơn hàng, sản xuất, kho và xưởng của AA trong một nơi — số liệu cập nhật theo ngày."
       chan="Tài khoản do quản trị viên cấp · © 2026 Operations Hub"
       sauDangNhap={() => {
         const afterLogin = sessionStorage.getItem('after_login');

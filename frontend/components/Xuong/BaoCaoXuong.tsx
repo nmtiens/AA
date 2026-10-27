@@ -187,7 +187,7 @@ function TabTheoNgay({ ds }: { ds: BaoCaoTo[] }) {
       <div className="rmd:hidden">
         {ngays.map(ngay => (
           <div key={ngay}>
-            <p className="border-y border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-800">{ddmm(ngay)}/{ngay.slice(0, 4)}</p>
+            <p className="border-y border-slate-200 bg-slate-50 px-4 py-2 text-base font-semibold text-slate-900">{ddmm(ngay)}/{ngay.slice(0, 4)}</p>
             <ul className="divide-y divide-slate-100">
               {theoNgay.get(ngay)!.sort((a, b) => a.t.ten.localeCompare(b.t.ten)).map(({ t, n }) => {
                 const k = `${ngay}|${t.toId}`;
@@ -935,7 +935,7 @@ function DoiChieuChamCong({ d }: { d: BaoCao }) {
   return (
     <div className={KHUNG}>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-slate-800">Đối chiếu chấm công (Dữ liệu Điểm danh, cả xưởng)</p>
+        <p className="text-base font-semibold text-slate-900">Đối chiếu chấm công (Dữ liệu Điểm danh, cả xưởng)</p>
         {lech !== null
           ? <p className={`text-sm ${lech <= 10 ? 'text-emerald-700' : 'text-amber-700'}`}>
               Giờ công (app) lệch {lech}% so với giờ công chấm công ({caHai.length} ngày có cả hai) — {lech <= 10 ? 'đạt' : 'chưa đạt'} mục tiêu ≤ 10%

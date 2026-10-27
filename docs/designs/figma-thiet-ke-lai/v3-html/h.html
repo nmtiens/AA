@@ -1,0 +1,40 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="hex.js"></script></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="note" style="background:#fef3c7;color:var(--ambT)">⚠ KH nhập kho tháng (31/10) muộn hơn ngày cần giao (25/10) — biết trước sẽ giao trễ.</div>
+  <div class="card" style="display:flex;flex-direction:column;gap:18px">
+    <div class="hd"><span class="h2">Tiến trình (BOP)</span><span class="sub">từ nhận đơn tới giao · SL đã giao theo công đoạn / SL đơn hàng</span></div>
+    <div style="display:flex;position:relative" id="steps"></div>
+    <div style="background:#f8fafc;border-radius:12px;padding:14px 16px">
+      <div class="hd" style="margin-bottom:10px"><span class="b">Sản xuất P013 → P021</span><span class="sub">SL đã giao từng bước / SL đơn hàng · chỉ hiện bước hạng mục có (Sofa, Đá: không có)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:10px" id="sx"></div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="card grow" style="display:flex;flex-direction:column;gap:4px">
+      <div class="hd" style="margin-bottom:6px"><span class="h2">Thời hạn (BOT)</span><span class="sub">hạn dùng: KH nhập kho tuần → tháng; các ngày khác chỉ tham khảo</span></div>
+      <div id="dl"></div>
+      <div style="margin-top:10px;position:relative;height:54px" id="tl"></div>
+    </div>
+    <div class="card" style="width:420px;flex:none;display:flex;flex-direction:column;gap:4px">
+      <div class="hd" style="margin-bottom:6px"><span class="h2">Vật tư & vướng mắc</span></div>
+      <div id="vt"></div>
+      <div style="border:1px solid #fecaca;background:#fff5f5;border-radius:10px;padding:10px 12px;margin-top:10px"><div class="hd"><span class="badge t-red">M3 Vật tư</span><span class="b">Thiếu ván lạng YL V39004</span></div><div class="sub" style="margin-top:4px">mở 16/10 · 4 ngày · Xử lý: Phòng mua hàng · BOT 21/10</div></div>
+    </div>
+  </div>
+</div></div>
+<script>
+hexHead(0);
+const S=[['Nhận đơn từ PM','P001','12/03/2026','212 ngày trước','done'],['Triển khai bản vẽ','P002','02/04','sau nhận PM 21 ngày','done'],['Tính / duyệt phiếu','P012','20/04 → 22/04','SL tính phiếu 40 / 40','done'],['Sản xuất','P013 → P021','','đang ở 05. MỘC · 5 tuần','cur'],['Nhập kho','P022','12 / 40 bộ','2 lần · gần nhất 08/10','part'],['Xuất kho / giao','P025','—','tồn kho 12','todo']];
+const col={done:'#15803d',cur:'#f59e0b',part:'#86efac',todo:'#cbd5e1'};
+document.getElementById('steps').innerHTML=`<div style="position:absolute;top:13px;left:8%;right:8%;height:3px;background:linear-gradient(90deg,#15803d 0 50%,#f59e0b 50% 62%,#e5e7eb 62%)"></div>`+S.map(([n,c,d,s,st])=>`<div class="step"><div style="width:28px;height:28px;border-radius:50%;background:${col[st]};border:4px solid #fff;box-shadow:0 0 0 1px ${col[st]};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;z-index:1">${st=='done'?'✓':st=='cur'?'•':''}</div><div class="b">${n}</div><div class="mut" style="font-size:11px;margin-top:-4px">${c}</div><div style="font-size:12px;font-weight:600;${st=='cur'?'color:#92400e':''}">${d}</div><div class="sub">${s}</div></div>`).join('');
+const X=[['CTS',100],['Máy',100],['Mộc',60,1],['Kim loại',0],['Vecni',0],['Kính',0],['Fitting',0],['Bao bì',0]];
+document.getElementById('sx').innerHTML=X.map(([n,p,cur])=>`<div style="display:flex;flex-direction:column;gap:5px;${cur?'background:#fff;border:2px solid #0f172a;border-radius:8px;padding:6px 8px;margin:-8px -10px':''}"><div class="hd" style="font-size:12px"><span class="${cur?'b':''}">${n}</span><span class="sp"></span><span class="${p==100?'c-grn':p?'c-amb':'mut'} b">${p}%</span></div><div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:${p}%;height:100%;background:${p==100?'#15803d':'#f59e0b'}"></div></div><div class="mut" style="font-size:11px">${Math.round(p*0.4)}/40</div></div>`).join('');
+const D=[['KH nhập kho tuần','03/10','−17 ngày','c-red',1],['KH nhập kho tháng','31/10','+11 ngày',''],['Ngày cần giao · tham khảo','25/10','+5 ngày','mut'],['Ngày cần (PM) · tham khảo','20/10','hôm nay','mut'],['BOT dự án · tham khảo','30/10','+10 ngày','mut']];
+document.getElementById('dl').innerHTML=D.map(([l,d,x,c,on])=>`<div class="hd" style="padding:9px 0;border-top:1px solid var(--line)"><span class="${c=='mut'?'c-sub':''}">${l}</span>${on?'<span class="badge t-ink" style="font-size:11px">đang dùng</span>':''}<span class="sp"></span><b class="${c=='c-red'?'c-red':c=='mut'?'c-sub':''}" style="font-weight:${c=='mut'?500:700}">${d}</b><span style="width:76px;text-align:right" class="${c=='c-red'?'c-red b':'c-sub'}">${x}</span></div>`).join('');
+const P=[['03/10',0,'#e31e24','KH tuần'],['20/10',57,'#0f172a','Hôm nay'],['25/10',73,'#94a3b8','Cần giao'],['30/10',85,'#94a3b8','BOT DA'],['31/10',100,'#f59e0b','KH tháng']];
+document.getElementById('tl').innerHTML=`<div style="position:absolute;top:22px;left:0;right:0;height:3px;background:#e5e7eb;border-radius:2px"></div><div style="position:absolute;top:22px;left:0;width:57%;height:3px;background:#fecaca"></div>`+P.map(([d,x,c,l])=>`<div style="position:absolute;left:${x}%;top:0;transform:translateX(-${x>90?100:x?50:0}%);text-align:${x>90?'right':x?'center':'left'}"><div style="font-size:11px;font-weight:600;color:${c}">${l}</div><div style="width:11px;height:11px;border-radius:50%;background:${c};border:2px solid #fff;margin:2px ${x>90?'0 0 auto':x?'auto':'0'};${x>90?'margin-left:auto':''}"></div><div class="sub" style="font-size:11px">${d}</div></div>`).join('');
+const V=[['Dòng PR','7',''],['Chưa mua','0','c-sub'],['Trễ hẹn','2','c-red'],['Về theo nhu cầu SX','0','c-sub'],['Ngày cần VT · dự kiến giao','01/10 · 20/10','c-red'],['Vướng mắc đang mở','1','c-red']];
+document.getElementById('vt').innerHTML=V.map(([l,v,c])=>`<div class="hd" style="padding:9px 0;border-top:1px solid var(--line)"><span>${l}</span><span class="sp"></span><b class="${c}">${v}</b></div>`).join('');
+</script>
+</body></html>

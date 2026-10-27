@@ -52,7 +52,7 @@ export default function KhaiChiTietXuong({ xuong, bao }: { xuong: string; bao: B
     <div className="space-y-4">
       <div className={KHUNG}>
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-800">Thành phần xưởng chính giao cho xưởng {xuong} — chờ khai CĐ chi tiết</p>
+          <p className="text-base font-semibold text-slate-900">Thành phần xưởng chính giao cho xưởng {xuong} — chờ khai CĐ chi tiết</p>
           <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} className={dang ? 'animate-spin' : ''} /> Tải lại</button>
         </div>
         {loi && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>}
@@ -69,7 +69,7 @@ export default function KhaiChiTietXuong({ xuong, bao }: { xuong: string; bao: B
                 const k = khoa(c);
                 const t = tuyen[k] ?? [];
                 return (
-                  <tr key={k} className={`border-t border-slate-100 ${chon.has(k) ? 'bg-wood-50' : ''}`}>
+                  <tr key={k} className={`border-t border-slate-100 ${chon.has(k) ? 'bg-slate-50' : ''}`}>
                     <td className={TD}><input type="checkbox" aria-label={`Chọn ${c.hex} ${c.thanhPhan}`} checked={chon.has(k)}
                       onChange={() => setChon(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; })} /></td>
                     <td className={`${TD} font-medium tabular-nums text-slate-800`}>{c.hex}</td>
@@ -88,7 +88,7 @@ export default function KhaiChiTietXuong({ xuong, bao }: { xuong: string; bao: B
       </div>
 
       <div className={`${KHUNG} space-y-3 p-4`}>
-        <p className="text-sm font-semibold text-slate-800">Tuyến công đoạn chi tiết ({dsChon.length} thành phần đã chọn)</p>
+        <p className="text-base font-semibold text-slate-900">Tuyến công đoạn chi tiết ({dsChon.length} thành phần đã chọn)</p>
         <ChonTuyen tuyen={mau} onDoi={setMau} congDoan={congDoan} xuong={xuong} xuongGoc={xuong} />
         <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
           <button type="button" className={BTN} disabled={!hopLe(mau) || !dsChon.length}

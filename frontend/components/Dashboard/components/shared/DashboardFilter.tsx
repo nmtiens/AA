@@ -7,6 +7,10 @@ interface DashboardFilterProps {
   selectedValues: string[];
   onChange: (values: string[]) => void;
   singleSelect?: boolean;
+  /** Chữ khi chưa chọn gì (mặc định "Tất cả") */
+  emptyLabel?: string;
+  /** Có => hiện nút "Bỏ chọn tất cả" trong hộp chọn */
+  onClearAll?: () => void;
 }
 
 export const DashboardFilter = ({
@@ -14,7 +18,9 @@ export const DashboardFilter = ({
   options,
   selectedValues,
   onChange,
-  singleSelect
+  singleSelect,
+  emptyLabel = 'Tất cả',
+  onClearAll,
 }: DashboardFilterProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,12 +58,12 @@ export const DashboardFilter = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center justify-between w-full min-w-[150px] px-3 py-1.5 text-xs border rounded-lg bg-white hover:bg-slate-50 transition-colors shadow-sm ${activeCount > 0 ? 'border-wood-500 ring-1 ring-wood-200' : 'border-slate-200'}`}
+        className={`flex items-center justify-between w-full min-w-[150px] px-3 py-1.5 text-xs border rounded-lg bg-white hover:bg-slate-50 transition-colors shadow-sm ${activeCount > 0 ? 'border-slate-900 ring-1 ring-slate-300' : 'border-slate-200'}`}
       >
         <div className="flex flex-col items-start truncate mr-2">
           <span className="text-[0.5625rem] text-slate-400 uppercase font-bold tracking-wider">{label}</span>
           <span className="truncate font-medium text-slate-700 w-full text-left">
-            {activeCount === 0 ? 'Tất cả' : `${activeCount} đã chọn`}
+            {activeCount === 0 ? emptyLabel : `${activeCount} đã chọn`}
           </span>
         </div>
         <ChevronDown size={14} className="text-slate-400 shrink-0" />
@@ -74,6 +80,12 @@ export const DashboardFilter = ({
               onChange={e => setSearchTerm(e.target.value)}
               autoFocus
             />
+            {onClearAll && (
+              <button type="button" onClick={onClearAll} disabled={activeCount === 0}
+                className="mt-1.5 w-full rounded px-2 py-1 text-left text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:text-slate-300">
+                Bỏ chọn tất cả
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
             {filteredOptions.length === 0 ? (

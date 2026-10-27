@@ -65,7 +65,7 @@ function NapFile({ xuong, bao, xong }: { xuong: string; bao: (ok: boolean, msg: 
   return (
     <div className={`${KHUNG} space-y-3 p-4`}>
       <div className="flex flex-wrap items-center gap-3">
-        <p className="text-sm font-semibold text-slate-800">Nạp file nhân sự</p>
+        <p className="text-base font-semibold text-slate-900">Nạp file nhân sự</p>
         <label className={`${BTN} cursor-pointer`}>
           <Upload size={14} /> Chọn file Excel / CSV
           <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={e => { const f = e.target.files?.[0]; if (f) doc(f); e.target.value = ''; }} />

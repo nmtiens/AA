@@ -204,6 +204,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { id: 'chart_inventory', label: '4. Nhập kho (P022)' },
       { id: 'chart_export', label: '5. Xuất kho (P025)' },
       { id: 'chart_stock', label: '6. Tồn kho' },
+      { id: 'chart_stock_vt', label: '7. Tồn kho vật tư' },
     ],
   },
   {

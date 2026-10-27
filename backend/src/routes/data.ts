@@ -718,6 +718,7 @@ const TABLE_DISPLAY_NAMES: Record<string, string> = {
   nhap_kho: 'Dữ liệu Nhập kho',
   xuat_kho: 'Dữ liệu Xuất kho',
   ton_kho: 'Dữ liệu Tồn kho',
+  ton_kho_vt: 'Tồn kho vật tư',
   production_status_app: 'Dữ liệu Sản xuất',
   vat_tu: 'Vật tư',
   khsx: 'Kế hoạch SX',
@@ -729,7 +730,7 @@ const TABLE_DISPLAY_NAMES: Record<string, string> = {
 // Thứ tự hiển thị mong muốn — khớp với thứ tự 6 card P001→Tồn kho ở "Tổng quan Đơn hàng",
 // các bảng còn lại xếp tiếp theo sau. Index nhỏ hơn = ưu tiên hiển thị trước (khi cùng trạng thái).
 const TABLE_DISPLAY_ORDER: string[] = [
-  'dht', 'tkbv_full', 'pthsp_full', 'nhap_kho', 'xuat_kho', 'ton_kho',
+  'dht', 'tkbv_full', 'pthsp_full', 'nhap_kho', 'xuat_kho', 'ton_kho', 'ton_kho_vt',
   'production_status_app', 'vat_tu', 'khsx', 'khsx_nam', 'phan_tich_kh_th', 'diem_danh',
 ];
 
@@ -763,6 +764,8 @@ const DATA_AS_OF_DATE_COLUMN: Record<string, string> = {
   nhap_kho: 'date',
   xuat_kho: 'date',
   ton_kho: 'date_parsed',
+  // Tồn kho vật tư (routes/tonKhoVt.ts): ngày chốt tồn hằng tuần
+  ton_kho_vt: 'date',
 };
 
 // Bảng chụp nhanh tình trạng hiện tại (sản xuất, vật tư): "dữ liệu đến ngày" = ngày chạy cập nhật (giờ VN)

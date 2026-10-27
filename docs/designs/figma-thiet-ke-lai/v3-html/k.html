@@ -1,0 +1,30 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body style="padding:24px">
+<div class="row">
+  <div class="card" style="width:420px;flex:none;display:flex;flex-direction:column;gap:12px">
+    <div class="q">Hiện tại — biểu đồ tròn</div>
+    <div class="h2">Nhóm đơn hàng · Khách hàng</div>
+    <div style="display:flex;gap:18px;align-items:center"><div id="pie" style="width:170px;height:170px;border-radius:50%;position:relative;flex:none"></div><div id="pleg" style="display:flex;flex-direction:column;gap:4px;flex:1"></div></div>
+    <div class="note" style="background:#fff7ed;color:var(--ambT)">
+      <b>Đọc được:</b> ai chiếm bao nhiêu % giá trị.<br>
+      <b>Không đọc được:</b> nhóm nào đang trễ, đã nhập kho bao nhiêu · khó so 2 lát gần bằng nhau · khách hàng có ~40 giá trị → lát nhỏ dồn vào "Khác".
+    </div>
+  </div>
+  <div class="card grow" style="display:flex;flex-direction:column;gap:12px">
+    <div class="q">Đề xuất — thanh ngang xếp theo giá trị, mỗi thanh chia đã nhập / chưa nhập + số mục quá hạn</div>
+    <div class="hd"><span class="h2">Nhóm đơn hàng</span><span class="sp"></span><div class="utabs" style="margin-top:0"><span>Khu vực</span><span class="on">Khách hàng</span><span>Nhóm SP</span></div></div>
+    <div class="ins"><em>SUN GROUP</em> chiếm 38% giá trị nhưng mới nhập kho 21% và giữ <em>412 / 821 mục quá hạn</em>.</div>
+    <div class="hd"><span class="seg"><span class="on">Giá trị</span><span>Hạng mục</span></span><span class="sp"></span><div class="legend"><span style="--lc:#15803d">Đã nhập kho</span><span style="--lc:#f59e0b">Chưa nhập</span><span style="--lc:#fff" class="c-sub"><b class="c-red">●</b>&nbsp;mục quá hạn</span></div></div>
+    <div id="bars" style="display:flex;flex-direction:column;gap:7px"></div>
+    <div class="sub">Bấm 1 thanh để lọc cả trang (giữ như hiện tại) · luôn hiện đủ 8 nhóm lớn nhất, còn lại gộp "Khác" nhưng bấm mở ra được.</div>
+  </div>
+</div>
+<script>
+const C=[['SUN GROUP',740.4,21,412],['BIM GROUP',301.2,34,96],['KHÁCH HÀNG KHÁC',268.9,29,88],['VIP',190.6,45,51],['CAPITALAND',122.3,18,47],['DỰ ÁN NƯỚC NGOÀI',96.8,52,12],['SONKIM LAND',88.1,61,9],['OEM',61.7,70,4],['Khác (31 khách hàng)',78.4,40,102]];
+const T=C.reduce((a,c)=>a+c[1],0),mx=C[0][1];
+const col=['#e31e24','#f59e0b','#0ea5e9','#10b981','#8b5cf6','#64748b','#ec4899','#14b8a6','#cbd5e1'];
+let a=0;document.getElementById('pie').style.background=`conic-gradient(${C.map((c,i)=>{const s=a;a+=c[1]/T*100;return `${col[i]} ${s}% ${a}%`}).join(',')})`;
+a=0;document.getElementById('pie').innerHTML=C.map(c=>{const p=c[1]/T*100;const mid=a+p/2;a+=p;if(p<7)return '';const g=mid/100*2*Math.PI-Math.PI/2;return `<span style="position:absolute;left:${85+56*Math.cos(g)-14}px;top:${85+56*Math.sin(g)-8}px;font-size:11px;font-weight:700;color:#fff;width:28px;text-align:center">${Math.round(p)}%</span>`}).join('');
+document.getElementById('pleg').innerHTML=C.map((c,i)=>`<div class="hd" style="font-size:11px"><span style="width:9px;height:9px;border-radius:2px;background:${col[i]}"></span><span>${c[0]}</span><span class="sp"></span><b>${Math.round(c[1]/T*100)}%</b></div>`).join('');
+document.getElementById('bars').innerHTML=C.map(([n,v,p,q],i)=>`<div style="display:grid;grid-template-columns:160px 1fr 190px 50px;gap:10px;align-items:center${i==C.length-1?';opacity:.8':''}"><span style="font-weight:${i<1?600:500};font-size:12px">${n}</span><div style="display:flex;height:18px;width:${v/mx*100}%;border-radius:4px;overflow:hidden"><i style="width:${p}%;background:#15803d"></i><i style="width:${100-p}%;background:#f59e0b"></i></div><span style="font-size:12px;text-align:right"><b>${v.toLocaleString('vi-VN',{minimumFractionDigits:1})}</b> <span class="sub">tỷ · ${Math.round(v/T*100)}% · NK ${p}%</span></span><span style="text-align:right">${q?`<span class="badge t-red">${q}</span>`:''}</span></div>`).join('');
+</script>
+</body></html>

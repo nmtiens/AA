@@ -39,9 +39,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ms/index.js
+// node_modules/ms/index.js
 var require_ms = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ms/index.js"(exports, module) {
+  "node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -155,9 +155,9 @@ var require_ms = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/common.js
+// node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/common.js"(exports, module) {
+  "node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -332,9 +332,9 @@ var require_common = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/browser.js
+// node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/browser.js"(exports, module) {
+  "node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs;
     exports.save = save;
     exports.load = load3;
@@ -502,9 +502,9 @@ var require_browser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-flag/index.js
+// node_modules/has-flag/index.js
 var require_has_flag = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-flag/index.js"(exports, module) {
+  "node_modules/has-flag/index.js"(exports, module) {
     "use strict";
     module.exports = (flag, argv = process.argv) => {
       const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
@@ -515,9 +515,9 @@ var require_has_flag = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/supports-color/index.js
+// node_modules/supports-color/index.js
 var require_supports_color = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/supports-color/index.js"(exports, module) {
+  "node_modules/supports-color/index.js"(exports, module) {
     "use strict";
     var os = __require("os");
     var tty = __require("tty");
@@ -617,9 +617,9 @@ var require_supports_color = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/node.js
+// node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/node.js"(exports, module) {
+  "node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -791,9 +791,9 @@ var require_node = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/index.js
+// node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/index.js"(exports, module) {
+  "node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -802,9 +802,9 @@ var require_src = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/depd/index.js
+// node_modules/depd/index.js
 var require_depd = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/depd/index.js"(exports, module) {
+  "node_modules/depd/index.js"(exports, module) {
     var relative = __require("path").relative;
     module.exports = depd;
     var basePath = process.cwd();
@@ -1108,9 +1108,9 @@ var require_depd = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/setprototypeof/index.js
+// node_modules/setprototypeof/index.js
 var require_setprototypeof = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/setprototypeof/index.js"(exports, module) {
+  "node_modules/setprototypeof/index.js"(exports, module) {
     "use strict";
     module.exports = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
     function setProtoOf(obj, proto) {
@@ -1128,9 +1128,9 @@ var require_setprototypeof = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/statuses/codes.json
+// node_modules/statuses/codes.json
 var require_codes = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/statuses/codes.json"(exports, module) {
+  "node_modules/statuses/codes.json"(exports, module) {
     module.exports = {
       "100": "Continue",
       "101": "Switching Protocols",
@@ -1199,9 +1199,9 @@ var require_codes = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/statuses/index.js
+// node_modules/statuses/index.js
 var require_statuses = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/statuses/index.js"(exports, module) {
+  "node_modules/statuses/index.js"(exports, module) {
     "use strict";
     var codes = require_codes();
     module.exports = status;
@@ -1270,9 +1270,9 @@ var require_statuses = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits_browser.js
+// node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits_browser.js"(exports, module) {
+  "node_modules/inherits/inherits_browser.js"(exports, module) {
     if (typeof Object.create === "function") {
       module.exports = function inherits(ctor, superCtor) {
         if (superCtor) {
@@ -1302,9 +1302,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits.js
+// node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits.js"(exports, module) {
+  "node_modules/inherits/inherits.js"(exports, module) {
     try {
       util = __require("util");
       if (typeof util.inherits !== "function") throw "";
@@ -1316,9 +1316,9 @@ var require_inherits = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/toidentifier/index.js
+// node_modules/toidentifier/index.js
 var require_toidentifier = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/toidentifier/index.js"(exports, module) {
+  "node_modules/toidentifier/index.js"(exports, module) {
     "use strict";
     module.exports = toIdentifier;
     function toIdentifier(str) {
@@ -1329,9 +1329,9 @@ var require_toidentifier = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/http-errors/index.js
+// node_modules/http-errors/index.js
 var require_http_errors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/http-errors/index.js"(exports, module) {
+  "node_modules/http-errors/index.js"(exports, module) {
     "use strict";
     var deprecate = require_depd()("http-errors");
     var setPrototypeOf = require_setprototypeof();
@@ -1493,9 +1493,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/bytes/index.js
+// node_modules/bytes/index.js
 var require_bytes = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/bytes/index.js"(exports, module) {
+  "node_modules/bytes/index.js"(exports, module) {
     "use strict";
     module.exports = bytes;
     module.exports.format = format;
@@ -1582,9 +1582,9 @@ var require_bytes = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/safer-buffer/safer.js
+// node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/safer-buffer/safer.js"(exports, module) {
+  "node_modules/safer-buffer/safer.js"(exports, module) {
     "use strict";
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
@@ -1650,9 +1650,9 @@ var require_safer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js
+// node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js"(exports) {
+  "node_modules/iconv-lite/lib/bom-handling.js"(exports) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports.PrependBOM = PrependBOMWrapper;
@@ -1696,9 +1696,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js
+// node_modules/iconv-lite/lib/helpers/merge-exports.js
 var require_merge_exports = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
+  "node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
     "use strict";
     var hasOwn = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module2) {
@@ -1712,9 +1712,9 @@ var require_merge_exports = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js
+// node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/internal.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = {
@@ -1893,9 +1893,9 @@ var require_internal = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js
+// node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf32.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._utf32 = Utf32Codec;
@@ -2128,9 +2128,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js
+// node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf16.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf16be = Utf16BECodec;
@@ -2271,9 +2271,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js
+// node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf7.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf7 = Utf7Codec;
@@ -2489,9 +2489,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js
+// node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._sbcs = SBCSCodec;
@@ -2551,9 +2551,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js
+// node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // Not supported by iconv, not sure why.
@@ -2706,9 +2706,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
     "use strict";
     module.exports = {
       "437": "cp437",
@@ -3161,9 +3161,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js
+// node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._dbcs = DBCSCodec;
@@ -3621,9 +3621,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json
+// node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
     module.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -3752,9 +3752,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json
+// node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -3940,9 +3940,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json
+// node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4210,9 +4210,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json
+// node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
     module.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4272,16 +4272,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
     module.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json
+// node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4558,9 +4558,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json
+// node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -4741,9 +4741,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json
+// node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
     module.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -4869,9 +4869,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js
+// node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5116,9 +5116,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/index.js
+// node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/index.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/index.js"(exports, module) {
     "use strict";
     var mergeModules = require_merge_exports();
     var modules = [
@@ -5141,9 +5141,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/streams.js
+// node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/streams.js"(exports, module) {
+  "node_modules/iconv-lite/lib/streams.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = function(streamModule) {
@@ -5238,9 +5238,9 @@ var require_streams = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/index.js
+// node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/index.js"(exports, module) {
+  "node_modules/iconv-lite/lib/index.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5370,9 +5370,9 @@ var require_lib = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/unpipe/index.js
+// node_modules/unpipe/index.js
 var require_unpipe = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/unpipe/index.js"(exports, module) {
+  "node_modules/unpipe/index.js"(exports, module) {
     "use strict";
     module.exports = unpipe;
     function hasPipeDataListeners(stream) {
@@ -5408,9 +5408,9 @@ var require_unpipe = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/raw-body/index.js
+// node_modules/raw-body/index.js
 var require_raw_body = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/raw-body/index.js"(exports, module) {
+  "node_modules/raw-body/index.js"(exports, module) {
     "use strict";
     var asyncHooks = tryRequireAsyncHooks();
     var bytes = require_bytes();
@@ -5597,9 +5597,9 @@ var require_raw_body = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ee-first/index.js
+// node_modules/ee-first/index.js
 var require_ee_first = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ee-first/index.js"(exports, module) {
+  "node_modules/ee-first/index.js"(exports, module) {
     "use strict";
     module.exports = first;
     function first(stuff, done) {
@@ -5653,9 +5653,9 @@ var require_ee_first = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/on-finished/index.js
+// node_modules/on-finished/index.js
 var require_on_finished = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/on-finished/index.js"(exports, module) {
+  "node_modules/on-finished/index.js"(exports, module) {
     "use strict";
     module.exports = onFinished;
     module.exports.isFinished = isFinished;
@@ -5757,9 +5757,9 @@ var require_on_finished = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js
+// node_modules/type-is/node_modules/content-type/dist/index.js
 var require_dist = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -5896,9 +5896,9 @@ var require_dist = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-db/db.json
+// node_modules/mime-db/db.json
 var require_db = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-db/db.json"(exports, module) {
+  "node_modules/mime-db/db.json"(exports, module) {
     module.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -15244,16 +15244,16 @@ var require_db = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-db/index.js
+// node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-db/index.js"(exports, module) {
+  "node_modules/mime-db/index.js"(exports, module) {
     module.exports = require_db();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-types/mimeScore.js
+// node_modules/mime-types/mimeScore.js
 var require_mimeScore = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-types/mimeScore.js"(exports, module) {
+  "node_modules/mime-types/mimeScore.js"(exports, module) {
     var FACET_SCORES = {
       "prs.": 100,
       "x-": 200,
@@ -15295,9 +15295,9 @@ var require_mimeScore = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-types/index.js
+// node_modules/mime-types/index.js
 var require_mime_types = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-types/index.js"(exports) {
+  "node_modules/mime-types/index.js"(exports) {
     "use strict";
     var db = require_mime_db();
     var extname = __require("path").extname;
@@ -15401,9 +15401,9 @@ var require_mime_types = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/media-typer/index.js
+// node_modules/media-typer/index.js
 var require_media_typer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/media-typer/index.js"(exports) {
+  "node_modules/media-typer/index.js"(exports) {
     "use strict";
     var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
     var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
@@ -15465,9 +15465,9 @@ var require_media_typer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/type-is/index.js
+// node_modules/type-is/index.js
 var require_type_is = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/type-is/index.js"(exports, module) {
+  "node_modules/type-is/index.js"(exports, module) {
     "use strict";
     var contentType = require_dist();
     var mime = require_mime_types();
@@ -15556,9 +15556,9 @@ var require_type_is = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js
+// node_modules/body-parser/node_modules/content-type/dist/index.js
 var require_dist2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -15695,9 +15695,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/utils.js
+// node_modules/body-parser/lib/utils.js
 var require_utils = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/utils.js"(exports, module) {
+  "node_modules/body-parser/lib/utils.js"(exports, module) {
     "use strict";
     var bytes = require_bytes();
     var contentType = require_dist2();
@@ -15747,9 +15747,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/read.js
+// node_modules/body-parser/lib/read.js
 var require_read = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/read.js"(exports, module) {
+  "node_modules/body-parser/lib/read.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var getBody = require_raw_body();
@@ -15905,9 +15905,9 @@ var require_read = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/json.js
+// node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/json.js"(exports, module) {
+  "node_modules/body-parser/lib/types/json.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:json");
     var read = require_read();
@@ -16004,9 +16004,9 @@ var require_json = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/raw.js
+// node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/raw.js"(exports, module) {
+  "node_modules/body-parser/lib/types/raw.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:raw");
     var read = require_read();
@@ -16026,9 +16026,9 @@ var require_raw = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/text.js
+// node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/text.js"(exports, module) {
+  "node_modules/body-parser/lib/types/text.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:text");
     var read = require_read();
@@ -16043,24 +16043,24 @@ var require_text = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/type.js
+// node_modules/es-errors/type.js
 var require_type = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/type.js"(exports, module) {
+  "node_modules/es-errors/type.js"(exports, module) {
     "use strict";
     module.exports = TypeError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/util.inspect.js
+// node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/util.inspect.js"(exports, module) {
+  "node_modules/object-inspect/util.inspect.js"(exports, module) {
     module.exports = __require("util").inspect;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/index.js
+// node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/index.js"(exports, module) {
+  "node_modules/object-inspect/index.js"(exports, module) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -16589,9 +16589,9 @@ var require_object_inspect = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-list/index.js
+// node_modules/side-channel-list/index.js
 var require_side_channel_list = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-list/index.js"(exports, module) {
+  "node_modules/side-channel-list/index.js"(exports, module) {
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
@@ -16682,113 +16682,113 @@ var require_side_channel_list = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-object-atoms/index.js
+// node_modules/es-object-atoms/index.js
 var require_es_object_atoms = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-object-atoms/index.js"(exports, module) {
+  "node_modules/es-object-atoms/index.js"(exports, module) {
     "use strict";
     module.exports = Object;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/index.js
+// node_modules/es-errors/index.js
 var require_es_errors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/index.js"(exports, module) {
+  "node_modules/es-errors/index.js"(exports, module) {
     "use strict";
     module.exports = Error;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/eval.js
+// node_modules/es-errors/eval.js
 var require_eval = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/eval.js"(exports, module) {
+  "node_modules/es-errors/eval.js"(exports, module) {
     "use strict";
     module.exports = EvalError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/range.js
+// node_modules/es-errors/range.js
 var require_range = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/range.js"(exports, module) {
+  "node_modules/es-errors/range.js"(exports, module) {
     "use strict";
     module.exports = RangeError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/ref.js
+// node_modules/es-errors/ref.js
 var require_ref = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/ref.js"(exports, module) {
+  "node_modules/es-errors/ref.js"(exports, module) {
     "use strict";
     module.exports = ReferenceError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/syntax.js
+// node_modules/es-errors/syntax.js
 var require_syntax = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/syntax.js"(exports, module) {
+  "node_modules/es-errors/syntax.js"(exports, module) {
     "use strict";
     module.exports = SyntaxError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/uri.js
+// node_modules/es-errors/uri.js
 var require_uri = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/uri.js"(exports, module) {
+  "node_modules/es-errors/uri.js"(exports, module) {
     "use strict";
     module.exports = URIError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/abs.js
+// node_modules/math-intrinsics/abs.js
 var require_abs = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/abs.js"(exports, module) {
+  "node_modules/math-intrinsics/abs.js"(exports, module) {
     "use strict";
     module.exports = Math.abs;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/floor.js
+// node_modules/math-intrinsics/floor.js
 var require_floor = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/floor.js"(exports, module) {
+  "node_modules/math-intrinsics/floor.js"(exports, module) {
     "use strict";
     module.exports = Math.floor;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/max.js
+// node_modules/math-intrinsics/max.js
 var require_max = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/max.js"(exports, module) {
+  "node_modules/math-intrinsics/max.js"(exports, module) {
     "use strict";
     module.exports = Math.max;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/min.js
+// node_modules/math-intrinsics/min.js
 var require_min = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/min.js"(exports, module) {
+  "node_modules/math-intrinsics/min.js"(exports, module) {
     "use strict";
     module.exports = Math.min;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/pow.js
+// node_modules/math-intrinsics/pow.js
 var require_pow = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/pow.js"(exports, module) {
+  "node_modules/math-intrinsics/pow.js"(exports, module) {
     "use strict";
     module.exports = Math.pow;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/round.js
+// node_modules/math-intrinsics/round.js
 var require_round = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/round.js"(exports, module) {
+  "node_modules/math-intrinsics/round.js"(exports, module) {
     "use strict";
     module.exports = Math.round;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/isNaN.js
+// node_modules/math-intrinsics/isNaN.js
 var require_isNaN = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/isNaN.js"(exports, module) {
+  "node_modules/math-intrinsics/isNaN.js"(exports, module) {
     "use strict";
     module.exports = Number.isNaN || function isNaN2(a) {
       return a !== a;
@@ -16796,9 +16796,9 @@ var require_isNaN = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/sign.js
+// node_modules/math-intrinsics/sign.js
 var require_sign = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/sign.js"(exports, module) {
+  "node_modules/math-intrinsics/sign.js"(exports, module) {
     "use strict";
     var $isNaN = require_isNaN();
     module.exports = function sign(number4) {
@@ -16810,17 +16810,17 @@ var require_sign = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/gopd/gOPD.js
+// node_modules/gopd/gOPD.js
 var require_gOPD = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/gopd/gOPD.js"(exports, module) {
+  "node_modules/gopd/gOPD.js"(exports, module) {
     "use strict";
     module.exports = Object.getOwnPropertyDescriptor;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/gopd/index.js
+// node_modules/gopd/index.js
 var require_gopd = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/gopd/index.js"(exports, module) {
+  "node_modules/gopd/index.js"(exports, module) {
     "use strict";
     var $gOPD = require_gOPD();
     if ($gOPD) {
@@ -16834,9 +16834,9 @@ var require_gopd = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-define-property/index.js
+// node_modules/es-define-property/index.js
 var require_es_define_property = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-define-property/index.js"(exports, module) {
+  "node_modules/es-define-property/index.js"(exports, module) {
     "use strict";
     var $defineProperty = Object.defineProperty || false;
     if ($defineProperty) {
@@ -16850,9 +16850,9 @@ var require_es_define_property = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/shams.js
+// node_modules/has-symbols/shams.js
 var require_shams = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/shams.js"(exports, module) {
+  "node_modules/has-symbols/shams.js"(exports, module) {
     "use strict";
     module.exports = function hasSymbols() {
       if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
@@ -16905,9 +16905,9 @@ var require_shams = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/index.js
+// node_modules/has-symbols/index.js
 var require_has_symbols = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/index.js"(exports, module) {
+  "node_modules/has-symbols/index.js"(exports, module) {
     "use strict";
     var origSymbol = typeof Symbol !== "undefined" && Symbol;
     var hasSymbolSham = require_shams();
@@ -16929,26 +16929,26 @@ var require_has_symbols = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js
+// node_modules/get-proto/Reflect.getPrototypeOf.js
 var require_Reflect_getPrototypeOf = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
+  "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js
+// node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
+  "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
     "use strict";
     var $Object = require_es_object_atoms();
     module.exports = $Object.getPrototypeOf || null;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/function-bind/implementation.js
+// node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/function-bind/implementation.js"(exports, module) {
+  "node_modules/function-bind/implementation.js"(exports, module) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
@@ -17022,42 +17022,42 @@ var require_implementation = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/function-bind/index.js
+// node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/function-bind/index.js"(exports, module) {
+  "node_modules/function-bind/index.js"(exports, module) {
     "use strict";
     var implementation = require_implementation();
     module.exports = Function.prototype.bind || implementation;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js
+// node_modules/call-bind-apply-helpers/functionCall.js
 var require_functionCall = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.call;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js
+// node_modules/call-bind-apply-helpers/functionApply.js
 var require_functionApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.apply;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js
+// node_modules/call-bind-apply-helpers/reflectApply.js
 var require_reflectApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js
+// node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $apply = require_functionApply();
@@ -17067,9 +17067,9 @@ var require_actualApply = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js
+// node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/index.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $TypeError = require_type();
@@ -17084,9 +17084,9 @@ var require_call_bind_apply_helpers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/dunder-proto/get.js
+// node_modules/dunder-proto/get.js
 var require_get = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/dunder-proto/get.js"(exports, module) {
+  "node_modules/dunder-proto/get.js"(exports, module) {
     "use strict";
     var callBind = require_call_bind_apply_helpers();
     var gOPD = require_gopd();
@@ -17115,9 +17115,9 @@ var require_get = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/index.js
+// node_modules/get-proto/index.js
 var require_get_proto = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/index.js"(exports, module) {
+  "node_modules/get-proto/index.js"(exports, module) {
     "use strict";
     var reflectGetProto = require_Reflect_getPrototypeOf();
     var originalGetProto = require_Object_getPrototypeOf();
@@ -17135,9 +17135,9 @@ var require_get_proto = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/hasown/index.js
+// node_modules/hasown/index.js
 var require_hasown = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/hasown/index.js"(exports, module) {
+  "node_modules/hasown/index.js"(exports, module) {
     "use strict";
     var call = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
@@ -17146,9 +17146,9 @@ var require_hasown = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-intrinsic/index.js
+// node_modules/get-intrinsic/index.js
 var require_get_intrinsic = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-intrinsic/index.js"(exports, module) {
+  "node_modules/get-intrinsic/index.js"(exports, module) {
     "use strict";
     var undefined2;
     var $Object = require_es_object_atoms();
@@ -17477,9 +17477,9 @@ var require_get_intrinsic = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bound/index.js
+// node_modules/call-bound/index.js
 var require_call_bound = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bound/index.js"(exports, module) {
+  "node_modules/call-bound/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBindBasic = require_call_bind_apply_helpers();
@@ -17500,9 +17500,9 @@ var require_call_bound = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-map/index.js
+// node_modules/side-channel-map/index.js
 var require_side_channel_map = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-map/index.js"(exports, module) {
+  "node_modules/side-channel-map/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17556,9 +17556,9 @@ var require_side_channel_map = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-weakmap/index.js
+// node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-weakmap/index.js"(exports, module) {
+  "node_modules/side-channel-weakmap/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17629,9 +17629,9 @@ var require_side_channel_weakmap = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel/index.js
+// node_modules/side-channel/index.js
 var require_side_channel = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel/index.js"(exports, module) {
+  "node_modules/side-channel/index.js"(exports, module) {
     "use strict";
     var $TypeError = require_type();
     var inspect = require_object_inspect();
@@ -17669,9 +17669,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/formats.js
+// node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/formats.js"(exports, module) {
+  "node_modules/qs/lib/formats.js"(exports, module) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17695,9 +17695,9 @@ var require_formats = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/utils.js
+// node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/utils.js"(exports, module) {
+  "node_modules/qs/lib/utils.js"(exports, module) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -18001,9 +18001,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/stringify.js
+// node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/stringify.js"(exports, module) {
+  "node_modules/qs/lib/stringify.js"(exports, module) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -18298,9 +18298,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/parse.js
+// node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/parse.js"(exports, module) {
+  "node_modules/qs/lib/parse.js"(exports, module) {
     "use strict";
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
@@ -18626,9 +18626,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/index.js
+// node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/index.js"(exports, module) {
+  "node_modules/qs/lib/index.js"(exports, module) {
     "use strict";
     var stringify = require_stringify();
     var parse3 = require_parse();
@@ -18641,9 +18641,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js
+// node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
+  "node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("body-parser:urlencoded");
@@ -18727,9 +18727,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/index.js
+// node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/index.js"(exports, module) {
+  "node_modules/body-parser/index.js"(exports, module) {
     "use strict";
     exports = module.exports = bodyParser;
     exports.json = require_json();
@@ -18742,9 +18742,9 @@ var require_body_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/merge-descriptors/index.js
+// node_modules/merge-descriptors/index.js
 var require_merge_descriptors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/merge-descriptors/index.js"(exports, module) {
+  "node_modules/merge-descriptors/index.js"(exports, module) {
     "use strict";
     function mergeDescriptors(destination, source, overwrite = true) {
       if (!destination) {
@@ -18766,9 +18766,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/encodeurl/index.js
+// node_modules/encodeurl/index.js
 var require_encodeurl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/encodeurl/index.js"(exports, module) {
+  "node_modules/encodeurl/index.js"(exports, module) {
     "use strict";
     module.exports = encodeUrl;
     var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
@@ -18780,9 +18780,9 @@ var require_encodeurl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/escape-html/index.js
+// node_modules/escape-html/index.js
 var require_escape_html = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/escape-html/index.js"(exports, module) {
+  "node_modules/escape-html/index.js"(exports, module) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
     module.exports = escapeHtml;
@@ -18827,9 +18827,9 @@ var require_escape_html = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/parseurl/index.js
+// node_modules/parseurl/index.js
 var require_parseurl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/parseurl/index.js"(exports, module) {
+  "node_modules/parseurl/index.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var parse3 = url2.parse;
@@ -18911,9 +18911,9 @@ var require_parseurl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/finalhandler/index.js
+// node_modules/finalhandler/index.js
 var require_finalhandler = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/finalhandler/index.js"(exports, module) {
+  "node_modules/finalhandler/index.js"(exports, module) {
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
@@ -19038,9 +19038,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/view.js
+// node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/view.js"(exports, module) {
+  "node_modules/express/lib/view.js"(exports, module) {
     "use strict";
     var debug = require_src()("express:view");
     var path = __require("node:path");
@@ -19132,9 +19132,9 @@ var require_view = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/content-type/index.js
+// node_modules/content-type/index.js
 var require_content_type = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/content-type/index.js"(exports) {
+  "node_modules/content-type/index.js"(exports) {
     "use strict";
     var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
     var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
@@ -19236,9 +19236,9 @@ var require_content_type = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js
+// node_modules/etag/index.js
 var require_etag = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js"(exports, module) {
+  "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
     var crypto4 = __require("crypto");
@@ -19278,9 +19278,9 @@ var require_etag = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/forwarded/index.js
+// node_modules/forwarded/index.js
 var require_forwarded = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/forwarded/index.js"(exports, module) {
+  "node_modules/forwarded/index.js"(exports, module) {
     "use strict";
     module.exports = forwarded;
     function forwarded(req) {
@@ -19325,9 +19325,9 @@ var require_forwarded = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js
+// node_modules/ipaddr.js/lib/ipaddr.js
 var require_ipaddr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
+  "node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
     (function() {
       var expandIPv6, ipaddr, ipv4Part, ipv4Regexes, ipv6Part, ipv6Regexes, matchCIDR, root, zoneIndex;
       ipaddr = {};
@@ -19947,9 +19947,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/proxy-addr/index.js
+// node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/proxy-addr/index.js"(exports, module) {
+  "node_modules/proxy-addr/index.js"(exports, module) {
     "use strict";
     module.exports = proxyaddr;
     module.exports.all = alladdrs;
@@ -20106,9 +20106,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/utils.js
+// node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/utils.js"(exports) {
+  "node_modules/express/lib/utils.js"(exports) {
     "use strict";
     var { METHODS } = __require("node:http");
     var contentType = require_content_type();
@@ -20233,9 +20233,9 @@ var require_utils3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/wrappy/wrappy.js
+// node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/wrappy/wrappy.js"(exports, module) {
+  "node_modules/wrappy/wrappy.js"(exports, module) {
     module.exports = wrappy;
     function wrappy(fn, cb) {
       if (fn && cb) return wrappy(fn)(cb);
@@ -20263,9 +20263,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/once/once.js
+// node_modules/once/once.js
 var require_once = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/once/once.js"(exports, module) {
+  "node_modules/once/once.js"(exports, module) {
     var wrappy = require_wrappy();
     module.exports = wrappy(once);
     module.exports.strict = wrappy(onceStrict);
@@ -20307,9 +20307,9 @@ var require_once = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/is-promise/index.js
+// node_modules/is-promise/index.js
 var require_is_promise = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/is-promise/index.js"(exports, module) {
+  "node_modules/is-promise/index.js"(exports, module) {
     module.exports = isPromise;
     module.exports.default = isPromise;
     function isPromise(obj) {
@@ -20318,9 +20318,9 @@ var require_is_promise = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/path-to-regexp/dist/index.js
+// node_modules/path-to-regexp/dist/index.js
 var require_dist3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/path-to-regexp/dist/index.js"(exports) {
+  "node_modules/path-to-regexp/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PathError = exports.TokenData = void 0;
@@ -20687,9 +20687,9 @@ var require_dist3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/lib/layer.js
+// node_modules/router/lib/layer.js
 var require_layer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/lib/layer.js"(exports, module) {
+  "node_modules/router/lib/layer.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var pathRegexp = require_dist3();
@@ -20837,9 +20837,9 @@ var require_layer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/lib/route.js
+// node_modules/router/lib/route.js
 var require_route = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/lib/route.js"(exports, module) {
+  "node_modules/router/lib/route.js"(exports, module) {
     "use strict";
     var debug = require_src()("router:route");
     var Layer = require_layer();
@@ -20957,9 +20957,9 @@ var require_route = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/index.js
+// node_modules/router/index.js
 var require_router = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/index.js"(exports, module) {
+  "node_modules/router/index.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var Layer = require_layer();
@@ -21355,9 +21355,9 @@ var require_router = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/application.js
+// node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/application.js"(exports, module) {
+  "node_modules/express/lib/application.js"(exports, module) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
@@ -21559,7 +21559,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name, options, callback) {
-      var cache = this.cache;
+      var cache2 = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21573,7 +21573,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache[name];
+        view = cache2[name];
       }
       if (!view) {
         var View2 = this.get("view");
@@ -21589,7 +21589,7 @@ var require_application = __commonJS({
           return done(err);
         }
         if (renderOptions.cache) {
-          cache[name] = view;
+          cache2[name] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -21616,9 +21616,9 @@ var require_application = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js
+// node_modules/accepts/node_modules/content-type/dist/index.js
 var require_dist4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -21755,9 +21755,9 @@ var require_dist4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js
+// node_modules/accepts/node_modules/negotiator/lib/accept.js
 var require_accept = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     module.exports = parseAccept;
@@ -21783,9 +21783,9 @@ var require_accept = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js
+// node_modules/accepts/node_modules/negotiator/lib/charset.js
 var require_charset = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredCharsets;
@@ -21855,9 +21855,9 @@ var require_charset = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js
+// node_modules/accepts/node_modules/negotiator/lib/encoding.js
 var require_encoding = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredEncodings;
@@ -21955,9 +21955,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js
+// node_modules/accepts/node_modules/negotiator/lib/language.js
 var require_language = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAccept = require_accept();
@@ -22039,9 +22039,9 @@ var require_language = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js
+// node_modules/accepts/node_modules/negotiator/lib/mediaType.js
 var require_mediaType = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAcceptHeader = require_accept();
@@ -22136,9 +22136,9 @@ var require_mediaType = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js
+// node_modules/accepts/node_modules/negotiator/index.js
 var require_negotiator = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset();
     var preferredEncodings = require_encoding();
@@ -22192,9 +22192,9 @@ var require_negotiator = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/index.js
+// node_modules/accepts/index.js
 var require_accepts = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/index.js"(exports, module) {
+  "node_modules/accepts/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator();
     var mime = require_mime_types();
@@ -22273,9 +22273,9 @@ var require_accepts = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/fresh/index.js
+// node_modules/fresh/index.js
 var require_fresh = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/fresh/index.js"(exports, module) {
+  "node_modules/fresh/index.js"(exports, module) {
     "use strict";
     var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
     module.exports = fresh;
@@ -22345,9 +22345,9 @@ var require_fresh = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/range-parser/index.js
+// node_modules/range-parser/index.js
 var require_range_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/range-parser/index.js"(exports, module) {
+  "node_modules/range-parser/index.js"(exports, module) {
     "use strict";
     module.exports = rangeParser;
     function rangeParser(size, str, options) {
@@ -22438,9 +22438,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/request.js
+// node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/request.js"(exports, module) {
+  "node_modules/express/lib/request.js"(exports, module) {
     "use strict";
     var accepts = require_accepts();
     var isIP2 = __require("node:net").isIP;
@@ -22586,9 +22586,9 @@ var require_request = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/content-disposition/index.js
+// node_modules/content-disposition/index.js
 var require_content_disposition = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/content-disposition/index.js"(exports, module) {
+  "node_modules/content-disposition/index.js"(exports, module) {
     "use strict";
     module.exports = contentDisposition;
     module.exports.parse = parse3;
@@ -22795,9 +22795,9 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js
+// node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js"(exports) {
+  "node_modules/cookie-signature/index.js"(exports) {
     var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
@@ -22813,9 +22813,9 @@ var require_cookie_signature = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cookie/index.js
+// node_modules/cookie/index.js
 var require_cookie = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cookie/index.js"(exports) {
+  "node_modules/cookie/index.js"(exports) {
     "use strict";
     exports.parse = parse3;
     exports.serialize = serialize;
@@ -22979,9 +22979,9 @@ var require_cookie = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/send/index.js
+// node_modules/send/index.js
 var require_send = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/send/index.js"(exports, module) {
+  "node_modules/send/index.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("send");
@@ -23462,9 +23462,9 @@ var require_send = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/vary/index.js
+// node_modules/vary/index.js
 var require_vary = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/vary/index.js"(exports, module) {
+  "node_modules/vary/index.js"(exports, module) {
     "use strict";
     module.exports = vary;
     module.exports.append = append;
@@ -23535,9 +23535,9 @@ var require_vary = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/response.js
+// node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/response.js"(exports, module) {
+  "node_modules/express/lib/response.js"(exports, module) {
     "use strict";
     var contentDisposition = require_content_disposition();
     var createError = require_http_errors();
@@ -24005,9 +24005,9 @@ var require_response = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/serve-static/index.js
+// node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/serve-static/index.js"(exports, module) {
+  "node_modules/serve-static/index.js"(exports, module) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
@@ -24109,9 +24109,9 @@ var require_serve_static = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/express.js
+// node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/express.js"(exports, module) {
+  "node_modules/express/lib/express.js"(exports, module) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter = __require("node:events").EventEmitter;
@@ -24149,17 +24149,17 @@ var require_express = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/index.js
+// node_modules/express/index.js
 var require_express2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/index.js"(exports, module) {
+  "node_modules/express/index.js"(exports, module) {
     "use strict";
     module.exports = require_express();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-assign/index.js
+// node_modules/object-assign/index.js
 var require_object_assign = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-assign/index.js"(exports, module) {
+  "node_modules/object-assign/index.js"(exports, module) {
     "use strict";
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -24227,9 +24227,9 @@ var require_object_assign = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cors/lib/index.js
+// node_modules/cors/lib/index.js
 var require_lib3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cors/lib/index.js"(exports, module) {
+  "node_modules/cors/lib/index.js"(exports, module) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -24435,9 +24435,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/charset.js
+// node_modules/negotiator/lib/charset.js
 var require_charset2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     module.exports = preferredCharsets;
     module.exports.preferredCharsets = preferredCharsets;
@@ -24522,9 +24522,9 @@ var require_charset2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/encoding.js
+// node_modules/negotiator/lib/encoding.js
 var require_encoding2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     module.exports = preferredEncodings;
     module.exports.preferredEncodings = preferredEncodings;
@@ -24635,9 +24635,9 @@ var require_encoding2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/language.js
+// node_modules/negotiator/lib/language.js
 var require_language2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/language.js"(exports, module) {
+  "node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     module.exports = preferredLanguages;
     module.exports.preferredLanguages = preferredLanguages;
@@ -24730,9 +24730,9 @@ var require_language2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/mediaType.js
+// node_modules/negotiator/lib/mediaType.js
 var require_mediaType2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     module.exports = preferredMediaTypes;
     module.exports.preferredMediaTypes = preferredMediaTypes;
@@ -24892,9 +24892,9 @@ var require_mediaType2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/index.js
+// node_modules/negotiator/index.js
 var require_negotiator2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/index.js"(exports, module) {
+  "node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset2();
     var preferredEncodings = require_encoding2();
@@ -24947,9 +24947,9 @@ var require_negotiator2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/safe-buffer/index.js
+// node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/safe-buffer/index.js"(exports, module) {
+  "node_modules/safe-buffer/index.js"(exports, module) {
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
     function copyProps(src, dst) {
@@ -25005,9 +25005,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/compressible/index.js
+// node_modules/compressible/index.js
 var require_compressible = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/compressible/index.js"(exports, module) {
+  "node_modules/compressible/index.js"(exports, module) {
     "use strict";
     var db = require_mime_db();
     var COMPRESSIBLE_TYPE_REGEXP = /^text\/|\+(?:json|text|xml)$/i;
@@ -25028,9 +25028,9 @@ var require_compressible = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/on-headers/index.js
+// node_modules/on-headers/index.js
 var require_on_headers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/on-headers/index.js"(exports, module) {
+  "node_modules/on-headers/index.js"(exports, module) {
     "use strict";
     module.exports = onHeaders;
     var http = __require("http");
@@ -25126,9 +25126,9 @@ var require_on_headers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/compression/index.js
+// node_modules/compression/index.js
 var require_compression = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/compression/index.js"(exports, module) {
+  "node_modules/compression/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator2();
     var Buffer3 = require_safe_buffer().Buffer;
@@ -25297,9 +25297,9 @@ var require_compression = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/address-error.js
+// node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/address-error.js"(exports) {
+  "node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -25314,9 +25314,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/common.js
+// node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/common.js"(exports) {
+  "node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -25414,9 +25414,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js
+// node_modules/ip-address/dist/v4/constants.js
 var require_constants = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -25455,9 +25455,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv4.js
+// node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv4.js"(exports) {
+  "node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26013,9 +26013,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js
+// node_modules/ip-address/dist/v6/constants.js
 var require_constants2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -26103,9 +26103,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js
+// node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -26142,9 +26142,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js
+// node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26234,9 +26234,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv6.js
+// node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv6.js"(exports) {
+  "node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27563,9 +27563,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ip-address.js
+// node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ip-address.js"(exports) {
+  "node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27613,9 +27613,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/dotenv/lib/main.js
+// node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/dotenv/lib/main.js"(exports, module) {
+  "node_modules/dotenv/lib/main.js"(exports, module) {
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
@@ -27932,9 +27932,9 @@ var require_main = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/data-stream.js
+// node_modules/jws/lib/data-stream.js
 var require_data_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/data-stream.js"(exports, module) {
+  "node_modules/jws/lib/data-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var Stream = __require("stream");
     var util = __require("util");
@@ -27980,9 +27980,9 @@ var require_data_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
+// node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
 var require_param_bytes_for_alg = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
+  "node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
     "use strict";
     function getParamSize(keySize) {
       var result = (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
@@ -28004,9 +28004,9 @@ var require_param_bytes_for_alg = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
+// node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
 var require_ecdsa_sig_formatter = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
+  "node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safe_buffer().Buffer;
     var getParamBytesForAlg = require_param_bytes_for_alg();
@@ -28144,9 +28144,9 @@ var require_ecdsa_sig_formatter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js
+// node_modules/buffer-equal-constant-time/index.js
 var require_buffer_equal_constant_time = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js"(exports, module) {
+  "node_modules/buffer-equal-constant-time/index.js"(exports, module) {
     "use strict";
     var Buffer3 = __require("buffer").Buffer;
     var SlowBuffer = __require("buffer").SlowBuffer;
@@ -28178,9 +28178,9 @@ var require_buffer_equal_constant_time = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js
+// node_modules/jwa/index.js
 var require_jwa = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js"(exports, module) {
+  "node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
@@ -28402,9 +28402,9 @@ var require_jwa = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/tostring.js
+// node_modules/jws/lib/tostring.js
 var require_tostring = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/tostring.js"(exports, module) {
+  "node_modules/jws/lib/tostring.js"(exports, module) {
     var Buffer3 = __require("buffer").Buffer;
     module.exports = function toString(obj) {
       if (typeof obj === "string")
@@ -28416,9 +28416,9 @@ var require_tostring = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/sign-stream.js
+// node_modules/jws/lib/sign-stream.js
 var require_sign_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/sign-stream.js"(exports, module) {
+  "node_modules/jws/lib/sign-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28491,9 +28491,9 @@ var require_sign_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/verify-stream.js
+// node_modules/jws/lib/verify-stream.js
 var require_verify_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/verify-stream.js"(exports, module) {
+  "node_modules/jws/lib/verify-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28606,9 +28606,9 @@ var require_verify_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/index.js
+// node_modules/jws/index.js
 var require_jws = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/index.js"(exports) {
+  "node_modules/jws/index.js"(exports) {
     var SignStream = require_sign_stream();
     var VerifyStream = require_verify_stream();
     var ALGORITHMS = [
@@ -28639,9 +28639,9 @@ var require_jws = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/decode.js
+// node_modules/jsonwebtoken/decode.js
 var require_decode = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/decode.js"(exports, module) {
+  "node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
     module.exports = function(jwt4, options) {
       options = options || {};
@@ -28671,9 +28671,9 @@ var require_decode = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js
+// node_modules/jsonwebtoken/lib/JsonWebTokenError.js
 var require_JsonWebTokenError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
     var JsonWebTokenError = function(message, error61) {
       Error.call(this, message);
       if (Error.captureStackTrace) {
@@ -28689,9 +28689,9 @@ var require_JsonWebTokenError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js
+// node_modules/jsonwebtoken/lib/NotBeforeError.js
 var require_NotBeforeError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = function(message, date5) {
       JsonWebTokenError.call(this, message);
@@ -28704,9 +28704,9 @@ var require_NotBeforeError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js
+// node_modules/jsonwebtoken/lib/TokenExpiredError.js
 var require_TokenExpiredError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var TokenExpiredError = function(message, expiredAt) {
       JsonWebTokenError.call(this, message);
@@ -28719,9 +28719,9 @@ var require_TokenExpiredError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js
+// node_modules/jsonwebtoken/lib/timespan.js
 var require_timespan = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
     var ms = require_ms();
     module.exports = function(time3, iat) {
       var timestamp = iat || Math.floor(Date.now() / 1e3);
@@ -28740,9 +28740,9 @@ var require_timespan = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/constants.js
+// node_modules/semver/internal/constants.js
 var require_constants3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/constants.js"(exports, module) {
+  "node_modules/semver/internal/constants.js"(exports, module) {
     "use strict";
     var SEMVER_SPEC_VERSION = "2.0.0";
     var MAX_LENGTH = 256;
@@ -28772,9 +28772,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/debug.js
+// node_modules/semver/internal/debug.js
 var require_debug = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/debug.js"(exports, module) {
+  "node_modules/semver/internal/debug.js"(exports, module) {
     "use strict";
     var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
     };
@@ -28782,9 +28782,9 @@ var require_debug = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/re.js
+// node_modules/semver/internal/re.js
 var require_re = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/re.js"(exports, module) {
+  "node_modules/semver/internal/re.js"(exports, module) {
     "use strict";
     var {
       MAX_SAFE_COMPONENT_LENGTH,
@@ -28870,9 +28870,9 @@ var require_re = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/parse-options.js
+// node_modules/semver/internal/parse-options.js
 var require_parse_options = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/parse-options.js"(exports, module) {
+  "node_modules/semver/internal/parse-options.js"(exports, module) {
     "use strict";
     var looseOption = Object.freeze({ loose: true });
     var emptyOpts = Object.freeze({});
@@ -28889,9 +28889,9 @@ var require_parse_options = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/identifiers.js
+// node_modules/semver/internal/identifiers.js
 var require_identifiers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/identifiers.js"(exports, module) {
+  "node_modules/semver/internal/identifiers.js"(exports, module) {
     "use strict";
     var numeric = /^[0-9]+$/;
     var compareIdentifiers = (a, b) => {
@@ -28914,9 +28914,9 @@ var require_identifiers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/semver.js
+// node_modules/semver/classes/semver.js
 var require_semver = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/semver.js"(exports, module) {
+  "node_modules/semver/classes/semver.js"(exports, module) {
     "use strict";
     var debug = require_debug();
     var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants3();
@@ -29206,9 +29206,9 @@ var require_semver = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/parse.js
+// node_modules/semver/functions/parse.js
 var require_parse2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/parse.js"(exports, module) {
+  "node_modules/semver/functions/parse.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = (version3, options, throwErrors = false) => {
@@ -29228,9 +29228,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/valid.js
+// node_modules/semver/functions/valid.js
 var require_valid = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/valid.js"(exports, module) {
+  "node_modules/semver/functions/valid.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var valid = (version3, options) => {
@@ -29241,9 +29241,9 @@ var require_valid = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/clean.js
+// node_modules/semver/functions/clean.js
 var require_clean = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/clean.js"(exports, module) {
+  "node_modules/semver/functions/clean.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var clean = (version3, options) => {
@@ -29254,9 +29254,9 @@ var require_clean = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/inc.js
+// node_modules/semver/functions/inc.js
 var require_inc = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/inc.js"(exports, module) {
+  "node_modules/semver/functions/inc.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var inc = (version3, release, options, identifier, identifierBase) => {
@@ -29278,9 +29278,9 @@ var require_inc = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/diff.js
+// node_modules/semver/functions/diff.js
 var require_diff = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/diff.js"(exports, module) {
+  "node_modules/semver/functions/diff.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var diff = (version1, version22) => {
@@ -29322,9 +29322,9 @@ var require_diff = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/major.js
+// node_modules/semver/functions/major.js
 var require_major = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/major.js"(exports, module) {
+  "node_modules/semver/functions/major.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var major = (a, loose) => new SemVer(a, loose).major;
@@ -29332,9 +29332,9 @@ var require_major = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/minor.js
+// node_modules/semver/functions/minor.js
 var require_minor = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/minor.js"(exports, module) {
+  "node_modules/semver/functions/minor.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var minor = (a, loose) => new SemVer(a, loose).minor;
@@ -29342,9 +29342,9 @@ var require_minor = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/patch.js
+// node_modules/semver/functions/patch.js
 var require_patch = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/patch.js"(exports, module) {
+  "node_modules/semver/functions/patch.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var patch = (a, loose) => new SemVer(a, loose).patch;
@@ -29352,9 +29352,9 @@ var require_patch = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/prerelease.js
+// node_modules/semver/functions/prerelease.js
 var require_prerelease = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/prerelease.js"(exports, module) {
+  "node_modules/semver/functions/prerelease.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var prerelease = (version3, options) => {
@@ -29365,9 +29365,9 @@ var require_prerelease = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare.js
+// node_modules/semver/functions/compare.js
 var require_compare = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare.js"(exports, module) {
+  "node_modules/semver/functions/compare.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
@@ -29375,9 +29375,9 @@ var require_compare = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rcompare.js
+// node_modules/semver/functions/rcompare.js
 var require_rcompare = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rcompare.js"(exports, module) {
+  "node_modules/semver/functions/rcompare.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var rcompare = (a, b, loose) => compare(b, a, loose);
@@ -29385,9 +29385,9 @@ var require_rcompare = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-loose.js
+// node_modules/semver/functions/compare-loose.js
 var require_compare_loose = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-loose.js"(exports, module) {
+  "node_modules/semver/functions/compare-loose.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var compareLoose = (a, b) => compare(a, b, true);
@@ -29395,9 +29395,9 @@ var require_compare_loose = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-build.js
+// node_modules/semver/functions/compare-build.js
 var require_compare_build = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-build.js"(exports, module) {
+  "node_modules/semver/functions/compare-build.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compareBuild = (a, b, loose) => {
@@ -29409,9 +29409,9 @@ var require_compare_build = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/sort.js
+// node_modules/semver/functions/sort.js
 var require_sort = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/sort.js"(exports, module) {
+  "node_modules/semver/functions/sort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
@@ -29419,9 +29419,9 @@ var require_sort = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rsort.js
+// node_modules/semver/functions/rsort.js
 var require_rsort = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rsort.js"(exports, module) {
+  "node_modules/semver/functions/rsort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
@@ -29429,9 +29429,9 @@ var require_rsort = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gt.js
+// node_modules/semver/functions/gt.js
 var require_gt = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gt.js"(exports, module) {
+  "node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gt = (a, b, loose) => compare(a, b, loose) > 0;
@@ -29439,9 +29439,9 @@ var require_gt = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lt.js
+// node_modules/semver/functions/lt.js
 var require_lt = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lt.js"(exports, module) {
+  "node_modules/semver/functions/lt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lt = (a, b, loose) => compare(a, b, loose) < 0;
@@ -29449,9 +29449,9 @@ var require_lt = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/eq.js
+// node_modules/semver/functions/eq.js
 var require_eq = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/eq.js"(exports, module) {
+  "node_modules/semver/functions/eq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var eq = (a, b, loose) => compare(a, b, loose) === 0;
@@ -29459,9 +29459,9 @@ var require_eq = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/neq.js
+// node_modules/semver/functions/neq.js
 var require_neq = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/neq.js"(exports, module) {
+  "node_modules/semver/functions/neq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var neq = (a, b, loose) => compare(a, b, loose) !== 0;
@@ -29469,9 +29469,9 @@ var require_neq = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gte.js
+// node_modules/semver/functions/gte.js
 var require_gte = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gte.js"(exports, module) {
+  "node_modules/semver/functions/gte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gte = (a, b, loose) => compare(a, b, loose) >= 0;
@@ -29479,9 +29479,9 @@ var require_gte = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lte.js
+// node_modules/semver/functions/lte.js
 var require_lte = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lte.js"(exports, module) {
+  "node_modules/semver/functions/lte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lte = (a, b, loose) => compare(a, b, loose) <= 0;
@@ -29489,9 +29489,9 @@ var require_lte = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/cmp.js
+// node_modules/semver/functions/cmp.js
 var require_cmp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/cmp.js"(exports, module) {
+  "node_modules/semver/functions/cmp.js"(exports, module) {
     "use strict";
     var eq = require_eq();
     var neq = require_neq();
@@ -29539,9 +29539,9 @@ var require_cmp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/coerce.js
+// node_modules/semver/functions/coerce.js
 var require_coerce = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/coerce.js"(exports, module) {
+  "node_modules/semver/functions/coerce.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = require_parse2();
@@ -29585,9 +29585,9 @@ var require_coerce = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/truncate.js
+// node_modules/semver/functions/truncate.js
 var require_truncate = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/truncate.js"(exports, module) {
+  "node_modules/semver/functions/truncate.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var constants = require_constants3();
@@ -29626,9 +29626,9 @@ var require_truncate = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/lrucache.js
+// node_modules/semver/internal/lrucache.js
 var require_lrucache = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/lrucache.js"(exports, module) {
+  "node_modules/semver/internal/lrucache.js"(exports, module) {
     "use strict";
     var LRUCache = class {
       constructor() {
@@ -29664,9 +29664,9 @@ var require_lrucache = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/range.js
+// node_modules/semver/classes/range.js
 var require_range2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/range.js"(exports, module) {
+  "node_modules/semver/classes/range.js"(exports, module) {
     "use strict";
     var SPACE_CHARACTERS = /\s+/g;
     var Range = class _Range {
@@ -29737,7 +29737,7 @@ var require_range2 = __commonJS({
         range = range.replace(BUILDSTRIPRE, "");
         const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
         const memoKey = memoOpts + ":" + range;
-        const cached2 = cache.get(memoKey);
+        const cached2 = cache2.get(memoKey);
         if (cached2) {
           return cached2;
         }
@@ -29771,7 +29771,7 @@ var require_range2 = __commonJS({
           rangeMap.delete("");
         }
         const result = [...rangeMap.values()];
-        cache.set(memoKey, result);
+        cache2.set(memoKey, result);
         return result;
       }
       intersects(range, options) {
@@ -29810,7 +29810,7 @@ var require_range2 = __commonJS({
     };
     module.exports = Range;
     var LRU = require_lrucache();
-    var cache = new LRU();
+    var cache2 = new LRU();
     var parseOptions2 = require_parse_options();
     var Comparator = require_comparator();
     var debug = require_debug();
@@ -30049,9 +30049,9 @@ var require_range2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/comparator.js
+// node_modules/semver/classes/comparator.js
 var require_comparator = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/comparator.js"(exports, module) {
+  "node_modules/semver/classes/comparator.js"(exports, module) {
     "use strict";
     var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
     var Comparator = class _Comparator {
@@ -30162,9 +30162,9 @@ var require_comparator = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/satisfies.js
+// node_modules/semver/functions/satisfies.js
 var require_satisfies = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/satisfies.js"(exports, module) {
+  "node_modules/semver/functions/satisfies.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var satisfies = (version3, range, options) => {
@@ -30179,9 +30179,9 @@ var require_satisfies = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/to-comparators.js
+// node_modules/semver/ranges/to-comparators.js
 var require_to_comparators = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/to-comparators.js"(exports, module) {
+  "node_modules/semver/ranges/to-comparators.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
@@ -30189,9 +30189,9 @@ var require_to_comparators = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js
+// node_modules/semver/ranges/max-satisfying.js
 var require_max_satisfying = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
+  "node_modules/semver/ranges/max-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30218,9 +30218,9 @@ var require_max_satisfying = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js
+// node_modules/semver/ranges/min-satisfying.js
 var require_min_satisfying = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
+  "node_modules/semver/ranges/min-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30247,9 +30247,9 @@ var require_min_satisfying = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-version.js
+// node_modules/semver/ranges/min-version.js
 var require_min_version = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-version.js"(exports, module) {
+  "node_modules/semver/ranges/min-version.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30306,9 +30306,9 @@ var require_min_version = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/valid.js
+// node_modules/semver/ranges/valid.js
 var require_valid2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/valid.js"(exports, module) {
+  "node_modules/semver/ranges/valid.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var validRange = (range, options) => {
@@ -30322,9 +30322,9 @@ var require_valid2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/outside.js
+// node_modules/semver/ranges/outside.js
 var require_outside = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/outside.js"(exports, module) {
+  "node_modules/semver/ranges/outside.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Comparator = require_comparator();
@@ -30391,9 +30391,9 @@ var require_outside = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/gtr.js
+// node_modules/semver/ranges/gtr.js
 var require_gtr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/gtr.js"(exports, module) {
+  "node_modules/semver/ranges/gtr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var gtr = (version3, range, options) => outside(version3, range, ">", options);
@@ -30401,9 +30401,9 @@ var require_gtr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/ltr.js
+// node_modules/semver/ranges/ltr.js
 var require_ltr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/ltr.js"(exports, module) {
+  "node_modules/semver/ranges/ltr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var ltr = (version3, range, options) => outside(version3, range, "<", options);
@@ -30411,9 +30411,9 @@ var require_ltr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/intersects.js
+// node_modules/semver/ranges/intersects.js
 var require_intersects = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/intersects.js"(exports, module) {
+  "node_modules/semver/ranges/intersects.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var intersects = (r1, r2, options) => {
@@ -30425,9 +30425,9 @@ var require_intersects = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/simplify.js
+// node_modules/semver/ranges/simplify.js
 var require_simplify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/simplify.js"(exports, module) {
+  "node_modules/semver/ranges/simplify.js"(exports, module) {
     "use strict";
     var satisfies = require_satisfies();
     var compare = require_compare();
@@ -30475,9 +30475,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/subset.js
+// node_modules/semver/ranges/subset.js
 var require_subset = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/subset.js"(exports, module) {
+  "node_modules/semver/ranges/subset.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var Comparator = require_comparator();
@@ -30637,9 +30637,9 @@ var require_subset = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/index.js
+// node_modules/semver/index.js
 var require_semver2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/index.js"(exports, module) {
+  "node_modules/semver/index.js"(exports, module) {
     "use strict";
     var internalRe = require_re();
     var constants = require_constants3();
@@ -30734,25 +30734,25 @@ var require_semver2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
+// node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
 var require_asymmetricKeyDetailsSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=15.7.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
+// node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
 var require_rsaPssKeyDetailsSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=16.9.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
+// node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
 var require_validateAsymmetricKey = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
     var ASYMMETRIC_KEY_DETAILS_SUPPORTED = require_asymmetricKeyDetailsSupported();
     var RSA_PSS_KEY_DETAILS_SUPPORTED = require_rsaPssKeyDetailsSupported();
     var allowedAlgorithmsForKeys = {
@@ -30803,17 +30803,17 @@ var require_validateAsymmetricKey = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js
+// node_modules/jsonwebtoken/lib/psSupported.js
 var require_psSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, "^6.12.0 || >=8.0.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/verify.js
+// node_modules/jsonwebtoken/verify.js
 var require_verify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/verify.js"(exports, module) {
+  "node_modules/jsonwebtoken/verify.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = require_NotBeforeError();
     var TokenExpiredError = require_TokenExpiredError();
@@ -31026,9 +31026,9 @@ var require_verify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.includes/index.js
+// node_modules/lodash.includes/index.js
 var require_lodash = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.includes/index.js"(exports, module) {
+  "node_modules/lodash.includes/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_SAFE_INTEGER = 9007199254740991;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31210,9 +31210,9 @@ var require_lodash = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isboolean/index.js
+// node_modules/lodash.isboolean/index.js
 var require_lodash2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isboolean/index.js"(exports, module) {
+  "node_modules/lodash.isboolean/index.js"(exports, module) {
     var boolTag = "[object Boolean]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31226,9 +31226,9 @@ var require_lodash2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isinteger/index.js
+// node_modules/lodash.isinteger/index.js
 var require_lodash3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isinteger/index.js"(exports, module) {
+  "node_modules/lodash.isinteger/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
     var NAN = 0 / 0;
@@ -31290,9 +31290,9 @@ var require_lodash3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isnumber/index.js
+// node_modules/lodash.isnumber/index.js
 var require_lodash4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isnumber/index.js"(exports, module) {
+  "node_modules/lodash.isnumber/index.js"(exports, module) {
     var numberTag = "[object Number]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31306,9 +31306,9 @@ var require_lodash4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isplainobject/index.js
+// node_modules/lodash.isplainobject/index.js
 var require_lodash5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isplainobject/index.js"(exports, module) {
+  "node_modules/lodash.isplainobject/index.js"(exports, module) {
     var objectTag = "[object Object]";
     function isHostObject(value) {
       var result = false;
@@ -31350,9 +31350,9 @@ var require_lodash5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isstring/index.js
+// node_modules/lodash.isstring/index.js
 var require_lodash6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isstring/index.js"(exports, module) {
+  "node_modules/lodash.isstring/index.js"(exports, module) {
     var stringTag = "[object String]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31367,9 +31367,9 @@ var require_lodash6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.once/index.js
+// node_modules/lodash.once/index.js
 var require_lodash7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.once/index.js"(exports, module) {
+  "node_modules/lodash.once/index.js"(exports, module) {
     var FUNC_ERROR_TEXT = "Expected a function";
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31448,9 +31448,9 @@ var require_lodash7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/sign.js
+// node_modules/jsonwebtoken/sign.js
 var require_sign2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/sign.js"(exports, module) {
+  "node_modules/jsonwebtoken/sign.js"(exports, module) {
     var timespan = require_timespan();
     var PS_SUPPORTED = require_psSupported();
     var validateAsymmetricKey = require_validateAsymmetricKey();
@@ -31673,9 +31673,9 @@ var require_sign2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/index.js
+// node_modules/jsonwebtoken/index.js
 var require_jsonwebtoken = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/index.js"(exports, module) {
+  "node_modules/jsonwebtoken/index.js"(exports, module) {
     module.exports = {
       decode: require_decode(),
       verify: require_verify(),
@@ -31687,9 +31687,9 @@ var require_jsonwebtoken = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-array/index.js
+// node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-array/index.js"(exports) {
+  "node_modules/postgres-array/index.js"(exports) {
     "use strict";
     exports.parse = function(source, transform2) {
       return new ArrayParser(source, transform2).parse();
@@ -31781,9 +31781,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js
+// node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js"(exports, module) {
+  "node_modules/pg-types/lib/arrayParser.js"(exports, module) {
     var array2 = require_postgres_array();
     module.exports = {
       create: function(source, transform2) {
@@ -31797,9 +31797,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-date/index.js
+// node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-date/index.js"(exports, module) {
+  "node_modules/postgres-date/index.js"(exports, module) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -31884,9 +31884,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/xtend/mutable.js
+// node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/xtend/mutable.js"(exports, module) {
+  "node_modules/xtend/mutable.js"(exports, module) {
     module.exports = extend2;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     function extend2(target) {
@@ -31903,9 +31903,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-interval/index.js
+// node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-interval/index.js"(exports, module) {
+  "node_modules/postgres-interval/index.js"(exports, module) {
     "use strict";
     var extend2 = require_mutable();
     module.exports = PostgresInterval;
@@ -31994,9 +31994,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-bytea/index.js
+// node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-bytea/index.js"(exports, module) {
+  "node_modules/postgres-bytea/index.js"(exports, module) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module.exports = function parseBytea(input2) {
@@ -32030,9 +32030,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/textParsers.js
+// node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/textParsers.js"(exports, module) {
+  "node_modules/pg-types/lib/textParsers.js"(exports, module) {
     var array2 = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -32230,9 +32230,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-int8/index.js
+// node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-int8/index.js"(exports, module) {
+  "node_modules/pg-int8/index.js"(exports, module) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -32310,9 +32310,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js
+// node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
+  "node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -32510,9 +32510,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/builtins.js
+// node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/builtins.js"(exports, module) {
+  "node_modules/pg-types/lib/builtins.js"(exports, module) {
     module.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -32578,9 +32578,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/index.js
+// node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/index.js"(exports) {
+  "node_modules/pg-types/index.js"(exports) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -32619,9 +32619,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/defaults.js
+// node_modules/pg/lib/defaults.js
 var require_defaults = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/defaults.js"(exports, module) {
+  "node_modules/pg/lib/defaults.js"(exports, module) {
     "use strict";
     var user;
     try {
@@ -32688,9 +32688,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/utils.js
+// node_modules/pg/lib/utils.js
 var require_utils4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/utils.js"(exports, module) {
+  "node_modules/pg/lib/utils.js"(exports, module) {
     "use strict";
     var defaults2 = require_defaults();
     var { isDate } = __require("util/types");
@@ -32836,9 +32836,9 @@ var require_utils4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/utils.js
+// node_modules/pg/lib/crypto/utils.js
 var require_utils5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/utils.js"(exports, module) {
+  "node_modules/pg/lib/crypto/utils.js"(exports, module) {
     var nodeCrypto = __require("crypto");
     module.exports = {
       postgresMd5PasswordHash,
@@ -32887,9 +32887,9 @@ var require_utils5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js
+// node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
+  "node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -33000,9 +33000,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js
+// node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
+  "node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
     var crypto4 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -33185,9 +33185,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/type-overrides.js
+// node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/type-overrides.js"(exports, module) {
+  "node_modules/pg/lib/type-overrides.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -33220,9 +33220,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-connection-string/index.js
+// node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-connection-string/index.js"(exports, module) {
+  "node_modules/pg-connection-string/index.js"(exports, module) {
     "use strict";
     function parse3(str, options = {}) {
       if (str.charAt(0) === "/") {
@@ -33408,9 +33408,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection-parameters.js
+// node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection-parameters.js"(exports, module) {
+  "node_modules/pg/lib/connection-parameters.js"(exports, module) {
     "use strict";
     var dns = __require("dns");
     var defaults2 = require_defaults();
@@ -33559,9 +33559,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/result.js
+// node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/result.js"(exports, module) {
+  "node_modules/pg/lib/result.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -33650,9 +33650,9 @@ var require_result = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/query.js
+// node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/query.js"(exports, module) {
+  "node_modules/pg/lib/query.js"(exports, module) {
     "use strict";
     var { EventEmitter } = __require("events");
     var Result2 = require_result();
@@ -33852,9 +33852,9 @@ var require_query = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/messages.js
+// node_modules/pg-protocol/dist/messages.js
 var require_messages = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/messages.js"(exports) {
+  "node_modules/pg-protocol/dist/messages.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NoticeMessage = exports.DataRowMessage = exports.CommandCompleteMessage = exports.ReadyForQueryMessage = exports.NotificationResponseMessage = exports.BackendKeyDataMessage = exports.AuthenticationMD5Password = exports.ParameterStatusMessage = exports.ParameterDescriptionMessage = exports.RowDescriptionMessage = exports.Field = exports.CopyResponse = exports.CopyDataMessage = exports.DatabaseError = exports.copyDone = exports.emptyQuery = exports.replicationStart = exports.portalSuspended = exports.noData = exports.closeComplete = exports.bindComplete = exports.parseComplete = void 0;
@@ -34017,9 +34017,9 @@ var require_messages = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js
+// node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
+  "node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Writer = void 0;
@@ -34121,9 +34121,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js
+// node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js"(exports) {
+  "node_modules/pg-protocol/dist/serializer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.serialize = void 0;
@@ -34343,9 +34343,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js
+// node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
+  "node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.BufferReader = void 0;
@@ -34402,9 +34402,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/parser.js
+// node_modules/pg-protocol/dist/parser.js
 var require_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/parser.js"(exports) {
+  "node_modules/pg-protocol/dist/parser.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Parser = void 0;
@@ -34709,9 +34709,9 @@ var require_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/index.js
+// node_modules/pg-protocol/dist/index.js
 var require_dist5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/index.js"(exports) {
+  "node_modules/pg-protocol/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
@@ -34733,18 +34733,18 @@ var require_dist5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js
+// node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js"(exports) {
+  "node_modules/pg-cloudflare/dist/empty.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {};
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/stream.js
+// node_modules/pg/lib/stream.js
 var require_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/stream.js"(exports, module) {
+  "node_modules/pg/lib/stream.js"(exports, module) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module.exports = {
       /**
@@ -34808,9 +34808,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection.js
+// node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection.js"(exports, module) {
+  "node_modules/pg/lib/connection.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var { parse: parse3, serialize } = require_dist5();
@@ -35006,9 +35006,9 @@ var require_connection = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/split2/index.js
+// node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/split2/index.js"(exports, module) {
+  "node_modules/split2/index.js"(exports, module) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -35107,9 +35107,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/helper.js
+// node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/helper.js"(exports, module) {
+  "node_modules/pgpass/lib/helper.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var Stream = __require("stream").Stream;
@@ -35278,9 +35278,9 @@ var require_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/index.js
+// node_modules/pgpass/lib/index.js
 var require_lib4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/index.js"(exports, module) {
+  "node_modules/pgpass/lib/index.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var fs = __require("fs");
@@ -35299,9 +35299,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/client.js
+// node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/client.js"(exports, module) {
+  "node_modules/pg/lib/client.js"(exports, module) {
     var EventEmitter = __require("events").EventEmitter;
     var utils = require_utils4();
     var nodeUtils = __require("util");
@@ -35987,9 +35987,9 @@ var require_client = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-pool/index.js
+// node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-pool/index.js"(exports, module) {
+  "node_modules/pg-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var NOOP = function() {
@@ -36413,9 +36413,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/query.js
+// node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/query.js"(exports, module) {
+  "node_modules/pg/lib/native/query.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var util = __require("util");
@@ -36554,9 +36554,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/client.js
+// node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/client.js"(exports, module) {
+  "node_modules/pg/lib/native/client.js"(exports, module) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -36888,17 +36888,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/index.js
+// node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/index.js"(exports, module) {
+  "node_modules/pg/lib/native/index.js"(exports, module) {
     "use strict";
     module.exports = require_client2();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/index.js
+// node_modules/pg/lib/index.js
 var require_lib5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/index.js"(exports, module) {
+  "node_modules/pg/lib/index.js"(exports, module) {
     "use strict";
     var Client2 = require_client();
     var defaults2 = require_defaults();
@@ -36962,9 +36962,9 @@ var require_lib5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/bn.js/lib/bn.js
+// node_modules/bn.js/lib/bn.js
 var require_bn = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/bn.js/lib/bn.js"(exports, module) {
+  "node_modules/bn.js/lib/bn.js"(exports, module) {
     (function(module2, exports2) {
       "use strict";
       function assert2(val, msg) {
@@ -39782,9 +39782,9 @@ var require_bn = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js
+// node_modules/asn1.js/lib/asn1/base/reporter.js
 var require_reporter = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     function Reporter(options) {
@@ -39883,9 +39883,9 @@ var require_reporter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js
+// node_modules/asn1.js/lib/asn1/base/buffer.js
 var require_buffer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     var Reporter = require_reporter().Reporter;
@@ -40000,9 +40000,9 @@ var require_buffer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/minimalistic-assert/index.js
+// node_modules/minimalistic-assert/index.js
 var require_minimalistic_assert = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/minimalistic-assert/index.js"(exports, module) {
+  "node_modules/minimalistic-assert/index.js"(exports, module) {
     module.exports = assert2;
     function assert2(val, msg) {
       if (!val)
@@ -40015,9 +40015,9 @@ var require_minimalistic_assert = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js
+// node_modules/asn1.js/lib/asn1/base/node.js
 var require_node2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
     "use strict";
     var Reporter = require_reporter().Reporter;
     var EncoderBuffer = require_buffer().EncoderBuffer;
@@ -40550,9 +40550,9 @@ var require_node2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js
+// node_modules/asn1.js/lib/asn1/constants/der.js
 var require_der = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
     "use strict";
     function reverse(map2) {
       const res = {};
@@ -40606,9 +40606,9 @@ var require_der = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js
+// node_modules/asn1.js/lib/asn1/encoders/der.js
 var require_der2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -40837,9 +40837,9 @@ var require_der2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js
+// node_modules/asn1.js/lib/asn1/encoders/pem.js
 var require_pem = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var DEREncoder = require_der2();
@@ -40861,9 +40861,9 @@ var require_pem = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js
+// node_modules/asn1.js/lib/asn1/encoders/index.js
 var require_encoders = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
     "use strict";
     var encoders = exports;
     encoders.der = require_der2();
@@ -40871,9 +40871,9 @@ var require_encoders = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js
+// node_modules/asn1.js/lib/asn1/decoders/der.js
 var require_der3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var bignum = require_bn();
@@ -41143,9 +41143,9 @@ var require_der3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js
+// node_modules/asn1.js/lib/asn1/decoders/pem.js
 var require_pem2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -41189,9 +41189,9 @@ var require_pem2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js
+// node_modules/asn1.js/lib/asn1/decoders/index.js
 var require_decoders = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
     "use strict";
     var decoders = exports;
     decoders.der = require_der3();
@@ -41199,9 +41199,9 @@ var require_decoders = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js
+// node_modules/asn1.js/lib/asn1/api.js
 var require_api = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/api.js"(exports) {
     "use strict";
     var encoders = require_encoders();
     var decoders = require_decoders();
@@ -41248,9 +41248,9 @@ var require_api = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js
+// node_modules/asn1.js/lib/asn1/base/index.js
 var require_base = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
     "use strict";
     var base = exports;
     base.Reporter = require_reporter().Reporter;
@@ -41260,9 +41260,9 @@ var require_base = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js
+// node_modules/asn1.js/lib/asn1/constants/index.js
 var require_constants4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
     "use strict";
     var constants = exports;
     constants._reverse = function reverse(map2) {
@@ -41279,9 +41279,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1.js
+// node_modules/asn1.js/lib/asn1.js
 var require_asn1 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1.js"(exports) {
+  "node_modules/asn1.js/lib/asn1.js"(exports) {
     "use strict";
     var asn1 = exports;
     asn1.bignum = require_bn();
@@ -41293,9 +41293,9 @@ var require_asn1 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-constants.js
+// node_modules/web-push/src/web-push-constants.js
 var require_web_push_constants = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-constants.js"(exports, module) {
+  "node_modules/web-push/src/web-push-constants.js"(exports, module) {
     "use strict";
     var WebPushConstants = {};
     WebPushConstants.supportedContentEncodings = {
@@ -41312,9 +41312,9 @@ var require_web_push_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js
+// node_modules/web-push/src/urlsafe-base64-helper.js
 var require_urlsafe_base64_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
+  "node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
     "use strict";
     function validate2(base643) {
       return /^[A-Za-z0-9\-_]+$/.test(base643);
@@ -41325,9 +41325,9 @@ var require_urlsafe_base64_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js
+// node_modules/web-push/src/vapid-helper.js
 var require_vapid_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js"(exports, module) {
+  "node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var asn1 = require_asn1();
@@ -41502,9 +41502,9 @@ var require_vapid_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js
+// node_modules/http_ece/ece.js
 var require_ece = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js"(exports, module) {
+  "node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
@@ -41953,9 +41953,9 @@ var require_ece = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js
+// node_modules/web-push/src/encryption-helper.js
 var require_encryption_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js"(exports, module) {
+  "node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var ece = require_ece();
@@ -42006,9 +42006,9 @@ var require_encryption_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-error.js
+// node_modules/web-push/src/web-push-error.js
 var require_web_push_error = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-error.js"(exports, module) {
+  "node_modules/web-push/src/web-push-error.js"(exports, module) {
     "use strict";
     function WebPushError(message, statusCode, headers, body, endpoint) {
       Error.captureStackTrace(this, this.constructor);
@@ -42024,9 +42024,9 @@ var require_web_push_error = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/helpers.js
+// node_modules/agent-base/dist/helpers.js
 var require_helpers2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/helpers.js"(exports) {
+  "node_modules/agent-base/dist/helpers.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42094,9 +42094,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/index.js
+// node_modules/agent-base/dist/index.js
 var require_dist6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/index.js"(exports) {
+  "node_modules/agent-base/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42250,9 +42250,9 @@ var require_dist6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
+  "node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -42346,9 +42346,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 var require_dist7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js"(exports) {
+  "node_modules/https-proxy-agent/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42496,9 +42496,9 @@ var require_dist7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-lib.js
+// node_modules/web-push/src/web-push-lib.js
 var require_web_push_lib = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-lib.js"(exports, module) {
+  "node_modules/web-push/src/web-push-lib.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var https = __require("https");
@@ -42783,9 +42783,9 @@ var require_web_push_lib = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/index.js
+// node_modules/web-push/src/index.js
 var require_src2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/index.js"(exports, module) {
+  "node_modules/web-push/src/index.js"(exports, module) {
     "use strict";
     var vapidHelper = require_vapid_helper();
     var encryptionHelper = require_encryption_helper();
@@ -42807,9 +42807,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js
+// node_modules/nodemailer/lib/fetch/cookies.js
 var require_cookies = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
+  "node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var SESSION_TIMEOUT = 1800;
@@ -43019,9 +43019,9 @@ var require_cookies = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/package.json
+// node_modules/nodemailer/package.json
 var require_package = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/package.json"(exports, module) {
+  "node_modules/nodemailer/package.json"(exports, module) {
     module.exports = {
       name: "nodemailer",
       version: "6.9.16",
@@ -43068,9 +43068,9 @@ var require_package = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js
+// node_modules/nodemailer/lib/fetch/index.js
 var require_fetch = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
     "use strict";
     var http = __require("http");
     var https = __require("https");
@@ -43307,9 +43307,9 @@ var require_fetch = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js
+// node_modules/nodemailer/lib/shared/index.js
 var require_shared = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/shared/index.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var util = __require("util");
@@ -43819,9 +43819,9 @@ var require_shared = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js
+// node_modules/nodemailer/lib/mime-funcs/mime-types.js
 var require_mime_types2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var defaultMimeType = "application/octet-stream";
@@ -45917,9 +45917,9 @@ var require_mime_types2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js
+// node_modules/nodemailer/lib/punycode/index.js
 var require_punycode = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
     "use strict";
     var maxInt = 2147483647;
     var base = 36;
@@ -46159,9 +46159,9 @@ var require_punycode = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js
+// node_modules/nodemailer/lib/base64/index.js
 var require_base64 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/base64/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46257,9 +46257,9 @@ var require_base64 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js
+// node_modules/nodemailer/lib/qp/index.js
 var require_qp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/qp/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46419,9 +46419,9 @@ var require_qp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js
+// node_modules/nodemailer/lib/mime-funcs/index.js
 var require_mime_funcs = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
     "use strict";
     var base643 = require_base64();
     var qp = require_qp();
@@ -46915,9 +46915,9 @@ var require_mime_funcs = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js
+// node_modules/nodemailer/lib/addressparser/index.js
 var require_addressparser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
     "use strict";
     function _handleAddress(tokens) {
       let isGroup = false;
@@ -47164,9 +47164,9 @@ var require_addressparser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js
+// node_modules/nodemailer/lib/mime-node/last-newline.js
 var require_last_newline = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var LastNewline = class extends Transform {
@@ -47197,9 +47197,9 @@ var require_last_newline = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js
+// node_modules/nodemailer/lib/mime-node/le-windows.js
 var require_le_windows = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47241,9 +47241,9 @@ var require_le_windows = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js
+// node_modules/nodemailer/lib/mime-node/le-unix.js
 var require_le_unix = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47278,9 +47278,9 @@ var require_le_unix = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js
+// node_modules/nodemailer/lib/mime-node/index.js
 var require_mime_node = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var fs = __require("fs");
@@ -48252,9 +48252,9 @@ var require_mime_node = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js
+// node_modules/nodemailer/lib/mail-composer/index.js
 var require_mail_composer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
     "use strict";
     var MimeNode = require_mime_node();
     var mimeFuncs = require_mime_funcs();
@@ -48698,9 +48698,9 @@ var require_mail_composer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js
+// node_modules/nodemailer/lib/dkim/message-parser.js
 var require_message_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var MessageParser = class extends Transform {
@@ -48829,9 +48829,9 @@ var require_message_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js
+// node_modules/nodemailer/lib/dkim/relaxed-body.js
 var require_relaxed_body = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var crypto4 = __require("crypto");
@@ -48938,9 +48938,9 @@ var require_relaxed_body = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js
+// node_modules/nodemailer/lib/dkim/sign.js
 var require_sign3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
@@ -49011,9 +49011,9 @@ var require_sign3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js
+// node_modules/nodemailer/lib/dkim/index.js
 var require_dkim = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
     "use strict";
     var MessageParser = require_message_parser();
     var RelaxedBody = require_relaxed_body();
@@ -49214,9 +49214,9 @@ var require_dkim = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
+// node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
 var require_http_proxy_client = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
     "use strict";
     var net = __require("net");
     var tls = __require("tls");
@@ -49310,9 +49310,9 @@ var require_http_proxy_client = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js
+// node_modules/nodemailer/lib/mailer/mail-message.js
 var require_mail_message = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
+  "node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
     "use strict";
     var shared = require_shared();
     var MimeNode = require_mime_node();
@@ -49574,9 +49574,9 @@ var require_mail_message = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js
+// node_modules/nodemailer/lib/mailer/index.js
 var require_mailer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var shared = require_shared();
@@ -49943,9 +49943,9 @@ var require_mailer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js
+// node_modules/nodemailer/lib/smtp-connection/data-stream.js
 var require_data_stream2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -50032,9 +50032,9 @@ var require_data_stream2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js
+// node_modules/nodemailer/lib/smtp-connection/index.js
 var require_smtp_connection = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
     "use strict";
     var packageInfo = require_package();
     var EventEmitter = __require("events").EventEmitter;
@@ -51449,9 +51449,9 @@ var require_smtp_connection = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js
+// node_modules/nodemailer/lib/xoauth2/index.js
 var require_xoauth2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
     "use strict";
     var Stream = __require("stream").Stream;
     var nmfetch = require_fetch();
@@ -51754,9 +51754,9 @@ var require_xoauth2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js
+// node_modules/nodemailer/lib/smtp-pool/pool-resource.js
 var require_pool_resource = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
     "use strict";
     var SMTPConnection = require_smtp_connection();
     var assign = require_shared().assign;
@@ -51975,9 +51975,9 @@ var require_pool_resource = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json
+// node_modules/nodemailer/lib/well-known/services.json
 var require_services = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
+  "node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
     module.exports = {
       "1und1": {
         host: "smtp.1und1.de",
@@ -52279,9 +52279,9 @@ var require_services = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js
+// node_modules/nodemailer/lib/well-known/index.js
 var require_well_known = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
     "use strict";
     var services = require_services();
     var normalized = {};
@@ -52315,9 +52315,9 @@ var require_well_known = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js
+// node_modules/nodemailer/lib/smtp-pool/index.js
 var require_smtp_pool = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var PoolResource = require_pool_resource();
@@ -52860,9 +52860,9 @@ var require_smtp_pool = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js
+// node_modules/nodemailer/lib/smtp-transport/index.js
 var require_smtp_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var SMTPConnection = require_smtp_connection();
@@ -53218,9 +53218,9 @@ var require_smtp_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js
+// node_modules/nodemailer/lib/sendmail-transport/index.js
 var require_sendmail_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
     "use strict";
     var spawn = __require("child_process").spawn;
     var packageData = require_package();
@@ -53393,9 +53393,9 @@ var require_sendmail_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js
+// node_modules/nodemailer/lib/stream-transport/index.js
 var require_stream_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53507,9 +53507,9 @@ var require_stream_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js
+// node_modules/nodemailer/lib/json-transport/index.js
 var require_json_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53576,9 +53576,9 @@ var require_json_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js
+// node_modules/nodemailer/lib/ses-transport/index.js
 var require_ses_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var packageData = require_package();
@@ -53857,9 +53857,9 @@ var require_ses_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js
+// node_modules/nodemailer/lib/nodemailer.js
 var require_nodemailer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
+  "node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
     "use strict";
     var Mailer = require_mailer();
     var shared = require_shared();
@@ -53990,7 +53990,7 @@ var require_nodemailer = __commonJS({
 var import_express = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/helmet/index.mjs
+// node_modules/helmet/index.mjs
 var dashify = (str) => str.replace(/[A-Z]/g, (capitalLetter) => "-" + capitalLetter.toLowerCase());
 var errify = (err) => err instanceof Error ? err : new Error(String(err));
 var isString = (value) => typeof value === "string";
@@ -54560,7 +54560,7 @@ var helmet = Object.assign(
 // src/server/app.ts
 var import_compression = __toESM(require_compression(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express-rate-limit/dist/index.mjs
+// node_modules/express-rate-limit/dist/index.mjs
 var import_ip_address = __toESM(require_ip_address(), 1);
 var import_debug = __toESM(require_src(), 1);
 import { isIPv6 } from "node:net";
@@ -55581,7 +55581,7 @@ if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
 // src/server/auth.ts
 var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/esm/index.mjs
+// node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
 var Client = import_lib.default.Client;
 var Pool = import_lib.default.Pool;
@@ -55611,21 +55611,36 @@ var boSslmode = (raw) => {
   }
 };
 var connectionString = boSslmode(process.env.DATABASE_URL);
+var canSsl = (raw) => {
+  if (process.env.NODE_ENV === "production") return true;
+  try {
+    const u = new URL(String(raw));
+    const mode = u.searchParams.get("sslmode");
+    if (mode) return mode !== "disable";
+    return !["localhost", "127.0.0.1", "::1", "[::1]"].includes(u.hostname);
+  } catch {
+    return false;
+  }
+};
+var chayMay = process.env.NODE_ENV !== "production" && !process.env.VERCEL;
+var POOL_MAX = Number(process.env.DB_POOL_MAX) || (chayMay ? 6 : 2);
+var POOL_IDLE_MS = chayMay ? 3e4 : 1e3;
+var POOL_CONNECT_TIMEOUT_MS = chayMay ? 6e4 : 15e3;
 var pool = new Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  ssl: canSsl(process.env.DATABASE_URL) ? { rejectUnauthorized: false } : false,
   // Transaction-mode pooler có giới hạn số client (max_client_conn) dùng chung cho MỌI instance Vercel.
   // Mỗi instance thường xử lý 1 request tại 1 thời điểm => 2 kết nối là đủ (1 cho request, 1 cho việc nền như
   // nạp bảng tên công trình); 3 làm nhiều instance cộng lại vượt trần pooler.
-  max: 2,
+  max: POOL_MAX,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1e4,
   // Trả connection rảnh về pooler gần như ngay (1 giây). Trên Vercel instance bị ĐÓNG BĂNG ngay sau khi trả kết quả:
   // bộ đếm rảnh không chạy trong lúc đóng băng => kết nối chưa kịp trả bị giữ suốt đời instance (vài phút). Nhiều
   // instance cùng giữ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500
   // (12/10/2026 với 30 giây). Mở lại kết nối tốn ít vì hàm API (iad1) đặt cạnh DB (Mỹ).
-  idleTimeoutMillis: 1e3,
-  connectionTimeoutMillis: 15e3,
+  idleTimeoutMillis: POOL_IDLE_MS,
+  connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
   application_name: "vercel-backend",
   // Không đặt statement_timeout ở đây: pg gửi nó trong StartupMessage và
   // PgBouncer của Layerbase từ chối startup parameter không chuẩn.
@@ -55633,8 +55648,11 @@ var pool = new Pool({
   allowExitOnIdle: false
 });
 var STATEMENT_TIMEOUT_MS = 8e3;
+var IDLE_TX_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = 30000`;
+var ngheLoiKetNoi = (client, ten) => client.on("error", (err) => console.error(`[db ${ten}] k\u1EBFt n\u1ED1i b\u1ECB \u0111\xF3ng:`, err.message));
 pool.on("connect", (client) => {
   console.log("Connected to PostgreSQL database");
+  ngheLoiKetNoi(client, "pool");
   client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
     console.error("Kh\xF4ng set \u0111\u01B0\u1EE3c statement_timeout:", err.message);
   });
@@ -55673,16 +55691,17 @@ var poolMra = urlMra ? new Pool({
   connectionString: urlMra,
   // Supabase luôn bắt SSL (kể cả chạy ở máy)
   ssl: { rejectUnauthorized: false },
-  max: 2,
+  max: POOL_MAX,
   keepAlive: true,
   keepAliveInitialDelayMillis: 1e4,
-  idleTimeoutMillis: 1e3,
-  connectionTimeoutMillis: 15e3,
+  idleTimeoutMillis: POOL_IDLE_MS,
+  connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
   application_name: "vercel-backend-mra",
   allowExitOnIdle: false
 }) : pool;
 if (poolMra !== pool) {
   poolMra.on("connect", (client) => {
+    ngheLoiKetNoi(client, "mra");
     client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
       console.error("Kh\xF4ng set \u0111\u01B0\u1EE3c statement_timeout (MRA):", err.message);
     });
@@ -55724,7 +55743,7 @@ async function timedQuery(text, params, opts = {}) {
     try {
       let result;
       if (opts.timeoutMs || opts.workMemMb) {
-        const setup = ["BEGIN"];
+        const setup = ["BEGIN", IDLE_TX_TIMEOUT_SQL];
         if (opts.timeoutMs) setup.push(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
         if (opts.workMemMb) setup.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
         try {
@@ -55766,7 +55785,7 @@ async function withTransactionMra(fn) {
 async function giaoDich(p, fn) {
   const client = await p.connect();
   try {
-    await client.query("BEGIN");
+    await client.query(`BEGIN; ${IDLE_TX_TIMEOUT_SQL}`);
     const result = await fn(client);
     await client.query("COMMIT");
     return result;
@@ -56230,14 +56249,20 @@ app.set("trust proxy", 1);
 app.set("case sensitive routing", true);
 app.set("etag", false);
 app.use(helmet());
-app.use((0, import_cors.default)({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.length === 0 && process.env.NODE_ENV !== "production" || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(Object.assign(new Error("CORS: origin kh\xF4ng \u0111\u01B0\u1EE3c ph\xE9p"), { status: 403 }));
-  },
-  credentials: true
+var cungDiaChi = (origin, req) => {
+  const host = String(req.headers["x-forwarded-host"] ?? req.headers.host ?? "").split(",")[0].trim().toLowerCase();
+  try {
+    return !!host && new URL(origin).host.toLowerCase() === host;
+  } catch {
+    return false;
+  }
+};
+app.use((0, import_cors.default)((req, callback) => {
+  const origin = req.headers.origin;
+  if (!origin || cungDiaChi(origin, req) || allowedOrigins.length === 0 && process.env.NODE_ENV !== "production" || allowedOrigins.includes(origin)) {
+    return callback(null, { origin: true, credentials: true });
+  }
+  return callback(Object.assign(new Error("CORS: origin kh\xF4ng \u0111\u01B0\u1EE3c ph\xE9p"), { status: 403 }));
 }));
 app.use((0, import_compression.default)());
 app.use(import_express.default.json({ limit: "2mb" }));
@@ -56318,7 +56343,7 @@ app.use(async (req, _res, next) => {
 // src/vuongMacPush.ts
 var import_web_push = __toESM(require_src2(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/external.js
+// node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
   $brand: () => $brand,
@@ -56575,7 +56600,7 @@ __export(external_exports, {
   xor: () => xor
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/index.js
+// node_modules/zod/v4/core/index.js
 var core_exports2 = {};
 __export(core_exports2, {
   $ZodAny: () => $ZodAny,
@@ -56882,7 +56907,7 @@ __export(core_exports2, {
   version: () => version2
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/util.js
+// node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -57719,7 +57744,7 @@ function constantCatch(value) {
   return fn;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/core.js
+// node_modules/zod/v4/core/core.js
 var _a;
 var NEVER = /* @__PURE__ */ Object.freeze({
   status: "aborted"
@@ -57842,7 +57867,7 @@ function config(newConfig) {
   return globalConfig;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/errors.js
+// node_modules/zod/v4/core/errors.js
 function _getMessage() {
   const internals = this._zod;
   internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
@@ -58038,7 +58063,7 @@ function prettifyError(error61) {
   return lines.join("\n");
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/parse.js
+// node_modules/zod/v4/core/parse.js
 function finalizeParams(callee, params) {
   return { callee: params?.callee ?? callee, Err: params?.Err };
 }
@@ -58181,7 +58206,7 @@ var _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
 };
 var safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync($ZodRealError);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/regexes.js
+// node_modules/zod/v4/core/regexes.js
 var regexes_exports = {};
 __export(regexes_exports, {
   base64: () => base64,
@@ -58347,7 +58372,7 @@ var sha512_hex = /^[0-9a-fA-F]{128}$/;
 var sha512_base64 = /* @__PURE__ */ fixedBase64(86, "==");
 var sha512_base64url = /* @__PURE__ */ fixedBase64url(86);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/checks.js
+// node_modules/zod/v4/core/checks.js
 var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
   var _a3;
   inst._zod ?? (inst._zod = {});
@@ -58891,7 +58916,7 @@ var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (ins
   };
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/doc.js
+// node_modules/zod/v4/core/doc.js
 var Doc = class {
   constructor(args = [], closed = {}) {
     this.content = [];
@@ -58928,14 +58953,14 @@ ${content.join("\n")}
   }
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/versions.js
+// node_modules/zod/v4/core/versions.js
 var version2 = {
   major: 4,
   minor: 5,
   patch: 4
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/schemas.js
+// node_modules/zod/v4/core/schemas.js
 var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
   var _a3;
   inst ?? (inst = {});
@@ -61199,7 +61224,7 @@ function handleRefineResult(result, payload, input2, inst) {
   }
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/memoizer.js
+// node_modules/zod/v4/core/memoizer.js
 var $ZodCyclicError = class extends Error {
   constructor() {
     super(`Cannot parse a reference cycle that closes through a transform`);
@@ -61440,7 +61465,7 @@ function isBackEdge(ctx, value) {
   return backEdges !== void 0 && value !== null && typeof value === "object" && backEdges.has(value);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/index.js
+// node_modules/zod/v4/locales/index.js
 var locales_exports = {};
 __export(locales_exports, {
   ar: () => ar_default,
@@ -61507,7 +61532,7 @@ __export(locales_exports, {
   zhTW: () => zh_TW_default
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ar.js
+// node_modules/zod/v4/locales/ar.js
 var error = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0641", verb: "\u0623\u0646 \u064A\u062D\u0648\u064A" },
@@ -61617,7 +61642,7 @@ function ar_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/az.js
+// node_modules/zod/v4/locales/az.js
 var error2 = () => {
   const Sizable = {
     string: { unit: "simvol", verb: "olmal\u0131d\u0131r" },
@@ -61726,7 +61751,7 @@ function az_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/be.js
+// node_modules/zod/v4/locales/be.js
 function getBelarusianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -61893,7 +61918,7 @@ function be_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/bg.js
+// node_modules/zod/v4/locales/bg.js
 var error4 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0430", verb: "\u0434\u0430 \u0441\u044A\u0434\u044A\u0440\u0436\u0430" },
@@ -62017,7 +62042,7 @@ function bg_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/bn.js
+// node_modules/zod/v4/locales/bn.js
 var error5 = () => {
   const Sizable = {
     string: { unit: "\u0985\u0995\u09CD\u09B7\u09B0", verb: "\u09A5\u09BE\u0995\u09A4\u09C7 \u09B9\u09AC\u09C7" },
@@ -62129,7 +62154,7 @@ function bn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ca.js
+// node_modules/zod/v4/locales/ca.js
 var error6 = () => {
   const Sizable = {
     string: { unit: "car\xE0cters", verb: "contenir" },
@@ -62241,7 +62266,7 @@ function ca_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ckb.js
+// node_modules/zod/v4/locales/ckb.js
 var error7 = () => {
   const Sizable = {
     string: { unit: "\u067E\u06CC\u062A", verb: "\u0628\u06CE\u062A" },
@@ -62372,7 +62397,7 @@ function ckb_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/cs.js
+// node_modules/zod/v4/locales/cs.js
 var error8 = () => {
   const Sizable = {
     string: { unit: "znak\u016F", verb: "m\xEDt" },
@@ -62487,7 +62512,7 @@ function cs_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/da.js
+// node_modules/zod/v4/locales/da.js
 var error9 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "havde" },
@@ -62606,7 +62631,7 @@ function da_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/de.js
+// node_modules/zod/v4/locales/de.js
 var error10 = () => {
   const Sizable = {
     string: { unit: "Zeichen", verb: "zu haben" },
@@ -62718,7 +62743,7 @@ function de_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/el.js
+// node_modules/zod/v4/locales/el.js
 var error11 = () => {
   const Sizable = {
     string: { unit: "\u03C7\u03B1\u03C1\u03B1\u03BA\u03C4\u03AE\u03C1\u03B5\u03C2", verb: "\u03BD\u03B1 \u03AD\u03C7\u03B5\u03B9" },
@@ -62829,7 +62854,7 @@ function el_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/en.js
+// node_modules/zod/v4/locales/en.js
 var error12 = () => {
   const Sizable = {
     string: { unit: "characters", verb: "to have" },
@@ -62952,7 +62977,7 @@ function en_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/eo.js
+// node_modules/zod/v4/locales/eo.js
 var error13 = () => {
   const Sizable = {
     string: { unit: "karaktrojn", verb: "havi" },
@@ -63065,7 +63090,7 @@ function eo_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/es.js
+// node_modules/zod/v4/locales/es.js
 var error14 = () => {
   const Sizable = {
     string: { unit: "caracteres", verb: "tener" },
@@ -63200,7 +63225,7 @@ function es_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fa.js
+// node_modules/zod/v4/locales/fa.js
 var error15 = () => {
   const Sizable = {
     string: { unit: "\u06A9\u0627\u0631\u0627\u06A9\u062A\u0631", verb: "\u062F\u0627\u0634\u062A\u0647 \u0628\u0627\u0634\u062F" },
@@ -63318,7 +63343,7 @@ function fa_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fi.js
+// node_modules/zod/v4/locales/fi.js
 var error16 = () => {
   const Sizable = {
     string: { unit: "merkki\xE4", subject: "merkkijonon" },
@@ -63434,7 +63459,7 @@ function fi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fr.js
+// node_modules/zod/v4/locales/fr.js
 var error17 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63562,7 +63587,7 @@ function fr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fr-CA.js
+// node_modules/zod/v4/locales/fr-CA.js
 var error18 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63673,7 +63698,7 @@ function fr_CA_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/gu.js
+// node_modules/zod/v4/locales/gu.js
 var error19 = () => {
   const Sizable = {
     string: { unit: "\u0A85\u0A95\u0ACD\u0AB7\u0AB0", verb: "\u0AB9\u0ACB\u0AB5\u0ABE \u0A9C\u0ACB\u0A88\u0A8F" },
@@ -63785,7 +63810,7 @@ function gu_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/he.js
+// node_modules/zod/v4/locales/he.js
 var error20 = () => {
   const TypeNames = {
     string: { label: "\u05DE\u05D7\u05E8\u05D5\u05D6\u05EA", gender: "f" },
@@ -63985,7 +64010,7 @@ function he_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hi.js
+// node_modules/zod/v4/locales/hi.js
 var error21 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0930\u0916\u0928\u0947 \u0915\u0947 \u0932\u093F\u090F" },
@@ -64095,7 +64120,7 @@ function hi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hr.js
+// node_modules/zod/v4/locales/hr.js
 var error22 = () => {
   const Sizable = {
     string: { unit: "znakova", verb: "imati" },
@@ -64220,7 +64245,7 @@ function hr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hu.js
+// node_modules/zod/v4/locales/hu.js
 var error23 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "legyen" },
@@ -64332,7 +64357,7 @@ function hu_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hy.js
+// node_modules/zod/v4/locales/hy.js
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
@@ -64489,7 +64514,7 @@ function hy_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/id.js
+// node_modules/zod/v4/locales/id.js
 var error25 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "memiliki" },
@@ -64599,7 +64624,7 @@ function id_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/is.js
+// node_modules/zod/v4/locales/is.js
 var error26 = () => {
   const Sizable = {
     string: { unit: "stafi", verb: "a\xF0 hafa" },
@@ -64712,7 +64737,7 @@ function is_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/it.js
+// node_modules/zod/v4/locales/it.js
 var error27 = () => {
   const Sizable = {
     string: { unit: "caratteri", verb: "avere" },
@@ -64824,7 +64849,7 @@ function it_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ja.js
+// node_modules/zod/v4/locales/ja.js
 var error28 = () => {
   const Sizable = {
     string: { unit: "\u6587\u5B57", verb: "\u3067\u3042\u308B" },
@@ -64935,7 +64960,7 @@ function ja_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ka.js
+// node_modules/zod/v4/locales/ka.js
 var error29 = () => {
   const Sizable = {
     string: { unit: "\u10E1\u10D8\u10DB\u10D1\u10DD\u10DA\u10DD", verb: "\u10E3\u10DC\u10D3\u10D0 \u10E8\u10D4\u10D8\u10EA\u10D0\u10D5\u10D3\u10D4\u10E1" },
@@ -65051,7 +65076,7 @@ function ka_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/km.js
+// node_modules/zod/v4/locales/km.js
 var error30 = () => {
   const Sizable = {
     string: { unit: "\u178F\u17BD\u17A2\u1780\u17D2\u179F\u179A", verb: "\u1782\u17BD\u179A\u1798\u17B6\u1793" },
@@ -65165,12 +65190,12 @@ function km_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/kh.js
+// node_modules/zod/v4/locales/kh.js
 function kh_default() {
   return km_default();
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/kn.js
+// node_modules/zod/v4/locales/kn.js
 var error31 = () => {
   const Sizable = {
     string: { unit: "\u0C85\u0C95\u0CCD\u0CB7\u0CB0\u0C97\u0CB3\u0CC1", verb: "\u0CB9\u0CCA\u0C82\u0CA6\u0CB2\u0CC1" },
@@ -65284,7 +65309,7 @@ function kn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ko.js
+// node_modules/zod/v4/locales/ko.js
 var error32 = () => {
   const Sizable = {
     string: { unit: "\uBB38\uC790", verb: "to have" },
@@ -65399,7 +65424,7 @@ function ko_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/lt.js
+// node_modules/zod/v4/locales/lt.js
 var capitalizeFirstCharacter = (text) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
@@ -65605,7 +65630,7 @@ function lt_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/mk.js
+// node_modules/zod/v4/locales/mk.js
 var error34 = () => {
   const Sizable = {
     string: { unit: "\u0437\u043D\u0430\u0446\u0438", verb: "\u0434\u0430 \u0438\u043C\u0430\u0430\u0442" },
@@ -65718,7 +65743,7 @@ function mk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ms.js
+// node_modules/zod/v4/locales/ms.js
 var error35 = () => {
   const Sizable = {
     string: { unit: "aksara", verb: "mempunyai" },
@@ -65829,7 +65854,7 @@ function ms_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ne.js
+// node_modules/zod/v4/locales/ne.js
 var error36 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0939\u0941\u0928\u0941\u092A\u0930\u094D\u091B" },
@@ -65939,7 +65964,7 @@ function ne_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/nl.js
+// node_modules/zod/v4/locales/nl.js
 var error37 = () => {
   const Sizable = {
     string: { unit: "tekens", verb: "heeft" },
@@ -66053,7 +66078,7 @@ function nl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/nn.js
+// node_modules/zod/v4/locales/nn.js
 var error38 = () => {
   const Sizable = {
     string: { unit: "teikn", verb: "\xE5 ha" },
@@ -66165,7 +66190,7 @@ function nn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/no.js
+// node_modules/zod/v4/locales/no.js
 var error39 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "\xE5 ha" },
@@ -66277,7 +66302,7 @@ function no_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ota.js
+// node_modules/zod/v4/locales/ota.js
 var error40 = () => {
   const Sizable = {
     string: { unit: "harf", verb: "olmal\u0131d\u0131r" },
@@ -66390,7 +66415,7 @@ function ota_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ps.js
+// node_modules/zod/v4/locales/ps.js
 var error41 = () => {
   const Sizable = {
     string: { unit: "\u062A\u0648\u06A9\u064A", verb: "\u0648\u0644\u0631\u064A" },
@@ -66508,7 +66533,7 @@ function ps_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pl.js
+// node_modules/zod/v4/locales/pl.js
 var error42 = () => {
   const Sizable = {
     string: { unit: "znak\xF3w", verb: "mie\u0107" },
@@ -66621,7 +66646,7 @@ function pl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pt.js
+// node_modules/zod/v4/locales/pt.js
 var error43 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66763,7 +66788,7 @@ function pt_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pt-BR.js
+// node_modules/zod/v4/locales/pt-BR.js
 var error44 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66906,7 +66931,7 @@ function pt_BR_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ro.js
+// node_modules/zod/v4/locales/ro.js
 var error45 = () => {
   const Sizable = {
     string: { unit: "caractere", verb: "s\u0103 aib\u0103" },
@@ -67027,7 +67052,7 @@ function ro_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ru.js
+// node_modules/zod/v4/locales/ru.js
 function getRussianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -67194,7 +67219,7 @@ function ru_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sk.js
+// node_modules/zod/v4/locales/sk.js
 var error47 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "ma\u0165" },
@@ -67309,7 +67334,7 @@ function sk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sl.js
+// node_modules/zod/v4/locales/sl.js
 var error48 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "imeti" },
@@ -67422,7 +67447,7 @@ function sl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sv.js
+// node_modules/zod/v4/locales/sv.js
 var error49 = () => {
   const Sizable = {
     string: { unit: "tecken", verb: "att ha" },
@@ -67536,7 +67561,7 @@ function sv_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ta.js
+// node_modules/zod/v4/locales/ta.js
 var error50 = () => {
   const Sizable = {
     string: { unit: "\u0B8E\u0BB4\u0BC1\u0BA4\u0BCD\u0BA4\u0BC1\u0B95\u0BCD\u0B95\u0BB3\u0BCD", verb: "\u0B95\u0BCA\u0BA3\u0BCD\u0B9F\u0BBF\u0BB0\u0BC1\u0B95\u0BCD\u0B95 \u0BB5\u0BC7\u0BA3\u0BCD\u0B9F\u0BC1\u0BAE\u0BCD" },
@@ -67650,7 +67675,7 @@ function ta_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/th.js
+// node_modules/zod/v4/locales/th.js
 var error51 = () => {
   const Sizable = {
     string: { unit: "\u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23", verb: "\u0E04\u0E27\u0E23\u0E21\u0E35" },
@@ -67764,7 +67789,7 @@ function th_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/tk.js
+// node_modules/zod/v4/locales/tk.js
 var error52 = () => {
   const Sizable = {
     string: { unit: "simwol", verb: "bolmaly" },
@@ -67870,7 +67895,7 @@ function tk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/tr.js
+// node_modules/zod/v4/locales/tr.js
 var error53 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "olmal\u0131" },
@@ -67979,7 +68004,7 @@ function tr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/uk.js
+// node_modules/zod/v4/locales/uk.js
 var error54 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0456\u0432", verb: "\u043C\u0430\u0442\u0438\u043C\u0435" },
@@ -68091,12 +68116,12 @@ function uk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ua.js
+// node_modules/zod/v4/locales/ua.js
 function ua_default() {
   return uk_default();
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ur.js
+// node_modules/zod/v4/locales/ur.js
 var error55 = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0648\u0641", verb: "\u06C1\u0648\u0646\u0627" },
@@ -68210,7 +68235,7 @@ function ur_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/uz.js
+// node_modules/zod/v4/locales/uz.js
 var error56 = () => {
   const Sizable = {
     string: { unit: "belgi", verb: "bo\u2018lishi kerak" },
@@ -68322,7 +68347,7 @@ function uz_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/vi.js
+// node_modules/zod/v4/locales/vi.js
 var error57 = () => {
   const Sizable = {
     string: { unit: "k\xFD t\u1EF1", verb: "c\xF3" },
@@ -68434,7 +68459,7 @@ function vi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/zh-CN.js
+// node_modules/zod/v4/locales/zh-CN.js
 var error58 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u7B26", verb: "\u5305\u542B" },
@@ -68547,7 +68572,7 @@ function zh_CN_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/zh-TW.js
+// node_modules/zod/v4/locales/zh-TW.js
 var error59 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u5143", verb: "\u64C1\u6709" },
@@ -68658,7 +68683,7 @@ function zh_TW_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/yo.js
+// node_modules/zod/v4/locales/yo.js
 var error60 = () => {
   const Sizable = {
     string: { unit: "\xE0mi", verb: "n\xED" },
@@ -68769,7 +68794,7 @@ function yo_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/registries.js
+// node_modules/zod/v4/core/registries.js
 var _a2;
 var $output = /* @__PURE__ */ Symbol("ZodOutput");
 var $input = /* @__PURE__ */ Symbol("ZodInput");
@@ -68819,7 +68844,7 @@ function registry() {
 (_a2 = globalThis).__zod_globalRegistry ?? (_a2.__zod_globalRegistry = registry());
 var globalRegistry = globalThis.__zod_globalRegistry;
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/compile.js
+// node_modules/zod/v4/core/compile.js
 var INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
 var FALLBACK_FLAG = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
 var ZodCompileAsyncError = class extends Error {
@@ -70362,7 +70387,7 @@ function generateTransformCheck(doc, ctx, schema, accessor) {
   return accessor;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/api.js
+// node_modules/zod/v4/core/api.js
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
   return new Class2({
@@ -71418,7 +71443,7 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
   return inst;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/to-json-schema.js
+// node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
   for (const source of sources) {
     for (const key of Reflect.ownKeys(source)) {
@@ -71949,7 +71974,7 @@ var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) =
   return finalize(ctx, schema);
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema-processors.js
+// node_modules/zod/v4/core/json-schema-processors.js
 var formatMap = {
   guid: "uuid",
   url: "uri",
@@ -72607,7 +72632,7 @@ function toJSONSchema(input2, params) {
   return finalize(ctx, input2);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema-generator.js
+// node_modules/zod/v4/core/json-schema-generator.js
 var JSONSchemaGenerator = class {
   /** @deprecated Access via ctx instead */
   get metadataRegistry() {
@@ -72685,10 +72710,10 @@ var JSONSchemaGenerator = class {
   }
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema.js
+// node_modules/zod/v4/core/json-schema.js
 var json_schema_exports = {};
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 var schemas_exports2 = {};
 __export(schemas_exports2, {
   ZodAny: () => ZodAny,
@@ -72865,7 +72890,7 @@ __export(schemas_exports2, {
   xor: () => xor
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/checks.js
+// node_modules/zod/v4/classic/checks.js
 var checks_exports2 = {};
 __export(checks_exports2, {
   endsWith: () => _endsWith,
@@ -72900,7 +72925,7 @@ __export(checks_exports2, {
   uppercase: () => _uppercase
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/errors.js
+// node_modules/zod/v4/classic/errors.js
 var _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
   Object.defineProperty(proto, key, {
@@ -72946,7 +72971,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, void 0
   Parent: Error
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/parse.js
+// node_modules/zod/v4/classic/parse.js
 var parse2 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
@@ -72960,7 +72985,7 @@ var safeDecode2 = /* @__PURE__ */ _safeDecode(ZodRealError);
 var safeEncodeAsync2 = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
 var safeDecodeAsync2 = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 function _ensureDefaultLocale() {
   if (!globalConfig.localeError)
     config(en_default());
@@ -74371,7 +74396,7 @@ function preprocess(fn, schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/compat.js
+// node_modules/zod/v4/classic/compat.js
 var ZodIssueCode = {
   invalid_type: "invalid_type",
   too_big: "too_big",
@@ -74397,7 +74422,7 @@ var ZodFirstPartyTypeKind;
 /* @__PURE__ */ (function(ZodFirstPartyTypeKind2) {
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/iso.js
+// node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -74422,7 +74447,7 @@ function duration2(params) {
   return _isoDuration(ZodISODuration, params);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/from-json-schema.js
+// node_modules/zod/v4/classic/from-json-schema.js
 var z = {
   ...schemas_exports2,
   ...checks_exports2,
@@ -74962,28 +74987,28 @@ function fromJSONSchema(schema, params) {
   return convertSchema(normalized, ctx);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/visit.js
+// node_modules/zod/v4/core/visit.js
 var RESOLVING = /* @__PURE__ */ Symbol("z.visit/resolving");
 function visit(schema, fnOrHandlers) {
   const fn = typeof fnOrHandlers === "function" ? fnOrHandlers : (node2, rewritten) => {
     const h = fnOrHandlers[node2._zod.def.type];
     return h ? h(node2, rewritten) : node2;
   };
-  const cache = /* @__PURE__ */ new Map();
+  const cache2 = /* @__PURE__ */ new Map();
   function run(s) {
-    const cached2 = cache.get(s);
+    const cached2 = cache2.get(s);
     if (cached2 === RESOLVING) {
       return new $ZodLazy({
         type: "lazy",
-        getter: () => cache.get(s)
+        getter: () => cache2.get(s)
       });
     }
     if (cached2 !== void 0)
       return cached2;
-    cache.set(s, RESOLVING);
+    cache2.set(s, RESOLVING);
     const inner = mapInner(s);
     const mapped = fn(inner, inner !== s);
-    cache.set(s, mapped);
+    cache2.set(s, mapped);
     return mapped;
   }
   function mapInner(s) {
@@ -75117,7 +75142,7 @@ function visit(schema, fnOrHandlers) {
   return run(schema);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/deep-partial.js
+// node_modules/zod/v4/classic/deep-partial.js
 function deepPartial(schema) {
   return visit(schema, {
     object: (s) => s.partial(),
@@ -75129,7 +75154,7 @@ function deepPartial(schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/in-out.js
+// node_modules/zod/v4/classic/in-out.js
 function withChecks(side, checks) {
   if (!checks?.length)
     return side;
@@ -75159,7 +75184,7 @@ function output(schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/coerce.js
+// node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint3,
@@ -75874,8 +75899,8 @@ var getPeriodRangeFromKey = (value, granularity) => {
     const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
     return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
   }
-  const iso = d.toISOString().slice(0, 10);
-  return { start: iso, end: iso };
+  const iso2 = d.toISOString().slice(0, 10);
+  return { start: iso2, end: iso2 };
 };
 var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, params) => {
   if (upperBound) {
@@ -75886,7 +75911,7 @@ var buildStockSnapshotCondition = (table, dateColExpr, rawDateCol, upperBound, p
 };
 var CANCELLED_HEX_SQL = `SELECT DISTINCT hex::text AS cx_hex FROM production_status_app
      WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%H\u1EE6Y%'`;
-var notCancelledHexCond = (hexExpr, cte) => `NOT EXISTS (SELECT 1 FROM ${cte ?? `(${CANCELLED_HEX_SQL})`} cx WHERE cx.cx_hex = ${hexExpr}::text)`;
+var notCancelledHexCond = (hexExpr, cte) => `COALESCE(${hexExpr}::text, '') NOT IN (SELECT cx_hex FROM ${cte ?? `(${CANCELLED_HEX_SQL}) cx0`})`;
 var projectNameCondition = (colExpr, name, params) => {
   params.push(expandProjectNames([name]));
   return `${normNameSql(colExpr)} = ANY($${params.length}::text[])`;
@@ -75997,10 +76022,10 @@ var getRelevantVersions = async (keys) => {
   return out;
 };
 var CACHE_MAX_ENTRIES = 50;
-var trimCache = (cache) => {
-  if (cache.size <= CACHE_MAX_ENTRIES) return;
-  const oldestKey = cache.keys().next().value;
-  if (oldestKey !== void 0) cache.delete(oldestKey);
+var trimCache = (cache2) => {
+  if (cache2.size <= CACHE_MAX_ENTRIES) return;
+  const oldestKey = cache2.keys().next().value;
+  if (oldestKey !== void 0) cache2.delete(oldestKey);
 };
 var cachedData = null;
 var cachedVersions = null;
@@ -76166,13 +76191,13 @@ var numericColQualified = (table, alias, col) => {
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-async function cachedByVersions(cache, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
+async function cachedByVersions(cache2, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
   const versions = await getRelevantVersions(versionKeys);
   const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
-  const hit = cache.map.get(key);
+  const hit = cache2.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
   const flightKey = `${key}|${vkey}`;
-  const pending = cache.inflight.get(flightKey);
+  const pending = cache2.inflight.get(flightKey);
   if (pending) return pending;
   const p = (async () => {
     try {
@@ -76182,19 +76207,19 @@ async function cachedByVersions(cache, key, versionKeys, compute2, extraVersion 
         payload = await compute2();
         if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
       }
-      cache.map.delete(key);
-      cache.map.set(key, { vkey, payload });
-      while (cache.map.size > cache.max) {
-        const oldest = cache.map.keys().next().value;
+      cache2.map.delete(key);
+      cache2.map.set(key, { vkey, payload });
+      while (cache2.map.size > cache2.max) {
+        const oldest = cache2.map.keys().next().value;
         if (oldest === void 0) break;
-        cache.map.delete(oldest);
+        cache2.map.delete(oldest);
       }
       return payload;
     } finally {
-      cache.inflight.delete(flightKey);
+      cache2.inflight.delete(flightKey);
     }
   })();
-  cache.inflight.set(flightKey, p);
+  cache2.inflight.set(flightKey, p);
   return p;
 }
 var hashKey = (value) => createHash3("sha1").update(JSON.stringify(value)).digest("hex");
@@ -76375,8 +76400,8 @@ async function manhBang(key, gia, verGoc, nguon, cot = false) {
   if (!p) {
     p = (async () => {
       const { payload } = await getTablesData([key]);
-      const goc = payload[key] ?? [];
-      const rows = key === "material" && !gia ? stripMaterialPriceColumns(goc) : goc;
+      const goc2 = payload[key] ?? [];
+      const rows = key === "material" && !gia ? stripMaterialPriceColumns(goc2) : goc2;
       const json2 = JSON.stringify(cot ? sangCot(rows) : rows);
       await luuSnapshot(khoa, ver, await gzip(json2));
       return json2;
@@ -76401,8 +76426,8 @@ async function dungGoi(keys, gia, versions, cot = false, br = false) {
 // src/server/lamNong.ts
 var BANG = ["production", "inventory", "material", "order", "export", "pthsp", "tkbv", "khsx", "analysis", "stock", "attendance", "yearlyPlan"];
 var viecThem = [];
-var dangKyLamNong = (ten, chay) => {
-  viecThem.push({ ten, chay });
+var dangKyLamNong = (ten, chay2) => {
+  viecThem.push({ ten, chay: chay2 });
 };
 var daLamCho = "";
 var dangLam = null;
@@ -77152,6 +77177,7 @@ var TABLE_DISPLAY_NAMES = {
   nhap_kho: "D\u1EEF li\u1EC7u Nh\u1EADp kho",
   xuat_kho: "D\u1EEF li\u1EC7u Xu\u1EA5t kho",
   ton_kho: "D\u1EEF li\u1EC7u T\u1ED3n kho",
+  ton_kho_vt: "T\u1ED3n kho v\u1EADt t\u01B0",
   production_status_app: "D\u1EEF li\u1EC7u S\u1EA3n xu\u1EA5t",
   vat_tu: "V\u1EADt t\u01B0",
   khsx: "K\u1EBF ho\u1EA1ch SX",
@@ -77166,6 +77192,7 @@ var TABLE_DISPLAY_ORDER = [
   "nhap_kho",
   "xuat_kho",
   "ton_kho",
+  "ton_kho_vt",
   "production_status_app",
   "vat_tu",
   "khsx",
@@ -77179,7 +77206,9 @@ var DATA_AS_OF_DATE_COLUMN = {
   pthsp_full: "ngay_hoan_thanh",
   nhap_kho: "date",
   xuat_kho: "date",
-  ton_kho: "date_parsed"
+  ton_kho: "date_parsed",
+  // Tồn kho vật tư (routes/tonKhoVt.ts): ngày chốt tồn hằng tuần
+  ton_kho_vt: "date"
 };
 var SNAPSHOT_TABLES = /* @__PURE__ */ new Set(["production_status_app", "vat_tu"]);
 var fetchDataAsOfDates = async () => {
@@ -77965,6 +77994,335 @@ app.get("/api/stock/total-count", async (req, res) => {
   }
 });
 
+// src/routes/tonKhoVt.ts
+var TEN_BANG = "ton_kho_vt";
+var QUYEN_XEM = "chart_stock_vt";
+var LOI_QUYEN = { error: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem t\u1ED3n kho v\u1EADt t\u01B0" };
+var NHOM_TRONG = "Ch\u01B0a ph\xE2n nh\xF3m";
+var TEN_TRONG = "(Kh\xF4ng c\xF3 t\xEAn)";
+var NHOM_TOI_DA = 100;
+var SO_TEN_TOI_DA = 2e4;
+var TEN_TOI_DA_KY_TU = 300;
+var TIMEOUT_MS = 15e3;
+var KHOANG_TRANG = String.raw`[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+`;
+var RE_KHOANG_TRANG = new RegExp(KHOANG_TRANG, "g");
+var sqlNhom = (cot = "nhom_vat_tu") => `COALESCE(NULLIF(BTRIM(REGEXP_REPLACE(${cot}, '${KHOANG_TRANG}', ' ', 'g')), ''), '${NHOM_TRONG}')`;
+var gonKhoangTrang = (s) => s.replace(RE_KHOANG_TRANG, " ").replace(/^ | $/g, "");
+var chuanHoaNhom = (s) => gonKhoangTrang(String(s ?? "")) || NHOM_TRONG;
+var sqlTen = (cot = "ten_vat_tu") => `COALESCE(NULLIF(${cot}, ''), '${TEN_TRONG}')`;
+var chuanHoaTen = (s) => {
+  const v = String(s ?? "");
+  return v === "" ? TEN_TRONG : v;
+};
+var docDanhSachTen = (v) => {
+  if (v === void 0 || v === null) return { hopLe: true, ten: [] };
+  if (!Array.isArray(v) || v.length > SO_TEN_TOI_DA) return { hopLe: false };
+  const ten = /* @__PURE__ */ new Set();
+  for (const x of v) {
+    if (typeof x !== "string" || x.length > TEN_TOI_DA_KY_TU) return { hopLe: false };
+    ten.add(chuanHoaTen(x));
+  }
+  return { hopLe: true, ten: [...ten].sort() };
+};
+var docNhom = (v) => {
+  if (v === void 0 || v === null) return "";
+  if (typeof v !== "string" || v.length > NHOM_TOI_DA) return null;
+  return gonKhoangTrang(v) ? chuanHoaNhom(v) : "";
+};
+var laNgayHopLe = (s) => {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [nam, thang2, ngay2] = s.split("-").map(Number);
+  if (nam < 1 || thang2 < 1 || thang2 > 12 || ngay2 < 1) return false;
+  const nhuan = nam % 4 === 0 && nam % 100 !== 0 || nam % 400 === 0;
+  const soNgay = [31, nhuan ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][thang2 - 1];
+  return ngay2 <= soNgay;
+};
+var docNgayTruoc = (v, ngay2) => {
+  if (v === void 0 || v === "") return { hopLe: true, truoc: null };
+  if (!laNgayHopLe(v) || v >= ngay2) return { hopLe: false };
+  return { hopLe: true, truoc: v };
+};
+var xepNhom = (diem) => {
+  let ngayMoiNhat2 = "";
+  for (const d of diem) if (d.ngay > ngayMoiNhat2) ngayMoiNhat2 = d.ngay;
+  const giaTriMoiNhat = /* @__PURE__ */ new Map();
+  const tatCa = /* @__PURE__ */ new Set();
+  for (const d of diem) {
+    tatCa.add(d.nhom);
+    if (d.ngay === ngayMoiNhat2) giaTriMoiNhat.set(d.nhom, (giaTriMoiNhat.get(d.nhom) ?? 0) + d.giaTri);
+  }
+  return [...tatCa].sort((a, b) => {
+    const va = giaTriMoiNhat.get(a);
+    const vb = giaTriMoiNhat.get(b);
+    if (va !== void 0 && vb !== void 0 && va !== vb) return vb - va;
+    if (va !== void 0 && vb === void 0) return -1;
+    if (va === void 0 && vb !== void 0) return 1;
+    return a.localeCompare(b, "vi");
+  });
+};
+var PHIEN_BAN_TTL_MS = 3e3;
+var phienBanNho = null;
+var phienBanDangDoc = null;
+var laThieuBang = (e) => e?.code === "42P01";
+var chuoiThoiDiem = (v) => {
+  if (v === null || v === void 0) return null;
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.toISOString();
+  return String(v);
+};
+var docPhienBan = async () => {
+  if (phienBanNho && Date.now() - phienBanNho.luc < PHIEN_BAN_TTL_MS) return phienBanNho.giaTri;
+  if (phienBanDangDoc) return phienBanDangDoc;
+  phienBanDangDoc = (async () => {
+    try {
+      let giaTri;
+      const r = await timedQuery(`SELECT last_updated FROM table_versions WHERE table_name = $1`, [TEN_BANG]);
+      const lanCapNhat = chuoiThoiDiem(r.rows[0]?.last_updated);
+      if (lanCapNhat) {
+        giaTri = { khoa: `tv:${lanCapNhat}`, capNhat: lanCapNhat };
+      } else {
+        try {
+          const r2 = await timedQuery(`SELECT MAX(updated_at) AS v FROM ton_kho_vt`);
+          const v = chuoiThoiDiem(r2.rows[0]?.v);
+          giaTri = { khoa: `ua:${v ?? "rong"}`, capNhat: v };
+        } catch (e) {
+          if (!laThieuBang(e)) throw e;
+          giaTri = { khoa: "thieu-bang", capNhat: null };
+        }
+      }
+      phienBanNho = { luc: Date.now(), giaTri };
+      return giaTri;
+    } finally {
+      phienBanDangDoc = null;
+    }
+  })();
+  return phienBanDangDoc;
+};
+var cacheTongHop = createCache(2);
+var cacheTongHopLoc = createCache(24);
+var cacheTenVatTu = createCache(12);
+var cacheChiTiet = createCache(16);
+var NHOM_SQL = sqlNhom("t.nhom_vat_tu");
+var CHAM_SQL = `UPPER(TRIM(t.cham_luan_chuyen_tren_3_thang)) = 'X'`;
+var TEN_SQL = sqlTen("t.ten_vat_tu");
+var so = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+var soHoacNull = (v) => {
+  if (v === null || v === void 0) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+var tinhTongHop = async (capNhat, loc) => {
+  let rows;
+  try {
+    const dieuKienLoc2 = loc ? `AND ${NHOM_SQL} = ${sqlNhom("$1::text")} AND ${TEN_SQL} = ANY($2::text[])` : "";
+    const r = await timedQuery(
+      `SELECT to_char(t."date", 'YYYY-MM-DD') AS ngay,
+              ${NHOM_SQL} AS nhom,
+              COALESCE(SUM(t.gia_tri), 0) AS gia_tri,
+              COALESCE(SUM(t.gia_tri) FILTER (WHERE ${CHAM_SQL}), 0) AS gia_tri_cham,
+              COUNT(DISTINCT t.ma_vat_tu) AS so_ma,
+              COUNT(DISTINCT t.ma_vat_tu) FILTER (WHERE ${CHAM_SQL}) AS so_ma_cham
+       FROM ton_kho_vt t
+       WHERE t."date" IS NOT NULL ${dieuKienLoc2}
+       GROUP BY t."date", 2
+       ORDER BY t."date", 2`,
+      loc ? [loc.nhom, loc.ten] : [],
+      { timeoutMs: TIMEOUT_MS, workMemMb: 32 }
+    );
+    rows = r.rows;
+  } catch (e) {
+    if (!laThieuBang(e)) throw e;
+    rows = [];
+  }
+  const diem = rows.map((row) => ({
+    ngay: String(row.ngay),
+    nhom: String(row.nhom),
+    giaTri: so(row.gia_tri),
+    giaTriCham: so(row.gia_tri_cham),
+    soMa: so(row.so_ma),
+    soMaCham: so(row.so_ma_cham)
+  }));
+  const ngay2 = [...new Set(diem.map((d) => d.ngay))].sort();
+  return { capNhat, ngay: ngay2, nhom: xepNhom(diem), diem };
+};
+app.get("/api/ton-kho-vt/tong-hop", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM)) return res.status(403).json(LOI_QUYEN);
+    const pb = await docPhienBan();
+    const payload = await cachedByVersions(cacheTongHop, "tong-hop", [], () => tinhTongHop(pb.capNhat), pb.khoa);
+    res.json(payload);
+  } catch (error61) {
+    console.error("L\u1ED7i ton-kho-vt/tong-hop:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+app.post("/api/ton-kho-vt/tong-hop", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM)) return res.status(403).json(LOI_QUYEN);
+    const body = req.body ?? {};
+    const nhom = docNhom(body.nhom);
+    if (!nhom) return res.status(400).json({ error: "Thi\u1EBFu ho\u1EB7c sai t\xEAn nh\xF3m v\u1EADt t\u01B0" });
+    const ds = docDanhSachTen(body.ten);
+    if (!ds.hopLe || ds.ten.length === 0) return res.status(400).json({ error: "Danh s\xE1ch t\xEAn v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const pb = await docPhienBan();
+    const loc = { nhom, ten: ds.ten };
+    const payload = await cachedByVersions(
+      cacheTongHopLoc,
+      `tong-hop-loc|${nhom}|${hashKey(ds.ten)}`,
+      [],
+      () => tinhTongHop(pb.capNhat, loc),
+      pb.khoa
+    );
+    res.json(payload);
+  } catch (error61) {
+    console.error("L\u1ED7i ton-kho-vt/tong-hop (l\u1ECDc):", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var tinhTenVatTu = async (nhom) => {
+  let rows;
+  try {
+    const r = await timedQuery(
+      `SELECT ${TEN_SQL} AS ten,
+              COUNT(DISTINCT t.ma_vat_tu) AS so_ma,
+              BOOL_OR(t."date" = (SELECT MAX(x."date") FROM ton_kho_vt x)) AS con_ton
+       FROM ton_kho_vt t
+       WHERE ${NHOM_SQL} = ${sqlNhom("$1::text")}
+       GROUP BY 1`,
+      [nhom],
+      { timeoutMs: TIMEOUT_MS, workMemMb: 16 }
+    );
+    rows = r.rows;
+  } catch (e) {
+    if (!laThieuBang(e)) throw e;
+    rows = [];
+  }
+  const ten = rows.map((row) => ({ ten: String(row.ten), soMa: so(row.so_ma), conTon: row.con_ton === true })).sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
+  return { nhom, ten };
+};
+app.get("/api/ton-kho-vt/ten-vat-tu", async (req, res) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM)) return res.status(403).json(LOI_QUYEN);
+    const nhom = docNhom(req.query.nhom);
+    if (!nhom) return res.status(400).json({ error: "Thi\u1EBFu ho\u1EB7c sai t\xEAn nh\xF3m v\u1EADt t\u01B0" });
+    const pb = await docPhienBan();
+    const payload = await cachedByVersions(cacheTenVatTu, `ten-vat-tu|${nhom}`, [], () => tinhTenVatTu(nhom), pb.khoa);
+    res.json(payload);
+  } catch (error61) {
+    console.error("L\u1ED7i ton-kho-vt/ten-vat-tu:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var gopTheoMa = (dieuKienNgay) => `
+  SELECT COALESCE(t.ma_vat_tu, '') AS ma,
+         MAX(t.ten_vat_tu) AS ten,
+         MAX(${NHOM_SQL}) AS nhom,
+         MAX(t.dvt) AS dvt,
+         COALESCE(SUM(t.so_luong), 0) AS so_luong,
+         COALESCE(SUM(t.gia_tri), 0) AS gia_tri,
+         MAX(t.so_thang_nhap_kho) AS so_thang,
+         COALESCE(BOOL_OR(${CHAM_SQL}), FALSE) AS cham,
+         STRING_AGG(DISTINCT t.ten_cong_trinh, chr(10)) AS cong_trinh,
+         MAX(t.ghi_chu) AS ghi_chu
+  FROM ton_kho_vt t
+  WHERE ${dieuKienNgay}
+    AND ($2::text = '' OR ${NHOM_SQL} = ${sqlNhom("$2::text")})
+    AND (cardinality($4::text[]) = 0 OR ${TEN_SQL} = ANY($4::text[]))
+  GROUP BY COALESCE(t.ma_vat_tu, '')`;
+var SQL_CHI_TIET = `
+  WITH moc AS (
+    SELECT (SELECT MAX(t."date") FROM ton_kho_vt t
+            WHERE t."date" < $1::date AND t."date" <= COALESCE($3::date, $1::date)) AS d_truoc,
+           EXISTS (SELECT 1 FROM ton_kho_vt t WHERE t."date" = $1::date) AS co_ngay
+  ),
+  hien AS (${gopTheoMa(`t."date" = $1::date`)}),
+  cu AS (${gopTheoMa(`t."date" = (SELECT d_truoc FROM moc) AND (SELECT co_ngay FROM moc)`)}),
+  dong AS (
+    SELECT COALESCE(h.ma, c.ma) AS ma,
+           COALESCE(h.ten, c.ten) AS ten,
+           COALESCE(h.nhom, c.nhom) AS nhom,
+           COALESCE(h.dvt, c.dvt) AS dvt,
+           h.so_luong AS so_luong,
+           c.so_luong AS so_luong_truoc,
+           h.gia_tri AS gia_tri,
+           c.gia_tri AS gia_tri_truoc,
+           CASE WHEN h.ma IS NOT NULL THEN h.so_thang ELSE c.so_thang END AS so_thang,
+           CASE WHEN h.ma IS NOT NULL THEN h.cham ELSE c.cham END AS cham,
+           CASE WHEN h.ma IS NOT NULL THEN h.cong_trinh ELSE c.cong_trinh END AS cong_trinh,
+           CASE WHEN h.ma IS NOT NULL THEN h.ghi_chu ELSE c.ghi_chu END AS ghi_chu
+    FROM hien h
+    FULL JOIN cu c ON c.ma = h.ma
+  )
+  SELECT to_char(m.d_truoc, 'YYYY-MM-DD') AS ngay_truoc, x.*
+  FROM moc m
+  LEFT JOIN dong x ON TRUE`;
+var tinhChiTiet = async (ngay2, nhom, coGia, truoc = null, ten = []) => {
+  let rows;
+  try {
+    const r = await timedQuery(SQL_CHI_TIET, [ngay2, nhom, truoc, ten], { timeoutMs: TIMEOUT_MS, workMemMb: 16 });
+    rows = r.rows;
+  } catch (e) {
+    if (!laThieuBang(e)) throw e;
+    rows = [];
+  }
+  const ngayTruoc = rows[0]?.ngay_truoc ? String(rows[0].ngay_truoc) : null;
+  const dong2 = [];
+  for (const row of rows) {
+    if (row.ma === null || row.ma === void 0) continue;
+    dong2.push({
+      ma: String(row.ma),
+      ten: row.ten === null || row.ten === void 0 ? null : String(row.ten),
+      nhom: String(row.nhom ?? NHOM_TRONG),
+      dvt: row.dvt === null || row.dvt === void 0 ? null : String(row.dvt),
+      soLuong: soHoacNull(row.so_luong),
+      soLuongTruoc: soHoacNull(row.so_luong_truoc),
+      // Không có quyền xem giá: bỏ ở máy chủ, không gửi xuống
+      giaTri: coGia ? soHoacNull(row.gia_tri) : null,
+      giaTriTruoc: coGia ? soHoacNull(row.gia_tri_truoc) : null,
+      soThang: soHoacNull(row.so_thang),
+      cham: row.cham === true,
+      congTrinh: row.cong_trinh === null || row.cong_trinh === void 0 ? null : String(row.cong_trinh),
+      ghiChu: row.ghi_chu === null || row.ghi_chu === void 0 ? null : String(row.ghi_chu)
+    });
+  }
+  dong2.sort(coGia ? (a, b) => (b.giaTri ?? 0) - (a.giaTri ?? 0) || (b.giaTriTruoc ?? 0) - (a.giaTriTruoc ?? 0) || (a.ma < b.ma ? -1 : a.ma > b.ma ? 1 : 0) : (a, b) => a.ma < b.ma ? -1 : a.ma > b.ma ? 1 : 0);
+  return { ngay: ngay2, ngayTruoc, coGia, dong: dong2 };
+};
+var xuLyChiTiet = async (req, res, src) => {
+  try {
+    if (!await userHasPermission(req, QUYEN_XEM)) return res.status(403).json(LOI_QUYEN);
+    const ngay2 = src.ngay;
+    if (!laNgayHopLe(ngay2)) return res.status(400).json({ error: "Ng\xE0y kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n d\u1EA1ng YYYY-MM-DD)" });
+    const nhom = docNhom(src.nhom);
+    if (nhom === null) return res.status(400).json({ error: "Nh\xF3m v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const thamSoTruoc = docNgayTruoc(src.truoc ?? void 0, ngay2);
+    if (!thamSoTruoc.hopLe) return res.status(400).json({ error: "Ng\xE0y so s\xE1nh kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n d\u1EA1ng YYYY-MM-DD, tr\u01B0\u1EDBc ng\xE0y ch\u1ED1t)" });
+    const { truoc } = thamSoTruoc;
+    const ds = docDanhSachTen(src.ten);
+    if (!ds.hopLe) return res.status(400).json({ error: "Danh s\xE1ch t\xEAn v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const coGia = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
+    const pb = await docPhienBan();
+    const payload = await cachedByVersions(
+      cacheChiTiet,
+      `chi-tiet|${ngay2}|${truoc ?? ""}|${nhom}|${coGia ? 1 : 0}|${ds.ten.length ? hashKey(ds.ten) : ""}`,
+      [],
+      () => tinhChiTiet(ngay2, nhom, coGia, truoc, ds.ten),
+      pb.khoa
+    );
+    res.json(payload);
+  } catch (error61) {
+    console.error("L\u1ED7i ton-kho-vt/chi-tiet:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+app.get("/api/ton-kho-vt/chi-tiet", (req, res) => {
+  const { ngay: ngay2, nhom, truoc } = req.query;
+  return xuLyChiTiet(req, res, { ngay: ngay2, nhom, truoc });
+});
+app.post("/api/ton-kho-vt/chi-tiet", (req, res) => xuLyChiTiet(req, res, req.body ?? {}));
+
 // src/routes/revenue.ts
 var revenueCache = createCache(20);
 var REVENUE_VERSION_KEYS = ["yearlyPlan", "inventory", "production"];
@@ -78691,15 +79049,15 @@ var khsxNhapKhoCache = createCache(50);
 var KHSX_NHAPKHO_VERSION_KEYS = ["khsx", "inventory", "production"];
 app.get("/api/khsx-nhapkho/summary", async (req, res) => {
   try {
-    const { nam, thang: thang2, mode = "month", tuan, ngay, congTrinh, xuong } = req.query;
+    const { nam, thang: thang2, mode = "month", tuan, ngay: ngay2, congTrinh, xuong } = req.query;
     if (!nam) return res.status(400).json({ error: "Missing nam" });
-    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay, congTrinh, xuong });
+    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay: ngay2, congTrinh, xuong });
     const khsxPayload = await cachedByVersions(khsxNhapKhoCache, khsxCacheKey, KHSX_NHAPKHO_VERSION_KEYS, async () => {
       const isWeek = mode === "week";
       const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
       const normalize = (s) => s.trim().toUpperCase();
       const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
-      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay);
+      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay2);
       const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
       const congTrinhList = expandProjectNames(parseNameList(congTrinh));
       const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
@@ -78865,11 +79223,11 @@ var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "pro
 var BadRequest = class extends Error {
   status = 400;
 };
-var cachedGet = (path, cache, versionKeysOf, compute2, shared = false) => {
+var cachedGet = (path, cache2, versionKeysOf, compute2, shared = false) => {
   app.get(path, async (req, res) => {
     try {
       const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
+      const data = await cachedByVersions(cache2, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
       res.json(data);
     } catch (error61) {
       if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
@@ -79435,9 +79793,9 @@ cachedGet("/api/detail", detailCache, (req) => sourceVersionKeys(String(req.quer
   if (dimension === "period") {
     if (!parseSafeDate(value)) throw new BadRequest("Invalid period value");
     const range = getPeriodRangeFromKey(value, granularity);
-    const iso = (d) => d.toISOString().slice(0, 10);
-    const start = dateFrom && iso(dateFrom) > String(range.start).slice(0, 10) ? iso(dateFrom) : range.start;
-    const end = dateTo && iso(dateTo) < String(range.end).slice(0, 10) ? iso(dateTo) : range.end;
+    const iso2 = (d) => d.toISOString().slice(0, 10);
+    const start = dateFrom && iso2(dateFrom) > String(range.start).slice(0, 10) ? iso2(dateFrom) : range.start;
+    const end = dateTo && iso2(dateTo) < String(range.end).slice(0, 10) ? iso2(dateTo) : range.end;
     if (!isStock && explicitDates.length > 0) {
       params.push(explicitDates);
       conditions.push(`${colBare(cfg.dateCol)} = ANY($${params.length}::date[])`);
@@ -81338,7 +81696,7 @@ function suKienConHieuLuc(events) {
   }
   return events.filter((e) => e.loai !== "huy" && !biHuy.has(e.id)).sort(soSanhSuKien);
 }
-var so = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var so2 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
 var THANH_PHAN = ["G\u1ED6", "SOFA", "KIM LO\u1EA0I", "K\xCDNH", "\u0110\xC1"];
 var dsChuoi = (v) => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
 function tuyenTheoThanhPhan(evts) {
@@ -81362,7 +81720,7 @@ function tuyenTheoThanhPhan(evts) {
   return [...m.entries()].map(([thanhPhan, tuyen]) => ({ thanhPhan, tuyen }));
 }
 function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
-  const tong = incoming.reduce((a, e) => a + so(e.soLuong), 0);
+  const tong = incoming.reduce((a, e) => a + so2(e.soLuong), 0);
   if (!congDoanId) return tong;
   const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
   if (qua.length < 2) return tong;
@@ -81379,8 +81737,8 @@ function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
       });
       if (nhanh.length && nhanh.length < qua.length) tp2 = nhanh[0].thanhPhan;
     }
-    if (tp2 === null) chung += so(e.soLuong);
-    else theoTp.set(tp2, (theoTp.get(tp2) ?? 0) + so(e.soLuong));
+    if (tp2 === null) chung += so2(e.soLuong);
+    else theoTp.set(tp2, (theoTp.get(tp2) ?? 0) + so2(e.soLuong));
   }
   return chung + Math.min(...theoTp.values());
 }
@@ -81424,8 +81782,8 @@ function tinhTrangThai(cuaCongDoan, giaoDen, tuyen = [], congDoanId = null) {
   for (const e of own2) {
     switch (e.loai) {
       case "nhan":
-        slNhan += so(e.soLuong);
-        if (!nhanNgoaiApp(e)) slNhanTrongApp += so(e.soLuong);
+        slNhan += so2(e.soLuong);
+        if (!nhanNgoaiApp(e)) slNhanTrongApp += so2(e.soLuong);
         break;
       case "bat_dau":
         batDauChay(e);
@@ -81440,14 +81798,14 @@ function tinhTrangThai(cuaCongDoan, giaoDen, tuyen = [], congDoanId = null) {
         break;
       case "hoan_thanh":
         if (!daBatDau) co.add("hoan_thanh_chua_bat_dau");
-        slHoanThanh += so(e.soLuong);
+        slHoanThanh += so2(e.soLuong);
         if (slHoanThanh >= slNhan) {
           dungChay(e);
           tamNgung = false;
         }
         break;
       case "giao":
-        slGiao += so(e.soLuong);
+        slGiao += so2(e.soLuong);
         break;
       default:
         break;
@@ -81498,7 +81856,7 @@ function khungCaChinh(lich) {
   }
   return khung;
 }
-var dauNgayVN = (ngay) => Date.parse(`${ngay}T00:00:00Z`) - VN;
+var dauNgayVN = (ngay2) => Date.parse(`${ngay2}T00:00:00Z`) - VN;
 var ngayCuaTs = (ts) => new Date(ts + VN).toISOString().slice(0, 10);
 function gioTrongCaNgay(a, b, d, khung, tinhChuNhat = false) {
   if (b <= a || !tinhChuNhat && new Date(d + VN).getUTCDay() === 0) return 0;
@@ -81679,8 +82037,8 @@ var gomTheoNguoi = (ds) => {
   for (const d of ds) (m[d.mnv] ??= []).push(d);
   return m;
 };
-function tomTatDiemDanh(coMat, ngay, lichCa) {
-  const moc2 = (hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00+07:00`);
+function tomTatDiemDanh(coMat, ngay2, lichCa) {
+  const moc2 = (hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00+07:00`);
   const chinh = lichCa.find((c) => c.loaiCa === "chinh");
   const bd = chinh ? moc2(chinh.gioBatDau) : null;
   const kt = chinh ? moc2(chinh.gioKetThuc) : null;
@@ -81709,8 +82067,8 @@ function tomTatDiemDanh(coMat, ngay, lichCa) {
 // src/server/xuong/allocation.ts
 var VN_OFFSET = "+07:00";
 var GIO_MS = 36e5;
-var moc = (ngay, hhmm) => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
-var thuTrongTuan = (ngay) => (/* @__PURE__ */ new Date(`${ngay}T12:00:00${VN_OFFSET}`)).getUTCDay();
+var moc = (ngay2, hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
+var thuTrongTuan = (ngay2) => (/* @__PURE__ */ new Date(`${ngay2}T12:00:00${VN_OFFSET}`)).getUTCDay();
 function truNghi(start, end, nghi) {
   let doan = [[start, end]];
   for (const [ns, ne] of nghi) {
@@ -81727,13 +82085,13 @@ function truNghi(start, end, nghi) {
   }
   return doan.filter(([s, e]) => e > s);
 }
-function cuaSoCuaCa(ngay, ca) {
-  const start = moc(ngay, ca.gioBatDau);
-  let end = moc(ngay, ca.gioKetThuc);
+function cuaSoCuaCa(ngay2, ca) {
+  const start = moc(ngay2, ca.gioBatDau);
+  let end = moc(ngay2, ca.gioKetThuc);
   if (end <= start) end += 24 * GIO_MS;
   const nghi = (ca.nghi ?? []).map(([a, b]) => {
-    let ns = moc(ngay, a);
-    let ne = moc(ngay, b);
+    let ns = moc(ngay2, a);
+    let ne = moc(ngay2, b);
     if (ns < start) {
       ns += 24 * GIO_MS;
       ne += 24 * GIO_MS;
@@ -81743,15 +82101,15 @@ function cuaSoCuaCa(ngay, ca) {
   });
   return truNghi(start, end, nghi).map(([s, e]) => ({ loaiCa: ca.loaiCa, start: s, end: e }));
 }
-function cuaSoTrongNgay(ngay, lichCa, caTangCaDaKhai) {
+function cuaSoTrongNgay(ngay2, lichCa, caTangCaDaKhai) {
   const theoLoai = new Map(lichCa.map((c) => [c.loaiCa, c]));
   const out = [];
   const chinh = theoLoai.get("chinh");
-  if (chinh && thuTrongTuan(ngay) !== 0) out.push(...cuaSoCuaCa(ngay, chinh));
+  if (chinh && thuTrongTuan(ngay2) !== 0) out.push(...cuaSoCuaCa(ngay2, chinh));
   for (const loai of new Set(caTangCaDaKhai)) {
     if (!LOAI_CA_TANG_CA.includes(loai)) continue;
     const ca = theoLoai.get(loai);
-    if (ca) out.push(...cuaSoCuaCa(ngay, ca));
+    if (ca) out.push(...cuaSoCuaCa(ngay2, ca));
   }
   return out.sort((a, b) => a.start - b.start);
 }
@@ -81835,8 +82193,8 @@ function phanBoGioCong(input2) {
       const s = ds[i];
       const gio = (ds[i + 1] - s) / GIO_MS;
       if (gio <= 0) continue;
-      const chay = ks.filter((k) => dangChayLuc(k, s));
-      for (const k of chay) out[k].gioChay += gio;
+      const chay2 = ks.filter((k) => dangChayLuc(k, s));
+      for (const k of chay2) out[k].gioChay += gio;
       const coMatDd = /* @__PURE__ */ new Set();
       if (coDiemDanh) {
         for (const d of coMat) if (d.start <= s && s < (d.end ?? input2.now)) coMatDd.add(d.mnv);
@@ -81845,12 +82203,12 @@ function phanBoGioCong(input2) {
         const ds2 = nguoiLuc(k, s);
         return ds2 && coDiemDanh ? ds2.filter((m) => coMatDd.has(m) || !coDiemDanhNgay.has(m)) : ds2;
       };
-      const khai = chay.map((k) => {
+      const khai = chay2.map((k) => {
         const t = tenLuc(k);
         return [k, t ? t.length : soNguoiLuc(k, s)];
       });
       const coMatLuc = new Set(coMatDd);
-      for (const k of chay) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
+      for (const k of chay2) for (const m of tenLuc(k) ?? []) coMatLuc.add(m);
       for (const [k, n] of khai) {
         out[k].gioNguoiKhai += n * gio;
         if (n > out[k].soNguoiMax) out[k].soNguoiMax = n;
@@ -81863,7 +82221,7 @@ function phanBoGioCong(input2) {
       };
       const tinhNguoi = (heSo) => {
         const daGan = /* @__PURE__ */ new Set();
-        for (const k of chay) {
+        for (const k of chay2) {
           for (const m of tenLuc(k) ?? []) {
             const x = nguoi(m);
             const h = gio * heSo;
@@ -81933,14 +82291,14 @@ function phanBoGioCong(input2) {
     co: [...coTo].sort()
   };
 }
-function trangThaiXacNhan(ngay, ngayHoatDongCuoi) {
-  if (ngayHoatDongCuoi >= ngay) return "tinh";
+function trangThaiXacNhan(ngay2, ngayHoatDongCuoi) {
+  if (ngayHoatDongCuoi >= ngay2) return "tinh";
   let d = /* @__PURE__ */ new Date(`${ngayHoatDongCuoi}T12:00:00${VN_OFFSET}`);
   let boQua = 0;
   for (; ; ) {
     d = new Date(d.getTime() + 24 * GIO_MS);
     const key = d.toISOString().slice(0, 10);
-    if (key >= ngay) break;
+    if (key >= ngay2) break;
     if (d.getUTCDay() !== 0) boQua++;
   }
   if (boQua === 0) return "tinh";
@@ -82029,11 +82387,11 @@ function cheDoTheoNgay(ds) {
     if (!theoTo.has(m.toId)) theoTo.set(m.toId, []);
     theoTo.get(m.toId).push(m);
   }
-  return (toId, ngay) => {
+  return (toId, ngay2) => {
     if (toId === null) return "cu";
     let v = "cu";
     for (const m of theoTo.get(toId) ?? []) {
-      if (m.tuNgay <= ngay) v = m.cheDo;
+      if (m.tuNgay <= ngay2) v = m.cheDo;
       else break;
     }
     return v;
@@ -82137,12 +82495,12 @@ function boSungPhanCongTuGan(evts, now) {
   const vaoHang = out.filter((e) => e.loai === "nguoi_vao" && e.hex && e.congDoanId && mnvCua(e));
   const raCa = out.filter((e) => e.loai === "ra_ca" && mnvCua(e));
   for (const [k, p] of coMat) {
-    const [mnv, ngay] = k.split("|");
+    const [mnv, ngay2] = k.split("|");
     if (now < p + TU_GAN_SAU_MS) continue;
-    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay2 && e.ts <= p + TU_GAN_SAU_MS)) continue;
     if (raCa.some((e) => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
-    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay)) continue;
-    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay).sort(soSanhSuKien).pop();
+    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay2)) continue;
+    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay2).sort(soSanhSuKien).pop();
     if (!truoc) continue;
     let nhan = 0, ht = 0;
     for (const e of out) {
@@ -82153,7 +82511,7 @@ function boSungPhanCongTuGan(evts, now) {
     if (nhan > 0 && ht >= nhan) continue;
     out.push({
       ...truoc,
-      id: `tugan:${mnv}:${ngay}`,
+      id: `tugan:${mnv}:${ngay2}`,
       ts: p,
       serverTs: p,
       suaCho: null,
@@ -82400,7 +82758,7 @@ async function quanLyCuaXuong(xuongs) {
   }
   return out;
 }
-var so2 = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+var so3 = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 async function baoHangChoNhan(ds, actorId) {
   try {
     if (!ds.length) return;
@@ -82419,7 +82777,7 @@ async function baoHangChoNhan(ds, actorId) {
         kind: "xuong_cho_nhan",
         userIds: nguoi.get(Number(x.to_id)) ?? [],
         title: `C\xF3 h\xE0ng giao t\u1EDBi ${x.cd_chi_tiet}`,
-        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so2(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
+        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so3(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
         hex: cua.length === 1 ? cua[0].hex : null
       });
     }
@@ -82441,13 +82799,13 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     for (const it of items) {
       for (const t of it.thanhPhan) {
         if (t.xuong !== xuongChinh && !t.tuyen.length) {
-          them(t.xuong, `${it.hex} \xB7 ${so2(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
+          them(t.xuong, `${it.hex} \xB7 ${so3(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
           continue;
         }
         for (const id of t.tuyen) {
           const c = cdMap.get(id);
           if (!c || c.xuong === xuongChinh) continue;
-          them(c.xuong, `${it.hex} \xB7 ${so2(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+          them(c.xuong, `${it.hex} \xB7 ${so3(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
         }
       }
     }
@@ -82463,9 +82821,9 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     console.error("[xuong-thong-bao] x\u01B0\u1EDFng ph\u1EE5", e);
   }
 }
-async function nhacSang(ngay) {
+async function nhacSang(ngay2) {
   const tins = [];
-  const thu = (/* @__PURE__ */ new Date(`${ngay}T12:00:00+07:00`)).getUTCDay();
+  const thu = (/* @__PURE__ */ new Date(`${ngay2}T12:00:00+07:00`)).getUTCDay();
   if (thu !== 0) {
     const r = await poolMra.query(
       `SELECT t.id, t.ten_to FROM xuong_to t
@@ -82474,7 +82832,7 @@ async function nhacSang(ngay) {
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' = 'chinh'
                            AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))`,
-      [ngay]
+      [ngay2]
     );
     const nguoi = await nguoiCuaTo(r.rows.map((x) => Number(x.id)));
     for (const x of r.rows) {
@@ -82544,7 +82902,7 @@ async function donAnhMoCoi() {
     if (!isMissingSchema(e)) console.error("[xuong] d\u1ECDn \u1EA3nh m\u1ED3 c\xF4i l\u1ED7i", e);
   }
 }
-async function nhacChieu(ngay) {
+async function nhacChieu(ngay2) {
   const tins = [];
   const tc = await poolMra.query(
     `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
@@ -82553,7 +82911,7 @@ async function nhacChieu(ngay) {
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien q WHERE q.to_id = t.id AND q.loai = 'quan_so' AND q.du_lieu->>'loaiCa' = e.du_lieu->>'loaiCa'
                          AND (q.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = q.id))`,
-    [ngay]
+    [ngay2]
   );
   const nguoiTc = await nguoiCuaTo([...new Set(tc.rows.map((x) => Number(x.id)))]);
   for (const x of tc.rows) {
@@ -82572,7 +82930,7 @@ async function nhacChieu(ngay) {
                                       AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                                       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))
      GROUP BY t.id, t.ten_to`,
-    [ngay]
+    [ngay2]
   );
   const nguoiXn = await nguoiCuaTo(xn.rows.map((x) => Number(x.id)));
   for (const x of xn.rows) {
@@ -82589,11 +82947,11 @@ async function nhacChieu(ngay) {
 app.get("/api/cron/xuong", cronAuth, async (req, res) => {
   try {
     const t0 = Date.now();
-    const ngay = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
     const gio = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }).format(/* @__PURE__ */ new Date()));
     const dot = req.query.dot === "sang" || req.query.dot === "chieu" ? req.query.dot : gio < 12 ? "sang" : "chieu";
-    const daGui = dot === "sang" ? await nhacSang(ngay) : await nhacChieu(ngay);
-    res.json({ ok: true, dot, ngay, daGui, ms: Date.now() - t0 });
+    const daGui = dot === "sang" ? await nhacSang(ngay2) : await nhacChieu(ngay2);
+    res.json({ ok: true, dot, ngay: ngay2, daGui, ms: Date.now() - t0 });
   } catch (e) {
     if (isMissingSchema(e)) return res.json({ ok: true, available: false });
     console.error("L\u1ED7i cron xuong:", e);
@@ -82741,9 +83099,9 @@ async function cuaSoCacTo(db, toIds, tu, den) {
     if (!lich.length) continue;
     const cs = [];
     for (let d = Date.parse(`${tu}T12:00:00+07:00`); vnDayKey(new Date(d)) <= den; d += 864e5) {
-      const ngay = vnDayKey(new Date(d));
-      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay).map((r) => String(r.ca));
-      cs.push(...cuaSoTrongNgay(ngay, lich, ca));
+      const ngay2 = vnDayKey(new Date(d));
+      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay2).map((r) => String(r.ca));
+      cs.push(...cuaSoTrongNgay(ngay2, lich, ca));
     }
     out.set(Number(x.id), cs);
   }
@@ -83012,8 +83370,8 @@ async function ghiVaTinhLai(client, ghi, dichDb = []) {
     const pb = /* @__PURE__ */ new Map();
     for (const x of ghi) {
       if (!x.to_id) continue;
-      const ngay = vnDayKey(new Date(x.device_ts_hieu_chinh));
-      pb.set(`${x.to_id}|${ngay}`, { to_id: x.to_id, ngay });
+      const ngay2 = vnDayKey(new Date(x.device_ts_hieu_chinh));
+      pb.set(`${x.to_id}|${ngay2}`, { to_id: x.to_id, ngay: ngay2 });
       if (x.loai === "ra_ca" && new Date(new Date(x.device_ts_hieu_chinh).getTime() + 7 * 36e5).getUTCHours() < 12) {
         const truoc = vnDayKey(new Date(new Date(x.device_ts_hieu_chinh).getTime() - 24 * 36e5));
         pb.set(`${x.to_id}|${truoc}`, { to_id: x.to_id, ngay: truoc });
@@ -83381,14 +83739,14 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     }
     const st = cds.length ? (await poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
     const info = await thongTinHangMuc([...new Set(st.map((x) => String(x.hex)))]);
-    const ngay = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
     const hom = await poolMra.query(
       `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
        WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
          AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
        ORDER BY device_ts_hieu_chinh`,
-      [toId, ngay]
+      [toId, ngay2]
     );
     const quanSo = {};
     const tangCa = [];
@@ -83406,7 +83764,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`,
-        [toId, ngay]
+        [toId, ngay2]
       ),
       poolMra.query(
         `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
@@ -83418,7 +83776,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`,
-        [toId, ngay]
+        [toId, ngay2]
       ),
       xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([])
     ]);
@@ -83530,10 +83888,10 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
          WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
-        [toId, ngay]
+        [toId, ngay2]
       )).rows;
       const cheDoTo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]));
-      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay || e.loai === "ra_ca");
+      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay2 || e.loai === "ra_ca");
       for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
         coMatHomNay[ca] = (ds ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
@@ -83550,7 +83908,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       success: true,
       available: true,
       serverNow: Date.now(),
-      ngay,
+      ngay: ngay2,
       to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
       congDoan: cdRows.rows.map((x) => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
       // Kèm số còn nhận được (đã triển khai / đơn hàng − đã nhận); đã nhận đủ thì không còn chờ nhận
@@ -83593,22 +83951,22 @@ async function lichCaCuaXuong(xuong, db = poolMra) {
   );
   return r.rows.map((x) => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
 }
-async function gioCongToNgay(toId, ngay) {
-  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay]);
+async function gioCongToNgay(toId, ngay2) {
+  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay2]);
   const toRow = await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
   const xuong = toRow.rows[0]?.xuong;
   if (!xuong) return null;
   const lichCa = await lichCaCuaXuong(String(xuong));
   const bamLichCa = dauLichCa(lichCa);
   const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
-  const key = `${toId}|${ngay}`;
-  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay;
+  const key = `${toId}|${ngay2}`;
+  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay2;
   const hit = gioCongCache.get(key);
   if (hit && hit.v === v && !today) return hit.payload;
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ($2::date - 7) AND ($2::date + 1)`,
-    [toId, ngay]
+    [toId, ngay2]
   );
   const capTrongCuaSo = new Set(r.rows.filter((x) => x.hex && x.cong_doan_id).map((x) => pairKey(x.hex, x.cong_doan_id)));
   const lichSu = (await suKienTheoHex(poolMra, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
@@ -83619,13 +83977,13 @@ async function gioCongToNgay(toId, ngay) {
   const mocTo = await mocCheDo(poolMra, [toId]);
   const cheDo = cheDoTheoNgay(mocTo);
   const chinhThuc = await phanBoTheoCach(tatCa, "chinh_thuc");
-  const soKhop = cheDo(toId, ngay) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
+  const soKhop = cheDo(toId, ngay2) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
   const payload = {
     ...chinhThuc.pb,
     bamLichCa,
-    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay, lichCa),
-    cheDo: cheDo(toId, ngay),
-    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay, lichCa) } } : {}
+    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay2, lichCa),
+    cheDo: cheDo(toId, ngay2),
+    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay2, lichCa) } } : {}
   };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
@@ -83638,7 +83996,7 @@ async function gioCongToNgay(toId, ngay) {
   async function phanBoTheoCach(tatCa2, cach) {
     const conHieuLuc = locTheoCheDo(suKienConHieuLuc(tatCa2), cheDo, cach);
     const tram = await soTram(poolMra, tatCa2, cach, now);
-    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay;
+    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay2;
     const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
     const boChon = {};
     for (const e of conHieuLuc.filter((x) => x.loai === "tang_ca" && trongNgay(x))) {
@@ -83661,7 +84019,7 @@ async function gioCongToNgay(toId, ngay) {
         capCuaTo.get(k).push(e);
         if (e.loai !== "tien_do") {
           const d = vnDayKey(new Date(e.ts));
-          if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+          if (d <= ngay2 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
         }
         if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) {
           soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
@@ -83679,7 +84037,7 @@ async function gioCongToNgay(toId, ngay) {
         for (const p of e.duLieu.hangMuc) {
           if (typeof p.hex === "string" && typeof p.congDoanId === "string" && p.trangThai === "van_lam") {
             const k = pairKey(p.hex, p.congDoanId);
-            if (d <= ngay && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+            if (d <= ngay2 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
           }
         }
       }
@@ -83696,8 +84054,8 @@ async function gioCongToNgay(toId, ngay) {
     for (const [k, evts] of capCuaTo) {
       const st = tinhTrangThai(evts, []);
       if (st.doanChay.length) doanChay[k] = st.doanChay;
-      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay}T00:00:00+07:00`)) {
-        const tt = trangThaiXacNhan(ngay, ngayCuoi.get(k) ?? ngay);
+      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay2}T00:00:00+07:00`)) {
+        const tt = trangThaiXacNhan(ngay2, ngayCuoi.get(k) ?? ngay2);
         if (tt === "ngung") ngungTinh.push(k);
         if (tt === "chua_xac_nhan") chuaXacNhan.push(k);
       }
@@ -83715,10 +84073,10 @@ async function gioCongToNgay(toId, ngay) {
         }
       }
     }
-    const truaMai = Date.parse(`${ngay}T12:00:00+07:00`) + 24 * 36e5;
-    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay}T00:00:00+07:00`) && e.ts < truaMai)));
-    const cuaSo = cuaSoTrongNgay(ngay, lichCa, caTangCa);
-    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay) === "tram" : cheDo(toId, ngay) !== "cu";
+    const truaMai = Date.parse(`${ngay2}T12:00:00+07:00`) + 24 * 36e5;
+    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay2}T00:00:00+07:00`) && e.ts < truaMai)));
+    const cuaSo = cuaSoTrongNgay(ngay2, lichCa, caTangCa);
+    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay2) === "tram" : cheDo(toId, ngay2) !== "cu";
     const coMatTinh = dungTram ? noiCoMatTangCa(coMat, cuaSo) : coMat;
     const pb2 = phanBoGioCong({
       cuaSo,
@@ -83739,11 +84097,11 @@ app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
   try {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.params.id);
-    const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
+    const ngay2 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const kq = await gioCongToNgay(toId, ngay);
+    const kq = await gioCongToNgay(toId, ngay2);
     if (!kq) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
-    res.json({ success: true, available: true, toId, ngay, ...kq });
+    res.json({ success: true, available: true, toId, ngay: ngay2, ...kq });
   } catch (e) {
     fail(res, e, "/api/xuong/to/:id/gio-cong");
   }
@@ -83815,8 +84173,8 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const capNgay = [...toNgay].sort((a, b) => a.split("|")[1] < b.split("|")[1] ? 1 : -1);
     const gioCong = /* @__PURE__ */ new Map();
     await runWithLimit(capNgay.slice(0, 20).map((k) => async () => {
-      const [to, ngay] = k.split("|");
-      const kq = await gioCongToNgay(Number(to), ngay);
+      const [to, ngay2] = k.split("|");
+      const kq = await gioCongToNgay(Number(to), ngay2);
       if (!kq) return;
       for (const x of st.rows) {
         const h = kq.theoHangMuc[pairKey(hex3, String(x.cong_doan_id))];
@@ -84367,9 +84725,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           }
           for (const xs of theoCd.values()) {
             if (xs.length < 2) continue;
-            const dem = /* @__PURE__ */ new Map();
-            for (const x of xs) dem.set(x.soNguoiMax, (dem.get(x.soNguoiMax) ?? 0) + 1);
-            const [moThuong, lan] = [...dem.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
+            const dem2 = /* @__PURE__ */ new Map();
+            for (const x of xs) dem2.set(x.soNguoiMax, (dem2.get(x.soNguoiMax) ?? 0) + 1);
+            const [moThuong, lan] = [...dem2.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
             const lonNhat = Math.max(...xs.map((x) => x.soNguoiMax));
             if (!(lan >= 2 && lan / xs.length >= 0.5 && moThuong === lonNhat)) continue;
             const tong2 = xs.reduce((a, x) => a + x.gioCongThuong, 0);
@@ -84428,7 +84786,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         for (const [ly, h2] of Object.entries(kq.gioChoLyDo ?? {})) gioChoLyDo[ly] = (gioChoLyDo[ly] ?? 0) + h2;
         let gcNgay = 0;
         let tcNgay = 0;
-        let chay = 0;
+        let chay2 = 0;
         const hmNgay = [];
         for (const [k, h2] of Object.entries(kq.theoHangMuc)) {
           tcNgay += h2.gioCongTangCa;
@@ -84448,7 +84806,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           gioCong.thuong += h2.gioCongThuong;
           gioCong.tangCa += h2.gioCongTangCa;
           gcNgay += h2.gioCongThuong + h2.gioCongTangCa;
-          chay += h2.gioChay;
+          chay2 += h2.gioChay;
           const cur = hm.get(k) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0, min: 0 };
           cur.gioChay += h2.gioChay;
           cur.thuong += h2.gioCongThuong;
@@ -84459,7 +84817,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           hm.set(k, cur);
           tatCaHex.add(k.split("|")[0]);
         }
-        if (chay > 0) {
+        if (chay2 > 0) {
           ngayCoChay++;
           if (!kq.co.includes("chua_chot_quan_so")) ngayChot++;
         }
@@ -84480,7 +84838,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       }
       for (const [k, m] of mraNgay) {
         if (!k.startsWith(`${toId}|`)) continue;
-        const ngay = k.slice(k.indexOf("|") + 1);
+        const ngay2 = k.slice(k.indexOf("|") + 1);
         gioNguoi.thuong += m.gioNguoi;
         gioCho.thuong += m.gioCho;
         gioCong.thuong += m.gioCong;
@@ -84498,7 +84856,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         }
         for (const x of [...m.nhan, ...m.xong]) tatCaHex.add(x.hex);
         theoNgay.push({
-          ngay,
+          ngay: ngay2,
           gioNguoi: lam(m.gioNguoi),
           gioCong: lam(m.gioCong),
           gioCongTangCa: 0,
@@ -85027,13 +85385,13 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
     const diemDanh = /* @__PURE__ */ new Map();
     if (r.rows.length && await coBangCongNhan()) {
       const ids = r.rows.map((x) => Number(x.id));
-      const ngay = vnDayKey(/* @__PURE__ */ new Date());
+      const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
       const now = Date.now();
       const [ev, ds2, lichCa] = await Promise.all([
         poolMra.query(
           `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
              AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date`,
-          [ids, ngay]
+          [ids, ngay2]
         ),
         poolMra.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
         lichCaCuaXuong(xuong)
@@ -85056,7 +85414,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         const caChinh = [...coMat.chinh ?? [], ...coMat.chu_nhat ?? []];
         const daDiemDanh = caChinh.length > 0;
         const dangCo = new Set(caChinh.filter((d) => d.end === null || d.end > now).map((d) => d.mnv));
-        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay, lichCa);
+        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay2, lichCa);
         const doi = ds2.rows.filter((x) => Number(x.to_id) === id).map((x) => String(x.mnv));
         const daTung = new Set(caChinh.map((d) => d.mnv));
         diemDanh.set(id, {
@@ -85862,13 +86220,13 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
       theoNhom.get(h.nhom).push(h);
     }
     const nhom = [...theoNhom.entries()].map(([ten, hs]) => {
-      const ngay = hs.map((h) => h.ngay).filter((x) => x !== null);
+      const ngay2 = hs.map((h) => h.ngay).filter((x) => x !== null);
       return {
         ten,
         soHm: hs.length,
-        soXong: ngay.length,
-        ngayTv: lam2(trungVi(ngay) ?? 0, 1),
-        ngayP75: lam2(phanVi(ngay, 0.75) ?? 0, 1),
+        soXong: ngay2.length,
+        ngayTv: lam2(trungVi(ngay2) ?? 0, 1),
+        ngayP75: lam2(phanVi(ngay2, 0.75) ?? 0, 1),
         gioCaTv: lam2(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
       };
     }).sort((a, b) => b.soHm - a.soHm);
@@ -86138,7 +86496,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
     for (const ds2 of cdTheoHex.values()) ds2.sort((a, b) => Number(a.thuTu ?? 999) - Number(b.thuTu ?? 999));
     const duBao = /* @__PURE__ */ new Map();
     const now = Date.now();
-    const cuoiNgay = (ngay) => dauNgayVN(ngay) + NGAY;
+    const cuoiNgay = (ngay2) => dauNgayVN(ngay2) + NGAY;
     if (hexKh.length && cuoiNgay(khoang.end) > now) {
       const evApp = (await suKienTheoHex(poolMra, hexKh)).map(toSuKien);
       const cdIdsTuyen = [...new Set(evApp.flatMap((e) => {
@@ -86392,7 +86750,7 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
     const client = await poolMra.connect();
     let nghi = 0;
     try {
-      await client.query("BEGIN");
+      await client.query("BEGIN; SET LOCAL idle_in_transaction_session_timeout = 30000");
       for (let i = 0; i < hopLe.length; i += 500) {
         const lo = hopLe.slice(i, i + 500);
         await client.query(
@@ -86590,7 +86948,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     poolMra.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
     });
     const now = Date.now();
-    const ngay = ngayCa(now);
+    const ngay2 = ngayCa(now);
     const [toRow, cdRows, lichCa, tangCa, moc2] = await Promise.all([
       poolMra.query("SELECT ten_to FROM xuong_to WHERE id = $1", [t.toId]),
       poolMra.query(
@@ -86603,16 +86961,16 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
         `SELECT DISTINCT du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e
          WHERE to_id = $1 AND loai = 'tang_ca' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
-        [t.toId, ngay]
+        [t.toId, ngay2]
       ),
       mocCheDo(poolMra, [t.toId])
     ]);
-    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay);
+    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay2);
     const cds = cdRows.rows.map((x) => String(x.id));
     const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
-    const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
+    const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay2);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
     const oHang = new Set(dangO.flatMap(([, ds]) => ds));
     const chuaVaoHang = [...new Set(coMat)].filter((m) => !oHang.has(m));
@@ -86639,7 +86997,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
       success: true,
       available: true,
       serverNow: now,
-      ngay,
+      ngay: ngay2,
       cheDo,
       token: giaHan(req, t),
       tram: { ten: t.ten, congDoan: t.congDoan },
@@ -86871,8 +87229,8 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const now = Date.now();
-    const ngay = ngayCa(now);
-    const dauNgay = Date.parse(`${ngay}T06:00:00+07:00`);
+    const ngay2 = ngayCa(now);
+    const dauNgay = Date.parse(`${ngay2}T06:00:00+07:00`);
     const evs = await soTramCuaTo(toId, now - 4 * 864e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId);
@@ -86909,10 +87267,10 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     res.json({
       success: true,
       available: true,
-      ngay,
+      ngay: ngay2,
       serverNow: now,
       suaDuoc: quanLy || laToTruong,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay2),
       nguoi: mnvs.map((m) => {
         const dang = doan.find((d) => d.mnv === m && d.end === null);
         const truoc = doan.filter((d) => d.mnv === m && d.start < dauNgay).sort((a, b) => b.start - a.start)[0];
@@ -86944,19 +87302,19 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.params.id);
     const now = Date.now();
-    const ngay = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
+    const ngay2 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
     const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
-    const dau = Date.parse(`${ngay}T05:00:00+07:00`);
+    const dau = Date.parse(`${ngay2}T05:00:00+07:00`);
     const cuoi = dau + 25 * 36e5;
     const evs = await soTramCuaTo(toId, dau, cuoi);
     const st = await soTram(poolMra, evs, "so_khop", now);
-    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay);
+    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay2);
     const hl = suKienConHieuLuc(evs);
-    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay);
+    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay2);
     const coMat = Object.values(doanCoMat(dd)).flat().filter((d) => !!d);
     const mnvs = [.../* @__PURE__ */ new Set([...doan.map((d) => d.mnv), ...coMat.map((d) => d.mnv)])];
     const [ten, info] = await Promise.all([
@@ -86972,10 +87330,10 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     res.json({
       success: true,
       available: true,
-      ngay,
+      ngay: ngay2,
       serverNow: now,
       gioTheoNguon,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay),
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay2),
       // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
       suaDuoc: quanLy || laToTruong,
       nguoi: mnvs.sort().map((m) => {
@@ -86990,7 +87348,7 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
         };
       }),
       // Sự kiện trạm của ngày (để huỷ từng dòng)
-      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
+      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay2 && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
     });
   } catch (e) {
     fail(res, e, "/api/xuong/to/:id/sua-ngay");
@@ -87140,7 +87498,8 @@ var PERMISSION_GROUPS = [
       { id: "chart_pthsp", label: "3. \u0110\xE3 t\xEDnh phi\u1EBFu (P012)" },
       { id: "chart_inventory", label: "4. Nh\u1EADp kho (P022)" },
       { id: "chart_export", label: "5. Xu\u1EA5t kho (P025)" },
-      { id: "chart_stock", label: "6. T\u1ED3n kho" }
+      { id: "chart_stock", label: "6. T\u1ED3n kho" },
+      { id: "chart_stock_vt", label: "7. T\u1ED3n kho v\u1EADt t\u01B0" }
     ]
   },
   {
@@ -88435,12 +88794,12 @@ function nenBanGhi(recs) {
     return i;
   };
   const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so3 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  const so5 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
   return {
     n: recs.length,
     tu,
     chu,
-    so: so3,
+    so: so5,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
     planMet: recs.map((r) => r.planMet ? 1 : 0),
@@ -88655,7 +89014,7 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
   if (laGioNghiDb()) return res.json({ ok: true, boQua: "gio-nghi-db" });
   const t0 = Date.now();
   const ketQua = {};
-  const chay = async (ten, f) => {
+  const chay2 = async (ten, f) => {
     const t = Date.now();
     try {
       ketQua[ten] = `${(await f()).nguon} ${Date.now() - t}ms`;
@@ -88664,10 +89023,1591 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
       console.error(`[cron/tong-quan] ${ten}`, e);
     }
   };
-  await chay("cong-trinh", tongQuanCongTrinh);
-  await chay("tong-quan", () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
-  await chay("tong-quan-hang-muc", () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: "COUNT_HEX" }));
+  await chay2("cong-trinh", tongQuanCongTrinh);
+  await chay2("tong-quan", () => tongQuanSanXuat(DEFAULT_FILTERS, TUY_CHON_MAC_DINH));
+  await chay2("tong-quan-hang-muc", () => tongQuanSanXuat(DEFAULT_FILTERS, { ...TUY_CHON_MAC_DINH, workshopMetric: "COUNT_HEX" }));
   res.json({ ok: true, ketQua, ms: Date.now() - t0 });
+});
+
+// src/server/hoiDapDanhMuc.ts
+var so4 = (col) => numericExprQualified(`t."${col}"`);
+var XUONG = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
+var CT = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
+var MA_CT = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
+var KT = `(CASE WHEN t.ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(t.ngay_khnk_tuan, 10)::date END)`;
+var TUAN_DAT = `(t.hex::text = ANY(__KH_TUAN_DAT__))`;
+var THANG_DAT = `(t.hex::text = ANY(__KH_THANG_DAT__))`;
+var HAN_KH = `(CASE WHEN ${KT} IS NOT NULL AND NOT ${TUAN_DAT} THEN ${KT} WHEN t.ngay_khnk_thang IS NOT NULL AND NOT ${THANG_DAT} THEN t.ngay_khnk_thang::date END)`;
+var MO = `(UPPER(COALESCE(t.tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'
+  AND NOT (COALESCE(t.so_luong_don_hang_tong, 0) > 0 AND COALESCE(t.so_luong_nhap_kho_luy_ke, 0) >= t.so_luong_don_hang_tong)
+  AND (COALESCE(t.tri_gia_don_hang_tong, 0) > COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0) OR COALESCE(t.tri_gia_don_hang_tong, 0) <= 0))`;
+var HOM_NAY_VN = `(now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
+var CON_LAI = `GREATEST(COALESCE(t.tri_gia_don_hang_tong, 0) - COALESCE(t.thanh_tien_nhap_kho_luy_ke, 0), 0)`;
+var NHOM_BOT = ["1. Qu\xE1 h\u1EA1n KH", "2. \u2264 14 ng\xE0y", "3. 15\u201330 ng\xE0y", "4. Sau 30 ng\xE0y", "5. \u0110\u1EA1t KH k\u1EF3, ch\u1EDD KH ti\u1EBFp", "6. Ch\u01B0a c\xF3 KH nh\u1EADp kho"];
+var NHOM_BOT_SQL = `(CASE WHEN NOT ${MO} THEN NULL
+  WHEN ${HAN_KH} IS NULL AND ((${KT} IS NOT NULL AND ${TUAN_DAT}) OR (t.ngay_khnk_thang IS NOT NULL AND ${THANG_DAT})) THEN '${NHOM_BOT[4]}'
+  WHEN ${HAN_KH} IS NULL THEN '${NHOM_BOT[5]}'
+  WHEN ${HAN_KH} < ${HOM_NAY_VN} THEN '${NHOM_BOT[0]}'
+  WHEN ${HAN_KH} <= ${HOM_NAY_VN} + 14 THEN '${NHOM_BOT[1]}'
+  WHEN ${HAN_KH} <= ${HOM_NAY_VN} + 30 THEN '${NHOM_BOT[2]}'
+  ELSE '${NHOM_BOT[3]}' END)`;
+var HM = { id: "ten_hang_muc", ten: "H\u1EA1ng m\u1EE5c", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn h\u1EA1ng m\u1EE5c", "s\u1EA3n ph\u1EA9m"], kieu: "chu" };
+var HEX = { id: "hex", ten: "HEX", dn: ["hex", "m\xE3 hex"], kieu: "ma", sql: `t.hex::text` };
+var LOAI_5M = [["man", "Con ng\u01B0\u1EDDi"], ["machine", "M\xE1y"], ["material", "V\u1EADt t\u01B0"], ["method", "Ph\u01B0\u01A1ng ph\xE1p"], ["measurement", "\u0110o l\u01B0\u1EDDng"]];
+var LOAI_5M_SQL = `(CASE t.category ${LOAI_5M.map(([ma, ten]) => `WHEN '${ma}' THEN '${ten}'`).join(" ")} ELSE t.category END)`;
+var NGAY_KHSX = `COALESCE(t.ngay_khnk, make_date(t.nam::int, GREATEST(LEAST(t.thang::int, 12), 1), 1))`;
+function loaiKhsx(bangId, q) {
+  if (bangId !== "khsx") return null;
+  if (q.loc.some((l) => l.cot === "phan_loai_kh") || q.nhom.some((n) => n.split("@")[0] === "phan_loai_kh")) return null;
+  const moc2 = q.nhom.map((n) => n.split("@")[1]).find(Boolean);
+  if (moc2 === "tuan" || moc2 === "ngay") return "TU\u1EA6N";
+  if (moc2) return "TH\xC1NG";
+  if (q.tu && q.den) {
+    const soNgay = Math.round((Date.parse(q.den) - Date.parse(q.tu)) / 864e5) + 1;
+    if (soNgay < 28) return "TU\u1EA6N";
+  }
+  return "TH\xC1NG";
+}
+var DANH_MUC = [
+  {
+    id: "nhap_kho",
+    noiSx: true,
+    ten: "Nh\u1EADp kho",
+    dn: ["nh\u1EADp kho", "nh\u1EADp kho th\xE0nh ph\u1EA9m", "p022", "nh\u1EADp", "nk", "th\xE0nh ph\u1EA9m nh\u1EADp", "doanh thu", "doanh s\u1ED1"],
+    quyen: ["inventory", "chart_inventory", "dashboard"],
+    ngay: "date",
+    huy: "hex",
+    phienBan: "inventory",
+    dong: "d\xF2ng nh\u1EADp kho",
+    soChinh: "thanh_tien_nhap_kho",
+    mac: [{ ham: "tong", cot: "thanh_tien_nhap_kho" }, { ham: "dem_khac", cot: "hex" }],
+    hien: ["date", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "so_luong_nhap_kho", "thanh_tien_nhap_kho"],
+    cot: [
+      { id: "date", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "ng\xE0y"], kieu: "ngay" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "ten_chi_tiet", ten: "Chi ti\u1EBFt", dn: ["t\xEAn chi ti\u1EBFt"], kieu: "chu" },
+      { id: "ghi_chu", ten: "Ghi ch\xFA", kieu: "chu" },
+      { id: "thanh_tien_nhap_kho", ten: "Gi\xE1 tr\u1ECB nh\u1EADp kho", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n", "gi\xE1 tr\u1ECB nh\u1EADp"], kieu: "so", sql: "t.thanh_tien_nhap_kho_num", tien: true },
+      { id: "so_luong_nhap_kho", ten: "S\u1ED1 l\u01B0\u1EE3ng nh\u1EADp kho", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
+    ]
+  },
+  {
+    id: "xuat_kho",
+    noiSx: true,
+    ten: "Xu\u1EA5t kho",
+    dn: ["xu\u1EA5t kho", "xu\u1EA5t kho th\xE0nh ph\u1EA9m", "p025", "xu\u1EA5t", "xk", "giao h\xE0ng", "giao \u0111\u01B0\u1EE3c"],
+    quyen: ["export", "chart_export", "dashboard"],
+    ngay: "date",
+    huy: "hex",
+    phienBan: "export",
+    dong: "d\xF2ng xu\u1EA5t kho",
+    soChinh: "thanh_tien_xuat_kho",
+    mac: [{ ham: "tong", cot: "thanh_tien_xuat_kho" }, { ham: "dem_khac", cot: "hex" }],
+    hien: ["date", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "so_luong_xuat_kho", "thanh_tien_xuat_kho"],
+    cot: [
+      { id: "date", ten: "Ng\xE0y xu\u1EA5t kho", dn: ["ng\xE0y xu\u1EA5t", "ng\xE0y"], kieu: "ngay" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "so_phieu", ten: "S\u1ED1 phi\u1EBFu", dn: ["phi\u1EBFu xu\u1EA5t"], kieu: "ma" },
+      { id: "tinh_doi_voi_hang_tp", ten: "Lo\u1EA1i xu\u1EA5t", tuDien: true, dn: ["t\xEDnh \u0111\u1ED1i v\u1EDBi h\xE0ng tp", "lo\u1EA1i"], kieu: "chu" },
+      { id: "ghi_chu", ten: "Ghi ch\xFA", kieu: "chu" },
+      { id: "thanh_tien_xuat_kho", ten: "Gi\xE1 tr\u1ECB xu\u1EA5t kho", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n"], kieu: "so", tien: true },
+      { id: "so_luong_xuat_kho", ten: "S\u1ED1 l\u01B0\u1EE3ng xu\u1EA5t kho", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: "t.so_luong_xuat_kho_num" }
+    ]
+  },
+  {
+    id: "ton_kho",
+    noiSx: true,
+    ten: "T\u1ED3n kho",
+    dn: ["t\u1ED3n kho", "t\u1ED3n", "h\xE0ng t\u1ED3n", "trong kho", "kho"],
+    quyen: ["stock", "dashboard"],
+    ngay: "date",
+    chot: true,
+    phienBan: "stock",
+    dong: "d\xF2ng t\u1ED3n kho",
+    soChinh: "gia_tri",
+    mac: [{ ham: "tong", cot: "gia_tri" }, { ham: "dem_khac", cot: "ma_id_sap" }],
+    hien: ["date", "ma_id_sap", "ten_cong_trinh", "ten_san_pham", "so_luong", "gia_tri", "so_thang_ton_kho"],
+    cot: [
+      { id: "date", ten: "Ng\xE0y ch\u1ED1t t\u1ED3n", dn: ["ng\xE0y ch\u1ED1t", "ng\xE0y"], kieu: "ngay" },
+      CT,
+      MA_CT,
+      HEX,
+      { id: "ten_san_pham", ten: "S\u1EA3n ph\u1EA9m", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn s\u1EA3n ph\u1EA9m"], kieu: "chu" },
+      { id: "ma_id_sap", ten: "M\xE3 SAP", dn: ["m\xE3 id sap", "sap", "id sap"], kieu: "ma", sql: "t.ma_id_sap::text" },
+      { id: "nhom_ct", ten: "Nh\xF3m c\xF4ng tr\xECnh", dn: ["nh\xF3m ct"], kieu: "chu" },
+      { id: "tinh_trang_ke_hoach_giao_hang", ten: "K\u1EBF ho\u1EA1ch giao h\xE0ng", tuDien: true, dn: ["t\xECnh tr\u1EA1ng k\u1EBF ho\u1EA1ch giao h\xE0ng", "t\xECnh tr\u1EA1ng giao h\xE0ng", "giao h\xE0ng"], kieu: "chu" },
+      // "tồn kho NHẬP TỪ tháng 9", "ngày nhập": ngày hàng vào kho (khác ngày chốt tồn `date`)
+      { id: "ngay_nhap_kho", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "nh\u1EADp t\u1EEB"], kieu: "ngay" },
+      { id: "so_thang_ton_kho", ten: "S\u1ED1 th\xE1ng t\u1ED3n", dn: ["th\xE1ng t\u1ED3n", "tu\u1ED5i t\u1ED3n"], kieu: "so" },
+      { id: "gia_tri", ten: "Gi\xE1 tr\u1ECB t\u1ED3n", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n"], kieu: "so", sql: "t.gia_tri_num", tien: true },
+      { id: "so_luong", ten: "S\u1ED1 l\u01B0\u1EE3ng t\u1ED3n", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
+    ]
+  },
+  {
+    id: "dht",
+    noiSx: true,
+    ten: "\u0110\u01A1n h\xE0ng t\u1ED5ng",
+    dn: ["\u0111\u01A1n h\xE0ng", "\u0111\u01A1n h\xE0ng m\u1EDBi", "\u0111\u01A1n h\xE0ng t\u1ED5ng", "p001", "\u0111\u01A1n m\u1EDBi", "dht", "\u0111\u01A1n"],
+    quyen: ["orders", "chart_order", "dashboard"],
+    ngay: "ngay_nhan_tu_pm",
+    huy: "hex",
+    phienBan: "order",
+    dong: "d\xF2ng \u0111\u01A1n h\xE0ng",
+    soChinh: "tri_gia_don_hang_tong",
+    mac: [{ ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "dem_khac", cot: "hex" }],
+    hien: ["ngay_nhan_tu_pm", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "ten_pm", "tri_gia_don_hang_tong"],
+    cot: [
+      { id: "ngay_nhan_tu_pm", ten: "Ng\xE0y nh\u1EADn t\u1EEB PM", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
+      { id: "ngay_can", ten: "Ng\xE0y c\u1EA7n", kieu: "ngay" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
+      { id: "ten_pc", ten: "PC", dn: ["t\xEAn pc"], kieu: "chu", tuDien: true },
+      { id: "khu_vuc", ten: "Khu v\u1EF1c", kieu: "chu" },
+      { id: "so_ipo", ten: "S\u1ED1 IPO", dn: ["ipo"], kieu: "ma" },
+      { id: "tam_ngung_huy_dht", ten: "T\u1EA1m ng\u01B0ng / h\u1EE7y", dn: ["t\u1EA1m ng\u01B0ng", "h\u1EE7y"], kieu: "chu" },
+      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true },
+      { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" }
+    ]
+  },
+  {
+    id: "tkbv_full",
+    noiSx: true,
+    ten: "Tri\u1EC3n khai b\u1EA3n v\u1EBD",
+    dn: ["tri\u1EC3n khai b\u1EA3n v\u1EBD", "tri\u1EC3n khai", "tkbv", "p002", "b\u1EA3n v\u1EBD"],
+    quyen: ["tkbv", "chart_tkbv", "dashboard"],
+    ngay: "ngay_nhan",
+    huy: "hex",
+    phienBan: "tkbv",
+    dong: "d\xF2ng tri\u1EC3n khai",
+    soChinh: "tri_gia_don_hang_tong",
+    mac: [{ ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "dem_khac", cot: "hex" }],
+    hien: ["ngay_nhan", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "nguoi_trien_khai", "tri_gia_don_hang_tong"],
+    cot: [
+      { id: "ngay_nhan", ten: "Ng\xE0y tri\u1EC3n khai", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "nguoi_trien_khai", ten: "Ng\u01B0\u1EDDi tri\u1EC3n khai", tuDien: true, dn: ["ng\u01B0\u1EDDi v\u1EBD", "k\u1EF9 thu\u1EADt"], kieu: "chu" },
+      { id: "so_luong_trien_khai", ten: "S\u1ED1 l\u01B0\u1EE3ng tri\u1EC3n khai", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
+      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true }
+    ]
+  },
+  {
+    id: "pthsp_full",
+    noiSx: true,
+    ten: "T\xEDnh phi\u1EBFu",
+    dn: ["t\xEDnh phi\u1EBFu", "pthsp", "p012", "phi\u1EBFu", "ph\xE2n t\xEDch h\u1ED3 s\u01A1"],
+    quyen: ["pthsp", "chart_pthsp", "dashboard"],
+    ngay: "ngay_hoan_thanh",
+    huy: "hex",
+    phienBan: "pthsp",
+    dong: "d\xF2ng t\xEDnh phi\u1EBFu",
+    soChinh: "tri_gia_don_hang_tong",
+    mac: [{ ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "dem_khac", cot: "hex" }],
+    hien: ["ngay_hoan_thanh", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "tinh_trang_phieu", "tri_gia_don_hang_tong"],
+    cot: [
+      { id: "ngay_hoan_thanh", ten: "Ng\xE0y t\xEDnh phi\u1EBFu xong", dn: ["ng\xE0y ho\xE0n th\xE0nh", "ng\xE0y"], kieu: "ngay" },
+      { id: "ngay_duyet", ten: "Ng\xE0y duy\u1EC7t phi\u1EBFu", dn: ["ng\xE0y duy\u1EC7t"], kieu: "ngay" },
+      { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", dn: ["tr\u1EA1ng th\xE1i phi\u1EBFu", "t\xECnh tr\u1EA1ng"], kieu: "chu", tuDien: true },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "so_luong_tinh", ten: "S\u1ED1 l\u01B0\u1EE3ng t\xEDnh", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
+      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true }
+    ]
+  },
+  {
+    id: "production_status_app",
+    ten: "S\u1EA3n xu\u1EA5t (h\u1EA1ng m\u1EE5c)",
+    dn: ["s\u1EA3n xu\u1EA5t", "h\u1EA1ng m\u1EE5c", "\u0111ang s\u1EA3n xu\u1EA5t", "t\xECnh tr\u1EA1ng s\u1EA3n xu\u1EA5t", "sx", "\u0111\u01A1n \u0111ang l\xE0m", "tr\xEAn chuy\u1EC1n"],
+    quyen: ["production", "construction_overview", "hex_lookup", "dashboard"],
+    ngay: "ngay_nhan_tu_pm",
+    huy: "ipo",
+    phienBan: "production",
+    dong: "h\u1EA1ng m\u1EE5c",
+    soChinh: "tri_gia_don_hang_tong",
+    mac: [{ ham: "dem" }, { ham: "tong", cot: "tri_gia_don_hang_tong" }, { ham: "tong", cot: "gia_tri_con_lai" }],
+    hien: ["hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "tinh_trang", "tri_gia_don_hang_tong", "gia_tri_con_lai"],
+    cot: [
+      { id: "tinh_trang", ten: "C\xF4ng \u0111o\u1EA1n hi\u1EC7n t\u1EA1i", tuDien: true, dn: ["c\xF4ng \u0111o\u1EA1n", "t\xECnh tr\u1EA1ng", "tr\u1EA1ng th\xE1i", "\u0111ang \u1EDF"], kieu: "chu" },
+      { id: "tinh_trang_ipo", ten: "T\xECnh tr\u1EA1ng IPO", dn: ["ipo"], kieu: "chu" },
+      { id: "tinh_trang_du_an", ten: "T\xECnh tr\u1EA1ng d\u1EF1 \xE1n", tuDien: true, kieu: "chu" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
+      { id: "ten_pc", ten: "PC", dn: ["t\xEAn pc"], kieu: "chu", tuDien: true },
+      { id: "khach_hang", ten: "Kh\xE1ch h\xE0ng", tuDien: true, dn: ["ch\u1EE7 \u0111\u1EA7u t\u01B0"], kieu: "chu" },
+      { id: "khu_vuc_du_an", ten: "Khu v\u1EF1c", tuDien: true, dn: ["khu v\u1EF1c d\u1EF1 \xE1n", "v\xF9ng"], kieu: "chu" },
+      { id: "phan_loai_nhom_san_pham", ten: "Nh\xF3m s\u1EA3n ph\u1EA9m", tuDien: true, dn: ["lo\u1EA1i s\u1EA3n ph\u1EA9m", "ph\xE2n lo\u1EA1i"], kieu: "chu" },
+      { id: "nhom_ct", ten: "Nh\xF3m c\xF4ng tr\xECnh", dn: ["nh\xF3m ct"], kieu: "chu" },
+      { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", kieu: "chu", tuDien: true },
+      { id: "tinh_trang_trien_khai_ban_ve", ten: "T\xECnh tr\u1EA1ng b\u1EA3n v\u1EBD", tuDien: true, dn: ["t\xECnh tr\u1EA1ng tri\u1EC3n khai b\u1EA3n v\u1EBD", "tri\u1EC3n khai b\u1EA3n v\u1EBD"], kieu: "chu" },
+      { id: "tinh_trang_gcn", ten: "Gia c\xF4ng ngo\xE0i", dn: ["gcn", "t\xECnh tr\u1EA1ng gcn"], kieu: "chu" },
+      { id: "bop", ten: "BOP", tuDien: true, dn: ["b\u01B0\u1EDBc s\u1EA3n xu\u1EA5t", "b\u01B0\u1EDBc bop", "b\u01B0\u1EDBc"], kieu: "chu" },
+      // BOT: 6 nhóm thời hạn KH nhập kho + hạn KH đang dùng (xem NHOM_BOT_SQL)
+      { id: "nhom_bot", ten: "Nh\xF3m BOT", tuDien: true, gt: NHOM_BOT, dn: ["bot", "nh\xF3m bot", "th\u1EDDi h\u1EA1n k\u1EBF ho\u1EA1ch", "th\u1EDDi h\u1EA1n kh", "nh\xF3m th\u1EDDi h\u1EA1n"], kieu: "chu", sql: NHOM_BOT_SQL },
+      { id: "han_khnk", ten: "H\u1EA1n KH nh\u1EADp kho (BOT)", dn: ["h\u1EA1n k\u1EBF ho\u1EA1ch", "h\u1EA1n kh nh\u1EADp kho", "h\u1EA1n k\u1EBF ho\u1EA1ch nh\u1EADp kho", "h\u1EA1n bot"], kieu: "ngay", sql: `(CASE WHEN ${MO} THEN ${HAN_KH} END)` },
+      { id: "ngay_nhan_tu_pm", ten: "Ng\xE0y nh\u1EADn t\u1EEB PM", dn: ["ng\xE0y nh\u1EADn"], kieu: "ngay" },
+      { id: "ngay_can_giao", ten: "Ng\xE0y c\u1EA7n giao", dn: ["h\u1EA1n giao"], kieu: "ngay" },
+      { id: "bot_du_an", ten: "BOT d\u1EF1 \xE1n", dn: ["bot d\u1EF1 \xE1n", "h\u1EA1n d\u1EF1 \xE1n"], kieu: "ngay" },
+      { id: "ngay_khnk_thang", ten: "KH nh\u1EADp kho th\xE1ng", dn: ["k\u1EBF ho\u1EA1ch nh\u1EADp kho", "k\u1EBF ho\u1EA1ch th\xE1ng"], kieu: "ngay" },
+      // Cột chữ dạng '2026-10-18 00:00:00' => đổi sang ngày (chữ khác dạng coi như trống)
+      { id: "ngay_khnk_tuan", ten: "KH nh\u1EADp kho tu\u1EA7n", dn: ["k\u1EBF ho\u1EA1ch tu\u1EA7n"], kieu: "ngay", sql: `(CASE WHEN t.ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(t.ngay_khnk_tuan, 10)::date END)` },
+      { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", tien: true },
+      { id: "thanh_tien_tinh_phieu", ten: "\u0110\xE3 t\xEDnh phi\u1EBFu", dn: ["gi\xE1 tr\u1ECB t\xEDnh phi\u1EBFu"], kieu: "so", tien: true },
+      { id: "thanh_tien_nhap_kho_luy_ke", ten: "\u0110\xE3 nh\u1EADp kho", dn: ["nh\u1EADp kho l\u0169y k\u1EBF", "\u0111\xE3 nh\u1EADp"], kieu: "so", tien: true },
+      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so4("thanh_tien_xuat_kho_luy_ke"), tien: true },
+      { id: "thanh_tien_ton_kho_hien_tai", ten: "T\u1ED3n kho hi\u1EC7n t\u1EA1i", dn: ["gi\xE1 tr\u1ECB t\u1ED3n"], kieu: "so", tien: true },
+      { id: "gia_tri_con_lai", ten: "Gi\xE1 tr\u1ECB c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "ch\u01B0a nh\u1EADp"], kieu: "so", tien: true, sql: CON_LAI },
+      { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
+      { id: "so_luong_nhap_kho_luy_ke", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\xE3 nh\u1EADp", dn: ["sl nh\u1EADp"], kieu: "so" },
+      // Cột là NHÓM chữ ('<3 NGÀY', '2 TUẦN', 'TỪ 8 TUẦN TRỞ LÊN'), không phải số ngày
+      { id: "so_ngay_cd_hien_tai", ten: "Th\u1EDDi gian \u1EDF c\xF4ng \u0111o\u1EA1n", tuDien: true, dn: ["s\u1ED1 ng\xE0y \u1EDF c\xF4ng \u0111o\u1EA1n", "n\u1EB1m bao l\xE2u", "bao l\xE2u"], kieu: "chu" }
+    ]
+  },
+  {
+    id: "vat_tu",
+    ten: "V\u1EADt t\u01B0",
+    dn: ["v\u1EADt t\u01B0", "pr", "po", "mua h\xE0ng", "nvl", "nguy\xEAn v\u1EADt li\u1EC7u", "bom", "t\xECnh tr\u1EA1ng bom"],
+    quyen: ["materials"],
+    ngay: "ngay_pr",
+    phienBan: "material",
+    dong: "d\xF2ng PR",
+    mac: [{ ham: "dem" }, { ham: "dem_khac", cot: "so_pr" }],
+    hien: ["ngay_pr", "so_pr", "ten_cong_trinh", "ten_vat_tu", "so_luong_yeu_cau", "so_luong_da_nhan_sap", "trang_thai"],
+    cot: [
+      { id: "trang_thai", ten: "Tr\u1EA1ng th\xE1i", tuDien: true, dn: ["t\xECnh tr\u1EA1ng"], kieu: "chu" },
+      { id: "trang_thai_sap", ten: "Tr\u1EA1ng th\xE1i SAP", kieu: "chu" },
+      { id: "tinh_trang_po", ten: "T\xECnh tr\u1EA1ng PO", kieu: "chu" },
+      { id: "tinh_trang_pr", ten: "T\xECnh tr\u1EA1ng PR", tuDien: true, kieu: "chu" },
+      { id: "nguoi_tao", ten: "Ng\u01B0\u1EDDi t\u1EA1o", kieu: "chu" },
+      { id: "nguoi_yeu_cau", ten: "Ng\u01B0\u1EDDi y\xEAu c\u1EA7u", tuDien: true, kieu: "chu" },
+      CT,
+      { id: "so_pr", ten: "S\u1ED1 PR", kieu: "ma", sql: "t.so_pr::bigint::text" },
+      { id: "so_po", ten: "S\u1ED1 PO", kieu: "ma", sql: "t.so_po::bigint::text" },
+      { id: "ten_vat_tu", ten: "T\xEAn v\u1EADt t\u01B0", dn: ["v\u1EADt li\u1EC7u"], kieu: "chu" },
+      { id: "ma_vat_tu_sap", ten: "M\xE3 v\u1EADt t\u01B0 SAP", dn: ["m\xE3 v\u1EADt t\u01B0"], kieu: "ma", sql: "t.ma_vat_tu_sap::bigint::text" },
+      { id: "nhom_vt", ten: "Nh\xF3m v\u1EADt t\u01B0", tuDien: true, dn: ["nh\xF3m vt", "lo\u1EA1i v\u1EADt t\u01B0"], kieu: "chu" },
+      { id: "nha_cung_cap", ten: "Nh\xE0 cung c\u1EA5p", dn: ["ncc"], kieu: "chu", quyen: "materials_view_price" },
+      { id: "dvt", ten: "\u0110\u01A1n v\u1ECB t\xEDnh", dn: ["\u0111vt"], kieu: "chu" },
+      { id: "ngay_pr", ten: "Ng\xE0y PR", kieu: "ngay" },
+      // Cách gọi các mốc ngày của PR: "PR CẦN VẬT TƯ trước 1/11", "PR nào HẸN VỀ tuần này", "vật tư VỀ THỰC TẾ tuần trước"
+      // (không ghi 'cần trước' / 'hẹn trước': chữ "trước" phải còn lại để đọc thành phép so sánh < ngày)
+      { id: "ngay_can_vat_tu", ten: "Ng\xE0y c\u1EA7n v\u1EADt t\u01B0", dn: ["c\u1EA7n v\u1EADt t\u01B0", "ng\xE0y c\u1EA7n"], kieu: "ngay" },
+      { id: "ngay_du_kien_giao_hang_pmh_nhap", ten: "Ng\xE0y d\u1EF1 ki\u1EBFn v\u1EC1", dn: ["d\u1EF1 ki\u1EBFn v\u1EC1", "ng\xE0y h\u1EB9n", "h\u1EB9n v\u1EC1", "h\u1EB9n giao", "ng\xE0y h\u1EB9n v\u1EC1", "h\u1EB9n"], kieu: "ngay" },
+      { id: "ngay_thuc_te_ve", ten: "Ng\xE0y th\u1EF1c t\u1EBF v\u1EC1", dn: ["ng\xE0y v\u1EC1", "v\u1EC1 th\u1EF1c t\u1EBF", "th\u1EF1c t\u1EBF v\u1EC1", "ng\xE0y v\u1EC1 th\u1EF1c t\u1EBF", "\u0111\xE3 v\u1EC1"], kieu: "ngay" },
+      { id: "so_luong_yeu_cau", ten: "SL y\xEAu c\u1EA7u", dn: ["s\u1ED1 l\u01B0\u1EE3ng y\xEAu c\u1EA7u", "s\u1ED1 l\u01B0\u1EE3ng"], kieu: "so" },
+      { id: "so_luong_da_nhan_sap", ten: "SL \u0111\xE3 nh\u1EADn", dn: ["\u0111\xE3 nh\u1EADn"], kieu: "so" },
+      { id: "so_luong_con_lai", ten: "SL c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "c\xF2n thi\u1EBFu"], kieu: "so" },
+      { id: "don_gia", ten: "\u0110\u01A1n gi\xE1", kieu: "so", quyen: "materials_view_price" },
+      { id: "thanh_tien", ten: "Th\xE0nh ti\u1EC1n", dn: ["gi\xE1 tr\u1ECB"], kieu: "so", quyen: "materials_view_price" }
+    ]
+  },
+  {
+    // Kỳ = NGAY_KHSX (KH tuần: ngày KH; KH tháng: ngày 1 của tháng); máy chủ tự thêm lọc loại KH theo kỳ hỏi (loaiKhsx) để
+    // không cộng đôi tháng + tuần
+    id: "khsx",
+    noiSx: true,
+    ten: "K\u1EBF ho\u1EA1ch s\u1EA3n xu\u1EA5t",
+    dn: ["k\u1EBF ho\u1EA1ch s\u1EA3n xu\u1EA5t", "khsx", "k\u1EBF ho\u1EA1ch nh\u1EADp kho", "d\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch"],
+    quyen: ["khsx", "dashboard"],
+    ngay: "ngay_khnk",
+    huy: "hex",
+    phienBan: "khsx",
+    dong: "d\xF2ng k\u1EBF ho\u1EA1ch",
+    soChinh: "thanh_tien_ke_hoach",
+    mac: [{ ham: "tong", cot: "thanh_tien_ke_hoach" }, { ham: "dem_khac", cot: "hex" }],
+    hien: ["ngay_khnk", "hex", "ten_cong_trinh", "ten_hang_muc", "xuong_chinh", "phan_loai_kh", "thanh_tien_ke_hoach"],
+    cot: [
+      { id: "ngay_khnk", ten: "Ng\xE0y KH nh\u1EADp kho", dn: ["ng\xE0y k\u1EBF ho\u1EA1ch", "ng\xE0y"], kieu: "ngay", sql: NGAY_KHSX },
+      { id: "phan_loai_kh", ten: "Lo\u1EA1i k\u1EBF ho\u1EA1ch", tuDien: true, dn: ["ph\xE2n lo\u1EA1i"], kieu: "chu" },
+      { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
+      { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
+      { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::int::text" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
+      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so4("so_luong_kh") }
+    ]
+  },
+  {
+    id: "khsx_nam",
+    ten: "K\u1EBF ho\u1EA1ch n\u0103m",
+    dn: ["d\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m", "b\u1EA3ng k\u1EBF ho\u1EA1ch n\u0103m", "m\u1EE5c ti\xEAu n\u0103m"],
+    quyen: ["yearly_plan_data", "dashboard"],
+    ngay: "thoi_gian",
+    phienBan: "yearlyPlan",
+    dong: "d\xF2ng k\u1EBF ho\u1EA1ch",
+    soChinh: "thanh_tien_ke_hoach",
+    mac: [{ ham: "tong", cot: "thanh_tien_ke_hoach" }],
+    hien: ["nam", "thang", "xuong_chinh", "thanh_tien_ke_hoach"],
+    cot: [
+      { id: "thoi_gian", ten: "Th\xE1ng k\u1EBF ho\u1EA1ch", kieu: "ngay", sql: "make_date(t.nam::int, GREATEST(LEAST(t.thang::int, 12), 1), 1)" },
+      { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
+      { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
+      XUONG,
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch", "m\u1EE5c ti\xEAu"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true }
+    ]
+  },
+  {
+    id: "phan_tich_kh_th",
+    noiSx: true,
+    ten: "Ph\xE2n t\xEDch KH-TH",
+    dn: ["ph\xE2n t\xEDch kh-th", "kh-th", "khth", "kh th", "th\u1EF1c hi\u1EC7n k\u1EBF ho\u1EA1ch", "\u0111\xFAng k\u1EBF ho\u1EA1ch", "r\u1EDBt k\u1EBF ho\u1EA1ch"],
+    quyen: ["analysis"],
+    ngay: "thoi_gian",
+    phienBan: "analysis",
+    dong: "d\xF2ng",
+    soChinh: "thanh_tien_ke_hoach",
+    mac: [{ ham: "tong", cot: "thanh_tien_ke_hoach" }, { ham: "tong", cot: "nhap_kho_tuan" }],
+    hien: ["nam", "tuan", "hex", "ten_cong_trinh", "xuong_chinh", "tinh_trang_thuc_hien_ke_hoach", "thanh_tien_ke_hoach", "nhap_kho_tuan"],
+    cot: [
+      { id: "thoi_gian", ten: "Tu\u1EA7n k\u1EBF ho\u1EA1ch", kieu: "ngay", sql: `to_date(t.nam::text || '-' || lpad(t.tuan::text, 2, '0'), 'IYYY-IW')` },
+      { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
+      { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::text" },
+      XUONG,
+      CT,
+      MA_CT,
+      HM,
+      HEX,
+      { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so4("thanh_tien_ke_hoach"), tien: true },
+      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so4("nhap_kho_tuan"), tien: true },
+      { id: "dung_ke_hoach", ten: "\u0110\xFAng k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
+      { id: "thuc_hien_dung_ke_hoach_1_phan", ten: "\u0110\xFAng KH 1 ph\u1EA7n", kieu: "so", tien: true },
+      { id: "rot_ke_hoach", ten: "R\u1EDBt k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
+      { id: "thuc_hien_rot_ke_hoach_1_phan", ten: "R\u1EDBt KH 1 ph\u1EA7n", kieu: "so", tien: true },
+      { id: "nhap_kho_truoc_ke_hoach", ten: "Nh\u1EADp tr\u01B0\u1EDBc k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
+      { id: "vuot_ke_hoach", ten: "V\u01B0\u1EE3t k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
+      { id: "nhap_kho_ngoai_ke_hoach", ten: "Nh\u1EADp ngo\xE0i k\u1EBF ho\u1EA1ch", kieu: "so", tien: true }
+    ]
+  },
+  {
+    id: "diem_danh",
+    ten: "\u0110i\u1EC3m danh",
+    dn: ["\u0111i\u1EC3m danh", "nh\xE2n s\u1EF1", "\u0111\u1ECBnh bi\xEAn", "s\u1ED1 c\xF4ng nh\xE2n"],
+    quyen: ["attendance"],
+    ngay: "date",
+    phienBan: "attendance",
+    dong: "d\xF2ng \u0111i\u1EC3m danh",
+    mac: [{ ham: "tb", cot: "so_luong_cong_nhan" }, { ham: "tong", cot: "gio_cong_hanh_chinh" }, { ham: "tong", cot: "gio_cong_tang_ca" }],
+    hien: ["date", "xuong_chinh", "so_luong_cong_nhan", "dinh_bien", "gio_cong_hanh_chinh", "gio_cong_tang_ca"],
+    cot: [
+      { id: "date", ten: "Ng\xE0y", kieu: "ngay" },
+      XUONG,
+      { id: "so_luong_cong_nhan", ten: "S\u1ED1 c\xF4ng nh\xE2n", dn: ["c\xF4ng nh\xE2n", "s\u1ED1 ng\u01B0\u1EDDi", "nh\xE2n s\u1EF1", "ng\u01B0\u1EDDi \u0111i l\xE0m", "\u0111i l\xE0m"], kieu: "so" },
+      { id: "dinh_bien", ten: "\u0110\u1ECBnh bi\xEAn", kieu: "so" },
+      { id: "gio_cong_hanh_chinh", ten: "Gi\u1EDD c\xF4ng h\xE0nh ch\xEDnh", dn: ["gi\u1EDD h\xE0nh ch\xEDnh", "gi\u1EDD c\xF4ng"], kieu: "so" },
+      { id: "gio_cong_tang_ca", ten: "Gi\u1EDD t\u0103ng ca", dn: ["t\u0103ng ca", "gi\u1EDD c\xF4ng t\u0103ng ca"], kieu: "so" }
+    ]
+  },
+  {
+    id: "vuong_mac",
+    ten: "V\u01B0\u1EDBng m\u1EAFc",
+    dn: ["v\u01B0\u1EDBng m\u1EAFc", "v\u1EA5n \u0111\u1EC1", "s\u1EF1 c\u1ED1", "vm"],
+    quyen: ["vuong_mac"],
+    ngay: "created_at",
+    dong: "v\u01B0\u1EDBng m\u1EAFc",
+    mac: [{ ham: "dem" }],
+    hien: ["created_at", "hex", "ten_cong_trinh", "xuong", "category", "status", "handler", "bot_end"],
+    cot: [
+      { id: "created_at", ten: "Ng\xE0y b\xE1o", dn: ["ng\xE0y t\u1EA1o", "ng\xE0y"], kieu: "ngay", sql: `(t.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` },
+      {
+        // 'Mới' (open) + 'Đang xử lý' (doing) = "đang mở" của trang Vướng mắc (routes/vuongMac.ts stats.open) — bộ đọc câu lọc
+        // "vướng mắc đang mở / chưa xong" bằng 2 giá trị này
+        id: "status",
+        ten: "Tr\u1EA1ng th\xE1i",
+        dn: ["t\xECnh tr\u1EA1ng"],
+        kieu: "chu",
+        gt: ["M\u1EDBi", "\u0110ang x\u1EED l\xFD", "\u0110\xE3 xong", "\u0110\xE3 \u0111\xF3ng"],
+        sql: `(CASE t.status WHEN 'open' THEN 'M\u1EDBi' WHEN 'doing' THEN '\u0110ang x\u1EED l\xFD' WHEN 'done' THEN '\u0110\xE3 xong' WHEN 'closed' THEN '\u0110\xE3 \u0111\xF3ng' ELSE COALESCE(t.status, CASE WHEN t.is_resolved THEN '\u0110\xE3 xong' ELSE 'M\u1EDBi' END) END)`
+      },
+      { id: "is_resolved", ten: "\u0110\xE3 x\u1EED l\xFD", dn: ["x\u1EED l\xFD xong", "\u0111\xE3 gi\u1EA3i quy\u1EBFt"], kieu: "chu", gt: ["\u0110\xE3 x\u1EED l\xFD", "Ch\u01B0a x\u1EED l\xFD"], sql: `(CASE WHEN t.is_resolved THEN '\u0110\xE3 x\u1EED l\xFD' ELSE 'Ch\u01B0a x\u1EED l\xFD' END)` },
+      {
+        id: "qua_han",
+        ten: "Qu\xE1 h\u1EA1n",
+        dn: ["tr\u1EC5 h\u1EA1n", "qu\xE1 h\u1EA1n bot"],
+        kieu: "chu",
+        gt: ["Qu\xE1 h\u1EA1n"],
+        sql: `(CASE WHEN NOT COALESCE(t.is_resolved, false) AND t.bot_end IS NOT NULL AND t.bot_end < now() THEN 'Qu\xE1 h\u1EA1n' ELSE 'Kh\xF4ng' END)`
+      },
+      { id: "category", ten: "Lo\u1EA1i v\u01B0\u1EDBng m\u1EAFc", tuDien: true, dn: ["lo\u1EA1i", "nh\xF3m", "5m"], kieu: "chu", gt: LOAI_5M.map((x) => x[1]), sql: LOAI_5M_SQL },
+      { id: "priority", ten: "M\u1EE9c \u01B0u ti\xEAn", tuDien: true, dn: ["\u01B0u ti\xEAn"], kieu: "chu" },
+      { id: "stage", ten: "C\xF4ng \u0111o\u1EA1n", tuDien: true, kieu: "chu" },
+      // "tổ 4A có bao nhiêu vướng mắc": tổ = xưởng. Chỉ thêm ở bảng này — ở bảng sản xuất "tổ đá / tổ sơn" là tổ nhỏ trong xưởng
+      { ...XUONG, id: "xuong", dn: [...XUONG.dn ?? [], "t\u1ED5"], sql: "t.xuong" },
+      CT,
+      MA_CT,
+      HM,
+      { ...HEX, sql: "t.hex" },
+      { id: "handler", ten: "Ng\u01B0\u1EDDi x\u1EED l\xFD", tuDien: true, dn: ["ng\u01B0\u1EDDi ph\u1EE5 tr\xE1ch"], kieu: "chu" },
+      { id: "created_by", ten: "Ng\u01B0\u1EDDi b\xE1o", dn: ["ng\u01B0\u1EDDi t\u1EA1o"], kieu: "chu" },
+      { id: "bot_end", ten: "H\u1EA1n BOT", dn: ["h\u1EA1n", "bot"], kieu: "ngay", sql: `(t.bot_end AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` },
+      { id: "resolved_at", ten: "Ng\xE0y x\u1EED l\xFD xong", kieu: "ngay", sql: `(t.resolved_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` }
+    ]
+  }
+];
+var bangTheoId = new Map(DANH_MUC.map((b) => [b.id, b]));
+var sqlCot = (c) => c.sql ?? `t."${c.id}"`;
+
+// src/server/hoiDapViDu.ts
+var VI_DU_AI = [
+  { "cau": "nh\u1EADp kho th\xE1ng 9/2025", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2025-09-01", "den": "2025-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi n\u0103m 2025", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2025-01-01", "den": "2025-12-31" } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD th\xE1ng 9/2025", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2025-09-01", "den": "2025-09-30" } },
+  { "cau": "P012 qu\xFD 3 \u0111\u01B0\u1EE3c bao nhi\xEAu", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "nh\u1EADp kho th\xE1ng 9/2025 theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2025-09-01", "den": "2025-09-30" } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o xu\u1EA5t kho nhi\u1EC1u nh\u1EA5t qu\xFD 3", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "nh\u1EADp kho theo tu\u1EA7n n\u0103m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["date@tuan"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "xu\u1EA5t kho chia theo tu\u1EA7n th\xE1ng 3", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["date@tuan"], "loc": [], "tu": "2026-03-01", "den": "2026-03-31" } },
+  { "cau": "b\u1EA3n v\u1EBD tri\u1EC3n khai theo tu\u1EA7n tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan@tuan"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "\u0111\u01A1n h\xE0ng qu\xFD 3 t\u1EEBng ng\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan_tu_pm@ngay"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "xu\u1EA5t kho qu\xFD 2 n\u0103m 2025 t\u1EEBng ng\xE0y", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["date@ngay"], "loc": [], "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1ED7i ng\xE0y th\xE1ng tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan_tu_pm@ngay"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "th\xE1ng n\xE0o n\u0103m nay \u0111\u01A1n h\xE0ng cao nh\u1EA5t", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan_tu_pm@thang"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "phi\u1EBFu \u0111\xE3 t\xEDnh theo th\xE1ng n\u0103m nay", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_hoan_thanh@thang"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD theo th\xE1ng n\u0103m nay", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan@thang"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "kh\xE1ch h\xE0ng n\xE0o t\xEDnh phi\u1EBFu nhi\u1EC1u nh\u1EA5t qu\xFD 3", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khach_hang"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "phi\u1EBFu \u0111\xE3 t\xEDnh theo kh\xE1ch h\xE0ng th\xE1ng n\xE0y", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khach_hang"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "kh\xE1ch h\xE0ng n\xE0o nh\u1EADp kho th\xE0nh ph\u1EA9m nhi\u1EC1u nh\u1EA5t th\xE1ng 9", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khach_hang"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m 7 ng\xE0y qua chia theo nh\xF3m s\u1EA3n ph\u1EA9m", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:phan_loai_nhom_san_pham"], "loc": [], "tu": "2026-10-13", "den": "2026-10-19" } },
+  { "cau": "b\u1EA3n v\u1EBD tri\u1EC3n khai theo nh\xF3m s\u1EA3n ph\u1EA9m th\xE1ng 9", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:phan_loai_nhom_san_pham"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD theo nh\xF3m s\u1EA3n ph\u1EA9m th\xE1ng n\xE0y", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:phan_loai_nhom_san_pham"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD qu\xFD 2 n\u0103m 2025 c\u1EE7a nh\xF3m gi\u01B0\u1EDDng", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "sx:phan_loai_nhom_san_pham", "op": "bang", "gt": ["04. GI\u01AF\u1EDCNG"] }], "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "xu\u1EA5t kho h\xE0ng gi\u01B0\u1EDDng n\u0103m nay", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "sx:phan_loai_nhom_san_pham", "op": "bang", "gt": ["04. GI\u01AF\u1EDCNG"] }], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "nh\u1EADp kho th\xE0nh ph\u1EA9m h\xE0ng gh\u1EBF th\xE1ng 8", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "sx:phan_loai_nhom_san_pham", "op": "bang", "gt": ["02. GH\u1EBE"] }], "tu": "2026-08-01", "den": "2026-08-31" } },
+  { "cau": "top 6 c\xF4ng tr\xECnh \u0111\u01A1n h\xE0ng m\u1EDBi th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "gioiHan": 6, "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "top 3 c\xF4ng tr\xECnh b\u1EA3n v\u1EBD tri\u1EC3n khai th\xE1ng n\xE0y", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "gioiHan": 3, "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "top 1 c\xF4ng tr\xECnh nh\u1EADp kho nhi\u1EC1u nh\u1EA5t n\u0103m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "gioiHan": 1, "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o xu\u1EA5t kho \xEDt nh\u1EA5t qu\xFD 2 n\u0103m 2025", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sap": { "cot": 1, "giam": false }, "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o xu\u1EA5t kho \xEDt nh\u1EA5t tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sap": { "cot": 1, "giam": false }, "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "tu\u1EA7n tr\u01B0\u1EDBc x\u01B0\u1EDFng n\xE0o t\xEDnh phi\u1EBFu th\u1EA5p nh\u1EA5t", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sap": { "cot": 1, "giam": false }, "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "\u0111\u01A1n h\xE0ng qu\xFD 3 vs th\xE1ng 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30", "soSanh": { "tu": "2026-03-01", "den": "2026-03-31", "ten": "th\xE1ng 3" } } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m h\xF4m qua so v\u1EDBi th\xE1ng n\xE0y", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-10-18", "den": "2026-10-18", "soSanh": { "tu": "2026-10-01", "den": "2026-10-19", "ten": "th\xE1ng 10 (t\u1EDBi 19/10)" } } },
+  { "cau": "t\xEDnh phi\u1EBFu th\xE1ng 9 vs th\xE1ng 8", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-09-01", "den": "2026-09-30", "soSanh": { "tu": "2026-08-01", "den": "2026-08-31", "ten": "th\xE1ng 8" } } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o gi\u1EA3m nh\u1EADp kho nhi\u1EC1u nh\u1EA5t so v\u1EDBi th\xE1ng tr\u01B0\u1EDBc", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sapChenh": "giam", "tu": "2026-10-01", "den": "2026-10-19", "soSanh": { "tu": "2026-09-01", "den": "2026-09-30", "ten": "th\xE1ng 9" } } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o gi\u1EA3m nh\u1EADp kho nhi\u1EC1u nh\u1EA5t th\xE1ng n\xE0y", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sapChenh": "giam", "tu": "2026-10-01", "den": "2026-10-19", "soSanh": { "tu": "2026-09-01", "den": "2026-09-30", "ten": "k\u1EF3 tr\u01B0\u1EDBc" } } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o nh\u1EADp kho s\u1EE5t gi\u1EA3m m\u1EA1nh nh\u1EA5t so v\u1EDBi th\xE1ng tr\u01B0\u1EDBc", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sapChenh": "giam", "tu": "2026-10-01", "den": "2026-10-19", "soSanh": { "tu": "2026-09-01", "den": "2026-09-30", "ten": "th\xE1ng 9" } } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o nh\u1EADp kho t\u0103ng nhi\u1EC1u nh\u1EA5t so v\u1EDBi th\xE1ng tr\u01B0\u1EDBc", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sapChenh": "tang", "tu": "2026-10-01", "den": "2026-10-19", "soSanh": { "tu": "2026-09-01", "den": "2026-09-30", "ten": "th\xE1ng 9" } } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o t\u0103ng nh\u1EADp kho nhi\u1EC1u nh\u1EA5t th\xE1ng n\xE0y", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "sapChenh": "tang", "tu": "2026-10-01", "den": "2026-10-19", "soSanh": { "tu": "2026-09-01", "den": "2026-09-30", "ten": "k\u1EF3 tr\u01B0\u1EDBc" } } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD trung b\xECnh 1 ng\xE0y th\xE1ng 9", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan@ngay"], "loc": [], "binhQuan": "ngay", "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "b\xECnh qu\xE2n m\u1ED7i ng\xE0y phi\u1EBFu \u0111\xE3 t\xEDnh th\xE1ng n\xE0y", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_hoan_thanh@ngay"], "loc": [], "binhQuan": "ngay", "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "b\xECnh qu\xE2n m\u1ED7i ng\xE0y nh\u1EADp kho th\xE0nh ph\u1EA9m tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["date@ngay"], "loc": [], "binhQuan": "ngay", "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "b\xECnh qu\xE2n m\u1ED7i tu\u1EA7n \u0111\u01A1n h\xE0ng n\u0103m nay", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan_tu_pm@tuan"], "loc": [], "binhQuan": "tuan", "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "b\xECnh qu\xE2n m\u1ED7i tu\u1EA7n b\u1EA3n v\u1EBD tri\u1EC3n khai n\u0103m nay", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan@tuan"], "loc": [], "binhQuan": "tuan", "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "nh\u1EADp kho trung b\xECnh m\u1ED7i tu\u1EA7n n\u0103m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["date@tuan"], "loc": [], "binhQuan": "tuan", "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "\u0111\u1EBFm s\u1ED1 hex \u0111\u01A1n h\xE0ng 4A qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "s\u1ED1 hex \u0111\u01A1n h\xE0ng x\u01B0\u1EDFng 8C th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "bao nhi\xEAu hex xu\u1EA5t kho th\xE0nh ph\u1EA9m x\u01B0\u1EDFng 3A h\xF4m qua", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-10-18", "den": "2026-10-18" } },
+  { "cau": "phi\u1EBFu \u0111\xE3 t\xEDnh x\u01B0\u1EDFng 8AB v\xE0 3A th\xE1ng n\xE0y, chia theo th\xE1ng", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_hoan_thanh@thang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB", "3A"] }], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "b\u1EA3n v\u1EBD tri\u1EC3n khai x\u01B0\u1EDFng 5A v\xE0 8C qu\xFD 3, chia theo th\xE1ng", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan@thang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["5A", "8C"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi 3A v\xE0 8C th\xE1ng n\xE0y theo th\xE1ng", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan_tu_pm@thang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A", "8C"] }], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "danh s\xE1ch tri\u1EC3n khai b\u1EA3n v\u1EBD n\u0103m nay x\u01B0\u1EDFng 5A", "tv": { "bang": "tkbv_full", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "danh s\xE1ch tri\u1EC3n khai b\u1EA3n v\u1EBD tu\u1EA7n tr\u01B0\u1EDBc x\u01B0\u1EDFng 8AB", "tv": { "bang": "tkbv_full", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "danh s\xE1ch t\xEDnh phi\u1EBFu qu\xFD 2 n\u0103m 2025 x\u01B0\u1EDFng 8C", "tv": { "bang": "pthsp_full", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng theo n\u0103m t\u1EA5t c\u1EA3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan_tu_pm@nam"], "loc": [] } },
+  { "cau": "phi\u1EBFu \u0111\xE3 t\xEDnh theo n\u0103m t\u1EA5t c\u1EA3", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_hoan_thanh@nam"], "loc": [] } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD t\u1EEBng n\u0103m t\u1EEB tr\u01B0\u1EDBc t\u1EDBi nay", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ngay_nhan@nam"], "loc": [] } },
+  { "cau": "\u0111\u01A1n h\xE0ng theo PM th\xE1ng 9", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pm"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng theo PM 7 ng\xE0y qua", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pm"], "loc": [], "tu": "2026-10-13", "den": "2026-10-19" } },
+  { "cau": "PM n\xE0o nhi\u1EC1u \u0111\u01A1n nh\u1EA5t th\xE1ng 9", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pm"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "PC n\xE0o nh\u1EADn nhi\u1EC1u \u0111\u01A1n nh\u1EA5t tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pc"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "PC n\xE0o nh\u1EADn nhi\u1EC1u \u0111\u01A1n nh\u1EA5t th\xE1ng 9", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pc"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng theo PC th\xE1ng tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pc"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng l\u1EDBn h\u01A1n 1 t\u1EF7 n\u0103m nay", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "tri_gia_don_hang_tong", "op": "lon_hon", "gt": 1e3 }], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "c\xF3 bao nhi\xEAu \u0111\u01A1n h\xE0ng tr\xEAn 1 t\u1EF7 th\xE1ng 9", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "tri_gia_don_hang_tong", "op": "lon_hon", "gt": 1e3 }], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng l\u1EDBn h\u01A1n 6 t\u1EF7 n\u0103m nay", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "tri_gia_don_hang_tong", "op": "lon_hon", "gt": 6e3 }], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "danh s\xE1ch \u0111\u01A1n h\xE0ng tr\xEAn 2 t\u1EF7 th\xE1ng 8", "tv": { "bang": "dht", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "tri_gia_don_hang_tong", "op": "lon_hon", "gt": 2e3 }], "tu": "2026-08-01", "den": "2026-08-31" } },
+  { "cau": "li\u1EC7t k\xEA \u0111\u01A1n h\xE0ng tr\u1ECB gi\xE1 tr\xEAn 1 t\u1EF7 th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "tri_gia_don_hang_tong", "op": "lon_hon", "gt": 1e3 }], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "li\u1EC7t k\xEA \u0111\u01A1n h\xE0ng tr\u1ECB gi\xE1 tr\xEAn 3 t\u1EF7 qu\xFD 2 n\u0103m 2025", "tv": { "bang": "dht", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "tri_gia_don_hang_tong", "op": "lon_hon", "gt": 3e3 }], "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "trung b\xECnh tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng theo x\u01B0\u1EDFng n\u0103m nay", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tb", "cot": "tri_gia_don_hang_tong" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "trung b\xECnh tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng theo x\u01B0\u1EDFng tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tb", "cot": "tri_gia_don_hang_tong" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "trung b\xECnh tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng theo x\u01B0\u1EDFng th\xE1ng 9", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tb", "cot": "tri_gia_don_hang_tong" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng tu\u1EA7n n\xE0y chia theo khu v\u1EF1c", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["khu_vuc"], "loc": [], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "\u0111\u01A1n h\xE0ng tu\u1EA7n tr\u01B0\u1EDBc chia theo khu v\u1EF1c", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["khu_vuc"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "\u0111\u01A1n h\xE0ng h\xF4m qua chia theo khu v\u1EF1c", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["khu_vuc"], "loc": [], "tu": "2026-10-18", "den": "2026-10-18" } },
+  { "cau": "ai tri\u1EC3n khai nhi\u1EC1u b\u1EA3n v\u1EBD nh\u1EA5t th\xE1ng n\xE0y", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["nguoi_trien_khai"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD theo ng\u01B0\u1EDDi tri\u1EC3n khai tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["nguoi_trien_khai"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD theo ng\u01B0\u1EDDi tri\u1EC3n khai th\xE1ng 9", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["nguoi_trien_khai"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "phi\u1EBFu n\u0103m nay chia theo t\xECnh tr\u1EA1ng phi\u1EBFu", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["tinh_trang_phieu"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "t\xEDnh phi\u1EBFu theo t\xECnh tr\u1EA1ng phi\u1EBFu th\xE1ng 8", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["tinh_trang_phieu"], "loc": [], "tu": "2026-08-01", "den": "2026-08-31" } },
+  { "cau": "t\xEDnh phi\u1EBFu theo t\xECnh tr\u1EA1ng phi\u1EBFu th\xE1ng n\xE0y", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["tinh_trang_phieu"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "phi\u1EBFu sx \u0111\u1EA1i tr\xE0 qu\xFD 3", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "tinh_trang_phieu", "op": "bang", "gt": ["2.PHI\u1EBEU SX \u0110\u1EA0I TR\xC0"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "phi\u1EBFu sx \u0111\u1EA1i tr\xE0 th\xE1ng n\xE0y", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "tinh_trang_phieu", "op": "bang", "gt": ["2.PHI\u1EBEU SX \u0110\u1EA0I TR\xC0"] }], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "t\xEDnh phi\u1EBFu sx \u0111\u1EA1i tr\xE0 qu\xFD 3 theo x\u01B0\u1EDFng", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "tinh_trang_phieu", "op": "bang", "gt": ["2.PHI\u1EBEU SX \u0110\u1EA0I TR\xC0"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c ch\u01B0a tri\u1EC3n khai", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "s\u1ED1 h\u1EA1ng m\u1EE5c ch\u01B0a tri\u1EC3n khai", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "bao nhi\xEAu h\u1EA1ng m\u1EE5c \u0111ang ch\u01B0a tri\u1EC3n khai", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c ch\u01B0a tri\u1EC3n khai theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "ch\u01B0a tri\u1EC3n khai theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "m\u1ED9c theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["05. M\u1ED8C"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c \u0111ang \u1EDF h\xE0n theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["06.1. H\xC0N"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c \u0111ang \u1EDF fitting theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["03. FITTING"] }] } },
+  { "cau": "tr\u1EA7n \u1EDF c\xF4ng \u0111o\u1EA1n ngu\u1ED9i", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "phan_loai_nhom_san_pham", "op": "bang", "gt": ["07. TR\u1EA6N"] }, { "cot": "tinh_trang", "op": "bang", "gt": ["05.2. NGU\u1ED8I"] }] } },
+  { "cau": "gi\u01B0\u1EDDng \u1EDF c\xF4ng \u0111o\u1EA1n ph\xF4i", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "phan_loai_nhom_san_pham", "op": "bang", "gt": ["04. GI\u01AF\u1EDCNG"] }, { "cot": "tinh_trang", "op": "bang", "gt": ["07.2. PH\xD4I"] }] } },
+  { "cau": "khung g\u01B0\u01A1ng \u1EDF c\xF4ng \u0111o\u1EA1n ph\xF4i", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "phan_loai_nhom_san_pham", "op": "bang", "gt": ["05. KHUNG G\u01AF\u01A0NG"] }, { "cot": "tinh_trang", "op": "bang", "gt": ["07.2. PH\xD4I"] }] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c \u0111ang \u1EDF ngu\u1ED9i x\u01B0\u1EDFng 8AB", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["05.2. NGU\u1ED8I"] }, { "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c \u0111ang \u1EDF ngu\u1ED9i x\u01B0\u1EDFng 8C", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["05.2. NGU\u1ED8I"] }, { "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }] } },
+  { "cau": "x\u01B0\u1EDFng 5A c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c \u1EDF b\u1ECDc n\u1EC7m", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["04.1. B\u1ECCC N\u1EC6M"] }, { "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c x\u01B0\u1EDFng 4A theo c\xF4ng \u0111o\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }] } },
+  { "cau": "x\u01B0\u1EDFng 4A chia theo c\xF4ng \u0111o\u1EA1n hi\u1EC7n t\u1EA1i", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }] } },
+  { "cau": "x\u01B0\u1EDFng 3A chia theo c\xF4ng \u0111o\u1EA1n hi\u1EC7n t\u1EA1i", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "s\u1ED1 h\u1EA1ng m\u1EE5c tr\u1EC5 h\u1EA1n giao", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "bao nhi\xEAu h\u1EA1ng m\u1EE5c giao tr\u1EC5", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c tr\u1EC5 h\u1EA1n theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "qu\xE1 h\u1EA1n giao theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao theo PM", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pm"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "ai l\xE0 PM nhi\u1EC1u h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pm"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PM n\xE0o c\xF3 nhi\u1EC1u h\u1EA1ng m\u1EE5c tr\u1EC5 h\u1EA1n nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pm"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "danh s\xE1ch hex qu\xE1 h\u1EA1n giao x\u01B0\u1EDFng 5A", "tv": { "bang": "production_status_app", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }] } },
+  { "cau": "danh s\xE1ch hex qu\xE1 h\u1EA1n giao x\u01B0\u1EDFng 4A", "tv": { "bang": "production_status_app", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }] } },
+  { "cau": "li\u1EC7t k\xEA h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao x\u01B0\u1EDFng 8AB", "tv": { "bang": "production_status_app", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }] } },
+  { "cau": "kh\xE1ch h\xE0ng n\xE0o c\xF2n nhi\u1EC1u gi\xE1 tr\u1ECB ch\u01B0a nh\u1EADp nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khach_hang"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "kh\xE1ch h\xE0ng n\xE0o c\xF2n l\u1EA1i nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khach_hang"], "loc": [] } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF2n nhi\u1EC1u gi\xE1 tr\u1ECB ch\u01B0a nh\u1EADp kho nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF2n l\u1EA1i nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [] } },
+  { "cau": "gi\xE1 tr\u1ECB c\xF2n l\u1EA1i theo nh\xF3m s\u1EA3n ph\u1EA9m v\xE0 x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["phan_loai_nhom_san_pham", "xuong_chinh"], "loc": [] } },
+  { "cau": "c\xF2n l\u1EA1i theo nh\xF3m s\u1EA3n ph\u1EA9m v\xE0 x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["phan_loai_nhom_san_pham", "xuong_chinh"], "loc": [] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c kh\xF4ng c\xF3 k\u1EBF ho\u1EA1ch", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_khnk_thang", "op": "rong" }, { "cot": "ngay_khnk_tuan", "op": "rong" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c ch\u01B0a c\xF3 k\u1EBF ho\u1EA1ch nh\u1EADp kho", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "ngay_khnk_thang", "op": "rong" }, { "cot": "ngay_khnk_tuan", "op": "rong" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "bao nhi\xEAu h\u1EA1ng m\u1EE5c ngo\xE0i k\u1EBF ho\u1EA1ch", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_khnk_thang", "op": "rong" }, { "cot": "ngay_khnk_tuan", "op": "rong" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c kh\xF4ng c\xF3 k\u1EBF ho\u1EA1ch theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_khnk_thang", "op": "rong" }, { "cot": "ngay_khnk_tuan", "op": "rong" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "kh\xF4ng c\xF3 k\u1EBF ho\u1EA1ch theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_khnk_thang", "op": "rong" }, { "cot": "ngay_khnk_tuan", "op": "rong" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c ch\u01B0a c\xF3 phi\u1EBFu", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "tinh_trang_phieu", "op": "bang", "gt": "CH\u01AFA PHI\u1EBEU" }] } },
+  { "cau": "bao nhi\xEAu h\u1EA1ng m\u1EE5c ch\u01B0a t\xEDnh phi\u1EBFu", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "tinh_trang_phieu", "op": "bang", "gt": "CH\u01AFA PHI\u1EBEU" }] } },
+  { "cau": "s\u1ED1 h\u1EA1ng m\u1EE5c c\xF3 gi\xE1 tr\u1ECB c\xF2n l\u1EA1i l\u1EDBn h\u01A1n 3 t\u1EF7 theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 3e3 }] } },
+  { "cau": "s\u1ED1 h\u1EA1ng m\u1EE5c c\xF3 gi\xE1 tr\u1ECB c\xF2n l\u1EA1i l\u1EDBn h\u01A1n 5 t\u1EF7 theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 5e3 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c gi\xE1 tr\u1ECB c\xF2n l\u1EA1i tr\xEAn 3 t\u1EF7", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 3e3 }] } },
+  { "cau": "s\u1EA3n xu\u1EA5t theo kh\xE1ch h\xE0ng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khach_hang"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo kh\xE1ch h\xE0ng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khach_hang"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo khu v\u1EF1c d\u1EF1 \xE1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khu_vuc_du_an"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c x\u01B0\u1EDFng 3A theo th\u1EDDi gian \u1EDF c\xF4ng \u0111o\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["so_ngay_cd_hien_tai"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c x\u01B0\u1EDFng 5A theo th\u1EDDi gian \u1EDF c\xF4ng \u0111o\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["so_ngay_cd_hien_tai"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }] } },
+  { "cau": "s\u1ED1 h\u1EA1ng m\u1EE5c theo th\u1EDDi gian \u1EDF c\xF4ng \u0111o\u1EA1n x\u01B0\u1EDFng 8AB", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["so_ngay_cd_hien_tai"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }] } },
+  { "cau": "v\u1EADt t\u01B0 ch\u01B0a mua theo c\xF4ng tr\xECnh", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "trang_thai", "op": "bang", "gt": ["1.CH\u01AFA MUA"] }] } },
+  { "cau": "PR ch\u01B0a mua theo c\xF4ng tr\xECnh", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "trang_thai", "op": "bang", "gt": ["1.CH\u01AFA MUA"] }] } },
+  { "cau": "v\u1EADt t\u01B0 ch\u01B0a mua theo t\u1EEBng c\xF4ng tr\xECnh", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "trang_thai", "op": "bang", "gt": ["1.CH\u01AFA MUA"] }] } },
+  { "cau": "c\xF3 bao nhi\xEAu PR \u0111ang mua tr\u1EC5 h\u1EB9n", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "trang_thai", "op": "bang", "gt": ["2.\u0110ANG MUA"] }] } },
+  { "cau": "PR \u0111ang mua tr\u1EC5 h\u1EB9n", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "trang_thai", "op": "bang", "gt": ["2.\u0110ANG MUA"] }] } },
+  { "cau": "v\u1EADt t\u01B0 \u0111ang mua qu\xE1 h\u1EB9n", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "trang_thai", "op": "bang", "gt": ["2.\u0110ANG MUA"] }] } },
+  { "cau": "PR tr\u1EC5 h\u1EB9n theo nh\xF3m v\u1EADt t\u01B0", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nhom_vt"], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "v\u1EADt t\u01B0 tr\u1EC5 h\u1EB9n theo nh\xF3m v\u1EADt t\u01B0", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nhom_vt"], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "v\u1EADt t\u01B0 nh\xF3m g\u1ED7 ch\u01B0a v\u1EC1 theo c\xF4ng tr\xECnh", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "nhom_vt", "op": "bang", "gt": ["101 - G\u1ED7"] }] } },
+  { "cau": "v\u1EADt t\u01B0 nh\xF3m kim lo\u1EA1i ch\u01B0a v\u1EC1 theo c\xF4ng tr\xECnh", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "nhom_vt", "op": "bang", "gt": ["105 - Kim lo\u1EA1i"] }] } },
+  { "cau": "keo ch\u01B0a v\u1EC1", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "nhom_vt", "op": "bang", "gt": ["113 - Keo"] }] } },
+  { "cau": "nh\xE0 cung c\u1EA5p n\xE0o giao tr\u1EC5 nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nha_cung_cap"], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "nh\xE0 cung c\u1EA5p n\xE0o tr\u1EC5 h\u1EB9n nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nha_cung_cap"], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PR tr\u1EC5 h\u1EB9n theo nh\xE0 cung c\u1EA5p", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nha_cung_cap"], "loc": [{ "cot": "ngay_du_kien_giao_hang_pmh_nhap", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "top 1 nh\xF3m v\u1EADt t\u01B0 nhi\u1EC1u PR nh\u1EA5t", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nhom_vt"], "loc": [], "gioiHan": 1 } },
+  { "cau": "top 5 nh\xF3m v\u1EADt t\u01B0 nhi\u1EC1u PR nh\u1EA5t", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nhom_vt"], "loc": [], "gioiHan": 5 } },
+  { "cau": "v\u1EADt t\u01B0 theo nh\xF3m v\u1EADt t\u01B0 top 1", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["nhom_vt"], "loc": [], "gioiHan": 1 } },
+  { "cau": "t\u1ED3n kho theo c\xF4ng tr\xECnh top 3", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [], "gioiHan": 3 } },
+  { "cau": "top 1 c\xF4ng tr\xECnh t\u1ED3n kho nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [], "gioiHan": 1 } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o t\u1ED3n kho nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [] } },
+  { "cau": "t\u1ED3n kho qu\xE1 10 th\xE1ng theo c\xF4ng tr\xECnh", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_thang_ton_kho", "op": "lon_hon", "gt": 10 }] } },
+  { "cau": "t\u1ED3n kho qu\xE1 3 th\xE1ng theo c\xF4ng tr\xECnh", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_thang_ton_kho", "op": "lon_hon", "gt": 3 }] } },
+  { "cau": "t\u1ED3n kho tr\xEAn 5 th\xE1ng", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": [], "loc": [{ "cot": "so_thang_ton_kho", "op": "lon_hon", "gt": 5 }] } },
+  { "cau": "h\xE0ng t\u1ED3n l\xE2u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [], "cotXem": ["date", "ma_id_sap", "ten_cong_trinh", "ten_san_pham", "gia_tri", "so_thang_ton_kho"], "sap": { "cot": 5, "giam": true } } },
+  { "cau": "t\u1ED3n kho l\xE2u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [], "cotXem": ["date", "ma_id_sap", "ten_cong_trinh", "ten_san_pham", "gia_tri", "so_thang_ton_kho"], "sap": { "cot": 5, "giam": true } } },
+  { "cau": "m\xE3 n\xE0o t\u1ED3n l\xE2u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [], "cotXem": ["date", "ma_id_sap", "ten_cong_trinh", "ten_san_pham", "gia_tri", "so_thang_ton_kho"], "sap": { "cot": 5, "giam": true } } },
+  { "cau": "gi\xE1 tr\u1ECB t\u1ED3n kho theo nh\xF3m c\xF4ng tr\xECnh", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }], "nhom": ["nhom_ct"], "loc": [] } },
+  { "cau": "t\u1ED3n kho theo nh\xF3m c\xF4ng tr\xECnh", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["nhom_ct"], "loc": [] } },
+  { "cau": "\u0111i\u1EC3m danh tu\u1EA7n tr\u01B0\u1EDBc theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tb", "cot": "so_luong_cong_nhan" }, { "ham": "tong", "cot": "gio_cong_hanh_chinh" }, { "ham": "tong", "cot": "gio_cong_tang_ca" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "\u0111i\u1EC3m danh theo x\u01B0\u1EDFng th\xE1ng n\xE0y", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tb", "cot": "so_luong_cong_nhan" }, { "ham": "tong", "cot": "gio_cong_hanh_chinh" }, { "ham": "tong", "cot": "gio_cong_tang_ca" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "\u0111i\u1EC3m danh qu\xFD 3 theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tb", "cot": "so_luong_cong_nhan" }, { "ham": "tong", "cot": "gio_cong_hanh_chinh" }, { "ham": "tong", "cot": "gio_cong_tang_ca" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "b\xECnh qu\xE2n s\u1ED1 c\xF4ng nh\xE2n x\u01B0\u1EDFng 3A th\xE1ng 3", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tb", "cot": "so_luong_cong_nhan" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-03-01", "den": "2026-03-31" } },
+  { "cau": "trung b\xECnh s\u1ED1 c\xF4ng nh\xE2n x\u01B0\u1EDFng 3A th\xE1ng 9", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tb", "cot": "so_luong_cong_nhan" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "b\xECnh qu\xE2n s\u1ED1 c\xF4ng nh\xE2n x\u01B0\u1EDFng 3A h\xF4m qua", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tb", "cot": "so_luong_cong_nhan" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-10-18", "den": "2026-10-18" } },
+  { "cau": "k\u1EBF ho\u1EA1ch s\u1EA3n xu\u1EA5t theo x\u01B0\u1EDFng th\xE1ng 11", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-11-01", "den": "2026-11-30" } },
+  { "cau": "khsx theo x\u01B0\u1EDFng th\xE1ng 11", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-11-01", "den": "2026-11-30" } },
+  { "cau": "d\u1EEF li\u1EC7u k\u1EBF ho\u1EA1ch n\u0103m theo x\u01B0\u1EDFng", "tv": { "bang": "khsx_nam", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-01-01", "den": "2026-12-31" } },
+  { "cau": "m\u1EE5c ti\xEAu n\u0103m theo x\u01B0\u1EDFng", "tv": { "bang": "khsx_nam", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-01-01", "den": "2026-12-31" } },
+  { "cau": "v\u01B0\u1EDBng m\u1EAFc theo ng\u01B0\u1EDDi x\u1EED l\xFD", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["handler"], "loc": [] } },
+  { "cau": "v\u01B0\u1EDBng m\u1EAFc chia theo ng\u01B0\u1EDDi x\u1EED l\xFD", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["handler"], "loc": [] } },
+  { "cau": "v\u01B0\u1EDBng m\u1EAFc qu\xE1 h\u1EA1n theo ng\u01B0\u1EDDi x\u1EED l\xFD", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["handler"], "loc": [{ "cot": "qua_han", "op": "bang", "gt": "Qu\xE1 h\u1EA1n" }] } },
+  { "cau": "ai \u0111ang c\xF3 nhi\u1EC1u v\u01B0\u1EDBng m\u1EAFc qu\xE1 h\u1EA1n nh\u1EA5t", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["handler"], "loc": [{ "cot": "qua_han", "op": "bang", "gt": "Qu\xE1 h\u1EA1n" }] } },
+  { "cau": "v\u01B0\u1EDBng m\u1EAFc tu\u1EA7n tr\u01B0\u1EDBc chia theo lo\u1EA1i v\u01B0\u1EDBng m\u1EAFc", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["category"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "v\u01B0\u1EDBng m\u1EAFc theo lo\u1EA1i h\xF4m nay", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["category"], "loc": [], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "v\u01B0\u1EDBng m\u1EAFc theo lo\u1EA1i th\xE1ng n\xE0y", "tv": { "bang": "vuong_mac", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": ["category"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo BOP", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["bop"], "loc": [] } },
+  { "cau": "gi\xE1 tr\u1ECB c\xF2n l\u1EA1i theo BOP", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["bop"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c chia theo BOP", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["bop"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo t\xECnh tr\u1EA1ng IPO", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang_ipo"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c chia theo t\xECnh tr\u1EA1ng IPO", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang_ipo"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo t\xECnh tr\u1EA1ng tri\u1EC3n khai b\u1EA3n v\u1EBD", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang_trien_khai_ban_ve"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c chia theo t\xECnh tr\u1EA1ng tri\u1EC3n khai b\u1EA3n v\u1EBD", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang_trien_khai_ban_ve"], "loc": [] } },
+  { "cau": "x\u01B0\u1EDFng 5A chia theo nh\xF3m s\u1EA3n ph\u1EA9m", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["phan_loai_nhom_san_pham"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c x\u01B0\u1EDFng 3A theo nh\xF3m s\u1EA3n ph\u1EA9m", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["phan_loai_nhom_san_pham"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c x\u01B0\u1EDFng 2A theo nh\xF3m s\u1EA3n ph\u1EA9m", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["phan_loai_nhom_san_pham"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["2A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao x\u01B0\u1EDFng 8C", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao x\u01B0\u1EDFng 5A", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao x\u01B0\u1EDFng 3A", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }, { "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c ch\u01B0a nh\u1EADp kho theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "gi\xE1 tr\u1ECB ch\u01B0a nh\u1EADp kho theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF2n l\u1EA1i ch\u01B0a nh\u1EADp kho theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "t\u1ED5ng s\u1ED1 l\u01B0\u1EE3ng nh\u1EADp kho th\xE1ng 9", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_nhap_kho" }], "nhom": [], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "s\u1ED1 l\u01B0\u1EE3ng nh\u1EADp kho n\u0103m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_nhap_kho" }], "nhom": [], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "s\u1ED1 l\u01B0\u1EE3ng nh\u1EADp kho qu\xFD 3", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_nhap_kho" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "t\u1ED5ng s\u1ED1 l\u01B0\u1EE3ng xu\u1EA5t kho n\u0103m nay theo x\u01B0\u1EDFng", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_xuat_kho" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "s\u1ED1 l\u01B0\u1EE3ng xu\u1EA5t kho theo x\u01B0\u1EDFng 30 ng\xE0y", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_xuat_kho" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-09-20", "den": "2026-10-19" } },
+  { "cau": "s\u1ED1 l\u01B0\u1EE3ng xu\u1EA5t kho theo x\u01B0\u1EDFng th\xE1ng 8", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_xuat_kho" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-08-01", "den": "2026-08-31" } },
+  { "cau": "t\u1ED3n kho theo t\xECnh tr\u1EA1ng k\u1EBF ho\u1EA1ch giao h\xE0ng", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["tinh_trang_ke_hoach_giao_hang"], "loc": [] } },
+  { "cau": "t\u1ED3n kho chia theo t\xECnh tr\u1EA1ng k\u1EBF ho\u1EA1ch giao h\xE0ng", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["tinh_trang_ke_hoach_giao_hang"], "loc": [] } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o t\u1ED3n kho tr\xEAn 3 th\xE1ng nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_thang_ton_kho", "op": "lon_hon", "gt": 3 }] } },
+  { "cau": "top 3 c\xF4ng tr\xECnh t\u1ED3n kho tr\xEAn 3 th\xE1ng", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_thang_ton_kho", "op": "lon_hon", "gt": 3 }], "gioiHan": 3 } },
+  { "cau": "top 5 c\xF4ng tr\xECnh t\u1ED3n kho tr\xEAn 3 th\xE1ng", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_thang_ton_kho", "op": "lon_hon", "gt": 3 }], "gioiHan": 5 } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi theo x\u01B0\u1EDFng qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi theo x\u01B0\u1EDFng th\xE1ng 9/2025", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2025-09-01", "den": "2025-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi theo x\u01B0\u1EDFng tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "t\u1ED5ng s\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng th\xE1ng 9/2025 theo x\u01B0\u1EDFng", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_don_hang_tong" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2025-09-01", "den": "2025-09-30" } },
+  { "cau": "s\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng theo x\u01B0\u1EDFng qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_don_hang_tong" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "s\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng theo x\u01B0\u1EDFng tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_don_hang_tong" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi theo c\xF4ng tr\xECnh th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF3 nhi\u1EC1u \u0111\u01A1n h\xE0ng m\u1EDBi nh\u1EA5t n\u0103m nay", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF3 nhi\u1EC1u \u0111\u01A1n h\xE0ng m\u1EDBi nh\u1EA5t 7 ng\xE0y qua", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-13", "den": "2026-10-19" } },
+  { "cau": "h\u1EA1ng m\u1EE5c s\u1EAFp \u0111\u1EBFn h\u1EA1n giao", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c s\u1EAFp t\u1EDBi h\u1EA1n giao", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c s\u1EAFp \u0111\u1EBFn h\u1EA1n giao theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o s\u1EAFp \u0111\u1EBFn h\u1EA1n giao", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF4ng tr\xECnh s\u1EAFp t\u1EDBi h\u1EA1n giao h\xE0ng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "gi\xE1 tr\u1ECB c\xF2n l\u1EA1i x\u01B0\u1EDFng 3A theo c\xF4ng \u0111o\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }] } },
+  { "cau": "gi\xE1 tr\u1ECB c\xF2n l\u1EA1i x\u01B0\u1EDFng 8C theo c\xF4ng \u0111o\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }] } },
+  { "cau": "gi\xE1 tr\u1ECB c\xF2n l\u1EA1i x\u01B0\u1EDFng 8AB theo c\xF4ng \u0111o\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["tinh_trang"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }] } },
+  { "cau": "t\xEDnh phi\u1EBFu th\xE1ng 9 so v\u1EDBi c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-09-01", "den": "2026-09-30", "soSanh": { "tu": "2025-09-01", "den": "2025-09-30", "ten": "c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc" } } },
+  { "cau": "xu\u1EA5t kho th\xE1ng 9 so v\u1EDBi c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-09-01", "den": "2026-09-30", "soSanh": { "tu": "2025-09-01", "den": "2025-09-30", "ten": "c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc" } } },
+  { "cau": "nh\u1EADp kho th\xE0nh ph\u1EA9m th\xE1ng 9 so v\u1EDBi c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-09-01", "den": "2026-09-30", "soSanh": { "tu": "2025-09-01", "den": "2025-09-30", "ten": "c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc" } } },
+  { "cau": "nh\u1EADp kho qu\xFD 3 so v\u1EDBi c\xF9ng k\u1EF3 n\u0103m ngo\xE1i", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30", "soSanh": { "tu": "2025-07-01", "den": "2025-09-30", "ten": "c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc" } } },
+  { "cau": "nh\u1EADp kho qu\xFD 3 so v\u1EDBi c\xF9ng k\u1EF3", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30", "soSanh": { "tu": "2025-07-01", "den": "2025-09-30", "ten": "c\xF9ng k\u1EF3 n\u0103m tr\u01B0\u1EDBc" } } },
+  { "cau": "so s\xE1nh nh\u1EADp kho x\u01B0\u1EDFng 3A th\xE1ng 3 v\u1EDBi h\xF4m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-03-01", "den": "2026-03-31", "soSanh": { "tu": "2026-10-19", "den": "2026-10-19", "ten": "h\xF4m nay (19/10)" } } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi x\u01B0\u1EDFng 8C tu\u1EA7n tr\u01B0\u1EDBc so v\u1EDBi tu\u1EA7n 41", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2026-10-12", "den": "2026-10-18", "soSanh": { "tu": "2026-10-05", "den": "2026-10-11", "ten": "tu\u1EA7n 41 (05/10 \u2013 11/10)" } } },
+  { "cau": "tri\u1EC3n khai b\u1EA3n v\u1EBD x\u01B0\u1EDFng 2A th\xE1ng 9 so v\u1EDBi tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["2A"] }], "tu": "2026-09-01", "den": "2026-09-30", "soSanh": { "tu": "2026-10-12", "den": "2026-10-18", "ten": "tu\u1EA7n tr\u01B0\u1EDBc (12/10 \u2013 18/10)" } } },
+  { "cau": "doanh thu th\xE1ng n\xE0y", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "doanh thu tu\u1EA7n tr\u01B0\u1EDBc \u0111\u01B0\u1EE3c bao nhi\xEAu", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "doanh thu qu\xFD 3 \u0111\u01B0\u1EE3c bao nhi\xEAu", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "l\u0169y k\u1EBF nh\u1EADp kho n\u0103m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "nh\u1EADp kho l\u0169y k\u1EBF t\u1EEB \u0111\u1EA7u n\u0103m", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "nh\u1EADp kho l\u0169y k\u1EBF", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m theo c\xF4ng tr\xECnh tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "xu\u1EA5t kho tu\u1EA7n n\xE0y chia theo c\xF4ng tr\xECnh", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "xu\u1EA5t kho qu\xFD 2 n\u0103m 2025 chia theo c\xF4ng tr\xECnh", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "xu\u1EA5t kho n\u0103m nay c\u1EE7a x\u01B0\u1EDFng 8AB chia theo c\xF4ng tr\xECnh", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "\u0111\u01A1n h\xE0ng x\u01B0\u1EDFng 4A theo c\xF4ng tr\xECnh qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "nh\u1EADp kho th\xE0nh ph\u1EA9m h\xF4m qua c\u1EE7a x\u01B0\u1EDFng 8AB chia theo c\xF4ng tr\xECnh", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }], "tu": "2026-10-18", "den": "2026-10-18" } },
+  { "cau": "t\xEDnh phi\u1EBFu theo khu v\u1EF1c d\u1EF1 \xE1n qu\xFD 2 n\u0103m 2025", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khu_vuc_du_an"], "loc": [], "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi t\u1EEB 1/9 \u0111\u1EBFn 15/9 chia theo khu v\u1EF1c d\u1EF1 \xE1n", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khu_vuc_du_an"], "loc": [], "tu": "2026-09-01", "den": "2026-09-15" } },
+  { "cau": "phi\u1EBFu \u0111\xE3 t\xEDnh th\xE1ng n\xE0y chia theo khu v\u1EF1c d\u1EF1 \xE1n", "tv": { "bang": "pthsp_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khu_vuc_du_an"], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "li\u1EC7t k\xEA hex nh\u1EADp kho h\xF4m nay x\u01B0\u1EDFng 3A", "tv": { "bang": "nhap_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "li\u1EC7t k\xEA hex nh\u1EADp kho h\xF4m nay x\u01B0\u1EDFng 5A", "tv": { "bang": "nhap_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["5A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "li\u1EC7t k\xEA hex nh\u1EADp kho h\xF4m nay x\u01B0\u1EDFng 4A", "tv": { "bang": "nhap_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "\u0111\u01A1n h\xE0ng c\xF3 tr\u1ECB gi\xE1 cao nh\u1EA5t th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "max", "cot": "tri_gia_don_hang_tong" }], "nhom": [], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "\u0111\u01A1n h\xE0ng tr\u1ECB gi\xE1 l\u1EDBn nh\u1EA5t tu\u1EA7n tr\u01B0\u1EDBc", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "max", "cot": "tri_gia_don_hang_tong" }], "nhom": [], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "\u0111\u01A1n h\xE0ng c\xF3 tr\u1ECB gi\xE1 cao nh\u1EA5t th\xE1ng 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "max", "cot": "tri_gia_don_hang_tong" }], "nhom": [], "loc": [], "tu": "2026-03-01", "den": "2026-03-31" } },
+  { "cau": "tr\u1ECB gi\xE1 trung b\xECnh m\u1ED7i \u0111\u01A1n h\xE0ng qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tb", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }], "nhom": [], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "tr\u1ECB gi\xE1 trung b\xECnh m\u1ED7i \u0111\u01A1n h\xE0ng th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tb", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }], "nhom": [], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "trung b\xECnh m\u1ED7i \u0111\u01A1n h\xE0ng bao nhi\xEAu ti\u1EC1n th\xE1ng n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tb", "cot": "tri_gia_don_hang_tong" }], "nhom": [], "loc": [], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m theo PC th\xE1ng 9/2025", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:ten_pc"], "loc": [], "tu": "2025-09-01", "den": "2025-09-30" } },
+  { "cau": "nh\u1EADp kho theo PC t\u1EEB 1/9 \u0111\u1EBFn 15/9", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:ten_pc"], "loc": [], "tu": "2026-09-01", "den": "2026-09-15" } },
+  { "cau": "\u0111\u01A1n h\xE0ng t\u1EEB 1/9 \u0111\u1EBFn 15/9 chia theo PC", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pc"], "loc": [], "tu": "2026-09-01", "den": "2026-09-15" } },
+  { "cau": "top 10 h\u1EA1ng m\u1EE5c xu\u1EA5t kho th\xE0nh ph\u1EA9m th\xE1ng tr\u01B0\u1EDBc", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_hang_muc"], "loc": [], "gioiHan": 10, "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "top 6 h\u1EA1ng m\u1EE5c \u0111\u01A1n h\xE0ng nhi\u1EC1u nh\u1EA5t qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_hang_muc"], "loc": [], "gioiHan": 6, "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "top 10 h\u1EA1ng m\u1EE5c b\u1EA3n v\u1EBD tri\u1EC3n khai nhi\u1EC1u nh\u1EA5t th\xE1ng n\xE0y", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_hang_muc"], "loc": [], "gioiHan": 10, "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "b\u1EA3n v\u1EBD tri\u1EC3n khai th\xE1ng n\xE0y x\u01B0\u1EDFng 8C chia theo h\u1EA1ng m\u1EE5c", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_hang_muc"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2026-10-01", "den": "2026-10-19" } },
+  { "cau": "b\u1EA3n v\u1EBD tri\u1EC3n khai qu\xFD 3 x\u01B0\u1EDFng 8C chia theo h\u1EA1ng m\u1EE5c", "tv": { "bang": "tkbv_full", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_hang_muc"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng m\u1EDBi x\u01B0\u1EDFng 8C theo h\u1EA1ng m\u1EE5c qu\xFD 3", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_hang_muc"], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "t\u1ED3n kho theo PC", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["sx:ten_pc"], "loc": [] } },
+  { "cau": "PC n\xE0o c\xF3 t\u1ED3n kho nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["sx:ten_pc"], "loc": [] } },
+  { "cau": "t\u1ED3n kho chia theo PC", "tv": { "bang": "ton_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri" }, { "ham": "dem_khac", "cot": "ma_id_sap" }], "nhom": ["sx:ten_pc"], "loc": [] } },
+  { "cau": "PC n\xE0o c\xF3 nhi\u1EC1u h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pc"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao theo PC", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pc"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "qu\xE1 h\u1EA1n giao theo t\u1EEBng PC", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pc"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PC n\xE0o c\xF2n nhi\u1EC1u gi\xE1 tr\u1ECB ch\u01B0a nh\u1EADp kho nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pc"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "gi\xE1 tr\u1ECB c\xF2n l\u1EA1i theo PC", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pc"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c ch\u01B0a nh\u1EADp kho theo PC", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pc"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PM n\xE0o \u0111\u01A1n h\xE0ng nhi\u1EC1u nh\u1EA5t th\xE1ng 9", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_pm"], "loc": [], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m theo PM t\u1EEB 1/9 \u0111\u1EBFn 15/9", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:ten_pm"], "loc": [], "tu": "2026-09-01", "den": "2026-09-15" } },
+  { "cau": "xu\u1EA5t kho theo PM n\u0103m nay", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:ten_pm"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "top 10 kh\xE1ch h\xE0ng xu\u1EA5t kho th\xE1ng 3", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khach_hang"], "loc": [], "gioiHan": 10, "tu": "2026-03-01", "den": "2026-03-31" } },
+  { "cau": "top 10 kh\xE1ch h\xE0ng nh\u1EADp kho n\u0103m nay", "tv": { "bang": "nhap_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_nhap_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khach_hang"], "loc": [], "gioiHan": 10, "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "top 6 kh\xE1ch h\xE0ng \u0111\u01A1n h\xE0ng nhi\u1EC1u nh\u1EA5t qu\xFD 2 n\u0103m 2025", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:khach_hang"], "loc": [], "gioiHan": 6, "tu": "2025-04-01", "den": "2025-06-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng n\u0103m nay chia theo nh\xF3m s\u1EA3n ph\u1EA9m v\xE0 x\u01B0\u1EDFng", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:phan_loai_nhom_san_pham", "xuong_chinh"], "loc": [], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m theo nh\xF3m s\u1EA3n ph\u1EA9m v\xE0 x\u01B0\u1EDFng qu\xFD 3", "tv": { "bang": "xuat_kho", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_xuat_kho" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:phan_loai_nhom_san_pham", "xuong_chinh"], "loc": [], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "\u0111\u01A1n h\xE0ng theo nh\xF3m s\u1EA3n ph\u1EA9m v\xE0 x\u01B0\u1EDFng tu\u1EA7n n\xE0y", "tv": { "bang": "dht", "kieu": "tong", "do": [{ "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["sx:phan_loai_nhom_san_pham", "xuong_chinh"], "loc": [], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "li\u1EC7t k\xEA nh\u1EADp kho th\xE0nh ph\u1EA9m th\xE1ng 9 gi\xE1 tr\u1ECB tr\xEAn 10 t\u1EF7", "tv": { "bang": "nhap_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "thanh_tien_nhap_kho", "op": "lon_hon", "gt": 1e4 }], "tu": "2026-09-01", "den": "2026-09-30" } },
+  { "cau": "li\u1EC7t k\xEA xu\u1EA5t kho qu\xFD 3 gi\xE1 tr\u1ECB tr\xEAn 6 t\u1EF7", "tv": { "bang": "xuat_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "thanh_tien_xuat_kho", "op": "lon_hon", "gt": 6e3 }], "tu": "2026-07-01", "den": "2026-09-30" } },
+  { "cau": "xu\u1EA5t kho th\xE0nh ph\u1EA9m n\u0103m nay c\xE1c d\xF2ng tr\xEAn 1 t\u1EF7", "tv": { "bang": "xuat_kho", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "thanh_tien_xuat_kho", "op": "lon_hon", "gt": 1e3 }], "tu": "2026-01-01", "den": "2026-10-19" } },
+  { "cau": "x\u01B0\u1EDFng 4A h\xF4m nay t\xEDnh phi\u1EBFu h\u1EA1ng m\u1EE5c n\xE0o", "tv": { "bang": "pthsp_full", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "x\u01B0\u1EDFng 8AB h\xF4m nay \u0111\u01A1n h\xE0ng h\u1EA1ng m\u1EE5c n\xE0o", "tv": { "bang": "dht", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "h\xF4m nay x\u01B0\u1EDFng 2A b\u1EA3n v\u1EBD tri\u1EC3n khai nh\u1EEFng h\u1EA1ng m\u1EE5c n\xE0o", "tv": { "bang": "tkbv_full", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["2A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF3 nhi\u1EC1u h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao theo c\xF4ng tr\xECnh", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "qu\xE1 h\u1EA1n giao theo t\u1EEBng c\xF4ng tr\xECnh", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "kh\xE1ch h\xE0ng n\xE0o c\xF3 nhi\u1EC1u h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khach_hang"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n giao theo kh\xE1ch h\xE0ng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["khach_hang"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF3 nhi\u1EC1u h\u1EA1ng m\u1EE5c ch\u01B0a tri\u1EC3n khai nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c ch\u01B0a tri\u1EC3n khai theo c\xF4ng tr\xECnh", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "tinh_trang", "op": "bang", "gt": ["15. CH\u01AFA TRI\u1EC2N KHAI"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c nh\xF3m khung g\u01B0\u01A1ng theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "phan_loai_nhom_san_pham", "op": "bang", "gt": ["05. KHUNG G\u01AF\u01A0NG"] }] } },
+  { "cau": "nh\xF3m tr\u1EA7n chia theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "phan_loai_nhom_san_pham", "op": "bang", "gt": ["07. TR\u1EA6N"] }] } },
+  { "cau": "nh\xF3m khung g\u01B0\u01A1ng chia theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "phan_loai_nhom_san_pham", "op": "bang", "gt": ["05. KHUNG G\u01AF\u01A0NG"] }] } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng n\xE0y theo x\u01B0\u1EDFng", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-01", "den": "2026-10-31" } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng n\xE0y chia theo x\u01B0\u1EDFng", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-01", "den": "2026-10-31" } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng n\xE0y theo c\xF4ng tr\xECnh", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-01", "den": "2026-10-31" } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF3 k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng n\xE0y nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-01", "den": "2026-10-31" } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng 11 x\u01B0\u1EDFng 8C", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8C"] }], "tu": "2026-11-01", "den": "2026-11-30" } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng 11 x\u01B0\u1EDFng 4A", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-11-01", "den": "2026-11-30" } },
+  { "cau": "x\u01B0\u1EDFng 4A k\u1EBF ho\u1EA1ch nh\u1EADp kho th\xE1ng 11 bao nhi\xEAu", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-11-01", "den": "2026-11-30" } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho tu\u1EA7n n\xE0y theo c\xF4ng tr\xECnh", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-19", "den": "2026-10-25" } },
+  { "cau": "k\u1EBF ho\u1EA1ch nh\u1EADp kho tu\u1EA7n n\xE0y chia theo c\xF4ng tr\xECnh", "tv": { "bang": "khsx", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "dem_khac", "cot": "hex" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-19", "den": "2026-10-25" } },
+  { "cau": "\u0111\xFAng k\u1EBF ho\u1EA1ch tu\u1EA7n 41 theo x\u01B0\u1EDFng", "tv": { "bang": "phan_tich_kh_th", "kieu": "tong", "do": [{ "ham": "tong", "cot": "dung_ke_hoach" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-05", "den": "2026-10-11" } },
+  { "cau": "ph\xE2n t\xEDch KH-TH tu\u1EA7n 41 theo x\u01B0\u1EDFng", "tv": { "bang": "phan_tich_kh_th", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "tong", "cot": "nhap_kho_tuan" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-05", "den": "2026-10-11" } },
+  { "cau": "kh-th tu\u1EA7n 41 theo x\u01B0\u1EDFng", "tv": { "bang": "phan_tich_kh_th", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "tong", "cot": "nhap_kho_tuan" }], "nhom": ["xuong_chinh"], "loc": [], "tu": "2026-10-05", "den": "2026-10-11" } },
+  { "cau": "r\u1EDBt k\u1EBF ho\u1EA1ch tu\u1EA7n tr\u01B0\u1EDBc theo c\xF4ng tr\xECnh", "tv": { "bang": "phan_tich_kh_th", "kieu": "tong", "do": [{ "ham": "tong", "cot": "rot_ke_hoach" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "kh-th tu\u1EA7n tr\u01B0\u1EDBc theo c\xF4ng tr\xECnh", "tv": { "bang": "phan_tich_kh_th", "kieu": "tong", "do": [{ "ham": "tong", "cot": "thanh_tien_ke_hoach" }, { "ham": "tong", "cot": "nhap_kho_tuan" }], "nhom": ["ten_cong_trinh"], "loc": [], "tu": "2026-10-12", "den": "2026-10-18" } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo BOT", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["nhom_bot"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo nh\xF3m BOT", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["nhom_bot"], "loc": [] } },
+  { "cau": "BOT theo t\u1EEBng nh\xF3m", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["nhom_bot"], "loc": [] } },
+  { "cau": "BOT theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh", "nhom_bot"], "loc": [] } },
+  { "cau": "h\u1EA1ng m\u1EE5c theo nh\xF3m BOT v\xE0 x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["nhom_bot", "xuong_chinh"], "loc": [] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n k\u1EBF ho\u1EA1ch nh\u1EADp kho", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["1. Qu\xE1 h\u1EA1n KH"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n KH", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["1. Qu\xE1 h\u1EA1n KH"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c tr\u1EC5 k\u1EBF ho\u1EA1ch nh\u1EADp kho", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["1. Qu\xE1 h\u1EA1n KH"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c qu\xE1 h\u1EA1n k\u1EBF ho\u1EA1ch theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["1. Qu\xE1 h\u1EA1n KH"] }] } },
+  { "cau": "qu\xE1 h\u1EA1n KH nh\u1EADp kho theo t\u1EEBng x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["1. Qu\xE1 h\u1EA1n KH"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c s\u1EAFp \u0111\u1EBFn h\u1EA1n k\u1EBF ho\u1EA1ch nh\u1EADp kho", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["2. \u2264 14 ng\xE0y"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c s\u1EAFp t\u1EDBi h\u1EA1n KH theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["2. \u2264 14 ng\xE0y"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c \u0111\u1EA1t KH k\u1EF3 ch\u1EDD KH ti\u1EBFp", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["5. \u0110\u1EA1t KH k\u1EF3, ch\u1EDD KH ti\u1EBFp"] }] } },
+  { "cau": "bao nhi\xEAu h\u1EA1ng m\u1EE5c \u0111\u1EA1t k\u1EBF ho\u1EA1ch k\u1EF3", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "nhom_bot", "op": "bang", "gt": ["5. \u0110\u1EA1t KH k\u1EF3, ch\u1EDD KH ti\u1EBFp"] }] } },
+  { "cau": "bao nhi\xEAu h\u1EA1ng m\u1EE5c \u0111ang \u1EDF BOP P013", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "bop", "op": "bang", "gt": ["P013"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c \u1EDF b\u01B0\u1EDBc P016", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "bop", "op": "bang", "gt": ["P016"] }, { "cot": "ten_hang_muc", "op": "chua", "gt": "\u1EDF" }] } },
+  { "cau": "c\xF3 bao nhi\xEAu h\u1EA1ng m\u1EE5c \u0111ang \u1EDF GCVT", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "bop", "op": "bang", "gt": ["GCVT"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c \u1EDF BOP P013 theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "bop", "op": "bang", "gt": ["P013"] }, { "cot": "ten_hang_muc", "op": "chua", "gt": "\u1EDF" }] } },
+  { "cau": "GCVT theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "bop", "op": "bang", "gt": ["GCVT"] }] } },
+  { "cau": "h\u1EA1ng m\u1EE5c \u0111ang \u1EDF P020 theo x\u01B0\u1EDFng", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "tri_gia_don_hang_tong" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "bop", "op": "bang", "gt": ["P020"] }, { "cot": "ten_hang_muc", "op": "chua", "gt": "\u0111ang \u1EDF" }] } },
+  { "cau": "c\xF2n l\u1EA1i ch\u01B0a nh\u1EADp kho theo BOP", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["bop"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "gi\xE1 tr\u1ECB ch\u01B0a nh\u1EADp theo b\u01B0\u1EDBc s\u1EA3n xu\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["bop"], "loc": [{ "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF4ng tr\xECnh n\xE0o c\xF2n nhi\u1EC1u v\u1EADt t\u01B0 ch\u01B0a v\u1EC1 nh\u1EA5t", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "v\u1EADt t\u01B0 ch\u01B0a v\u1EC1 theo c\xF4ng tr\xECnh", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": ["ten_cong_trinh"], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "s\u1EAFp tr\u1EC5 bao nhi\xEAu h\u1EA1ng m\u1EE5c", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "m\u1EA5y h\u1EA1ng m\u1EE5c s\u1EAFp tr\u1EC5 h\u1EA1n", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "bao nhi\xEAu h\xE0ng s\u1EAFp tr\u1EC5", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "h\xE0ng tr\u1EC5 bao nhi\xEAu r\u1ED3i", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "\u0111ang tr\u1EC5 bao nhi\xEAu h\u1EA1ng m\u1EE5c", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "\u0111ang tr\u1EC5 h\u1EA1n m\u1EA5y h\u1EA1ng m\u1EE5c", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o \u0111ang ch\u1EADm nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o tr\u1EC5 nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "x\u01B0\u1EDFng n\xE0o \u0111ang tr\u1EC5 h\xE0ng nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["xuong_chinh"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PM n\xE0o \u0111ang \xF4m nhi\u1EC1u h\xE0ng tr\u1EC5 nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pm"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PM n\xE0o tr\u1EC5 nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pm"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "ai tr\u1EC5 h\xE0ng nhi\u1EC1u nh\u1EA5t", "tv": { "bang": "production_status_app", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "tong", "cot": "gia_tri_con_lai" }], "nhom": ["ten_pm"], "loc": [{ "cot": "ngay_can_giao", "op": "nho_hon", "gt": "2026-10-19" }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "PR n\xE0o ch\u01B0a v\u1EC1", "tv": { "bang": "vat_tu", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "v\u1EADt t\u01B0 n\xE0o ch\u01B0a v\u1EC1", "tv": { "bang": "vat_tu", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "nh\u1EEFng PR n\xE0o c\xF2n ch\u01B0a v\u1EC1", "tv": { "bang": "vat_tu", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "so_luong_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF2n bao nhi\xEAu PR ch\u01B0a mua", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "trang_thai", "op": "bang", "gt": ["1.CH\u01AFA MUA"] }] } },
+  { "cau": "PR ch\u01B0a mua c\xF2n bao nhi\xEAu", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "trang_thai", "op": "bang", "gt": ["1.CH\u01AFA MUA"] }] } },
+  { "cau": "c\xF2n m\u1EA5y PR ch\u01B0a mua", "tv": { "bang": "vat_tu", "kieu": "tong", "do": [{ "ham": "dem" }, { "ham": "dem_khac", "cot": "so_pr" }], "nhom": [], "loc": [{ "cot": "trang_thai", "op": "bang", "gt": ["1.CH\u01AFA MUA"] }] } },
+  { "cau": "x\u01B0\u1EDFng 4A h\xF4m nay c\xF3 bao nhi\xEAu ng\u01B0\u1EDDi \u0111i l\xE0m", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_cong_nhan" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["4A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "h\xF4m nay 8AB c\xF3 bao nhi\xEAu ng\u01B0\u1EDDi \u0111i l\xE0m", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_cong_nhan" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["8AB"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "h\xF4m nay 3A c\xF3 bao nhi\xEAu ng\u01B0\u1EDDi \u0111i l\xE0m", "tv": { "bang": "diem_danh", "kieu": "tong", "do": [{ "ham": "tong", "cot": "so_luong_cong_nhan" }], "nhom": [], "loc": [{ "cot": "xuong_chinh", "op": "bang", "gt": ["3A"] }], "tu": "2026-10-19", "den": "2026-10-19" } },
+  { "cau": "h\xE0ng n\xE0o s\u1EAFp tr\u1EC5", "tv": { "bang": "production_status_app", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } },
+  { "cau": "c\xF3 h\u1EA1ng m\u1EE5c n\xE0o s\u1EAFp tr\u1EC5 kh\xF4ng", "tv": { "bang": "production_status_app", "kieu": "dong", "do": [], "nhom": [], "loc": [{ "cot": "ngay_can_giao", "op": "trong_khoang", "gt": ["2026-10-19", "2026-11-02"] }, { "cot": "gia_tri_con_lai", "op": "lon_hon", "gt": 0 }] } }
+];
+
+// src/server/hoiDapAi.ts
+var aiBat = () => !!process.env.HOI_DAP_AI_KEY;
+var URL_AI = () => (process.env.HOI_DAP_AI_URL || "https://generativelanguage.googleapis.com/v1beta/openai").replace(/\/+$/, "");
+var MODEL_AI = () => process.env.HOI_DAP_AI_MODEL || "gemini-flash-lite-latest";
+var SUY_NGHI = () => process.env.HOI_DAP_AI_SUY_NGHI ?? "low";
+var MAX_NGAY = () => Number(process.env.HOI_DAP_AI_MAX_NGAY) || 1e3;
+var CO_TEN_RIENG = /* @__PURE__ */ new Set(["ten_pm", "ten_pc", "khach_hang", "handler", "created_by", "nguoi_yeu_cau", "nguoi_tao", "nguoi_trien_khai", "nha_cung_cap", "ten_cong_trinh", "ma_cong_trinh"]);
+var THU = ["Ch\u1EE7 nh\u1EADt", "Th\u1EE9 hai", "Th\u1EE9 ba", "Th\u1EE9 t\u01B0", "Th\u1EE9 n\u0103m", "Th\u1EE9 s\xE1u", "Th\u1EE9 b\u1EA3y"];
+var iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+var boDau = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+var tuCua = (s) => new Set(boDau(s).split(/[^a-z0-9]+/).filter((w) => w.length >= 2));
+function chonViDu(cau, bangs, sx, soVd = 8) {
+  const duocXem = new Map(bangs.map((x) => [x.b.id, new Set(x.cot.map((c) => c.id))]));
+  const sxXem = new Set(sx.map((c) => `sx:${c.id}`));
+  const q = tuCua(cau);
+  const coCot = (bang, id) => !id || duocXem.get(bang).has(id.split("@")[0]) || sxXem.has(id);
+  const hop = VI_DU_AI.filter((v) => {
+    const tv = v.tv;
+    return duocXem.has(tv.bang) && tv.do.every((d) => coCot(tv.bang, d.cot)) && tv.nhom.every((n) => coCot(tv.bang, n)) && tv.loc.every((l) => coCot(tv.bang, l.cot));
+  }).map((v) => {
+    const w = tuCua(v.cau);
+    let chung = 0;
+    w.forEach((x) => {
+      if (q.has(x)) chung++;
+    });
+    const b = bangs.find((x) => x.b.id === String(v.tv.bang))?.b;
+    const cungBang = b && [b.ten, ...b.dn].some((t) => ` ${boDau(cau)} `.includes(` ${boDau(t)} `)) ? 1 : 0;
+    return { v, diem: chung / Math.sqrt(w.size || 1) + cungBang };
+  }).filter((x) => x.diem > 0).sort((a, z2) => z2.diem - a.diem);
+  const theoBang = /* @__PURE__ */ new Map();
+  const out = [];
+  for (const { v } of hop) {
+    const b = String(v.tv.bang), n = theoBang.get(b) ?? 0;
+    if (n >= 3) continue;
+    theoBang.set(b, n + 1);
+    out.push(v);
+    if (out.length >= soVd) break;
+  }
+  return out;
+}
+function taoLoiDan(bangs, sx, gt, homNay, cau = "") {
+  const dong2 = [];
+  bangs.forEach(({ b, cot }) => {
+    dong2.push(`## ${b.id} \u2014 ${b.ten} (c\xE1ch g\u1ECDi: ${b.dn.join(", ")}). C\u1ED9t ng\xE0y ch\xEDnh: ${b.ngay}.${b.chot ? " \u1EA2nh ch\u1EE5p t\u1ED3n theo ng\xE0y (kh\xF4ng c\u1ED9ng nhi\u1EC1u ng\xE0y)." : ""}${b.noiSx && sx.length ? " D\xF9ng \u0111\u01B0\u1EE3c c\u1ED9t sx:*." : ""} \u0110\u1EBFm: 1 d\xF2ng = 1 ${b.dong}.`);
+    cot.forEach((c) => {
+      const ds = !CO_TEN_RIENG.has(c.id) ? (gt[b.id]?.[c.id] ?? c.gt ?? []).slice(0, 30) : [];
+      dong2.push(`- ${c.id}: ${c.ten}${c.dn?.length ? ` (g\u1ECDi l\xE0: ${c.dn.join(", ")})` : ""} [${c.kieu}${c.tien ? ", ti\u1EC1n TRI\u1EC6U \u0111\u1ED3ng" : ""}]${ds.length ? ` gi\xE1 tr\u1ECB: ${ds.join(" | ")}` : ""}`);
+    });
+  });
+  if (sx.length) {
+    dong2.push("## C\u1ED9t sx:<id> \u2014 th\xF4ng tin h\u1EA1ng m\u1EE5c t\u1EEB b\u1EA3ng s\u1EA3n xu\u1EA5t, n\u1ED1i qua HEX (ch\u1EC9 d\xF9ng \u0111\u1EC3 l\u1ECDc / chia nh\xF3m, kh\xF4ng c\u1ED9ng)");
+    sx.forEach((c) => {
+      const ds = !CO_TEN_RIENG.has(c.id) ? (gt.production_status_app?.[c.id] ?? []).slice(0, 30) : [];
+      dong2.push(`- sx:${c.id}: ${c.ten} [${c.kieu}]${ds.length ? ` gi\xE1 tr\u1ECB: ${ds.join(" | ")}` : ""}`);
+    });
+  }
+  const hn = iso(homNay);
+  return `B\u1EA1n chuy\u1EC3n c\xE2u h\u1ECFi ti\u1EBFng Vi\u1EC7t v\u1EC1 s\u1ED1 li\u1EC7u c\u1EE7a nh\xE0 m\xE1y n\u1ED9i th\u1EA5t th\xE0nh 1 truy v\u1EA5n JSON theo danh m\u1EE5c b\xEAn d\u01B0\u1EDBi. B\u1EA1n KH\xD4NG c\xF3 s\u1ED1 li\u1EC7u v\xE0 KH\xD4NG tr\u1EA3 l\u1EDDi s\u1ED1 li\u1EC7u \u2014 ch\u1EC9 d\u1ECBch c\xE2u.
+H\xF4m nay: ${hn} (${THU[homNay.getDay()]}). Tu\u1EA7n b\u1EAFt \u0111\u1EA7u th\u1EE9 hai. "Th\xE1ng n\xE0y" = t\u1EEB ng\xE0y 1 t\u1EDBi h\xF4m nay.
+
+Tr\u1EA3 v\u1EC1 \u0111\xFAng 1 JSON object, m\u1ED9t trong ba d\u1EA1ng:
+{"loai":"truy_van","tv":{...},"giai_thich":"<1 c\xE2u ti\u1EBFng Vi\u1EC7t: b\u1EA1n hi\u1EC3u c\xE2u h\u1ECFi th\u1EBF n\xE0o>"}
+{"loai":"tim_kiem"}  \u2014 c\xE2u ch\u1EC9 l\xE0 m\xE3 / t\xEAn c\u1EA7n tra c\u1EE9u (m\xE3 HEX, t\xEAn h\u1EA1ng m\u1EE5c, t\xEAn c\xF4ng tr\xECnh\u2026), kh\xF4ng h\u1ECFi s\u1ED1 li\u1EC7u
+{"loai":"khong_hieu","giai_thich":"<v\xEC sao danh m\u1EE5c kh\xF4ng tr\u1EA3 l\u1EDDi \u0111\u01B0\u1EE3c>"}
+
+tv g\u1ED3m:
+- bang: id b\u1EA3ng.
+- kieu: "tong" (t\u1ED5ng h\u1EE3p s\u1ED1) ho\u1EB7c "dong" (li\u1EC7t k\xEA t\u1EEBng d\xF2ng).
+- do: [{"ham":..., "cot":...}]. ham: tong (c\u1ED9ng c\u1ED9t s\u1ED1) | dem (\u0111\u1EBFm d\xF2ng, kh\xF4ng c\xF3 cot) | dem_khac (\u0111\u1EBFm s\u1ED1 gi\xE1 tr\u1ECB kh\xE1c nhau, vd. s\u1ED1 HEX) | tb | max | min. \u0110\u1EC3 [] = ph\xE9p t\xEDnh m\u1EB7c \u0111\u1ECBnh c\u1EE7a b\u1EA3ng.
+- nhom: t\u1ED1i \u0111a 2 ph\u1EA7n t\u1EED \u2014 id c\u1ED9t, ho\u1EB7c "<id c\u1ED9t ng\xE0y>@ngay|tuan|thang|quy|nam" \u0111\u1EC3 chia theo th\u1EDDi gian.
+- loc: [{"cot":..., "op":..., "gt":...}]. op: bang | khac | chua | khong_chua | lon_hon | lon_hon_bang | nho_hon | nho_hon_bang | trong_khoang | rong | co. gt: chu\u1ED7i, s\u1ED1, ho\u1EB7c m\u1EA3ng (bang nhi\u1EC1u gi\xE1 tr\u1ECB; trong_khoang [a,b]). Ng\xE0y d\u1EA1ng YYYY-MM-DD.
+- tu, den: k\u1EF3 theo c\u1ED9t ng\xE0y ch\xEDnh c\u1EE7a b\u1EA3ng (YYYY-MM-DD). C\xE2u kh\xF4ng n\xF3i k\u1EF3 th\xEC b\u1ECF tu, den.
+- soSanh: {"tu":..., "den":...} \u2014 k\u1EF3 th\u1EE9 hai khi h\u1ECFi so s\xE1nh hai k\u1EF3.
+- binhQuan: "ngay" | "tuan" | "thang" \u2014 khi h\u1ECFi b\xECnh qu\xE2n m\u1ED7i ng\xE0y / tu\u1EA7n / th\xE1ng; khi \u0111\xF3 nhom ph\u1EA3i c\xF3 "<c\u1ED9t ng\xE0y ch\xEDnh>@<m\u1ED1c>".
+- sapChenh: "giam" | "tang" \u2014 ch\u1EC9 \u0111i c\xF9ng soSanh: x\u1EBFp c\xE1c nh\xF3m theo m\u1EE9c gi\u1EA3m / t\u0103ng gi\u1EEFa 2 k\u1EF3.
+- sap: {"cot": s\u1ED1 th\u1EE9 t\u1EF1 c\u1ED9t k\u1EBFt qu\u1EA3 (c\xE1c c\u1ED9t nhom tr\u01B0\u1EDBc r\u1ED3i t\u1EDBi c\xE1c ph\xE9p t\xEDnh, b\u1EAFt \u0111\u1EA7u t\u1EEB 0), "giam": true|false}; gioiHan: s\u1ED1 d\xF2ng t\u1ED1i \u0111a (top N).
+- gomHuy: true n\u1EBFu mu\u1ED1n t\xEDnh c\u1EA3 h\u1EA1ng m\u1EE5c \u0111\xE3 h\u1EE7y (m\u1EB7c \u0111\u1ECBnh b\u1ECF).
+
+Quy t\u1EAFc:
+- Ch\u1EC9 d\xF9ng id b\u1EA3ng / c\u1ED9t c\xF3 trong danh m\u1EE5c. C\u1ED9t ti\u1EC1n t\xEDnh b\u1EB1ng TRI\u1EC6U \u0111\u1ED3ng: 1 t\u1EF7 = 1000.
+- giai_thich: ti\u1EBFng Vi\u1EC7t \u0111\u01A1n gi\u1EA3n cho nh\xE2n vi\xEAn nh\xE0 m\xE1y, KH\xD4NG d\xF9ng t\u1EEB k\u1EF9 thu\u1EADt (SQL, NOT IN, t\u1EADp h\u1EE3p, id c\u1ED9t\u2026).
+- C\u1ED9t c\xF3 danh s\xE1ch gi\xE1 tr\u1ECB: l\u1ECDc op "bang" v\u1EDBi \u0111\xFAng gi\xE1 tr\u1ECB trong danh s\xE1ch. T\xEAn ng\u01B0\u1EDDi, kh\xE1ch h\xE0ng, c\xF4ng tr\xECnh, nh\xE0 cung c\u1EA5p: op "chua" v\u1EDBi ch\u1EEF ng\u01B0\u1EDDi d\xF9ng g\xF5.
+- X\u01B0\u1EDFng (2A, 3A, 4A, 5A, 8AB, 8C, KH\xC1C): op "bang".
+- "Qu\xE1 h\u1EA1n giao / tr\u1EC5 h\u1EA1n" (h\u1EA1ng m\u1EE5c): b\u1EA3ng production_status_app, loc ngay_can_giao nho_hon h\xF4m nay v\xE0 gia_tri_con_lai lon_hon 0. "Ch\u01B0a nh\u1EADp kho / c\xF2n l\u1EA1i": gia_tri_con_lai lon_hon 0.
+- PR "tr\u1EC5 h\u1EB9n": b\u1EA3ng vat_tu, loc ngay_du_kien_giao_hang_pmh_nhap nho_hon h\xF4m nay v\xE0 so_luong_con_lai lon_hon 0. "Ch\u01B0a v\u1EC1": so_luong_con_lai lon_hon 0.
+- K\u1EF3 \u0111i k\xE8m M\u1ED8T C\u1ED8T NG\xC0Y KH\xC1C c\u1ED9t ng\xE0y ch\xEDnh ("PR h\u1EB9n v\u1EC1 tu\u1EA7n n\xE0y", "v\u1EADt t\u01B0 v\u1EC1 th\u1EF1c t\u1EBF tu\u1EA7n tr\u01B0\u1EDBc", "t\u1ED3n kho nh\u1EADp t\u1EEB th\xE1ng 9"): l\u1ECDc c\u1ED9t ng\xE0y \u0111\xF3 op trong_khoang [\u0111\u1EA7u k\u1EF3, cu\u1ED1i k\u1EF3], KH\xD4NG \u0111\u1EB7t tu/den.
+- V\u01B0\u1EDBng m\u1EAFc "v\u1EC1 m\xE1y / v\u1EC1 v\u1EADt t\u01B0 / do con ng\u01B0\u1EDDi": c\u1ED9t category, gt \u0111\xFAng t\xEAn trong danh s\xE1ch gi\xE1 tr\u1ECB. "T\u1ED5 4A" = x\u01B0\u1EDFng 4A.
+- "Doanh thu" = gi\xE1 tr\u1ECB nh\u1EADp kho (b\u1EA3ng nhap_kho).
+- "BOT" = th\u1EDDi h\u1EA1n k\u1EBF ho\u1EA1ch nh\u1EADp kho c\u1EE7a h\u1EA1ng m\u1EE5c: c\u1ED9t nhom_bot (b\u1EA3ng production_status_app). "Qu\xE1 h\u1EA1n KH / tr\u1EC5 k\u1EBF ho\u1EA1ch nh\u1EADp kho": loc nhom_bot bang "1. Qu\xE1 h\u1EA1n KH" (KH\xC1C "qu\xE1 h\u1EA1n giao" theo ng\xE0y c\u1EA7n giao). "S\u1EAFp \u0111\u1EBFn h\u1EA1n KH": "2. \u2264 14 ng\xE0y". "\u0110\u1EA1t KH k\u1EF3": "5. \u0110\u1EA1t KH k\u1EF3, ch\u1EDD KH ti\u1EBFp".
+- "BOP" = b\u01B0\u1EDBc s\u1EA3n xu\u1EA5t (c\u1ED9t bop: P001\u2026P025, GCVT). "BOM" = v\u1EADt t\u01B0 c\u1EE7a c\xF4ng tr\xECnh / h\u1EA1ng m\u1EE5c: b\u1EA3ng vat_tu.
+- "K\u1EBF ho\u1EA1ch nh\u1EADp kho" theo k\u1EF3 (tu\u1EA7n / th\xE1ng): b\u1EA3ng khsx; "\u0111\xFAng / r\u1EDBt k\u1EBF ho\u1EA1ch", "KH-TH": b\u1EA3ng phan_tich_kh_th.
+- "X n\xE0o nhi\u1EC1u nh\u1EA5t / top N X": nhom theo X, sap gi\u1EA3m theo ph\xE9p t\xEDnh \u0111\u1EA7u, gioiHan N (kh\xF4ng n\xF3i N th\xEC 10).
+- "X n\xE0o gi\u1EA3m / t\u0103ng nhi\u1EC1u nh\u1EA5t (so v\u1EDBi k\u1EF3 tr\u01B0\u1EDBc)": nhom theo X, soSanh = k\u1EF3 tr\u01B0\u1EDBc (kh\xF4ng n\xF3i th\xEC k\u1EF3 li\u1EC1n tr\u01B0\u1EDBc), sapChenh "giam" / "tang"; KH\xD4NG d\xF9ng sap, gioiHan.
+
+Danh m\u1EE5c:
+${dong2.join("\n")}
+
+V\xED d\u1EE5:
+C\xE2u: "x\u01B0\u1EDFng n\xE0o nh\u1EADp kho \xEDt nh\u1EA5t th\xE1ng 9" => {"loai":"truy_van","tv":{"bang":"nhap_kho","kieu":"tong","do":[{"ham":"tong","cot":"thanh_tien_nhap_kho"}],"nhom":["xuong_chinh"],"loc":[],"tu":"${homNay.getFullYear()}-09-01","den":"${homNay.getFullYear()}-09-30","sap":{"cot":1,"giam":false}},"giai_thich":"T\u1ED5ng gi\xE1 tr\u1ECB nh\u1EADp kho th\xE1ng 9 theo x\u01B0\u1EDFng, x\u1EBFp \xEDt tr\u01B0\u1EDBc"}
+C\xE2u: "\u0111\u01A1n h\xE0ng tr\xEAn 1 t\u1EF7 c\u1EE7a PM tu\u1EA5n" => {"loai":"truy_van","tv":{"bang":"dht","kieu":"dong","do":[],"nhom":[],"loc":[{"cot":"tri_gia_don_hang_tong","op":"lon_hon","gt":1000},{"cot":"ten_pm","op":"chua","gt":"tu\u1EA5n"}]},"giai_thich":"Li\u1EC7t k\xEA \u0111\u01A1n h\xE0ng tr\u1ECB gi\xE1 tr\xEAn 1 t\u1EF7 c\u1EE7a PM c\xF3 t\xEAn ch\u1EE9a tu\u1EA5n"}
+C\xE2u: "TOWEL CABINET BF11" => {"loai":"tim_kiem"}${vdGan(cau, bangs, sx)}`;
+}
+function vdGan(cau, bangs, sx) {
+  const ds = cau ? chonViDu(cau, bangs, sx) : [];
+  if (!ds.length) return "";
+  return "\n\nV\xED d\u1EE5 g\u1EA7n c\xE2u h\u1ECFi (c\xE1c v\xED d\u1EE5 n\xE0y t\xEDnh v\u1EDBi h\xF4m nay = 2026-10-19, th\u1EE9 hai \u2014 c\xE2u th\u1EADt ph\u1EA3i t\xEDnh k\u1EF3 theo h\xF4m nay \u1EDF tr\xEAn):\n" + ds.map((v) => `C\xE2u: "${v.cau}" => ${JSON.stringify({ loai: "truy_van", tv: v.tv })}`).join("\n");
+}
+function docKetQuaAI(text) {
+  const s = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const dau = s.indexOf("{"), cuoi = s.lastIndexOf("}");
+  if (dau < 0 || cuoi < dau) return null;
+  try {
+    const j = JSON.parse(s.slice(dau, cuoi + 1));
+    return j && ["truy_van", "tim_kiem", "khong_hieu"].includes(j.loai) ? j : null;
+  } catch {
+    return null;
+  }
+}
+var cache = /* @__PURE__ */ new Map();
+var ngay = "";
+var dem = 0;
+var LoiAI = class extends Error {
+};
+async function hoiAI(loiDan, cau, khoaCache) {
+  const hit = cache.get(khoaCache);
+  if (hit && Date.now() - hit.at < 864e5) return hit.kq;
+  const hn = iso(/* @__PURE__ */ new Date());
+  if (hn !== ngay) {
+    ngay = hn;
+    dem = 0;
+  }
+  if (dem >= MAX_NGAY()) throw new LoiAI("H\u1EBFt l\u01B0\u1EE3t h\u1ECFi AI h\xF4m nay");
+  dem++;
+  const ctrl = new AbortController();
+  const hen = setTimeout(() => ctrl.abort(), 4e4);
+  let r;
+  try {
+    r = await fetch(`${URL_AI()}/chat/completions`, {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.HOI_DAP_AI_KEY}` },
+      body: JSON.stringify({
+        model: MODEL_AI(),
+        temperature: 0,
+        ...SUY_NGHI() ? { reasoning_effort: SUY_NGHI() } : {},
+        response_format: { type: "json_object" },
+        messages: [{ role: "system", content: loiDan }, { role: "user", content: cau }]
+      })
+    });
+  } catch (e) {
+    throw new LoiAI(e.name === "AbortError" ? "AI tr\u1EA3 l\u1EDDi qu\xE1 l\xE2u" : "Kh\xF4ng g\u1ECDi \u0111\u01B0\u1EE3c AI");
+  } finally {
+    clearTimeout(hen);
+  }
+  if (r.status === 429) throw new LoiAI("AI \u0111ang h\u1EBFt h\u1EA1n m\u1EE9c mi\u1EC5n ph\xED, th\u1EED l\u1EA1i sau");
+  if (!r.ok) throw new LoiAI(`AI b\xE1o l\u1ED7i ${r.status}`);
+  const j = await r.json().catch(() => null);
+  const kq = docKetQuaAI(j?.choices?.[0]?.message?.content ?? "");
+  if (!kq) throw new LoiAI("AI tr\u1EA3 l\u1EDDi kh\xF4ng \u0111\xFAng d\u1EA1ng");
+  cache.set(khoaCache, { at: Date.now(), kq });
+  if (cache.size > 500) {
+    const k = cache.keys().next().value;
+    if (k !== void 0) cache.delete(k);
+  }
+  return kq;
+}
+
+// src/routes/hoiDap.ts
+async function thayKhDat(sql, p) {
+  if (!/__KH_(TUAN|THANG)_DAT__/.test(sql)) return sql;
+  const pm = await layPlanMet();
+  p.push(pm.tuan);
+  const iTuan = p.length;
+  p.push(pm.thang);
+  const iThang = p.length;
+  return sql.replace(/__KH_TUAN_DAT__/g, `$${iTuan}::text[]`).replace(/__KH_THANG_DAT__/g, `$${iThang}::text[]`);
+}
+var coBot = (x) => /nhom_bot|han_khnk/.test(JSON.stringify(x));
+var limiter = rate_limit_default({
+  windowMs: 60 * 1e3,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `hoi-dap:${req.user?.id ?? "anon"}`,
+  message: { success: false, message: "H\u1ECFi qu\xE1 nhanh, ch\u1EDD v\xE0i gi\xE2y r\u1ED3i h\u1ECFi ti\u1EBFp" }
+});
+async function quyenCua(req) {
+  if (!req.user) return null;
+  const a = await loadUserAccess(req.user.id);
+  if (!a.active) return null;
+  return (q) => a.role === "ADMIN" || a.perms.has(q);
+}
+var xemBang = (b, co) => b.quyen.some(co);
+var xemCot = (c, co) => !c.quyen || co(c.quyen);
+var cotNgay = (b) => b.cot.find((x) => x.id === b.ngay);
+var CO_DAU = "\xE0\xE1\u1EA3\xE3\u1EA1\u0103\u1EB1\u1EAF\u1EB3\u1EB5\u1EB7\xE2\u1EA7\u1EA5\u1EA9\u1EAB\u1EAD\xE8\xE9\u1EBB\u1EBD\u1EB9\xEA\u1EC1\u1EBF\u1EC3\u1EC5\u1EC7\xEC\xED\u1EC9\u0129\u1ECB\xF2\xF3\u1ECF\xF5\u1ECD\xF4\u1ED3\u1ED1\u1ED5\u1ED7\u1ED9\u01A1\u1EDD\u1EDB\u1EDF\u1EE1\u1EE3\xF9\xFA\u1EE7\u0169\u1EE5\u01B0\u1EEB\u1EE9\u1EED\u1EEF\u1EF1\u1EF3\xFD\u1EF7\u1EF9\u1EF5\u0111\xF0";
+var goc = (ch) => ch === "\u0111" || ch === "\xF0" ? "d" : ch.normalize("NFD").replace(/[̀-ͯ]/g, "");
+var TU = CO_DAU + CO_DAU.toUpperCase();
+var SANG = [...CO_DAU].map(goc).join("").repeat(2);
+var khongDau = (e) => `translate(lower(COALESCE((${e})::text, '')), '${TU}', '${SANG}')`;
+var boDau2 = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
+var thich = (s) => `%${boDau2(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+var gonTen = (e) => `NULLIF(TRIM(REGEXP_REPLACE(COALESCE((${e})::text, ''), '\\s+', ' ', 'g')), '')`;
+var NGAY_RE3 = /^\d{4}-\d{2}-\d{2}$/;
+var GiaTri = external_exports.union([external_exports.string().max(300), external_exports.number()]);
+var LocSchema = external_exports.object({
+  cot: external_exports.string().max(64),
+  op: external_exports.enum(["bang", "khac", "chua", "khong_chua", "lon_hon", "lon_hon_bang", "nho_hon", "nho_hon_bang", "trong_khoang", "rong", "co"]),
+  gt: external_exports.union([GiaTri, external_exports.array(GiaTri).max(200)]).optional()
+});
+var DoSchema = external_exports.object({
+  ham: external_exports.enum(["tong", "dem", "dem_khac", "tb", "max", "min"]),
+  cot: external_exports.string().max(64).optional()
+});
+var TruyVanSchema = external_exports.object({
+  bang: external_exports.string().max(64),
+  kieu: external_exports.enum(["tong", "dong"]).default("tong"),
+  do: external_exports.array(DoSchema).max(4).default([]),
+  /** id cột, hoặc "cotNgay@thang" (ngay | tuan | thang | quy | nam) để nhóm theo mốc thời gian */
+  nhom: external_exports.array(external_exports.string().max(80)).max(2).default([]),
+  loc: external_exports.array(LocSchema).max(12).default([]),
+  tu: external_exports.string().regex(NGAY_RE3).optional(),
+  den: external_exports.string().regex(NGAY_RE3).optional(),
+  /** Sắp theo cột kết quả thứ `cot` (0 = cột đầu) */
+  sap: external_exports.object({ cot: external_exports.number().int().min(0).max(10), giam: external_exports.boolean() }).optional(),
+  gioiHan: external_exports.number().int().min(1).max(500).optional(),
+  /** Tính cả hạng mục HỦY (mặc định bỏ — cùng quy tắc với Tổng quan) */
+  gomHuy: external_exports.boolean().optional(),
+  cotXem: external_exports.array(external_exports.string().max(64)).max(12).optional()
+});
+var LoiHoi = class extends Error {
+};
+var MOC = {
+  ngay: (e) => `to_char(${e}, 'YYYY-MM-DD')`,
+  tuan: (e) => `to_char(${e}, 'IYYY-"T"IW')`,
+  thang: (e) => `to_char(${e}, 'YYYY-MM')`,
+  quy: (e) => `to_char(${e}, 'YYYY-"Q"Q')`,
+  nam: (e) => `to_char(${e}, 'YYYY')`
+};
+var SX = "production_status_app";
+var laSx = (id) => id.startsWith("sx:");
+var NOI_SX = `LEFT JOIN ${SX} p ON p.hex::text = t.hex::text`;
+var tuBang = (b, ids) => `${b.id} t${ids.some(laSx) ? ` ${NOI_SX}` : ""}`;
+function timCot(b, id, co) {
+  if (laSx(id)) {
+    const sx = bangTheoId.get(SX);
+    if (!b.noiSx) throw new LoiHoi(`B\u1EA3ng ${b.ten} kh\xF4ng n\u1ED1i \u0111\u01B0\u1EE3c sang b\u1EA3ng s\u1EA3n xu\u1EA5t`);
+    if (!xemBang(sx, co)) throw new LoiHoi("B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem b\u1EA3ng s\u1EA3n xu\u1EA5t");
+    const g = sx.cot.find((x) => x.id === id.slice(3));
+    if (!g || !xemCot(g, co)) throw new LoiHoi(`B\u1EA3ng s\u1EA3n xu\u1EA5t kh\xF4ng c\xF3 c\u1ED9t "${id.slice(3)}"`);
+    return { ...g, id, sql: sqlCot(g).replace(/(?<![\w."])t\./g, "p.") };
+  }
+  const c = b.cot.find((x) => x.id === id);
+  if (!c) throw new LoiHoi(`B\u1EA3ng ${b.ten} kh\xF4ng c\xF3 c\u1ED9t "${id}"`);
+  if (!xemCot(c, co)) throw new LoiHoi(`B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem c\u1ED9t ${c.ten}`);
+  return c;
+}
+var mangGt = (gt) => (gt === void 0 ? [] : Array.isArray(gt) ? gt : [gt]).map((v) => String(v).trim()).filter(Boolean);
+function dieuKienLoc(b, l, co, p) {
+  const c = timCot(b, l.cot, co);
+  const e = sqlCot(c);
+  const ds = mangGt(l.gt);
+  const thamSo = (v) => {
+    p.push(v);
+    return `$${p.length}`;
+  };
+  if (l.op === "rong") return c.kieu === "so" || c.kieu === "ngay" ? `${e} IS NULL` : `${gonTen(e)} IS NULL`;
+  if (l.op === "co") return c.kieu === "so" || c.kieu === "ngay" ? `${e} IS NOT NULL` : `${gonTen(e)} IS NOT NULL`;
+  if (!ds.length) throw new LoiHoi(`Thi\u1EBFu gi\xE1 tr\u1ECB l\u1ECDc cho ${c.ten}`);
+  if (c.kieu === "so" || c.kieu === "ngay") {
+    const doi = (v) => {
+      if (c.kieu === "ngay") {
+        if (!NGAY_RE3.test(v)) throw new LoiHoi(`${c.ten}: ng\xE0y ph\u1EA3i d\u1EA1ng n\u0103m-th\xE1ng-ng\xE0y`);
+        return v;
+      }
+      const n = Number(v.replace(/,/g, ""));
+      if (!Number.isFinite(n)) throw new LoiHoi(`${c.ten}: "${v}" kh\xF4ng ph\u1EA3i s\u1ED1`);
+      return n;
+    };
+    const ep = c.kieu === "ngay" ? "::date" : "::numeric";
+    const so1 = () => `${thamSo(doi(ds[0]))}${ep}`;
+    switch (l.op) {
+      case "bang":
+        return ds.length > 1 ? `${e} = ANY(${thamSo(ds.map(doi))}${ep}[])` : `${e} = ${so1()}`;
+      case "khac":
+        return `(${e} IS NULL OR ${e} <> ${so1()})`;
+      case "lon_hon":
+        return `${e} > ${so1()}`;
+      case "lon_hon_bang":
+        return `${e} >= ${so1()}`;
+      case "nho_hon":
+        return `${e} < ${so1()}`;
+      case "nho_hon_bang":
+        return `${e} <= ${so1()}`;
+      case "trong_khoang": {
+        if (ds.length < 2) throw new LoiHoi(`${c.ten}: "trong kho\u1EA3ng" c\u1EA7n 2 gi\xE1 tr\u1ECB`);
+        return `${e} BETWEEN ${thamSo(doi(ds[0]))}${ep} AND ${thamSo(doi(ds[1]))}${ep}`;
+      }
+      default:
+        throw new LoiHoi(`${c.ten}: kh\xF4ng l\u1ECDc "${l.op}" v\u1EDBi c\u1ED9t s\u1ED1 / ng\xE0y`);
+    }
+  }
+  const coMaCt = !laSx(c.id) && b.cot.some((x) => x.id === "ma_cong_trinh");
+  const giongChu = (phu) => {
+    const a = thamSo(ds.map(thich));
+    const k = `${khongDau(e)} LIKE ANY(${a}::text[])`;
+    return phu && c.kieu === "ct" && coMaCt ? `(${k} OR ${khongDau(sqlCot(timCot(b, "ma_cong_trinh", co)))} LIKE ANY(${a}::text[]))` : k;
+  };
+  const bangChu = () => {
+    if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds))}::text[])`;
+    if (c.kieu === "ct") return `${normNameSql(e)} = ANY(${thamSo(expandProjectNames(ds))}::text[])`;
+    return `${khongDau(e)} = ANY(${thamSo(ds.map(boDau2))}::text[])`;
+  };
+  switch (l.op) {
+    case "bang":
+      return bangChu();
+    case "khac":
+      return `NOT COALESCE(${bangChu()}, false)`;
+    case "chua":
+      return giongChu(true);
+    case "khong_chua":
+      return `NOT (${giongChu(true)})`;
+    default:
+      throw new LoiHoi(`${c.ten}: ch\u1EC9 l\u1ECDc b\u1EB1ng / kh\xE1c / ch\u1EE9a v\u1EDBi c\u1ED9t ch\u1EEF`);
+  }
+}
+async function phanLoc(b, q, co, p, coNhomNgay, loaiKh = null) {
+  const dk = [];
+  if (!q.gomHuy && b.huy === "hex") dk.push(notCancelledHexCond("t.hex"));
+  if (!q.gomHuy && b.huy === "ipo") dk.push(`UPPER(COALESCE(t.tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'`);
+  const eNgay = sqlCot(cotNgay(b));
+  if (q.tu) {
+    p.push(q.tu);
+    dk.push(`${eNgay} >= $${p.length}::date`);
+  }
+  if (q.den) {
+    p.push(q.den);
+    dk.push(`${eNgay} <= $${p.length}::date`);
+  }
+  const cotLoaiKh = loaiKh && b.cot.find((x) => x.id === "phan_loai_kh");
+  if (cotLoaiKh) {
+    p.push(`%${loaiKh}%`);
+    dk.push(`UPPER(TRIM(${sqlCot(cotLoaiKh)})) LIKE $${p.length}`);
+  }
+  q.loc.forEach((l) => dk.push(dieuKienLoc(b, l, co, p)));
+  let ngayChot;
+  if (b.chot && !coNhomNgay && !q.loc.some((l) => l.cot === b.ngay)) {
+    const pp = [];
+    const dd = [];
+    if (q.tu) {
+      pp.push(q.tu);
+      dd.push(`${eNgay} >= $${pp.length}::date`);
+    }
+    if (q.den) {
+      pp.push(q.den);
+      dd.push(`${eNgay} <= $${pp.length}::date`);
+    }
+    const r = await timedQuery(
+      `SELECT to_char(MAX(${eNgay}), 'YYYY-MM-DD') AS d FROM ${b.id} t${dd.length ? ` WHERE ${dd.join(" AND ")}` : ""}`,
+      pp,
+      { timeoutMs: 15e3 }
+    );
+    ngayChot = r.rows[0]?.d ?? void 0;
+    if (ngayChot) {
+      p.push(ngayChot);
+      dk.push(`${eNgay} = $${p.length}::date`);
+    }
+  }
+  return { where: dk.length ? `WHERE ${dk.join(" AND ")}` : "", ngayChot };
+}
+var soHoa = (v) => v === null || v === void 0 || v === "" ? null : Number(v);
+var BANG_DONG_CHAY = /* @__PURE__ */ new Set(["nhap_kho", "xuat_kho", "dht", "tkbv_full", "pthsp_full", "khsx", "khsx_nam", "phan_tich_kh_th", "diem_danh"]);
+var cacheMaxNgay = createCache(40);
+async function ngayMoiNhat(b) {
+  if (!BANG_DONG_CHAY.has(b.id)) return void 0;
+  const tinh = async () => {
+    const r = await timedQuery(`SELECT to_char(MAX(${sqlCot(cotNgay(b))}), 'YYYY-MM-DD') AS d FROM ${b.id} t`, [], { timeoutMs: 15e3 });
+    return r.rows[0]?.d ?? null;
+  };
+  const d = b.phienBan ? await cachedByVersions(cacheMaxNgay, b.id, [b.phienBan], tinh) : await tinh();
+  return d ?? void 0;
+}
+async function chay(b, q, co) {
+  const p = [];
+  const nhom = q.nhom.map((n) => {
+    const [id, moc2] = n.split("@");
+    const c = timCot(b, id, co);
+    if (moc2) {
+      if (c.kieu !== "ngay" || !Object.hasOwn(MOC, moc2)) throw new LoiHoi(`Kh\xF4ng nh\xF3m ${c.ten} theo "${moc2}"`);
+      return { c, moc: moc2, sql: MOC[moc2](sqlCot(c)) };
+    }
+    if (c.kieu === "ngay") return { c, moc: "ngay", sql: MOC.ngay(sqlCot(c)) };
+    const sql2 = c.kieu === "xuong" ? `NULLIF(${workshopGroupSql(sqlCot(c))}, '')` : c.kieu === "so" ? sqlCot(c) : gonTen(sqlCot(c));
+    return { c, moc: "", sql: sql2 };
+  });
+  const coNhomNgay = nhom.some((n) => n.c.kieu === "ngay");
+  const loaiKh = loaiKhsx(b.id, q) ?? void 0;
+  const { where, ngayChot } = await phanLoc(b, q, co, p, coNhomNgay, loaiKh);
+  const tu = tuBang(b, [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot ?? ""), ...q.loc.map((l) => l.cot), ...q.kieu === "dong" ? q.cotXem ?? [] : []]);
+  const boHuy = !q.gomHuy && !!b.huy;
+  const maxNgay = await ngayMoiNhat(b);
+  if (q.kieu === "dong") {
+    const ids = (q.cotXem?.length ? q.cotXem : b.hien).filter((id) => {
+      const c = b.cot.find((x) => x.id === id);
+      return c && xemCot(c, co);
+    });
+    const cots = ids.map((id) => timCot(b, id, co));
+    const chon = cots.map((c, i) => `${c.kieu === "ngay" ? MOC.ngay(sqlCot(c)) : sqlCot(c)} AS c${i}`);
+    const gioiHan = Math.min(q.gioiHan ?? 100, 200);
+    const sapCot = q.sap && cots[q.sap.cot] ? `c${q.sap.cot} ${q.sap.giam ? "DESC" : "ASC"} NULLS LAST` : `${sqlCot(cotNgay(b))} DESC NULLS LAST`;
+    const r2 = await timedQuery(
+      await thayKhDat(`SELECT ${chon.join(", ")}, count(*) OVER () AS so_dong FROM ${tu} ${where} ORDER BY ${sapCot} LIMIT ${gioiHan}`, p),
+      p,
+      { timeoutMs: 2e4, heavy: true }
+    );
+    return {
+      cot: cots.map((c) => ({ ten: c.ten, kieu: c.kieu === "so" ? "so" : c.kieu === "ngay" ? "ngay" : "chu", tien: c.tien })),
+      dong: r2.rows.map((row) => cots.map((c, i) => {
+        const v = row[`c${i}`];
+        if (c.kieu === "so") return soHoa(v);
+        if (c.kieu === "ct") return v ? canonicalProjectName(v) : null;
+        return v === null || v === void 0 ? null : String(v);
+      })),
+      tong: null,
+      soDong: Number(r2.rows[0]?.so_dong ?? 0),
+      ngayChot,
+      maxNgay,
+      boHuy,
+      loaiKh
+    };
+  }
+  const doList = q.do.length ? q.do : b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co)));
+  const doDa = doList.map((d) => {
+    if (d.ham === "dem") return { d, c: void 0, sql: ["COUNT(*)"] };
+    if (!d.cot) throw new LoiHoi("Thi\u1EBFu c\u1ED9t c\u1EA7n t\xEDnh");
+    const c = timCot(b, d.cot, co);
+    const e = sqlCot(c);
+    if (d.ham === "dem_khac") return { d, c, sql: [`COUNT(DISTINCT ${c.kieu === "ngay" || c.kieu === "so" ? e : gonTen(e)})`] };
+    if (d.ham === "max" || d.ham === "min") {
+      if (c.kieu !== "so" && c.kieu !== "ngay") throw new LoiHoi(`${c.ten} kh\xF4ng ph\u1EA3i s\u1ED1 / ng\xE0y`);
+      const f = d.ham === "max" ? "MAX" : "MIN";
+      return { d, c, sql: [c.kieu === "ngay" ? `to_char(${f}(${e}), 'YYYY-MM-DD')` : `${f}(${e})`] };
+    }
+    if (c.kieu !== "so") throw new LoiHoi(`${c.ten} kh\xF4ng ph\u1EA3i c\u1ED9t s\u1ED1 \u0111\u1EC3 ${d.ham === "tong" ? "c\u1ED9ng" : "t\xEDnh trung b\xECnh"}`);
+    return { d, c, sql: d.ham === "tb" ? [`SUM(${e})`, `COUNT(${e})`] : [`SUM(${e})`] };
+  });
+  const chonDo = [];
+  doDa.forEach((x, i) => x.sql.forEach((s, j) => chonDo.push(`${s} AS m${i}_${j}`)));
+  const chonNhom = nhom.map((n, i) => `${n.sql} AS g${i}`);
+  const TRAN = 2e4;
+  const sql = nhom.length ? `SELECT ${[...chonNhom, ...chonDo, `GROUPING(${nhom.map((n) => n.sql).join(", ")}) AS la_tong`].join(", ")}
+       FROM ${tu} ${where}
+       GROUP BY GROUPING SETS ((${nhom.map((n) => n.sql).join(", ")}), ())
+       ORDER BY la_tong DESC LIMIT ${TRAN + 1}` : `SELECT ${chonDo.join(", ")} FROM ${tu} ${where}`;
+  const r = await timedQuery(await thayKhDat(sql, p), p, { timeoutMs: 2e4, heavy: true, workMemMb: 32 });
+  const docDo = (row) => doDa.map((x, i) => x.sql.map((_, j) => {
+    const v = row[`m${i}_${j}`];
+    return x.c?.kieu === "ngay" && (x.d.ham === "max" || x.d.ham === "min") ? v === null || v === void 0 ? null : String(v) : soHoa(v);
+  }));
+  const raVal = (m) => doDa.map((x, i) => {
+    const a = m[i];
+    if (x.d.ham === "tb") return a[1] ? Number(a[0]) / Number(a[1]) : null;
+    return a[0];
+  });
+  const rows = r.rows;
+  const dongTong = nhom.length ? rows.find((x) => Number(x.la_tong) !== 0) : rows[0];
+  const tong = dongTong ? [...nhom.map(() => null), ...raVal(docDo(dongTong)).map((v) => typeof v === "number" ? v : null)] : null;
+  const gop = /* @__PURE__ */ new Map();
+  rows.filter((x) => !nhom.length || Number(x.la_tong) === 0).forEach((row) => {
+    const g = nhom.map((n, i) => {
+      const v = row[`g${i}`];
+      if (v === null || v === void 0) return null;
+      if (n.c.kieu === "ct") return canonicalProjectName(v);
+      return n.c.kieu === "so" ? soHoa(v) : String(v);
+    });
+    const k = JSON.stringify(g);
+    const m = docDo(row);
+    const cu = gop.get(k);
+    if (!cu) {
+      gop.set(k, { g, m });
+      return;
+    }
+    doDa.forEach((x, i) => x.sql.forEach((_, j) => {
+      const a = cu.m[i][j], v = m[i][j];
+      if (v === null) return;
+      if (a === null) {
+        cu.m[i][j] = v;
+        return;
+      }
+      if (x.d.ham === "max") cu.m[i][j] = v > a ? v : a;
+      else if (x.d.ham === "min") cu.m[i][j] = v < a ? v : a;
+      else cu.m[i][j] = Number(a) + Number(v);
+    }));
+  });
+  let dong2 = [...gop.values()].map((t) => [...t.g, ...raVal(t.m)]);
+  const nCot = nhom.length + doDa.length;
+  const sapTheo = q.sap && q.sap.cot < nCot ? q.sap : coNhomNgay ? { cot: nhom.findIndex((n) => n.c.kieu === "ngay"), giam: false } : { cot: nhom.length, giam: true };
+  const ss = (a, b2) => {
+    if (a === null) return 1;
+    if (b2 === null) return -1;
+    return typeof a === "number" && typeof b2 === "number" ? a - b2 : String(a).localeCompare(String(b2), "vi", { numeric: true });
+  };
+  dong2.sort((a, b2) => {
+    const k = ss(a[sapTheo.cot], b2[sapTheo.cot]);
+    return a[sapTheo.cot] === null || b2[sapTheo.cot] === null ? k : sapTheo.giam ? -k : k;
+  });
+  const soDong = dong2.length;
+  dong2 = dong2.slice(0, q.gioiHan ?? (nhom.length ? 50 : 1));
+  const cot = [
+    ...nhom.map((n) => ({ ten: n.moc && n.moc !== "ngay" ? `${n.c.ten} (${{ tuan: "tu\u1EA7n", thang: "th\xE1ng", quy: "qu\xFD", nam: "n\u0103m" }[n.moc]})` : n.c.ten, kieu: n.c.kieu === "so" ? "so" : n.c.kieu === "ngay" ? "ngay" : "chu", nhom: true })),
+    ...doDa.map((x) => ({
+      ten: tenDo(b, x.d.ham, x.c),
+      kieu: x.c?.kieu === "ngay" && (x.d.ham === "max" || x.d.ham === "min") ? "ngay" : "so",
+      tien: x.d.ham !== "dem" && x.d.ham !== "dem_khac" && !!x.c?.tien
+    }))
+  ];
+  return { cot, dong: dong2, tong: nhom.length ? tong : null, soDong: nhom.length ? soDong : 1, ngayChot, maxNgay, boHuy, loaiKh };
+}
+var tenDo = (b, ham, c) => {
+  if (ham === "dem" || !c) return `S\u1ED1 ${b.dong}`;
+  const ten = new RegExp("^\\p{Lu}{2}", "u").test(c.ten) ? c.ten : c.ten.charAt(0).toLowerCase() + c.ten.slice(1);
+  if (c.kieu === "ngay" && (ham === "max" || ham === "min")) return `${c.ten} ${ham === "max" ? "m\u1EDBi nh\u1EA5t" : "s\u1EDBm nh\u1EA5t"}`;
+  if (ham === "dem_khac" && /^Số /.test(c.ten)) return c.ten;
+  return `${{ tong: "T\u1ED5ng", dem_khac: "S\u1ED1", tb: "Trung b\xECnh", max: "L\u1EDBn nh\u1EA5t", min: "Nh\u1ECF nh\u1EA5t" }[ham]} ${ten}`;
+};
+var cacheKq = createCache(200);
+var cacheGt = createCache(300);
+var phienBanCua = (b) => [b.phienBan, ...b.huy ? ["production"] : []];
+app.get("/api/hoi-dap/danh-muc", limiter, async (req, res) => {
+  try {
+    const co = await quyenCua(req);
+    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
+    const bang = DANH_MUC.filter((b) => xemBang(b, co)).map((b) => ({
+      id: b.id,
+      ten: b.ten,
+      dn: b.dn,
+      ngay: b.ngay,
+      chot: !!b.chot,
+      huy: !!b.huy,
+      dong: b.dong,
+      soChinh: b.soChinh,
+      noiSx: !!b.noiSx && xemBang(bangTheoId.get(SX), co),
+      mac: b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co))),
+      cot: b.cot.filter((c) => xemCot(c, co)).map((c) => ({ id: c.id, ten: c.ten, dn: c.dn ?? [], kieu: c.kieu, tien: !!c.tien, ...c.gt ? { gt: c.gt } : {} }))
+    }));
+    res.json({ success: true, bang, ai: aiBat() });
+  } catch (e) {
+    console.error("hoi-dap/danh-muc", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i \u0111\u1ECDc danh m\u1EE5c" });
+  }
+});
+var cacheTd = createCache(40);
+async function layTuDien(co, coTenCt = true) {
+  const gt = {};
+  for (const b of DANH_MUC.filter((x) => xemBang(x, co))) {
+    const cots = b.cot.filter((c) => c.tuDien && xemCot(c, co));
+    if (!cots.length) continue;
+    const tinh = async () => {
+      const out = {};
+      for (const c of cots) {
+        if (c.gt?.length) {
+          out[c.id] = c.gt;
+          continue;
+        }
+        const e = gonTen(sqlCot(c));
+        const r = await timedQuery(
+          `SELECT ${e} AS v FROM ${b.id} t WHERE ${e} IS NOT NULL GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 80`,
+          [],
+          { timeoutMs: 15e3, heavy: true }
+        );
+        out[c.id] = r.rows.map((x) => x.v);
+      }
+      return out;
+    };
+    gt[b.id] = b.phienBan ? await cachedByVersions(cacheTd, `${b.id}|${cots.map((c) => c.id).join(",")}`, [b.phienBan], tinh) : await tinh();
+  }
+  let ct = [];
+  if (coTenCt && DANH_MUC.some((b) => xemBang(b, co) && b.cot.some((c) => c.kieu === "ct"))) {
+    const r = await cachedByVersions(cacheTd, "ct", ["production"], async () => {
+      const x = await timedQuery(`SELECT DISTINCT ${gonTen("t.ten_cong_trinh")} AS v FROM ${SX} t`, [], { timeoutMs: 15e3 });
+      return { ct: [...new Set(x.rows.map((y) => canonicalProjectName(y.v)).filter(Boolean))] };
+    });
+    ct = r.ct;
+  }
+  return { gt, ct };
+}
+app.get("/api/hoi-dap/tu-dien", limiter, async (req, res) => {
+  try {
+    const co = await quyenCua(req);
+    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
+    res.json({ success: true, ...await layTuDien(co) });
+  } catch (e) {
+    console.error("hoi-dap/tu-dien", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i \u0111\u1ECDc t\u1EEB \u0111i\u1EC3n gi\xE1 tr\u1ECB" });
+  }
+});
+app.get("/api/hoi-dap/gia-tri", limiter, async (req, res) => {
+  try {
+    const co = await quyenCua(req);
+    const b = bangTheoId.get(String(req.query.bang ?? ""));
+    if (!co || !b || !xemBang(b, co)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem b\u1EA3ng n\xE0y" });
+    const c = timCot(b, String(req.query.cot ?? ""), co);
+    if (c.kieu === "so" || c.kieu === "ngay") return res.json({ success: true, gt: [] });
+    const q = String(req.query.q ?? "").slice(0, 100).trim();
+    const tinh = async () => {
+      const p = [];
+      const { where } = await phanLoc(b, { loc: [], gomHuy: false }, co, p, false);
+      const e = c.kieu === "xuong" ? `NULLIF(${workshopGroupSql(sqlCot(c))}, '')` : gonTen(sqlCot(c));
+      const dk = [`${e} IS NOT NULL`];
+      if (q) {
+        p.push(thich(q));
+        dk.push(`${khongDau(sqlCot(c))} LIKE $${p.length}`);
+      }
+      const r = await timedQuery(
+        await thayKhDat(`SELECT ${e} AS v, COUNT(*) AS n FROM ${tuBang(b, [c.id])} ${where ? `${where} AND` : "WHERE"} ${dk.join(" AND ")} GROUP BY 1 ORDER BY 2 DESC LIMIT 60`, p),
+        p,
+        { timeoutMs: 15e3, heavy: true }
+      );
+      const m = /* @__PURE__ */ new Map();
+      r.rows.forEach((x) => {
+        const v = c.kieu === "ct" ? canonicalProjectName(x.v) : x.v;
+        m.set(v, (m.get(v) ?? 0) + Number(x.n));
+      });
+      return [...m.entries()].map(([v, n]) => ({ v, n })).sort((a, b2) => b2.n - a.n).slice(0, 30);
+    };
+    const gt = b.phienBan ? await cachedByVersions(cacheGt, `${b.id}|${c.id}|${boDau2(q)}`, phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
+    res.json({ success: true, gt });
+  } catch (e) {
+    if (e instanceof LoiHoi) return res.status(400).json({ success: false, message: e.message });
+    console.error("hoi-dap/gia-tri", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i l\u1EA5y gi\xE1 tr\u1ECB g\u1EE3i \xFD" });
+  }
+});
+app.post("/api/hoi-dap/truy-van", limiter, async (req, res) => {
+  const kq = TruyVanSchema.safeParse(req.body);
+  if (!kq.success) return res.status(400).json({ success: false, message: "Truy v\u1EA5n kh\xF4ng h\u1EE3p l\u1EC7" });
+  const q = kq.data;
+  try {
+    const co = await quyenCua(req);
+    const b = bangTheoId.get(q.bang);
+    if (!co || !b || !xemBang(b, co)) return res.status(403).json({ success: false, message: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem s\u1ED1 li\u1EC7u b\u1EA3ng n\xE0y" });
+    [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot).filter((x) => !!x), ...q.loc.map((l) => l.cot), ...q.cotXem ?? []].forEach((id) => timCot(b, id, co));
+    const tinh = () => chay(b, q, co);
+    const bot = coBot(q);
+    const khoa = hashKey({ q, gia: co("materials_view_price"), ...bot ? { ngay: (/* @__PURE__ */ new Date()).toDateString() } : {} });
+    const ketQua = b.phienBan ? await cachedByVersions(cacheKq, khoa, bot ? [...phienBanCua(b), "inventory"] : phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
+    res.json({ success: true, ...ketQua });
+  } catch (e) {
+    if (e instanceof LoiHoi) return res.status(400).json({ success: false, message: e.message });
+    const code = e?.code;
+    if (code === "57014") return res.status(504).json({ success: false, message: "Truy v\u1EA5n qu\xE1 l\xE2u \u2014 thu h\u1EB9p k\u1EF3 ho\u1EB7c th\xEAm \u0111i\u1EC1u ki\u1EC7n l\u1ECDc" });
+    console.error("hoi-dap/truy-van", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i ch\u1EA1y truy v\u1EA5n" });
+  }
+});
+var aiLimiter = rate_limit_default({
+  windowMs: 60 * 1e3,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `hoi-dap-ai:${req.user?.id ?? "anon"}`,
+  message: { success: false, message: "H\u1ECFi AI qu\xE1 nhanh, ch\u1EDD \xEDt gi\xE2y" }
+});
+var TruyVanAISchema = TruyVanSchema.extend({
+  soSanh: external_exports.object({ tu: external_exports.string().regex(NGAY_RE3), den: external_exports.string().regex(NGAY_RE3) }).optional(),
+  binhQuan: external_exports.enum(["ngay", "tuan", "thang", "quy", "nam"]).optional(),
+  sapChenh: external_exports.enum(["giam", "tang"]).optional()
+});
+app.post("/api/hoi-dap/ai", aiLimiter, async (req, res) => {
+  const cau = String(req.body?.cau ?? "").trim().slice(0, 300);
+  const truoc = String(req.body?.truoc ?? "").trim().slice(0, 300);
+  if (!cau) return res.status(400).json({ success: false, message: "Thi\u1EBFu c\xE2u h\u1ECFi" });
+  if (!aiBat()) return res.status(503).json({ success: false, message: "Ch\u01B0a b\u1EADt AI" });
+  try {
+    const co = await quyenCua(req);
+    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
+    const bangs = DANH_MUC.filter((b2) => xemBang(b2, co)).map((b2) => ({ b: b2, cot: b2.cot.filter((c) => xemCot(c, co)) }));
+    if (!bangs.length) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 b\u1EA3ng n\xE0o \u0111\u01B0\u1EE3c xem" });
+    const sxB = bangTheoId.get(SX);
+    const sx = xemBang(sxB, co) ? sxB.cot.filter((c) => xemCot(c, co) && c.kieu !== "so" && c.kieu !== "ct" && c.kieu !== "xuong" && c.id !== "hex") : [];
+    const { gt } = await layTuDien(co, false);
+    const homNay = /* @__PURE__ */ new Date();
+    const loiDan = taoLoiDan(bangs, sx, gt, homNay, cau);
+    const noiDung = truoc ? `C\xE2u h\u1ECFi tr\u01B0\u1EDBc (ch\u1EC9 \u0111\u1EC3 hi\u1EC3u c\xE2u n\u1ED1i ti\u1EBFp, n\u1EBFu c\xE2u b\xE2y gi\u1EDD kh\xF4ng n\xF3i \u0111\u1ED1i t\u01B0\u1EE3ng th\xEC d\xF9ng \u0111\u1ED1i t\u01B0\u1EE3ng c\u1EE7a c\xE2u tr\u01B0\u1EDBc): "${truoc}"
+C\xE2u h\u1ECFi b\xE2y gi\u1EDD: "${cau}"` : cau;
+    const kq = await hoiAI(loiDan, noiDung, hashKey({ cau: cau.toLowerCase(), truoc: truoc.toLowerCase(), d: homNay.toDateString(), b: bangs.map((x) => [x.b.id, x.cot.length]), sx: sx.length }));
+    if (kq.loai !== "truy_van") return res.json({ success: true, loai: kq.loai, giaiThich: kq.giai_thich ?? "" });
+    const tv = TruyVanAISchema.safeParse(kq.tv);
+    if (!tv.success) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI vi\u1EBFt truy v\u1EA5n sai d\u1EA1ng" });
+    const b = bangTheoId.get(tv.data.bang);
+    if (!b || !xemBang(b, co)) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI ch\u1ECDn b\u1EA3ng kh\xF4ng c\xF3 ho\u1EB7c b\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem" });
+    try {
+      [...tv.data.nhom.map((n) => n.split("@")[0]), ...tv.data.do.map((d) => d.cot).filter((x) => !!x), ...tv.data.loc.map((l) => l.cot), ...tv.data.cotXem ?? []].forEach((id) => timCot(b, id, co));
+    } catch (e) {
+      return res.json({ success: true, loai: "khong_hieu", giaiThich: e instanceof LoiHoi ? `AI d\xF9ng c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7: ${e.message}` : "AI d\xF9ng c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7" });
+    }
+    res.json({ success: true, loai: "truy_van", tv: tv.data, giaiThich: kq.giai_thich ?? "" });
+  } catch (e) {
+    if (e instanceof LoiAI) return res.status(502).json({ success: false, message: e.message });
+    console.error("hoi-dap/ai", e);
+    res.status(500).json({ success: false, message: "L\u1ED7i h\u1ECFi AI" });
+  }
+});
+var CHUA_CO_BANG = "42P01";
+var loiChuaCoBang = (e) => e?.code === CHUA_CO_BANG;
+var NhatKySchema = external_exports.object({
+  cau: external_exports.string().trim().min(1).max(300),
+  truoc: external_exports.string().trim().max(300).optional(),
+  duong: external_exports.enum(["mau", "tu_tra", "ai", "hoi_lai", "khong_hieu", "bao_cao"]),
+  hieu: external_exports.string().max(1e3).optional(),
+  tv: external_exports.unknown().optional()
+});
+app.post("/api/hoi-dap/nhat-ky", limiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ success: false });
+  const d = NhatKySchema.safeParse(req.body);
+  if (!d.success) return res.status(400).json({ success: false, message: "Sai d\u1EA1ng" });
+  try {
+    const tv = d.data.tv === void 0 ? null : JSON.stringify(d.data.tv).slice(0, 8e3);
+    const r = await timedQuery(
+      "INSERT INTO hoi_dap_nhat_ky (user_id, cau, truoc, duong, hieu, tv) VALUES ($1, $2, $3, $4, $5, $6::jsonb) RETURNING id",
+      [req.user.id, d.data.cau, d.data.truoc || null, d.data.duong, d.data.hieu ?? null, tv]
+    );
+    res.json({ success: true, id: Number(r.rows[0].id) });
+  } catch (e) {
+    if (loiChuaCoBang(e)) return res.json({ success: true, id: null });
+    console.error("hoi-dap/nhat-ky", e);
+    res.status(500).json({ success: false });
+  }
+});
+app.post("/api/hoi-dap/nhat-ky/:id/danh-gia", limiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ success: false });
+  const id = Number(req.params.id);
+  const d = external_exports.object({ tot: external_exports.boolean(), ghiChu: external_exports.string().trim().max(500).optional() }).safeParse(req.body);
+  if (!Number.isInteger(id) || id <= 0 || !d.success) return res.status(400).json({ success: false, message: "Sai d\u1EA1ng" });
+  try {
+    await timedQuery(
+      "UPDATE hoi_dap_nhat_ky SET danh_gia = $1, ghi_chu = COALESCE($2, ghi_chu) WHERE id = $3 AND user_id = $4",
+      [d.data.tot ? 1 : -1, d.data.ghiChu || null, id, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (e) {
+    if (loiChuaCoBang(e)) return res.json({ success: true });
+    console.error("hoi-dap/danh-gia", e);
+    res.status(500).json({ success: false });
+  }
+});
+app.get("/api/hoi-dap/nhat-ky", limiter, async (req, res) => {
+  if (!req.user) return res.status(401).json({ success: false });
+  const a = await loadUserAccess(req.user.id);
+  if (a.role !== "ADMIN") return res.status(403).json({ success: false, message: "Ch\u1EC9 qu\u1EA3n tr\u1ECB" });
+  const ngay2 = Math.min(365, Math.max(1, Number(req.query.ngay) || 30));
+  const chiChe = req.query.loai !== "tat-ca";
+  try {
+    const [tk, ds] = await Promise.all([
+      timedQuery(
+        `SELECT duong, COUNT(*) tong, COUNT(*) FILTER (WHERE danh_gia = 1) tot, COUNT(*) FILTER (WHERE danh_gia = -1) che
+           FROM hoi_dap_nhat_ky WHERE created_at >= NOW() - ($1 || ' days')::interval GROUP BY duong ORDER BY 2 DESC`,
+        [ngay2]
+      ),
+      timedQuery(
+        `SELECT k.id, k.created_at, u.username, k.cau, k.truoc, k.duong, k.hieu, k.tv, k.danh_gia, k.ghi_chu
+           FROM hoi_dap_nhat_ky k LEFT JOIN users u ON u.id = k.user_id
+          WHERE k.created_at >= NOW() - ($1 || ' days')::interval ${chiChe ? "AND k.danh_gia = -1" : ""}
+          ORDER BY k.created_at DESC LIMIT 500`,
+        [ngay2]
+      )
+    ]);
+    res.json({ success: true, thongKe: tk.rows.map((r) => ({ duong: r.duong, tong: +r.tong, tot: +r.tot, che: +r.che })), cau: ds.rows });
+  } catch (e) {
+    if (loiChuaCoBang(e)) return res.json({ success: true, thongKe: [], cau: [], chuaCoBang: true });
+    console.error("hoi-dap/nhat-ky GET", e);
+    res.status(500).json({ success: false });
+  }
 });
 
 // api/index.ts

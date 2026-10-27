@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 import { useTrendFilter } from './TrendFilterContext';
 import DetailDataModal from './DetailDataModal';
-import { useMoDanhSachHex, layHexChiTiet } from './DanhSachHex';
 import { formatTy, trieuToTy } from '../../../../utils/money';
 type TrendSource = 'order' | 'tkbv' | 'pthsp' | 'inventory' | 'export' | 'stock';
 export type DisplayMetric = 'COUNT' | 'SUM';
@@ -151,9 +150,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   const [pinned, setPinned] = useState<{ point: ChartPoint; x: number; y: number } | null>(null);
 
   const [detailOpen, setDetailOpen] = useState(false);
-  // Trang có DanhSachHexProvider: nút xem chi tiết mở danh sách HẠNG MỤC (HexDetailModal, -> BOT/BOP/BOM) thay vì
-  // dòng thô; tồn kho giữ danh sách dòng tồn (đã gom theo hạng mục)
-  const moDanhSachHex = useMoDanhSachHex();
+  // Nút xem chi tiết: bảng dữ liệu NGUỒN của biểu đồ (vd. từng dòng nhập kho), không phải danh sách hạng mục
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailRows, setDetailRows] = useState<Record<string, any>[]>([]);
   const [detailColumns, setDetailColumns] = useState<string[]>([]);
@@ -266,8 +263,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const openDetailForPinned = async () => {
     if (!pinned) return;
-    const theoHangMuc = !!moDanhSachHex && source !== 'stock';
-    if (!theoHangMuc) setDetailOpen(true);
+    setDetailOpen(true);
     setDetailLoading(true);
     try {
       const params = new URLSearchParams({
@@ -282,7 +278,6 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       if (phanLoai) params.set('phanLoai', phanLoai);
       if (hasCtWhitelist) params.set('ctWhitelist', ctWhitelistCsv);
       if (selectedDatesCsv) params.set('dates', selectedDatesCsv); // ✅ MỚI
-      if (theoHangMuc) { moDanhSachHex!(`Chi tiết ${theme.label} — Công trình: ${pinned?.point.congTrinh ?? ''}`, await layHexChiTiet(params)); return; }
       const r = await fetch(`/api/detail?${params.toString()}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: DetailResponse = await r.json();
@@ -315,7 +310,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   return (
     <div className={embedded ? 'mb-8' : 'p-6 space-y-4 h-full overflow-auto'}>
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-        <h4 className="text-xl font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
+        <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
           Xu hướng {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
         </h4>
@@ -329,7 +324,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
       <div
         ref={chartWrapRef}
-        className="relative bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col p-4"
+        className="relative bg-white rounded-2xl border border-slate-200 flex flex-col p-4"
         style={{ height: hasValidRange ? chartHeight : (embedded ? 320 : 420) }}
       >
         {!hasValidRange ? (

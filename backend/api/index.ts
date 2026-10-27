@@ -22,6 +22,7 @@ import { registerVuongMacPush } from '../src/vuongMacPush.js';
 import '../src/routes/data.js';       // /api/all-data, 12 bảng, production/*, check-versions, data-update-log
 import '../src/routes/overview.js';   // /api/overview/*
 import '../src/routes/stock.js';      // /api/stock/*, /api/warmup
+import '../src/routes/tonKhoVt.js';   // /api/ton-kho-vt/tong-hop, /api/ton-kho-vt/chi-tiet (tồn kho vật tư theo lần chốt tuần)
 import '../src/routes/revenue.js';    // /api/revenue
 import '../src/routes/settings.js';   // /api/view-project-mapping, /api/table-column-config
 import '../src/routes/auth.js';       // /api/auth/*
@@ -39,6 +40,7 @@ import '../src/routes/xuongCongNhan.js'; // /api/xuong/cong-nhan (danh sách cô
 import '../src/routes/xuongTram.js';     // /api/xuong/tram/* (trạm quét theo tổ — docs/designs/xuong-tram-quet.md)
 import '../src/routes/xuongThongBao.js'; // thông báo mục Xưởng + /api/cron/xuong (8h00, 16h30)
 import '../src/routes/tongQuan.js';   // /api/tong-quan/san-xuat (máy chủ tính sẵn màn đầu Tổng quan bằng code của giao diện)
+import '../src/routes/hoiDap.js';    // /api/hoi-dap/* (Hỏi số liệu — tự tra theo danh mục bảng / cột, chỉ đọc)
 
 const PORT = process.env.PORT || 5000;
 

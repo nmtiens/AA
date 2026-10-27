@@ -1,0 +1,52 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
+<div class="app">
+<aside class="side">
+  <div class="logo"><b>AA</b><span>Operations Hub</span></div>
+  <div class="nav"><i></i>Tổng quan</div><div class="nav"><i></i>Tra cứu</div><div class="nav on"><i></i>Tổng quan công trình</div><div class="nav"><i></i>Vướng mắc</div><div class="nav"><i></i>MRA</div>
+  <div class="navh">DỮ LIỆU</div><div class="nav"><i></i>Sản xuất (P001 → P025)</div><div class="nav"><i></i>Nhập · Xuất · Tồn kho</div>
+</aside>
+<main class="main">
+  <div class="hd">
+    <div><div class="h1">Tổng quan công trình</div><div class="sub" style="margin-top:3px">Giá trị tính bằng tỷ đồng</div></div>
+    <div class="sp"></div><div class="search">⌕ Tìm công trình, PM, mã HEX…</div><span class="btn">Xuất Excel</span>
+  </div>
+  <div class="hd" style="gap:8px">
+    <span class="chip">Tất cả công trình <span class="n">160</span></span>
+    <span class="chip red on"><span class="d"></span>Luồng đỏ <span class="n">12</span></span>
+    <span class="chip">Căn mẫu <span class="n">8</span></span>
+    <span style="width:1px;height:24px;background:#d1d5db;margin:0 4px"></span>
+    <span class="chip">Tình trạng IPO: <b>Tất cả</b> ▾</span>
+    <span class="fchip"><span>Tháng hạn:</span> T10/2026 ✕</span>
+    <span class="chip on">⚙ Bộ lọc (1)</span><span class="c-sub" style="font-weight:500;margin-left:4px">Xoá lọc</span>
+  </div>
+  <div class="card" style="background:#f8fafc;padding:16px 18px">
+    <div class="hd" style="margin-bottom:12px"><span class="b">Bộ lọc</span><span class="sub">lọc cả trang · đổi nhóm công trình sẽ xoá bộ lọc</span><span class="sp"></span><span class="c-sub" style="font-weight:500">Đóng ✕</span></div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px" id="flt"></div>
+  </div>
+  <div class="note" style="background:#fff5f5;border:1px solid #fecaca;color:var(--redT);display:flex;gap:10px;align-items:center"><b>Luồng đỏ</b><span>12 công trình ưu tiên · hạn BOT dự án sớm nhất 15/10/2026 · 7 / 12 công trình đang có hạng mục quá hạn</span><span style="flex:1"></span><span class="b" style="text-decoration:underline">Setup phân loại</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="l">Tổng giá trị đơn hàng</div><div class="v"><b>612,40</b><span>tỷ</span></div><div class="s">12 công trình · 4.120 hạng mục</div></div>
+    <div class="kpi"><div class="l">Đã nhập kho (P022)</div><div class="v"><b class="c-grn">171,47</b><span>tỷ · 28%</span></div><div class="pbar"><i style="width:28%"></i></div><div class="s">Chưa nhập 440,93 tỷ · 1.012 mục nhập đủ</div></div>
+    <div class="kpi on"><div class="l">Quá hạn KH nhập kho</div><div class="v"><b class="c-red">402</b><span>hạng mục</span></div><div class="s">58,12 tỷ chưa nhập · 7 công trình</div></div>
+    <div class="kpi"><div class="l">Quá BOT dự án, chưa xong</div><div class="v"><b class="c-red">1.210</b><span>hạng mục</span></div><div class="s">96,30 tỷ chưa nhập · 5 công trình</div></div>
+  </div>
+  <div class="card np">
+    <div class="hd" style="padding:16px 20px"><span class="h2">Công trình Luồng đỏ</span><span class="badge t-red">12</span><span class="sub">· tháng hạn T10/2026</span><span class="sp"></span><span class="sub">Xếp theo</span><span class="seg"><span>Quá hạn nhiều nhất</span><span>Giá trị lớn nhất</span><span>Hoàn thành thấp nhất</span><span class="on">BOT dự án gần nhất</span></span></div>
+    <table id="ct" class="mid"><tr><th>#</th><th>Công trình · PM</th><th class="r">Hạng mục</th><th class="r">Giá trị (tỷ)</th><th class="r">Còn lại</th><th>Hoàn thành</th><th>BOT dự án</th><th class="r">Quá hạn</th><th class="r">VM</th><th class="r">Chưa có KH</th></tr></table>
+  </div>
+  <div class="sub" style="text-align:center">Các khối biểu đồ (giá trị theo công đoạn, tháng hạn, PC, nhóm đơn hàng) giữ như trang “Tất cả công trình”, chỉ tính trong nhóm đang chọn.</div>
+</main></div>
+<script>
+const F=[['Công trình','Tất cả'],['PM','Tất cả'],['Khu vực','Tất cả'],['Tháng hạn','T10/2026',1],['Nhóm CT','Tất cả'],['Dự án','Tất cả']];
+document.getElementById('flt').innerHTML=F.map(([k,v,on])=>`<div><div class="sub" style="margin-bottom:4px">${k}</div><div style="background:#fff;border:1px solid ${on?'#0f172a':'#d1d5db'};border-radius:8px;padding:8px 10px;display:flex;font-weight:${on?600:400}"><span style="flex:1">${v}</span><span class="c-sub">▾</span></div></div>`).join('');
+const H={r:'#e31e24',a:'#f59e0b',g:'#22c55e',n:'#cbd5e1'};
+const hl=(a,b,c)=>`<div class="health"><span style="--hc:${H[a]}">BOT</span><span style="--hc:${H[b]}">BOP</span><span style="--hc:${H[c]}">BOM</span></div>`;
+const R=[['DỰ ÁN TRỤC ĐÔNG TÂY-14 BLOCK 2C_CT26-011','Đặng Ngọc Sáu','56','113,48',39,'15/10/2026','đã quá 5 ngày','c-red b',4,0,'agg','','','',8,'69,22'],
+['TÂY HỒ VIEW-THÁP 4B-BAN CÔNG_CT24-067','Lê Minh Tuấn','1.757','125,02',25,'30/10/2026','còn 10 ngày','c-red b',187,2,'rrr','','','',836,'93,76'],
+['TÂY HỒ VIEW-THÁP 4A-BAN CÔNG_CT24-066','Nguyễn Duy Linh','793','138,43',39,'30/10/2026','còn 10 ngày','c-red b',99,0,'rag','','','',312,'84,44'],
+['KHÁCH SẠN NAM PHƯƠNG PHÒNG ĐẠI TRÀ - HTNT_CT26-055','Đặng Ngọc Sáu','407','198,12',22,'30/10/2026','còn 10 ngày','c-red b',52,0,'rra','','','',140,'154,53'],
+['PUBLIC APEC S3_CT26-041','Nguyễn Quốc Đạt','347','148,99',0,'30/10/2026','còn 10 ngày','c-amb b',0,0,'nnr','','','',347,'148,99'],
+['MINI HOTEL FURNITURE GD 01_CT25-026','Nguyễn Hoài Vũ','19','91,52',91,'30/11/2026','còn 41 ngày','',0,0,'ggg','','','',0,'8,24']];
+document.getElementById('ct').insertAdjacentHTML('beforeend',R.map((r,i)=>`<tr${i==1?' class="sel"':''}><td class="c-sub">${i+1}</td><td style="min-width:300px"><div style="font-weight:500">${r[0]}</div><div class="sub">${r[1]}</div></td><td class="r num">${r[2]}</td><td class="r num">${r[3]}</td><td class="r num c-amb">${r[15]}</td><td><span class="mini"><i><b style="width:${r[4]}%"></b></i><span class="c-sub">${r[4]}%</span></span></td><td><div class="${r[7]}">${r[5]}</div><div class="sub">${r[6]}</div></td><td class="r">${r[8]?`<span class="badge t-red">${r[8]}</span>`:'<span class="c-sub">—</span>'}</td><td class="r ${r[9]?'c-red bb':'c-sub'}">${r[9]||'—'}</td><td class="r ${r[14]?'c-amb':'c-sub'}">${r[14]||'—'}</td></tr>`).join(''));
+</script>
+</body></html>

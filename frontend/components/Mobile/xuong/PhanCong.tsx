@@ -76,12 +76,12 @@ export function PhanCongSheet({ toId, onGhi, onClose }: {
               const k = chon[n.mnv] ?? KHONG;
               const daDoi = k !== (n.dangO?.key ?? KHONG);
               return (
-                <li key={n.mnv} className={`rounded-2xl border p-3 ${daDoi ? 'border-slate-900' : 'border-slate-200'}`}>
+                <li key={n.mnv} className={`rounded-2xl p-3 ${daDoi ? 'border-2 border-slate-900' : `border ${n.dangO?.nguon === 'tu_gan' ? `${MAU.ngung.vien} ${MAU.ngung.nen}` : 'border-slate-200'}`}`}>
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="min-w-0 truncate text-lg font-semibold text-slate-900">{n.hoTen} <span className="text-base font-normal text-slate-600">{n.mnv}</span></p>
                     <span className={`shrink-0 text-base ${n.coMat ? MAU.chay.chu : 'text-slate-500'}`}>{n.coMat ? 'Có mặt' : 'Chưa vào ca'}</span>
                   </div>
-                  <select className="mt-2 h-14 w-full rounded-2xl border border-slate-300 px-3 text-base" value={k} disabled={!data.suaDuoc}
+                  <select className="mt-2 h-14 w-full rounded-2xl border border-slate-300 bg-white px-3 text-base focus:border-aa-500 focus:outline-none focus:ring-4 focus:ring-aa-600/10" value={k} disabled={!data.suaDuoc}
                     onChange={e => setChon(c => ({ ...c, [n.mnv]: e.target.value }))} aria-label={`Hàng của ${n.hoTen}`}>
                     <option value={KHONG}>— Chưa phân —</option>
                     {data.hangMuc.map(h => (

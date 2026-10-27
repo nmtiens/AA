@@ -1,0 +1,63 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><link rel="stylesheet" href="grid.css"><script src="ct.js"></script></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="row">
+    <div class="card grow" style="display:flex;flex-direction:column;gap:12px">
+      <div class="hd" style="align-items:flex-start"><div><div class="q">Hạng mục đang nằm ở đâu, đứng bao lâu?</div>
+      <div class="ins"><span class="a">Dồn nhiều nhất ở 11/12. Chưa SX: 282 mục</span> (xưởng 4A 78) · <em>74 mục đứng ≥ 4 tuần</em>, nhiều nhất 15. Chưa triển khai (22) và 05. Mộc (18).</div></div>
+      <span class="sp"></span><span class="seg"><span class="on">Số hạng mục</span><span>Mục ≥ 4 tuần</span><span>Còn lại (tỷ)</span></span></div>
+      <table class="heat" id="hm"></table>
+      <div class="sub">Màu đậm = nhiều · số đỏ nhỏ = mục đứng ≥ 4 tuần · bấm 1 ô để lọc danh sách. Cột theo xưởng chính (xuong_chinh).</div>
+    </div>
+    <div class="card" style="width:330px;flex:none;padding:20px 22px 10px">
+      <div class="hd" style="padding-bottom:8px"><span class="h2">Top điểm nghẽn</span><span class="sub">mục ≥ 4 tuần</span></div>
+      <div class="att" id="top"></div>
+      <div class="sub" style="padding:10px 0">QC lỗi 6 · chờ kiểm 11 · gia công ngoài còn chờ NCC 22</div>
+    </div>
+  </div>
+  <div class="card np">
+    <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:12px">
+      <div class="hd"><div><div class="q">Hạng mục này đã qua bước nào, đang kẹt ở đâu?</div><div class="h2" style="margin-top:2px">Tra theo hạng mục</div></div><span class="sp"></span>
+        <div class="bigsearch">⌕ Gõ mã HEX hoặc tên hạng mục…</div></div>
+      <div class="hd" style="gap:8px;flex-wrap:wrap">
+        <span class="chip red on" style="padding:5px 12px">Đứng ≥ 4 tuần <span class="n">74</span></span>
+        <span class="chip" style="padding:5px 12px">Đang trên chuyền <span class="n">783</span></span>
+        <span class="chip" style="padding:5px 12px">QC lỗi <span class="n">6</span></span>
+        <span class="chip" style="padding:5px 12px">Tất cả <span class="n">1.420</span></span>
+        <span style="width:1px;height:22px;background:#d1d5db"></span>
+        <span class="c k4" style="min-width:0">✓ 40/40</span><span class="c k3 need" style="min-width:0">▶ 12/40</span><span class="sub">đang làm</span><span class="c k6" style="min-width:0">0/40</span><span class="sub">chưa tới</span><span class="kx">·</span><span class="sub">hạng mục không có bước này</span>
+      </div>
+    </div>
+    <table class="g mid" id="t"></table>
+    <div style="padding:12px;text-align:center;font-weight:500">Xem thêm 68 hạng mục</div>
+  </div>
+</div></div>
+<script>
+ctHead(2);
+const KV=['2A','3A','4A','5A','8AB','8C','Khác'];
+const G=[['Chưa triển khai','#94a3b8',[['15. CHƯA TRIỂN KHAI',[8,22,48,30,35,24,0],[0,3,7,4,5,3,0]]]],
+['Chưa phiếu / chưa vào SX','#38bdf8',[['13/14. CHƯA PHIẾU',[10,24,52,38,36,28,0],[0,1,4,2,2,1,0]],['11/12. CHƯA SX',[14,40,78,60,50,40,0],[0,1,3,2,1,1,0]]]],
+['Đang trên chuyền','#fbbf24',[['07. CTS · 07.2. PHÔI',[6,18,36,26,16,18,0],[0,0,1,1,0,1,0]],['06. MÁY · 06.1. HÀN',[4,20,38,26,12,16,0],[0,1,2,1,0,1,0]],['05. MỘC',[8,30,41,36,30,25,0],[0,3,8,3,2,2,0]],['04. VECNI',[4,18,30,26,16,18,0],[0,1,2,1,0,1,0]],['04.1. BỌC NỆM',[0,0,10,30,0,12,0],[0,0,1,2,0,0,0]],['03. FITTING',[3,10,20,14,9,8,0],[0,0,0,0,0,0,0]],['02. BAO BÌ',[1,6,10,8,5,4,0],[0,0,0,0,0,0,0]],['16. GIA CÔNG VỆ TINH',[0,0,0,0,0,0,60],[0,0,0,0,0,0,0]]]],
+['Nhập kho chưa đủ','#a78bfa',[['01. NHẬP KHO KĐB',[2,8,18,14,7,6,0],[0,0,0,0,0,0,0]]]]];
+const mx=78;
+const cell=(v,r)=>{if(!v)return `<td style="color:#cbd5e1">·</td>`;const a=v/mx;return `<td style="background:rgba(245,158,11,${0.1+a*0.75});font-weight:${a>.6?700:500};">${v}${r?`<sup style="color:#b3141a;font-weight:700;font-size:10px;margin-left:2px">${r}</sup>`:''}</td>`;};
+let h=`<tr><th style="text-align:left">Công đoạn (tình trạng)</th>${KV.map(k=>`<th style="text-align:center">${k}</th>`).join('')}<th style="text-align:center">Tổng</th></tr>`;
+G.forEach(([g,c,rows])=>{h+=`<tr><td colspan="${KV.length+2}" style="text-align:left;padding:9px 0 3px;font-weight:600;font-size:12px;color:#475569;border:0"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:6px"></span>${g} · ${rows.reduce((a,r)=>a+r[1].reduce((x,y)=>x+y,0),0)} mục</td></tr>`;rows.forEach(([n,v,r])=>{h+=`<tr><td style="text-align:left;padding-left:14px;font-weight:500;white-space:nowrap">${n}</td>${v.map((x,i)=>cell(x,r[i])).join('')}<td class="b">${v.reduce((a,b)=>a+b,0)}</td></tr>`;});});
+const tot=KV.map((_,i)=>G.flatMap(g=>g[2]).reduce((a,r)=>a+r[1][i],0));
+h+=`<tr><td style="text-align:left;font-weight:700">Tổng cộng</td>${tot.map(v=>`<td class="b">${v}</td>`).join('')}<td class="bb">${tot.reduce((a,b)=>a+b,0).toLocaleString('vi-VN')}</td></tr>`;
+document.getElementById('hm').innerHTML=h;
+const TOP=[['15. Chưa triển khai bản vẽ','22 mục · 15 đã quá hạn KH',22],['05. Mộc','18 mục · nhiều nhất xưởng 4A (8)',18],['13/14. Chưa phiếu','10 mục',10],['04. Vecni','5 mục · 1,10 tỷ còn lại',5],['11/12. Chưa SX','8 mục · xưởng 4A 3',8],['06. Máy · Hàn','5 mục',5]];
+document.getElementById('top').innerHTML=TOP.map(([t,s,n])=>`<div class="it"><div class="tx"><div class="t">${t}</div><div class="s">${s}</div></div><span class="badge t-red">${n}</span></div>`).join('');
+const S=[['CTS',100],['Máy',96],['Mộc',71],['Kim loại',58],['Vecni',34],['Sofa',80],['Đá',62],['Kính',40],['Fitting',22],['Bao bì',12]];
+const cl=v=>{if(v=='')return '<td><span class="kx">·</span></td>';const [k,t,cur]=v.split('|');return `<td><span class="c ${k}${cur?' need':''}">${cur?'▶ ':''}${t}</span></td>`;};
+const R=[
+ ['260409711','Tủ áo phòng ngủ master','06. MÁY','3 TUẦN','4A',['k4|40/40','k3|24/40|1','k6|0/40','','k6|0/40','','','k6|0/40','k6|0/40','k6|0/40'],['Đạt','grn'],'06/10','c-red'],
+ ['260409705','Cửa D10 Maxine','05. MỘC','5 TUẦN','3A',['k4|40/40','k4|40/40','k3|24/40|1','k6|0/40','k6|0/40','','','k6|0/40','k6|0/40','k6|0/40'],['Đạt','grn'],'03/10','c-red'],
+ ['260409802','Sofa 3 chỗ phòng khách','04.1. BỌC NỆM','4 TUẦN','5A',['','','k4|6/6','','','k3|0/6|1','','','k6|0/6','k6|0/6'],['Đạt','grn'],'14/10','c-red'],
+ ['260409766','Tủ giày lối vào','06.1. HÀN','<3 NGÀY','4A',['k4|12/12','k3|8/12|1','k6|0/12','k6|0/12','k6|0/12','','','','k6|0/12','k6|0/12'],['Chờ kiểm','amb'],'24/10','c-amb'],
+ ['260409740','Kệ tivi phòng khách','07. CTS','2 TUẦN','8AB',['k3|2/6|1','k6|0/6','k6|0/6','','k6|0/6','','k6|0/6','k6|0/6','k6|0/6','k6|0/6'],null,'12/10','c-red'],
+ ['260409732','Vách ốp gỗ phòng khách','14. CHƯA PHIẾU','4 TUẦN','4A',['k6|0/30','k6|0/30','k6|0/30','','k6|0/30','','','','k6|0/30','k6|0/30'],null,'10/10','c-red'],
+];
+document.getElementById('t').innerHTML=`<tr><th class="l">Mã HEX · Hạng mục</th><th class="l">Đang ở · bao lâu</th><th>Xưởng</th>${S.map(([s,p])=>`<th>${s}<div class="cs">cả CT ${p}%</div></th>`).join('')}<th class="l">QC gần nhất</th><th class="l">Hạn</th></tr>`+R.map(r=>`<tr><td class="l" style="min-width:180px"><span class="hex">${r[0]}</span><div style="font-size:12px">${r[1]}</div></td><td class="l" style="white-space:nowrap"><b>${r[2]}</b><div class="sub ${/^[4-9] TUẦN/.test(r[3])?'c-red b':''}">${r[3]}</div></td><td>${r[4]}</td>${r[5].map(cl).join('')}<td class="l">${r[6]?`<span class="badge t-${r[6][1]}">${r[6][0]}</span>`:'<span class="kx">—</span>'}</td><td class="l ${r[8]} b">${r[7]}</td></tr>`).join('');
+</script>
+</body></html>

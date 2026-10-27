@@ -1,0 +1,17 @@
+# pm.json — 100 câu · đúng 95 · hỏi lại 1 · sai/nhờ AI 4
+
+- [pm-005] "cho e hỏi tây hồ view tháp 4a còn bn tiền chưa nhập kho" → sai: lọc [gia_tri_con_lai|lon_hon|0; xuong_chinh|bang|4a; ten_cong_trinh|chua|tay ho view thap] ≠ [ten_cong_trinh|chua|tay ho view thap 4a; gia_tri_con_lai|lon_hon|0] (đường: tự tra)
+  đọc được: {"bang":"production_status_app","kieu":"tong","do":[{"ham":"dem"},{"ham":"tong","cot":"gia_tri_con_lai"}],"nhom":[],"loc":[{"cot":"gia_tri_con_lai","op":"lon_hon","gt":0},{"cot":"xuong_chinh","op":"bang","gt":["4A"]},{"cot":"ten_cong_trinh","op":"chua","gt":"tây hồ view tháp"}]}
+  mong đợi: {"loai":"tu_tra","bang":"production_status_app","loc":[{"cot":"ten_cong_trinh","op":"chua","gt":"tây hồ view tháp 4a"},{"cot":"gia_tri_con_lai","op":"lon_hon","gt":0}],"coDo":{"ham":"tong","cot":"gia_tri_con_lai"},"ky":null}
+- [pm-011] "hm nào của Holiday Inn sắp đến hạn giao trong 2 tuần tới" → sai: lọc [ngay_can_giao|trong_khoang|2026-10-19,2026-11-02; gia_tri_con_lai|lon_hon|0; so_ngay_cd_hien_tai|bang|2 tuan; ten_cong_trinh|chua|holiday inn] ≠ [ten_cong_trinh|chua|holiday inn; ngay_can_giao|trong_khoang|2026-10-19,2026-11-02; gia_tri_con_lai|lon_hon|0] (đường: tự tra)
+  đọc được: {"bang":"production_status_app","kieu":"dong","do":[],"nhom":[],"loc":[{"cot":"ngay_can_giao","op":"trong_khoang","gt":["2026-10-19","2026-11-02"]},{"cot":"gia_tri_con_lai","op":"lon_hon","gt":0},{"cot":"so_ngay_cd_hien_tai","op":"bang","gt":["2 TUẦN"]},{"cot":"ten_cong_trinh","op":"chua","gt":"Holiday Inn"}]}
+  mong đợi: {"loai":"tu_tra","bang":"production_status_app","kieu":"dong","loc":[{"cot":"ten_cong_trinh","op":"chua","gt":"holiday inn"},{"cot":"ngay_can_giao","op":"trong_khoang","gt":["2026-10-19","2026-11-02"]},{"cot":"gia_tri_con_lai","op":"lon_hon","gt":0}],"ky":null}
+- [pm-013] "so giá trị còn lại của 3 công trình CT25-070, CT26-110, CT24-066 giúp với" → sai: chia [] ≠ [ten_cong_trinh] (đường: tự tra)
+  đọc được: {"bang":"production_status_app","kieu":"tong","do":[{"ham":"tong","cot":"gia_tri_con_lai"}],"nhom":[],"loc":[{"cot":"ten_cong_trinh","op":"chua","gt":["CT25-070","CT26-110","CT24-066"]}]}
+  mong đợi: {"loai":"tu_tra","bang":"production_status_app","loc":[{"cot":"ten_cong_trinh","op":"chua","gt":["CT25-070","CT26-110","CT24-066"]}],"nhom":["ten_cong_trinh"],"coDo":{"ham":"tong","cot":"gia_tri_con_lai"},"ky":null}
+- [pm-046] "vat tu go cua CT26-110 dang mua" → hoi_lai: hỏi lại: go (đường: nhờ AI (chưa hiểu: go))
+  đọc được: {"bang":"vat_tu","kieu":"tong","do":[{"ham":"dem"},{"ham":"dem_khac","cot":"so_pr"}],"nhom":[],"loc":[{"cot":"trang_thai","op":"bang","gt":["2.ĐANG MUA"]},{"cot":"ten_cong_trinh","op":"chua","gt":["CT26-110"]}]}
+  mong đợi: {"loai":"tu_tra","bang":"vat_tu","loc":[{"cot":"ten_cong_trinh","op":"chua","gt":"CT26-110"},{"cot":"nhom_vt","op":"bang","gt":["101 - Gỗ"]},{"cot":"trang_thai","op":"bang","gt":["2.ĐANG MUA"]}],"ky":null}
+- [pm-049] "khsx tuần này nam phương" → sai: lọc [ten_cong_trinh|chua|phuong] ≠ [ten_cong_trinh|chua|nam phuong] (đường: tự tra)
+  đọc được: {"bang":"khsx","kieu":"tong","do":[{"ham":"tong","cot":"thanh_tien_ke_hoach"},{"ham":"dem_khac","cot":"hex"}],"nhom":[],"loc":[{"cot":"ten_cong_trinh","op":"chua","gt":"phương"}],"tu":"2026-10-19","den":"2026-10-25"}
+  mong đợi: {"loai":"tu_tra","bang":"khsx","loc":[{"cot":"ten_cong_trinh","op":"chua","gt":"nam phương"}],"ky":{"tu":"2026-10-19","den":"2026-10-25"}}

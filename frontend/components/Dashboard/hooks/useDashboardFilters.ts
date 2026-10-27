@@ -84,15 +84,11 @@ export function useDashboardFilters({
     setFilters(DEFAULT_FILTERS);
   };
 
-  // Chỉ để hiện lại nút X — kiểm tra length đơn giản.
-  const hasActiveFilters =
-    filters.congTrinh.length > 0 ||
-    filters.xuong.length > 0 ||
-    filters.tinhTrang.length > 0 ||
-    filters.tinhTrangIpo.length > 0 ||
-    filters.khachHang.length > 0 ||
-    filters.khuVucDuAn.length > 0 ||
-    filters.phanLoai.length > 0;
+  // Có lọc KHÁC mặc định (mặc định đã sẵn Tình trạng IPO = 01. ĐANG SẢN XUẤT) => mới hiện nút xoá / về mặc định
+  const hasActiveFilters = (Object.keys(DEFAULT_FILTERS) as Array<keyof DashboardFiltersState>).some(k => {
+    const a = [...filters[k]].sort().join('|'), b = [...DEFAULT_FILTERS[k]].sort().join('|');
+    return a !== b;
+  });
 
   // Tập công trình thuộc các Khách hàng + Khu vực dự án đã chọn (null = không lọc theo 2 tiêu chí này)
   const dungMayChu = productionData.length === 0 && !!sanTuMayChu;

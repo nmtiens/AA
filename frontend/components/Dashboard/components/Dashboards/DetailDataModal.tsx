@@ -4,6 +4,7 @@ import { exportDetailRowsToCsv } from '../../utils/csvExport';
 import { ModalColumnSetupButton } from '../../../Construction/utils/ModalColumnSetupButton';
 import { resolveVisibleModalColumns, ModalColumnDef } from '../../../Construction/utils/tableColumnConfig';
 import { formatTrieuAsTy } from '../../../../utils/money';
+import { resolveColumnLabel } from '../../../../services/dataService';
 
 const ROWS_PER_PAGE = 200;
 
@@ -46,8 +47,9 @@ interface GroupedRow {
 // Cột tiền (gốc triệu đồng) -> hiển thị Tỷ, 2 số lẻ. Xuất CSV vẫn giữ số gốc.
 const MONEY_COLUMN_RE = /^(tri_gia|thanh_tien|gia_tri)/;
 const isMoneyColumn = (col: string) => MONEY_COLUMN_RE.test(col);
+// Tên cột tiếng Việt có dấu — dùng chung bảng tên cột của các trang dữ liệu (services/dataService)
 const formatColumnLabel = (col: string) =>
-  col.toUpperCase().replace(/_/g, ' ') + (isMoneyColumn(col) ? ' (TỶ)' : '');
+  resolveColumnLabel(col) + (isMoneyColumn(col) ? ' (TỶ)' : '');
 // Ngày "2026-10-10" (kể cả "… 00:00:00" / "…T00:00:00.000Z") -> "10/10/2026" như mọi nơi khác trên web; ngày giờ đầy đủ
 // -> "10/10/2026 14:30" giờ VN. Chỉ đổi cách HIỂN THỊ, xuất CSV vẫn giữ giá trị gốc.
 const NGAY_RE = /^(\d{4})-(\d{2})-(\d{2})(?:[ T]00:00(?::00(?:\.0+)?)?Z?)?$/;
@@ -65,9 +67,12 @@ const formatNgay = (s: string): string | null => {
   }
   return null;
 };
+// Cột MÃ / số thứ tự thời gian: giữ nguyên chữ số, không thêm dấu phân cách nghìn (HEX "251.012.933", năm "2.026" là sai)
+const MA_COLUMN_RE = /^(hex|ma_|id|id_|so_pr|so_po|so_phieu|so_ipo|lenh_|pr_line|plant|sloc|nam|thang|ngay|tuan)(_|$)/;
 const formatCellValue = (v: any, col?: string) => {
   if (v === null || v === undefined) return '';
   if (col && isMoneyColumn(col) && v !== '' && Number.isFinite(Number(v))) return formatTrieuAsTy(Number(v));
+  if (col && MA_COLUMN_RE.test(col) && typeof v === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v));
   if (typeof v === 'number') return v.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
   if (typeof v === 'string') { const ngay = formatNgay(v.trim()); if (ngay) return ngay; }
   return String(v);
@@ -263,14 +268,15 @@ export default function DetailDataModal({
           </div>
         </div>
 
-        <div className="overflow-auto flex-1 p-4">
+        {/* Không đệm phía trên: tiêu đề dính sát mép khung cuộn (đệm trên làm dòng dữ liệu lọt lên phía trên tiêu đề) */}
+        <div className="overflow-auto flex-1 px-4 pb-4">
           {loading ? (
             <div className="text-center text-slate-400 py-10 text-sm">Đang tải...</div>
           ) : rows.length === 0 ? (
             <div className="text-center text-slate-400 py-10 text-sm">Không có dữ liệu chi tiết cho bộ lọc hiện tại</div>
           ) : (
             <table className="min-w-full text-xs border-collapse">
-              <thead className="sticky top-0 bg-slate-50">
+              <thead className="sticky top-0 z-10 bg-slate-50 shadow-[0_1px_0_0_#e2e8f0]">
                 <tr>
                   <th className="w-10 px-2 py-1.5 text-right border-b border-slate-200 font-semibold text-slate-600 whitespace-nowrap">STT</th>
                   {canGroup && <th className="w-6 border-b border-slate-200" />}

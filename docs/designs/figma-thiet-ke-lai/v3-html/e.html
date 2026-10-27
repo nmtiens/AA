@@ -1,0 +1,59 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><link rel="stylesheet" href="grid.css"><script src="ct.js"></script></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="row">
+    <div class="card grow" style="display:flex;flex-direction:column;gap:14px">
+      <div><div class="q">1.420 hạng mục chưa nhập kho đủ — hạn tới đâu rồi?</div>
+      <div class="ins"><em>187 mục quá hạn KH nhập kho</em> · <span class="a">248 mục đến hạn trong 14 ngày</span> · <span style="color:#64748b">836 mục chưa có KH — trong đó <em>612 mục đã qua ngày cần (PM)</em>.</span></div></div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px" id="lv"></div>
+      <div class="stack" style="height:12px;border-radius:6px;gap:2px" id="bar"></div>
+      <div class="sub">Hạn đang dùng = KH nhập kho tuần, không có thì KH tháng. Hạng mục chưa có KH thì so tạm với Ngày cần (PM) — cột có ở 97% hạng mục — để biết có đang trễ không.</div>
+    </div>
+    <div class="card" style="width:470px;flex:none;display:flex;flex-direction:column;gap:10px">
+      <div><div class="q">187 mục quá hạn — trễ vì đâu?</div><div class="ins" style="font-size:15px"><span class="a">Gia công ngoài chưa về (47)</span> và <span class="a">chưa vào SX (24)</span> là 2 lý do rõ nhất · <em>75 mục đang SX mà chậm, không thấy vướng gì</em>.</div></div>
+      <div id="why" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div class="sub">Mỗi mục 1 lý do chính (thứ tự ưu tiên từ trên xuống). Bấm 1 dòng để lọc danh sách.</div>
+    </div>
+  </div>
+  <div class="card np">
+    <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:12px">
+      <div class="hd"><div><div class="q">Hạng mục này hạn nào, trễ bao nhiêu?</div><div class="h2" style="margin-top:2px">Tra theo hạng mục</div></div><span class="sp"></span>
+        <div class="bigsearch">⌕ Gõ mã HEX hoặc tên hạng mục…</div></div>
+      <div class="hd" style="gap:8px;flex-wrap:wrap">
+        <span class="chip red on" style="padding:5px 12px">Quá hạn KH <span class="n">187</span></span>
+        <span class="chip" style="padding:5px 12px">Đến hạn ≤ 14 ngày <span class="n">248</span></span>
+        <span class="chip" style="padding:5px 12px">Chưa có KH, đã qua ngày cần <span class="n">612</span></span>
+        <span class="chip" style="padding:5px 12px">Trễ vì vật tư <span class="n">7</span></span><span class="chip" style="padding:5px 12px">Trễ vì gia công ngoài <span class="n">47</span></span><span class="chip" style="padding:5px 12px">Chưa rõ lý do <span class="n">75</span></span>
+        <span class="chip" style="padding:5px 12px">Tất cả <span class="n">1.420</span></span>
+        <span style="width:1px;height:22px;background:#d1d5db"></span>
+        <span class="c k1" style="min-width:0">quá 17n</span><span class="c k3" style="min-width:0">còn 5n</span><span class="c k5" style="min-width:0">31/10</span><span class="c k4" style="min-width:0">✓ đạt</span><span class="kx">—</span><span class="sub">chưa có</span>
+        <span class="c k1 need" style="min-width:0">quá 17n</span><span class="sub">= hạn đang dùng</span>
+      </div>
+    </div>
+    <table class="g mid" id="t"></table>
+    <div style="padding:12px;text-align:center;font-weight:500">Xem thêm 179 hạng mục</div>
+  </div>
+</div></div>
+<script>
+ctHead(1);
+const LV=[['Quá hạn KH',187,'#e31e24','24,18 tỷ chưa nhập',1],['≤ 14 ngày',248,'#f59e0b','17,62 tỷ'],['15–30 ngày',96,'#fcd34d','6,30 tỷ'],['Sau 30 ngày',41,'#cbd5e1','2,95 tỷ'],['Đạt KH kỳ, chờ KH tiếp',12,'#60a5fa','0,51 tỷ'],['Chưa có KH nhập kho',836,'#e2e8f0','612 đã qua ngày cần (PM)']];
+document.getElementById('lv').innerHTML=LV.map(([l,n,c,h,bad])=>`<div class="lv${bad?' on':''}" style="${bad?'background:#fff7f7':''}"><div class="l"><span class="sw" style="background:${c}"></span>${l}</div><div class="n" style="${bad?'color:#b3141a':''}">${n}</div><div class="h">${h}</div></div>`).join('');
+const T=LV.reduce((a,x)=>a+x[1],0);document.getElementById('bar').innerHTML=LV.map(x=>`<i style="width:${x[1]/T*100}%;background:${x[2]}"></i>`).join('');
+const WHY=[['Vướng mắc đang mở','VM',2,'#e31e24','M1–M5 · tab Vướng mắc'],['Chờ vật tư của công đoạn','BOM',7,'#e31e24','vật tư "cần ngay" chưa về'],['Chưa triển khai bản vẽ','BOP',2,'#f97316','15. Chưa triển khai'],['Chưa có phiếu','BOP',10,'#f97316','13/14. Chưa phiếu'],['Có phiếu, chưa vào SX','BOP',24,'#f97316','11/12. Chưa SX'],['Đứng ≥ 4 tuần ở công đoạn','BOP',0,'#f97316','so_ngay_cd_hien_tai'],['Gia công ngoài chưa về','GCN',47,'#d946ef','16.x · NCC đang SX'],['Nhập kho chưa đủ SL','NK',20,'#60a5fa','01. Nhập kho KĐB'],['Đang SX, chậm so KH','?',75,'#94a3b8','không thấy vướng — xem lại KH / năng lực']];
+document.getElementById('why').innerHTML=WHY.map(([l,t,n,c,h])=>`<div style="display:grid;grid-template-columns:22px 170px 1fr 34px;gap:8px;align-items:center;${n?'':'opacity:.45'}"><span class="badge" style="background:#f1f5f9;color:#475569;font-size:10px;padding:1px 4px;justify-content:center">${t}</span><div><div style="font-size:12px;font-weight:600">${l}</div><div class="mut" style="font-size:10px">${h}</div></div><div style="height:14px;background:#f1f5f9;border-radius:3px"><div style="height:100%;width:${n/77*100}%;background:${c};border-radius:3px"></div></div><b style="text-align:right">${n}</b></div>`).join('');
+const G=[['KH tuần','có ở 3% HM'],['KH tháng','có ở 6% HM'],['Ngày cần giao','có ở 38% HM'],['Ngày cần (PM)','có ở 97% HM'],['BOT dự án','có ở 74% HM']];
+const cell=v=>{if(!v)return '<td><span class="kx">—</span></td>';const [k,t,use]=v.split('|');return `<td><span class="c ${k}${use?' need':''}">${t}</span></td>`;};
+const why=(t,txt,tab)=>`<span class="badge t-${t}" style="white-space:normal;text-align:left">${txt}</span>${tab?` <span class="sub" style="text-decoration:underline">→ ${tab}</span>`:''}`;
+const R=[
+ ['260409705','Cửa D10 Maxine','05. MỘC','5 TUẦN',['k1|quá 17n|1','k5|31/10','k3|còn 5n','k1|quá 2n','k3|còn 10n'],'212 ngày','0,42',why('red','Vướng mắc M3 · thiếu ván lạng · mở 4 ngày','Vướng mắc')+'<div style="margin-top:4px">'+why('red','BOM · chờ Gỗ·Ván (ván lạng) trễ 19n','BOM')+'</div>'],
+ ['260409711','Tủ áo phòng ngủ master','06. MÁY','3 TUẦN',['k1|quá 14n|1','k5|31/10','k3|còn 5n','k5|05/11','k3|còn 10n'],'198 ngày','0,31',why('red','BOM · chờ Gỗ·Ván (ván ép E2 18 ly) trễ 6n','BOM')],
+ ['260409802','Sofa 3 chỗ phòng khách','04.1. BỌC NỆM','4 TUẦN',['k1|quá 6n|1','k5|31/10','k5|28/10','k1|quá 3n','k3|còn 10n'],'150 ngày','0,22',why('red','BOM · Vải Marlow 26 chưa mua','BOM')+'<div style="margin-top:4px">'+why('org','BOP · đứng 4 tuần ở Bọc nệm','BOP')+'</div>'],
+ ['260409821','Bàn ăn mặt đá','16.2. GC VỆ TINH-ĐÁ','2 TUẦN',['k1|quá 5n|1','k5|31/10','k5|30/10','k5|25/10','k3|còn 10n'],'160 ngày','0,18',why('fu','Gia công ngoài · 07. NCC sản xuất, hẹn 30/10','')],
+ ['260409760','Bàn trà phòng khách','11. CHƯA SX','3 TUẦN',['k1|quá 9n|1','k5|31/10','','k1|quá 6n','k3|còn 10n'],'140 ngày','0,08',why('org','BOP · có phiếu, chưa vào chuyền 3 tuần','BOP')],
+ ['260409732','Vách ốp gỗ phòng khách','14. CHƯA PHIẾU','4 TUẦN',['','k1|quá 10n|1','k3|còn 10n','k1|quá 30n','k3|còn 10n'],'240 ngày','0,27',why('org','BOP · chưa có phiếu (đã TK 12/09)','BOP')+'<div style="margin-top:4px">'+why('sl','BOM · chưa có PR','BOM')+'</div>'],
+ ['260409788','Tủ lavabo','01. NHẬP KHO KĐB','—',['k1|quá 6n|1','k5|31/10','k5|28/10','k5|28/10','k3|còn 10n'],'170 ngày','0,03',why('blu','Nhập kho thiếu SL · 28/40','')],
+ ['260409740','Kệ tivi phòng khách','07. CTS','2 TUẦN',['k1|quá 8n|1','k5|31/10','k5|28/10','k5|28/10','k3|còn 10n'],'186 ngày','0,19',why('sl','Đang SX, chậm so KH — không thấy vướng','')+'<div class="sub" style="margin-top:3px">KH tuần 12/10 đặt khi còn chưa có phiếu</div>'],
+];
+document.getElementById('t').innerHTML=`<tr><th class="l">Mã HEX · Hạng mục</th><th class="l">Đang ở công đoạn</th>${G.map(([g,c])=>`<th>${g}<div class="cs">${c}</div></th>`).join('')}<th class="r">Tuổi đơn</th><th class="r">Còn lại (tỷ)</th><th class="l" style="min-width:250px">Trễ vì</th></tr>`+R.map(r=>`<tr><td class="l" style="min-width:190px"><span class="hex">${r[0]}</span><div style="font-size:12px">${r[1]}</div></td><td class="l" style="white-space:nowrap"><b>${r[2]}</b><div class="sub ${/^[4-9] TUẦN|8 TUẦN/.test(r[3])?'c-red':''}">${r[3]}</div></td>${r[4].map(cell).join('')}<td class="r ${parseInt(r[5])>90?'c-red':''}">${r[5]}</td><td class="r num">${r[6]}</td><td class="l">${r[7]}</td></tr>`).join('');
+</script>
+</body></html>

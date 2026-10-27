@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { User, PERMISSION_GROUPS, PermissionGroup, ITEM_ACTIONS, ALL_ITEM_IDS, ALL_ACTION_IDS } from '../types';
 import { userService } from '../services/userService';
-import { Plus, Edit2, Trash2, Shield, X, Check, Search, RefreshCw, Loader, Mail, Briefcase, CheckSquare, Square, MinusSquare, Crown, User as UserIcon, CornerDownRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Check, Search, RefreshCw, Loader, Mail, Briefcase, CheckSquare, Square, MinusSquare, Crown, User as UserIcon, CornerDownRight } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 // Tất cả id quyền (item + action)
@@ -190,64 +190,68 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const [locVaiTro, setLocVaiTro] = useState<'' | 'ADMIN' | 'USER'>('');
+  const q = searchTerm.trim().toLowerCase();
   const filteredUsers = users.filter(u =>
-    u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (u.msnv && u.msnv.toLowerCase().includes(searchTerm.toLowerCase()))
+    (!locVaiTro || u.role === locVaiTro) && (!q ||
+    u.username.toLowerCase().includes(q) ||
+    u.fullName.toLowerCase().includes(q) ||
+    (u.msnv && u.msnv.toLowerCase().includes(q)) ||
+    (u.email && u.email.toLowerCase().includes(q)) ||
+    (u.department && u.department.toLowerCase().includes(q)))
   );
+  const soAdmin = users.filter(u => u.role === 'ADMIN').length;
+  const vietTat = (ten: string) => {
+    const t = ten.trim().split(/\s+/).filter(Boolean);
+    return ((t[0]?.[0] ?? '') + (t.length > 1 ? t[t.length - 1][0] : '')).toUpperCase() || '?';
+  };
 
   const isAdminForm = formData.role === 'ADMIN';
 
   return (
-    <div className="h-full bg-slate-50 flex flex-col p-4 md:p-8 overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+    <div className="flex h-full flex-col overflow-hidden bg-[#f5f6f8] p-4 md:p-6">
+      {/* Đầu trang */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Shield className="text-wood-600" />
-            Quản trị Người dùng
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">Quản lý tài khoản, vai trò và phân quyền truy cập</p>
+          <h1 className="page-title">Quản trị người dùng</h1>
+          <p className="mt-0.5 text-sm text-slate-500">Tài khoản, vai trò và quyền truy cập từng trang · bấm 1 dòng để sửa</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-wood-600 hover:bg-wood-700 text-white px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 transition-all font-medium"
-        >
-          <Plus size={18} /> Thêm User mới
+        <button onClick={() => handleOpenModal()}
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-700">
+          <Plus size={17} /> Thêm người dùng
         </button>
       </div>
 
-      {/* Toolbar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col sm:flex-row gap-4 justify-between items-center">
-        <div className="relative w-full sm:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm: Tên, Username, MSNV..."
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-wood-400 bg-white text-slate-900 placeholder-slate-400"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+      {/* Thanh lọc: tìm + vai trò + số lượng */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input type="text" placeholder="Tìm tên, username, MSNV, email, phòng ban…" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-500 focus:outline-none" />
         </div>
-        <button onClick={fetchUsers} className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Làm mới">
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+        {([['', `Tất cả (${users.length})`], ['ADMIN', `Admin (${soAdmin})`], ['USER', `User (${users.length - soAdmin})`]] as const).map(([k, l]) => (
+          <button key={k || 'all'} type="button" onClick={() => setLocVaiTro(k)} aria-pressed={locVaiTro === k}
+            className={`rounded-full border px-3.5 py-1.5 text-sm font-medium ${locVaiTro === k ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>{l}</button>
+        ))}
+        <button onClick={fetchUsers} className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 hover:bg-slate-50" title="Tải lại danh sách">
+          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Làm mới
         </button>
       </div>
 
-      {/* List */}
-      <div className="flex-1 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-auto custom-scrollbar flex-1">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead className="bg-slate-50 sticky top-0 z-10 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+      {/* Danh sách */}
+      <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          <table className="w-full min-w-[1000px] border-collapse text-left text-sm">
+            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-white text-xs text-slate-500">
               <tr>
-                <th className="w-14 pl-6 pr-2 py-4 border-b border-slate-100 text-right">STT</th>
-                <th className="px-6 py-4 border-b border-slate-100">User Info</th>
-                <th className="px-6 py-4 border-b border-slate-100">Liên hệ</th>
-                <th className="px-6 py-4 border-b border-slate-100">Phòng ban</th>
-                <th className="px-6 py-4 border-b border-slate-100">Vai trò</th>
-                <th className="px-6 py-4 border-b border-slate-100">Quyền hạn</th>
-                <th className="px-6 py-4 border-b border-slate-100">Trạng thái</th>
-                <th className="px-6 py-4 border-b border-slate-100 text-right">Thao tác</th>
+                <th className="w-12 py-3 pl-5 pr-2 text-right font-medium">#</th>
+                <th className="px-4 py-3 font-medium">Người dùng</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Phòng ban</th>
+                <th className="px-4 py-3 font-medium">Vai trò</th>
+                <th className="px-4 py-3 font-medium">Quyền</th>
+                <th className="px-4 py-3 font-medium">Trạng thái</th>
+                <th className="px-4 py-3 text-right font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -256,102 +260,81 @@ const UserManagement: React.FC = () => {
               ) : filteredUsers.length === 0 ? (
                 <tr><td colSpan={8} className="p-8 text-center text-slate-400">Không tìm thấy người dùng nào.</td></tr>
               ) : (
-                filteredUsers.map((user, idx) => (
-                  <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="pl-6 pr-2 py-4 text-right text-sm tabular-nums text-slate-400">{idx + 1}</td>
-                    <td className="px-6 py-4">
+                filteredUsers.map((user, idx) => {
+                  const hoatDong = user.status === 'ACTIVE';
+                  return (
+                  <tr key={user.id} onClick={() => handleOpenModal(user)} className="group cursor-pointer transition-colors hover:bg-slate-50" title="Bấm để sửa">
+                    <td className="py-3 pl-5 pr-2 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-wood-100 flex items-center justify-center text-wood-700 font-bold text-sm">
-                          {user.fullName.charAt(0).toUpperCase()}
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${hoatDong ? 'bg-aa-600' : 'bg-slate-300'}`}>
+                          {vietTat(user.fullName)}
                         </div>
-                        <div>
-                          <div className="font-medium text-slate-800">{user.fullName}</div>
-                          <div className="text-xs text-slate-500">@{user.username}</div>
-                          {user.msnv && <div className="text-[0.625rem] text-slate-400 font-mono">ID: {user.msnv}</div>}
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-slate-900">{user.fullName}</div>
+                          <div className="text-xs text-slate-500">@{user.username}{user.msnv && <span className="text-slate-400"> · MSNV {user.msnv}</span>}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      {user.email ? (
-                        <div className="flex items-center gap-1.5 text-slate-600 text-xs">
-                          <Mail size={12} /> {user.email}
-                        </div>
-                      ) : <span className="text-slate-300 text-xs">-</span>}
+                    <td className="px-4 py-3">
+                      {user.email ? <span className="inline-flex items-center gap-1.5 text-slate-600"><Mail size={13} className="text-slate-400" /> {user.email}</span>
+                        : <span className="text-slate-300">–</span>}
                     </td>
-                    <td className="px-6 py-4">
-                      {user.department ? (
-                        <div className="flex items-center gap-1.5 text-slate-600 text-xs">
-                          <Briefcase size={12} /> {user.department}
-                        </div>
-                      ) : <span className="text-slate-300 text-xs">-</span>}
-                      {user.note && <div className="text-[0.625rem] text-slate-400 mt-1 max-w-[150px] truncate" title={user.note}>{user.note}</div>}
+                    <td className="px-4 py-3">
+                      {user.department ? <span className="inline-flex items-center gap-1.5 text-slate-600"><Briefcase size={13} className="text-slate-400" /> {user.department}</span>
+                        : <span className="text-slate-300">–</span>}
+                      {user.note && <div className="mt-0.5 max-w-[180px] truncate text-xs text-slate-400" title={user.note}>{user.note}</div>}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       {user.role === 'ADMIN' ? (
-                        <span className="flex items-center gap-1 text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded border border-purple-100 w-fit">
-                          <Crown size={12} /> Admin
-                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-900 px-2.5 py-0.5 text-xs font-medium text-white"><Crown size={12} /> Admin</span>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200 w-fit">
-                          <UserIcon size={12} /> User
-                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-700"><UserIcon size={12} /> User</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-4 py-3">
                       {user.role === 'ADMIN' ? (
-                        <span className="text-xs text-purple-600 italic">Full Access</span>
+                        <span className="text-xs text-slate-500">Toàn quyền</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
                           {PERMISSION_GROUPS.map(group => {
                             const perms = user.permissions || [];
                             const count = group.items.filter(i => perms.includes(i.id)).length;
                             if (count === 0) return null;
-                            const title = group.items
-                              .filter(i => perms.includes(i.id))
-                              .map(i => i.label)
-                              .join(', ');
+                            const title = group.items.filter(i => perms.includes(i.id)).map(i => i.label).join(', ');
                             return (
-                              <span
-                                key={group.id}
-                                title={title}
-                                className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[0.625rem] border border-slate-200"
-                              >
-                                {group.label} ({count}/{group.items.length})
+                              <span key={group.id} title={title} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+                                {group.label} <span className="text-slate-400">{count}/{group.items.length}</span>
                               </span>
                             );
                           })}
-                          {(user.permissions || []).length === 0 && <span className="text-slate-300 text-xs">-</span>}
+                          {(user.permissions || []).length === 0 && <span className="text-xs text-amber-700">Chưa có quyền nào</span>}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${user.status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                        {user.status}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${hoatDong ? 'text-emerald-700' : 'text-slate-500'}`}>
+                        <span className={`h-2 w-2 rounded-full ${hoatDong ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        {hoatDong ? 'Đang hoạt động' : 'Đã khoá'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleOpenModal(user)}
-                          className="p-1.5 text-slate-500 hover:text-wood-600 hover:bg-wood-50 rounded transition-colors"
-                          title="Chỉnh sửa"
-                        >
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button onClick={e => { e.stopPropagation(); handleOpenModal(user); }}
+                          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-900" title="Sửa">
                           <Edit2 size={16} />
                         </button>
                         {user.username !== 'admin' && (
-                          <button
-                            onClick={() => handleDelete(user.id, user.username)}
-                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Xóa"
-                          >
+                          <button onClick={e => { e.stopPropagation(); handleDelete(user.id, user.username); }}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600" title="Xoá">
                             <Trash2 size={16} />
                           </button>
                         )}
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -375,13 +358,13 @@ const UserManagement: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 {/* Basic Info */}
-                <div className="md:col-span-2 text-xs font-bold text-wood-600 uppercase border-b border-slate-100 pb-1 mb-2">Thông tin cơ bản</div>
+                <div className="md:col-span-2 text-xs font-bold text-slate-500 uppercase border-b border-slate-100 pb-1 mb-2">Thông tin cơ bản</div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500">Tên đăng nhập <span className="text-red-500">*</span></label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400 disabled:bg-slate-100 disabled:text-slate-500"
                     value={formData.username}
                     onChange={e => setFormData({ ...formData, username: e.target.value })}
                     disabled={!!editingUser}
@@ -392,7 +375,7 @@ const UserManagement: React.FC = () => {
                   <label className="text-xs font-bold text-slate-500">Mật khẩu {editingUser && '(để trống nếu không đổi)'} {!editingUser && <span className="text-red-500">*</span>}</label>
                   <input
                     type="password"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400"
                     value={formData.password}
                     onChange={e => setFormData({ ...formData, password: e.target.value })}
                   />
@@ -402,7 +385,7 @@ const UserManagement: React.FC = () => {
                   <label className="text-xs font-bold text-slate-500">Họ và Tên <span className="text-red-500">*</span></label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400"
                     value={formData.fullName}
                     onChange={e => setFormData({ ...formData, fullName: e.target.value })}
                   />
@@ -411,7 +394,7 @@ const UserManagement: React.FC = () => {
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-500">Vai trò</label>
                   <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400"
                     value={formData.role}
                     onChange={e => setFormData({ ...formData, role: e.target.value as 'ADMIN' | 'USER' })}
                   >
@@ -424,7 +407,7 @@ const UserManagement: React.FC = () => {
                   <label className="text-xs font-bold text-slate-500">Mã NV (MSNV)</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400"
                     value={formData.msnv || ''}
                     onChange={e => setFormData({ ...formData, msnv: e.target.value })}
                   />
@@ -434,7 +417,7 @@ const UserManagement: React.FC = () => {
                   <label className="text-xs font-bold text-slate-500">Email (Để khôi phục MK)</label>
                   <input
                     type="email"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400"
                     value={formData.email || ''}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -444,7 +427,7 @@ const UserManagement: React.FC = () => {
                   <label className="text-xs font-bold text-slate-500">Phòng ban</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none bg-white text-slate-900 placeholder-slate-400"
                     value={formData.department || ''}
                     onChange={e => setFormData({ ...formData, department: e.target.value })}
                   />
@@ -453,7 +436,7 @@ const UserManagement: React.FC = () => {
                 <div className="space-y-1 md:col-span-2">
                   <label className="text-xs font-bold text-slate-500">Ghi chú</label>
                   <textarea
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-wood-500/20 focus:border-wood-500 outline-none resize-none h-16 bg-white text-slate-900 placeholder-slate-400"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-400/20 focus:border-slate-500 outline-none resize-none h-16 bg-white text-slate-900 placeholder-slate-400"
                     value={formData.note || ''}
                     onChange={e => setFormData({ ...formData, note: e.target.value })}
                   />
@@ -462,7 +445,7 @@ const UserManagement: React.FC = () => {
                 {/* Permissions Section */}
                 <div className="md:col-span-2 mt-4 relative">
                   <div className="flex justify-between items-end border-b border-slate-100 pb-1 mb-2">
-                    <div className="text-xs font-bold text-wood-600 uppercase">Phân quyền truy cập (theo mục lớn / mục nhỏ)</div>
+                    <div className="text-xs font-bold text-slate-500 uppercase">Phân quyền truy cập (theo mục lớn / mục nhỏ)</div>
                     {!isAdminForm && (
                       <button
                         type="button"
@@ -495,12 +478,12 @@ const UserManagement: React.FC = () => {
                           {/* Mục lớn */}
                           <div
                             onClick={() => !isAdminForm && toggleGroup(group)}
-                            className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-wood-50 ${checkedCount > 0 ? 'bg-wood-50/60' : 'bg-slate-50'}`}
+                            className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-50 ${checkedCount > 0 ? 'bg-slate-50' : 'bg-slate-50'}`}
                           >
                             {allChecked
-                              ? <CheckSquare size={18} className="text-wood-600 shrink-0" />
+                              ? <CheckSquare size={18} className="text-slate-900 shrink-0" />
                               : someChecked
-                                ? <MinusSquare size={18} className="text-wood-500 shrink-0" />
+                                ? <MinusSquare size={18} className="text-slate-500 shrink-0" />
                                 : <Square size={18} className="text-slate-300 shrink-0" />}
                             <span className="text-sm font-bold text-slate-700">{group.label}</span>
                             <span className="ml-auto text-[0.625rem] text-slate-400">{checkedCount}/{group.items.length}</span>
@@ -513,15 +496,15 @@ const UserManagement: React.FC = () => {
                               const actions = ITEM_ACTIONS[item.id] || [];
 
                               return (
-                                <div key={item.id} className={`rounded ${on ? 'bg-wood-50/50' : ''}`}>
+                                <div key={item.id} className={`rounded ${on ? 'bg-slate-50' : ''}`}>
                                   <div
                                     onClick={() => !isAdminForm && toggleItem(item.id)}
-                                    className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-wood-50"
+                                    className="flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-slate-50"
                                   >
                                     {on
-                                      ? <CheckSquare size={16} className="text-wood-600 shrink-0" />
+                                      ? <CheckSquare size={16} className="text-slate-900 shrink-0" />
                                       : <Square size={16} className="text-slate-300 shrink-0" />}
-                                    <span className={`text-sm ${on ? 'font-medium text-wood-800' : 'text-slate-600'}`}>{item.label}</span>
+                                    <span className={`text-sm ${on ? 'font-medium text-slate-900' : 'text-slate-600'}`}>{item.label}</span>
                                   </div>
 
                                   {/* Thao tác chi tiết trong mục nhỏ */}
@@ -533,7 +516,7 @@ const UserManagement: React.FC = () => {
                                           <div
                                             key={action.id}
                                             onClick={() => !isAdminForm && toggleAction(item.id, action.id)}
-                                            className="flex items-center gap-2 pl-6 py-1 cursor-pointer hover:bg-wood-100/50 rounded"
+                                            className="flex items-center gap-2 pl-6 py-1 cursor-pointer hover:bg-slate-100 rounded"
                                           >
                                             <CornerDownRight size={12} className="text-slate-400 shrink-0" />
                                             {actionOn
@@ -561,7 +544,7 @@ const UserManagement: React.FC = () => {
                       type="checkbox"
                       checked={formData.status === 'ACTIVE'}
                       onChange={e => setFormData({ ...formData, status: e.target.checked ? 'ACTIVE' : 'INACTIVE' })}
-                      className="w-4 h-4 text-wood-600 rounded"
+                      className="w-4 h-4 accent-slate-900 rounded"
                     />
                     <span className="text-sm font-medium text-slate-700">Kích hoạt tài khoản</span>
                   </label>
@@ -579,7 +562,7 @@ const UserManagement: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="flex-1 py-2 bg-wood-600 text-white rounded-lg hover:bg-wood-700 font-medium flex items-center justify-center gap-2"
+                  className="flex-1 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 font-medium flex items-center justify-center gap-2"
                 >
                   {isSaving ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                   {editingUser ? 'Cập nhật' : 'Tạo mới'}

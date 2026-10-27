@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { DataRow, ColumnDefinition } from '../../types';
-import { DanhSachHexProvider, hexColumnKeysOf } from '../Dashboard/components/Dashboards/DanhSachHex';
 import TrendChart from '../Dashboard/components/Dashboards/TrendChart';
 import ByXuongChart from '../Dashboard/components/Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboard/components/Dashboards/ByCongTrinhChart';
@@ -14,69 +13,52 @@ type DisplayMetric = 'COUNT' | 'SUM';
 interface ChartOverviewProps {
   source: ChartSource;
   title: string;
-  /** Bảng sản xuất: nút xem chi tiết của biểu đồ mở danh sách hạng mục (HexDetailModal -> BOT/BOP/BOM) */
-  productionData: DataRow[];
-  productionColumns: ColumnDefinition[];
-  currentUser: string;
+  // Không còn dùng: nút xem chi tiết của biểu đồ nay mở bảng dữ liệu nguồn (giữ để nơi gọi không phải sửa)
+  productionData?: DataRow[];
+  productionColumns?: ColumnDefinition[];
+  currentUser?: string;
 }
 
-// Màu badge tiêu đề ăn theo đúng bảng màu đang dùng ở các biểu đồ (THEME trong ByXuongChart/ByCongTrinhChart/...)
-const TITLE_BADGE_THEME: Record<ChartSource, string> = {
-  order: 'text-pink-800 bg-pink-50',
-  tkbv: 'text-blue-800 bg-blue-50',
-  pthsp: 'text-purple-800 bg-purple-50',
-  inventory: 'text-teal-800 bg-teal-50',
-  export: 'text-amber-800 bg-amber-50',
-  stock: 'text-slate-800 bg-slate-100',
+// Màu nhận diện từng nguồn — trùng màu cột trong các biểu đồ (THEME của TrendChart / ByXuongChart …)
+const MAU: Record<ChartSource, string> = {
+  order: '#ec4899', tkbv: '#3b82f6', pthsp: '#a855f7', inventory: '#14b8a6', export: '#f59e0b', stock: '#64748b',
 };
 
-const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title, productionData, productionColumns, currentUser }) => {
+const ChartOverview: React.FC<ChartOverviewProps> = ({ source, title }) => {
   const [displayMode, setDisplayMode] = useState<DisplayMetric>('COUNT');
-  const hexKeys = useMemo(() => hexColumnKeysOf(productionColumns), [productionColumns]);
 
   return (
-    <DanhSachHexProvider rows={productionData} columnKeys={hexKeys} currentUser={currentUser}>
     <TrendFilterProvider>
-      <div className="h-full overflow-y-auto custom-scrollbar bg-wood-50">
-  <div className="px-6 py-4 border-b border-slate-200 bg-white flex items-center justify-between sticky top-0 z-20">
-    <h2 className={`inline-block px-3 py-1.5 text-sm font-extrabold uppercase tracking-wide rounded ${TITLE_BADGE_THEME[source]}`}>
-      {title}
-    </h2>
-    <div className="flex items-center bg-slate-100 p-0.5 rounded border border-slate-200">
-      <button
-        onClick={() => setDisplayMode('COUNT')}
-        className={`px-3 py-1 text-xs font-bold rounded transition-all ${
-          displayMode === 'COUNT' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-        }`}
-      >
-        Số lượng
-      </button>
-      <button
-        onClick={() => setDisplayMode('SUM')}
-        className={`px-3 py-1 text-xs font-bold rounded transition-all ${
-          displayMode === 'SUM' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-        }`}
-      >
-        Giá trị
-      </button>
+      <div className="h-full overflow-y-auto custom-scrollbar bg-[#f5f6f8]">
+  <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-4">
+    <div className="flex items-center gap-2.5">
+      <span className="h-3 w-3 rounded-sm" style={{ background: MAU[source] }} aria-hidden />
+      <h1 className="page-title">{title}</h1>
+    </div>
+    <div className="flex rounded-lg bg-slate-100 p-1" role="group" aria-label="Chế độ hiển thị">
+      {([['COUNT', 'Số lượng'], ['SUM', 'Giá trị']] as const).map(([k, l]) => (
+        <button key={k} onClick={() => setDisplayMode(k)} aria-pressed={displayMode === k}
+          className={`rounded-md px-3 py-1 text-sm transition ${displayMode === k ? 'bg-white font-medium text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+          {l}
+        </button>
+      ))}
     </div>
   </div>
 
   {/* Bọc thêm 1 div sticky ngay dưới header để ghim luôn thanh filter */}
-  <div className="sticky top-[57px] z-10 bg-wood-50">
+  <div className="sticky top-[69px] z-10 bg-[#f5f6f8]">
     <SharedDateFilterBar showProductFilters />
   </div>
 
   <div className="p-6 space-y-6">
     <TrendChart source={source} embedded displayMode={displayMode} />
-    <ByXuongChart source={source} displayMode={displayMode} />
-    <ByCongTrinhChart source={source} displayMode={displayMode} />
+    <div className="-m-6">{/* bản lớn có sẵn lề p-6 riêng => bù lề cho thẳng hàng các khung khác */}<ByXuongChart source={source} displayMode={displayMode} /></div>
+    <div className="-m-6"><ByCongTrinhChart source={source} displayMode={displayMode} /></div>
     <TrendByCategoryChart kind="phanloai" source={source} displayMode={displayMode} embedded />
     <TrendByCategoryChart kind="dvt" source={source} displayMode={displayMode} embedded />
   </div>
 </div>
     </TrendFilterProvider>
-    </DanhSachHexProvider>
   );
 };
 

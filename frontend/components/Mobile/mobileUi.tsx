@@ -15,9 +15,9 @@ export const CARD = 'rounded-2xl border border-slate-200/70 bg-white';
 
 // text-base (16px) để iOS không tự phóng to khi bấm vào ô nhập
 export const inputCls =
-  'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-slate-400';
+  'w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-aa-500 focus:ring-4 focus:ring-aa-600/10';
 export const btnPrimary =
-  'w-full rounded-full bg-slate-900 py-3 text-base font-medium text-white active:opacity-80 disabled:opacity-40';
+  'w-full rounded-full bg-aa-600 py-3 text-base font-medium text-white active:bg-aa-700 disabled:opacity-40';
 export const btnSecondary =
   'rounded-full border border-slate-300 bg-white px-4 py-2.5 text-base text-slate-700 active:bg-slate-100 disabled:opacity-40';
 

@@ -1,0 +1,2313 @@
+[
+ {
+  "id": "pm-001",
+  "nhom": "pm",
+  "cau": "CT25-070 giờ sao rồi ad",
+  "kv": {
+   "loai": "mau",
+   "y": "cong_trinh"
+  }
+ },
+ {
+  "id": "pm-002",
+  "nhom": "pm",
+  "cau": "Cong trinh Emerald Raiya con nhung hang muc nao chua nhap kho?",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-003",
+  "nhom": "pm",
+  "cau": "hm nào của CT26-110 đang quá hạn giao",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-004",
+  "nhom": "pm",
+  "cau": "CT24-066 đang ở công đoạn nào nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT24-066"
+     ]
+    }
+   ],
+   "nhom": [
+    "tinh_trang"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-005",
+  "nhom": "pm",
+  "cau": "cho e hỏi tây hồ view tháp 4a còn bn tiền chưa nhập kho",
+  "ghi_chu": "mơ hồ: '4a' là tháp 4A trong tên công trình (TÂY HỒ VIEW-THÁP 4A-BAN CÔNG) nhưng dễ bị hiểu là xưởng 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view tháp 4a"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-006",
+  "nhom": "pm",
+  "cau": "những hm nào của Nam Phương đang nằm ở mộc",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "05. MỘC"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-007",
+  "nhom": "pm",
+  "cau": "hạng mục nam phương trong nhóm BOT sau 30 ngày",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "4. Sau 30 ngày"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-008",
+  "nhom": "pm",
+  "cau": "BOT của công trình capella theo nhóm",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "capella"
+    }
+   ],
+   "nhom": [
+    "nhom_bot"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-009",
+  "nhom": "pm",
+  "cau": "nam phuong con bao nhieu hm chua trien khai ban ve",
+  "ghi_chu": "mơ hồ: 'chưa triển khai bản vẽ' = cột tình trạng bản vẽ CHƯA TRIỂN KHAI, nhưng công đoạn cũng có giá trị '15. CHƯA TRIỂN KHAI'",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phuong"
+    },
+    {
+     "cot": "tinh_trang_trien_khai_ban_ve",
+     "op": "bang",
+     "gt": [
+      "CHƯA TRIỂN KHAI"
+     ]
+    }
+   ],
+   "coDo": {
+    "ham": "dem"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-010",
+  "nhom": "pm",
+  "cau": "hm nào của CT26-110 chưa có phiếu",
+  "ghi_chu": "mơ hồ: tình trạng phiếu CHƯA PHIẾU hay công đoạn '14. CHƯA PHIẾU'",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "tinh_trang_phieu",
+     "op": "bang",
+     "gt": [
+      "CHƯA PHIẾU"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-011",
+  "nhom": "pm",
+  "cau": "hm nào của Holiday Inn sắp đến hạn giao trong 2 tuần tới",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "holiday inn"
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-19",
+      "2026-11-02"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-012",
+  "nhom": "pm",
+  "cau": "CT25-070 tổng đơn bao nhiêu, nhập kho được bao nhiêu rồi?",
+  "kv": {
+   "loai": "mau",
+   "y": "cong_trinh"
+  }
+ },
+ {
+  "id": "pm-013",
+  "nhom": "pm",
+  "cau": "so giá trị còn lại của 3 công trình CT25-070, CT26-110, CT24-066 giúp với",
+  "ghi_chu": "mơ hồ: chia theo tên hay theo mã công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070",
+      "CT26-110",
+      "CT24-066"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-014",
+  "nhom": "pm",
+  "cau": "hạng mục của CT26-110 theo bước BOP",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "nhom": [
+    "bop"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-015",
+  "nhom": "pm",
+  "cau": "PM Lê Minh Tuấn đang có bao nhiêu hạng mục chưa xong",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_pm",
+     "op": "bang",
+     "gt": [
+      "LÊ MINH TUẤN"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "dem"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-016",
+  "nhom": "pm",
+  "cau": "hm nào của CT24-066 nằm ở công đoạn trên 8 tuần rồi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT24-066"
+     ]
+    },
+    {
+     "cot": "so_ngay_cd_hien_tai",
+     "op": "bang",
+     "gt": [
+      "TỪ 8 TUẦN TRỞ LÊN"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-017",
+  "nhom": "pm",
+  "cau": "nam phương: hạng mục nào không có kế hoạch nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "ngay_khnk_thang",
+     "op": "rong"
+    },
+    {
+     "cot": "ngay_khnk_tuan",
+     "op": "rong"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-018",
+  "nhom": "pm",
+  "cau": "CT25-070 còn hạng mục nào trên 2 tỷ chưa nhập kho ko",
+  "ghi_chu": "mơ hồ: 'trên 2 tỷ chưa nhập kho' = giá trị còn lại > 2 tỷ, hay trị giá đơn > 2 tỷ và còn lại > 0",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "tri_gia_don_hang_tong",
+     "op": "lon_hon",
+     "gt": 2000
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-019",
+  "nhom": "pm",
+  "cau": "hm nào của tiến bộ plaza đang vecni",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tiến bộ plaza"
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "04. VECNI"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-020",
+  "nhom": "pm",
+  "cau": "nhập kho của CT25-070 thang này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-021",
+  "nhom": "pm",
+  "cau": "nk ct26-110 theo tháng năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "nhom": [
+    "date@thang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-022",
+  "nhom": "pm",
+  "cau": "xuất kho nam phương tháng 9 đc bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-023",
+  "nhom": "pm",
+  "cau": "tây hồ view tháng trước nhập đc bao nhiêu tiền?",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_nhap_kho"
+   },
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-024",
+  "nhom": "pm",
+  "cau": "xk CT24-066 từ 1/9 đến 15/9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT24-066"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-15"
+   }
+  }
+ },
+ {
+  "id": "pm-025",
+  "nhom": "pm",
+  "cau": "nhập kho quý 3 của emerald raiya so với quý 2",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    }
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-04-01",
+    "den": "2026-06-30"
+   }
+  }
+ },
+ {
+  "id": "pm-026",
+  "nhom": "pm",
+  "cau": "hôm qua CT25-070 có nhập kho gì khong",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "pm-027",
+  "nhom": "pm",
+  "cau": "ct nam phương xuất kho theo tuần trong tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "nhom": [
+    "date@tuan"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-028",
+  "nhom": "pm",
+  "cau": "hạng mục nào của CT26-110 nhập kho tuần trc",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "pm-029",
+  "nhom": "pm",
+  "cau": "nhập kho CT25-070 năm 2025 so với năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   },
+   "soSanh": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-030",
+  "nhom": "pm",
+  "cau": "top 5 hạng mục nhập kho giá trị cao nhất của holiday inn tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "holiday inn"
+    }
+   ],
+   "nhom": [
+    "ten_hang_muc"
+   ],
+   "gioiHan": 5,
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-031",
+  "nhom": "pm",
+  "cau": "đơn hàng mới của CT25-070 tháng này nhé",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-032",
+  "nhom": "pm",
+  "cau": "tháng 9 công trình st.regis có đơn mới nào ko",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "st.regis"
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-033",
+  "nhom": "pm",
+  "cau": "đơn hàng CT26-110 năm nay theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-034",
+  "nhom": "pm",
+  "cau": "PM tailv tg này đưa xuống bao nhiêu đơn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_pm",
+     "op": "bang",
+     "gt": [
+      "tailv"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-035",
+  "nhom": "pm",
+  "cau": "đơn hàng của 3 công trình CT25-070, CT26-110 và CT24-066 quý 3",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070",
+      "CT26-110",
+      "CT24-066"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-036",
+  "nhom": "pm",
+  "cau": "tkbv của CT25-070 tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "tkbv_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-037",
+  "nhom": "pm",
+  "cau": "nhập kho nhóm ghế của nam phương tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "sx:phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "02. GHẾ"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-038",
+  "nhom": "pm",
+  "cau": "tính phiếu CT26-110 tuần 41",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-05",
+    "den": "2026-10-11"
+   }
+  }
+ },
+ {
+  "id": "pm-039",
+  "nhom": "pm",
+  "cau": "phiếu của emerald raiya theo tình trạng phiếu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    }
+   ],
+   "nhom": [
+    "tinh_trang_phieu"
+   ]
+  }
+ },
+ {
+  "id": "pm-040",
+  "nhom": "pm",
+  "cau": "tồn kho CT25-070 bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-041",
+  "nhom": "pm",
+  "cau": "hàng nào của nam phương tồn kho hơn 3 tháng rồi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-042",
+  "nhom": "pm",
+  "cau": "ton kho tay ho view theo tinh trang giao hang",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tay ho view"
+    }
+   ],
+   "nhom": [
+    "tinh_trang_ke_hoach_giao_hang"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-043",
+  "nhom": "pm",
+  "cau": "PR của CT25-070 chưa về",
+  "ghi_chu": "bảng vật tư không có cột mã công trình, chỉ có tên (tên công trình chứa mã ở cuối)",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT25-070"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-044",
+  "nhom": "pm",
+  "cau": "PR nào của nam phương trể hẹn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-045",
+  "nhom": "pm",
+  "cau": "bom emerald raiya còn bao nhiêu dòng chưa mua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "coDo": {
+    "ham": "dem"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-046",
+  "nhom": "pm",
+  "cau": "vat tu go cua CT26-110 dang mua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT26-110"
+    },
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "101 - Gỗ"
+     ]
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "2.ĐANG MUA"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-047",
+  "nhom": "pm",
+  "cau": "PR của CT24-066 theo nhà cung cấp",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT24-066"
+    }
+   ],
+   "nhom": [
+    "nha_cung_cap"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-048",
+  "nhom": "pm",
+  "cau": "kế hoạch nhập kho tg này của CT25-070",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "pm-049",
+  "nhom": "pm",
+  "cau": "khsx tuần này nam phương",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-25"
+   }
+  }
+ },
+ {
+  "id": "pm-050",
+  "nhom": "pm",
+  "cau": "CT26-110 tuần trước đúng kế hoạch hay rớt",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "nhom": [
+    "tinh_trang_thuc_hien_ke_hoach"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "pm-051",
+  "nhom": "pm",
+  "cau": "kế hoạch tháng 11 của tây hồ view",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "ky": {
+    "tu": "2026-11-01",
+    "den": "2026-11-30"
+   }
+  }
+ },
+ {
+  "id": "pm-052",
+  "nhom": "pm",
+  "cau": "vướng mắc của CT25-070 chưa xử lý",
+  "ghi_chu": "mơ hồ: cột 'Đã xử lý' = Chưa xử lý, hay trạng thái = Đang xử lý",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-053",
+  "nhom": "pm",
+  "cau": "nam phương có vướng mắc nào quá hạn ko",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "qua_han",
+     "op": "bang",
+     "gt": [
+      "Quá hạn"
+     ]
+    }
+   ],
+   "ky": null,
+   "kieu": "dong"
+  },
+  "ghi_chu": "kv sửa 24/10 theo quy ước bộ câu chính"
+ },
+ {
+  "id": "pm-054",
+  "nhom": "pm",
+  "cau": "hex 250700123 đang ở cong đoạn nào",
+  "kv": {
+   "loai": "mau",
+   "y": "tra_hex"
+  }
+ },
+ {
+  "id": "pm-055",
+  "nhom": "pm",
+  "cau": "xưởng nào đang làm CT25-070",
+  "ghi_chu": "mơ hồ: 'đang làm' có thể kèm điều kiện còn lại > 0",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-056",
+  "nhom": "pm",
+  "cau": "ad ơi cho hỏi CT26-110 xưởng 3A còn bao nhiêu hạng mục chưa xong",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "dem"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-057",
+  "nhom": "pm",
+  "cau": "hạng mục nhóm ghế của nam phương đang ở công đoạn nào",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "02. GHẾ"
+     ]
+    }
+   ],
+   "nhom": [
+    "tinh_trang"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-058",
+  "nhom": "pm",
+  "cau": "capella xuất kho lũy kế bao nhiêu rồi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "capella"
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_xuat_kho_luy_ke"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-059",
+  "nhom": "pm",
+  "cau": "khách hàng SUN GROUP còn bao nhiêu hạng mục đang sản xuất",
+  "ghi_chu": "mơ hồ: 'đang sản xuất' = còn lại > 0, hay tình trạng dự án = SẢN XUẤT",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "dem"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-060",
+  "nhom": "pm",
+  "cau": "CT25-070 hạn giao gần nhất là khi nào",
+  "ghi_chu": "mơ hồ: ngày cần giao sớm nhất trong các hạng mục còn lại (min trên cột ngày)",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "min",
+    "cot": "ngay_can_giao"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-061",
+  "nhom": "pm",
+  "cau": "nhập kho CT25-070 tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-062",
+  "nhom": "pm",
+  "cau": "tháng trước thì sao",
+  "truoc": "nhập kho CT25-070 tháng này",
+  "chuoi": [
+   "nhập kho CT25-070 tháng này"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-063",
+  "nhom": "pm",
+  "cau": "xuất thì sao",
+  "truoc": "tháng trước thì sao",
+  "chuoi": [
+   "nhập kho CT25-070 tháng này",
+   "tháng trước thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-064",
+  "nhom": "pm",
+  "cau": "CT26-110 còn những hm nào chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-065",
+  "nhom": "pm",
+  "cau": "theo công đoạn đi",
+  "truoc": "CT26-110 còn những hm nào chưa nhập kho",
+  "chuoi": [
+   "CT26-110 còn những hm nào chưa nhập kho"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "tinh_trang"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-066",
+  "nhom": "pm",
+  "cau": "cái nào trễ rồi",
+  "truoc": "theo công đoạn đi",
+  "chuoi": [
+   "CT26-110 còn những hm nào chưa nhập kho",
+   "theo công đoạn đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-067",
+  "nhom": "pm",
+  "cau": "đơn hàng mới của nam phương tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-068",
+  "nhom": "pm",
+  "cau": "so với tháng 8",
+  "truoc": "đơn hàng mới của nam phương tháng 9",
+  "chuoi": [
+   "đơn hàng mới của nam phương tháng 9"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-08-01",
+    "den": "2026-08-31"
+   }
+  }
+ },
+ {
+  "id": "pm-069",
+  "nhom": "pm",
+  "cau": "chi tiết đi",
+  "truoc": "so với tháng 8",
+  "chuoi": [
+   "đơn hàng mới của nam phương tháng 9",
+   "so với tháng 8"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "pm-070",
+  "nhom": "pm",
+  "cau": "PR của CT25-070 chưa về hết chưa",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT25-070"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-071",
+  "nhom": "pm",
+  "cau": "theo nhóm vật tư",
+  "truoc": "PR của CT25-070 chưa về hết chưa",
+  "chuoi": [
+   "PR của CT25-070 chưa về hết chưa"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT25-070"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "nhom_vt"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-072",
+  "nhom": "pm",
+  "cau": "cái nào trễ hẹn rồi",
+  "truoc": "theo nhóm vật tư",
+  "chuoi": [
+   "PR của CT25-070 chưa về hết chưa",
+   "theo nhóm vật tư"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT25-070"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-073",
+  "nhom": "pm",
+  "cau": "tồn kho tây hồ view",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-074",
+  "nhom": "pm",
+  "cau": "hơn 3 tháng thì bao nhiêu",
+  "truoc": "tồn kho tây hồ view",
+  "chuoi": [
+   "tồn kho tây hồ view"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    },
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-075",
+  "nhom": "pm",
+  "cau": "còn nam phương?",
+  "truoc": "hơn 3 tháng thì bao nhiêu",
+  "chuoi": [
+   "tồn kho tây hồ view",
+   "hơn 3 tháng thì bao nhiêu"
+  ],
+  "ghi_chu": "mơ hồ: đổi công trình nhưng giữ điều kiện tồn hơn 3 tháng (cách hiểu phổ biến) hay bỏ điều kiện",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-076",
+  "nhom": "pm",
+  "cau": "xuất kho CT24-066 năm nay theo tháng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT24-066"
+     ]
+    }
+   ],
+   "nhom": [
+    "date@thang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-077",
+  "nhom": "pm",
+  "cau": "theo xưởng đi",
+  "truoc": "xuất kho CT24-066 năm nay theo tháng",
+  "chuoi": [
+   "xuất kho CT24-066 năm nay theo tháng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT24-066"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-078",
+  "nhom": "pm",
+  "cau": "còn 3A?",
+  "truoc": "theo xưởng đi",
+  "chuoi": [
+   "xuất kho CT24-066 năm nay theo tháng",
+   "theo xưởng đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT24-066"
+     ]
+    },
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-079",
+  "nhom": "pm",
+  "cau": "CT25-070 có bao nhiêu hạng mục quá hạn BOT",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "coDo": {
+    "ham": "dem"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-080",
+  "nhom": "pm",
+  "cau": "liệt kê ra",
+  "truoc": "CT25-070 có bao nhiêu hạng mục quá hạn BOT",
+  "chuoi": [
+   "CT25-070 có bao nhiêu hạng mục quá hạn BOT"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-081",
+  "nhom": "pm",
+  "cau": "xưởng nào nhiều nhất",
+  "truoc": "liệt kê ra",
+  "chuoi": [
+   "CT25-070 có bao nhiêu hạng mục quá hạn BOT",
+   "liệt kê ra"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-082",
+  "nhom": "pm",
+  "cau": "kế hoạch nhập kho tháng này của emerald raiya",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "pm-083",
+  "nhom": "pm",
+  "cau": "thực tế nhập được bao nhiêu rồi",
+  "truoc": "kế hoạch nhập kho tháng này của emerald raiya",
+  "chuoi": [
+   "kế hoạch nhập kho tháng này của emerald raiya"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-084",
+  "nhom": "pm",
+  "cau": "tháng sau kế hoạch bao nhiêu",
+  "truoc": "thực tế nhập được bao nhiêu rồi",
+  "chuoi": [
+   "kế hoạch nhập kho tháng này của emerald raiya",
+   "thực tế nhập được bao nhiêu rồi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    }
+   ],
+   "ky": {
+    "tu": "2026-11-01",
+    "den": "2026-11-30"
+   }
+  }
+ },
+ {
+  "id": "pm-085",
+  "nhom": "pm",
+  "cau": "tkbv nam phương tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "tkbv_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-086",
+  "nhom": "pm",
+  "cau": "ai vẽ",
+  "truoc": "tkbv nam phương tháng này",
+  "chuoi": [
+   "tkbv nam phương tháng này"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "tkbv_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "nhom": [
+    "nguoi_trien_khai"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-087",
+  "nhom": "pm",
+  "cau": "tính phiếu thì sao",
+  "truoc": "ai vẽ",
+  "chuoi": [
+   "tkbv nam phương tháng này",
+   "ai vẽ"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "nhom": [],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "pm-088",
+  "nhom": "pm",
+  "cau": "hạng mục của CT26-110 theo PC",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_pc"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-089",
+  "nhom": "pm",
+  "cau": "theo PM đi",
+  "truoc": "hạng mục của CT26-110 theo PC",
+  "chuoi": [
+   "hạng mục của CT26-110 theo PC"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-090",
+  "nhom": "pm",
+  "cau": "cái nào chưa triển khai bản vẽ",
+  "truoc": "theo PM đi",
+  "chuoi": [
+   "hạng mục của CT26-110 theo PC",
+   "theo PM đi"
+  ],
+  "ghi_chu": "mơ hồ: tình trạng bản vẽ CHƯA TRIỂN KHAI hay công đoạn '15. CHƯA TRIỂN KHAI'",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT26-110"
+     ]
+    },
+    {
+     "cot": "tinh_trang_trien_khai_ban_ve",
+     "op": "bang",
+     "gt": [
+      "CHƯA TRIỂN KHAI"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "pm-091",
+  "nhom": "pm",
+  "cau": "tại sao CT25-070 trễ nhiều vậy",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-092",
+  "nhom": "pm",
+  "cau": "CT26-110 có kịp giao cuối tháng 11 ko",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-093",
+  "nhom": "pm",
+  "cau": "theo ad thì nên ưu tiên hm nào của nam phương trước",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-094",
+  "nhom": "pm",
+  "cau": "khách hàng nam phương thanh toán đợt 2 chưa",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-095",
+  "nhom": "pm",
+  "cau": "hợp đồng CT24-066 ký ngày nào",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-096",
+  "nhom": "pm",
+  "cau": "ai giám sát công trường holiday inn",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-097",
+  "nhom": "pm",
+  "cau": "lắp đặt tại site tây hồ view đến đâu rồi",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-098",
+  "nhom": "pm",
+  "cau": "chi phí nhân công thực tế của CT26-110 hết bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-099",
+  "nhom": "pm",
+  "cau": "nhắc tôi khi CT25-070 nhập kho xong nhé",
+  "ghi_chu": "lệnh nhắc việc, không phải hỏi số liệu — không được trả số nhập kho tự tin",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "pm-100",
+  "nhom": "pm",
+  "cau": "chất lượng hàng xưởng 3A làm cho CT25-070 có ổn không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ }
+]

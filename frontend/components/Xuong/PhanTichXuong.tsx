@@ -32,7 +32,7 @@ function The({ ten, giaTri, phu }: { ten: string; giaTri: string; phu?: string }
 function Khung({ ten, phu, children }: { ten: string; phu?: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <p className="text-sm font-semibold text-slate-800">{ten}</p>
+      <p className="text-base font-semibold text-slate-900">{ten}</p>
       {phu && <p className="text-xs text-slate-500">{phu}</p>}
       <div className="mt-2">{children}</div>
     </div>
@@ -150,7 +150,7 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
       </div>}
 
       <div className={KHUNG}>
-        <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Mốc chuẩn theo công đoạn ({(d.congDoan ?? []).length})</p>
+        <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Mốc chuẩn theo công đoạn ({(d.congDoan ?? []).length})</p>
         <table className="w-full min-w-[44rem] text-sm rmd:min-w-0">
           <thead className="bg-slate-50"><tr>
             <th className={TH}>Công đoạn</th><th className={`${TH} text-right`}>Hạng mục</th><th className={`${TH} text-right`}>SL xong</th>
@@ -181,7 +181,7 @@ export default function PhanTichXuong({ xuong, tu, den }: { xuong: string; tu: s
 
       {nhom.length > 0 && (
         <div className={KHUNG}>
-          <p className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-800">Theo nhóm sản phẩm</p>
+          <p className="border-b border-slate-100 px-4 py-3 text-base font-semibold text-slate-900">Theo nhóm sản phẩm</p>
           <table className="w-full text-sm">
             <thead className="bg-slate-50"><tr>
               <th className={TH}>Nhóm</th><th className={`${TH} text-right`}>Hạng mục</th><th className={`${TH} text-right`}>Đã xong</th>

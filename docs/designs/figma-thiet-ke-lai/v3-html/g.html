@@ -1,0 +1,73 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="ct.js"></script>
+<style>
+.lv{display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff}
+.lv .n{font-size:22px;font-weight:700}.lv .l{display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px}.lv .h{font-size:11px;color:var(--sub)}
+.sw{width:12px;height:12px;border-radius:3px;flex:none}
+.g th{text-align:center}.g th.l,.g td.l{text-align:left}
+.g td{padding:7px 4px;text-align:center}.g th{padding:8px 4px}
+.c{display:inline-flex;align-items:center;justify-content:center;min-width:60px;height:26px;border-radius:6px;font-size:11px;font-weight:600;padding:0 6px;white-space:nowrap}
+.c.need{outline:2px solid #0f172a;outline-offset:1px}
+.k0{background:#fdecec;color:#b3141a;border:1px dashed #f87171}
+.k1{background:#e31e24;color:#fff}
+.k2{background:#f97316;color:#fff}
+.k3{background:#fde68a;color:#78350f}
+.k4{background:#dcfce7;color:#166534}
+.kx{color:#cbd5e1}
+</style></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="row">
+    <div class="card grow" style="display:flex;flex-direction:column;gap:14px">
+      <div><div class="q">Vật tư của 1.131 hạng mục cần theo dõi đang ở mức nào?</div>
+      <div class="ins"><em>23 hạng mục đang đứng chờ vật tư</em> — vật tư cần cho công đoạn hiện tại chưa về · tổng 219 mục còn thiếu vật tư.</div></div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px" id="lv"></div>
+      <div class="stack" style="height:12px;border-radius:6px;gap:2px" id="bar"></div>
+      <div class="sub">Mỗi hạng mục 1 mức = mức xấu nhất trong các dòng PR của nó. Gia công ngoài (16.x) là công đoạn, không tính là chặn. Sơn mua gộp theo công trình nên không theo dõi theo hạng mục. Không tính 337 mục đã nhập kho đủ, 167 mục chưa triển khai bản vẽ, 122 mục mua gộp / tồn kho (không có PR riêng).</div>
+    </div>
+    <div class="card" style="width:330px;flex:none;padding:20px 22px 10px">
+      <div class="hd" style="padding-bottom:8px"><span class="h2">Cần chú ý</span></div>
+      <div class="att">
+        <div class="it"><div class="tx"><div class="t">23 hạng mục đứng chờ vật tư</div><div class="s">nhiều nhất Bọc nệm chờ Vải · Da (9), Mộc chờ Gỗ · Ván (7)</div></div><span class="badge dot t-red">Chặn SX</span></div>
+        <div class="it"><div class="tx"><div class="t">96 hạng mục chưa có PR</div><div class="s">đã triển khai bản vẽ, chưa SX</div></div><span class="badge dot t-red">Thiếu PR</span></div>
+        <div class="it"><div class="tx"><div class="t">1 vướng mắc vật tư (M3)</div><div class="s">260409705 · Cửa D10 Maxine</div></div><span class="badge dot t-red">Vướng mắc</span></div>
+        <div class="it"><div class="tx"><div class="t">42 dòng vật tư chung công trình</div><div class="s">không ghi mã NM — không gắn được hạng mục</div></div><span class="badge dot t-amb">Xuất Excel</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card np">
+    <div style="padding:16px 18px 12px;display:flex;flex-direction:column;gap:12px">
+      <div class="hd"><div><div class="q">Hạng mục này thiếu vật tư gì?</div><div class="h2" style="margin-top:2px">Tra theo hạng mục</div></div><span class="sp"></span>
+        <div class="search" style="width:340px;border:2px solid #0f172a;color:#0f172a;padding:9px 12px">⌕ Gõ mã HEX hoặc tên hạng mục…</div><span class="btn">Xem theo dòng PR</span></div>
+      <div class="hd" style="gap:8px;flex-wrap:wrap">
+        <span class="chip red on" style="padding:5px 12px">▲ Đang chặn công đoạn <span class="n">23</span></span>
+        <span class="chip" style="padding:5px 12px">Còn thiếu vật tư <span class="n">219</span></span>
+        <span class="chip" style="padding:5px 12px">Tất cả <span class="n">1.131</span></span>
+        <span style="width:1px;height:22px;background:#d1d5db"></span>
+        <span class="sub">Ô màu:</span>
+        <span class="c k0" style="min-width:0">chưa có PR</span><span class="c k1" style="min-width:0">chưa mua</span><span class="c k2" style="min-width:0">trễ 19n</span><span class="c k3" style="min-width:0">hẹn 24/10</span><span class="c k4" style="min-width:0">✓ đủ</span><span class="kx">·</span><span class="sub">không dùng</span>
+        <span class="c k2 need" style="min-width:0">▲ cần ngay</span><span class="sub">= nhóm vật tư cần ở công đoạn đang làm mà chưa về</span>
+      </div>
+    </div>
+    <table class="g mid" id="t"></table>
+    <div style="padding:12px;text-align:center;font-weight:500">Xem thêm 17 hạng mục</div>
+  </div>
+</div></div>
+<script>
+ctHead(3);
+const LV=[['Chưa có PR',96,'#fca5a5','đã triển khai mà chưa thấy PR',1],['Chưa mua',64,'#e31e24','có dòng PR chưa có PO',1],['Đang mua – trễ',59,'#f97316','quá ngày dự kiến giao (gồm gia công ngoài)',1],['Đang mua – đúng hẹn',171,'#fde68a','chưa tới hẹn / về theo nhu cầu SX / kho báo về'],['Đã về đủ',741,'#86efac','mọi dòng PR đã về']];
+document.getElementById('lv').innerHTML=LV.map(([l,n,c,h,bad])=>`<div class="lv"><div class="l"><span class="sw" style="background:${c}"></span>${l}</div><div class="n" style="${bad?'color:#b3141a':''}">${n}</div><div class="h">${h}</div></div>`).join('');
+const T=LV.reduce((a,x)=>a+x[1],0);document.getElementById('bar').innerHTML=LV.map(x=>`<i style="width:${x[1]/T*100}%;background:${x[2]}"></i>`).join('');
+const G=[['Gỗ · Ván','CTS · Phôi · Máy · Mộc'],['Kim loại','Hàn · Fitting KL · PVD'],['Đá','CTS đá · Tổ đá'],['Kính','Fitting'],['Phụ kiện','Fitting'],['Vải · Da · Nệm','Bọc nệm'],['Gia công ngoài','16. GC vệ tinh']];
+const cell=v=>{if(!v)return '<td><span class="kx">·</span></td>';const [k,t,need]=v.split('|');return `<td><span class="c ${k}${need?' need':''}">${need?'▲ ':''}${t}</span></td>`;};
+const R=[
+ ['260409705','Cửa D10 Maxine','P014','05. MỘC','5 TUẦN',['k2|trễ 19n|1','','','k3|hẹn 24/10','k3|hẹn 24/10','',''],'Ván lạng YL V39004 (2 dòng)','20/10','c-red'],
+ ['260409802','Sofa 3 chỗ phòng khách','P016','04.1. BỌC NỆM','4 TUẦN',['k4|✓ đủ','','','','k4|✓ đủ','k1|chưa mua|1',''],'Vải Marlow 26 khổ 1.4m','chưa có','c-red'],
+ ['260409711','Tủ áo phòng ngủ master','P015','06. MÁY','3 TUẦN',['k2|trễ 6n|1','','','k3|hẹn 28/10','k2|trễ 6n','',''],'Ván ép E2 18 ly, ray Blum','26/10','c-red'],
+ ['260409766','Tủ giày lối vào','P015','06.1. HÀN','<3 NGÀY',['k4|✓ đủ','k2|trễ 3n|1','','','k4|✓ đủ','',''],'Inox hộp 304','23/10','c-red'],
+ ['260409740','Kệ tivi phòng khách','P013','07. CTS','2 TUẦN',['k4|✓ đủ','','k1|chưa mua','k1|chưa mua','k3|hẹn 24/10','',''],'Đá, kính — chưa cần ở CTS (chưa chặn)','chưa có','c-amb'],
+ ['260409821','Bàn ăn mặt đá','—','16.2. GIA CÔNG VỆ TINH-ĐÁ','2 TUẦN',['k4|✓ đủ','','k4|✓ đủ','','','','k3|NCC SX, hẹn 30/10'],'Đang gia công ngoài (không tính chặn)','30/10',''],
+ ['260409732','Vách ốp gỗ phòng khách','P002','14. CHƯA PHIẾU','4 TUẦN',['k0|chưa có PR','','','','k0|chưa có PR','',''],'Chưa lên PR','—','c-sub'],
+];
+document.getElementById('t').innerHTML=`<tr><th class="l">Mã HEX · Hạng mục</th><th class="l">Đang ở công đoạn</th>${G.map(([g,c])=>`<th>${g}<div style="font-weight:500;text-transform:none;letter-spacing:0;color:#94a3b8;font-size:10px;margin-top:2px">cần ở: ${c}</div></th>`).join('')}<th class="l">Đang chờ</th><th class="l">Dự kiến đủ VT</th></tr>`+R.map(r=>`<tr><td class="l" style="min-width:190px"><span class="hex">${r[0]}</span><div style="font-size:12px">${r[1]}</div></td><td class="l" style="white-space:nowrap"><b>${r[3]}</b><div class="sub ${/^[4-9] TUẦN/.test(r[4])?'c-red':''}">${r[4]}</div></td>${r[5].map(cell).join('')}<td class="l" style="font-size:12px;width:150px">${r[6]}</td><td class="l ${r[8]} ${r[8]?'b':''}">${r[7]}</td></tr>`).join('');
+</script>
+</body></html>

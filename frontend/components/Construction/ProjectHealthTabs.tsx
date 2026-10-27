@@ -4,7 +4,7 @@ import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
   materialLineState, isMaterialPending, materialDueDate, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
-  type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank,
+  type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank, BOP_STAGE_ORDER,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
 import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
@@ -22,12 +22,15 @@ export interface HexInfo {
   stage: string | null;
   status: string;              // cột Tình trạng (tinh_trang)
   area: string;                // khu vực sản xuất (xuong_chinh)
+  nhomSp?: string;             // nhóm phân loại sản phẩm (phan_loai_nhom_san_pham)
   dwell: string | null;        // thời gian ở công đoạn hiện tại (so_ngay_cd_hien_tai)
   bucket: RemainBucket | null; // nhóm của phần GIÁ TRỊ còn lại (null = không còn giá trị chưa nhập)
   /** Còn phải theo dõi (đếm / tính hạn): chưa nhập đủ giá trị và chưa nhập đủ số lượng, hoặc trị giá 0 */
   open: boolean;
   total: number;               // triệu đồng
   inv: number;                 // đã nhập kho (triệu, đã chặn không vượt trị giá)
+  xuat?: number;               // đã xuất kho lũy kế (triệu)
+  tonKho?: number;             // tồn kho hiện tại (triệu); undefined = dữ liệu không có cột
   remain: number;              // triệu đồng
   deadline: Date | null;       // hạn = KH nhập kho tuần → KH nhập kho tháng (utils/productionMetrics)
   deadlineSource: DeadlineSource | null;
@@ -138,7 +141,25 @@ const BOT_GROUPS: { key: BotGroup; label: string; tone: 'red' | 'amber' | 'slate
   { key: 'later', label: 'Sau 30 ngày', tone: 'slate', hint: 'Hạn sau 30 ngày' },
   { key: 'none', label: 'Chưa có KH nhập kho', tone: 'slate', hint: 'Không có KH nhập kho tuần / tháng (hoặc KH kỳ đã nhập đủ SL mà hạng mục chưa nhập kho đủ)' },
 ];
-const SOURCE_SHORT: Record<DeadlineSource, string> = { 'tuần': 'KH tuần', 'tháng': 'KH tháng' };
+
+// Tab BOT xếp hạn theo NGÀY CẦN (PM): mốc duy nhất có ở gần như mọi hạng mục (KH nhập kho tuần / tháng thường chỉ
+// có ở vài % hạng mục). Quy tắc hạn của các trang khác (KH nhập kho tuần → tháng) giữ nguyên.
+type PmGroup = 'qua' | 'd14' | 'd30' | 'sau' | 'none';
+const PM_GROUPS: { key: PmGroup; label: string; tone: 'red' | 'amber' | 'slate'; hint: string }[] = [
+  { key: 'qua', label: 'Đã qua ngày cần', tone: 'red', hint: 'Đã qua Ngày cần (PM) mà chưa nhập kho đủ' },
+  { key: 'd14', label: 'Cần trong ≤ 14 ngày', tone: 'amber', hint: 'Ngày cần (PM) trong 14 ngày tới' },
+  { key: 'd30', label: 'Cần trong 15–30 ngày', tone: 'amber', hint: 'Ngày cần (PM) trong 15–30 ngày tới' },
+  { key: 'sau', label: 'Cần sau 30 ngày', tone: 'slate', hint: 'Ngày cần (PM) sau 30 ngày' },
+  { key: 'none', label: 'Chưa có ngày cần', tone: 'slate', hint: 'Hạng mục chưa có Ngày cần (PM)' },
+];
+// Hạng mục đang ở đâu: chưa triển khai bản vẽ (P001) / chưa tính phiếu (P002) / đã lên chuyền (từ P012, gồm nhập kho chưa đủ)
+type GiaiDoan = 'p001' | 'p002' | 'line';
+const GIAI_DOAN: { key: GiaiDoan; label: string }[] = [
+  { key: 'p001', label: 'chưa triển khai' },
+  { key: 'p002', label: 'chưa tính phiếu' },
+  { key: 'line', label: 'trên chuyền' },
+];
+const giaiDoanOf = (i: HexInfo): GiaiDoan => (i.bucket === 'notDeployed' ? 'p001' : i.bucket === 'p002' ? 'p002' : 'line');
 
 // Mốc tham khảo (không tính hạn): hạng mục chưa nhập kho đủ đã qua ngày cần giao / BOT dự án / ngày cần (PM)
 type RefKey = 'canGiao' | 'botDuAn' | 'canPm';
@@ -155,9 +176,17 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const [group, setGroup] = useState<BotGroup | 'all' | 'planAfterDue'>('all');
   const [month, setMonth] = useState<string | null>(null); // 'YYYY-MM' hoặc '~' (chưa có ngày)
   const [q, setQ] = useState('');
-  // Lọc thêm theo mốc tham khảo / tuổi đơn (cộng thêm vào lọc nhóm hạn)
+  // Lọc theo Ngày cần (PM) × giai đoạn (thẻ chính), mốc tham khảo (ngày cần giao), tuổi đơn
+  const [pmSel, setPmSel] = useState<{ g: PmGroup; gd?: GiaiDoan } | null>(null);
   const [ref, setRef] = useState<RefKey | null>(null);
   const [age, setAge] = useState<AgeBucket | null>(null);
+  // Bảng Nhóm sản phẩm × Ngày cần (PM): số đo + ô đang chọn (ngày 'YYYY-MM-DD' / '~' = chưa có KH; thiếu khoá = mọi giá trị)
+  const [botMetric, setBotMetric] = useState<'count' | 'remain'>('remain');
+  type OBot = { day?: string; nsp?: string; xuong?: string };
+  const [cellSel, setCellSel] = useState<OBot | null>(null);
+  const [moNspBot, setMoNspBot] = useState<Set<string>>(new Set());
+  // Các tháng trước tháng hiện tại gộp 1 cột "Trước …" — bấm để mở ra từng ngày
+  const [moThangCu, setMoThangCu] = useState(false);
 
   const open = useMemo(() => items.filter(i => i.open), [items]);
   const pastRef = (i: HexInfo, k: RefKey) => { const d = REF_DEADLINES.find(r => r.key === k)!.of(i); return !!d && d.getTime() < today; };
@@ -174,8 +203,27 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   }, [open, today]);
   const hasAge = ageCounts.none.n < open.length;
   const monthOf = (i: HexInfo) =>
-    i.deadline ? `${i.deadline.getFullYear()}-${String(i.deadline.getMonth() + 1).padStart(2, '0')}` : '~';
-  const monthLabel = (k: string) => (k === '~' ? 'Chưa có KH nhập kho' : `${k.slice(5)}/${k.slice(0, 4)}`);
+    i.canPm ? `${i.canPm.getFullYear()}-${String(i.canPm.getMonth() + 1).padStart(2, '0')}` : '~';
+  const monthLabel = (k: string) => (k === '~' ? 'Chưa có ngày cần' : `${k.slice(5)}/${k.slice(0, 4)}`);
+  const pmDays = (i: HexInfo) => (i.canPm ? Math.floor((i.canPm.getTime() - today) / DAY) : null);
+  const pmGroupOf = (i: HexInfo): PmGroup => {
+    const d = pmDays(i);
+    if (d === null) return 'none';
+    if (d < 0) return 'qua';
+    if (d <= 14) return 'd14';
+    if (d <= 30) return 'd30';
+    return 'sau';
+  };
+  // Thẻ chính: số hạng mục / còn lại theo nhóm ngày cần, tách theo giai đoạn
+  const pmCounts = useMemo(() => {
+    const z = () => ({ n: 0, remain: 0, gd: { p001: 0, p002: 0, line: 0 } as Record<GiaiDoan, number> });
+    const c = Object.fromEntries(PM_GROUPS.map(g => [g.key, z()])) as Record<PmGroup, ReturnType<typeof z>>;
+    open.forEach(i => { const e = c[pmGroupOf(i)]; e.n++; e.remain += i.remain; e.gd[giaiDoanOf(i)]++; });
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, today]);
+  // Có ghi KH nhập kho tuần / tháng (kể cả KH kỳ đã nhập đủ SL — những hạng mục đó không còn tính hạn KH)
+  const coKh = useMemo(() => open.filter(i => i.khnkTuan || i.khnkThang).length, [open]);
   const groupOf = (i: HexInfo): BotGroup => {
     if (!i.deadline) return 'none';
     const days = Math.floor((i.deadline.getTime() - today) / DAY);
@@ -200,154 +248,237 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [open, today]);
 
-  // Tổng theo tháng kế hoạch (trị giá / đã nhập / còn lại) — mọi hạng mục, kể cả đã nhập đủ
-  const byMonth = useMemo(() => {
-    const m = new Map<string, { key: string; n: number; total: number; inv: number; remain: number; overdue: number }>();
-    items.forEach(i => {
-      const key = monthOf(i);
-      const e = m.get(key) ?? { key, n: 0, total: 0, inv: 0, remain: 0, overdue: 0 };
-      e.n++; e.total += i.total; e.inv += i.inv; e.remain += i.remain; if (i.overdue) e.overdue++;
-      m.set(key, e);
-    });
-    return [...m.values()].sort((a, b) => (a.key === '~' ? 1 : b.key === '~' ? -1 : a.key.localeCompare(b.key)));
-     
-  }, [items]);
+  // Nhóm sản phẩm × Ngày cần (PM): hạng mục chưa nhập kho đủ, sản phẩm nào cần ngày nào
+  const dayOf = (i: HexInfo) =>
+    i.canPm ? `${i.canPm.getFullYear()}-${String(i.canPm.getMonth() + 1).padStart(2, '0')}-${String(i.canPm.getDate()).padStart(2, '0')}` : '~';
+  const nspOf = (i: HexInfo) => i.nhomSp || '(Chưa có nhóm)';
+  const CU = '<';
+  const thangNay = (() => { const t = new Date(today); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`; })();
+  const cotOf = (i: HexInfo) => { const d = dayOf(i); return !moThangCu && d !== '~' && d.slice(0, 7) < thangNay ? CU : d; };
+  const botVal = (i: HexInfo) => (botMetric === 'count' ? 1 : i.remain);
+  const fmtB = (v: number) => (botMetric === 'count' ? fmtInt(v) : fmtTy(v));
+  const plan = useMemo(() => {
+    const rowsM = new Map<string, DongNsp>();
+    const colTot: Record<string, number> = {};
+    const colOver: Record<string, boolean> = {};
+    let grand = 0;
+    for (const i of open) {
+      const v = botVal(i), d = cotOf(i);
+      congDong(rowsM, nspOf(i), xuongOf(i), d, v);
+      colTot[d] = (colTot[d] ?? 0) + v;
+      if (pmGroupOf(i) === 'qua') colOver[d] = true;
+      grand += v;
+    }
+    const days = Object.keys(colTot).sort((x, y) => (x === '~' ? 1 : y === '~' ? -1 : x === CU ? -1 : y === CU ? 1 : x.localeCompare(y)));
+    // Số tháng cũ đang gộp (để ghi trên nút)
+    const soThangCu = new Set(open.map(dayOf).filter(d => d !== '~' && d.slice(0, 7) < thangNay).map(d => d.slice(0, 7))).size;
+    // Dải tháng trên đầu cột
+    const months: { key: string; days: string[] }[] = [];
+    for (const d of days) {
+      const m = d === '~' || d === CU ? d : d.slice(0, 7);
+      const last = months[months.length - 1];
+      if (last && last.key === m) last.days.push(d); else months.push({ key: m, days: [d] });
+    }
+    const rows = [...rowsM.entries()].map(([nsp, row]) => ({ nsp, ...row, xs: [...row.xs.entries()].sort((a, b) => sapXuong(a[0], b[0])) }))
+      .sort((x, y) => (x.nsp === '(Chưa có nhóm)' ? 1 : y.nsp === '(Chưa có nhóm)' ? -1 : x.nsp.localeCompare(y.nsp, 'vi', { numeric: true })));
+    return { days, months, rows, colTot, colOver, grand, soThangCu };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, botMetric, today, moThangCu]);
+  const dayLabel = (d: string) => (d === '~' ? 'Chưa có ngày cần' : `${d.slice(8)}/${d.slice(5, 7)}`);
+  const sameSel = (a: OBot) => !!cellSel && cellSel.day === a.day && cellSel.nsp === a.nsp && cellSel.xuong === a.xuong;
+  const pickCell = (a: OBot) => setCellSel(sameSel(a) ? null : a);
+  const planCell = (v: number | undefined, a: OBot, cls = '') => (
+    <td onClick={v ? () => pickCell(a) : undefined}
+      className={`${td} whitespace-nowrap text-right tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : 'text-slate-300'} ${sameSel(a) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
+      {v ? fmtB(v) : '-'}
+    </td>
+  );
 
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase();
     return open
       .filter(i => inGroup(i) && (month === null || monthOf(i) === month) && matchQ(i, ql))
+      .filter(i => !cellSel || ((cellSel.day === undefined || cotOf(i) === cellSel.day) && (cellSel.nsp === undefined || nspOf(i) === cellSel.nsp) && (cellSel.xuong === undefined || xuongOf(i) === cellSel.xuong)))
       .filter(i => ref === null || pastRef(i, ref))
       .filter(i => age === null || ageBucketOf(i, today) === age)
-      .sort((a, b) => (a.deadline?.getTime() ?? Infinity) - (b.deadline?.getTime() ?? Infinity) || b.remain - a.remain);
+      .filter(i => !pmSel || (pmGroupOf(i) === pmSel.g && (pmSel.gd === undefined || giaiDoanOf(i) === pmSel.gd)))
+      .sort((a, b) => (a.canPm?.getTime() ?? Infinity) - (b.canPm?.getTime() ?? Infinity) || b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, group, month, q, today, ref, age]);
+  }, [open, group, month, q, today, ref, age, cellSel, pmSel]);
+  const pickPm = (g: PmGroup, gd?: GiaiDoan) =>
+    setPmSel(cur => (cur && cur.g === g && cur.gd === gd ? null : { g, gd }));
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-        {BOT_GROUPS.map(g => (
-          <button
-            key={g.key}
-            type="button"
-            title={g.hint}
-            onClick={() => setGroup(group === g.key ? 'all' : g.key)}
-            className={`rounded-lg border px-3 py-2 text-left transition ${group === g.key ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400'}`}
-          >
-            <p className="text-[0.6875rem] text-slate-500">{g.label}</p>
-            <p className={`text-xl font-semibold tabular-nums ${g.tone === 'red' && counts[g.key].n ? 'text-red-600' : g.tone === 'amber' && counts[g.key].n ? 'text-amber-600' : 'text-slate-900'}`}>
-              {fmtInt(counts[g.key].n)}
-            </p>
-            <p className="text-[0.625rem] text-slate-400">{fmtTy(counts[g.key].remain)} tỷ chưa nhập kho</p>
-          </button>
-        ))}
+      {/* Thẻ chính: theo Ngày cần (PM), tách sẵn hạng mục đang ở đâu */}
+      <div className={`grid gap-2 sm:grid-cols-2 ${pmCounts.none.n ? 'xl:grid-cols-5' : 'xl:grid-cols-4'}`}>
+        {PM_GROUPS.filter(g => g.key !== 'none' || pmCounts.none.n > 0).map(g => {
+          const c = pmCounts[g.key];
+          const on = pmSel?.g === g.key;
+          const mau = c.n && g.tone === 'red' ? 'text-red-600' : c.n && g.tone === 'amber' ? 'text-amber-600' : 'text-slate-900';
+          return (
+            <div key={g.key} className={`rounded-lg border px-3 py-2 transition ${on ? 'border-slate-900 ring-1 ring-slate-900' : 'border-slate-200 hover:border-slate-400'}`}>
+              <button type="button" title={`${g.hint} — bấm để lọc danh sách`} onClick={() => pickPm(g.key)} className="block w-full text-left">
+                <p className="text-[0.6875rem] text-slate-500">{g.label}</p>
+                <p className={`text-xl font-semibold tabular-nums ${mau}`}>
+                  {fmtInt(c.n)} <span className="text-xs font-normal text-slate-400">hạng mục · {fmtTy(c.remain)} tỷ chưa nhập</span>
+                </p>
+              </button>
+              {c.n > 0 && (
+                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[0.6875rem]">
+                  {GIAI_DOAN.filter(d => c.gd[d.key] > 0).map(d => (
+                    <button key={d.key} type="button" onClick={() => pickPm(g.key, d.key)} title={`Lọc: ${g.label} · ${d.label}`}
+                      className={`rounded px-1 hover:bg-amber-50 hover:underline ${pmSel?.g === g.key && pmSel.gd === d.key ? 'bg-amber-100 font-semibold text-slate-900' : d.key === 'p001' && g.key === 'qua' ? 'font-semibold text-red-600' : 'text-slate-600'}`}>
+                      {fmtInt(c.gd[d.key])} {d.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-      {extra.planAfterDue > 0 && (
-        <div className="-mt-2 flex flex-wrap items-center gap-2">
-          <span title="KH nhập kho tuần / tháng đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ, cần xem lại KH hoặc báo PM">
-            <Chip active={group === 'planAfterDue'} tone="amber" onClick={() => setGroup(group === 'planAfterDue' ? 'all' : 'planAfterDue')}>
-              <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />KH NK sau ngày cần giao ({fmtInt(extra.planAfterDue)})
+
+      {/* KH nhập kho (hạn chính thức của các trang khác) + ngày cần giao + tuổi đơn: 1 dòng gọn */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs">
+        <span className="font-semibold text-slate-700" title="KH nhập kho tuần → tháng — hạn chính thức ở các trang khác">KH nhập kho:</span>
+        <span className="text-slate-600">{fmtInt(coKh)}/{fmtInt(open.length)} hạng mục có KH ({open.length ? ((coKh / open.length) * 100).toFixed(1) : '0'}%)</span>
+        {BOT_GROUPS.filter(g => g.key !== 'none' && counts[g.key].n > 0).map(g => (
+          <span key={g.key} title={g.hint}>
+            <Chip active={group === g.key} tone={g.tone === 'red' ? 'red' : g.tone === 'amber' ? 'amber' : 'slate'} onClick={() => setGroup(group === g.key ? 'all' : g.key)}>
+              {g.label} ({fmtInt(counts[g.key].n)})
             </Chip>
           </span>
-        </div>
-      )}
-
-      {/* Mốc tham khảo + tuổi đơn: 85% hạng mục đang sản xuất KHÔNG có KH nhập kho tuần / tháng nên chỉ nhìn BOT thì
-          không thấy gì — các mốc này giúp thấy hạng mục đã lố ngày cần giao / BOT dự án hoặc nằm quá lâu từ khi nhận PM */}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="rounded-lg border border-slate-200 p-3">
-          <p className="mb-1.5 text-xs font-semibold text-slate-700">
-            Mốc tham khảo <span className="font-normal text-slate-500">· không tính hạn, chỉ để rà hạng mục chưa có KH nhập kho</span>
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {REF_DEADLINES.map(r => (
-              <span key={r.key} title={r.hint}>
-                <Chip active={ref === r.key} tone={refCounts[r.key] ? 'red' : 'slate'} onClick={() => setRef(ref === r.key ? null : r.key)}>
-                  {r.label} ({fmtInt(refCounts[r.key])})
+        ))}
+        {extra.planAfterDue > 0 && (
+          <span title="KH nhập kho tuần / tháng đang dùng muộn hơn ngày cần giao — biết trước sẽ giao trễ, cần xem lại KH hoặc báo PM">
+            <Chip active={group === 'planAfterDue'} tone="amber" onClick={() => setGroup(group === 'planAfterDue' ? 'all' : 'planAfterDue')}>
+              <AlertTriangle size={11} className="-mt-0.5 mr-1 inline" />KH sau ngày cần giao ({fmtInt(extra.planAfterDue)})
+            </Chip>
+          </span>
+        )}
+        {refCounts.canGiao > 0 && (
+          <span title={REF_DEADLINES.find(x => x.key === 'canGiao')!.hint}>
+            <Chip active={ref === 'canGiao'} tone="red" onClick={() => setRef(ref === 'canGiao' ? null : 'canGiao')}>Qua ngày cần giao ({fmtInt(refCounts.canGiao)})</Chip>
+          </span>
+        )}
+        {hasAge && (
+          <>
+            <span className="ml-2 font-semibold text-slate-700" title="Số ngày từ ngày nhận PM tới nay, hạng mục chưa nhập kho đủ">Tuổi đơn:</span>
+            {AGE_BUCKETS.map(b => (
+              <span key={b.key} title={`${fmtTy(ageCounts[b.key].remain)} tỷ chưa nhập kho`}>
+                <Chip active={age === b.key} tone={ageCounts[b.key].n ? b.tone : 'slate'} onClick={() => setAge(age === b.key ? null : b.key)}>
+                  {b.label} ({fmtInt(ageCounts[b.key].n)})
                 </Chip>
               </span>
             ))}
-          </div>
-        </div>
-        <div className="rounded-lg border border-slate-200 p-3">
-          <p className="mb-1.5 text-xs font-semibold text-slate-700">
-            Tuổi đơn <span className="font-normal text-slate-500">· số ngày từ ngày nhận PM tới nay, hạng mục chưa nhập kho đủ</span>
-          </p>
-          {hasAge ? (
-            <div className="flex flex-wrap gap-1.5">
-              {AGE_BUCKETS.map(b => (
-                <span key={b.key} title={`${fmtTy(ageCounts[b.key].remain)} tỷ chưa nhập kho`}>
-                  <Chip active={age === b.key} tone={ageCounts[b.key].n ? b.tone : 'slate'} onClick={() => setAge(age === b.key ? null : b.key)}>
-                    {b.label} ({fmtInt(ageCounts[b.key].n)})
-                  </Chip>
-                </span>
-              ))}
-              {ageCounts.none.n > 0 && <span className="self-center text-[0.6875rem] text-slate-400">· {fmtInt(ageCounts.none.n)} chưa có ngày nhận PM</span>}
-            </div>
-          ) : <p className="text-xs text-slate-400">Dữ liệu chưa có ngày nhận PM (sẽ có sau lần tải dữ liệu kế tiếp).</p>}
-        </div>
+          </>
+        )}
       </div>
 
       <div>
-        <p className="mb-1.5 text-xs font-semibold text-slate-700">
-          Theo tháng kế hoạch <span className="font-normal text-slate-500">· KH nhập kho tuần → tháng · bấm 1 tháng (hoặc số quá hạn) để lọc danh sách</span>
-        </p>
-        <div className="overflow-auto rounded-lg border border-slate-200">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold text-slate-700">
+            Nhóm sản phẩm × Ngày cần (PM){' '}
+            <span className="font-normal text-slate-500">· hạng mục chưa nhập kho đủ · ngày đỏ = đã qua · bấm số, tên nhóm, ngày hoặc tháng để lọc danh sách</span>
+          </p>
+          <div className="ml-auto flex gap-1">
+            <Chip active={botMetric === 'count'} onClick={() => setBotMetric('count')}>Số hạng mục</Chip>
+            <Chip active={botMetric === 'remain'} onClick={() => setBotMetric('remain')}>Còn lại (tỷ)</Chip>
+          </div>
+        </div>
+        <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
           <table className="w-full text-xs">
-            <thead className="bg-slate-50 text-slate-500">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
               <tr>
-                <th className={`${th} text-left`}>Tháng</th>
-                <th className={`${th} text-right`}>Hạng mục</th>
-                <th className={`${th} text-right`}>Trị giá (tỷ)</th>
-                <th className={`${th} text-right`}>Đã nhập kho (tỷ)</th>
-                <th className={`${th} text-right`}>Còn lại (tỷ)</th>
-                <th className={`${th} text-right`}>Quá hạn</th>
-                <th className={`${th} text-left w-40`}>% nhập kho</th>
+                <th className={`${th} sticky left-0 z-20 bg-slate-50 text-left`} rowSpan={2}>
+                  Nhóm sản phẩm / xưởng
+                  <NutMoTatCa onMo={() => setMoNspBot(new Set(plan.rows.map(x => x.nsp)))} onThu={() => setMoNspBot(new Set())} />
+                </th>
+                {plan.months.map(m => (m.key === CU ? (
+                  // Cột gộp tháng cũ: 1 ô cao 2 dòng, gọn
+                  <th key={m.key} rowSpan={2} className={`${th} w-px whitespace-nowrap border-l border-slate-200 text-right align-bottom`}>
+                    <button type="button" onClick={() => { setMoThangCu(true); setCellSel(null); }}
+                      title={`Mở ra từng ngày của ${plan.soThangCu} tháng trước ${monthLabel(thangNay)}`}
+                      className="block w-full rounded px-1 text-[0.625rem] font-normal text-slate-400 hover:bg-amber-50 hover:text-slate-700">▸ {plan.soThangCu} tháng</button>
+                    <button type="button" onClick={() => pickCell({ day: CU })} title={`Lọc danh sách: ngày cần trước ${monthLabel(thangNay)} (đã qua)`}
+                      className={`rounded px-1 font-semibold hover:bg-amber-50 ${sameSel({ day: CU }) ? 'bg-amber-100 text-slate-900' : 'text-red-600'}`}>
+                      Trước {thangNay.slice(5)}/{thangNay.slice(2, 4)}
+                    </button>
+                  </th>
+                ) : (
+                  <th key={m.key} colSpan={m.days.length} className={`${th} border-l border-slate-200 text-center`}>
+                    {m.key === '~' ? '' : (
+                      <button type="button" onClick={() => { setMonth(month === m.key ? null : m.key); setGroup('all'); }} title="Lọc danh sách theo tháng này"
+                        className={`rounded px-1 font-semibold hover:bg-amber-50 hover:text-slate-900 ${month === m.key ? 'bg-amber-100 text-slate-900' : 'text-slate-700'}`}>
+                        Tháng {monthLabel(m.key)}
+                      </button>
+                    )}
+                    {moThangCu && m.key < thangNay && m.key !== '~' && m === plan.months[0] && (
+                      <button type="button" onClick={() => { setMoThangCu(false); setCellSel(null); }} title="Gộp lại các tháng trước tháng hiện tại"
+                        className="ml-1 rounded border border-slate-300 px-1 text-[0.625rem] text-slate-500 hover:bg-white">◂ gộp</button>
+                    )}
+                  </th>
+                )))}
+                <th className={`${th} border-l border-slate-200 bg-slate-100 text-right`} rowSpan={2}>Tổng cộng</th>
+              </tr>
+              <tr>
+                {plan.months.filter(m => m.key !== CU).map(m => m.days.map((d, di) => (
+                  <th key={d} className={`${th} whitespace-nowrap text-right ${di === 0 ? 'border-l border-slate-200' : ''}`}>
+                    <button type="button" onClick={() => pickCell({ day: d })} title={d === '~' ? 'Hạng mục chưa có Ngày cần (PM)' : `Lọc danh sách: ngày cần ${dayLabel(d)}${plan.colOver[d] ? ' · đã qua' : ''}`}
+                      className={`rounded px-1 font-semibold hover:bg-amber-50 ${sameSel({ day: d }) ? 'bg-amber-100 text-slate-900' : plan.colOver[d] ? 'text-red-600' : 'text-slate-700'}`}>
+                      {dayLabel(d)}
+                    </button>
+                  </th>
+                )))}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {byMonth.map(m => {
-                const pct = m.total > 0 ? (m.inv / m.total) * 100 : 0;
-                return (
-                  <tr
-                    key={m.key}
-                    onClick={() => { setMonth(month === m.key && group === 'all' ? null : m.key); setGroup('all'); }}
-                    title="Lọc danh sách hạng mục theo tháng này"
-                    className={`cursor-pointer ${month === m.key ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
-                  >
-                    <td className={`${td} ${month === m.key ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{monthLabel(m.key)}</td>
-                    <td className={`${td} text-right tabular-nums`}>{fmtInt(m.n)}</td>
-                    <td className={`${td} text-right tabular-nums`}>{fmtTy(m.total)}</td>
-                    <td className={`${td} text-right tabular-nums text-emerald-700`}>{fmtTy(m.inv)}</td>
-                    <td className={`${td} text-right tabular-nums text-amber-700`}>{fmtTy(m.remain)}</td>
-                    <td className={`${td} text-right tabular-nums ${m.overdue ? 'font-semibold text-red-600' : 'text-slate-400'}`}>
-                      {m.overdue ? (
-                        <button
-                          type="button"
-                          onClick={e => {
-                            e.stopPropagation();
-                            const on = month === m.key && group === 'overdue';
-                            setMonth(on ? null : m.key); setGroup(on ? 'all' : 'overdue');
-                          }}
-                          title="Lọc hạng mục quá hạn của tháng này"
-                          className={`rounded px-1 hover:bg-red-50 hover:underline ${month === m.key && group === 'overdue' ? 'bg-red-100' : ''}`}
-                        >
-                          {fmtInt(m.overdue)}
-                        </button>
-                      ) : '0'}
+              {plan.rows.map(row => (
+                <React.Fragment key={row.nsp}>
+                <tr className="hover:bg-slate-50/60">
+                  <td className={`${td} sticky left-0 whitespace-nowrap bg-white`}>
+                    <button type="button" onClick={() => setMoNspBot(prev => { const n = new Set(prev); if (n.has(row.nsp)) n.delete(row.nsp); else n.add(row.nsp); return n; })}
+                      title="Xem theo xưởng" className="inline-block w-4 text-slate-400 hover:text-slate-900">{moNspBot.has(row.nsp) ? '▾' : '▸'}</button>
+                    <button type="button" onClick={() => pickCell({ nsp: row.nsp })} title={`Lọc danh sách: ${row.nsp} (${fmtInt(row.n)} hạng mục)`}
+                      className={`max-w-[16rem] truncate whitespace-nowrap rounded px-1 text-left font-medium hover:bg-amber-50 hover:underline ${sameSel({ nsp: row.nsp }) ? 'bg-amber-100 text-slate-900' : 'text-slate-800'}`}>
+                      {row.nsp}
+                    </button>
+                  </td>
+                  {plan.months.map(m => m.days.map((d, di) => (
+                    <React.Fragment key={d}>{planCell(row.cells[d], { day: d, nsp: row.nsp }, di === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
+                  )))}
+                  {planCell(row.total, { nsp: row.nsp }, 'border-l border-slate-200 bg-slate-100 font-semibold text-slate-900')}
+                </tr>
+                {moNspBot.has(row.nsp) && row.xs.map(([x, xr]) => (
+                  <tr key={x} className="bg-slate-50/40 text-slate-600">
+                    <td className={`${td} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
+                      <button type="button" onClick={() => pickCell({ nsp: row.nsp, xuong: x })} title={`Lọc danh sách: ${row.nsp} · ${x}`}
+                        className={`rounded px-1 hover:bg-amber-50 hover:underline ${sameSel({ nsp: row.nsp, xuong: x }) ? 'bg-amber-100 font-semibold text-slate-900' : ''}`}>{x}</button>
                     </td>
-                    <td className={td}>
-                      <div className="flex items-center gap-2">
-                        <div className="h-1.5 flex-1 rounded-full bg-slate-100">
-                          <div className="h-1.5 rounded-full bg-emerald-500" style={{ width: `${Math.min(100, pct)}%` }} />
-                        </div>
-                        <span className="w-10 text-right tabular-nums text-slate-500">{pct.toFixed(0)}%</span>
-                      </div>
-                    </td>
+                    {plan.months.map(m => m.days.map((d, di) => (
+                      <React.Fragment key={d}>{planCell(xr.cells[d], { day: d, nsp: row.nsp, xuong: x }, di === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
+                    )))}
+                    {planCell(xr.total, { nsp: row.nsp, xuong: x }, 'border-l border-slate-200 bg-slate-100')}
                   </tr>
-                );
-              })}
+                ))}
+                </React.Fragment>
+              ))}
+              {plan.rows.length === 0 && (
+                <tr><td colSpan={plan.days.length + 2} className="px-3 py-6 text-center text-slate-400">Không còn hạng mục chưa nhập kho đủ.</td></tr>
+              )}
             </tbody>
+            {plan.rows.length > 0 && (
+              <tfoot className="sticky bottom-0 bg-slate-100 font-semibold text-slate-800">
+                <tr>
+                  <td className={`${td} sticky left-0 bg-slate-100`}>Tổng cộng</td>
+                  {plan.months.map(m => m.days.map((d, di) => (
+                    <td key={d} className={`${td} whitespace-nowrap text-right tabular-nums ${di === 0 ? 'border-l border-slate-200' : ''}`}>{fmtB(plan.colTot[d] ?? 0)}</td>
+                  )))}
+                  <td className={`${td} border-l border-slate-200 text-right tabular-nums`}>{fmtB(plan.grand)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
@@ -356,9 +487,12 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-slate-700">Hạng mục chưa nhập kho đủ</p>
           <span className="text-[0.6875rem] text-slate-500">
-            {group === 'all' ? 'tất cả nhóm' : group === 'planAfterDue' ? 'KH NK sau ngày cần giao' : BOT_GROUPS.find(g => g.key === group)?.label} · {fmtInt(list.length)} hạng mục · sắp theo ngày kế hoạch
+            {fmtInt(list.length)} hạng mục · sắp theo ngày cần (PM)
           </span>
+          {pmSel && <Chip active tone="red" onClick={() => setPmSel(null)}>{[PM_GROUPS.find(g => g.key === pmSel.g)?.label, GIAI_DOAN.find(d => d.key === pmSel.gd)?.label].filter(Boolean).join(' · ')} ✕</Chip>}
+          {group !== 'all' && <Chip active tone="amber" onClick={() => setGroup('all')}>KH: {group === 'planAfterDue' ? 'sau ngày cần giao' : BOT_GROUPS.find(g => g.key === group)?.label} ✕</Chip>}
           {month !== null && <Chip active onClick={() => setMonth(null)}>Tháng {monthLabel(month)} ✕</Chip>}
+          {cellSel && <Chip active onClick={() => setCellSel(null)}>{[cellSel.nsp, cellSel.xuong, cellSel.day && (cellSel.day === CU ? `Trước ${monthLabel(thangNay)}` : dayLabel(cellSel.day))].filter(Boolean).join(' · ')} ✕</Chip>}
           {ref !== null && <Chip active tone="red" onClick={() => setRef(null)}>{REF_DEADLINES.find(r => r.key === ref)?.label} ✕</Chip>}
           {age !== null && <Chip active onClick={() => setAge(null)}>Tuổi {AGE_BUCKETS.find(b => b.key === age)?.label} ✕</Chip>}
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục, công đoạn..." /></div>
@@ -368,30 +502,25 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
           onHexClick={onHexClick}
           hexClickTitle="Xem chi tiết hạng mục (BOP × BOT)"
           extraHead={<>
-            <th className={`${th} text-left`} title="Nguồn của hạn đang dùng">Nguồn hạn</th>
-            <th className={`${th} text-right`}>Số ngày</th>
+            <th className={`${th} text-left`} title="Ngày cần do PM ghi">Ngày cần (PM)</th>
+            <th className={`${th} text-right`} title="Số ngày tới ngày cần (âm = đã qua)">Số ngày</th>
             <th className={`${th} text-left`} title="BOT dự án — hạn chung của công trình (tham khảo)">BOT dự án</th>
-            <th className={`${th} text-right`} title="Số ngày từ ngày nhận PM tới nay">Tuổi</th>
             <th className={`${th} text-right`}>Vướng mắc</th>
           </>}
           extraCells={i => {
-            const days = i.deadline ? Math.floor((i.deadline.getTime() - today) / DAY) : null;
+            const days = pmDays(i);
             const vm = openIssues?.[i.hex] ?? 0;
-            const a = ageDays(i, today);
             const pastDa = !!i.botDuAn && i.botDuAn.getTime() < today;
             return (
               <>
-                <td className={`${td} whitespace-nowrap text-slate-600`}>
-                  {i.deadlineSource ? SOURCE_SHORT[i.deadlineSource] : '—'}
+                <td className={`${td} whitespace-nowrap tabular-nums ${days !== null && days < 0 ? 'text-red-600' : 'text-slate-600'}`}>
+                  {fmtDate(i.canPm ?? null)}
                   {i.planAfterDue && <span className="ml-1 rounded bg-amber-100 px-1 text-[0.625rem] font-semibold text-amber-800" title="KH nhập kho muộn hơn ngày cần giao">sau cần giao</span>}
                 </td>
                 <td className={`${td} text-right tabular-nums ${days !== null && days < 0 ? 'font-semibold text-red-600' : days !== null && days <= 14 ? 'text-amber-600' : 'text-slate-500'}`}>
                   {days === null ? '—' : days}
                 </td>
                 <td className={`${td} whitespace-nowrap tabular-nums ${!i.botDuAn ? 'text-slate-300' : pastDa ? 'text-red-600' : 'text-slate-500'}`}>{fmtDate(i.botDuAn ?? null)}</td>
-                <td className={`${td} text-right tabular-nums ${a === null ? 'text-slate-300' : a > 90 ? 'font-semibold text-red-600' : a > 30 ? 'text-amber-600' : 'text-slate-500'}`} title={i.receivedPm ? `Nhận PM ${fmtDate(i.receivedPm)}` : undefined}>
-                  {a === null ? '—' : a}
-                </td>
                 <td className={`${td} text-right tabular-nums ${vm ? 'font-semibold text-red-600' : 'text-slate-300'}`}>{openIssues === null ? '…' : vm || '—'}</td>
               </>
             );
@@ -436,8 +565,39 @@ export const DWELL: { key: DwellKey; label: string; bar: string; chu: string }[]
 ];
 const dwellOf = (v: string | null): DwellKey => dwellBucket(v);
 
-const NO_AREA = 'Chưa xác định';
-type BopSel = { stage: string; area?: string; status?: string } | null;
+const NO_NSP = '(Chưa có nhóm)';
+const NO_XUONG = '(Chưa có xưởng)';
+const xuongOf = (i: HexInfo) => i.area || NO_XUONG;
+const sapXuong = (a: string, b: string) => (a === NO_XUONG ? 1 : b === NO_XUONG ? -1 : a.localeCompare(b, 'vi', { numeric: true }));
+type DongGop = { cells: Record<string, number>; total: number; n: number };
+/** Dòng nhóm sản phẩm của bảng BOT / BOP: tổng + tách theo xưởng (mở ▸ để xem) */
+type DongNsp = DongGop & { xs: Map<string, DongGop> };
+/** Kho lũy kế: đã nhập (P022), đã xuất (P025), tồn kho hiện tại, chênh = nhập − xuất − tồn (không rõ đi đâu) */
+type Kho = { nk: number; xk: number; ton: number; chenh: number };
+/** Số kho của 1 hạng mục: xuất chặn ≤ nhập; tồn = cột tồn kho hiện tại chặn ≤ nhập − xuất (không có cột => nhập − xuất) */
+const khoCua = (i: HexInfo): Kho => {
+  const nk = Math.max(i.inv, 0);
+  const xk = Math.min(i.xuat ?? 0, nk);
+  const ton = Math.min(i.tonKho ?? nk - xk, nk - xk);
+  return { nk, xk, ton, chenh: nk - xk - ton };
+};
+const congDong = (m: Map<string, DongNsp>, nsp: string, xuong: string, cot: string, v: number) => {
+  const d: DongNsp = m.get(nsp) ?? { cells: {}, total: 0, n: 0, xs: new Map() };
+  d.cells[cot] = (d.cells[cot] ?? 0) + v; d.total += v; d.n++;
+  const x: DongGop = d.xs.get(xuong) ?? { cells: {}, total: 0, n: 0 };
+  x.cells[cot] = (x.cells[cot] ?? 0) + v; x.total += v; x.n++;
+  d.xs.set(xuong, x);
+  m.set(nsp, d);
+};
+const NutMoTatCa = ({ onMo, onThu }: { onMo: () => void; onThu: () => void }) => (
+  <span className="ml-1.5 inline-flex gap-1 align-middle">
+    <button type="button" title="Mở xưởng của mọi nhóm" onClick={onMo} className="rounded border border-slate-300 px-1 leading-4 hover:bg-white">+</button>
+    <button type="button" title="Thu gọn tất cả" onClick={onThu} className="rounded border border-slate-300 px-1 leading-4 hover:bg-white">−</button>
+  </span>
+);
+// Ô đang chọn ở bảng Nhóm sản phẩm × Công đoạn (thiếu khoá = mọi giá trị)
+type BopSel = { stage?: string; nsp?: string; xuong?: string; kho?: KhoCot } | null;
+type KhoCot = 'nk' | 'xk' | 'ton' | 'chenh';
 // Lọc từ biểu đồ thời gian ở công đoạn (cộng thêm vào lọc của bảng)
 type DwellSel = { stage: string; dwell: string } | null;
 
@@ -445,14 +605,16 @@ type DwellSel = { stage: string; dwell: string } | null;
 type ExtraSel = { kind: 'step'; key: StepKey } | { kind: 'qc'; st: 'bad' | 'wait' | 'ok' | 'none' } | { kind: 'gcn'; st: string | 'pending' } | null;
 const GCN_DONE = (st: string | null) => !gcnPending(st);
 
-export const BopTab = ({ items, onHexClick, extra }: {
+export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
   items: HexInfo[]; onHexClick?: (hex: string) => void;
+  /** Hạng mục tính phần Kho (lũy kế): mọi hạng mục không hủy của công trình, không theo bộ lọc IPO */
+  khoItems?: HexInfo[];
   /** Thông tin thêm theo HEX (số lượng theo công đoạn SX, QC, gia công ngoài); null = đang tải */
   extra?: Record<string, HexExtra> | null;
   today?: number;
 }) => {
   const [metric, setMetric] = useState<BopMetric>('remain');
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [moNsp, setMoNsp] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState<BopSel>(null);
   const [dwellSel, setDwellSel] = useState<DwellSel>(null);
   const [extraSel, setExtraSel] = useState<ExtraSel>(null);
@@ -532,53 +694,100 @@ export const BopTab = ({ items, onHexClick, extra }: {
     if (!e?.gcn) return false;
     return extraSel.st === 'pending' ? !GCN_DONE(e.gcn.st) : (e.gcn.st ?? '(Chưa ghi tình trạng)') === extraSel.st;
   };
-  // Bảng Công đoạn × Khu vực: đếm = hạng mục còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (kể cả
+  // Bảng Nhóm sản phẩm × Công đoạn: đếm = hạng mục còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (kể cả
   // đã nhập đủ SL mà lệch tiền) — để tổng tiền khớp thẻ BOP
   const pivotItems = useMemo(() => (metric === 'count' ? open : items.filter(i => i.open || i.remain > 0)), [items, open, metric]);
   const val = (i: HexInfo) => (metric === 'count' ? 1 : metric === 'remain' ? i.remain : i.total);
   const fmtV = (v: number) => (metric === 'count' ? fmtInt(v) : v ? fmtTy(v) : '-');
-  const areaOf = (i: HexInfo) => i.area || NO_AREA;
+  const nspOf = (i: HexInfo) => i.nhomSp || NO_NSP;
   const stageOf = (i: HexInfo) => i.stage ?? '(Không rõ)';
 
+  // Theo giá trị: hạng mục có số > 0 ở cột đó. Theo số hạng mục: mỗi hạng mục có nhập rơi vào ĐÚNG 1 cột để
+  // Đã nhập = Đã xuất + Tồn kho + Chênh: còn hàng => Tồn kho; hết hàng mà xuất đủ => Đã xuất; còn lại => Chênh
+  const laKho = (i: HexInfo, f: KhoCot) => {
+    const k = khoCua(i);
+    if (k.nk <= 0) return false;
+    if (f === 'nk') return true;
+    if (metric !== 'count') return k[f] > 0;
+    // Dưới 10.000đ (0,01 triệu) coi như 0 — sai số làm tròn của nguồn
+    const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
+    if (f === 'ton') return conTon;
+    if (f === 'xk') return !conTon && !coChenh;
+    return !conTon && coChenh;
+  };
+
   const pivot = useMemo(() => {
-    const areas = [...new Set(pivotItems.map(areaOf))].sort((a, b) => (a === NO_AREA ? 1 : b === NO_AREA ? -1 : a.localeCompare(b)));
-    type Row = { cells: Record<string, number>; total: number; n: number };
-    const stages = new Map<string, Row & { statuses: Map<string, Row>; bucket: RemainBucket | null }>();
-    // Nhóm giống thẻ BOP (Chưa triển khai / Chưa tính phiếu / Đang trên chuyền / Nhập kho chưa đủ) — dòng tổng nhóm
-    const groups = new Map<RemainBucket, Row>();
+    // Cột: công đoạn theo thứ tự P, gom dưới nhóm của thẻ BOP (Chưa triển khai / Chưa tính phiếu / Đang trên chuyền / Nhập kho chưa đủ)
+    const stageBucket = new Map<string, RemainBucket | null>();
+    const rowsM = new Map<string, DongNsp>();
     const colTot: Record<string, number> = {};
+    const colN: Record<string, number> = {};
     let grand = 0;
     for (const i of pivotItems) {
-      const v = val(i);
-      const s = stageOf(i);
-      if (i.bucket) {
-        const g: Row = groups.get(i.bucket) ?? { cells: {}, total: 0, n: 0 };
-        g.cells[areaOf(i)] = (g.cells[areaOf(i)] ?? 0) + v; g.total += v; g.n++;
-        groups.set(i.bucket, g);
-      }
-      const st = i.status || '(Trống)';
-      const a = areaOf(i);
-      const r: Row & { statuses: Map<string, Row>; bucket: RemainBucket | null } = stages.get(s) ?? { cells: {}, total: 0, n: 0, statuses: new Map(), bucket: i.bucket };
-      r.cells[a] = (r.cells[a] ?? 0) + v; r.total += v; r.n++;
-      const sr: Row = r.statuses.get(st) ?? { cells: {}, total: 0, n: 0 };
-      sr.cells[a] = (sr.cells[a] ?? 0) + v; sr.total += v; sr.n++;
-      r.statuses.set(st, sr);
-      stages.set(s, r);
-      colTot[a] = (colTot[a] ?? 0) + v;
+      const v = val(i), st = stageOf(i);
+      if (!stageBucket.has(st)) stageBucket.set(st, i.bucket);
+      congDong(rowsM, nspOf(i), xuongOf(i), st, v);
+      colTot[st] = (colTot[st] ?? 0) + v; colN[st] = (colN[st] ?? 0) + 1;
       grand += v;
     }
-    const rows = [...stages.entries()]
-      .sort((x, y) => stageRank(x[0]) - stageRank(y[0]) || x[0].localeCompare(y[0]))
-      .map(([stage, r]) => ({ stage, ...r, statuses: [...r.statuses.entries()].sort((x, y) => x[0].localeCompare(y[0], 'vi')) }));
-    return { areas, rows, colTot, grand, groups };
+    // Luôn đủ cột P001 → P021 (công đoạn trống vẫn hiện "-"); P022 / P025 chỉ thành cột công đoạn khi còn hạng mục
+    // nhập kho chưa đủ ở đó; công đoạn lạ xếp cuối
+    const coDinh = BOP_STAGE_ORDER.filter(st => st !== 'P022' && st !== 'P025') as string[];
+    const nhomMacDinh = (st: string): RemainBucket => (st === 'P001' ? 'notDeployed' : st === 'P002' ? 'p002' : 'onLine');
+    coDinh.forEach(st => { if (!stageBucket.has(st)) stageBucket.set(st, nhomMacDinh(st)); });
+    const stages = [...stageBucket.keys()].sort((x, y) => stageRank(x) - stageRank(y) || x.localeCompare(y));
+    // Dải nhóm trên đầu cột: các công đoạn liền nhau cùng nhóm gộp 1 ô
+    const groups: { bucket: RemainBucket | null; stages: string[] }[] = [];
+    for (const st of stages) {
+      const bk = stageBucket.get(st) ?? null;
+      const last = groups[groups.length - 1];
+      if (last && last.bucket === bk) last.stages.push(st); else groups.push({ bucket: bk, stages: [st] });
+    }
+    // Kho (lũy kế, mọi hạng mục không hủy kể cả đã xong): P022 đã nhập − P025 đã xuất = tồn kho.
+    // Xuất chặn ≤ nhập từng hạng mục để tồn không âm. Số hạng mục: đếm hạng mục có giá trị ở cột đó.
+    const kho = new Map<string, Kho>();
+    const khoTot: Kho = { nk: 0, xk: 0, ton: 0, chenh: 0 };
+    const cong = (e: Kho, v: Kho) => { e.nk += v.nk; e.xk += v.xk; e.ton += v.ton; e.chenh += v.chenh; };
+    const congKho = (k: string, v: Kho) => {
+      const e = kho.get(k) ?? { nk: 0, xk: 0, ton: 0, chenh: 0 };
+      cong(e, v); kho.set(k, e);
+    };
+    for (const i of khoItems) {
+      const v: Kho = metric === 'count'
+        ? { nk: laKho(i, 'nk') ? 1 : 0, xk: laKho(i, 'xk') ? 1 : 0, ton: laKho(i, 'ton') ? 1 : 0, chenh: laKho(i, 'chenh') ? 1 : 0 }
+        : khoCua(i);
+      if (!v.nk) continue;
+      const nsp = nspOf(i), x = xuongOf(i);
+      congKho(nsp, v); congKho(`${nsp}\u0000${x}`, v);
+      cong(khoTot, v);
+      // Nhóm / xưởng chỉ có hàng đã xong vẫn hiện dòng (cột công đoạn trống)
+      const d: DongNsp = rowsM.get(nsp) ?? { cells: {}, total: 0, n: 0, xs: new Map() };
+      if (!d.xs.has(x)) d.xs.set(x, { cells: {}, total: 0, n: 0 });
+      rowsM.set(nsp, d);
+    }
+    const rows = [...rowsM.entries()]
+      .map(([nsp, r]) => ({ nsp, ...r, xs: [...r.xs.entries()].sort((a, b) => sapXuong(a[0], b[0])) }))
+      .sort((x, y) => (x.nsp === NO_NSP ? 1 : y.nsp === NO_NSP ? -1 : x.nsp.localeCompare(y.nsp, 'vi', { numeric: true })));
+    return { stages, groups, rows, colTot, colN, grand, kho, khoTot };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pivotItems, metric]);
+  }, [pivotItems, khoItems, metric]);
+  // Bấm ô kho => lọc danh sách đúng các hạng mục làm nên số đó
+  const khoCells = (k: Kho | undefined, base: { nsp?: string; xuong?: string }, cls = '') => (['nk', 'xk', 'ton', 'chenh'] as const).map((f, idx) => {
+    const next = { ...base, kho: f };
+    return (
+      <td key={f} onClick={k?.[f] ? () => pick(next) : undefined}
+        className={`${td} whitespace-nowrap text-right tabular-nums ${idx === 0 ? 'border-l-2 border-slate-300' : ''} ${k?.[f] ? `cursor-pointer hover:bg-amber-50 ${f === 'ton' ? 'font-semibold text-slate-900' : f === 'chenh' ? 'text-orange-600' : ''}` : 'text-slate-300'} ${isSel(next) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
+        {k?.[f] ? fmtV(k[f]) : '-'}
+      </td>
+    );
+  });
 
-  // Ô đang chọn ở bảng Công đoạn × Khu vực (công đoạn / tình trạng / khu vực)
+  // Ô đang chọn ở bảng Nhóm sản phẩm × Công đoạn
   const matchSel = (i: HexInfo) => !sel || (
-    stageOf(i) === sel.stage
-    && (sel.area === undefined || areaOf(i) === sel.area)
-    && (sel.status === undefined || (i.status || '(Trống)') === sel.status)
+    (sel.stage === undefined || stageOf(i) === sel.stage)
+    && (sel.nsp === undefined || nspOf(i) === sel.nsp)
+    && (sel.xuong === undefined || xuongOf(i) === sel.xuong)
+    && (sel.kho === undefined || laKho(i, sel.kho))
   );
 
   // Điểm nghẽn: số hạng mục theo thời gian ở công đoạn hiện tại — ăn theo ô đang chọn ở bảng trên
@@ -613,7 +822,7 @@ export const BopTab = ({ items, onHexClick, extra }: {
     const ql = q.trim().toLowerCase();
     // Cùng tập hạng mục với bảng Công đoạn × Khu vực (bấm ô nào thì danh sách khớp đúng số của ô đó); lọc theo thẻ
     // QC / gia công ngoài / bước SX thì dùng tập hạng mục còn theo dõi như số đếm trên thẻ
-    return (extraSel ? open : pivotItems)
+    return (sel?.kho ? khoItems : extraSel ? open : pivotItems)
       .filter(matchSel)
       .filter(i => !dwellSel || (stageOf(i) === dwellSel.stage && dwellOf(i.dwell) === dwellSel.dwell))
       .filter(matchExtra)
@@ -626,13 +835,8 @@ export const BopTab = ({ items, onHexClick, extra }: {
             ? stageRank(stageOf(a)) - stageRank(stageOf(b)) || timeOf(a.deadline) - timeOf(b.deadline)
             : b.remain - a.remain);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pivotItems, open, sel, dwellSel, extraSel, q, sortBy, extra]);
+  }, [pivotItems, khoItems, open, sel, dwellSel, extraSel, q, sortBy, extra, metric]);
 
-  const toggle = (s: string) => setExpanded(prev => {
-    const n = new Set(prev);
-    if (n.has(s)) n.delete(s); else n.add(s);
-    return n;
-  });
   // Đổi ô ở bảng => bỏ lọc thời gian cũ (biểu đồ thời gian vẽ lại theo ô mới)
   const pick = (next: NonNullable<BopSel>) => {
     setSel(cur => (cur && JSON.stringify(cur) === JSON.stringify(next) ? null : next));
@@ -648,8 +852,8 @@ export const BopTab = ({ items, onHexClick, extra }: {
       : extraSel.kind === 'qc' ? `QC: ${QC_STATE_META[extraSel.st].label}`
         : extraSel.st === 'pending' ? 'GCN còn chờ NCC' : `GCN: ${extraSel.st}`;
   const selText = [
-    ...(sel ? [sel.stage, sel.status, sel.area] : []),
-    ...(dwellSel ? [...(sel ? [] : [dwellSel.stage]), DWELL.find(d => d.key === dwellSel.dwell)?.label] : []),
+    ...(sel ? [sel.nsp, sel.xuong, sel.stage, sel.kho && ({ nk: 'Đã nhập kho', xk: 'Đã xuất kho', ton: 'Tồn kho', chenh: 'Chênh kho' })[sel.kho]] : []),
+    ...(dwellSel ? [...(sel?.stage ? [] : [dwellSel.stage]), DWELL.find(d => d.key === dwellSel.dwell)?.label] : []),
     extraText,
   ].filter(Boolean).join(' · ');
   const toggleExtra = (next: NonNullable<ExtraSel>) =>
@@ -667,13 +871,13 @@ export const BopTab = ({ items, onHexClick, extra }: {
 
   return (
     <div className="space-y-4">
-      {/* 1. Công đoạn × Khu vực sản xuất */}
+      {/* 1. Nhóm sản phẩm × Công đoạn */}
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-slate-700">
-            Công đoạn × Khu vực sản xuất{' '}
+            Nhóm sản phẩm × Công đoạn · Kho{' '}
             <span className="font-normal text-slate-500">
-              · {fmtInt(open.length)} hạng mục chưa nhập kho đủ · bấm ▸ để xem theo Tình trạng, bấm tình trạng hoặc số để lọc danh sách
+              · {fmtInt(open.length)} hạng mục chưa nhập kho đủ · bấm số, tên nhóm hoặc mã công đoạn để lọc danh sách
             </span>
           </p>
           <div className="ml-auto flex gap-1">
@@ -693,86 +897,84 @@ export const BopTab = ({ items, onHexClick, extra }: {
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
               <tr>
-                <th className={`${th} text-left`}>
-                  <span className="inline-flex items-center gap-1.5">
-                    BOP
-                    <button type="button" title="Mở tất cả" onClick={() => setExpanded(new Set(pivot.rows.map(r => r.stage)))} className="rounded border border-slate-300 px-1 leading-4 hover:bg-white">+</button>
-                    <button type="button" title="Thu gọn tất cả" onClick={() => setExpanded(new Set())} className="rounded border border-slate-300 px-1 leading-4 hover:bg-white">−</button>
-                  </span>
+                <th className={`${th} sticky left-0 z-20 bg-slate-50 text-left`} rowSpan={2}>
+                  Nhóm sản phẩm / xưởng
+                  <NutMoTatCa onMo={() => setMoNsp(new Set(pivot.rows.map(x => x.nsp)))} onThu={() => setMoNsp(new Set())} />
                 </th>
-                <th className={`${th} text-left`}>Tình trạng</th>
-                {pivot.areas.map(a => <th key={a} className={`${th} text-right`}>{a}</th>)}
-                <th className={`${th} bg-slate-100 text-right`}>Tổng cộng</th>
+                {pivot.groups.map((g, gi) => (
+                  <th key={gi} colSpan={g.stages.length} className={`${th} border-l border-slate-200 text-center text-[0.6875rem] font-semibold uppercase tracking-wide`}>
+                    {g.bucket ? (<><span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[g.bucket].dot}`} />{BOP_GROUP[g.bucket].label}</>) : 'Khác'}
+                  </th>
+                ))}
+                <th rowSpan={2} className={`${th} whitespace-nowrap border-l border-slate-200 bg-slate-100 text-right font-semibold text-slate-700`} title="Cộng giá trị còn sản xuất (chưa nhập kho)">Cộng</th>
+                <th colSpan={4} className={`${th} border-l-2 border-slate-300 bg-emerald-50/60 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-emerald-800`}
+                  title="Lũy kế mọi hạng mục không hủy của công trình, mọi Tình trạng IPO (kể cả hoàn thành), không theo bộ lọc trang">
+                  Kho (lũy kế)
+                </th>
+              </tr>
+              <tr>
+                {pivot.groups.map(g => g.stages.map((st, si) => (
+                  <th key={st} className={`${th} whitespace-nowrap text-right ${si === 0 ? 'border-l border-slate-200' : ''}`}>
+                    <button type="button" onClick={() => pick({ stage: st })}
+                      title={`${g.bucket ? BOP_GROUP[g.bucket].label : 'Khác'} · lọc danh sách: mọi hạng mục ở ${st} (${fmtInt(pivot.colN[st] ?? 0)} hạng mục)`}
+                      className={`rounded px-1 font-semibold hover:bg-amber-50 hover:text-slate-900 ${isSel({ stage: st }) ? 'bg-amber-100 text-slate-900' : 'text-slate-700'}`}>
+                      {st === 'P022' || st === 'P025' ? `${st} chưa đủ` : st}
+                    </button>
+                  </th>
+                )))}
+                <th className={`${th} whitespace-nowrap border-l-2 border-slate-300 bg-emerald-50/60 text-right font-semibold text-slate-700`} title="Thành tiền nhập kho lũy kế">P022 · Đã nhập</th>
+                <th className={`${th} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`} title={metric === 'count' ? 'Số hạng mục hết hàng và đã xuất đủ (Đã nhập = Đã xuất + Tồn kho + Chênh)' : 'Thành tiền xuất kho lũy kế (chặn ≤ đã nhập từng hạng mục)'}>P025 · Đã xuất</th>
+                <th className={`${th} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`} title={metric === 'count' ? 'Số hạng mục còn hàng trong kho' : 'Tồn kho hiện tại (cột dữ liệu), chặn ≤ đã nhập − đã xuất'}>Tồn kho</th>
+                <th className={`${th} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`}
+                  title={metric === 'count' ? 'Số hạng mục đã hết hàng trong kho mà chưa ghi xuất đủ' : 'Đã nhập − đã xuất − tồn kho: hàng đã nhập nhưng không thấy xuất cũng không còn trong kho (giao thẳng / chưa ghi phiếu xuất)'}>Chênh</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pivot.rows.map((r, idx) => {
-                const isOpen = expanded.has(r.stage);
-                // Dòng tổng nhóm (khớp thẻ BOP) trước công đoạn đầu tiên của mỗi nhóm
-                const g = r.bucket && (idx === 0 || pivot.rows[idx - 1].bucket !== r.bucket) ? pivot.groups.get(r.bucket) : undefined;
-                return (
-                  <React.Fragment key={r.stage}>
-                    {g && r.bucket && (
-                      <tr className="border-t-2 border-slate-200 bg-white">
-                        <td className={`${td} text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500`} colSpan={2}>
-                          <span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[r.bucket].dot}`} />
-                          {BOP_GROUP[r.bucket].label} <span className="font-normal normal-case text-slate-400">· {fmtInt(g.n)} hạng mục</span>
-                        </td>
-                        {pivot.areas.map(a => (
-                          <td key={a} className={`${td} text-right tabular-nums text-[0.6875rem] font-semibold text-slate-500`}>{g.cells[a] ? fmtV(g.cells[a]) : '-'}</td>
-                        ))}
-                        <td className={`${td} bg-slate-100 text-right tabular-nums text-[0.6875rem] font-semibold text-slate-600`}>{fmtV(g.total)}</td>
-                      </tr>
-                    )}
-                    <tr className="bg-slate-50/60">
-                      <td className={`${td} font-semibold text-slate-800`}>
-                        <button type="button" onClick={() => toggle(r.stage)} className="inline-flex items-center gap-1.5 hover:text-slate-950">
-                          <span className="inline-block w-3 text-slate-400">{isOpen ? '▾' : '▸'}</span>{r.stage}
-                        </button>
-                      </td>
-                      <td className={td}>
-                        <button
-                          type="button"
-                          onClick={() => pick({ stage: r.stage })}
-                          title={`Lọc danh sách: mọi hạng mục ở ${r.stage}`}
-                          className={`rounded px-1 font-medium hover:bg-amber-50 hover:text-slate-900 hover:underline ${isSel({ stage: r.stage }) ? 'bg-amber-100 text-slate-900' : 'text-slate-600'}`}
-                        >
-                          Tất cả · {r.statuses.length} tình trạng
-                        </button>
-                      </td>
-                      {pivot.areas.map(a => <React.Fragment key={a}>{cell(r.cells[a], { stage: r.stage, area: a })}</React.Fragment>)}
-                      {cell(r.total, { stage: r.stage }, 'bg-slate-100 font-semibold text-slate-900')}
-                    </tr>
-                    {isOpen && r.statuses.map(([st, sr]) => (
-                      <tr key={st}>
-                        <td className={td} />
-                        <td className={`${td} pl-5`}>
-                          <button
-                            type="button"
-                            onClick={() => pick({ stage: r.stage, status: st })}
-                            title={`Lọc danh sách: ${r.stage} · ${st}`}
-                            className={`rounded px-1 text-left hover:bg-amber-50 hover:text-slate-900 hover:underline ${isSel({ stage: r.stage, status: st }) ? 'bg-amber-100 font-semibold text-slate-900' : 'text-slate-600'}`}
-                          >
-                            {st}
-                          </button>
-                        </td>
-                        {pivot.areas.map(a => <React.Fragment key={a}>{cell(sr.cells[a], { stage: r.stage, status: st, area: a })}</React.Fragment>)}
-                        {cell(sr.total, { stage: r.stage, status: st }, 'bg-slate-50 font-semibold')}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
+              {pivot.rows.map(r => (
+                <React.Fragment key={r.nsp}>
+                <tr className="hover:bg-slate-50/60">
+                  <td className={`${td} sticky left-0 whitespace-nowrap bg-white`}>
+                    <button type="button" onClick={() => setMoNsp(prev => { const n = new Set(prev); if (n.has(r.nsp)) n.delete(r.nsp); else n.add(r.nsp); return n; })}
+                      title="Xem theo xưởng" className="inline-block w-4 text-slate-400 hover:text-slate-900">{moNsp.has(r.nsp) ? '▾' : '▸'}</button>
+                    <button type="button" onClick={() => pick({ nsp: r.nsp })} title={`Lọc danh sách: ${r.nsp} (${fmtInt(r.n)} hạng mục)`}
+                      className={`max-w-[16rem] truncate rounded px-1 text-left font-medium hover:bg-amber-50 hover:text-slate-900 hover:underline ${isSel({ nsp: r.nsp }) ? 'bg-amber-100 text-slate-900' : 'text-slate-800'}`}>
+                      {r.nsp}
+                    </button>
+                  </td>
+                  {pivot.groups.map(g => g.stages.map((st, si) => (
+                    <React.Fragment key={st}>{cell(r.cells[st], { stage: st, nsp: r.nsp }, si === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
+                  )))}
+                  {cell(r.total, { nsp: r.nsp }, 'border-l border-slate-200 bg-slate-100 font-semibold text-slate-900')}
+                  {khoCells(pivot.kho.get(r.nsp), { nsp: r.nsp })}
+                </tr>
+                {moNsp.has(r.nsp) && r.xs.map(([x, xr]) => (
+                  <tr key={x} className="bg-slate-50/40 text-slate-600">
+                    <td className={`${td} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
+                      <button type="button" onClick={() => pick({ nsp: r.nsp, xuong: x })} title={`Lọc danh sách: ${r.nsp} · ${x}`}
+                        className={`rounded px-1 hover:bg-amber-50 hover:underline ${isSel({ nsp: r.nsp, xuong: x }) ? 'bg-amber-100 font-semibold text-slate-900' : ''}`}>{x}</button>
+                    </td>
+                    {pivot.groups.map(g => g.stages.map((st, si) => (
+                      <React.Fragment key={st}>{cell(xr.cells[st], { stage: st, nsp: r.nsp, xuong: x }, si === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
+                    )))}
+                    {cell(xr.total, { nsp: r.nsp, xuong: x }, 'border-l border-slate-200 bg-slate-100')}
+                    {khoCells(pivot.kho.get(`${r.nsp}\u0000${x}`), { nsp: r.nsp, xuong: x })}
+                  </tr>
+                ))}
+                </React.Fragment>
+              ))}
               {pivot.rows.length === 0 && (
-                <tr><td colSpan={pivot.areas.length + 3} className="px-3 py-6 text-center text-slate-400">Không còn hạng mục đang sản xuất.</td></tr>
+                <tr><td colSpan={pivot.stages.length + 6} className="px-3 py-6 text-center text-slate-400">Không còn hạng mục đang sản xuất.</td></tr>
               )}
             </tbody>
             {pivot.rows.length > 0 && (
               <tfoot className="sticky bottom-0 bg-slate-100 font-semibold text-slate-800">
                 <tr>
-                  <td className={td} colSpan={2}>Tổng cộng</td>
-                  {pivot.areas.map(a => <td key={a} className={`${td} text-right tabular-nums`}>{fmtV(pivot.colTot[a] ?? 0)}</td>)}
-                  <td className={`${td} text-right tabular-nums`}>{fmtV(pivot.grand)}</td>
+                  <td className={`${td} sticky left-0 bg-slate-100`}>Tổng cộng</td>
+                  {pivot.groups.map(g => g.stages.map((st, si) => (
+                    <td key={st} className={`${td} text-right tabular-nums ${si === 0 ? 'border-l border-slate-200' : ''}`}>{fmtV(pivot.colTot[st] ?? 0)}</td>
+                  )))}
+                  <td className={`${td} border-l border-slate-200 text-right tabular-nums`}>{fmtV(pivot.grand)}</td>
+                  {khoCells(pivot.khoTot, {})}
                 </tr>
               </tfoot>
             )}
@@ -786,7 +988,7 @@ export const BopTab = ({ items, onHexClick, extra }: {
           <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-xs font-semibold text-slate-700">
               Thời gian ở công đoạn hiện tại
-              {sel && <span className="ml-1 font-normal text-amber-700">· theo lọc: {[sel.stage, sel.status, sel.area].filter(Boolean).join(' · ')}</span>}
+              {sel && <span className="ml-1 font-normal text-amber-700">· theo lọc: {[sel.nsp, sel.xuong, sel.stage].filter(Boolean).join(' · ')}</span>}
             </p>
             {DWELL.map(d => (
               <span key={d.key} className="inline-flex items-center gap-1.5 text-xs text-slate-700">
@@ -1125,6 +1327,17 @@ const BOM_META = Object.fromEntries(BOM_STATES.map(s => [s.key, s])) as Record<B
 // Thứ tự + màu nút lọc hạng mục — cùng thứ tự / màu với biểu đồ dòng PR (LineStateBreakdown): còn chờ hàng về →
 // đã về → chưa có PR. Màu ô vuông = màu đoạn tương ứng trên biểu đồ (BOM_DOT; nhóm chưa có PR không có trên biểu đồ).
 const BOM_CHIP_ORDER: BomState[] = ['notOrdered', 'outsourced', 'late', 'deferred', 'onTrack', 'arrived', 'onHold', 'ok', 'stocked', 'noneBeforeSx', 'noneInSx', 'noneNotDeployed'];
+// Bảng Nhóm sản phẩm × Tình trạng vật tư: cột gom 3 nhóm, nhãn ngắn
+const BOM_COT: { nhom: string; states: BomState[] }[] = [
+  { nhom: 'Còn chờ vật tư', states: ['notOrdered', 'outsourced', 'late', 'deferred', 'onTrack', 'arrived'] },
+  { nhom: 'Đã về / xong', states: ['onHold', 'ok', 'stocked'] },
+  { nhom: 'Chưa thấy PR', states: ['noneBeforeSx', 'noneInSx', 'noneNotDeployed'] },
+];
+const BOM_NGAN: Record<BomState, string> = {
+  notOrdered: 'Chưa mua', outsourced: 'Gia công ngoài', late: 'Trễ hẹn', deferred: 'Về theo SX', onTrack: 'Chưa tới hẹn',
+  arrived: 'Chờ nhập SAP', onHold: 'Tạm dừng', ok: 'Đã về đủ', stocked: 'Đã nhập kho đủ',
+  noneBeforeSx: 'Đã TK, chưa SX', noneInSx: 'Đang SX / tồn kho', noneNotDeployed: 'Chưa triển khai',
+};
 const BOM_DOT: Partial<Record<BomState, string>> = {
   notOrdered: 'bg-red-600', outsourced: 'bg-fuchsia-500', onHold: 'bg-stone-400', late: 'bg-orange-500', deferred: 'bg-amber-300', onTrack: 'bg-sky-300', arrived: 'bg-blue-500',
   ok: 'bg-emerald-500', stocked: 'bg-slate-300', noneBeforeSx: 'bg-white ring-1 ring-red-400', noneInSx: 'bg-white ring-1 ring-slate-300', noneNotDeployed: 'bg-white ring-1 ring-slate-300',
@@ -1676,6 +1889,11 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
   const [sortBy, setSortBy] = useState<'priority' | 'deadline' | 'remain'>('priority');
   const [issueHex, setIssueHex] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  // Bảng Nhóm sản phẩm × Tình trạng vật tư: số đo, dòng đang mở xưởng, nhóm / xưởng đang lọc (cộng với filter tình trạng)
+  const [bomMetric, setBomMetric] = useState<'count' | 'remain'>('count');
+  const [moNspBom, setMoNspBom] = useState<Set<string>>(new Set());
+  const [bomSel, setBomSel] = useState<{ nsp?: string; xuong?: string } | null>(null);
+  const nspOfB = (i: HexInfo) => i.nhomSp || NO_NSP;
 
   const bom = useMemo(
     () => analyzeBom(items, matCount, materialLines, today, materialIssues, nvlByHex),
@@ -1705,6 +1923,7 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
         seen.add(i.hex);
         const b = bom.byHex[i.hex];
         if (!b || !matchQ(i, ql)) return false;
+        if (bomSel && ((bomSel.nsp !== undefined && nspOfB(i) !== bomSel.nsp) || (bomSel.xuong !== undefined && xuongOf(i) !== bomSel.xuong))) return false;
         if (filter === 'afterNeed') return b.afterNeed > 0;
         if (filter === 'issue') return b.issues.length > 0;
         return filter === 'all' || b.state === filter;
@@ -1716,9 +1935,46 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
             // Ngày cần VT sớm nhất trong nhóm còn chờ vật tư trước; hạng mục đã xong vật tư / đã nhập kho đủ xuống cuối
             ? pendingFirst(a) - pendingFirst(b) || need(a) - need(b) || timeOf(a.deadline) - timeOf(b.deadline) || rank(a) - rank(b)
             : pendingFirst(a) - pendingFirst(b) || b.remain - a.remain);
-  }, [items, bom, filter, q, sortBy]);
+  }, [items, bom, filter, q, sortBy, bomSel]);
 
   const total = useMemo(() => new Set(items.map(i => i.hex)).size, [items]);
+
+  // Nhóm sản phẩm × Tình trạng vật tư (mỗi hạng mục 1 lần, theo tình trạng xấu nhất)
+  const bang = useMemo(() => {
+    if (!bom) return null;
+    const rowsM = new Map<string, DongNsp>();
+    const colTot: Record<string, number> = {};
+    let grand = 0;
+    const seen = new Set<string>();
+    for (const i of items) {
+      if (seen.has(i.hex)) continue;
+      seen.add(i.hex);
+      const st = bom.byHex[i.hex]?.state;
+      if (!st) continue;
+      const v = bomMetric === 'count' ? 1 : i.remain;
+      congDong(rowsM, nspOfB(i), xuongOf(i), st, v);
+      colTot[st] = (colTot[st] ?? 0) + v;
+      grand += v;
+    }
+    // Chỉ hiện cột có hạng mục
+    const nhom = BOM_COT.map(g => ({ ...g, states: g.states.filter(k => (colTot[k] ?? 0) > 0) })).filter(g => g.states.length > 0);
+    const rows = [...rowsM.entries()].map(([nsp, row]) => ({ nsp, ...row, xs: [...row.xs.entries()].sort((a, b) => sapXuong(a[0], b[0])) }))
+      .sort((x, y) => (x.nsp === NO_NSP ? 1 : y.nsp === NO_NSP ? -1 : x.nsp.localeCompare(y.nsp, 'vi', { numeric: true })));
+    return { nhom, rows, colTot, grand };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, bom, bomMetric]);
+  const fmtBm = (v: number) => (bomMetric === 'count' ? fmtInt(v) : fmtTy(v));
+  const laChon = (st: BomState | 'all', sel: { nsp?: string; xuong?: string } | null) =>
+    filter === st && (bomSel?.nsp ?? null) === (sel?.nsp ?? null) && (bomSel?.xuong ?? null) === (sel?.xuong ?? null);
+  const chon = (st: BomState | 'all', sel: { nsp?: string; xuong?: string } | null) => {
+    if (laChon(st, sel)) { setFilter('all'); setBomSel(null); } else { setFilter(st); setBomSel(sel); }
+  };
+  const oBom = (v: number | undefined, st: BomState | 'all', sel: { nsp?: string; xuong?: string } | null, cls = '') => (
+    <td onClick={v ? () => chon(st, sel) : undefined}
+      className={`${td} whitespace-nowrap text-right tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : 'text-slate-300'} ${laChon(st, sel) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
+      {v ? fmtBm(v) : '-'}
+    </td>
+  );
 
   const dateCell = (d: Date | null, cls = 'text-slate-600') => (
     <td className={`${td} whitespace-nowrap tabular-nums ${d ? cls : 'text-slate-300'}`}>{d ? fmtDate(d) : '—'}</td>
@@ -1769,6 +2025,92 @@ export const BomTab = ({ items, matCount, materialLines, projectLines, nvlByHex,
             nhận 1 phần / có PO chưa nhận / không PO). Còn chờ hàng về = Chưa mua + Gia công ngoài + Đang mua (trễ / về theo nhu cầu SX /
             chưa tới hẹn) + Kho báo về chờ nhập SAP; % tính trên tổng không gồm dòng hủy. Rê chuột vào từng nhãn để xem chi tiết.
           </p>
+        </div>
+      )}
+
+      {/* Nhóm sản phẩm × Tình trạng vật tư — giống bảng BOP / BOT */}
+      {bang && bang.rows.length > 0 && (
+        <div>
+          <div className="mb-1.5 flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold text-slate-700">
+              Nhóm sản phẩm × Tình trạng vật tư{' '}
+              <span className="font-normal text-slate-500">· mỗi hạng mục tính 1 lần theo tình trạng xấu nhất · bấm số, tên nhóm / xưởng hoặc tên cột để lọc danh sách</span>
+            </p>
+            <div className="ml-auto flex gap-1">
+              <Chip active={bomMetric === 'count'} onClick={() => setBomMetric('count')}>Số hạng mục</Chip>
+              <Chip active={bomMetric === 'remain'} onClick={() => setBomMetric('remain')}>Còn lại (tỷ)</Chip>
+            </div>
+          </div>
+          <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
+                <tr>
+                  <th className={`${th} sticky left-0 z-20 bg-slate-50 text-left`} rowSpan={2}>
+                    Nhóm sản phẩm / xưởng
+                    <NutMoTatCa onMo={() => setMoNspBom(new Set(bang.rows.map(x => x.nsp)))} onThu={() => setMoNspBom(new Set())} />
+                  </th>
+                  {bang.nhom.map(g => (
+                    <th key={g.nhom} colSpan={g.states.length} className={`${th} border-l border-slate-200 text-center text-[0.6875rem] font-semibold uppercase tracking-wide`}>{g.nhom}</th>
+                  ))}
+                  <th className={`${th} border-l border-slate-200 bg-slate-100 text-right`} rowSpan={2}>Tổng cộng</th>
+                </tr>
+                <tr>
+                  {bang.nhom.map(g => g.states.map((k, ki) => (
+                    <th key={k} className={`${th} whitespace-nowrap text-right ${ki === 0 ? 'border-l border-slate-200' : ''}`}>
+                      <button type="button" onClick={() => chon(k, null)} title={`${BOM_META[k].label} — ${BOM_META[k].hint}`}
+                        className={`inline-flex items-center gap-1 rounded px-1 font-semibold hover:bg-amber-50 ${laChon(k, null) ? 'bg-amber-100 text-slate-900' : 'text-slate-700'}`}>
+                        {BOM_DOT[k] && <span className={`inline-block h-2 w-2 rounded-sm ${BOM_DOT[k]}`} />}{BOM_NGAN[k]}
+                      </button>
+                    </th>
+                  )))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {bang.rows.map(row => (
+                  <React.Fragment key={row.nsp}>
+                    <tr className="hover:bg-slate-50/60">
+                      <td className={`${td} sticky left-0 whitespace-nowrap bg-white`}>
+                        <button type="button" onClick={() => setMoNspBom(prev => { const n = new Set(prev); if (n.has(row.nsp)) n.delete(row.nsp); else n.add(row.nsp); return n; })}
+                          title="Xem theo xưởng" className="inline-block w-4 text-slate-400 hover:text-slate-900">{moNspBom.has(row.nsp) ? '▾' : '▸'}</button>
+                        <button type="button" onClick={() => chon('all', { nsp: row.nsp })} title={`Lọc danh sách: ${row.nsp}`}
+                          className={`rounded px-1 text-left font-medium hover:bg-amber-50 hover:underline ${laChon('all', { nsp: row.nsp }) ? 'bg-amber-100 text-slate-900' : 'text-slate-800'}`}>{row.nsp}</button>
+                      </td>
+                      {bang.nhom.map(g => g.states.map((k, ki) => (
+                        <React.Fragment key={k}>{oBom(row.cells[k], k, { nsp: row.nsp }, ki === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
+                      )))}
+                      {oBom(row.total, 'all', { nsp: row.nsp }, 'border-l border-slate-200 bg-slate-100 font-semibold text-slate-900')}
+                    </tr>
+                    {moNspBom.has(row.nsp) && row.xs.map(([x, xr]) => (
+                      <tr key={x} className="bg-slate-50/40 text-slate-600">
+                        <td className={`${td} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
+                          <button type="button" onClick={() => chon('all', { nsp: row.nsp, xuong: x })} title={`Lọc danh sách: ${row.nsp} · ${x}`}
+                            className={`rounded px-1 hover:bg-amber-50 hover:underline ${laChon('all', { nsp: row.nsp, xuong: x }) ? 'bg-amber-100 font-semibold text-slate-900' : ''}`}>{x}</button>
+                        </td>
+                        {bang.nhom.map(g => g.states.map((k, ki) => (
+                          <React.Fragment key={k}>{oBom(xr.cells[k], k, { nsp: row.nsp, xuong: x }, ki === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
+                        )))}
+                        {oBom(xr.total, 'all', { nsp: row.nsp, xuong: x }, 'border-l border-slate-200 bg-slate-100')}
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+              <tfoot className="sticky bottom-0 bg-slate-100 font-semibold text-slate-800">
+                <tr>
+                  <td className={`${td} sticky left-0 bg-slate-100`}>Tổng cộng</td>
+                  {bang.nhom.map(g => g.states.map((k, ki) => (
+                    <td key={k} className={`${td} text-right tabular-nums ${ki === 0 ? 'border-l border-slate-200' : ''}`}>{fmtBm(bang.colTot[k] ?? 0)}</td>
+                  )))}
+                  <td className={`${td} border-l border-slate-200 text-right tabular-nums`}>{fmtBm(bang.grand)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          {bomSel && (
+            <div className="mt-1.5">
+              <Chip active onClick={() => { setBomSel(null); }}>{[bomSel.nsp, bomSel.xuong].filter(Boolean).join(' · ')} ✕</Chip>
+            </div>
+          )}
         </div>
       )}
 
@@ -2005,6 +2347,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
           <th className={`${th} text-left`}>Mã Hex</th>
           <th className={`${th} text-left`}>Hạng mục</th>
           <th className={`${th} text-left`}>Công đoạn</th>
+          <th className={`${th} text-left`}>Xưởng</th>
           {planDates && <>
             <th className={`${th} text-left`}>KH tuần</th>
             <th className={`${th} text-left`}>KH tháng</th>
@@ -2033,6 +2376,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
             </td>
             <td className={`${td} min-w-[200px] max-w-[320px] break-words text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
             <td className={`${td} text-slate-600`}>{i.stage ?? '—'}</td>
+            <td className={`${td} whitespace-nowrap text-slate-600`}>{i.area || '—'}</td>
             {planDates && <>
               <PlanDateCell i={i} which="tuần" />
               <PlanDateCell i={i} which="tháng" />

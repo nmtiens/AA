@@ -26,15 +26,20 @@ app.set('case sensitive routing', true);
 // MB JSON) tốn hàng trăm ms CPU mà giao diện gọi với cache: 'no-store' nên không bao giờ dùng 304.
 app.set('etag', false);
 app.use(helmet());
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    // status 403: error handler cuối (api/index.ts) trả 403 thay vì 500 "lỗi hệ thống"
-    return callback(Object.assign(new Error('CORS: origin không được phép'), { status: 403 }));
-  },
-  credentials: true,
+// Giao diện và API chung 1 deployment Vercel: request từ CHÍNH địa chỉ đang phục vụ API (cả link riêng từng lần
+// deploy "…-fl2lxt4yc-….vercel.app", không có trong ALLOWED_ORIGINS) là cùng nguồn => luôn cho. Trang khác vẫn
+// phải có tên trong ALLOWED_ORIGINS.
+const cungDiaChi = (origin: string, req: Request): boolean => {
+  const host = String(req.headers['x-forwarded-host'] ?? req.headers.host ?? '').split(',')[0].trim().toLowerCase();
+  try { return !!host && new URL(origin).host.toLowerCase() === host; } catch { return false; }
+};
+app.use(cors((req: Request, callback) => {
+  const origin = req.headers.origin;
+  if (!origin || cungDiaChi(origin, req) || (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') || allowedOrigins.includes(origin)) {
+    return callback(null, { origin: true, credentials: true });
+  }
+  // status 403: error handler cuối (api/index.ts) trả 403 thay vì 500 "lỗi hệ thống"
+  return callback(Object.assign(new Error('CORS: origin không được phép'), { status: 403 }));
 }));
 app.use(compression()); // Nén gzip response — giảm 70-90% dung lượng JSON
 // 2mb: /api/material/by-hex có thể gửi toàn bộ ~52k mã HEX

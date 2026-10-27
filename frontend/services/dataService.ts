@@ -49,9 +49,36 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   bot_du_an: 'BOT DỰ ÁN',
   khach_hang: 'KHÁCH HÀNG',
   khu_vuc_du_an: 'KHU VỰC DỰ ÁN',
+  // Bảng nhập / xuất / tồn kho, đơn hàng, triển khai, tính phiếu (cửa sổ "Xem chi tiết" của biểu đồ)
+  so_luong_nhap_kho: 'SỐ LƯỢNG NHẬP KHO',
+  ghi_chu: 'GHI CHÚ',
+  ten_chi_tiet: 'TÊN CHI TIẾT',
+  so_phieu: 'SỐ PHIẾU',
+  tinh_doi_voi_hang_tp: 'TÍNH ĐỐI VỚI HÀNG TP',
+  ten_san_pham: 'TÊN SẢN PHẨM',
+  so_luong: 'SỐ LƯỢNG',
+  dvt: 'ĐVT',
+  nhom_ct: 'NHÓM CÔNG TRÌNH',
+  tinh_trang_ke_hoach_giao_hang: 'KẾ HOẠCH GIAO HÀNG',
+  so_thang_ton_kho: 'SỐ THÁNG TỒN KHO',
+  ngay_nhap_kho: 'NGÀY NHẬP KHO',
+  nguoi_trien_khai: 'NGƯỜI TRIỂN KHAI',
+  so_luong_trien_khai: 'SỐ LƯỢNG TRIỂN KHAI',
+  so_luong_tinh: 'SỐ LƯỢNG TÍNH',
+  so_luong_da_tinh: 'SỐ LƯỢNG ĐÃ TÍNH',
+  tinh_trang_phieu: 'TÌNH TRẠNG PHIẾU',
+  ngay_duyet: 'NGÀY DUYỆT',
+  ten_pm: 'PM',
+  ten_pc: 'PC',
+  khu_vuc: 'KHU VỰC',
+  ngay_can: 'NGÀY CẦN',
+  so_ipo: 'SỐ IPO',
+  so_luong_don_hang_tong: 'SỐ LƯỢNG ĐƠN HÀNG TỔNG',
+  don_gia_co_oh: 'ĐƠN GIÁ CÓ OH',
+  phan_loai_nhom_san_pham: 'NHÓM SẢN PHẨM',
 };
 
-const resolveColumnLabel = (header: string): string => {
+export const resolveColumnLabel = (header: string): string => {
   const normalized = header.trim();
   if (COLUMN_LABEL_MAP[normalized]) return COLUMN_LABEL_MAP[normalized];
   // Nếu header đã có sẵn khoảng trắng/hoa (không phải snake_case kỹ thuật), giữ nguyên

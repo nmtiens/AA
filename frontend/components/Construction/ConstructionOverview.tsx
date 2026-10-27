@@ -435,6 +435,11 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     [health, detailRows, records, f] // eslint-disable-line react-hooks/exhaustive-deps
   );
   // HEX không hủy của công trình, mọi Tình trạng IPO (không qua bộ lọc trang) — nhịp nhập kho trong cửa sổ
+  // Dòng không hủy của công trình, mọi Tình trạng IPO — phần Kho (lũy kế) của bảng BOP
+  const healthKhoRows = useMemo(
+    () => (health ? allRecords.filter(r => r.ct === health.ct && r.status !== 'HỦY').map(r => r.row) : []),
+    [health, allRecords]
+  );
   const healthPaceHexes = useMemo(() => {
     if (!health) return [];
     return allRecords
@@ -457,12 +462,15 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
       ipoKey: key(TARGET_COLUMN_NAMES.TINH_TRANG_IPO, 'tinh_trang_ipo'),
       triGiaKey: key(TARGET_COLUMN_NAMES.TRI_GIA_DON_HANG_TONG, 'tri_gia_don_hang_tong'),
       nhapKhoKey: key(TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO, 'thanh_tien_nhap_kho_luy_ke'),
+      xuatKhoKey: key('thanh_tien_xuat_kho_luy_ke', 'thanh_tien_xuat_kho_luy_ke'),
+      tonKhoKey: key('thanh_tien_ton_kho_hien_tai', 'thanh_tien_ton_kho_hien_tai'),
       khnkTuanKey: findColumnKey(columns, 'ngay_khnk_tuan') || 'ngay_khnk_tuan',
       khnkThangKey: findColumnKey(columns, 'ngay_khnk_thang') || 'ngay_khnk_thang',
       ngayCanGiaoKey: findColumnKey(columns, 'ngay_can_giao') || 'ngay_can_giao',
       ngayCanKey: columns.find(c => c.key === 'ngay_can')?.key ?? 'ngay_can',
       botDuAnKey: findColumnKey(columns, 'bot_du_an') || 'bot_du_an',
       xuongKey: key(TARGET_COLUMN_NAMES.XUONG, 'xuong_chinh'),
+      nhomSpKey: key(TARGET_COLUMN_NAMES.PHAN_LOAI_NHOM_SAN_PHAM, 'phan_loai_nhom_san_pham'),
       dwellKey: key(TARGET_COLUMN_NAMES.SO_NGAY_CD_HIEN_TAI, 'so_ngay_cd_hien_tai'),
       // So khớp ĐÚNG tên cột (findColumnKey dò chuỗi con có thể nhận nhầm)
       nhanPmKey: columns.find(c => c.key === 'ngay_nhan_tu_pm')?.key ?? 'ngay_nhan_tu_pm',
@@ -1257,6 +1265,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
         onOpenHexList={() => health && setHexScope({ ct: health.ct, inDetail: health.inDetail })}
         inventory={inventory}
         paceHexes={healthPaceHexes}
+        khoRows={healthKhoRows}
       />
 
       <HexDetailModal

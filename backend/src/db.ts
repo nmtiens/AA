@@ -21,16 +21,38 @@ const boSslmode = (raw: string | undefined) => {
 };
 const connectionString = boSslmode(process.env.DATABASE_URL);
 
+// SSL: bật khi chạy production, khi DB không nằm trên máy (Layerbase bắt buộc SSL — .env ở máy trỏ DB thật từ
+// 20/10/2026, tắt SSL thì pooler ngắt ngay: "Connection terminated unexpectedly"), hoặc chuỗi kết nối có sslmode
+// khác disable. DB trên máy (localhost) giữ không SSL như trước.
+const canSsl = (raw: string | undefined): boolean => {
+  if (process.env.NODE_ENV === 'production') return true;
+  try {
+    const u = new URL(String(raw));
+    const mode = u.searchParams.get('sslmode');
+    if (mode) return mode !== 'disable';
+    return !['localhost', '127.0.0.1', '::1', '[::1]'].includes(u.hostname);
+  } catch {
+    return false;
+  }
+};
+
+// Chạy ở MÁY (npm run dev, không phải Vercel): DB Layerbase ở Mỹ, mỗi truy vấn ~0,3 s, mở lại kết nối SSL ~1 s.
+// Cấu hình Vercel (2 kết nối, trả kết nối rảnh sau 1 s) làm ~10 truy vấn làm nóng lúc khởi động xếp hàng quá 15 s
+// => "timeout exceeded when trying to connect". Ở máy: nhiều kết nối hơn, giữ kết nối rảnh, chờ lâu hơn.
+// DB_POOL_MAX đặt tay được (cả 2 nơi).
+const chayMay = process.env.NODE_ENV !== 'production' && !process.env.VERCEL;
+const POOL_MAX = Number(process.env.DB_POOL_MAX) || (chayMay ? 6 : 2);
+const POOL_IDLE_MS = chayMay ? 30000 : 1000;
+const POOL_CONNECT_TIMEOUT_MS = chayMay ? 60000 : 15000;
+
 export const pool = new Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: false }
-    : false,
+  ssl: canSsl(process.env.DATABASE_URL) ? { rejectUnauthorized: false } : false,
 
   // Transaction-mode pooler có giới hạn số client (max_client_conn) dùng chung cho MỌI instance Vercel.
   // Mỗi instance thường xử lý 1 request tại 1 thời điểm => 2 kết nối là đủ (1 cho request, 1 cho việc nền như
   // nạp bảng tên công trình); 3 làm nhiều instance cộng lại vượt trần pooler.
-  max: 2,
+  max: POOL_MAX,
 
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
@@ -39,9 +61,9 @@ export const pool = new Pool({
   // bộ đếm rảnh không chạy trong lúc đóng băng => kết nối chưa kịp trả bị giữ suốt đời instance (vài phút). Nhiều
   // instance cùng giữ => vượt trần pooler ("no more connections allowed (max_client_conn)") => mọi API 500
   // (12/10/2026 với 30 giây). Mở lại kết nối tốn ít vì hàm API (iad1) đặt cạnh DB (Mỹ).
-  idleTimeoutMillis: 1000,
+  idleTimeoutMillis: POOL_IDLE_MS,
 
-  connectionTimeoutMillis: 15000,
+  connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
 
   application_name: 'vercel-backend',
 
@@ -54,8 +76,21 @@ export const pool = new Pool({
 
 const STATEMENT_TIMEOUT_MS = 8000;
 
+// Giao dịch bỏ dở (instance Vercel bị đóng băng giữa BEGIN…COMMIT, tiến trình bị tắt) => DB tự huỷ sau 30 giây thay vì
+// giữ khoá đọc nhiều giờ. 26/10/2026: 1 phiên "idle in transaction" 3 giờ 48 phút (nạp bảng tên công trình) giữ khoá
+// production_status_app => TRUNCATE của ETL chờ 30 phút, mọi API đụng bảng sản xuất xếp hàng sau nó rồi hết giờ.
+// SET LOCAL: chỉ trong giao dịch đó, an toàn với transaction-mode pooler.
+const IDLE_TX_TIMEOUT_SQL = `SET LOCAL idle_in_transaction_session_timeout = 30000`;
+
+// Kết nối đang được MƯỢN không có ai nghe sự kiện 'error' (pg-pool chỉ nghe lúc kết nối rảnh). DB cắt kết nối giữa
+// chừng (vd giao dịch bỏ dở quá IDLE_TX_TIMEOUT, pooler khởi động lại) => lỗi không ai bắt làm sập cả tiến trình.
+// Ghi log; lệnh kế tiếp trên kết nối đó tự báo lỗi và kết nối bị bỏ khi trả về pool.
+const ngheLoiKetNoi = (client: PoolClient, ten: string) =>
+  client.on('error', (err) => console.error(`[db ${ten}] kết nối bị đóng:`, err.message));
+
 pool.on('connect', (client) => {
   console.log('Connected to PostgreSQL database');
+  ngheLoiKetNoi(client, 'pool');
   // Timeout mặc định cho query thường. Query nặng dùng SET LOCAL riêng (xem timedQuery).
   client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
     console.error('Không set được statement_timeout:', err.message);
@@ -109,16 +144,17 @@ export const poolMra: Pool = urlMra ? new Pool({
   connectionString: urlMra,
   // Supabase luôn bắt SSL (kể cả chạy ở máy)
   ssl: { rejectUnauthorized: false },
-  max: 2,
+  max: POOL_MAX,
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  idleTimeoutMillis: 1000,
-  connectionTimeoutMillis: 15000,
+  idleTimeoutMillis: POOL_IDLE_MS,
+  connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
   application_name: 'vercel-backend-mra',
   allowExitOnIdle: false,
 }) : pool;
 if (poolMra !== pool) {
   poolMra.on('connect', (client) => {
+    ngheLoiKetNoi(client, 'mra');
     client.query(`SET statement_timeout = ${STATEMENT_TIMEOUT_MS}`).catch((err) => {
       console.error('Không set được statement_timeout (MRA):', err.message);
     });
@@ -183,7 +219,7 @@ export async function timedQuery<T extends QueryResultRow = any>(
       if (opts.timeoutMs || opts.workMemMb) {
         // SET LOCAL chỉ có hiệu lực trong transaction này -> an toàn với transaction-mode pooler.
         // BEGIN + các SET gửi chung 1 lệnh (1 lượt đi về thay vì 3 — mỗi lượt tới DB là vài chục–vài trăm ms)
-        const setup = ['BEGIN'];
+        const setup = ['BEGIN', IDLE_TX_TIMEOUT_SQL];
         if (opts.timeoutMs) setup.push(`SET LOCAL statement_timeout = ${Math.floor(opts.timeoutMs)}`);
         if (opts.workMemMb) setup.push(`SET LOCAL work_mem = '${Math.max(1, Math.floor(opts.workMemMb))}MB'`);
         try {
@@ -236,7 +272,7 @@ export async function withTransactionMra<T>(fn: (client: PoolClient) => Promise<
 async function giaoDich<T>(p: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await p.connect();
   try {
-    await client.query('BEGIN');
+    await client.query(`BEGIN; ${IDLE_TX_TIMEOUT_SQL}`);
     const result = await fn(client);
     await client.query('COMMIT');
     return result;

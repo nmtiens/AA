@@ -179,7 +179,8 @@ app.post('/api/xuong/cong-nhan/nap', async (req: Request, res: Response) => {
     const client = await poolMra.connect();
     let nghi = 0;
     try {
-      await client.query('BEGIN');
+      // Tự huỷ phía DB nếu bị bỏ dở giữa chừng (xem IDLE_TX_TIMEOUT_SQL ở db.ts)
+      await client.query('BEGIN; SET LOCAL idle_in_transaction_session_timeout = 30000');
       for (let i = 0; i < hopLe.length; i += 500) {
         const lo = hopLe.slice(i, i + 500);
         await client.query(

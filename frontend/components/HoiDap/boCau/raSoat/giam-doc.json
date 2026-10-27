@@ -1,0 +1,1800 @@
+[
+ {
+  "id": "giam-doc-001",
+  "nhom": "giam_doc",
+  "cau": "tháng này sao rồi",
+  "kv": {
+   "loai": "mau",
+   "y": "tien_do_thang"
+  },
+  "ghi_chu": "mơ hồ: giám đốc hỏi chung — phổ biến nhất là tiến độ tháng (nhập kho so kế hoạch)"
+ },
+ {
+  "id": "giam-doc-002",
+  "nhom": "giam_doc",
+  "cau": "doanh thu tháng này so với tháng trước",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-003",
+  "nhom": "giam_doc",
+  "cau": "nk thang nay so voi cung ky nam ngoai",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-10-01",
+    "den": "2025-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-004",
+  "nhom": "giam_doc",
+  "cau": "xưởng nào nhập kho yếu nhất tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "sapTang": true
+  }
+ },
+ {
+  "id": "giam-doc-005",
+  "nhom": "giam_doc",
+  "cau": "top 5 ct nhap kho nhieu nhat nam nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "gioiHan": 5,
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-006",
+  "nhom": "giam_doc",
+  "cau": "khách hàng nào lớn nhất năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "sx:khach_hang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  },
+  "ghi_chu": "mơ hồ: lớn nhất theo doanh thu nhập kho (chọn) hay theo trị giá đơn hàng (dht)"
+ },
+ {
+  "id": "giam-doc-007",
+  "nhom": "giam_doc",
+  "cau": "trễ hạn giao nhiều nhất ở xưởng nào",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-008",
+  "nhom": "giam_doc",
+  "cau": "ton kho tren 6 thang con bn tien",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 6
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-009",
+  "nhom": "giam_doc",
+  "cau": "chỗ nào có vấn đề",
+  "kv": {
+   "loai": "mau",
+   "y": "vuong_mac"
+  },
+  "ghi_chu": "mơ hồ: 'vấn đề' = vướng mắc (chọn) hay điểm nghẽn sản xuất"
+ },
+ {
+  "id": "giam-doc-010",
+  "nhom": "giam_doc",
+  "cau": "ke hoach nam dat bn % roi",
+  "kv": {
+   "loai": "mau",
+   "y": "tien_do_nam"
+  }
+ },
+ {
+  "id": "giam-doc-011",
+  "nhom": "giam_doc",
+  "cau": "cho e hỏi tiến độ tháng 10 ntn ạ",
+  "kv": {
+   "loai": "mau",
+   "y": "tien_do_thang"
+  }
+ },
+ {
+  "id": "giam-doc-012",
+  "nhom": "giam_doc",
+  "cau": "tuần này kế hoạch nhập kho bao nhiêu",
+  "kv": {
+   "loai": "mau",
+   "y": "ke_hoach_tuan"
+  }
+ },
+ {
+  "id": "giam-doc-013",
+  "nhom": "giam_doc",
+  "cau": "quý 3 nhập khp bao nhiêu, so với quý 2",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-04-01",
+    "den": "2026-06-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-014",
+  "nhom": "giam_doc",
+  "cau": "doanh thu nam 2025 tong cong bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-015",
+  "nhom": "giam_doc",
+  "cau": "xk thang 9 theo xuong",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-016",
+  "nhom": "giam_doc",
+  "cau": "đơn hàng mới tháng này về bao nhiêu tiền",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "coDo": {
+    "ham": "tong",
+    "cot": "tri_gia_don_hang_tong"
+   },
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-017",
+  "nhom": "giam_doc",
+  "cau": "đơn hàg trên 2 tỷ năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "tri_gia_don_hang_tong",
+     "op": "lon_hon",
+     "gt": 2000
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  },
+  "ghi_chu": "kv sửa 24/10 theo quy ước bộ câu chính"
+ },
+ {
+  "id": "giam-doc-018",
+  "nhom": "giam_doc",
+  "cau": "công trình nào quá hạn giao nhiều tiền nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-019",
+  "nhom": "giam_doc",
+  "cau": "hm sap den han giao 2 tuan toi con bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-19",
+      "2026-11-02"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-020",
+  "nhom": "giam_doc",
+  "cau": "hàng chưa có kế hoạch nhập kho còn bao nhiêu tiền",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_khnk_thang",
+     "op": "rong"
+    },
+    {
+     "cot": "ngay_khnk_tuan",
+     "op": "rong"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: khái niệm 'không có kế hoạch' (chọn) hay nhóm BOT '6. Chưa có KH nhập kho'"
+ },
+ {
+  "id": "giam-doc-021",
+  "nhom": "giam_doc",
+  "cau": "bot qua han kh bn tien",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-022",
+  "nhom": "giam_doc",
+  "cau": "pr tre hen bn dong",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-023",
+  "nhom": "giam_doc",
+  "cau": "vật tư chưa về theo nhóm vật tư",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "nhom_vt"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-024",
+  "nhom": "giam_doc",
+  "cau": "gỗ chưa mua còn bao nhiêu PR",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "101 - Gỗ"
+     ]
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-025",
+  "nhom": "giam_doc",
+  "cau": "sl cong nhan di lam hom nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-026",
+  "nhom": "giam_doc",
+  "cau": "tang ca thang nay xuong nao nhieu nhat",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gio_cong_tang_ca"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-027",
+  "nhom": "giam_doc",
+  "cau": "vm qua han",
+  "kv": {
+   "loai": "mau",
+   "y": "vuong_mac"
+  }
+ },
+ {
+  "id": "giam-doc-028",
+  "nhom": "giam_doc",
+  "cau": "vướng mắc đang xử lý theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "loc": [
+    {
+     "cot": "status",
+     "op": "bang",
+     "gt": [
+      "Đang xử lý"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-029",
+  "nhom": "giam_doc",
+  "cau": "tháng 9 rớt kế hoạch bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-030",
+  "nhom": "giam_doc",
+  "cau": "đúng kế hoạch tuần 42 theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "dung_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-031",
+  "nhom": "giam_doc",
+  "cau": "mục tiêu năm 2026 từng xưởng là bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-12-31"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-032",
+  "nhom": "giam_doc",
+  "cau": "kế hoạch tháng 11 bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "ky": {
+    "tu": "2026-11-01",
+    "den": "2026-11-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-033",
+  "nhom": "giam_doc",
+  "cau": "tồn kho",
+  "kv": {
+   "loai": "mau",
+   "y": "ton_kho"
+  }
+ },
+ {
+  "id": "giam-doc-034",
+  "nhom": "giam_doc",
+  "cau": "tồn kho theo cong trinh, cái nào nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-035",
+  "nhom": "giam_doc",
+  "cau": "ton kho sun group",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-036",
+  "nhom": "giam_doc",
+  "cau": "ct25-070 sao roi",
+  "kv": {
+   "loai": "mau",
+   "y": "cong_trinh"
+  }
+ },
+ {
+  "id": "giam-doc-037",
+  "nhom": "giam_doc",
+  "cau": "nam phương làm tới đâu rồi",
+  "kv": {
+   "loai": "mau",
+   "y": "cong_trinh"
+  }
+ },
+ {
+  "id": "giam-doc-038",
+  "nhom": "giam_doc",
+  "cau": "công trình nào đang kẹt ở mộc nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "05. MỘC"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-039",
+  "nhom": "giam_doc",
+  "cau": "điểm nghẽn hôm nay",
+  "kv": {
+   "loai": "mau",
+   "y": "diem_nghen"
+  }
+ },
+ {
+  "id": "giam-doc-040",
+  "nhom": "giam_doc",
+  "cau": "hàng có thể sản xuất được",
+  "kv": {
+   "loai": "mau",
+   "y": "co_the_sx"
+  }
+ },
+ {
+  "id": "giam-doc-041",
+  "nhom": "giam_doc",
+  "cau": "tháng 10 xuất cho khách bao nhiêu, theo khách hàng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "sx:khach_hang"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-042",
+  "nhom": "giam_doc",
+  "cau": "nhap kho binh quan ngay thang nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "binhQuan": "ngay",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-043",
+  "nhom": "giam_doc",
+  "cau": "xu huong nk theo thang nam nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "date@thang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-044",
+  "nhom": "giam_doc",
+  "cau": "nhập kho theo tuần từ 1/9 đến 15/9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "date@tuan"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-15"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-045",
+  "nhom": "giam_doc",
+  "cau": "đơn hàng theo PM năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-046",
+  "nhom": "giam_doc",
+  "cau": "PM nào giao chậm nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-047",
+  "nhom": "giam_doc",
+  "cau": "nhom sp nao nhieu nhat trong don hang nam nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "sx:phan_loai_nhom_san_pham"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-048",
+  "nhom": "giam_doc",
+  "cau": "miền bắc tháng này nhập kho bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "sx:khu_vuc_du_an",
+     "op": "bang",
+     "gt": [
+      "MIỀN BẮC"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-049",
+  "nhom": "giam_doc",
+  "cau": "ad ơi hàng tồn lâu trên 1 năm còn bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 12
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-050",
+  "nhom": "giam_doc",
+  "cau": "còn bao nhiêu hạng mục chưa triển khai bản vẽ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "tinh_trang_trien_khai_ban_ve",
+     "op": "bang",
+     "gt": [
+      "CHƯA TRIỂN KHAI"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: cột tình trạng bản vẽ (chọn) hay công đoạn hiện tại '15. CHƯA TRIỂN KHAI'"
+ },
+ {
+  "id": "giam-doc-051",
+  "nhom": "giam_doc",
+  "cau": "chưa có phiếu còn bao nhiêu tiền",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "tinh_trang_phieu",
+     "op": "bang",
+     "gt": [
+      "CHƯA PHIẾU"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: cột tình trạng phiếu (chọn) hay công đoạn hiện tại '14. CHƯA PHIẾU'"
+ },
+ {
+  "id": "giam-doc-052",
+  "nhom": "giam_doc",
+  "cau": "tinh phieu thang nay dc bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-053",
+  "nhom": "giam_doc",
+  "cau": "hex 240912345 giúp với",
+  "kv": {
+   "loai": "mau",
+   "y": "tra_hex"
+  }
+ },
+ {
+  "id": "giam-doc-054",
+  "nhom": "giam_doc",
+  "cau": "8AB tháng này nhập bao nhiêu so với 8C",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB",
+      "8C"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  },
+  "ghi_chu": "mơ hồ: so hai xưởng (chọn: lọc 2 xưởng, chia theo xưởng) — 'so với' dễ bị hiểu là so kỳ"
+ },
+ {
+  "id": "giam-doc-055",
+  "nhom": "giam_doc",
+  "cau": "ad oi tuan truoc xuong nao rot kh",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-056",
+  "nhom": "giam_doc",
+  "cau": "con bn tien chua nk cua capitaland",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "khach_hang",
+     "op": "bang",
+     "gt": [
+      "CAPITALAND"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-057",
+  "nhom": "giam_doc",
+  "cau": "30 ngày gần đây xuất kho ntn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-09-20",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-058",
+  "nhom": "giam_doc",
+  "cau": "hom qua nk dc bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-059",
+  "nhom": "giam_doc",
+  "cau": "đơn hàng nước ngoài năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "sx:khu_vuc_du_an",
+     "op": "bang",
+     "gt": [
+      "NƯỚC NGOÀI"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  },
+  "ghi_chu": "mơ hồ: khu vực NƯỚC NGOÀI (chọn) hay khách hàng 'DỰ ÁN NƯỚC NGOÀI'"
+ },
+ {
+  "id": "giam-doc-060",
+  "nhom": "giam_doc",
+  "cau": "cho tôi 10 hạng mục còn lại nhiều tiền nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "gioiHan": 10,
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-061",
+  "nhom": "giam_doc",
+  "cau": "nhập kho tháng này theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-062",
+  "nhom": "giam_doc",
+  "cau": "tháng trước thì sao",
+  "truoc": "nhập kho tháng này theo xưởng",
+  "chuoi": [
+   "nhập kho tháng này theo xưởng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-063",
+  "nhom": "giam_doc",
+  "cau": "so với cùng kỳ năm ngoái",
+  "truoc": "tháng trước thì sao",
+  "chuoi": [
+   "nhập kho tháng này theo xưởng",
+   "tháng trước thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2025-09-01",
+    "den": "2025-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-064",
+  "nhom": "giam_doc",
+  "cau": "doanh thu năm nay theo khách hàng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "sx:khach_hang"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-065",
+  "nhom": "giam_doc",
+  "cau": "top 3 thôi",
+  "truoc": "doanh thu năm nay theo khách hàng",
+  "chuoi": [
+   "doanh thu năm nay theo khách hàng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "sx:khach_hang"
+   ],
+   "gioiHan": 3,
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-066",
+  "nhom": "giam_doc",
+  "cau": "sun group chi tiết theo công trình",
+  "truoc": "top 3 thôi",
+  "chuoi": [
+   "doanh thu năm nay theo khách hàng",
+   "top 3 thôi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-067",
+  "nhom": "giam_doc",
+  "cau": "hạng mục quá hạn giao còn bao nhiêu tiền",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-068",
+  "nhom": "giam_doc",
+  "cau": "theo xưởng đi",
+  "truoc": "hạng mục quá hạn giao còn bao nhiêu tiền",
+  "chuoi": [
+   "hạng mục quá hạn giao còn bao nhiêu tiền"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-069",
+  "nhom": "giam_doc",
+  "cau": "còn 4A?",
+  "truoc": "theo xưởng đi",
+  "chuoi": [
+   "hạng mục quá hạn giao còn bao nhiêu tiền",
+   "theo xưởng đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-070",
+  "nhom": "giam_doc",
+  "cau": "tồn kho theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-071",
+  "nhom": "giam_doc",
+  "cau": "chỉ lấy tồn trên 3 tháng",
+  "truoc": "tồn kho theo công trình",
+  "chuoi": [
+   "tồn kho theo công trình"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-072",
+  "nhom": "giam_doc",
+  "cau": "liệt kê chi tiết đi",
+  "truoc": "chỉ lấy tồn trên 3 tháng",
+  "chuoi": [
+   "tồn kho theo công trình",
+   "chỉ lấy tồn trên 3 tháng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-073",
+  "nhom": "giam_doc",
+  "cau": "đơn hàng năm nay theo PM",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-074",
+  "nhom": "giam_doc",
+  "cau": "quý 3 thôi",
+  "truoc": "đơn hàng năm nay theo PM",
+  "chuoi": [
+   "đơn hàng năm nay theo PM"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pm"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-075",
+  "nhom": "giam_doc",
+  "cau": "theo PC đi",
+  "truoc": "quý 3 thôi",
+  "chuoi": [
+   "đơn hàng năm nay theo PM",
+   "quý 3 thôi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "nhom": [
+    "ten_pc"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-076",
+  "nhom": "giam_doc",
+  "cau": "pr tre hen theo nhom vat tu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "nhom_vt"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-077",
+  "nhom": "giam_doc",
+  "cau": "theo nhà cung cấp",
+  "truoc": "pr tre hen theo nhom vat tu",
+  "chuoi": [
+   "pr tre hen theo nhom vat tu"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "nha_cung_cap"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-078",
+  "nhom": "giam_doc",
+  "cau": "chỉ gỗ thôi",
+  "truoc": "theo nhà cung cấp",
+  "chuoi": [
+   "pr tre hen theo nhom vat tu",
+   "theo nhà cung cấp"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "101 - Gỗ"
+     ]
+    }
+   ],
+   "nhom": [
+    "nha_cung_cap"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-079",
+  "nhom": "giam_doc",
+  "cau": "rớt kế hoạch tháng 9 theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-080",
+  "nhom": "giam_doc",
+  "cau": "tháng 8 thì sao",
+  "truoc": "rớt kế hoạch tháng 9 theo xưởng",
+  "chuoi": [
+   "rớt kế hoạch tháng 9 theo xưởng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-08-01",
+    "den": "2026-08-31"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-081",
+  "nhom": "giam_doc",
+  "cau": "theo công trình",
+  "truoc": "tháng 8 thì sao",
+  "chuoi": [
+   "rớt kế hoạch tháng 9 theo xưởng",
+   "tháng 8 thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-08-01",
+    "den": "2026-08-31"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-082",
+  "nhom": "giam_doc",
+  "cau": "xk tuần trước",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-083",
+  "nhom": "giam_doc",
+  "cau": "nhập thì sao",
+  "truoc": "xk tuần trước",
+  "chuoi": [
+   "xk tuần trước"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-084",
+  "nhom": "giam_doc",
+  "cau": "chia theo ngày",
+  "truoc": "nhập thì sao",
+  "chuoi": [
+   "xk tuần trước",
+   "nhập thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "date@ngay"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "giam-doc-085",
+  "nhom": "giam_doc",
+  "cau": "CT25-070 sao rồi",
+  "kv": {
+   "loai": "mau",
+   "y": "cong_trinh"
+  }
+ },
+ {
+  "id": "giam-doc-086",
+  "nhom": "giam_doc",
+  "cau": "nhập kho của nó theo tháng",
+  "truoc": "CT25-070 sao rồi",
+  "chuoi": [
+   "CT25-070 sao rồi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "nhom": [
+    "date@thang"
+   ]
+  }
+ },
+ {
+  "id": "giam-doc-087",
+  "nhom": "giam_doc",
+  "cau": "xuất kho thì sao",
+  "truoc": "nhập kho của nó theo tháng",
+  "chuoi": [
+   "CT25-070 sao rồi",
+   "nhập kho của nó theo tháng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "nhom": [
+    "date@thang"
+   ]
+  }
+ },
+ {
+  "id": "giam-doc-088",
+  "nhom": "giam_doc",
+  "cau": "vướng mắc chưa xử lý theo xưởng",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "loc": [
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    }
+   ],
+   "nhom": [
+    "xuong"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-089",
+  "nhom": "giam_doc",
+  "cau": "3A chi tiết đi",
+  "truoc": "vướng mắc chưa xử lý theo xưởng",
+  "chuoi": [
+   "vướng mắc chưa xử lý theo xưởng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    },
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-090",
+  "nhom": "giam_doc",
+  "cau": "cái nào quá hạn rồi",
+  "truoc": "3A chi tiết đi",
+  "chuoi": [
+   "vướng mắc chưa xử lý theo xưởng",
+   "3A chi tiết đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    },
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    },
+    {
+     "cot": "qua_han",
+     "op": "bang",
+     "gt": [
+      "Quá hạn"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "giam-doc-091",
+  "nhom": "giam_doc",
+  "cau": "tại sao tháng này nhập kho thấp hơn tháng trước",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-092",
+  "nhom": "giam_doc",
+  "cau": "dự báo tháng 11 có đạt kế hoạch không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-093",
+  "nhom": "giam_doc",
+  "cau": "theo em thì có nên tăng ca thêm không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-094",
+  "nhom": "giam_doc",
+  "cau": "lợi nhuận quý 3 bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-095",
+  "nhom": "giam_doc",
+  "cau": "công nợ của sun group còn bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-096",
+  "nhom": "giam_doc",
+  "cau": "tháng này có ai nghỉ việc không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-097",
+  "nhom": "giam_doc",
+  "cau": "giá gỗ tháng này tăng hay giảm",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-098",
+  "nhom": "giam_doc",
+  "cau": "sao xuong 4a cham vay",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-099",
+  "nhom": "giam_doc",
+  "cau": "chi phí điện nước tháng 9 bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "giam-doc-100",
+  "nhom": "giam_doc",
+  "cau": "khách có phàn nàn gì về chất lượng không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ }
+]

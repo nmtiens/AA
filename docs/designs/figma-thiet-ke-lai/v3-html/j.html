@@ -1,0 +1,30 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="hex.js"></script></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="row">
+    <div class="card np grow">
+      <div class="hd" style="padding:16px 18px"><span class="h2">Kiểm tra QC</span><span class="sub">4 lần · 2 sản phẩm lỗi · mới nhất trước</span></div>
+      <table id="t" class="mid"><tr><th>Ngày</th><th>Công đoạn</th><th>Kết quả</th><th class="r">Kiểm</th><th class="r">Đạt</th><th class="r">Lỗi</th><th>QC</th><th>Ghi chú</th><th>Ảnh</th></tr></table>
+    </div>
+    <div class="col" style="width:380px;flex:none">
+      <div class="card np">
+        <div class="hd" style="padding:16px 18px 10px"><span class="h2">Lịch sử nhập kho</span><span class="badge t-sl">2 lần</span></div>
+        <table class="tight"><tr><th>Ngày</th><th class="r">SL nhập</th><th class="r">Thành tiền (tỷ)</th></tr>
+        <tr><td>08/10/2026</td><td class="r">8 bộ</td><td class="r">0,12</td></tr><tr><td>29/09/2026</td><td class="r">4 bộ</td><td class="r">0,06</td></tr><tr class="foot"><td>Tổng</td><td class="r">12 / 40</td><td class="r">0,18</td></tr></table>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <div class="hd"><span class="h2">Ghi chú</span><span class="badge t-sl">3</span></div>
+        <div style="border-left:3px solid #cbd5e1;padding-left:10px"><div class="sub">Ghi chú phiếu</div><div>Sơn màu theo mẫu duyệt ngày 12/08, mã màu AA-W12.</div></div>
+        <div style="border-left:3px solid #cbd5e1;padding-left:10px"><div class="sub">Mô tả sản phẩm</div><div>Cửa gỗ veneer sồi 900×2200, khung MDF chống ẩm.</div></div>
+        <div style="border-left:3px solid #cbd5e1;padding-left:10px"><div class="sub">Ghi chú đơn hàng / xuất kho</div><div>Giao theo tầng, ưu tiên tầng 12–15.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sub" style="text-align:center">Tab “Nhập kho” và “Ghi chú” trong ứng dụng hiển thị riêng, dùng đúng 2 khối bên phải.</div>
+</div></div>
+<script>
+hexHead(2);
+const R=[['17/10','05. MỘC',['Đạt','grn'],12,12,0,'Trần Thu','—',1,0],['10/10','06. MÁY',['Từ chối','red'],40,38,2,'Lê Hải','Lệch lỗ bản lề 2 cánh — đã sửa, kiểm lại 12/10',3,1],['12/10','06. MÁY',['Đạt','grn'],2,2,0,'Lê Hải','Kiểm lại 2 cánh lỗi',1,0],['28/09','07. CTS',['Đạt','grn'],40,40,0,'Trần Thu','—',0,0]];
+document.getElementById('t').insertAdjacentHTML('beforeend',R.map(r=>`<tr${r[9]?' style="background:#fff5f5"':''}><td>${r[0]}</td><td>${r[1]}</td><td><span class="badge t-${r[2][1]}">${r[2][0]}</span></td><td class="r">${r[3]}</td><td class="r">${r[4]}</td><td class="r ${r[5]?'c-red bb':'c-sub'}">${r[5]||'—'}</td><td class="c-sub">${r[6]}</td><td>${r[7]}</td><td>${r[8]?`<span class="btn" style="padding:4px 10px;font-size:12px">${r[8]} ảnh</span>`:'<span class="c-sub">—</span>'}</td></tr>`).join(''));
+</script>
+</body></html>

@@ -177,12 +177,14 @@ export const buildStockSnapshotCondition = (
 // luôn đúng => loại sạch mọi dòng).
 export const CANCELLED_HEX_SQL = `SELECT DISTINCT hex::text AS cx_hex FROM production_status_app
      WHERE hex IS NOT NULL AND UPPER(COALESCE(tinh_trang_ipo, '')) LIKE '%HỦY%'`;
-// NOT EXISTS thay cho NOT IN (subquery): Postgres làm hash anti-join (quét bảng sản xuất 1 lần, băm rồi
-// dò), trong khi NOT IN phải băm trong work_mem và rơi về quét lặp khi tập HỦY lớn (đo trên dev: nhanh 2x).
-// Dòng hex NULL: so sánh NULL không khớp => vẫn giữ (giống COALESCE(..., '') NOT IN trước đây).
+// NOT IN (subquery) => "hashed SubPlan": băm tập HỦY (~7 nghìn HEX, < 1 MB) 1 lần rồi dò, KHÔNG phụ thuộc ước lượng
+// số dòng. 27/10/2026: bản NOT EXISTS bị Postgres ước sai (khsx năm 2026: 9 dòng thay vì 13.426; tập HỦY 84 thay vì
+// 7.216) => chọn Nested Loop Anti Join 96 triệu lần so => KH cả năm của /api/khsx-nhapkho/summary 26 s (quá trần 8 s,
+// API lỗi); bản NOT IN 0,37 s, cùng kết quả.
+// Dòng hex NULL: COALESCE thành '' (không có trong tập HỦY) => vẫn giữ, như bản NOT EXISTS. cx_hex luôn khác NULL.
 // `cte`: tên CTE đã chứa tập HỦY (cột `cx_hex` text) nếu câu lệnh đã khai báo CANCELLED_HEX_SQL.
 export const notCancelledHexCond = (hexExpr: string, cte?: string): string =>
-  `NOT EXISTS (SELECT 1 FROM ${cte ?? `(${CANCELLED_HEX_SQL})`} cx WHERE cx.cx_hex = ${hexExpr}::text)`;
+  `COALESCE(${hexExpr}::text, '') NOT IN (SELECT cx_hex FROM ${cte ?? `(${CANCELLED_HEX_SQL}) cx0`})`;
 
 // 1 công trình được chọn (?congTrinh=) -> so với mọi cách viết của cùng mã
 export const projectNameCondition = (colExpr: string, name: string, params: any[]): string => {

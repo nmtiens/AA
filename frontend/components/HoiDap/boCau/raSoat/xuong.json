@@ -1,0 +1,2477 @@
+[
+ {
+  "id": "xuong-001",
+  "nhom": "xuong",
+  "cau": "xưởng 4A hôm nay nhập kho được bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-002",
+  "nhom": "xuong",
+  "cau": "nk 8AB tuan nay bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-003",
+  "nhom": "xuong",
+  "cau": "tuần trc 3A nhập đc mấy tỷ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-004",
+  "nhom": "xuong",
+  "cau": "8AB còn bao nhiêu hạng mục chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "dem"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-005",
+  "nhom": "xuong",
+  "cau": "xưởng 4A có bao nhiêu hạng mục quá hạn giao",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-006",
+  "nhom": "xuong",
+  "cau": "hm nao cua 3A dang tre han kh",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-007",
+  "nhom": "xuong",
+  "cau": "liệt kê hàng đang ở mộc của xưởng 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "05. MỘC"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-008",
+  "nhom": "xuong",
+  "cau": "4A dang lam bn cai ghe",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "dem"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "02. GHẾ"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-009",
+  "nhom": "xuong",
+  "cau": "tang ca thang 9 xuong 3A bao nhieu gio",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gio_cong_tang_ca"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-010",
+  "nhom": "xuong",
+  "cau": "xưởng 5A định biên bao nhiêu người",
+  "ghi_chu": "mơ hồ: định biên là số kế hoạch, lấy trung bình hay giá trị mới nhất đều hợp lý",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tb",
+    "cot": "dinh_bien"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "5A"
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "xuong-011",
+  "nhom": "xuong",
+  "cau": "xuong 4A dang ket gi",
+  "ghi_chu": "mơ hồ: 'kẹt' = vướng mắc chưa xử lý (phổ biến) hay hạng mục nằm lâu ở công đoạn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-012",
+  "nhom": "xuong",
+  "cau": "vm quá hạn của 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "qua_han",
+     "op": "bang",
+     "gt": [
+      "Quá hạn"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-013",
+  "nhom": "xuong",
+  "cau": "tổ 4A có bao nhiêu vướng mắc về máy",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "category",
+     "op": "bang",
+     "gt": [
+      "machine"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-014",
+  "nhom": "xuong",
+  "cau": "kế hoach nhập kho tháng này của xưởng 4A",
+  "ghi_chu": "mơ hồ: có lọc thêm loại kế hoạch THÁNG hay không",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "xuong-015",
+  "nhom": "xuong",
+  "cau": "tuần 43 xưởng 8AB phải nhập bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-25"
+   }
+  }
+ },
+ {
+  "id": "xuong-016",
+  "nhom": "xuong",
+  "cau": "tuần 41 4A đúng kế hoạch bao nhiêu",
+  "ghi_chu": "mơ hồ: tổng cột Đúng kế hoạch (phổ biến) hay lọc tình trạng = ĐÚNG KH",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "dung_ke_hoach"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-05",
+    "den": "2026-10-11"
+   }
+  }
+ },
+ {
+  "id": "xuong-017",
+  "nhom": "xuong",
+  "cau": "xưởng nào rớt kế hoạch nhiều nhất tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-018",
+  "nhom": "xuong",
+  "cau": "4A tháng này nhập kho nhiều hơn hay ít hơn tháng trước",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-019",
+  "nhom": "xuong",
+  "cau": "so với cùng kì năm ngoái nhập kho xưởng 8AB quý 3 thế nào",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2025-07-01",
+    "den": "2025-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-020",
+  "nhom": "xuong",
+  "cau": "top 5 hạng mục giá trị lớn nhất đang làm ở 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "tong",
+   "nhom": [
+    "ten_hang_muc"
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "tri_gia_don_hang_tong"
+   },
+   "gioiHan": 5,
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-021",
+  "nhom": "xuong",
+  "cau": "hạng mục nào ở 8AB nằm ở công đoạn hơn 4 tuần rồi",
+  "ghi_chu": "mơ hồ: cột Thời gian ở công đoạn là chữ theo bậc; 'hơn 4 tuần' = 5, 6, 7 tuần và từ 8 tuần trở lên",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    },
+    {
+     "cot": "so_ngay_cd_hien_tai",
+     "op": "bang",
+     "gt": [
+      "5 TUẦN",
+      "6 TUẦN",
+      "7 TUẦN",
+      "TỪ 8 TUẦN TRỞ LÊN"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-022",
+  "nhom": "xuong",
+  "cau": "4A có bao nhiêu hạng mục chưa có kế hoạch nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "ngay_khnk_thang",
+     "op": "rong"
+    },
+    {
+     "cot": "ngay_khnk_tuan",
+     "op": "rong"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-023",
+  "nhom": "xuong",
+  "cau": "cho e hỏi hạng mục sắp đến hạn giao của xưởng 3A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-19",
+      "2026-11-02"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-024",
+  "nhom": "xuong",
+  "cau": "hang 4A phai nhap trong 2 tuan toi",
+  "ghi_chu": "mơ hồ: nhóm BOT '2. ≤ 14 ngày' (phổ biến) hay hạn KH nhập kho trong khoảng 19/10–2/11",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "2. ≤ 14 ngày"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-025",
+  "nhom": "xuong",
+  "cau": "nhóm bot xưởng 8AB",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "nhom_bot"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-026",
+  "nhom": "xuong",
+  "cau": "xưởng 4A chưa phiếu bao nhiêu hạng mục",
+  "ghi_chu": "mơ hồ: cột Tình trạng phiếu = CHƯA PHIẾU (phổ biến) hay công đoạn = 14. CHƯA PHIẾU",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang_phieu",
+     "op": "bang",
+     "gt": [
+      "CHƯA PHIẾU"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-027",
+  "nhom": "xuong",
+  "cau": "ban ve chua trien khai cua 3A con may cai",
+  "ghi_chu": "mơ hồ: cột Tình trạng bản vẽ = CHƯA TRIỂN KHAI (phổ biến) hay công đoạn = 15. CHƯA TRIỂN KHAI",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    },
+    {
+     "cot": "tinh_trang_trien_khai_ban_ve",
+     "op": "bang",
+     "gt": [
+      "CHƯA TRIỂN KHAI"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-028",
+  "nhom": "xuong",
+  "cau": "hang gia cong ve tinh cua 4A",
+  "ghi_chu": "mơ hồ: 4 công đoạn 16.x GIA CÔNG VỆ TINH (phổ biến) hay cột Gia công ngoài",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "16. GIA CÔNG VỆ TINH-BTP",
+      "16.1. GIA CÔNG VỆ TINH-NGUYÊN CON",
+      "16.2. GIA CÔNG VỆ TINH-ĐÁ",
+      "16.3. GIA CÔNG VỆ TINH-KHÁC"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-029",
+  "nhom": "xuong",
+  "cau": "xưởng 4A đang làm cho công trình nào",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-030",
+  "nhom": "xuong",
+  "cau": "tủ áo của tây hồ view bên 4A làm tới đâu rồi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    },
+    {
+     "cot": "phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "06. TỦ ÁO"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-031",
+  "nhom": "xuong",
+  "cau": "CT25-070 ben 8AB con bn chua nhap",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-032",
+  "nhom": "xuong",
+  "cau": "sl nhập kho tháng này của 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "coDo": {
+    "ham": "tong",
+    "cot": "so_luong_nhap_kho"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-033",
+  "nhom": "xuong",
+  "cau": "vat tu da chua ve con bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "107 - Da"
+     ]
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-034",
+  "nhom": "xuong",
+  "cau": "PR trễ hẹn nhóm gỗ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "101 - Gỗ"
+     ]
+    },
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-035",
+  "nhom": "xuong",
+  "cau": "keo chua mua con bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "113 - Keo"
+     ]
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-036",
+  "nhom": "xuong",
+  "cau": "hang ton cua 4A hon 3 thang",
+  "ghi_chu": "bảng tồn kho không có cột xưởng, phải lấy xưởng từ bảng sản xuất qua HEX (sx:xuong_chinh) · kv sửa 24/10 theo quy ước bộ câu chính",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-037",
+  "nhom": "xuong",
+  "cau": "thang nay 8AB nhan bn don",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "dht",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-038",
+  "nhom": "xuong",
+  "cau": "phiếu sx mẫu của 4A tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "pthsp_full",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang_phieu",
+     "op": "bang",
+     "gt": [
+      "1.PHIẾU SX MẪU"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-039",
+  "nhom": "xuong",
+  "cau": "mục tiêu năm nay của xưởng 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "khsx_nam",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-12-31"
+   }
+  }
+ },
+ {
+  "id": "xuong-040",
+  "nhom": "xuong",
+  "cau": "ad ơi cho e hỏi 4A tuần này giao được bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-041",
+  "nhom": "xuong",
+  "cau": "hom nay 8AB nhap dc may hex",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "hex"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-042",
+  "nhom": "xuong",
+  "cau": "xưỡng 4A nhập kho trung bình mỗi ngày tháng 9 bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   },
+   "binhQuan": "ngay"
+  }
+ },
+ {
+  "id": "xuong-043",
+  "nhom": "xuong",
+  "cau": "hm tren 2 ty dang o xuong 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tri_gia_don_hang_tong",
+     "op": "lon_hon",
+     "gt": 2000
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-044",
+  "nhom": "xuong",
+  "cau": "nhập kho từ 1/9 đến 15/9 của 3A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-15"
+   }
+  }
+ },
+ {
+  "id": "xuong-045",
+  "nhom": "xuong",
+  "cau": "nam 2025 xuong 4A nhap dc bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  }
+ },
+ {
+  "id": "xuong-046",
+  "nhom": "xuong",
+  "cau": "nk 4A theo thang nam nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "date@thang"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-047",
+  "nhom": "xuong",
+  "cau": "xk 8AB theo ct quý 3 giúp với",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-048",
+  "nhom": "xuong",
+  "cau": "xưởng nào đang nhiều hạng mục quá hạn kh nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "loc": [
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-049",
+  "nhom": "xuong",
+  "cau": "các hạng mục của 4A đang ở vecni cho khách sun group",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "04. VECNI"
+     ]
+    },
+    {
+     "cot": "khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-050",
+  "nhom": "xuong",
+  "cau": "cong nhan 4A tb thang 9 bn nguoi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tb",
+    "cot": "so_luong_cong_nhan"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-051",
+  "nhom": "xuong",
+  "cau": "giờ công hành chính 8AB tuần 42",
+  "kv": {
+   "loai": "mau",
+   "y": "mra"
+  }
+ },
+ {
+  "id": "xuong-052",
+  "nhom": "xuong",
+  "cau": "so nguoi di lam 3A hom nay vs hom qua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-053",
+  "nhom": "xuong",
+  "cau": "ngày nào tháng này 4A tăng ca nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gio_cong_tang_ca"
+   },
+   "nhom": [
+    "date@ngay"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-054",
+  "nhom": "xuong",
+  "cau": "vướng mắc theo loại của xưởng 8AB",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "nhom": [
+    "category"
+   ],
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-055",
+  "nhom": "xuong",
+  "cau": "hex 250812345 toi dau roi",
+  "kv": {
+   "loai": "mau",
+   "y": "tra_hex"
+  }
+ },
+ {
+  "id": "xuong-056",
+  "nhom": "xuong",
+  "cau": "hạng mục bàn của 8AB chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    },
+    {
+     "cot": "phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "01. BÀN"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-057",
+  "nhom": "xuong",
+  "cau": "4A thang nay rot kh bn",
+  "ghi_chu": "mơ hồ: tổng cột Rớt kế hoạch (phổ biến) hay lọc tình trạng = RỚT",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "phan_tich_kh_th",
+   "coDo": {
+    "ham": "tong",
+    "cot": "rot_ke_hoach"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-31"
+   }
+  }
+ },
+ {
+  "id": "xuong-058",
+  "nhom": "xuong",
+  "cau": "to da dang co may hm",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "05.1. TỔ ĐÁ"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-059",
+  "nhom": "xuong",
+  "cau": "co hm nao cua 4A dang o cts ko",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "07. CTS"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-060",
+  "nhom": "xuong",
+  "cau": "tiến độ nhập kho 4A 30 ngày gần đây nhé",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-20",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-061",
+  "nhom": "xuong",
+  "cau": "nhập kho xưởng 4A tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-062",
+  "nhom": "xuong",
+  "cau": "còn 8AB?",
+  "truoc": "nhập kho xưởng 4A tháng này",
+  "chuoi": [
+   "nhập kho xưởng 4A tháng này"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-063",
+  "nhom": "xuong",
+  "cau": "tháng trước thì sao",
+  "truoc": "còn 8AB?",
+  "chuoi": [
+   "nhập kho xưởng 4A tháng này",
+   "còn 8AB?"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "xuong-064",
+  "nhom": "xuong",
+  "cau": "xưởng 4A đang có bao nhiêu hạng mục quá hạn kh",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-065",
+  "nhom": "xuong",
+  "cau": "chi tiết đi",
+  "truoc": "xưởng 4A đang có bao nhiêu hạng mục quá hạn kh",
+  "chuoi": [
+   "xưởng 4A đang có bao nhiêu hạng mục quá hạn kh"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-066",
+  "nhom": "xuong",
+  "cau": "theo công trình đi",
+  "truoc": "chi tiết đi",
+  "chuoi": [
+   "xưởng 4A đang có bao nhiêu hạng mục quá hạn kh",
+   "chi tiết đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "nhom_bot",
+     "op": "bang",
+     "gt": [
+      "1. Quá hạn KH"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-067",
+  "nhom": "xuong",
+  "cau": "hôm nay xưởng 8AB có bao nhiêu người đi làm",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-068",
+  "nhom": "xuong",
+  "cau": "tăng ca bao nhiêu giờ",
+  "truoc": "hôm nay xưởng 8AB có bao nhiêu người đi làm",
+  "chuoi": [
+   "hôm nay xưởng 8AB có bao nhiêu người đi làm"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gio_cong_tang_ca"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-069",
+  "nhom": "xuong",
+  "cau": "so với hôm qua",
+  "truoc": "tăng ca bao nhiêu giờ",
+  "chuoi": [
+   "hôm nay xưởng 8AB có bao nhiêu người đi làm",
+   "tăng ca bao nhiêu giờ"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "diem_danh",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gio_cong_tang_ca"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-070",
+  "nhom": "xuong",
+  "cau": "xk 3A tuan truoc",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-071",
+  "nhom": "xuong",
+  "cau": "nhập thì sao",
+  "truoc": "xk 3A tuan truoc",
+  "chuoi": [
+   "xk 3A tuan truoc"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-072",
+  "nhom": "xuong",
+  "cau": "theo ct",
+  "truoc": "nhập thì sao",
+  "chuoi": [
+   "xk 3A tuan truoc",
+   "nhập thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-073",
+  "nhom": "xuong",
+  "cau": "hàng 4A đang ở công đoạn nào",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "tinh_trang"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-074",
+  "nhom": "xuong",
+  "cau": "chỉ lấy mộc thôi",
+  "truoc": "hàng 4A đang ở công đoạn nào",
+  "chuoi": [
+   "hàng 4A đang ở công đoạn nào"
+  ],
+  "ghi_chu": "mơ hồ: liệt kê hạng mục đang ở mộc (phổ biến) hay giữ bảng chia theo công đoạn chỉ còn 1 dòng MỘC",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "tinh_trang"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "05. MỘC"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-075",
+  "nhom": "xuong",
+  "cau": "theo nhóm sản phẩm",
+  "truoc": "chỉ lấy mộc thôi",
+  "chuoi": [
+   "hàng 4A đang ở công đoạn nào",
+   "chỉ lấy mộc thôi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "phan_loai_nhom_san_pham"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "05. MỘC"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-076",
+  "nhom": "xuong",
+  "cau": "vướng mắc chưa xử lý của 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-077",
+  "nhom": "xuong",
+  "cau": "cái nào quá hạn",
+  "truoc": "vướng mắc chưa xử lý của 4A",
+  "chuoi": [
+   "vướng mắc chưa xử lý của 4A"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    },
+    {
+     "cot": "qua_han",
+     "op": "bang",
+     "gt": [
+      "Quá hạn"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-078",
+  "nhom": "xuong",
+  "cau": "ai đang xử lý",
+  "truoc": "cái nào quá hạn",
+  "chuoi": [
+   "vướng mắc chưa xử lý của 4A",
+   "cái nào quá hạn"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "nhom": [
+    "handler"
+   ],
+   "loc": [
+    {
+     "cot": "xuong",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "is_resolved",
+     "op": "bang",
+     "gt": [
+      "Chưa xử lý"
+     ]
+    },
+    {
+     "cot": "qua_han",
+     "op": "bang",
+     "gt": [
+      "Quá hạn"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-079",
+  "nhom": "xuong",
+  "cau": "kế hoạch tuần này của 8AB",
+  "ghi_chu": "mơ hồ: có lọc thêm loại kế hoạch TUẦN hay không",
+  "kv": {
+   "loai": "mau",
+   "y": "ke_hoach_tuan"
+  }
+ },
+ {
+  "id": "xuong-080",
+  "nhom": "xuong",
+  "cau": "nhập kho được bao nhiêu rồi",
+  "truoc": "kế hoạch tuần này của 8AB",
+  "chuoi": [
+   "kế hoạch tuần này của 8AB"
+  ],
+  "ghi_chu": "mơ hồ: nhập kho thực tế tuần này (phổ biến) hay cột Nhập kho tuần của bảng KH-TH; kỳ không chấm",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "id": "xuong-081",
+  "nhom": "xuong",
+  "cau": "tuần trước thì sao",
+  "truoc": "nhập kho được bao nhiêu rồi",
+  "chuoi": [
+   "kế hoạch tuần này của 8AB",
+   "nhập kho được bao nhiêu rồi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "xuong-082",
+  "nhom": "xuong",
+  "cau": "ct nam phương bên 4A làm tới đâu",
+  "ghi_chu": "mơ hồ: liệt kê hạng mục kèm công đoạn (phổ biến) hay tóm tắt công trình kiểu mẫu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-083",
+  "nhom": "xuong",
+  "cau": "còn bao nhiêu chưa nhập",
+  "truoc": "ct nam phương bên 4A làm tới đâu",
+  "chuoi": [
+   "ct nam phương bên 4A làm tới đâu"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri_con_lai"
+   },
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-084",
+  "nhom": "xuong",
+  "cau": "cái nào trễ hạn giao",
+  "truoc": "còn bao nhiêu chưa nhập",
+  "chuoi": [
+   "ct nam phương bên 4A làm tới đâu",
+   "còn bao nhiêu chưa nhập"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-085",
+  "nhom": "xuong",
+  "cau": "top 5 công trình nhập kho nhiều nhất của 4A năm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "gioiHan": 5,
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-086",
+  "nhom": "xuong",
+  "cau": "xuất thì sao",
+  "truoc": "top 5 công trình nhập kho nhiều nhất của 4A năm nay",
+  "chuoi": [
+   "top 5 công trình nhập kho nhiều nhất của 4A năm nay"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "gioiHan": 5,
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "xuong-087",
+  "nhom": "xuong",
+  "cau": "so với năm 2025",
+  "truoc": "xuất thì sao",
+  "chuoi": [
+   "top 5 công trình nhập kho nhiều nhất của 4A năm nay",
+   "xuất thì sao"
+  ],
+  "ghi_chu": "mơ hồ: so với trọn năm 2025 (theo lời) hay cùng kỳ 1/1–19/10/2025",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "gioiHan": 5,
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  }
+ },
+ {
+  "id": "xuong-088",
+  "nhom": "xuong",
+  "cau": "nhom san pham 8AB dang lam",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "phan_loai_nhom_san_pham"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-089",
+  "nhom": "xuong",
+  "cau": "ghe thoi",
+  "truoc": "nhom san pham 8AB dang lam",
+  "chuoi": [
+   "nhom san pham 8AB dang lam"
+  ],
+  "ghi_chu": "mơ hồ: liệt kê hạng mục ghế (phổ biến) hay giữ bảng chia nhóm chỉ còn dòng GHẾ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "nhom": [
+    "phan_loai_nhom_san_pham"
+   ],
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    },
+    {
+     "cot": "phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "02. GHẾ"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-090",
+  "nhom": "xuong",
+  "cau": "bn cai qua han giao",
+  "truoc": "ghe thoi",
+  "chuoi": [
+   "nhom san pham 8AB dang lam",
+   "ghe thoi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    },
+    {
+     "cot": "phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "02. GHẾ"
+     ]
+    },
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "xuong-091",
+  "nhom": "xuong",
+  "cau": "tại sao 4A tuần trước nhập kho thấp vậy",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-092",
+  "nhom": "xuong",
+  "cau": "tháng sau 8AB có kịp kế hoạch không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-093",
+  "nhom": "xuong",
+  "cau": "theo ad thì 4A nên tăng ca thêm không",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-094",
+  "nhom": "xuong",
+  "cau": "máy cnc xưởng 4A hỏng từ hôm nào",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-095",
+  "nhom": "xuong",
+  "cau": "hom nay 8AB ai nghi phep",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-096",
+  "nhom": "xuong",
+  "cau": "lương tháng này tổ 4A bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-097",
+  "nhom": "xuong",
+  "cau": "sơn pu còn trong kho vật tư bao nhiêu lít",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-098",
+  "nhom": "xuong",
+  "cau": "lịch bảo trì máy tuần này",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-099",
+  "nhom": "xuong",
+  "cau": "4A hom nay co ca dem ko",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "xuong-100",
+  "nhom": "xuong",
+  "cau": "tỷ lệ hàng lỗi của 8AB tháng 9",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ }
+]

@@ -1,0 +1,59 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><script src="ct.js"></script></head><body class="dim">
+<div class="modal"><div id="head"></div>
+<div class="mbody">
+  <div class="kpis">
+    <div class="kpi"><div class="l">Đã nhập kho</div><div class="v"><b class="c-grn">25%</b><span>31,26 / 125,02 tỷ</span></div><div class="pbar"><i style="width:25%"></i></div><div class="s">337 hạng mục nhập đủ · còn 93,76 tỷ</div></div>
+    <div class="kpi"><div class="l">Quá hạn KH nhập kho</div><div class="v"><b class="c-red">187</b><span>mục</span></div><div class="s">24,18 tỷ chưa nhập · 248 mục đến hạn ≤ 14 ngày</div></div>
+    <div class="kpi"><div class="l">Ước xong theo nhịp</div><div class="v"><b class="c-red">08/2027</b></div><div class="s">nhịp 2,1 tỷ/tuần (8 tuần) · trễ ~41 tuần so với BOT dự án</div></div>
+    <div class="kpi"><div class="l">Vật tư</div><div class="v"><b class="c-red">23</b><span>HM đứng chờ vật tư</span></div><div class="s">219 HM còn thiếu vật tư · 96 chưa có PR</div></div>
+  </div>
+  <div class="row">
+    <div class="card grow" style="display:flex;flex-direction:column;gap:14px">
+      <div><div class="q">Có kịp BOT dự án không?</div>
+      <div class="ins"><em>Không kịp.</em> Theo nhịp 8 tuần qua (2,1 tỷ/tuần) sẽ nhập đủ khoảng <em>08/2027</em> — trễ ~41 tuần. Muốn kịp 30/10 cần <em>46,9 tỷ/tuần</em>.</div></div>
+      <svg id="burn" width="100%" height="250" viewBox="0 0 900 250"></svg>
+      <div class="legend"><span style="--lc:#15803d">Đã nhập kho lũy kế (thật)</span><span style="--lc:#94a3b8">Dự báo theo nhịp hiện tại</span><span style="--lc:#e31e24">Cần để kịp BOT</span></div>
+      <div style="border-top:1px solid var(--line);padding-top:14px"><div class="q">Hạng mục rơi lại ở bước nào?</div>
+      <div class="ins">Rơi nhiều nhất ở <em>Vào sản xuất → Nhập kho đủ: 783 mục</em> đang trên chuyền.</div></div>
+      <div id="flow" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="card" style="width:380px;flex:none;padding:20px 22px 10px">
+      <div class="hd" style="padding-bottom:8px"><span class="h2">Cần chú ý</span><span class="sub">bấm để mở đúng tab</span></div>
+      <div class="att">
+        <div class="it"><div class="tx"><div class="t">187 hạng mục quá hạn KH nhập kho</div><div class="s">24,18 tỷ chưa nhập → BOT</div></div><span class="badge dot t-red">Trễ</span></div>
+        <div class="it"><div class="tx"><div class="t">Cần 46,9 tỷ/tuần để kịp BOT dự án</div><div class="s">đang nhập 2,1 tỷ/tuần · còn 2 tuần</div></div><span class="badge dot t-red">Không kịp</span></div>
+        <div class="it"><div class="tx"><div class="t">23 hạng mục đứng chờ vật tư</div><div class="s">vật tư của công đoạn đang làm chưa về → BOM</div></div><span class="badge dot t-red">Chặn SX</span></div>
+        <div class="it"><div class="tx"><div class="t">18 hạng mục vật tư về sau ngày cần</div><div class="s">sớm nhất trễ 21 ngày</div></div><span class="badge dot t-amb">Lệch hạn</span></div>
+        <div class="it"><div class="tx"><div class="t">9 hạng mục KH nhập kho sau ngày cần giao</div><div class="s">biết trước sẽ giao trễ</div></div><span class="badge dot t-amb">Lệch hạn</span></div>
+        <div class="it"><div class="tx"><div class="t">2 vướng mắc đang mở</div><div class="s">M3 Vật tư ×1 · M1 Con người ×1</div></div><span class="badge dot t-red">Vướng mắc</span></div>
+        <div class="it"><div class="tx"><div class="t">Gia công ngoài: 22 / 31 còn chờ NCC</div><div class="s">Kim loại 15 · Đá 4 · Kính 3</div></div><span class="badge dot t-fu">GCN</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card np">
+    <div class="hd" style="padding:14px 18px"><span class="h2">Hạng mục cần xử lý</span><span class="chip on" style="padding:6px 12px">Cần xử lý ngay <span class="n" style="background:#e31e24">73</span></span><span class="chip" style="padding:6px 12px">Chưa có KH <span class="n">836</span></span><span class="chip" style="padding:6px 12px">Còn lại <span class="n">511</span></span><span class="sp"></span><div class="search" style="width:220px;padding:7px 12px">⌕ Tìm HEX, hạng mục…</div></div>
+    <table id="t" class="mid"><tr><th>#</th><th>Mã HEX</th><th>Hạng mục</th><th>Công đoạn</th><th>KH tuần</th><th>KH tháng</th><th>Cần giao</th><th class="r">Còn lại (tỷ)</th><th>Trễ vì</th></tr></table>
+    <div style="padding:12px;text-align:center;font-weight:500">Xem thêm 67 hạng mục</div>
+  </div>
+</div></div>
+<script>
+ctHead(0);
+const F=[['Nhận đơn từ PM','P001',1757,100,'125,02','#94a3b8'],['Triển khai bản vẽ','P002',1590,90,'114,60','#94a3b8'],['Có phiếu sản xuất','P012',1402,80,'100,13','#94a3b8'],['Vào sản xuất','P013+',1120,64,'79,88','#94a3b8'],['Nhập kho đủ','P022',337,19,'31,26','#15803d']];
+document.getElementById('flow').innerHTML=F.map(([n,c,v,p,t,col],i)=>`<div style="display:flex;align-items:center;gap:12px"><div style="width:150px"><div style="font-weight:500">${n}</div></div><div style="flex:1;height:26px;background:#f1f5f9;border-radius:6px;overflow:hidden"><div style="width:${p}%;height:100%;background:${col};border-radius:6px"></div></div><div style="width:170px;text-align:right"><b>${v.toLocaleString('vi-VN')}</b> <span class="sub">${p}% · ${t} tỷ</span></div>${i?`<div style="width:64px;text-align:right" class="sub ${i==4?'c-red bb':''}">−${(F[i-1][2]-v).toLocaleString('vi-VN')}</div>`:'<div style="width:64px"></div>'}</div>`).join('');
+const BX=w=>60+(w+12)/(46+12)*800, BY=v=>210-v/130*190;
+let g='';[0,25,50,75,100,125].forEach(v=>g+=`<line x1="60" x2="860" y1="${BY(v)}" y2="${BY(v)}" stroke="#f1f5f9"/><text x="52" y="${BY(v)+4}" font-size="11" fill="#94a3b8" text-anchor="end">${v}</text>`);
+g+=`<line x1="60" x2="860" y1="${BY(125.02)}" y2="${BY(125.02)}" stroke="#0f172a" stroke-dasharray="2 3"/><text x="64" y="${BY(125.02)-6}" font-size="11" fill="#0f172a" font-weight="600">Tổng 125,02 tỷ</text>`;
+const act=[[-12,6.1],[-11,7.3],[-10,10.1],[-9,11.7],[-8,14.8],[-7,17.2],[-6,18.1],[-5,19.9],[-4,22.5],[-3,24.7],[-2,26.1],[-1,29.1],[0,31.26]];
+g+=`<polyline fill="none" stroke="#15803d" stroke-width="3" points="${act.map(([w,v])=>BX(w)+','+BY(v)).join(' ')}"/>`;
+g+=`<line x1="${BX(0)}" y1="${BY(31.26)}" x2="${BX(44.6)}" y2="${BY(125.02)}" stroke="#94a3b8" stroke-width="2" stroke-dasharray="6 4"/>`;
+g+=`<line x1="${BX(0)}" y1="${BY(31.26)}" x2="${BX(2)}" y2="${BY(125.02)}" stroke="#e31e24" stroke-width="2.5"/>`;
+g+=`<line x1="${BX(2)}" x2="${BX(2)}" y1="20" y2="210" stroke="#e31e24" stroke-dasharray="3 3"/><text x="${BX(2)+5}" y="204" font-size="11" fill="#b3141a" font-weight="700">BOT 30/10</text>`;
+g+=`<line x1="${BX(0)}" x2="${BX(0)}" y1="20" y2="210" stroke="#0f172a"/><text x="${BX(0)-6}" y="${BY(31.26)-8}" font-size="11" fill="#0f172a" font-weight="600" text-anchor="end">Hôm nay · 31,26 tỷ</text>`;
+g+=`<circle cx="${BX(44.6)}" cy="${BY(125.02)}" r="5" fill="#94a3b8"/><text x="${BX(44.6)}" y="${BY(125.02)+20}" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">~08/2027</text>`;
+g+=`<path d="M${BX(2)} ${BY(125.02)+8} L${BX(44.6)-8} ${BY(125.02)+8}" stroke="#e31e24" stroke-width="1.5" marker-end="url(#ar)"/><text x="${(BX(2)+BX(44.6))/2}" y="${BY(125.02)+22}" font-size="12" fill="#b3141a" font-weight="700" text-anchor="middle">trễ ~41 tuần</text>`;
+[['T8',-10],['T9',-6],['T10',-2],['T11',3],['T12',7],['T1/27',12],['T3',20],['T5',29],['T7',37],['T9/27',46]].forEach(([l,w])=>g+=`<text x="${BX(w)}" y="230" font-size="11" fill="#94a3b8" text-anchor="middle">${l}</text>`);
+document.getElementById('burn').innerHTML=`<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#e31e24"/></marker></defs>`+g;
+const R=[['260409705','Cửa D10 Maxine','05. MỘC · 5 tuần','03/10','31/10','25/10','0,42',['VM · M3 thiếu ván lạng','red'],['BOM · chờ Gỗ·Ván trễ 19n','red']],['260409711','Tủ áo phòng ngủ master','06. MÁY · 3 tuần','06/10','31/10','25/10','0,31',['BOM · chờ Gỗ·Ván trễ 6n','red']],['260409802','Sofa 3 chỗ phòng khách','04.1. BỌC NỆM · 4 tuần','14/10','31/10','28/10','0,22',['BOM · Vải chưa mua','red']],['260409821','Bàn ăn mặt đá','16.2. GC VỆ TINH-ĐÁ · 2 tuần','15/10','31/10','30/10','0,18',['Gia công ngoài · NCC đang SX','fu']],['260409732','Vách ốp gỗ phòng khách','14. CHƯA PHIẾU · 4 tuần','—','10/10','30/10','0,27',['BOP · chưa có phiếu','org'],['BOM · chưa có PR','sl']],['260409740','Kệ tivi phòng khách','07. CTS · 2 tuần','12/10','31/10','28/10','0,19',['Đang SX, chậm so KH','sl']]];
+document.getElementById('t').insertAdjacentHTML('beforeend',R.map((r,i)=>`<tr><td class="c-sub">${i+1}</td><td><span class="hex">${r[0]}</span></td><td>${r[1]}</td><td>${r[2]}</td><td class="${r[3]!='—'?'c-red b':'c-sub'}">${r[3]}</td><td class="${r[3]=='—'?'c-red b':'c-sub'}">${r[4]}</td><td class="c-sub">${r[5]}</td><td class="r num">${r[6]}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">${r.slice(7).map(([s,t])=>`<span class="badge t-${t}">${s}</span>`).join('')}</div></td></tr>`).join(''));
+</script>
+</body></html>

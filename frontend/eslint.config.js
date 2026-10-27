@@ -9,7 +9,7 @@ import globals from 'globals';
 import unusedImports from 'eslint-plugin-unused-imports';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', 'public/**', '*.config.*'] },
+  { ignores: ['dist/**', 'node_modules/**', 'public/**', '*.config.*', 'vite.*test*.mjs'] }, // vite.*test*.mjs: file chạy thử giao diện tạm
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

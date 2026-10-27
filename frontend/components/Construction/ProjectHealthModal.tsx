@@ -33,8 +33,14 @@ export interface ProjectHealthKeys {
   ipoKey: string;
   triGiaKey: string;
   nhapKhoKey: string;
+  /** Thành tiền xuất kho lũy kế (P025) — cột Kho của bảng BOP */
+  xuatKhoKey?: string;
+  /** Thành tiền tồn kho hiện tại — cột Tồn kho của bảng BOP (chặn ≤ đã nhập − đã xuất) */
+  tonKhoKey?: string;
   /** Khu vực sản xuất (xuong_chinh) */
   xuongKey: string;
+  /** Nhóm phân loại sản phẩm (phan_loai_nhom_san_pham) — dòng của bảng BOP */
+  nhomSpKey?: string;
   /** Thời gian ở công đoạn hiện tại (so_ngay_cd_hien_tai) */
   dwellKey: string;
   /** Kế hoạch nhập kho theo tuần (text "yyyy-mm-dd hh:mm:ss") — ưu tiên */
@@ -69,6 +75,8 @@ interface Props {
   inventory?: DataRow[];
   /** HEX không hủy của công trình, KHÔNG qua bộ lọc IPO — để tính nhịp nhập kho (sản lượng đã ra) */
   paceHexes?: string[];
+  /** Dòng không hủy của công trình, KHÔNG qua bộ lọc IPO — phần Kho (lũy kế) của bảng BOP */
+  khoRows?: DataRow[];
 }
 
 const DUE_SOON_DAYS = 14;
@@ -138,7 +146,7 @@ const fmtTy = formatTrieuAsTy;
 
 
 export const ProjectHealthModal: React.FC<Props> = ({
-  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, inventory, paceHexes,
+  isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, inventory, paceHexes, khoRows,
 }) => {
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   type Tab = 'overview' | 'bot' | 'bop' | 'bom';
@@ -161,9 +169,9 @@ export const ProjectHealthModal: React.FC<Props> = ({
   useEffect(() => { if (isOpen) { setTab('overview'); setMaterialMode(null); setMaterialHex(null); setTimelineHex(null); } }, [isOpen, projectName]);
 
   // ---------- Chuẩn hoá từng hạng mục ----------
-  const items = useMemo<HexInfo[]>(() => {
+  const dungHangMuc = (src: DataRow[]): HexInfo[] => {
     const out: HexInfo[] = [];
-    for (const row of rows) {
+    for (const row of src) {
       if (isCancelledIpo(row[keys.ipoKey])) continue;
       const total = parseNumber(row[keys.triGiaKey]);
       const nk = parseNumber(row[keys.nhapKhoKey]);
@@ -191,12 +199,15 @@ export const ProjectHealthModal: React.FC<Props> = ({
         stage,
         status: String(row[keys.tinhTrangKey] ?? '').trim(),
         area: String(row[keys.xuongKey] ?? '').trim(),
+        nhomSp: keys.nhomSpKey ? String(row[keys.nhomSpKey] ?? '').trim() : '',
         dwell: String(row[keys.dwellKey] ?? '').trim() || null,
         // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
         bucket: open || remain > 0 ? remainBucketOf(status, stage) : null,
         open,
         total,
         inv: doneValue(total, nk),
+        xuat: keys.xuatKhoKey ? Math.max(parseNumber(row[keys.xuatKhoKey]), 0) : 0,
+        tonKho: keys.tonKhoKey ? Math.max(parseNumber(row[keys.tonKhoKey]), 0) : undefined,
         remain,
         deadline,
         deadlineSource,
@@ -211,7 +222,10 @@ export const ProjectHealthModal: React.FC<Props> = ({
       });
     }
     return out;
-  }, [rows, keys, today]);
+  };
+  const items = useMemo(() => dungHangMuc(rows), [rows, keys, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Phần Kho của bảng BOP: mọi hạng mục không hủy của công trình (kể cả IPO hoàn thành), không theo bộ lọc trang
+  const khoItems = useMemo(() => (khoRows ? dungHangMuc(khoRows) : items), [khoRows, items, keys, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hexList = useMemo(() => [...new Set(items.map(i => i.hex).filter(Boolean))], [items]);
   const hangMucByHex = useMemo(() => {
@@ -612,7 +626,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
         {tab === 'bot' && <BotTab items={items} today={today} openIssues={openIssues} onHexClick={setTimelineHex} />}
-        {tab === 'bop' && <BopTab items={items} onHexClick={setTimelineHex} extra={extra} today={today} />}
+        {tab === 'bop' && <BopTab items={items} khoItems={khoItems} onHexClick={setTimelineHex} extra={extra} today={today} />}
         {tab === 'bom' && (
           <BomTab
             items={items}

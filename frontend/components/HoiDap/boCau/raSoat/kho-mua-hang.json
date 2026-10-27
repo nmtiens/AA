@@ -1,0 +1,1986 @@
+[
+ {
+  "id": "kho-mua-hang-001",
+  "nhom": "thu_kho",
+  "cau": "tồn kho",
+  "kv": {
+   "loai": "mau",
+   "y": "ton_kho"
+  }
+ },
+ {
+  "id": "kho-mua-hang-002",
+  "nhom": "thu_kho",
+  "cau": "hang ton tren 6 thang con bn tien",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 6
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "gia_tri"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-003",
+  "nhom": "thu_kho",
+  "cau": "tồn kho Nam Phương",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-004",
+  "nhom": "thu_kho",
+  "cau": "kho đang giữ bao nhiêu mã của CT25-070",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": [
+      "CT25-070"
+     ]
+    }
+   ],
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "ma_id_sap"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-005",
+  "nhom": "thu_kho",
+  "cau": "ton tren 3 thang theo ct",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 3
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-006",
+  "nhom": "thu_kho",
+  "cau": "liệt kê hàng tồn của tây hồ view",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-007",
+  "nhom": "thu_kho",
+  "cau": "tồn kho sun group bao nhiêu ạ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-008",
+  "nhom": "thu_kho",
+  "cau": "top 5 công trình tồn kho nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "gioiHan": 5,
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-009",
+  "nhom": "thu_kho",
+  "cau": "dòng tồn kho nào trên 2 tỷ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "gia_tri",
+     "op": "lon_hon",
+     "gt": 2000
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-010",
+  "nhom": "thu_kho",
+  "cau": "hex 250012345 còn trong kho ko",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "hex",
+     "op": "bang",
+     "gt": [
+      "250012345"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-011",
+  "nhom": "thu_kho",
+  "cau": "ad ơi cho e hỏi tồn kho 3A hiện giờ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: bảng tồn kho không có cột xưởng, phải lấy xưởng từ bảng sản xuất qua HEX"
+ },
+ {
+  "id": "kho-mua-hang-012",
+  "nhom": "thu_kho",
+  "cau": "ton kho cua pm le minh tuan",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:ten_pm",
+     "op": "bang",
+     "gt": [
+      "LÊ MINH TUẤN"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-013",
+  "nhom": "thu_kho",
+  "cau": "sl ton kho theo nhom ct",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "nhom_ct"
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "so_luong"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-014",
+  "nhom": "thu_kho",
+  "cau": "hàng lưu kho bao nhiêu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "tinh_trang_ke_hoach_giao_hang",
+     "op": "bang",
+     "gt": [
+      "LƯU KHO"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-015",
+  "nhom": "thu_kho",
+  "cau": "tồn hơn 12 tháng của intercontinetal",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 12
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "intercontinental"
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "gõ sai tên công trình (intercontinetal)"
+ },
+ {
+  "id": "kho-mua-hang-016",
+  "nhom": "thu_kho",
+  "cau": "hok biết tồn kho giường bao nhiêu nhỉ",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "04. GIƯỜNG"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-017",
+  "nhom": "thu_kho",
+  "cau": "tồn kho ghế tủ bàn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:phan_loai_nhom_san_pham",
+     "op": "bang",
+     "gt": [
+      "02. GHẾ",
+      "03. TỦ",
+      "01. BÀN"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-018",
+  "nhom": "thu_kho",
+  "cau": "tồn kho nhập từ tháng 9 mà vẫn còn nằm kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "ngay_nhap_kho",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-09-01",
+      "2026-09-30"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: lọc theo ngày nhập kho (cột phụ) chứ không phải ngày chốt tồn"
+ },
+ {
+  "id": "kho-mua-hang-019",
+  "nhom": "thu_kho",
+  "cau": "hnay xuất kho đc bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-020",
+  "nhom": "thu_kho",
+  "cau": "xk hôm qua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-021",
+  "nhom": "thu_kho",
+  "cau": "giao hang tuan truoc theo ngay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "date@ngay"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-022",
+  "nhom": "thu_kho",
+  "cau": "xuat kho tu 1/9 den 15/9 cua 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-15"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-023",
+  "nhom": "thu_kho",
+  "cau": "tuần 41 xuất bao nhiêu phiếu",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "so_phieu"
+   },
+   "ky": {
+    "tu": "2026-10-05",
+    "den": "2026-10-11"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-024",
+  "nhom": "thu_kho",
+  "cau": "quý 3 giao đc bn tiền",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien_xuat_kho"
+   },
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-025",
+  "nhom": "thu_kho",
+  "cau": "xuất kho năm nay so với năm 2025",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-01-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-01-01",
+    "den": "2025-12-31"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-026",
+  "nhom": "thu_kho",
+  "cau": "xuất kho tháng này so với cùng kỳ năm ngoái",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   },
+   "soSanh": {
+    "tu": "2025-10-01",
+    "den": "2025-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-027",
+  "nhom": "thu_kho",
+  "cau": "liệt kê các phiếu xuất của holiday inn tháng này giúp e",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "holiday inn"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-028",
+  "nhom": "thu_kho",
+  "cau": "ngày nào tháng 9 xuất nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "date@ngay"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  },
+  "ghi_chu": "mơ hồ: chia theo ngày rồi lấy ngày cao nhất; không chấm top"
+ },
+ {
+  "id": "kho-mua-hang-029",
+  "nhom": "thu_kho",
+  "cau": "xuất kho bình quân ngày thág 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "binhQuan": "ngay",
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  },
+  "ghi_chu": "gõ sai chữ tháng (thág)"
+ },
+ {
+  "id": "kho-mua-hang-030",
+  "nhom": "thu_kho",
+  "cau": "30 ngày gần đây xuất kho theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-09-20",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-031",
+  "nhom": "thu_kho",
+  "cau": "e hỏi xk của Emerald Raiya đến giờ đc bao nhiêu r",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "emerald raiya"
+    }
+   ]
+  }
+ },
+ {
+  "id": "kho-mua-hang-032",
+  "nhom": "thu_kho",
+  "cau": "xuất kho 8AB tuần này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "8AB"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-033",
+  "nhom": "thu_kho",
+  "cau": "giao hàng cho SUN GROUP tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-034",
+  "nhom": "thu_kho",
+  "cau": "xk theo nhom sp quy 3",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "sx:phan_loai_nhom_san_pham"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-035",
+  "nhom": "thu_kho",
+  "cau": "xuất kho miền bắc tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "sx:khu_vuc_du_an",
+     "op": "bang",
+     "gt": [
+      "MIỀN BẮC"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-036",
+  "nhom": "thu_kho",
+  "cau": "xk theo pc thang nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "sx:ten_pc"
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-037",
+  "nhom": "thu_kho",
+  "cau": "hôm nay nhập kho mấy hex",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "hex"
+   },
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-038",
+  "nhom": "thu_kho",
+  "cau": "nhập kho tuần trước của 3A theo ngày nhé",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "nhom": [
+    "date@ngay"
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-039",
+  "nhom": "thu_kho",
+  "cau": "nk thang 9 cua 5A bn",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "5A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-040",
+  "nhom": "mua_hang",
+  "cau": "có bn PR đang mua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "2.ĐANG MUA"
+     ]
+    }
+   ],
+   "coDo": {
+    "ham": "dem_khac",
+    "cot": "so_pr"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-041",
+  "nhom": "mua_hang",
+  "cau": "vật tư chưa về của Nam Phương",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-042",
+  "nhom": "mua_hang",
+  "cau": "BOM của CT26-110",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "CT26-110"
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: bảng vật tư không có cột mã công trình, mã nằm cuối tên công trình"
+ },
+ {
+  "id": "kho-mua-hang-043",
+  "nhom": "mua_hang",
+  "cau": "ncc nào trễ hẹn nhiều nhất",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "nha_cung_cap"
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: chia theo NCC rồi xem NCC đầu bảng; không chấm top"
+ },
+ {
+  "id": "kho-mua-hang-044",
+  "nhom": "mua_hang",
+  "cau": "ds vật tư chưa mua của tây hồ view",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-045",
+  "nhom": "mua_hang",
+  "cau": "PR tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-046",
+  "nhom": "mua_hang",
+  "cau": "pr nao hen ve tuan nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-19",
+      "2026-10-19"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: 'tuần này' là kỳ của ngày dự kiến về, không phải ngày PR"
+ },
+ {
+  "id": "kho-mua-hang-047",
+  "nhom": "mua_hang",
+  "cau": "vat tu ve thuc te tuan truoc",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_thuc_te_ve",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-12",
+      "2026-10-18"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: kỳ áp lên ngày thực tế về"
+ },
+ {
+  "id": "kho-mua-hang-048",
+  "nhom": "mua_hang",
+  "cau": "PR của PP017",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nguoi_yeu_cau",
+     "op": "bang",
+     "gt": [
+      "PP017"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-049",
+  "nhom": "mua_hang",
+  "cau": "vật tư gỗ đang mua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "101 - Gỗ"
+     ]
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "2.ĐANG MUA"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-050",
+  "nhom": "mua_hang",
+  "cau": "sl còn thiếu của vật tư da",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "107 - Da"
+     ]
+    }
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "so_luong_con_lai"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-051",
+  "nhom": "mua_hang",
+  "cau": "thành tiền PR chưa mua theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "coDo": {
+    "ham": "tong",
+    "cot": "thanh_tien"
+   },
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-052",
+  "nhom": "mua_hang",
+  "cau": "PR cần vật tư trước 1/11 mà chưa về",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_can_vat_tu",
+     "op": "nho_hon",
+     "gt": "2026-11-01"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-053",
+  "nhom": "mua_hang",
+  "cau": "PR chưa mua quá 30 ngày rồi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    },
+    {
+     "cot": "ngay_pr",
+     "op": "nho_hon",
+     "gt": "2026-09-19"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-054",
+  "nhom": "mua_hang",
+  "cau": "số PR 1000234567 đến đâu rồi",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "so_pr",
+     "op": "bang",
+     "gt": [
+      "1000234567"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-055",
+  "nhom": "mua_hang",
+  "cau": "PO 4500012345 ve chua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "so_po",
+     "op": "bang",
+     "gt": [
+      "4500012345"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-056",
+  "nhom": "thu_kho",
+  "cau": "sắp đến hạn giao mà còn chưa nhập kho",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "trong_khoang",
+     "gt": [
+      "2026-10-19",
+      "2026-11-02"
+     ]
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-057",
+  "nhom": "thu_kho",
+  "cau": "quá hạn giao của 4A",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "ngay_can_giao",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "gia_tri_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-058",
+  "nhom": "thu_kho",
+  "cau": "hạng mục đã xuất hàng của Olalani",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "tinh_trang",
+     "op": "bang",
+     "gt": [
+      "00. ĐÃ XUẤT HÀNG"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "olalani"
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-059",
+  "nhom": "thu_kho",
+  "cau": "hm nào đã nhập kho mà chưa xuất, theo ct",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "production_status_app",
+   "loc": [
+    {
+     "cot": "thanh_tien_ton_kho_hien_tai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: 'đã nhập mà chưa xuất' = tồn kho hiện tại > 0 ở bảng sản xuất; cũng có thể hiểu là bảng tồn kho theo công trình"
+ },
+ {
+  "id": "kho-mua-hang-060",
+  "nhom": "mua_hang",
+  "cau": "vướng mắc về vật tư còn đang xử lý",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vuong_mac",
+   "loc": [
+    {
+     "cot": "category",
+     "op": "bang",
+     "gt": [
+      "material"
+     ]
+    },
+    {
+     "cot": "status",
+     "op": "bang",
+     "gt": [
+      "Đang xử lý"
+     ]
+    }
+   ],
+   "ky": null
+  },
+  "ghi_chu": "mơ hồ: 'vật tư' ở đây là loại vướng mắc material, không phải bảng vật tư"
+ },
+ {
+  "id": "kho-mua-hang-061",
+  "nhom": "thu_kho",
+  "cau": "tồn kho theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-062",
+  "nhom": "thu_kho",
+  "cau": "chỉ lấy trên 6 tháng",
+  "truoc": "tồn kho theo công trình",
+  "chuoi": [
+   "tồn kho theo công trình"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 6
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-063",
+  "nhom": "thu_kho",
+  "cau": "chi tiết đi",
+  "truoc": "chỉ lấy trên 6 tháng",
+  "chuoi": [
+   "tồn kho theo công trình",
+   "chỉ lấy trên 6 tháng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "so_thang_ton_kho",
+     "op": "lon_hon",
+     "gt": 6
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-064",
+  "nhom": "thu_kho",
+  "cau": "xuất kho tháng 9",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-065",
+  "nhom": "thu_kho",
+  "cau": "theo xưởng đi",
+  "truoc": "xuất kho tháng 9",
+  "chuoi": [
+   "xuất kho tháng 9"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-09-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-066",
+  "nhom": "thu_kho",
+  "cau": "còn tháng 8?",
+  "truoc": "theo xưởng đi",
+  "chuoi": [
+   "xuất kho tháng 9",
+   "theo xưởng đi"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-08-01",
+    "den": "2026-08-31"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-067",
+  "nhom": "mua_hang",
+  "cau": "PR chưa mua",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-068",
+  "nhom": "mua_hang",
+  "cau": "theo công trình",
+  "truoc": "PR chưa mua",
+  "chuoi": [
+   "PR chưa mua"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-069",
+  "nhom": "mua_hang",
+  "cau": "theo nhóm vật tư thì sao",
+  "truoc": "theo công trình",
+  "chuoi": [
+   "PR chưa mua",
+   "theo công trình"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "1.CHƯA MUA"
+     ]
+    }
+   ],
+   "nhom": [
+    "nhom_vt"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-070",
+  "nhom": "thu_kho",
+  "cau": "xuất kho Nam Phương tháng này",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-071",
+  "nhom": "thu_kho",
+  "cau": "nhập thì sao",
+  "truoc": "xuất kho Nam Phương tháng này",
+  "chuoi": [
+   "xuất kho Nam Phương tháng này"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-01",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-072",
+  "nhom": "thu_kho",
+  "cau": "tuần trước thì sao",
+  "truoc": "nhập thì sao",
+  "chuoi": [
+   "xuất kho Nam Phương tháng này",
+   "nhập thì sao"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "loc": [
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "nam phương"
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-073",
+  "nhom": "mua_hang",
+  "cau": "pr tre hen",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-074",
+  "nhom": "mua_hang",
+  "cau": "theo ncc",
+  "truoc": "pr tre hen",
+  "chuoi": [
+   "pr tre hen"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "nhom": [
+    "nha_cung_cap"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-075",
+  "nhom": "mua_hang",
+  "cau": "liệt kê ra",
+  "truoc": "theo ncc",
+  "chuoi": [
+   "pr tre hen",
+   "theo ncc"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "kieu": "dong",
+   "loc": [
+    {
+     "cot": "ngay_du_kien_giao_hang_pmh_nhap",
+     "op": "nho_hon",
+     "gt": "2026-10-19"
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-076",
+  "nhom": "thu_kho",
+  "cau": "giao hàng của 4A tuần trước",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "4A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-077",
+  "nhom": "thu_kho",
+  "cau": "còn 3A?",
+  "truoc": "giao hàng của 4A tuần trước",
+  "chuoi": [
+   "giao hàng của 4A tuần trước"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-078",
+  "nhom": "thu_kho",
+  "cau": "so với tuần 41",
+  "truoc": "còn 3A?",
+  "chuoi": [
+   "giao hàng của 4A tuần trước",
+   "còn 3A?"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "loc": [
+    {
+     "cot": "xuong_chinh",
+     "op": "bang",
+     "gt": [
+      "3A"
+     ]
+    }
+   ],
+   "ky": {
+    "tu": "2026-10-12",
+    "den": "2026-10-18"
+   },
+   "soSanh": {
+    "tu": "2026-10-05",
+    "den": "2026-10-11"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-079",
+  "nhom": "thu_kho",
+  "cau": "tồn kho của Sun Group",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-080",
+  "nhom": "thu_kho",
+  "cau": "chia theo nhóm sản phẩm",
+  "truoc": "tồn kho của Sun Group",
+  "chuoi": [
+   "tồn kho của Sun Group"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "nhom": [
+    "sx:phan_loai_nhom_san_pham"
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-081",
+  "nhom": "thu_kho",
+  "cau": "top 3 thôi",
+  "truoc": "chia theo nhóm sản phẩm",
+  "chuoi": [
+   "tồn kho của Sun Group",
+   "chia theo nhóm sản phẩm"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "ton_kho",
+   "loc": [
+    {
+     "cot": "sx:khach_hang",
+     "op": "bang",
+     "gt": [
+      "SUN GROUP"
+     ]
+    }
+   ],
+   "nhom": [
+    "sx:phan_loai_nhom_san_pham"
+   ],
+   "gioiHan": 3,
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-082",
+  "nhom": "mua_hang",
+  "cau": "vật tư kính chưa về",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "110 - Kính"
+     ]
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    }
+   ],
+   "ky": null
+  }
+ },
+ {
+  "id": "kho-mua-hang-083",
+  "nhom": "mua_hang",
+  "cau": "cái nào đang mua",
+  "truoc": "vật tư kính chưa về",
+  "chuoi": [
+   "vật tư kính chưa về"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "110 - Kính"
+     ]
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "2.ĐANG MUA"
+     ]
+    }
+   ],
+   "ky": null,
+   "kieu": "dong"
+  },
+  "ghi_chu": "mơ hồ: thêm lọc trạng thái đang mua, vẫn giữ 'chưa về' · kv sửa 24/10 theo quy ước bộ câu chính"
+ },
+ {
+  "id": "kho-mua-hang-084",
+  "nhom": "mua_hang",
+  "cau": "của tây hồ view thôi",
+  "truoc": "cái nào đang mua",
+  "chuoi": [
+   "vật tư kính chưa về",
+   "cái nào đang mua"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "vat_tu",
+   "loc": [
+    {
+     "cot": "nhom_vt",
+     "op": "bang",
+     "gt": [
+      "110 - Kính"
+     ]
+    },
+    {
+     "cot": "so_luong_con_lai",
+     "op": "lon_hon",
+     "gt": 0
+    },
+    {
+     "cot": "trang_thai",
+     "op": "bang",
+     "gt": [
+      "2.ĐANG MUA"
+     ]
+    },
+    {
+     "cot": "ten_cong_trinh",
+     "op": "chua",
+     "gt": "tây hồ view"
+    }
+   ],
+   "ky": null,
+   "kieu": "dong"
+  },
+  "ghi_chu": "kv sửa 24/10 theo quy ước bộ câu chính"
+ },
+ {
+  "id": "kho-mua-hang-085",
+  "nhom": "thu_kho",
+  "cau": "nk hôm nay",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-086",
+  "nhom": "thu_kho",
+  "cau": "theo xưởng",
+  "truoc": "nk hôm nay",
+  "chuoi": [
+   "nk hôm nay"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-19",
+    "den": "2026-10-19"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-087",
+  "nhom": "thu_kho",
+  "cau": "hôm qua thì sao",
+  "truoc": "theo xưởng",
+  "chuoi": [
+   "nk hôm nay",
+   "theo xưởng"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "nhap_kho",
+   "nhom": [
+    "xuong_chinh"
+   ],
+   "ky": {
+    "tu": "2026-10-18",
+    "den": "2026-10-18"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-088",
+  "nhom": "thu_kho",
+  "cau": "xuất kho quý 3 theo công trình",
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-089",
+  "nhom": "thu_kho",
+  "cau": "so với quý 2",
+  "truoc": "xuất kho quý 3 theo công trình",
+  "chuoi": [
+   "xuất kho quý 3 theo công trình"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-04-01",
+    "den": "2026-06-30"
+   }
+  }
+ },
+ {
+  "id": "kho-mua-hang-090",
+  "nhom": "thu_kho",
+  "cau": "xếp theo chênh lệch giảm dần",
+  "truoc": "so với quý 2",
+  "chuoi": [
+   "xuất kho quý 3 theo công trình",
+   "so với quý 2"
+  ],
+  "kv": {
+   "loai": "tu_tra",
+   "bang": "xuat_kho",
+   "nhom": [
+    "ten_cong_trinh"
+   ],
+   "ky": {
+    "tu": "2026-07-01",
+    "den": "2026-09-30"
+   },
+   "soSanh": {
+    "tu": "2026-04-01",
+    "den": "2026-06-30"
+   },
+   "sapChenh": "giam"
+  },
+  "ghi_chu": "mơ hồ: 'giảm dần' có thể hiểu là chênh lệch từ cao xuống thấp hoặc công trình giảm nhiều nhất trước"
+ },
+ {
+  "id": "kho-mua-hang-091",
+  "nhom": "thu_kho",
+  "cau": "tại sao tồn kho tháng này tăng vậy",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-092",
+  "nhom": "thu_kho",
+  "cau": "tháng sau dự kiến xuất kho bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-093",
+  "nhom": "mua_hang",
+  "cau": "nên đặt kính ở ncc nào cho rẻ",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-094",
+  "nhom": "mua_hang",
+  "cau": "giá gỗ sồi ngoài thị trường giờ bn 1 khối",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-095",
+  "nhom": "mua_hang",
+  "cau": "vật tư của hạng mục ghế Nam Phương gồm những gì",
+  "kv": {
+   "loai": "chua_tra_loi"
+  },
+  "ghi_chu": "bảng vật tư không có cột hạng mục, chỉ có công trình"
+ },
+ {
+  "id": "kho-mua-hang-096",
+  "nhom": "thu_kho",
+  "cau": "kho còn bao nhiêu pallet trống",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-097",
+  "nhom": "thu_kho",
+  "cau": "mai xe giao hàng mấy giờ chạy",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-098",
+  "nhom": "mua_hang",
+  "cau": "sao PR của tây hồ view mua lâu vậy",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-099",
+  "nhom": "thu_kho",
+  "cau": "hàng tồn kho có bị mối mọt hư hỏng gì ko",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ },
+ {
+  "id": "kho-mua-hang-100",
+  "nhom": "thu_kho",
+  "cau": "định mức tồn kho tối thiểu của kho là bao nhiêu",
+  "kv": {
+   "loai": "chua_tra_loi"
+  }
+ }
+]

@@ -1,0 +1,125 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"></head><body>
+<div class="app">
+<aside class="side">
+  <div class="logo"><b>AA</b><span>Operations Hub</span></div>
+  <div class="nav"><i></i>Tổng quan</div><div class="nav"><i></i>Tra cứu</div><div class="nav on"><i></i>Tổng quan công trình</div><div class="nav"><i></i>Vướng mắc</div><div class="nav"><i></i>MRA</div>
+  <div class="navh">DỮ LIỆU</div><div class="nav"><i></i>Sản xuất (P001 → P025)</div><div class="nav"><i></i>Nhập · Xuất · Tồn kho</div>
+</aside>
+<main class="main">
+  <div class="hd">
+    <div><div class="h1">Tổng quan công trình</div><div class="sub" style="margin-top:3px">Giá trị tính bằng tỷ đồng · bấm thanh, chấm hoặc dòng để xem chi tiết · địa chỉ trang giữ bộ lọc</div></div>
+    <div class="sp"></div><div class="search">⌕ Tìm công trình, PM, mã HEX…</div><span class="btn">Xuất Excel</span>
+  </div>
+  <div class="hd" style="gap:8px">
+    <span class="chip on">Tất cả công trình <span class="n">160</span></span>
+    <span class="chip red"><span class="d"></span>Luồng đỏ <span class="n">12</span></span>
+    <span class="chip">Căn mẫu <span class="n">8</span></span>
+    <span style="width:1px;height:24px;background:#d1d5db;margin:0 4px"></span>
+    <span class="chip">Tình trạng IPO: <b>01. Đang sản xuất</b> ▾</span>
+    <span class="chip">⚙ Bộ lọc</span>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="l">Tổng giá trị đơn hàng</div><div class="v"><b>1.948,38</b><span>tỷ</span></div><div class="s">160 công trình · 12.589 hạng mục · 41 hủy</div></div>
+    <div class="kpi"><div class="l">Đã nhập kho (P022)</div><div class="v"><b class="c-grn">508,08</b><span>tỷ · 26%</span></div><div class="pbar"><i style="width:26%"></i></div><div class="s">Chưa nhập 1.440,30 tỷ · 3.120 mục nhập đủ</div></div>
+    <div class="kpi"><div class="l">Quá hạn KH nhập kho</div><div class="v"><b class="c-red">821</b><span>mục</span></div><div class="s">117,84 tỷ chưa nhập kho · 34 công trình</div></div>
+    <div class="kpi"><div class="l">Quá BOT dự án, chưa xong</div><div class="v"><b class="c-red">3.647</b><span>mục</span></div><div class="s">339,75 tỷ chưa nhập kho · 21 công trình</div></div>
+  </div>
+
+  <div class="hd" style="margin:6px 0 -6px"><span class="badge t-ink" style="font-size:12px">1</span><span class="h2">Người phụ trách (PC)</span><span class="sub">bấm 1 PC → lọc công trình bên dưới</span></div>
+  <div class="row">
+    <div class="card np grow">
+      <div style="padding:18px 18px 10px"><div class="q">Ai đang giữ nhiều việc trễ nhất?</div><div class="ins"><em>2 PC giữ 52%</em> số mục quá hạn (429 / 821).</div></div>
+      <table class="tight" id="pc"><tr><th>PC</th><th class="r">Công trình</th><th class="r">CT nguy cơ</th><th style="width:38%">Mục quá hạn</th><th class="r">% nhập kho</th><th class="r">GT (tỷ)</th></tr></table>
+    </div>
+    <div class="card" style="width:380px;flex:none;padding:20px 22px 10px">
+      <div class="hd" style="padding-bottom:8px"><span class="h2">Cần chú ý</span><span class="sub">chỉ việc cần làm</span></div>
+      <div class="att">
+        <div class="it"><div class="tx"><div class="t">821 hạng mục quá hạn KH nhập kho</div><div class="s">117,84 tỷ chưa nhập</div></div><span class="badge dot t-red">Trễ</span></div>
+        <div class="it"><div class="tx"><div class="t">TÂY HỒ VIEW-THÁP 4B</div><div class="s">187 mục quá hạn KH — nhiều nhất · Lê Minh Tuấn</div></div><span class="badge dot t-red">Trễ nhiều nhất</span></div>
+        <div class="it"><div class="tx"><div class="t">10.981 hạng mục chưa có KH nhập kho</div><div class="s">88% mục chưa nhập · không theo dõi được trễ</div></div><span class="badge dot t-amb">Thiếu KH</span></div>
+        <div class="it"><div class="tx"><div class="t">2 vướng mắc đang mở</div><div class="s">1 công trình · 0 quá hạn BOT</div></div><span class="badge dot t-amb">Vướng mắc</span></div>
+        <div class="it"><div class="tx"><div class="t">21 hạng mục đạt KH kỳ, chờ KH tiếp</div><div class="s">3,39 tỷ · cần lập KH kỳ sau</div></div><span class="badge dot t-blu">Chờ KH</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="hd" style="margin:6px 0 -6px"><span class="badge t-ink" style="font-size:12px">2</span><span class="h2">Công trình</span><span class="sub">bấm 1 chấm / 1 dòng → mở công trình: BOT → BOP → BOM → hạng mục</span></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:12px">
+      <div><div class="q">Công trình nào có nguy cơ trễ BOT dự án?</div>
+      <div class="ins"><em>9 công trình</em> còn ≤ 30 ngày tới BOT mà chưa nhập kho được một nửa — chiếm <em>612 tỷ</em> giá trị.</div></div>
+      <div style="position:relative">
+        <svg id="sc" width="100%" height="330" viewBox="0 0 760 330"></svg>
+      </div>
+      <div class="legend"><span style="--lc:#e31e24">Nguy cơ: ≤ 30 ngày tới BOT và &lt; 50% nhập kho</span><span style="--lc:#f59e0b">Cần theo dõi</span><span style="--lc:#94a3b8">Ổn / còn xa</span><span style="--lc:#fff;" class="c-sub">● to = giá trị lớn · bấm 1 chấm để mở công trình</span></div>
+    </div>
+  <div class="card np">
+    <div class="hd" style="padding:16px 20px"><span class="h2">Công trình</span><span class="badge t-sl">160</span><span class="sp"></span><div class="search" style="width:200px;padding:7px 12px">⌕ Tìm công trình, PM…</div><span class="seg"><span class="on">Quá hạn nhiều nhất</span><span>Giá trị lớn nhất</span><span>Hoàn thành thấp nhất</span></span></div>
+    <table id="ct" class="mid"><tr><th>#</th><th>Công trình · PM</th><th class="r">HM</th><th class="r">Giá trị</th><th class="r">Còn lại</th><th style="width:220px">Nhập kho / thời gian tới BOT</th><th>BOT dự án</th><th class="r">Quá hạn</th><th class="r">Chưa có KH</th><th class="r">VM</th></tr></table>
+    <div style="padding:12px;text-align:center;font-weight:500">Xem thêm 153 công trình</div>
+  </div>
+  <div class="hd" style="margin:6px 0 -6px"><span class="badge t-ink" style="font-size:12px">3</span><span class="h2">Giá trị theo công đoạn, tháng hạn, nhóm đơn hàng</span><span class="sub">của các công trình đang lọc</span></div>
+  <div class="row">
+    <div class="card grow" style="display:flex;flex-direction:column;gap:10px">
+      <div><div class="q">Tiền đang nằm ở công đoạn nào?</div>
+      <div class="ins"><span class="a">74% giá trị (1.436 tỷ) chưa nhập kho</span> — dồn ở <span class="a">Đang trên chuyền 652 tỷ</span> và <span class="a">Chưa triển khai 632 tỷ</span>.</div></div>
+      <div id="stg" style="margin-top:6px"></div>
+      <div class="sub">Xám = chưa vào sản xuất · cam = đang làm · xanh = đã nhập kho · độ dài thanh = tỷ đồng</div>
+    </div>
+    <div class="card" style="width:520px;flex:none;display:flex;flex-direction:column;gap:12px">
+      <div><div class="q">Đơn hàng đến từ đâu?</div><div class="ins">Miền Bắc chiếm 41% giá trị</div></div>
+      <div class="utabs" style="margin-top:0"><span class="on">Khu vực</span><span>Khách hàng</span><span>Nhóm sản phẩm</span><span class="sp" style="flex:1;border:0"></span></div>
+      <div><span class="seg"><span>Hạng mục</span><span class="on">Giá trị</span></span></div>
+      <div style="display:flex;gap:24px;align-items:center"><div id="pie" style="width:150px;height:150px;border-radius:50%;position:relative;flex:none"></div><div id="pleg" style="display:flex;flex-direction:column;gap:5px;flex:1"></div></div>
+      <div class="sub">Bấm 1 phần để lọc cả trang</div>
+    </div>
+  </div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px">
+      <div><div class="q">Tháng nào đang trễ, tháng nào sắp dồn?</div>
+      <div class="ins"><em>117,8 tỷ đã quá hạn</em> chưa nhập (phần đỏ, các tháng đã qua) · <span class="a">T11 còn 48,9 tỷ phải nhập</span> — nhiều nhất trong các tháng tới.</div></div>
+      <div id="months" style="display:flex;align-items:flex-end;gap:6px;height:220px;position:relative;margin-top:6px"></div>
+      <div class="legend"><span style="--lc:#15803d">Đã nhập</span><span style="--lc:#e31e24">Chưa nhập, đã quá hạn</span><span style="--lc:#f59e0b">Chưa nhập, chưa tới hạn</span></div>
+      <div class="sub">Không vẽ: trước T05/2026 (41,2 · 6,1) · sau T04/2027 (3,8) · không có hạn (21,4 · 412,6)</div>
+    </div>
+
+</main></div>
+<script>
+// ---- scatter: x = ngày tới BOT (-30..180), y = % nhập kho
+const PJ=[['TÂY HỒ 4B',10,25,125,'r'],['TÂY HỒ 4A',14,39,138,'r'],['NAM PHƯƠNG',6,20,198,'l'],['PUBLIC APEC S3',22,2,149,'r'],['PUBLIC APEC S2',3,6,90,'l'],['TRỤC ĐÔNG TÂY 2C',-8,36,113,'l'],['CHATEAU',27,31,48,'r'],['THE MARQ B',24,47,62,'r'],['SUN PQ',-18,12,37,'l'],['MINI HOTEL',41,91,92],['ST.REGIS',97,7,246,'r'],['A',60,58,40],['B',75,35,30],['C',120,20,55],['D',150,62,20],['E',35,72,25],['F',130,10,70],['G',-20,80,18],['H',28,66,15],['I',90,48,33],['J',170,5,44],['K',55,85,12],['L',5,95,10]];
+const X=v=>60+(v+30)/(210)*680, Y=v=>290-v/100*260;
+let g=`<rect x="${X(-30)}" y="${Y(50)}" width="${X(30)-X(-30)}" height="${Y(0)-Y(50)}" fill="#fdecec"/>`;
+g+=`<line x1="${X(0)}" y1="20" x2="${X(0)}" y2="290" stroke="#0f172a" stroke-dasharray="3 3"/><text x="${X(0)+4}" y="30" font-size="11" fill="#0f172a" font-weight="600">Hôm nay = BOT</text>`;
+g+=`<line x1="${X(30)}" y1="20" x2="${X(30)}" y2="290" stroke="#cbd5e1" stroke-dasharray="3 3"/><text x="${X(30)+4}" y="30" font-size="11" fill="#64748b">30 ngày</text>`;
+g+=`<line x1="60" y1="${Y(50)}" x2="740" y2="${Y(50)}" stroke="#cbd5e1" stroke-dasharray="3 3"/><text x="736" y="${Y(50)-5}" font-size="11" fill="#64748b" text-anchor="end">50% nhập kho</text>`;
+g+=`<text x="${X(-29)}" y="${Y(50)-6}" font-size="11" fill="#b3141a" font-weight="700">VÙNG NGUY CƠ</text>`;
+[0,25,50,75,100].forEach(v=>g+=`<text x="52" y="${Y(v)+4}" font-size="11" fill="#94a3b8" text-anchor="end">${v}%</text>`);
+[-30,0,30,60,90,120,150,180].forEach(v=>g+=`<text x="${X(v)}" y="308" font-size="11" fill="#94a3b8" text-anchor="middle">${v}</text>`);
+g+=`<text x="400" y="326" font-size="11" fill="#64748b" text-anchor="middle">Số ngày tới BOT dự án (âm = đã quá)</text><text x="14" y="160" font-size="11" fill="#64748b" transform="rotate(-90 14 160)" text-anchor="middle">% giá trị đã nhập kho</text>`;
+PJ.forEach(([n,d,p,v,side])=>{const risk=d<=30&&p<50, watch=!risk&&d<=60&&p<70;const c=risk?'#e31e24':watch?'#f59e0b':'#94a3b8';const r=4+Math.sqrt(v)*1.1;g+=`<circle cx="${X(d)}" cy="${Y(p)}" r="${r}" fill="${c}" fill-opacity="${risk?.85:.55}" stroke="#fff"/>`;if(side)g+=`<text x="${side=='l'?X(d)-r-3:X(d)+r+3}" y="${Y(p)+4}" text-anchor="${side=='l'?'end':'start'}" font-size="11" font-weight="600" fill="${risk?'#b3141a':'#475569'}">${n}</text>`;});
+document.getElementById('sc').innerHTML=g;
+// ---- stages: horizontal bars
+const S=[['Chưa triển khai','P001',632.20,3902,'#94a3b8'],['Chưa tính phiếu','P002',125.52,702,'#94a3b8'],['Đang trên chuyền','P012 → P021',652.10,5120,'#f59e0b'],['Nhập chưa đủ','P022–P025',26.36,211,'#f59e0b'],['Đơn hủy','',4.12,41,'#e2e8f0'],['Tồn kho','',73.83,402,'#15803d'],['Chưa thấy xuất / tồn','',185.38,1291,'#15803d'],['Đã xuất / giao','P025',248.87,1420,'#15803d']];
+const mxS=652.1;
+document.getElementById('stg').innerHTML=S.map(([n,c,v,m,col],i)=>`${i==5?'<div style="border-top:1px dashed #cbd5e1;margin:6px 0 2px;font-size:11px;color:#15803d;padding-top:3px">đã nhập kho ↓</div>':''}${i==4?'<div style="height:4px"></div>':''}<div class="hb" style="grid-template-columns:140px 1fr 110px"><div><div style="font-weight:500">${n}</div><div class="mut" style="font-size:11px">${c}</div></div><div><div class="bar" style="width:${Math.max(1,v/mxS*100)}%;background:${col}"></div></div><div style="text-align:right"><b>${v.toLocaleString('vi-VN',{minimumFractionDigits:2})}</b> <span class="sub">${Math.round(v/1948.38*100)}%</span><div class="sub" style="font-size:11px">${m.toLocaleString('vi-VN')} mục</div></div></div>`).join('');
+// ---- months with overdue in red
+const M=[['T05',4.1,0],['T06',6.2,0.4],['T07',9.8,1.1],['T08',8.1,2.4],['T09',22.5,14.5],['T10',30.2,62.1,1],['T11',6.4,48.9],['T12',2.1,31.3],['T01',0,18.6],['T02',0,9.2],['T03',0,6.0],['T04',0,2.4]];
+const mx=92.3;
+document.getElementById('months').innerHTML=M.map(([l,d,r,cur],i)=>{const past=i<5;const od=cur?r*0.62:past?r:0;const fut=r-od;return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative">${od>1?`<span style="font-size:10px;font-weight:700;color:#e31e24">${od.toFixed(1).replace('.',',')}</span>`:''}${fut>1&&!od?`<span style="font-size:10px;font-weight:600;color:#c2410c">${fut.toFixed(1).replace('.',',')}</span>`:''}<div style="width:70%;display:flex;flex-direction:column;border-radius:4px 4px 0 0;overflow:hidden"><i style="height:${150*fut/mx}px;background:#f59e0b"></i><i style="height:${150*od/mx}px;background:#e31e24"></i><i style="height:${150*d/mx}px;background:#15803d"></i></div><span style="font-size:11px;font-weight:${cur?700:500}">${l}${i==8?'/27':''}</span>${cur?'<span class="badge t-ink" style="font-size:10px;padding:0 5px">hôm nay</span>':''}</div>`}).join('');
+// ---- PC ranked by overdue
+const PC=[['Nguyễn Thành Thật',241,24,312.4,18,3],['Trần Quốc Vũ',188,31,286.9,14,2],['Hồ Ngọc Bảo Quốc',96,18,198.7,11,2],['Phan Trọng Nhân',71,40,88.2,9,1],['Nguyễn Ngọc Yến',12,72,244.1,16,0],['Nguyễn Việt Hùng',7,63,121.8,10,1],['Lê Anh Quang',0,44,156.3,12,0]];
+document.getElementById('pc').insertAdjacentHTML('beforeend',PC.map(([n,q,p,v,ct,ng],i)=>`<tr${i==0?' class="sel"':''}><td class="${i<2?'b':''}">${n}</td><td class="r">${ct}</td><td class="r ${ng?'c-red b':'c-sub'}">${ng||'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div style="height:12px;width:${q/241*100}%;min-width:${q?2:0}px;background:${i<2?'#e31e24':'#fca5a5'};border-radius:3px"></div><span class="${q?'b':'c-sub'} ${i<2?'c-red':''}">${q||'—'}</span></div></td><td class="r ${p>=70?'c-grn b':''}">${p}%</td><td class="r c-sub">${v.toLocaleString('vi-VN')}</td></tr>`).join('')+`<tr class="foot"><td>Tổng (14 PC)</td><td class="r">160</td><td class="r c-red">9</td><td class="c-red">821</td><td class="r">26%</td><td class="r">1.948,4</td></tr>`);
+// ---- pie (giữ như cũ)
+const P=[['MIỀN BẮC',41,'#e31e24'],['MIỀN NAM',23,'#f59e0b'],['PHÚ QUỐC',14,'#0ea5e9'],['MIỀN TRUNG',11,'#10b981'],['NƯỚC NGOÀI',7,'#8b5cf6'],['AATN',3,'#64748b'],['AAC',1,'#cbd5e1']];
+let a=0;document.getElementById('pie').style.background=`conic-gradient(${P.map(p=>{const s=a;a+=p[1];return `${p[2]} ${s}% ${a}%`}).join(',')})`;
+a=0;document.getElementById('pie').innerHTML=P.map(p=>{const mid=(a+p[1]/2);a+=p[1];if(p[1]<7)return '';const ang=(mid/100)*2*Math.PI-Math.PI/2;return `<span style="position:absolute;left:${75+48*Math.cos(ang)-14}px;top:${75+48*Math.sin(ang)-8}px;font-size:11px;font-weight:700;color:#fff;width:28px;text-align:center">${p[1]}%</span>`}).join('');
+document.getElementById('pleg').innerHTML=P.map(p=>`<div class="hd" style="font-size:12px"><span style="width:9px;height:9px;border-radius:2px;background:${p[2]}"></span><span>${p[0]}</span><span class="sp"></span><b>${p[1]}%</b></div>`).join('');
+// ---- project table: bullet = % nhập kho vs % thời gian đã trôi tới BOT
+const R=[['TÂY HỒ VIEW-THÁP 4B-BAN CÔNG_CT24-067','Lê Minh Tuấn','1.757','125,02','93,76',25,96,'30/10/2026','còn 10 ngày','c-red',187,836,2],
+['TÂY HỒ VIEW-THÁP 4A-BAN CÔNG_CT24-066','Nguyễn Duy Linh','793','138,43','84,44',39,96,'30/10/2026','còn 10 ngày','c-red',99,312,0],
+['KHÁCH SẠN NAM PHƯƠNG PHÒNG ĐẠI TRÀ - HTNT_CT26-055','Đặng Ngọc Sáu','407','198,12','154,53',22,92,'30/10/2026','còn 10 ngày','c-red',52,140,0],
+['ST.REGIS_ĐẠI TRÀ-HOÀN THIỆN NỘI THẤT_CT26-061','Lê Viết Tài · Nguyễn Đức Nguyên','1.188','245,57','228,38',7,48,'25/01/2027','còn 97 ngày','',13,1022,0],
+['DỰ ÁN TRỤC ĐÔNG TÂY-14 BLOCK 2C_CT26-011','Đặng Ngọc Sáu','56','113,48','69,22',39,100,'15/10/2026','đã quá 5 ngày','c-red',4,8,0],
+['PUBLIC APEC S3_CT26-041','Nguyễn Quốc Đạt','347','148,99','148,99',0,90,'30/10/2026','còn 10 ngày','c-red',0,347,0],
+['MINI HOTEL FURNITURE GD 01_CT25-026','Nguyễn Hoài Vũ','19','91,52','8,24',91,80,'30/11/2026','còn 41 ngày','',0,0,0]];
+const bullet=(p,t)=>{const late=p+10<t;return `<div style="display:flex;align-items:center;gap:8px"><div style="position:relative;width:130px;height:10px;background:#eef0f3;border-radius:5px"><div style="position:absolute;left:0;top:0;bottom:0;width:${p}%;background:${late?'#e31e24':'#15803d'};border-radius:5px"></div><div style="position:absolute;left:calc(${Math.min(t,100)}% - 1px);top:-3px;width:2px;height:16px;background:#0f172a"></div></div><span class="${late?'c-red b':'c-sub'}" style="font-size:12px">${p}%</span></div>`;};
+document.getElementById('ct').insertAdjacentHTML('beforeend',R.map((r,i)=>`<tr><td class="c-sub">${i+1}</td><td style="min-width:300px"><div style="font-weight:500">${r[0]}</div><div class="sub">${r[1]}</div></td><td class="r num">${r[2]}</td><td class="r num">${r[3]}</td><td class="r num c-amb">${r[4]}</td><td>${bullet(r[5],r[6])}</td><td style="white-space:nowrap"><div class="${r[9]} ${r[9]?'b':''}">${r[7]}</div><div class="sub">${r[8]}</div></td><td class="r">${r[10]?`<span class="badge t-red">${r[10]}</span>`:'<span class="c-sub">—</span>'}</td><td class="r ${r[11]?'c-amb':'c-sub'}">${r[11]?r[11].toLocaleString('vi-VN'):'—'}</td><td class="r ${r[12]?'c-red bb':'c-sub'}">${r[12]||'—'}</td></tr>`).join('')+`<tr><td colspan="10" class="sub" style="padding:8px 12px">Cột “Nhập kho / thời gian”: thanh = % giá trị đã nhập kho · vạch đen = % thời gian đã trôi từ nhận PM tới BOT dự án. Thanh <b class="c-red">đỏ</b> khi nhập kho chậm hơn thời gian.</td></tr>`);
+</script>
+</body></html>
