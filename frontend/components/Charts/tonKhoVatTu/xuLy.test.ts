@@ -3,7 +3,7 @@ import type { DiemTonKhoVt, DongTonKhoVt, TongHopTonKhoVt } from '../../../servi
 import {
   bangChiTietExcel, bangTongHopExcel, chonMoc, chonNhanTruc, chuanHoaNhom, demTheoLoc, dinhDangChenh, dinhDangPt, dinhDangTienDong,
   dungChuoi, khoangTheoLuaChon, locDong, ngayThieuCham, phanLoaiDong, tenNhomGon, thuTuNhom, tongCacNhom, vachTrucY,
-  chiSoNhan, locTenTheoTim, tomTatNhom, trungBinhTong, xepDong, xuHuongTong,
+  chiSoNhan, locTenTheoTim, tomTatNhom, trungBinhTong, vachTheoSoKhoang, xepDong, xuHuongTong,
   KHOANG_TRANG_NHOM, XEP_MAC_DINH,
 } from './xuLy';
 
@@ -355,5 +355,17 @@ describe('bộ lọc tên từng biểu đồ', () => {
     expect(tuTinh.diem.map(d => d.thieuCham)).toEqual([false, false]);
     const [toanBang] = dungChuoi(loc, { moc: 'tuan', chiSo: 'giaTri', thieu: new Set(['2026-09-03']) });
     expect(toanBang.diem.map(d => d.thieuCham)).toEqual([true, false]);
+  });
+});
+
+describe('trục phụ doanh thu', () => {
+  it('cùng số khoảng với trục chính, bước đẹp, đỉnh ≥ max', () => {
+    expect(vachTheoSoKhoang(152.3, 4).vach).toEqual([0, 40, 80, 120, 160]);
+    expect(vachTheoSoKhoang(152.3, 6).vach).toEqual([0, 30, 60, 90, 120, 150, 180]);
+    expect(vachTheoSoKhoang(126.4, 3).vach).toEqual([0, 50, 100, 150]);
+    const nho = vachTheoSoKhoang(0.92, 5);
+    expect(nho.vach).toEqual([0, 0.2, 0.4, 0.6, 0.8, 1]);
+    expect(nho.soLe).toBe(1);
+    expect(vachTheoSoKhoang(0, 4).vach).toHaveLength(5);
   });
 });

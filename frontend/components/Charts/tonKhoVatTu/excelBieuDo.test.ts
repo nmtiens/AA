@@ -76,6 +76,35 @@ describe('biểu đồ Excel — số liệu', () => {
   });
 });
 
+describe('biểu đồ Excel — doanh thu tháng (trục phụ)', () => {
+  const dtThang: Record<string, number> = Object.fromEntries(NGAY.map((n, i) => [n.slice(0, 7), 80 + i * 10]));
+  const bdDt = dungBieuDoExcel({
+    chuoi, chiSo: 'giaTri', moc: 'thang', mau: { 'KVT Vải Da Mouss': '#d55181', 'KVT Kim Loại': '#c98500' },
+    doanhThu: dtThang, thangTamTinh: '2026-10',
+  });
+  it('cột F "Doanh thu (tỷ)" ở mọi khối, 6 cột', () => {
+    expect(bdDt.soLieu.every(h => h.length === 6)).toBe(true);
+    expect(bdDt.soLieu[1][5]).toBe('Doanh thu (tỷ)');
+    expect(bdDt.soLieu[2][5]).toBe(80);
+    expect(bdDt.soLieu[10][5]).toBe(160);
+    expect(bdDt.rongCot).toHaveLength(6);
+  });
+  it('lineChart thứ 2 trên trục phụ bên phải (cắt ở max), tham chiếu cột F, tháng đang chạy là điểm rỗng', () => {
+    const x = bdDt.bieuDo[0];
+    expect(xmlCan(x)).toBe(true);
+    expect(x.match(/<c:lineChart>/g)).toHaveLength(2);
+    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$F$3:$F$11</c:f>`);
+    expect(x).toMatch(/<c:valAx><c:axId val="5004"\/>.*<c:axPos val="r"\/>.*<c:crosses val="max"\/>/);
+    expect(x).toContain('<c:dPt><c:idx val="8"/>');
+    expect(x).toContain('Doanh thu tháng (tỷ, trục phải); T10/26 tạm tính');
+  });
+  it('xem theo tuần: không có doanh thu (5 cột, 1 lineChart)', () => {
+    const tuan = dungBieuDoExcel({ chuoi: dungChuoi(th, { moc: 'tuan', chiSo: 'giaTri' }), chiSo: 'giaTri', moc: 'tuan', mau: {}, doanhThu: dtThang });
+    expect(tuan.soLieu.every(h => h.length === 5)).toBe(true);
+    expect(tuan.bieuDo[0].match(/<c:lineChart>/g)).toHaveLength(1);
+  });
+});
+
 describe('biểu đồ Excel — chèn vào gói xlsx', () => {
   it('thêm drawing + 2 chart, quan hệ sheet, content types; sheet "Biểu đồ" có <drawing>', async () => {
     const wb = XLSX.utils.book_new();

@@ -111,6 +111,16 @@ describe('báo cáo tồn kho vật tư — PDF', () => {
     expect(bangBaoCaoExcel(chuoi, 'giaTri', 'thang', 'Tổng các dòng trên (theo bộ lọc tên)').slice(-1)[0][0]).toBe('Tổng các dòng trên (theo bộ lọc tên)');
   });
 
+  it('xem theo tháng có doanh thu: thêm dòng "Doanh thu (tỷ)" vào bảng từng kỳ, tháng đang chạy đánh *, kèm ghi chú', () => {
+    const doanhThu = Object.fromEntries(NGAY.map((n, i) => [n.slice(0, 7), 100 + i]));
+    const t = chu(dungBaoCaoPdf(dauVao({ doanhThu, thangTamTinh: '2026-10' })).content).join('\n');
+    expect(t).toContain('Doanh thu (tỷ)');
+    expect(t).toContain('108.00*');
+    expect(t).toContain('* tạm tính (tháng chưa hết)');
+    expect(t).toContain('Doanh thu tháng = giá trị nhập kho thành phẩm');
+    expect(chu(dungBaoCaoPdf(dauVao()).content).join('\n')).not.toContain('Doanh thu');
+  });
+
   it('render thật bằng pdfmake (font Roboto, chữ có dấu, trang ngang ≥ 2 trang)', async () => {
     interface PdfMakeServer {
       virtualfs: { writeFileSync(ten: string, du: Buffer): void };

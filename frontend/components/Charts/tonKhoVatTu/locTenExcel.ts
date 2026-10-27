@@ -103,7 +103,7 @@ const GACH_NHAY = /[-'\u2013]/g;
 const boGachNhay = (s: string) => s.replace(GACH_NHAY, '');
 const demGachNhay = (s: string) => (s.match(GACH_NHAY) ?? []).length;
 // Hoà: ' < - < – (đo trên Excel: A'B < A-B < A–B) — đổi sang ký tự khối U+2580.. (ICU xếp tăng dần)
-const doiGachNhay = (s: string) => s.replace(/'/g, '▀').replace(/-/g, '▁').replace(/–/g, '▂');
+const doiGachNhay = (s: string) => s.replace(/'/g, '\u2580').replace(/-/g, '\u2581').replace(/\u2013/g, '\u2582');
 export function soSanhExcel(a: string, b: string): number {
   const x = a.normalize('NFC'), y = b.normalize('NFC');
   const s = boSoChu.compare(doiKyHieu(boGachNhay(x)), doiKyHieu(boGachNhay(y)));

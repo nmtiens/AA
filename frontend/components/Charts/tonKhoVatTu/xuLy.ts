@@ -316,6 +316,21 @@ export const vachTrucY = (max: number, kieu: 'ty' | 'so', soVach = 4): { vach: n
   return { vach, soLe };
 };
 
+/**
+ * Vạch trục PHỤ (bên phải, vd doanh thu) cùng SỐ KHOẢNG với trục chính => đường lưới chung khớp cả 2 trục.
+ * Bước "đẹp" nhỏ nhất (1 / 1,2 / 1,5 / 2 / 2,5 / 3 / 4 / 5 / 6 / 8 × 10ⁿ) mà soKhoang × bước ≥ max; đơn vị như max.
+ */
+export const vachTheoSoKhoang = (max: number, soKhoang: number): { vach: number[]; soLe: number } => {
+  const n = Math.max(1, Math.round(soKhoang));
+  const tho = (Number.isFinite(max) && max > 0 ? max : 1) / n;
+  const bac = Math.pow(10, Math.floor(Math.log10(tho)));
+  let buoc = 10 * bac;
+  for (const x of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (x * bac >= tho - 1e-9) { buoc = x * bac; break; }
+  let soLe = 0;
+  while (soLe < 6 && Math.abs(Math.round(buoc * 10 ** soLe) - buoc * 10 ** soLe) > 1e-6) soLe++;
+  return { vach: Array.from({ length: n + 1 }, (_, i) => Math.round(i * buoc * 1e6) / 1e6), soLe };
+};
+
 // ---------------------------------------------------------------------------
 // Định dạng số (kiểu số của app: 1,234.56 — giống formatTy ở utils/money.ts)
 // ---------------------------------------------------------------------------

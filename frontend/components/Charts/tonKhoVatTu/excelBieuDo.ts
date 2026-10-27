@@ -7,7 +7,8 @@ import { chuXuHuong } from './baoCao';
 //   thêm biểu đồ đường gốc của Excel (DrawingML): sheet "Biểu đồ" có 6 biểu đồ, số lấy từ sheet "Số liệu biểu đồ"
 //   (các nhóm xếp DỌC, cùng 5 cột A–E; sửa số ở đó thì biểu đồ đổi theo). Giống biểu đồ trên trang: tổng tồn (màu nhóm, số ghi tại điểm), chậm luân
 //   chuyển > 3 tháng (xám, nét đứt, lần chốt thiếu cờ để trống và nối qua), trung bình (chấm, ô công thức AVERAGE),
-//   đường xu hướng = trendline tuyến tính của chính Excel (cam tăng / xanh giảm), trục Y từ 0.
+//   đường xu hướng = trendline tuyến tính của chính Excel (cam tăng / xanh giảm), trục Y từ 0. Xem theo tháng có thêm
+//   DOANH THU tháng (cột F, nhập kho thành phẩm cả công ty) vẽ ở trục phụ bên phải (điểm vuông, tháng đang chạy rỗng).
 // ============================================================================
 
 export const TEN_SHEET_BIEU_DO = 'Biểu đồ';
@@ -47,13 +48,17 @@ export interface DauVaoBieuDoExcel {
   /** Màu từng nhóm ('#rrggbb') */
   mau: Record<string, string>;
   loc?: Record<string, LocNhomExcel>;
+  /** Doanh thu tháng cả công ty (tỷ, khoá 'YYYY-MM') — chỉ dùng khi moc = 'thang' */
+  doanhThu?: Record<string, number>;
+  /** Tháng đang chạy ('YYYY-MM'): doanh thu tạm tính */
+  thangTamTinh?: string;
 }
 
 export interface BieuDoExcel {
   /** Sheet "Số liệu biểu đồ": mỗi nhóm 1 khối (tên, tiêu đề cột, từng kỳ, câu tóm tắt) xếp DỌC trong 5 cột A–E
-   *  (null = ô trống) */
+   *  (+ cột F doanh thu khi xem theo tháng; null = ô trống) */
   soLieu: Os[][];
-  /** Độ rộng 5 cột (ký tự) — đặt sẵn để câu tóm tắt tràn sang phải thay vì nong cột A */
+  /** Độ rộng các cột (ký tự) — đặt sẵn để câu tóm tắt tràn sang phải thay vì nong cột A */
   rongCot: number[];
   /** Ô công thức trung bình (=AVERAGE) của sheet số liệu, kèm giá trị đã tính sẵn */
   congThuc: Array<{ r: number; c: number; f: string; v: number }>;
@@ -61,8 +66,9 @@ export interface BieuDoExcel {
   bieuDo: string[];
 }
 
-/** Cột trong khối số liệu: A Kỳ, B Ngày chốt, C Tổng tồn, D Chậm LC, E Trung bình */
-const COT_KY = 0, COT_TONG = 2, COT_CHAM = 3, COT_TB = 4;
+/** Cột trong khối số liệu: A Kỳ, B Ngày chốt, C Tổng tồn, D Chậm LC, E Trung bình, F Doanh thu (khi có) */
+const COT_KY = 0, COT_TONG = 2, COT_CHAM = 3, COT_TB = 4, COT_DT = 5;
+const MAU_DT = '334155';
 const MAU_CHAM = '94A3B8';
 const MAU_TANG = 'B45309';
 const MAU_GIAM = '047857';
@@ -112,11 +118,15 @@ function day(i: number, d: DuLieuDay, refNhan: string, nhan: string[]): string {
 export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
   const giaTri = v.chiSo === 'giaTri';
   const dv = giaTri ? '(tỷ)' : '(mã)';
-  const doi = (x: number) => (giaTri ? Math.round(x) / 1000 : Math.round(x));
+  // Giữ tới nghìn đồng (6 số lẻ của tỷ): làm tròn sẵn tới triệu rồi Excel làm tròn lần nữa thì 44.1496 thành 44.2
+  const doi = (x: number) => (giaTri ? Math.round(x * 1000) / 1e6 : Math.round(x));
   const soLieu: Os[][] = [];
   const congThuc: BieuDoExcel['congThuc'] = [];
   const bieuDo: string[] = [];
-  const hang = (...o: Os[]) => { soLieu.push([...o, ...Array<Os>(5 - o.length).fill(null)]); };
+  const dtThang = v.moc === 'thang' && v.doanhThu && v.chuoi.some(c => c.diem.some(d => v.doanhThu?.[d.khoa] !== undefined))
+    ? v.doanhThu : undefined;
+  const soCot = dtThang ? 6 : 5;
+  const hang = (...o: Os[]) => { soLieu.push([...o, ...Array<Os>(soCot - o.length).fill(null)]); };
 
   v.chuoi.forEach((c, k) => {
     const ds = c.diem;
@@ -134,11 +144,12 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
     // ---- khối số liệu (xếp dọc): tên nhóm, tiêu đề cột, từng kỳ (dòng r1..r2), câu tóm tắt, 1 dòng trống ----
     if (k > 0) hang();
     hang(ten);
-    hang('Kỳ', 'Ngày chốt', `Tổng tồn ${dv}`, `Chậm luân chuyển > 3 tháng ${dv}`, `Trung bình ${dv}`);
+    hang('Kỳ', 'Ngày chốt', `Tổng tồn ${dv}`, `Chậm luân chuyển > 3 tháng ${dv}`, `Trung bình ${dv}`, ...(dtThang ? ['Doanh thu (tỷ)'] : []));
     const r1 = soLieu.length, r2 = r1 + n - 1;
     const cotTong = tenCot(COT_TONG);
+    const dt = ds.map(d => (dtThang && dtThang[d.khoa] !== undefined ? Math.round(dtThang[d.khoa] * 1000) / 1000 : null));
     ds.forEach((d, i) => {
-      hang(nhan[i], d.ngayChot.split('-').reverse().join('/'), tong[i], cham[i], tb);
+      hang(nhan[i], d.ngayChot.split('-').reverse().join('/'), tong[i], cham[i], tb, ...(dtThang ? [dt[i]] : []));
       if (tb !== null) congThuc.push({ r: r1 + i, c: COT_TB, f: `AVERAGE($${cotTong}$${r1 + 1}:$${cotTong}$${r2 + 1})`, v: tb });
     });
     if (cau) hang(cau);
@@ -175,6 +186,19 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       nhan: nhanDiem(chiSoNhan(tong), n, dinhDang, 't', chuTxPr(900, '0F172A', true)), trendline: trend,
     }, refNhan, nhan));
 
+    // Doanh thu tháng: lineChart thứ 2 trên trục phụ (trục X ẩn, trục Y bên phải cắt ở max)
+    const tamTinh = ds.findIndex((d, i) => d.khoa === v.thangTamTinh && dt[i] !== null);
+    const vuong = (nen: string) => `<c:marker><c:symbol val="square"/><c:size val="6"/><c:spPr><a:solidFill><a:srgbClr val="${nen}"/></a:solidFill>`
+      + `<a:ln w="12700"><a:solidFill><a:srgbClr val="${MAU_DT}"/></a:solidFill></a:ln></c:spPr></c:marker>`;
+    const coDT = dt.some(x => x !== null);
+    const dayDT = coDT
+      ? `<c:ser><c:idx val="${idx}"/><c:order val="${idx}"/><c:tx><c:v>${xmlChu(`Doanh thu tháng (tỷ, trục phải)${tamTinh >= 0 ? `; ${nhan[tamTinh]} tạm tính` : ''}`)}</c:v></c:tx>`
+        + `<c:spPr>${duong(MAU_DT, 19050)}</c:spPr>${vuong(MAU_DT)}`
+        // Tháng đang chạy: điểm rỗng + đoạn nối vào nó nét đứt (spPr của dPt là đoạn dẫn TỚI điểm đó)
+        + (tamTinh >= 0 ? `<c:dPt><c:idx val="${tamTinh}"/>${vuong('FFFFFF')}<c:bubble3D val="0"/><c:spPr>${duong(MAU_DT, 19050, 'dash')}</c:spPr></c:dPt>` : '')
+        + `<c:cat><c:strRef><c:f>${xmlChu(refNhan)}</c:f>${cacheChu(nhan)}</c:strRef></c:cat>`
+        + `<c:val><c:numRef><c:f>${xmlChu(thamChieu(COT_DT, r1, r2))}</c:f>${cacheSo(dt)}</c:numRef></c:val><c:smooth val="0"/></c:ser>`
+      : '';
     const tieuDe = `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/>`
       + `<a:p><a:pPr><a:defRPr sz="1200" b="1"/></a:pPr><a:r><a:rPr lang="vi-VN" sz="1200" b="1"><a:solidFill><a:srgbClr val="${mau}"/></a:solidFill></a:rPr><a:t>${xmlChu(ten)}</a:t></a:r></a:p>`
       + (cau ? `<a:p><a:pPr><a:defRPr sz="1000" b="0"/></a:pPr><a:r><a:rPr lang="vi-VN" sz="1000" b="0"><a:solidFill><a:srgbClr val="1E293B"/></a:solidFill></a:rPr><a:t>${xmlChu(cau)}</a:t></a:r></a:p>` : '')
@@ -187,12 +211,21 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       + `<c:majorGridlines><c:spPr>${duong('E2E8F0', 9525)}</c:spPr></c:majorGridlines>`
       // Trục tỷ để "General": nhóm nhỏ (Kim Loại < 1 tỷ, vạch 0.1) mà để "0" thì vạch nào cũng ghi 0 / 1
       + `<c:numFmt formatCode="${giaTri ? 'General' : '#,##0'}" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
-      + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${chuTxPr(900, '94A3B8')}<c:crossAx val="5${k}01"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
+      + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${chuTxPr(900, '94A3B8')}<c:crossAx val="5${k}01"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`
+      + (coDT
+        ? `<c:catAx><c:axId val="5${k}03"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="1"/><c:axPos val="b"/>`
+          + `<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="5${k}04"/><c:crosses val="autoZero"/>`
+          + `<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>`
+          + `<c:valAx><c:axId val="5${k}04"/><c:scaling><c:orientation val="minMax"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="r"/>`
+          + `<c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
+          + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${chuTxPr(900, MAU_DT)}<c:crossAx val="5${k}03"/><c:crosses val="max"/><c:crossBetween val="between"/></c:valAx>`
+        : '');
     bieuDo.push('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
       + '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
       + '<c:date1904 val="0"/><c:lang val="vi-VN"/><c:roundedCorners val="0"/>'
       + `<c:chart>${tieuDe}<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>`
       + `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${series.join('')}<c:marker val="1"/><c:axId val="5${k}01"/><c:axId val="5${k}02"/></c:lineChart>`
+      + (coDT ? `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${dayDT}<c:marker val="1"/><c:axId val="5${k}03"/><c:axId val="5${k}04"/></c:lineChart>` : '')
       + `${truc}<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`
       + `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${chuTxPr(900, '475569')}</c:legend>`
       + '<c:plotVisOnly val="1"/><c:dispBlanksAs val="span"/></c:chart>'
@@ -200,7 +233,7 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       + '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>'
       + '</c:chartSpace>');
   });
-  return { soLieu, congThuc, bieuDo, rongCot: [12, 12, 16, 32, 16] };
+  return { soLieu, congThuc, bieuDo, rongCot: [12, 12, 16, 32, 16, ...(dtThang ? [16] : [])] };
 }
 
 // ---------------------------------------------------------------------------

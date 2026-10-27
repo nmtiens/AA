@@ -193,6 +193,22 @@ export async function layChiTietTonKhoVt(
   return { ngay: ngayChuoi(j?.ngay) || ngay, ngayTruoc: ngayChuoi(j?.ngayTruoc) || null, coGia, dong };
 }
 
+/**
+ * Doanh thu theo tháng của 1 năm (TỶ đồng, khoá 'YYYY-MM'): giá trị nhập kho thành phẩm, không tính hạng mục HỦY —
+ * cùng số với bảng "Kế hoạch năm – Thực hiện" (GET /api/khsx-nam/plan-actual, cộng mọi xưởng).
+ */
+export async function layDoanhThuThang(nam: number, signal?: AbortSignal): Promise<Record<string, number>> {
+  const j = await layJson(`${API_BASE_URL}/khsx-nam/plan-actual?${new URLSearchParams({ year: String(nam) }).toString()}`, signal);
+  const kq: Record<string, number> = {};
+  for (const r of (Array.isArray(j?.actual) ? j.actual : []) as Array<Record<string, unknown>>) {
+    const t = Number(r?.thang);
+    if (!Number.isInteger(t) || t < 1 || t > 12) continue;
+    const k = `${nam}-${String(t).padStart(2, '0')}`;
+    kq[k] = (kq[k] ?? 0) + so(r.value);
+  }
+  return kq;
+}
+
 export interface TenVatTu {
   ten: string;
   /** Số mã vật tư mang tên này (mọi lần chốt) */
