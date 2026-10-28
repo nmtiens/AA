@@ -619,7 +619,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
   extra?: Record<string, HexExtra> | null;
   today?: number;
 }) => {
-  const [metric, setMetric] = useState<BopMetric>('remain');
+  const [metric, setMetric] = useState<BopMetric>('count');
   const [moNsp, setMoNsp] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState<BopSel>(null);
   const [dwellSel, setDwellSel] = useState<DwellSel>(null);
