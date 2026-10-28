@@ -78323,6 +78323,59 @@ app.get("/api/ton-kho-vt/chi-tiet", (req, res) => {
 });
 app.post("/api/ton-kho-vt/chi-tiet", (req, res) => xuLyChiTiet(req, res, req.body ?? {}));
 
+// src/routes/bopM2.ts
+var MA_CT = /^CT\d{2}-\d{3}$/i;
+app.get("/api/bop-m2", async (req, res) => {
+  const ct = String(req.query.ct ?? "").trim().toUpperCase();
+  if (!MA_CT.test(ct)) return res.status(400).json({ error: "Thi\u1EBFu / sai m\xE3 c\xF4ng tr\xECnh (d\u1EA1ng CT26-105)" });
+  try {
+    const [f, h, v] = await Promise.all([
+      timedQuery(`SELECT ten_file, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
+                    FROM bop_m2_file WHERE ma_ct = $1 AND loi IS NULL ORDER BY nap_luc DESC LIMIT 1`, [ct]),
+      timedQuery(`SELECT hex, ma_nha_may, ten_hang_muc, nhom_sp, xuong, ipo, bop, m2, final
+                    FROM bop_m2_hex WHERE ma_ct = $1 ORDER BY nhom_sp, hex`, [ct]),
+      timedQuery(`SELECT nhom_vat_tu, code, mo_ta, tt_mau, ngay_duyet, nhu_cau, ghi_chu, tt_pr, ngay_pr, ngay_du_kien, ngay_ve, bop_m2
+                    FROM bop_m2_vat_lieu WHERE ma_ct = $1 ORDER BY stt`, [ct])
+    ]);
+    const s = (x) => x === null || x === void 0 ? "" : String(x);
+    res.json({
+      coBang: true,
+      maCt: ct,
+      nguon: s(f.rows[0]?.ten_file),
+      docLuc: s(f.rows[0]?.nap_luc),
+      hex: h.rows.map((r) => ({
+        hex: s(r.hex),
+        maNm: s(r.ma_nha_may),
+        hangMuc: s(r.ten_hang_muc),
+        nhomSp: s(r.nhom_sp),
+        xuong: s(r.xuong),
+        ipo: s(r.ipo),
+        bop: s(r.bop),
+        m2: r.m2 ?? {},
+        final: s(r.final)
+      })),
+      vatLieu: v.rows.map((r) => ({
+        nhom: s(r.nhom_vat_tu),
+        code: s(r.code),
+        moTa: s(r.mo_ta),
+        ttMau: s(r.tt_mau),
+        ngayDuyet: s(r.ngay_duyet),
+        nhuCau: s(r.nhu_cau),
+        ghiChu: s(r.ghi_chu),
+        ttPr: s(r.tt_pr),
+        ngayPr: s(r.ngay_pr),
+        ngayDuKien: s(r.ngay_du_kien),
+        ngayVe: s(r.ngay_ve),
+        m: s(r.bop_m2)
+      }))
+    });
+  } catch (e) {
+    if (e?.code === "42P01") return res.json({ coBang: false, maCt: ct, hex: [], vatLieu: [] });
+    console.error("[bop-m2]", e);
+    res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c d\u1EEF li\u1EC7u BOP-M2" });
+  }
+});
+
 // src/routes/revenue.ts
 var revenueCache = createCache(20);
 var REVENUE_VERSION_KEYS = ["yearlyPlan", "inventory", "production"];
@@ -89033,7 +89086,7 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
 var so4 = (col) => numericExprQualified(`t."${col}"`);
 var XUONG = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
 var CT = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
-var MA_CT = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
+var MA_CT2 = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
 var KT = `(CASE WHEN t.ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(t.ngay_khnk_tuan, 10)::date END)`;
 var TUAN_DAT = `(t.hex::text = ANY(__KH_TUAN_DAT__))`;
 var THANG_DAT = `(t.hex::text = ANY(__KH_THANG_DAT__))`;
@@ -89086,7 +89139,7 @@ var DANH_MUC = [
       { id: "date", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "ng\xE0y"], kieu: "ngay" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "ten_chi_tiet", ten: "Chi ti\u1EBFt", dn: ["t\xEAn chi ti\u1EBFt"], kieu: "chu" },
@@ -89112,7 +89165,7 @@ var DANH_MUC = [
       { id: "date", ten: "Ng\xE0y xu\u1EA5t kho", dn: ["ng\xE0y xu\u1EA5t", "ng\xE0y"], kieu: "ngay" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "so_phieu", ten: "S\u1ED1 phi\u1EBFu", dn: ["phi\u1EBFu xu\u1EA5t"], kieu: "ma" },
@@ -89138,7 +89191,7 @@ var DANH_MUC = [
     cot: [
       { id: "date", ten: "Ng\xE0y ch\u1ED1t t\u1ED3n", dn: ["ng\xE0y ch\u1ED1t", "ng\xE0y"], kieu: "ngay" },
       CT,
-      MA_CT,
+      MA_CT2,
       HEX,
       { id: "ten_san_pham", ten: "S\u1EA3n ph\u1EA9m", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn s\u1EA3n ph\u1EA9m"], kieu: "chu" },
       { id: "ma_id_sap", ten: "M\xE3 SAP", dn: ["m\xE3 id sap", "sap", "id sap"], kieu: "ma", sql: "t.ma_id_sap::text" },
@@ -89169,7 +89222,7 @@ var DANH_MUC = [
       { id: "ngay_can", ten: "Ng\xE0y c\u1EA7n", kieu: "ngay" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
@@ -89198,7 +89251,7 @@ var DANH_MUC = [
       { id: "ngay_nhan", ten: "Ng\xE0y tri\u1EC3n khai", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "nguoi_trien_khai", ten: "Ng\u01B0\u1EDDi tri\u1EC3n khai", tuDien: true, dn: ["ng\u01B0\u1EDDi v\u1EBD", "k\u1EF9 thu\u1EADt"], kieu: "chu" },
@@ -89225,7 +89278,7 @@ var DANH_MUC = [
       { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", dn: ["tr\u1EA1ng th\xE1i phi\u1EBFu", "t\xECnh tr\u1EA1ng"], kieu: "chu", tuDien: true },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "so_luong_tinh", ten: "S\u1ED1 l\u01B0\u1EE3ng t\xEDnh", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
@@ -89250,7 +89303,7 @@ var DANH_MUC = [
       { id: "tinh_trang_du_an", ten: "T\xECnh tr\u1EA1ng d\u1EF1 \xE1n", tuDien: true, kieu: "chu" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
@@ -89345,7 +89398,7 @@ var DANH_MUC = [
       { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::int::text" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
@@ -89389,7 +89442,7 @@ var DANH_MUC = [
       { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::text" },
       XUONG,
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       HEX,
       { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
@@ -89459,7 +89512,7 @@ var DANH_MUC = [
       // "tổ 4A có bao nhiêu vướng mắc": tổ = xưởng. Chỉ thêm ở bảng này — ở bảng sản xuất "tổ đá / tổ sơn" là tổ nhỏ trong xưởng
       { ...XUONG, id: "xuong", dn: [...XUONG.dn ?? [], "t\u1ED5"], sql: "t.xuong" },
       CT,
-      MA_CT,
+      MA_CT2,
       HM,
       { ...HEX, sql: "t.hex" },
       { id: "handler", ten: "Ng\u01B0\u1EDDi x\u1EED l\xFD", tuDien: true, dn: ["ng\u01B0\u1EDDi ph\u1EE5 tr\xE1ch"], kieu: "chu" },

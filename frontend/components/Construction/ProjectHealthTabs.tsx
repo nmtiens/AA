@@ -77,6 +77,9 @@ export interface MaterialLine extends MaterialLineFields {
 const fmtTy = (trieu: number) => formatTrieuAsTy(trieu);
 
 const th = 'px-3 py-2 font-medium';
+// Bảng pivot BOT / BOP: kẻ ô, tiêu đề xanh, dòng TỔNG vàng chữ đỏ — đồng bộ với 2 bảng BOP-M2 của tab BOM
+const thX = 'border border-slate-300 px-3 py-2 font-bold';
+const tdX = 'border border-slate-300 px-3 py-2';
 const td = 'px-3 py-2';
 
 const Chip = ({ active, onClick, children, tone = 'slate' }: {
@@ -289,8 +292,8 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
   const pickCell = (a: OBot) => setCellSel(sameSel(a) ? null : a);
   const planCell = (v: number | undefined, a: OBot, cls = '') => (
     <td onClick={v ? () => pickCell(a) : undefined}
-      className={`${td} whitespace-nowrap text-right tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : 'text-slate-300'} ${sameSel(a) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
-      {v ? fmtB(v) : '-'}
+      className={`${tdX} whitespace-nowrap text-right tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : 'text-slate-300'} ${sameSel(a) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
+      {v ? fmtB(v) : ''}
     </td>
   );
 
@@ -387,17 +390,17 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
             <Chip active={botMetric === 'remain'} onClick={() => setBotMetric('remain')}>Còn lại (tỷ)</Chip>
           </div>
         </div>
-        <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
+        <div className="max-h-[60vh] overflow-auto custom-scrollbar">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-emerald-300 text-slate-900">
               <tr>
-                <th className={`${th} sticky left-0 z-20 bg-slate-50 text-left`} rowSpan={2}>
+                <th className={`${thX} sticky left-0 z-20 w-px whitespace-nowrap bg-emerald-300 text-left`} rowSpan={2}>
                   Nhóm sản phẩm / xưởng
                   <NutMoTatCa onMo={() => setMoNspBot(new Set(plan.rows.map(x => x.nsp)))} onThu={() => setMoNspBot(new Set())} />
                 </th>
                 {plan.months.map(m => (m.key === CU ? (
                   // Cột gộp tháng cũ: 1 ô cao 2 dòng, gọn
-                  <th key={m.key} rowSpan={2} className={`${th} w-px whitespace-nowrap border-l border-slate-200 text-right align-bottom`}>
+                  <th key={m.key} rowSpan={2} className={`${thX} w-px whitespace-nowrap border-l border-slate-200 text-right align-bottom`}>
                     <button type="button" onClick={() => { setMoThangCu(true); setCellSel(null); }}
                       title={`Mở ra từng ngày của ${plan.soThangCu} tháng trước ${monthLabel(thangNay)}`}
                       className="block w-full rounded px-1 text-[0.625rem] font-normal text-slate-400 hover:bg-amber-50 hover:text-slate-700">▸ {plan.soThangCu} tháng</button>
@@ -407,7 +410,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
                     </button>
                   </th>
                 ) : (
-                  <th key={m.key} colSpan={m.days.length} className={`${th} border-l border-slate-200 text-center`}>
+                  <th key={m.key} colSpan={m.days.length} className={`${thX} border-l border-slate-200 text-center`}>
                     {m.key === '~' ? '' : (
                       <button type="button" onClick={() => { setMonth(month === m.key ? null : m.key); setGroup('all'); }} title="Lọc danh sách theo tháng này"
                         className={`rounded px-1 font-semibold hover:bg-amber-50 hover:text-slate-900 ${month === m.key ? 'bg-amber-100 text-slate-900' : 'text-slate-700'}`}>
@@ -420,11 +423,11 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
                     )}
                   </th>
                 )))}
-                <th className={`${th} border-l border-slate-200 bg-slate-100 text-right`} rowSpan={2}>Tổng cộng</th>
+                <th className={`${thX} text-center`} rowSpan={2}>TỔNG</th>
               </tr>
               <tr>
                 {plan.months.filter(m => m.key !== CU).map(m => m.days.map((d, di) => (
-                  <th key={d} className={`${th} whitespace-nowrap text-right ${di === 0 ? 'border-l border-slate-200' : ''}`}>
+                  <th key={d} className={`${thX} whitespace-nowrap text-right ${di === 0 ? 'border-l border-slate-200' : ''}`}>
                     <button type="button" onClick={() => pickCell({ day: d })} title={d === '~' ? 'Hạng mục chưa có Ngày cần (PM)' : `Lọc danh sách: ngày cần ${dayLabel(d)}${plan.colOver[d] ? ' · đã qua' : ''}`}
                       className={`rounded px-1 font-semibold hover:bg-amber-50 ${sameSel({ day: d }) ? 'bg-amber-100 text-slate-900' : plan.colOver[d] ? 'text-red-600' : 'text-slate-700'}`}>
                       {dayLabel(d)}
@@ -433,11 +436,11 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
                 )))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {plan.rows.map(row => (
                 <React.Fragment key={row.nsp}>
                 <tr className="hover:bg-slate-50/60">
-                  <td className={`${td} sticky left-0 whitespace-nowrap bg-white`}>
+                  <td className={`${tdX} sticky left-0 whitespace-nowrap bg-white`}>
                     <button type="button" onClick={() => setMoNspBot(prev => { const n = new Set(prev); if (n.has(row.nsp)) n.delete(row.nsp); else n.add(row.nsp); return n; })}
                       title="Xem theo xưởng" className="inline-block w-4 text-slate-400 hover:text-slate-900">{moNspBot.has(row.nsp) ? '▾' : '▸'}</button>
                     <button type="button" onClick={() => pickCell({ nsp: row.nsp })} title={`Lọc danh sách: ${row.nsp} (${fmtInt(row.n)} hạng mục)`}
@@ -448,18 +451,18 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
                   {plan.months.map(m => m.days.map((d, di) => (
                     <React.Fragment key={d}>{planCell(row.cells[d], { day: d, nsp: row.nsp }, di === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
                   )))}
-                  {planCell(row.total, { nsp: row.nsp }, 'border-l border-slate-200 bg-slate-100 font-semibold text-slate-900')}
+                  {planCell(row.total, { nsp: row.nsp }, 'font-bold text-slate-900')}
                 </tr>
                 {moNspBot.has(row.nsp) && row.xs.map(([x, xr]) => (
                   <tr key={x} className="bg-slate-50/40 text-slate-600">
-                    <td className={`${td} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
+                    <td className={`${tdX} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
                       <button type="button" onClick={() => pickCell({ nsp: row.nsp, xuong: x })} title={`Lọc danh sách: ${row.nsp} · ${x}`}
                         className={`rounded px-1 hover:bg-amber-50 hover:underline ${sameSel({ nsp: row.nsp, xuong: x }) ? 'bg-amber-100 font-semibold text-slate-900' : ''}`}>{x}</button>
                     </td>
                     {plan.months.map(m => m.days.map((d, di) => (
                       <React.Fragment key={d}>{planCell(xr.cells[d], { day: d, nsp: row.nsp, xuong: x }, di === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
                     )))}
-                    {planCell(xr.total, { nsp: row.nsp, xuong: x }, 'border-l border-slate-200 bg-slate-100')}
+                    {planCell(xr.total, { nsp: row.nsp, xuong: x }, 'font-semibold')}
                   </tr>
                 ))}
                 </React.Fragment>
@@ -469,13 +472,13 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
               )}
             </tbody>
             {plan.rows.length > 0 && (
-              <tfoot className="sticky bottom-0 bg-slate-100 font-semibold text-slate-800">
+              <tfoot className="sticky bottom-0 bg-yellow-300 font-bold text-red-600">
                 <tr>
-                  <td className={`${td} sticky left-0 bg-slate-100`}>Tổng cộng</td>
+                  <td className={`${tdX} sticky left-0 bg-yellow-300 text-center`}>TỔNG</td>
                   {plan.months.map(m => m.days.map((d, di) => (
-                    <td key={d} className={`${td} whitespace-nowrap text-right tabular-nums ${di === 0 ? 'border-l border-slate-200' : ''}`}>{fmtB(plan.colTot[d] ?? 0)}</td>
+                    <td key={d} className={`${tdX} whitespace-nowrap text-right tabular-nums ${di === 0 ? 'border-l border-slate-200' : ''}`}>{fmtB(plan.colTot[d] ?? 0)}</td>
                   )))}
-                  <td className={`${td} border-l border-slate-200 text-right tabular-nums`}>{fmtB(plan.grand)}</td>
+                  <td className={`${tdX} border-l border-slate-200 text-right tabular-nums`}>{fmtB(plan.grand)}</td>
                 </tr>
               </tfoot>
             )}
@@ -483,6 +486,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
         </div>
       </div>
 
+      {(pmSel || group !== 'all' || month !== null || cellSel || ref !== null || age !== null) ? (
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <p className="text-xs font-semibold text-slate-700">Hạng mục chưa nhập kho đủ</p>
@@ -495,6 +499,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
           {cellSel && <Chip active onClick={() => setCellSel(null)}>{[cellSel.nsp, cellSel.xuong, cellSel.day && (cellSel.day === CU ? `Trước ${monthLabel(thangNay)}` : dayLabel(cellSel.day))].filter(Boolean).join(' · ')} ✕</Chip>}
           {ref !== null && <Chip active tone="red" onClick={() => setRef(null)}>{REF_DEADLINES.find(r => r.key === ref)?.label} ✕</Chip>}
           {age !== null && <Chip active onClick={() => setAge(null)}>Tuổi {AGE_BUCKETS.find(b => b.key === age)?.label} ✕</Chip>}
+          <button type="button" onClick={() => { setPmSel(null); setGroup('all'); setMonth(null); setCellSel(null); setRef(null); setAge(null); }} className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-100">Đóng ✕</button>
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục, công đoạn..." /></div>
         </div>
         <HexTable
@@ -527,6 +532,7 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
           }}
         />
       </div>
+      ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng (hoặc thẻ / tên nhóm / ngày) để xem danh sách hạng mục.</p>}
     </div>
   );
 };
@@ -698,7 +704,8 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
   // đã nhập đủ SL mà lệch tiền) — để tổng tiền khớp thẻ BOP
   const pivotItems = useMemo(() => (metric === 'count' ? open : items.filter(i => i.open || i.remain > 0)), [items, open, metric]);
   const val = (i: HexInfo) => (metric === 'count' ? 1 : metric === 'remain' ? i.remain : i.total);
-  const fmtV = (v: number) => (metric === 'count' ? fmtInt(v) : v ? fmtTy(v) : '-');
+  // Dưới 5 triệu làm tròn ra "0.00" tỷ dễ hiểu nhầm là 0 => ghi "<0.01"
+  const fmtV = (v: number) => (metric === 'count' ? fmtInt(v) : !v ? '-' : Math.abs(v) < 5 ? '<0.01' : fmtTy(v));
   const nspOf = (i: HexInfo) => i.nhomSp || NO_NSP;
   const stageOf = (i: HexInfo) => i.stage ?? '(Không rõ)';
 
@@ -776,8 +783,8 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
     const next = { ...base, kho: f };
     return (
       <td key={f} onClick={k?.[f] ? () => pick(next) : undefined}
-        className={`${td} whitespace-nowrap text-right tabular-nums ${idx === 0 ? 'border-l-2 border-slate-300' : ''} ${k?.[f] ? `cursor-pointer hover:bg-amber-50 ${f === 'ton' ? 'font-semibold text-slate-900' : f === 'chenh' ? 'text-orange-600' : ''}` : 'text-slate-300'} ${isSel(next) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
-        {k?.[f] ? fmtV(k[f]) : '-'}
+        className={`${tdX} whitespace-nowrap text-right tabular-nums ${idx === 0 ? 'border-l-2 border-slate-300' : ''} ${k?.[f] ? `cursor-pointer hover:bg-amber-50 ${f === 'ton' ? 'font-semibold text-slate-900' : f === 'chenh' ? (metric === 'count' || (k?.chenh ?? 0) >= 5 ? 'text-orange-600' : 'text-slate-400') : ''}` : 'text-slate-300'} ${isSel(next) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}>
+        {k?.[f] ? fmtV(k[f]) : ''}
       </td>
     );
   });
@@ -863,9 +870,9 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
   const cell = (v: number | undefined, next: NonNullable<BopSel>, cls = '') => (
     <td
       onClick={v ? () => pick(next) : undefined}
-      className={`${td} text-right tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : 'text-slate-300'} ${isSel(next) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}
+      className={`${tdX} text-right tabular-nums ${v ? 'cursor-pointer hover:bg-amber-50' : 'text-slate-300'} ${isSel(next) ? 'bg-amber-100 font-semibold' : ''} ${cls}`}
     >
-      {v ? fmtV(v) : '-'}
+      {v ? fmtV(v) : ''}
     </td>
   );
 
@@ -893,28 +900,28 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
             Đang xem <b>trị giá đầy đủ</b> của hạng mục (kể cả phần đã nhập kho) — vd P021 phần lớn đã nhập. Chọn <b>Còn lại (tỷ)</b> để khớp số trên thẻ BOP.
           </p>
         )}
-        <div className="max-h-[50vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-500">
+        <div className="max-h-[60vh] overflow-auto custom-scrollbar">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-emerald-300 text-slate-900">
               <tr>
-                <th className={`${th} sticky left-0 z-20 bg-slate-50 text-left`} rowSpan={2}>
+                <th className={`${thX} sticky left-0 z-20 w-px whitespace-nowrap bg-emerald-300 text-left`} rowSpan={2}>
                   Nhóm sản phẩm / xưởng
                   <NutMoTatCa onMo={() => setMoNsp(new Set(pivot.rows.map(x => x.nsp)))} onThu={() => setMoNsp(new Set())} />
                 </th>
                 {pivot.groups.map((g, gi) => (
-                  <th key={gi} colSpan={g.stages.length} className={`${th} border-l border-slate-200 text-center text-[0.6875rem] font-semibold uppercase tracking-wide`}>
+                  <th key={gi} colSpan={g.stages.length} className={`${thX} border-l border-slate-200 text-center text-[0.6875rem] font-semibold uppercase tracking-wide`}>
                     {g.bucket ? (<><span className={`mr-1.5 inline-block h-2 w-2 rounded-sm ${BOP_GROUP[g.bucket].dot}`} />{BOP_GROUP[g.bucket].label}</>) : 'Khác'}
                   </th>
                 ))}
-                <th rowSpan={2} className={`${th} whitespace-nowrap border-l border-slate-200 bg-slate-100 text-right font-semibold text-slate-700`} title="Cộng giá trị còn sản xuất (chưa nhập kho)">Cộng</th>
-                <th colSpan={4} className={`${th} border-l-2 border-slate-300 bg-emerald-50/60 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-emerald-800`}
+                <th rowSpan={2} className={`${thX} whitespace-nowrap text-center`} title="Cộng giá trị còn sản xuất (chưa nhập kho)">TỔNG</th>
+                <th colSpan={4} className={`${thX} border-l-2 border-slate-300 bg-emerald-50/60 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-emerald-800`}
                   title="Lũy kế mọi hạng mục không hủy của công trình, mọi Tình trạng IPO (kể cả hoàn thành), không theo bộ lọc trang">
                   Kho (lũy kế)
                 </th>
               </tr>
               <tr>
                 {pivot.groups.map(g => g.stages.map((st, si) => (
-                  <th key={st} className={`${th} whitespace-nowrap text-right ${si === 0 ? 'border-l border-slate-200' : ''}`}>
+                  <th key={st} className={`${thX} whitespace-nowrap text-right ${si === 0 ? 'border-l border-slate-200' : ''}`}>
                     <button type="button" onClick={() => pick({ stage: st })}
                       title={`${g.bucket ? BOP_GROUP[g.bucket].label : 'Khác'} · lọc danh sách: mọi hạng mục ở ${st} (${fmtInt(pivot.colN[st] ?? 0)} hạng mục)`}
                       className={`rounded px-1 font-semibold hover:bg-amber-50 hover:text-slate-900 ${isSel({ stage: st }) ? 'bg-amber-100 text-slate-900' : 'text-slate-700'}`}>
@@ -922,18 +929,18 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
                     </button>
                   </th>
                 )))}
-                <th className={`${th} whitespace-nowrap border-l-2 border-slate-300 bg-emerald-50/60 text-right font-semibold text-slate-700`} title="Thành tiền nhập kho lũy kế">P022 · Đã nhập</th>
-                <th className={`${th} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`} title={metric === 'count' ? 'Số hạng mục hết hàng và đã xuất đủ (Đã nhập = Đã xuất + Tồn kho + Chênh)' : 'Thành tiền xuất kho lũy kế (chặn ≤ đã nhập từng hạng mục)'}>P025 · Đã xuất</th>
-                <th className={`${th} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`} title={metric === 'count' ? 'Số hạng mục còn hàng trong kho' : 'Tồn kho hiện tại (cột dữ liệu), chặn ≤ đã nhập − đã xuất'}>Tồn kho</th>
-                <th className={`${th} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`}
+                <th className={`${thX} whitespace-nowrap border-l-2 border-slate-300 bg-emerald-50/60 text-right font-semibold text-slate-700`} title="Thành tiền nhập kho lũy kế">P022 · Đã nhập</th>
+                <th className={`${thX} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`} title={metric === 'count' ? 'Số hạng mục hết hàng và đã xuất đủ (Đã nhập = Đã xuất + Tồn kho + Chênh)' : 'Thành tiền xuất kho lũy kế (chặn ≤ đã nhập từng hạng mục)'}>P025 · Đã xuất</th>
+                <th className={`${thX} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`} title={metric === 'count' ? 'Số hạng mục còn hàng trong kho' : 'Tồn kho hiện tại (cột dữ liệu), chặn ≤ đã nhập − đã xuất'}>Tồn kho</th>
+                <th className={`${thX} whitespace-nowrap bg-emerald-50/60 text-right font-semibold text-slate-700`}
                   title={metric === 'count' ? 'Số hạng mục đã hết hàng trong kho mà chưa ghi xuất đủ' : 'Đã nhập − đã xuất − tồn kho: hàng đã nhập nhưng không thấy xuất cũng không còn trong kho (giao thẳng / chưa ghi phiếu xuất)'}>Chênh</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {pivot.rows.map(r => (
                 <React.Fragment key={r.nsp}>
                 <tr className="hover:bg-slate-50/60">
-                  <td className={`${td} sticky left-0 whitespace-nowrap bg-white`}>
+                  <td className={`${tdX} sticky left-0 whitespace-nowrap bg-white`}>
                     <button type="button" onClick={() => setMoNsp(prev => { const n = new Set(prev); if (n.has(r.nsp)) n.delete(r.nsp); else n.add(r.nsp); return n; })}
                       title="Xem theo xưởng" className="inline-block w-4 text-slate-400 hover:text-slate-900">{moNsp.has(r.nsp) ? '▾' : '▸'}</button>
                     <button type="button" onClick={() => pick({ nsp: r.nsp })} title={`Lọc danh sách: ${r.nsp} (${fmtInt(r.n)} hạng mục)`}
@@ -944,19 +951,19 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
                   {pivot.groups.map(g => g.stages.map((st, si) => (
                     <React.Fragment key={st}>{cell(r.cells[st], { stage: st, nsp: r.nsp }, si === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
                   )))}
-                  {cell(r.total, { nsp: r.nsp }, 'border-l border-slate-200 bg-slate-100 font-semibold text-slate-900')}
+                  {cell(r.total, { nsp: r.nsp }, 'font-bold text-slate-900')}
                   {khoCells(pivot.kho.get(r.nsp), { nsp: r.nsp })}
                 </tr>
                 {moNsp.has(r.nsp) && r.xs.map(([x, xr]) => (
                   <tr key={x} className="bg-slate-50/40 text-slate-600">
-                    <td className={`${td} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
+                    <td className={`${tdX} sticky left-0 whitespace-nowrap bg-slate-50 pl-9`}>
                       <button type="button" onClick={() => pick({ nsp: r.nsp, xuong: x })} title={`Lọc danh sách: ${r.nsp} · ${x}`}
                         className={`rounded px-1 hover:bg-amber-50 hover:underline ${isSel({ nsp: r.nsp, xuong: x }) ? 'bg-amber-100 font-semibold text-slate-900' : ''}`}>{x}</button>
                     </td>
                     {pivot.groups.map(g => g.stages.map((st, si) => (
                       <React.Fragment key={st}>{cell(xr.cells[st], { stage: st, nsp: r.nsp, xuong: x }, si === 0 ? 'border-l border-slate-100' : '')}</React.Fragment>
                     )))}
-                    {cell(xr.total, { nsp: r.nsp, xuong: x }, 'border-l border-slate-200 bg-slate-100')}
+                    {cell(xr.total, { nsp: r.nsp, xuong: x }, 'font-semibold')}
                     {khoCells(pivot.kho.get(`${r.nsp}\u0000${x}`), { nsp: r.nsp, xuong: x })}
                   </tr>
                 ))}
@@ -967,13 +974,13 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
               )}
             </tbody>
             {pivot.rows.length > 0 && (
-              <tfoot className="sticky bottom-0 bg-slate-100 font-semibold text-slate-800">
+              <tfoot className="sticky bottom-0 bg-yellow-300 font-bold text-red-600">
                 <tr>
-                  <td className={`${td} sticky left-0 bg-slate-100`}>Tổng cộng</td>
+                  <td className={`${tdX} sticky left-0 bg-yellow-300 text-center`}>TỔNG</td>
                   {pivot.groups.map(g => g.stages.map((st, si) => (
-                    <td key={st} className={`${td} text-right tabular-nums ${si === 0 ? 'border-l border-slate-200' : ''}`}>{fmtV(pivot.colTot[st] ?? 0)}</td>
+                    <td key={st} className={`${tdX} text-right tabular-nums ${si === 0 ? 'border-l border-slate-200' : ''}`}>{fmtV(pivot.colTot[st] ?? 0)}</td>
                   )))}
-                  <td className={`${td} border-l border-slate-200 text-right tabular-nums`}>{fmtV(pivot.grand)}</td>
+                  <td className={`${tdX} border-l border-slate-200 text-right tabular-nums`}>{fmtV(pivot.grand)}</td>
                   {khoCells(pivot.khoTot, {})}
                 </tr>
               </tfoot>
@@ -1194,16 +1201,18 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
       </div>
 
       {/* 4. Danh sách hạng mục */}
+      {hasFilter ? (
       <div>
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
-          <p className="text-xs font-semibold text-slate-700">{hasFilter ? 'Hạng mục đang lọc' : 'Tất cả hạng mục chưa nhập kho đủ'}</p>
-          {hasFilter && <Chip active onClick={() => { setSel(null); setDwellSel(null); setExtraSel(null); }}>{selText} ✕</Chip>}
+          <p className="text-xs font-semibold text-slate-700">Hạng mục đang lọc</p>
+          <Chip active onClick={() => { setSel(null); setDwellSel(null); setExtraSel(null); }}>{selText} ✕</Chip>
           <span className="text-[0.6875rem] text-slate-500">{fmtInt(list.length)} hạng mục</span>
           <SortPicker
             value={sortBy}
             onChange={setSortBy}
             options={[['deadline', 'Hạn gần nhất'], ['stage', 'Công đoạn'], ['remain', 'Giá trị còn lại']]}
           />
+          <button type="button" onClick={() => { setSel(null); setDwellSel(null); setExtraSel(null); }} className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-100">Đóng ✕</button>
           <div className="ml-auto"><SearchBox value={q} onChange={setQ} placeholder="Tìm hex, hạng mục..." /></div>
         </div>
         {/* Bảng BOP: gộp 3 cột KH tuần / KH tháng / Cần giao thành 1 cột "Hạn" (bảng 15 cột rộng 1.760px,
@@ -1279,6 +1288,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
           }}
         />
       </div>
+      ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng (hoặc thẻ / tên nhóm / ngày) để xem danh sách hạng mục.</p>}
     </div>
   );
 };

@@ -10,7 +10,8 @@ import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTa
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import type { NvlRaw } from '../../utils/nvlParse';
-import { BotTab, BopTab, BomTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
+import { BopM2Section, taiTruocBopM2 } from './BopM2Section';
+import { BotTab, BopTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
 import { formatTrieuAsTy } from '../../utils/money';
@@ -167,6 +168,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
   }, [timelineHex, rows, keys.hexKey, projectName]);
   const openMaterial = (mode: MaterialViewMode, hex: string | null = null) => { setMaterialHex(hex); setMaterialMode(mode); };
   useEffect(() => { if (isOpen) { setTab('overview'); setMaterialMode(null); setMaterialHex(null); setTimelineHex(null); } }, [isOpen, projectName]);
+  // Tải sẵn BOP-M2 (tab BOM) ngay khi mở công trình
+  useEffect(() => { if (isOpen && projectName) void taiTruocBopM2(projectName); }, [isOpen, projectName]);
 
   // ---------- Chuẩn hoá từng hạng mục ----------
   const dungHangMuc = (src: DataRow[]): HexInfo[] => {
@@ -627,20 +630,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
       <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
         {tab === 'bot' && <BotTab items={items} today={today} openIssues={openIssues} onHexClick={setTimelineHex} />}
         {tab === 'bop' && <BopTab items={items} khoItems={khoItems} onHexClick={setTimelineHex} extra={extra} today={today} />}
-        {tab === 'bom' && (
-          <BomTab
-            items={items}
-            matCount={matCount}
-            materialLines={materialLines}
-            projectLines={projectLines}
-            nvlByHex={nvlByHex}
-            projectTag={projectName.replace(/[^\p{L}\p{N}]+/gu, '_').slice(0, 40)}
-            onOpenMaterial={mode => openMaterial(mode)}
-            onOpenHex={hex => openMaterial('matched', hex)}
-            today={today}
-            materialIssues={materialIssues}
-          />
-        )}
+        {/* Tab BOM = đúng 2 bảng BOP-M2 của file Excel PC (I. theo danh mục vật liệu · II. theo đơn hàng) */}
+        {tab === 'bom' && <BopM2Section key={projectName} tenCongTrinh={projectName} />}
         {tab === 'overview' && <>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {/* BOT — thời hạn */}
