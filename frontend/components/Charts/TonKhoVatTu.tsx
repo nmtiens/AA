@@ -66,7 +66,11 @@ const thangHienTaiVn = (): string => {
  */
 async function chupBieuDo(nhom: string, boChon = '[data-tkvt-ton] .recharts-wrapper svg'): Promise<string | undefined> {
   const the = [...document.querySelectorAll<HTMLElement>('section[data-tkvt-nhom]')].find(x => x.dataset.tkvtNhom === nhom);
-  const svg = the?.querySelector<SVGSVGElement>(boChon);
+  return chupSvg(the?.querySelector<SVGSVGElement>(boChon) ?? null);
+}
+
+/** SVG recharts => ảnh PNG (dùng cho biểu đồ từng nhóm và biểu đồ doanh số chung đầu trang) */
+async function chupSvg(svg: SVGSVGElement | null): Promise<string | undefined> {
   if (!svg) return undefined;
   const { width, height } = svg.getBoundingClientRect();
   if (!width || !height) return undefined;
@@ -316,7 +320,7 @@ function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKe
   }, [dt, tuThang, denThang, thangHienTai]);
   if (!cot.some(c => c.nhanKh !== null)) return null;
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 sm:px-5" aria-label="Doanh số cần đạt và doanh thu thực tế từng tháng">
+    <section className="rounded-xl border border-slate-200 bg-white p-4 sm:px-5" aria-label="Doanh số cần đạt và doanh thu thực tế từng tháng" data-tkvt-doanhso>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
         <span className="text-sm font-semibold text-slate-800">Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)</span>
         <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5" style={{ background: MAU_DT }} aria-hidden />cần đạt</span>
@@ -1185,18 +1189,18 @@ const TonKhoVatTu: React.FC = () => {
       setDangChup(true);
       await new Promise(r => setTimeout(r, 450));
       const anh: Record<string, string | undefined> = {};
-      const anhDoanhThu: Record<string, string | undefined> = {};
       try {
         for (const c of chuoiHien) {
           anh[c.nhom] = await chupBieuDo(c.nhom).catch((e: unknown) => { console.error('Lỗi chụp biểu đồ', c.nhom, e); return undefined; });
-          anhDoanhThu[c.nhom] = await chupBieuDo(c.nhom, '[data-tkvt-dt] .recharts-wrapper svg').catch(() => undefined);
         }
       } finally {
         setDangChup(false);
       }
       const { taiBaoCaoPdf } = await import('./tonKhoVatTu/baoCao');
       await taiBaoCaoPdf({
-        chuoi: chuoiHien, tong, chiSo, moc, khoangNhan, ngayMoiNhat, capNhat, nguoiLap, luc: new Date(), anh, anhDoanhThu, loc: locHieuLuc,
+        chuoi: chuoiHien, tong, chiSo, moc, khoangNhan, ngayMoiNhat, capNhat, nguoiLap, luc: new Date(), anh, loc: locHieuLuc,
+        // 1 biểu đồ doanh số chung (đầu trang) — không lặp dưới từng nhóm
+        anhDoanhSo: moc === 'thang' ? await chupSvg(document.querySelector<SVGSVGElement>('[data-tkvt-doanhso] .recharts-wrapper svg')).catch(() => undefined) : undefined,
         doanhThu: dtKH, thangHienTai, duBao: moc === 'thang' && chiSo === 'giaTri' ? duBaoTheoNhom : undefined, duBaoToanKho,
         mau: Object.fromEntries(chuoi.map(c => [c.nhom, mauNhom(c.nhom)])),
       });

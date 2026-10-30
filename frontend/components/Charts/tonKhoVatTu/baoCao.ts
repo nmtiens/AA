@@ -3,7 +3,7 @@ import type {
 } from 'pdfmake/interfaces';
 import {
   dinhDangChenh, dinhDangChiSo, dinhDangPt, dinhDangSo, nhanNgay, tenNhomGon, tomTatNhom,
-  trungBinhTong, xuHuongTong, TY_LE_ANH_TON, diemTieuBieu, type DoanhThuKeHoach, type DuBaoTon,
+  trungBinhTong, xuHuongTong, diemTieuBieu, type DoanhThuKeHoach, type DuBaoTon,
   type ChiSo, type ChuoiNhom, type DiemChuoi, type MocXem, type O, type TongCacNhom, type XuHuong,
 } from './xuLy';
 
@@ -131,8 +131,8 @@ export interface DauVaoBaoCao {
   doanhThu?: DoanhThuKeHoach;
   /** Tháng hiện tại ('YYYY-MM', giờ VN): doanh thu tháng này chưa hết => đánh dấu * */
   thangHienTai?: string;
-  /** Ảnh biểu đồ doanh thu từng nhóm (chụp từ trang, dưới biểu đồ tồn) */
-  anhDoanhThu?: Record<string, string | undefined>;
+  /** Ảnh biểu đồ doanh số cần đạt & thực tế (cả công ty) chụp từ đầu trang — in 1 lần ở trang tổng kết */
+  anhDoanhSo?: string;
   /** Dự báo tồn theo kế hoạch doanh thu từng nhóm và toàn kho (xem theo tháng, giá trị) */
   duBao?: Record<string, DuBaoTon | null>;
   duBaoToanKho?: DuBaoTon | null;
@@ -219,8 +219,6 @@ function bangKy(c: ChuoiNhom, chiSo: ChiSo, doanhThu?: Record<string, number>): 
 function phanNhom(c: ChuoiNhom, k: TongKetNhom, v: DauVaoBaoCao): Content {
   const mau = v.mau[c.nhom] ?? '#334155';
   const anh = v.anh[c.nhom];
-  const anhDT = v.moc === 'thang' ? v.anhDoanhThu?.[c.nhom] : undefined;
-  const rongAnh = Math.min(RONG_NOI_DUNG, 250 * TY_LE_ANH_TON);
   const duBao = v.moc === 'thang' ? v.duBao?.[c.nhom] : null;
   const cauDuBao = duBao && duBao.diem.length ? `Dự báo tồn theo kế hoạch doanh thu: ${chuDuBao(duBao)}` : '';
   const locNhom = v.loc?.[c.nhom];
@@ -237,17 +235,11 @@ function phanNhom(c: ChuoiNhom, k: TongKetNhom, v: DauVaoBaoCao): Content {
       fontSize: 7.5, color: XAM, margin: [0, 2, 0, 0] as [number, number, number, number],
     }] : []),
     { text: k.cau, fontSize: 9.5, bold: true, margin: [0, 3, 0, 4] },
-    // Ảnh chụp ở tỷ lệ TY_LE_ANH_TON (2,7:1) => mỗi nhóm vừa 1 trang ngang. Có biểu đồ doanh thu thì 2 ảnh cùng bề rộng
-    // (cùng bề rộng chụp, cùng lề) để cột doanh thu nằm đúng dưới điểm tồn cùng tháng
-    anh ? { image: anh, ...(anhDT ? { width: rongAnh } : { fit: [RONG_NOI_DUNG, 300] as [number, number] }), alignment: 'center' }
+    // Ảnh chụp ở tỷ lệ TY_LE_ANH_TON (2,7:1) => mỗi nhóm vừa 1 trang ngang
+    anh ? { image: anh, fit: [RONG_NOI_DUNG, 300] as [number, number], alignment: 'center' }
       : { text: '(Không chụp được biểu đồ của nhóm này)', italics: true, color: XAM, fontSize: 8 },
   ];
   if (cauDuBao) noiDung.push({ text: cauDuBao, fontSize: 8.5, bold: true, margin: [0, 2, 0, 0] });
-  // Biểu đồ doanh thu từng tháng (cùng trục tháng với biểu đồ tồn, kể cả tháng dự báo)
-  if (anhDT) {
-    noiDung.push({ text: 'Doanh số cần đạt từng tháng (cả công ty, tỷ): cột đậm = các tháng có tồn, cột viền = tháng dự báo', fontSize: 7.5, color: XAM, margin: [0, 3, 0, 0] });
-    noiDung.push({ image: anhDT, width: rongAnh, alignment: 'center' });
-  }
   if (dongPhu) noiDung.push({ text: dongPhu, fontSize: 8, color: XAM, margin: [0, 2, 0, 3] });
   if (c.diem.length <= KY_TOI_DA_BANG) {
     noiDung.push(bangKy(c, v.chiSo, v.moc === 'thang' ? v.doanhThu?.keHoach : undefined));
@@ -309,6 +301,10 @@ export function dungBaoCaoPdf(v: DauVaoBaoCao): TDocumentDefinitions {
       },
       { text: 'Tổng kết theo nhóm', bold: true, fontSize: 11, margin: [0, 12, 0, 4] },
       bangTongKet(ds.map(x => x.k), v.chiSo, v.moc, v.loc),
+      ...(v.moc === 'thang' && v.anhDoanhSo ? [
+        { text: 'Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)', bold: true, fontSize: 11, margin: [0, 12, 0, 4] } as Content,
+        { image: v.anhDoanhSo, fit: [RONG_NOI_DUNG, 170] as [number, number], alignment: 'center' } as Content,
+      ] : []),
       { ul: ghiChu, fontSize: 7.5, color: XAM, margin: [0, 8, 0, 0] },
       { text: 'Biểu đồ từng nhóm', bold: true, fontSize: 11, pageBreak: 'before', margin: [0, 0, 0, 2] },
       // Mỗi nhóm 1 trang (nhóm đầu nằm ngay dưới đề mục "Biểu đồ từng nhóm")

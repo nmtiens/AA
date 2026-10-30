@@ -107,7 +107,7 @@ describe('biểu đồ Excel — doanh thu tháng (số bảng kế hoạch năm
     expect(bdDT.rongCot).toHaveLength(9);
   });
   it('biểu đồ tồn: các dãy trải tới tháng dự báo, thêm dãy dự báo nét đứt + thanh sai số (cột H), tiêu đề ghi số dự báo', () => {
-    const x = bdDT.bieuDo[0].xml;
+    const x = bdDT.bieuDo[1].xml;
     expect(xmlCan(x)).toBe(true);
     // chậm LC, trung bình, dự báo, xu hướng (dãy cột I — trendline của Excel sẽ kéo sang cả tháng dự báo), tổng tồn
     expect(x.match(/<c:ser>/g)).toHaveLength(5);
@@ -125,17 +125,25 @@ describe('biểu đồ Excel — doanh thu tháng (số bảng kế hoạch năm
     expect(bdDT.bieuDo[2].xml.match(/<c:ser>/g)).toHaveLength(4);
     expect(bdDT.bieuDo[2].xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$C$19:$C$27</c:f>`);
   });
-  it('dưới mỗi biểu đồ tồn có biểu đồ cột doanh thu (cột F), tháng dự báo để viền đứt', () => {
-    expect(bdDT.bieuDo).toHaveLength(4);
-    const [ton, dt] = bdDT.bieuDo;
+  it('1 biểu đồ doanh thu chung ở đầu sheet (cột cần đạt + đường thực tế), không lặp dưới từng nhóm', () => {
+    expect(bdDT.bieuDo).toHaveLength(3);
+    const [dt, ton1, ton2] = bdDT.bieuDo;
     expect(xmlCan(dt.xml)).toBe(true);
-    expect(dt.dong - ton.dong).toBe(25);
-    expect(bdDT.bieuDo[2].dong - ton.dong).toBe(36);
-    expect(dt.xml.match(/<c:ser>/g)).toHaveLength(1);
-    expect(dt.xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$F$3:$F$13</c:f>`);
-    expect(dt.xml).toContain('<c:dPt><c:idx val="9"/>');
+    expect(dt.dong).toBe(5);
+    expect(ton1.dong).toBe(5 + 17);
+    expect(ton2.dong - ton1.dong).toBe(25);
+    expect(dt.xml.match(/<c:ser>/g)).toHaveLength(2);
+    expect(dt.xml).toContain('<c:barChart>');
+    expect(dt.xml).toContain('<c:lineChart>');
+    // khối số liệu doanh thu ở cuối sheet số liệu: tiêu đề, dòng cột, 11 tháng T2–T12
+    const i = bdDT.soLieu.findIndex(h => h[0] === 'Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)');
+    expect(i).toBeGreaterThan(0);
+    expect(bdDT.soLieu[i + 2].slice(0, 4)).toEqual(['T2/26', null, 102, 102]);
+    expect(bdDT.soLieu[i + 12].slice(0, 4)).toEqual(['T12/26', null, 112, null]); // tháng tới: chưa có thực tế
+    expect(dt.xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$C$${i + 3}:$C$${i + 13}</c:f>`);
+    expect(dt.xml).toContain('<c:dPt><c:idx val="9"/>'); // T11, T12 viền đứt
     expect(dt.xml).toContain('<c:dPt><c:idx val="10"/>');
-    expect(dt.xml).toContain('Doanh số cần đạt');
+    expect(dt.xml).not.toContain('<c:dPt><c:idx val="8"/>');
   });
   it('xem theo tuần: không có cột doanh thu / dự báo; không có doanh thu: 5 cột, mỗi nhóm 1 biểu đồ, cách 25 dòng', () => {
     const tuan = dungBieuDoExcel({

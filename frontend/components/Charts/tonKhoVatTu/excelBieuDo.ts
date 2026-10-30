@@ -23,10 +23,10 @@ export const DONG_BIEU_DO_DAU = 5;
 const EMU_MOI_PX = 9525;
 const RONG_PX = 1100;
 const CAO_PX = 450;
-/** Biểu đồ doanh thu dưới biểu đồ tồn: cao, cách dòng đầu của biểu đồ tồn bấy nhiêu dòng. Dòng Excel cao 14,25–15pt
- *  (đo: 14,25) => 25 dòng ≥ 356pt > biểu đồ tồn 337,5pt, khỏi đè nhau */
-const CAO_DT_PX = 200;
-const DONG_DT_LECH = 25;
+/** Biểu đồ doanh thu chung (cả công ty) ở đầu sheet: cao bấy nhiêu px, các biểu đồ nhóm lùi xuống bấy nhiêu dòng
+ *  (dòng Excel ~19px => 17 dòng ≥ 300px) */
+const CAO_DT_PX = 300;
+const DONG_DT_TREN = 17;
 
 type Os = string | number | null;
 
@@ -74,14 +74,13 @@ export interface BieuDoExcel {
   rongCot: number[];
   /** Ô công thức trung bình (=AVERAGE) của sheet số liệu, kèm giá trị đã tính sẵn */
   congThuc: Array<{ r: number; c: number; f: string; v: number }>;
-  /** Các biểu đồ theo thứ tự nhóm (mỗi nhóm: biểu đồ tồn, rồi biểu đồ doanh thu nếu có) */
+  /** Các biểu đồ: [biểu đồ doanh thu chung (xem theo tháng có doanh thu)], rồi biểu đồ tồn từng nhóm */
   bieuDo: BieuDoExcelMot[];
 }
 
 /** Cột trong khối số liệu: A Kỳ, B Ngày chốt, C Tổng tồn, D Chậm LC, E Trung bình, F Doanh số cần đạt,
  *  G Dự báo tồn, H Sai số ±, I Xu hướng */
-const COT_KY = 0, COT_TONG = 2, COT_CHAM = 3, COT_TB = 4, COT_DT = 5, COT_DB = 6, COT_SS = 7, COT_XH = 8;
-const MAU_DT = '475569';
+const COT_KY = 0, COT_TONG = 2, COT_CHAM = 3, COT_TB = 4, COT_DB = 6, COT_SS = 7, COT_XH = 8;
 const MAU_CHAM = '94A3B8';
 const MAU_TANG = 'B45309';
 const MAU_GIAM = '047857';
@@ -141,7 +140,9 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
   const coDT = v.moc === 'thang' && !!doanhThu && !!thangHienTai;
   const coDuBao = coDT && giaTri && v.chuoi.some(c => (v.duBao?.[c.nhom]?.diem.length ?? 0) > 0);
   const soCot = 5 + (coDT ? 1 : 0) + (coDuBao ? 3 : 0);
-  const dongMoiNhom = coDT ? 36 : 25;
+  const dongMoiNhom = 25;
+  // Các tháng (kể cả tháng dự báo) của mọi nhóm => trục tháng của biểu đồ doanh thu chung
+  const dsKhoa = new Map<string, string>();
   const hang = (...o: Os[]) => { soLieu.push([...o, ...Array<Os>(soCot - o.length).fill(null)]); };
   // Doanh thu tháng = doanh số cần đạt người dùng đưa (doanhSoCanDat.ts) — 29/10/2026
   const keHoach = (t: string) => (doanhThu?.keHoach[t] !== undefined ? tron3(doanhThu.keHoach[t]) : null);
@@ -157,6 +158,7 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
     const f = dbDiem.length, N = n + f;
     const nhan = [...ds.map(d => (v.moc === 'tuan' ? nhanNgayNgan(d.ngayChot) : d.nhan)), ...dbDiem.map(d => d.nhan)];
     const khoa = [...ds.map(d => d.khoa), ...dbDiem.map(d => d.khoa)];
+    khoa.forEach((kh, i) => { if (!dsKhoa.has(kh)) dsKhoa.set(kh, nhan[i]); });
     const rong = Array<null>(f).fill(null);
     const tong = ds.map(d => doi(d.tong));
     const cham = ds.map(d => (d.thieuCham ? null : doi(d.cham)));
@@ -257,7 +259,7 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       // Trục tỷ để "General": nhóm nhỏ (Kim Loại < 1 tỷ, vạch 0.1) mà để "0" thì vạch nào cũng ghi 0 / 1
       + `<c:numFmt formatCode="${giaTri ? 'General' : '#,##0'}" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
       + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${chuTxPr(900, '94A3B8')}<c:crossAx val="5${k}01"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
-    const dongChinh = DONG_BIEU_DO_DAU + k * dongMoiNhom;
+    const dongChinh = DONG_BIEU_DO_DAU + (coDT ? DONG_DT_TREN : 0) + k * dongMoiNhom;
     bieuDo.push({ dong: dongChinh, caoPx: CAO_PX, xml: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
       + '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
       + '<c:date1904 val="0"/><c:lang val="vi-VN"/><c:roundedCorners val="0"/>'
@@ -270,43 +272,57 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       + '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>'
       + '</c:chartSpace>' });
 
-    // ---- biểu đồ doanh thu (1 dãy cột = cột F, doanh số cần đạt; tháng dự báo để viền đứt) ----
-    if (coDT) {
-      const dtCot = khoa.map(keHoach);
-      if (dtCot.some(x => x !== null)) {
-        const nhanCot = dtCot.map((x, i) => (x === null ? '' : `<c:dLbl><c:idx val="${i}"/><c:numFmt formatCode="0" sourceLinked="0"/>${KHONG_NEN}`
-          + `${chuTxPr(800, i >= n ? '475569' : 'FFFFFF', i < n)}<c:dLblPos val="inEnd"/>${CO_HIEN(true)}</c:dLbl>`)).join('');
-        const vien = dbDiem.map((_, j) => `<c:dPt><c:idx val="${n + j}"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/>`
-          + `<c:spPr><a:noFill/><a:ln w="12700"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill><a:prstDash val="dash"/></a:ln></c:spPr></c:dPt>`).join('');
-        const serDT = `<c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>Doanh số cần đạt</c:v></c:tx>`
-          + `<c:spPr><a:solidFill><a:srgbClr val="${MAU_DT}"/></a:solidFill></c:spPr><c:invertIfNegative val="0"/>${vien}`
-          + `<c:dLbls>${nhanCot}<c:numFmt formatCode="0" sourceLinked="0"/>${KHONG_NEN}<c:dLblPos val="inEnd"/>${CO_HIEN(false)}</c:dLbls>`
-          + `<c:cat><c:strRef><c:f>${xmlChu(refNhan)}</c:f>${cacheChu(nhan)}</c:strRef></c:cat>`
-          + `<c:val><c:numRef><c:f>${xmlChu(thamChieu(COT_DT, r1, rN))}</c:f>${cacheSo(dtCot)}</c:numRef></c:val></c:ser>`;
-        const tieuDeDT = `Doanh số cần đạt từng tháng (cả công ty, tỷ)${f ? ' — cột viền = tháng dự báo' : ''}`;
-        const trucDT = `<c:catAx><c:axId val="6${k}01"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/>`
-          + `<c:numFmt formatCode="General" sourceLinked="1"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
-          + `<c:spPr>${duong('CBD5E1', 9525)}</c:spPr>${chuTxPr(800, '64748B')}<c:crossAx val="6${k}02"/><c:crosses val="autoZero"/>`
-          + `<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>`
-          + `<c:valAx><c:axId val="6${k}02"/><c:scaling><c:orientation val="minMax"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="l"/>`
-          + `<c:majorGridlines><c:spPr>${duong('EEF2F6', 9525)}</c:spPr></c:majorGridlines>`
-          + `<c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
-          + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${chuTxPr(800, '94A3B8')}<c:crossAx val="6${k}01"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
-        bieuDo.push({ dong: DONG_BIEU_DO_DAU + k * dongMoiNhom + DONG_DT_LECH, caoPx: CAO_DT_PX, xml: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
-          + '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-          + '<c:date1904 val="0"/><c:lang val="vi-VN"/><c:roundedCorners val="0"/>'
-          + `<c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="900" b="0"/></a:pPr><a:r><a:rPr lang="vi-VN" sz="900" b="1"><a:solidFill><a:srgbClr val="334155"/></a:solidFill></a:rPr><a:t>${xmlChu(tieuDeDT)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>`
-          + '<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>'
-          + `<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${serDT}`
-          + `<c:gapWidth val="70"/><c:axId val="6${k}01"/><c:axId val="6${k}02"/></c:barChart>`
-          + `${trucDT}<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`
-          + '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>'
-          + `<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>${duong('E2E8F0', 9525)}</c:spPr>`
-          + '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>'
-          + '</c:chartSpace>' });
-      }
-    }
   });
+
+  // ---- 1 biểu đồ doanh thu chung (cả công ty) ở ĐẦU sheet "Biểu đồ": cột = doanh số cần đạt (tháng dự báo viền đứt),
+  // đường = doanh thu thực tế. Số ở khối cuối sheet "Số liệu biểu đồ" (A Kỳ, C Cần đạt, D Thực tế). Trước: 1 biểu đồ
+  // doanh thu dưới MỖI nhóm — cùng 1 dãy số lặp 6 lần.
+  if (coDT && dsKhoa.size) {
+    const khoa = [...dsKhoa.keys()].sort();
+    const nhan = khoa.map(k => dsKhoa.get(k)!);
+    const thucTe = (t: string) => (t <= thangHienTai! && doanhThu?.thucTe[t] !== undefined ? tron3(doanhThu.thucTe[t]) : null);
+    const kh = khoa.map(keHoach), tt = khoa.map(thucTe);
+    hang();
+    hang('Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)');
+    hang('Kỳ', null, 'Doanh số cần đạt (tỷ)', 'Thực tế (tỷ)');
+    const r1 = soLieu.length, rN = r1 + khoa.length - 1;
+    khoa.forEach((_, i) => hang(nhan[i], null, kh[i], tt[i]));
+    const refNhan = thamChieu(COT_KY, r1, rN);
+    const vien = khoa.map((k, i) => (k > thangHienTai! ? `<c:dPt><c:idx val="${i}"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/>`
+      + `<c:spPr><a:noFill/><a:ln w="12700"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill><a:prstDash val="dash"/></a:ln></c:spPr></c:dPt>` : '')).join('');
+    const serKh = `<c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>Doanh số cần đạt</c:v></c:tx>`
+      + `<c:spPr><a:solidFill><a:srgbClr val="CBD5E1"/></a:solidFill></c:spPr><c:invertIfNegative val="0"/>${vien}`
+      + `<c:dLbls><c:numFmt formatCode="0" sourceLinked="0"/>${KHONG_NEN}${chuTxPr(800, '475569')}<c:dLblPos val="outEnd"/>${CO_HIEN(true)}</c:dLbls>`
+      + `<c:cat><c:strRef><c:f>${xmlChu(refNhan)}</c:f>${cacheChu(nhan)}</c:strRef></c:cat>`
+      + `<c:val><c:numRef><c:f>${xmlChu(thamChieu(COT_TONG, r1, rN))}</c:f>${cacheSo(kh)}</c:numRef></c:val></c:ser>`;
+    const serTt = day(1, {
+      ten: 'Thực tế (nhập kho thành phẩm)', refGiaTri: thamChieu(COT_CHAM, r1, rN), giaTri: tt,
+      mau: '1E293B', rong: 22225, diem: true, nhan: '',
+    }, refNhan, nhan);
+    const tieuDeDT = 'Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ) — cột viền = tháng tới';
+    const trucDT = `<c:catAx><c:axId val="7001"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/>`
+      + `<c:numFmt formatCode="General" sourceLinked="1"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
+      + `<c:spPr>${duong('CBD5E1', 9525)}</c:spPr>${chuTxPr(800, '64748B')}<c:crossAx val="7002"/><c:crosses val="autoZero"/>`
+      + `<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>`
+      + `<c:valAx><c:axId val="7002"/><c:scaling><c:orientation val="minMax"/><c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="l"/>`
+      + `<c:majorGridlines><c:spPr>${duong('EEF2F6', 9525)}</c:spPr></c:majorGridlines>`
+      + `<c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/>`
+      + `<c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${chuTxPr(800, '94A3B8')}<c:crossAx val="7001"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>`;
+    bieuDo.unshift({ dong: DONG_BIEU_DO_DAU, caoPx: CAO_DT_PX, xml: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+      + '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<c:date1904 val="0"/><c:lang val="vi-VN"/><c:roundedCorners val="0"/>'
+      + `<c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1000" b="0"/></a:pPr><a:r><a:rPr lang="vi-VN" sz="1000" b="1"><a:solidFill><a:srgbClr val="334155"/></a:solidFill></a:rPr><a:t>${xmlChu(tieuDeDT)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>`
+      + '<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>'
+      + `<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/><c:varyColors val="0"/>${serKh}`
+      + `<c:gapWidth val="60"/><c:axId val="7001"/><c:axId val="7002"/></c:barChart>`
+      + `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${serTt}<c:marker val="1"/><c:axId val="7001"/><c:axId val="7002"/></c:lineChart>`
+      + `${trucDT}<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`
+      + `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${chuTxPr(800, '475569')}</c:legend>`
+      + '<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>'
+      + `<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>${duong('E2E8F0', 9525)}</c:spPr>`
+      + '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>'
+      + '</c:chartSpace>' });
+  }
   return { soLieu, congThuc, bieuDo, rongCot: [12, 12, 16, 32, 16, ...(coDT ? [22] : []), ...(coDuBao ? [16, 14, 16] : [])] };
 }
 
