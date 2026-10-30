@@ -92,25 +92,27 @@ describe('biểu đồ Excel — doanh thu tháng (số bảng kế hoạch năm
     doanhThu, thangHienTai: '2026-10', duBao: { 'KVT Vải Da Mouss': duBaoVai, 'KVT Kim Loại': null },
   });
   it('cột F doanh thu (KH năm), G–H dự báo tồn + sai số, I xu hướng; thêm dòng tháng dự báo', () => {
-    expect(bdDT.soLieu.every(h => h.length === 9)).toBe(true);
-    expect(bdDT.soLieu[1].slice(5)).toEqual(['Doanh số cần đạt (tỷ)', 'Dự báo tồn (tỷ)', 'Sai số ± (tỷ)', 'Xu hướng (tỷ)']);
+    expect(bdDT.soLieu.every(h => h.length === 11)).toBe(true);
+    expect(bdDT.soLieu[1].slice(5)).toEqual(['Doanh số cần đạt (tỷ)', 'Dự báo tồn (tỷ)', 'Sai số ± (tỷ)', 'Xu hướng (tỷ)', 'Dự báo thấp (tỷ)', 'Dự báo cao (tỷ)']);
     expect(bdDT.soLieu[2].slice(5, 8)).toEqual([102, null, null]); // T2/26
     expect(bdDT.soLieu[10].slice(5, 8)).toEqual([110, 39.73, null]); // T10/26: nối đường dự báo
     const xh = xuHuongTong(chuoi[0].diem)!;
     expect(bdDT.soLieu[2][8]).toBeCloseTo(xh.giaTri[0] / 1000, 5);
-    expect(bdDT.soLieu[11]).toEqual(['T11/26', 'dự báo', null, null, null, 111, 41.5, 3.2, null]);
-    expect(bdDT.soLieu[12]).toEqual(['T12/26', 'dự báo', null, null, null, 112, 42, 4.1, null]);
+    expect(bdDT.soLieu[11]).toEqual(['T11/26', 'dự báo', null, null, null, 111, 41.5, 3.2, null, 38.3, 44.7]);
+    expect(bdDT.soLieu[12]).toEqual(['T12/26', 'dự báo', null, null, null, 112, 42, 4.1, null, 37.9, 46.1]);
     expect(bdDT.soLieu[13][0]).toMatch(/^39\.73 tỷ — tăng/);
     expect(bdDT.soLieu[14][0]).toBe('Dự báo theo kế hoạch doanh thu: T11/26 ≈ 41.50 tỷ (±3.2) · T12/26 ≈ 42.00 tỷ (±4.1)');
     expect(bdDT.soLieu[16][0]).toBe('Kim Loại'); // nhóm không có dự báo: không thêm dòng
     expect(bdDT.congThuc[0]).toMatchObject({ r: 2, c: 4, f: 'AVERAGE($C$3:$C$11)' });
-    expect(bdDT.rongCot).toHaveLength(9);
+    expect(bdDT.rongCot).toHaveLength(11);
   });
   it('biểu đồ tồn: các dãy trải tới tháng dự báo, thêm dãy dự báo nét đứt + thanh sai số (cột H), tiêu đề ghi số dự báo', () => {
     const x = bdDT.bieuDo[1].xml;
     expect(xmlCan(x)).toBe(true);
-    // chậm LC, trung bình, dự báo, xu hướng (dãy cột I — trendline của Excel sẽ kéo sang cả tháng dự báo), tổng tồn
-    expect(x.match(/<c:ser>/g)).toHaveLength(5);
+    // chậm LC, trung bình, dự báo, dự báo thấp / cao (chỉ ghi số 2 đầu thanh sai số), xu hướng (dãy cột I), tổng tồn
+    expect(x.match(/<c:ser>/g)).toHaveLength(7);
+    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$J$3:$J$13</c:f>`);
+    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$K$3:$K$13</c:f>`);
     expect(x).not.toContain('<c:trendline>');
     expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$I$3:$I$13</c:f>`);
     expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$A$3:$A$13</c:f>`);

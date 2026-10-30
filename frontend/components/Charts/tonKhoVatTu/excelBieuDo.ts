@@ -1,5 +1,5 @@
 import {
-  chiSoNhan, congThangKhoa, diemTieuBieu, nhanNgayNgan, tenNhomGon, tomTatNhom, xuHuongTong,
+  chiSoNhan, congThangKhoa, nhanNgayNgan, tenNhomGon, tomTatNhom, xuHuongTong,
   type ChiSo, type ChuoiNhom, type DoanhThuKeHoach, type DuBaoTon, type MocXem,
 } from './xuLy';
 import { chuDuBao, chuXuHuong } from './baoCao';
@@ -80,7 +80,7 @@ export interface BieuDoExcel {
 
 /** Cột trong khối số liệu: A Kỳ, B Ngày chốt, C Tổng tồn, D Chậm LC, E Trung bình, F Doanh số cần đạt,
  *  G Dự báo tồn, H Sai số ±, I Xu hướng */
-const COT_KY = 0, COT_TONG = 2, COT_CHAM = 3, COT_TB = 4, COT_DB = 6, COT_SS = 7, COT_XH = 8;
+const COT_KY = 0, COT_TONG = 2, COT_CHAM = 3, COT_TB = 4, COT_DB = 6, COT_SS = 7, COT_XH = 8, COT_THAP = 9, COT_CAO = 10;
 const MAU_CHAM = '94A3B8';
 const MAU_TANG = 'B45309';
 const MAU_GIAM = '047857';
@@ -139,7 +139,7 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
   const { doanhThu, thangHienTai } = v;
   const coDT = v.moc === 'thang' && !!doanhThu && !!thangHienTai;
   const coDuBao = coDT && giaTri && v.chuoi.some(c => (v.duBao?.[c.nhom]?.diem.length ?? 0) > 0);
-  const soCot = 5 + (coDT ? 1 : 0) + (coDuBao ? 3 : 0);
+  const soCot = 5 + (coDT ? 1 : 0) + (coDuBao ? 5 : 0);
   const dongMoiNhom = 25;
   // Các tháng (kể cả tháng dự báo) của mọi nhóm => trục tháng của biểu đồ doanh thu chung
   const dsKhoa = new Map<string, string>();
@@ -172,17 +172,18 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
     hang(ten);
     hang('Kỳ', 'Ngày chốt', `Tổng tồn ${dv}`, `Chậm luân chuyển > 3 tháng ${dv}`, `Trung bình ${dv}`,
       ...(coDT ? ['Doanh số cần đạt (tỷ)'] : []),
-      ...(coDuBao ? ['Dự báo tồn (tỷ)', 'Sai số ± (tỷ)', 'Xu hướng (tỷ)'] : []));
+      ...(coDuBao ? ['Dự báo tồn (tỷ)', 'Sai số ± (tỷ)', 'Xu hướng (tỷ)', 'Dự báo thấp (tỷ)', 'Dự báo cao (tỷ)'] : []));
     const r1 = soLieu.length, r2 = r1 + n - 1, rN = r1 + N - 1;
     const cotTong = tenCot(COT_TONG);
     ds.forEach((d, i) => {
       hang(nhan[i], d.ngayChot.split('-').reverse().join('/'), tong[i], cham[i], tb,
         ...(coDT ? [keHoach(d.khoa)] : []),
-        ...(coDuBao ? [i === n - 1 && f ? tong[i] : null, null, xh ? doi(xh.giaTri[i]) : null] : []));
+        ...(coDuBao ? [i === n - 1 && f ? tong[i] : null, null, xh ? doi(xh.giaTri[i]) : null, null, null] : []));
       if (tb !== null) congThuc.push({ r: r1 + i, c: COT_TB, f: `AVERAGE($${cotTong}$${r1 + 1}:$${cotTong}$${r2 + 1})`, v: tb });
     });
     dbDiem.forEach(p => {
-      hang(p.nhan, 'dự báo', null, null, null, keHoach(p.khoa), doi(p.ton), p.cao === null ? null : doi(p.cao - p.ton));
+      hang(p.nhan, 'dự báo', null, null, null, keHoach(p.khoa), doi(p.ton), p.cao === null ? null : doi(p.cao - p.ton), null,
+        p.thap === null ? null : doi(p.thap), p.cao === null ? null : doi(p.cao));
     });
     if (cau) hang(cau);
     if (f && db) hang(`Dự báo theo kế hoạch doanh thu: ${chuDuBao(db)}`);
@@ -223,10 +224,24 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       series.push(`<c:ser><c:idx val="${idx}"/><c:order val="${idx}"/><c:tx><c:v>${xmlChu('Dự báo theo kế hoạch doanh thu (± sai số kiểm lại)')}</c:v></c:tx>`
         + `<c:spPr>${duong(mau, 22225, 'dash')}</c:spPr>`
         + `<c:marker><c:symbol val="circle"/><c:size val="6"/><c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="15875"><a:solidFill><a:srgbClr val="${mau}"/></a:solidFill></a:ln></c:spPr></c:marker>`
-        + nhanDiem(new Set(db ? diemTieuBieu(db).map(p => n + p.h - 1) : []), N, dinhDang, 'r', chuTxPr(900, mau, true)) + thanhSai
+        + nhanDiem(new Set(dbDiem.map((_, j) => n + j)), N, dinhDang, 'r', chuTxPr(900, mau, true)) + thanhSai
         + `<c:cat><c:strRef><c:f>${xmlChu(refNhan)}</c:f>${cacheChu(nhan)}</c:strRef></c:cat>`
         + `<c:val><c:numRef><c:f>${xmlChu(thamChieu(COT_DB, r1, rN))}</c:f>${cacheSo(giaTriDb)}</c:numRef></c:val><c:smooth val="0"/></c:ser>`);
       idx++;
+      // Số ở 2 đầu thanh sai số: dãy "thấp" / "cao" không nét, không điểm — chỉ để ghi số (cột J / K)
+      if (ss.some(x => x !== null)) {
+        const thap = [...Array<null>(n).fill(null), ...dbDiem.map(p => (p.thap === null ? null : doi(p.thap)))];
+        const cao = [...Array<null>(n).fill(null), ...dbDiem.map(p => (p.cao === null ? null : doi(p.cao)))];
+        const hienDb = new Set(dbDiem.map((_, j) => n + j));
+        for (const [ten, cot, gt, viTri] of [['Dự báo thấp (− sai số)', COT_THAP, thap, 'b'], ['Dự báo cao (+ sai số)', COT_CAO, cao, 't']] as const) {
+          series.push(`<c:ser><c:idx val="${idx}"/><c:order val="${idx}"/><c:tx><c:v>${xmlChu(ten)}</c:v></c:tx>`
+            + '<c:spPr><a:ln><a:noFill/></a:ln></c:spPr><c:marker><c:symbol val="none"/></c:marker>'
+            + nhanDiem(hienDb, N, dinhDang, viTri, chuTxPr(800, mau))
+            + `<c:cat><c:strRef><c:f>${xmlChu(refNhan)}</c:f>${cacheChu(nhan)}</c:strRef></c:cat>`
+            + `<c:val><c:numRef><c:f>${xmlChu(thamChieu(cot, r1, rN))}</c:f>${cacheSo(gt)}</c:numRef></c:val><c:smooth val="0"/></c:ser>`);
+          idx++;
+        }
+      }
     }
     const mauXh = xh?.huong === 'tang' ? MAU_TANG : xh?.huong === 'giam' ? MAU_GIAM : '64748B';
     if (xh && coDuBao) {
@@ -323,7 +338,7 @@ export function dungBieuDoExcel(v: DauVaoBieuDoExcel): BieuDoExcel {
       + '<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="vi-VN"/></a:p></c:txPr>'
       + '</c:chartSpace>' });
   }
-  return { soLieu, congThuc, bieuDo, rongCot: [12, 12, 16, 32, 16, ...(coDT ? [22] : []), ...(coDuBao ? [16, 14, 16] : [])] };
+  return { soLieu, congThuc, bieuDo, rongCot: [12, 12, 16, 32, 16, ...(coDT ? [22] : []), ...(coDuBao ? [16, 14, 16, 16, 16] : [])] };
 }
 
 // ---------------------------------------------------------------------------

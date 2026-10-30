@@ -1155,6 +1155,7 @@ const TonKhoVatTu: React.FC = () => {
         ['Biểu đồ tồn kho vật tư'],
         tieuDe[1], tieuDe[2],
         [`Biểu đồ Excel: số lấy ở sheet "${TEN_SHEET_SO_LIEU}" (sửa số ở đó thì biểu đồ đổi theo). Đường gạch dài = đường xu hướng tuyến tính của Excel; chấm = trung bình; xám nét đứt = chậm luân chuyển > 3 tháng (lần chốt thiếu cột này để trống, đường nối qua).`],
+        ...(moc === 'thang' && chiSo === 'giaTri' ? [[`Tháng dự báo: điểm rỗng nét đứt = tồn dự báo theo kế hoạch doanh thu; thanh dọc = khoảng sai số thường gặp (± mức lệch trung bình khi kiểm lại cách dự báo trên các tháng đã qua) — tồn thật thường nằm giữa số ở đầu dưới và đầu trên của thanh. Số ở cột G–K sheet "${TEN_SHEET_SO_LIEU}".`]] : []),
       ];
       while (dauBieuDo.length < DONG_BIEU_DO_DAU) dauBieuDo.push([]);
       await taiExcel(tenFileBaoCao({ moc, ngayMoiNhat }, 'xlsx'), [
