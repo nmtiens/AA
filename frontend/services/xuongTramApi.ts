@@ -43,6 +43,8 @@ export interface BangTramMayChu extends BangTram {
 }
 export interface HangMucTram {
   hex: string; congDoanId: string; trangThai: string; tenHangMuc: string | null; conLam: number; conNhan: number; dvt: string | null;
+  /** Mã NV nhóm làm hàng này lần gần nhất (máy chủ, sổ trạm 36 giờ) */
+  nhomTruoc?: string[];
 }
 export interface CongNhanTram { mnv: string; hoTen: string; toId: number | null; tenTo: string | null }
 
@@ -95,7 +97,9 @@ export type NguonDoan = 'quet' | 'phan_cong' | 'tu_gan' | 'ghi_ho';
 export interface HangCuaNguoi { key: string; hex: string; congDoanId: string; nguon?: NguonDoan }
 export interface PhanCongData {
   ngay: string; serverNow: number; suaDuoc: boolean; cheDo: 'cu' | 'song_song' | 'tram';
-  nguoi: Array<{ mnv: string; hoTen: string; coMat: boolean; dangO: HangCuaNguoi | null; homQua: HangCuaNguoi | null }>;
+  nguoi: Array<{ mnv: string; hoTen: string; coMat: boolean; dangO: HangCuaNguoi | null; homQua: HangCuaNguoi | null;
+    /** Hàng gần nhất đã rời (kể cả hôm nay) */
+    lanCuoi?: HangCuaNguoi | null }>;
   hangMuc: Array<{ key: string; hex: string; congDoanId: string; tenHangMuc: string | null; tenCongDoan: string | null; trangThai: string }>;
 }
 export interface SuaNgayData {

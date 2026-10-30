@@ -594,7 +594,10 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
           )}
           {nhom && bang && (
             <ChonNguoi nhom={nhom} now={now} board={board} tenHm={tenHm} toId={bang.to.id}
-              nhomTruoc={nhom.cd ? (docLs<Record<string, string[]>>(KHOA_NHOM) ?? {})[`${nhom.hex}|${nhom.cd}`] ?? [] : []}
+              // Nhóm lần trước: theo máy chủ (đúng trên mọi máy trạm); máy chủ không có (quá 36 giờ) thì nhóm lưu trên máy này
+              nhomTruoc={nhom.cd ? ((hangMuc.find(h => h.hex === nhom.hex && h.congDoanId === nhom.cd)?.nhomTruoc ?? []).length
+                ? hangMuc.find(h => h.hex === nhom.hex && h.congDoanId === nhom.cd)!.nhomTruoc!
+                : (docLs<Record<string, string[]>>(KHOA_NHOM) ?? {})[`${nhom.hex}|${nhom.cd}`] ?? []) : []}
               congNhan={congNhan} onDoi={giaHanNhom} onVao={() => void vaoHangNhom()} onHuy={() => setNhom(null)}
               onRa={x => void raHangNhom(x)} hm={hmCua(nhom.hex, nhom.cd)} />
           )}

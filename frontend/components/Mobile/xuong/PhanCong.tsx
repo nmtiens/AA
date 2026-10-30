@@ -100,3 +100,74 @@ export function PhanCongSheet({ toId, onGhi, onClose }: {
     </BottomSheet>
   );
 }
+
+/**
+ * TIẾP TỤC hạng mục tạm ngưng (tổ chế độ trạm): chọn người vào lại hàng ngay trên app, khỏi ra trạm quét. Chọn sẵn nhóm
+ * làm hàng này lần gần nhất (còn có mặt, chưa ở hàng khác); người khác có mặt chọn thêm được. Ghi như Phân công.
+ */
+export function TiepTucSheet({ toId, hex, congDoanId, ten, onGhi, onClose }: {
+  toId: number; hex: string; congDoanId: string; ten: string | null;
+  onGhi: (evs: SuKienNhap[], moTa: string) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<PhanCongData | null>(null);
+  const [loi, setLoi] = useState('');
+  const [chon, setChon] = useState<Set<string>>(new Set());
+  const [dang, setDang] = useState(false);
+
+  useEffect(() => {
+    void tramQuanLyApi(authXuong).phanCong(toId).then(r => {
+      if (!r.ok) { setLoi(r.status === 0 ? 'Đang mất sóng — tiếp tục cần có sóng.' : r.message); return; }
+      setData(r.data);
+      setChon(new Set(r.data.nguoi.filter(n => n.coMat && !n.dangO && n.lanCuoi?.hex === hex && n.lanCuoi.congDoanId === congDoanId).map(n => n.mnv)));
+    });
+  }, [toId, hex, congDoanId]);
+
+  // Người có mặt: rảnh trước (nhóm lần trước lên đầu), người đang ở hàng khác sau (chọn = chuyển sang hàng này)
+  const ds = useMemo(() => (data?.nguoi ?? []).filter(n => n.coMat && !(n.dangO?.hex === hex && n.dangO.congDoanId === congDoanId))
+    .map(n => ({ ...n, truoc: n.lanCuoi?.hex === hex && n.lanCuoi.congDoanId === congDoanId }))
+    .sort((a, b) => Number(!!a.dangO) - Number(!!b.dangO) || Number(b.truoc) - Number(a.truoc) || a.hoTen.localeCompare(b.hoTen)), [data, hex, congDoanId]);
+  const bat = (m: string) => setChon(c => { const n = new Set(c); if (n.has(m)) n.delete(m); else n.add(m); return n; });
+
+  const luu = async () => {
+    const evs: SuKienNhap[] = [...chon].map(mnv => ({ loai: 'nguoi_vao', toId, hex, congDoanId, duLieu: { mnv, tram: true, phanCong: true, tiepTuc: true } }));
+    if (!evs.length) return;
+    setDang(true);
+    const ok = await onGhi(evs, `Tiếp tục ${hex} · ${evs.length} người`);
+    setDang(false);
+    if (ok) onClose();
+  };
+
+  return (
+    <BottomSheet title={`Tiếp tục ${hex}`} onClose={onClose}
+      footer={data?.suaDuoc ? (
+        <button className={`${NUT_CHINH} w-full`} disabled={dang || !chon.size} onClick={() => void luu()}>
+          {chon.size ? `Tiếp tục với ${chon.size} người` : 'Chọn người làm'}
+        </button>
+      ) : undefined}>
+      {loi && <p className="text-base text-red-700" role="alert">{loi}</p>}
+      {data && (
+        <>
+          <p className="pb-3 text-base text-slate-600">{ten ?? ''} — chọn người vào lại hàng (đã chọn sẵn nhóm làm lần trước). Chỉ người đã điểm danh có mặt.</p>
+          {!ds.length && <p className="pb-3 text-base text-amber-800">Chưa ai có mặt — điểm danh trước (nút Điểm danh) hoặc quét thẻ ở trạm.</p>}
+          <ul className="space-y-2 pb-4">
+            {ds.map(n => (
+              <li key={n.mnv}>
+                <button type="button" onClick={() => bat(n.mnv)} aria-pressed={chon.has(n.mnv)}
+                  className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border px-3 text-left ${chon.has(n.mnv) ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-900'}`}>
+                  <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 ${chon.has(n.mnv) ? 'border-white' : 'border-slate-400'}`} aria-hidden>{chon.has(n.mnv) ? '✓' : ''}</span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-lg font-medium">{n.hoTen}</span>
+                    <span className={`block truncate text-base ${chon.has(n.mnv) ? 'text-slate-200' : 'text-slate-600'}`}>
+                      {n.mnv}{n.truoc ? ' · làm hàng này lần trước' : ''}{n.dangO ? ` · đang ở ${n.dangO.hex} — chọn = chuyển sang` : ''}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </BottomSheet>
+  );
+}

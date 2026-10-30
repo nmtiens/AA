@@ -19,7 +19,7 @@ import XuongDong, { type TrangThaiGui } from './XuongDong';
 import QuetQr from './QuetQr';
 import { DiemDanhSheet, type KetQuaDiemDanh } from './DiemDanh';
 import { SuaNgaySheet } from './SuaNgay';
-import { PhanCongSheet } from './PhanCong';
+import { PhanCongSheet, TiepTucSheet } from './PhanCong';
 import type { CongNhanTo } from '../../../services/xuongModel';
 import {
   QuanSoSheet, BatDauSheet, TamNgungSheet, TienDoSheet, GiaoSheet, NhanSheet, TangCaSheet, XacNhanSheet, ChiaNguoiSheet, LichSuSheet, GoMaSheet,
@@ -47,7 +47,7 @@ type Sheet =
   | { loai: 'trienKhai'; hex: string | null }
   | { loai: 'batDau'; r: DongViec; suKien: 'bat_dau' | 'tiep_tuc'; quanSo: number | null }
   | { loai: 'diemDanh'; ca: LoaiCa; sau?: { nhan: string; chay: (quanSoMoi?: number) => void } }
-  | { loai: 'suaNgay' } | { loai: 'phanCong' };
+  | { loai: 'suaNgay' } | { loai: 'phanCong' } | { loai: 'tiepTuc'; r: DongViec };
 
 const KHOA_PHIEN = 'xuong_phien';
 const KHOA_TO = 'xuong_to_cuoi';
@@ -587,6 +587,12 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
     if (laTram) {
       // Trạm: hàng chạy khi có người quét vào; tổ trưởng vẫn ghi Xong / Giao, tiến độ
       if (r.trangThai === 'da_nhan') return <p className="flex min-h-14 flex-1 items-center text-base text-slate-600">Quét thẻ + phiếu ở trạm để bắt đầu</p>;
+      // Tạm ngưng: Tiếp tục = chọn người vào lại hàng ngay trên app (chọn sẵn nhóm lần trước) — khỏi ra trạm quét
+      if (r.trangThai === 'tam_ngung') return (<>
+        <button className={NUT_DONG} onClick={() => setSheet({ loai: 'tiepTuc', r })}>Tiếp tục</button>
+        <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>Xong</button>
+        <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
+      </>);
       return (<>
         <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
         {/* Tạm ngưng = cả nhóm ra khỏi hàng (chạy lại: công nhân quét phiếu + thẻ ở trạm) */}
@@ -863,6 +869,10 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       {sheet?.loai === 'chiaNguoi' && <ChiaNguoiSheet dangChay={nhom.dangChay} quanSo={quanSo ?? 0} cv={cv} ca={ca} now={now} onLuu={chiaNguoi} onClose={() => setSheet(null)} />}
       {sheet?.loai === 'phanCong' && toId && (
         <PhanCongSheet toId={toId} onGhi={async (evs, moTa) => !!(await ghi(evs, moTa))} onClose={() => setSheet(null)} />
+      )}
+      {sheet?.loai === 'tiepTuc' && toId && (
+        <TiepTucSheet toId={toId} hex={sheet.r.hex} congDoanId={sheet.r.congDoanId} ten={sheet.r.tenHangMuc}
+          onGhi={async (evs, moTa) => !!(await ghi(evs, moTa))} onClose={() => setSheet(null)} />
       )}
       {sheet?.loai === 'suaNgay' && toId && cv && (
         <SuaNgaySheet toId={toId} dong={cv.dangLam}

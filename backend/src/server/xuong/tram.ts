@@ -429,3 +429,14 @@ export function coSuaNgay(doan: DoanNguoi[], coMat: Array<{ start: number; end: 
   }
   return [...co].sort();
 }
+
+/**
+ * Nhóm làm hàng `key` lần gần nhất (đã rời hết): đoạn đã đóng kết thúc muộn nhất + mọi đoạn khác của hàng đó chồng
+ * thời gian với nó => mã NV. Trạm chọn sẵn nhóm này khi quét lại phiếu hạng mục đang ngưng (khỏi chọn lại từng người).
+ */
+export function nhomLanTruoc(doan: Pick<DoanNguoi, 'mnv' | 'key' | 'start' | 'end'>[], key: string): string[] {
+  const dong = doan.filter(d => d.key === key && d.end !== null);
+  if (!dong.length) return [];
+  const cuoi = dong.reduce((a, b) => ((b.end ?? 0) > (a.end ?? 0) ? b : a));
+  return [...new Set(dong.filter(d => d.start <= (cuoi.end ?? 0) && (d.end ?? 0) >= cuoi.start).map(d => d.mnv))];
+}

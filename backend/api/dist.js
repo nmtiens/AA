@@ -82864,6 +82864,12 @@ function coSuaNgay(doan, coMat, now) {
   }
   return [...co].sort();
 }
+function nhomLanTruoc(doan, key) {
+  const dong2 = doan.filter((d) => d.key === key && d.end !== null);
+  if (!dong2.length) return [];
+  const cuoi = dong2.reduce((a, b) => (b.end ?? 0) > (a.end ?? 0) ? b : a);
+  return [...new Set(dong2.filter((d) => d.start <= (cuoi.end ?? 0) && (d.end ?? 0) >= cuoi.start).map((d) => d.mnv))];
+}
 
 // src/routes/xuongThongBao.ts
 var URL_XUONG = "/xuong";
@@ -87453,7 +87459,9 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
         tenHangMuc: info.get(String(x.hex))?.ten_hang_muc ?? null,
         conLam: Math.max(0, lamTron3(Number(x.sl_nhan) - Number(x.sl_hoan_thanh))),
         conNhan: conNhanCua(x),
-        dvt: info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex)).dvt).trim() : null
+        dvt: info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex)).dvt).trim() : null,
+        // Nhóm làm hàng này lần trước (sổ trạm 36 giờ) — trạm chọn sẵn khi quét lại phiếu hạng mục đang ngưng
+        nhomTruoc: nhomLanTruoc(st?.kq.doanNguoi ?? [], pairKey(String(x.hex), String(x.cong_doan_id)))
       })).filter((x) => x.conLam > 0 || x.conNhan > 0)
     });
   } catch (e) {
@@ -87712,13 +87720,15 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
       nguoi: mnvs.map((m) => {
         const dang = doan.find((d) => d.mnv === m && d.end === null);
         const truoc = doan.filter((d) => d.mnv === m && d.start < dauNgay).sort((a, b) => b.start - a.start)[0];
+        const roi = doan.filter((d) => d.mnv === m && d.end !== null).sort((a, b) => (b.end ?? 0) - (a.end ?? 0))[0];
         return {
           mnv: m,
           hoTen: hoTen.get(m) ?? m,
           coMat: coMat.has(m),
           dangO: dang ? hang(dang) : null,
           // Hàng làm dở lần trước — chỉ gợi ý nếu hàng đó còn làm được
-          homQua: truoc && conLam.has(truoc.key) ? hang(truoc) : null
+          homQua: truoc && conLam.has(truoc.key) ? hang(truoc) : null,
+          lanCuoi: roi ? hang(roi) : null
         };
       }).sort((a, b) => Number(b.coMat) - Number(a.coMat) || a.hoTen.localeCompare(b.hoTen)),
       hangMuc: hm.rows.map((x) => ({

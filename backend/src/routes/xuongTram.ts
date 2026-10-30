@@ -7,7 +7,7 @@ import { verifyDeviceToken, signDeviceToken, newDeviceId, signTramToken } from '
 import { hieuChinhGio } from '../server/xuong/clock.js';
 import { doanCoMat, chuanMnv } from '../server/xuong/chamCong.js';
 import { suKienConHieuLuc } from '../server/xuong/state.js';
-import { CHE_DO_CHAM, cheDoTheoNgay, coSuaNgay, laSuKienTram, mnvCua, ngayCa, type CheDoCham, type NguonDoan } from '../server/xuong/tram.js';
+import { CHE_DO_CHAM, cheDoTheoNgay, coSuaNgay, laSuKienTram, mnvCua, ngayCa, nhomLanTruoc, type CheDoCham, type NguonDoan } from '../server/xuong/tram.js';
 import { nguoiTrongSuKien } from '../server/xuong/chamCong.js';
 import { pairKey, type SuKien } from '../server/xuong/types.js';
 import {
@@ -271,6 +271,8 @@ app.get('/api/xuong/tram/may/bang', async (req: Request, res: Response) => {
         conLam: Math.max(0, lamTron3(Number(x.sl_nhan) - Number(x.sl_hoan_thanh))),
         conNhan: conNhanCua(x),
         dvt: info.get(String(x.hex))?.dvt ? String(info.get(String(x.hex))!.dvt).trim() : null,
+        // Nhóm làm hàng này lần trước (sổ trạm 36 giờ) — trạm chọn sẵn khi quét lại phiếu hạng mục đang ngưng
+        nhomTruoc: nhomLanTruoc(st?.kq.doanNguoi ?? [], pairKey(String(x.hex), String(x.cong_doan_id))),
       })).filter(x => x.conLam > 0 || x.conNhan > 0),
     });
   } catch (e) { fail(res, e, '/api/xuong/tram/may/bang'); }
@@ -496,11 +498,14 @@ app.get('/api/xuong/to/:id/phan-cong', async (req: Request, res: Response) => {
       nguoi: mnvs.map(m => {
         const dang = doan.find(d => d.mnv === m && d.end === null);
         const truoc = doan.filter(d => d.mnv === m && d.start < dauNgay).sort((a, b) => b.start - a.start)[0];
+        // Hàng gần nhất đã rời (kể cả hôm nay) — nút "Tiếp tục" hạng mục tạm ngưng chọn sẵn nhóm làm lần trước
+        const roi = doan.filter(d => d.mnv === m && d.end !== null).sort((a, b) => (b.end ?? 0) - (a.end ?? 0))[0];
         return {
           mnv: m, hoTen: hoTen.get(m) ?? m, coMat: coMat.has(m),
           dangO: dang ? hang(dang) : null,
           // Hàng làm dở lần trước — chỉ gợi ý nếu hàng đó còn làm được
           homQua: truoc && conLam.has(truoc.key) ? hang(truoc) : null,
+          lanCuoi: roi ? hang(roi) : null,
         };
       }).sort((a, b) => Number(b.coMat) - Number(a.coMat) || a.hoTen.localeCompare(b.hoTen)),
       hangMuc: hm.rows.map(x => ({
