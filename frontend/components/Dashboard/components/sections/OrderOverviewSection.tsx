@@ -16,6 +16,7 @@ import TrendByCategoryChart from '../Dashboards/TrendByCategoryChart';
 import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
 import { useMoDanhSachHex, layHexChiTiet } from '../Dashboards/DanhSachHex';
+import DetailDataModal from '../Dashboards/DetailDataModal';
 import { getYesterdayDateOption, parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
 import { formatTrieuAsTy } from '../../../../utils/money';
 // ---------------------------------------------------------------------------
@@ -297,9 +298,15 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   // trình đang áp trong cửa sổ.
   const moDanhSachHex = useMoDanhSachHex();
   const dsReq = useRef(0);
+  // Nhập kho / Xuất kho: mở ĐÚNG các dòng của bảng nguồn (nhap_kho / xuat_kho — ngày, phiếu, số lượng, thành tiền
+  // trong kỳ) qua /api/detail như "Xem chi tiết" của biểu đồ; trước mở danh sách HEX từ bảng sản xuất (số lũy kế
+  // mọi thời gian, lẫn hạng mục chưa nhập / chưa xuất trong kỳ)
+  const [nguon, setNguon] = useState<{ mo: boolean; tieuDe: string; mau: string; dangTai: boolean; rows: any[]; columns: any[]; cat: boolean }>(
+    { mo: false, tieuDe: '', mau: '#059669', dangTai: false, rows: [], columns: [], cat: false });
   const moDanhSach = (source: string, dimension: 'xuong' | 'congtrinh', ten: string) => (name: string, kind: 'daily' | 'mtd') => {
     if (source === 'stock') { onOpenStockItems?.(name); return; }
-    if (!moDanhSachHex) return;
+    const tuNguon = source === 'inventory' || source === 'export';
+    if (!tuNguon && !moDanhSachHex) return;
     const params = new URLSearchParams({ source, dimension, value: name, granularity: 'day' });
     const ngay = overviewDateFilters.map(d => parseVNDate(d)).filter((d): d is Date => d !== null).map(toISODateLocal).sort();
     const moc = ngay.length ? ngay[ngay.length - 1] : (overviewSummary?.date ?? '');
@@ -316,8 +323,18 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     if (activeTrendFilter.congTrinh && dimension !== 'congtrinh') params.set('congTrinh', activeTrendFilter.congTrinh);
     if (viewProjectWhitelist !== undefined) params.set('ctWhitelist', viewProjectWhitelist.map(x => x.trim().toUpperCase()).join('|') + '|');
     const id = ++dsReq.current;
+    if (tuNguon) {
+      const tieuDe = `${ten} — ${name} · ${nhan}`;
+      const mau = source === 'inventory' ? '#059669' : '#d97706';
+      setNguon({ mo: true, tieuDe, mau, dangTai: true, rows: [], columns: [], cat: false });
+      fetch(`/api/detail?${params.toString()}`)
+        .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+        .then(d => { if (id === dsReq.current) setNguon({ mo: true, tieuDe, mau, dangTai: false, rows: d.rows || [], columns: d.columns || [], cat: !!d.truncated }); })
+        .catch(e => { console.error('Lỗi fetch /api/detail:', e); if (id === dsReq.current) setNguon(n => ({ ...n, dangTai: false })); });
+      return;
+    }
     layHexChiTiet(params)
-      .then(d => { if (id === dsReq.current) moDanhSachHex(`${ten} — ${name} · ${nhan}`, d); })
+      .then(d => { if (id === dsReq.current) moDanhSachHex!(`${ten} — ${name} · ${nhan}`, d); })
       .catch(() => { /* lỗi mạng: không mở */ });
   };
 
@@ -1118,6 +1135,17 @@ const periodLabel = overviewDateFilters.length > 1
           </div>
         </div>
       )}
+      {/* Bấm số ở bảng Nhập kho / Xuất kho: dòng của bảng nguồn nhap_kho / xuat_kho trong kỳ */}
+      <DetailDataModal
+        open={nguon.mo}
+        onClose={() => setNguon(n => ({ ...n, mo: false }))}
+        title={nguon.tieuDe}
+        accentColor={nguon.mau}
+        rows={nguon.rows}
+        columns={nguon.columns}
+        loading={nguon.dangTai}
+        truncated={nguon.cat}
+      />
     </>
     </TrendFilterProvider>
   );
