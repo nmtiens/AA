@@ -11,11 +11,12 @@ import { parseNumber } from '../utils/numberParsers';
 import { findColumnKey } from '../utils/columnKeyResolver';
 import { toFilterSet, matchesFilter, matchesCategory, categoryOptions, categoryValue, NO_DATA_LABEL } from '../utils/filterMatch';
 import {
-  doneValue, isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK,
+  isCancelledIpo, isStocked, isQtyComplete, remainValue, dwellBucket, DWELL_KEYS, DWELL_STUCK,
   BOP_STAGE_ORDER, projectMatchKey,
 } from '../../../utils/productionMetrics';
-import { ON_LINE_STAGES, P002_STAGE, extractStage } from './stages';
+import { ON_LINE_STAGES, P002_STAGE } from './stages';
 import type { MetricType, BottleneckItem, WorkshopPivotData, ProjectPivotData } from '../types';
+import { mucBopTuDong, tinhBangCongTrinhBop, type BangCongTrinhBop, type MucBop } from '../../Construction/core/bopPivot';
 
 // ---------------------------------------------------------------------------
 // Cột bảng sản xuất
@@ -38,6 +39,9 @@ export function khoaSanXuat(productionColumns: ColumnDefinition[]) {
     thanhTienNhapKhoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO) || 'thanh_tien_nhap_kho_luy_ke',
     khachHangKey: findColumnKey(productionColumns, 'khach_hang') || 'khach_hang',
     khuVucDuAnKey: findColumnKey(productionColumns, 'khu_vuc_du_an') || 'khu_vuc_du_an',
+    // Kho lũy kế theo HEX — cùng cột ConstructionOverview đưa vào cửa sổ công trình (phần Kho của bảng BOP)
+    xuatKhoKey: findColumnKey(productionColumns, 'thanh_tien_xuat_kho_luy_ke') || 'thanh_tien_xuat_kho_luy_ke',
+    tonKhoKey: findColumnKey(productionColumns, 'thanh_tien_ton_kho_hien_tai') || 'thanh_tien_ton_kho_hien_tai',
   };
 }
 export type KhoaSanXuat = ReturnType<typeof khoaSanXuat>;
@@ -200,14 +204,6 @@ export function luaChonSanXuat(productionData: DataRow[], k: KhoaSanXuat) {
 export type BottleneckViewMode = 'BOP' | 'TÌNH TRẠNG';
 export type ProjectSummaryMetric = 'VALUE' | 'COUNT';
 
-function isInProductionRow(statusUpper: string): boolean {
-  return (
-    !statusUpper.includes('15. CHƯA TRIỂN KHAI') &&
-    !statusUpper.includes('14. CHƯA PHIẾU') &&
-    !statusUpper.includes('11. CHƯA SX')
-  );
-}
-
 const ON_LINE_STAGE_SET = new Set<string>(ON_LINE_STAGES);
 
 // Bảng "Tình trạng đơn hàng theo Công trình" (v2): phần CÒN LẠI của 1 hạng mục =
@@ -334,51 +330,25 @@ export function tinhCardMetrics(rows: DataRow[], k: KhoaPivot): CardMetrics {
   return metrics;
 }
 
-export interface ProjectStatusRow {
-  name: string; totalOrder: number; deployed: number; ticketed: number; inProduction: number;
-  inventory: number; remaining: number; notDeployed: number; percentComplete: number;
-}
-export function tinhProjectStatusSummary(rows: DataRow[], k: KhoaPivot, metric: ProjectSummaryMetric): ProjectStatusRow[] {
-  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return [];
+// Bảng "Tình trạng đơn hàng theo Công trình": mỗi dòng 1 công trình, cột theo cấu trúc bảng BOP của cửa sổ công trình
+// (Construction/core/bopPivot): công đoạn (gom nhóm Chưa triển khai / Chưa tính phiếu / Đang trên chuyền) + TỔNG +
+// Kho lũy kế (Đã nhập · Đã xuất · Tồn kho · Chênh). Số lượng = số hạng mục; Giá trị = phần CÒN LẠI chưa nhập (triệu).
+// Ăn mọi bộ lọc trang (rows đã lọc); bỏ đơn HỦY.
+export type KhoaBangCongTrinh = KhoaPivot & Partial<Pick<KhoaSanXuat, 'xuatKhoKey' | 'tonKhoKey'>>;
+export function tinhBangCongTrinh(rows: DataRow[], k: KhoaBangCongTrinh, metric: ProjectSummaryMetric): BangCongTrinhBop | null {
+  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return null;
   const { isCancelledRow } = hamGiaTri(k);
-  const agg: Record<string, { totalOrder: number; deployed: number; ticketed: number; inProduction: number; inventory: number; remainingRaw: number; notDeployedRaw: number; }> = {};
-  const isCount = metric === 'COUNT';
-  rows.forEach(row => {
-    const ctName = projectNameOf(row[k.congTrinhKey]);
-    // Bỏ HỦY TRƯỚC khi tạo dòng (trước công trình chỉ toàn đơn HỦY vẫn hiện thành dòng 0)
-    if (isCancelledRow(row)) return;
-    if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0, notDeployedRaw: 0 };
-    const status = String(row[k.tinhTrangKey] || '').toUpperCase();
-    const totalOrderValRaw = parseNumber(row[k.triGiaDonHangTongKey]);
-    const ticketValRaw = parseNumber(row[k.thanhTienTinhPhieuKey]);
-    const inventoryValRaw = doneValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]));
-    const totalOrderVal = isCount ? 1 : (totalOrderValRaw / 1000);
-    agg[ctName].totalOrder += totalOrderVal;
-    if (!status.includes('15. CHƯA TRIỂN KHAI')) agg[ctName].deployed += totalOrderVal;
-    const valToAddTicket = isCount ? (ticketValRaw > 0 ? 1 : 0) : (ticketValRaw / 1000);
-    if (!status.includes('15. CHƯA TRIỂN KHAI') && !status.includes('14. CHƯA PHIẾU')) agg[ctName].ticketed += valToAddTicket;
-    // Đếm: "đã nhập kho" = nhập ĐỦ (cùng quy tắc isStocked với mọi view); giá trị: phần đã nhập
-    const stockedItem = isStocked(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]), false, isQtyComplete(row));
-    const rowRemainRaw = remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]));
-    // Đang sản xuất = phần CÒN LẠI (trị giá − đã nhập) của hạng mục đã có phiếu — cùng cách tính cột "Đang SX" của bảng v2
-    if (isInProductionRow(status)) {
-      agg[ctName].inProduction += isCount ? (!stockedItem && rowRemainRaw > 0 ? 1 : 0) : rowRemainRaw / 1000;
-    }
-    // Chưa triển khai = phần CÒN LẠI của hạng mục P001 / "15. CHƯA TRIỂN KHAI" — cùng cách tính thanh P001 của phễu
-    if (remainBucketOf(status, k.bopKey ? extractStage(row[k.bopKey]) : null) === 'notDeployed') {
-      agg[ctName].notDeployedRaw += isCount ? (!stockedItem && rowRemainRaw > 0 ? 1 : 0) : rowRemainRaw / 1000;
-    }
-    agg[ctName].inventory += isCount ? (stockedItem ? 1 : 0) : (inventoryValRaw / 1000);
-    agg[ctName].remainingRaw += isCount
-      ? (!stockedItem && remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey])) > 0 ? 1 : 0)
-      : remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey])) / 1000;
-  });
-  return Object.entries(agg).map(([name, data]) => ({
-    name, ...data,
-    remaining: data.remainingRaw,
-    notDeployed: data.notDeployedRaw,
-    percentComplete: data.totalOrder > 0 ? (data.inventory / data.totalOrder) * 100 : 0,
-  })).sort((a, b) => unknownProjectLast(a, b) || b.totalOrder - a.totalOrder);
+  const khoa = {
+    bopKey: k.bopKey, tinhTrangKey: k.tinhTrangKey, triGiaKey: k.triGiaDonHangTongKey, nhapKhoKey: k.thanhTienNhapKhoKey,
+    // Trình duyệt (usePivotTables) không truyền 2 khoá này => tên cột chuẩn, như ConstructionOverview
+    xuatKhoKey: k.xuatKhoKey || 'thanh_tien_xuat_kho_luy_ke', tonKhoKey: k.tonKhoKey || 'thanh_tien_ton_kho_hien_tai',
+  };
+  const items: (MucBop & { ct: string })[] = [];
+  for (const row of rows) {
+    if (isCancelledRow(row)) continue;
+    items.push({ ...mucBopTuDong(row, khoa), ct: projectNameOf(row[k.congTrinhKey]) });
+  }
+  return tinhBangCongTrinhBop(items, metric === 'COUNT' ? 'count' : 'remain', UNKNOWN_PROJECT);
 }
 
 export function tinhPivotWorkshop(rows: DataRow[], k: KhoaPivot, metric: MetricType): WorkshopPivotData | null {
@@ -711,7 +681,7 @@ export function tinhTongQuanSanXuat(
     scopedProjects: scoped ? [...scoped] : null,
     effectiveCongTrinh,
     cardMetrics: tinhCardMetrics(filtered, k),
-    projectStatusSummary: tinhProjectStatusSummary(filtered, k, tuy.projectSummaryMetric),
+    bangCongTrinh: tinhBangCongTrinh(filtered, k, tuy.projectSummaryMetric),
     pivotWorkshopData: tinhPivotWorkshop(filtered, k, tuy.workshopMetric),
     pivotFunnelData: tinhPivotFunnel(funnel, k, tuy.workshopMetric),
     funnelBreakdownByBop: tinhFunnelBreakdownByBop(funnel, k, tuy.workshopMetric),

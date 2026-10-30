@@ -3,15 +3,15 @@ import { X, ArrowLeft, CalendarClock, Factory, Package, AlertTriangle, ListCheck
 import { ModalShell } from '../shared/ModalShell';
 import { DataRow } from '../../types';
 import { parseNumber } from '../Dashboard/utils/numberParsers';
-import { deadlineOf, doneValue, remainValue, isCancelledIpo, planAfterDue, isQtyComplete, parsePlanDate, stageRank } from '../../utils/productionMetrics';
+import { deadlineOf, isCancelledIpo, planAfterDue, parsePlanDate, stageRank } from '../../utils/productionMetrics';
 import { fetchHexExtra, gcnPending as isGcnPending, type HexExtra } from '../../services/productionExtraService';
-import { extractStage } from '../Dashboard/components/modals/OnLineStageDetailModal';
-import { remainBucketOf, type RemainBucket } from '../Dashboard/hooks/usePivotTables';
+import { type RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMacItem } from '../../services/vuongMacService';
 import { getToken } from '../../services/userService';
 import type { NvlRaw } from '../../utils/nvlParse';
 import { BopM2Section, taiTruocBopM2 } from './BopM2Section';
 import { BotKhnk } from './BotKhnk';
+import { mucBopTuDong } from './core/bopPivot';
 import { BopTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
@@ -177,17 +177,14 @@ export const ProjectHealthModal: React.FC<Props> = ({
     const out: HexInfo[] = [];
     for (const row of src) {
       if (isCancelledIpo(row[keys.ipoKey])) continue;
-      const total = parseNumber(row[keys.triGiaKey]);
-      const nk = parseNumber(row[keys.nhapKhoKey]);
-      const remain = remainValue(total, nk);
-      const stage = extractStage(row[keys.bopKey]);
-      const status = String(row[keys.tinhTrangKey] ?? '').toUpperCase();
+      // Trị giá / đã nhập / còn lại / công đoạn / nhóm / kho: cùng quy tắc với bảng công trình trang Tổng quan (core/bopPivot)
+      const m = mucBopTuDong(row, keys);
+      const { stage, open } = m;
       // BOT: CHỈ KH nhập kho tuần → KH nhập kho tháng (quy tắc chung toàn app)
       const dl = deadlineOf(row, keys);
       const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = dl;
-      // Chưa xong (đếm / tính hạn) = còn giá trị chưa nhập HOẶC trị giá 0 (chưa có giá), TRỪ hạng mục đã nhập
+      // Chưa xong (open, đếm / tính hạn) = còn giá trị chưa nhập HOẶC trị giá 0 (chưa có giá), TRỪ hạng mục đã nhập
       // đủ SỐ LƯỢNG (thành tiền NK lệch đơn giá / = 0). Khớp ô "Hạng mục chưa nhập kho" ở Báo cáo tiến độ.
-      const open = !isQtyComplete(row) && (remain > 0 || total <= 0);
       const t = deadline?.getTime();
       const bvSt = keys.bvStKey ? String(row[keys.bvStKey] ?? '').trim().toUpperCase() : '';
       const phSt = keys.phieuStKey ? String(row[keys.phieuStKey] ?? '').trim().toUpperCase() : '';
@@ -207,13 +204,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
         ipo: String(row[keys.ipoKey] ?? '').trim(),
         dwell: String(row[keys.dwellKey] ?? '').trim() || null,
         // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
-        bucket: open || remain > 0 ? remainBucketOf(status, stage) : null,
+        bucket: m.bucket,
         open,
-        total,
-        inv: doneValue(total, nk),
-        xuat: keys.xuatKhoKey ? Math.max(parseNumber(row[keys.xuatKhoKey]), 0) : 0,
-        tonKho: keys.tonKhoKey ? Math.max(parseNumber(row[keys.tonKhoKey]), 0) : undefined,
-        remain,
+        total: m.total,
+        inv: m.inv,
+        xuat: m.xuat,
+        tonKho: m.tonKho,
+        remain: m.remain,
         deadline,
         deadlineSource,
         khnkTuan,

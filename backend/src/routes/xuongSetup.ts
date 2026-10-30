@@ -8,6 +8,7 @@ import { LOAI_CA, pairKey } from '../server/xuong/types.js';
 import {
   fail, xuongQuanLy, quanLyDuoc, phamViXem, toTruongCua, ghiVaTinhLai, suaChoGiaoCuoiTuyen, xoaCacheGioCong, HEX_RE, PERM_XUONG, type Row,
   coBangCongNhan, COT_SU_KIEN, toSuKien, lichCaCuaXuong, suKienTheoHex, thongTinHangMuc, gioiHanNhan, mocCheDo, nguoiDungTheoId,
+  luuTrangThai, tenNguoi,
 } from './xuong.js';
 import { suKienConHieuLuc, THANH_PHAN, tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { ensureWorkshopGroups, workshopGroupSql } from '../server/workshopGroups.js';
@@ -16,6 +17,8 @@ import { cheDoTheoNgay, locTheoCheDo, ngayCa } from '../server/xuong/tram.js';
 import { vnDayKey } from '../server/common.js';
 import { xoaGioCongLuu } from './xuongBaoCao.js';
 import { baoHangChoNhan, baoXuongPhu } from './xuongThongBao.js';
+import { sqlThaoTacCanXuLy } from '../server/xuong/canXem.js';
+import { kiemTraHuyDot } from '../server/xuong/huyTrienKhai.js';
 
 // ============================================================================
 // MỤC XƯỞNG — PHẦN MÁY TÍNH (T8, docs/designs/xuong-checkin.md)
@@ -30,6 +33,7 @@ import { baoHangChoNhan, baoXuongPhu } from './xuongThongBao.js';
 //   POST /api/xuong/hex-tom-tat            hạng mục đang ở công đoạn nào (cột trong HexDetailModal)
 //   GET  /api/xuong/trien-khai?xuong=&q=   danh sách hạng mục của xưởng chính để triển khai (QT1/QT2, 7A)
 //   POST /api/xuong/trien-khai             triển khai số lượng + tuyến → công đoạn đầu tiên thấy "Chờ nhận"
+//   POST /api/xuong/trien-khai/huy         huỷ một đợt triển khai (trien_khai + khai_bao_cd của đợt) — chặn khi tổ đã nhận
 // Quyền: ADMIN mọi xưởng; quản lý xưởng (quyền xuong_quan_ly + bảng xuong_quan_ly) trong xưởng của mình.
 // ============================================================================
 
@@ -88,8 +92,14 @@ app.get('/api/xuong/setup', async (req: Request, res: Response) => {
                   WHERE xuong = $1 ORDER BY thu_tu, cd_tach_ma, cd_chi_tiet`, [xuong]),
       poolMra.query(`SELECT t.id, t.ten_to, t.active, t.to_truong_user_id FROM xuong_to t WHERE t.xuong = $1 ORDER BY t.ten_to`, [xuong]),
       poolMra.query(`SELECT tc.to_id, tc.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id WHERE t.xuong = $1`, [xuong]),
-      poolMra.query(`SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
-                  WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) ORDER BY tv.mnv`, [xuong]),
+      // Thành viên tổ = tài khoản ghi cho tổ (xuong_to_thanh_vien) GỘP công nhân đang xếp ở tổ (Nhân sự, xuong_cong_nhan) —
+      // lưu tổ ghi cả 2 nơi, nên form hiện đủ người (bỏ 1 dòng = rời tổ ở cả 2)
+      poolMra.query(`SELECT to_id, mnv FROM (
+                    SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
+                    WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)
+                    UNION
+                    SELECT c.to_id, c.mnv FROM xuong_cong_nhan c JOIN xuong_to t ON t.id = c.to_id WHERE t.xuong = $1 AND c.active
+                  ) x ORDER BY mnv`, [xuong]),
       poolMra.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
                   FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong]),
       poolMra.query(`SELECT q.user_id FROM xuong_quan_ly q WHERE q.xuong = $1`, [xuong]),
@@ -168,7 +178,8 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
          count(s.*) FILTER (WHERE s.trang_thai = 'da_nhan')::int AS da_nhan,
          count(s.*) FILTER (WHERE s.sl_giao_den > s.sl_nhan)::int AS cho_nhan,
          count(s.*) FILTER (WHERE s.sl_hoan_thanh > s.sl_giao)::int AS cho_giao,
-         count(s.*) FILTER (WHERE s.co <> '{}')::int AS can_xem,
+         -- Cần xem: thao tác cần xử lý của tổ — đúng các dòng danh sách Cần xem hiện ở bộ lọc mặc định
+         (SELECT count(*)::int FROM xuong_su_kien e WHERE e.to_id = t.id AND e.xuong = $1 AND ${sqlThaoTacCanXuLy('e')}) AS can_xem,
          (SELECT max(e.server_ts) FROM xuong_su_kien e, homnay WHERE e.to_id = t.id
             AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = homnay.d) AS thao_tac_cuoi
        FROM xuong_to t
@@ -177,6 +188,12 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
        WHERE t.xuong = $1 AND t.active
        GROUP BY t.id, t.ten_to, t.to_truong_user_id
        ORDER BY t.ten_to`, [xuong]);
+    // Số trên nút "Cần xem (N)": cả xưởng (kể cả thao tác không gắn tổ), cùng phạm vi với danh sách mở ra;
+    // null = người này không mở được danh sách của xưởng (vd. tổ trưởng xưởng khác)
+    const pv = await phamViXem(req.user!.id, xuong);
+    const canXemXuong = pv ? Number((await poolMra.query(
+      `SELECT count(*)::int AS n FROM xuong_su_kien e WHERE e.xuong = $1 AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
+         AND ${sqlThaoTacCanXuLy('e')}`, [xuong, pv.chiTo])).rows[0]?.n ?? 0) : null;
     {
       const nd = await nguoiDungTheoId(r.rows.map(x => x.to_truong_user_id));
       for (const x of r.rows) x.to_truong = nd.get(Number(x.to_truong_user_id))?.full_name ?? null;
@@ -242,10 +259,12 @@ app.get('/api/xuong/tong-quan', async (req: Request, res: Response) => {
       }
     }
     res.json({
-      success: true, available: true, dsXuong, xuong,
+      success: true, available: true, dsXuong, xuong, canXem: canXemXuong,
       to: r.rows.map(x => ({
         id: Number(x.id), ten: x.ten_to, toTruong: x.to_truong ?? null, quanSo: x.quan_so === null ? null : Number(x.quan_so),
-        dangChay: x.dang_chay, tamNgung: x.tam_ngung, choNhan: choNhanTo.get(Number(x.id)) ?? 0, choGiao: x.cho_giao, canXem: x.can_xem,
+        dangChay: x.dang_chay, tamNgung: x.tam_ngung, choNhan: choNhanTo.get(Number(x.id)) ?? 0, choGiao: x.cho_giao,
+        // Tổ ngoài phạm vi danh sách Cần xem của người xem: không hiện số (mở ra cũng không thấy)
+        canXem: pv && (!pv.chiTo || pv.chiTo.includes(Number(x.id))) ? x.can_xem : 0,
         // Đã nhận, chưa bắt đầu (màn tổ: tab Đang làm, nhóm "Chưa bắt đầu")
         chuaBatDau: x.da_nhan,
         thaoTacCuoi: x.thao_tac_cuoi, diemDanh: diemDanh.get(Number(x.id)) ?? null,
@@ -311,10 +330,15 @@ app.post('/api/xuong/setup/to', async (req: Request, res: Response) => {
   try {
     const p = toSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: 'Dữ liệu tổ không hợp lệ' });
-    const d = { ...p.data, xuong: p.data.xuong.toUpperCase(), thanhVien: [...new Set(p.data.thanhVien.map(x => x.toUpperCase()))] };
+    const d = { ...p.data, xuong: p.data.xuong.toUpperCase(), thanhVien: [...new Set(p.data.thanhVien.map(x => x.toUpperCase().replace(/\s+/g, '')).filter(Boolean))] };
     const { ds, admin } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
     if (d.capQuyen && !admin) return khongQuyen(res, 'Chỉ admin được cấp quyền tài khoản');
+    // Họ tên cho công nhân mới thêm vào Nhân sự: lấy theo tài khoản trùng mã NV (users ở Layerbase); không có => để mã NV
+    const hoTen = new Map<string, string>(d.thanhVien.length
+      ? (await pool.query(`SELECT upper(msnv) AS mnv, full_name FROM users WHERE msnv IS NOT NULL AND upper(msnv) = ANY($1::text[])`, [d.thanhVien]))
+        .rows.filter(r => r.full_name).map(r => [String(r.mnv), String(r.full_name)])
+      : []);
 
     const kq = await withTransactionMra(async client => {
       const cds = d.congDoan.length
@@ -348,6 +372,18 @@ app.post('/api/xuong/setup/to', async (req: Request, res: Response) => {
            SELECT $1, m, CURRENT_DATE FROM unnest($2::text[]) m
            WHERE NOT EXISTS (SELECT 1 FROM xuong_to_thanh_vien x WHERE x.to_id = $1 AND x.mnv = m AND (x.den_ngay IS NULL OR x.den_ngay >= CURRENT_DATE))
            ON CONFLICT (to_id, mnv, tu_ngay) DO UPDATE SET den_ngay = NULL`, [id, d.thanhVien]);
+      }
+      // Nhân sự (chấm công / trạm quét / in QR): người bỏ khỏi danh sách => chưa xếp tổ; người trong danh sách => xếp vào
+      // tổ này (chuyển từ tổ khác nếu có), người chưa có thì thêm mới
+      await client.query(
+        `UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE to_id = $1 AND NOT (mnv = ANY($2::text[]))`, [id, d.thanhVien]);
+      if (d.thanhVien.length) {
+        await client.query(
+          `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, nguon)
+           SELECT m, COALESCE(h, m), $2, $1, 'app' FROM unnest($3::text[], $4::text[]) AS u(m, h)
+           ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, xuong = EXCLUDED.xuong, active = true, cap_nhat = now(),
+             ho_ten = CASE WHEN xuong_cong_nhan.ho_ten = xuong_cong_nhan.mnv THEN EXCLUDED.ho_ten ELSE xuong_cong_nhan.ho_ten END`,
+          [id, d.xuong, d.thanhVien, d.thanhVien.map(m => hoTen.get(m) ?? null)]);
       }
       return { id } as const;
     });
@@ -650,6 +686,56 @@ app.post('/api/xuong/trien-khai', async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /api/xuong/trien-khai/huy { trienKhaiId, lyDo } — huỷ một đợt triển khai: trien_khai + mọi khai_bao_cd của đợt
+// (cả xưởng phụ khai, du_lieu.trienKhaiId) trong một giao dịch, bằng sự kiện 'huy' (không xoá dòng).
+// Quyền: admin / quản lý xưởng chính của đợt. Chặn khi tổ đầu tuyến đã nhận hàng của đợt (server/xuong/huyTrienKhai.ts).
+// ---------------------------------------------------------------------------
+const soGon = (n: number) => String(Math.round(n * 1000) / 1000).replace('.', ',');
+
+app.post('/api/xuong/trien-khai/huy', async (req: Request, res: Response) => {
+  try {
+    const id = String(req.body?.trienKhaiId ?? '');
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ success: false, message: 'Thiếu đợt triển khai cần huỷ' });
+    const me = Number(req.user!.id);
+    const { ds } = await xuongDuocSua(req);
+    const lyDo = typeof req.body?.lyDo === 'string' && req.body.lyDo.trim() ? req.body.lyDo.trim().slice(0, 500) : null;
+    const kq = await withTransactionMra(async client => {
+      // Khoá dòng triển khai: hai người cùng huỷ một đợt thì người sau thấy "đã huỷ"
+      const d = (await client.query(
+        `SELECT id, hex, du_lieu->>'xuong' AS xuong_chinh FROM xuong_su_kien WHERE id = $1 AND loai = 'trien_khai' FOR UPDATE`, [id])).rows[0];
+      if (!d) return { loi: 'Không tìm thấy đợt triển khai', ma: 404 } as const;
+      if (!quanLyDuoc(ds, d.xuong_chinh ?? null)) return { loi: `Chỉ admin hoặc quản lý xưởng chính ${d.xuong_chinh ?? ''} được huỷ đợt triển khai`, ma: 403 } as const;
+      const rows = await suKienTheoHex(client, [String(d.hex)]);
+      const k = kiemTraHuyDot(rows.map(toSuKien), id);
+      if (!k) return { loi: 'Đợt triển khai đã được huỷ', ma: 400 } as const;
+      if (k.chan.length) {
+        const [cd, to] = await Promise.all([
+          client.query('SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])', [k.chan.map(c => c.congDoanId)]),
+          client.query('SELECT id, ten_to FROM xuong_to WHERE id = ANY($1::int[])', [k.chan.flatMap(c => c.toIds)]),
+        ]);
+        const tenCd = new Map(cd.rows.map(x => [String(x.id), String(x.cd_chi_tiet)]));
+        const tenTo = new Map(to.rows.map(x => [Number(x.id), String(x.ten_to)]));
+        const loi = k.chan.map(c => `${c.toIds.map(t => tenTo.get(t) ?? `Tổ #${t}`).join(', ') || 'Tổ'} đã nhận ${soGon(c.slNhan)}`
+          + ` ở ${tenCd.get(c.congDoanId) ?? c.congDoanId} (huỷ xong chỉ còn giao tới ${soGon(c.slGiaoDenConLai)})`).join('; ');
+        return { loi: `${loi} — huỷ nhận ở tổ trước rồi mới huỷ được đợt triển khai`, ma: 409 } as const;
+      }
+      const byId = new Map(rows.map(x => [String(x.id), x]));
+      const dich = k.huy.map(e => byId.get(e.id)!).filter(Boolean);
+      await ghiVaTinhLai(client, dich.map(x => dongServer({
+        loai: 'huy', sua_cho: x.id, hex: x.hex, cong_doan_id: x.cong_doan_id, to_id: x.to_id, xuong: x.xuong,
+        ghi_chu: lyDo, du_lieu: { dotTrienKhai: id },
+      }, me)), dich);
+      // Bỏ thành phần / tuyến của đợt làm đổi công đoạn cuối tuyến, hợp nhánh => tính lại mọi cặp của hạng mục
+      const cap = await client.query('SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE hex = $1', [String(d.hex)]);
+      await luuTrangThai(client, cap.rows.map(x => [String(x.hex), String(x.cong_doan_id)] as [string, string]));
+      return { ok: true, ma: 200, so: dich.length } as const;
+    });
+    if ('loi' in kq) return res.status(kq.ma).json({ success: false, message: kq.loi });
+    res.json({ success: true, available: true, soSuKien: kq.so });
+  } catch (e) { fail(res, e, '/api/xuong/trien-khai/huy'); }
+});
+
+// ---------------------------------------------------------------------------
 // QT2 — XƯỞNG PHỤ KHAI CĐ CHI TIẾT cho thành phần được xưởng chính giao (triển khai để trống tuyến)
 //   GET  /api/xuong/khai-chi-tiet?xuong=  → thành phần đang chờ xưởng này khai tuyến
 //   POST /api/xuong/khai-chi-tiet { xuong, items: [{ trienKhaiId, thanhPhan, tuyen }] }
@@ -798,6 +884,23 @@ app.get('/api/xuong/theo-doi-trien-khai', async (req: Request, res: Response) =>
       ngayKhnk: x.ngay_khnk ?? null,
     }]));
     const evts = evRows.map(toSuKien);
+    // Các đợt triển khai còn hiệu lực (danh sách + nút huỷ đợt trên máy tính)
+    const conHieuLuc = new Set(suKienConHieuLuc(evts).map(e => e.id));
+    const dotRows = evRows.filter(r => r.loai === 'trien_khai' && conHieuLuc.has(String(r.id)));
+    const [nguoiTk, { ds: dsQl }] = await Promise.all([nguoiDungTheoId(dotRows.map(r => r.user_id)), xuongDuocSua(req)]);
+    const dotCua = (hex: string) => dotRows.filter(r => String(r.hex) === hex)
+      .sort((a, b) => new Date(b.device_ts_hieu_chinh).getTime() - new Date(a.device_ts_hieu_chinh).getTime())
+      .map(r => {
+        const xc = typeof r.du_lieu?.xuong === 'string' ? r.du_lieu.xuong : (r.xuong ?? null);
+        return {
+          id: String(r.id), luc: new Date(r.device_ts_hieu_chinh).toISOString(), nguoi: tenNguoi(nguoiTk.get(Number(r.user_id))),
+          soLuong: Number(r.so_luong ?? 0), xuongChinh: xc,
+          thanhPhan: Array.isArray(r.du_lieu?.thanhPhan)
+            ? (r.du_lieu.thanhPhan as Array<Record<string, unknown>>).map(t => ({ ten: String(t.ten ?? ''), xuong: String(t.xuong ?? xc ?? '') }))
+            : [{ ten: '', xuong: String(xc ?? '') }],
+          huyDuoc: quanLyDuoc(dsQl, xc),
+        };
+      });
     const cdMap = new Map(cd.rows.map(x => [String(x.id), x]));
     const toCua = new Map<string, string[]>();
     for (const x of toCd.rows) { const k = String(x.cong_doan_id); if (!toCua.has(k)) toCua.set(k, []); toCua.get(k)!.push(String(x.ten_to)); }
@@ -848,7 +951,7 @@ app.get('/api/xuong/theo-doi-trien-khai', async (req: Request, res: Response) =>
         hex, ten: i?.ten_hang_muc ?? null, tenCongTrinh: i?.ten_cong_trinh ?? null, dvt: i?.dvt ? String(i.dvt).trim() : null,
         xuongChinh: t.xuong_chinh ?? (i?.xuong_chinh ? String(i.xuong_chinh).trim() : null), slTrienKhai: sl, trienKhaiDau: t.dau, trienKhaiCuoi: t.cuoi,
         chuaTrienKhai: t.chuaTrienKhai, keHoach: khCua.get(hex) ?? null, soLuongDonHang: i?.so_luong_don_hang_tong === null || i?.so_luong_don_hang_tong === undefined ? null : Number(i.so_luong_don_hang_tong),
-        thanhPhan, choKhai, ngoaiTuyen, slXong, xong,
+        thanhPhan, choKhai, ngoaiTuyen, slXong, xong, dotTrienKhai: dotCua(hex),
         dangLam: tatCaCd.filter(c => c.trangThai === 'dang_lam').length,
         tamNgung: tatCaCd.filter(c => c.trangThai === 'tam_ngung').length,
         choNhan: tatCaCd.filter(c => c.slGiaoDen > c.slNhan + 0.0005).length,

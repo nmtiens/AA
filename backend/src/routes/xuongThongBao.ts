@@ -4,6 +4,7 @@ import { app } from '../server/app.js';
 import { vnDayKey } from '../server/common.js';
 import { activeUsers, PREF_OF, isMissingSchema, type NotifyKind } from '../notifications.js';
 import { sendToUsers, cronAuth } from '../vuongMacPush.js';
+import { sqlThaoTacCanXuLy } from '../server/xuong/canXem.js';
 
 // ============================================================================
 // THÔNG BÁO MỤC XƯỞNG (đợt 2 — docs/designs/xuong-checkin.md, cải tiến 8 + 9). Dùng hệ thống notifications sẵn có:
@@ -213,15 +214,16 @@ async function nhacSang(ngay: string) {
       title: 'Hạng mục đang chạy hơn 2 ngày chưa cập nhật',
       body: `${ds.length} hạng mục: ${ds.slice(0, 5).join(' · ')} — kiểm tra: còn làm, tạm ngưng hay đã xong?` });
   }
-  // 3) Thao tác bị gắn cờ trong 24 giờ qua: báo quản lý xưởng
+  // 3) Thao tác cần xử lý trong 24 giờ qua (cùng định nghĩa danh sách Cần xem ở bộ lọc mặc định — bỏ cờ chỉ để biết,
+  // thao tác đã huỷ): báo quản lý xưởng
   const co = await poolMra.query(
-    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien WHERE co <> '{}' AND server_ts > now() - interval '24 hours' AND xuong IS NOT NULL
+    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy('e', 24)} AND xuong IS NOT NULL
      GROUP BY xuong`);
   const ql = await quanLyCuaXuong(co.rows.map(x => String(x.xuong)));
   for (const x of co.rows) {
     tins.push({ kind: 'xuong_co', userIds: ql.get(x.xuong) ?? [], moiNgayMotLan: true, url: '/#/setup?tab=xuong',
       title: `Xưởng ${x.xuong}: có thao tác cần xem`,
-      body: `${x.n} thao tác trong 24 giờ qua — Setup dữ liệu → Xưởng → Cần xem (giờ máy lệch, gửi hộ, giao vượt số đã xong…).` });
+      body: `${x.n} thao tác cần xử lý trong 24 giờ qua — Setup dữ liệu → Xưởng → Cần xem (giờ máy lệch, gửi hộ, giao vượt số đã xong…).` });
   }
   await donAnhMoCoi();
   return guiTinXuong(tins);

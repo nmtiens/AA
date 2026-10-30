@@ -6,6 +6,7 @@ import { isMissingSchema } from '../notifications.js';
 import { fail, phamViXem, suaChoGiaoCuoiTuyen, thongTinHangMuc, gioCongToNgay, lichCaCuaXuong, dauLichCa, coBangCongNhan, COT_SU_KIEN, toSuKien, suKienTheoHex, type Row } from './xuong.js';
 import { tuyenTheoThanhPhan } from '../server/xuong/state.js';
 import { taiMra, khungCaChinh, gioTrongCaNgay, dauNgayVN, ngayCuaTs, NGAY, trangThaiMraLuc, type CapMra } from '../server/xuong/mraLichSu.js';
+import { gomSoKhopTram, type NgaySoKhopVao } from '../server/xuong/soKhopTram.js';
 
 // ============================================================================
 // BÁO CÁO XƯỞNG / TỔ (đợt 2 — docs/designs/xuong-checkin.md, mục Màn hình: "theo xưởng / tổ — giờ công so với
@@ -544,6 +545,22 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
     }).sort((a, b) => (a.tenTo ?? '').localeCompare(b.tenTo ?? '') || (a.hoTen ?? a.mnv).localeCompare(b.hoTen ?? b.mnv));
     for (const n of theoNguoi) for (const d of n.ngay) for (const h of d.hangMuc) tatCaHex.add(h.hex);
 
+    // So khớp trạm (tổ chạy song song): giờ công chính thức theo bấm tay so với số tính từ sổ trạm
+    const vaoSoKhop: NgaySoKhopVao[] = [];
+    for (const x of pb.rows) {
+      const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
+      if (kq?.soKhopTram) vaoSoKhop.push({ toId: Number(x.to_id), ngay: x.ngay, kq });
+    }
+    const tenSoKhop = new Map([...tenNguoi].map(([m, t]) => [m, t.hoTen]));
+    const thieuTen = [...new Set(vaoSoKhop.flatMap(v => [...Object.keys(v.kq.soKhopTram?.theoNguoi ?? {}), ...Object.keys(v.kq.soKhopTram?.diemDanh ?? {})]))]
+      .filter(m => !tenSoKhop.has(m));
+    if (thieuTen.length && await coBangCongNhan()) {
+      for (const x of (await poolMra.query('SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])', [thieuTen])).rows) {
+        tenSoKhop.set(String(x.mnv), String(x.ho_ten));
+      }
+    }
+    const soKhopTram = gomSoKhopTram(vaoSoKhop, tenToCua, tenSoKhop);
+
     const hangMuc = [...hmKy.entries()].map(([hex, m]) => {
       const congDoan = [...m.values()].map(c => {
         const tt = ttCua.get(`${hex}|${c.congDoanId}`)
@@ -631,6 +648,8 @@ app.get('/api/xuong/bao-cao', async (req: Request, res: Response) => {
       chamCong,
       hangMuc,
       theoNguoi,
+      // Khoảng > 2 tháng: bỏ chi tiết từng người
+      soKhopTram: rutGon ? soKhopTram.map(t => ({ ...t, theoNgay: t.theoNgay.map(n => ({ ...n, theoNguoi: [] })) })) : soKhopTram,
       chiSo: {
         nhatKy: { tong: kpiNk.rows[0]?.tong ?? 0, du: kpiNk.rows[0]?.du ?? 0 },
         guiTrong1Gio: { tong: kpiGui.rows[0]?.tong ?? 0, nhanh: kpiGui.rows[0]?.nhanh ?? 0 },

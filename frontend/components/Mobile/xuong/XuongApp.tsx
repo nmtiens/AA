@@ -374,7 +374,11 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
   };
 
   const tamNgung = (r: DongViec, ma: MaLyDo, tienDo: number | null = null) => {
-    ghi([{ loai: 'tam_ngung', hex: r.hex, congDoanId: r.congDoanId, toId: toId!, lyDoTamNgung: ma },
+    // Tổ trạm: hàng chạy theo người đang ở hàng => tạm ngưng = ghi hộ mọi người ra khỏi hàng (người rảnh, quét vào hàng
+    // khác được); sự kiện tam_ngung vẫn ghi để lưu lý do
+    const raHet: SuKienNhap[] = laTram ? (r.nguoi ?? []).map(mnv => ({ loai: 'nguoi_ra' as const, toId: toId!, hex: r.hex, congDoanId: r.congDoanId,
+      duLieu: { mnv, tram: true, tamNgung: true } })) : [];
+    ghi([...raHet, { loai: 'tam_ngung', hex: r.hex, congDoanId: r.congDoanId, toId: toId!, lyDoTamNgung: ma },
       ...(tienDo !== null ? [{ loai: 'tien_do' as const, hex: r.hex, congDoanId: r.congDoanId, toId: toId!, tienDo, duLieu: { tienDo } }] : [])],
       `Tạm ngưng ${r.hex} — ${tenLyDo(ma)}${tienDo !== null ? ` · ${tienDo}%` : ''}`,
       c => apDung(c, khoaDong(r), x => ({ ...x, dangChayTu: null, soNguoi: 0, trangThai: 'tam_ngung', suKienCuoi: new Date().toISOString() })))
@@ -585,6 +589,10 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       if (r.trangThai === 'da_nhan') return <p className="flex min-h-14 flex-1 items-center text-base text-slate-600">Quét thẻ + phiếu ở trạm để bắt đầu</p>;
       return (<>
         <button className={NUT_DONG} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>{r.cuoiTuyen ? 'Xong' : 'Xong — giao'}</button>
+        {/* Tạm ngưng = cả nhóm ra khỏi hàng (chạy lại: công nhân quét phiếu + thẻ ở trạm) */}
+        {r.trangThai === 'dang_lam' && (r.nguoi ?? []).length > 0 && (
+          <button className={NUT_PHU_DOC} onClick={() => setSheet({ loai: 'tamNgung', r })}>Tạm ngưng</button>
+        )}
         <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
       </>);
     }
@@ -740,6 +748,10 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
             { ten: 'Lịch sử', icon: 'lichsu' as const, onClick: () => setSheet({ loai: 'lichSu' }) },
             // Trạm quét (chạy thật hoặc tuần song song): xem / sửa lượt quét từng người
             // Tổ trạm: phân công đầu ca (giữ như hôm qua) — công nhân không phải quét phiếu
+            // Tổ trạm: tổ trưởng vẫn điểm danh tay được (người quên thẻ / trạm chưa có) — người đã điểm danh hiện ở trạm để
+            // người khai chọn làm chung
+            ...(laTram && ca ? [{ ten: 'Điểm danh', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'diemDanh', ca }),
+              phu: daDiemDanh(cv, ca) ? `${coMatLuc(cv, ca, now).length} có mặt` : undefined }] : []),
             ...(laTram ? [{ ten: 'Phân công', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'phanCong' }) }] : []),
             ...(cv.cheDo && cv.cheDo !== 'cu' ? [{ ten: 'Sửa ngày', icon: 'quanso' as const, onClick: () => setSheet({ loai: 'suaNgay' }) }] : []),
             ...(laQuanLy ? [{ ten: 'Triển khai', icon: 'trienkhai' as const, onClick: () => setSheet({ loai: 'trienKhai', hex: null }) }] : []),

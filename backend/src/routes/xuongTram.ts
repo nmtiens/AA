@@ -170,6 +170,16 @@ app.post('/api/xuong/to/:id/che-do', async (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // Sổ trạm của một tổ quanh một khoảng thời gian (sự kiện thô gồm huy + nhận / xong của các hạng mục đó)
 // ---------------------------------------------------------------------------
+/** Điểm danh tay của tổ trưởng (vao_ca / ra_ca không phải của trạm) quanh một khoảng — gộp vào "đã điểm danh" ở trạm */
+async function diemDanhTayCuaTo(toId: number, tu: number, den: number): Promise<SuKien[]> {
+  const r = await poolMra.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
+     WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca') AND device_ts_hieu_chinh BETWEEN $2 AND $3
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+    [toId, new Date(tu).toISOString(), new Date(den).toISOString()]);
+  return r.rows.map(toSuKien).filter(e => !laSuKienTram(e));
+}
+
 async function soTramCuaTo(toId: number, tu: number, den: number): Promise<SuKien[]> {
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
@@ -216,8 +226,11 @@ app.get('/api/xuong/tram/may/bang', async (req: Request, res: Response) => {
     const evs = await soTramCuaTo(t.toId, now - 36 * 3_600_000, now + 60_000);
     const st = await soTram(poolMra, evs, 'so_khop', now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some(c => k.endsWith(`|${c}`)));
-    // Người đã vào ca (theo trạm) mà chưa ở hàng nào
-    const ddHom = suKienConHieuLuc(evs).filter(e => (e.loai === 'vao_ca' || e.loai === 'ra_ca') && laSuKienTram(e) && ngayCa(e.ts) === ngay);
+    // Người đã điểm danh hôm nay (quét thẻ ở trạm HOẶC tổ trưởng điểm danh trên app) mà chưa ở hàng nào — người khai chọn
+    // được họ làm chung
+    const ddTay = await diemDanhTayCuaTo(t.toId, now - 36 * 3_600_000, now + 60_000);
+    const ddHom = [...suKienConHieuLuc(evs), ...ddTay].filter(e => (e.loai === 'vao_ca' || e.loai === 'ra_ca') && ngayCa(e.ts) === ngay)
+      .sort((a, b) => a.ts - b.ts);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter(d => d && d.end === null).map(d => d!.mnv);
     const oHang = new Set(dangO.flatMap(([, ds]) => ds));
     const chuaVaoHang = [...new Set(coMat)].filter(m => !oHang.has(m));
@@ -362,15 +375,18 @@ app.post('/api/xuong/tram/may/events', async (req: Request, res: Response) => {
       if (hopLe.some(e => e.loai === 'nhan')) ghNhan = await gioiHanNhan(poolMra, capLo.filter(([h, c]) => hopLe.some(e => e.loai === 'nhan' && e.hex === h && e.congDoanId === c)));
     }
     const ctx = { congNhan: new Set(cn.rows.map(x => String(x.mnv))), cdCuaTo, lamDuoc };
-    // Khai hộ vào hàng chỉ cho người đã tự quét thẻ vào ca (ở trạm, trong ngày ca) — không ghi hộ người vắng
+    // Khai hộ vào hàng chỉ cho người đã điểm danh vào ca (tự quét thẻ ở trạm hoặc tổ trưởng điểm danh, trong ngày ca) —
+    // không ghi hộ người vắng
     const duocKhai = hopLe.filter(e => typeof e.duLieu?.khaiBoi === 'string').map(e => mnvCua({ duLieu: e.duLieu ?? null })).filter((x): x is string => !!x);
     const daVaoCa = new Set<string>(hopLe.filter(e => e.loai === 'vao_ca' && typeof e.duLieu?.khaiBoi !== 'string')
       .map(e => mnvCua({ duLieu: e.duLieu ?? null })).filter((x): x is string => !!x));
     if (duocKhai.length) {
       const r = await poolMra.query(
-        `SELECT DISTINCT du_lieu->>'mnv' AS mnv FROM xuong_su_kien e
-         WHERE loai = 'vao_ca' AND du_lieu->>'tram' = 'true' AND du_lieu->>'mnv' = ANY($1::text[])
-           AND NOT (du_lieu ? 'khaiBoi') AND device_ts_hieu_chinh >= $2
+        `SELECT DISTINCT n->>'mnv' AS mnv FROM xuong_su_kien e
+           CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'nguoi') = 'array' THEN e.du_lieu->'nguoi'
+             ELSE jsonb_build_array(jsonb_build_object('mnv', e.du_lieu->>'mnv')) END) n
+         WHERE e.loai = 'vao_ca' AND n->>'mnv' = ANY($1::text[])
+           AND NOT (e.du_lieu ? 'khaiBoi') AND e.device_ts_hieu_chinh >= $2
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
         [[...new Set(duocKhai)], new Date(Date.parse(`${ngayCa(serverNow)}T05:00:00+07:00`)).toISOString()]);
       for (const x of r.rows) daVaoCa.add(String(x.mnv));
@@ -405,7 +421,7 @@ app.post('/api/xuong/tram/may/events', async (req: Request, res: Response) => {
       if (typeof e.duLieu?.khaiBoi === 'string') {
         if (e.loai === 'vao_ca') { tuChoi.push({ id: e.id, reason: 'Mỗi người tự quét thẻ vào ca' }); continue; }
         if (e.loai === 'nguoi_vao' && !daVaoCa.has(mnvCua({ duLieu: e.duLieu })!)) {
-          tuChoi.push({ id: e.id, reason: 'Người này chưa tự quét thẻ vào ca' }); continue;
+          tuChoi.push({ id: e.id, reason: 'Người này chưa điểm danh vào ca' }); continue;
         }
         const kb = chuanMnv(e.duLieu.khaiBoi);
         if (!ctx.congNhan.has(kb) && !(await laCongNhan(kb))) { tuChoi.push({ id: e.id, reason: 'Người khai không có trong danh sách' }); continue; }

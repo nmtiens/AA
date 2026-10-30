@@ -5,10 +5,11 @@ import { doneValue, isStocked, isQtyComplete, remainValue, materialLineState } f
 import { parseVNDate, toISODateLocal } from '../utils/dateHelpers';
 import { extractStage } from '../core/stages';
 import {
-  hamGiaTri, remainBucketOf, tinhBottleneck, tinhTopBottlenecks, tinhCardMetrics, tinhProjectStatusSummary,
+  hamGiaTri, remainBucketOf, tinhBottleneck, tinhTopBottlenecks, tinhCardMetrics, tinhBangCongTrinh,
   tinhPivotWorkshop, tinhPivotFunnel, tinhFunnelBreakdownByBop, tinhPivotProject,
   type BottleneckViewMode, type ProjectSummaryMetric, type RemainBucket, type TongQuanSanXuat,
 } from '../core/tongQuanSanXuat';
+import type { BangCongTrinhBop } from '../../Construction/core/bopPivot';
 import {
   MetricType,
   BottleneckItem,
@@ -91,10 +92,8 @@ interface UsePivotTablesResult {
     coTheSX: number; vecniFitting: number; chuyenKhac: number; coPhieuChuaSX: number;
     chuaTheSX: number; vuongSL: number; chuaTrienKhai: number;
   };
-  projectStatusSummary: {
-    name: string; totalOrder: number; deployed: number; ticketed: number; inProduction: number;
-    inventory: number; remaining: number; notDeployed: number; percentComplete: number;
-  }[];
+  /** Bảng "Tình trạng đơn hàng theo Công trình" — cấu trúc bảng BOP (Construction/core/bopPivot); null = thiếu cột */
+  bangCongTrinh: BangCongTrinhBop | null;
   /** Danh sách HEX cho phễu (cùng nguồn + nút Giá trị / Hạng mục của phễu), theo cột */
   funnelHexRowsByColumn: {
     totalOrder: DataRow[];
@@ -194,10 +193,11 @@ export function usePivotTables({
     [san, filteredProductionData, tinhTrangKey, tinhTrangIpoKey, triGiaDonHangTongKey, thanhTienNhapKhoKey]);
 
   // -------------------------------------------------------------------------
-  // Project status summary (bản gốc — dùng cho bảng LEGACY, ăn đầy đủ 4 filter)
+  // Tình trạng đơn hàng theo Công trình (công đoạn × kho như bảng BOP, ăn đầy đủ bộ lọc trang)
   // -------------------------------------------------------------------------
-  const projectStatusSummary = useMemo(
-    () => san?.projectStatusSummary ?? tinhProjectStatusSummary(filteredProductionData, khoa, projectSummaryMetric),
+  // Máy chủ bản cũ (dist.js chưa dựng lại / bản lưu cũ) không có bangCongTrinh => tự tính (bảng trống tới khi tải xong bảng SX)
+  const bangCongTrinh = useMemo(
+    () => san?.bangCongTrinh ?? tinhBangCongTrinh(filteredProductionData, khoa, projectSummaryMetric),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [san, filteredProductionData, congTrinhKey, tinhTrangKey, tinhTrangIpoKey, bopKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey, projectSummaryMetric]);
 
@@ -419,7 +419,7 @@ const pivotMaterialStatusData = useMemo<MaterialStatusPivotData | null>(() => {
 
     calculateMetricValue,
     cardMetrics,
-    projectStatusSummary,
+    bangCongTrinh,
     funnelHexRowsByColumn,
     pivotWorkshopData,
     pivotFunnelData,

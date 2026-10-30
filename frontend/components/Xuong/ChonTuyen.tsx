@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
-import { ArrowUp, ArrowDown, X, Plus } from 'lucide-react';
+import { useMemo } from 'react';
+import { ArrowUp, ArrowDown, X } from 'lucide-react';
 import type { CongDoanTk } from '../../services/xuongSetupApi';
-import { BTN } from './xuongDesktopUi';
 
 // ============================================================================
 // Chọn tuyến công đoạn chi tiết (thứ tự hàng đi qua) — dùng ở Triển khai (QT1, từng thành phần) và Khai CĐ chi tiết
@@ -21,7 +20,6 @@ export default function ChonTuyen({ tuyen, onDoi, congDoan, xuong, xuongGoc }: {
   /** Xưởng đang xem (tên công đoạn của xưởng này không kèm mã xưởng) */
   xuongGoc: string;
 }) {
-  const [them, setThem] = useState('');
   const ten = useMemo(() => tenCongDoan(congDoan, xuongGoc), [congDoan, xuongGoc]);
   const nhom = useMemo(() => {
     const g = new Map<string, CongDoanTk[]>();
@@ -46,15 +44,15 @@ export default function ChonTuyen({ tuyen, onDoi, congDoan, xuong, xuongGoc }: {
       </div>
       {dauSai && <p className="text-xs text-red-700">Công đoạn đầu tuyến phải thuộc xưởng {xuong}.</p>}
       <div className="flex flex-wrap items-center gap-2">
-        <select value={them} onChange={e => setThem(e.target.value)} className="min-w-64 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm" aria-label="Chọn công đoạn thêm vào tuyến">
-          <option value="">— Chọn công đoạn —</option>
+        {/* Chọn là thêm luôn vào cuối tuyến (trước đây phải bấm thêm "+ Thêm" — hay bị sót, tuyến vẫn trống) */}
+        <select value="" onChange={e => { if (e.target.value) onDoi([...tuyen, e.target.value]); }} className="min-w-64 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm" aria-label="Chọn công đoạn thêm vào tuyến">
+          <option value="">{tuyen.length ? '+ Thêm công đoạn kế tiếp…' : '+ Chọn công đoạn đầu tuyến…'}</option>
           {nhom.map(([x, ds]) => (
             <optgroup key={x} label={`Xưởng ${x}${x === xuong ? ' (xưởng thực hiện)' : ''}`}>
               {ds.map(c => <option key={c.id} value={c.id}>{c.cdTachMa ? `${c.cdTachMa} · ` : ''}{c.ten}</option>)}
             </optgroup>
           ))}
         </select>
-        <button type="button" className={BTN} disabled={!them} onClick={() => { onDoi([...tuyen, them]); setThem(''); }}><Plus size={14} /> Thêm</button>
       </div>
     </div>
   );

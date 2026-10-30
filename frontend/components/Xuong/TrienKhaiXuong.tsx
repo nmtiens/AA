@@ -55,12 +55,18 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
   };
 
   const dsChon = (d?.hangMuc ?? []).filter(h => chon.has(h.hex));
-  const sanSang = dsChon.filter(h => (sl[h.hex] ?? 0) > 0 && !loiTp(tp[h.hex] ?? []));
+  // Thành phần dùng khi triển khai: của riêng hạng mục nếu hợp lệ; chưa hợp lệ mà mẫu đang soạn hợp lệ => dùng mẫu
+  // (khỏi phải bấm "Áp cho … hạng mục đã chọn" — bước hay bị sót)
+  const tpDung = (hex: string): ThanhPhanTrienKhai[] => {
+    const rieng = tp[hex] ?? [];
+    return loiTp(rieng) && mau.length && !loiTp(mau) ? mau : rieng;
+  };
+  const sanSang = dsChon.filter(h => (sl[h.hex] ?? 0) > 0 && !loiTp(tpDung(h.hex)));
   const tatCa = !!d && d.hangMuc.length > 0 && d.hangMuc.every(h => chon.has(h.hex));
 
   const trienKhai = async () => {
     setGui(true);
-    const r = await xuongSetupApi.trienKhai(xuong, sanSang.map(h => ({ hex: h.hex, soLuong: sl[h.hex], thanhPhan: tp[h.hex] })));
+    const r = await xuongSetupApi.trienKhai(xuong, sanSang.map(h => ({ hex: h.hex, soLuong: sl[h.hex], thanhPhan: tpDung(h.hex) })));
     setGui(false);
     if (r.ok) { bao(true, `Đã triển khai ${r.data.soHangMuc} hạng mục — công đoạn đầu tuyến từng thành phần đã thấy "Chờ nhận"; thành phần giao xưởng phụ chờ xưởng phụ khai CĐ chi tiết`); tai(); }
     else bao(false, r.message);

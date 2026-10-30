@@ -39,9 +39,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ms/index.js
+// node_modules/ms/index.js
 var require_ms = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ms/index.js"(exports, module) {
+  "node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -155,9 +155,9 @@ var require_ms = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/common.js
+// node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/common.js"(exports, module) {
+  "node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -332,9 +332,9 @@ var require_common = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/browser.js
+// node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/browser.js"(exports, module) {
+  "node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs;
     exports.save = save;
     exports.load = load3;
@@ -502,9 +502,9 @@ var require_browser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-flag/index.js
+// node_modules/has-flag/index.js
 var require_has_flag = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-flag/index.js"(exports, module) {
+  "node_modules/has-flag/index.js"(exports, module) {
     "use strict";
     module.exports = (flag, argv = process.argv) => {
       const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
@@ -515,9 +515,9 @@ var require_has_flag = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/supports-color/index.js
+// node_modules/supports-color/index.js
 var require_supports_color = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/supports-color/index.js"(exports, module) {
+  "node_modules/supports-color/index.js"(exports, module) {
     "use strict";
     var os = __require("os");
     var tty = __require("tty");
@@ -617,9 +617,9 @@ var require_supports_color = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/node.js
+// node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/node.js"(exports, module) {
+  "node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -791,9 +791,9 @@ var require_node = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/index.js
+// node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/index.js"(exports, module) {
+  "node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -802,9 +802,9 @@ var require_src = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/depd/index.js
+// node_modules/depd/index.js
 var require_depd = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/depd/index.js"(exports, module) {
+  "node_modules/depd/index.js"(exports, module) {
     var relative = __require("path").relative;
     module.exports = depd;
     var basePath = process.cwd();
@@ -1108,9 +1108,9 @@ var require_depd = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/setprototypeof/index.js
+// node_modules/setprototypeof/index.js
 var require_setprototypeof = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/setprototypeof/index.js"(exports, module) {
+  "node_modules/setprototypeof/index.js"(exports, module) {
     "use strict";
     module.exports = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
     function setProtoOf(obj, proto) {
@@ -1128,9 +1128,9 @@ var require_setprototypeof = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/statuses/codes.json
+// node_modules/statuses/codes.json
 var require_codes = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/statuses/codes.json"(exports, module) {
+  "node_modules/statuses/codes.json"(exports, module) {
     module.exports = {
       "100": "Continue",
       "101": "Switching Protocols",
@@ -1199,9 +1199,9 @@ var require_codes = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/statuses/index.js
+// node_modules/statuses/index.js
 var require_statuses = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/statuses/index.js"(exports, module) {
+  "node_modules/statuses/index.js"(exports, module) {
     "use strict";
     var codes = require_codes();
     module.exports = status;
@@ -1270,9 +1270,9 @@ var require_statuses = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits_browser.js
+// node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits_browser.js"(exports, module) {
+  "node_modules/inherits/inherits_browser.js"(exports, module) {
     if (typeof Object.create === "function") {
       module.exports = function inherits(ctor, superCtor) {
         if (superCtor) {
@@ -1302,9 +1302,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits.js
+// node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits.js"(exports, module) {
+  "node_modules/inherits/inherits.js"(exports, module) {
     try {
       util = __require("util");
       if (typeof util.inherits !== "function") throw "";
@@ -1316,9 +1316,9 @@ var require_inherits = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/toidentifier/index.js
+// node_modules/toidentifier/index.js
 var require_toidentifier = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/toidentifier/index.js"(exports, module) {
+  "node_modules/toidentifier/index.js"(exports, module) {
     "use strict";
     module.exports = toIdentifier;
     function toIdentifier(str) {
@@ -1329,9 +1329,9 @@ var require_toidentifier = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/http-errors/index.js
+// node_modules/http-errors/index.js
 var require_http_errors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/http-errors/index.js"(exports, module) {
+  "node_modules/http-errors/index.js"(exports, module) {
     "use strict";
     var deprecate = require_depd()("http-errors");
     var setPrototypeOf = require_setprototypeof();
@@ -1493,9 +1493,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/bytes/index.js
+// node_modules/bytes/index.js
 var require_bytes = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/bytes/index.js"(exports, module) {
+  "node_modules/bytes/index.js"(exports, module) {
     "use strict";
     module.exports = bytes;
     module.exports.format = format;
@@ -1582,9 +1582,9 @@ var require_bytes = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/safer-buffer/safer.js
+// node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/safer-buffer/safer.js"(exports, module) {
+  "node_modules/safer-buffer/safer.js"(exports, module) {
     "use strict";
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
@@ -1650,9 +1650,9 @@ var require_safer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js
+// node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js"(exports) {
+  "node_modules/iconv-lite/lib/bom-handling.js"(exports) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports.PrependBOM = PrependBOMWrapper;
@@ -1696,9 +1696,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js
+// node_modules/iconv-lite/lib/helpers/merge-exports.js
 var require_merge_exports = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
+  "node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
     "use strict";
     var hasOwn = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module2) {
@@ -1712,9 +1712,9 @@ var require_merge_exports = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js
+// node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/internal.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = {
@@ -1893,9 +1893,9 @@ var require_internal = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js
+// node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf32.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._utf32 = Utf32Codec;
@@ -2128,9 +2128,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js
+// node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf16.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf16be = Utf16BECodec;
@@ -2271,9 +2271,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js
+// node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf7.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf7 = Utf7Codec;
@@ -2489,9 +2489,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js
+// node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._sbcs = SBCSCodec;
@@ -2551,9 +2551,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js
+// node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // Not supported by iconv, not sure why.
@@ -2706,9 +2706,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
     "use strict";
     module.exports = {
       "437": "cp437",
@@ -3161,9 +3161,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js
+// node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._dbcs = DBCSCodec;
@@ -3621,9 +3621,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json
+// node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
     module.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -3752,9 +3752,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json
+// node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -3940,9 +3940,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json
+// node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4210,9 +4210,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json
+// node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
     module.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4272,16 +4272,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
     module.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json
+// node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4558,9 +4558,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json
+// node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -4741,9 +4741,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json
+// node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
     module.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -4869,9 +4869,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js
+// node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5116,9 +5116,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/index.js
+// node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/index.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/index.js"(exports, module) {
     "use strict";
     var mergeModules = require_merge_exports();
     var modules = [
@@ -5141,9 +5141,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/streams.js
+// node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/streams.js"(exports, module) {
+  "node_modules/iconv-lite/lib/streams.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = function(streamModule) {
@@ -5238,9 +5238,9 @@ var require_streams = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/index.js
+// node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/index.js"(exports, module) {
+  "node_modules/iconv-lite/lib/index.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5370,9 +5370,9 @@ var require_lib = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/unpipe/index.js
+// node_modules/unpipe/index.js
 var require_unpipe = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/unpipe/index.js"(exports, module) {
+  "node_modules/unpipe/index.js"(exports, module) {
     "use strict";
     module.exports = unpipe;
     function hasPipeDataListeners(stream) {
@@ -5408,9 +5408,9 @@ var require_unpipe = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/raw-body/index.js
+// node_modules/raw-body/index.js
 var require_raw_body = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/raw-body/index.js"(exports, module) {
+  "node_modules/raw-body/index.js"(exports, module) {
     "use strict";
     var asyncHooks = tryRequireAsyncHooks();
     var bytes = require_bytes();
@@ -5597,9 +5597,9 @@ var require_raw_body = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ee-first/index.js
+// node_modules/ee-first/index.js
 var require_ee_first = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ee-first/index.js"(exports, module) {
+  "node_modules/ee-first/index.js"(exports, module) {
     "use strict";
     module.exports = first;
     function first(stuff, done) {
@@ -5653,9 +5653,9 @@ var require_ee_first = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/on-finished/index.js
+// node_modules/on-finished/index.js
 var require_on_finished = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/on-finished/index.js"(exports, module) {
+  "node_modules/on-finished/index.js"(exports, module) {
     "use strict";
     module.exports = onFinished;
     module.exports.isFinished = isFinished;
@@ -5757,9 +5757,9 @@ var require_on_finished = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js
+// node_modules/type-is/node_modules/content-type/dist/index.js
 var require_dist = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -5896,9 +5896,9 @@ var require_dist = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-db/db.json
+// node_modules/mime-db/db.json
 var require_db = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-db/db.json"(exports, module) {
+  "node_modules/mime-db/db.json"(exports, module) {
     module.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -15244,16 +15244,16 @@ var require_db = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-db/index.js
+// node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-db/index.js"(exports, module) {
+  "node_modules/mime-db/index.js"(exports, module) {
     module.exports = require_db();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-types/mimeScore.js
+// node_modules/mime-types/mimeScore.js
 var require_mimeScore = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-types/mimeScore.js"(exports, module) {
+  "node_modules/mime-types/mimeScore.js"(exports, module) {
     var FACET_SCORES = {
       "prs.": 100,
       "x-": 200,
@@ -15295,9 +15295,9 @@ var require_mimeScore = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-types/index.js
+// node_modules/mime-types/index.js
 var require_mime_types = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-types/index.js"(exports) {
+  "node_modules/mime-types/index.js"(exports) {
     "use strict";
     var db = require_mime_db();
     var extname = __require("path").extname;
@@ -15401,9 +15401,9 @@ var require_mime_types = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/media-typer/index.js
+// node_modules/media-typer/index.js
 var require_media_typer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/media-typer/index.js"(exports) {
+  "node_modules/media-typer/index.js"(exports) {
     "use strict";
     var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
     var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
@@ -15465,9 +15465,9 @@ var require_media_typer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/type-is/index.js
+// node_modules/type-is/index.js
 var require_type_is = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/type-is/index.js"(exports, module) {
+  "node_modules/type-is/index.js"(exports, module) {
     "use strict";
     var contentType = require_dist();
     var mime = require_mime_types();
@@ -15556,9 +15556,9 @@ var require_type_is = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js
+// node_modules/body-parser/node_modules/content-type/dist/index.js
 var require_dist2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -15695,9 +15695,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/utils.js
+// node_modules/body-parser/lib/utils.js
 var require_utils = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/utils.js"(exports, module) {
+  "node_modules/body-parser/lib/utils.js"(exports, module) {
     "use strict";
     var bytes = require_bytes();
     var contentType = require_dist2();
@@ -15747,9 +15747,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/read.js
+// node_modules/body-parser/lib/read.js
 var require_read = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/read.js"(exports, module) {
+  "node_modules/body-parser/lib/read.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var getBody = require_raw_body();
@@ -15905,9 +15905,9 @@ var require_read = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/json.js
+// node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/json.js"(exports, module) {
+  "node_modules/body-parser/lib/types/json.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:json");
     var read = require_read();
@@ -16004,9 +16004,9 @@ var require_json = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/raw.js
+// node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/raw.js"(exports, module) {
+  "node_modules/body-parser/lib/types/raw.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:raw");
     var read = require_read();
@@ -16026,9 +16026,9 @@ var require_raw = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/text.js
+// node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/text.js"(exports, module) {
+  "node_modules/body-parser/lib/types/text.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:text");
     var read = require_read();
@@ -16043,24 +16043,24 @@ var require_text = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/type.js
+// node_modules/es-errors/type.js
 var require_type = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/type.js"(exports, module) {
+  "node_modules/es-errors/type.js"(exports, module) {
     "use strict";
     module.exports = TypeError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/util.inspect.js
+// node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/util.inspect.js"(exports, module) {
+  "node_modules/object-inspect/util.inspect.js"(exports, module) {
     module.exports = __require("util").inspect;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/index.js
+// node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/index.js"(exports, module) {
+  "node_modules/object-inspect/index.js"(exports, module) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -16589,9 +16589,9 @@ var require_object_inspect = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-list/index.js
+// node_modules/side-channel-list/index.js
 var require_side_channel_list = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-list/index.js"(exports, module) {
+  "node_modules/side-channel-list/index.js"(exports, module) {
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
@@ -16682,113 +16682,113 @@ var require_side_channel_list = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-object-atoms/index.js
+// node_modules/es-object-atoms/index.js
 var require_es_object_atoms = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-object-atoms/index.js"(exports, module) {
+  "node_modules/es-object-atoms/index.js"(exports, module) {
     "use strict";
     module.exports = Object;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/index.js
+// node_modules/es-errors/index.js
 var require_es_errors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/index.js"(exports, module) {
+  "node_modules/es-errors/index.js"(exports, module) {
     "use strict";
     module.exports = Error;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/eval.js
+// node_modules/es-errors/eval.js
 var require_eval = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/eval.js"(exports, module) {
+  "node_modules/es-errors/eval.js"(exports, module) {
     "use strict";
     module.exports = EvalError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/range.js
+// node_modules/es-errors/range.js
 var require_range = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/range.js"(exports, module) {
+  "node_modules/es-errors/range.js"(exports, module) {
     "use strict";
     module.exports = RangeError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/ref.js
+// node_modules/es-errors/ref.js
 var require_ref = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/ref.js"(exports, module) {
+  "node_modules/es-errors/ref.js"(exports, module) {
     "use strict";
     module.exports = ReferenceError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/syntax.js
+// node_modules/es-errors/syntax.js
 var require_syntax = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/syntax.js"(exports, module) {
+  "node_modules/es-errors/syntax.js"(exports, module) {
     "use strict";
     module.exports = SyntaxError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/uri.js
+// node_modules/es-errors/uri.js
 var require_uri = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/uri.js"(exports, module) {
+  "node_modules/es-errors/uri.js"(exports, module) {
     "use strict";
     module.exports = URIError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/abs.js
+// node_modules/math-intrinsics/abs.js
 var require_abs = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/abs.js"(exports, module) {
+  "node_modules/math-intrinsics/abs.js"(exports, module) {
     "use strict";
     module.exports = Math.abs;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/floor.js
+// node_modules/math-intrinsics/floor.js
 var require_floor = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/floor.js"(exports, module) {
+  "node_modules/math-intrinsics/floor.js"(exports, module) {
     "use strict";
     module.exports = Math.floor;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/max.js
+// node_modules/math-intrinsics/max.js
 var require_max = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/max.js"(exports, module) {
+  "node_modules/math-intrinsics/max.js"(exports, module) {
     "use strict";
     module.exports = Math.max;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/min.js
+// node_modules/math-intrinsics/min.js
 var require_min = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/min.js"(exports, module) {
+  "node_modules/math-intrinsics/min.js"(exports, module) {
     "use strict";
     module.exports = Math.min;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/pow.js
+// node_modules/math-intrinsics/pow.js
 var require_pow = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/pow.js"(exports, module) {
+  "node_modules/math-intrinsics/pow.js"(exports, module) {
     "use strict";
     module.exports = Math.pow;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/round.js
+// node_modules/math-intrinsics/round.js
 var require_round = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/round.js"(exports, module) {
+  "node_modules/math-intrinsics/round.js"(exports, module) {
     "use strict";
     module.exports = Math.round;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/isNaN.js
+// node_modules/math-intrinsics/isNaN.js
 var require_isNaN = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/isNaN.js"(exports, module) {
+  "node_modules/math-intrinsics/isNaN.js"(exports, module) {
     "use strict";
     module.exports = Number.isNaN || function isNaN2(a) {
       return a !== a;
@@ -16796,9 +16796,9 @@ var require_isNaN = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/sign.js
+// node_modules/math-intrinsics/sign.js
 var require_sign = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/sign.js"(exports, module) {
+  "node_modules/math-intrinsics/sign.js"(exports, module) {
     "use strict";
     var $isNaN = require_isNaN();
     module.exports = function sign(number4) {
@@ -16810,17 +16810,17 @@ var require_sign = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/gopd/gOPD.js
+// node_modules/gopd/gOPD.js
 var require_gOPD = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/gopd/gOPD.js"(exports, module) {
+  "node_modules/gopd/gOPD.js"(exports, module) {
     "use strict";
     module.exports = Object.getOwnPropertyDescriptor;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/gopd/index.js
+// node_modules/gopd/index.js
 var require_gopd = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/gopd/index.js"(exports, module) {
+  "node_modules/gopd/index.js"(exports, module) {
     "use strict";
     var $gOPD = require_gOPD();
     if ($gOPD) {
@@ -16834,9 +16834,9 @@ var require_gopd = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-define-property/index.js
+// node_modules/es-define-property/index.js
 var require_es_define_property = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-define-property/index.js"(exports, module) {
+  "node_modules/es-define-property/index.js"(exports, module) {
     "use strict";
     var $defineProperty = Object.defineProperty || false;
     if ($defineProperty) {
@@ -16850,9 +16850,9 @@ var require_es_define_property = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/shams.js
+// node_modules/has-symbols/shams.js
 var require_shams = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/shams.js"(exports, module) {
+  "node_modules/has-symbols/shams.js"(exports, module) {
     "use strict";
     module.exports = function hasSymbols() {
       if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
@@ -16905,9 +16905,9 @@ var require_shams = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/index.js
+// node_modules/has-symbols/index.js
 var require_has_symbols = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/index.js"(exports, module) {
+  "node_modules/has-symbols/index.js"(exports, module) {
     "use strict";
     var origSymbol = typeof Symbol !== "undefined" && Symbol;
     var hasSymbolSham = require_shams();
@@ -16929,26 +16929,26 @@ var require_has_symbols = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js
+// node_modules/get-proto/Reflect.getPrototypeOf.js
 var require_Reflect_getPrototypeOf = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
+  "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js
+// node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
+  "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
     "use strict";
     var $Object = require_es_object_atoms();
     module.exports = $Object.getPrototypeOf || null;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/function-bind/implementation.js
+// node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/function-bind/implementation.js"(exports, module) {
+  "node_modules/function-bind/implementation.js"(exports, module) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
@@ -17022,42 +17022,42 @@ var require_implementation = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/function-bind/index.js
+// node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/function-bind/index.js"(exports, module) {
+  "node_modules/function-bind/index.js"(exports, module) {
     "use strict";
     var implementation = require_implementation();
     module.exports = Function.prototype.bind || implementation;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js
+// node_modules/call-bind-apply-helpers/functionCall.js
 var require_functionCall = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.call;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js
+// node_modules/call-bind-apply-helpers/functionApply.js
 var require_functionApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.apply;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js
+// node_modules/call-bind-apply-helpers/reflectApply.js
 var require_reflectApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js
+// node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $apply = require_functionApply();
@@ -17067,9 +17067,9 @@ var require_actualApply = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js
+// node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/index.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $TypeError = require_type();
@@ -17084,9 +17084,9 @@ var require_call_bind_apply_helpers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/dunder-proto/get.js
+// node_modules/dunder-proto/get.js
 var require_get = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/dunder-proto/get.js"(exports, module) {
+  "node_modules/dunder-proto/get.js"(exports, module) {
     "use strict";
     var callBind = require_call_bind_apply_helpers();
     var gOPD = require_gopd();
@@ -17115,9 +17115,9 @@ var require_get = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/index.js
+// node_modules/get-proto/index.js
 var require_get_proto = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/index.js"(exports, module) {
+  "node_modules/get-proto/index.js"(exports, module) {
     "use strict";
     var reflectGetProto = require_Reflect_getPrototypeOf();
     var originalGetProto = require_Object_getPrototypeOf();
@@ -17135,9 +17135,9 @@ var require_get_proto = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/hasown/index.js
+// node_modules/hasown/index.js
 var require_hasown = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/hasown/index.js"(exports, module) {
+  "node_modules/hasown/index.js"(exports, module) {
     "use strict";
     var call = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
@@ -17146,9 +17146,9 @@ var require_hasown = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-intrinsic/index.js
+// node_modules/get-intrinsic/index.js
 var require_get_intrinsic = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-intrinsic/index.js"(exports, module) {
+  "node_modules/get-intrinsic/index.js"(exports, module) {
     "use strict";
     var undefined2;
     var $Object = require_es_object_atoms();
@@ -17477,9 +17477,9 @@ var require_get_intrinsic = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bound/index.js
+// node_modules/call-bound/index.js
 var require_call_bound = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bound/index.js"(exports, module) {
+  "node_modules/call-bound/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBindBasic = require_call_bind_apply_helpers();
@@ -17500,9 +17500,9 @@ var require_call_bound = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-map/index.js
+// node_modules/side-channel-map/index.js
 var require_side_channel_map = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-map/index.js"(exports, module) {
+  "node_modules/side-channel-map/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17556,9 +17556,9 @@ var require_side_channel_map = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-weakmap/index.js
+// node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-weakmap/index.js"(exports, module) {
+  "node_modules/side-channel-weakmap/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17629,9 +17629,9 @@ var require_side_channel_weakmap = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel/index.js
+// node_modules/side-channel/index.js
 var require_side_channel = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel/index.js"(exports, module) {
+  "node_modules/side-channel/index.js"(exports, module) {
     "use strict";
     var $TypeError = require_type();
     var inspect = require_object_inspect();
@@ -17669,9 +17669,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/formats.js
+// node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/formats.js"(exports, module) {
+  "node_modules/qs/lib/formats.js"(exports, module) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17695,9 +17695,9 @@ var require_formats = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/utils.js
+// node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/utils.js"(exports, module) {
+  "node_modules/qs/lib/utils.js"(exports, module) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -18001,9 +18001,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/stringify.js
+// node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/stringify.js"(exports, module) {
+  "node_modules/qs/lib/stringify.js"(exports, module) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -18298,9 +18298,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/parse.js
+// node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/parse.js"(exports, module) {
+  "node_modules/qs/lib/parse.js"(exports, module) {
     "use strict";
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
@@ -18626,9 +18626,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/index.js
+// node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/index.js"(exports, module) {
+  "node_modules/qs/lib/index.js"(exports, module) {
     "use strict";
     var stringify = require_stringify();
     var parse3 = require_parse();
@@ -18641,9 +18641,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js
+// node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
+  "node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("body-parser:urlencoded");
@@ -18727,9 +18727,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/index.js
+// node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/index.js"(exports, module) {
+  "node_modules/body-parser/index.js"(exports, module) {
     "use strict";
     exports = module.exports = bodyParser;
     exports.json = require_json();
@@ -18742,9 +18742,9 @@ var require_body_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/merge-descriptors/index.js
+// node_modules/merge-descriptors/index.js
 var require_merge_descriptors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/merge-descriptors/index.js"(exports, module) {
+  "node_modules/merge-descriptors/index.js"(exports, module) {
     "use strict";
     function mergeDescriptors(destination, source, overwrite = true) {
       if (!destination) {
@@ -18766,9 +18766,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/encodeurl/index.js
+// node_modules/encodeurl/index.js
 var require_encodeurl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/encodeurl/index.js"(exports, module) {
+  "node_modules/encodeurl/index.js"(exports, module) {
     "use strict";
     module.exports = encodeUrl;
     var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
@@ -18780,9 +18780,9 @@ var require_encodeurl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/escape-html/index.js
+// node_modules/escape-html/index.js
 var require_escape_html = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/escape-html/index.js"(exports, module) {
+  "node_modules/escape-html/index.js"(exports, module) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
     module.exports = escapeHtml;
@@ -18827,9 +18827,9 @@ var require_escape_html = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/parseurl/index.js
+// node_modules/parseurl/index.js
 var require_parseurl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/parseurl/index.js"(exports, module) {
+  "node_modules/parseurl/index.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var parse3 = url2.parse;
@@ -18911,9 +18911,9 @@ var require_parseurl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/finalhandler/index.js
+// node_modules/finalhandler/index.js
 var require_finalhandler = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/finalhandler/index.js"(exports, module) {
+  "node_modules/finalhandler/index.js"(exports, module) {
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
@@ -19038,9 +19038,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/view.js
+// node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/view.js"(exports, module) {
+  "node_modules/express/lib/view.js"(exports, module) {
     "use strict";
     var debug = require_src()("express:view");
     var path = __require("node:path");
@@ -19132,9 +19132,9 @@ var require_view = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/content-type/index.js
+// node_modules/content-type/index.js
 var require_content_type = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/content-type/index.js"(exports) {
+  "node_modules/content-type/index.js"(exports) {
     "use strict";
     var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
     var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
@@ -19236,9 +19236,9 @@ var require_content_type = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js
+// node_modules/etag/index.js
 var require_etag = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js"(exports, module) {
+  "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
     var crypto4 = __require("crypto");
@@ -19278,9 +19278,9 @@ var require_etag = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/forwarded/index.js
+// node_modules/forwarded/index.js
 var require_forwarded = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/forwarded/index.js"(exports, module) {
+  "node_modules/forwarded/index.js"(exports, module) {
     "use strict";
     module.exports = forwarded;
     function forwarded(req) {
@@ -19325,9 +19325,9 @@ var require_forwarded = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js
+// node_modules/ipaddr.js/lib/ipaddr.js
 var require_ipaddr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
+  "node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
     (function() {
       var expandIPv6, ipaddr, ipv4Part, ipv4Regexes, ipv6Part, ipv6Regexes, matchCIDR, root, zoneIndex;
       ipaddr = {};
@@ -19947,9 +19947,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/proxy-addr/index.js
+// node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/proxy-addr/index.js"(exports, module) {
+  "node_modules/proxy-addr/index.js"(exports, module) {
     "use strict";
     module.exports = proxyaddr;
     module.exports.all = alladdrs;
@@ -20106,9 +20106,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/utils.js
+// node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/utils.js"(exports) {
+  "node_modules/express/lib/utils.js"(exports) {
     "use strict";
     var { METHODS } = __require("node:http");
     var contentType = require_content_type();
@@ -20233,9 +20233,9 @@ var require_utils3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/wrappy/wrappy.js
+// node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/wrappy/wrappy.js"(exports, module) {
+  "node_modules/wrappy/wrappy.js"(exports, module) {
     module.exports = wrappy;
     function wrappy(fn, cb) {
       if (fn && cb) return wrappy(fn)(cb);
@@ -20263,9 +20263,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/once/once.js
+// node_modules/once/once.js
 var require_once = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/once/once.js"(exports, module) {
+  "node_modules/once/once.js"(exports, module) {
     var wrappy = require_wrappy();
     module.exports = wrappy(once);
     module.exports.strict = wrappy(onceStrict);
@@ -20307,9 +20307,9 @@ var require_once = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/is-promise/index.js
+// node_modules/is-promise/index.js
 var require_is_promise = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/is-promise/index.js"(exports, module) {
+  "node_modules/is-promise/index.js"(exports, module) {
     module.exports = isPromise;
     module.exports.default = isPromise;
     function isPromise(obj) {
@@ -20318,9 +20318,9 @@ var require_is_promise = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/path-to-regexp/dist/index.js
+// node_modules/path-to-regexp/dist/index.js
 var require_dist3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/path-to-regexp/dist/index.js"(exports) {
+  "node_modules/path-to-regexp/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PathError = exports.TokenData = void 0;
@@ -20687,9 +20687,9 @@ var require_dist3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/lib/layer.js
+// node_modules/router/lib/layer.js
 var require_layer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/lib/layer.js"(exports, module) {
+  "node_modules/router/lib/layer.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var pathRegexp = require_dist3();
@@ -20837,9 +20837,9 @@ var require_layer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/lib/route.js
+// node_modules/router/lib/route.js
 var require_route = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/lib/route.js"(exports, module) {
+  "node_modules/router/lib/route.js"(exports, module) {
     "use strict";
     var debug = require_src()("router:route");
     var Layer = require_layer();
@@ -20957,9 +20957,9 @@ var require_route = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/index.js
+// node_modules/router/index.js
 var require_router = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/index.js"(exports, module) {
+  "node_modules/router/index.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var Layer = require_layer();
@@ -21355,9 +21355,9 @@ var require_router = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/application.js
+// node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/application.js"(exports, module) {
+  "node_modules/express/lib/application.js"(exports, module) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
@@ -21559,7 +21559,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name, options, callback) {
-      var cache2 = this.cache;
+      var cache3 = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21573,7 +21573,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache2[name];
+        view = cache3[name];
       }
       if (!view) {
         var View2 = this.get("view");
@@ -21589,7 +21589,7 @@ var require_application = __commonJS({
           return done(err);
         }
         if (renderOptions.cache) {
-          cache2[name] = view;
+          cache3[name] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -21616,9 +21616,9 @@ var require_application = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js
+// node_modules/accepts/node_modules/content-type/dist/index.js
 var require_dist4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -21755,9 +21755,9 @@ var require_dist4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js
+// node_modules/accepts/node_modules/negotiator/lib/accept.js
 var require_accept = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     module.exports = parseAccept;
@@ -21783,9 +21783,9 @@ var require_accept = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js
+// node_modules/accepts/node_modules/negotiator/lib/charset.js
 var require_charset = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredCharsets;
@@ -21855,9 +21855,9 @@ var require_charset = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js
+// node_modules/accepts/node_modules/negotiator/lib/encoding.js
 var require_encoding = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredEncodings;
@@ -21955,9 +21955,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js
+// node_modules/accepts/node_modules/negotiator/lib/language.js
 var require_language = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAccept = require_accept();
@@ -22039,9 +22039,9 @@ var require_language = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js
+// node_modules/accepts/node_modules/negotiator/lib/mediaType.js
 var require_mediaType = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAcceptHeader = require_accept();
@@ -22136,9 +22136,9 @@ var require_mediaType = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js
+// node_modules/accepts/node_modules/negotiator/index.js
 var require_negotiator = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset();
     var preferredEncodings = require_encoding();
@@ -22192,9 +22192,9 @@ var require_negotiator = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/index.js
+// node_modules/accepts/index.js
 var require_accepts = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/index.js"(exports, module) {
+  "node_modules/accepts/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator();
     var mime = require_mime_types();
@@ -22273,9 +22273,9 @@ var require_accepts = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/fresh/index.js
+// node_modules/fresh/index.js
 var require_fresh = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/fresh/index.js"(exports, module) {
+  "node_modules/fresh/index.js"(exports, module) {
     "use strict";
     var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
     module.exports = fresh;
@@ -22345,9 +22345,9 @@ var require_fresh = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/range-parser/index.js
+// node_modules/range-parser/index.js
 var require_range_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/range-parser/index.js"(exports, module) {
+  "node_modules/range-parser/index.js"(exports, module) {
     "use strict";
     module.exports = rangeParser;
     function rangeParser(size, str, options) {
@@ -22438,9 +22438,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/request.js
+// node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/request.js"(exports, module) {
+  "node_modules/express/lib/request.js"(exports, module) {
     "use strict";
     var accepts = require_accepts();
     var isIP2 = __require("node:net").isIP;
@@ -22586,9 +22586,9 @@ var require_request = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/content-disposition/index.js
+// node_modules/content-disposition/index.js
 var require_content_disposition = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/content-disposition/index.js"(exports, module) {
+  "node_modules/content-disposition/index.js"(exports, module) {
     "use strict";
     module.exports = contentDisposition;
     module.exports.parse = parse3;
@@ -22795,9 +22795,9 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js
+// node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js"(exports) {
+  "node_modules/cookie-signature/index.js"(exports) {
     var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
@@ -22813,9 +22813,9 @@ var require_cookie_signature = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cookie/index.js
+// node_modules/cookie/index.js
 var require_cookie = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cookie/index.js"(exports) {
+  "node_modules/cookie/index.js"(exports) {
     "use strict";
     exports.parse = parse3;
     exports.serialize = serialize;
@@ -22979,9 +22979,9 @@ var require_cookie = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/send/index.js
+// node_modules/send/index.js
 var require_send = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/send/index.js"(exports, module) {
+  "node_modules/send/index.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("send");
@@ -23462,9 +23462,9 @@ var require_send = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/vary/index.js
+// node_modules/vary/index.js
 var require_vary = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/vary/index.js"(exports, module) {
+  "node_modules/vary/index.js"(exports, module) {
     "use strict";
     module.exports = vary;
     module.exports.append = append;
@@ -23535,9 +23535,9 @@ var require_vary = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/response.js
+// node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/response.js"(exports, module) {
+  "node_modules/express/lib/response.js"(exports, module) {
     "use strict";
     var contentDisposition = require_content_disposition();
     var createError = require_http_errors();
@@ -24005,9 +24005,9 @@ var require_response = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/serve-static/index.js
+// node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/serve-static/index.js"(exports, module) {
+  "node_modules/serve-static/index.js"(exports, module) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
@@ -24109,9 +24109,9 @@ var require_serve_static = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/express.js
+// node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/express.js"(exports, module) {
+  "node_modules/express/lib/express.js"(exports, module) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter = __require("node:events").EventEmitter;
@@ -24149,17 +24149,17 @@ var require_express = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/index.js
+// node_modules/express/index.js
 var require_express2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/index.js"(exports, module) {
+  "node_modules/express/index.js"(exports, module) {
     "use strict";
     module.exports = require_express();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-assign/index.js
+// node_modules/object-assign/index.js
 var require_object_assign = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-assign/index.js"(exports, module) {
+  "node_modules/object-assign/index.js"(exports, module) {
     "use strict";
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -24227,9 +24227,9 @@ var require_object_assign = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cors/lib/index.js
+// node_modules/cors/lib/index.js
 var require_lib3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cors/lib/index.js"(exports, module) {
+  "node_modules/cors/lib/index.js"(exports, module) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -24435,9 +24435,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/charset.js
+// node_modules/negotiator/lib/charset.js
 var require_charset2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     module.exports = preferredCharsets;
     module.exports.preferredCharsets = preferredCharsets;
@@ -24522,9 +24522,9 @@ var require_charset2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/encoding.js
+// node_modules/negotiator/lib/encoding.js
 var require_encoding2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     module.exports = preferredEncodings;
     module.exports.preferredEncodings = preferredEncodings;
@@ -24635,9 +24635,9 @@ var require_encoding2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/language.js
+// node_modules/negotiator/lib/language.js
 var require_language2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/language.js"(exports, module) {
+  "node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     module.exports = preferredLanguages;
     module.exports.preferredLanguages = preferredLanguages;
@@ -24730,9 +24730,9 @@ var require_language2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/mediaType.js
+// node_modules/negotiator/lib/mediaType.js
 var require_mediaType2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     module.exports = preferredMediaTypes;
     module.exports.preferredMediaTypes = preferredMediaTypes;
@@ -24892,9 +24892,9 @@ var require_mediaType2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/index.js
+// node_modules/negotiator/index.js
 var require_negotiator2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/index.js"(exports, module) {
+  "node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset2();
     var preferredEncodings = require_encoding2();
@@ -24947,9 +24947,9 @@ var require_negotiator2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/safe-buffer/index.js
+// node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/safe-buffer/index.js"(exports, module) {
+  "node_modules/safe-buffer/index.js"(exports, module) {
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
     function copyProps(src, dst) {
@@ -25005,9 +25005,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/compressible/index.js
+// node_modules/compressible/index.js
 var require_compressible = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/compressible/index.js"(exports, module) {
+  "node_modules/compressible/index.js"(exports, module) {
     "use strict";
     var db = require_mime_db();
     var COMPRESSIBLE_TYPE_REGEXP = /^text\/|\+(?:json|text|xml)$/i;
@@ -25028,9 +25028,9 @@ var require_compressible = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/on-headers/index.js
+// node_modules/on-headers/index.js
 var require_on_headers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/on-headers/index.js"(exports, module) {
+  "node_modules/on-headers/index.js"(exports, module) {
     "use strict";
     module.exports = onHeaders;
     var http = __require("http");
@@ -25126,9 +25126,9 @@ var require_on_headers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/compression/index.js
+// node_modules/compression/index.js
 var require_compression = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/compression/index.js"(exports, module) {
+  "node_modules/compression/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator2();
     var Buffer3 = require_safe_buffer().Buffer;
@@ -25297,9 +25297,9 @@ var require_compression = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/address-error.js
+// node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/address-error.js"(exports) {
+  "node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -25314,9 +25314,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/common.js
+// node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/common.js"(exports) {
+  "node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -25414,9 +25414,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js
+// node_modules/ip-address/dist/v4/constants.js
 var require_constants = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -25455,9 +25455,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv4.js
+// node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv4.js"(exports) {
+  "node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26013,9 +26013,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js
+// node_modules/ip-address/dist/v6/constants.js
 var require_constants2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -26103,9 +26103,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js
+// node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -26142,9 +26142,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js
+// node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26234,9 +26234,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv6.js
+// node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv6.js"(exports) {
+  "node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27563,9 +27563,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ip-address.js
+// node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ip-address.js"(exports) {
+  "node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27613,9 +27613,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/dotenv/lib/main.js
+// node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/dotenv/lib/main.js"(exports, module) {
+  "node_modules/dotenv/lib/main.js"(exports, module) {
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
@@ -27932,9 +27932,9 @@ var require_main = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/data-stream.js
+// node_modules/jws/lib/data-stream.js
 var require_data_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/data-stream.js"(exports, module) {
+  "node_modules/jws/lib/data-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var Stream = __require("stream");
     var util = __require("util");
@@ -27980,9 +27980,9 @@ var require_data_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
+// node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
 var require_param_bytes_for_alg = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
+  "node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
     "use strict";
     function getParamSize(keySize) {
       var result = (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
@@ -28004,9 +28004,9 @@ var require_param_bytes_for_alg = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
+// node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
 var require_ecdsa_sig_formatter = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
+  "node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safe_buffer().Buffer;
     var getParamBytesForAlg = require_param_bytes_for_alg();
@@ -28144,9 +28144,9 @@ var require_ecdsa_sig_formatter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js
+// node_modules/buffer-equal-constant-time/index.js
 var require_buffer_equal_constant_time = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js"(exports, module) {
+  "node_modules/buffer-equal-constant-time/index.js"(exports, module) {
     "use strict";
     var Buffer3 = __require("buffer").Buffer;
     var SlowBuffer = __require("buffer").SlowBuffer;
@@ -28178,9 +28178,9 @@ var require_buffer_equal_constant_time = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js
+// node_modules/jwa/index.js
 var require_jwa = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js"(exports, module) {
+  "node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
@@ -28402,9 +28402,9 @@ var require_jwa = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/tostring.js
+// node_modules/jws/lib/tostring.js
 var require_tostring = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/tostring.js"(exports, module) {
+  "node_modules/jws/lib/tostring.js"(exports, module) {
     var Buffer3 = __require("buffer").Buffer;
     module.exports = function toString(obj) {
       if (typeof obj === "string")
@@ -28416,9 +28416,9 @@ var require_tostring = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/sign-stream.js
+// node_modules/jws/lib/sign-stream.js
 var require_sign_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/sign-stream.js"(exports, module) {
+  "node_modules/jws/lib/sign-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28491,9 +28491,9 @@ var require_sign_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/verify-stream.js
+// node_modules/jws/lib/verify-stream.js
 var require_verify_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/verify-stream.js"(exports, module) {
+  "node_modules/jws/lib/verify-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28606,9 +28606,9 @@ var require_verify_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/index.js
+// node_modules/jws/index.js
 var require_jws = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/index.js"(exports) {
+  "node_modules/jws/index.js"(exports) {
     var SignStream = require_sign_stream();
     var VerifyStream = require_verify_stream();
     var ALGORITHMS = [
@@ -28639,9 +28639,9 @@ var require_jws = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/decode.js
+// node_modules/jsonwebtoken/decode.js
 var require_decode = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/decode.js"(exports, module) {
+  "node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
     module.exports = function(jwt4, options) {
       options = options || {};
@@ -28671,9 +28671,9 @@ var require_decode = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js
+// node_modules/jsonwebtoken/lib/JsonWebTokenError.js
 var require_JsonWebTokenError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
     var JsonWebTokenError = function(message, error61) {
       Error.call(this, message);
       if (Error.captureStackTrace) {
@@ -28689,9 +28689,9 @@ var require_JsonWebTokenError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js
+// node_modules/jsonwebtoken/lib/NotBeforeError.js
 var require_NotBeforeError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = function(message, date5) {
       JsonWebTokenError.call(this, message);
@@ -28704,9 +28704,9 @@ var require_NotBeforeError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js
+// node_modules/jsonwebtoken/lib/TokenExpiredError.js
 var require_TokenExpiredError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var TokenExpiredError = function(message, expiredAt) {
       JsonWebTokenError.call(this, message);
@@ -28719,9 +28719,9 @@ var require_TokenExpiredError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js
+// node_modules/jsonwebtoken/lib/timespan.js
 var require_timespan = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
     var ms = require_ms();
     module.exports = function(time3, iat) {
       var timestamp = iat || Math.floor(Date.now() / 1e3);
@@ -28740,9 +28740,9 @@ var require_timespan = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/constants.js
+// node_modules/semver/internal/constants.js
 var require_constants3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/constants.js"(exports, module) {
+  "node_modules/semver/internal/constants.js"(exports, module) {
     "use strict";
     var SEMVER_SPEC_VERSION = "2.0.0";
     var MAX_LENGTH = 256;
@@ -28772,9 +28772,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/debug.js
+// node_modules/semver/internal/debug.js
 var require_debug = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/debug.js"(exports, module) {
+  "node_modules/semver/internal/debug.js"(exports, module) {
     "use strict";
     var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
     };
@@ -28782,9 +28782,9 @@ var require_debug = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/re.js
+// node_modules/semver/internal/re.js
 var require_re = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/re.js"(exports, module) {
+  "node_modules/semver/internal/re.js"(exports, module) {
     "use strict";
     var {
       MAX_SAFE_COMPONENT_LENGTH,
@@ -28870,9 +28870,9 @@ var require_re = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/parse-options.js
+// node_modules/semver/internal/parse-options.js
 var require_parse_options = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/parse-options.js"(exports, module) {
+  "node_modules/semver/internal/parse-options.js"(exports, module) {
     "use strict";
     var looseOption = Object.freeze({ loose: true });
     var emptyOpts = Object.freeze({});
@@ -28889,9 +28889,9 @@ var require_parse_options = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/identifiers.js
+// node_modules/semver/internal/identifiers.js
 var require_identifiers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/identifiers.js"(exports, module) {
+  "node_modules/semver/internal/identifiers.js"(exports, module) {
     "use strict";
     var numeric = /^[0-9]+$/;
     var compareIdentifiers = (a, b) => {
@@ -28914,9 +28914,9 @@ var require_identifiers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/semver.js
+// node_modules/semver/classes/semver.js
 var require_semver = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/semver.js"(exports, module) {
+  "node_modules/semver/classes/semver.js"(exports, module) {
     "use strict";
     var debug = require_debug();
     var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants3();
@@ -29206,9 +29206,9 @@ var require_semver = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/parse.js
+// node_modules/semver/functions/parse.js
 var require_parse2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/parse.js"(exports, module) {
+  "node_modules/semver/functions/parse.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = (version3, options, throwErrors = false) => {
@@ -29228,9 +29228,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/valid.js
+// node_modules/semver/functions/valid.js
 var require_valid = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/valid.js"(exports, module) {
+  "node_modules/semver/functions/valid.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var valid = (version3, options) => {
@@ -29241,9 +29241,9 @@ var require_valid = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/clean.js
+// node_modules/semver/functions/clean.js
 var require_clean = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/clean.js"(exports, module) {
+  "node_modules/semver/functions/clean.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var clean = (version3, options) => {
@@ -29254,9 +29254,9 @@ var require_clean = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/inc.js
+// node_modules/semver/functions/inc.js
 var require_inc = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/inc.js"(exports, module) {
+  "node_modules/semver/functions/inc.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var inc = (version3, release, options, identifier, identifierBase) => {
@@ -29278,9 +29278,9 @@ var require_inc = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/diff.js
+// node_modules/semver/functions/diff.js
 var require_diff = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/diff.js"(exports, module) {
+  "node_modules/semver/functions/diff.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var diff = (version1, version22) => {
@@ -29322,9 +29322,9 @@ var require_diff = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/major.js
+// node_modules/semver/functions/major.js
 var require_major = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/major.js"(exports, module) {
+  "node_modules/semver/functions/major.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var major = (a, loose) => new SemVer(a, loose).major;
@@ -29332,9 +29332,9 @@ var require_major = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/minor.js
+// node_modules/semver/functions/minor.js
 var require_minor = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/minor.js"(exports, module) {
+  "node_modules/semver/functions/minor.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var minor = (a, loose) => new SemVer(a, loose).minor;
@@ -29342,9 +29342,9 @@ var require_minor = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/patch.js
+// node_modules/semver/functions/patch.js
 var require_patch = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/patch.js"(exports, module) {
+  "node_modules/semver/functions/patch.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var patch = (a, loose) => new SemVer(a, loose).patch;
@@ -29352,9 +29352,9 @@ var require_patch = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/prerelease.js
+// node_modules/semver/functions/prerelease.js
 var require_prerelease = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/prerelease.js"(exports, module) {
+  "node_modules/semver/functions/prerelease.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var prerelease = (version3, options) => {
@@ -29365,9 +29365,9 @@ var require_prerelease = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare.js
+// node_modules/semver/functions/compare.js
 var require_compare = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare.js"(exports, module) {
+  "node_modules/semver/functions/compare.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
@@ -29375,9 +29375,9 @@ var require_compare = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rcompare.js
+// node_modules/semver/functions/rcompare.js
 var require_rcompare = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rcompare.js"(exports, module) {
+  "node_modules/semver/functions/rcompare.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var rcompare = (a, b, loose) => compare(b, a, loose);
@@ -29385,9 +29385,9 @@ var require_rcompare = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-loose.js
+// node_modules/semver/functions/compare-loose.js
 var require_compare_loose = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-loose.js"(exports, module) {
+  "node_modules/semver/functions/compare-loose.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var compareLoose = (a, b) => compare(a, b, true);
@@ -29395,9 +29395,9 @@ var require_compare_loose = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-build.js
+// node_modules/semver/functions/compare-build.js
 var require_compare_build = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-build.js"(exports, module) {
+  "node_modules/semver/functions/compare-build.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compareBuild = (a, b, loose) => {
@@ -29409,9 +29409,9 @@ var require_compare_build = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/sort.js
+// node_modules/semver/functions/sort.js
 var require_sort = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/sort.js"(exports, module) {
+  "node_modules/semver/functions/sort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
@@ -29419,9 +29419,9 @@ var require_sort = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rsort.js
+// node_modules/semver/functions/rsort.js
 var require_rsort = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rsort.js"(exports, module) {
+  "node_modules/semver/functions/rsort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
@@ -29429,9 +29429,9 @@ var require_rsort = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gt.js
+// node_modules/semver/functions/gt.js
 var require_gt = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gt.js"(exports, module) {
+  "node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gt = (a, b, loose) => compare(a, b, loose) > 0;
@@ -29439,9 +29439,9 @@ var require_gt = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lt.js
+// node_modules/semver/functions/lt.js
 var require_lt = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lt.js"(exports, module) {
+  "node_modules/semver/functions/lt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lt = (a, b, loose) => compare(a, b, loose) < 0;
@@ -29449,9 +29449,9 @@ var require_lt = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/eq.js
+// node_modules/semver/functions/eq.js
 var require_eq = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/eq.js"(exports, module) {
+  "node_modules/semver/functions/eq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var eq = (a, b, loose) => compare(a, b, loose) === 0;
@@ -29459,9 +29459,9 @@ var require_eq = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/neq.js
+// node_modules/semver/functions/neq.js
 var require_neq = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/neq.js"(exports, module) {
+  "node_modules/semver/functions/neq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var neq = (a, b, loose) => compare(a, b, loose) !== 0;
@@ -29469,9 +29469,9 @@ var require_neq = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gte.js
+// node_modules/semver/functions/gte.js
 var require_gte = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gte.js"(exports, module) {
+  "node_modules/semver/functions/gte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gte = (a, b, loose) => compare(a, b, loose) >= 0;
@@ -29479,9 +29479,9 @@ var require_gte = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lte.js
+// node_modules/semver/functions/lte.js
 var require_lte = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lte.js"(exports, module) {
+  "node_modules/semver/functions/lte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lte = (a, b, loose) => compare(a, b, loose) <= 0;
@@ -29489,9 +29489,9 @@ var require_lte = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/cmp.js
+// node_modules/semver/functions/cmp.js
 var require_cmp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/cmp.js"(exports, module) {
+  "node_modules/semver/functions/cmp.js"(exports, module) {
     "use strict";
     var eq = require_eq();
     var neq = require_neq();
@@ -29539,9 +29539,9 @@ var require_cmp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/coerce.js
+// node_modules/semver/functions/coerce.js
 var require_coerce = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/coerce.js"(exports, module) {
+  "node_modules/semver/functions/coerce.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = require_parse2();
@@ -29585,9 +29585,9 @@ var require_coerce = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/truncate.js
+// node_modules/semver/functions/truncate.js
 var require_truncate = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/truncate.js"(exports, module) {
+  "node_modules/semver/functions/truncate.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var constants = require_constants3();
@@ -29626,9 +29626,9 @@ var require_truncate = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/lrucache.js
+// node_modules/semver/internal/lrucache.js
 var require_lrucache = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/lrucache.js"(exports, module) {
+  "node_modules/semver/internal/lrucache.js"(exports, module) {
     "use strict";
     var LRUCache = class {
       constructor() {
@@ -29664,9 +29664,9 @@ var require_lrucache = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/range.js
+// node_modules/semver/classes/range.js
 var require_range2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/range.js"(exports, module) {
+  "node_modules/semver/classes/range.js"(exports, module) {
     "use strict";
     var SPACE_CHARACTERS = /\s+/g;
     var Range = class _Range {
@@ -29737,7 +29737,7 @@ var require_range2 = __commonJS({
         range = range.replace(BUILDSTRIPRE, "");
         const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
         const memoKey = memoOpts + ":" + range;
-        const cached2 = cache2.get(memoKey);
+        const cached2 = cache3.get(memoKey);
         if (cached2) {
           return cached2;
         }
@@ -29771,7 +29771,7 @@ var require_range2 = __commonJS({
           rangeMap.delete("");
         }
         const result = [...rangeMap.values()];
-        cache2.set(memoKey, result);
+        cache3.set(memoKey, result);
         return result;
       }
       intersects(range, options) {
@@ -29810,7 +29810,7 @@ var require_range2 = __commonJS({
     };
     module.exports = Range;
     var LRU = require_lrucache();
-    var cache2 = new LRU();
+    var cache3 = new LRU();
     var parseOptions2 = require_parse_options();
     var Comparator = require_comparator();
     var debug = require_debug();
@@ -30049,9 +30049,9 @@ var require_range2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/comparator.js
+// node_modules/semver/classes/comparator.js
 var require_comparator = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/comparator.js"(exports, module) {
+  "node_modules/semver/classes/comparator.js"(exports, module) {
     "use strict";
     var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
     var Comparator = class _Comparator {
@@ -30162,9 +30162,9 @@ var require_comparator = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/satisfies.js
+// node_modules/semver/functions/satisfies.js
 var require_satisfies = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/satisfies.js"(exports, module) {
+  "node_modules/semver/functions/satisfies.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var satisfies = (version3, range, options) => {
@@ -30179,9 +30179,9 @@ var require_satisfies = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/to-comparators.js
+// node_modules/semver/ranges/to-comparators.js
 var require_to_comparators = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/to-comparators.js"(exports, module) {
+  "node_modules/semver/ranges/to-comparators.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
@@ -30189,9 +30189,9 @@ var require_to_comparators = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js
+// node_modules/semver/ranges/max-satisfying.js
 var require_max_satisfying = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
+  "node_modules/semver/ranges/max-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30218,9 +30218,9 @@ var require_max_satisfying = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js
+// node_modules/semver/ranges/min-satisfying.js
 var require_min_satisfying = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
+  "node_modules/semver/ranges/min-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30247,9 +30247,9 @@ var require_min_satisfying = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-version.js
+// node_modules/semver/ranges/min-version.js
 var require_min_version = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-version.js"(exports, module) {
+  "node_modules/semver/ranges/min-version.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30306,9 +30306,9 @@ var require_min_version = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/valid.js
+// node_modules/semver/ranges/valid.js
 var require_valid2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/valid.js"(exports, module) {
+  "node_modules/semver/ranges/valid.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var validRange = (range, options) => {
@@ -30322,9 +30322,9 @@ var require_valid2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/outside.js
+// node_modules/semver/ranges/outside.js
 var require_outside = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/outside.js"(exports, module) {
+  "node_modules/semver/ranges/outside.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Comparator = require_comparator();
@@ -30391,9 +30391,9 @@ var require_outside = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/gtr.js
+// node_modules/semver/ranges/gtr.js
 var require_gtr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/gtr.js"(exports, module) {
+  "node_modules/semver/ranges/gtr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var gtr = (version3, range, options) => outside(version3, range, ">", options);
@@ -30401,9 +30401,9 @@ var require_gtr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/ltr.js
+// node_modules/semver/ranges/ltr.js
 var require_ltr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/ltr.js"(exports, module) {
+  "node_modules/semver/ranges/ltr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var ltr = (version3, range, options) => outside(version3, range, "<", options);
@@ -30411,9 +30411,9 @@ var require_ltr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/intersects.js
+// node_modules/semver/ranges/intersects.js
 var require_intersects = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/intersects.js"(exports, module) {
+  "node_modules/semver/ranges/intersects.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var intersects = (r1, r2, options) => {
@@ -30425,9 +30425,9 @@ var require_intersects = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/simplify.js
+// node_modules/semver/ranges/simplify.js
 var require_simplify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/simplify.js"(exports, module) {
+  "node_modules/semver/ranges/simplify.js"(exports, module) {
     "use strict";
     var satisfies = require_satisfies();
     var compare = require_compare();
@@ -30475,9 +30475,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/subset.js
+// node_modules/semver/ranges/subset.js
 var require_subset = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/subset.js"(exports, module) {
+  "node_modules/semver/ranges/subset.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var Comparator = require_comparator();
@@ -30637,9 +30637,9 @@ var require_subset = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/index.js
+// node_modules/semver/index.js
 var require_semver2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/index.js"(exports, module) {
+  "node_modules/semver/index.js"(exports, module) {
     "use strict";
     var internalRe = require_re();
     var constants = require_constants3();
@@ -30734,25 +30734,25 @@ var require_semver2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
+// node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
 var require_asymmetricKeyDetailsSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=15.7.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
+// node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
 var require_rsaPssKeyDetailsSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=16.9.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
+// node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
 var require_validateAsymmetricKey = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
     var ASYMMETRIC_KEY_DETAILS_SUPPORTED = require_asymmetricKeyDetailsSupported();
     var RSA_PSS_KEY_DETAILS_SUPPORTED = require_rsaPssKeyDetailsSupported();
     var allowedAlgorithmsForKeys = {
@@ -30803,17 +30803,17 @@ var require_validateAsymmetricKey = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js
+// node_modules/jsonwebtoken/lib/psSupported.js
 var require_psSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, "^6.12.0 || >=8.0.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/verify.js
+// node_modules/jsonwebtoken/verify.js
 var require_verify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/verify.js"(exports, module) {
+  "node_modules/jsonwebtoken/verify.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = require_NotBeforeError();
     var TokenExpiredError = require_TokenExpiredError();
@@ -31026,9 +31026,9 @@ var require_verify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.includes/index.js
+// node_modules/lodash.includes/index.js
 var require_lodash = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.includes/index.js"(exports, module) {
+  "node_modules/lodash.includes/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_SAFE_INTEGER = 9007199254740991;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31210,9 +31210,9 @@ var require_lodash = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isboolean/index.js
+// node_modules/lodash.isboolean/index.js
 var require_lodash2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isboolean/index.js"(exports, module) {
+  "node_modules/lodash.isboolean/index.js"(exports, module) {
     var boolTag = "[object Boolean]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31226,9 +31226,9 @@ var require_lodash2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isinteger/index.js
+// node_modules/lodash.isinteger/index.js
 var require_lodash3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isinteger/index.js"(exports, module) {
+  "node_modules/lodash.isinteger/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
     var NAN = 0 / 0;
@@ -31290,9 +31290,9 @@ var require_lodash3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isnumber/index.js
+// node_modules/lodash.isnumber/index.js
 var require_lodash4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isnumber/index.js"(exports, module) {
+  "node_modules/lodash.isnumber/index.js"(exports, module) {
     var numberTag = "[object Number]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31306,9 +31306,9 @@ var require_lodash4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isplainobject/index.js
+// node_modules/lodash.isplainobject/index.js
 var require_lodash5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isplainobject/index.js"(exports, module) {
+  "node_modules/lodash.isplainobject/index.js"(exports, module) {
     var objectTag = "[object Object]";
     function isHostObject(value) {
       var result = false;
@@ -31350,9 +31350,9 @@ var require_lodash5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isstring/index.js
+// node_modules/lodash.isstring/index.js
 var require_lodash6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isstring/index.js"(exports, module) {
+  "node_modules/lodash.isstring/index.js"(exports, module) {
     var stringTag = "[object String]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31367,9 +31367,9 @@ var require_lodash6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.once/index.js
+// node_modules/lodash.once/index.js
 var require_lodash7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.once/index.js"(exports, module) {
+  "node_modules/lodash.once/index.js"(exports, module) {
     var FUNC_ERROR_TEXT = "Expected a function";
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31448,9 +31448,9 @@ var require_lodash7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/sign.js
+// node_modules/jsonwebtoken/sign.js
 var require_sign2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/sign.js"(exports, module) {
+  "node_modules/jsonwebtoken/sign.js"(exports, module) {
     var timespan = require_timespan();
     var PS_SUPPORTED = require_psSupported();
     var validateAsymmetricKey = require_validateAsymmetricKey();
@@ -31673,9 +31673,9 @@ var require_sign2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/index.js
+// node_modules/jsonwebtoken/index.js
 var require_jsonwebtoken = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/index.js"(exports, module) {
+  "node_modules/jsonwebtoken/index.js"(exports, module) {
     module.exports = {
       decode: require_decode(),
       verify: require_verify(),
@@ -31687,9 +31687,9 @@ var require_jsonwebtoken = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-array/index.js
+// node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-array/index.js"(exports) {
+  "node_modules/postgres-array/index.js"(exports) {
     "use strict";
     exports.parse = function(source, transform2) {
       return new ArrayParser(source, transform2).parse();
@@ -31781,9 +31781,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js
+// node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js"(exports, module) {
+  "node_modules/pg-types/lib/arrayParser.js"(exports, module) {
     var array2 = require_postgres_array();
     module.exports = {
       create: function(source, transform2) {
@@ -31797,9 +31797,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-date/index.js
+// node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-date/index.js"(exports, module) {
+  "node_modules/postgres-date/index.js"(exports, module) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -31884,9 +31884,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/xtend/mutable.js
+// node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/xtend/mutable.js"(exports, module) {
+  "node_modules/xtend/mutable.js"(exports, module) {
     module.exports = extend2;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     function extend2(target) {
@@ -31903,9 +31903,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-interval/index.js
+// node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-interval/index.js"(exports, module) {
+  "node_modules/postgres-interval/index.js"(exports, module) {
     "use strict";
     var extend2 = require_mutable();
     module.exports = PostgresInterval;
@@ -31994,9 +31994,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-bytea/index.js
+// node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-bytea/index.js"(exports, module) {
+  "node_modules/postgres-bytea/index.js"(exports, module) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module.exports = function parseBytea(input2) {
@@ -32030,9 +32030,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/textParsers.js
+// node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/textParsers.js"(exports, module) {
+  "node_modules/pg-types/lib/textParsers.js"(exports, module) {
     var array2 = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -32230,9 +32230,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-int8/index.js
+// node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-int8/index.js"(exports, module) {
+  "node_modules/pg-int8/index.js"(exports, module) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -32310,9 +32310,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js
+// node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
+  "node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -32510,9 +32510,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/builtins.js
+// node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/builtins.js"(exports, module) {
+  "node_modules/pg-types/lib/builtins.js"(exports, module) {
     module.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -32578,9 +32578,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/index.js
+// node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/index.js"(exports) {
+  "node_modules/pg-types/index.js"(exports) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -32619,9 +32619,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/defaults.js
+// node_modules/pg/lib/defaults.js
 var require_defaults = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/defaults.js"(exports, module) {
+  "node_modules/pg/lib/defaults.js"(exports, module) {
     "use strict";
     var user;
     try {
@@ -32688,9 +32688,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/utils.js
+// node_modules/pg/lib/utils.js
 var require_utils4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/utils.js"(exports, module) {
+  "node_modules/pg/lib/utils.js"(exports, module) {
     "use strict";
     var defaults2 = require_defaults();
     var { isDate } = __require("util/types");
@@ -32836,9 +32836,9 @@ var require_utils4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/utils.js
+// node_modules/pg/lib/crypto/utils.js
 var require_utils5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/utils.js"(exports, module) {
+  "node_modules/pg/lib/crypto/utils.js"(exports, module) {
     var nodeCrypto = __require("crypto");
     module.exports = {
       postgresMd5PasswordHash,
@@ -32887,9 +32887,9 @@ var require_utils5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js
+// node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
+  "node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -33000,9 +33000,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js
+// node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
+  "node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
     var crypto4 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -33185,9 +33185,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/type-overrides.js
+// node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/type-overrides.js"(exports, module) {
+  "node_modules/pg/lib/type-overrides.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -33220,9 +33220,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-connection-string/index.js
+// node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-connection-string/index.js"(exports, module) {
+  "node_modules/pg-connection-string/index.js"(exports, module) {
     "use strict";
     function parse3(str, options = {}) {
       if (str.charAt(0) === "/") {
@@ -33408,9 +33408,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection-parameters.js
+// node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection-parameters.js"(exports, module) {
+  "node_modules/pg/lib/connection-parameters.js"(exports, module) {
     "use strict";
     var dns = __require("dns");
     var defaults2 = require_defaults();
@@ -33559,9 +33559,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/result.js
+// node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/result.js"(exports, module) {
+  "node_modules/pg/lib/result.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -33650,9 +33650,9 @@ var require_result = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/query.js
+// node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/query.js"(exports, module) {
+  "node_modules/pg/lib/query.js"(exports, module) {
     "use strict";
     var { EventEmitter } = __require("events");
     var Result2 = require_result();
@@ -33852,9 +33852,9 @@ var require_query = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/messages.js
+// node_modules/pg-protocol/dist/messages.js
 var require_messages = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/messages.js"(exports) {
+  "node_modules/pg-protocol/dist/messages.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NoticeMessage = exports.DataRowMessage = exports.CommandCompleteMessage = exports.ReadyForQueryMessage = exports.NotificationResponseMessage = exports.BackendKeyDataMessage = exports.AuthenticationMD5Password = exports.ParameterStatusMessage = exports.ParameterDescriptionMessage = exports.RowDescriptionMessage = exports.Field = exports.CopyResponse = exports.CopyDataMessage = exports.DatabaseError = exports.copyDone = exports.emptyQuery = exports.replicationStart = exports.portalSuspended = exports.noData = exports.closeComplete = exports.bindComplete = exports.parseComplete = void 0;
@@ -34017,9 +34017,9 @@ var require_messages = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js
+// node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
+  "node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Writer = void 0;
@@ -34121,9 +34121,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js
+// node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js"(exports) {
+  "node_modules/pg-protocol/dist/serializer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.serialize = void 0;
@@ -34343,9 +34343,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js
+// node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
+  "node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.BufferReader = void 0;
@@ -34402,9 +34402,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/parser.js
+// node_modules/pg-protocol/dist/parser.js
 var require_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/parser.js"(exports) {
+  "node_modules/pg-protocol/dist/parser.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Parser = void 0;
@@ -34709,9 +34709,9 @@ var require_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/index.js
+// node_modules/pg-protocol/dist/index.js
 var require_dist5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/index.js"(exports) {
+  "node_modules/pg-protocol/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
@@ -34733,18 +34733,18 @@ var require_dist5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js
+// node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js"(exports) {
+  "node_modules/pg-cloudflare/dist/empty.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {};
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/stream.js
+// node_modules/pg/lib/stream.js
 var require_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/stream.js"(exports, module) {
+  "node_modules/pg/lib/stream.js"(exports, module) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module.exports = {
       /**
@@ -34808,9 +34808,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection.js
+// node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection.js"(exports, module) {
+  "node_modules/pg/lib/connection.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var { parse: parse3, serialize } = require_dist5();
@@ -35006,9 +35006,9 @@ var require_connection = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/split2/index.js
+// node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/split2/index.js"(exports, module) {
+  "node_modules/split2/index.js"(exports, module) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -35107,9 +35107,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/helper.js
+// node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/helper.js"(exports, module) {
+  "node_modules/pgpass/lib/helper.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var Stream = __require("stream").Stream;
@@ -35278,9 +35278,9 @@ var require_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/index.js
+// node_modules/pgpass/lib/index.js
 var require_lib4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/index.js"(exports, module) {
+  "node_modules/pgpass/lib/index.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var fs = __require("fs");
@@ -35299,9 +35299,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/client.js
+// node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/client.js"(exports, module) {
+  "node_modules/pg/lib/client.js"(exports, module) {
     var EventEmitter = __require("events").EventEmitter;
     var utils = require_utils4();
     var nodeUtils = __require("util");
@@ -35987,9 +35987,9 @@ var require_client = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-pool/index.js
+// node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-pool/index.js"(exports, module) {
+  "node_modules/pg-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var NOOP = function() {
@@ -36413,9 +36413,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/query.js
+// node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/query.js"(exports, module) {
+  "node_modules/pg/lib/native/query.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var util = __require("util");
@@ -36554,9 +36554,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/client.js
+// node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/client.js"(exports, module) {
+  "node_modules/pg/lib/native/client.js"(exports, module) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -36888,17 +36888,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/index.js
+// node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/index.js"(exports, module) {
+  "node_modules/pg/lib/native/index.js"(exports, module) {
     "use strict";
     module.exports = require_client2();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/index.js
+// node_modules/pg/lib/index.js
 var require_lib5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/index.js"(exports, module) {
+  "node_modules/pg/lib/index.js"(exports, module) {
     "use strict";
     var Client2 = require_client();
     var defaults2 = require_defaults();
@@ -36962,9 +36962,9 @@ var require_lib5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/bn.js/lib/bn.js
+// node_modules/bn.js/lib/bn.js
 var require_bn = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/bn.js/lib/bn.js"(exports, module) {
+  "node_modules/bn.js/lib/bn.js"(exports, module) {
     (function(module2, exports2) {
       "use strict";
       function assert2(val, msg) {
@@ -39782,9 +39782,9 @@ var require_bn = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js
+// node_modules/asn1.js/lib/asn1/base/reporter.js
 var require_reporter = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     function Reporter(options) {
@@ -39883,9 +39883,9 @@ var require_reporter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js
+// node_modules/asn1.js/lib/asn1/base/buffer.js
 var require_buffer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     var Reporter = require_reporter().Reporter;
@@ -40000,9 +40000,9 @@ var require_buffer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/minimalistic-assert/index.js
+// node_modules/minimalistic-assert/index.js
 var require_minimalistic_assert = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/minimalistic-assert/index.js"(exports, module) {
+  "node_modules/minimalistic-assert/index.js"(exports, module) {
     module.exports = assert2;
     function assert2(val, msg) {
       if (!val)
@@ -40015,9 +40015,9 @@ var require_minimalistic_assert = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js
+// node_modules/asn1.js/lib/asn1/base/node.js
 var require_node2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
     "use strict";
     var Reporter = require_reporter().Reporter;
     var EncoderBuffer = require_buffer().EncoderBuffer;
@@ -40550,9 +40550,9 @@ var require_node2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js
+// node_modules/asn1.js/lib/asn1/constants/der.js
 var require_der = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
     "use strict";
     function reverse(map2) {
       const res = {};
@@ -40606,9 +40606,9 @@ var require_der = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js
+// node_modules/asn1.js/lib/asn1/encoders/der.js
 var require_der2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -40837,9 +40837,9 @@ var require_der2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js
+// node_modules/asn1.js/lib/asn1/encoders/pem.js
 var require_pem = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var DEREncoder = require_der2();
@@ -40861,9 +40861,9 @@ var require_pem = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js
+// node_modules/asn1.js/lib/asn1/encoders/index.js
 var require_encoders = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
     "use strict";
     var encoders = exports;
     encoders.der = require_der2();
@@ -40871,9 +40871,9 @@ var require_encoders = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js
+// node_modules/asn1.js/lib/asn1/decoders/der.js
 var require_der3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var bignum = require_bn();
@@ -41143,9 +41143,9 @@ var require_der3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js
+// node_modules/asn1.js/lib/asn1/decoders/pem.js
 var require_pem2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -41189,9 +41189,9 @@ var require_pem2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js
+// node_modules/asn1.js/lib/asn1/decoders/index.js
 var require_decoders = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
     "use strict";
     var decoders = exports;
     decoders.der = require_der3();
@@ -41199,9 +41199,9 @@ var require_decoders = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js
+// node_modules/asn1.js/lib/asn1/api.js
 var require_api = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/api.js"(exports) {
     "use strict";
     var encoders = require_encoders();
     var decoders = require_decoders();
@@ -41248,9 +41248,9 @@ var require_api = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js
+// node_modules/asn1.js/lib/asn1/base/index.js
 var require_base = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
     "use strict";
     var base = exports;
     base.Reporter = require_reporter().Reporter;
@@ -41260,9 +41260,9 @@ var require_base = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js
+// node_modules/asn1.js/lib/asn1/constants/index.js
 var require_constants4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
     "use strict";
     var constants = exports;
     constants._reverse = function reverse(map2) {
@@ -41279,9 +41279,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1.js
+// node_modules/asn1.js/lib/asn1.js
 var require_asn1 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1.js"(exports) {
+  "node_modules/asn1.js/lib/asn1.js"(exports) {
     "use strict";
     var asn1 = exports;
     asn1.bignum = require_bn();
@@ -41293,9 +41293,9 @@ var require_asn1 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-constants.js
+// node_modules/web-push/src/web-push-constants.js
 var require_web_push_constants = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-constants.js"(exports, module) {
+  "node_modules/web-push/src/web-push-constants.js"(exports, module) {
     "use strict";
     var WebPushConstants = {};
     WebPushConstants.supportedContentEncodings = {
@@ -41312,9 +41312,9 @@ var require_web_push_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js
+// node_modules/web-push/src/urlsafe-base64-helper.js
 var require_urlsafe_base64_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
+  "node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
     "use strict";
     function validate2(base643) {
       return /^[A-Za-z0-9\-_]+$/.test(base643);
@@ -41325,9 +41325,9 @@ var require_urlsafe_base64_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js
+// node_modules/web-push/src/vapid-helper.js
 var require_vapid_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js"(exports, module) {
+  "node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var asn1 = require_asn1();
@@ -41502,9 +41502,9 @@ var require_vapid_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js
+// node_modules/http_ece/ece.js
 var require_ece = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js"(exports, module) {
+  "node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
@@ -41953,9 +41953,9 @@ var require_ece = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js
+// node_modules/web-push/src/encryption-helper.js
 var require_encryption_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js"(exports, module) {
+  "node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var ece = require_ece();
@@ -42006,9 +42006,9 @@ var require_encryption_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-error.js
+// node_modules/web-push/src/web-push-error.js
 var require_web_push_error = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-error.js"(exports, module) {
+  "node_modules/web-push/src/web-push-error.js"(exports, module) {
     "use strict";
     function WebPushError(message, statusCode, headers, body, endpoint) {
       Error.captureStackTrace(this, this.constructor);
@@ -42024,9 +42024,9 @@ var require_web_push_error = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/helpers.js
+// node_modules/agent-base/dist/helpers.js
 var require_helpers2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/helpers.js"(exports) {
+  "node_modules/agent-base/dist/helpers.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42094,9 +42094,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/index.js
+// node_modules/agent-base/dist/index.js
 var require_dist6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/index.js"(exports) {
+  "node_modules/agent-base/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42250,9 +42250,9 @@ var require_dist6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
+  "node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -42346,9 +42346,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 var require_dist7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js"(exports) {
+  "node_modules/https-proxy-agent/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42496,9 +42496,9 @@ var require_dist7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-lib.js
+// node_modules/web-push/src/web-push-lib.js
 var require_web_push_lib = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-lib.js"(exports, module) {
+  "node_modules/web-push/src/web-push-lib.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var https = __require("https");
@@ -42783,9 +42783,9 @@ var require_web_push_lib = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/index.js
+// node_modules/web-push/src/index.js
 var require_src2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/index.js"(exports, module) {
+  "node_modules/web-push/src/index.js"(exports, module) {
     "use strict";
     var vapidHelper = require_vapid_helper();
     var encryptionHelper = require_encryption_helper();
@@ -42807,9 +42807,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js
+// node_modules/nodemailer/lib/fetch/cookies.js
 var require_cookies = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
+  "node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var SESSION_TIMEOUT = 1800;
@@ -43019,9 +43019,9 @@ var require_cookies = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/package.json
+// node_modules/nodemailer/package.json
 var require_package = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/package.json"(exports, module) {
+  "node_modules/nodemailer/package.json"(exports, module) {
     module.exports = {
       name: "nodemailer",
       version: "6.9.16",
@@ -43068,9 +43068,9 @@ var require_package = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js
+// node_modules/nodemailer/lib/fetch/index.js
 var require_fetch = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
     "use strict";
     var http = __require("http");
     var https = __require("https");
@@ -43307,9 +43307,9 @@ var require_fetch = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js
+// node_modules/nodemailer/lib/shared/index.js
 var require_shared = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/shared/index.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var util = __require("util");
@@ -43819,9 +43819,9 @@ var require_shared = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js
+// node_modules/nodemailer/lib/mime-funcs/mime-types.js
 var require_mime_types2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var defaultMimeType = "application/octet-stream";
@@ -45917,9 +45917,9 @@ var require_mime_types2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js
+// node_modules/nodemailer/lib/punycode/index.js
 var require_punycode = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
     "use strict";
     var maxInt = 2147483647;
     var base = 36;
@@ -46159,9 +46159,9 @@ var require_punycode = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js
+// node_modules/nodemailer/lib/base64/index.js
 var require_base64 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/base64/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46257,9 +46257,9 @@ var require_base64 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js
+// node_modules/nodemailer/lib/qp/index.js
 var require_qp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/qp/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46419,9 +46419,9 @@ var require_qp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js
+// node_modules/nodemailer/lib/mime-funcs/index.js
 var require_mime_funcs = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
     "use strict";
     var base643 = require_base64();
     var qp = require_qp();
@@ -46915,9 +46915,9 @@ var require_mime_funcs = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js
+// node_modules/nodemailer/lib/addressparser/index.js
 var require_addressparser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
     "use strict";
     function _handleAddress(tokens) {
       let isGroup = false;
@@ -47164,9 +47164,9 @@ var require_addressparser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js
+// node_modules/nodemailer/lib/mime-node/last-newline.js
 var require_last_newline = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var LastNewline = class extends Transform {
@@ -47197,9 +47197,9 @@ var require_last_newline = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js
+// node_modules/nodemailer/lib/mime-node/le-windows.js
 var require_le_windows = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47241,9 +47241,9 @@ var require_le_windows = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js
+// node_modules/nodemailer/lib/mime-node/le-unix.js
 var require_le_unix = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47278,9 +47278,9 @@ var require_le_unix = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js
+// node_modules/nodemailer/lib/mime-node/index.js
 var require_mime_node = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var fs = __require("fs");
@@ -48252,9 +48252,9 @@ var require_mime_node = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js
+// node_modules/nodemailer/lib/mail-composer/index.js
 var require_mail_composer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
     "use strict";
     var MimeNode = require_mime_node();
     var mimeFuncs = require_mime_funcs();
@@ -48698,9 +48698,9 @@ var require_mail_composer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js
+// node_modules/nodemailer/lib/dkim/message-parser.js
 var require_message_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var MessageParser = class extends Transform {
@@ -48829,9 +48829,9 @@ var require_message_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js
+// node_modules/nodemailer/lib/dkim/relaxed-body.js
 var require_relaxed_body = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var crypto4 = __require("crypto");
@@ -48938,9 +48938,9 @@ var require_relaxed_body = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js
+// node_modules/nodemailer/lib/dkim/sign.js
 var require_sign3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
@@ -49011,9 +49011,9 @@ var require_sign3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js
+// node_modules/nodemailer/lib/dkim/index.js
 var require_dkim = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
     "use strict";
     var MessageParser = require_message_parser();
     var RelaxedBody = require_relaxed_body();
@@ -49214,9 +49214,9 @@ var require_dkim = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
+// node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
 var require_http_proxy_client = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
     "use strict";
     var net = __require("net");
     var tls = __require("tls");
@@ -49310,9 +49310,9 @@ var require_http_proxy_client = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js
+// node_modules/nodemailer/lib/mailer/mail-message.js
 var require_mail_message = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
+  "node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
     "use strict";
     var shared = require_shared();
     var MimeNode = require_mime_node();
@@ -49574,9 +49574,9 @@ var require_mail_message = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js
+// node_modules/nodemailer/lib/mailer/index.js
 var require_mailer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var shared = require_shared();
@@ -49943,9 +49943,9 @@ var require_mailer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js
+// node_modules/nodemailer/lib/smtp-connection/data-stream.js
 var require_data_stream2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -50032,9 +50032,9 @@ var require_data_stream2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js
+// node_modules/nodemailer/lib/smtp-connection/index.js
 var require_smtp_connection = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
     "use strict";
     var packageInfo = require_package();
     var EventEmitter = __require("events").EventEmitter;
@@ -51449,9 +51449,9 @@ var require_smtp_connection = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js
+// node_modules/nodemailer/lib/xoauth2/index.js
 var require_xoauth2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
     "use strict";
     var Stream = __require("stream").Stream;
     var nmfetch = require_fetch();
@@ -51754,9 +51754,9 @@ var require_xoauth2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js
+// node_modules/nodemailer/lib/smtp-pool/pool-resource.js
 var require_pool_resource = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
     "use strict";
     var SMTPConnection = require_smtp_connection();
     var assign = require_shared().assign;
@@ -51975,9 +51975,9 @@ var require_pool_resource = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json
+// node_modules/nodemailer/lib/well-known/services.json
 var require_services = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
+  "node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
     module.exports = {
       "1und1": {
         host: "smtp.1und1.de",
@@ -52279,9 +52279,9 @@ var require_services = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js
+// node_modules/nodemailer/lib/well-known/index.js
 var require_well_known = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
     "use strict";
     var services = require_services();
     var normalized = {};
@@ -52315,9 +52315,9 @@ var require_well_known = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js
+// node_modules/nodemailer/lib/smtp-pool/index.js
 var require_smtp_pool = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var PoolResource = require_pool_resource();
@@ -52860,9 +52860,9 @@ var require_smtp_pool = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js
+// node_modules/nodemailer/lib/smtp-transport/index.js
 var require_smtp_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var SMTPConnection = require_smtp_connection();
@@ -53218,9 +53218,9 @@ var require_smtp_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js
+// node_modules/nodemailer/lib/sendmail-transport/index.js
 var require_sendmail_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
     "use strict";
     var spawn = __require("child_process").spawn;
     var packageData = require_package();
@@ -53393,9 +53393,9 @@ var require_sendmail_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js
+// node_modules/nodemailer/lib/stream-transport/index.js
 var require_stream_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53507,9 +53507,9 @@ var require_stream_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js
+// node_modules/nodemailer/lib/json-transport/index.js
 var require_json_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53576,9 +53576,9 @@ var require_json_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js
+// node_modules/nodemailer/lib/ses-transport/index.js
 var require_ses_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var packageData = require_package();
@@ -53857,9 +53857,9 @@ var require_ses_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js
+// node_modules/nodemailer/lib/nodemailer.js
 var require_nodemailer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
+  "node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
     "use strict";
     var Mailer = require_mailer();
     var shared = require_shared();
@@ -53990,7 +53990,7 @@ var require_nodemailer = __commonJS({
 var import_express = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/helmet/index.mjs
+// node_modules/helmet/index.mjs
 var dashify = (str) => str.replace(/[A-Z]/g, (capitalLetter) => "-" + capitalLetter.toLowerCase());
 var errify = (err) => err instanceof Error ? err : new Error(String(err));
 var isString = (value) => typeof value === "string";
@@ -54560,7 +54560,7 @@ var helmet = Object.assign(
 // src/server/app.ts
 var import_compression = __toESM(require_compression(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express-rate-limit/dist/index.mjs
+// node_modules/express-rate-limit/dist/index.mjs
 var import_ip_address = __toESM(require_ip_address(), 1);
 var import_debug = __toESM(require_src(), 1);
 import { isIPv6 } from "node:net";
@@ -55581,7 +55581,7 @@ if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
 // src/server/auth.ts
 var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/esm/index.mjs
+// node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
 var Client = import_lib.default.Client;
 var Pool = import_lib.default.Pool;
@@ -56343,7 +56343,7 @@ app.use(async (req, _res, next) => {
 // src/vuongMacPush.ts
 var import_web_push = __toESM(require_src2(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/external.js
+// node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
   $brand: () => $brand,
@@ -56600,7 +56600,7 @@ __export(external_exports, {
   xor: () => xor
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/index.js
+// node_modules/zod/v4/core/index.js
 var core_exports2 = {};
 __export(core_exports2, {
   $ZodAny: () => $ZodAny,
@@ -56907,7 +56907,7 @@ __export(core_exports2, {
   version: () => version2
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/util.js
+// node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -57744,7 +57744,7 @@ function constantCatch(value) {
   return fn;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/core.js
+// node_modules/zod/v4/core/core.js
 var _a;
 var NEVER = /* @__PURE__ */ Object.freeze({
   status: "aborted"
@@ -57867,7 +57867,7 @@ function config(newConfig) {
   return globalConfig;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/errors.js
+// node_modules/zod/v4/core/errors.js
 function _getMessage() {
   const internals = this._zod;
   internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
@@ -58063,7 +58063,7 @@ function prettifyError(error61) {
   return lines.join("\n");
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/parse.js
+// node_modules/zod/v4/core/parse.js
 function finalizeParams(callee, params) {
   return { callee: params?.callee ?? callee, Err: params?.Err };
 }
@@ -58206,7 +58206,7 @@ var _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
 };
 var safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync($ZodRealError);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/regexes.js
+// node_modules/zod/v4/core/regexes.js
 var regexes_exports = {};
 __export(regexes_exports, {
   base64: () => base64,
@@ -58372,7 +58372,7 @@ var sha512_hex = /^[0-9a-fA-F]{128}$/;
 var sha512_base64 = /* @__PURE__ */ fixedBase64(86, "==");
 var sha512_base64url = /* @__PURE__ */ fixedBase64url(86);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/checks.js
+// node_modules/zod/v4/core/checks.js
 var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
   var _a3;
   inst._zod ?? (inst._zod = {});
@@ -58916,7 +58916,7 @@ var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (ins
   };
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/doc.js
+// node_modules/zod/v4/core/doc.js
 var Doc = class {
   constructor(args = [], closed = {}) {
     this.content = [];
@@ -58953,14 +58953,14 @@ ${content.join("\n")}
   }
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/versions.js
+// node_modules/zod/v4/core/versions.js
 var version2 = {
   major: 4,
   minor: 5,
   patch: 4
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/schemas.js
+// node_modules/zod/v4/core/schemas.js
 var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
   var _a3;
   inst ?? (inst = {});
@@ -61224,7 +61224,7 @@ function handleRefineResult(result, payload, input2, inst) {
   }
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/memoizer.js
+// node_modules/zod/v4/core/memoizer.js
 var $ZodCyclicError = class extends Error {
   constructor() {
     super(`Cannot parse a reference cycle that closes through a transform`);
@@ -61465,7 +61465,7 @@ function isBackEdge(ctx, value) {
   return backEdges !== void 0 && value !== null && typeof value === "object" && backEdges.has(value);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/index.js
+// node_modules/zod/v4/locales/index.js
 var locales_exports = {};
 __export(locales_exports, {
   ar: () => ar_default,
@@ -61532,7 +61532,7 @@ __export(locales_exports, {
   zhTW: () => zh_TW_default
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ar.js
+// node_modules/zod/v4/locales/ar.js
 var error = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0641", verb: "\u0623\u0646 \u064A\u062D\u0648\u064A" },
@@ -61642,7 +61642,7 @@ function ar_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/az.js
+// node_modules/zod/v4/locales/az.js
 var error2 = () => {
   const Sizable = {
     string: { unit: "simvol", verb: "olmal\u0131d\u0131r" },
@@ -61751,7 +61751,7 @@ function az_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/be.js
+// node_modules/zod/v4/locales/be.js
 function getBelarusianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -61918,7 +61918,7 @@ function be_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/bg.js
+// node_modules/zod/v4/locales/bg.js
 var error4 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0430", verb: "\u0434\u0430 \u0441\u044A\u0434\u044A\u0440\u0436\u0430" },
@@ -62042,7 +62042,7 @@ function bg_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/bn.js
+// node_modules/zod/v4/locales/bn.js
 var error5 = () => {
   const Sizable = {
     string: { unit: "\u0985\u0995\u09CD\u09B7\u09B0", verb: "\u09A5\u09BE\u0995\u09A4\u09C7 \u09B9\u09AC\u09C7" },
@@ -62154,7 +62154,7 @@ function bn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ca.js
+// node_modules/zod/v4/locales/ca.js
 var error6 = () => {
   const Sizable = {
     string: { unit: "car\xE0cters", verb: "contenir" },
@@ -62266,7 +62266,7 @@ function ca_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ckb.js
+// node_modules/zod/v4/locales/ckb.js
 var error7 = () => {
   const Sizable = {
     string: { unit: "\u067E\u06CC\u062A", verb: "\u0628\u06CE\u062A" },
@@ -62397,7 +62397,7 @@ function ckb_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/cs.js
+// node_modules/zod/v4/locales/cs.js
 var error8 = () => {
   const Sizable = {
     string: { unit: "znak\u016F", verb: "m\xEDt" },
@@ -62512,7 +62512,7 @@ function cs_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/da.js
+// node_modules/zod/v4/locales/da.js
 var error9 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "havde" },
@@ -62631,7 +62631,7 @@ function da_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/de.js
+// node_modules/zod/v4/locales/de.js
 var error10 = () => {
   const Sizable = {
     string: { unit: "Zeichen", verb: "zu haben" },
@@ -62743,7 +62743,7 @@ function de_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/el.js
+// node_modules/zod/v4/locales/el.js
 var error11 = () => {
   const Sizable = {
     string: { unit: "\u03C7\u03B1\u03C1\u03B1\u03BA\u03C4\u03AE\u03C1\u03B5\u03C2", verb: "\u03BD\u03B1 \u03AD\u03C7\u03B5\u03B9" },
@@ -62854,7 +62854,7 @@ function el_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/en.js
+// node_modules/zod/v4/locales/en.js
 var error12 = () => {
   const Sizable = {
     string: { unit: "characters", verb: "to have" },
@@ -62977,7 +62977,7 @@ function en_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/eo.js
+// node_modules/zod/v4/locales/eo.js
 var error13 = () => {
   const Sizable = {
     string: { unit: "karaktrojn", verb: "havi" },
@@ -63090,7 +63090,7 @@ function eo_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/es.js
+// node_modules/zod/v4/locales/es.js
 var error14 = () => {
   const Sizable = {
     string: { unit: "caracteres", verb: "tener" },
@@ -63225,7 +63225,7 @@ function es_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fa.js
+// node_modules/zod/v4/locales/fa.js
 var error15 = () => {
   const Sizable = {
     string: { unit: "\u06A9\u0627\u0631\u0627\u06A9\u062A\u0631", verb: "\u062F\u0627\u0634\u062A\u0647 \u0628\u0627\u0634\u062F" },
@@ -63343,7 +63343,7 @@ function fa_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fi.js
+// node_modules/zod/v4/locales/fi.js
 var error16 = () => {
   const Sizable = {
     string: { unit: "merkki\xE4", subject: "merkkijonon" },
@@ -63459,7 +63459,7 @@ function fi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fr.js
+// node_modules/zod/v4/locales/fr.js
 var error17 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63587,7 +63587,7 @@ function fr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fr-CA.js
+// node_modules/zod/v4/locales/fr-CA.js
 var error18 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63698,7 +63698,7 @@ function fr_CA_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/gu.js
+// node_modules/zod/v4/locales/gu.js
 var error19 = () => {
   const Sizable = {
     string: { unit: "\u0A85\u0A95\u0ACD\u0AB7\u0AB0", verb: "\u0AB9\u0ACB\u0AB5\u0ABE \u0A9C\u0ACB\u0A88\u0A8F" },
@@ -63810,7 +63810,7 @@ function gu_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/he.js
+// node_modules/zod/v4/locales/he.js
 var error20 = () => {
   const TypeNames = {
     string: { label: "\u05DE\u05D7\u05E8\u05D5\u05D6\u05EA", gender: "f" },
@@ -64010,7 +64010,7 @@ function he_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hi.js
+// node_modules/zod/v4/locales/hi.js
 var error21 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0930\u0916\u0928\u0947 \u0915\u0947 \u0932\u093F\u090F" },
@@ -64120,7 +64120,7 @@ function hi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hr.js
+// node_modules/zod/v4/locales/hr.js
 var error22 = () => {
   const Sizable = {
     string: { unit: "znakova", verb: "imati" },
@@ -64245,7 +64245,7 @@ function hr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hu.js
+// node_modules/zod/v4/locales/hu.js
 var error23 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "legyen" },
@@ -64357,7 +64357,7 @@ function hu_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hy.js
+// node_modules/zod/v4/locales/hy.js
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
@@ -64514,7 +64514,7 @@ function hy_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/id.js
+// node_modules/zod/v4/locales/id.js
 var error25 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "memiliki" },
@@ -64624,7 +64624,7 @@ function id_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/is.js
+// node_modules/zod/v4/locales/is.js
 var error26 = () => {
   const Sizable = {
     string: { unit: "stafi", verb: "a\xF0 hafa" },
@@ -64737,7 +64737,7 @@ function is_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/it.js
+// node_modules/zod/v4/locales/it.js
 var error27 = () => {
   const Sizable = {
     string: { unit: "caratteri", verb: "avere" },
@@ -64849,7 +64849,7 @@ function it_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ja.js
+// node_modules/zod/v4/locales/ja.js
 var error28 = () => {
   const Sizable = {
     string: { unit: "\u6587\u5B57", verb: "\u3067\u3042\u308B" },
@@ -64960,7 +64960,7 @@ function ja_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ka.js
+// node_modules/zod/v4/locales/ka.js
 var error29 = () => {
   const Sizable = {
     string: { unit: "\u10E1\u10D8\u10DB\u10D1\u10DD\u10DA\u10DD", verb: "\u10E3\u10DC\u10D3\u10D0 \u10E8\u10D4\u10D8\u10EA\u10D0\u10D5\u10D3\u10D4\u10E1" },
@@ -65076,7 +65076,7 @@ function ka_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/km.js
+// node_modules/zod/v4/locales/km.js
 var error30 = () => {
   const Sizable = {
     string: { unit: "\u178F\u17BD\u17A2\u1780\u17D2\u179F\u179A", verb: "\u1782\u17BD\u179A\u1798\u17B6\u1793" },
@@ -65190,12 +65190,12 @@ function km_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/kh.js
+// node_modules/zod/v4/locales/kh.js
 function kh_default() {
   return km_default();
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/kn.js
+// node_modules/zod/v4/locales/kn.js
 var error31 = () => {
   const Sizable = {
     string: { unit: "\u0C85\u0C95\u0CCD\u0CB7\u0CB0\u0C97\u0CB3\u0CC1", verb: "\u0CB9\u0CCA\u0C82\u0CA6\u0CB2\u0CC1" },
@@ -65309,7 +65309,7 @@ function kn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ko.js
+// node_modules/zod/v4/locales/ko.js
 var error32 = () => {
   const Sizable = {
     string: { unit: "\uBB38\uC790", verb: "to have" },
@@ -65424,7 +65424,7 @@ function ko_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/lt.js
+// node_modules/zod/v4/locales/lt.js
 var capitalizeFirstCharacter = (text) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
@@ -65630,7 +65630,7 @@ function lt_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/mk.js
+// node_modules/zod/v4/locales/mk.js
 var error34 = () => {
   const Sizable = {
     string: { unit: "\u0437\u043D\u0430\u0446\u0438", verb: "\u0434\u0430 \u0438\u043C\u0430\u0430\u0442" },
@@ -65743,7 +65743,7 @@ function mk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ms.js
+// node_modules/zod/v4/locales/ms.js
 var error35 = () => {
   const Sizable = {
     string: { unit: "aksara", verb: "mempunyai" },
@@ -65854,7 +65854,7 @@ function ms_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ne.js
+// node_modules/zod/v4/locales/ne.js
 var error36 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0939\u0941\u0928\u0941\u092A\u0930\u094D\u091B" },
@@ -65964,7 +65964,7 @@ function ne_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/nl.js
+// node_modules/zod/v4/locales/nl.js
 var error37 = () => {
   const Sizable = {
     string: { unit: "tekens", verb: "heeft" },
@@ -66078,7 +66078,7 @@ function nl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/nn.js
+// node_modules/zod/v4/locales/nn.js
 var error38 = () => {
   const Sizable = {
     string: { unit: "teikn", verb: "\xE5 ha" },
@@ -66190,7 +66190,7 @@ function nn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/no.js
+// node_modules/zod/v4/locales/no.js
 var error39 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "\xE5 ha" },
@@ -66302,7 +66302,7 @@ function no_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ota.js
+// node_modules/zod/v4/locales/ota.js
 var error40 = () => {
   const Sizable = {
     string: { unit: "harf", verb: "olmal\u0131d\u0131r" },
@@ -66415,7 +66415,7 @@ function ota_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ps.js
+// node_modules/zod/v4/locales/ps.js
 var error41 = () => {
   const Sizable = {
     string: { unit: "\u062A\u0648\u06A9\u064A", verb: "\u0648\u0644\u0631\u064A" },
@@ -66533,7 +66533,7 @@ function ps_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pl.js
+// node_modules/zod/v4/locales/pl.js
 var error42 = () => {
   const Sizable = {
     string: { unit: "znak\xF3w", verb: "mie\u0107" },
@@ -66646,7 +66646,7 @@ function pl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pt.js
+// node_modules/zod/v4/locales/pt.js
 var error43 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66788,7 +66788,7 @@ function pt_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pt-BR.js
+// node_modules/zod/v4/locales/pt-BR.js
 var error44 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66931,7 +66931,7 @@ function pt_BR_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ro.js
+// node_modules/zod/v4/locales/ro.js
 var error45 = () => {
   const Sizable = {
     string: { unit: "caractere", verb: "s\u0103 aib\u0103" },
@@ -67052,7 +67052,7 @@ function ro_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ru.js
+// node_modules/zod/v4/locales/ru.js
 function getRussianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -67219,7 +67219,7 @@ function ru_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sk.js
+// node_modules/zod/v4/locales/sk.js
 var error47 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "ma\u0165" },
@@ -67334,7 +67334,7 @@ function sk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sl.js
+// node_modules/zod/v4/locales/sl.js
 var error48 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "imeti" },
@@ -67447,7 +67447,7 @@ function sl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sv.js
+// node_modules/zod/v4/locales/sv.js
 var error49 = () => {
   const Sizable = {
     string: { unit: "tecken", verb: "att ha" },
@@ -67561,7 +67561,7 @@ function sv_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ta.js
+// node_modules/zod/v4/locales/ta.js
 var error50 = () => {
   const Sizable = {
     string: { unit: "\u0B8E\u0BB4\u0BC1\u0BA4\u0BCD\u0BA4\u0BC1\u0B95\u0BCD\u0B95\u0BB3\u0BCD", verb: "\u0B95\u0BCA\u0BA3\u0BCD\u0B9F\u0BBF\u0BB0\u0BC1\u0B95\u0BCD\u0B95 \u0BB5\u0BC7\u0BA3\u0BCD\u0B9F\u0BC1\u0BAE\u0BCD" },
@@ -67675,7 +67675,7 @@ function ta_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/th.js
+// node_modules/zod/v4/locales/th.js
 var error51 = () => {
   const Sizable = {
     string: { unit: "\u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23", verb: "\u0E04\u0E27\u0E23\u0E21\u0E35" },
@@ -67789,7 +67789,7 @@ function th_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/tk.js
+// node_modules/zod/v4/locales/tk.js
 var error52 = () => {
   const Sizable = {
     string: { unit: "simwol", verb: "bolmaly" },
@@ -67895,7 +67895,7 @@ function tk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/tr.js
+// node_modules/zod/v4/locales/tr.js
 var error53 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "olmal\u0131" },
@@ -68004,7 +68004,7 @@ function tr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/uk.js
+// node_modules/zod/v4/locales/uk.js
 var error54 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0456\u0432", verb: "\u043C\u0430\u0442\u0438\u043C\u0435" },
@@ -68116,12 +68116,12 @@ function uk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ua.js
+// node_modules/zod/v4/locales/ua.js
 function ua_default() {
   return uk_default();
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ur.js
+// node_modules/zod/v4/locales/ur.js
 var error55 = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0648\u0641", verb: "\u06C1\u0648\u0646\u0627" },
@@ -68235,7 +68235,7 @@ function ur_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/uz.js
+// node_modules/zod/v4/locales/uz.js
 var error56 = () => {
   const Sizable = {
     string: { unit: "belgi", verb: "bo\u2018lishi kerak" },
@@ -68347,7 +68347,7 @@ function uz_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/vi.js
+// node_modules/zod/v4/locales/vi.js
 var error57 = () => {
   const Sizable = {
     string: { unit: "k\xFD t\u1EF1", verb: "c\xF3" },
@@ -68459,7 +68459,7 @@ function vi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/zh-CN.js
+// node_modules/zod/v4/locales/zh-CN.js
 var error58 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u7B26", verb: "\u5305\u542B" },
@@ -68572,7 +68572,7 @@ function zh_CN_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/zh-TW.js
+// node_modules/zod/v4/locales/zh-TW.js
 var error59 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u5143", verb: "\u64C1\u6709" },
@@ -68683,7 +68683,7 @@ function zh_TW_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/yo.js
+// node_modules/zod/v4/locales/yo.js
 var error60 = () => {
   const Sizable = {
     string: { unit: "\xE0mi", verb: "n\xED" },
@@ -68794,7 +68794,7 @@ function yo_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/registries.js
+// node_modules/zod/v4/core/registries.js
 var _a2;
 var $output = /* @__PURE__ */ Symbol("ZodOutput");
 var $input = /* @__PURE__ */ Symbol("ZodInput");
@@ -68844,7 +68844,7 @@ function registry() {
 (_a2 = globalThis).__zod_globalRegistry ?? (_a2.__zod_globalRegistry = registry());
 var globalRegistry = globalThis.__zod_globalRegistry;
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/compile.js
+// node_modules/zod/v4/core/compile.js
 var INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
 var FALLBACK_FLAG = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
 var ZodCompileAsyncError = class extends Error {
@@ -70387,7 +70387,7 @@ function generateTransformCheck(doc, ctx, schema, accessor) {
   return accessor;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/api.js
+// node_modules/zod/v4/core/api.js
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
   return new Class2({
@@ -71443,7 +71443,7 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
   return inst;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/to-json-schema.js
+// node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
   for (const source of sources) {
     for (const key of Reflect.ownKeys(source)) {
@@ -71974,7 +71974,7 @@ var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) =
   return finalize(ctx, schema);
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema-processors.js
+// node_modules/zod/v4/core/json-schema-processors.js
 var formatMap = {
   guid: "uuid",
   url: "uri",
@@ -72632,7 +72632,7 @@ function toJSONSchema(input2, params) {
   return finalize(ctx, input2);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema-generator.js
+// node_modules/zod/v4/core/json-schema-generator.js
 var JSONSchemaGenerator = class {
   /** @deprecated Access via ctx instead */
   get metadataRegistry() {
@@ -72710,10 +72710,10 @@ var JSONSchemaGenerator = class {
   }
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema.js
+// node_modules/zod/v4/core/json-schema.js
 var json_schema_exports = {};
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 var schemas_exports2 = {};
 __export(schemas_exports2, {
   ZodAny: () => ZodAny,
@@ -72890,7 +72890,7 @@ __export(schemas_exports2, {
   xor: () => xor
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/checks.js
+// node_modules/zod/v4/classic/checks.js
 var checks_exports2 = {};
 __export(checks_exports2, {
   endsWith: () => _endsWith,
@@ -72925,7 +72925,7 @@ __export(checks_exports2, {
   uppercase: () => _uppercase
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/errors.js
+// node_modules/zod/v4/classic/errors.js
 var _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
   Object.defineProperty(proto, key, {
@@ -72971,7 +72971,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, void 0
   Parent: Error
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/parse.js
+// node_modules/zod/v4/classic/parse.js
 var parse2 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
@@ -72985,7 +72985,7 @@ var safeDecode2 = /* @__PURE__ */ _safeDecode(ZodRealError);
 var safeEncodeAsync2 = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
 var safeDecodeAsync2 = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 function _ensureDefaultLocale() {
   if (!globalConfig.localeError)
     config(en_default());
@@ -74396,7 +74396,7 @@ function preprocess(fn, schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/compat.js
+// node_modules/zod/v4/classic/compat.js
 var ZodIssueCode = {
   invalid_type: "invalid_type",
   too_big: "too_big",
@@ -74422,7 +74422,7 @@ var ZodFirstPartyTypeKind;
 /* @__PURE__ */ (function(ZodFirstPartyTypeKind2) {
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/iso.js
+// node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -74447,7 +74447,7 @@ function duration2(params) {
   return _isoDuration(ZodISODuration, params);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/from-json-schema.js
+// node_modules/zod/v4/classic/from-json-schema.js
 var z = {
   ...schemas_exports2,
   ...checks_exports2,
@@ -74987,28 +74987,28 @@ function fromJSONSchema(schema, params) {
   return convertSchema(normalized, ctx);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/visit.js
+// node_modules/zod/v4/core/visit.js
 var RESOLVING = /* @__PURE__ */ Symbol("z.visit/resolving");
 function visit(schema, fnOrHandlers) {
   const fn = typeof fnOrHandlers === "function" ? fnOrHandlers : (node2, rewritten) => {
     const h = fnOrHandlers[node2._zod.def.type];
     return h ? h(node2, rewritten) : node2;
   };
-  const cache2 = /* @__PURE__ */ new Map();
+  const cache3 = /* @__PURE__ */ new Map();
   function run(s) {
-    const cached2 = cache2.get(s);
+    const cached2 = cache3.get(s);
     if (cached2 === RESOLVING) {
       return new $ZodLazy({
         type: "lazy",
-        getter: () => cache2.get(s)
+        getter: () => cache3.get(s)
       });
     }
     if (cached2 !== void 0)
       return cached2;
-    cache2.set(s, RESOLVING);
+    cache3.set(s, RESOLVING);
     const inner = mapInner(s);
     const mapped = fn(inner, inner !== s);
-    cache2.set(s, mapped);
+    cache3.set(s, mapped);
     return mapped;
   }
   function mapInner(s) {
@@ -75142,7 +75142,7 @@ function visit(schema, fnOrHandlers) {
   return run(schema);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/deep-partial.js
+// node_modules/zod/v4/classic/deep-partial.js
 function deepPartial(schema) {
   return visit(schema, {
     object: (s) => s.partial(),
@@ -75154,7 +75154,7 @@ function deepPartial(schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/in-out.js
+// node_modules/zod/v4/classic/in-out.js
 function withChecks(side, checks) {
   if (!checks?.length)
     return side;
@@ -75184,7 +75184,7 @@ function output(schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/coerce.js
+// node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint3,
@@ -76022,10 +76022,10 @@ var getRelevantVersions = async (keys) => {
   return out;
 };
 var CACHE_MAX_ENTRIES = 50;
-var trimCache = (cache2) => {
-  if (cache2.size <= CACHE_MAX_ENTRIES) return;
-  const oldestKey = cache2.keys().next().value;
-  if (oldestKey !== void 0) cache2.delete(oldestKey);
+var trimCache = (cache3) => {
+  if (cache3.size <= CACHE_MAX_ENTRIES) return;
+  const oldestKey = cache3.keys().next().value;
+  if (oldestKey !== void 0) cache3.delete(oldestKey);
 };
 var cachedData = null;
 var cachedVersions = null;
@@ -76191,13 +76191,13 @@ var numericColQualified = (table, alias, col) => {
 // src/server/cache.ts
 import { createHash as createHash3 } from "crypto";
 var createCache = (max = 50) => ({ max, map: /* @__PURE__ */ new Map(), inflight: /* @__PURE__ */ new Map() });
-async function cachedByVersions(cache2, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
+async function cachedByVersions(cache3, key, versionKeys, compute2, extraVersion = "", sharedKey = "") {
   const versions = await getRelevantVersions(versionKeys);
   const vkey = `${JSON.stringify(versions)}|${extraVersion}|${projectAliasesVersion()}`;
-  const hit = cache2.map.get(key);
+  const hit = cache3.map.get(key);
   if (hit && hit.vkey === vkey) return hit.payload;
   const flightKey = `${key}|${vkey}`;
-  const pending = cache2.inflight.get(flightKey);
+  const pending = cache3.inflight.get(flightKey);
   if (pending) return pending;
   const p = (async () => {
     try {
@@ -76207,19 +76207,19 @@ async function cachedByVersions(cache2, key, versionKeys, compute2, extraVersion
         payload = await compute2();
         if (sharedKey) await writeShared(sharedKey, sharedVersions, payload);
       }
-      cache2.map.delete(key);
-      cache2.map.set(key, { vkey, payload });
-      while (cache2.map.size > cache2.max) {
-        const oldest = cache2.map.keys().next().value;
+      cache3.map.delete(key);
+      cache3.map.set(key, { vkey, payload });
+      while (cache3.map.size > cache3.max) {
+        const oldest = cache3.map.keys().next().value;
         if (oldest === void 0) break;
-        cache2.map.delete(oldest);
+        cache3.map.delete(oldest);
       }
       return payload;
     } finally {
-      cache2.inflight.delete(flightKey);
+      cache3.inflight.delete(flightKey);
     }
   })();
-  cache2.inflight.set(flightKey, p);
+  cache3.inflight.set(flightKey, p);
   return p;
 }
 var hashKey = (value) => createHash3("sha1").update(JSON.stringify(value)).digest("hex");
@@ -79313,6 +79313,38 @@ app.get("/api/khsx/cong-trinh", async (req, res) => {
   }
 });
 
+// src/routes/keHoachNgay.ts
+var cache = createCache(50);
+var NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+app.get("/api/khsx/ke-hoach-ngay", async (req, res) => {
+  try {
+    const { tu, den, xuong, congTrinh } = req.query;
+    if (!NGAY_RE.test(tu ?? "") || !NGAY_RE.test(den ?? "")) return res.status(400).json({ error: "tu / den ph\u1EA3i d\u1EA1ng YYYY-MM-DD" });
+    const payload = await cachedByVersions(cache, JSON.stringify({ tu, den, xuong, congTrinh }), ["khsx", "production"], async () => {
+      const params = [tu, den];
+      let where = `UPPER(TRIM(phan_loai_kh)) LIKE '%TU\u1EA6N%' AND ngay_khnk BETWEEN $1::date AND $2::date AND ${notCancelledHexCond("hex")}`;
+      const ctList = expandProjectNames(parseNameList(congTrinh));
+      if (ctList.length) {
+        params.push(ctList);
+        where += ` AND ${normNameSql("ten_cong_trinh")} = ANY($${params.length}::text[])`;
+      }
+      const xuongList = String(xuong ?? "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
+      if (xuongList.length) where += ` AND ${workshopCondition("xuong_chinh", xuongList, params)}`;
+      const r = await timedQuery(
+        `SELECT to_char(ngay_khnk, 'YYYY-MM-DD') AS ngay, COALESCE(SUM(${numericCol("khsx", "thanh_tien_ke_hoach")}), 0) / ${TRIEU_TO_TY} AS kh
+         FROM khsx WHERE ${where} GROUP BY 1 ORDER BY 1`,
+        params,
+        { workMemMb: 32 }
+      );
+      return r.rows.map((x) => ({ ngay: String(x.ngay), kh: Number(x.kh) || 0 }));
+    }, workshopGroupsVersion());
+    res.json(payload);
+  } catch (error61) {
+    console.error("L\u1ED7i khsx/ke-hoach-ngay:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // src/routes/trend.ts
 var trendCache = createCache(120);
 var detailCache = createCache(10);
@@ -79322,11 +79354,11 @@ var sourceVersionKeys = (source) => [source === "stock" ? "stock" : source, "pro
 var BadRequest = class extends Error {
   status = 400;
 };
-var cachedGet = (path, cache2, versionKeysOf, compute2, shared = false) => {
+var cachedGet = (path, cache3, versionKeysOf, compute2, shared = false) => {
   app.get(path, async (req, res) => {
     try {
       const key = `${path}|${queryKey(req.query, TREND_PARAMS)}`;
-      const data = await cachedByVersions(cache2, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
+      const data = await cachedByVersions(cache3, shared ? path : key, versionKeysOf(req), () => compute2(req), workshopGroupsVersion(), shared ? path : "");
       res.json(data);
     } catch (error61) {
       if (error61 instanceof BadRequest) return res.status(400).json({ error: error61.message });
@@ -81847,9 +81879,9 @@ function laCuoiTuyen(tuyen, congDoanId) {
   return qua.length > 0 && qua.every((t) => t.tuyen[t.tuyen.length - 1] === congDoanId);
 }
 var nhanNgoaiApp = (e) => !!(e.congDoanNguonId || e.xuongNguon);
-function tinhTrangThai(cuaCongDoan, giaoDen, tuyen = [], congDoanId = null) {
+function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
   const own2 = suKienConHieuLuc(cuaCongDoan);
-  const incoming = suKienConHieuLuc(giaoDen).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
+  const incoming = suKienConHieuLuc(giaoDen2).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
   const co = /* @__PURE__ */ new Set();
   const slGiaoDen = slGiaoDenDongBo(incoming, tuyen, congDoanId);
   let slNhan = 0;
@@ -82468,6 +82500,62 @@ function thoiGianTheoLo(vao, ra, moc2, now) {
   };
 }
 
+// src/server/xuong/phamVi.ts
+function phamViTheoQuyen(quanLy, toTruong, xuong) {
+  if (quanLy.has("*")) return { chiTo: null };
+  if (toTruong.length) {
+    const cua = toTruong.filter((t) => t.xuong === xuong).map((t) => t.id);
+    return cua.length ? { chiTo: cua } : null;
+  }
+  return quanLy.has(xuong) ? { chiTo: null } : null;
+}
+function lienQuanHex(d) {
+  const xuong = /* @__PURE__ */ new Set();
+  const congDoan = /* @__PURE__ */ new Set();
+  const themX = (v) => {
+    const s = String(v ?? "").trim().toUpperCase();
+    if (s) xuong.add(s);
+  };
+  const themCd = (v) => {
+    if (v === null || v === void 0 || v === "") return;
+    const s = String(v);
+    congDoan.add(s);
+    themX(d.xuongCuaCd(s));
+  };
+  for (const x of Array.isArray(d.xuongChinh) ? d.xuongChinh : [d.xuongChinh]) themX(x);
+  for (const x of d.trangThai) {
+    themX(x.xuong);
+    themCd(x.cong_doan_id);
+  }
+  for (const e of d.suKien) {
+    themX(e.xuong);
+    themCd(e.cong_doan_id);
+    themCd(e.cong_doan_den_id);
+    themX(e.du_lieu?.xuong);
+    if (Array.isArray(e.du_lieu?.thanhPhan)) for (const t of e.du_lieu.thanhPhan) themX(t?.xuong);
+  }
+  for (const cd of d.tuyen) themCd(cd);
+  return { xuong, congDoan };
+}
+function xemHexDuoc(quanLy, toTruong, cdCuaTo, lq) {
+  if (quanLy.has("*")) return true;
+  for (const x of lq.xuong) if (phamViTheoQuyen(quanLy, toTruong, x)) return true;
+  for (const cd of lq.congDoan) if (cdCuaTo.has(cd)) return true;
+  return false;
+}
+
+// src/server/xuong/canXem.ts
+var CO_CHI_DE_BIET = ["quan_ly_ghi_ho", "tram", "nhan_du", "xong_het", "khai_ho", "phan_cong", "bao_xong"];
+var CHI_DE_BIET = new Set(CO_CHI_DE_BIET);
+var CAN_XEM_NGAY = 30;
+function sqlCanXuLy(a = "e") {
+  return `(${a}.co <> '{}' AND NOT (${a}.co <@ ARRAY[${CO_CHI_DE_BIET.map((c) => `'${c}'`).join(", ")}]::text[]))`;
+}
+var sqlChuaHuy = (a = "e") => `NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = ${a}.id)`;
+function sqlThaoTacCanXuLy(a = "e", gio = CAN_XEM_NGAY * 24) {
+  return `${sqlCanXuLy(a)} AND ${a}.server_ts > now() - interval '${Math.round(gio)} hours' AND ${sqlChuaHuy(a)}`;
+}
+
 // src/server/xuong/tram.ts
 var CHE_DO_CHAM = ["cu", "song_song", "tram"];
 var GIO_MS2 = 36e5;
@@ -82973,7 +83061,7 @@ async function nhacSang(ngay2) {
     });
   }
   const co = await poolMra.query(
-    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien WHERE co <> '{}' AND server_ts > now() - interval '24 hours' AND xuong IS NOT NULL
+    `SELECT xuong, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy("e", 24)} AND xuong IS NOT NULL
      GROUP BY xuong`
   );
   const ql = await quanLyCuaXuong(co.rows.map((x) => String(x.xuong)));
@@ -82984,7 +83072,7 @@ async function nhacSang(ngay2) {
       moiNgayMotLan: true,
       url: "/#/setup?tab=xuong",
       title: `X\u01B0\u1EDFng ${x.xuong}: c\xF3 thao t\xE1c c\u1EA7n xem`,
-      body: `${x.n} thao t\xE1c trong 24 gi\u1EDD qua \u2014 Setup d\u1EEF li\u1EC7u \u2192 X\u01B0\u1EDFng \u2192 C\u1EA7n xem (gi\u1EDD m\xE1y l\u1EC7ch, g\u1EEDi h\u1ED9, giao v\u01B0\u1EE3t s\u1ED1 \u0111\xE3 xong\u2026).`
+      body: `${x.n} thao t\xE1c c\u1EA7n x\u1EED l\xFD trong 24 gi\u1EDD qua \u2014 Setup d\u1EEF li\u1EC7u \u2192 X\u01B0\u1EDFng \u2192 C\u1EA7n xem (gi\u1EDD m\xE1y l\u1EC7ch, g\u1EEDi h\u1ED9, giao v\u01B0\u1EE3t s\u1ED1 \u0111\xE3 xong\u2026).`
     });
   }
   await donAnhMoCoi();
@@ -83098,12 +83186,7 @@ async function toTruongCua(userId) {
 async function phamViXem(userId, xuong) {
   const ds = await xuongQuanLy(userId);
   if (ds.has("*")) return { chiTo: null };
-  const tt = await toTruongCua(userId);
-  if (tt.length) {
-    const cua = tt.filter((t) => t.xuong === xuong).map((t) => t.id);
-    return cua.length ? { chiTo: cua } : null;
-  }
-  return quanLyDuoc(ds, xuong) ? { chiTo: null } : null;
+  return phamViTheoQuyen(ds, await toTruongCua(userId), xuong);
 }
 var COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
   so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
@@ -84219,13 +84302,28 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const laMra = new Set(rows.filter((r) => r.nguon === "mra").map((r) => String(r.id)));
     const evtsApp = evts.filter((e) => !laMra.has(e.id));
     const conHieuLuc = new Set(suKienConHieuLuc(evts).map((e) => e.id));
-    const cdIds = [...new Set(evts.flatMap((e) => [e.congDoanId, e.congDoanDenId]).filter((x) => !!x))];
+    const tuyenHex = tuyenTheoThanhPhan(evtsApp);
+    const cdTuyen = tuyenHex.flatMap((t) => t.tuyen);
+    const cdIds = [...new Set([...evts.flatMap((e) => [e.congDoanId, e.congDoanDenId]), ...cdTuyen].filter((x) => !!x))];
     const cd = cdIds.length ? (await poolMra.query("SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan WHERE id = ANY($1::text[])", [cdIds])).rows : [];
     const cdMap = new Map(cd.map((x) => [String(x.id), x]));
     const xuongCua = (id) => id ? cdMap.get(id)?.xuong ?? null : null;
+    const p = info.get(hex3);
+    if (rows.length || st.rows.length || p) {
+      const me2 = req.user.id;
+      const quanLy = await xuongQuanLy(me2);
+      if (!quanLy.has("*")) {
+        const toTruong = await toTruongCua(me2);
+        await ensureWorkshopGroups();
+        const lq = lienQuanHex({ xuongChinh: [p?.xuong_chinh ?? null, p?.xuong_chinh ? workshopGroupOf(p.xuong_chinh) : null], trangThai: st.rows, suKien: rows, tuyen: cdTuyen, xuongCuaCd: xuongCua });
+        const cdCuaTo = toTruong.length ? new Set((await poolMra.query("SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])", [toTruong.map((t) => t.id)])).rows.map((x) => String(x.cong_doan_id))) : /* @__PURE__ */ new Set();
+        if (!xemHexDuoc(quanLy, toTruong, cdCuaTo, lq)) {
+          return res.status(403).json({ success: false, message: toTruong.length || quanLy.size ? `H\u1EA1ng m\u1EE5c ${hex3} kh\xF4ng \u0111i qua x\u01B0\u1EDFng / t\u1ED5 b\u1EA1n ph\u1EE5 tr\xE1ch n\xEAn kh\xF4ng xem \u0111\u01B0\u1EE3c ti\u1EBFn \u0111\u1ED9 \u1EDF x\u01B0\u1EDFng` : "Ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng ho\u1EB7c t\u1ED5 tr\u01B0\u1EDFng m\u1EDBi xem \u0111\u01B0\u1EE3c ti\u1EBFn \u0111\u1ED9 h\u1EA1ng m\u1EE5c \u1EDF x\u01B0\u1EDFng" });
+        }
+      }
+    }
     const hl = suKienConHieuLuc(evtsApp);
     const dsXuong = [...new Set(hl.map((e) => xuongCua(e.congDoanId)).filter((x) => !!x))];
-    const p = info.get(hex3);
     const thoiGianXuong = dsXuong.map((xg) => {
       const cuaVao = /* @__PURE__ */ new Set();
       for (const g of hl) {
@@ -84266,7 +84364,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
       gioChayCa.set(cdId, doan.reduce((a, d) => a + gioTrongCa(d.start, d.end ?? now, khung), 0));
     }
     const viTri = /* @__PURE__ */ new Map();
-    for (const t of tuyenTheoThanhPhan(evtsApp)) t.tuyen.forEach((id) => {
+    for (const t of tuyenHex) t.tuyen.forEach((id) => {
       if (!viTri.has(id)) viTri.set(id, viTri.size);
     });
     const capNgay = [...toNgay].sort((a, b) => a.split("|")[1] < b.split("|")[1] ? 1 : -1);
@@ -84280,7 +84378,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
       }
     }), 2);
-    const lam3 = (n) => Math.round(n * 100) / 100;
+    const lam4 = (n) => Math.round(n * 100) / 100;
     const evtsMra = evts.filter((e) => laMra.has(e.id));
     const cdMra = [...new Set(evtsMra.map((e) => e.congDoanId).filter((x) => !!x))];
     const congDoanMra = cdMra.map((cdId) => {
@@ -84305,7 +84403,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         ten: cdMap.get(cdId)?.cd_chi_tiet ?? null,
         xuong: cdMap.get(cdId)?.xuong ?? null,
         thuTu: cdMap.get(cdId)?.thu_tu ?? null,
-        gioChay: lam3(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO2, 0)),
+        gioChay: lam4(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO2, 0)),
         gioCong: 0,
         nhanCongMra: nc.length ? nc[nc.length - 1].soNguoi : null
       };
@@ -84336,9 +84434,9 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         ten: cdMap.get(String(x.cong_doan_id))?.cd_chi_tiet ?? null,
         xuong: x.xuong ?? null,
         thuTu: cdMap.get(String(x.cong_doan_id))?.thu_tu ?? null,
-        gioChay: lam3(gioChay.get(String(x.cong_doan_id)) ?? 0),
-        gioCong: lam3(gioCong.get(String(x.cong_doan_id)) ?? 0),
-        gioChayCa: lam3(gioChayCa.get(String(x.cong_doan_id)) ?? 0),
+        gioChay: lam4(gioChay.get(String(x.cong_doan_id)) ?? 0),
+        gioCong: lam4(gioCong.get(String(x.cong_doan_id)) ?? 0),
+        gioChayCa: lam4(gioChayCa.get(String(x.cong_doan_id)) ?? 0),
         viTriTuyen: viTri.get(String(x.cong_doan_id)) ?? null,
         nguon: "app",
         nhanCongMra: null
@@ -84377,13 +84475,18 @@ app.get("/api/xuong/can-xem", async (req, res) => {
     const chiTo = pv.chiTo;
     const [sk, st] = await Promise.all([
       poolMra.query(
-        // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem)
-        `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
-                so_luong, so_nguoi, ly_do_tam_ngung, du_lieu
-         FROM xuong_su_kien e WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
-           AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-         ORDER BY server_ts DESC LIMIT 300`,
+        // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem).
+        // can_xu_ly cùng định nghĩa số "Cần xem" ở Tổng quan (server/xuong/canXem.ts). Giới hạn 300 dòng riêng từng
+        // nhóm (cần xử lý / chỉ để biết) — cờ chỉ để biết nhiều không đẩy thao tác cần xử lý ra ngoài; so_nhom = tổng thật
+        `SELECT * FROM (
+           SELECT x.*, row_number() OVER (PARTITION BY can_xu_ly ORDER BY server_ts DESC) AS thu_tu,
+                  count(*) OVER (PARTITION BY can_xu_ly)::int AS so_nhom
+           FROM (SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
+                        so_luong, so_nguoi, ly_do_tam_ngung, du_lieu, ${sqlCanXuLy("e")} AS can_xu_ly
+                 FROM xuong_su_kien e WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '${CAN_XEM_NGAY} days'
+                   AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
+                   AND ${sqlChuaHuy("e")}) x) y
+         WHERE thu_tu <= 300 ORDER BY server_ts DESC`,
         [xuong, chiTo]
       ),
       poolMra.query(`SELECT * FROM xuong_trang_thai t WHERE xuong = $1 AND co <> '{}'
@@ -84396,7 +84499,10 @@ app.get("/api/xuong/can-xem", async (req, res) => {
       available: true,
       xuong,
       chiTo,
-      suKien: sk.rows,
+      suKien: sk.rows.map(({ thu_tu: _t, so_nhom: _n, ...x }) => x),
+      // Tổng thật từng nhóm (danh sách chỉ giữ 300 dòng mới nhất mỗi nhóm)
+      soCanXuLy: sk.rows.find((x) => x.can_xu_ly)?.so_nhom ?? 0,
+      soChiDeBiet: sk.rows.find((x) => !x.can_xu_ly)?.so_nhom ?? 0,
       trangThai: st.rows.map((x) => dongTrangThai(x, info.get(String(x.hex))))
     });
   } catch (e) {
@@ -84573,9 +84679,78 @@ app.post("/api/xuong/thu-hoi/:userId", async (req, res) => {
 // src/routes/xuongSetup.ts
 import crypto3 from "node:crypto";
 
+// src/server/xuong/soKhopTram.ts
+var NGUONG_CHENH_PHAN_TRAM = 10;
+var NGUONG_CHENH_GIO = 0.5;
+var lam = (n) => Math.round(n * 100) / 100;
+function soSanh(chinhThuc, tram) {
+  const chenh = tram - chinhThuc;
+  const phanTram = chinhThuc > 0 ? Math.round(chenh / chinhThuc * 100) : null;
+  const lon = Math.abs(chenh) >= NGUONG_CHENH_GIO && (phanTram === null || Math.abs(phanTram) >= NGUONG_CHENH_PHAN_TRAM);
+  return { chinhThuc: lam(chinhThuc), tram: lam(tram), chenh: lam(chenh), phanTram, lon };
+}
+var tongGio = (g) => g.thuong + g.tangCa;
+var gioSp = (pb) => Object.values(pb.theoHangMuc).reduce((a, h) => a + h.gioCongThuong + h.gioCongTangCa, 0);
+var coSoTram = (pb) => tongGio(pb.gioNguoiTo) > 0 || gioSp(pb) > 0 || Object.keys(pb.theoNguoi ?? {}).length > 0 || Object.keys(pb.diemDanh ?? {}).length > 0;
+var doLech = (s) => Math.abs(s.chenh);
+function gomSoKhopTram(ds, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
+  const theoTo = /* @__PURE__ */ new Map();
+  for (const { toId, ngay: ngay2, kq } of ds) {
+    const tr = kq.soKhopTram;
+    if (!tr) continue;
+    const ct = kq;
+    const mnvs = [.../* @__PURE__ */ new Set([
+      ...Object.keys(ct.theoNguoi ?? {}),
+      ...Object.keys(tr.theoNguoi ?? {}),
+      ...Object.keys(ct.diemDanh ?? {}),
+      ...Object.keys(tr.diemDanh ?? {})
+    ])];
+    const theoNguoi = mnvs.map((mnv) => {
+      const a = ct.theoNguoi?.[mnv];
+      const b = tr.theoNguoi?.[mnv];
+      return {
+        mnv,
+        hoTen: tenNguoi2.get(mnv) ?? null,
+        vao: { chinhThuc: ct.diemDanh?.[mnv]?.vao ?? null, tram: tr.diemDanh?.[mnv]?.vao ?? null },
+        ra: { chinhThuc: ct.diemDanh?.[mnv]?.ra ?? null, tram: tr.diemDanh?.[mnv]?.ra ?? null },
+        gioCong: soSanh(a ? a.coMatThuong + a.coMatTangCa : 0, b ? b.coMatThuong + b.coMatTangCa : 0),
+        gioCongSp: soSanh(a ? a.congThuong + a.congTangCa : 0, b ? b.congThuong + b.congTangCa : 0)
+      };
+    }).sort((x, y) => Number(y.gioCong.lon || y.gioCongSp.lon) - Number(x.gioCong.lon || x.gioCongSp.lon) || Math.max(doLech(y.gioCong), doLech(y.gioCongSp)) - Math.max(doLech(x.gioCong), doLech(x.gioCongSp)) || (x.hoTen ?? x.mnv).localeCompare(y.hoTen ?? y.mnv));
+    if (!theoTo.has(toId)) theoTo.set(toId, []);
+    theoTo.get(toId).push({
+      ngay: ngay2,
+      gioCong: soSanh(tongGio(ct.gioNguoiTo), tongGio(tr.gioNguoiTo)),
+      gioCongSp: soSanh(gioSp(ct), gioSp(tr)),
+      soNguoi: {
+        chinhThuc: (/* @__PURE__ */ new Set([...Object.keys(ct.theoNguoi ?? {}), ...Object.keys(ct.diemDanh ?? {})])).size,
+        tram: (/* @__PURE__ */ new Set([...Object.keys(tr.theoNguoi ?? {}), ...Object.keys(tr.diemDanh ?? {})])).size
+      },
+      khongCoTram: !coSoTram(tr),
+      theoNguoi
+    });
+  }
+  const out = [];
+  for (const [toId, ngays] of theoTo) {
+    if (ngays.every((n) => n.khongCoTram)) continue;
+    ngays.sort((a, b) => b.ngay.localeCompare(a.ngay));
+    const cong2 = (f, ben) => ngays.reduce((a, n) => a + f(n)[ben], 0);
+    out.push({
+      toId,
+      ten: tenTo.get(toId) ?? `T\u1ED5 ${toId}`,
+      gioCong: soSanh(cong2((n) => n.gioCong, "chinhThuc"), cong2((n) => n.gioCong, "tram")),
+      gioCongSp: soSanh(cong2((n) => n.gioCongSp, "chinhThuc"), cong2((n) => n.gioCongSp, "tram")),
+      soNgay: ngays.length,
+      soNgayLon: ngays.filter((n) => n.gioCong.lon || n.gioCongSp.lon).length,
+      theoNgay: ngays
+    });
+  }
+  return out.sort((a, b) => a.ten.localeCompare(b.ten));
+}
+
 // src/routes/xuongBaoCao.ts
 var TINH_TOI_DA = 30;
-var NGAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+var NGAY_RE2 = /^\d{4}-\d{2}-\d{2}$/;
 async function xoaGioCongLuu(xuong) {
   try {
     if (xuong === "*") await poolMra.query("DELETE FROM xuong_gio_cong_ngay");
@@ -84588,7 +84763,7 @@ var cong = (a, b) => {
   a.thuong += b.thuong;
   a.tangCa += b.tangCa;
 };
-var lam = (n) => Math.round(n * 100) / 100;
+var lam2 = (n) => Math.round(n * 100) / 100;
 var minN = (a, b) => a > 0 && b > 0 ? Math.min(a, b) : a || b;
 app.get("/api/xuong/bao-cao", async (req, res) => {
   try {
@@ -84598,8 +84773,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const chiTo = pv.chiTo;
     await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const homNay = vnDayKey(/* @__PURE__ */ new Date());
-    const den = typeof req.query.den === "string" && NGAY_RE.test(req.query.den) ? req.query.den : homNay;
-    const tu = typeof req.query.tu === "string" && NGAY_RE.test(req.query.tu) ? req.query.tu : den;
+    const den = typeof req.query.den === "string" && NGAY_RE2.test(req.query.den) ? req.query.den : homNay;
+    const tu = typeof req.query.tu === "string" && NGAY_RE2.test(req.query.tu) ? req.query.tu : den;
     const soNgay = (Date.parse(den) - Date.parse(tu)) / 864e5;
     const rutGon = soNgay > 62;
     if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
@@ -84720,14 +84895,14 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     for (const x of nhanNgay.rows) {
       const k = `${x.to_id}|${x.ngay}`;
       if (!nhanCua.has(k)) nhanCua.set(k, []);
-      nhanCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam(Number(x.sl)) });
+      nhanCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam2(Number(x.sl)) });
       tatCaHex.add(String(x.hex));
     }
     const xongCua = /* @__PURE__ */ new Map();
     for (const x of xongNgay.rows) {
       const k = `${x.to_id}|${x.ngay}`;
       if (!xongCua.has(k)) xongCua.set(k, []);
-      xongCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam(Number(x.sl)) });
+      xongCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam2(Number(x.sl)) });
       tatCaHex.add(String(x.hex));
     }
     const dangChayNay = new Set((await poolMra.query(
@@ -84812,7 +84987,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
               if (e.ts < t0 || e.ts >= t1 || !(e.sl > 0)) continue;
               const k = `${toId}|${ngayCuaTs(e.ts)}`;
               if (coApp.has(k)) continue;
-              layNgay(k)[dich].push({ hex: c.hex, congDoanId: c.cd, soLuong: lam(e.sl) });
+              layNgay(k)[dich].push({ hex: c.hex, congDoanId: c.cd, soLuong: lam2(e.sl) });
             }
           }
         }
@@ -84893,11 +85068,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
             hmNgay.push({
               hex: k.split("|")[0],
               congDoanId: k.split("|")[1],
-              gioChay: lam(h2.gioChay),
-              gioCongThuong: lam(h2.gioCongThuong),
-              gioCongTangCa: lam(h2.gioCongTangCa),
+              gioChay: lam2(h2.gioChay),
+              gioCongThuong: lam2(h2.gioCongThuong),
+              gioCongTangCa: lam2(h2.gioCongTangCa),
               dangChay: x.ngay === homNay && dangChayNay.has(k),
-              gioNguoiKhai: lam(h2.gioNguoiKhai ?? 0),
+              gioNguoiKhai: lam2(h2.gioNguoiKhai ?? 0),
               soNguoiMax: h2.soNguoiMax ?? 0,
               soNguoiMin: h2.soNguoiMin ?? 0
             });
@@ -84923,16 +85098,16 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         if (kq.co.includes("khai_vuot_quan_so")) khaiVuot++;
         theoNgay.push({
           ngay: x.ngay,
-          gioNguoi: lam(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa),
-          gioCong: lam(gcNgay),
-          gioCongTangCa: lam(tcNgay),
-          gioCho: lam(kq.gioCho.thuong + kq.gioCho.tangCa),
+          gioNguoi: lam2(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa),
+          gioCong: lam2(gcNgay),
+          gioCongTangCa: lam2(tcNgay),
+          gioCho: lam2(kq.gioCho.thuong + kq.gioCho.tangCa),
           co: kq.co,
           quanSo: quanSoCua.get(`${toId}|${x.ngay}`) ?? {},
           hangMuc: hmNgay.sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa)),
           nhan: nhanCua.get(`${toId}|${x.ngay}`) ?? [],
           xong: xongCua.get(`${toId}|${x.ngay}`) ?? [],
-          gioChoLyDo: Object.fromEntries(Object.entries(kq.gioChoLyDo ?? {}).map(([k, v]) => [k, lam(v)]))
+          gioChoLyDo: Object.fromEntries(Object.entries(kq.gioChoLyDo ?? {}).map(([k, v]) => [k, lam2(v)]))
         });
       }
       for (const [k, m] of mraNgay) {
@@ -84941,7 +85116,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         gioNguoi.thuong += m.gioNguoi;
         gioCho.thuong += m.gioCho;
         gioCong.thuong += m.gioCong;
-        const hmNgay = [...m.hm.values()].map((x) => ({ ...x, gioChay: lam(x.gioChay), gioCongThuong: lam(x.gioCongThuong), gioNguoiKhai: lam(x.gioNguoiKhai) }));
+        const hmNgay = [...m.hm.values()].map((x) => ({ ...x, gioChay: lam2(x.gioChay), gioCongThuong: lam2(x.gioCongThuong), gioNguoiKhai: lam2(x.gioNguoiKhai) }));
         for (const x of m.hm.values()) {
           const kk = `${x.hex}|${x.congDoanId}`;
           const cur = hm.get(kk) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0, min: 0 };
@@ -84956,10 +85131,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         for (const x of [...m.nhan, ...m.xong]) tatCaHex.add(x.hex);
         theoNgay.push({
           ngay: ngay2,
-          gioNguoi: lam(m.gioNguoi),
-          gioCong: lam(m.gioCong),
+          gioNguoi: lam2(m.gioNguoi),
+          gioCong: lam2(m.gioCong),
           gioCongTangCa: 0,
-          gioCho: lam(m.gioCho),
+          gioCho: lam2(m.gioCho),
           co: [],
           quanSo: m.quanSo ? { chinh: m.quanSo } : {},
           hangMuc: hmNgay.sort((a, b) => b.gioCongThuong - a.gioCongThuong),
@@ -84975,13 +85150,13 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         toId,
         ten: t.ten_to,
         active: t.active,
-        gioNguoi: { thuong: lam(gioNguoi.thuong), tangCa: lam(gioNguoi.tangCa) },
-        gioCong: { thuong: lam(gioCong.thuong), tangCa: lam(gioCong.tangCa) },
-        gioCho: { thuong: lam(gioCho.thuong), tangCa: lam(gioCho.tangCa) },
+        gioNguoi: { thuong: lam2(gioNguoi.thuong), tangCa: lam2(gioNguoi.tangCa) },
+        gioCong: { thuong: lam2(gioCong.thuong), tangCa: lam2(gioCong.tangCa) },
+        gioCho: { thuong: lam2(gioCho.thuong), tangCa: lam2(gioCho.tangCa) },
         ngayCoChay,
         ngayChot,
         khaiVuot,
-        gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lam(v)])),
+        gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lam2(v)])),
         dangChay: h ? Number(h.dang_chay) : 0,
         tamNgung: h ? Number(h.tam_ngung) : 0,
         choNhan: h ? Number(h.cho_nhan) : 0,
@@ -84989,10 +85164,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         theoHangMuc: [...hm.entries()].map(([k, v]) => ({
           hex: k.split("|")[0],
           congDoanId: k.split("|")[1],
-          gioChay: lam(v.gioChay),
-          gioCongThuong: lam(v.thuong),
-          gioCongTangCa: lam(v.tangCa),
-          gioNguoiKhai: lam(v.gnk),
+          gioChay: lam2(v.gioChay),
+          gioCongThuong: lam2(v.thuong),
+          gioCongTangCa: lam2(v.tangCa),
+          gioNguoiKhai: lam2(v.gnk),
           soNguoiMax: v.max,
           soNguoiMin: v.min
         })).sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa))
@@ -85073,11 +85248,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           return {
             ngay: n,
             congNhan: d ? Number(d.cn) : 0,
-            gioHc: d ? lam(Number(d.hc)) : 0,
-            gioTc: d ? lam(Number(d.tc)) : 0,
+            gioHc: d ? lam2(Number(d.hc)) : 0,
+            gioTc: d ? lam2(Number(d.tc)) : 0,
             quanSoApp: qsNgay2.get(n) ?? 0,
-            gioThuongApp: a ? lam(a.thuong) : 0,
-            gioTangCaApp: a ? lam(a.tangCa) : 0
+            gioThuongApp: a ? lam2(a.thuong) : 0,
+            gioTangCaApp: a ? lam2(a.tangCa) : 0
           };
         })
       };
@@ -85108,12 +85283,12 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           ra: dd?.ra ?? null,
           treP: dd?.treP ?? 0,
           veSomP: dd?.veSomP ?? 0,
-          coMatThuong: lam(n.coMatThuong),
-          coMatTangCa: lam(n.coMatTangCa),
-          congThuong: lam(n.congThuong),
-          congTangCa: lam(n.congTangCa),
-          cho: lam(n.cho),
-          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam(g) })).sort((a, b) => b.gio - a.gio),
+          coMatThuong: lam2(n.coMatThuong),
+          coMatTangCa: lam2(n.coMatTangCa),
+          congThuong: lam2(n.congThuong),
+          congTangCa: lam2(n.congTangCa),
+          cho: lam2(n.cho),
+          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam2(g) })).sort((a, b) => b.gio - a.gio),
           vang: false
         });
       }
@@ -85150,7 +85325,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     }
     const theoNguoi = [...nguoiNgay.entries()].map(([mnv, ds]) => {
       const t = tenNguoi2.get(mnv);
-      const cong2 = (f) => lam(ds.reduce((a, x) => a + f(x), 0));
+      const cong2 = (f) => lam2(ds.reduce((a, x) => a + f(x), 0));
       return {
         mnv,
         hoTen: t?.hoTen ?? null,
@@ -85172,6 +85347,19 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       };
     }).sort((a, b) => (a.tenTo ?? "").localeCompare(b.tenTo ?? "") || (a.hoTen ?? a.mnv).localeCompare(b.hoTen ?? b.mnv));
     for (const n of theoNguoi) for (const d of n.ngay) for (const h of d.hangMuc) tatCaHex.add(h.hex);
+    const vaoSoKhop = [];
+    for (const x of pb.rows) {
+      const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
+      if (kq?.soKhopTram) vaoSoKhop.push({ toId: Number(x.to_id), ngay: x.ngay, kq });
+    }
+    const tenSoKhop = new Map([...tenNguoi2].map(([m, t]) => [m, t.hoTen]));
+    const thieuTen = [...new Set(vaoSoKhop.flatMap((v) => [...Object.keys(v.kq.soKhopTram?.theoNguoi ?? {}), ...Object.keys(v.kq.soKhopTram?.diemDanh ?? {})]))].filter((m) => !tenSoKhop.has(m));
+    if (thieuTen.length && await coBangCongNhan()) {
+      for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [thieuTen])).rows) {
+        tenSoKhop.set(String(x.mnv), String(x.ho_ten));
+      }
+    }
+    const soKhopTram = gomSoKhopTram(vaoSoKhop, tenToCua, tenSoKhop);
     const hangMuc = [...hmKy.entries()].map(([hex3, m]) => {
       const congDoan = [...m.values()].map((c) => {
         const tt = ttCua.get(`${hex3}|${c.congDoanId}`) ?? (() => {
@@ -85183,21 +85371,21 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           congDoanId: c.congDoanId,
           tenCongDoan: cdTen.get(c.congDoanId) ?? c.congDoanId,
           to: [...c.to].sort(),
-          gioChay: lam(c.gioChay),
-          gioCong: lam(c.thuong + c.tangCa),
-          gioCongTangCa: lam(c.tangCa),
-          slXong: lam(c.slXong),
+          gioChay: lam2(c.gioChay),
+          gioCong: lam2(c.thuong + c.tangCa),
+          gioCongTangCa: lam2(c.tangCa),
+          slXong: lam2(c.slXong),
           // Số công nhân bình quân lúc chạy = giờ người khai / giờ chạy
           // giờ chạy rất ngắn (vài phút) làm tròn lệch => không cho vượt số người khai nhiều nhất
-          soNguoiTb: c.gioChay > 0 ? lam(Math.min(c.max, c.gnk / c.gioChay)) : 0,
+          soNguoiTb: c.gioChay > 0 ? lam2(Math.min(c.max, c.gnk / c.gioChay)) : 0,
           soNguoiMax: c.max,
           soNguoiMin: c.min,
           trangThai: tt ? String(tt.trang_thai) : null,
-          slNhan: tt ? lam(Number(tt.sl_nhan)) : 0,
-          slHoanThanh: tt ? lam(Number(tt.sl_ht)) : 0,
+          slNhan: tt ? lam2(Number(tt.sl_nhan)) : 0,
+          slHoanThanh: tt ? lam2(Number(tt.sl_ht)) : 0,
           // Giao đến / đã giao (MRA cũ không có => null)
-          slGiaoDen: tt && tt.sl_gd !== null ? lam(Number(tt.sl_gd)) : null,
-          slGiao: tt && tt.sl_gi !== null ? lam(Number(tt.sl_gi)) : null
+          slGiaoDen: tt && tt.sl_gd !== null ? lam2(Number(tt.sl_gd)) : null,
+          slGiao: tt && tt.sl_gi !== null ? lam2(Number(tt.sl_gi)) : null
         };
       }).sort((a, b) => (cdThuTu.get(a.congDoanId) ?? 999) - (cdThuTu.get(b.congDoanId) ?? 999) || b.gioCong - a.gioCong);
       const i = info.get(hex3);
@@ -85207,8 +85395,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         tenCongTrinh: i?.ten_cong_trinh ?? null,
         dvt: i?.dvt ?? null,
         soLuongDonHang: i?.so_luong_don_hang_tong ? Number(i.so_luong_don_hang_tong) : null,
-        gioCong: lam(congDoan.reduce((a, c) => a + c.gioCong, 0)),
-        slXong: lam(congDoan.reduce((a, c) => a + c.slXong, 0)),
+        gioCong: lam2(congDoan.reduce((a, c) => a + c.gioCong, 0)),
+        slXong: lam2(congDoan.reduce((a, c) => a + c.slXong, 0)),
         congDoan
       };
     }).sort((a, b) => b.gioCong - a.gioCong);
@@ -85279,6 +85467,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       chamCong,
       hangMuc,
       theoNguoi,
+      // Khoảng > 2 tháng: bỏ chi tiết từng người
+      soKhopTram: rutGon ? soKhopTram.map((t) => ({ ...t, theoNgay: t.theoNgay.map((n) => ({ ...n, theoNguoi: [] })) })) : soKhopTram,
       chiSo: {
         nhatKy: { tong: kpiNk.rows[0]?.tong ?? 0, du: kpiNk.rows[0]?.du ?? 0 },
         guiTrong1Gio: { tong: kpiGui.rows[0]?.tong ?? 0, nhanh: kpiGui.rows[0]?.nhanh ?? 0 },
@@ -85314,6 +85504,48 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     fail(res, e, "/api/xuong/bao-cao");
   }
 });
+
+// src/server/xuong/huyTrienKhai.ts
+var so4 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var EPS2 = 5e-4;
+function suKienCuaDot(evts, trienKhaiId) {
+  const con = suKienConHieuLuc(evts);
+  const tk = con.find((e) => e.id === trienKhaiId && e.loai === "trien_khai");
+  if (!tk) return [];
+  return [tk, ...con.filter((e) => e.loai === "khai_bao_cd" && String(e.duLieu?.trienKhaiId ?? "") === trienKhaiId)];
+}
+var giaoDen = (evts, cd) => slGiaoDenDongBo(
+  suKienConHieuLuc(evts.filter((e) => (e.loai === "giao" || e.loai === "khai_bao_cd" || e.loai === "huy") && (e.congDoanDenId === cd || e.loai === "huy"))).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd"),
+  tuyenTheoThanhPhan(evts),
+  cd
+);
+function kiemTraHuyDot(evts, trienKhaiId) {
+  const huy = suKienCuaDot(evts, trienKhaiId);
+  if (!huy.length) return null;
+  const tsCuoi = Math.max(0, ...evts.map((e) => e.ts)) + 1;
+  const sau = [...evts, ...huy.map((e) => ({
+    ...e,
+    id: `huy:${e.id}`,
+    loai: "huy",
+    suaCho: e.id,
+    soLuong: null,
+    congDoanDenId: null,
+    duLieu: null,
+    ts: tsCuoi,
+    serverTs: tsCuoi
+  }))];
+  const chan = [];
+  for (const cd of [...new Set(huy.map((e) => e.congDoanDenId).filter((x) => !!x))]) {
+    const nhan = suKienConHieuLuc(evts.filter((e) => e.congDoanId === cd || e.loai === "huy")).filter((e) => e.loai === "nhan" && !e.congDoanNguonId && !e.xuongNguon);
+    const slNhan = nhan.reduce((a, e) => a + so4(e.soLuong), 0);
+    const truoc = giaoDen(evts, cd);
+    const conLai = giaoDen(sau, cd);
+    if (slNhan > conLai + EPS2 && conLai < truoc - EPS2) {
+      chan.push({ congDoanId: cd, toIds: [...new Set(nhan.map((e) => e.toId).filter((x) => x !== null))], slNhan, slGiaoDenConLai: conLai });
+    }
+  }
+  return { huy, chan };
+}
 
 // src/routes/xuongSetup.ts
 var gioRe = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -85362,8 +85594,14 @@ app.get("/api/xuong/setup", async (req, res) => {
                   WHERE xuong = $1 ORDER BY thu_tu, cd_tach_ma, cd_chi_tiet`, [xuong]),
       poolMra.query(`SELECT t.id, t.ten_to, t.active, t.to_truong_user_id FROM xuong_to t WHERE t.xuong = $1 ORDER BY t.ten_to`, [xuong]),
       poolMra.query(`SELECT tc.to_id, tc.cong_doan_id FROM xuong_to_cong_doan tc JOIN xuong_to t ON t.id = tc.to_id WHERE t.xuong = $1`, [xuong]),
-      poolMra.query(`SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
-                  WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE) ORDER BY tv.mnv`, [xuong]),
+      // Thành viên tổ = tài khoản ghi cho tổ (xuong_to_thanh_vien) GỘP công nhân đang xếp ở tổ (Nhân sự, xuong_cong_nhan) —
+      // lưu tổ ghi cả 2 nơi, nên form hiện đủ người (bỏ 1 dòng = rời tổ ở cả 2)
+      poolMra.query(`SELECT to_id, mnv FROM (
+                    SELECT tv.to_id, tv.mnv FROM xuong_to_thanh_vien tv JOIN xuong_to t ON t.id = tv.to_id
+                    WHERE t.xuong = $1 AND (tv.den_ngay IS NULL OR tv.den_ngay >= CURRENT_DATE)
+                    UNION
+                    SELECT c.to_id, c.mnv FROM xuong_cong_nhan c JOIN xuong_to t ON t.id = c.to_id WHERE t.xuong = $1 AND c.active
+                  ) x ORDER BY mnv`, [xuong]),
       poolMra.query(`SELECT xuong, loai_ca, to_char(gio_bat_dau,'HH24:MI') AS bd, to_char(gio_ket_thuc,'HH24:MI') AS kt, nghi
                   FROM xuong_lich_ca WHERE xuong IN ($1, '*') ORDER BY xuong, loai_ca`, [xuong]),
       poolMra.query(`SELECT q.user_id FROM xuong_quan_ly q WHERE q.xuong = $1`, [xuong])
@@ -85451,7 +85689,8 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
          count(s.*) FILTER (WHERE s.trang_thai = 'da_nhan')::int AS da_nhan,
          count(s.*) FILTER (WHERE s.sl_giao_den > s.sl_nhan)::int AS cho_nhan,
          count(s.*) FILTER (WHERE s.sl_hoan_thanh > s.sl_giao)::int AS cho_giao,
-         count(s.*) FILTER (WHERE s.co <> '{}')::int AS can_xem,
+         -- C\u1EA7n xem: thao t\xE1c c\u1EA7n x\u1EED l\xFD c\u1EE7a t\u1ED5 \u2014 \u0111\xFAng c\xE1c d\xF2ng danh s\xE1ch C\u1EA7n xem hi\u1EC7n \u1EDF b\u1ED9 l\u1ECDc m\u1EB7c \u0111\u1ECBnh
+         (SELECT count(*)::int FROM xuong_su_kien e WHERE e.to_id = t.id AND e.xuong = $1 AND ${sqlThaoTacCanXuLy("e")}) AS can_xem,
          (SELECT max(e.server_ts) FROM xuong_su_kien e, homnay WHERE e.to_id = t.id
             AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = homnay.d) AS thao_tac_cuoi
        FROM xuong_to t
@@ -85462,6 +85701,12 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
        ORDER BY t.ten_to`,
       [xuong]
     );
+    const pv = await phamViXem(req.user.id, xuong);
+    const canXemXuong = pv ? Number((await poolMra.query(
+      `SELECT count(*)::int AS n FROM xuong_su_kien e WHERE e.xuong = $1 AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
+         AND ${sqlThaoTacCanXuLy("e")}`,
+      [xuong, pv.chiTo]
+    )).rows[0]?.n ?? 0) : null;
     {
       const nd = await nguoiDungTheoId(r.rows.map((x) => x.to_truong_user_id));
       for (const x of r.rows) x.to_truong = nd.get(Number(x.to_truong_user_id))?.full_name ?? null;
@@ -85531,6 +85776,7 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
       available: true,
       dsXuong,
       xuong,
+      canXem: canXemXuong,
       to: r.rows.map((x) => ({
         id: Number(x.id),
         ten: x.ten_to,
@@ -85540,7 +85786,8 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         tamNgung: x.tam_ngung,
         choNhan: choNhanTo.get(Number(x.id)) ?? 0,
         choGiao: x.cho_giao,
-        canXem: x.can_xem,
+        // Tổ ngoài phạm vi danh sách Cần xem của người xem: không hiện số (mở ra cũng không thấy)
+        canXem: pv && (!pv.chiTo || pv.chiTo.includes(Number(x.id))) ? x.can_xem : 0,
         // Đã nhận, chưa bắt đầu (màn tổ: tab Đang làm, nhóm "Chưa bắt đầu")
         chuaBatDau: x.da_nhan,
         thaoTacCuoi: x.thao_tac_cuoi,
@@ -85603,10 +85850,11 @@ app.post("/api/xuong/setup/to", async (req, res) => {
   try {
     const p = toSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u t\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const d = { ...p.data, xuong: p.data.xuong.toUpperCase(), thanhVien: [...new Set(p.data.thanhVien.map((x) => x.toUpperCase()))] };
+    const d = { ...p.data, xuong: p.data.xuong.toUpperCase(), thanhVien: [...new Set(p.data.thanhVien.map((x) => x.toUpperCase().replace(/\s+/g, "")).filter(Boolean))] };
     const { ds, admin } = await xuongDuocSua(req);
     if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
     if (d.capQuyen && !admin) return khongQuyen(res, "Ch\u1EC9 admin \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n t\xE0i kho\u1EA3n");
+    const hoTen = new Map(d.thanhVien.length ? (await pool.query(`SELECT upper(msnv) AS mnv, full_name FROM users WHERE msnv IS NOT NULL AND upper(msnv) = ANY($1::text[])`, [d.thanhVien])).rows.filter((r) => r.full_name).map((r) => [String(r.mnv), String(r.full_name)]) : []);
     const kq = await withTransactionMra(async (client) => {
       const cds = d.congDoan.length ? (await client.query("SELECT id FROM xuong_cong_doan WHERE id = ANY($1::text[]) AND xuong = $2", [d.congDoan, d.xuong])).rows : [];
       if (cds.length !== d.congDoan.length) return { loi: "C\xF4ng \u0111o\u1EA1n ph\u1EE5 tr\xE1ch ph\u1EA3i thu\u1ED9c x\u01B0\u1EDFng c\u1EE7a t\u1ED5" };
@@ -85644,6 +85892,19 @@ app.post("/api/xuong/setup/to", async (req, res) => {
            WHERE NOT EXISTS (SELECT 1 FROM xuong_to_thanh_vien x WHERE x.to_id = $1 AND x.mnv = m AND (x.den_ngay IS NULL OR x.den_ngay >= CURRENT_DATE))
            ON CONFLICT (to_id, mnv, tu_ngay) DO UPDATE SET den_ngay = NULL`,
           [id, d.thanhVien]
+        );
+      }
+      await client.query(
+        `UPDATE xuong_cong_nhan SET to_id = NULL, cap_nhat = now() WHERE to_id = $1 AND NOT (mnv = ANY($2::text[]))`,
+        [id, d.thanhVien]
+      );
+      if (d.thanhVien.length) {
+        await client.query(
+          `INSERT INTO xuong_cong_nhan (mnv, ho_ten, xuong, to_id, nguon)
+           SELECT m, COALESCE(h, m), $2, $1, 'app' FROM unnest($3::text[], $4::text[]) AS u(m, h)
+           ON CONFLICT (mnv) DO UPDATE SET to_id = EXCLUDED.to_id, xuong = EXCLUDED.xuong, active = true, cap_nhat = now(),
+             ho_ten = CASE WHEN xuong_cong_nhan.ho_ten = xuong_cong_nhan.mnv THEN EXCLUDED.ho_ten ELSE xuong_cong_nhan.ho_ten END`,
+          [id, d.xuong, d.thanhVien, d.thanhVien.map((m) => hoTen.get(m) ?? null)]
         );
       }
       return { id };
@@ -85986,6 +86247,56 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     fail(res, e, "/api/xuong/trien-khai");
   }
 });
+var soGon = (n) => String(Math.round(n * 1e3) / 1e3).replace(".", ",");
+app.post("/api/xuong/trien-khai/huy", async (req, res) => {
+  try {
+    const id = String(req.body?.trienKhaiId ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ success: false, message: "Thi\u1EBFu \u0111\u1EE3t tri\u1EC3n khai c\u1EA7n hu\u1EF7" });
+    const me2 = Number(req.user.id);
+    const { ds } = await xuongDuocSua(req);
+    const lyDo = typeof req.body?.lyDo === "string" && req.body.lyDo.trim() ? req.body.lyDo.trim().slice(0, 500) : null;
+    const kq = await withTransactionMra(async (client) => {
+      const d = (await client.query(
+        `SELECT id, hex, du_lieu->>'xuong' AS xuong_chinh FROM xuong_su_kien WHERE id = $1 AND loai = 'trien_khai' FOR UPDATE`,
+        [id]
+      )).rows[0];
+      if (!d) return { loi: "Kh\xF4ng t\xECm th\u1EA5y \u0111\u1EE3t tri\u1EC3n khai", ma: 404 };
+      if (!quanLyDuoc(ds, d.xuong_chinh ?? null)) return { loi: `Ch\u1EC9 admin ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng ch\xEDnh ${d.xuong_chinh ?? ""} \u0111\u01B0\u1EE3c hu\u1EF7 \u0111\u1EE3t tri\u1EC3n khai`, ma: 403 };
+      const rows = await suKienTheoHex(client, [String(d.hex)]);
+      const k = kiemTraHuyDot(rows.map(toSuKien), id);
+      if (!k) return { loi: "\u0110\u1EE3t tri\u1EC3n khai \u0111\xE3 \u0111\u01B0\u1EE3c hu\u1EF7", ma: 400 };
+      if (k.chan.length) {
+        const [cd, to] = await Promise.all([
+          client.query("SELECT id, cd_chi_tiet FROM xuong_cong_doan WHERE id = ANY($1::text[])", [k.chan.map((c) => c.congDoanId)]),
+          client.query("SELECT id, ten_to FROM xuong_to WHERE id = ANY($1::int[])", [k.chan.flatMap((c) => c.toIds)])
+        ]);
+        const tenCd = new Map(cd.rows.map((x) => [String(x.id), String(x.cd_chi_tiet)]));
+        const tenTo = new Map(to.rows.map((x) => [Number(x.id), String(x.ten_to)]));
+        const loi = k.chan.map((c) => `${c.toIds.map((t) => tenTo.get(t) ?? `T\u1ED5 #${t}`).join(", ") || "T\u1ED5"} \u0111\xE3 nh\u1EADn ${soGon(c.slNhan)} \u1EDF ${tenCd.get(c.congDoanId) ?? c.congDoanId} (hu\u1EF7 xong ch\u1EC9 c\xF2n giao t\u1EDBi ${soGon(c.slGiaoDenConLai)})`).join("; ");
+        return { loi: `${loi} \u2014 hu\u1EF7 nh\u1EADn \u1EDF t\u1ED5 tr\u01B0\u1EDBc r\u1ED3i m\u1EDBi hu\u1EF7 \u0111\u01B0\u1EE3c \u0111\u1EE3t tri\u1EC3n khai`, ma: 409 };
+      }
+      const byId = new Map(rows.map((x) => [String(x.id), x]));
+      const dich = k.huy.map((e) => byId.get(e.id)).filter(Boolean);
+      await ghiVaTinhLai(client, dich.map((x) => dongServer({
+        loai: "huy",
+        sua_cho: x.id,
+        hex: x.hex,
+        cong_doan_id: x.cong_doan_id,
+        to_id: x.to_id,
+        xuong: x.xuong,
+        ghi_chu: lyDo,
+        du_lieu: { dotTrienKhai: id }
+      }, me2)), dich);
+      const cap = await client.query("SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE hex = $1", [String(d.hex)]);
+      await luuTrangThai(client, cap.rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
+      return { ok: true, ma: 200, so: dich.length };
+    });
+    if ("loi" in kq) return res.status(kq.ma).json({ success: false, message: kq.loi });
+    res.json({ success: true, available: true, soSuKien: kq.so });
+  } catch (e) {
+    fail(res, e, "/api/xuong/trien-khai/huy");
+  }
+});
 async function choKhaiChiTiet(xuong, trienKhaiIds) {
   const r = await poolMra.query(
     `SELECT e.id, e.hex, e.so_luong::float AS so_luong, e.du_lieu->>'xuong' AS xuong_chinh, tp->>'ten' AS thanh_phan,
@@ -86143,6 +86454,21 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
       ngayKhnk: x.ngay_khnk ?? null
     }]));
     const evts = evRows.map(toSuKien);
+    const conHieuLuc = new Set(suKienConHieuLuc(evts).map((e) => e.id));
+    const dotRows = evRows.filter((r) => r.loai === "trien_khai" && conHieuLuc.has(String(r.id)));
+    const [nguoiTk, { ds: dsQl }] = await Promise.all([nguoiDungTheoId(dotRows.map((r) => r.user_id)), xuongDuocSua(req)]);
+    const dotCua = (hex3) => dotRows.filter((r) => String(r.hex) === hex3).sort((a, b) => new Date(b.device_ts_hieu_chinh).getTime() - new Date(a.device_ts_hieu_chinh).getTime()).map((r) => {
+      const xc = typeof r.du_lieu?.xuong === "string" ? r.du_lieu.xuong : r.xuong ?? null;
+      return {
+        id: String(r.id),
+        luc: new Date(r.device_ts_hieu_chinh).toISOString(),
+        nguoi: tenNguoi(nguoiTk.get(Number(r.user_id))),
+        soLuong: Number(r.so_luong ?? 0),
+        xuongChinh: xc,
+        thanhPhan: Array.isArray(r.du_lieu?.thanhPhan) ? r.du_lieu.thanhPhan.map((t) => ({ ten: String(t.ten ?? ""), xuong: String(t.xuong ?? xc ?? "") })) : [{ ten: "", xuong: String(xc ?? "") }],
+        huyDuoc: quanLyDuoc(dsQl, xc)
+      };
+    });
     const cdMap = new Map(cd.rows.map((x) => [String(x.id), x]));
     const toCua = /* @__PURE__ */ new Map();
     for (const x of toCd.rows) {
@@ -86210,6 +86536,7 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
         ngoaiTuyen,
         slXong,
         xong,
+        dotTrienKhai: dotCua(hex3),
         dangLam: tatCaCd.filter((c) => c.trangThai === "dang_lam").length,
         tamNgung: tatCaCd.filter((c) => c.trangThai === "tam_ngung").length,
         choNhan: tatCaCd.filter((c) => c.slGiaoDen > c.slNhan + 5e-4).length,
@@ -86223,8 +86550,8 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
 });
 
 // src/routes/xuongPhanTich.ts
-var NGAY_RE2 = /^\d{4}-\d{2}-\d{2}$/;
-var lam2 = (n, le = 2) => Math.round(n * 10 ** le) / 10 ** le;
+var NGAY_RE3 = /^\d{4}-\d{2}-\d{2}$/;
+var lam3 = (n, le = 2) => Math.round(n * 10 ** le) / 10 ** le;
 var trungVi = (a) => {
   if (!a.length) return null;
   const s = [...a].sort((x, y) => x - y);
@@ -86242,8 +86569,8 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
     const xuong = typeof req.query.xuong === "string" ? req.query.xuong.trim().toUpperCase() : "";
     const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
     if (!pv) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
-    const tu = typeof req.query.tu === "string" && NGAY_RE2.test(req.query.tu) ? req.query.tu : null;
-    const den = typeof req.query.den === "string" && NGAY_RE2.test(req.query.den) ? req.query.den : null;
+    const tu = typeof req.query.tu === "string" && NGAY_RE3.test(req.query.tu) ? req.query.tu : null;
+    const den = typeof req.query.den === "string" && NGAY_RE3.test(req.query.den) ? req.query.den : null;
     const t0 = tu ? dauNgayVN(tu) : -Infinity, t1 = den ? dauNgayVN(den) + NGAY : Infinity;
     const [capsGoc, lich, cdR, tcR] = await Promise.all([
       taiCap(xuong, "app", toSuKien, COT_SU_KIEN, req.query.moi === "1"),
@@ -86302,14 +86629,14 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
         ten: cdMap.get(cd)?.ten ?? cd,
         thuTu: cdMap.get(cd)?.thuTu ?? 999,
         soHm: cs.length,
-        slXong: lam2(cs.reduce((a, c) => a + c.slXong, 0), 1),
-        gioCaTv: lam2(trungVi(coChay.map((c) => c.gioCa)) ?? 0, 1),
-        gioCaP75: lam2(phanVi(coChay.map((c) => c.gioCa), 0.75) ?? 0, 1),
-        gioCa: lam2(cs.reduce((a, c) => a + c.gioCa, 0), 0),
-        ngayChayTv: lam2((trungVi(coChay.map((c) => c.gioChay)) ?? 0) / 24, 1),
-        gioTrenDvTv: lam2(trungVi(cs.filter((c) => c.slXong > 0 && c.gioCa > 0).map((c) => c.gioCa / c.slXong)) ?? 0, 3),
+        slXong: lam3(cs.reduce((a, c) => a + c.slXong, 0), 1),
+        gioCaTv: lam3(trungVi(coChay.map((c) => c.gioCa)) ?? 0, 1),
+        gioCaP75: lam3(phanVi(coChay.map((c) => c.gioCa), 0.75) ?? 0, 1),
+        gioCa: lam3(cs.reduce((a, c) => a + c.gioCa, 0), 0),
+        ngayChayTv: lam3((trungVi(coChay.map((c) => c.gioChay)) ?? 0) / 24, 1),
+        gioTrenDvTv: lam3(trungVi(cs.filter((c) => c.slXong > 0 && c.gioCa > 0).map((c) => c.gioCa / c.slXong)) ?? 0, 3),
         soNgung: cs.reduce((a, c) => a + c.soNgung, 0),
-        gioNgung: lam2(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
+        gioNgung: lam3(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
         hmNgung: cs.filter((c) => c.soNgung > 0).length
       };
     }).sort((a, b) => a.thuTu - b.thuTu || b.soHm - a.soHm);
@@ -86324,9 +86651,9 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
         ten,
         soHm: hs.length,
         soXong: ngay2.length,
-        ngayTv: lam2(trungVi(ngay2) ?? 0, 1),
-        ngayP75: lam2(phanVi(ngay2, 0.75) ?? 0, 1),
-        gioCaTv: lam2(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
+        ngayTv: lam3(trungVi(ngay2) ?? 0, 1),
+        ngayP75: lam3(phanVi(ngay2, 0.75) ?? 0, 1),
+        gioCaTv: lam3(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
       };
     }).sort((a, b) => b.soHm - a.soHm);
     const thangMap = /* @__PURE__ */ new Map();
@@ -86339,7 +86666,7 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
       if (h.xong !== null) lay(thang(h.xong)).soXong++;
     }
     for (const c of caps) lay(thang(c.dau)).gioCa += c.gioCa;
-    const theoThang = [...thangMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => ({ thang: m, soXong: v.soXong, soBatDau: v.soBatDau, gioCa: lam2(v.gioCa, 0) }));
+    const theoThang = [...thangMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => ({ thang: m, soXong: v.soXong, soBatDau: v.soBatDau, gioCa: lam3(v.gioCa, 0) }));
     const ngayAll = hms.map((h) => h.ngay).filter((x) => x !== null);
     res.json({
       success: true,
@@ -86352,16 +86679,16 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
         soCap: caps.length,
         tu: new Date(Math.min(...caps.map((c) => c.dau))).toISOString(),
         den: new Date(Math.max(...caps.map((c) => c.xongCuoi ?? c.dau))).toISOString(),
-        gioCa: lam2(caps.reduce((a, c) => a + c.gioCa, 0), 0),
+        gioCa: lam3(caps.reduce((a, c) => a + c.gioCa, 0), 0),
         soNgung: caps.reduce((a, c) => a + c.soNgung, 0),
-        gioNgung: lam2(caps.reduce((a, c) => a + c.gioNgung, 0), 0),
-        ngayTv: lam2(trungVi(ngayAll) ?? 0, 1),
-        ngayP75: lam2(phanVi(ngayAll, 0.75) ?? 0, 1)
+        gioNgung: lam3(caps.reduce((a, c) => a + c.gioNgung, 0), 0),
+        ngayTv: lam3(trungVi(ngayAll) ?? 0, 1),
+        ngayP75: lam3(phanVi(ngayAll, 0.75) ?? 0, 1)
       },
       congDoan,
       nhom,
       theoThang,
-      lauNhat: hms.filter((h) => h.ngay !== null).sort((a, b) => b.ngay - a.ngay).slice(0, 15).map((h) => ({ hex: h.hex, ten: h.ten, congTrinh: h.congTrinh, nhom: h.nhom, ngay: lam2(h.ngay, 1), gioCa: lam2(h.gioCa, 1), soCd: h.soCd }))
+      lauNhat: hms.filter((h) => h.ngay !== null).sort((a, b) => b.ngay - a.ngay).slice(0, 15).map((h) => ({ hex: h.hex, ten: h.ten, congTrinh: h.congTrinh, nhom: h.nhom, ngay: lam3(h.ngay, 1), gioCa: lam3(h.gioCa, 1), soCd: h.soCd }))
     });
   } catch (e) {
     fail(res, e, "/api/xuong/phan-tich");
@@ -87022,6 +87349,15 @@ app.post("/api/xuong/to/:id/che-do", async (req, res) => {
     fail(res, e, "/api/xuong/to/:id/che-do");
   }
 });
+async function diemDanhTayCuaTo(toId, tu, den) {
+  const r = await poolMra.query(
+    `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
+     WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca') AND device_ts_hieu_chinh BETWEEN $2 AND $3
+       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
+    [toId, new Date(tu).toISOString(), new Date(den).toISOString()]
+  );
+  return r.rows.map(toSuKien).filter((e) => !laSuKienTram(e));
+}
 async function soTramCuaTo(toId, tu, den) {
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
@@ -87069,7 +87405,8 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
-    const ddHom = suKienConHieuLuc(evs).filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay2);
+    const ddTay = await diemDanhTayCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
+    const ddHom = [...suKienConHieuLuc(evs), ...ddTay].filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && ngayCa(e.ts) === ngay2).sort((a, b) => a.ts - b.ts);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
     const oHang = new Set(dangO.flatMap(([, ds]) => ds));
     const chuaVaoHang = [...new Set(coMat)].filter((m) => !oHang.has(m));
@@ -87218,9 +87555,11 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
     const daVaoCa = new Set(hopLe.filter((e) => e.loai === "vao_ca" && typeof e.duLieu?.khaiBoi !== "string").map((e) => mnvCua({ duLieu: e.duLieu ?? null })).filter((x) => !!x));
     if (duocKhai.length) {
       const r = await poolMra.query(
-        `SELECT DISTINCT du_lieu->>'mnv' AS mnv FROM xuong_su_kien e
-         WHERE loai = 'vao_ca' AND du_lieu->>'tram' = 'true' AND du_lieu->>'mnv' = ANY($1::text[])
-           AND NOT (du_lieu ? 'khaiBoi') AND device_ts_hieu_chinh >= $2
+        `SELECT DISTINCT n->>'mnv' AS mnv FROM xuong_su_kien e
+           CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(e.du_lieu->'nguoi') = 'array' THEN e.du_lieu->'nguoi'
+             ELSE jsonb_build_array(jsonb_build_object('mnv', e.du_lieu->>'mnv')) END) n
+         WHERE e.loai = 'vao_ca' AND n->>'mnv' = ANY($1::text[])
+           AND NOT (e.du_lieu ? 'khaiBoi') AND e.device_ts_hieu_chinh >= $2
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
         [[...new Set(duocKhai)], new Date(Date.parse(`${ngayCa(serverNow)}T05:00:00+07:00`)).toISOString()]
       );
@@ -87271,7 +87610,7 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
           continue;
         }
         if (e.loai === "nguoi_vao" && !daVaoCa.has(mnvCua({ duLieu: e.duLieu }))) {
-          tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi n\xE0y ch\u01B0a t\u1EF1 qu\xE9t th\u1EBB v\xE0o ca" });
+          tuChoi.push({ id: e.id, reason: "Ng\u01B0\u1EDDi n\xE0y ch\u01B0a \u0111i\u1EC3m danh v\xE0o ca" });
           continue;
         }
         const kb = chuanMnv(e.duLieu.khaiBoi);
@@ -88054,6 +88393,11 @@ function canonicalizeProjectNames(rows, columns) {
   return changed ? out : rows;
 }
 var BOP_STAGE_ORDER = ["P001", "P002", "P012", "P013", "GCVT", "P014", "P016", "P018", "P020", "P021", "P022", "P025"];
+var stageIndex = (stage) => stage ? BOP_STAGE_ORDER.indexOf(stage) : -1;
+var stageRank = (stage) => {
+  const i = stageIndex(stage);
+  return i === -1 ? 999 : i;
+};
 var DWELL_KEYS = ["<3 NG\xC0Y", "4-7 NG\xC0Y", "2 tu\u1EA7n", "3 tu\u1EA7n", "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn", "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y"];
 var DWELL_STUCK = "T\u1EEB 4 tu\u1EA7n tr\u1EDF l\xEAn";
 var DWELL_NONE = "Ch\u01B0a c\xF3 s\u1ED1 ng\xE0y";
@@ -88231,6 +88575,115 @@ var extractStage = (value) => {
   return match ? match[1] : null;
 };
 
+// ../frontend/components/Construction/core/bopPivot.ts
+var KHONG_RO_CONG_DOAN = "(Kh\xF4ng r\xF5)";
+var stageOfBop = (i) => i.stage ?? KHONG_RO_CONG_DOAN;
+var khoCua = (i) => {
+  const nk = Math.max(i.inv, 0);
+  const xk = Math.min(i.xuat ?? 0, nk);
+  const ton = Math.min(i.tonKho ?? nk - xk, nk - xk);
+  return { nk, xk, ton, chenh: nk - xk - ton };
+};
+var laKho = (i, f, metric) => {
+  const k = khoCua(i);
+  if (k.nk <= 0) return false;
+  if (f === "nk") return true;
+  if (metric !== "count") return k[f] > 0;
+  const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
+  if (f === "ton") return conTon;
+  if (f === "xk") return !conTon && !coChenh;
+  return !conTon && coChenh;
+};
+var khoMuc = (i, metric) => metric === "count" ? { nk: laKho(i, "nk", metric) ? 1 : 0, xk: laKho(i, "xk", metric) ? 1 : 0, ton: laKho(i, "ton", metric) ? 1 : 0, chenh: laKho(i, "chenh", metric) ? 1 : 0 } : khoCua(i);
+var mucCongDoan = (items, metric) => metric === "count" ? items.filter((i) => i.open) : items.filter((i) => i.open || i.remain > 0);
+var giaTriBop = (i, metric) => metric === "count" ? 1 : metric === "remain" ? i.remain : i.total;
+var khoRong = () => ({ nk: 0, xk: 0, ton: 0, chenh: 0 });
+var congKho = (e, v) => {
+  e.nk += v.nk;
+  e.xk += v.xk;
+  e.ton += v.ton;
+  e.chenh += v.chenh;
+};
+var nhomMacDinh = (st) => st === "P001" ? "notDeployed" : st === "P002" ? "p002" : "onLine";
+var BOP_SET = new Set(BOP_STAGE_ORDER);
+function tinhPivotBop(items, khoItems, metric, khoaDong, nhomTheoCongDoan = false) {
+  const stageBucket = /* @__PURE__ */ new Map();
+  const dong2 = /* @__PURE__ */ new Map();
+  const colTot = {};
+  const colN = {};
+  let grand = 0;
+  for (const i of mucCongDoan(items, metric)) {
+    const v = giaTriBop(i, metric), st = stageOfBop(i);
+    if (!stageBucket.has(st)) stageBucket.set(st, nhomTheoCongDoan ? BOP_SET.has(st) ? remainBucketOf("", st) : null : i.bucket);
+    for (const k of khoaDong(i)) {
+      const d = dong2.get(k) ?? { cells: {}, total: 0, n: 0 };
+      d.cells[st] = (d.cells[st] ?? 0) + v;
+      d.total += v;
+      d.n++;
+      dong2.set(k, d);
+    }
+    colTot[st] = (colTot[st] ?? 0) + v;
+    colN[st] = (colN[st] ?? 0) + 1;
+    grand += v;
+  }
+  const coDinh = BOP_STAGE_ORDER.filter((st) => st !== "P022" && st !== "P025");
+  coDinh.forEach((st) => {
+    if (!stageBucket.has(st)) stageBucket.set(st, nhomMacDinh(st));
+  });
+  const stages = [...stageBucket.keys()].sort((x, y) => stageRank(x) - stageRank(y) || x.localeCompare(y));
+  const groups = [];
+  for (const st of stages) {
+    const bk = stageBucket.get(st) ?? null;
+    const last = groups[groups.length - 1];
+    if (last && last.bucket === bk) last.stages.push(st);
+    else groups.push({ bucket: bk, stages: [st] });
+  }
+  const kho = /* @__PURE__ */ new Map();
+  const khoTot = khoRong();
+  for (const i of khoItems) {
+    const v = khoMuc(i, metric);
+    if (!v.nk) continue;
+    for (const k of khoaDong(i)) {
+      const e = kho.get(k) ?? khoRong();
+      congKho(e, v);
+      kho.set(k, e);
+      if (!dong2.has(k)) dong2.set(k, { cells: {}, total: 0, n: 0 });
+    }
+    congKho(khoTot, v);
+  }
+  return { stages, groups, dong: dong2, colTot, colN, grand, kho, khoTot };
+}
+function mucBopTuDong(row, k) {
+  const total = parseNumber(row[k.triGiaKey]);
+  const nk = parseNumber(row[k.nhapKhoKey]);
+  const remain = remainValue(total, nk);
+  const stage = extractStage(row[k.bopKey]);
+  const status = String(row[k.tinhTrangKey] ?? "").toUpperCase();
+  const open2 = !isQtyComplete(row) && (remain > 0 || total <= 0);
+  return {
+    stage,
+    // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
+    bucket: open2 || remain > 0 ? remainBucketOf(status, stage) : null,
+    open: open2,
+    total,
+    inv: doneValue(total, nk),
+    xuat: k.xuatKhoKey ? Math.max(parseNumber(row[k.xuatKhoKey]), 0) : 0,
+    tonKho: k.tonKhoKey ? Math.max(parseNumber(row[k.tonKhoKey]), 0) : void 0,
+    remain
+  };
+}
+function tinhBangCongTrinhBop(items, metric, cuoi) {
+  const p = tinhPivotBop(items, items, metric, (i) => [i.ct], true);
+  const donHang = /* @__PURE__ */ new Map();
+  for (const i of items) donHang.set(i.ct, (donHang.get(i.ct) ?? 0) + (metric === "count" ? 1 : Math.max(i.total, 0)));
+  const rows = [...donHang.entries()].map(([name, dh]) => {
+    const d = p.dong.get(name);
+    return { name, cells: d?.cells ?? {}, total: d?.total ?? 0, kho: p.kho.get(name) ?? khoRong(), donHang: dh };
+  });
+  rows.sort((a, b) => Number(a.name === cuoi) - Number(b.name === cuoi) || b.total - a.total || b.kho.nk - a.kho.nk || a.name.localeCompare(b.name, "vi"));
+  return { metric, stages: p.stages, groups: p.groups, rows, colTot: p.colTot, grand: p.grand, khoTot: p.khoTot, donHangTot: [...donHang.values()].reduce((a, b) => a + b, 0) };
+}
+
 // ../frontend/components/Dashboard/core/tongQuanSanXuat.ts
 function khoaSanXuat(productionColumns) {
   return {
@@ -88249,7 +88702,10 @@ function khoaSanXuat(productionColumns) {
     thanhTienTinhPhieuKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_TINH_PHIEU) || "thanh_tien_tinh_phieu",
     thanhTienNhapKhoKey: findColumnKey(productionColumns, TARGET_COLUMN_NAMES.THANH_TIEN_NHAP_KHO) || "thanh_tien_nhap_kho_luy_ke",
     khachHangKey: findColumnKey(productionColumns, "khach_hang") || "khach_hang",
-    khuVucDuAnKey: findColumnKey(productionColumns, "khu_vuc_du_an") || "khu_vuc_du_an"
+    khuVucDuAnKey: findColumnKey(productionColumns, "khu_vuc_du_an") || "khu_vuc_du_an",
+    // Kho lũy kế theo HEX — cùng cột ConstructionOverview đưa vào cửa sổ công trình (phần Kho của bảng BOP)
+    xuatKhoKey: findColumnKey(productionColumns, "thanh_tien_xuat_kho_luy_ke") || "thanh_tien_xuat_kho_luy_ke",
+    tonKhoKey: findColumnKey(productionColumns, "thanh_tien_ton_kho_hien_tai") || "thanh_tien_ton_kho_hien_tai"
   };
 }
 var DEFAULT_FILTERS = {
@@ -88337,9 +88793,6 @@ function luaChonSanXuat(productionData, k) {
     khuVucDuAnOptions: categoryOptions(productionData, k.khuVucDuAnKey),
     phanLoaiOptions: categoryOptions(productionData, k.phanLoaiNhomSanPhamKey)
   };
-}
-function isInProductionRow(statusUpper) {
-  return !statusUpper.includes("15. CH\u01AFA TRI\u1EC2N KHAI") && !statusUpper.includes("14. CH\u01AFA PHI\u1EBEU") && !statusUpper.includes("11. CH\u01AFA SX");
 }
 var ON_LINE_STAGE_SET = new Set(ON_LINE_STAGES);
 function remainBucketOf(statusUpper, stage) {
@@ -88430,42 +88883,24 @@ function tinhCardMetrics(rows, k) {
   });
   return metrics;
 }
-function tinhProjectStatusSummary(rows, k, metric) {
-  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return [];
+function tinhBangCongTrinh(rows, k, metric) {
+  if (!k.congTrinhKey || !k.triGiaDonHangTongKey) return null;
   const { isCancelledRow } = hamGiaTri(k);
-  const agg = {};
-  const isCount = metric === "COUNT";
-  rows.forEach((row) => {
-    const ctName = projectNameOf(row[k.congTrinhKey]);
-    if (isCancelledRow(row)) return;
-    if (!agg[ctName]) agg[ctName] = { totalOrder: 0, deployed: 0, ticketed: 0, inProduction: 0, inventory: 0, remainingRaw: 0, notDeployedRaw: 0 };
-    const status = String(row[k.tinhTrangKey] || "").toUpperCase();
-    const totalOrderValRaw = parseNumber(row[k.triGiaDonHangTongKey]);
-    const ticketValRaw = parseNumber(row[k.thanhTienTinhPhieuKey]);
-    const inventoryValRaw = doneValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]));
-    const totalOrderVal = isCount ? 1 : totalOrderValRaw / 1e3;
-    agg[ctName].totalOrder += totalOrderVal;
-    if (!status.includes("15. CH\u01AFA TRI\u1EC2N KHAI")) agg[ctName].deployed += totalOrderVal;
-    const valToAddTicket = isCount ? ticketValRaw > 0 ? 1 : 0 : ticketValRaw / 1e3;
-    if (!status.includes("15. CH\u01AFA TRI\u1EC2N KHAI") && !status.includes("14. CH\u01AFA PHI\u1EBEU")) agg[ctName].ticketed += valToAddTicket;
-    const stockedItem = isStocked(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]), false, isQtyComplete(row));
-    const rowRemainRaw = remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey]));
-    if (isInProductionRow(status)) {
-      agg[ctName].inProduction += isCount ? !stockedItem && rowRemainRaw > 0 ? 1 : 0 : rowRemainRaw / 1e3;
-    }
-    if (remainBucketOf(status, k.bopKey ? extractStage(row[k.bopKey]) : null) === "notDeployed") {
-      agg[ctName].notDeployedRaw += isCount ? !stockedItem && rowRemainRaw > 0 ? 1 : 0 : rowRemainRaw / 1e3;
-    }
-    agg[ctName].inventory += isCount ? stockedItem ? 1 : 0 : inventoryValRaw / 1e3;
-    agg[ctName].remainingRaw += isCount ? !stockedItem && remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey])) > 0 ? 1 : 0 : remainValue(totalOrderValRaw, parseNumber(row[k.thanhTienNhapKhoKey])) / 1e3;
-  });
-  return Object.entries(agg).map(([name, data]) => ({
-    name,
-    ...data,
-    remaining: data.remainingRaw,
-    notDeployed: data.notDeployedRaw,
-    percentComplete: data.totalOrder > 0 ? data.inventory / data.totalOrder * 100 : 0
-  })).sort((a, b) => unknownProjectLast(a, b) || b.totalOrder - a.totalOrder);
+  const khoa = {
+    bopKey: k.bopKey,
+    tinhTrangKey: k.tinhTrangKey,
+    triGiaKey: k.triGiaDonHangTongKey,
+    nhapKhoKey: k.thanhTienNhapKhoKey,
+    // Trình duyệt (usePivotTables) không truyền 2 khoá này => tên cột chuẩn, như ConstructionOverview
+    xuatKhoKey: k.xuatKhoKey || "thanh_tien_xuat_kho_luy_ke",
+    tonKhoKey: k.tonKhoKey || "thanh_tien_ton_kho_hien_tai"
+  };
+  const items = [];
+  for (const row of rows) {
+    if (isCancelledRow(row)) continue;
+    items.push({ ...mucBopTuDong(row, khoa), ct: projectNameOf(row[k.congTrinhKey]) });
+  }
+  return tinhBangCongTrinhBop(items, metric === "COUNT" ? "count" : "remain", UNKNOWN_PROJECT);
 }
 function tinhPivotWorkshop(rows, k, metric) {
   if (!k.tinhTrangKey || !k.xuongKey) return null;
@@ -88755,7 +89190,7 @@ function tinhTongQuanSanXuat(productionData, productionColumns, applied, tuy) {
     scopedProjects: scoped ? [...scoped] : null,
     effectiveCongTrinh,
     cardMetrics: tinhCardMetrics(filtered, k),
-    projectStatusSummary: tinhProjectStatusSummary(filtered, k, tuy.projectSummaryMetric),
+    bangCongTrinh: tinhBangCongTrinh(filtered, k, tuy.projectSummaryMetric),
     pivotWorkshopData: tinhPivotWorkshop(filtered, k, tuy.workshopMetric),
     pivotFunnelData: tinhPivotFunnel(funnel, k, tuy.workshopMetric),
     funnelBreakdownByBop: tinhFunnelBreakdownByBop(funnel, k, tuy.workshopMetric),
@@ -88893,12 +89328,12 @@ function nenBanGhi(recs) {
     return i;
   };
   const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so5 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  const so6 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
   return {
     n: recs.length,
     tu,
     chu,
-    so: so5,
+    so: so6,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
     planMet: recs.map((r) => r.planMet ? 1 : 0),
@@ -89129,7 +89564,7 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
 });
 
 // src/server/hoiDapDanhMuc.ts
-var so4 = (col) => numericExprQualified(`t."${col}"`);
+var so5 = (col) => numericExprQualified(`t."${col}"`);
 var XUONG = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
 var CT = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
 var MA_CT2 = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
@@ -89374,7 +89809,7 @@ var DANH_MUC = [
       { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", tien: true },
       { id: "thanh_tien_tinh_phieu", ten: "\u0110\xE3 t\xEDnh phi\u1EBFu", dn: ["gi\xE1 tr\u1ECB t\xEDnh phi\u1EBFu"], kieu: "so", tien: true },
       { id: "thanh_tien_nhap_kho_luy_ke", ten: "\u0110\xE3 nh\u1EADp kho", dn: ["nh\u1EADp kho l\u0169y k\u1EBF", "\u0111\xE3 nh\u1EADp"], kieu: "so", tien: true },
-      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so4("thanh_tien_xuat_kho_luy_ke"), tien: true },
+      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so5("thanh_tien_xuat_kho_luy_ke"), tien: true },
       { id: "thanh_tien_ton_kho_hien_tai", ten: "T\u1ED3n kho hi\u1EC7n t\u1EA1i", dn: ["gi\xE1 tr\u1ECB t\u1ED3n"], kieu: "so", tien: true },
       { id: "gia_tri_con_lai", ten: "Gi\xE1 tr\u1ECB c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "ch\u01B0a nh\u1EADp"], kieu: "so", tien: true, sql: CON_LAI },
       { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
@@ -89448,7 +89883,7 @@ var DANH_MUC = [
       HM,
       HEX,
       { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
-      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so4("so_luong_kh") }
+      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so5("so_luong_kh") }
     ]
   },
   {
@@ -89492,8 +89927,8 @@ var DANH_MUC = [
       HM,
       HEX,
       { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so4("thanh_tien_ke_hoach"), tien: true },
-      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so4("nhap_kho_tuan"), tien: true },
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so5("thanh_tien_ke_hoach"), tien: true },
+      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so5("nhap_kho_tuan"), tien: true },
       { id: "dung_ke_hoach", ten: "\u0110\xFAng k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
       { id: "thuc_hien_dung_ke_hoach_1_phan", ten: "\u0110\xFAng KH 1 ph\u1EA7n", kieu: "so", tien: true },
       { id: "rot_ke_hoach", ten: "R\u1EDBt k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
@@ -90052,13 +90487,13 @@ function docKetQuaAI(text) {
     return null;
   }
 }
-var cache = /* @__PURE__ */ new Map();
+var cache2 = /* @__PURE__ */ new Map();
 var ngay = "";
 var dem = 0;
 var LoiAI = class extends Error {
 };
 async function hoiAI(loiDan, cau, khoaCache) {
-  const hit = cache.get(khoaCache);
+  const hit = cache2.get(khoaCache);
   if (hit && Date.now() - hit.at < 864e5) return hit.kq;
   const hn = iso(/* @__PURE__ */ new Date());
   if (hn !== ngay) {
@@ -90093,10 +90528,10 @@ async function hoiAI(loiDan, cau, khoaCache) {
   const j = await r.json().catch(() => null);
   const kq = docKetQuaAI(j?.choices?.[0]?.message?.content ?? "");
   if (!kq) throw new LoiAI("AI tr\u1EA3 l\u1EDDi kh\xF4ng \u0111\xFAng d\u1EA1ng");
-  cache.set(khoaCache, { at: Date.now(), kq });
-  if (cache.size > 500) {
-    const k = cache.keys().next().value;
-    if (k !== void 0) cache.delete(k);
+  cache2.set(khoaCache, { at: Date.now(), kq });
+  if (cache2.size > 500) {
+    const k = cache2.keys().next().value;
+    if (k !== void 0) cache2.delete(k);
   }
   return kq;
 }
@@ -90137,7 +90572,7 @@ var khongDau = (e) => `translate(lower(COALESCE((${e})::text, '')), '${TU}', '${
 var boDau2 = (s) => [...String(s).toLowerCase()].map((ch) => TU.includes(ch) ? SANG[TU.indexOf(ch)] : ch).join("").replace(/\s+/g, " ").trim();
 var thich = (s) => `%${boDau2(s).replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
 var gonTen = (e) => `NULLIF(TRIM(REGEXP_REPLACE(COALESCE((${e})::text, ''), '\\s+', ' ', 'g')), '')`;
-var NGAY_RE3 = /^\d{4}-\d{2}-\d{2}$/;
+var NGAY_RE4 = /^\d{4}-\d{2}-\d{2}$/;
 var GiaTri = external_exports.union([external_exports.string().max(300), external_exports.number()]);
 var LocSchema = external_exports.object({
   cot: external_exports.string().max(64),
@@ -90155,8 +90590,8 @@ var TruyVanSchema = external_exports.object({
   /** id cột, hoặc "cotNgay@thang" (ngay | tuan | thang | quy | nam) để nhóm theo mốc thời gian */
   nhom: external_exports.array(external_exports.string().max(80)).max(2).default([]),
   loc: external_exports.array(LocSchema).max(12).default([]),
-  tu: external_exports.string().regex(NGAY_RE3).optional(),
-  den: external_exports.string().regex(NGAY_RE3).optional(),
+  tu: external_exports.string().regex(NGAY_RE4).optional(),
+  den: external_exports.string().regex(NGAY_RE4).optional(),
   /** Sắp theo cột kết quả thứ `cot` (0 = cột đầu) */
   sap: external_exports.object({ cot: external_exports.number().int().min(0).max(10), giam: external_exports.boolean() }).optional(),
   gioiHan: external_exports.number().int().min(1).max(500).optional(),
@@ -90206,7 +90641,7 @@ function dieuKienLoc(b, l, co, p) {
   if (c.kieu === "so" || c.kieu === "ngay") {
     const doi = (v) => {
       if (c.kieu === "ngay") {
-        if (!NGAY_RE3.test(v)) throw new LoiHoi(`${c.ten}: ng\xE0y ph\u1EA3i d\u1EA1ng n\u0103m-th\xE1ng-ng\xE0y`);
+        if (!NGAY_RE4.test(v)) throw new LoiHoi(`${c.ten}: ng\xE0y ph\u1EA3i d\u1EA1ng n\u0103m-th\xE1ng-ng\xE0y`);
         return v;
       }
       const n = Number(v.replace(/,/g, ""));
@@ -90598,7 +91033,7 @@ var aiLimiter = rate_limit_default({
   message: { success: false, message: "H\u1ECFi AI qu\xE1 nhanh, ch\u1EDD \xEDt gi\xE2y" }
 });
 var TruyVanAISchema = TruyVanSchema.extend({
-  soSanh: external_exports.object({ tu: external_exports.string().regex(NGAY_RE3), den: external_exports.string().regex(NGAY_RE3) }).optional(),
+  soSanh: external_exports.object({ tu: external_exports.string().regex(NGAY_RE4), den: external_exports.string().regex(NGAY_RE4) }).optional(),
   binhQuan: external_exports.enum(["ngay", "tuan", "thang", "quy", "nam"]).optional(),
   sapChenh: external_exports.enum(["giam", "tang"]).optional()
 });

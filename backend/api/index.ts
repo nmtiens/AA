@@ -29,6 +29,7 @@ import '../src/routes/settings.js';   // /api/view-project-mapping, /api/table-c
 import '../src/routes/auth.js';       // /api/auth/*
 import '../src/routes/users.js';      // /api/users/*
 import '../src/routes/khsx.js';       // /api/khsx-nhapkho/summary
+import '../src/routes/keHoachNgay.js'; // /api/khsx/ke-hoach-ngay (KH tuần theo ngày — cột Kế hoạch của Nhập kho mỗi ngày)
 import '../src/routes/trend.js';      // /api/trend*, /api/filters/*, /api/detail
 import '../src/routes/vuongMac.js';   // /api/vuong-mac/*
 import '../src/routes/notifications.js'; // /api/notifications/* (hộp thông báo + cài đặt)

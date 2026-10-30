@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { RefreshCw, ChevronDown, ChevronRight, AlertTriangle, Download, Search } from 'lucide-react';
 import {
   xuongSetupApi, type BaoCaoXuong as BaoCao, type BaoCaoTo, type BaoCaoToNgay, type BaoCaoHangMuc, type BaoCaoNguoi,
+  type SoSanhTram, type SoKhopTramNgay, type SoKhopTramTo,
 } from '../../services/xuongSetupApi';
 import { gioVN, tenCo, hienSl, hhmm, TEN_CA, LY_DO_TAM_NGUNG, type LoaiCa } from '../../services/xuongModel';
 import { BTN, KHUNG, TH, TD } from './xuongDesktopUi';
@@ -15,6 +16,7 @@ import { BieuDoNgay, BieuDoTo } from './BieuDoXuong';
 //   Theo tổ     — tổ × ngày tô màu % có việc (xu hướng) + tổng kỳ
 //   Theo hạng mục — giờ công qua các công đoạn / tổ, số lượng xong, giờ công trên 1 đơn vị
 //   Chất lượng dữ liệu — chỉ số dùng app, cờ cần xem, đối chiếu điểm danh
+//   So khớp trạm — chỉ khi có tổ chạy song song có số trạm: giờ công bấm tay (chính thức) so với sổ trạm
 // Giờ công = phân bổ theo quân số (không nhân thời gian × số người). Server tính dần ngày còn thiếu (conThieu).
 // ============================================================================
 
@@ -921,6 +923,115 @@ function TabTheoNguoi({ ds, tu, den }: { ds: BaoCaoNguoi[]; tu: string; den: str
 }
 
 // ---------------------------------------------------------------------------
+// Tab So khớp trạm — tổ chạy song song: giờ công bấm tay (chính thức) so với sổ trạm, theo tổ / ngày / người
+// ---------------------------------------------------------------------------
+/** Chênh = trạm − bấm tay: "+1,5 (12%)"; đỏ khi máy chủ đánh dấu chênh lớn */
+function OChenh({ s }: { s: SoSanhTram }) {
+  const dau = s.chenh > 0 ? '+' : '';
+  return (
+    <span className={`inline-block rounded px-1.5 py-0.5 tabular-nums ${s.lon ? 'bg-red-100 font-medium text-red-900' : 'text-slate-600'}`}>
+      {Math.abs(s.chenh) < 0.05 ? '0' : `${dau}${so(s.chenh)}`}{s.phanTram !== null && Math.abs(s.chenh) >= 0.05 ? ` (${dau}${s.phanTram}%)` : ''}
+    </span>
+  );
+}
+const gioHai = (a: number | null, b: number | null) => `${a ? hhmm(a) : '—'} / ${b ? hhmm(b) : '—'}`;
+const COT_SO_KHOP = (
+  <>
+    <th className={`${TH} border-l border-slate-200 text-right`}>Giờ công bấm tay</th><th className={`${TH} text-right`}>Theo trạm</th><th className={`${TH} text-right`}>Chênh</th>
+    <th className={`${TH} border-l border-slate-200 text-right`}>Giờ công SP bấm tay</th><th className={`${TH} text-right`}>Theo trạm</th><th className={`${TH} text-right`}>Chênh</th>
+  </>
+);
+const OSoKhop = ({ gc, sp }: { gc: SoSanhTram; sp: SoSanhTram }) => (
+  <>
+    <td className={`${TD} border-l border-slate-200 text-right tabular-nums`}>{so(gc.chinhThuc)}</td>
+    <td className={`${TD} text-right tabular-nums`}>{so(gc.tram)}</td>
+    <td className={`${TD} text-right`}><OChenh s={gc} /></td>
+    <td className={`${TD} border-l border-slate-200 text-right tabular-nums`}>{so(sp.chinhThuc)}</td>
+    <td className={`${TD} text-right tabular-nums`}>{so(sp.tram)}</td>
+    <td className={`${TD} text-right`}><OChenh s={sp} /></td>
+  </>
+);
+
+function SoKhopTheoNguoi({ n }: { n: SoKhopTramNgay }) {
+  if (!n.theoNguoi.length) return <p className="bg-slate-50 px-4 py-2 text-sm text-slate-500">Không có số từng người (tổ không điểm danh / khai tên, hoặc khoảng xem dài hơn 2 tháng).</p>;
+  return (
+    <div className="bg-slate-50 p-3">
+      <div className={KHUNG}>
+        <table className="w-full min-w-[900px]">
+          <thead className="bg-slate-50"><tr>
+            <th className={TH}>Người</th><th className={TH}>Vào (bấm tay / trạm)</th><th className={TH}>Ra (bấm tay / trạm)</th>{COT_SO_KHOP}
+          </tr></thead>
+          <tbody>
+            {n.theoNguoi.map(x => (
+              <tr key={x.mnv} className="border-t border-slate-100">
+                <td className={TD}><span className="font-medium text-slate-800">{x.hoTen ?? x.mnv}</span>{x.hoTen && <span className="ml-1 text-xs text-slate-500">{x.mnv}</span>}</td>
+                <td className={`${TD} tabular-nums`}>{gioHai(x.vao.chinhThuc, x.vao.tram)}</td>
+                <td className={`${TD} tabular-nums`}>{gioHai(x.ra.chinhThuc, x.ra.tram)}</td>
+                <OSoKhop gc={x.gioCong} sp={x.gioCongSp} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TabSoKhopTram({ ds }: { ds: SoKhopTramTo[] }) {
+  const [mo, setMo] = useState<Set<string>>(new Set());
+  const bat = (k: string) => setMo(s => { const x = new Set(s); if (x.has(k)) x.delete(k); else x.add(k); return x; });
+  return (
+    <div className="space-y-4">
+      <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        Tuần chạy song song: <b>số chính thức là giờ công theo bấm tay</b> của tổ trưởng — các tab khác và Excel đều dùng số này.
+        Số theo trạm (công nhân quét thẻ / phiếu) chỉ để so, không cộng vào đâu. Chênh = theo trạm − bấm tay;
+        tô đỏ khi lệch từ 10% và từ 0,5 giờ trở lên. Bấm một ngày để xem từng người.
+      </p>
+      {ds.map(t => (
+        <div key={t.toId} className={KHUNG}>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-slate-100 px-4 py-3">
+            <p className="text-base font-semibold text-slate-900">{t.ten}</p>
+            <p className={`text-sm ${t.soNgayLon ? 'text-red-700' : 'text-emerald-700'}`}>
+              {t.soNgay} ngày song song · {t.soNgayLon ? `${t.soNgayLon} ngày chênh lớn` : 'không ngày nào chênh lớn'}
+            </p>
+          </div>
+          <table className="w-full min-w-[860px]">
+            <thead className="bg-slate-50"><tr>
+              <th className={TH}>Ngày</th><th className={`${TH} text-right`}>Người (bấm tay / trạm)</th>{COT_SO_KHOP}
+            </tr></thead>
+            <tbody>
+              {t.theoNgay.map(n => {
+                const k = `${t.toId}|${n.ngay}`;
+                const m = mo.has(k);
+                return (
+                  <Fragment key={k}>
+                    <tr className="cursor-pointer border-t border-slate-100 hover:bg-slate-50" aria-expanded={m} onClick={() => bat(k)}>
+                      <td className={`${TD} tabular-nums`}>
+                        <span className="inline-flex items-center gap-1">{m ? <ChevronDown size={14} /> : <ChevronRight size={14} />}{ddmm(n.ngay)} {THU[thuCua(n.ngay)]}</span>
+                        {n.khongCoTram && <div className="text-xs text-amber-700">trạm không ghi được gì</div>}
+                      </td>
+                      <td className={`${TD} text-right tabular-nums`}>{n.soNguoi.chinhThuc || '—'} / {n.soNguoi.tram || '—'}</td>
+                      <OSoKhop gc={n.gioCong} sp={n.gioCongSp} />
+                    </tr>
+                    {m && <tr><td colSpan={8} className="p-0"><SoKhopTheoNguoi n={n} /></td></tr>}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+            {t.theoNgay.length > 1 && (
+              <tfoot className="border-t-2 border-slate-200 bg-slate-50 font-semibold"><tr>
+                <td className={TD}>Cả kỳ</td><td className={TD} />
+                <OSoKhop gc={t.gioCong} sp={t.gioCongSp} />
+              </tr></tfoot>
+            )}
+          </table>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Tab Chất lượng dữ liệu
 // ---------------------------------------------------------------------------
 function DoiChieuChamCong({ d }: { d: BaoCao }) {
@@ -1078,14 +1189,33 @@ async function xuatExcel(d: BaoCao, ds: BaoCaoTo[]) {
       'Giờ chờ việc': n.cho, 'Số lần trễ': n.lanTre, 'Số lần về sớm': n.lanVeSom,
     })));
   }
+  // So khớp trạm (tổ chạy song song): số chính thức = bấm tay, theo trạm chỉ để so
+  const soKhop = d.soKhopTram ?? [];
+  if (soKhop.length) {
+    const cot = (ten: string, s: SoSanhTram) => ({ [`${ten} bấm tay`]: s.chinhThuc, [`${ten} theo trạm`]: s.tram, [`${ten} chênh`]: s.chenh, [`${ten} chênh %`]: s.phanTram });
+    them('So khop tram', soKhop.flatMap(t => [...t.theoNgay].reverse().map(n => ({
+      'Ngày': n.ngay, 'Tổ': t.ten, 'Người bấm tay': n.soNguoi.chinhThuc, 'Người theo trạm': n.soNguoi.tram,
+      ...cot('Giờ công', n.gioCong), ...cot('Giờ công SP', n.gioCongSp),
+      'Chênh lớn': n.gioCong.lon || n.gioCongSp.lon ? 'x' : '', 'Ghi chú': n.khongCoTram ? 'Trạm không ghi được gì' : '',
+    }))));
+    them('So khop tram theo nguoi', soKhop.flatMap(t => [...t.theoNgay].reverse().flatMap(n => n.theoNguoi.map(x => ({
+      'Ngày': n.ngay, 'Tổ': t.ten, 'Mã NV': x.mnv, 'Họ tên': x.hoTen,
+      'Vào bấm tay': x.vao.chinhThuc ? hhmm(x.vao.chinhThuc) : '', 'Vào theo trạm': x.vao.tram ? hhmm(x.vao.tram) : '',
+      'Ra bấm tay': x.ra.chinhThuc ? hhmm(x.ra.chinhThuc) : '', 'Ra theo trạm': x.ra.tram ? hhmm(x.ra.tram) : '',
+      ...cot('Giờ công', x.gioCong), ...cot('Giờ công SP', x.gioCongSp),
+      'Chênh lớn': x.gioCong.lon || x.gioCongSp.lon ? 'x' : '',
+    })))));
+  }
   XLSX.writeFile(wb, `bao_cao_xuong_${d.xuong}_${d.tu}_${d.den}.xlsx`);
 }
 
 // ---------------------------------------------------------------------------
-type Tab = 'keHoach' | 'ngay' | 'to' | 'hangMuc' | 'nguoi' | 'chatLuong';
+type Tab = 'keHoach' | 'ngay' | 'to' | 'hangMuc' | 'nguoi' | 'chatLuong' | 'soKhop';
 const TABS: Array<{ id: Tab; ten: string }> = [
   { id: 'keHoach', ten: 'Kế hoạch & phân tích' }, { id: 'ngay', ten: 'Theo ngày' }, { id: 'to', ten: 'Theo tổ' }, { id: 'hangMuc', ten: 'Theo hạng mục' }, { id: 'nguoi', ten: 'Theo người' },
   { id: 'chatLuong', ten: 'Chất lượng dữ liệu' },
+  // Chỉ hiện khi kỳ đang xem có tổ chạy song song có số trạm
+  { id: 'soKhop', ten: 'So khớp trạm' },
 ];
 const KHOA_TAB = 'xuong_bao_cao_tab';
 
@@ -1148,6 +1278,10 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
     return { soNgay, cnTb: soNgay ? cn / soNgay : 0, gn, gc, gcCoGio, coMra, tc, ch, lyDo, xong, soHmXong: new Set(xong.map(x => x.hex)).size };
   }, [ds]);
   const pDung = phanTram(tom.gcCoGio, tom.gn);
+  const soKhop = d?.soKhopTram ?? [];
+  const tabs = TABS.filter(x => x.id !== 'soKhop' || soKhop.length);
+  // Tab đã nhớ là So khớp mà kỳ này không có tổ song song: về Theo ngày
+  const tabHien = tabs.some(x => x.id === tab) ? tab : 'ngay';
 
   return (
     <div className="space-y-4">
@@ -1223,19 +1357,21 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       {d && (
         <>
           <div className="flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist" aria-label="Kiểu xem báo cáo">
-            {TABS.map(x => (
-              <button key={x.id} type="button" role="tab" aria-selected={tab === x.id} onClick={() => chonTab(x.id)}
-                className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${tab === x.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900'}`}>
+            {tabs.map(x => (
+              <button key={x.id} type="button" role="tab" aria-selected={tabHien === x.id} onClick={() => chonTab(x.id)}
+                className={`shrink-0 border-b-2 px-4 py-2 text-sm font-medium ${tabHien === x.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900'}`}>
                 {x.ten}{x.id === 'hangMuc' && d.hangMuc.length ? ` (${d.hangMuc.length})` : ''}{x.id === 'nguoi' && d.theoNguoi?.length ? ` (${d.theoNguoi.length})` : ''}
+                {x.id === 'soKhop' && soKhop.some(t => t.soNgayLon) && <span className="ml-1 text-red-700">●</span>}
               </button>
             ))}
           </div>
-          {tab === 'keHoach' && <KeHoachTuan xuong={xuong} />}
-          {tab === 'ngay' && <><BieuDoNgay ds={ds} /><TabTheoNgay ds={ds} /></>}
-          {tab === 'to' && <><BieuDoTo ds={ds} /><TabTheoTo ds={ds} d={d} /></>}
-          {tab === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} xuong={xuong} />}
-          {tab === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} tu={d.tu} den={d.den} />}
-          {tab === 'chatLuong' && <TabChatLuong d={d} ds={ds} />}
+          {tabHien === 'keHoach' && <KeHoachTuan xuong={xuong} />}
+          {tabHien === 'ngay' && <><BieuDoNgay ds={ds} /><TabTheoNgay ds={ds} /></>}
+          {tabHien === 'to' && <><BieuDoTo ds={ds} /><TabTheoTo ds={ds} d={d} /></>}
+          {tabHien === 'hangMuc' && <TabTheoHangMuc ds={d.hangMuc ?? []} theoTo={ds} xuong={xuong} />}
+          {tabHien === 'nguoi' && <TabTheoNguoi ds={d.theoNguoi ?? []} tu={d.tu} den={d.den} />}
+          {tabHien === 'chatLuong' && <TabChatLuong d={d} ds={ds} />}
+          {tabHien === 'soKhop' && <TabSoKhopTram ds={soKhop} />}
         </>
       )}
     </div>

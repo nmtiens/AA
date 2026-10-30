@@ -55,7 +55,7 @@ function CheDoTo({ to, bao, xong }: { to: ToSetup; bao: Bao; xong: () => void })
       </div>
       <p className="text-xs text-slate-600">
         {cheDo === 'cu' && 'Tổ trưởng bấm Bắt đầu / Tạm ngưng / Chia người và điểm danh tay như hiện nay.'}
-        {cheDo === 'song_song' && 'Tổ trưởng vẫn bấm như cũ (số chính thức); công nhân quét ở trạm để so khớp trong Báo cáo.'}
+        {cheDo === 'song_song' && 'Tổ trưởng vẫn bấm như cũ (số chính thức); công nhân quét ở trạm để so khớp trong Báo cáo (tab So khớp trạm).'}
         {cheDo === 'tram' && 'Công nhân tự quét thẻ đầu ca; một người quét phiếu + thẻ khai cả nhóm vào hàng. App tổ trưởng ẩn Bắt đầu / Tạm ngưng / Chia người / điểm danh.'}
       </p>
       <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -179,7 +179,7 @@ function SuaTo({ d, to, bao, xong, huy }: { d: SetupXuong; to: ToSetup | null; b
         </div>
       </div>
       {to && to.cheDo !== undefined && <CheDoTo to={to} bao={bao} xong={xong} />}
-      <label className="block text-sm font-medium text-slate-700">Thành viên (mã NV, mỗi dòng một mã — người có tài khoản trùng mã NV được ghi cho tổ)
+      <label className="block text-sm font-medium text-slate-700">Thành viên (mã NV, mỗi dòng một mã — lưu tổ là xếp luôn vào tổ ở Nhân sự: chấm công, trạm quét, in QR; bỏ 1 dòng = rời tổ)
         <textarea className={`${INPUT} mt-1 h-24 font-mono`} value={tv} onChange={e => setTv(e.target.value)} placeholder="AAF00123" />
       </label>
       <div className="flex flex-wrap items-center gap-3">
@@ -434,7 +434,7 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
   /** Tổ trưởng: chỉ xem, không huỷ (huỷ từ máy tính chỉ quản lý; tổ trưởng huỷ ở Lịch sử trong app) */
   chiXem?: boolean;
 }) {
-  const [d, setD] = useState<{ suKien: Dong[]; trangThai: Dong[] } | null>(null);
+  const [d, setD] = useState<{ suKien: Dong[]; trangThai: Dong[]; soCanXuLy?: number; soChiDeBiet?: number } | null>(null);
   const [loi, setLoi] = useState('');
   // Mặc định chỉ cờ cần xử lý — cờ chỉ để biết (quản lý ghi hộ…) nhiều, làm chìm lỗi thật
   const [boLoc, setBoLoc] = useState('can_xu_ly');
@@ -443,11 +443,14 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
   const tenCd = (id: unknown) => congDoan.find(c => c.id === id)?.ten ?? (id ? String(id) : '');
   const tenTo = (id: unknown) => to.find(t => t.id === Number(id))?.ten ?? '';
   const cacCo = useMemo(() => [...new Set((d?.suKien ?? []).flatMap(x => (x.co as string[]) ?? []))].sort(), [d]);
-  // Cờ chỉ để biết (không phải lỗi): quản lý ghi hộ + các cờ ghi chú của trạm quét / phân công đầu ca
-  const CO_CHI_DE_BIET = new Set(['quan_ly_ghi_ho', 'tram', 'nhan_du', 'xong_het', 'khai_ho', 'phan_cong', 'bao_xong']);
-  const canXuLy = (x: Dong) => ((x.co as string[]) ?? []).some(c => !CO_CHI_DE_BIET.has(c));
-  const soCanXuLy = (d?.suKien ?? []).filter(canXuLy).length;
+  // Cần xử lý / chỉ để biết do máy chủ tính (server/xuong/canXem.ts) — cùng định nghĩa số "Cần xem" ở Tổng quan, thông báo 8h
+  const canXuLy = (x: Dong) => x.can_xu_ly === true;
+  const coCanXuLy = (d?.suKien ?? []).filter(canXuLy);
+  const soCanXuLy = d?.soCanXuLy ?? coCanXuLy.length;
+  const soMoiCo = soCanXuLy + (d?.soChiDeBiet ?? (d?.suKien ?? []).length - coCanXuLy.length);
   const ds = (d?.suKien ?? []).filter(x => !boLoc || (boLoc === 'can_xu_ly' ? canXuLy(x) : ((x.co as string[]) ?? []).includes(boLoc)));
+  // Máy chủ giữ 300 dòng mới nhất mỗi nhóm
+  const catBot = boLoc === 'can_xu_ly' ? soCanXuLy > ds.length : !boLoc && soMoiCo > ds.length;
   const ngayGio = (s: unknown) => { const t = Date.parse(String(s)); return `${hhmm(t)} ${gioVN(t).ngay.split('-').reverse().join('/')}`; };
   if (loi) return <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{loi}</p>;
   if (!d) return <div className="flex justify-center py-10 text-slate-400"><RefreshCw className="animate-spin" size={18} /></div>;
@@ -458,13 +461,15 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
           <p className="text-base font-semibold text-slate-900">Thao tác có cờ <span className="text-sm font-normal text-slate-500">· 30 ngày · {ds.length}</span></p>
           <select value={boLoc} onChange={e => setBoLoc(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1 text-sm">
             <option value="can_xu_ly">Cần xử lý ({soCanXuLy})</option>
-            <option value="">Mọi cờ, kể cả chỉ để biết ({d.suKien.length})</option>
+            <option value="">Mọi cờ, kể cả chỉ để biết ({soMoiCo})</option>
             {cacCo.map(c => <option key={c} value={c}>{tenCo(c)}</option>)}
           </select>
           <button type="button" className={`${BTN} ml-auto`} onClick={tai}><RefreshCw size={13} /> Tải lại</button>
         </div>
         {ds.length === 0 ? <p className="px-4 py-6 text-sm text-slate-500">
-          {boLoc === 'can_xu_ly' ? `Không có thao tác nào cần xử lý.${d.suKien.length ? ` (${d.suKien.length} thao tác chỉ để biết — chọn "Mọi cờ" để xem.)` : ''}` : 'Không có thao tác nào cần xem.'}</p> : (
+          {boLoc === 'can_xu_ly' ? `Không có thao tác nào cần xử lý.${soMoiCo ? ` (${soMoiCo} thao tác chỉ để biết — chọn "Mọi cờ" để xem.)` : ''}` : 'Không có thao tác nào cần xem.'}</p> : (
+          <>
+          {catBot && <p className="border-b border-slate-100 px-4 py-2 text-xs text-slate-500">Hiện {ds.length} thao tác mới nhất.</p>}
           <table className="w-full min-w-[36rem] rmd:min-w-0">
             <thead className="bg-slate-50"><tr>
               <th className={TH}>Lúc</th><th className={TH}>Thao tác</th><th className={TH}>Hạng mục · công đoạn · tổ</th><th className={TH}>Cờ</th><th className={TH} />
@@ -489,6 +494,7 @@ export function XuongCanXem({ xuong, congDoan, to, bao, chiXem = false }: {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
       <div className={KHUNG}>

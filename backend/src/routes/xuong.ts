@@ -16,6 +16,9 @@ import { khungCaChinh, gioTrongCa } from '../server/xuong/mraLichSu.js';
 import { doanCoMat, tomTatDiemDanh, kiemTraDiemDanh, chuanMnv } from '../server/xuong/chamCong.js';
 import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, type ThayDoiSoNguoi } from '../server/xuong/allocation.js';
 import { thoiGianTheoLo } from '../server/xuong/metrics.js';
+import { phamViTheoQuyen, lienQuanHex, xemHexDuoc } from '../server/xuong/phamVi.js';
+import { ensureWorkshopGroups, workshopGroupOf } from '../server/workshopGroups.js';
+import { CAN_XEM_NGAY, sqlCanXuLy, sqlChuaHuy } from '../server/xuong/canXem.js';
 import {
   chuyenDoiTram, locTheoCheDo, cheDoTheoNgay, laSuKienTram, mnvCua, ngayCa, dungBamTayKhiChuyen, noiCoMatTangCa,
   type CheDoCham, type KetQuaTram, type MocCheDo,
@@ -96,12 +99,7 @@ export async function toTruongCua(userId: string | number): Promise<Array<{ id: 
 export async function phamViXem(userId: string | number, xuong: string): Promise<{ chiTo: number[] | null } | null> {
   const ds = await xuongQuanLy(userId);
   if (ds.has('*')) return { chiTo: null };
-  const tt = await toTruongCua(userId);
-  if (tt.length) {
-    const cua = tt.filter(t => t.xuong === xuong).map(t => t.id);
-    return cua.length ? { chiTo: cua } : null;
-  }
-  return quanLyDuoc(ds, xuong) ? { chiTo: null } : null;
+  return phamViTheoQuyen(ds, await toTruongCua(userId), xuong);
 }
 
 // ---------------------------------------------------------------------------
@@ -1309,16 +1307,41 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
     const laMra = new Set(rows.filter(r => r.nguon === 'mra').map(r => String(r.id)));
     const evtsApp = evts.filter(e => !laMra.has(e.id));
     const conHieuLuc = new Set(suKienConHieuLuc(evts).map(e => e.id));
-    const cdIds = [...new Set(evts.flatMap(e => [e.congDoanId, e.congDoanDenId]).filter((x): x is string => !!x))];
+    const tuyenHex = tuyenTheoThanhPhan(evtsApp);
+    const cdTuyen = tuyenHex.flatMap(t => t.tuyen);
+    const cdIds = [...new Set([...evts.flatMap(e => [e.congDoanId, e.congDoanDenId]), ...cdTuyen].filter((x): x is string => !!x))];
     const cd = cdIds.length ? (await poolMra.query('SELECT id, xuong, cd_chi_tiet, la_bao_bi, thu_tu FROM xuong_cong_doan WHERE id = ANY($1::text[])', [cdIds])).rows : [];
     const cdMap = new Map(cd.map(x => [String(x.id), x]));
     const xuongCua = (id: string | null) => (id ? (cdMap.get(id)?.xuong ?? null) : null);
+
+    // Phạm vi xem (trước chưa kiểm — ai đăng nhập cũng xem được mọi hạng mục): admin mọi hạng mục; quản lý / tổ trưởng
+    // hạng mục dính tới xưởng mình (tổ trưởng: xưởng của tổ, để tra cả hàng sắp tới) hoặc có hàng / tuyến qua công đoạn tổ mình.
+    // Hạng mục chưa có dữ liệu gì thì không có gì để lộ — trả rỗng như cũ.
+    const p = info.get(hex);
+    if (rows.length || st.rows.length || p) {
+      const me = req.user!.id;
+      const quanLy = await xuongQuanLy(me);
+      if (!quanLy.has('*')) {
+        const toTruong = await toTruongCua(me);
+        // Bảng sản xuất có thể ghi mã xưởng gốc (X.ĐB…) — xưởng ở mục Xưởng là tên đã gộp
+        await ensureWorkshopGroups();
+        const lq = lienQuanHex({ xuongChinh: [p?.xuong_chinh ?? null, p?.xuong_chinh ? workshopGroupOf(p.xuong_chinh) : null], trangThai: st.rows, suKien: rows, tuyen: cdTuyen, xuongCuaCd: xuongCua });
+        const cdCuaTo = toTruong.length
+          ? new Set((await poolMra.query('SELECT cong_doan_id FROM xuong_to_cong_doan WHERE to_id = ANY($1::int[])', [toTruong.map(t => t.id)]))
+            .rows.map(x => String(x.cong_doan_id)))
+          : new Set<string>();
+        if (!xemHexDuoc(quanLy, toTruong, cdCuaTo, lq)) {
+          return res.status(403).json({ success: false, message: toTruong.length || quanLy.size
+            ? `Hạng mục ${hex} không đi qua xưởng / tổ bạn phụ trách nên không xem được tiến độ ở xưởng`
+            : 'Chỉ quản lý xưởng hoặc tổ trưởng mới xem được tiến độ hạng mục ở xưởng' });
+        }
+      }
+    }
 
     // Thời gian trong từng xưởng theo lô (R3-4, R10)
     // Theo lô chỉ với sự kiện app — MRA không ghi rõ lô vào xưởng (lịch sử MRA tính đầu–cuối riêng bên dưới)
     const hl = suKienConHieuLuc(evtsApp);
     const dsXuong = [...new Set(hl.map(e => xuongCua(e.congDoanId)).filter((x): x is string => !!x))];
-    const p = info.get(hex);
     const thoiGianXuong = dsXuong.map(xg => {
       // Cặp "cửa vào" của xưởng: có hàng đến từ ngoài xưởng (giao từ công đoạn xưởng khác, đơn hàng nội bộ QT2,
       // hoặc nhận ghi nguồn ngoài app — R10). Mỗi lần nhận ở cặp cửa vào là một lô vào xưởng.
@@ -1374,7 +1397,7 @@ app.get('/api/xuong/hex/:hex', async (req: Request, res: Response) => {
     }
     // Vị trí theo tuyến của hạng mục (thành phần nối nhau theo thứ tự gặp) — hiện công đoạn đúng thứ tự hàng đi
     const viTri = new Map<string, number>();
-    for (const t of tuyenTheoThanhPhan(evtsApp)) t.tuyen.forEach(id => { if (!viTri.has(id)) viTri.set(id, viTri.size); });
+    for (const t of tuyenHex) t.tuyen.forEach(id => { if (!viTri.has(id)) viTri.set(id, viTri.size); });
     const capNgay = [...toNgay].sort((a, b) => (a.split('|')[1] < b.split('|')[1] ? 1 : -1));
     const gioCong = new Map<string, number>();
     await runWithLimit(capNgay.slice(0, 20).map(k => async () => {
@@ -1459,13 +1482,18 @@ app.get('/api/xuong/can-xem', async (req: Request, res: Response) => {
     const chiTo = pv.chiTo;
     const [sk, st] = await Promise.all([
       poolMra.query(
-        // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem)
-        `SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
-                so_luong, so_nguoi, ly_do_tam_ngung, du_lieu
-         FROM xuong_su_kien e WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '30 days'
-           AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
-           AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
-         ORDER BY server_ts DESC LIMIT 300`, [xuong, chiTo]),
+        // Kèm số lượng / số người / lý do để mô tả đủ ("Nhận 10 cái"); bỏ thao tác đã huỷ (không còn gì để xem).
+        // can_xu_ly cùng định nghĩa số "Cần xem" ở Tổng quan (server/xuong/canXem.ts). Giới hạn 300 dòng riêng từng
+        // nhóm (cần xử lý / chỉ để biết) — cờ chỉ để biết nhiều không đẩy thao tác cần xử lý ra ngoài; so_nhom = tổng thật
+        `SELECT * FROM (
+           SELECT x.*, row_number() OVER (PARTITION BY can_xu_ly ORDER BY server_ts DESC) AS thu_tu,
+                  count(*) OVER (PARTITION BY can_xu_ly)::int AS so_nhom
+           FROM (SELECT id, loai, hex, cong_doan_id, to_id, device_ts_hieu_chinh, server_ts, user_id, user_id_khai, sent_by, co,
+                        so_luong, so_nguoi, ly_do_tam_ngung, du_lieu, ${sqlCanXuLy('e')} AS can_xu_ly
+                 FROM xuong_su_kien e WHERE xuong = $1 AND co <> '{}' AND server_ts > now() - interval '${CAN_XEM_NGAY} days'
+                   AND ($2::int[] IS NULL OR e.to_id = ANY($2::int[]))
+                   AND ${sqlChuaHuy('e')}) x) y
+         WHERE thu_tu <= 300 ORDER BY server_ts DESC`, [xuong, chiTo]),
       poolMra.query(`SELECT * FROM xuong_trang_thai t WHERE xuong = $1 AND co <> '{}'
                     AND ($2::int[] IS NULL OR EXISTS (SELECT 1 FROM xuong_to_cong_doan tc WHERE tc.cong_doan_id = t.cong_doan_id AND tc.to_id = ANY($2::int[])))
                   ORDER BY cap_nhat DESC LIMIT 300`, [xuong, chiTo]),
@@ -1473,7 +1501,10 @@ app.get('/api/xuong/can-xem', async (req: Request, res: Response) => {
     const info = await thongTinHangMuc([...new Set(st.rows.map(x => String(x.hex)))]);
     res.json({
       success: true, available: true, xuong, chiTo,
-      suKien: sk.rows,
+      suKien: sk.rows.map(({ thu_tu: _t, so_nhom: _n, ...x }) => x),
+      // Tổng thật từng nhóm (danh sách chỉ giữ 300 dòng mới nhất mỗi nhóm)
+      soCanXuLy: sk.rows.find(x => x.can_xu_ly)?.so_nhom ?? 0,
+      soChiDeBiet: sk.rows.find(x => !x.can_xu_ly)?.so_nhom ?? 0,
       trangThai: st.rows.map(x => dongTrangThai(x, info.get(String(x.hex)))),
     });
   } catch (e) { fail(res, e, '/api/xuong/can-xem'); }

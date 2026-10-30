@@ -52,7 +52,6 @@ interface Props {
 
 const ngayNgan = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 const themNgay = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const THU = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 // Mẫu thẻ theo trang Tổng quan cũ: nền nhạt riêng từng bước, số trong kỳ to, lũy kế tháng này / tháng trước
 const MAU_THE = {
@@ -227,7 +226,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
         for (let d = tu; d <= den; d = themNgay(d, 1)) {
           if (d.getDay() === 0 && !theoNgay.get(toISODateLocal(d))) continue; // bỏ Chủ nhật không có số
           const k = toISODateLocal(d);
-          ds.push({ ngay: k, ten: `${THU[d.getDay()]} ${d.getDate()}`, v: (theoNgay.get(k) ?? 0) / 1000, cuoi: k === toISODateLocal(den) });
+          ds.push({ ngay: k, ten: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, v: (theoNgay.get(k) ?? 0) / 1000, cuoi: k === toISODateLocal(den) });
         }
         setNk(ds);
       })
@@ -409,6 +408,25 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const nguongDat = tuanChon ? canMoiNgay : mucKhThang > 0 ? mucKhThang : canMoiNgay;
   const tenNguong = tuanChon ? `mục tiêu tuần ${tuanChon.tuan} (${formatTy(canMoiNgay)}/ngày)` : mucKhThang > 0 ? `KH tháng ${thangKh} (${formatTy(mucKhThang)}/ngày)` : 'mức cần';
   const tenKh = tienDo === 'nam' ? 'KH năm' : `KH tháng ${thangTD}`;
+  // Kế hoạch nhập kho từng ngày (KH tuần của khsx theo ngày KHNK) — cột "Kế hoạch" cạnh cột nhập kho; theo bộ lọc
+  // xưởng / công trình của biểu đồ (không lọc thì theo bộ lọc chung của trang)
+  const [khNgay, setKhNgay] = useState<Map<string, number> | null>(null);
+  const khTu = nkKhoang ? toISODateLocal(nkKhoang.tu) : '';
+  const khDen = (() => { const d = hienDen && nkKhoang && hienDen > nkKhoang.den ? hienDen : nkKhoang?.den; return d ? toISODateLocal(d) : ''; })();
+  useEffect(() => {
+    if (!khTu || !khDen) { setKhNgay(null); return; }
+    const ac = new AbortController();
+    const q = new URLSearchParams({ tu: khTu, den: khDen });
+    const xs = locXuong.length ? locXuong : p.xuong;
+    const ct = locCt.length ? locCt : p.congTrinh;
+    if (xs.length) q.set('xuong', xs.join(','));
+    if (ct.length) q.set('congTrinh', ct.join(','));
+    fetch(`/api/khsx/ke-hoach-ngay?${q.toString()}`, { signal: ac.signal }).then(r => (r.ok ? r.json() : []))
+      .then((rows: Array<{ ngay: string; kh: number }>) => { if (!ac.signal.aborted) setKhNgay(new Map((Array.isArray(rows) ? rows : []).map(r => [r.ngay, Number(r.kh) || 0]))); })
+      .catch(() => { if (!ac.signal.aborted) setKhNgay(new Map()); });
+    return () => ac.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [khTu, khDen, locXuong.join('|'), locCt.join('|'), locKey]);
   // Ngày gần nhất CÓ nhập kho (ngày mới nhất có thể chưa nạp số => không báo 'chậm' oan)
   const nkCuoi = [...nk].reverse().find(d => d.v > 0) ?? null;
   // Biểu đồ vẽ phần đã chọn (lọc xưởng / công trình); khung "Cần chú ý" vẫn theo toàn bộ (nkCuoi)
@@ -425,23 +443,25 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     if (!ngayCon.length) return ds;
     let deMoiNgay = canMoiNgayKy;
     if (tuanChon && mucTuan > 0) deMoiNgay = Math.max(0, mucTuan - (ngayMoi >= tuanChon.tu ? thTuan : 0)) / ngayCon.length;
-    for (const d of ngayCon) ds.push({ ngay: toISODateLocal(d), ten: `${THU[d.getDay()]} ${d.getDate()}`, v: 0, de: deMoiNgay, cuoi: false });
+    for (const d of ngayCon) ds.push({ ngay: toISODateLocal(d), ten: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, v: 0, de: deMoiNgay, cuoi: false });
     return ds;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nkHien, hienTu?.getTime(), hienDen?.getTime(), ngayMoi, canMoiNgayKy, tuanChon, mucTuan, thTuan]);
+  const duLieuVe = useMemo(() => duLieu.map(d => ({ ...d, kh: khNgay?.get(d.ngay) ?? 0 })), [duLieu, khNgay]);
+  const coKhNgay = duLieuVe.some(d => d.kh > 0);
   const coDeXuat = duLieu.some(d => d.de > 0);
   // Nhãn các đường ngang (Cần / KH tháng / Bình quân) ở mép phải: giá trị gần nhau thì đè chữ => tính vị trí điểm ảnh
   // theo đúng trục Y của biểu đồ (cao 30rem = 480px, trừ lề trên 26 và trục X ~30) rồi đẩy cách nhau tối thiểu 16px
   const dyNhan = useMemo(() => {
     const cao = 480 - 26 - 30;
-    const yMax = Math.ceil(Math.max(...duLieu.map(d => d.v + d.de), 0, canMoiNgay, mucKhThang) * 1.18) || 1;
+    const yMax = Math.ceil(Math.max(...duLieuVe.map(d => Math.max(d.v + d.de, d.kh)), 0, canMoiNgay, mucKhThang) * 1.18) || 1;
     const ds = ([['can', canMoiNgay], ['kh', !tuanChon ? mucKhThang : 0], ['bq', binhQuan]] as const)
       .filter(([, v]) => v > 0).map(([k, v]) => ({ k, y: (1 - v / yMax) * cao })).sort((a, b) => a.y - b.y);
     const kq: Record<string, number> = {};
     let truoc = -Infinity;
     for (const x of ds) { const y = Math.max(x.y, truoc + 16); kq[x.k] = y - x.y; truoc = y; }
     return kq;
-  }, [duLieu, canMoiNgay, mucKhThang, binhQuan, tuanChon]);
+  }, [duLieuVe, canMoiNgay, mucKhThang, binhQuan, tuanChon]);
 
 
   const tenKy = khoang?.tenTruoc ?? 'kỳ trước';
@@ -610,11 +630,11 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-bold uppercase text-slate-800">Số mã tồn mới nhất ({ngayDu(p.tonNgay)})</span>
+                  <span className="text-xs font-bold uppercase text-slate-800">Tồn mới nhất ({ngayDu(p.tonNgay)})</span>
                   <b className="text-[1.75rem] font-bold tabular-nums text-slate-900">{giaTri(p.tonKho, p.tonKho)} <span className="text-lg font-semibold">{dem ? 'items' : 'tỷ'}</span></b>
                 </span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase text-slate-500">Số mã tồn mới nhất của tháng {thangTruoc} ({ngayDu(cuoi)})</span>
+                  <span className="text-xs font-semibold uppercase text-slate-500">Tồn mới nhất của tháng {thangTruoc} ({ngayDu(cuoi)})</span>
                   <span className="text-lg font-semibold tabular-nums text-slate-500">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
                 </span>
               </span>
@@ -804,13 +824,13 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
               <div className="flex h-full items-center justify-center text-sm text-slate-400">Chưa có số liệu nhập kho trong kỳ</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={duLieu} margin={{ top: 26, right: 130, left: -8, bottom: 0 }} barCategoryGap="22%">
+                <BarChart data={duLieuVe} margin={{ top: 26, right: 130, left: -8, bottom: 0 }} barCategoryGap="22%" barGap={2}>
                   <CartesianGrid vertical={false} stroke="#eef0f3" />
                   <XAxis dataKey="ten" tickLine={false} axisLine={{ stroke: '#d5d9e0' }} tick={{ fontSize: 14, fill: '#334155' }} interval={duLieu.length > 16 ? 1 : 0} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} width={44}
                     domain={[0, (m: number) => Math.ceil(Math.max(m, canMoiNgay, mucKhThang) * 1.18)]} allowDecimals={false} />
                   <Tooltip cursor={{ fill: '#f5f6f8' }}
-                    formatter={(v: number, k: string) => (v > 0 ? [`${formatTy(v)} tỷ`, k === 'de' ? 'Đề xuất (để đạt KH)' : 'Nhập kho'] : [null, null]) as [string, string]}
+                    formatter={(v: number, k: string) => (v > 0 ? [`${formatTy(v)} tỷ`, k === 'de' ? 'Đề xuất (để đạt KH)' : k === 'kh' ? 'Kế hoạch ngày (KH tuần)' : 'Nhập kho'] : [null, null]) as [string, string]}
                     labelFormatter={(_, pl) => (pl?.[0]?.payload?.ngay ? ngayNgan(parseVNDate(pl[0].payload.ngay) ?? new Date()) : '')}
                     contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
                   {canMoiNgay > 0 && (
@@ -824,6 +844,16 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                   {binhQuan > 0 && (
                     <ReferenceLine y={binhQuan} stroke="#2563eb" strokeOpacity={0.6} strokeDasharray="2 3"
                       label={{ value: `Bình quân ${formatTy(binhQuan)}`, position: 'right', fill: '#2563eb', fontSize: 12, fontWeight: 600, dy: dyNhan.bq ?? 0 }} />
+                  )}
+                  {/* Kế hoạch ngày: cột xanh dương nhạt, bên trái cột nhập kho cùng ngày */}
+                  {coKhNgay && (
+                    <Bar dataKey="kh" radius={[6, 6, 0, 0]} maxBarSize={40} isAnimationActive={false} fill="#dbeafe" stroke="#2563eb" strokeWidth={1.2}>
+                      <LabelList dataKey="kh" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string }) => {
+                        const v = Number(lp.value);
+                        if (!(v > 0)) return null;
+                        return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={11} fontWeight={600} fill="#1d4ed8">{formatTy(v)}</text>;
+                      }} />
+                    </Bar>
                   )}
                   <Bar dataKey="v" stackId="nk" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}>
                     {duLieu.map(d => <Cell key={d.ngay} fill={!(nguongDat > 0) ? '#3b82f6' : d.v >= nguongDat ? '#12805c' : '#e8484d'} />)}
@@ -859,6 +889,7 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
             <span className="inline-flex items-center gap-1.5"><i className="w-5 border-t-2 border-dotted border-blue-600" />Bình quân {formatTy(binhQuan)}</span>
             {!tuanChon && mucKhThang > 0 && <span className="inline-flex items-center gap-1.5" title={`KH tháng ${thangKh} ${formatTy(khThang)} tỷ chia đều ngày làm việc (T2–T7)`}><i className="w-5 border-t-2 border-dashed border-emerald-600" />Đạt KH tháng {thangKh}: {formatTy(mucKhThang)}/ngày</span>}
             </>}
+            {coKhNgay && <span className="inline-flex items-center gap-1.5" title="Kế hoạch tuần (bảng KHSX) theo ngày kế hoạch nhập kho, theo xưởng / công trình đang lọc"><i className="h-3 w-3 rounded-sm border border-blue-600 bg-blue-100" />Kế hoạch ngày (KH tuần)</span>}
             {coDeXuat && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm border border-dashed border-slate-400 bg-slate-100" />Đề xuất mỗi ngày để đạt {tuanChon ? `KH tuần ${tuanChon.tuan}` : tenKh}</span>}
           </div>
           </>)}

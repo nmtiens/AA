@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Search, Play, Pause, Inbox, PackageCheck, Check, Clock } from 'lucide-react';
-import { xuongSetupApi, type TheoDoiHangMuc, type TheoDoiCongDoan } from '../../services/xuongSetupApi';
+import { RefreshCw, Search, Play, Pause, Inbox, PackageCheck, Check, Clock, Undo2 } from 'lucide-react';
+import { xuongSetupApi, type TheoDoiHangMuc, type TheoDoiCongDoan, type DotTrienKhai } from '../../services/xuongSetupApi';
 import { INPUT, BTN, KHUNG } from './xuongDesktopUi';
 import { hienSl } from '../../services/xuongModel';
 
@@ -50,6 +50,46 @@ function OCd({ c, dv }: { c: TheoDoiCongDoan; dv: string }) {
       </p>
       {coSo && <p className="tabular-nums">nhận {hienSl(c.slNhan)} · xong {hienSl(c.slHoanThanh)} · giao {hienSl(c.slGiao)}</p>}
     </div>
+  );
+}
+
+/** Các đợt triển khai của hạng mục + nút huỷ đợt (triển khai nhầm). Máy chủ chặn khi tổ đã nhận hàng của đợt. */
+function DsDot({ hex, ds, dv, xong }: { hex: string; ds: DotTrienKhai[]; dv: string; xong: () => void }) {
+  const [dang, setDang] = useState<string | null>(null);
+  const [loi, setLoi] = useState('');
+  const huy = async (d: DotTrienKhai) => {
+    const lyDo = window.prompt(`Huỷ đợt triển khai ${hienSl(d.soLuong)} ${dv} của ${hex} (${lucNgan(d.luc)})?
+`
+      + 'Hàng chờ nhận của đợt này sẽ bị bỏ ở mọi công đoạn, cả xưởng phụ. Ghi lý do (không bắt buộc):', '');
+    if (lyDo === null) return;
+    setDang(d.id); setLoi('');
+    const r = await xuongSetupApi.huyTrienKhai(d.id, lyDo || undefined);
+    setDang(null);
+    if (!r.ok) { setLoi(r.message); return; }
+    xong();
+  };
+  return (
+    <details className="mt-2 text-xs">
+      <summary className="cursor-pointer text-slate-600">Đợt triển khai ({ds.length})</summary>
+      <ul className="mt-1 divide-y divide-slate-100 rounded-lg border border-slate-200">
+        {ds.map(d => (
+          <li key={d.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5">
+            <span className="tabular-nums text-slate-700">{lucNgan(d.luc)}</span>
+            <span className="text-slate-600">{d.nguoi ?? 'không rõ người'}</span>
+            <span className="font-medium tabular-nums text-slate-900">{hienSl(d.soLuong)} {dv}</span>
+            <span className="min-w-0 flex-1 truncate text-slate-600">
+              {d.thanhPhan.map(t => `${t.ten || 'Tuyến'}${t.xuong ? ` (${t.xuong})` : ''}`).join(', ')}
+            </span>
+            {d.huyDuoc && (
+              <button type="button" className={`${BTN} px-2 py-1 text-xs`} disabled={dang !== null} onClick={() => huy(d)}>
+                <Undo2 size={12} aria-hidden /> {dang === d.id ? 'Đang huỷ…' : 'Huỷ đợt này'}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {loi && <p className="mt-1 rounded bg-red-50 p-2 text-red-700" role="alert">{loi}</p>}
+    </details>
   );
 }
 
@@ -162,6 +202,7 @@ export default function TheoDoiTrienKhai({ xuong }: { xuong: string }) {
                   </div>
                 )}
               </div>
+              {!!h.dotTrienKhai?.length && <DsDot hex={h.hex} ds={h.dotTrienKhai} dv={dv} xong={tai} />}
             </div>
           );
         })}

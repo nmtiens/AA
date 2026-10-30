@@ -75,8 +75,8 @@ interface Nhom {
 }
 
 /**
- * Chọn người làm chung một hạng mục: một người khai cho cả nhóm (mỗi lần chỉ một người quét). Người tổ đã vào ca
- * chưa ở hàng nào lên đầu, rồi người đang ở hàng khác (chọn = chuyển sang hàng này), rồi người chưa vào ca.
+ * Chọn người làm chung một hạng mục: một người khai cho cả nhóm (mỗi lần chỉ một người quét). Chỉ hiện người ĐÃ ĐIỂM
+ * DANH (quét thẻ đầu ca / tổ trưởng điểm danh) chưa ở hàng nào; người đang ở hàng khác mở riêng (chọn = chuyển hàng).
  */
 function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, onVao, onHuy, onRa, hm }: {
   nhom: Nhom; now: number; nhomTruoc: string[]; onRa: (xong: boolean) => void; hm: HangMucTram | null; board: BangTram; tenHm: (hex: string) => string | null; toId: number;
@@ -99,18 +99,13 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
     // Người tổ khác chỉ hiện khi tìm theo tên / mã hoặc đã có trên bảng của trạm
     .filter(x => !tim || x.hoTen.toLowerCase().includes(tim) || x.mnv.toLowerCase().includes(tim))
     .sort((a, b) => Number(laTruoc.has(b.mnv)) - Number(laTruoc.has(a.mnv)) || a.hang - b.hang || a.hoTen.localeCompare(b.hoTen));
-  // Tìm người tổ khác (mượn người) theo mã / tên khi gõ ≥ 2 ký tự
-  const ngoai = tim.length >= 2 ? [...congNhan.values()].filter(c => c.toId !== toId && !ds.some(x => x.mnv === c.mnv)
-    && c.mnv !== nhom.chinh.mnv && (c.hoTen.toLowerCase().includes(tim) || c.mnv.toLowerCase().includes(tim))).slice(0, 8) : [];
   const chon = new Set(nhom.chon);
   // Chọn được ngay: người đã vào ca, chưa ở hàng nào. Người đang làm hàng khác không hiện mặc định (chạm nhầm sẽ kéo
   // họ khỏi hàng đang chạy) — mở riêng "Chuyển người từ hàng khác" khi cả nhóm đổi hàng; quét thẻ người đó cũng chọn được
   const ranh = ds.filter(x => x.hang === 0 || (x.hang === 1 && chon.has(x.mnv)));
   const hangKhac = ds.filter(x => x.hang === 1 && !chon.has(x.mnv));
-  const chuaVao = ds.filter(x => x.hang === 2);
   // Nhóm lần trước: chỉ người đang rảnh (không kéo người đang làm hàng khác)
   const truocChua = truoc.filter(m => !chon.has(m) && daVaoCa(board, m) && !hangCua(board, m));
-  const truocVang = truoc.filter(m => !daVaoCa(board, m));
   const [moKhac, setMoKhac] = useState(false);
   const nutNguoi = (x: { mnv: string; hoTen: string; trangThai: string }, chuyen: boolean) => (
     <button key={x.mnv} onClick={() => bat(x.mnv)} aria-pressed={chon.has(x.mnv)}
@@ -175,15 +170,12 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
               <span className="min-w-0 truncate">Chọn nhóm lần trước ({truocChua.length}): {truocChua.map(m => congNhan.get(m)?.hoTen ?? m).join(', ')}</span>
             </button>
           )}
-          {truocVang.length > 0 && (
-            <p className="mt-2 text-base text-amber-700">Chưa quét thẻ vào ca: {truocVang.map(m => congNhan.get(m)?.hoTen ?? m).join(', ')} — tự quét thẻ rồi mới chọn được.</p>
-          )}
-          <input value={nhom.tim} onChange={e => onDoi({ tim: e.target.value })} placeholder="Tìm tên / mã NV (cả người tổ khác)"
+          <input value={nhom.tim} onChange={e => onDoi({ tim: e.target.value })} placeholder="Tìm tên / mã NV người đã điểm danh"
             className="mt-2 h-14 w-full rounded-2xl border border-slate-300 px-4 text-lg" aria-label="Tìm người làm chung" />
           <div className="mt-3 grid max-h-[45dvh] gap-2 overflow-y-auto sm:grid-cols-2">
             {ranh.length === 0 && (
               <p className="rounded-2xl bg-sky-50 p-4 text-lg text-sky-900 sm:col-span-2">
-                Không có ai đang rảnh (đã vào ca, chưa ở hàng nào). Người làm chung <b>quét thẻ ngay tại trạm</b> để vào nhóm — hoặc bấm "Vào hàng" nếu làm một mình.
+                Chưa có ai đã điểm danh mà đang rảnh. Người làm chung <b>quét thẻ ngay tại trạm</b> (hoặc tổ trưởng điểm danh trên app) để vào nhóm — hoặc bấm "Vào hàng" nếu làm một mình.
               </p>
             )}
             {ranh.map(x => nutNguoi(x, false))}
@@ -193,12 +185,6 @@ function ChonNguoi({ nhom, now, board, tenHm, toId, congNhan, nhomTruoc, onDoi, 
             <button className="mt-2 min-h-12 text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setMoKhac(v => !v)}>
               {moKhac ? 'Ẩn người đang làm hàng khác' : `Chuyển người từ hàng khác (${hangKhac.length})`}
             </button>
-          )}
-          {chuaVao.length + ngoai.length > 0 && (
-            <p className="mt-3 text-base text-slate-600">
-              Chưa quét thẻ vào ca ({chuaVao.length + ngoai.length}): {[...chuaVao, ...ngoai].map(x => `${x.hoTen} (${x.mnv})`).slice(0, 12).join(', ')}
-              {chuaVao.length + ngoai.length > 12 ? '…' : ''} — quét thẻ tại trạm để được chọn.
-            </p>
           )}
           <div className="mt-4 grid gap-3 sm:grid-cols-[2fr_1fr]">
             <button className={NUT_CHINH} onClick={onVao}>Vào hàng — {1 + nhom.chon.length} người</button>
@@ -474,7 +460,8 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
     // Ưu tiên công đoạn mặc định của trạm
     const uuTien = lam.filter(h => bang.tram.congDoan.includes(h.congDoanId));
     const ds = (uuTien.length ? uuTien : lam).map(h => ({ id: h.congDoanId, ten: tenCd.get(h.congDoanId) ?? h.congDoanId }));
-    if (!ds.length) { baoTin('loi', `Hạng mục ${hex} chưa được Nhận (hoặc đã xong hết) — tổ trưởng bấm Nhận trên app MRA rồi quét lại`); return; }
+    // Trạm chỉ thấy việc của tổ mình: hạng mục của tổ khác (vd quét nhầm trạm) cũng rơi vào đây — nói rõ tên tổ của trạm
+    if (!ds.length) { baoTin('loi', `Hạng mục ${hex} không có trong việc tổ ${bang.to.ten ?? 'này'} đang làm — chưa Nhận, đã xong hết, hoặc là việc của tổ khác (quét ở trạm của tổ đó). Tổ trưởng ${bang.to.ten ?? ''} bấm Nhận trên app MRA rồi quét lại`); return; }
     // Đã quét thẻ trước (cách cũ): mở thẳng màn chọn người làm chung
     if (nguoi && nguoi.han >= Date.now()) {
       setNhom(taoNhom(hex, ds, nguoi));

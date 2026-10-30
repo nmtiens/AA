@@ -22,7 +22,8 @@ const CSS_IN = `@media print {
 export default function InTheQr({ xuong, dsTo, onClose }: { xuong: string; dsTo: ToSetup[]; onClose: () => void }) {
   const [ds, setDs] = useState<CongNhanXuong[] | null>(null);
   const [loi, setLoi] = useState('');
-  const [toId, setToId] = useState<number | 'tat_ca'>(dsTo[0]?.id ?? 'tat_ca');
+  // Mặc định cả xưởng: tổ đầu danh sách có thể chưa có ai (vd tổ mới tạo) => trông như mất dữ liệu
+  const [toId, setToId] = useState<number | 'tat_ca' | 'chua_to'>('tat_ca');
   const [boChon, setBoChon] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -32,7 +33,12 @@ export default function InTheQr({ xuong, dsTo, onClose }: { xuong: string; dsTo:
     });
   }, [xuong]);
 
-  const theoTo = useMemo(() => (ds ?? []).filter(c => toId === 'tat_ca' || c.toId === toId)
+  const soTheoTo = useMemo(() => {
+    const m = new Map<number | null, number>();
+    for (const c of ds ?? []) m.set(c.toId, (m.get(c.toId) ?? 0) + 1);
+    return m;
+  }, [ds]);
+  const theoTo = useMemo(() => (ds ?? []).filter(c => toId === 'tat_ca' || (toId === 'chua_to' ? c.toId === null : c.toId === toId))
     .sort((a, b) => (a.tenTo ?? '').localeCompare(b.tenTo ?? '') || a.mnv.localeCompare(b.mnv)), [ds, toId]);
   const inRa = theoTo.filter(c => !boChon.has(c.mnv));
 
@@ -42,9 +48,10 @@ export default function InTheQr({ xuong, dsTo, onClose }: { xuong: string; dsTo:
       <div className="khong-in sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b border-slate-200 bg-white px-4 py-3">
         <p className="text-sm font-semibold text-slate-800">In nhãn QR mã NV · xưởng {xuong}</p>
         <select className="rounded-md border border-slate-300 px-2 py-1 text-sm" value={toId}
-          onChange={e => { setToId(e.target.value === 'tat_ca' ? 'tat_ca' : Number(e.target.value)); setBoChon(new Set()); }}>
-          {dsTo.map(t => <option key={t.id} value={t.id}>{t.ten}</option>)}
-          <option value="tat_ca">Cả xưởng</option>
+          onChange={e => { const v = e.target.value; setToId(v === 'tat_ca' || v === 'chua_to' ? v : Number(v)); setBoChon(new Set()); }}>
+          <option value="tat_ca">Cả xưởng{ds ? ` (${ds.length})` : ''}</option>
+          {dsTo.map(t => <option key={t.id} value={t.id}>{t.ten}{ds ? ` (${soTheoTo.get(t.id) ?? 0})` : ''}</option>)}
+          {(soTheoTo.get(null) ?? 0) > 0 && <option value="chua_to">Chưa gán tổ ({soTheoTo.get(null)})</option>}
         </select>
         <span className="text-sm text-slate-600">{inRa.length} nhãn · chạm nhãn để bỏ / chọn lại</span>
         <div className="ml-auto flex gap-2">
@@ -53,7 +60,12 @@ export default function InTheQr({ xuong, dsTo, onClose }: { xuong: string; dsTo:
         </div>
       </div>
       {loi && <p className="khong-in p-4 text-sm text-red-700">{loi}</p>}
-      {ds && !theoTo.length && <p className="khong-in p-4 text-sm text-slate-600">Tổ này chưa có công nhân trong danh sách (Báo cáo → Công nhân để nạp / thêm).</p>}
+      {ds && !theoTo.length && (
+        <p className="khong-in p-4 text-sm text-slate-600">
+          {ds.length ? `Tổ này chưa có công nhân nào (cả xưởng có ${ds.length} người${(soTheoTo.get(null) ?? 0) ? `, ${soTheoTo.get(null)} người chưa gán tổ` : ''}). Chọn "Cả xưởng" hoặc gán tổ ở Báo cáo → Công nhân.`
+            : 'Xưởng chưa có công nhân trong danh sách (Báo cáo → Công nhân để nạp / thêm).'}
+        </p>
+      )}
       <div className="mx-auto grid max-w-[190mm] grid-cols-4 gap-0 bg-white p-2 print:p-0">
         {theoTo.map(c => {
           const bo = boChon.has(c.mnv);

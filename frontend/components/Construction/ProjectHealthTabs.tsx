@@ -4,12 +4,16 @@ import type { RemainBucket } from '../Dashboard/hooks/usePivotTables';
 import type { VuongMacItem } from '../../services/vuongMacService';
 import {
   materialLineState, isMaterialPending, materialDueDate, parsePlanDate, dwellBucket, DWELL_STUCK, DWELL_NONE, type DwellKey,
-  type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank, BOP_STAGE_ORDER,
+  type DeadlineSource, type MaterialLineState, type MaterialLineFields, type MaterialBase, stageRank,
 } from '../../utils/productionMetrics';
 import { formatTrieuAsTy } from '../../utils/money';
 import { fmtInt, fmtDate, fmtQty, DAY_MS as DAY } from '../../utils/format';
 import { parseNvlNeeds, parseNvlStatus, nvlLinePending, NVL_GROUP_LABEL, type NvlRaw } from '../../utils/nvlParse';
 import { STEPS, qcStateOf, QC_STATE_META, QC_STATUS_VI, gcnPending, type HexExtra, type StepKey } from '../../services/productionExtraService';
+import {
+  BOP_GROUP, laKho as laKhoBop, tinhPivotBop, mucCongDoan, fmtGiaTriBop, stageOfBop, tenCotCongDoan,
+  type BopMetric, type Kho, type KhoCot,
+} from './core/bopPivot';
 
 // ============================================================================
 // Tầng 2 của "Tổng quan công trình": 3 tab chi tiết BOT · BOP · BOM.
@@ -545,19 +549,12 @@ export const BotTab = ({ items, today, openIssues, onHexClick }: {
 // BOP — giống khối "Tình trạng sản xuất" (Công đoạn × Khu vực SX, mở rộng theo Tình trạng) và
 // "Báo cáo tỷ trọng điểm nghẽn" (thời gian ở công đoạn hiện tại) của trang Tổng quan, nhưng chỉ cho
 // các hạng mục CÒN SẢN XUẤT (chưa nhập kho đủ) của công trình.
-type BopMetric = 'count' | 'remain' | 'total';
 const BOP_METRICS: { key: BopMetric; label: string; hint: string }[] = [
   { key: 'count', label: 'Số hạng mục', hint: 'Số hạng mục chưa nhập kho đủ' },
   { key: 'remain', label: 'Còn lại (tỷ)', hint: 'Giá trị CHƯA nhập kho (trị giá − đã nhập) — khớp thẻ BOP' },
   { key: 'total', label: 'Trị giá (tỷ)', hint: 'Trị giá đơn hàng ĐẦY ĐỦ của hạng mục, kể cả phần đã nhập kho (vd P021 thường đã nhập phần lớn)' },
 ];
-// Nhóm công đoạn — cùng tên / màu với thẻ BOP ở trang tổng quan công trình
-const BOP_GROUP: Record<RemainBucket, { label: string; dot: string }> = {
-  notDeployed: { label: 'Chưa triển khai', dot: 'bg-slate-400' },
-  p002: { label: 'Chưa tính phiếu', dot: 'bg-sky-400' },
-  onLine: { label: 'Đang trên chuyền', dot: 'bg-amber-400' },
-  shortfall: { label: 'Nhập kho chưa đủ', dot: 'bg-violet-400' },
-};
+// Nhóm công đoạn (BOP_GROUP), Kho, khoCua / laKho, pivot: core/bopPivot.ts (dùng chung với bảng công trình trang Tổng quan)
 
 // Thời gian ở công đoạn hiện tại — cùng nhóm với biểu đồ điểm nghẽn (utils/productionMetrics.dwellBucket)
 // Màu theo thứ tự thời gian (càng lâu càng đỏ): xanh đậm → xanh nhạt → vàng → cam → đỏ; trước xen xanh dương và
@@ -579,15 +576,6 @@ const sapXuong = (a: string, b: string) => (a === NO_XUONG ? 1 : b === NO_XUONG 
 type DongGop = { cells: Record<string, number>; total: number; n: number };
 /** Dòng nhóm sản phẩm của bảng BOT / BOP: tổng + tách theo xưởng (mở ▸ để xem) */
 type DongNsp = DongGop & { xs: Map<string, DongGop> };
-/** Kho lũy kế: đã nhập (P022), đã xuất (P025), tồn kho hiện tại, chênh = nhập − xuất − tồn (không rõ đi đâu) */
-type Kho = { nk: number; xk: number; ton: number; chenh: number };
-/** Số kho của 1 hạng mục: xuất chặn ≤ nhập; tồn = cột tồn kho hiện tại chặn ≤ nhập − xuất (không có cột => nhập − xuất) */
-const khoCua = (i: HexInfo): Kho => {
-  const nk = Math.max(i.inv, 0);
-  const xk = Math.min(i.xuat ?? 0, nk);
-  const ton = Math.min(i.tonKho ?? nk - xk, nk - xk);
-  return { nk, xk, ton, chenh: nk - xk - ton };
-};
 const congDong = (m: Map<string, DongNsp>, nsp: string, xuong: string, cot: string, v: number) => {
   const d: DongNsp = m.get(nsp) ?? { cells: {}, total: 0, n: 0, xs: new Map() };
   d.cells[cot] = (d.cells[cot] ?? 0) + v; d.total += v; d.n++;
@@ -604,7 +592,6 @@ const NutMoTatCa = ({ onMo, onThu }: { onMo: () => void; onThu: () => void }) =>
 );
 // Ô đang chọn ở bảng Nhóm sản phẩm × Công đoạn (thiếu khoá = mọi giá trị)
 type BopSel = { stage?: string; nsp?: string; xuong?: string; kho?: KhoCot } | null;
-type KhoCot = 'nk' | 'xk' | 'ton' | 'chenh';
 // Lọc từ biểu đồ thời gian ở công đoạn (cộng thêm vào lọc của bảng)
 type DwellSel = { stage: string; dwell: string } | null;
 
@@ -703,82 +690,30 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
   };
   // Bảng Nhóm sản phẩm × Công đoạn: đếm = hạng mục còn theo dõi; giá trị = mọi hạng mục còn giá trị chưa nhập (kể cả
   // đã nhập đủ SL mà lệch tiền) — để tổng tiền khớp thẻ BOP
-  const pivotItems = useMemo(() => (metric === 'count' ? open : items.filter(i => i.open || i.remain > 0)), [items, open, metric]);
-  const val = (i: HexInfo) => (metric === 'count' ? 1 : metric === 'remain' ? i.remain : i.total);
+  const pivotItems = useMemo(() => mucCongDoan(items, metric), [items, metric]);
   // Dưới 5 triệu làm tròn ra "0.00" tỷ dễ hiểu nhầm là 0 => ghi "<0.01"
-  const fmtV = (v: number) => (metric === 'count' ? fmtInt(v) : !v ? '-' : Math.abs(v) < 5 ? '<0.01' : fmtTy(v));
+  const fmtV = (v: number) => fmtGiaTriBop(v, metric);
   const nspOf = (i: HexInfo) => i.nhomSp || NO_NSP;
-  const stageOf = (i: HexInfo) => i.stage ?? '(Không rõ)';
+  const stageOf = stageOfBop;
 
-  // Theo giá trị: hạng mục có số > 0 ở cột đó. Theo số hạng mục: mỗi hạng mục có nhập rơi vào ĐÚNG 1 cột để
-  // Đã nhập = Đã xuất + Tồn kho + Chênh: còn hàng => Tồn kho; hết hàng mà xuất đủ => Đã xuất; còn lại => Chênh
-  const laKho = (i: HexInfo, f: KhoCot) => {
-    const k = khoCua(i);
-    if (k.nk <= 0) return false;
-    if (f === 'nk') return true;
-    if (metric !== 'count') return k[f] > 0;
-    // Dưới 10.000đ (0,01 triệu) coi như 0 — sai số làm tròn của nguồn
-    const conTon = k.ton >= 0.01, coChenh = k.chenh >= 0.01;
-    if (f === 'ton') return conTon;
-    if (f === 'xk') return !conTon && !coChenh;
-    return !conTon && coChenh;
-  };
+  // Hạng mục làm nên số ở cột Kho (core/bopPivot.laKho)
+  const laKho = (i: HexInfo, f: KhoCot) => laKhoBop(i, f, metric);
 
   const pivot = useMemo(() => {
-    // Cột: công đoạn theo thứ tự P, gom dưới nhóm của thẻ BOP (Chưa triển khai / Chưa tính phiếu / Đang trên chuyền / Nhập kho chưa đủ)
-    const stageBucket = new Map<string, RemainBucket | null>();
+    // Khoá dòng: nhóm sản phẩm, và nhóm sản phẩm + xưởng (dòng con mở ▸)
+    const p = tinhPivotBop(items, khoItems, metric, i => [nspOf(i), `${nspOf(i)}\u0000${xuongOf(i)}`]);
     const rowsM = new Map<string, DongNsp>();
-    const colTot: Record<string, number> = {};
-    const colN: Record<string, number> = {};
-    let grand = 0;
-    for (const i of pivotItems) {
-      const v = val(i), st = stageOf(i);
-      if (!stageBucket.has(st)) stageBucket.set(st, i.bucket);
-      congDong(rowsM, nspOf(i), xuongOf(i), st, v);
-      colTot[st] = (colTot[st] ?? 0) + v; colN[st] = (colN[st] ?? 0) + 1;
-      grand += v;
-    }
-    // Luôn đủ cột P001 → P021 (công đoạn trống vẫn hiện "-"); P022 / P025 chỉ thành cột công đoạn khi còn hạng mục
-    // nhập kho chưa đủ ở đó; công đoạn lạ xếp cuối
-    const coDinh = BOP_STAGE_ORDER.filter(st => st !== 'P022' && st !== 'P025') as string[];
-    const nhomMacDinh = (st: string): RemainBucket => (st === 'P001' ? 'notDeployed' : st === 'P002' ? 'p002' : 'onLine');
-    coDinh.forEach(st => { if (!stageBucket.has(st)) stageBucket.set(st, nhomMacDinh(st)); });
-    const stages = [...stageBucket.keys()].sort((x, y) => stageRank(x) - stageRank(y) || x.localeCompare(y));
-    // Dải nhóm trên đầu cột: các công đoạn liền nhau cùng nhóm gộp 1 ô
-    const groups: { bucket: RemainBucket | null; stages: string[] }[] = [];
-    for (const st of stages) {
-      const bk = stageBucket.get(st) ?? null;
-      const last = groups[groups.length - 1];
-      if (last && last.bucket === bk) last.stages.push(st); else groups.push({ bucket: bk, stages: [st] });
-    }
-    // Kho (lũy kế, mọi hạng mục không hủy kể cả đã xong): P022 đã nhập − P025 đã xuất = tồn kho.
-    // Xuất chặn ≤ nhập từng hạng mục để tồn không âm. Số hạng mục: đếm hạng mục có giá trị ở cột đó.
-    const kho = new Map<string, Kho>();
-    const khoTot: Kho = { nk: 0, xk: 0, ton: 0, chenh: 0 };
-    const cong = (e: Kho, v: Kho) => { e.nk += v.nk; e.xk += v.xk; e.ton += v.ton; e.chenh += v.chenh; };
-    const congKho = (k: string, v: Kho) => {
-      const e = kho.get(k) ?? { nk: 0, xk: 0, ton: 0, chenh: 0 };
-      cong(e, v); kho.set(k, e);
-    };
-    for (const i of khoItems) {
-      const v: Kho = metric === 'count'
-        ? { nk: laKho(i, 'nk') ? 1 : 0, xk: laKho(i, 'xk') ? 1 : 0, ton: laKho(i, 'ton') ? 1 : 0, chenh: laKho(i, 'chenh') ? 1 : 0 }
-        : khoCua(i);
-      if (!v.nk) continue;
-      const nsp = nspOf(i), x = xuongOf(i);
-      congKho(nsp, v); congKho(`${nsp}\u0000${x}`, v);
-      cong(khoTot, v);
-      // Nhóm / xưởng chỉ có hàng đã xong vẫn hiện dòng (cột công đoạn trống)
-      const d: DongNsp = rowsM.get(nsp) ?? { cells: {}, total: 0, n: 0, xs: new Map() };
-      if (!d.xs.has(x)) d.xs.set(x, { cells: {}, total: 0, n: 0 });
-      rowsM.set(nsp, d);
+    for (const [k, d] of p.dong) {
+      const [nsp, x] = k.split('\u0000');
+      const r: DongNsp = rowsM.get(nsp) ?? { cells: {}, total: 0, n: 0, xs: new Map() };
+      if (x === undefined) Object.assign(r, d); else r.xs.set(x, d);
+      rowsM.set(nsp, r);
     }
     const rows = [...rowsM.entries()]
       .map(([nsp, r]) => ({ nsp, ...r, xs: [...r.xs.entries()].sort((a, b) => sapXuong(a[0], b[0])) }))
       .sort((x, y) => (x.nsp === NO_NSP ? 1 : y.nsp === NO_NSP ? -1 : x.nsp.localeCompare(y.nsp, 'vi', { numeric: true })));
-    return { stages, groups, rows, colTot, colN, grand, kho, khoTot };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pivotItems, khoItems, metric]);
+    return { stages: p.stages, groups: p.groups, rows, colTot: p.colTot, colN: p.colN, grand: p.grand, kho: p.kho, khoTot: p.khoTot };
+  }, [items, khoItems, metric]);
   // Bấm ô kho => lọc danh sách đúng các hạng mục làm nên số đó
   const khoCells = (k: Kho | undefined, base: { nsp?: string; xuong?: string }, cls = '') => (['nk', 'xk', 'ton', 'chenh'] as const).map((f, idx) => {
     const next = { ...base, kho: f };
@@ -926,7 +861,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
                     <button type="button" onClick={() => pick({ stage: st })}
                       title={`${g.bucket ? BOP_GROUP[g.bucket].label : 'Khác'} · lọc danh sách: mọi hạng mục ở ${st} (${fmtInt(pivot.colN[st] ?? 0)} hạng mục)`}
                       className={`rounded px-1 font-semibold hover:bg-amber-50 hover:text-slate-900 ${isSel({ stage: st }) ? 'bg-amber-100 text-slate-900' : 'text-slate-700'}`}>
-                      {st === 'P022' || st === 'P025' ? `${st} chưa đủ` : st}
+                      {tenCotCongDoan(st)}
                     </button>
                   </th>
                 )))}

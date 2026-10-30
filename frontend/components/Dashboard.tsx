@@ -369,7 +369,7 @@ const {
   bottleneckViewMode, setBottleneckViewMode,
 
   cardMetrics,
-  projectStatusSummary,
+  bangCongTrinh,
   pivotWorkshopData,
   pivotFunnelData,
   customFunnelData,
@@ -901,7 +901,7 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
             {tabDuoi === 'ct' && (<>
           <ProjectSummarySection
      sectionRef={null}
-     projectStatusSummary={projectStatusSummary}
+     bangCongTrinh={bangCongTrinh}
      projectSummaryMetric={projectSummaryMetric}
      setProjectSummaryMetric={setProjectSummaryMetric}
    />

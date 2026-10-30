@@ -85,6 +85,12 @@ export interface TheoDoiHangMuc {
   choKhai: Array<{ thanhPhan: string; xuong: string }>;
   ngoaiTuyen: TheoDoiCongDoan[];
   slXong: number; xong: boolean; dangLam: number; tamNgung: number; choNhan: number;
+  /** Các đợt triển khai còn hiệu lực, mới trước; huyDuoc = người xem là admin / quản lý xưởng chính của đợt */
+  dotTrienKhai?: DotTrienKhai[];
+}
+export interface DotTrienKhai {
+  id: string; luc: string; nguoi: string | null; soLuong: number; xuongChinh: string | null;
+  thanhPhan: Array<{ ten: string; xuong: string }>; huyDuoc: boolean;
 }
 /** QT2 — thành phần xưởng chính giao cho xưởng này, chờ khai CĐ chi tiết */
 export interface ChoKhaiChiTiet {
@@ -201,6 +207,28 @@ export interface BaoCaoXuong {
   hangMuc: BaoCaoHangMuc[];
   /** Chấm công theo người (chỉ khi tổ đã điểm danh / khai tên) */
   theoNguoi?: BaoCaoNguoi[];
+  /** So khớp trạm: tổ chạy song song có số trạm trong kỳ (rỗng = không có) */
+  soKhopTram?: SoKhopTramTo[];
+}
+/** Bấm tay (chính thức) so với sổ trạm; chenh = tram − chinhThuc, phanTram = chenh / chinhThuc (null khi chính thức = 0) */
+export interface SoSanhTram { chinhThuc: number; tram: number; chenh: number; phanTram: number | null; lon: boolean }
+export interface SoKhopTramNgay {
+  ngay: string; gioCong: SoSanhTram; gioCongSp: SoSanhTram;
+  soNguoi: { chinhThuc: number; tram: number };
+  /** Trạm không ghi được gì cả ngày */
+  khongCoTram: boolean;
+  /** Khoảng > 2 tháng: rỗng */
+  theoNguoi: Array<{
+    mnv: string; hoTen: string | null;
+    /** ms; null = không có */
+    vao: { chinhThuc: number | null; tram: number | null }; ra: { chinhThuc: number | null; tram: number | null };
+    gioCong: SoSanhTram; gioCongSp: SoSanhTram;
+  }>;
+}
+export interface SoKhopTramTo {
+  toId: number; ten: string; gioCong: SoSanhTram; gioCongSp: SoSanhTram; soNgay: number; soNgayLon: number;
+  /** Mới nhất trước */
+  theoNgay: SoKhopTramNgay[];
 }
 export interface BaoCaoNguoiNgay {
   ngay: string; toId: number; tenTo: string;
@@ -290,8 +318,10 @@ export const xuongSetupApi = {
   boLichCa: (xuong: string, loaiCa: LoaiCa) => goi<unknown>('DELETE', '/api/xuong/setup/lich-ca', { xuong, loaiCa }),
   quanLy: (userId: number, xuong: string, bo = false) => goi<unknown>('POST', '/api/xuong/setup/quan-ly', { userId, xuong, bo }),
   timNguoi: (s: string) => goi<{ ketQua: NguoiDung[] }>('GET', `/api/xuong/setup/nguoi-dung?${q({ q: s })}`),
-  tongQuan: (xuong?: string) => goi<{ dsXuong: string[]; xuong: string | null; to: TongQuanTo[] }>('GET', `/api/xuong/tong-quan?${q({ xuong })}`),
-  canXem: (xuong: string) => goi<{ suKien: Array<Record<string, unknown>>; trangThai: Array<Record<string, unknown>> }>('GET', `/api/xuong/can-xem?${q({ xuong })}`),
+  /** canXem = số thao tác cần xử lý cả xưởng (đúng số dòng danh sách Cần xem ở bộ lọc mặc định); null = không mở được danh sách */
+  tongQuan: (xuong?: string) => goi<{ dsXuong: string[]; xuong: string | null; canXem?: number | null; to: TongQuanTo[] }>('GET', `/api/xuong/tong-quan?${q({ xuong })}`),
+  /** suKien[].can_xu_ly do máy chủ tính (server/xuong/canXem.ts); soCanXuLy / soChiDeBiet = tổng thật (danh sách giữ 300 dòng mỗi nhóm) */
+  canXem: (xuong: string) => goi<{ suKien: Array<Record<string, unknown>>; trangThai: Array<Record<string, unknown>>; soCanXuLy?: number; soChiDeBiet?: number }>('GET', `/api/xuong/can-xem?${q({ xuong })}`),
   huy: (suKienId: string, lyDo?: string) => goi<unknown>('POST', '/api/xuong/huy', { suKienId, lyDo }),
   hex: (hex: string) => goi<ChiTietHex>('GET', `/api/xuong/hex/${encodeURIComponent(hex)}`),
   tomTat: (hexes: string[]) => goi<{ tomTat: Record<string, TomTatHex> }>('POST', '/api/xuong/hex-tom-tat', { hexes }),
@@ -308,6 +338,8 @@ export const xuongSetupApi = {
     goi<KeHoachTuan>('GET', `/api/xuong/ke-hoach-tuan?${q({ xuong, nam: String(nam), tuan: String(tuan) })}`),
   trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; thanhPhan: ThanhPhanTrienKhai[] }>) =>
     goi<{ soHangMuc: number }>('POST', '/api/xuong/trien-khai', { xuong, items }),
+  /** Huỷ một đợt triển khai (trien_khai + khai_bao_cd của đợt); máy chủ chặn khi tổ đã nhận hàng của đợt */
+  huyTrienKhai: (trienKhaiId: string, lyDo?: string) => goi<{ soSuKien: number }>('POST', '/api/xuong/trien-khai/huy', { trienKhaiId, lyDo }),
   theoDoiTrienKhai: (xuong: string, ngay: number) =>
     goi<{ xuong: string; hangMuc: TheoDoiHangMuc[] }>('GET', `/api/xuong/theo-doi-trien-khai?${q({ xuong, ngay: String(ngay), tatCa: '1' })}`),
   dsKhaiChiTiet: (xuong: string) => goi<{ xuong: string; cho: ChoKhaiChiTiet[]; congDoan: CongDoanTk[] }>('GET', `/api/xuong/khai-chi-tiet?${q({ xuong })}`),

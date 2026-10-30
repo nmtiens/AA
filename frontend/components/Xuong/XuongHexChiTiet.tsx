@@ -82,17 +82,20 @@ function AnhXuong({ id, nhan }: { id: string; nhan: string }) {
 export default function XuongHexChiTiet({ hex, ten }: { hex: string; ten?: (cdId: string) => string | null }) {
   const [d, setD] = useState<ChiTietHex | null>(null);
   const [loi, setLoi] = useState('');
+  // 403: hạng mục ngoài xưởng / tổ mình phụ trách — báo nhẹ (không phải lỗi hệ thống)
+  const [khongQuyen, setKhongQuyen] = useState(false);
   const [dang, setDang] = useState(true);
   const tai = () => {
-    setDang(true); setLoi('');
+    setDang(true); setLoi(''); setKhongQuyen(false);
     xuongSetupApi.hex(hex).then(r => {
-      if (r.ok) setD(r.data); else setLoi(r.message);
+      if (r.ok) setD(r.data); else { setLoi(r.message); setKhongQuyen(r.status === 403); }
       setDang(false);
     });
   };
   useEffect(tai, [hex]);
 
   if (dang && !d) return <div className="flex items-center gap-2 p-4 text-sm text-slate-500"><RefreshCw size={14} className="animate-spin" aria-hidden /> Đang tải dữ liệu xưởng…</div>;
+  if (loi && khongQuyen) return <p className="m-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700" role="status">{loi}</p>;
   if (loi) return <p className="m-3 rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{loi}</p>;
   if (!d) return null;
   if (!d.congDoan.length && !d.suKien.length) {
