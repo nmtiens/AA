@@ -23,6 +23,7 @@ export interface HexInfo {
   status: string;              // cột Tình trạng (tinh_trang)
   area: string;                // khu vực sản xuất (xuong_chinh)
   nhomSp?: string;             // nhóm phân loại sản phẩm (phan_loai_nhom_san_pham)
+  ipo?: string;                // tình trạng IPO (tinh_trang_ipo) — ô lọc của bảng KHNK tab BOT
   dwell: string | null;        // thời gian ở công đoạn hiện tại (so_ngay_cd_hien_tai)
   bucket: RemainBucket | null; // nhóm của phần GIÁ TRỊ còn lại (null = không còn giá trị chưa nhập)
   /** Còn phải theo dõi (đếm / tính hạn): chưa nhập đủ giá trị và chưa nhập đủ số lượng, hoặc trị giá 0 */

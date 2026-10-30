@@ -9,7 +9,12 @@ import type { DongTonKhoVt, TongHopTonKhoVt } from '../../../services/tonKhoVtAp
 
 export type MocXem = 'tuan' | 'thang';
 export type ChiSo = 'giaTri' | 'soMa';
-export type KhoangXem = '3t' | '6t' | 'tat_ca';
+/** '3t' / '6t' gần nhất, 'tat_ca', hoặc 1 năm ('nam2026'): năm chưa có tồn (năm tới) => chỉ lần chốt mới nhất làm điểm nối
+ *  cho dự báo của năm đó */
+export type KhoangXem = '3t' | '6t' | 'tat_ca' | `nam${number}`;
+
+/** Năm của lựa chọn khoảng 'namYYYY'; khác => null */
+export const namCuaKhoang = (k: KhoangXem): number | null => (/^nam\d{4}$/.test(k) ? Number(k.slice(3)) : null);
 
 /** Số gốc của 1 nhóm tại 1 lần chốt (cả 2 chỉ số — để tooltip / Excel hiện thêm chỉ số còn lại) */
 export interface SoGoc { giaTri: number; giaTriCham: number; soMa: number; soMaCham: number }
@@ -104,6 +109,12 @@ export const khoangTheoLuaChon = (
   ngayMoiNhat: string | null | undefined, khoang: KhoangXem, moc: MocXem,
 ): { tu: string | null; den: string | null } => {
   if (!ngayMoiNhat || !laNgay(ngayMoiNhat) || khoang === 'tat_ca') return { tu: null, den: null };
+  const nam = namCuaKhoang(khoang);
+  if (nam !== null) {
+    // Năm chưa có lần chốt nào (năm tới): giữ lần chốt mới nhất làm điểm nối cho đường dự báo
+    if (ngayMoiNhat < `${nam}-01-01`) return { tu: moc === 'thang' ? `${ngayMoiNhat.slice(0, 7)}-01` : ngayMoiNhat, den: ngayMoiNhat };
+    return { tu: `${nam}-01-01`, den: `${nam}-12-31` };
+  }
   const soThang = khoang === '3t' ? 3 : 6;
   if (moc === 'thang') return { tu: `${congThang(ngayMoiNhat, -(soThang - 1)).slice(0, 7)}-01`, den: ngayMoiNhat };
   return { tu: congNgay(congThang(ngayMoiNhat, -soThang), 1), den: ngayMoiNhat };
@@ -331,6 +342,151 @@ export const vachTheoSoKhoang = (max: number, soKhoang: number): { vach: number[
   return { vach: Array.from({ length: n + 1 }, (_, i) => Math.round(i * buoc * 1e6) / 1e6), soLe };
 };
 
+/** 'YYYY-MM' cộng k tháng (k âm = lùi) */
+export const congThangKhoa = (t: string, k: number): string => {
+  const [y, m] = t.split('-').map(Number);
+  const tong = y * 12 + (m - 1) + k;
+  return `${Math.floor(tong / 12)}-${String((tong % 12) + 1).padStart(2, '0')}`;
+};
+
+// ---------------------------------------------------------------------------
+// DỰ BÁO TỒN KHO THEO KẾ HOẠCH DOANH THU (người dùng yêu cầu 28/10/2026)
+//   Doanh thu tháng = doanh số cần đạt (doanhSoCanDat.ts, TỶ) — người dùng chốt 29/10/2026; trang truyền thucTe = keHoach
+//   nên tỷ lệ đạt = 1 (các hàm vẫn nhận được thực tế khác kế hoạch nếu sau này cần).
+//   Tồn tháng tới = tồn hiện tại × (DT bình quân 3 tháng của tháng tới ÷ của tháng hiện tại) ^ HE_SO_CO_GIAN.
+//   Sai số = kiểm lại trên các tháng đã qua (đứng ở mỗi tháng, chỉ dùng số có trước đó) — hiện thành dải ± quanh dự báo.
+// ---------------------------------------------------------------------------
+
+/**
+ * Tồn đổi bằng bấy nhiêu phần mức đổi (%) của doanh thu bình quân 3 tháng. Kiểm lại 2–10/2026 ở mức toàn kho: 0,5 sát
+ * nhất (trước 2 tháng sai ±3,7 tỷ; giữ nguyên tồn ±8,8 tỷ); giữ tỷ lệ 1:1 sai gấp đôi — tồn tăng chậm hơn doanh thu.
+ */
+export const HE_SO_CO_GIAN = 0.5;
+
+/** Tỷ lệ rộng : cao của ảnh chụp biểu đồ tồn / biểu đồ doanh thu lúc xuất PDF (cùng bề rộng chụp => đặt cùng bề rộng
+ *  trong PDF là các tháng thẳng hàng) */
+export const TY_LE_ANH_TON = 2.7;
+export const TY_LE_ANH_DT = 8;
+
+/** Doanh thu thực tế + kế hoạch theo tháng (TỶ, khoá 'YYYY-MM') */
+export interface DoanhThuKeHoach { thucTe: Record<string, number>; keHoach: Record<string, number> }
+
+/** Tỷ lệ đạt kế hoạch = Σ thực tế ÷ Σ kế hoạch của 3 tháng đã hết gần nhất trước `thangHienTai`; thiếu số => null */
+export function tyLeDatKeHoach(dt: DoanhThuKeHoach, thangHienTai: string): number | null {
+  const ds = [-3, -2, -1].map(k => congThangKhoa(thangHienTai, k));
+  if (ds.some(t => dt.thucTe[t] === undefined || !(dt.keHoach[t] > 0))) return null;
+  return ds.reduce((s, t) => s + dt.thucTe[t], 0) / ds.reduce((s, t) => s + dt.keHoach[t], 0);
+}
+
+/** Doanh thu tháng t nhìn từ `thangHienTai`: tháng đã hết = thực tế; tháng đang chạy / sau đó = kế hoạch × tỷ lệ đạt */
+export function doanhThuDung(t: string, dt: DoanhThuKeHoach, thangHienTai: string, tyLe: number): number | undefined {
+  if (t < thangHienTai) return dt.thucTe[t];
+  return dt.keHoach[t] !== undefined ? dt.keHoach[t] * tyLe : undefined;
+}
+
+const dtBq3 = (t: string, dt: DoanhThuKeHoach, thangHienTai: string, tyLe: number): number | null => {
+  const v = [-2, -1, 0].map(k => doanhThuDung(congThangKhoa(t, k), dt, thangHienTai, tyLe));
+  return v.some(x => x === undefined) ? null : v.reduce((s: number, x) => s + (x ?? 0), 0) / 3;
+};
+
+/** Dự báo tồn tháng (ds[i] + h tháng), đứng ở `thangHienTai`; ds theo THÁNG (khoá 'YYYY-MM'), tong theo giá trị */
+function duBaoMot(ds: DiemChuoi[], i: number, h: number, dt: DoanhThuKeHoach, thangHienTai: string): number | null {
+  const tyLe = tyLeDatKeHoach(dt, thangHienTai);
+  if (tyLe === null) return null;
+  const r0 = dtBq3(ds[i].khoa, dt, thangHienTai, tyLe), r1 = dtBq3(congThangKhoa(ds[i].khoa, h), dt, thangHienTai, tyLe);
+  if (!r0 || !r1) return null;
+  return ds[i].tong * (r1 / r0) ** HE_SO_CO_GIAN;
+}
+
+export interface DiemDuBao {
+  khoa: string;
+  nhan: string;
+  /** Tháng tới thứ h (1 = tháng sau tháng có tồn mới nhất) */
+  h: number;
+  ton: number;
+  /** Dải sai số thường gặp (tồn ± sai số kiểm lại tầm h); null khi chưa có lần kiểm nào */
+  thap: number | null;
+  cao: number | null;
+  keHoach: number;
+  dtDuKien: number;
+}
+
+/** Số lần kiểm lại tối thiểu của 1 tầm dự báo (h tháng) để còn vẽ tháng đó — ít hơn thì dải sai số không đáng tin */
+export const SO_LAN_KIEM_TOI_THIEU = 3;
+
+/** Dự báo tối đa bấy nhiêu tháng (dừng ở tháng chưa có doanh số) — đủ tới hết năm 2027 của doanh số cần đạt */
+export const SO_THANG_DU_BAO_TOI_DA = 26;
+
+/** Các tháng dự báo đáng ghi số: 2 tháng đầu, tháng 6 / tháng 12 và tháng cuối (ghi hết 14+ tháng thì rối) */
+export const diemTieuBieu = (d: DuBaoTon): DiemDuBao[] =>
+  d.diem.filter((x, i) => x.h <= 2 || x.khoa.endsWith('-06') || x.khoa.endsWith('-12') || i === d.diem.length - 1);
+
+/** Dự báo chỉ giữ các tháng trong [tuThang, denThang] ('YYYY-MM'; null = không chặn đầu đó) */
+export const catDuBao = (d: DuBaoTon | null, denThang: string | null, tuThang: string | null = null): DuBaoTon | null =>
+  (d && (denThang || tuThang) ? { ...d, diem: d.diem.filter(x => (!denThang || x.khoa <= denThang) && (!tuThang || x.khoa >= tuThang)) } : d);
+
+export interface DuBaoTon {
+  /** Tỷ lệ đạt kế hoạch dùng cho tháng đang chạy / tháng tới, và 3 tháng tính tỷ lệ đó */
+  tyLeDat: number;
+  tyLeTu: string;
+  tyLeDen: string;
+  diem: DiemDuBao[];
+  /** Kiểm lại theo tầm h = 1, 2…: sai trung bình của cách này và của "giữ nguyên tồn" (cùng đơn vị tồn), số lần kiểm */
+  saiSo: Array<number | null>;
+  saiSoGiuNguyen: Array<number | null>;
+  soLanKiem: number[];
+}
+
+/**
+ * Dự báo tồn cho tối đa `soThang` tháng sau tháng có tồn mới nhất (dừng ở tháng chưa có kế hoạch).
+ * ds: chuỗi THEO THÁNG, chỉ số GIÁ TRỊ (tong = triệu đồng), đủ các tháng (không lọc khoảng) để kiểm lại được nhiều lần.
+ */
+export function duBaoTonTheoDoanhThu(ds: DiemChuoi[], dt: DoanhThuKeHoach, thangHienTai: string, soThang = 2): DuBaoTon | null {
+  const n = ds.length;
+  if (!n) return null;
+  const tyLe = tyLeDatKeHoach(dt, thangHienTai);
+  if (tyLe === null) return null;
+  const saiSo: Array<number | null> = [], saiSoGiuNguyen: Array<number | null> = [], soLanKiem: number[] = [];
+  for (let h = 1; h <= soThang; h++) {
+    let tong = 0, tong0 = 0, dem = 0;
+    // Đứng ở tháng ds[i] (coi tháng đó đã hết: tháng hiện tại lúc đó = tháng sau nó), dự báo h tháng sau
+    for (let i = 0; i + h < n; i++) {
+      const p = duBaoMot(ds, i, h, dt, congThangKhoa(ds[i].khoa, 1));
+      if (p === null || congThangKhoa(ds[i].khoa, h) !== ds[i + h].khoa) continue;
+      tong += Math.abs(p - ds[i + h].tong);
+      tong0 += Math.abs(ds[i].tong - ds[i + h].tong);
+      dem++;
+    }
+    saiSo.push(dem ? tong / dem : null);
+    saiSoGiuNguyen.push(dem ? tong0 / dem : null);
+    soLanKiem.push(dem);
+  }
+  const goc = ds[n - 1];
+  const diem: DiemDuBao[] = [];
+  let sTruoc = 0;
+  for (let h = 1; h <= soThang; h++) {
+    const khoa = congThangKhoa(goc.khoa, h);
+    if (dt.keHoach[khoa] === undefined) break;
+    // Chỉ dự báo tới tầm còn kiểm lại được ≥ SO_LAN_KIEM_TOI_THIEU lần: xa hơn thì không biết sai bao nhiêu
+    // (trước vẽ tiếp đường dự báo không có dải tới 14+ tháng, dải tự hẹp lại do chỉ còn 1–2 lần kiểm)
+    if (h > 1 && soLanKiem[h - 1] < SO_LAN_KIEM_TOI_THIEU) break;
+    const ton = duBaoMot(ds, n - 1, h, dt, thangHienTai);
+    if (ton === null) break;
+    // Dải không hẹp lại khi dự báo xa hơn (xa hơn thì chỉ có thể sai nhiều hơn)
+    const s0 = saiSo[h - 1];
+    const s = s0 === null ? null : Math.max(s0, sTruoc);
+    if (s !== null) sTruoc = s;
+    diem.push({
+      khoa, nhan: nhanThang(khoa), h, ton, thap: s === null ? null : Math.max(0, ton - s), cao: s === null ? null : ton + s,
+      keHoach: dt.keHoach[khoa], dtDuKien: dt.keHoach[khoa] * tyLe,
+    });
+  }
+  return {
+    tyLeDat: tyLe, tyLeTu: congThangKhoa(thangHienTai, -3), tyLeDen: congThangKhoa(thangHienTai, -1), diem,
+    saiSo, saiSoGiuNguyen, soLanKiem,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Định dạng số (kiểu số của app: 1,234.56 — giống formatTy ở utils/money.ts)
 // ---------------------------------------------------------------------------
@@ -439,9 +595,18 @@ export interface XuHuong {
   moiDiem: number;
   /** % thay đổi cả khoảng theo đường xu hướng (điểm cuối so điểm đầu của đường); null khi điểm đầu ≤ 0 */
   ptCaKhoang: number | null;
-  /** 'tang' / 'giam'; 'ngang' khi cả khoảng đổi dưới 2% so với mức trung bình */
-  huong: 'tang' | 'giam' | 'ngang';
+  /** Phần dao động của tổng tồn mà đường thẳng giải thích được (R², 0–1) */
+  r2: number;
+  /**
+   * 'tang' / 'giam' khi có xu hướng rõ; 'ngang' khi cả khoảng đổi dưới 2% so với mức trung bình; 'khongRo' khi đường
+   * thẳng giải thích dưới NGUONG_R2_XU_HUONG dao động (tồn lên xuống thất thường — vd Tấm – Ván R² 0,19: không nói
+   * "tăng" chỉ vì độ dốc hơi dương)
+   */
+  huong: 'tang' | 'giam' | 'ngang' | 'khongRo';
 }
+
+/** Xu hướng chỉ coi là rõ khi đường thẳng giải thích được ít nhất bấy nhiêu phần dao động (người dùng chốt 50%) */
+export const NGUONG_R2_XU_HUONG = 0.5;
 
 /**
  * Đường xu hướng tăng / giảm: đường thẳng hồi quy tuyến tính (bình phương nhỏ nhất) của tổng tồn theo thứ tự điểm —
@@ -458,8 +623,12 @@ export const xuHuongTong = (ds: DiemChuoi[]): XuHuong | null => {
   const giaTri = ds.map((_, i) => tbY + b * (i - tbX));
   const dau = giaTri[0], cuoi = giaTri[n - 1];
   const doiCaKhoang = cuoi - dau;
-  const huong = tbY > 0 && Math.abs(doiCaKhoang) / tbY < 0.02 ? 'ngang' : doiCaKhoang > 0 ? 'tang' : doiCaKhoang < 0 ? 'giam' : 'ngang';
-  return { giaTri, moiDiem: b, ptCaKhoang: dau > 0 ? (doiCaKhoang / dau) * 100 : null, huong };
+  let sst = 0, ssr = 0;
+  ds.forEach((d, i) => { sst += (d.tong - tbY) ** 2; ssr += (d.tong - giaTri[i]) ** 2; });
+  const r2 = sst > 0 ? Math.max(0, 1 - ssr / sst) : 1;
+  const huong: XuHuong['huong'] = (tbY > 0 && Math.abs(doiCaKhoang) / tbY < 0.02) || doiCaKhoang === 0 ? 'ngang'
+    : r2 < NGUONG_R2_XU_HUONG ? 'khongRo' : doiCaKhoang > 0 ? 'tang' : 'giam';
+  return { giaTri, moiDiem: b, ptCaKhoang: dau > 0 ? (doiCaKhoang / dau) * 100 : null, r2, huong };
 };
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,8 @@ import type {
   Column, Content, ContentTable, DynamicContent, TableCell, TCreatedPdf, TDocumentDefinitions, TFontDictionary, TVirtualFileSystem,
 } from 'pdfmake/interfaces';
 import {
-  dinhDangChenh, dinhDangChiSo, dinhDangPt, dinhDangSo, nhanNgay, tenNhomGon, tomTatNhom, trungBinhTong, xuHuongTong,
+  dinhDangChenh, dinhDangChiSo, dinhDangPt, dinhDangSo, nhanNgay, tenNhomGon, tomTatNhom,
+  trungBinhTong, xuHuongTong, TY_LE_ANH_TON, diemTieuBieu, type DoanhThuKeHoach, type DuBaoTon,
   type ChiSo, type ChuoiNhom, type DiemChuoi, type MocXem, type O, type TongCacNhom, type XuHuong,
 } from './xuLy';
 
@@ -58,6 +59,7 @@ const donViKy = (moc: MocXem) => (moc === 'tuan' ? 'tuần' : 'tháng');
 export const chuXuHuong = (xh: XuHuong | null, chiSo: ChiSo, moc: MocXem): string => {
   if (!xh) return '';
   if (xh.huong === 'ngang') return 'đi ngang';
+  if (xh.huong === 'khongRo') return `không rõ (đường thẳng chỉ giải thích ${Math.round(xh.r2 * 100)}% dao động)`;
   return `${xh.huong === 'tang' ? 'tăng' : 'giảm'} ~${dinhDangChiSo(Math.abs(xh.moiDiem), chiSo)}/${donViKy(moc)}`
     + (xh.ptCaKhoang !== null ? ` (${dinhDangPt(xh.ptCaKhoang, true)} cả khoảng)` : '');
 };
@@ -87,7 +89,9 @@ export function bangBaoCaoExcel(chuoi: ChuoiNhom[], chiSo: ChiSo, moc: MocXem, n
     tCuoi += k.cuoi.tong; tDau += k.dau.tong; tCham += k.cuoi.cham; thieu = thieu || k.cuoi.thieuCham; ngay = k.cuoi.ngayChot;
     dong.push([
       k.nhom, so(k.cuoi.tong), nhanNgay(k.cuoi.ngayChot), so(k.chenhDau), pt(k.ptDau),
-      so(k.dinh.tong), k.dinh.nhan, so(k.tb), so(k.xh ? k.xh.moiDiem : null), pt(k.xh ? k.xh.ptCaKhoang : null),
+      so(k.dinh.tong), k.dinh.nhan, so(k.tb),
+      // Xu hướng không rõ (R² < 0,5): không ghi độ dốc như thể có xu hướng
+      k.xh?.huong === 'khongRo' ? 'không rõ' : so(k.xh ? k.xh.moiDiem : null), k.xh?.huong === 'khongRo' ? '' : pt(k.xh ? k.xh.ptCaKhoang : null),
       k.cuoi.thieuCham ? '' : so(k.cuoi.cham), pt(k.ptCham), k.cau,
     ]);
   }
@@ -123,11 +127,20 @@ export interface DauVaoBaoCao {
   mau: Record<string, string>;
   /** Bộ lọc tên của từng biểu đồ (nhóm => tên thoả + câu mô tả); nhóm có ở đây thì `chuoi` của nhóm là số theo bộ lọc */
   loc?: Record<string, LocBaoCao>;
-  /** Doanh thu tháng cả công ty (tỷ, khoá 'YYYY-MM') — có khi xem theo tháng: thêm dòng "Doanh thu" vào bảng từng kỳ */
-  doanhThu?: Record<string, number>;
-  /** Tháng đang chạy ('YYYY-MM'): doanh thu tạm tính, đánh dấu * */
-  thangTamTinh?: string;
+  /** Doanh thu thực tế + kế hoạch theo tháng (cả công ty, tỷ) — dòng "Doanh thu" trong bảng từng kỳ khi xem theo tháng */
+  doanhThu?: DoanhThuKeHoach;
+  /** Tháng hiện tại ('YYYY-MM', giờ VN): doanh thu tháng này chưa hết => đánh dấu * */
+  thangHienTai?: string;
+  /** Ảnh biểu đồ doanh thu từng nhóm (chụp từ trang, dưới biểu đồ tồn) */
+  anhDoanhThu?: Record<string, string | undefined>;
+  /** Dự báo tồn theo kế hoạch doanh thu từng nhóm và toàn kho (xem theo tháng, giá trị) */
+  duBao?: Record<string, DuBaoTon | null>;
+  duBaoToanKho?: DuBaoTon | null;
 }
+
+/** "T11/26 ≈ 118.69 tỷ (±4.7) · T12/26 ≈ 101.87 tỷ (±3.7)" */
+export const chuDuBao = (d: DuBaoTon): string => diemTieuBieu(d)
+  .map(x => `${x.nhan} ≈ ${dinhDangSo(x.ton / 1000, 2)} tỷ${x.cao !== null ? ` (±${dinhDangSo((x.cao - x.ton) / 1000, 1)})` : ''}`).join(' · ');
 
 /** Bộ lọc tên 1 nhóm trong báo cáo: các tên thoả + câu mô tả ("tên chứa “vải”", "3 tên đã chọn") */
 export interface LocBaoCao { ten: string[]; moTa: string }
@@ -178,15 +191,15 @@ function bangTongKet(ds: TongKetNhom[], chiSo: ChiSo, moc: MocXem, loc?: Record<
       { text: chenhCoDau(k.chenhDau, k.ptDau, chiSo), alignment: 'right', color: mauChenh(k.chenhDau) },
       { text: `${dinhDangChiSo(k.dinh.tong, chiSo)} (${k.dinh.nhan})`, alignment: 'right' },
       { text: k.tb === null ? '—' : dinhDangChiSo(k.tb, chiSo), alignment: 'right' },
-      { text: chuXuHuong(k.xh, chiSo, moc) || '—', alignment: 'right', color: k.xh ? mauChenh(k.xh.huong === 'ngang' ? 0 : k.xh.moiDiem) : XAM },
+      { text: chuXuHuong(k.xh, chiSo, moc) || '—', alignment: 'right', color: k.xh ? mauChenh(k.xh.huong === 'tang' || k.xh.huong === 'giam' ? k.xh.moiDiem : 0) : XAM },
       { text: k.cuoi.thieuCham ? 'thiếu số' : `${dinhDangChiSo(k.cuoi.cham, chiSo)} (${dinhDangPt(k.ptCham)})`, alignment: 'right' },
     ]);
   }
   return { table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'], body, dontBreakRows: true }, layout: 'lightHorizontalLines', fontSize: 8.5 };
 }
 
-/** Bảng số từng kỳ của 1 nhóm: Kỳ / Tổng tồn / Chậm LC / So kỳ trước (+ Doanh thu tháng khi có) */
-function bangKy(c: ChuoiNhom, chiSo: ChiSo, doanhThu?: Record<string, number>, thangTamTinh?: string): ContentTable {
+/** Bảng số từng kỳ của 1 nhóm: Kỳ / Tổng tồn / Chậm LC / So kỳ trước (+ Doanh thu tháng khi xem theo tháng) */
+function bangKy(c: ChuoiNhom, chiSo: ChiSo, doanhThu?: Record<string, number>): ContentTable {
   const ds = c.diem;
   const o = (t: string, phai = true, them: { bold?: boolean; fillColor?: string; color?: string } = {}): TableCell =>
     ({ text: t, alignment: phai ? 'right' : 'left', ...them });
@@ -197,23 +210,24 @@ function bangKy(c: ChuoiNhom, chiSo: ChiSo, doanhThu?: Record<string, number>, t
     [o('So kỳ trước', false), ...ds.map(d => o(d.chenh === null ? '' : dinhDangChenh(d.chenh, chiSo).replace(/ (tỷ|mã)$/, ''), true, { color: mauChenh(d.chenh) }))],
   ];
   if (doanhThu && ds.some(d => doanhThu[d.khoa] !== undefined)) {
-    body.push([o('Doanh thu (tỷ)', false, { bold: true }), ...ds.map(d => o(doanhThu[d.khoa] === undefined ? '—'
-      : `${dinhDangSo(doanhThu[d.khoa], 2)}${d.khoa === thangTamTinh ? '*' : ''}`, true, { color: '#334155' }))]);
+    body.push([o('Doanh thu', false, { bold: true }), ...ds.map(d => o(doanhThu[d.khoa] === undefined ? '—'
+      : dinhDangSo(doanhThu[d.khoa], 2), true, { color: '#334155' }))]);
   }
   return { table: { headerRows: 1, widths: ['auto', ...ds.map(() => '*' as const)], body }, layout: 'lightHorizontalLines', fontSize: 7.5 };
 }
 
-const coDoanhThu = (c: ChuoiNhom, v: DauVaoBaoCao) => v.moc === 'thang' && !!v.doanhThu && c.diem.some(d => v.doanhThu?.[d.khoa] !== undefined);
-
 function phanNhom(c: ChuoiNhom, k: TongKetNhom, v: DauVaoBaoCao): Content {
   const mau = v.mau[c.nhom] ?? '#334155';
   const anh = v.anh[c.nhom];
+  const anhDT = v.moc === 'thang' ? v.anhDoanhThu?.[c.nhom] : undefined;
+  const rongAnh = Math.min(RONG_NOI_DUNG, 250 * TY_LE_ANH_TON);
+  const duBao = v.moc === 'thang' ? v.duBao?.[c.nhom] : null;
+  const cauDuBao = duBao && duBao.diem.length ? `Dự báo tồn theo kế hoạch doanh thu: ${chuDuBao(duBao)}` : '';
   const locNhom = v.loc?.[c.nhom];
   const tenLoc = locNhom?.ten ?? [];
   const dongPhu = [
     k.tb !== null ? `Trung bình ${c.diem.length} ${v.moc === 'tuan' ? 'lần chốt' : 'tháng'}: ${dinhDangChiSo(k.tb, v.chiSo)}` : '',
     k.xh ? `Xu hướng ${chuXuHuong(k.xh, v.chiSo, v.moc)}` : '',
-    coDoanhThu(c, v) ? `Doanh thu tháng: đường điểm vuông xám đậm, trục phải (tỷ)${c.diem.some(d => d.khoa === v.thangTamTinh) ? '; * tạm tính (tháng chưa hết)' : ''}` : '',
   ].filter(Boolean).join('   ·   ');
   const noiDung: Content[] = [
     { columns: [oMau(mau), { text: tenNhomBaoCao(c.nhom, v.loc), bold: true, fontSize: 11 }], columnGap: 4 },
@@ -223,11 +237,21 @@ function phanNhom(c: ChuoiNhom, k: TongKetNhom, v: DauVaoBaoCao): Content {
       fontSize: 7.5, color: XAM, margin: [0, 2, 0, 0] as [number, number, number, number],
     }] : []),
     { text: k.cau, fontSize: 9.5, bold: true, margin: [0, 3, 0, 4] },
-    // Ảnh chụp ở tỷ lệ ~2,7:1 (trang tạm cao biểu đồ lúc xuất) => rộng hết trang ~288pt, mỗi nhóm vừa 1 trang ngang
-    anh ? { image: anh, fit: [RONG_NOI_DUNG, 300], alignment: 'center' } : { text: '(Không chụp được biểu đồ của nhóm này)', italics: true, color: XAM, fontSize: 8 },
+    // Ảnh chụp ở tỷ lệ TY_LE_ANH_TON (2,7:1) => mỗi nhóm vừa 1 trang ngang. Có biểu đồ doanh thu thì 2 ảnh cùng bề rộng
+    // (cùng bề rộng chụp, cùng lề) để cột doanh thu nằm đúng dưới điểm tồn cùng tháng
+    anh ? { image: anh, ...(anhDT ? { width: rongAnh } : { fit: [RONG_NOI_DUNG, 300] as [number, number] }), alignment: 'center' }
+      : { text: '(Không chụp được biểu đồ của nhóm này)', italics: true, color: XAM, fontSize: 8 },
   ];
+  if (cauDuBao) noiDung.push({ text: cauDuBao, fontSize: 8.5, bold: true, margin: [0, 2, 0, 0] });
+  // Biểu đồ doanh thu từng tháng (cùng trục tháng với biểu đồ tồn, kể cả tháng dự báo)
+  if (anhDT) {
+    noiDung.push({ text: 'Doanh số cần đạt từng tháng (cả công ty, tỷ): cột đậm = các tháng có tồn, cột viền = tháng dự báo', fontSize: 7.5, color: XAM, margin: [0, 3, 0, 0] });
+    noiDung.push({ image: anhDT, width: rongAnh, alignment: 'center' });
+  }
   if (dongPhu) noiDung.push({ text: dongPhu, fontSize: 8, color: XAM, margin: [0, 2, 0, 3] });
-  if (c.diem.length <= KY_TOI_DA_BANG) noiDung.push(bangKy(c, v.chiSo, v.moc === 'thang' ? v.doanhThu : undefined, v.thangTamTinh));
+  if (c.diem.length <= KY_TOI_DA_BANG) {
+    noiDung.push(bangKy(c, v.chiSo, v.moc === 'thang' ? v.doanhThu?.keHoach : undefined));
+  }
   return { stack: noiDung, unbreakable: true, margin: [0, 6, 0, 6] };
 }
 
@@ -243,8 +267,11 @@ export function dungBaoCaoPdf(v: DauVaoBaoCao): TDocumentDefinitions {
     'Tồn kho là ảnh chụp từng lần chốt (thứ Năm hằng tuần) — không cộng dồn các lần chốt; xem theo tháng lấy lần chốt cuối tháng.',
     'Chậm luân chuyển > 3 tháng theo cột đánh dấu của file tồn kho vật tư. Đường xu hướng: đường thẳng hồi quy qua các điểm trong khoảng.',
     ...(ngayThieu.length ? [`Lần chốt ${ngayThieu.join(', ')}: file nguồn không có cột chậm luân chuyển (ghi "—" / "thiếu số").`] : []),
-    ...(v.moc === 'thang' && v.doanhThu && v.chuoi.some(c => coDoanhThu(c, v))
-      ? ['Doanh thu tháng = giá trị nhập kho thành phẩm của cả công ty (không tính hạng mục hủy), cùng số với bảng Kế hoạch năm – Thực hiện; vẽ ở trục phải từng biểu đồ.']
+    ...(v.moc === 'thang' && v.duBaoToanKho?.diem.length
+      ? [`Dự báo tồn TOÀN KHO theo kế hoạch doanh thu: ${chuDuBao(v.duBaoToanKho)}. Cách tính: tồn đổi bằng ½ mức đổi của doanh thu bình quân 3 tháng (doanh thu = doanh số cần đạt từng tháng). Kiểm lại trên các tháng đã qua: sai trung bình ±${v.duBaoToanKho.saiSo[0] === null ? '—' : dinhDangSo(v.duBaoToanKho.saiSo[0] / 1000, 1)} tỷ trước 1 tháng (giữ nguyên tồn: ±${v.duBaoToanKho.saiSoGiuNguyen[0] === null ? '—' : dinhDangSo(v.duBaoToanKho.saiSoGiuNguyen[0] / 1000, 1)} tỷ).`]
+      : []),
+    ...(v.moc === 'thang' && v.doanhThu
+      ? ['Doanh thu tháng = doanh số cần đạt (cả công ty): năm 2025 853 tỷ, 2026 ~1.667 tỷ, 2027 3.000 tỷ.']
       : []),
     ...(Object.keys(v.loc ?? {}).length
       ? ['4 số tổng phía trên tính cho toàn kho. Nhóm ghi "lọc: …" chỉ tính các tên vật tư thoả bộ lọc (như bộ lọc cột của Excel) của biểu đồ đó — danh sách tên in ở trang của nhóm.']

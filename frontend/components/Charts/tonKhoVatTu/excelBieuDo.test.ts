@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import type { DiemTonKhoVt, TongHopTonKhoVt } from '../../../services/tonKhoVtApi';
-import { dungChuoi } from './xuLy';
+import { dungChuoi, xuHuongTong, type DoanhThuKeHoach, type DuBaoTon } from './xuLy';
 import { chenBieuDoVaoXlsx, dungBieuDoExcel, tenCot, TEN_SHEET_BIEU_DO, TEN_SHEET_SO_LIEU } from './excelBieuDo';
 
 const NGAY = ['2026-02-26', '2026-03-26', '2026-04-23', '2026-05-28', '2026-06-25', '2026-07-30', '2026-08-27', '2026-09-24', '2026-10-22'];
@@ -52,7 +52,7 @@ describe('biểu đồ Excel — số liệu', () => {
     expect(bd.rongCot).toHaveLength(5);
   });
   it('XML biểu đồ: 3 dãy (chậm LC, trung bình, tổng tồn) + trendline tuyến tính, tham chiếu đúng sheet số liệu, trục Y từ 0', () => {
-    const x = bd.bieuDo[0];
+    const x = bd.bieuDo[0].xml;
     expect(xmlCan(x)).toBe(true);
     expect(x.match(/<c:ser>/g)).toHaveLength(3);
     expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$C$3:$C$11</c:f>`);
@@ -67,41 +67,85 @@ describe('biểu đồ Excel — số liệu', () => {
     expect(boDemCham).toContain('<c:pt idx="6">');
     expect(boDemCham).not.toContain('<c:pt idx="7">');
     // nhóm nhỏ (< 2 tỷ) ghi 2 số lẻ; trục tỷ để General (vạch 0.1 không bị làm tròn thành 0 / 1)
-    expect(bd.bieuDo[1]).toContain('formatCode="0.00"');
-    expect(bd.bieuDo[1]).toMatch(/<c:valAx>.*<c:numFmt formatCode="General" sourceLinked="0"\/>/);
+    expect(bd.bieuDo[1].xml).toContain('formatCode="0.00"');
+    expect(bd.bieuDo[1].xml).toMatch(/<c:valAx>.*<c:numFmt formatCode="General" sourceLinked="0"\/>/);
     // biểu đồ nhóm 2 tham chiếu đúng dòng của khối 2
-    expect(bd.bieuDo[1]).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$C$16:$C$24</c:f>`);
-    expect(bd.bieuDo[1]).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$A$16:$A$24</c:f>`);
-    expect(xmlCan(bd.bieuDo[1])).toBe(true);
+    expect(bd.bieuDo[1].xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$C$16:$C$24</c:f>`);
+    expect(bd.bieuDo[1].xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$A$16:$A$24</c:f>`);
+    expect(xmlCan(bd.bieuDo[1].xml)).toBe(true);
   });
 });
 
-describe('biểu đồ Excel — doanh thu tháng (trục phụ)', () => {
-  const dtThang: Record<string, number> = Object.fromEntries(NGAY.map((n, i) => [n.slice(0, 7), 80 + i * 10]));
-  const bdDt = dungBieuDoExcel({
+describe('biểu đồ Excel — doanh thu tháng (số bảng kế hoạch năm) + dự báo tồn', () => {
+  // Doanh thu = khsx_nam: trang truyền thucTe = keHoach
+  const keHoach = Object.fromEntries([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(t => [`2026-${String(t).padStart(2, '0')}`, 100 + t]));
+  const doanhThu: DoanhThuKeHoach = { thucTe: { ...keHoach }, keHoach };
+  const duBaoVai: DuBaoTon = {
+    tyLeDat: 1, tyLeTu: '2026-07', tyLeDen: '2026-09', saiSo: [3200, 4100], saiSoGiuNguyen: [5000, 9000], soLanKiem: [6, 5],
+    diem: [
+      { khoa: '2026-11', nhan: 'T11/26', h: 1, ton: 41500, thap: 38300, cao: 44700, keHoach: 111, dtDuKien: 111 },
+      { khoa: '2026-12', nhan: 'T12/26', h: 2, ton: 42000, thap: 37900, cao: 46100, keHoach: 112, dtDuKien: 112 },
+    ],
+  };
+  const bdDT = dungBieuDoExcel({
     chuoi, chiSo: 'giaTri', moc: 'thang', mau: { 'KVT Vải Da Mouss': '#d55181', 'KVT Kim Loại': '#c98500' },
-    doanhThu: dtThang, thangTamTinh: '2026-10',
+    doanhThu, thangHienTai: '2026-10', duBao: { 'KVT Vải Da Mouss': duBaoVai, 'KVT Kim Loại': null },
   });
-  it('cột F "Doanh thu (tỷ)" ở mọi khối, 6 cột', () => {
-    expect(bdDt.soLieu.every(h => h.length === 6)).toBe(true);
-    expect(bdDt.soLieu[1][5]).toBe('Doanh thu (tỷ)');
-    expect(bdDt.soLieu[2][5]).toBe(80);
-    expect(bdDt.soLieu[10][5]).toBe(160);
-    expect(bdDt.rongCot).toHaveLength(6);
+  it('cột F doanh thu (KH năm), G–H dự báo tồn + sai số, I xu hướng; thêm dòng tháng dự báo', () => {
+    expect(bdDT.soLieu.every(h => h.length === 9)).toBe(true);
+    expect(bdDT.soLieu[1].slice(5)).toEqual(['Doanh số cần đạt (tỷ)', 'Dự báo tồn (tỷ)', 'Sai số ± (tỷ)', 'Xu hướng (tỷ)']);
+    expect(bdDT.soLieu[2].slice(5, 8)).toEqual([102, null, null]); // T2/26
+    expect(bdDT.soLieu[10].slice(5, 8)).toEqual([110, 39.73, null]); // T10/26: nối đường dự báo
+    const xh = xuHuongTong(chuoi[0].diem)!;
+    expect(bdDT.soLieu[2][8]).toBeCloseTo(xh.giaTri[0] / 1000, 5);
+    expect(bdDT.soLieu[11]).toEqual(['T11/26', 'dự báo', null, null, null, 111, 41.5, 3.2, null]);
+    expect(bdDT.soLieu[12]).toEqual(['T12/26', 'dự báo', null, null, null, 112, 42, 4.1, null]);
+    expect(bdDT.soLieu[13][0]).toMatch(/^39\.73 tỷ — tăng/);
+    expect(bdDT.soLieu[14][0]).toBe('Dự báo theo kế hoạch doanh thu: T11/26 ≈ 41.50 tỷ (±3.2) · T12/26 ≈ 42.00 tỷ (±4.1)');
+    expect(bdDT.soLieu[16][0]).toBe('Kim Loại'); // nhóm không có dự báo: không thêm dòng
+    expect(bdDT.congThuc[0]).toMatchObject({ r: 2, c: 4, f: 'AVERAGE($C$3:$C$11)' });
+    expect(bdDT.rongCot).toHaveLength(9);
   });
-  it('lineChart thứ 2 trên trục phụ bên phải (cắt ở max), tham chiếu cột F, tháng đang chạy là điểm rỗng', () => {
-    const x = bdDt.bieuDo[0];
+  it('biểu đồ tồn: các dãy trải tới tháng dự báo, thêm dãy dự báo nét đứt + thanh sai số (cột H), tiêu đề ghi số dự báo', () => {
+    const x = bdDT.bieuDo[0].xml;
     expect(xmlCan(x)).toBe(true);
-    expect(x.match(/<c:lineChart>/g)).toHaveLength(2);
-    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$F$3:$F$11</c:f>`);
-    expect(x).toMatch(/<c:valAx><c:axId val="5004"\/>.*<c:axPos val="r"\/>.*<c:crosses val="max"\/>/);
-    expect(x).toContain('<c:dPt><c:idx val="8"/>');
-    expect(x).toContain('Doanh thu tháng (tỷ, trục phải); T10/26 tạm tính');
+    // chậm LC, trung bình, dự báo, xu hướng (dãy cột I — trendline của Excel sẽ kéo sang cả tháng dự báo), tổng tồn
+    expect(x.match(/<c:ser>/g)).toHaveLength(5);
+    expect(x).not.toContain('<c:trendline>');
+    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$I$3:$I$13</c:f>`);
+    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$A$3:$A$13</c:f>`);
+    expect(x).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$G$3:$G$13</c:f>`);
+    expect(x).toContain(`<c:plus><c:numRef><c:f>'${TEN_SHEET_SO_LIEU}'!$H$3:$H$13</c:f>`);
+    expect(x).toContain('Dự báo theo kế hoạch doanh thu: T11/26 ≈ 41.50 tỷ (±3.2)');
+    const db = x.slice(x.indexOf('Dự báo theo kế hoạch doanh thu (±'));
+    const boDem = db.slice(db.indexOf('<c:val>'), db.indexOf('</c:val>'));
+    expect(boDem).not.toContain('<c:pt idx="7">');
+    expect(boDem).toContain('<c:pt idx="8"><c:v>39.73</c:v>');
+    expect(boDem).toContain('<c:pt idx="10"><c:v>42</c:v>');
+    expect(bdDT.bieuDo[2].xml.match(/<c:ser>/g)).toHaveLength(4);
+    expect(bdDT.bieuDo[2].xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$C$19:$C$27</c:f>`);
   });
-  it('xem theo tuần: không có doanh thu (5 cột, 1 lineChart)', () => {
-    const tuan = dungBieuDoExcel({ chuoi: dungChuoi(th, { moc: 'tuan', chiSo: 'giaTri' }), chiSo: 'giaTri', moc: 'tuan', mau: {}, doanhThu: dtThang });
+  it('dưới mỗi biểu đồ tồn có biểu đồ cột doanh thu (cột F), tháng dự báo để viền đứt', () => {
+    expect(bdDT.bieuDo).toHaveLength(4);
+    const [ton, dt] = bdDT.bieuDo;
+    expect(xmlCan(dt.xml)).toBe(true);
+    expect(dt.dong - ton.dong).toBe(25);
+    expect(bdDT.bieuDo[2].dong - ton.dong).toBe(36);
+    expect(dt.xml.match(/<c:ser>/g)).toHaveLength(1);
+    expect(dt.xml).toContain(`<c:f>'${TEN_SHEET_SO_LIEU}'!$F$3:$F$13</c:f>`);
+    expect(dt.xml).toContain('<c:dPt><c:idx val="9"/>');
+    expect(dt.xml).toContain('<c:dPt><c:idx val="10"/>');
+    expect(dt.xml).toContain('Doanh số cần đạt');
+  });
+  it('xem theo tuần: không có cột doanh thu / dự báo; không có doanh thu: 5 cột, mỗi nhóm 1 biểu đồ, cách 25 dòng', () => {
+    const tuan = dungBieuDoExcel({
+      chuoi: dungChuoi(th, { moc: 'tuan', chiSo: 'giaTri' }), chiSo: 'giaTri', moc: 'tuan', mau: {},
+      doanhThu, thangHienTai: '2026-10', duBao: { 'KVT Vải Da Mouss': duBaoVai },
+    });
     expect(tuan.soLieu.every(h => h.length === 5)).toBe(true);
-    expect(tuan.bieuDo[0].match(/<c:lineChart>/g)).toHaveLength(1);
+    expect(tuan.bieuDo).toHaveLength(2);
+    expect(bd.soLieu.every(h => h.length === 5)).toBe(true);
+    expect(bd.bieuDo.map(b => b.dong)).toEqual([5, 30]);
   });
 });
 

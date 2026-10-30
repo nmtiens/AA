@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { DiemTonKhoVt, DongTonKhoVt, TongHopTonKhoVt } from '../../../services/tonKhoVtApi';
 import {
   bangChiTietExcel, bangTongHopExcel, chonMoc, chonNhanTruc, chuanHoaNhom, demTheoLoc, dinhDangChenh, dinhDangPt, dinhDangTienDong,
-  dungChuoi, khoangTheoLuaChon, locDong, ngayThieuCham, phanLoaiDong, tenNhomGon, thuTuNhom, tongCacNhom, vachTrucY,
-  chiSoNhan, locTenTheoTim, tomTatNhom, trungBinhTong, vachTheoSoKhoang, xepDong, xuHuongTong,
+  dungChuoi, khoangTheoLuaChon, namCuaKhoang, catDuBao, locDong, ngayThieuCham, phanLoaiDong, tenNhomGon, thuTuNhom, tongCacNhom, vachTrucY,
+  chiSoNhan, congThangKhoa, duBaoTonTheoDoanhThu, locTenTheoTim, tomTatNhom, tyLeDatKeHoach, trungBinhTong, vachTheoSoKhoang, xepDong, xuHuongTong,
   KHOANG_TRANG_NHOM, XEP_MAC_DINH,
 } from './xuLy';
 
@@ -106,6 +106,11 @@ describe('khoảng ngày', () => {
   it('theo tuần: 6 tháng = (22/04, 22/10]', () => {
     expect(khoangTheoLuaChon('2026-10-22', '6t', 'tuan')).toEqual({ tu: '2026-04-23', den: '2026-10-22' });
     expect(khoangTheoLuaChon('2026-10-22', '3t', 'tuan')).toEqual({ tu: '2026-07-23', den: '2026-10-22' });
+    // Theo năm: năm có lần chốt => cả năm; năm tới (chưa chốt) => chỉ lần chốt mới nhất làm điểm nối cho dự báo
+    expect(khoangTheoLuaChon('2026-10-22', 'nam2026', 'thang')).toEqual({ tu: '2026-01-01', den: '2026-12-31' });
+    expect(khoangTheoLuaChon('2026-10-22', 'nam2027', 'thang')).toEqual({ tu: '2026-10-01', den: '2026-10-22' });
+    expect(khoangTheoLuaChon('2026-10-22', 'nam2027', 'tuan')).toEqual({ tu: '2026-10-22', den: '2026-10-22' });
+    expect([namCuaKhoang('nam2027'), namCuaKhoang('tat_ca')]).toEqual([2027, null]);
   });
   it('theo tháng: 6 tháng gần nhất kể cả tháng mới nhất', () => {
     expect(khoangTheoLuaChon('2026-10-22', '6t', 'thang')).toEqual({ tu: '2026-05-01', den: '2026-10-22' });
@@ -337,6 +342,14 @@ describe('câu tóm tắt & nhãn số', () => {
     expect(t2.huong).toBe('giam');
     expect(t2.moiDiem).toBeLessThan(0);
     expect(xuHuongTong([d(100), d(101), d(99), d(100)])!.huong).toBe('ngang');
+    // Tấm – Ván T2→T10/2026: lên xuống quanh 22.6–27 tỷ, đường thẳng chỉ giải thích 19% => không rõ (không báo "tăng")
+    const tamVan = xuHuongTong([25650, 23360, 25130, 24040, 26250, 22560, 25470, 26700, 27010].map(d))!;
+    expect(tamVan.r2).toBeCloseTo(0.19, 2);
+    expect(tamVan.huong).toBe('khongRo');
+    // Đá: tăng đều, R² 0.90 => tăng
+    const da = xuHuongTong([11740, 12460, 16840, 20390, 21550, 19660, 22970, 26010, 25330].map(d))!;
+    expect(da.r2).toBeCloseTo(0.90, 2);
+    expect(da.huong).toBe('tang');
     expect(xuHuongTong([d(1), d(2)])).toBeNull();
   });
 });
@@ -367,5 +380,55 @@ describe('trục phụ doanh thu', () => {
     expect(nho.vach).toEqual([0, 0.2, 0.4, 0.6, 0.8, 1]);
     expect(nho.soLe).toBe(1);
     expect(vachTheoSoKhoang(0, 4).vach).toHaveLength(5);
+  });
+});
+
+describe('dự báo tồn theo kế hoạch doanh thu', () => {
+  it('cắt dự báo tới tháng 12 của năm đang xem', () => {
+    const d = { tyLeDat: 1, tyLeTu: '', tyLeDen: '', saiSo: [], saiSoGiuNguyen: [], soLanKiem: [],
+      diem: ['2026-11', '2026-12', '2027-01'].map((khoa, i) => ({ khoa, nhan: khoa, h: i + 1, ton: 1, thap: null, cao: null, keHoach: 1, dtDuKien: 1 })) };
+    expect(catDuBao(d, '2026-12')!.diem.map(x => x.khoa)).toEqual(['2026-11', '2026-12']);
+    expect(catDuBao(d, null)).toBe(d);
+  });
+  it('cộng tháng qua năm (khoá YYYY-MM)', () => {
+    expect([congThangKhoa('2026-11', 2), congThangKhoa('2026-01', -1), congThangKhoa('2026-10', 0)]).toEqual(['2027-01', '2025-12', '2026-10']);
+  });
+  // Số thật 2026 (tỷ): doanh thu nhập kho, kế hoạch năm; tồn toàn kho cuối tháng 2–10
+  const thucTe: Record<string, number> = {
+    '2026-01': 113.24, '2026-02': 79.95, '2026-03': 118.84, '2026-04': 97.16, '2026-05': 100.95, '2026-06': 131.34,
+    '2026-07': 150.93, '2026-08': 150.90, '2026-09': 156.08, '2026-10': 84.64,
+  };
+  const KH = [133.39, 109.91, 145.25, 165.03, 169.26, 186.28, 196.51, 196.51, 181.96, 163.95, 90.25, 77.92];
+  const keHoach = Object.fromEntries(KH.map((v, i) => [`2026-${String(i + 1).padStart(2, '0')}`, v]));
+  const TON = [115.32, 116.71, 124.66, 123.92, 132.87, 136.35, 142.61, 138.34, 131.09];
+  const ds = TON.map((v, i) => {
+    const khoa = `2026-${String(i + 2).padStart(2, '0')}`;
+    return { khoa, nhan: khoa, ngayChot: `${khoa}-20`, tong: v * 1000, cham: 0, binhThuong: v * 1000, chenh: null, chenhPt: null, thieuCham: false, goc: { giaTri: v * 1000, giaTriCham: 0, soMa: 0, soMaCham: 0 } };
+  });
+  it('tỷ lệ đạt kế hoạch = 3 tháng đã hết gần nhất (tháng 10 chưa hết => 7–9)', () => {
+    expect(tyLeDatKeHoach({ thucTe, keHoach }, '2026-10')).toBeCloseTo((150.93 + 150.90 + 156.08) / (196.51 + 196.51 + 181.96), 6);
+    expect(tyLeDatKeHoach({ thucTe, keHoach: {} }, '2026-10')).toBeNull();
+  });
+  it('tồn tháng tới = tồn × (DT bình quân 3 tháng tới ÷ hiện tại)^0.5; kế hoạch T11–T12 giảm => tồn dự báo giảm', () => {
+    const kq = duBaoTonTheoDoanhThu(ds, { thucTe, keHoach }, '2026-10')!;
+    const tl = kq.tyLeDat;
+    const r0 = (150.90 + 156.08 + 163.95 * tl) / 3, r11 = (156.08 + 163.95 * tl + 90.25 * tl) / 3, r12 = (163.95 * tl + 90.25 * tl + 77.92 * tl) / 3;
+    expect(kq.diem.map(d => d.khoa)).toEqual(['2026-11', '2026-12']);
+    expect(kq.diem[0].ton).toBeCloseTo(131090 * Math.sqrt(r11 / r0), 3);
+    expect(kq.diem[1].ton).toBeCloseTo(131090 * Math.sqrt(r12 / r0), 3);
+    expect(kq.diem[0].dtDuKien).toBeCloseTo(90.25 * tl, 6);
+    expect([kq.tyLeTu, kq.tyLeDen]).toEqual(['2026-07', '2026-09']);
+  });
+  it('kiểm lại trên các tháng đã qua: có sai số theo tầm 1, 2 tháng; dải ± quanh dự báo', () => {
+    const kq = duBaoTonTheoDoanhThu(ds, { thucTe, keHoach }, '2026-10')!;
+    expect(kq.soLanKiem[0]).toBeGreaterThanOrEqual(5);
+    expect(kq.saiSo[0]).not.toBeNull();
+    // ở mức toàn kho, trước 2 tháng: cách này sát hơn "giữ nguyên tồn"
+    expect(kq.saiSo[1]!).toBeLessThan(kq.saiSoGiuNguyen[1]!);
+    expect(kq.diem[0].cao! - kq.diem[0].ton).toBeCloseTo(kq.saiSo[0]!, 6);
+  });
+  it('không có kế hoạch tháng tới / thiếu doanh thu => không dự báo', () => {
+    expect(duBaoTonTheoDoanhThu(ds, { thucTe, keHoach: { ...keHoach, '2026-11': undefined as unknown as number } }, '2026-10')!.diem).toEqual([]);
+    expect(duBaoTonTheoDoanhThu(ds, { thucTe: {}, keHoach }, '2026-10')).toBeNull();
   });
 });

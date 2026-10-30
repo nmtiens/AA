@@ -21,6 +21,7 @@ import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
 import { fmtInt } from '../../utils/format';
+import { API_BASE_URL } from '../../services/dataService';
 // ============================================================
 // Báo cáo tiến độ công trình — dựng hoàn toàn từ productionData (không cần API mới)
 // Đơn vị tiền gốc là TRIỆU ĐỒNG (xem utils/money.ts)  =>  Tỷ = giá trị gốc / 1,000
@@ -146,6 +147,21 @@ interface Props {
 const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = '', inventory, banGhiSan = null }) => {
   // Nhóm công trình (Luồng đỏ / Căn mẫu = danh sách setup ở Công trình → Setup); null = mọi công trình
   const [group, setGroup] = useState<ProjectGroupId | null>(null);
+  // Nút "KHSX tháng này": chỉ công trình có trong kế hoạch sản xuất của tháng hiện tại (KH tháng; chưa có thì KH tuần)
+  const [locKhsx, setLocKhsx] = useState(false);
+  const [khsxCt, setKhsxCt] = useState<{ thang: number; nam: number; loai: string | null; capNhat: string | null; hex: string[]; congTrinh: { name: string; codes: string[] }[] } | null>(null);
+  const [khsxLoi, setKhsxLoi] = useState(false);
+  useEffect(() => {
+    if (!locKhsx || khsxCt) return;
+    const d = new Date();
+    const ac = new AbortController();
+    setKhsxLoi(false);
+    fetch(`${API_BASE_URL}/khsx/cong-trinh?nam=${d.getFullYear()}&thang=${d.getMonth() + 1}`, { signal: ac.signal })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then(setKhsxCt)
+      .catch(() => { if (!ac.signal.aborted) setKhsxLoi(true); });
+    return () => ac.abort();
+  }, [locKhsx, khsxCt]);
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Vướng mắc đang mở theo công trình (API nhẹ, 1 lần khi mở trang)
   const [vmRows, setVmRows] = useState<VmByProjectRow[] | null>(null);
@@ -209,10 +225,16 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // áp cho TOÀN BỘ trang trước mọi bộ lọc khác.
   // Lọc theo nhóm công trình trước mọi bộ lọc khác (so theo tên chuẩn — gộp các cách viết)
   const groupRecords = useMemo(() => {
+    if (locKhsx) {
+      if (!khsxCt) return [];
+      // Đúng các HEX có trong KH của tháng (không lấy cả công trình — công trình còn nhiều hạng mục ngoài KH)
+      const hex = new Set(khsxCt.hex);
+      return allRecords.filter(r => hex.has(String(r.row?.['hex'] ?? '').trim()));
+    }
     if (!group) return allRecords;
     const allowed = new Set(getProjectsForView(group).map(projectMatchKey));
     return allRecords.filter(r => allowed.has(r.mk));
-  }, [allRecords, group]);
+  }, [allRecords, group, locKhsx, khsxCt]);
   const groupSize = useMemo(() => (group ? getProjectsForView(group).length : 0), [group]);
 
   const ipoOptions = useMemo(
@@ -722,14 +744,30 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <button
               key={g ?? 'all'}
               type="button"
-              onClick={() => { setGroup(g); setF({}); }}
+              onClick={() => { setGroup(g); setLocKhsx(false); setF({}); }}
               title={g ? `Chỉ các công trình đã setup cho nhóm ${GROUP_SHORT[g]} (Công trình → Setup phân loại)` : 'Mọi công trình'}
-              className={`h-full rounded-md px-2.5 font-medium transition ${group === g ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : g === 'luong-do' ? 'font-semibold text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-100'}`}
+              className={`h-full rounded-md px-2.5 font-medium transition ${group === g && !locKhsx ? (g ? 'bg-red-600 text-white' : 'bg-slate-900 text-white') : g === 'luong-do' ? 'font-semibold text-red-600 hover:bg-red-50' : 'text-slate-600 hover:bg-slate-100'}`}
             >
               {g ? GROUP_SHORT[g] : 'Tất cả CT'}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => { setLocKhsx(true); setGroup(null); setF({}); }}
+            title="Chỉ các công trình có trong kế hoạch sản xuất tháng hiện tại (KH tháng; tháng chưa có KH tháng thì theo KH tuần)"
+            className={`h-full rounded-md px-2.5 font-medium transition ${locKhsx ? 'bg-blue-700 text-white' : 'font-semibold text-blue-700 hover:bg-blue-50'}`}
+          >
+            KHSX tháng {new Date().getMonth() + 1}
+          </button>
         </div>
+        {locKhsx && (
+          <p className={`rounded-lg border px-4 py-2 text-xs ${khsxLoi || khsxCt?.loai === null ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+            {khsxLoi ? 'Không tải được danh sách công trình trong KHSX — thử tải lại trang.'
+              : !khsxCt ? 'Đang tải danh sách công trình trong KHSX…'
+                : khsxCt.loai === null ? `Tháng ${khsxCt.thang}/${khsxCt.nam} chưa có kế hoạch sản xuất (KH tháng / tuần).`
+                  : `Đang xem ${fmtInt(groupRecords.length)} hạng mục / ${fmtInt(new Set(groupRecords.map(r => r.mk)).size)} công trình có trong KH ${khsxCt.loai === 'THÁNG' ? 'tháng' : 'tuần (KHSX chưa có KH tháng)'} ${khsxCt.thang}/${khsxCt.nam} — KHSX có ${fmtInt(khsxCt.hex.length)} HEX${khsxCt.capNhat ? `, bảng KHSX cập nhật lần cuối ${new Date(khsxCt.capNhat).toLocaleDateString('vi-VN')}` : ''}.`}
+          </p>
+        )}
         {group && groupSize === 0 && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
             Chưa có công trình nào được setup cho nhóm {GROUP_SHORT[group]}. Vào Công trình → Setup phân loại để chọn công trình.

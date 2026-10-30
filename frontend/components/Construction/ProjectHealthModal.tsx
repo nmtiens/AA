@@ -11,7 +11,8 @@ import { fetchVuongMacList, FIVE_M_CATEGORIES, type FiveMCategory, type VuongMac
 import { getToken } from '../../services/userService';
 import type { NvlRaw } from '../../utils/nvlParse';
 import { BopM2Section, taiTruocBopM2 } from './BopM2Section';
-import { BotTab, BopTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
+import { BotKhnk } from './BotKhnk';
+import { BopTab, analyzeBom, summarizeProjectMaterial, PlanDateCell, type HexInfo, type MaterialLine, type ProjectMaterialLine } from './ProjectHealthTabs';
 import { HexMaterialModal, type MaterialViewMode } from '../Dashboard/components/modals/HexMaterialModal';
 import { HexTimelineModal } from './HexTimelineModal';
 import { formatTrieuAsTy } from '../../utils/money';
@@ -203,6 +204,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
         status: String(row[keys.tinhTrangKey] ?? '').trim(),
         area: String(row[keys.xuongKey] ?? '').trim(),
         nhomSp: keys.nhomSpKey ? String(row[keys.nhomSpKey] ?? '').trim() : '',
+        ipo: String(row[keys.ipoKey] ?? '').trim(),
         dwell: String(row[keys.dwellKey] ?? '').trim() || null,
         // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
         bucket: open || remain > 0 ? remainBucketOf(status, stage) : null,
@@ -549,11 +551,11 @@ export const ProjectHealthModal: React.FC<Props> = ({
       className={`group flex h-full w-full cursor-pointer flex-col justify-start rounded-xl border p-4 text-left transition hover:shadow-md hover:brightness-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${TONE[tone].ring}`}
     >
       <div className="flex w-full items-center gap-2">
-        <span className={`h-2 w-2 rounded-full ${TONE[tone].dot}`} />
-        <Icon size={15} className="text-slate-500" />
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-700 group-hover:underline">{title}</p>
-        <span className="text-[0.6875rem] text-slate-400">{sub}</span>
-        <span className="ml-auto text-[0.6875rem] text-slate-400 group-hover:text-slate-700">Chi tiết ›</span>
+        <span className={`h-3 w-3 rounded-full ${TONE[tone].dot}`} />
+        <Icon size={20} className="text-slate-700" />
+        <p className="text-lg font-bold uppercase tracking-wide text-slate-900 group-hover:underline">{title}</p>
+        <span className="text-sm text-slate-500">{sub}</span>
+        <span className="ml-auto rounded-lg border border-slate-300 px-2.5 py-1 text-sm font-semibold text-slate-700 group-hover:border-slate-900 group-hover:bg-slate-900 group-hover:text-white">Chi tiết ›</span>
       </div>
       <div className="mt-3 w-full">{children}</div>
     </button>
@@ -603,13 +605,13 @@ export const ProjectHealthModal: React.FC<Props> = ({
 
       {/* Tab chi tiết chỉ mở khi bấm vào thẻ ở Tổng quan; có nút quay lại */}
       {tab !== 'overview' && (
-        <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-5 py-2">
+        <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 px-5 py-3">
           <button
             type="button"
             onClick={() => setTab('overview')}
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           >
-            <ArrowLeft size={14} /> Tổng quan
+            <ArrowLeft size={16} /> Tổng quan
           </button>
           <span className="text-slate-300">/</span>
           {(Object.keys(TAB_TITLE) as Exclude<Tab, 'overview'>[]).map(k => (
@@ -617,8 +619,8 @@ export const ProjectHealthModal: React.FC<Props> = ({
               key={k}
               type="button"
               onClick={() => setTab(k)}
-              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors ${
-                tab === k ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+              className={`rounded-lg border px-5 py-2 text-base font-bold transition-colors ${
+                tab === k ? 'border-slate-900 bg-slate-900 text-white shadow' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               {TAB_TITLE[k]}
@@ -628,10 +630,11 @@ export const ProjectHealthModal: React.FC<Props> = ({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5 custom-scrollbar">
-        {tab === 'bot' && <BotTab items={items} today={today} openIssues={openIssues} onHexClick={setTimelineHex} />}
+        {/* Tab BOT = đúng 2 bảng "V. BOT - Kế hoạch nhập kho" (tháng / tuần) của file mẫu PC */}
+        {tab === 'bot' && <BotKhnk items={items} onHexClick={setTimelineHex} />}
         {tab === 'bop' && <BopTab items={items} khoItems={khoItems} onHexClick={setTimelineHex} extra={extra} today={today} />}
         {/* Tab BOM = đúng 2 bảng BOP-M2 của file Excel PC (I. theo danh mục vật liệu · II. theo đơn hàng) */}
-        {tab === 'bom' && <BopM2Section key={projectName} tenCongTrinh={projectName} />}
+        {tab === 'bom' && <BopM2Section key={projectName} tenCongTrinh={projectName} onHexClick={setTimelineHex} />}
         {tab === 'overview' && <>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
           {/* BOT — thời hạn */}

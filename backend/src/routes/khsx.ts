@@ -198,3 +198,48 @@ app.get('/api/khsx-nhapkho/summary', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+// --- Công trình có trong KẾ HOẠCH SẢN XUẤT của 1 tháng (nút lọc "KHSX tháng này" ở Báo cáo tiến độ công trình) ---
+// GET /api/khsx/cong-trinh?nam=2026&thang=10 => { nam, thang, loai: 'THÁNG' | 'TUẦN' | null, capNhat, hex: string[],
+//   congTrinh: [{ name, codes[] }] } — trang lọc theo ĐÚNG các HEX trong KH (không lấy cả công trình)
+// Lấy KH THÁNG của kỳ; kỳ chưa có KH tháng (đầu tháng chưa nhập) thì lấy KH TUẦN cùng tháng. Không tính hạng mục HỦY.
+const khsxCtCache = createCache<unknown>(24);
+app.get('/api/khsx/cong-trinh', async (req: Request, res: Response) => {
+  try {
+    const nam = Number(req.query.nam), thang = Number(req.query.thang);
+    if (!Number.isInteger(nam) || !Number.isInteger(thang) || thang < 1 || thang > 12) {
+      return res.status(400).json({ error: 'Thiếu / sai nam, thang' });
+    }
+    const payload = await cachedByVersions(khsxCtCache, `${nam}-${thang}`, ['khsx'], async () => {
+      const lay = (loai: string) => timedQuery(
+        `SELECT TRIM(ten_cong_trinh) AS ten, TRIM(ma_cong_trinh) AS ma, TRIM(hex::text) AS hex
+           FROM khsx
+          WHERE UPPER(TRIM(phan_loai_kh)) LIKE $1 AND nam = $2::bigint AND thang = $3::bigint AND ${notCancelledHexCond('hex')}
+          GROUP BY 1, 2, 3`,
+        [`%${loai}%`, nam, thang]
+      );
+      let loai: 'THÁNG' | 'TUẦN' | null = 'THÁNG';
+      let r = await lay('THÁNG');
+      if (!r.rows.length) { loai = 'TUẦN'; r = await lay('TUẦN'); }
+      if (!r.rows.length) loai = null;
+      const m = new Map<string, Set<string>>();
+      for (const x of r.rows) {
+        if (!x.ten) continue;
+        const k = canonicalProjectName(x.ten);
+        const e = m.get(k) ?? new Set<string>();
+        if (x.ma) e.add(String(x.ma));
+        m.set(k, e);
+      }
+      const cn = await timedQuery(`SELECT to_char(last_updated AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS v FROM table_versions WHERE table_name = 'khsx'`);
+      return {
+        nam, thang, loai, capNhat: cn.rows[0]?.v ?? null,
+        hex: [...new Set(r.rows.map(x => String(x.hex ?? '')).filter(Boolean))],
+        congTrinh: [...m.entries()].map(([name, codes]) => ({ name, codes: [...codes] })),
+      };
+    });
+    res.json(payload);
+  } catch (error) {
+    console.error('Lỗi khsx/cong-trinh:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});

@@ -2,22 +2,25 @@ import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'r
 import {
   AlertTriangle, ChevronDown, ChevronUp, ChevronsUpDown, Download, FileSpreadsheet, FileText, Info, Loader2, RefreshCw, Search, Shield, X,
 } from 'lucide-react';
-import { CartesianGrid, LabelList, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Area, Bar, CartesianGrid, ComposedChart, LabelList, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
 import { ModalShell } from '../shared/ModalShell';
 import { useAuth } from '../../context/AuthContext';
 import { LocTenVatTu } from './tonKhoVatTu/LocTenVatTu';
 import type { LocTen } from './tonKhoVatTu/locTenExcel';
 import {
-  layChiTietTonKhoVt, layDoanhThuThang, layTongHopTonKhoVt, laLoiChuaCoQuyen, LoiTonKhoVt, type ChiTietTonKhoVt, type TongHopTonKhoVt,
+  layChiTietTonKhoVt, layDoanhThuKeHoach, layTongHopTonKhoVt, laLoiChuaCoQuyen, LoiTonKhoVt, type ChiTietTonKhoVt, type TongHopTonKhoVt,
 } from '../../services/tonKhoVtApi';
 import {
   bangChiTietExcel, bangDocExcel, bangTongHopExcel, boDau, chonNhanTruc, demTheoLoc, dinhDangChenh, dinhDangChiSo,
   dinhDangPt, dinhDangSo, dinhDangSoLuong, dinhDangTienDong, dsNgayChot, dungChuoi, khoangTheoLuaChon, locDong,
   NHAN_LOC, ngayThieuCham, nhanNgay, nhanNgayNgan, nhanThang, phanLoaiDong, tachCongTrinh, tenFileAnToan, tenNhomGon, tongCacNhom,
-  vachTheoSoKhoang, vachTrucY, xepDong, XEP_MAC_DINH, chiSoNhan, tomTatNhom, trungBinhTong, xuHuongTong,
+  congThangKhoa, duBaoTonTheoDoanhThu, diemTieuBieu, SO_THANG_DU_BAO_TOI_DA, catDuBao, namCuaKhoang, TY_LE_ANH_TON, vachTrucY, xepDong, XEP_MAC_DINH, chiSoNhan, tomTatNhom, trungBinhTong, xuHuongTong,
   type CachXep, type ChiSo, type ChuoiNhom, type CotXep, type DiemChuoi, type DongDaPhanLoai, type KhoangXem, type LocDong,
-  type MocXem, type O,
+  type MocXem, type O, type DoanhThuKeHoach, type DiemDuBao, type DuBaoTon,
 } from './tonKhoVatTu/xuLy';
+import { DOANH_SO_CAN_DAT } from './tonKhoVatTu/doanhSoCanDat';
 
 // ============================================================================
 // TRANG "7. TỒN KHO VẬT TƯ" (bảng ton_kho_vt — chốt hằng tuần, thứ Năm)
@@ -28,7 +31,10 @@ import {
 // tháng: lần chốt cuối tháng trước) — đúng mức chênh tooltip đang hiện (tăng / giảm / mới / đã hết).
 // Mỗi thẻ có bộ lọc tên vật tư riêng, làm đúng như bộ lọc cột của Excel (tonKhoVatTu/locTenExcel.ts): lọc thẻ nào chỉ thẻ đó đổi (câu tóm tắt, trung bình, xu hướng, từng
 // mã, phần của nhóm trong báo cáo xuất); 4 số tổng đầu trang luôn tính cho toàn kho.
-// Theo tháng có thêm đường DOANH THU tháng (giá trị nhập kho thành phẩm, cả công ty — /api/khsx-nam/plan-actual), trục phải.
+// Xem theo tháng: dưới mỗi biểu đồ tồn là biểu đồ DOANH THU từng tháng (= DOANH SỐ CẦN ĐẠT người dùng đưa, cả công ty —
+// tonKhoVatTu/doanhSoCanDat.ts), và biểu đồ tồn kéo dài sang các tháng tới: DỰ BÁO tồn theo kế hoạch doanh thu (xuLy
+// duBaoTonTheoDoanhThu, nét đứt + dải sai số kiểm lại). Người dùng yêu cầu 28/10: thấy tồn + doanh thu từng tháng và dự đoán
+// tồn tương lai theo kế hoạch doanh thu.
 // Số liệu: GET /api/ton-kho-vt/tong-hop (POST khi lọc tên), /api/ton-kho-vt/chi-tiet, /api/ton-kho-vt/ten-vat-tu
 // (quyền chart_stock_vt). Tiền là triệu đồng, hiện tỷ.
 // ============================================================================
@@ -48,10 +54,7 @@ const MAU_CHAM = '#94a3b8';
 const MAU_TANG = '#b45309';
 const MAU_GIAM = '#047857';
 const MAU_TRANG = '#0d9488';
-/** Đường doanh thu tháng (trục phải): xám đậm, điểm VUÔNG — khác hẳn các đường tồn (điểm tròn) */
-const MAU_DT = '#334155';
-
-/** Tháng hiện tại theo giờ Việt Nam ('YYYY-MM'): doanh thu tháng này chưa hết tháng => "tạm tính" */
+/** Tháng hiện tại theo giờ Việt Nam ('YYYY-MM'): tháng chưa hết => doanh thu tháng này là tạm tính, dùng dự kiến */
 const thangHienTaiVn = (): string => {
   const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit' }).formatToParts(new Date());
   return `${p.find(x => x.type === 'year')?.value}-${p.find(x => x.type === 'month')?.value}`;
@@ -61,9 +64,9 @@ const thangHienTaiVn = (): string => {
  * Chụp biểu đồ của 1 nhóm (SVG recharts đang hiện trên trang) thành ảnh PNG cho báo cáo PDF: chép SVG, thêm nền
  * trắng + phông Arial (ảnh SVG dựng ngoài trang không có phông của trang), vẽ lên canvas gấp 2 cho nét.
  */
-async function chupBieuDo(nhom: string): Promise<string | undefined> {
+async function chupBieuDo(nhom: string, boChon = '[data-tkvt-ton] .recharts-wrapper svg'): Promise<string | undefined> {
   const the = [...document.querySelectorAll<HTMLElement>('section[data-tkvt-nhom]')].find(x => x.dataset.tkvtNhom === nhom);
-  const svg = the?.querySelector<SVGSVGElement>('.recharts-wrapper svg');
+  const svg = the?.querySelector<SVGSVGElement>(boChon);
   if (!svg) return undefined;
   const { width, height } = svg.getBoundingClientRect();
   if (!width || !height) return undefined;
@@ -228,11 +231,8 @@ function HangTooltip({ mau, nhan, giaTri, dam }: { mau?: string; nhan: string; g
   );
 }
 
-function TooltipDiem({ diem, truoc, nhom, mau, chiSo, moc, tb, doanhThu, tamTinh }: {
+function TooltipDiem({ diem, truoc, nhom, mau, chiSo, moc, tb }: {
   diem: DiemChuoi; truoc: DiemChuoi | null; nhom: string; mau: string; chiSo: ChiSo; moc: MocXem; tb: number | null;
-  /** Doanh thu tháng (tỷ); undefined = không vẽ doanh thu */
-  doanhThu?: number | null;
-  tamTinh?: boolean;
 }) {
   const pt = diem.tong > 0 && !diem.thieuCham ? (diem.cham / diem.tong) * 100 : null;
   const soTb = tb !== null && tb > 0 ? ((diem.tong - tb) / tb) * 100 : null;
@@ -249,10 +249,6 @@ function TooltipDiem({ diem, truoc, nhom, mau, chiSo, moc, tb, doanhThu, tamTinh
         {tb !== null && (
           <HangTooltip nhan={`So với trung bình (${dinhDangChiSo(tb, chiSo)})`}
             giaTri={soTb === null || Math.abs(soTb) < 0.5 ? 'ngang trung bình' : `${soTb > 0 ? 'cao hơn' : 'thấp hơn'} ${dinhDangPt(Math.abs(soTb))}`} />
-        )}
-        {doanhThu !== undefined && (
-          <HangTooltip mau={MAU_DT} nhan={`Doanh thu ${diem.nhan}${tamTinh ? ' (tạm tính)' : ''}`}
-            giaTri={doanhThu === null ? 'chưa có số' : `${dinhDangSo(doanhThu, 2)} tỷ`} />
         )}
       </div>
       <p className="mt-2 border-t border-slate-100 pt-1.5 text-slate-500">
@@ -279,15 +275,127 @@ const nhanDsTen = (ten: string[], toiDa = 6) =>
   ten.slice(0, toiDa).join(', ') + (ten.length > toiDa ? ` … và ${dinhDangSo(ten.length - toiDa)} tên khác` : '');
 
 /** Điểm vẽ: chamVe = null ở lần chốt thiếu cờ chậm luân chuyển => đường xám đứt quãng ở đó thay vì rơi về 0 */
-/** doanhThu: số tooltip; dtDu: tháng đã hết (nét liền); dtTam: đoạn nối vào tháng đang chạy (nét đứt, tạm tính) */
-type DiemVe = DiemChuoi & { chamVe: number | null; xuHuong: number | null; doanhThu: number | null; dtDu: number | null; dtTam: number | null };
+type DiemVe = DiemChuoi & { chamVe: number | null; xuHuong: number | null };
 
-/** Điểm VUÔNG của đường doanh thu (tháng đang chạy: vuông rỗng = tạm tính); chiTamTinh = chỉ vẽ ở tháng đang chạy */
-function DiemVuong({ cx, cy, payload, tamTinh, chiTamTinh }: { cx?: number; cy?: number; payload?: DiemVe; tamTinh?: string; chiTamTinh?: boolean }) {
-  if (cx === undefined || cy === undefined || !Number.isFinite(cx) || !Number.isFinite(cy) || payload?.doanhThu == null) return <g />;
-  const rong = payload.khoa === tamTinh;
-  if (chiTamTinh && !rong) return <g />;
-  return <rect x={cx - 3.5} y={cy - 3.5} width={7} height={7} fill={rong ? '#ffffff' : MAU_DT} stroke={MAU_DT} strokeWidth={1.5} />;
+/** Dòng dữ liệu biểu đồ tồn: điểm thật (DiemVe) hoặc tháng dự báo (laDuBao); duBao / dai = đường dự báo + dải sai số */
+type DongVe = Partial<DiemVe> & {
+  khoa: string; laDuBao?: boolean; duBao?: number; dai?: [number, number] | null; diemDuBao?: DiemDuBao;
+};
+
+function TooltipDuBao({ d, nhom, mau }: { d: DiemDuBao; nhom: string; mau: string }) {
+  return (
+    <div className="min-w-[240px] rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs shadow-lg">
+      <p className="font-semibold text-slate-900">{nhom}</p>
+      <p className="text-slate-500">{d.nhan} · dự báo theo kế hoạch doanh thu</p>
+      <div className="mt-2 space-y-1">
+        <HangTooltip mau={mau} nhan="Tồn dự báo" giaTri={`${dinhDangSo(d.ton / 1000, 2)} tỷ`} dam />
+        {d.thap !== null && d.cao !== null && (
+          <HangTooltip nhan="Khoảng thường gặp" giaTri={`${dinhDangSo(d.thap / 1000, 2)} – ${dinhDangSo(d.cao / 1000, 2)} tỷ`} />
+        )}
+        <HangTooltip nhan="Doanh số cần đạt tháng" giaTri={`${dinhDangSo(d.keHoach, 2)} tỷ`} />
+      </div>
+    </div>
+  );
+}
+
+const MAU_DT = '#94a3b8';
+
+/**
+ * Doanh số cần đạt (kế hoạch, cột) và doanh thu thực tế (đường) từng tháng của cả công ty — 1 biểu đồ ở đầu trang
+ * (không lặp dưới từng nhóm: số này của cả công ty, giống nhau ở mọi nhóm). Tháng sau tháng hiện tại = cột viền.
+ */
+function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKeHoach; tuThang: string; denThang: string; thangHienTai: string }) {
+  const cot = useMemo(() => {
+    const ds: { khoa: string; kh: number | null; khToi: number | null; tt: number | null; nhanKh: number | null }[] = [];
+    for (let k = tuThang; k <= denThang; k = congThangKhoa(k, 1)) {
+      const kh = dt.keHoach[k] ?? null, toi = k > thangHienTai;
+      ds.push({ khoa: k, kh: toi ? null : kh, khToi: toi ? kh : null, tt: toi ? null : dt.thucTe[k] ?? null, nhanKh: kh });
+      if (ds.length > 40) break;
+    }
+    return ds;
+  }, [dt, tuThang, denThang, thangHienTai]);
+  if (!cot.some(c => c.nhanKh !== null)) return null;
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-4 sm:px-5" aria-label="Doanh số cần đạt và doanh thu thực tế từng tháng">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+        <span className="text-sm font-semibold text-slate-800">Doanh số cần đạt & thực tế từng tháng (cả công ty, tỷ)</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5" style={{ background: MAU_DT }} aria-hidden />cần đạt</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 border border-dashed border-slate-500 bg-white" aria-hidden />cần đạt (tháng tới)</span>
+        <span className="inline-flex items-center gap-1"><span className="h-[3px] w-4 rounded-full bg-slate-800" aria-hidden />thực tế (nhập kho thành phẩm)</span>
+        <span className="text-slate-400">· là cơ sở dự báo tồn của từng nhóm bên dưới</span>
+      </div>
+      <div className="mt-2 h-[150px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={cot} margin={{ top: 16, right: 16, left: 0, bottom: 2 }} barCategoryGap="30%">
+            <CartesianGrid vertical={false} stroke="#eef2f6" />
+            <XAxis dataKey="khoa" tickFormatter={(k: string) => nhanThang(k)} tick={{ fontSize: 10, fill: '#94a3b8' }} tickLine={false}
+              axisLine={{ stroke: '#e2e8f0' }} interval="preserveStartEnd" minTickGap={8} />
+            <YAxis width={40} tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+            <Tooltip cursor={{ fill: '#f1f5f9' }} isAnimationActive={false} wrapperStyle={{ outline: 'none', zIndex: 30 }}
+              content={p => {
+                const c = p.payload?.[0]?.payload as (typeof cot)[number] | undefined;
+                if (!p.active || !c) return null;
+                return (
+                  <div className="min-w-[200px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
+                    <p className="font-semibold text-slate-900">{nhanThang(c.khoa)}</p>
+                    <div className="mt-1.5 space-y-1">
+                      <HangTooltip mau={MAU_DT} nhan="Doanh số cần đạt" giaTri={c.nhanKh === null ? '—' : `${dinhDangSo(c.nhanKh, 2)} tỷ`} dam />
+                      {c.tt !== null && <HangTooltip mau="#1e293b" nhan="Thực tế" giaTri={`${dinhDangSo(c.tt, 2)} tỷ`} />}
+                      {c.tt !== null && c.nhanKh ? <HangTooltip nhan="Đạt" giaTri={`${Math.round((c.tt / c.nhanKh) * 100)}%`} /> : null}
+                    </div>
+                  </div>
+                );
+              }} />
+            <Bar dataKey="kh" stackId="kh" fill={MAU_DT} fillOpacity={0.55} isAnimationActive={false} />
+            <Bar dataKey="khToi" stackId="kh" fill="#ffffff" stroke="#64748b" strokeDasharray="3 2" isAnimationActive={false}>
+              <LabelList dataKey="nhanKh" content={(q: object) => {
+                const { x, y, width, index } = q as { x?: number; y?: number; width?: number; index?: number };
+                const v = index === undefined ? null : cot[index]?.nhanKh;
+                if (v == null) return null;
+                return <text x={Number(x) + Number(width) / 2} y={Number(y) - 4} textAnchor="middle" fontSize={10} fill="#475569"
+                  style={{ fontVariantNumeric: 'tabular-nums' }}>{dinhDangSo(v, 0)}</text>;
+              }} />
+            </Bar>
+            <Line type="linear" dataKey="tt" stroke="#1e293b" strokeWidth={2} dot={{ r: 2.5, fill: '#1e293b' }} isAnimationActive={false} connectNulls={false} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  );
+}
+
+/** Dòng nói dự báo: số từng tháng, cách tính, độ sai khi kiểm lại (so với "giữ nguyên tồn") */
+function CauDuBao({ duBao, ten }: { duBao: DuBaoTon; ten?: string }) {
+  if (!duBao.diem.length) return null;
+  const s1 = duBao.saiSo[0], g1 = duBao.saiSoGiuNguyen[0];
+  return (
+    <div className="text-xs text-slate-600">
+      <p>
+        <span className="font-medium text-slate-800">{ten ? `${ten} — d` : 'D'}ự báo tồn theo kế hoạch doanh thu:</span>{' '}
+        {diemTieuBieu(duBao).map((d, i) => (
+          <span key={d.khoa} className="tabular-nums">
+            {i > 0 && ' · '}<span className="font-semibold text-slate-900">{d.nhan} ≈ {dinhDangSo(d.ton / 1000, 2)} tỷ</span>
+            {d.cao !== null && <> (±{dinhDangSo((d.cao - d.ton) / 1000, 1)})</>}
+          </span>
+        ))}
+      </p>
+      <p className="text-[0.6875rem] text-slate-500">
+        Dựa trên doanh số cần đạt (cả công ty):{' '}
+        {duBao.diem.map((d, i) => (
+          <span key={d.khoa} className="tabular-nums">{i > 0 && ' · '}{d.nhan} {dinhDangSo(d.keHoach, 0)} tỷ</span>
+        ))}
+        {' '}— đạt ~{Math.round(duBao.tyLeDat * 100)}% kế hoạch như 3 tháng {nhanThang(duBao.tyLeTu)}–{nhanThang(duBao.tyLeDen)}.
+      </p>
+      <p className="text-[0.6875rem] text-slate-400">
+        Tồn đổi bằng ½ mức đổi của doanh thu bình quân 3 tháng (doanh thu = doanh số cần đạt từng tháng).
+        {s1 !== null && g1 !== null && <> Kiểm lại {duBao.soLanKiem[0]} tháng đã qua: sai trung bình ±{dinhDangSo(s1 / 1000, 1)} tỷ trước 1 tháng
+          (giữ nguyên tồn: ±{dinhDangSo(g1 / 1000, 1)} tỷ).</>}
+        {duBao.saiSo[1] !== undefined && duBao.saiSo[1] !== null && duBao.saiSoGiuNguyen[1] !== null && (
+          <> Trước 2 tháng: ±{dinhDangSo(duBao.saiSo[1] / 1000, 1)} tỷ (giữ nguyên: ±{dinhDangSo(duBao.saiSoGiuNguyen[1]! / 1000, 1)}).</>
+        )}
+      </p>
+    </div>
+  );
 }
 
 /** Số ghi tại điểm (recharts LabelList content): chỉ ở các điểm trong `hien`; `duoi` = ghi dưới điểm (đường chậm LC) */
@@ -311,12 +419,16 @@ function NhanSo({ x, y, value, index, hien, duoi, chiSo, dam, soLe = 1 }: {
 // + đường trung bình (chấm, màu nhóm) + đường xu hướng (gạch dài, cam tăng / xanh giảm); trục Y từ 0, số ghi tại điểm,
 // câu tóm tắt tự tính ở đầu thẻ
 // ---------------------------------------------------------------------------
-function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phienBan, khoaLoc, doanhThu, thangTamTinh }: {
+function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phienBan, khoaLoc, doanhThu, duBao, tuThang }: {
   chuoi: ChuoiNhom; chiSo: ChiSo; moc: MocXem;
-  /** Doanh thu tháng cả công ty (tỷ, khoá 'YYYY-MM'); chỉ vẽ khi xem theo tháng. undefined = chưa tải / lỗi */
-  doanhThu?: Record<string, number>;
-  /** Tháng đang chạy ('YYYY-MM') — doanh thu tháng này là tạm tính */
-  thangTamTinh?: string;
+  /** Đang xem 1 năm: chỉ vẽ các tháng từ đây (năm tới chưa có tồn: bỏ lần chốt mới nhất dùng làm điểm nối) */
+  tuThang?: string | null;
+  /** Doanh thu thực tế + kế hoạch theo tháng (cả công ty, tỷ); undefined = chưa tải / lỗi */
+  doanhThu?: DoanhThuKeHoach;
+  /** Dự báo tồn của nhóm theo kế hoạch doanh thu (tính trên chuỗi tháng đủ, giá trị) */
+  duBao?: DuBaoTon | null;
+  /** Tháng hiện tại ('YYYY-MM', giờ VN) */
+  thangHienTai: string;
   /** Phiên bản bảng (đổi => bộ lọc tải lại danh sách tên) */
   phienBan: string;
   /** Khoá nút lọc (đang xuất báo cáo) */
@@ -336,29 +448,36 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
   // Kích thước lúc chụp PDF: rộng như đang hiện, cao theo tỷ lệ 2,7:1 (ảnh lấp kín 1 trang ngang A4)
   const khungRef = useRef<HTMLDivElement>(null);
   const rongXuat = xuat ? Math.max(600, Math.round(khungRef.current?.clientWidth ?? 1000)) : 0;
-  const caoXuat = Math.round(rongXuat / 2.7);
+  const caoXuat = Math.round(rongXuat / TY_LE_ANH_TON);
   // Đường xu hướng tăng / giảm (hồi quy tuyến tính tổng tồn, ≥ 3 điểm): cam = tăng (vốn đọng thêm), xanh = giảm
   const xh = useMemo(() => xuHuongTong(ds), [ds]);
   const mauXh = xh?.huong === 'tang' ? MAU_TANG : xh?.huong === 'giam' ? MAU_GIAM : '#64748b';
   const duLieuVe = useMemo<DiemVe[]>(
-    () => {
-      const iTam = ds.findIndex(d => d.khoa === thangTamTinh);
-      return ds.map((d, i) => {
-        const dt = moc === 'thang' && doanhThu ? doanhThu[d.khoa] ?? null : null;
-        return {
-          ...d, chamVe: d.thieuCham ? null : d.cham, xuHuong: xh ? xh.giaTri[i] : null,
-          doanhThu: dt, dtDu: i === iTam ? null : dt, dtTam: iTam >= 0 && (i === iTam || i === iTam - 1) ? dt : null,
-        };
-      });
-    }, [ds, xh, moc, doanhThu, thangTamTinh]);
-  // Doanh thu tháng: trục phải cùng số khoảng với trục tồn để đường lưới khớp cả 2 trục
-  const coDT = duLieuVe.some(d => d.doanhThu !== null);
-  const coTamTinh = coDT && duLieuVe.some(d => d.khoa === thangTamTinh && d.doanhThu !== null);
-  const max = Math.max(ds.reduce((m, d) => Math.max(m, d.tong), 0), ...(xh ? xh.giaTri : [0]));
+    () => ds.map((d, i) => ({ ...d, chamVe: d.thieuCham ? null : d.cham, xuHuong: xh ? xh.giaTri[i] : null })), [ds, xh]);
+  // Dự báo: chỉ khi xem theo THÁNG + GIÁ TRỊ và điểm cuối là tháng có tồn mới nhất (dự báo nối tiếp đúng điểm đó)
+  const coDuBao = moc === 'thang' && chiSo === 'giaTri' && !!duBao && duBao.diem.length > 0 && !!cuoi
+    && congThangKhoa(cuoi.khoa, 1) === duBao.diem[0].khoa;
+  const duLieuBieuDo = useMemo<DongVe[]>(() => {
+    if (!coDuBao || !duBao) return duLieuVe;
+    const n = duLieuVe.length;
+    return [
+      ...duLieuVe.map((d, i) => (i === n - 1 ? { ...d, duBao: d.tong, dai: [d.tong, d.tong] as [number, number] } : d)),
+      ...duBao.diem.map(p => ({
+        khoa: p.khoa, nhan: p.nhan, laDuBao: true, duBao: p.ton, diemDuBao: p,
+        dai: p.thap !== null && p.cao !== null ? [p.thap, p.cao] as [number, number] : null,
+      })),
+    ];
+  }, [coDuBao, duBao, duLieuVe]);
+  // Xem 1 năm: chỉ các tháng của năm đó (dữ liệu vẽ + dự báo ghi chữ)
+  const duLieuHien = useMemo(() => (tuThang ? duLieuBieuDo.filter(d => d.khoa >= tuThang) : duLieuBieuDo), [duLieuBieuDo, tuThang]);
+  const duBaoHien = useMemo(() => catDuBao(duBao ?? null, null, tuThang ?? null), [duBao, tuThang]);
+  // Số ghi trên đường dự báo: chỉ các tháng tiêu biểu (theo khoá tháng)
+  const hienDuBao = new Set(coDuBao && duBaoHien ? diemTieuBieu(duBaoHien).map(p => p.khoa) : []);
+  const maxDuBao = coDuBao && duBao ? Math.max(...duBao.diem.map(p => p.cao ?? p.ton)) : 0;
+  const max = Math.max(ds.reduce((m, d) => Math.max(m, d.tong), 0), ...(xh ? xh.giaTri : [0]), maxDuBao);
   const { vach, soLe } = useMemo(() => vachTrucY(max, chiSo === 'giaTri' ? 'ty' : 'so'), [max, chiSo]);
-  const maxDT = duLieuVe.reduce((m, d) => Math.max(m, d.doanhThu ?? 0), 0);
-  const trucDT = useMemo(() => vachTheoSoKhoang(maxDT, vach.length - 1), [maxDT, vach.length]);
-  const nhanTruc = useMemo(() => chonNhanTruc(ds.map(d => d.khoa), 14), [ds]);
+  const dsKhoa = useMemo(() => duLieuHien.map(d => d.khoa), [duLieuHien]);
+  const nhanTruc = useMemo(() => chonNhanTruc(dsKhoa, 14), [dsKhoa]);
   const hienTong = useMemo(() => chiSoNhan(ds.map(d => d.tong)), [ds]);
   const hienCham = useMemo(() => chiSoNhan(duLieuVe.map(d => d.chamVe)), [duLieuVe]);
   // Lần chốt thiếu cờ chậm luân chuyển (03/09/2026): đường xám nối qua (khỏi trông như lỗi đứt khúc) + chấm rỗng
@@ -380,13 +499,15 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
   // Đường trung bình tổng tồn của các điểm đang xem (vẽ khi có ≥ 2 điểm)
   const tb = useMemo(() => (ds.length > 1 ? trungBinhTong(ds) : null), [ds]);
   const nhanTb = tb === null ? '' : `TB ${chiSo === 'giaTri' ? dinhDangSo(tb / 1000, soLeNhan) : dinhDangSo(tb, 0)}`;
+  // Lề phải chừa chỗ nhãn "TB …"; biểu đồ số ngày doanh thu bên dưới dùng cùng lề để thẳng cột tháng
+  const lePhai = tb === null ? 24 : 58;
   const chon = (d: DiemChuoi) => {
     const i = theoKhoa.get(d.khoa) ?? 0;
     onChon(chuoi.nhom, d, i > 0 ? ds[i - 1] : null);
   };
   const bamDiem = (s: { activePayload?: Array<{ payload?: unknown }> } | null) => {
-    const p = s?.activePayload?.[0]?.payload as DiemChuoi | undefined;
-    if (p) chon(p);
+    const p = s?.activePayload?.[0]?.payload as DongVe | undefined;
+    if (p && !p.laDuBao) chon(p as DiemChuoi);
   };
 
   return (
@@ -427,12 +548,12 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
       )}
       <p className="mt-1 text-[0.9375rem] font-medium leading-snug text-slate-900">{tomTat}</p>
 
-      <div ref={khungRef} className={`mt-3 cursor-pointer transition-opacity ${ketQuaLoc?.trangThai === 'dang_tai' ? 'opacity-40' : ''}`}
+      <div ref={khungRef} data-tkvt-ton className={`mt-3 cursor-pointer transition-opacity ${ketQuaLoc?.trangThai === 'dang_tai' ? 'opacity-40' : ''}`}
         style={{ height: xuat ? caoXuat : 250 }} role="img"
         aria-label={`Biểu đồ đường tồn ${chuoi.nhom} theo ${moc === 'tuan' ? 'từng lần chốt' : 'tháng'}: ${tomTat}. Bấm điểm để xem từng mã`}>
         {(() => {
           const bieuDo = (
-          <LineChart data={duLieuVe} margin={{ top: 20, right: coDT ? 4 : tb === null ? 24 : 58, left: 0, bottom: 4 }} onClick={bamDiem}
+          <ComposedChart data={duLieuHien} margin={{ top: 20, right: lePhai, left: 0, bottom: 4 }} onClick={bamDiem}
             width={xuat ? rongXuat : undefined} height={xuat ? caoXuat : undefined}>
             <CartesianGrid vertical={false} stroke="#e2e8f0" />
             <XAxis dataKey="khoa" ticks={nhanTruc} interval="preserveEnd" minTickGap={4}
@@ -441,33 +562,39 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
             <YAxis domain={[0, vach[vach.length - 1]]} ticks={vach} width={44} tickLine={false} axisLine={false}
               tickFormatter={(v: number) => (chiSo === 'giaTri' ? dinhDangSo(v / 1000, soLe) : dinhDangSo(v, 0))}
               tick={{ fontSize: 11, fill: '#94a3b8' }} />
-            {coDT && (
-              <YAxis yAxisId="dt" orientation="right" domain={[0, trucDT.vach[trucDT.vach.length - 1]]} ticks={trucDT.vach} width={40}
-                tickLine={false} axisLine={false} tickFormatter={(v: number) => dinhDangSo(v, trucDT.soLe)}
-                tick={{ fontSize: 11, fill: MAU_DT }} />
-            )}
             <Tooltip cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3' }} isAnimationActive={false}
               wrapperStyle={{ outline: 'none', zIndex: 30 }}
               content={p => {
-                const d = p.payload?.[0]?.payload as DiemChuoi | undefined;
-                if (!p.active || !d) return null;
+                const r = p.payload?.[0]?.payload as DongVe | undefined;
+                if (!p.active || !r) return null;
+                if (r.laDuBao && r.diemDuBao) return <TooltipDuBao d={r.diemDuBao} nhom={chuoi.nhom} mau={mau} />;
+                const d = r as DiemChuoi;
                 const i = theoKhoa.get(d.khoa) ?? 0;
-                return <TooltipDiem diem={d} truoc={i > 0 ? ds[i - 1] : null} nhom={chuoi.nhom} mau={mau} chiSo={chiSo} moc={moc} tb={tb}
-                  doanhThu={coDT ? (d as DiemVe).doanhThu : undefined} tamTinh={d.khoa === thangTamTinh} />;
+                return <TooltipDiem diem={d} truoc={i > 0 ? ds[i - 1] : null} nhom={chuoi.nhom} mau={mau} chiSo={chiSo} moc={moc} tb={tb} />;
               }} />
+            {coDuBao && cuoi && (!tuThang || cuoi.khoa >= tuThang) && (
+              <ReferenceLine x={cuoi.khoa} stroke="#cbd5e1" strokeDasharray="3 3"
+                label={{ value: 'Dự báo →', position: 'insideTopRight', fill: '#64748b', fontSize: 10 }} />
+            )}
+            {coDuBao && (
+              <Area type="linear" dataKey="dai" stroke="none" fill={mau} fillOpacity={0.12} isAnimationActive={false} activeDot={false} />
+            )}
+            {coDuBao && (
+              <Line type="linear" dataKey="duBao" name="Dự báo" stroke={mau} strokeWidth={2} strokeDasharray="6 4"
+                dot={{ r: 3, fill: '#ffffff', stroke: mau, strokeWidth: 1.5 }} activeDot={{ r: 4.5, fill: mau, stroke: '#fff', strokeWidth: 1.5 }}
+                isAnimationActive={false}>
+                <LabelList dataKey="duBao" content={(q: object) => {
+                  const { x, y, value, index } = q as { x?: number; y?: number; value?: number | null; index?: number };
+                  const dong = index === undefined ? undefined : duLieuHien[index];
+                  if (value == null || !dong?.laDuBao || !hienDuBao.has(dong.khoa)) return null;
+                  return <text x={Number(x)} y={Number(y) - 9} textAnchor="middle" fontSize={11} fill={mau} fontWeight={600}
+                    style={{ fontVariantNumeric: 'tabular-nums' }}>{dinhDangSo(value / 1000, soLeNhan)}</text>;
+                }} />
+              </Line>
+            )}
             {tb !== null && (
               <ReferenceLine y={tb} stroke={mau} strokeOpacity={0.75} strokeWidth={1.25} strokeDasharray="2 3" ifOverflow="extendDomain"
-                label={{ value: nhanTb, position: coDT ? 'insideBottomLeft' : 'right', fill: mau, fontSize: 11, fontWeight: 600 }} />
-            )}
-            {coDT && (
-              <Line yAxisId="dt" type="linear" dataKey="dtDu" name="Doanh thu tháng" stroke={MAU_DT} strokeWidth={1.5}
-                strokeOpacity={0.6} dot={<DiemVuong tamTinh={thangTamTinh} />}
-                activeDot={{ r: 4.5, fill: MAU_DT, stroke: '#fff', strokeWidth: 1.5 }} isAnimationActive={false} />
-            )}
-            {coTamTinh && (
-              <Line yAxisId="dt" type="linear" dataKey="dtTam" name="Doanh thu tạm tính" stroke={MAU_DT} strokeWidth={1.5}
-                strokeOpacity={0.6} strokeDasharray="4 3" dot={<DiemVuong tamTinh={thangTamTinh} chiTamTinh />}
-                activeDot={false} legendType="none" isAnimationActive={false} />
+                label={{ value: nhanTb, position: 'right', fill: mau, fontSize: 11, fontWeight: 600 }} />
             )}
             {xh && (
               <Line type="linear" dataKey="xuHuong" name="Xu hướng" stroke={mauXh} strokeWidth={1.75} strokeDasharray="10 5"
@@ -489,7 +616,7 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
               activeDot={{ r: 5.5, fill: mau, stroke: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
               <LabelList dataKey="tong" content={(p: object) => <NhanSo {...p} hien={hienTong} chiSo={chiSo} dam soLe={soLeNhan} />} />
             </Line>
-          </LineChart>
+          </ComposedChart>
           );
           // Lúc chụp cho PDF: vẽ thẳng kích thước cố định (ResponsiveContainer đo lại qua ResizeObserver — chậm / không chạy
           // khi tab ở nền, ảnh chụp sẽ còn kích thước cũ)
@@ -515,22 +642,32 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
             <span className="w-4 border-t-2 border-dashed" style={{ borderColor: mauXh }} aria-hidden />
             {xh.huong === 'ngang'
               ? 'Xu hướng: đi ngang'
-              : <>Xu hướng {xh.huong === 'tang' ? '▲ tăng' : '▼ giảm'} ~{dinhDangChiSo(Math.abs(xh.moiDiem), chiSo)}/{moc === 'tuan' ? 'tuần' : 'tháng'}
+              : xh.huong === 'khongRo'
+                ? <span title="Đường thẳng xu hướng giải thích dưới 50% dao động của tổng tồn => không kết luận tăng hay giảm">
+                  Xu hướng: không rõ — tồn lên xuống, đường thẳng chỉ giải thích {Math.round(xh.r2 * 100)}% dao động
+                </span>
+                : <>Xu hướng {xh.huong === 'tang' ? '▲ tăng' : '▼ giảm'} ~{dinhDangChiSo(Math.abs(xh.moiDiem), chiSo)}/{moc === 'tuan' ? 'tuần' : 'tháng'}
                 {xh.ptCaKhoang !== null && <> ({dinhDangPt(xh.ptCaKhoang, true)} cả khoảng)</>}</>}
           </span>
         )}
-        {coDT && (
-          <span className="inline-flex items-center gap-1.5" style={{ color: MAU_DT }}>
-            <span className="relative inline-flex w-4 items-center" aria-hidden>
-              <span className="h-[2px] w-4" style={{ background: MAU_DT }} />
-              <span className="absolute left-1/2 h-[7px] w-[7px] -translate-x-1/2" style={{ background: MAU_DT }} />
+        {coDuBao && (
+          <span className="inline-flex items-center gap-1.5" style={{ color: mau }}>
+            <span className="relative inline-flex h-3 w-4 items-center" aria-hidden>
+              <span className="absolute inset-0 rounded-sm" style={{ background: mau, opacity: 0.15 }} />
+              <span className="relative w-4 border-t-2 border-dashed" style={{ borderColor: mau }} />
             </span>
-            Doanh thu tháng (nhập kho thành phẩm cả công ty) — trục phải, tỷ{coTamTinh && <>; tháng này tạm tính (nét đứt)</>}
+            Dự báo theo kế hoạch doanh thu (vùng mờ = sai số thường gặp)
           </span>
         )}
-        {moc === 'tuan' && doanhThu && <span>Doanh thu tháng: xem ở chế độ Theo tháng</span>}
         <span>{chiSo === 'giaTri' ? 'Đơn vị: tỷ đồng' : 'Đơn vị: số mã'}</span>
       </div>
+      {coDuBao && duBaoHien && <div className="mt-2"><CauDuBao duBao={duBaoHien} /></div>}
+      {doanhThu && moc === 'tuan' && (
+        <p className="mt-2 text-[0.6875rem] text-slate-400">Doanh thu từng tháng và dự báo tồn theo kế hoạch doanh thu: xem ở chế độ Theo tháng.</p>
+      )}
+      {doanhThu && moc === 'thang' && chiSo === 'soMa' && (
+        <p className="mt-2 text-[0.6875rem] text-slate-400">Dự báo tồn theo kế hoạch doanh thu tính trên giá trị: chọn "Giá trị" để xem.</p>
+      )}
     </section>
   );
 }
@@ -898,26 +1035,81 @@ const TonKhoVatTu: React.FC = () => {
   const dangTaiLoc = Object.values(ketQuaLoc).some(k => k.trangThai === 'dang_tai');
   const ngayThieu = useMemo(() => (chuoi[0]?.diem ?? []).filter(d => d.thieuCham).map(d => d.ngayChot), [chuoi]);
   const capNhat = dinhDangCapNhat(duLieu?.capNhat ?? null);
-  // Doanh thu tháng (cả công ty) cho các năm có lần chốt tồn — vẽ thêm trên 6 biểu đồ khi xem theo tháng
-  const [doanhThu, setDoanhThu] = useState<{ theoThang: Record<string, number>; loi: string | null } | null>(null);
-  const thangTamTinh = useMemo(thangHienTaiVn, []);
-  const namCoTon = useMemo(() => (duLieu ? [...new Set(dsNgayChot(duLieu).map(n => n.slice(0, 4)))].join(',') : ''), [duLieu]);
+  // Doanh thu tháng (cả công ty) cho biểu đồ "tồn bằng bao nhiêu ngày doanh thu": các năm từ 3 tháng trước lần chốt
+  // đầu tiên tới lần chốt cuối (bình quân 3 tháng của lần chốt đầu cần cả tháng của năm trước)
+  const [doanhThu, setDoanhThu] = useState<{ dt: DoanhThuKeHoach; loi: string | null } | null>(null);
+  const thangHienTai = useMemo(thangHienTaiVn, []);
+  const namCoTon = useMemo(() => {
+    const ngay = duLieu ? dsNgayChot(duLieu) : [];
+    if (!ngay.length) return '';
+    // từ 3 tháng trước lần chốt đầu (bình quân 3 tháng) tới 3 tháng sau lần chốt cuối (kế hoạch các tháng dự báo)
+    const tu = Number(congThangKhoa(ngay[0].slice(0, 7), -3).slice(0, 4));
+    const den = Number(congThangKhoa(ngay[ngay.length - 1].slice(0, 7), SO_THANG_DU_BAO_TOI_DA).slice(0, 4));
+    return Array.from({ length: den - tu + 1 }, (_, i) => tu + i).join(',');
+  }, [duLieu]);
   useEffect(() => {
     if (!namCoTon) return;
     const ac = new AbortController();
-    Promise.all(namCoTon.split(',').map(n => layDoanhThuThang(Number(n), ac.signal)))
-      .then(ds => { if (!ac.signal.aborted) setDoanhThu({ theoThang: Object.assign({}, ...ds), loi: null }); })
+    Promise.all(namCoTon.split(',').map(n => layDoanhThuKeHoach(Number(n), ac.signal)))
+      .then(ds => {
+        if (ac.signal.aborted) return;
+        setDoanhThu({ dt: { thucTe: Object.assign({}, ...ds.map(d => d.thucTe)), keHoach: Object.assign({}, ...ds.map(d => d.keHoach)) }, loi: null });
+      })
       .catch((e: unknown) => {
         if (ac.signal.aborted) return;
         console.error('Lỗi tải doanh thu tháng:', e);
-        setDoanhThu({ theoThang: {}, loi: e instanceof LoiTonKhoVt ? e.message : 'Lỗi không xác định' });
+        setDoanhThu({ dt: { thucTe: {}, keHoach: {} }, loi: e instanceof LoiTonKhoVt ? e.message : 'Lỗi không xác định' });
       });
     return () => ac.abort();
   }, [namCoTon]);
-  const dtTheoThang = doanhThu && !doanhThu.loi ? doanhThu.theoThang : undefined;
+  const dtKH = doanhThu && !doanhThu.loi ? doanhThu.dt : undefined;
+  // Dự báo tồn theo kế hoạch doanh thu: chuỗi THÁNG đủ (không theo khoảng đang xem — kiểm lại được nhiều tháng), GIÁ TRỊ;
+  // nhóm đang lọc tên thì theo số đã lọc. Toàn kho = cộng các nhóm (không lọc).
+  const chuoiThangDu = useMemo(() => {
+    if (!duLieu) return [] as ChuoiNhom[];
+    return dungChuoi(duLieu, { moc: 'thang', chiSo: 'giaTri' }).map(c => {
+      const kq = ketQuaLoc[c.nhom];
+      if (!locTheoNhom[c.nhom] || kq?.trangThai !== 'xong') return c;
+      const th: TongHopTonKhoVt = { ...kq.duLieu, ngay: duLieu.ngay, nhom: [c.nhom] };
+      return dungChuoi(th, { moc: 'thang', chiSo: 'giaTri', thieu: thieuToanBang }).find(x => x.nhom === c.nhom) ?? c;
+    });
+  }, [duLieu, locTheoNhom, ketQuaLoc, thieuToanBang]);
+  const duBaoTheoNhomDu = useMemo<Record<string, DuBaoTon | null>>(
+    () => (dtKH ? Object.fromEntries(chuoiThangDu.map(c => [c.nhom, duBaoTonTheoDoanhThu(c.diem, dtKH, thangHienTai, SO_THANG_DU_BAO_TOI_DA)])) : {}),
+    [chuoiThangDu, dtKH, thangHienTai]);
+  const duBaoToanKhoDu = useMemo(() => {
+    if (!dtKH || !duLieu) return null;
+    const goc = dungChuoi(duLieu, { moc: 'thang', chiSo: 'giaTri' });
+    if (!goc.length) return null;
+    const tongThang: DiemChuoi[] = goc[0].diem.map((d, i) => {
+      const t = goc.reduce((sum, c) => sum + (c.diem[i]?.tong ?? 0), 0);
+      return { ...d, tong: t, goc: { ...d.goc, giaTri: t } };
+    });
+    return duBaoTonTheoDoanhThu(tongThang, dtKH, thangHienTai, SO_THANG_DU_BAO_TOI_DA);
+  }, [dtKH, duLieu, thangHienTai]);
+  // Chọn 1 năm: dự báo chỉ hiện tới tháng 12 năm đó (kiểm lại sai số vẫn tính trên cả chuỗi)
+  const namXem = namCuaKhoang(khoang);
+  const denThangXem = namXem === null ? null : `${namXem}-12`;
+  const tuThangXem = namXem === null ? null : `${namXem}-01`;
+  const duBaoTheoNhom = useMemo(() => Object.fromEntries(Object.entries(duBaoTheoNhomDu).map(([k, d]) => [k, catDuBao(d, denThangXem)])),
+    [duBaoTheoNhomDu, denThangXem]);
+  const duBaoToanKho = useMemo(() => catDuBao(duBaoToanKhoDu, denThangXem), [duBaoToanKhoDu, denThangXem]);
+  // Các năm chọn được: năm có lần chốt + năm có doanh số cần đạt từ năm chốt đầu trở đi (năm tới = dự báo)
+  const dsNam = useMemo(() => {
+    const ngay = duLieu ? dsNgayChot(duLieu) : [];
+    if (!ngay.length) return [] as number[];
+    const dau = Number(ngay[0].slice(0, 4));
+    // Năm chưa có tồn chỉ có dự báo (theo tháng, giá trị) — xem theo tuần / số mã thì chỉ các năm có lần chốt
+    const coDuBaoNam = moc === 'thang' && chiSo === 'giaTri';
+    const nam = new Set([...ngay.map(n => Number(n.slice(0, 4))), ...(coDuBaoNam ? Object.keys(DOANH_SO_CAN_DAT).map(Number).filter(n => n >= dau) : [])]);
+    return [...nam].sort((a, b) => a - b);
+  }, [duLieu, moc, chiSo]);
+  useEffect(() => {
+    if (namXem !== null && dsNam.length && !dsNam.includes(namXem)) setKhoang('tat_ca');
+  }, [namXem, dsNam]);
   const coSo = !!ngayMoiNhat && chuoi.length > 0;
 
-  const khoangNhan = khoang === 'tat_ca' ? 'Tất cả' : khoang === '6t' ? '6 tháng gần nhất' : '3 tháng gần nhất';
+  const khoangNhan = namXem !== null ? `Năm ${namXem}` : khoang === 'tat_ca' ? 'Tất cả' : khoang === '6t' ? '6 tháng gần nhất' : '3 tháng gần nhất';
   const nguoiLap = user?.fullName || user?.username || '';
   const dongMenu = () => setMoMenu(false);
   useEffect(() => {
@@ -953,7 +1145,7 @@ const TonKhoVatTu: React.FC = () => {
       const chuoiXuat = chuoiHien.map(c => (locHieuLuc[c.nhom] ? { ...c, nhom: `${c.nhom} (lọc: ${locHieuLuc[c.nhom].moTa})` } : c));
       const bd = dungBieuDoExcel({
         chuoi: chuoiHien, chiSo, moc, loc: locHieuLuc, mau: Object.fromEntries(chuoiHien.map(c => [c.nhom, mauNhom(c.nhom)])),
-        doanhThu: moc === 'thang' ? dtTheoThang : undefined, thangTamTinh,
+        doanhThu: dtKH, thangHienTai, duBao: moc === 'thang' && chiSo === 'giaTri' ? duBaoTheoNhom : undefined,
       });
       const dauBieuDo: O[][] = [
         ['Biểu đồ tồn kho vật tư'],
@@ -993,17 +1185,19 @@ const TonKhoVatTu: React.FC = () => {
       setDangChup(true);
       await new Promise(r => setTimeout(r, 450));
       const anh: Record<string, string | undefined> = {};
+      const anhDoanhThu: Record<string, string | undefined> = {};
       try {
         for (const c of chuoiHien) {
           anh[c.nhom] = await chupBieuDo(c.nhom).catch((e: unknown) => { console.error('Lỗi chụp biểu đồ', c.nhom, e); return undefined; });
+          anhDoanhThu[c.nhom] = await chupBieuDo(c.nhom, '[data-tkvt-dt] .recharts-wrapper svg').catch(() => undefined);
         }
       } finally {
         setDangChup(false);
       }
       const { taiBaoCaoPdf } = await import('./tonKhoVatTu/baoCao');
       await taiBaoCaoPdf({
-        chuoi: chuoiHien, tong, chiSo, moc, khoangNhan, ngayMoiNhat, capNhat, nguoiLap, luc: new Date(), anh, loc: locHieuLuc,
-        doanhThu: moc === 'thang' ? dtTheoThang : undefined, thangTamTinh,
+        chuoi: chuoiHien, tong, chiSo, moc, khoangNhan, ngayMoiNhat, capNhat, nguoiLap, luc: new Date(), anh, anhDoanhThu, loc: locHieuLuc,
+        doanhThu: dtKH, thangHienTai, duBao: moc === 'thang' && chiSo === 'giaTri' ? duBaoTheoNhom : undefined, duBaoToanKho,
         mau: Object.fromEntries(chuoi.map(c => [c.nhom, mauNhom(c.nhom)])),
       });
     } catch (e) {
@@ -1039,7 +1233,7 @@ const TonKhoVatTu: React.FC = () => {
           <PhanDoan nhan="Mốc thời gian" giaTri={moc} onChon={setMoc} tat={!coSo || !!dangXuat}
             chon={[['tuan', 'Theo tuần'], ['thang', 'Theo tháng']]} />
           <PhanDoan nhan="Khoảng thời gian" giaTri={khoang} onChon={setKhoang} tat={!coSo || !!dangXuat}
-            chon={[['3t', '3 tháng'], ['6t', '6 tháng'], ['tat_ca', 'Tất cả']]} />
+            chon={[['3t', '3 tháng'], ['6t', '6 tháng'], ...dsNam.map((n): [KhoangXem, string] => [`nam${n}`, String(n)]), ['tat_ca', 'Tất cả']]} />
           <div className="relative" ref={menuRef}>
             <button type="button" onClick={() => setMoMenu(v => !v)} disabled={!coSo || !!dangXuat || dangTaiLoc}
               aria-haspopup="menu" aria-expanded={moMenu}
@@ -1065,7 +1259,7 @@ const TonKhoVatTu: React.FC = () => {
                   <FileSpreadsheet size={18} className="mt-0.5 shrink-0 text-emerald-600" />
                   <span>
                     <span className="block text-sm font-medium text-slate-800">Excel</span>
-                    <span className="block text-xs text-slate-500">Sheet Báo cáo (tổng kết từng nhóm) + 6 biểu đồ Excel + số liệu từng kỳ</span>
+                    <span className="block text-xs text-slate-500">Sheet Báo cáo (tổng kết từng nhóm) + biểu đồ Excel (tồn, doanh thu, dự báo) + số liệu từng kỳ</span>
                   </span>
                 </button>
               </div>
@@ -1134,14 +1328,21 @@ const TonKhoVatTu: React.FC = () => {
                 phu={tong.thieuCham ? 'lần chốt cuối thiếu cột chậm luân chuyển' : `${dinhDangPt(tong.ptCham)} ${giaTri ? 'tổng giá trị tồn' : 'tổng số mã'}`} />
             </div>
 
+            {dtKH && moc === 'thang' && chuoiThangDu[0]?.diem.length ? (
+              <BieuDoDoanhSo dt={dtKH} thangHienTai={thangHienTai}
+                tuThang={tuThangXem ?? chuoiThangDu[0].diem[0].khoa}
+                denThang={(duBaoToanKho?.diem.length ? duBaoToanKho.diem[duBaoToanKho.diem.length - 1].khoa : null) ?? denThangXem ?? thangHienTai} />
+            ) : null}
+
             <p className="flex items-start gap-1.5 text-xs text-slate-500">
               <Info size={13} className="mt-0.5 shrink-0" />
               <span>
                 Mỗi điểm là tồn tại 1 lần chốt (không cộng dồn các tuần){moc === 'thang' && '; theo tháng lấy lần chốt cuối tháng'}.
                 Đường xám nét đứt là phần chậm luân chuyển &gt; 3 tháng. <span style={{ color: MAU_TANG }}>▲ Tăng</span> = vốn đọng thêm,{' '}
                 <span style={{ color: MAU_GIAM }}>▼ giảm</span> = tồn giảm. Bấm 1 điểm để xem từng mã tăng / giảm / mới / đã hết.
-                {moc === 'thang' && dtTheoThang && (
-                  <> Đường điểm vuông xám đậm là doanh thu tháng (giá trị nhập kho thành phẩm, cả công ty — trục phải).</>
+                {dtKH && moc === 'thang' && (
+                  <> Biểu đồ doanh số phía trên là của cả công ty; đường nét đứt sau "Dự báo →" ở mỗi nhóm là tồn dự báo
+                    theo kế hoạch doanh thu, vùng mờ là sai số thường gặp khi kiểm lại trên các tháng đã qua.</>
                 )}
                 {doanhThu?.loi && <span className="text-amber-700"> Không tải được doanh thu tháng ({doanhThu.loi}).</span>}
                 {nhomDangLoc.length > 0 && (
@@ -1157,11 +1358,17 @@ const TonKhoVatTu: React.FC = () => {
               </span>
             </p>
 
+            {moc === 'thang' && duBaoToanKho && duBaoToanKho.diem.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 sm:px-5">
+                <CauDuBao duBao={catDuBao(duBaoToanKho, null, tuThangXem)!} ten="Toàn kho" />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4">
               {chuoiHien.map(c => (
                 <TheNhom key={c.nhom} chuoi={c} chiSo={chiSo} moc={moc} xuat={dangChup}
                   loc={locTheoNhom[c.nhom] ?? null} ketQuaLoc={ketQuaLoc[c.nhom]} onLoc={l => apDungLoc(c.nhom, l)}
-                  phienBan={duLieu?.capNhat ?? ''} khoaLoc={!!dangXuat} doanhThu={dtTheoThang} thangTamTinh={thangTamTinh}
+                  phienBan={duLieu?.capNhat ?? ''} khoaLoc={!!dangXuat} doanhThu={dtKH} duBao={duBaoTheoNhom[c.nhom] ?? null} thangHienTai={thangHienTai} tuThang={tuThangXem}
                   onChon={(nhom, d, truoc) => setMoChiTiet({
                     nhom, ngayChot: d.ngayChot, ngaySoVoi: truoc?.ngayChot ?? null, soVoiThang: moc === 'thang' && !!truoc,
                     thieuCham: d.thieuCham, loc: locHieuLuc[nhom],

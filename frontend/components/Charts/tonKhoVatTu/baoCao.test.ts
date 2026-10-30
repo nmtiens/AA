@@ -42,6 +42,10 @@ describe('báo cáo tồn kho vật tư — tổng kết nhóm', () => {
     expect(k.ptCham).toBeCloseTo(29.01 / 39.73 * 100);
     expect(chuXuHuong(tongKetNhom(chuoi[1], 'giaTri')!.xh, 'giaTri', 'thang')).toMatch(/^giảm ~\d+\.\d\d tỷ\/tháng \(−\d+% cả khoảng\)$/);
   });
+  it('xu hướng không rõ (R² < 0.5): chữ "không rõ", Excel không ghi độ dốc', () => {
+    const xh = { giaTri: [], moiDiem: 0.24, ptCaKhoang: 8.1, r2: 0.19, huong: 'khongRo' as const };
+    expect(chuXuHuong(xh, 'giaTri', 'thang')).toBe('không rõ (đường thẳng chỉ giải thích 19% dao động)');
+  });
   it('sheet Excel "Báo cáo": tiêu đề cột có đơn vị, 1 dòng / nhóm + dòng tổng, số theo tỷ', () => {
     const b = bangBaoCaoExcel(chuoi, 'giaTri', 'thang');
     expect(b[0][1]).toBe('Tồn mới nhất (tỷ)');
@@ -111,14 +115,24 @@ describe('báo cáo tồn kho vật tư — PDF', () => {
     expect(bangBaoCaoExcel(chuoi, 'giaTri', 'thang', 'Tổng các dòng trên (theo bộ lọc tên)').slice(-1)[0][0]).toBe('Tổng các dòng trên (theo bộ lọc tên)');
   });
 
-  it('xem theo tháng có doanh thu: thêm dòng "Doanh thu (tỷ)" vào bảng từng kỳ, tháng đang chạy đánh *, kèm ghi chú', () => {
-    const doanhThu = Object.fromEntries(NGAY.map((n, i) => [n.slice(0, 7), 100 + i]));
-    const t = chu(dungBaoCaoPdf(dauVao({ doanhThu, thangTamTinh: '2026-10' })).content).join('\n');
-    expect(t).toContain('Doanh thu (tỷ)');
-    expect(t).toContain('108.00*');
-    expect(t).toContain('* tạm tính (tháng chưa hết)');
-    expect(t).toContain('Doanh thu tháng = giá trị nhập kho thành phẩm');
-    expect(chu(dungBaoCaoPdf(dauVao()).content).join('\n')).not.toContain('Doanh thu');
+  it('theo tháng có doanh thu (số bảng kế hoạch năm) + dự báo: dòng "Doanh thu" bảng từng kỳ, câu dự báo nhóm + toàn kho', () => {
+    const keHoach: Record<string, number> = {};
+    NGAY.forEach((n, i) => { keHoach[n.slice(0, 7)] = 100 + i; });
+    const duBao = {
+      tyLeDat: 0.8, tyLeTu: '2026-07', tyLeDen: '2026-09', saiSo: [4700, 3700], saiSoGiuNguyen: [5200, 8800], soLanKiem: [6, 5],
+      diem: [{ khoa: '2026-11', nhan: 'T11/26', h: 1, ton: 118690, thap: 113990, cao: 123390, keHoach: 90.25, dtDuKien: 72.2 }],
+    };
+    const t = chu(dungBaoCaoPdf(dauVao({
+      doanhThu: { thucTe: { ...keHoach }, keHoach }, thangHienTai: '2026-10', duBao: { 'KVT Vải Da Mouss': duBao }, duBaoToanKho: duBao,
+    })).content).join('\n');
+    expect(t).toContain('Doanh thu');
+    expect(t).toContain('108.00');
+    expect(t).not.toContain('108.00*');
+    expect(t).toContain('doanh số cần đạt');
+    expect(t).toContain('Dự báo tồn theo kế hoạch doanh thu: T11/26 ≈ 118.69 tỷ (±4.7)');
+    expect(t).toContain('Dự báo tồn TOÀN KHO theo kế hoạch doanh thu: T11/26 ≈ 118.69 tỷ (±4.7)');
+    expect(t).toContain('sai trung bình ±4.7 tỷ trước 1 tháng (giữ nguyên tồn: ±5.2 tỷ)');
+    expect(chu(dungBaoCaoPdf(dauVao()).content).join('\n')).not.toContain('Dự báo');
   });
 
   it('render thật bằng pdfmake (font Roboto, chữ có dấu, trang ngang ≥ 2 trang)', async () => {

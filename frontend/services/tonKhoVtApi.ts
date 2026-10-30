@@ -1,4 +1,5 @@
 import { API_BASE_URL } from './dataService';
+import { doanhSoCanDatNam } from '../components/Charts/tonKhoVatTu/doanhSoCanDat';
 
 // ============================================================================
 // API TỒN KHO VẬT TƯ (bảng ton_kho_vt — ảnh chụp tồn kho chốt hằng tuần, thứ Năm)
@@ -194,19 +195,13 @@ export async function layChiTietTonKhoVt(
 }
 
 /**
- * Doanh thu theo tháng của 1 năm (TỶ đồng, khoá 'YYYY-MM'): giá trị nhập kho thành phẩm, không tính hạng mục HỦY —
- * cùng số với bảng "Kế hoạch năm – Thực hiện" (GET /api/khsx-nam/plan-actual, cộng mọi xưởng).
+ * Doanh thu tháng của 1 năm (TỶ đồng, khoá 'YYYY-MM', cả công ty) cho trang Tồn kho vật tư = DOANH SỐ CẦN ĐẠT người dùng
+ * đưa (tonKhoVatTu/doanhSoCanDat.ts, ghi cứng — 29/10/2026). Tháng đã qua và tháng tới cùng 1 nguồn nên thucTe = keHoach
+ * (tỷ lệ đạt = 1). Giữ dạng async để nơi gọi không đổi.
  */
-export async function layDoanhThuThang(nam: number, signal?: AbortSignal): Promise<Record<string, number>> {
-  const j = await layJson(`${API_BASE_URL}/khsx-nam/plan-actual?${new URLSearchParams({ year: String(nam) }).toString()}`, signal);
-  const kq: Record<string, number> = {};
-  for (const r of (Array.isArray(j?.actual) ? j.actual : []) as Array<Record<string, unknown>>) {
-    const t = Number(r?.thang);
-    if (!Number.isInteger(t) || t < 1 || t > 12) continue;
-    const k = `${nam}-${String(t).padStart(2, '0')}`;
-    kq[k] = (kq[k] ?? 0) + so(r.value);
-  }
-  return kq;
+export async function layDoanhThuKeHoach(nam: number, _signal?: AbortSignal): Promise<{ thucTe: Record<string, number>; keHoach: Record<string, number> }> {
+  const keHoach = doanhSoCanDatNam(nam);
+  return { thucTe: { ...keHoach }, keHoach };
 }
 
 export interface TenVatTu {
