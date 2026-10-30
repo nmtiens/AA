@@ -476,12 +476,14 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
   const duLieuHien = useMemo(() => (tuThang ? duLieuBieuDo.filter(d => d.khoa >= tuThang) : duLieuBieuDo), [duLieuBieuDo, tuThang]);
   const duBaoHien = useMemo(() => catDuBao(duBao ?? null, null, tuThang ?? null), [duBao, tuThang]);
   // Số ghi trên đường dự báo: chỉ các tháng tiêu biểu (theo khoá tháng)
-  const hienDuBao = new Set(coDuBao && duBaoHien ? diemTieuBieu(duBaoHien).map(p => p.khoa) : []);
+  // Ghi số ở MỌI tháng dự báo (trước chỉ tháng tiêu biểu => các mốc giữa không có số)
+  const hienDuBao = new Set(coDuBao && duBaoHien ? duBaoHien.diem.map(p => p.khoa) : []);
   const maxDuBao = coDuBao && duBao ? Math.max(...duBao.diem.map(p => p.cao ?? p.ton)) : 0;
   const max = Math.max(ds.reduce((m, d) => Math.max(m, d.tong), 0), ...(xh ? xh.giaTri : [0]), maxDuBao);
   const { vach, soLe } = useMemo(() => vachTrucY(max, chiSo === 'giaTri' ? 'ty' : 'so'), [max, chiSo]);
   const dsKhoa = useMemo(() => duLieuHien.map(d => d.khoa), [duLieuHien]);
-  const nhanTruc = useMemo(() => chonNhanTruc(dsKhoa, 14), [dsKhoa]);
+  // Nhãn trục: đủ mọi tháng tới 24 tháng (trước 14 => cách 1 tháng mới có nhãn)
+  const nhanTruc = useMemo(() => chonNhanTruc(dsKhoa, 24), [dsKhoa]);
   const hienTong = useMemo(() => chiSoNhan(ds.map(d => d.tong)), [ds]);
   const hienCham = useMemo(() => chiSoNhan(duLieuVe.map(d => d.chamVe)), [duLieuVe]);
   // Lần chốt thiếu cờ chậm luân chuyển (03/09/2026): đường xám nối qua (khỏi trông như lỗi đứt khúc) + chấm rỗng
