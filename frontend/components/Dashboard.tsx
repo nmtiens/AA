@@ -738,6 +738,8 @@ const handleContinueToOrderColumnStep = () => {
           chuaTheSX={cardMetrics.chuaTheSX}
           vuongSL={cardMetrics.vuongSL}
           chuaTrienKhai={cardMetrics.chuaTrienKhai}
+          // Giá trị đơn hàng đang ở P001 (chưa triển khai) — đúng số thanh P001 của phễu; phễu đang đếm hạng mục thì không có
+          giaTriP001={workshopMetric === 'COUNT_HEX' ? null : customFunnelData.find(i => i.id === 'P001')?.value ?? null}
           diemNghen={topBottlenecks[0]}
           onMoChiTiet={k => setMoChiTiet(r => ({ nonce: (r?.nonce ?? 0) + 1, k }))}
           metric={overviewMetric}

@@ -110,7 +110,7 @@ export function useOverviewSummary({
 
   const [overviewSummary, setOverviewSummary] = useState<OverviewSummary | null>(null);
   const [overviewDateFilters, setOverviewDateFilters] = useState<string[]>([]);
-  const [overviewMetric, setOverviewMetric] = useState<OverviewMetric>('COUNT');
+  const [overviewMetric, setOverviewMetric] = useState<OverviewMetric>('SUM');
   const [showDateWarning, setShowDateWarning] = useState(false);
   const [groupAnalysisCache, setGroupAnalysisCache] = useState<Record<string, GroupAnalysisRow[]>>({});
 

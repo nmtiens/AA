@@ -182,12 +182,12 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
     moChiTietRequest,
     anDai,
 }) => {
-  const [ipoMetric, setIpoMetric] = useState<DisplayMetric>('COUNT');
-  const [tkbvMetric, setTkbvMetric] = useState<DisplayMetric>('COUNT');
-  const [pthspMetric, setPthspMetric] = useState<DisplayMetric>('COUNT');
-  const [inventoryMetric, setInventoryMetric] = useState<DisplayMetric>('COUNT');
-  const [exportMetric, setExportMetric] = useState<DisplayMetric>('COUNT');
-  const [stockMetric, setStockMetric] = useState<DisplayMetric>('COUNT');
+  const [ipoMetric, setIpoMetric] = useState<DisplayMetric>('SUM');
+  const [tkbvMetric, setTkbvMetric] = useState<DisplayMetric>('SUM');
+  const [pthspMetric, setPthspMetric] = useState<DisplayMetric>('SUM');
+  const [inventoryMetric, setInventoryMetric] = useState<DisplayMetric>('SUM');
+  const [exportMetric, setExportMetric] = useState<DisplayMetric>('SUM');
+  const [stockMetric, setStockMetric] = useState<DisplayMetric>('SUM');
 
   // 👇 Tab hiển thị trong modal chi tiết: 'chart' = biểu đồ xu hướng, 'detail' = bảng chi tiết
   type DetailTab = 'chart' | 'detail';
@@ -510,7 +510,6 @@ const periodLabel = overviewDateFilters.length > 1
         <ShoppingCart className="text-pink-600" size={20} />
         Chi tiết Đơn hàng mới (IPO)
       </h3>
-      <p className="text-xs text-slate-500 mt-1">Đơn hàng nhận từ PM trong khoảng ngày đang chọn · nguồn Đơn hàng tổng (khác thẻ "Nhóm đơn hàng": hạng mục đang theo dõi, không theo ngày)</p>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-pink-200 rounded-lg p-1 shadow-sm">
       <button
@@ -612,7 +611,6 @@ const periodLabel = overviewDateFilters.length > 1
         <FileText className="text-blue-600" size={20} />
         Chi tiết Triển khai Bản vẽ (TKBV)
       </h3>
-      <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn TKBV</p>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-lg p-1 shadow-sm">
       <button
@@ -712,7 +710,6 @@ const periodLabel = overviewDateFilters.length > 1
         <ClipboardList className="text-purple-600" size={20} />
         Chi tiết Đã Tính Phiếu (PTHSP)
       </h3>
-      <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn PTHSP</p>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-purple-200 rounded-lg p-1 shadow-sm">
       <button
@@ -813,7 +810,6 @@ const periodLabel = overviewDateFilters.length > 1
         <Package className="text-teal-600" size={20} />
         Chi tiết Nhập Kho
       </h3>
-      <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn Nhập Kho</p>
     </div>
     <div className="inline-flex items-center gap-1 bg-white border border-teal-200 rounded-lg p-1 shadow-sm">
      
@@ -923,7 +919,6 @@ const periodLabel = overviewDateFilters.length > 1
               <Package className="text-amber-600" size={20} />
               Chi tiết Xuất Kho
             </h3>
-            <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn Xuất Kho</p>
           </div>
           <div className="inline-flex items-center gap-1 bg-white border border-amber-200 rounded-lg p-1 shadow-sm">
             <button
@@ -1032,7 +1027,6 @@ const periodLabel = overviewDateFilters.length > 1
               <Box className="text-slate-600" size={20} />
               Chi tiết Tồn Kho
             </h3>
-            <p className="text-xs text-slate-500 mt-1">Dữ liệu được tổng hợp từ nguồn Tồn Kho</p>
           </div>
           <div className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
             <button
