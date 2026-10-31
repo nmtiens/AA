@@ -4,6 +4,7 @@ import {
   Layers, Building2, Briefcase, XCircle as CloseIcon,
   TrendingUp,
   Table2,
+  Activity,
 } from 'lucide-react';
 import { DashboardFilter } from '../shared/DashboardFilter';
 import { DisplayModeToggle } from '../shared/DisplayModeToggle';
@@ -13,6 +14,7 @@ import TrendChart from '../Dashboards/TrendChart';
 import ByXuongChart from '../Dashboards/ByXuongChart';
 import ByCongTrinhChart from '../Dashboards/ByCongTrinhChart';
 import TrendByCategoryChart from '../Dashboards/TrendByCategoryChart';
+import TonKhoSucKhoe from './TonKhoSucKhoe';
 import { TrendFilterProvider, useTrendFilter } from '../Dashboards/TrendFilterContext';
 import SharedDateFilterBar from '../Dashboards/SharedDateFilterBar';
 import { useMoDanhSachHex, layHexChiTiet } from '../Dashboards/DanhSachHex';
@@ -98,6 +100,8 @@ interface OrderOverviewSectionProps {
   latestStockStats: StockStatsRow;
   latestStockStatsPrevMonth: StockStatsRow;
   stockByProjectData: StockByProjectRow[];
+  /** Phạm vi công trình của số tồn kho (bộ lọc + nhóm công trình) — tab Tổng quan sức khoẻ tồn kho */
+  stockScopeCongTrinh?: string[];
 
   groupAnalysisCache: Record<string, any[]>;
   toAnalysisItems: (rows: any[], metric: DisplayMetric) => any[];
@@ -170,6 +174,7 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   latestStockStats,
   latestStockStatsPrevMonth,
   stockByProjectData,
+  stockScopeCongTrinh,
   groupAnalysisCache,
   toAnalysisItems,
   loadGroupAnalysis,
@@ -196,7 +201,8 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   const [pthspTab, setPthspTab] = useState<DetailTab>('detail');
   const [inventoryTab, setInventoryTab] = useState<DetailTab>('detail');
   const [exportTab, setExportTab] = useState<DetailTab>('detail');
-  const [stockTab, setStockTab] = useState<DetailTab>('detail');
+  // Cửa sổ Tồn kho: Tổng quan sức khoẻ (mặc định) / Theo công trình / Biểu đồ theo bộ lọc
+  const [stockTab, setStockTab] = useState<'tongquan' | DetailTab>('tongquan');
 
   const [isIpoDetailModalOpen, setIsIpoDetailModalOpen] = useState(false);
   const [isTkbvDetailModalOpen, setIsTkbvDetailModalOpen] = useState(false);
@@ -1019,38 +1025,33 @@ const periodLabel = overviewDateFilters.length > 1
       {/* Modal: Chi tiết Tồn kho */}
     {isStockDetailModalOpen && (
   <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-    <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+    <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-[1440px] max-h-[94vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
         <div className="flex items-center gap-6">
           <div>
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Box className="text-slate-600" size={20} />
-              Chi tiết Tồn Kho
+              Tồn kho thành phẩm
             </h3>
+            {closestStockDate && <p className="text-xs text-slate-500">Chốt ngày {closestStockDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} · đơn vị tỷ đồng</p>}
           </div>
           <div className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
-            <button
-              onClick={() => setStockTab('detail')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-                stockTab === 'detail' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Table2 size={14} />
-              <span>Chi tiết dữ liệu</span>
-            </button>
-            <button
-              onClick={() => setStockTab('chart')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-                stockTab === 'chart' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <TrendingUp size={14} />
-              <span>Biểu đồ xu hướng</span>
-            </button>
+            {([['tongquan', 'Tổng quan sức khoẻ', Activity], ['detail', 'Theo công trình', Table2], ['chart', 'Biểu đồ theo bộ lọc', TrendingUp]] as const).map(([k, nhan, Icon]) => (
+              <button
+                key={k}
+                onClick={() => setStockTab(k)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
+                  stockTab === k ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Icon size={15} />
+                <span>{nhan}</span>
+              </button>
+            ))}
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <DisplayModeToggle current={stockMetric} onChange={setStockMetric} />
+          {stockTab !== 'tongquan' && <DisplayModeToggle current={stockMetric} onChange={setStockMetric} />}
           <button
             onClick={() => handleOpenGenericExport('stock')}
             className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold border border-slate-200 transition-all shadow-sm active:scale-95 cursor-pointer"
@@ -1071,12 +1072,19 @@ const periodLabel = overviewDateFilters.length > 1
       {/* ...giữ nguyên phần body... */}
 
             <div className="flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar">
-              {stockTab === 'chart' ? (
+              {stockTab === 'tongquan' ? (
+                <TonKhoSucKhoe
+                  date={closestStockDate}
+                  congTrinh={stockScopeCongTrinh ?? filters.congTrinh}
+                  xuong={filters.xuong}
+                  onOpenProject={onOpenStockItems}
+                  onXemTheoCongTrinh={() => setStockTab('detail')}
+                />
+              ) : stockTab === 'chart' ? (
                 <>
                    <SharedDateFilterBar showProductFilters /> 
                 <div className="p-6">
   <TrendChart source="stock" embedded displayMode={stockMetric} />
-  <ByXuongChart source="stock" displayMode={stockMetric} />
   <ByCongTrinhChart source="stock" displayMode={stockMetric} />
   <TrendByCategoryChart kind="phanloai" source="stock" displayMode={stockMetric} embedded />
   <TrendByCategoryChart kind="dvt" source="stock" displayMode={stockMetric} embedded />

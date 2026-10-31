@@ -878,7 +878,7 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
               <div className="flex h-full items-center justify-center text-sm text-slate-400">Chưa có số liệu nhập kho trong kỳ</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={duLieuVe} margin={{ top: 26, right: 130, left: -8, bottom: 0 }} barCategoryGap="22%" barGap={2}>
+                <BarChart data={duLieuVe} margin={{ top: 32, right: 150, left: -8, bottom: 0 }} barCategoryGap="22%" barGap={2}>
                   <CartesianGrid vertical={false} stroke="#eef0f3" />
                   <XAxis dataKey="ten" tickLine={false} axisLine={{ stroke: '#d5d9e0' }} tick={{ fontSize: 14, fill: '#334155' }} interval={duLieu.length > 16 ? 1 : 0} />
                   <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} width={44}
@@ -889,15 +889,15 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                     contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
                   {canMoiNgay > 0 && (
                     <ReferenceLine y={canMoiNgay} stroke="#16181d" strokeOpacity={0.55} strokeDasharray="6 4"
-                      label={{ value: `Cần ${formatTy(canMoiNgay)}`, position: 'right', fill: '#16181d', fontSize: 12, fontWeight: 600, dy: dyNhan.can ?? 0 }} />
+                      label={{ value: `Cần ${formatTy(canMoiNgay)}`, position: 'right', fill: '#16181d', fontSize: 14, fontWeight: 600, dy: dyNhan.can ?? 0 }} />
                   )}
                   {!tuanChon && mucKhThang > 0 && (
                     <ReferenceLine y={mucKhThang} stroke="#059669" strokeWidth={2} strokeDasharray="10 4"
-                      label={{ value: `KH T${thangKh} ${formatTy(mucKhThang)}/ngày`, position: 'right', fill: '#047857', fontSize: 12, fontWeight: 700, dy: dyNhan.kh ?? 0 }} />
+                      label={{ value: `KH T${thangKh} ${formatTy(mucKhThang)}/ngày`, position: 'right', fill: '#047857', fontSize: 14, fontWeight: 700, dy: dyNhan.kh ?? 0 }} />
                   )}
                   {binhQuan > 0 && (
                     <ReferenceLine y={binhQuan} stroke="#2563eb" strokeOpacity={0.6} strokeDasharray="2 3"
-                      label={{ value: `Bình quân ${formatTy(binhQuan)}`, position: 'right', fill: '#2563eb', fontSize: 12, fontWeight: 600, dy: dyNhan.bq ?? 0 }} />
+                      label={{ value: `Bình quân ${formatTy(binhQuan)}`, position: 'right', fill: '#2563eb', fontSize: 14, fontWeight: 600, dy: dyNhan.bq ?? 0 }} />
                   )}
                   {/* Kế hoạch ngày: cột xanh dương nhạt, bên trái cột nhập kho cùng ngày */}
                   {coKhNgay && (
@@ -905,7 +905,7 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                       <LabelList dataKey="kh" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string }) => {
                         const v = Number(lp.value);
                         if (!(v > 0)) return null;
-                        return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={11} fontWeight={600} fill="#1d4ed8">{formatTy(v)}</text>;
+                        return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={14} fontWeight={600} fill="#1d4ed8">{formatTy(v)}</text>;
                       }} />
                     </Bar>
                   )}
@@ -915,8 +915,8 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                       if (duLieu[lp.index ?? -1]?.de > 0) return null; // ngày đề xuất: nhãn nằm trên cột đề xuất
                       const x = Number(lp.x) + Number(lp.width) / 2, y = Number(lp.y), v = Number(lp.value);
                       return v > 0
-                        ? <text x={x} y={y - 6} textAnchor="middle" fontSize={12} fontWeight={600} fill="#16181d">{formatTy(v)}</text>
-                        : <text x={x} y={y - 6} textAnchor="middle" fontSize={11} fill="#8a90a0">chưa có số</text>;
+                        ? <text x={x} y={y - 7} textAnchor="middle" fontSize={16} fontWeight={700} fill="#16181d">{formatTy(v)}</text>
+                        : <text x={x} y={y - 6} textAnchor="middle" fontSize={13} fill="#8a90a0">chưa có số</text>;
                     }} />
                   </Bar>
                   {/* Đề xuất: ngày chưa tới — cần nhập bao nhiêu mỗi ngày để đạt KH (khung nét đứt, nền nhạt) */}
@@ -926,7 +926,7 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                       const v = Number(lp.value);
                       // Các ngày đề xuất cùng 1 mức => chỉ ghi số ở cột đầu (đỡ rối)
                       if (!(v > 0) || (lp.index ?? 0) !== duLieu.findIndex(d => d.de > 0)) return null;
-                      return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={11} fontWeight={600} fill="#64748b">{formatTy(v)}</text>;
+                      return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={14} fontWeight={600} fill="#64748b">{formatTy(v)}</text>;
                     }} />
                   </Bar>
                 </BarChart>

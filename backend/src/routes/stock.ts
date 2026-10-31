@@ -218,6 +218,96 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   }
 });
 
+// "Sức khoẻ" tồn kho tại 1 ngày chốt (cửa sổ Tồn kho, tab Tổng quan): tuổi tồn, tình trạng KH giao, phân loại sản phẩm,
+// công trình, diễn biến từng lần chốt từ đầu năm. Cùng phạm vi lọc với /api/stock/by-project. Giá trị: triệu đồng.
+// Tuổi = cột so_thang_ton_kho (tháng); lần chốt thiếu cột này (ít hơn nửa số dòng có tuổi) => tuổi = null.
+const AGE_BUCKETS = `CASE WHEN s.so_thang_ton_kho IS NULL THEN 'kr' WHEN s.so_thang_ton_kho <= 1 THEN 'a1' WHEN s.so_thang_ton_kho <= 3 THEN 'a2'
+  WHEN s.so_thang_ton_kho <= 6 THEN 'a3' WHEN s.so_thang_ton_kho <= 12 THEN 'a4' ELSE 'a5' END`;
+app.get('/api/stock/health', async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query as { date: string };
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !parseSafeDate(date)) return res.status(400).json({ error: 'Invalid date' });
+    const filters = parseStockFilters(req);
+
+    const payload = await cachedByVersions(stockQueryCache, `health|${date}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
+      const params: any[] = [date];
+      const scope = stockScopeConds(filters, params, 's');
+      const w = ['s.date_parsed = $1', ...scope].join(' AND ');
+      const v = numericColQualified('ton_kho', 's', 'gia_tri');
+      // CTE chỉ đọc dòng của ngày chốt: các truy vấn dưới đều trên tập này
+      const snap = `WITH s AS MATERIALIZED (SELECT s.* , ${v} AS v FROM ton_kho s WHERE ${w})`;
+
+      // 3 truy vấn (không phải 7): DB ở xa, mỗi truy vấn ~0,3s mạng + chạy song song nhiều thì phải chờ kết nối trống
+      const [tap, phanLoai, chuoi] = await Promise.all([
+        timedQuery(`${snap},
+          ct AS (SELECT MIN(TRIM(REGEXP_REPLACE(ten_cong_trinh, '\\s+', ' ', 'g'))) AS name, COALESCE(SUM(v),0) AS v,
+              COUNT(DISTINCT ma_id_sap) AS ma, COALESCE(SUM(v) FILTER (WHERE so_thang_ton_kho > 6),0) AS tren6,
+              COALESCE(SUM(v) FILTER (WHERE so_thang_ton_kho > 12),0) AS tren12,
+              COALESCE(SUM(v * so_thang_ton_kho) FILTER (WHERE so_thang_ton_kho IS NOT NULL),0) AS v_thang,
+              COALESCE(SUM(v) FILTER (WHERE so_thang_ton_kho IS NOT NULL),0) AS v_co_tuoi
+            FROM s GROUP BY ${normNameSql('ten_cong_trinh')}),
+          tuoi AS (SELECT ${AGE_BUCKETS} AS k, COALESCE(SUM(v),0) AS v, COUNT(DISTINCT ma_id_sap) AS ma FROM s GROUP BY 1),
+          giao AS (SELECT COALESCE(NULLIF(UPPER(TRIM(tinh_trang_ke_hoach_giao_hang)),''),'(TRỐNG)') AS k, COALESCE(SUM(v),0) AS v,
+              COUNT(DISTINCT ma_id_sap) AS ma FROM s GROUP BY 1)
+          SELECT (SELECT json_build_object('ma', COUNT(DISTINCT ma_id_sap), 'v', COALESCE(SUM(v),0),
+                    'ct', COUNT(DISTINCT ${normNameSql('ten_cong_trinh')}), 'dong', COUNT(*),
+                    'xh_tren6', COALESCE(SUM(v) FILTER (WHERE so_thang_ton_kho > 6 AND UPPER(TRIM(tinh_trang_ke_hoach_giao_hang)) = 'XUẤT HÀNG'), 0),
+                    'ky_gui_0', COUNT(DISTINCT ma_id_sap) FILTER (WHERE UPPER(nhom_ct) LIKE '%KÝ GỬI%' AND COALESCE(v,0) = 0)) FROM s) AS tong,
+                 (SELECT COALESCE(json_agg(tuoi), '[]') FROM tuoi) AS tuoi,
+                 (SELECT COALESCE(json_agg(giao ORDER BY v DESC), '[]') FROM giao) AS giao,
+                 (SELECT COALESCE(json_agg(ct), '[]') FROM ct) AS ct`, params),
+        // Phân loại sản phẩm: theo dòng sản xuất của CHÍNH HEX tồn, không có HEX mới tra theo mã SAP (như /api/stock/items)
+        timedQuery(`${snap},
+          p AS (SELECT DISTINCT ON (${PSA_SAP_KEY}) ${PSA_SAP_KEY} AS sap_id, phan_loai_nhom_san_pham AS pl FROM production_status_app
+                WHERE ma_id_sap IS NOT NULL ORDER BY ${PSA_SAP_KEY}, updated_at DESC NULLS LAST, id DESC),
+          h AS (SELECT DISTINCT ON (hex::text) hex::text AS hex, phan_loai_nhom_san_pham AS pl FROM production_status_app
+                WHERE hex IS NOT NULL AND hex::text IN (SELECT DISTINCT hex::bigint::text FROM s WHERE hex IS NOT NULL)
+                ORDER BY hex::text, updated_at DESC NULLS LAST, id DESC)
+          SELECT NULLIF(TRIM(COALESCE(h.pl, p.pl)), '') AS k, COALESCE(SUM(s.v),0) AS v, COUNT(DISTINCT s.ma_id_sap) AS ma,
+                 COALESCE(SUM(s.v) FILTER (WHERE s.so_thang_ton_kho > 6), 0) AS tren6
+          FROM s LEFT JOIN h ON h.hex = s.hex::bigint::text LEFT JOIN p ON p.sap_id = s.ma_id_sap::text
+          GROUP BY 1 ORDER BY 2 DESC`, params, { workMemMb: 32 }),
+        // Mọi lần chốt từ đầu năm (và cuối năm trước) tới ngày xem: tổng + tồn > 6 tháng
+        (() => {
+          const p2: any[] = [date];
+          const sc = stockScopeConds(filters, p2, 's');
+          return timedQuery(`SELECT s.date_parsed::text AS d, COALESCE(SUM(${v}),0) AS v,
+              COALESCE(SUM(${v}) FILTER (WHERE s.so_thang_ton_kho > 6),0) AS tren6,
+              COUNT(*) FILTER (WHERE s.so_thang_ton_kho IS NOT NULL)::float / NULLIF(COUNT(*),0) AS ty_le_tuoi
+            FROM ton_kho s WHERE s.date_parsed <= $1 AND s.date_parsed >= (date_trunc('year', $1::date) - INTERVAL '1 day')
+              ${sc.length ? 'AND ' + sc.join(' AND ') : ''}
+            GROUP BY 1 ORDER BY 1`, p2);
+        })(),
+      ]);
+
+      const n = (x: unknown) => Number(x) || 0;
+      const r0 = tap.rows[0] ?? {};
+      const t = r0.tong ?? {};
+      // Gộp các cách viết của cùng 1 công trình về tên chuẩn (như /api/stock/by-project)
+      const ct = new Map<string, { name: string; v: number; ma: number; tren6: number; tren12: number; vThang: number; vCoTuoi: number }>();
+      for (const r of (r0.ct ?? []) as Record<string, unknown>[]) {
+        const name = r.name ? canonicalProjectName(String(r.name)) : 'Chưa xác định';
+        const e = ct.get(name) ?? { name, v: 0, ma: 0, tren6: 0, tren12: 0, vThang: 0, vCoTuoi: 0 };
+        e.v += n(r.v); e.ma += n(r.ma); e.tren6 += n(r.tren6); e.tren12 += n(r.tren12); e.vThang += n(r.v_thang); e.vCoTuoi += n(r.v_co_tuoi);
+        ct.set(name, e);
+      }
+      return {
+        date,
+        tong: { v: n(t.v), ma: n(t.ma), congTrinh: n(t.ct), dong: n(t.dong), xuatHangTren6: n(t.xh_tren6), kyGuiMa0: n(t.ky_gui_0) },
+        tuoi: Object.fromEntries(((r0.tuoi ?? []) as Record<string, unknown>[]).map(r => [r.k, { v: n(r.v), ma: n(r.ma) }])),
+        giao: ((r0.giao ?? []) as Record<string, unknown>[]).map(r => ({ k: String(r.k), v: n(r.v), ma: n(r.ma) })),
+        phanLoai: phanLoai.rows.map(r => ({ k: r.k as string | null, v: n(r.v), ma: n(r.ma), tren6: n(r.tren6) })),
+        congTrinh: [...ct.values()].sort((a, b) => b.v - a.v).map(({ vThang, vCoTuoi, ...e }) => ({ ...e, tuoiTb: vCoTuoi > 0 ? vThang / vCoTuoi : null })),
+        chuoi: chuoi.rows.map(r => ({ d: r.d as string, v: n(r.v), tren6: n(r.ty_le_tuoi) >= 0.5 ? n(r.tren6) : null })),
+      };
+    }, workshopGroupsVersion());
+    res.json(payload);
+  } catch (error) {
+    console.error('Lỗi stock/health:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 // Chi tiết TỪNG MÃ tồn kho tại 1 ngày (bấm số "P022. TỒN KHO" ở phễu).
 // project = 1 công trình (bỏ trống = mọi công trình trong phạm vi lọc congTrinh / xuong).
 // Kèm hạng mục / xưởng / nhóm SP lấy từ production_status_app theo mã ID SAP.

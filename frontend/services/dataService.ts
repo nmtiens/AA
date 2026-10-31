@@ -564,6 +564,27 @@ export const fetchStockByProject = async (
   }
 };
 
+export interface StockHealth {
+  date: string;
+  tong: { v: number; ma: number; congTrinh: number; dong: number; xuatHangTren6: number; kyGuiMa0: number };
+  /** a1 ≤1 tháng · a2 1–3 · a3 3–6 · a4 6–12 · a5 >12 · kr không rõ */
+  tuoi: Partial<Record<'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'kr', { v: number; ma: number }>>;
+  giao: { k: string; v: number; ma: number }[];
+  phanLoai: { k: string | null; v: number; ma: number; tren6: number }[];
+  congTrinh: { name: string; v: number; ma: number; tren6: number; tren12: number; tuoiTb: number | null }[];
+  /** Mọi lần chốt từ cuối năm trước tới ngày xem; tren6 = null khi lần chốt thiếu cột tuổi */
+  chuoi: { d: string; v: number; tren6: number | null }[];
+}
+
+/** Sức khoẻ tồn kho tại 1 ngày chốt (cửa sổ Tồn kho, tab Tổng quan) */
+export const fetchStockHealth = async (dateISO: string, opts?: OverviewFilterOpts): Promise<StockHealth> => {
+  const params = new URLSearchParams({ date: dateISO });
+  appendFilterParams(params, opts);
+  const r = await fetch(`${API_BASE_URL}/stock/health?${params.toString()}`, { signal: opts?.signal });
+  if (!r.ok) throw new Error(`Lỗi ${r.status}`);
+  return r.json();
+};
+
 /** Chi tiết từng mã tồn kho tại 1 ngày; project = 1 công trình (bỏ trống = mọi công trình trong phạm vi lọc) */
 export const fetchStockItems = async (
   dateISO: string,

@@ -828,6 +828,7 @@ const handleContinueToOrderColumnStep = () => {
   latestStockStats={latestStockStats}
   latestStockStatsPrevMonth={latestStockStatsPrevMonth}
   stockByProjectData={stockByProjectData}
+  stockScopeCongTrinh={stockScopeCongTrinh}
   groupAnalysisCache={groupAnalysisCache}
   toAnalysisItems={toAnalysisItems}
   loadGroupAnalysis={loadGroupAnalysis}   
