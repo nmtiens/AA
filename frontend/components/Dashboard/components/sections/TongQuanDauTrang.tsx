@@ -599,7 +599,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                 {a ? f(a.count, a.value) : '…'}<span className={`ml-2 text-base font-medium ${m.nhat}`}>{dv}</span>
               </span>
               <span className="text-sm text-slate-600">
-                {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} ${x.dv}`} · </>}
+                {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} hạng mục`} · </>}
                 {dem ? chenh(a?.count, b?.count) : chenh(a?.value, b?.value, 'pt')}
               </span>
               {n && (
