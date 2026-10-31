@@ -604,7 +604,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                   </span>
                   <span className="flex items-baseline justify-between gap-2">
                     {/* Thẻ 1: dòng dưới = giá trị đơn hàng đang ở P001 (chưa triển khai) — cùng số thanh P001 của phễu */}
-                    <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Lũy kế T${thangTruoc} (cả tháng):`}</span>
+                    <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Tháng ${String(thangTruoc).padStart(2, '0')}:`}</span>
                     <span className={`shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums ${m.nhat}`}>
                       {x.k === 'order'
                         ? (p.giaTriP001 == null ? '—' : `${formatTrieuAsTy(p.giaTriP001)} tỷ`)
@@ -642,7 +642,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                   <b className="shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums text-slate-900">{giaTri(p.tonKho, p.tonKho)} <span className="text-xl font-semibold">{dem ? 'items' : 'tỷ'}</span></b>
                 </span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">Tồn mới nhất của tháng {thangTruoc} ({ngayDu(cuoi)})</span>
+                  <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">Tồn tháng {String(thangTruoc).padStart(2, '0')} ({ngayDu(cuoi)})</span>
                   <span className="shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums text-slate-500">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
                 </span>
               </span>
@@ -653,30 +653,18 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
 
       <div className={`grid grid-cols-1 gap-4 ${moChuY ? 'xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''}`}>
         <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 lg:p-6">
-          {/* Tiến độ kỳ (năm / tháng): 4 thẻ số (mỗi số 1 chỗ) + thanh đã nhập / dự kiến theo nhịp / phần thiếu + cờ mốc */}
+          {/* Tiến độ kỳ (năm / tháng): 3 thẻ số (mỗi số 1 chỗ) + thanh đã nhập / còn lại + cờ mốc */}
           {(() => {
             const con = Math.max(0, td.kh - td.th);
             const bq = td.daQua > 0 ? td.th / td.daQua : 0;
             const can = td.conNgay > 0 ? con / td.conNgay : 0;
-            const duKien = td.th + bq * td.conNgay;
-            const ptDuKien = td.kh > 0 ? (duKien / td.kh) * 100 : 0;
-            // Giữ nhịp hiện tại thì cần bao nhiêu ngày làm việc nữa để đủ KH => ngày đạt
-            const ngayCanThem = bq > 0 ? Math.ceil(con / bq) : null;
-            let ngayDat: Date | null = null;
-            if (ngayCanThem !== null && con > 0) {
-              let d = ngayMoi, k = 0;
-              while (k < ngayCanThem && k < 2000) { d = themNgay(d, 1); if (laNgayLam(d)) k++; }
-              ngayDat = d;
-            }
-            const kip = con <= 0 || (ngayDat !== null && ngayDat <= td.cuoiKy);
             const laNam = tienDo === 'nam';
             const tenKy = laNam ? `năm ${p.namLabel}` : `tháng ${thangTD}`;
             const pt = (v: number) => (td.kh > 0 ? Math.min(100, Math.max(0, (v / td.kh) * 100)) : 0);
             const moc: Array<{ ten: string; v: number; chuaToi?: boolean; dangChay?: boolean }> = tienDo === 'thang' && mocTuan.length ? mocTuan : td.moc;
             const phanTram = td.kh > 0 ? (td.th / td.kh) * 100 : 0;
-            const xTh = pt(td.th), xDk = pt(duKien);
+            const xTh = pt(td.th);
             const dangChayKy = td.daQua > 0 && td.conNgay > 0;
-            const coDuKien = td.kh > 0 && bq > 0 && dangChayKy && con > 0;
             const the = 'flex flex-col rounded-xl border border-slate-200 border-t-4 bg-white px-4 py-3 text-left';
             const nhanThe = 'flex items-baseline justify-between gap-2 text-xs font-bold uppercase tracking-wide text-slate-500';
             return (<>
@@ -719,7 +707,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </div>
 
               {/* 4 thẻ số */}
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem chi tiết nhập kho theo tháng / xưởng"
                   className={`${the} border-t-emerald-600 transition enabled:hover:shadow-md`}>
                   <span className={nhanThe}>Đã nhập kho {p.onThucHienNam && <span className="normal-case tracking-normal text-blue-600">Chi tiết ›</span>}</span>
@@ -741,18 +729,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                     {can > 0 && bq > 0 ? <>gấp <b className="text-red-600">{(can / bq).toFixed(1)} lần</b> nhịp từ đầu {laNam ? 'năm' : 'tháng'} ({formatTy(bq)})</> : con <= 0 ? 'Đã đủ kế hoạch' : 'Chưa có nhịp để so'}
                   </span>
                 </div>
-                <div className={`${the} ${kip ? 'border-t-emerald-600' : 'border-t-amber-500 bg-amber-50/60'}`}>
-                  <span className={nhanThe}>Dự kiến cuối {laNam ? 'năm' : 'tháng'}{bq > 0 && ` (giữ nhịp ${formatTy(bq)}/ngày)`}</span>
-                  <span className={`mt-1 text-[2rem] font-extrabold leading-tight tabular-nums ${kip ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    {coDuKien || con <= 0 ? formatTy(con <= 0 ? td.th : duKien) : '—'} {td.kh > 0 && (coDuKien || con <= 0) && <span className="text-base font-semibold text-slate-500">tỷ · {Math.round(con <= 0 ? phanTram : ptDuKien)}% KH</span>}
-                  </span>
-                  <span className="mt-0.5 text-sm text-slate-600">
-                    {con <= 0 ? 'Đã đạt kế hoạch kỳ này'
-                      : !coDuKien ? 'Chưa đủ số để dự kiến'
-                      : kip ? <>Đủ kế hoạch vào khoảng <b className="text-emerald-700">{ngayDat ? ngayNgan(ngayDat) : ''}</b></>
-                      : <>Thiếu <b className="text-red-600">{formatTy(td.kh - duKien)} tỷ</b>{ngayDat && <> · tới khoảng <b>{ngayNgan(ngayDat)}/{ngayDat.getFullYear()}</b> mới đủ KH</>}</>}
-                  </span>
-                </div>
               </div>
 
               {/* Thanh tiến độ */}
@@ -760,63 +736,47 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                 <div className="mt-4 rounded-xl border border-slate-200 px-4 pb-2 pt-3 sm:px-5">
                   <p className="text-base font-semibold text-slate-900">Tiến độ {tenKy} theo mốc {laNam ? 'quý' : mocTuan.length ? 'tuần' : 'ngày'}</p>
                   <p className="text-xs text-slate-500">
-                    Xanh đậm = đã nhập{coDuKien && ' · sọc xanh = sẽ nhập thêm nếu giữ nhịp hiện tại'}{coDuKien && !kip && ' · khung đỏ = phần thiếu so với KH'} · cờ = KH cộng dồn {laNam ? 'từng quý' : 'tới mốc'}
+                    Xanh = đã nhập · xám = còn lại tới KH · cờ = KH cộng dồn {laNam ? 'từng quý' : 'tới mốc'}
                   </p>
                   <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo tháng / xưởng"
                     className="relative mt-[4.5rem] block h-11 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
-                    <span className="absolute inset-0 rounded-lg bg-slate-100 ring-1 ring-inset ring-slate-200" />
-                    {coDuKien && xDk > xTh && (
-                      <span className="absolute inset-y-0" style={{ left: `${xTh}%`, width: `${xDk - xTh}%`, background: 'repeating-linear-gradient(135deg,#a7f3d0 0 8px,#d1fae5 8px 16px)' }} />
-                    )}
-                    {coDuKien && !kip && xDk < 100 && (
-                      <span className="absolute inset-y-0 right-0 flex items-center justify-center rounded-r-lg border-2 border-l-0 border-dashed border-red-300 bg-red-50 text-base font-extrabold tabular-nums text-red-700"
-                        style={{ left: `${xDk}%` }}>
-                        {100 - xDk > 9 ? `thiếu ${formatTy(td.kh - duKien)}` : ''}
-                      </span>
-                    )}
+                    <span className="absolute inset-0 rounded-lg bg-slate-200 ring-1 ring-inset ring-slate-300" />
                     <span className={`absolute inset-y-0 left-0 flex items-center justify-end bg-emerald-600 pr-3 text-xl font-extrabold tabular-nums text-white ${xTh >= 99.5 ? 'rounded-lg' : 'rounded-l-lg'}`}
                       style={{ width: `${xTh}%` }}>
                       {xTh > 8 ? `${Math.round(phanTram)}%` : ''}
                     </span>
-                    {/* Nhãn "Hôm nay" / "Dự kiến": 2 vạch gần nhau (cuối kỳ còn ít ngày) => gộp 1 nhãn khỏi đè chữ */}
-                    {coDuKien && <span className="absolute inset-y-0 border-l-2 border-dashed border-teal-700" style={{ left: `${xDk}%` }} />}
-                    {dangChayKy && coDuKien && xDk - xTh < 30 ? (
-                      <span className="absolute -top-[4.25rem] right-0 whitespace-nowrap text-sm font-bold">
-                        <span className="text-emerald-700">▼ Hôm nay {ngayNgan(ngayMoi)}</span>
-                        <span className="text-teal-700"> · Dự kiến {ngayNgan(td.cuoiKy)}: {formatTy(duKien)} ({Math.round(ptDuKien)}%)</span>
+                    {/* Phần còn lại tới KH: ghi số vào khoảng xám rộng nhất giữa các vạch mốc (né vạch cờ) */}
+                    {con > 0 && (() => {
+                      const vach = [xTh, ...moc.map(m => pt(m.v)).filter(x => x > xTh + 0.5 && x < 99.5), 100].sort((a, b) => a - b);
+                      let tu = vach[0], den = vach[0];
+                      for (let i = 1; i < vach.length; i++) if (vach[i] - vach[i - 1] > den - tu) { tu = vach[i - 1]; den = vach[i]; }
+                      return den - tu > 10 ? (
+                        <span className="absolute inset-y-0 flex items-center justify-center text-xl font-bold tabular-nums text-slate-700" style={{ left: `${tu}%`, width: `${den - tu}%` }}>
+                          Còn {formatTy(con)}
+                        </span>
+                      ) : null;
+                    })()}
+                    {dangChayKy && (
+                      <span className={`absolute -top-[4.25rem] whitespace-nowrap text-sm font-bold text-emerald-700 ${xTh > 15 ? '-translate-x-full' : ''}`} style={{ left: `${xTh}%` }}>
+                        ▼ Hôm nay {ngayNgan(ngayMoi)}
                       </span>
-                    ) : (<>
-                      {dangChayKy && (
-                        <span className={`absolute -top-[4.25rem] whitespace-nowrap text-sm font-bold text-emerald-700 ${xTh > 15 ? '-translate-x-full' : ''}`} style={{ left: `${xTh}%` }}>
-                          ▼ Hôm nay {ngayNgan(ngayMoi)}
-                        </span>
-                      )}
-                      {coDuKien && (
-                        <span className="absolute -top-[4.25rem] whitespace-nowrap pl-3 text-sm font-bold text-teal-700"
-                          style={xDk > 72 ? { right: 0 } : { left: `${xDk}%` }}>
-                          Dự kiến {ngayNgan(td.cuoiKy)}: {formatTy(duKien)} ({Math.round(ptDuKien)}%)
-                        </span>
-                      )}
-                    </>)}
+                    )}
                     {moc.map(m => {
                       const x = pt(m.v);
                       const datMoc = td.th >= m.v;
                       // Mốc đang chạy chưa tới cuối => cam (chưa thể kết luận trễ); chưa tới => xám
                       const mau = datMoc ? '#047857' : m.chuaToi ? '#94a3b8' : m.dangChay ? '#d97706' : '#dc2626';
-                      const trangThai = datMoc ? '✓ đạt' : m.chuaToi ? 'chưa tới' : m.dangChay ? 'đang chạy' : '✗ trễ';
                       const sat = x > 95;
                       return (
                         <span key={m.ten}>
-                          {/* cờ: mốc sát mép phải vẽ quay sang trái (cán bên phải) để không tràn khung */}
-                          <svg className="absolute -top-[2.1rem] h-[1.9rem] w-[1.4rem]" style={sat ? { left: `calc(${x}% - 1.33rem)` } : { left: `calc(${x}% - 1px)` }} viewBox="0 0 12 16" aria-hidden>
-                            {sat
-                              ? <><path d="M11 0v16" stroke={mau} strokeWidth="1.5" /><path d="M11 1H1l3 4-3 4h10z" fill={mau} /></>
-                              : <><path d="M1 0v16" stroke={mau} strokeWidth="1.5" /><path d="M1 1h10l-3 4 3 4H1z" fill={mau} /></>}
+                          {/* cờ: mọi mốc cùng 1 kiểu (cán trái, cờ bay sang phải), cán trùng vạch mốc */}
+                          <svg className="absolute -top-[2.1rem] h-[1.9rem] w-[1.4rem]" style={{ left: x >= 99.9 ? 'calc(100% - 3px)' : `calc(${x}% - 1px)` }} viewBox="0 0 12 16" aria-hidden>
+                            <path d="M1 0v16" stroke={mau} strokeWidth="1.5" /><path d="M1 1h10l-3 4 3 4H1z" fill={mau} />
                           </svg>
                           <span className="absolute -bottom-1.5 -top-1.5 border-l-2" style={{ left: x >= 99.9 ? 'calc(100% - 2px)' : `${x}%`, borderColor: mau }} />
                           <span className={`absolute top-[3.4rem] flex flex-col whitespace-nowrap text-sm leading-snug tabular-nums ${sat ? '-translate-x-full items-end' : x < 5 ? 'items-start' : '-translate-x-1/2 items-center'}`}
                             style={{ left: `${x}%`, color: mau }}>
-                            <span><b>{m.ten}</b> · {trangThai}</span>
+                            <b>{m.ten}</b>
                             <b className="text-base">{formatTy(m.v)}</b>
                           </span>
                         </span>

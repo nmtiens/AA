@@ -329,7 +329,7 @@ function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKe
       </div>
       <div className="mt-2 h-[190px]">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={cot} margin={{ top: 22, right: 16, left: 0, bottom: 2 }} barCategoryGap="28%">
+          <ComposedChart data={cot} margin={{ top: 30, right: 16, left: 0, bottom: 2 }} barCategoryGap="28%">
             <CartesianGrid vertical={false} stroke="#eef2f6" />
             <XAxis dataKey="khoa" tickFormatter={(k: string) => nhanThang(k)} tick={{ fontSize: 12, fill: '#475569' }} tickLine={false}
               axisLine={{ stroke: '#cbd5e1' }} interval={0} />
@@ -355,7 +355,7 @@ function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKe
                 const { x, y, width, index } = q as { x?: number; y?: number; width?: number; index?: number };
                 const v = index === undefined ? null : cot[index]?.nhanKh;
                 if (v == null) return null;
-                return <text x={Number(x) + Number(width) / 2} y={Number(y) - 6} textAnchor="middle" fontSize={13} fontWeight={700} fill="#334155"
+                return <text x={Number(x) + Number(width) / 2} y={Number(y) - 12} textAnchor="middle" fontSize={13} fontWeight={700} fill="#334155" stroke="#ffffff" strokeWidth={3} paintOrder="stroke"
                   style={{ fontVariantNumeric: 'tabular-nums' }}>{dinhDangSo(v, 0)}</text>;
               }} />
             </Bar>
@@ -367,16 +367,39 @@ function BieuDoDoanhSo({ dt, tuThang, denThang, thangHienTai }: { dt: DoanhThuKe
   );
 }
 
+/**
+ * Theo tuần chỉ ghi số ở điểm đầu / cuối / cao / thấp; 2 điểm được ghi nằm kề nhau (vd đỉnh ngay trước điểm cuối)
+ * thì 2 số chồng lên nhau => bỏ số ở điểm giữa, giữ điểm đầu / cuối
+ */
+const boSatNhau = (hien: Set<number>, n: number): Set<number> => {
+  if (n <= 13) return hien;
+  const ds = [...hien].sort((a, b) => a - b);
+  const giu = new Set(ds);
+  for (let i = 1; i < ds.length; i++) {
+    if (ds[i] - ds[i - 1] > 1 || !giu.has(ds[i - 1]) || !giu.has(ds[i])) continue;
+    giu.delete(ds[i] === n - 1 || ds[i - 1] === 0 ? (ds[i] === n - 1 ? ds[i - 1] : ds[i]) : ds[i]);
+  }
+  return giu;
+};
+
 /** Số ghi tại điểm (recharts LabelList content): chỉ ở các điểm trong `hien`; `duoi` = ghi dưới điểm (đường chậm LC) */
-function NhanSo({ x, y, value, index, hien, duoi, chiSo, dam, soLe = 1 }: {
+function NhanSo({ x, y, value, index, hien, duoi, chiSo, dam, soLe = 1, tranTruc, tongTai }: {
   x?: number | string; y?: number | string; value?: number | string | null; index?: number;
   hien: Set<number>; duoi?: boolean; chiSo: ChiSo; dam?: boolean; soLe?: number;
+  /** Đỉnh trục Y: điểm sát đáy (< 15% trục) mà ghi số phía dưới thì đè nhãn tháng => ghi lên trên */
+  tranTruc?: number;
+  /** Tổng tồn cùng điểm (nhãn đường chậm LC): số ghi lên trên mà sát số tổng tồn => bỏ, khỏi đè */
+  tongTai?: Array<number | null>;
 }) {
   if (value === null || value === undefined || index === undefined || !hien.has(index)) return null;
   const v = Number(value);
   if (!Number.isFinite(v)) return null;
+  const satDay = !!(duoi && tranTruc && v < tranTruc * 0.15);
+  const tong = tongTai?.[index] ?? null;
+  if (satDay && tranTruc && tong !== null && tong - v < tranTruc * 0.15) return null;
+  const xuong = duoi && !satDay;
   return (
-    <text x={Number(x)} y={Number(y) + (duoi ? 20 : -12)} textAnchor="middle" fontSize={dam ? 16 : 14}
+    <text x={Number(x)} y={Number(y) + (xuong ? 20 : -12)} textAnchor="middle" fontSize={dam ? 16 : 14}
       fill={dam ? '#0f172a' : '#475569'} fontWeight={dam ? 800 : 600} stroke="#ffffff" strokeWidth={3} paintOrder="stroke"
       style={{ fontVariantNumeric: 'tabular-nums' }}>
       {chiSo === 'giaTri' ? dinhDangSo(v / 1000, soLe) : dinhDangSo(v, 0)}
@@ -419,11 +442,12 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
   const khungRef = useRef<HTMLDivElement>(null);
   const rongXuat = xuat ? Math.max(600, Math.round(khungRef.current?.clientWidth ?? 1000)) : 0;
   const caoXuat = Math.round(rongXuat / TY_LE_ANH_TON);
-  // Xu hướng (hồi quy tuyến tính tổng tồn, ≥ 3 điểm): chỉ ghi SỐ tăng / giảm mỗi tháng ở đầu thẻ — đường thẳng vẽ chồng
-  // lên đường tổng tồn không cho thêm thông tin. Cam = tăng (vốn đọng thêm), xanh = giảm. Bỏ đường trung bình (rối)
+  // Xu hướng (hồi quy tuyến tính tổng tồn, ≥ 3 điểm): đường gạch dài trên biểu đồ + số tăng / giảm mỗi tháng ở đầu thẻ.
+  // Cam = tăng (vốn đọng thêm), xanh = giảm. Bỏ đường trung bình (rối)
   const xh = useMemo(() => xuHuongTong(ds), [ds]);
   const mauXh = xh?.huong === 'tang' ? MAU_TANG : xh?.huong === 'giam' ? MAU_GIAM : '#64748b';
-  const duLieuVe = useMemo<DiemVe[]>(() => ds.map(d => ({ ...d, chamVe: d.thieuCham ? null : d.cham, xuHuong: null })), [ds]);
+  const duLieuVe = useMemo<DiemVe[]>(
+    () => ds.map((d, i) => ({ ...d, chamVe: d.thieuCham ? null : d.cham, xuHuong: xh ? xh.giaTri[i] : null })), [ds, xh]);
   // Dự báo: chỉ khi xem theo THÁNG + GIÁ TRỊ và điểm cuối là tháng có tồn mới nhất (dự báo nối tiếp đúng điểm đó)
   const coDuBao = moc === 'thang' && chiSo === 'giaTri' && !!duBao && duBao.diem.length > 0 && !!cuoi
     && congThangKhoa(cuoi.khoa, 1) === duBao.diem[0].khoa;
@@ -445,13 +469,13 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
   // Ghi số ở MỌI tháng dự báo (trước chỉ tháng tiêu biểu => các mốc giữa không có số)
   const hienDuBao = new Set(coDuBao && duBaoHien ? duBaoHien.diem.map(p => p.khoa) : []);
   const maxDuBao = coDuBao && duBao ? Math.max(...duBao.diem.map(p => p.cao ?? p.ton)) : 0;
-  const max = Math.max(ds.reduce((m, d) => Math.max(m, d.tong), 0), maxDuBao);
+  const max = Math.max(ds.reduce((m, d) => Math.max(m, d.tong), 0), ...(xh ? xh.giaTri : [0]), maxDuBao);
   const { vach, soLe } = useMemo(() => vachTrucY(max, chiSo === 'giaTri' ? 'ty' : 'so'), [max, chiSo]);
   const dsKhoa = useMemo(() => duLieuHien.map(d => d.khoa), [duLieuHien]);
   // Nhãn trục: đủ mọi tháng tới 24 tháng (trước 14 => cách 1 tháng mới có nhãn)
   const nhanTruc = useMemo(() => chonNhanTruc(dsKhoa, 24), [dsKhoa]);
-  const hienTong = useMemo(() => chiSoNhan(ds.map(d => d.tong)), [ds]);
-  const hienCham = useMemo(() => chiSoNhan(duLieuVe.map(d => d.chamVe)), [duLieuVe]);
+  const hienTong = useMemo(() => boSatNhau(chiSoNhan(ds.map(d => d.tong)), ds.length), [ds]);
+  const hienCham = useMemo(() => boSatNhau(chiSoNhan(duLieuVe.map(d => d.chamVe)), duLieuVe.length), [duLieuVe]);
   // Lần chốt thiếu cờ chậm luân chuyển (03/09/2026): đường xám nối qua (khỏi trông như lỗi đứt khúc) + chấm rỗng
   // "thiếu số" ở mức giữa 2 điểm kề — chỉ để đánh dấu chỗ thiếu, không phải số thật
   const chamThieu = useMemo(() => duLieuVe.flatMap((d, i) => {
@@ -469,6 +493,7 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
   const soLeNhan = max < 2000 ? 2 : 1;
   const coCham = ds.some(d => !d.thieuCham && d.cham > 0);
   const lePhai = 24;
+  const tongTheoDiem = useMemo(() => duLieuHien.map(d => ('tong' in d && typeof d.tong === 'number' ? d.tong : null)), [duLieuHien]);
   // Số chính ở đầu thẻ: hiện tại, so với đầu khoảng, đỉnh, % chậm luân chuyển
   const dau = ds.length > 1 ? ds[0] : null;
   const dinh = ds.length > 2 ? ds.reduce((m, d) => (d.tong > m.tong ? d : m), ds[0]) : null;
@@ -570,7 +595,7 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
               tick={{ fontSize: 12, fill: '#475569' }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} padding={{ left: 20, right: 20 }} />
             <YAxis domain={[0, vach[vach.length - 1]]} ticks={vach} width={44} tickLine={false} axisLine={false}
               tickFormatter={(v: number) => (chiSo === 'giaTri' ? dinhDangSo(v / 1000, soLe) : dinhDangSo(v, 0))}
-              tick={{ fontSize: 11, fill: '#94a3b8' }} />
+              tick={{ fontSize: 12, fill: '#64748b' }} />
             <Tooltip cursor={{ stroke: '#94a3b8', strokeDasharray: '3 3' }} isAnimationActive={false}
               wrapperStyle={{ outline: 'none', zIndex: 30 }}
               content={p => {
@@ -601,11 +626,15 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
                 }} />
               </Line>
             )}
+            {xh && (
+              <Line type="linear" dataKey="xuHuong" name="Xu hướng" stroke={mauXh} strokeWidth={2} strokeDasharray="10 5"
+                strokeOpacity={0.85} dot={false} activeDot={false} isAnimationActive={false} />
+            )}
             {coCham && (
               <Line type="linear" dataKey="chamVe" name="Chậm luân chuyển > 3 tháng" stroke={MAU_CHAM} strokeWidth={1.5}
                 strokeDasharray="5 4" dot={{ r: 2.5, fill: MAU_CHAM, stroke: '#fff', strokeWidth: 1 }}
                 activeDot={{ r: 4, fill: MAU_CHAM, stroke: '#fff', strokeWidth: 1.5 }} connectNulls isAnimationActive={false}>
-                <LabelList dataKey="chamVe" content={(p: object) => <NhanSo {...p} hien={hienCham} duoi chiSo={chiSo} soLe={soLeNhan} />} />
+                <LabelList dataKey="chamVe" content={(p: object) => <NhanSo {...p} hien={hienCham} duoi chiSo={chiSo} soLe={soLeNhan} tranTruc={vach[vach.length - 1]} tongTai={tongTheoDiem} />} />
               </Line>
             )}
             {coCham && chamThieu.map(t => (
@@ -632,6 +661,13 @@ function TheNhom({ chuoi, chiSo, moc, onChon, xuat, loc, ketQuaLoc, onLoc, phien
         {coCham && (
           <span className="inline-flex items-center gap-1.5">
             <span className="w-5 border-t-2 border-dashed" style={{ borderColor: MAU_CHAM }} aria-hidden />Chậm luân chuyển &gt; 3 tháng
+          </span>
+        )}
+        {xh && (
+          <span className="inline-flex items-center gap-1.5" style={{ color: mauXh }}>
+            <span className="w-5 border-t-2 border-dashed" style={{ borderColor: mauXh }} aria-hidden />
+            {/* Màu đường = chiều xu hướng: cam tăng, xanh giảm, xám đi ngang / không rõ — ghi rõ để khỏi thắc mắc vì sao đổi màu */}
+            {xh.huong === 'tang' ? 'Xu hướng tăng (cam)' : xh.huong === 'giam' ? 'Xu hướng giảm (xanh)' : xh.huong === 'ngang' ? 'Xu hướng đi ngang (xám)' : 'Xu hướng không rõ — tồn lên xuống (xám)'}
           </span>
         )}
         {coDuBao && (
