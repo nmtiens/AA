@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, Download, ChevronRight, ShoppingCart, FileText, ClipboardList, Package, PackageOpen, Boxes } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, Cell, CartesianGrid, LabelList } from 'recharts';
+import { Eye, Download, ShoppingCart, FileText, ClipboardList, Package, PackageOpen, Boxes } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, ReferenceArea, Cell, CartesianGrid, LabelList } from 'recharts';
 import { fetchOverviewSummary, fetchYearPlanActual, fetchKhsxNhapKhoSummary, type OverviewSummary, type YearPlanActualData } from '../../../../services/dataService';
 import { formatTrieuAsTy, formatTy } from '../../../../utils/money';
 import { parseVNDate, toISODateLocal } from '../../utils/dateHelpers';
@@ -317,7 +317,10 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     if (tienDo === 'nam') {
       return {
         ten: `năm ${p.namLabel}`, th: p.thucHienNam, kh: p.keHoachNam,
-        moc: ([['q1', 'Quý I'], ['q2', 'Quý II'], ['q3', 'Quý III'], ['q4', 'Quý IV']] as const).map(([k, ten]) => ({ ten, v: p.quy[k] })).filter(m => m.v > 0),
+        moc: ([['q1', 'Quý I'], ['q2', 'Quý II'], ['q3', 'Quý III'], ['q4', 'Quý IV']] as const).map(([k, ten], i) => {
+          const tu = new Date(ngayMoi.getFullYear(), i * 3, 1), den = new Date(ngayMoi.getFullYear(), i * 3 + 3, 0);
+          return { ten, v: p.quy[k], chuaToi: ngayMoi < tu, dangChay: ngayMoi >= tu && ngayMoi <= den };
+        }).filter(m => m.v > 0),
         conNgay: ngayLamConLai(ngayMoi),
         // Ngày làm việc đã qua trong năm = cả năm (1/1 + các ngày sau 1/1) − còn lại
         daQua: (laNgayLam(new Date(ngayMoi.getFullYear(), 0, 1)) ? 1 : 0) + ngayLamConLai(new Date(ngayMoi.getFullYear(), 0, 1)) - ngayLamConLai(ngayMoi),
@@ -460,20 +463,11 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nkHien, hienTu?.getTime(), hienDen?.getTime(), ngayMoi, canMoiNgayKy, tuanChon, mucTuan, thTuan]);
   const duLieuVe = useMemo(() => duLieu.map(d => ({ ...d, kh: khNgay?.get(d.ngay) ?? 0 })), [duLieu, khNgay]);
-  const coKhNgay = duLieuVe.some(d => d.kh > 0);
+  // Xem Tháng: không vẽ cột kế hoạch ngày (KH tuần) — đã có thẻ từng tuần + đường KH tháng
+  const coKhNgay = tienDo !== 'thang' && duLieuVe.some(d => d.kh > 0);
   const coDeXuat = duLieu.some(d => d.de > 0);
-  // Nhãn các đường ngang (Cần / KH tháng / Bình quân) ở mép phải: giá trị gần nhau thì đè chữ => tính vị trí điểm ảnh
-  // theo đúng trục Y của biểu đồ (cao 30rem = 480px, trừ lề trên 26 và trục X ~30) rồi đẩy cách nhau tối thiểu 16px
-  const dyNhan = useMemo(() => {
-    const cao = 480 - 26 - 30;
-    const yMax = Math.ceil(Math.max(...duLieuVe.map(d => Math.max(d.v + d.de, d.kh)), 0, canMoiNgay, mucKhThang) * 1.18) || 1;
-    const ds = ([['can', canMoiNgay], ['kh', !tuanChon ? mucKhThang : 0], ['bq', binhQuan]] as const)
-      .filter(([, v]) => v > 0).map(([k, v]) => ({ k, y: (1 - v / yMax) * cao })).sort((a, b) => a.y - b.y);
-    const kq: Record<string, number> = {};
-    let truoc = -Infinity;
-    for (const x of ds) { const y = Math.max(x.y, truoc + 16); kq[x.k] = y - x.y; truoc = y; }
-    return kq;
-  }, [duLieuVe, canMoiNgay, mucKhThang, binhQuan, tuanChon]);
+  // Vùng hồng giữa KH tháng / ngày và mức cần / ngày (cần cao hơn KH tháng = đang phải bù phần thiếu)
+  const vungHong = !tuanChon && mucKhThang > 0 && canMoiNgay > mucKhThang;
 
 
   const tenKy = khoang?.tenTruoc ?? 'kỳ trước';
@@ -594,24 +588,24 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                 <span className={`min-w-0 flex-1 self-center text-lg font-bold uppercase tracking-wide ${m.chu}`}>{i + 1}. {x.ten} ({x.ma})</span>
                 <Eye size={17} className={`shrink-0 opacity-60 group-hover:opacity-100 ${m.nhat}`} aria-hidden />
               </span>
-              <span className={`mt-4 text-[0.6875rem] font-semibold uppercase tracking-wider ${m.nhat}`}>{nhanKy}</span>
-              <span className={`text-[2.5rem] font-bold leading-tight tabular-nums ${m.chu}`}>
-                {a ? f(a.count, a.value) : '…'}<span className={`ml-2 text-base font-medium ${m.nhat}`}>{dv}</span>
+              <span className={`mt-4 text-sm font-semibold uppercase tracking-wider ${m.nhat}`}>{nhanKy}</span>
+              <span className={`whitespace-nowrap text-[3.25rem] font-bold leading-tight tabular-nums ${m.chu}`}>
+                {a ? f(a.count, a.value) : '…'}<span className={`ml-2 text-xl font-medium ${m.nhat}`}>{dv}</span>
               </span>
-              <span className="text-sm text-slate-600">
+              <span className="text-base text-slate-600">
                 {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} hạng mục`} · </>}
                 {dem ? chenh(a?.count, b?.count) : chenh(a?.value, b?.value, 'pt')}
               </span>
               {n && (
                 <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="text-base font-bold uppercase text-slate-800">{x.k === 'order' ? `Đơn hàng mới tháng ${thangXem}:` : `Lũy kế T${thangXem}:`}</span>
-                    <b className={`text-[1.75rem] font-bold tabular-nums ${m.chu}`}>{f(n[x.k].mtd.count, n[x.k].mtd.value)} <span className="text-lg font-semibold">{dem ? x.dv : 'tỷ'}</span></b>
+                    <span className="min-w-0 text-base font-bold uppercase leading-tight text-slate-800">{x.k === 'order' ? `Đơn hàng mới tháng ${thangXem}:` : x.k === 'tkbv' ? `Bản vẽ mới tháng ${thangXem}:` : x.k === 'pthsp' ? `Phiếu mới tháng ${thangXem}:` : `Lũy kế T${thangXem}:`}</span>
+                    <b className={`shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums ${m.chu}`}>{f(n[x.k].mtd.count, n[x.k].mtd.value)} <span className="text-xl font-semibold">{dem ? x.dv : 'tỷ'}</span></b>
                   </span>
                   <span className="flex items-baseline justify-between gap-2">
                     {/* Thẻ 1: dòng dưới = giá trị đơn hàng đang ở P001 (chưa triển khai) — cùng số thanh P001 của phễu */}
-                    <span className="text-xs font-semibold uppercase text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Lũy kế T${thangTruoc} (cả tháng):`}</span>
-                    <span className={`text-lg font-semibold tabular-nums ${m.nhat}`}>
+                    <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Lũy kế T${thangTruoc} (cả tháng):`}</span>
+                    <span className={`shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums ${m.nhat}`}>
                       {x.k === 'order'
                         ? (p.giaTriP001 == null ? '—' : `${formatTrieuAsTy(p.giaTriP001)} tỷ`)
                         : <>{f(n[x.k].lastMonth.count, n[x.k].lastMonth.value)} {dem ? x.dv : 'tỷ'}</>}
@@ -635,21 +629,21 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                 <span className={`min-w-0 flex-1 self-center text-lg font-bold uppercase tracking-wide ${m.chu}`}>6. Tồn kho</span>
                 <Eye size={17} className="shrink-0 text-slate-400 group-hover:text-slate-700" aria-hidden />
               </span>
-              <span className="mt-4 text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-500">Dữ liệu ngày: {ngayDu(p.tonNgay)}</span>
-              <span className="text-[2.5rem] font-bold leading-tight tabular-nums text-slate-900">
-                {giaTri(p.tonKho, p.tonKho)}<span className="ml-2 text-base font-medium text-slate-500">{dem ? 'items' : 'tỷ'}</span>
+              <span className="mt-4 text-sm font-semibold uppercase tracking-wider text-slate-500">Dữ liệu ngày: {ngayDu(p.tonNgay)}</span>
+              <span className="whitespace-nowrap text-[3.25rem] font-bold leading-tight tabular-nums text-slate-900">
+                {giaTri(p.tonKho, p.tonKho)}<span className="ml-2 text-xl font-medium text-slate-500">{dem ? 'items' : 'tỷ'}</span>
               </span>
-              <span className="text-sm text-slate-600">
+              <span className="text-base text-slate-600">
                 {dem ? chenh(p.tonKho, p.tonCuoiThangTruoc.count, 'so', `cuối T${thangTruoc}`, true) : chenh(p.tonKho, p.tonCuoiThangTruoc.value, 'pt', `cuối T${thangTruoc}`, true)}
               </span>
               <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-bold uppercase text-slate-800">Tồn mới nhất ({ngayDu(p.tonNgay)})</span>
-                  <b className="text-[1.75rem] font-bold tabular-nums text-slate-900">{giaTri(p.tonKho, p.tonKho)} <span className="text-lg font-semibold">{dem ? 'items' : 'tỷ'}</span></b>
+                  <span className="min-w-0 text-base font-bold uppercase leading-tight text-slate-800">Tồn mới nhất ({ngayDu(p.tonNgay)})</span>
+                  <b className="shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums text-slate-900">{giaTri(p.tonKho, p.tonKho)} <span className="text-xl font-semibold">{dem ? 'items' : 'tỷ'}</span></b>
                 </span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase text-slate-500">Tồn mới nhất của tháng {thangTruoc} ({ngayDu(cuoi)})</span>
-                  <span className="text-lg font-semibold tabular-nums text-slate-500">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
+                  <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">Tồn mới nhất của tháng {thangTruoc} ({ngayDu(cuoi)})</span>
+                  <span className="shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums text-slate-500">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
                 </span>
               </span>
             </button>
@@ -659,157 +653,179 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
 
       <div className={`grid grid-cols-1 gap-4 ${moChuY ? 'xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]' : ''}`}>
         <div className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 lg:p-6">
-          <div className="flex flex-wrap items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <h3 className="text-lg font-semibold text-slate-900">Nhập kho theo ngày (tỷ)</h3>
-              {tuanChon ? (
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-sm text-slate-500">
-                  <b className="font-semibold text-slate-900">Tuần {tuanChon.tuan}</b> ({ngayNgan(tuanChon.tu)}–{ngayNgan(tuanChon.den)}) ·
-                  Mục tiêu <b className="font-semibold text-slate-900">{formatTy(mucTuan)}</b> · TH <b className="font-semibold text-slate-900">{formatTy(thTuan)}</b>
-                  {mucTuan > 0 && <> · <b className={`font-semibold ${thTuan >= mucTuan ? 'text-emerald-700' : 'text-red-600'}`}>{Math.round((thTuan / mucTuan) * 100)}%</b> · cần {formatTy(canMoiNgay)} tỷ/ngày</>}
-                  <button type="button" onClick={() => setTuanChon(null)} className="ml-1 rounded-full border border-slate-300 px-2 text-xs text-slate-600 hover:bg-slate-50">✕ bỏ chọn tuần</button>
-                </p>
-              ) : (
-              <p className="mt-0.5 text-sm text-slate-500">
-                {nkCoSo.length > 0 && <>Bình quân <b className="font-semibold text-slate-900">{formatTy(binhQuan)} tỷ/ngày</b> ({nkCoSo.length} ngày có số) · </>}
-                {soNgayCon > 0
-                  ? <>cần <b className="font-semibold text-slate-900">{formatTy(canMoiNgay)} tỷ/ngày</b> để đạt {tenKh}</>
-                  : conLaiNam > 0 ? <>{tenKh} đã hết ngày làm việc · còn thiếu <b className="font-semibold text-red-600">{formatTy(conLaiNam)} tỷ</b></>
-                  : <>{tenKh} <b className="font-semibold text-emerald-700">đã đạt</b></>}
-              </p>
-              )}
-            </div>
-            {!moChuY && (
-              <button type="button" onClick={() => setMoChuY(true)} title="Mở danh sách việc cần chú ý hôm nay"
-                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                Cần chú ý hôm nay
-                <span className={`rounded-full px-2 text-xs font-semibold ${canChuY.some(m => m.nhan === 'Trễ' || m.nhan === 'Vướng') ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-700'}`}>{canChuY.length}</span>
-              </button>
-            )}
-          </div>
-          {/* Tiến độ năm: thanh lũy kế nhập kho + cờ mốc lũy kế từng quý */}
+          {/* Tiến độ kỳ (năm / tháng): 4 thẻ số (mỗi số 1 chỗ) + thanh đã nhập / dự kiến theo nhịp / phần thiếu + cờ mốc */}
           {(() => {
+            const con = Math.max(0, td.kh - td.th);
+            const bq = td.daQua > 0 ? td.th / td.daQua : 0;
+            const can = td.conNgay > 0 ? con / td.conNgay : 0;
+            const duKien = td.th + bq * td.conNgay;
+            const ptDuKien = td.kh > 0 ? (duKien / td.kh) * 100 : 0;
+            // Giữ nhịp hiện tại thì cần bao nhiêu ngày làm việc nữa để đủ KH => ngày đạt
+            const ngayCanThem = bq > 0 ? Math.ceil(con / bq) : null;
+            let ngayDat: Date | null = null;
+            if (ngayCanThem !== null && con > 0) {
+              let d = ngayMoi, k = 0;
+              while (k < ngayCanThem && k < 2000) { d = themNgay(d, 1); if (laNgayLam(d)) k++; }
+              ngayDat = d;
+            }
+            const kip = con <= 0 || (ngayDat !== null && ngayDat <= td.cuoiKy);
+            const laNam = tienDo === 'nam';
+            const tenKy = laNam ? `năm ${p.namLabel}` : `tháng ${thangTD}`;
             const pt = (v: number) => (td.kh > 0 ? Math.min(100, Math.max(0, (v / td.kh) * 100)) : 0);
             const moc: Array<{ ten: string; v: number; chuaToi?: boolean; dangChay?: boolean }> = tienDo === 'thang' && mocTuan.length ? mocTuan : td.moc;
             const phanTram = td.kh > 0 ? (td.th / td.kh) * 100 : 0;
-            return (
-              <div className="mt-4 rounded-xl bg-slate-50 px-4 pb-3 pt-3 ring-1 ring-slate-200">
-                <span className="flex items-baseline gap-2 text-sm text-slate-600">
-                  <span className="flex rounded-md bg-white p-0.5 ring-1 ring-slate-200" role="group" aria-label="Xem tiến độ theo">
-                    {([['nam', 'Năm'], ['thang', 'Tháng']] as const).map(([k, l]) => (
-                      <button key={k} type="button" onClick={() => setTienDo(k)} aria-pressed={tienDo === k}
-                        className={`rounded px-2.5 py-0.5 text-xs ${tienDo === k ? 'bg-slate-900 font-medium text-white' : 'text-slate-500 hover:text-slate-900'}`}>{l}</button>
-                    ))}
-                  </span>
-                  <span title="Nhập kho có ngày nhập trong kỳ của MỌI đơn (kể cả đơn đã xong), không tính hạng mục HỦY, không theo bộ lọc trang — khác số 'Đã nhập kho' ở trang Tổng quan công trình (chỉ đơn đang theo dõi, cộng mọi năm)">
-                    Tiến độ {td.ten} (tỷ) <span className="text-xs text-slate-400">· {td.ghiChu}</span>
-                  </span>
+            const xTh = pt(td.th), xDk = pt(duKien);
+            const dangChayKy = td.daQua > 0 && td.conNgay > 0;
+            const coDuKien = td.kh > 0 && bq > 0 && dangChayKy && con > 0;
+            const the = 'flex flex-col rounded-xl border border-slate-200 border-t-4 bg-white px-4 py-3 text-left';
+            const nhanThe = 'flex items-baseline justify-between gap-2 text-xs font-bold uppercase tracking-wide text-slate-500';
+            return (<>
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-bold text-slate-900">Nhập kho thành phẩm {laNam ? p.namLabel : `tháng ${thangTD}/${ngayMoi.getFullYear()}`}</h3>
+                  <p className="mt-0.5 text-sm text-slate-500" title="Nhập kho có ngày nhập trong kỳ của MỌI đơn (kể cả đơn đã xong), không tính hạng mục HỦY, không theo bộ lọc trang — khác số 'Đã nhập kho' ở trang Tổng quan công trình (chỉ đơn đang theo dõi, cộng mọi năm)">
+                    {td.ghiChu} · tính tới {ngayNgan(ngayMoi)} · đơn vị tỷ đồng
+                  </p>
+                </div>
+                <span className="flex items-center gap-1.5">
                   {tienDo === 'thang' && (
                     <span className="flex items-center gap-0.5">
                       <button type="button" onClick={() => setThangTD(m => Math.max(1, m - 1))} disabled={thangTD <= 1} aria-label="Tháng trước"
-                        className="rounded px-1.5 text-slate-500 enabled:hover:bg-white enabled:hover:text-slate-900 disabled:opacity-30">‹</button>
+                        className="rounded px-1.5 text-slate-500 enabled:hover:bg-slate-100 enabled:hover:text-slate-900 disabled:opacity-30">‹</button>
                       <select value={thangTD} onChange={e => setThangTD(Number(e.target.value))} aria-label="Chọn tháng"
-                        className="h-7 rounded-md border border-slate-300 bg-white px-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300">
+                        className="h-9 rounded-md border border-slate-300 bg-white px-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300">
                         {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                           <option key={m} value={m}>Tháng {m}{m === ngayMoi.getMonth() + 1 ? ' (đang chạy)' : ''}</option>
                         ))}
                       </select>
                       <button type="button" onClick={() => setThangTD(m => Math.min(12, m + 1))} disabled={thangTD >= 12} aria-label="Tháng sau"
-                        className="rounded px-1.5 text-slate-500 enabled:hover:bg-white enabled:hover:text-slate-900 disabled:opacity-30">›</button>
+                        className="rounded px-1.5 text-slate-500 enabled:hover:bg-slate-100 enabled:hover:text-slate-900 disabled:opacity-30">›</button>
                     </span>
                   )}
-                  <span className="ml-auto flex shrink-0 items-center whitespace-nowrap text-base font-semibold tabular-nums text-slate-900">
-                    {/* 2 nút dạng "chip" có mũi tên => nhìn biết bấm được để xem chi tiết */}
-                    <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem chi tiết nhập kho theo tháng / xưởng"
-                      className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 py-0.5 pl-2.5 pr-1.5 text-emerald-800 transition enabled:hover:border-emerald-400 enabled:hover:bg-emerald-100">
-                      <span className="text-xs font-normal">Thực hiện</span> {formatTy(td.th)} <ChevronRight size={14} aria-hidden />
-                    </button>
-                    <button type="button" onClick={p.onKeHoachNam} disabled={!p.onKeHoachNam} title="Bấm để xem nhập kho so với kế hoạch theo tháng / xưởng"
-                      className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white py-0.5 pl-2.5 pr-1.5 text-slate-800 transition enabled:hover:border-slate-500 enabled:hover:bg-slate-50">
-                      <span className="text-xs font-normal text-slate-500">Kế hoạch</span> {formatTy(td.kh)} <ChevronRight size={14} aria-hidden />
-                    </button>
-                    <span className="ml-2 rounded-full bg-emerald-600 px-2 py-0.5 text-sm text-white">{Math.round(phanTram)}%</span>
+                  <span className="flex overflow-hidden rounded-lg border border-slate-300" role="group" aria-label="Xem tiến độ theo">
+                    {([['nam', 'Năm'], ['thang', 'Tháng']] as const).map(([k, l]) => (
+                      <button key={k} type="button" onClick={() => setTienDo(k)} aria-pressed={tienDo === k}
+                        className={`px-4 py-1.5 text-sm font-semibold ${tienDo === k ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{l}</button>
+                    ))}
                   </span>
+                  {!moChuY && (
+                    <button type="button" onClick={() => setMoChuY(true)} title="Mở danh sách việc cần chú ý hôm nay"
+                      className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3.5 text-sm font-semibold text-red-700 hover:bg-red-100">
+                      Cần chú ý hôm nay
+                      <span className={`rounded-full px-2 text-xs font-semibold ${canChuY.some(m => m.nhan === 'Trễ' || m.nhan === 'Vướng') ? 'bg-red-600 text-white' : 'bg-white text-slate-700'}`}>{canChuY.length}</span>
+                    </button>
+                  )}
                 </span>
-                <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo năm"
-                  className="relative mt-10 block h-12 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
-                  <span className="absolute inset-0 rounded-lg bg-slate-200" />
-                  <span className="absolute inset-y-0 left-0 flex items-center justify-end rounded-lg bg-emerald-600 pr-5 text-2xl font-extrabold tabular-nums text-white"
-                    style={{ width: `${pt(td.th)}%` }}>
-                    {pt(td.th) > 20 ? `Thực hiện ${formatTy(td.th)}` : pt(td.th) > 8 ? formatTy(td.th) : ''}
-                  </span>
-                  {/* Phần còn lại tới kế hoạch năm */}
-                  {td.kh > 0 && pt(td.th) < 80 && (
-                    <span className="absolute inset-y-0 right-5 flex items-center text-2xl font-bold tabular-nums text-slate-600">
-                      Còn {formatTy(Math.max(0, td.kh - td.th))}
-                    </span>
-                  )}
-                  {moc.map(m => {
-                    const x = pt(m.v);
-                    const canh = x > 92 ? '-translate-x-full' : x < 8 ? '' : '-translate-x-1/2';
-                    const datMoc = td.th >= m.v;
-                    // Tuần đang chạy chưa tới cuối tuần => cam (chưa thể kết luận trễ)
-                    const mau = m.chuaToi ? '#94a3b8' : datMoc ? '#12805c' : m.dangChay ? '#d97706' : '#e31e24';
-                    return (
-                      <span key={m.ten} className="absolute -top-7 bottom-[-1.25rem]" style={{ left: `${x}%` }}>
-                        {/* cờ */}
-                        <svg className="absolute -top-0.5 left-0 h-7 w-5" viewBox="0 0 12 16" aria-hidden>
-                          <path d="M1 0v16" stroke={mau} strokeWidth="1.5" />
-                          <path d="M1 1h10l-3 4 3 4H1z" fill={mau} />
-                        </svg>
-                        <span className={`absolute left-0 top-6 h-[4.1rem] border-l-2 border-dashed ${m.chuaToi ? 'border-slate-400' : datMoc ? 'border-emerald-600' : m.dangChay ? 'border-amber-600' : 'border-red-500'}`} />
-                        {/* Nhãn 2 dòng (tên quý / số) — hẹp, các mốc gần nhau không đè; cùng 1 hàng */}
-                        <span className={`absolute top-[5.25rem] flex flex-col whitespace-nowrap text-xl leading-tight tabular-nums ${canh} ${x > 92 ? 'items-end' : x < 8 ? 'items-start' : 'items-center'} ${m.chuaToi ? 'text-slate-400' : datMoc ? 'text-emerald-700' : m.dangChay ? 'text-amber-700' : 'text-red-600'}`}>
-                          <span className="font-medium">{m.ten}</span>
-                          <span className="font-semibold">{formatTy(m.v)}</span>
-                        </span>
-                      </span>
-                    );
-                  })}
+              </div>
+
+              {/* 4 thẻ số */}
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem chi tiết nhập kho theo tháng / xưởng"
+                  className={`${the} border-t-emerald-600 transition enabled:hover:shadow-md`}>
+                  <span className={nhanThe}>Đã nhập kho {p.onThucHienNam && <span className="normal-case tracking-normal text-blue-600">Chi tiết ›</span>}</span>
+                  <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-emerald-700">{formatTy(td.th)} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
+                  <span className="mt-0.5 text-sm text-slate-600">{td.kh > 0 && <><b className="text-emerald-700">{Math.round(phanTram)}%</b> kế hoạch {laNam ? 'năm' : 'tháng'} · </>}{td.daQua} ngày</span>
                 </button>
-                <span className="block h-[6rem]" />
+                <button type="button" onClick={p.onKeHoachNam} disabled={!p.onKeHoachNam} title="Bấm để xem nhập kho so với kế hoạch theo tháng / xưởng"
+                  className={`${the} border-t-slate-700 transition enabled:hover:shadow-md`}>
+                  <span className={nhanThe}>Kế hoạch {laNam ? 'năm' : `tháng ${thangTD}`} {p.onKeHoachNam && <span className="normal-case tracking-normal text-blue-600">So KH ›</span>}</span>
+                  <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-slate-900">{td.kh > 0 ? formatTy(td.kh) : '—'} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
+                  <span className="mt-0.5 text-sm text-slate-600">
+                    {td.kh <= 0 ? 'Chưa có kế hoạch' : con > 0 ? <>Còn thiếu <b>{formatTy(con)} tỷ</b> · {td.conNgay} ngày ({LAM_CHU_NHAT ? 'tính cả CN' : 'T2–T7'}, tới {ngayNgan(td.cuoiKy)})</> : <b className="text-emerald-700">Đã đạt kế hoạch</b>}
+                  </span>
+                </button>
+                <div className={`${the} border-t-red-600`}>
+                  <span className={nhanThe}>Cần mỗi ngày</span>
+                  <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-red-600">{can > 0 ? formatTy(can) : '—'} <span className="text-base font-semibold text-slate-500">tỷ/ngày</span></span>
+                  <span className="mt-0.5 text-sm text-slate-600">
+                    {can > 0 && bq > 0 ? <>gấp <b className="text-red-600">{(can / bq).toFixed(1)} lần</b> nhịp từ đầu {laNam ? 'năm' : 'tháng'} ({formatTy(bq)})</> : con <= 0 ? 'Đã đủ kế hoạch' : 'Chưa có nhịp để so'}
+                  </span>
+                </div>
+                <div className={`${the} ${kip ? 'border-t-emerald-600' : 'border-t-amber-500 bg-amber-50/60'}`}>
+                  <span className={nhanThe}>Dự kiến cuối {laNam ? 'năm' : 'tháng'}{bq > 0 && ` (giữ nhịp ${formatTy(bq)}/ngày)`}</span>
+                  <span className={`mt-1 text-[2rem] font-extrabold leading-tight tabular-nums ${kip ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {coDuKien || con <= 0 ? formatTy(con <= 0 ? td.th : duKien) : '—'} {td.kh > 0 && (coDuKien || con <= 0) && <span className="text-base font-semibold text-slate-500">tỷ · {Math.round(con <= 0 ? phanTram : ptDuKien)}% KH</span>}
+                  </span>
+                  <span className="mt-0.5 text-sm text-slate-600">
+                    {con <= 0 ? 'Đã đạt kế hoạch kỳ này'
+                      : !coDuKien ? 'Chưa đủ số để dự kiến'
+                      : kip ? <>Đủ kế hoạch vào khoảng <b className="text-emerald-700">{ngayDat ? ngayNgan(ngayDat) : ''}</b></>
+                      : <>Thiếu <b className="text-red-600">{formatTy(td.kh - duKien)} tỷ</b>{ngayDat && <> · tới khoảng <b>{ngayNgan(ngayDat)}/{ngayDat.getFullYear()}</b> mới đủ KH</>}</>}
+                  </span>
+                </div>
+              </div>
 
-                {/* Phân tích: số ngày làm việc còn lại, mức cần mỗi ngày, nhịp đang chạy => dự kiến cuối kỳ */}
-                {td.kh > 0 && (() => {
-                  const con = Math.max(0, td.kh - td.th);
-                  const bq = td.daQua > 0 ? td.th / td.daQua : 0;
-                  const can = td.conNgay > 0 ? con / td.conNgay : 0;
-                  const duKien = td.th + bq * td.conNgay;
-                  const ptDuKien = (duKien / td.kh) * 100;
-                  // Giữ nhịp hiện tại thì cần bao nhiêu ngày làm việc nữa để đủ KH => ngày đạt
-                  const ngayCanThem = bq > 0 ? Math.ceil(con / bq) : null;
-                  let ngayDat: Date | null = null;
-                  if (ngayCanThem !== null && con > 0) {
-                    let d = ngayMoi, k = 0;
-                    while (k < ngayCanThem && k < 2000) { d = themNgay(d, 1); if (laNgayLam(d)) k++; }
-                    ngayDat = d;
-                  }
-                  const kip = con <= 0 || (ngayDat !== null && ngayDat <= td.cuoiKy);
-                  const tenKy = tienDo === 'nam' ? `năm ${p.namLabel}` : `tháng ${thangTD}`;
-                  return (
-                    <div className={`mb-3 rounded-lg border px-4 py-2.5 text-sm ${con <= 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : kip ? 'border-emerald-200 bg-emerald-50/60 text-slate-700' : 'border-amber-200 bg-amber-50 text-slate-700'}`}>
-                      {con <= 0 ? (
-                        <p><b>Đã đạt KH {tenKy}</b> ({formatTy(td.th)} / {formatTy(td.kh)} tỷ).</p>
-                      ) : (<>
-                        <p>
-                          Còn <b className="text-base">{td.conNgay} ngày</b> ({LAM_CHU_NHAT ? 'tính cả Chủ nhật' : 'T2–T7'}, tới {ngayNgan(td.cuoiKy)}) để nhập thêm <b>{formatTy(con)} tỷ</b>
-                          {' '}→ cần <b className="text-base text-red-700">{formatTy(can)} tỷ/ngày</b>.
-                        </p>
-                        {bq > 0 && (
-                          <p className="mt-0.5">
-                            Nhịp {tenKy} tới nay: <b>{formatTy(bq)} tỷ/ngày</b> ({td.daQua} ngày) — {can > 0 ? <>cần gấp <b>{(can / bq).toFixed(1)} lần</b> nhịp hiện tại</> : null}.
-                            {' '}Giữ nhịp này: cuối {tenKy} đạt khoảng <b>{formatTy(duKien)} tỷ ({Math.round(ptDuKien)}% KH)</b>
-                            {kip
-                              ? <>, đủ KH vào khoảng <b>{ngayDat ? ngayNgan(ngayDat) : ''}</b>.</>
-                              : <>, <b className="text-red-700">thiếu {formatTy(td.kh - duKien)} tỷ</b>{ngayDat && <> — phải tới khoảng {ngayNgan(ngayDat)}/{ngayDat.getFullYear()} mới đủ</>}.</>}
-                          </p>
-                        )}
-                      </>)}
-                    </div>
-                  );
-                })()}
+              {/* Thanh tiến độ */}
+              {td.kh > 0 && (
+                <div className="mt-4 rounded-xl border border-slate-200 px-4 pb-2 pt-3 sm:px-5">
+                  <p className="text-base font-semibold text-slate-900">Tiến độ {tenKy} theo mốc {laNam ? 'quý' : mocTuan.length ? 'tuần' : 'ngày'}</p>
+                  <p className="text-xs text-slate-500">
+                    Xanh đậm = đã nhập{coDuKien && ' · sọc xanh = sẽ nhập thêm nếu giữ nhịp hiện tại'}{coDuKien && !kip && ' · khung đỏ = phần thiếu so với KH'} · cờ = KH cộng dồn {laNam ? 'từng quý' : 'tới mốc'}
+                  </p>
+                  <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo tháng / xưởng"
+                    className="relative mt-[4.5rem] block h-11 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
+                    <span className="absolute inset-0 rounded-lg bg-slate-100 ring-1 ring-inset ring-slate-200" />
+                    {coDuKien && xDk > xTh && (
+                      <span className="absolute inset-y-0" style={{ left: `${xTh}%`, width: `${xDk - xTh}%`, background: 'repeating-linear-gradient(135deg,#a7f3d0 0 8px,#d1fae5 8px 16px)' }} />
+                    )}
+                    {coDuKien && !kip && xDk < 100 && (
+                      <span className="absolute inset-y-0 right-0 flex items-center justify-center rounded-r-lg border-2 border-l-0 border-dashed border-red-300 bg-red-50 text-base font-extrabold tabular-nums text-red-700"
+                        style={{ left: `${xDk}%` }}>
+                        {100 - xDk > 9 ? `thiếu ${formatTy(td.kh - duKien)}` : ''}
+                      </span>
+                    )}
+                    <span className={`absolute inset-y-0 left-0 flex items-center justify-end bg-emerald-600 pr-3 text-xl font-extrabold tabular-nums text-white ${xTh >= 99.5 ? 'rounded-lg' : 'rounded-l-lg'}`}
+                      style={{ width: `${xTh}%` }}>
+                      {xTh > 8 ? `${Math.round(phanTram)}%` : ''}
+                    </span>
+                    {/* Nhãn "Hôm nay" / "Dự kiến": 2 vạch gần nhau (cuối kỳ còn ít ngày) => gộp 1 nhãn khỏi đè chữ */}
+                    {coDuKien && <span className="absolute inset-y-0 border-l-2 border-dashed border-teal-700" style={{ left: `${xDk}%` }} />}
+                    {dangChayKy && coDuKien && xDk - xTh < 30 ? (
+                      <span className="absolute -top-[4.25rem] right-0 whitespace-nowrap text-sm font-bold">
+                        <span className="text-emerald-700">▼ Hôm nay {ngayNgan(ngayMoi)}</span>
+                        <span className="text-teal-700"> · Dự kiến {ngayNgan(td.cuoiKy)}: {formatTy(duKien)} ({Math.round(ptDuKien)}%)</span>
+                      </span>
+                    ) : (<>
+                      {dangChayKy && (
+                        <span className={`absolute -top-[4.25rem] whitespace-nowrap text-sm font-bold text-emerald-700 ${xTh > 15 ? '-translate-x-full' : ''}`} style={{ left: `${xTh}%` }}>
+                          ▼ Hôm nay {ngayNgan(ngayMoi)}
+                        </span>
+                      )}
+                      {coDuKien && (
+                        <span className="absolute -top-[4.25rem] whitespace-nowrap pl-3 text-sm font-bold text-teal-700"
+                          style={xDk > 72 ? { right: 0 } : { left: `${xDk}%` }}>
+                          Dự kiến {ngayNgan(td.cuoiKy)}: {formatTy(duKien)} ({Math.round(ptDuKien)}%)
+                        </span>
+                      )}
+                    </>)}
+                    {moc.map(m => {
+                      const x = pt(m.v);
+                      const datMoc = td.th >= m.v;
+                      // Mốc đang chạy chưa tới cuối => cam (chưa thể kết luận trễ); chưa tới => xám
+                      const mau = datMoc ? '#047857' : m.chuaToi ? '#94a3b8' : m.dangChay ? '#d97706' : '#dc2626';
+                      const trangThai = datMoc ? '✓ đạt' : m.chuaToi ? 'chưa tới' : m.dangChay ? 'đang chạy' : '✗ trễ';
+                      const sat = x > 95;
+                      return (
+                        <span key={m.ten}>
+                          {/* cờ: mốc sát mép phải vẽ quay sang trái (cán bên phải) để không tràn khung */}
+                          <svg className="absolute -top-[2.1rem] h-[1.9rem] w-[1.4rem]" style={sat ? { left: `calc(${x}% - 1.33rem)` } : { left: `calc(${x}% - 1px)` }} viewBox="0 0 12 16" aria-hidden>
+                            {sat
+                              ? <><path d="M11 0v16" stroke={mau} strokeWidth="1.5" /><path d="M11 1H1l3 4-3 4h10z" fill={mau} /></>
+                              : <><path d="M1 0v16" stroke={mau} strokeWidth="1.5" /><path d="M1 1h10l-3 4 3 4H1z" fill={mau} /></>}
+                          </svg>
+                          <span className="absolute -bottom-1.5 -top-1.5 border-l-2" style={{ left: x >= 99.9 ? 'calc(100% - 2px)' : `${x}%`, borderColor: mau }} />
+                          <span className={`absolute top-[3.4rem] flex flex-col whitespace-nowrap text-sm leading-snug tabular-nums ${sat ? '-translate-x-full items-end' : x < 5 ? 'items-start' : '-translate-x-1/2 items-center'}`}
+                            style={{ left: `${x}%`, color: mau }}>
+                            <span><b>{m.ten}</b> · {trangThai}</span>
+                            <b className="text-base">{formatTy(m.v)}</b>
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </button>
+                  <span className="block h-[4.25rem]" />
 
-                {tienDo === 'thang' && tuanMT.length > 0 && (<>
+                  {tienDo === 'thang' && tuanMT.length > 0 && (<>
                   <p className="mb-2 text-sm text-slate-500">Từng tuần: <b className="font-semibold text-slate-700">TH / mục tiêu</b> — chỉ tính các ngày nằm trong tháng {thangTD}; cộng các tuần = KH tháng</p>
                   <div className="mt-1 grid gap-3" style={{ gridTemplateColumns: `repeat(${tuanMT.length}, minmax(0, 1fr))` }}>
                     {tuanMT.map(w => {
@@ -853,100 +869,139 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                       );
                     })}
                   </div>
-                </>)}
-              </div>
-            );
+                  </>)}
+                </div>
+              )}
+            </>);
           })()}
-          {(<>
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-slate-800">Nhập kho mỗi ngày</span>
-            <DashboardFilter label="Xưởng" options={dsXuong} selectedValues={locXuong} onChange={setLocXuong}
-              emptyLabel="Tất cả" onClearAll={() => setLocXuong([])} />
-            <DashboardFilter label="Công trình" options={dsCt} selectedValues={locCt} onChange={setLocCt}
-              emptyLabel="Tất cả" onClearAll={() => setLocCt([])} />
-            {locDangBat && <button type="button" onClick={() => { setLocXuong([]); setLocCt([]); }} className="text-xs text-slate-500 underline hover:text-slate-900">Bỏ lọc</button>}
-            {locDangBat && !nkLoc && <span className="text-xs text-slate-400">đang tải…</span>}
+
+          {/* Nhập kho mỗi ngày */}
+          <div className="mt-4 rounded-xl border border-slate-200 px-4 py-4 sm:px-5">
+            <div className="flex flex-wrap items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold text-slate-900">Nhập kho mỗi ngày</p>
+                {tuanChon ? (
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-sm text-slate-500">
+                    <b className="font-semibold text-slate-900">Tuần {tuanChon.tuan}</b> ({ngayNgan(tuanChon.tu)}–{ngayNgan(tuanChon.den)}) ·
+                    Mục tiêu <b className="font-semibold text-slate-900">{formatTy(mucTuan)}</b> · TH <b className="font-semibold text-slate-900">{formatTy(thTuan)}</b>
+                    {mucTuan > 0 && <> · <b className={`font-semibold ${thTuan >= mucTuan ? 'text-emerald-700' : 'text-red-600'}`}>{Math.round((thTuan / mucTuan) * 100)}%</b></>}
+                    <button type="button" onClick={() => setTuanChon(null)} className="ml-1 rounded-full border border-slate-300 px-2 text-xs text-slate-600 hover:bg-slate-50">✕ bỏ chọn tuần</button>
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {LAM_CHU_NHAT ? 'Tính cả Chủ nhật' : 'T2–T7'}{nguongDat > 0 && ` · cột xanh = đạt ${tenNguong}, đỏ = dưới`}
+                    {vungHong && ` · vùng hồng = khoảng từ KH tháng tới mức cần để kịp ${tenKh}`}
+                  </p>
+                )}
+              </div>
+              <span className="flex flex-wrap items-center gap-2">
+                <DashboardFilter label="Xưởng" options={dsXuong} selectedValues={locXuong} onChange={setLocXuong}
+                  emptyLabel="Tất cả" onClearAll={() => setLocXuong([])} />
+                <DashboardFilter label="Công trình" options={dsCt} selectedValues={locCt} onChange={setLocCt}
+                  emptyLabel="Tất cả" onClearAll={() => setLocCt([])} />
+                {locDangBat && <button type="button" onClick={() => { setLocXuong([]); setLocCt([]); }} className="text-xs text-slate-500 underline hover:text-slate-900">Bỏ lọc</button>}
+                {locDangBat && !nkLoc && <span className="text-xs text-slate-400">đang tải…</span>}
+              </span>
+            </div>
             {locDangBat && (
-              <span className="text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-500">
                 Đang xem: <b className="font-semibold text-slate-800">{[locXuong.length ? `xưởng ${locXuong.join(', ')}` : '', locCt.length ? `${locCt.length} công trình` : ''].filter(Boolean).join(' · ')}</b>
                 {khLoc && !khLoc.coKh ? ' · KH chỉ lập theo xưởng nên không có đường kế hoạch / mức cần' : ' · đường kế hoạch & mức cần tính theo KH của xưởng đã chọn'}
-              </span>
+              </p>
             )}
-          </div>
-          <div className="mt-3 h-[30rem]">
-            {duLieu.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-400">Chưa có số liệu nhập kho trong kỳ</div>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={duLieuVe} margin={{ top: 32, right: 150, left: -8, bottom: 0 }} barCategoryGap="22%" barGap={2}>
-                  <CartesianGrid vertical={false} stroke="#eef0f3" />
-                  <XAxis dataKey="ten" tickLine={false} axisLine={{ stroke: '#d5d9e0' }} tick={{ fontSize: 14, fill: '#334155' }} interval={duLieu.length > 16 ? 1 : 0} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} width={44}
-                    domain={[0, (m: number) => Math.ceil(Math.max(m, canMoiNgay, mucKhThang) * 1.18)]} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: '#f5f6f8' }}
-                    formatter={(v: number, k: string) => (v > 0 ? [`${formatTy(v)} tỷ`, k === 'de' ? 'Đề xuất (để đạt KH)' : k === 'kh' ? 'Kế hoạch ngày (KH tuần)' : 'Nhập kho'] : [null, null]) as [string, string]}
-                    labelFormatter={(_, pl) => (pl?.[0]?.payload?.ngay ? ngayNgan(parseVNDate(pl[0].payload.ngay) ?? new Date()) : '')}
-                    contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
-                  {canMoiNgay > 0 && (
-                    <ReferenceLine y={canMoiNgay} stroke="#16181d" strokeOpacity={0.55} strokeDasharray="6 4"
-                      label={{ value: `Cần ${formatTy(canMoiNgay)}`, position: 'right', fill: '#16181d', fontSize: 14, fontWeight: 600, dy: dyNhan.can ?? 0 }} />
-                  )}
-                  {!tuanChon && mucKhThang > 0 && (
-                    <ReferenceLine y={mucKhThang} stroke="#059669" strokeWidth={2} strokeDasharray="10 4"
-                      label={{ value: `KH T${thangKh} ${formatTy(mucKhThang)}/ngày`, position: 'right', fill: '#047857', fontSize: 14, fontWeight: 700, dy: dyNhan.kh ?? 0 }} />
-                  )}
-                  {binhQuan > 0 && (
-                    <ReferenceLine y={binhQuan} stroke="#2563eb" strokeOpacity={0.6} strokeDasharray="2 3"
-                      label={{ value: `Bình quân ${formatTy(binhQuan)}`, position: 'right', fill: '#2563eb', fontSize: 14, fontWeight: 600, dy: dyNhan.bq ?? 0 }} />
-                  )}
-                  {/* Kế hoạch ngày: cột xanh dương nhạt, bên trái cột nhập kho cùng ngày */}
-                  {coKhNgay && (
-                    <Bar dataKey="kh" radius={[6, 6, 0, 0]} maxBarSize={40} isAnimationActive={false} fill="#dbeafe" stroke="#2563eb" strokeWidth={1.2}>
-                      <LabelList dataKey="kh" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string }) => {
-                        const v = Number(lp.value);
-                        if (!(v > 0)) return null;
-                        return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={14} fontWeight={600} fill="#1d4ed8">{formatTy(v)}</text>;
+            <div className="mt-3 flex flex-col gap-4 lg:flex-row">
+              <div className="h-[26rem] min-w-0 flex-1">
+              {duLieu.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-slate-400">Chưa có số liệu nhập kho trong kỳ</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={duLieuVe} margin={{ top: 32, right: 12, left: -8, bottom: 0 }} barCategoryGap="22%" barGap={2}>
+                    <CartesianGrid vertical={false} stroke="#eef0f3" />
+                    <XAxis dataKey="ten" tickLine={false} axisLine={{ stroke: '#d5d9e0' }} interval={duLieu.length > 16 ? 1 : 0} height={42}
+                      tick={({ x, y, payload, index }: { x: number; y: number; payload: { value: string }; index: number }) => {
+                        // Ngày + thứ trong tuần (CN tô đỏ nhạt)
+                        const d = parseVNDate(duLieuVe[index]?.ngay ?? '');
+                        const thu = d ? (d.getDay() === 0 ? 'CN' : `T${d.getDay() + 1}`) : '';
+                        return (
+                          <g transform={`translate(${x},${y})`}>
+                            <text dy={14} textAnchor="middle" fontSize={14} fontWeight={600} fill="#334155">{payload.value}</text>
+                            <text dy={30} textAnchor="middle" fontSize={11} fill={thu === 'CN' ? '#f87171' : '#94a3b8'}>{thu}</text>
+                          </g>
+                        );
+                      }} />
+                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 13, fill: '#64748b' }} width={44}
+                      domain={[0, (m: number) => Math.ceil(Math.max(m, canMoiNgay, mucKhThang) * 1.18)]} allowDecimals={false} />
+                    <Tooltip cursor={{ fill: '#f5f6f8' }}
+                      formatter={(v: number, k: string) => (v > 0 ? [`${formatTy(v)} tỷ`, k === 'de' ? 'Đề xuất (để đạt KH)' : k === 'kh' ? 'Kế hoạch ngày (KH tuần)' : 'Nhập kho'] : [null, null]) as [string, string]}
+                      labelFormatter={(_, pl) => (pl?.[0]?.payload?.ngay ? ngayNgan(parseVNDate(pl[0].payload.ngay) ?? new Date()) : '')}
+                      contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    {vungHong && <ReferenceArea y1={mucKhThang} y2={canMoiNgay} fill="#fef2f2" fillOpacity={0.9} ifOverflow="extendDomain" />}
+                    {canMoiNgay > 0 && <ReferenceLine y={canMoiNgay} stroke="#dc2626" strokeWidth={2} strokeDasharray="7 4" />}
+                    {!tuanChon && mucKhThang > 0 && <ReferenceLine y={mucKhThang} stroke="#059669" strokeWidth={2} strokeDasharray="10 4" />}
+                    {binhQuan > 0 && <ReferenceLine y={binhQuan} stroke="#2563eb" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="2 3" />}
+                    {/* Kế hoạch ngày: cột xanh dương nhạt, bên trái cột nhập kho cùng ngày */}
+                    {coKhNgay && (
+                      <Bar dataKey="kh" radius={[6, 6, 0, 0]} maxBarSize={40} isAnimationActive={false} fill="#dbeafe" stroke="#2563eb" strokeWidth={1.2}>
+                        <LabelList dataKey="kh" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string }) => {
+                          const v = Number(lp.value);
+                          if (!(v > 0)) return null;
+                          return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={14} fontWeight={600} fill="#1d4ed8">{formatTy(v)}</text>;
+                        }} />
+                      </Bar>
+                    )}
+                    <Bar dataKey="v" stackId="nk" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}>
+                      {duLieu.map(d => <Cell key={d.ngay} fill={!(nguongDat > 0) ? '#3b82f6' : d.v >= nguongDat ? '#12805c' : '#e8484d'} />)}
+                      <LabelList dataKey="v" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string; index?: number }) => {
+                        if (duLieu[lp.index ?? -1]?.de > 0) return null; // ngày đề xuất: nhãn nằm trên cột đề xuất
+                        const x = Number(lp.x) + Number(lp.width) / 2, y = Number(lp.y), v = Number(lp.value);
+                        return v > 0
+                          ? <text x={x} y={y - 7} textAnchor="middle" fontSize={16} fontWeight={700} fill="#16181d">{formatTy(v)}</text>
+                          : <text x={x} y={y - 6} textAnchor="middle" fontSize={13} fill="#8a90a0">chưa có số</text>;
                       }} />
                     </Bar>
-                  )}
-                  <Bar dataKey="v" stackId="nk" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}>
-                    {duLieu.map(d => <Cell key={d.ngay} fill={!(nguongDat > 0) ? '#3b82f6' : d.v >= nguongDat ? '#12805c' : '#e8484d'} />)}
-                    <LabelList dataKey="v" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string; index?: number }) => {
-                      if (duLieu[lp.index ?? -1]?.de > 0) return null; // ngày đề xuất: nhãn nằm trên cột đề xuất
-                      const x = Number(lp.x) + Number(lp.width) / 2, y = Number(lp.y), v = Number(lp.value);
-                      return v > 0
-                        ? <text x={x} y={y - 7} textAnchor="middle" fontSize={16} fontWeight={700} fill="#16181d">{formatTy(v)}</text>
-                        : <text x={x} y={y - 6} textAnchor="middle" fontSize={13} fill="#8a90a0">chưa có số</text>;
-                    }} />
-                  </Bar>
-                  {/* Đề xuất: ngày chưa tới — cần nhập bao nhiêu mỗi ngày để đạt KH (khung nét đứt, nền nhạt) */}
-                  <Bar dataKey="de" stackId="nk" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}
-                    fill="#f1f5f9" stroke="#94a3b8" strokeDasharray="4 3" strokeWidth={1.2}>
-                    <LabelList dataKey="de" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string; index?: number }) => {
-                      const v = Number(lp.value);
-                      // Các ngày đề xuất cùng 1 mức => chỉ ghi số ở cột đầu (đỡ rối)
-                      if (!(v > 0) || (lp.index ?? 0) !== duLieu.findIndex(d => d.de > 0)) return null;
-                      return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={14} fontWeight={600} fill="#64748b">{formatTy(v)}</text>;
-                    }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+                    {/* Đề xuất: ngày chưa tới — cần nhập bao nhiêu mỗi ngày để đạt KH (khung nét đứt, nền nhạt) */}
+                    <Bar dataKey="de" stackId="nk" radius={[6, 6, 0, 0]} maxBarSize={56} isAnimationActive={false}
+                      fill="#f1f5f9" stroke="#94a3b8" strokeDasharray="4 3" strokeWidth={1.2}>
+                      <LabelList dataKey="de" content={(lp: { x?: number | string; y?: number | string; width?: number | string; value?: number | string; index?: number }) => {
+                        const v = Number(lp.value);
+                        // Các ngày đề xuất cùng 1 mức => chỉ ghi số ở cột đầu (đỡ rối)
+                        if (!(v > 0) || (lp.index ?? 0) !== duLieu.findIndex(d => d.de > 0)) return null;
+                        return <text x={Number(lp.x) + Number(lp.width) / 2} y={Number(lp.y) - 6} textAnchor="middle" fontSize={14} fontWeight={600} fill="#64748b">{formatTy(v)}</text>;
+                      }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              </div>
+              {/* Tóm tắt các đường ngang (thay nhãn dính mép phải + chú thích dưới biểu đồ) */}
+              <div className="flex shrink-0 flex-wrap gap-x-6 gap-y-3 lg:w-60 lg:flex-col lg:justify-center">
+                {canMoiNgay > 0 && (
+                  <div className="border-l-4 border-red-600 pl-3">
+                    <b className="text-xl tabular-nums text-red-600">{formatTy(canMoiNgay)}</b>
+                    <p className="text-sm text-slate-600">Cần / ngày để đạt {tuanChon ? `mục tiêu tuần ${tuanChon.tuan}` : tenKh}</p>
+                  </div>
+                )}
+                {binhQuan > 0 && (
+                  <div className="border-l-4 border-blue-600 pl-3">
+                    <b className="text-xl tabular-nums text-blue-600">{formatTy(binhQuan)}</b>
+                    <p className="text-sm text-slate-600">Bình quân {nkCoSo.length} ngày có số</p>
+                  </div>
+                )}
+                {!tuanChon && mucKhThang > 0 && (
+                  <div className="border-l-4 border-emerald-600 pl-3" title={`KH tháng ${thangKh} ${formatTy(khThang)} tỷ chia đều ${LAM_CHU_NHAT ? 'mọi ngày (cả Chủ nhật)' : 'ngày làm việc (T2–T7)'}`}>
+                    <b className="text-xl tabular-nums text-emerald-700">{formatTy(mucKhThang)}</b>
+                    <p className="text-sm text-slate-600">KH tháng {thangKh} / ngày</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            {(coKhNgay || coDeXuat) && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-600">
+                {coKhNgay && <span className="inline-flex items-center gap-1.5" title="Kế hoạch tuần (bảng KHSX) theo ngày kế hoạch nhập kho, theo xưởng / công trình đang lọc"><i className="h-3 w-3 rounded-sm border border-blue-600 bg-blue-100" />Kế hoạch ngày (KH tuần)</span>}
+                {coDeXuat && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm border border-dashed border-slate-400 bg-slate-100" />Đề xuất mỗi ngày để đạt {tuanChon ? `KH tuần ${tuanChon.tuan}` : tenKh}</span>}
+              </div>
             )}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-600">
-            {nguongDat > 0 && <>
-              <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm bg-[#12805c]" />Đạt {tenNguong}</span>
-              <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm bg-[#e8484d]" />Dưới {tenNguong}</span>
-            </>}
-            {canMoiNgay > 0 && <span className="inline-flex items-center gap-1.5"><i className="w-5 border-t-2 border-dashed border-slate-700" />Mức cần / ngày</span>}
-            {<>
-            <span className="inline-flex items-center gap-1.5"><i className="w-5 border-t-2 border-dotted border-blue-600" />Bình quân {formatTy(binhQuan)}</span>
-            {!tuanChon && mucKhThang > 0 && <span className="inline-flex items-center gap-1.5" title={`KH tháng ${thangKh} ${formatTy(khThang)} tỷ chia đều ${LAM_CHU_NHAT ? 'mọi ngày (cả Chủ nhật)' : 'ngày làm việc (T2–T7)'}`}><i className="w-5 border-t-2 border-dashed border-emerald-600" />Đạt KH tháng {thangKh}: {formatTy(mucKhThang)}/ngày</span>}
-            </>}
-            {coKhNgay && <span className="inline-flex items-center gap-1.5" title="Kế hoạch tuần (bảng KHSX) theo ngày kế hoạch nhập kho, theo xưởng / công trình đang lọc"><i className="h-3 w-3 rounded-sm border border-blue-600 bg-blue-100" />Kế hoạch ngày (KH tuần)</span>}
-            {coDeXuat && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm border border-dashed border-slate-400 bg-slate-100" />Đề xuất mỗi ngày để đạt {tuanChon ? `KH tuần ${tuanChon.tuan}` : tenKh}</span>}
-          </div>
-          </>)}
         </div>
 
         {moChuY && (
