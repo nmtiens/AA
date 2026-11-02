@@ -147,6 +147,63 @@ const TONE: Record<Tone, { ring: string; text: string; dot: string }> = {
 const fmtTy = formatTrieuAsTy;
 
 
+/**
+ * Chuẩn hoá từng hạng mục (dòng bảng sản xuất) => HexInfo cho các tab BOT / BOP. Dùng chung: cửa sổ 1 công trình
+ * và view BOP / BOT cho tất cả công trình ở trang Báo cáo tiến độ công trình.
+ */
+export const dungHangMucCongTrinh = (src: DataRow[], keys: ProjectHealthKeys, today: number): HexInfo[] => {
+  const out: HexInfo[] = [];
+  for (const row of src) {
+    if (isCancelledIpo(row[keys.ipoKey])) continue;
+    // Trị giá / đã nhập / còn lại / công đoạn / nhóm / kho: cùng quy tắc với bảng công trình trang Tổng quan (core/bopPivot)
+    const m = mucBopTuDong(row, keys);
+    const { stage, open } = m;
+    // BOT: CHỈ KH nhập kho tuần → KH nhập kho tháng (quy tắc chung toàn app)
+    const dl = deadlineOf(row, keys);
+    const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = dl;
+    // Chưa xong (open, đếm / tính hạn) = còn giá trị chưa nhập HOẶC trị giá 0 (chưa có giá), TRỪ hạng mục đã nhập
+    // đủ SỐ LƯỢNG (thành tiền NK lệch đơn giá / = 0). Khớp ô "Hạng mục chưa nhập kho" ở Báo cáo tiến độ.
+    const t = deadline?.getTime();
+    const bvSt = keys.bvStKey ? String(row[keys.bvStKey] ?? '').trim().toUpperCase() : '';
+    const phSt = keys.phieuStKey ? String(row[keys.phieuStKey] ?? '').trim().toUpperCase() : '';
+    out.push({
+      canPm: dl.canPm,
+      botDuAn: dl.botDuAn,
+      receivedPm: keys.nhanPmKey ? parsePlanDate(row[keys.nhanPmKey]) : null,
+      // "ĐÃ TRIỂN KHAI" / "CHƯA TRIỂN KHAI"; phiếu: "CHƯA PHIẾU" / "CÓ PHIẾU HÀNG LOẠT" / "PHIẾU MẪU"…
+      bvDone: bvSt ? bvSt.startsWith('ĐÃ') : null,
+      phieuDone: phSt ? !phSt.startsWith('CHƯA') : null,
+      hex: String(row[keys.hexKey] ?? ''),
+      hangMuc: String(row[keys.hangMucKey] ?? ''),
+      stage,
+      status: String(row[keys.tinhTrangKey] ?? '').trim(),
+      area: String(row[keys.xuongKey] ?? '').trim(),
+      nhomSp: keys.nhomSpKey ? String(row[keys.nhomSpKey] ?? '').trim() : '',
+      ipo: String(row[keys.ipoKey] ?? '').trim(),
+      dwell: String(row[keys.dwellKey] ?? '').trim() || null,
+      // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
+      bucket: m.bucket,
+      open,
+      total: m.total,
+      inv: m.inv,
+      xuat: m.xuat,
+      tonKho: m.tonKho,
+      remain: m.remain,
+      deadline,
+      deadlineSource,
+      khnkTuan,
+      khnkThang,
+      canGiao,
+      khnkTuanMet: dl.tuanMet,
+      khnkThangMet: dl.thangMet,
+      planAfterDue: open && planAfterDue(dl),
+      overdue: open && t !== undefined && t < today,
+      dueSoon: open && t !== undefined && t >= today && t - today <= DUE_SOON_DAYS * DAY,
+    });
+  }
+  return out;
+};
+
 export const ProjectHealthModal: React.FC<Props> = ({
   isOpen, onClose, projectName, rows, keys, pmText, onOpenHexList, inventory, paceHexes, khoRows,
 }) => {
@@ -172,59 +229,7 @@ export const ProjectHealthModal: React.FC<Props> = ({
   // Tải sẵn BOP-M2 (tab BOM) ngay khi mở công trình
   useEffect(() => { if (isOpen && projectName) void taiTruocBopM2(projectName); }, [isOpen, projectName]);
 
-  // ---------- Chuẩn hoá từng hạng mục ----------
-  const dungHangMuc = (src: DataRow[]): HexInfo[] => {
-    const out: HexInfo[] = [];
-    for (const row of src) {
-      if (isCancelledIpo(row[keys.ipoKey])) continue;
-      // Trị giá / đã nhập / còn lại / công đoạn / nhóm / kho: cùng quy tắc với bảng công trình trang Tổng quan (core/bopPivot)
-      const m = mucBopTuDong(row, keys);
-      const { stage, open } = m;
-      // BOT: CHỈ KH nhập kho tuần → KH nhập kho tháng (quy tắc chung toàn app)
-      const dl = deadlineOf(row, keys);
-      const { date: deadline, source: deadlineSource, khnkTuan, khnkThang, canGiao } = dl;
-      // Chưa xong (open, đếm / tính hạn) = còn giá trị chưa nhập HOẶC trị giá 0 (chưa có giá), TRỪ hạng mục đã nhập
-      // đủ SỐ LƯỢNG (thành tiền NK lệch đơn giá / = 0). Khớp ô "Hạng mục chưa nhập kho" ở Báo cáo tiến độ.
-      const t = deadline?.getTime();
-      const bvSt = keys.bvStKey ? String(row[keys.bvStKey] ?? '').trim().toUpperCase() : '';
-      const phSt = keys.phieuStKey ? String(row[keys.phieuStKey] ?? '').trim().toUpperCase() : '';
-      out.push({
-        canPm: dl.canPm,
-        botDuAn: dl.botDuAn,
-        receivedPm: keys.nhanPmKey ? parsePlanDate(row[keys.nhanPmKey]) : null,
-        // "ĐÃ TRIỂN KHAI" / "CHƯA TRIỂN KHAI"; phiếu: "CHƯA PHIẾU" / "CÓ PHIẾU HÀNG LOẠT" / "PHIẾU MẪU"…
-        bvDone: bvSt ? bvSt.startsWith('ĐÃ') : null,
-        phieuDone: phSt ? !phSt.startsWith('CHƯA') : null,
-        hex: String(row[keys.hexKey] ?? ''),
-        hangMuc: String(row[keys.hangMucKey] ?? ''),
-        stage,
-        status: String(row[keys.tinhTrangKey] ?? '').trim(),
-        area: String(row[keys.xuongKey] ?? '').trim(),
-        nhomSp: keys.nhomSpKey ? String(row[keys.nhomSpKey] ?? '').trim() : '',
-        ipo: String(row[keys.ipoKey] ?? '').trim(),
-        dwell: String(row[keys.dwellKey] ?? '').trim() || null,
-        // Nhóm phần giá trị còn lại (cả hạng mục đủ SL mà còn lệch tiền — để tổng tiền BOP khớp)
-        bucket: m.bucket,
-        open,
-        total: m.total,
-        inv: m.inv,
-        xuat: m.xuat,
-        tonKho: m.tonKho,
-        remain: m.remain,
-        deadline,
-        deadlineSource,
-        khnkTuan,
-        khnkThang,
-        canGiao,
-        khnkTuanMet: dl.tuanMet,
-        khnkThangMet: dl.thangMet,
-        planAfterDue: open && planAfterDue(dl),
-        overdue: open && t !== undefined && t < today,
-        dueSoon: open && t !== undefined && t >= today && t - today <= DUE_SOON_DAYS * DAY,
-      });
-    }
-    return out;
-  };
+  const dungHangMuc = (src: DataRow[]): HexInfo[] => dungHangMucCongTrinh(src, keys, today);
   const items = useMemo(() => dungHangMuc(rows), [rows, keys, today]); // eslint-disable-line react-hooks/exhaustive-deps
   // Phần Kho của bảng BOP: mọi hạng mục không hủy của công trình (kể cả IPO hoàn thành), không theo bộ lọc trang
   const khoItems = useMemo(() => (khoRows ? dungHangMuc(khoRows) : items), [khoRows, items, keys, today]); // eslint-disable-line react-hooks/exhaustive-deps

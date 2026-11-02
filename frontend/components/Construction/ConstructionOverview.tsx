@@ -17,7 +17,11 @@ import { fetchVuongMacByProject, type VmByProjectRow } from '../../services/vuon
 import SearchableSelect from '../Dashboard/components/Dashboards/SearchableSelect';
 import { HexDetailModal, type HexDetailColumnKeys } from '../Dashboard/components/modals/HexDetailModal';
 import { hexColumnKeysOf } from '../Dashboard/components/Dashboards/DanhSachHex';
-import { ProjectHealthModal, type ProjectHealthKeys } from './ProjectHealthModal';
+import { ProjectHealthModal, dungHangMucCongTrinh, type ProjectHealthKeys } from './ProjectHealthModal';
+import { BopTab } from './ProjectHealthTabs';
+import { BotKhnk } from './BotKhnk';
+import { BomTatCa, taiTruocBomTatCa } from './BopM2Section';
+import { HexTimelineModal } from './HexTimelineModal';
 import { OrderMixCard, OTHERS, TOP_CUSTOMERS, groupTopN, aggregateMix, orderMix } from '../Dashboard/components/shared/ProductionDonutPanel';
 import { formatTy, formatTrieuAsTy } from '../../utils/money';
 import { fmtInt } from '../../utils/format';
@@ -193,6 +197,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   // Tổng quan 1 công trình (BOT / BOP / BOM) — mở khi bấm 1 dòng trong bảng công trình
   // inDetail = mở từ cửa sổ chi tiết (vd PC): chỉ tính các dòng trong phạm vi cửa sổ đó
   const [health, setHealth] = useState<{ ct: string; inDetail: boolean } | null>(null);
+  // View cho TẤT CẢ công trình đang xem (cùng bộ lọc trang): tổng quan / BOP / BOT / BOM (như tab trong cửa sổ 1 công trình)
+  const [viewCT, setViewCT] = useState<'tong' | 'bop' | 'bot' | 'bom'>('tong');
+  const [hexXem, setHexXem] = useState<string | null>(null);
   const healthCt = health?.ct ?? null;
   const [f, setF] = useState<Filters>({});
   // null = chưa chọn gì => dùng mặc định (Đang sản xuất) khi đã có dữ liệu
@@ -505,6 +512,41 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
   const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => hexColumnKeysOf(columns), [columns]);
 
+  // View BOP / BOT / BOM cho tất cả công trình: hạng mục theo mọi bộ lọc trang (như bảng công trình);
+  // phần Kho của BOP = mọi hạng mục không hủy của các công trình đó (mọi Tình trạng IPO), như cửa sổ 1 công trình
+  const homNay = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
+  // Gắn tên công trình (tên chuẩn của trang) vào từng hạng mục => bảng chi tiết có cột Công trình
+  const ganCt = (recs: Rec[]) => {
+    const ctTheoHex = new Map(recs.map(r => [String(r.row[healthKeys.hexKey] ?? ''), r.ct]));
+    return dungHangMucCongTrinh(recs.map(r => r.row), healthKeys, homNay).map(i => ({ ...i, congTrinh: ctTheoHex.get(i.hex) ?? '' }));
+  };
+  const hangMucTatCa = useMemo(
+    () => (viewCT === 'bop' || viewCT === 'bot' ? ganCt(rowsAll) : []),
+    [viewCT, rowsAll, healthKeys, homNay] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const khoTatCa = useMemo(() => {
+    if (viewCT !== 'bop') return [];
+    const cts = new Set(rowsAll.map(r => r.ct));
+    return ganCt(allRecords.filter(r => cts.has(r.ct) && r.status !== 'HỦY'));
+  }, [viewCT, rowsAll, allRecords, healthKeys, homNay]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Báo cáo điều phối KH tháng – tuần (tab BOT): mọi bộ lọc trang TRỪ Tình trạng IPO (cần cả hạng mục đã hoàn thành)
+  const dieuPhoiTatCa = useMemo(
+    () => (viewCT === 'bot' ? ganCt(groupRecords.filter(r => r.status !== 'HỦY' && activeKeys.every(k => r[k] === f[k]))) : []),
+    [viewCT, groupRecords, f, healthKeys, homNay] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const tenCtTatCa = useMemo(() => [...new Set(rowsAll.map(r => r.ct))], [rowsAll]);
+  // Tải sẵn BOM (BOP-M2) của các công trình đang xem khi trang rảnh => bấm tab BOM có số ngay
+  useEffect(() => {
+    if (!tenCtTatCa.length) return;
+    const t = setTimeout(() => { taiTruocBomTatCa(tenCtTatCa)?.catch(() => { /* lỗi: tab BOM tự tải lại và báo */ }); }, 1500);
+    return () => clearTimeout(t);
+  }, [tenCtTatCa]);
+  const tenHexXem = useMemo(() => {
+    if (!hexXem) return undefined;
+    const r = allRecords.find(x => String(x.row[healthKeys.hexKey] ?? '') === hexXem);
+    return r ? { project: r.ct, pm: r.pm, pc: String(r.row['ten_pc'] ?? '') } : undefined;
+  }, [hexXem, allRecords, healthKeys.hexKey]);
+
   // Danh sách cho các ô chọn (lấy từ toàn bộ dữ liệu, không phụ thuộc bộ lọc IPO)
   const options = useMemo(() => {
     const uniq = (pick: (r: Rec) => string) => [...new Set(groupRecords.map(pick))].sort((a, b) => a.localeCompare(b, 'vi'));
@@ -739,6 +781,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
 
       <div className="p-4 md:p-6 space-y-4">
         {/* Nhóm công trình: thay cho 2 trang riêng Luồng đỏ / Căn mẫu trước đây */}
+        <div className="flex flex-wrap items-center gap-3">
         <div className="flex h-9 w-fit items-center rounded-lg border border-slate-300 bg-white p-0.5 text-xs" role="group" aria-label="Nhóm công trình">
           {([null, ...CONFIGURABLE_VIEWS.map(v => v.id)] as (ProjectGroupId | null)[]).map(g => (
             <button
@@ -760,6 +803,16 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             KHSX tháng {new Date().getMonth() + 1}
           </button>
         </div>
+        <div className="flex h-9 w-fit items-center rounded-lg border border-slate-300 bg-white p-0.5 text-sm" role="group" aria-label="Xem theo">
+          {([['tong', 'Tổng quan'], ['bop', 'BOP · Công đoạn'], ['bot', 'BOT · Kế hoạch nhập kho'], ['bom', 'BOM · Vật tư']] as const).map(([k, nhan]) => (
+            <button key={k} type="button" onClick={() => setViewCT(k)} aria-pressed={viewCT === k}
+              title={k === 'tong' ? 'Báo cáo tổng quan' : `${nhan} của tất cả công trình đang xem (theo bộ lọc trang)`}
+              className={`h-full rounded-md px-3 font-semibold transition ${viewCT === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+              {nhan}
+            </button>
+          ))}
+        </div>
+        </div>
         {locKhsx && (
           <p className={`rounded-lg border px-4 py-2 text-xs ${khsxLoi || khsxCt?.loai === null ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
             {khsxLoi ? 'Không tải được danh sách công trình trong KHSX — thử tải lại trang.'
@@ -774,6 +827,17 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
           </p>
         )}
 
+        {viewCT !== 'tong' && (
+          <div className={`${cardCls} p-4 sm:p-5`}>
+            <p className="mb-4 text-sm text-slate-500">
+              Tất cả công trình đang xem: <b className="text-slate-800">{fmtInt(tenCtTatCa.length)}</b> công trình · <b className="text-slate-800">{fmtInt(rowsAll.length)}</b> hạng mục (theo nhóm / bộ lọc phía trên). Bấm HEX để xem chi tiết hạng mục.
+            </p>
+            {viewCT === 'bop' && <BopTab items={hangMucTatCa} khoItems={khoTatCa} onHexClick={setHexXem} extra={null} today={homNay} tatCa />}
+            {viewCT === 'bot' && <BotKhnk items={hangMucTatCa} dieuPhoiItems={dieuPhoiTatCa} onHexClick={setHexXem} />}
+            {viewCT === 'bom' && <BomTatCa tenCongTrinh={tenCtTatCa} onHexClick={setHexXem} />}
+          </div>
+        )}
+        <div className={viewCT === 'tong' ? 'space-y-4' : 'hidden'}>
         {/* GIÁ TRỊ — đi theo luồng dữ liệu (cùng logic bảng "Tình trạng đơn hàng theo công trình"):
             Tổng giá trị = Đã nhập kho (P022) + Chưa nhập kho
             Đã nhập kho ≈ Đã xuất / giao (P025) + Tồn kho
@@ -1143,7 +1207,10 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             />
           </div>
         </div>
+        </div>
       </div>
+
+      <HexTimelineModal hex={hexXem} onClose={() => setHexXem(null)} names={tenHexXem} />
       {/* Cấp 1: cửa sổ chi tiết (ô KPI / cột tháng / PC) — bấm 1 công trình mở cửa sổ HEX (cấp 2) */}
       <ModalShell
         open={detail !== null && detailData !== null}

@@ -53,19 +53,17 @@ interface FunnelCardProps<T extends FunnelCardItem> {
 }
 
 export function FunnelCard<T extends FunnelCardItem>({
-  title = 'Tình trạng đơn hàng AATN', subtitle, unit, items, barLabel, barTitle, onBarClick, onDetail, className = '',
+  title = 'Tình trạng đơn hàng AATN', unit, items, barLabel, barTitle, onBarClick, onDetail, className = '',
 }: FunnelCardProps<T>) {
-  const cot = 'grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]';
+  const cot = 'grid grid-cols-[minmax(0,12rem)_minmax(0,1fr)] items-center gap-4 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]';
 
   return (
     <div className={`flex flex-col rounded-2xl border border-slate-200 bg-white p-5 lg:p-6 ${className}`}>
       <div className="flex flex-wrap items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
-          <p className="mt-0.5 text-sm text-slate-500">
-            {subtitle}{unit ? ` · đơn vị ${unit.toLowerCase()}` : ''} · bấm thanh để xem theo công trình
-          </p>
-
+          <h3 className="text-xl font-semibold text-slate-900">
+            {title}{unit ? <span className="ml-1.5 text-base font-medium text-slate-600">({unit.toLowerCase().replace('tỷ đồng', 'tỷ')})</span> : null}
+          </h3>
         </div>
         <button onClick={onDetail} title="Xem bảng chi tiết"
           className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
@@ -90,9 +88,9 @@ export function FunnelCard<T extends FunnelCardItem>({
             // Nhóm giãn theo số dòng => các dòng chia đều chiều cao khung (cao bằng khung Nhóm đơn hàng bên cạnh)
             <div key={g.key} className="relative flex flex-col" style={{ flexGrow: ds.length + 1 }}>
               {/* Tiêu đề nhóm: vạch đứt ngang cột thanh + tên nhóm · tổng */}
-              <div className="mb-1 mt-2 flex items-center gap-3 pl-[12rem] lg:pl-[15rem]">
+              <div className="mb-1 mt-3 flex items-center gap-3 pl-[13rem] lg:pl-[17rem]">
                 <span className="flex-1 border-t-2 border-dashed border-slate-200" aria-hidden />
-                <span className={`whitespace-nowrap bg-white pl-1 text-xs font-semibold lg:text-sm ${g.chu}`}>
+                <span className={`whitespace-nowrap bg-white pl-1 text-sm font-bold lg:text-base ${g.chu}`}>
                   {g.label} · {barLabel({ ...ds[0], value: tongNhom })}
                 </span>
               </div>
@@ -105,12 +103,12 @@ export function FunnelCard<T extends FunnelCardItem>({
                   minWidth: `${label.length * 0.62 + 1.6}em`, // đủ chỗ cho con số trên thanh
                   backgroundColor: mauThanh(item.id, thuTu),
                 };
-                const thanhCls = 'flex h-8 items-center justify-center rounded-lg px-1 text-sm font-semibold tabular-nums text-white whitespace-nowrap transition-all duration-500';
+                const thanhCls = 'flex h-10 items-center justify-center rounded-lg px-2 text-base font-bold tabular-nums text-white whitespace-nowrap transition-all duration-500 lg:h-11 lg:text-lg';
                 return (
-                  <div key={item.id} className={`${cot} min-h-[2.5rem] flex-1 py-[3px]`}>
+                  <div key={item.id} className={`${cot} min-h-[3rem] flex-1 py-1`}>
                     <div className="min-w-0 text-right leading-tight">
-                      <span className="block truncate text-sm text-slate-800 lg:text-[0.9375rem]" title={item.name}>{ten}</span>
-                      {ma && <span className="block text-xs text-slate-400">{ma}</span>}
+                      <span className="block truncate text-base font-medium text-slate-900 lg:text-lg" title={item.name}>{ten}</span>
+                      {ma && <span className="block text-sm text-slate-600">{ma}</span>}
                     </div>
                     <div className="flex min-w-0 justify-center">
                       {onBarClick ? (

@@ -160,12 +160,12 @@ useEffect(() => {
   if (data.length === 0) {
     return (
       <div className="mb-8">
-        <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3">
+        <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
           <Icon size={16} className="text-wood-600" /> {title}
         </h4>
         <div className="flex flex-col items-center justify-center text-slate-400 p-8 bg-white rounded-lg border border-slate-200 border-dashed">
           <AlertCircle size={32} className="mb-2 opacity-50" />
-          <p>Không có dữ liệu phân tích.</p>
+          <p>Không có dữ liệu</p>
         </div>
       </div>
     );
@@ -176,13 +176,13 @@ useEffect(() => {
 
   return (
     <div className="mb-8">
-      <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-3">
+      <h4 className="text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
         <Icon size={16} className="text-wood-600" /> {title}
       </h4>
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col max-h-[500px]">
         <div className="overflow-y-auto custom-scrollbar flex-1 relative">
           <table className="w-full text-sm text-right relative border-collapse">
-            <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-xs sticky top-0 z-20 shadow-sm">
+            <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-sm sticky top-0 z-20 shadow-sm">
               <tr>
                 <th className="w-12 pl-4 pr-2 py-3 text-right border-b border-slate-200 bg-slate-100">STT</th>
                 <th className="px-4 py-3 text-left border-b border-slate-200 bg-slate-100 min-w-[200px] z-30">
@@ -191,7 +191,7 @@ useEffect(() => {
                       className="cursor-pointer hover:text-slate-900 flex items-center"
                       onClick={() => requestSort('name')}
                     >
-                      Tên (Name) <SortIcon columnKey="name" />
+                      Tên <SortIcon columnKey="name" />
                     </span>
                     <div className="relative" ref={filterRef}>
                       <button
@@ -238,7 +238,7 @@ useEffect(() => {
                               </label>
                             )) : <div className="p-2 text-xs text-slate-400 text-center">Không tìm thấy</div>}
                           </div>
-                          <div className="p-2 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-between items-center text-[0.625rem] text-slate-500">
+                          <div className="p-2 border-t border-slate-100 bg-slate-50 rounded-b-lg flex justify-between items-center text-xs text-slate-600">
                             <span>{selectedKeys.size} đã chọn</span>
                             <button onClick={() => setIsFilterOpen(false)} className="text-wood-600 font-bold hover:underline">Đóng</button>
                           </div>
@@ -264,7 +264,7 @@ useEffect(() => {
             <tbody className="divide-y divide-slate-100">
               {sortedData.length > 0 ? sortedData.map((item, idx) => (
                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                  <td className="pl-4 pr-2 py-3 text-right tabular-nums text-slate-400">{idx + 1}</td>
+                  <td className="pl-4 pr-2 py-3 text-right tabular-nums text-slate-500">{idx + 1}</td>
                   <td className="px-4 py-3 text-left font-medium text-slate-700">{item.name}</td>
                   {/* Chỉ ô ≈ 0 (dưới 0,005 — dư số thực) hiện "-"; ô âm (vd. nhập kho điều chỉnh) vẫn hiện số vì đã cộng vào tổng */}
                   <td className={`px-4 py-3 ${isZeroCell(item.daily) ? 'text-slate-300' : item.daily > 0 ? `${primaryColorClass} font-bold` : 'text-red-600 font-bold'}`}>
@@ -275,7 +275,7 @@ useEffect(() => {
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Đã lọc hết dữ liệu.</td></tr>
+                <tr><td colSpan={4} className="p-8 text-center text-slate-400">Không có dòng nào</td></tr>
               )}
             </tbody>
             <tfoot className="bg-slate-100 font-bold text-slate-800 border-t border-slate-300 sticky bottom-0 z-20 shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
@@ -285,7 +285,7 @@ useEffect(() => {
                   className="px-4 py-3 text-left bg-slate-100"
                   title="Cộng các dòng nhóm. Khi đếm hạng mục, 1 HEX ở nhiều nhóm (nhiều xưởng / nhiều cách ghi tên công trình) được đếm ở mỗi nhóm nên tổng có thể lớn hơn số trên thẻ; tổng giá trị luôn khớp."
                 >
-                  TỔNG CỘNG <span className="font-normal text-[0.625rem] text-slate-400">(cộng các nhóm)</span>
+                  TỔNG CỘNG
                 </td>
                 <td className={`px-4 py-3 bg-slate-100 ${primaryColorClass}`}>
                   {formatValue(totalDaily)}

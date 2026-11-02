@@ -1,48 +1,50 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ResponsiveContainer, ComposedChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine, LabelList, Tooltip } from 'recharts';
-import { AlertTriangle, Loader2 } from 'lucide-react';
-import { fetchStockHealth, type StockHealth } from '../../../../services/dataService';
+import {
+  ResponsiveContainer, AreaChart, Area, ComposedChart, BarChart, Bar, Line, ScatterChart, Scatter,
+  XAxis, YAxis, CartesianGrid, ReferenceLine, ReferenceArea, LabelList, Tooltip,
+} from 'recharts';
+import { Loader2 } from 'lucide-react';
+import { fetchStockHealth, type StockHealth, type StockNhom } from '../../../../services/dataService';
 import { formatTrieuAsTy } from '../../../../utils/money';
 import { toISODateLocal } from '../../utils/dateHelpers';
 
-// Tab "Tổng quan sức khoẻ tồn kho" của cửa sổ Tồn kho (card 6): đánh giá tồn theo tuổi, KH giao, phân loại sản phẩm,
-// công trình và diễn biến từng lần chốt. Số do /api/stock/health tính (triệu đồng), hiển thị tỷ.
-
-const TUOI: { k: 'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'kr'; nhan: string; mau: string; tag?: [string, string] }[] = [
-  { k: 'a1', nhan: '≤ 1 tháng', mau: '#059669', tag: ['Mới', 'bg-emerald-100 text-emerald-800'] },
-  { k: 'a2', nhan: '1 – 3 tháng', mau: '#34d399' },
-  { k: 'a3', nhan: '3 – 6 tháng', mau: '#fbbf24', tag: ['Theo dõi', 'bg-amber-100 text-amber-800'] },
-  { k: 'a4', nhan: '6 – 12 tháng', mau: '#f87171', tag: ['Tồn lâu', 'bg-red-100 text-red-700'] },
-  { k: 'a5', nhan: '> 12 tháng', mau: '#b91c1c', tag: ['Nguy cơ', 'bg-red-100 text-red-700'] },
-  { k: 'kr', nhan: 'Không rõ ngày nhập', mau: '#cbd5e1' },
-];
-// Tình trạng KH giao coi là "chưa có kế hoạch giao"
-const CHUA_KH = new Set(['TỒN', 'TỒN KHO', 'LƯU KHO', 'TỒN LƯU KHO', '(TRỐNG)']);
+// Tab "Tổng quan sức khoẻ tồn kho" của cửa sổ Tồn kho (card 6) — thiết kế Figma "Tồn kho thành phẩm v4".
+// Số do /api/stock/health tính (triệu đồng), hiển thị tỷ. Tuổi tính từ ngày nhập kho; "hàng cũ" = trên 6 tháng.
+// Mỗi khối trả lời 1 câu hỏi: xu hướng (vùng chồng), dòng hàng cũ vào/ra (cột phân kỳ), phân bố tuổi (histogram),
+// tồn đang ở trạng thái nào (treemap), công trình nào xử lý trước (ma trận bong bóng), theo thời gian (bản đồ nhiệt).
 
 const ty = formatTrieuAsTy;
 const pt = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
-const pct = (a: number, b: number, d = 1) => `${pt(a, b).toFixed(d)}%`;
 const ngay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-const thangCua = (iso: string) => iso.slice(0, 7);
-/** Trục tỷ: mốc tròn bước 5, chừa 1 khoảng trên/dưới cho nhãn số */
-const trucTron = (vals: (number | null)[]) => {
-  const v = vals.filter((x): x is number => x !== null);
-  if (!v.length) return { domain: [0, 1] as [number, number], ticks: [0, 1] };
-  const lo = Math.floor((Math.min(...v) - 1) / 5) * 5, hi = Math.ceil((Math.max(...v) + 1) / 5) * 5;
-  const ticks: number[] = [];
-  for (let x = lo; x <= hi; x += 5) ticks.push(x);
-  return { domain: [lo, hi] as [number, number], ticks };
+const thang = (iso: string) => `T${Number(iso.slice(5, 7))}`;
+const dau = (x: number) => (x >= 0 ? '+' : '−');
+const so1 = (x: number) => x.toFixed(1);
+/** Tên công trình gọn: bỏ hậu tố "_CTxx-xxx", tiền tố chung, viết hoa chữ đầu mỗi từ */
+const tenNgan = (s: string) => {
+  const g = s.replace(/[_\s]*CT\d{2}-\d{3}.*$/i, '').replace(/^(DỰ ÁN|KHU|KHỐI|KDL)\s+/i, '').replace(/_/g, ' · ').trim() || s;
+  return g.toLowerCase().replace(/(^|[\s(.\-–])(\p{L})/gu, (_m, a: string, b: string) => a + b.toUpperCase());
+};
+const MAU = { sun: '#ea580c', khac: '#cbd5e1', kpsa: '#e2e8f0', cu: '#dc2626', moi: '#93c5fd', xanh: '#059669', cam: '#d97706' };
+/** Màu theo tỷ lệ hàng cũ 0–1: nhạt → đỏ đậm */
+const mauCu = (p: number) => {
+  if (p <= 0) return '#f8fafc';
+  const tron = (a: number[], b: number[], t: number) => `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(',')})`;
+  return p < 0.5 ? tron([254, 226, 226], [248, 113, 113], p / 0.5) : tron([248, 113, 113], [153, 27, 27], (p - 0.5) / 0.5);
 };
 
-/** Nhãn đánh giá 1 công trình theo tỷ lệ tồn > 6 tháng và tuổi trung bình */
-const danhGia = (c: StockHealth['congTrinh'][number]): [string, string] => {
-  const r = pt(c.tren6, c.v);
-  if (r >= 99.5) return ['Tồn lâu — đôn đốc giao', 'bg-red-100 text-red-700'];
-  if (r >= 50) return ['Tồn lâu', 'bg-red-100 text-red-700'];
-  if (r >= 20) return ['Theo dõi', 'bg-amber-100 text-amber-800'];
-  if (c.tuoiTb !== null && c.tuoiTb <= 2) return ['Mới nhập', 'bg-emerald-100 text-emerald-800'];
-  return ['Bình thường', 'bg-emerald-100 text-emerald-800'];
+const NHOM: Record<StockNhom, { ten: string; ai: string }> = {
+  chuaDongBo: { ten: 'HEX chưa nhập kho đồng bộ', ai: 'PC · Xưởng: làm nốt phần còn thiếu' },
+  motPhan: { ten: 'HEX đồng bộ, đã xuất một phần', ai: 'Kinh doanh theo dõi tiến độ giao' },
+  khongXuat: { ten: 'Mã công trình không xuất kho ≥ 60 ngày', ai: 'GĐ vận hành · Kinh doanh' },
+  chuaXuat: { ten: 'HEX đồng bộ, chưa xuất lần nào', ai: 'Kinh doanh · Kho' },
+  khongPsa: { ten: 'Không có HEX / PSA', ai: 'Kinh doanh' },
+  huy: { ten: 'Đơn HUỶ', ai: 'Kinh doanh' },
+  daXuat: { ten: 'Ghi "ĐÃ XUẤT" nhưng còn trong tồn', ai: 'Kho · Kế toán' },
 };
+const BIN: { b: number | null; nhan: string }[] = [
+  ...Array.from({ length: 13 }, (_, i) => ({ b: i, nhan: String(i) })),
+  { b: 13, nhan: '≤18' }, { b: 19, nhan: '≤24' }, { b: 25, nhan: '>24' }, { b: null, nhan: '?' },
+];
 
 interface Props {
   date: Date | null;
@@ -54,24 +56,89 @@ interface Props {
   onXemTheoCongTrinh?: () => void;
 }
 
-const Card: React.FC<{ title: string; cap?: React.ReactNode; right?: React.ReactNode; className?: string; children: React.ReactNode }> = ({ title, cap, right, className = '', children }) => (
-  <section className={`rounded-xl border border-slate-200 bg-white p-4 sm:px-5 ${className}`}>
-    <div className="flex flex-wrap items-start justify-between gap-2">
-      <div>
-        <h4 className="text-base font-bold text-slate-900">{title}</h4>
-        {cap && <p className="mt-0.5 text-xs text-slate-500">{cap}</p>}
-      </div>
+const Card: React.FC<{ title: string; right?: React.ReactNode; children: React.ReactNode }> = ({ title, right, children }) => (
+  <section className="rounded-xl border border-slate-200 bg-white p-4 sm:px-5">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h4 className="text-lg font-bold text-slate-900">{title}</h4>
       {right}
     </div>
-    <div className="mt-2">{children}</div>
+    <div className="mt-3">{children}</div>
   </section>
 );
+
+/** Chú giải màu: [nhãn, màu, kiểu ô / chấm tròn / đường] */
+const Chu: React.FC<{ items: [string, string, ('o' | 'l')?][] }> = ({ items }) => (
+  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-semibold text-slate-700">
+    {items.map(([nhan, mau, kieu]) => (
+      <span key={nhan} className="flex items-center gap-1.5">
+        <i className={kieu === 'l' ? 'block h-0 w-5 border-t-2 border-dashed' : `block h-3 w-3 ${kieu === 'o' ? 'rounded-full' : 'rounded-sm'}`} style={kieu === 'l' ? { borderColor: mau } : { background: mau }} />
+        {nhan}
+      </span>
+    ))}
+  </div>
+);
+
+const Kpi: React.FC<{ nhan: string; so: string; dv: string; mau: string; vien?: string; spark?: React.ReactNode; phu?: React.ReactNode }> = ({ nhan, so, dv, mau, vien, spark, phu }) => (
+  <div className={`rounded-xl border border-slate-200 bg-white p-4 ${vien ? `border-l-4 ${vien}` : ''}`}>
+    <p className="text-sm font-bold text-slate-600">{nhan}</p>
+    <div className="mt-1 flex items-end justify-between gap-2">
+      <p className={`whitespace-nowrap text-4xl font-extrabold tabular-nums ${mau}`}>{so} <span className="text-lg font-semibold text-slate-500">{dv}</span></p>
+      {spark}
+    </div>
+    {phu && <p className="mt-1.5 text-sm font-bold">{phu}</p>}
+  </div>
+);
+
+const Spark: React.FC<{ vals: number[]; mau: string }> = ({ vals, mau }) => {
+  if (vals.length < 2) return null;
+  const lo = Math.min(...vals), hi = Math.max(...vals), W = 88, H = 30;
+  const pts = vals.map((v, i) => [(i / (vals.length - 1)) * W, H - ((v - lo) / ((hi - lo) || 1)) * H]);
+  const [lx, ly] = pts[pts.length - 1];
+  return (
+    <svg width={W + 4} height={H + 4} viewBox={`-2 -2 ${W + 4} ${H + 4}`} className="shrink-0">
+      <polyline points={pts.map(p => p.join(',')).join(' ')} fill="none" stroke={mau} strokeWidth={1.75} strokeLinejoin="round" />
+      <circle cx={lx} cy={ly} r={3} fill={mau} />
+    </svg>
+  );
+};
+
+type O = { v: number };
+type Box = { x: number; y: number; w: number; h: number };
+/** Treemap squarified: chia box theo giá trị v (giảm dần) */
+function squarify<T extends O>(items: T[], box: Box): (T & Box)[] {
+  const out: (T & Box)[] = [];
+  const total = items.reduce((s, i) => s + i.v, 0);
+  if (total <= 0) return out;
+  const k = (box.w * box.h) / total;
+  let rest = items.filter(i => i.v > 0).sort((a, b) => b.v - a.v).map(i => ({ i, a: i.v * k }));
+  let { x, y, w, h } = box;
+  while (rest.length) {
+    const ngan = Math.min(w, h);
+    const te = (r: { a: number }[]) => {
+      const s = r.reduce((m, q) => m + q.a, 0), mx = Math.max(...r.map(q => q.a)), mn = Math.min(...r.map(q => q.a));
+      return Math.max((ngan * ngan * mx) / (s * s), (s * s) / (ngan * ngan * mn));
+    };
+    let n = 1;
+    while (n < rest.length && te(rest.slice(0, n + 1)) <= te(rest.slice(0, n))) n++;
+    const row = rest.slice(0, n), s = row.reduce((m, q) => m + q.a, 0);
+    if (w >= h) {
+      const rw = s / h; let yy = y;
+      for (const r of row) { const rh = r.a / rw; out.push({ ...r.i, x, y: yy, w: rw, h: rh }); yy += rh; }
+      x += rw; w -= rw;
+    } else {
+      const rh = s / w; let xx = x;
+      for (const r of row) { const rw = r.a / rh; out.push({ ...r.i, x: xx, y, w: rw, h: rh }); xx += rw; }
+      y += rh; h -= rh;
+    }
+    rest = rest.slice(n);
+  }
+  return out;
+}
 
 const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject, onXemTheoCongTrinh }) => {
   const [data, setData] = useState<StockHealth | null>(null);
   const [loi, setLoi] = useState<string | null>(null);
   const [dangTai, setDangTai] = useState(false);
-  const [cheDo, setCheDo] = useState<'ngay' | 'thang'>('ngay');
   const dateISO = date ? toISODateLocal(date) : '';
   const khoaLoc = `${congTrinh.join('|')}#${xuong.join(',')}`;
 
@@ -89,71 +156,94 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
 
   const t = useMemo(() => {
     if (!data) return null;
-    const tong = data.tong.v;
-    const g = (k: keyof StockHealth['tuoi']) => data.tuoi[k] ?? { v: 0, ma: 0 };
-    const tren6 = g('a4').v + g('a5').v;
-    // Cuối mỗi tháng = lần chốt cuối cùng trong tháng
-    const cuoiThang: StockHealth['chuoi'] = [];
-    for (const p of data.chuoi) {
-      const last = cuoiThang[cuoiThang.length - 1];
-      if (last && thangCua(last.d) === thangCua(p.d)) cuoiThang[cuoiThang.length - 1] = p; else cuoiThang.push(p);
-    }
-    const thangNay = thangCua(data.date);
-    const truoc = [...cuoiThang].reverse().find(p => thangCua(p.d) < thangNay) ?? null;
-    const namNay = data.date.slice(0, 4);
-    const trongNam = cuoiThang.filter(p => p.d.startsWith(namNay));
-    const dinh = trongNam.reduce<StockHealth['chuoi'][number] | null>((m, p) => (!m || p.v > m.v ? p : m), null);
-    // Số tháng giảm (tăng) liên tiếp tính tới kỳ đang xem
-    let lienTiep = 0;
-    const dau = truoc && tong < truoc.v ? -1 : 1;
-    for (let i = cuoiThang.length - 1; i > 0; i--) {
-      const d = cuoiThang[i].v - cuoiThang[i - 1].v;
-      if (Math.sign(d) === dau && d !== 0) lienTiep++; else break;
-    }
-    // Lần chốt trong tháng đang xem (kèm cuối tháng trước làm đầu kỳ)
-    const ngayTrongKy = data.chuoi.filter(p => thangCua(p.d) === thangNay);
-    const kyNgay = truoc ? [truoc, ...ngayTrongKy] : ngayTrongKy;
-    const cao = kyNgay.reduce((m, p) => (p.v > m.v ? p : m), kyNgay[0]);
-    const thap = kyNgay.reduce((m, p) => (p.v < m.v ? p : m), kyNgay[0]);
-    const t6 = kyNgay.map(p => p.tren6).filter((x): x is number => x !== null);
-    const chuaKh = data.giao.filter(x => CHUA_KH.has(x.k));
-    const daXuat = data.giao.find(x => x.k === 'ĐÃ XUẤT')?.v ?? 0;
-    const ctTonLau = [...data.congTrinh].sort((a, b) => b.tren6 - a.tren6).filter(c => c.tren6 > 0).slice(0, 3);
-    return {
-      tong, g, tren6, truoc, dinh, lienTiep, dau, cuoiThang: cuoiThang.filter(p => p.d.startsWith(namNay)), kyNgay, cao, thap,
-      t6Min: t6.length ? Math.min(...t6) : null, t6Max: t6.length ? Math.max(...t6) : null,
-      chuaKh: chuaKh.reduce((s, x) => s + x.v, 0), chuaKhTen: chuaKh.map(x => x.k).join(' / '), daXuat, ctTonLau,
-    };
+    const { tong } = data;
+    const byDate = new Map(data.chuoi.map(c => [c.d, c]));
+    const ct = data.cuoiThang.map(d => byDate.get(d)!).filter(Boolean);
+    const nam = data.date.slice(0, 4);
+    const ctNam = ct.filter(c => c.d.startsWith(nam));
+    const dinh = ctNam.reduce<typeof ct[number] | null>((m, c) => (!m || c.v > m.v ? c : m), null);
+    const dCu = dinh ? tong.tren6 - dinh.tren6 : 0;
+    const dMoi = dinh ? (tong.v - tong.tren6) - (dinh.v - dinh.tren6) : 0;
+    const kh = (k: string) => data.khach.find(x => x.k === k) ?? { k, v: 0, tren6: 0, t46: 0 };
+    const sun = kh('sun');
+    const lon = data.congTrinh.filter(c => c.vTruoc !== null);
+    const coMa = (c: typeof data.congTrinh[number]) => c.mct.some(m => /^CT\d/i.test(m));
+    const moc60 = new Date(new Date(data.date).getTime() - 60 * 864e5).toISOString().slice(0, 10);
+    const dungXuat = lon.filter(c => coMa(c) && c.v >= tong.v * 0.02 && (!c.xuatCuoi || c.xuatCuoi < moc60));
+    const donHang = lon.filter(c => coMa(c) && c.vTruoc !== null && c.v - c.vTruoc! >= Math.max(5000, c.vTruoc! * 0.5))
+      .sort((a, b) => (b.v - b.vTruoc!) - (a.v - a.vTruoc!));
+    const cuTruoc = (c: typeof data.congTrinh[number]) => c.thang?.find(x => x.d === data.mocTruoc)?.tren6 ?? null;
+    const cuTang = lon.filter(c => coMa(c) && c.vTruoc !== null && c.v < c.vTruoc! && cuTruoc(c) !== null && c.tren6 - cuTruoc(c)! >= 1000);
+    const cuGiam = lon.filter(c => coMa(c) && pt(c.tren6, c.v) >= 50 && c.vTruoc !== null && c.v <= c.vTruoc! * 0.8 && !cuTang.includes(c));
+    const nhom = (k: StockNhom) => data.nhom.find(x => x.k === k) ?? { k, v: 0, tren6: 0, ma: 0 };
+    const dongCuoi = data.dongCu[data.dongCu.length - 1] ?? null;
+    return { ct, ctNam, dinh, dCu, dMoi, sun, dungXuat, donHang, cuTang, cuGiam, cuTruoc, nhom, dongCuoi, soCt: data.congTrinh.filter(c => c.v > 0).length };
   }, [data]);
 
   if (!dateISO) return <p className="p-8 text-center text-sm text-slate-500">Chưa có ngày chốt tồn kho.</p>;
   if (loi && !data) return <p className="p-8 text-center text-sm text-red-600">Không tải được số tồn kho ({loi}).</p>;
   if (!data || !t) return <div className="flex items-center justify-center gap-2 p-12 text-sm text-slate-500"><Loader2 className="animate-spin" size={18} /> Đang tính tồn kho…</div>;
 
-  const { tong, g, tren6 } = t;
-  const delta = t.truoc ? tong - t.truoc.v : null;
-  const tenTruoc = t.truoc ? `cuối T${Number(t.truoc.d.slice(5, 7))}` : '';
-  const tren6TongCt = t.ctTonLau.reduce((s, c) => s + c.tren6, 0);
-  // Nhóm chưa xác định phân loại xuống cuối
-  const pl = [...data.phanLoai.filter(x => x.k), ...data.phanLoai.filter(x => !x.k)];
-  const plMax = Math.max(1, ...pl.map(x => x.v));
-  const top = data.congTrinh.slice(0, 8);
-  const conLai = data.congTrinh.slice(8);
-  const ctMax = Math.max(1, ...top.map(c => c.v));
-  const plCao = pl.filter(x => x.k && x.v >= tong * 0.03).sort((a, b) => pt(b.tren6, b.v) - pt(a.tren6, a.v)).slice(0, 2);
-  const plMoi = pl.filter(x => x.k && x.v >= tong * 0.03 && pt(x.tren6, x.v) < 10);
-  const chuaPl = pl.find(x => !x.k);
+  const { tong } = data;
+  const tenCt = (name: string, cls = '') => onOpenProject
+    ? <button type="button" onClick={() => onOpenProject(name)} className={`text-left hover:text-blue-700 hover:underline ${cls}`}>{tenNgan(name)}</button>
+    : <span className={cls}>{tenNgan(name)}</span>;
+  const laDinh = t.dinh && t.dinh.d !== data.date;
+  const ctDon = t.donHang[0];
 
-  const duLieuNgay = t.kyNgay.map(p => ({ d: ngay(p.d), v: p.v / 1000, t6: p.tren6 === null ? null : p.tren6 / 1000 }));
-  const duLieuThang = t.cuoiThang.map(p => ({
-    d: p.d === data.date ? ngay(p.d) : `T${Number(p.d.slice(5, 7))}`, v: p.v / 1000, t6: p.tren6 === null ? null : p.tren6 / 1000,
-    con: p.tren6 === null ? p.v / 1000 : (p.v - p.tren6) / 1000,
-  }));
-  const trucTong = trucTron(duLieuNgay.map(p => p.v));
-  const trucT6 = trucTron(duLieuNgay.map(p => p.t6));
-  const tranThang = Math.ceil(Math.max(1, ...duLieuThang.map(p => p.v)) / 50) * 50;
-  const ticksThang = Array.from({ length: tranThang / 50 + 1 }, (_, i) => i * 50);
-  const so1 = (v: unknown) => (typeof v === 'number' ? v.toFixed(1) : '');
+  // ---- dữ liệu biểu đồ ----
+  const duLieuA = t.ctNam.map(c => ({ d: c.d === data.date ? ngay(c.d) : thang(c.d), cu: c.tren6 / 1000, moi: (c.v - c.tren6) / 1000, tong: c.v / 1000, dinh: t.dinh?.d === c.d }));
+  const tranA = Math.ceil(Math.max(1, ...duLieuA.map(x => x.tong)) * 1.12 / 50) * 50;
+  const duLieuB = data.dongCu.slice(-8).map(x => ({ d: thang(x.d1), vao: x.vao / 1000, ra: -x.ra / 1000, rong: (x.vao - x.ra) / 1000 }));
+  const duLieuD = BIN.map(b => {
+    const r = (kh: string) => (data.hist.find(h => h.b === b.b && h.kh === kh)?.v ?? 0) / 1000;
+    const sun = r('sun'), khac = r('khac'), kpsa = r('kpsa');
+    return { nhan: b.nhan, sun, khac, kpsa, tong: sun + khac + kpsa };
+  });
+  const oTree = squarify(data.nhom.map(n => ({ ...n })), { x: 0, y: 0, w: 1000, h: 300 });
+  const nguongX = Math.max(5, Math.round(tong.v * 0.05 / 1000));
+  const diem = data.congTrinh.filter(c => c.vTruoc !== null && c.v > 0 && c.mct.some(m => /^CT\d/i.test(m))).slice(0, 13).map(c => {
+    const ch = c.vTruoc ? (c.v - c.vTruoc) / c.vTruoc : 0;
+    const tn = tenNgan(c.name);
+    return { ten: tn.length > 18 ? tn.slice(0, 17) + '…' : tn, name: c.name, x: c.v / 1000, y: pt(c.tren6, c.v), r: 4 + Math.sqrt(c.v / 1000) * 1.8, mau: ch > 0.1 ? MAU.cam : ch < -0.1 ? MAU.xanh : '#94a3b8', ch, nhan: 'R' as 'L' | 'R' | 'T' | 'B' | '' };
+  });
+  // Nhãn bong bóng: điểm sát đáy (≈ 0% cũ) xếp theo tồn, xen kẽ trên / dưới cho đỡ chồng; điểm ở mép phải để nhãn bên trái
+  const xMax = Math.max(1, ...diem.map(d => d.x));
+  // điểm nhỏ sát đáy: bỏ nhãn (xem khi rê chuột)
+  diem.filter(d => d.y < 8).sort((a, b) => a.x - b.x).forEach((d, i) => { d.nhan = d.x < nguongX ? '' : i % 2 ? 'B' : 'T'; });
+  diem.filter(d => d.y >= 8 && d.x > xMax * 0.7).forEach(d => { d.nhan = 'L'; });
+  const nhiet = data.congTrinh.filter(c => c.thang).slice(0, 10);
+  const ngayNhiet = nhiet[0]?.thang?.map(x => x.d) ?? [];
+
+  // ---- việc cần làm (theo quy tắc trên số) ----
+  type Viec = { mau: string; ten: React.ReactNode; tyV: number; lam: string; ai: string };
+  const viec: Viec[] = [];
+  for (const c of t.dungXuat.slice(0, 3)) viec.push({ mau: '#dc2626', ten: tenCt(c.name), tyV: c.v, lam: `Không xuất từ ${c.xuatCuoi ? ngay(c.xuatCuoi) : 'đầu năm'} — chốt lịch nhận hàng`, ai: 'GĐ · KD' });
+  for (const c of t.donHang.slice(0, 3)) viec.push({ mau: '#dc2626', ten: tenCt(c.name), tyV: c.v, lam: `Dồn hàng ${ty(c.vTruoc!)} → ${ty(c.v)} — khớp nhịp SX với lịch nhận`, ai: 'GĐ · KD · PC' });
+  for (const c of t.cuTang.slice(0, 3)) viec.push({ mau: '#dc2626', ten: tenCt(c.name), tyV: c.v, lam: `Hàng cũ tăng ${ty(t.cuTruoc(c)!)} → ${ty(c.tren6)} — xuất hàng cũ trước`, ai: 'KD · Kho' });
+  if (t.nhom('huy').v > 0) viec.push({ mau: '#dc2626', ten: 'Hàng đơn HUỶ', tyV: t.nhom('huy').v, lam: 'Bán lại / thanh lý', ai: 'KD' });
+  if (t.nhom('chuaDongBo').v > 0) viec.push({ mau: MAU.cam, ten: 'HEX chưa nhập kho đồng bộ', tyV: t.nhom('chuaDongBo').v, lam: 'Làm nốt phần còn thiếu', ai: 'PC · Xưởng' });
+  for (const c of t.cuGiam.slice(0, 2)) viec.push({ mau: MAU.xanh, ten: tenCt(c.name), tyV: c.v, lam: `Hàng cũ đang giảm ${ty(c.vTruoc!)} → ${ty(c.v)} — theo dõi`, ai: 'KD' });
+  if (t.nhom('daXuat').v > 0) viec.push({ mau: '#7c3aed', ten: 'Ghi "ĐÃ XUẤT" còn trong tồn', tyV: t.nhom('daXuat').v, lam: 'Đối soát SAP, ghi giảm', ai: 'Kho · Kế toán' });
+
+  const KH: [string, string][] = [['Sun Group', MAU.sun], ['Khách khác', MAU.khac], ['Không PSA', MAU.kpsa]];
+  const thangMau = <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">&gt; 6 tháng {[0, 25, 50, 75, 100].map(p => <span key={p} className="flex flex-col items-center"><i className="block h-3 w-7 rounded-sm" style={{ background: mauCu(p / 100 || 0.02) }} />{p}%</span>)}</div>;
+  const bar100 = (nhan: string, phan: { v: number; mau: string; chu?: string }[]) => {
+    const s = phan.reduce((m, p) => m + p.v, 0) || 1;
+    return (
+      <div className="flex items-center gap-3">
+        <p className="w-36 shrink-0 text-right text-sm font-bold text-slate-800">{nhan}</p>
+        <div className="flex h-10 flex-1 overflow-hidden rounded-md">
+          {phan.map((p, i) => p.v > 0 && (
+            <div key={i} className="flex items-center px-2 text-base font-bold text-white" style={{ width: `${(p.v / s) * 100}%`, background: p.mau }}>{p.chu}</div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+  const truc = { fontSize: 13, fill: '#475569' };
+  const cuoi = data.chuoi.find(c => c.d === data.date)?.tuoiBq ?? null;
+  const bqDau = t.ctNam.find(c => c.tuoiBq !== null) ?? null;
 
   return (
     <div className="space-y-4 p-4 sm:p-6">
@@ -161,230 +251,227 @@ const TonKhoSucKhoe: React.FC<Props> = ({ date, congTrinh, xuong, onOpenProject,
 
       {/* ---- 4 thẻ số ---- */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tổng tồn kho</p>
-          <p className="mt-1 text-3xl font-extrabold tabular-nums text-slate-900">{ty(tong)} <span className="text-base font-semibold text-slate-500">tỷ</span></p>
-          <p className="mt-1 text-sm text-slate-600">{data.tong.ma.toLocaleString('en-US')} mã SAP · {data.tong.congTrinh} công trình</p>
-        </div>
-        <div className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 ${delta !== null && delta > 0 ? 'border-l-red-500' : 'border-l-emerald-500'}`}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">So với {tenTruoc || 'tháng trước'}</p>
-          {delta === null ? <p className="mt-1 text-3xl font-extrabold text-slate-400">—</p> : (
-            <p className={`mt-1 text-3xl font-extrabold tabular-nums ${delta > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-              {delta > 0 ? '▲' : '▼'} {ty(Math.abs(delta))} <span className="text-base font-semibold text-slate-500">tỷ</span>
-            </p>
-          )}
-          <p className="mt-1 text-sm text-slate-600">
-            {delta !== null && t.truoc && <b className={delta > 0 ? 'text-red-600' : 'text-emerald-600'}>{delta > 0 ? '+' : '−'}{Math.abs(pt(delta, t.truoc.v)).toFixed(1)}%</b>}
-            {t.dinh && t.dinh.d !== data.date && <> · {tong < t.dinh.v ? `giảm ${ty(t.dinh.v - tong)} tỷ` : ''} từ đỉnh {ty(t.dinh.v)} ({ngay(t.dinh.d)})</>}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 border-l-4 border-l-red-600 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tồn lâu &gt; 6 tháng</p>
-          <p className="mt-1 text-3xl font-extrabold tabular-nums text-red-600">{ty(tren6)} <span className="text-base font-semibold text-slate-500">tỷ</span></p>
-          <p className="mt-1 text-sm text-slate-600"><b className="text-red-600">{pt(tren6, tong).toFixed(0)}%</b> tổng tồn · trong đó &gt; 12 tháng {ty(g('a5').v)} tỷ ({g('a5').ma.toLocaleString('en-US')} mã)</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chưa có kế hoạch giao</p>
-          <p className="mt-1 text-3xl font-extrabold tabular-nums text-amber-700">{ty(t.chuaKh)} <span className="text-base font-semibold text-slate-500">tỷ</span></p>
-          <p className="mt-1 text-sm text-slate-600">{t.chuaKhTen || '—'}{t.daXuat > 0 && <> · + {ty(t.daXuat)} tỷ ghi "ĐÃ XUẤT" vẫn còn tồn</>}</p>
-        </div>
+        <Kpi nhan="Tổng tồn" so={ty(tong.v)} dv="tỷ" mau="text-slate-900" spark={<Spark vals={t.ctNam.map(c => c.v)} mau="#1d4ed8" />}
+          phu={laDinh && t.dinh ? <span className={tong.v < t.dinh.v ? 'text-emerald-700' : 'text-red-600'}>{tong.v < t.dinh.v ? '▼' : '▲'} {ty(Math.abs(tong.v - t.dinh.v))} từ đỉnh {ngay(t.dinh.d)}</span> : null} />
+        <Kpi nhan="Trên 6 tháng" so={ty(tong.tren6)} dv="tỷ" mau="text-red-600" vien="border-l-red-600" spark={<Spark vals={t.ctNam.map(c => c.tren6)} mau="#dc2626" />}
+          phu={<span className="text-red-700">{pt(tong.tren6, tong.v).toFixed(0)}% tổng{laDinh && t.dinh ? ` · ${dau(t.dCu)}${ty(Math.abs(t.dCu))} từ ${ngay(t.dinh.d)}` : ''}</span>} />
+        <Kpi nhan="Tuổi bình quân" so={cuoi === null ? '—' : so1(cuoi)} dv="tháng" mau="text-amber-700" vien="border-l-amber-500"
+          spark={<Spark vals={t.ctNam.filter(c => c.tuoiBq !== null).map(c => c.tuoiBq!)} mau="#d97706" />}
+          phu={bqDau ? <span className="text-amber-800">{thang(bqDau.d)}: {so1(bqDau.tuoiBq!)} tháng</span> : null} />
+        <Kpi nhan="Đang dồn hàng" so={ctDon ? ty(ctDon.v) : '—'} dv={ctDon ? 'tỷ' : ''} mau="text-orange-700" vien="border-l-orange-500"
+          spark={ctDon ? <Spark vals={(ctDon.thang ?? []).map(x => x.v)} mau="#ea580c" /> : null}
+          phu={ctDon ? <span className="block truncate">{tenCt(ctDon.name, 'text-slate-800')} <span className="text-orange-700">×{so1(ctDon.v / ctDon.vTruoc!)}</span></span> : null} />
       </div>
 
-      {/* ---- Đánh giá tự động ---- */}
-      <div className="flex gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm leading-relaxed text-slate-800">
-        <AlertTriangle className="mt-0.5 shrink-0 text-orange-600" size={18} />
-        <p>
-          <b className="text-orange-800">Đánh giá:</b>{' '}
-          {delta !== null && <>Tồn đang {t.dau < 0 ? 'giảm' : 'tăng'}{t.lienTiep > 1 ? ` ${t.lienTiep} tháng liên tiếp` : ''}{t.dau < 0 && pt(tren6, tong) >= 30 ? ' nhưng ' : '. '}</>}
-          {pt(tren6, tong) >= 30 && <><b className="text-orange-800">{pt(tren6, tong).toFixed(0)}% giá trị nằm kho &gt; 6 tháng</b>{data.tong.xuatHangTren6 > 0 && <>, trong đó <b className="text-orange-800">{ty(data.tong.xuatHangTren6)} tỷ đã có kế hoạch "XUẤT HÀNG"</b> — hàng chờ công trình nhận, không phải thiếu đầu ra</>}. </>}
-          {t.ctTonLau.length > 0 && tren6 > 0 && <>
-            {t.ctTonLau.length} công trình chiếm {pt(tren6TongCt, tren6).toFixed(0)}% phần tồn lâu:{' '}
-            {t.ctTonLau.map((c, i) => (
-              <React.Fragment key={c.name}>{i > 0 && ', '}<b className={i === 0 ? 'text-orange-800' : ''}>{c.name} ({ty(c.tren6)}{i === 0 ? ` tỷ, ${pt(c.tren6, c.v).toFixed(0)}% > 6 tháng` : ''})</b></React.Fragment>
-            ))}.
-          </>}
-        </p>
-      </div>
-
-      {/* ---- Diễn biến ---- */}
-      <Card
-        title="Diễn biến tồn kho"
-        cap={cheDo === 'ngay'
-          ? <>Mỗi điểm = 1 lần chốt tồn · tháng {Number(data.date.slice(5, 7))} có {t.kyNgay.length - (t.truoc ? 1 : 0)} lần chốt{t.truoc && <> · đường đứt = mức {tenTruoc}</>}</>
-          : <>Cột = tồn cuối tháng · phần đỏ = tồn &gt; 6 tháng · tháng thiếu cột tuổi không tô đỏ</>}
-        right={
-          <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 text-sm">
-            {([['ngay', 'Theo ngày'], ['thang', 'Cuối tháng']] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setCheDo(k)} className={`px-3 py-1.5 font-semibold ${cheDo === k ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{l}</button>
-            ))}
-          </div>
-        }
-      >
-        {cheDo === 'ngay' ? (<>
-          <p className="text-sm font-bold text-slate-800">Tổng tồn (tỷ)</p>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={duLieuNgay} margin={{ top: 22, right: 24, left: -4, bottom: 0 }}>
-              <CartesianGrid stroke="#eef2f6" vertical={false} />
-              <XAxis dataKey="d" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} interval={0} />
-              <YAxis domain={trucTong.domain} ticks={trucTong.ticks} tickFormatter={v => Number(v).toFixed(0)} tick={{ fontSize: 12, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={44} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(2)} tỷ`, 'Tổng tồn']} />
-              {t.truoc && <ReferenceLine y={t.truoc.v / 1000} stroke="#64748b" strokeDasharray="5 4" label={{ value: `${tenTruoc}: ${ty(t.truoc.v)}`, position: 'insideTopRight', fontSize: 12, fill: '#64748b' }} />}
-              <Line type="linear" dataKey="v" stroke="#0f172a" strokeWidth={2.5} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} isAnimationActive={false}>
-                <LabelList dataKey="v" position="top" formatter={so1} style={{ fontSize: 13, fontWeight: 700, fill: '#334155' }} />
-              </Line>
-            </LineChart>
-          </ResponsiveContainer>
-          <p className="mt-2 text-sm font-bold text-red-700">Trong đó tồn &gt; 6 tháng (tỷ)</p>
-          <ResponsiveContainer width="100%" height={130}>
-            <LineChart data={duLieuNgay} margin={{ top: 20, right: 24, left: -4, bottom: 0 }}>
-              <CartesianGrid stroke="#eef2f6" vertical={false} />
-              <XAxis dataKey="d" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} interval={0} />
-              <YAxis domain={trucT6.domain} ticks={trucT6.ticks} tickFormatter={v => Number(v).toFixed(0)} tick={{ fontSize: 12, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={44} />
-              <Tooltip formatter={(v: number) => [`${v.toFixed(2)} tỷ`, 'Tồn > 6 tháng']} />
-              <Line type="linear" dataKey="t6" stroke="#dc2626" strokeWidth={2.5} dot={{ r: 3.5, fill: '#fff', strokeWidth: 2 }} connectNulls={false} isAnimationActive={false}>
-                <LabelList dataKey="t6" position="top" formatter={so1} style={{ fontSize: 12, fontWeight: 700, fill: '#b91c1c' }} />
-              </Line>
-            </LineChart>
-          </ResponsiveContainer>
-          <div className="mt-2 flex flex-wrap gap-x-7 gap-y-1 text-sm text-slate-700">
-            {t.truoc && <span>Đầu kỳ {ngay(t.truoc.d)}: <b>{ty(t.truoc.v)}</b></span>}
-            <span>Cao nhất: <b>{ty(t.cao.v)}</b> ({ngay(t.cao.d)})</span>
-            <span>Thấp nhất: <b>{ty(t.thap.v)}</b> ({ngay(t.thap.d)})</span>
-            <span>{ngay(data.date)}: <b>{ty(tong)}</b>{delta !== null && <b className={delta > 0 ? 'text-red-600' : 'text-emerald-600'}> {delta > 0 ? '▲' : '▼'} {ty(Math.abs(delta))} ({delta > 0 ? '+' : '−'}{Math.abs(pt(delta, t.truoc!.v)).toFixed(1)}%)</b>}</span>
-            {t.t6Min !== null && t.t6Max !== null && (
-              <span>Tồn &gt; 6 tháng trong kỳ: <b className="text-red-600">{ty(t.t6Min)} – {ty(t.t6Max)} tỷ</b>{t.t6Max - t.t6Min < tren6 * 0.05 ? ' (gần như đứng yên)' : ''}</span>
-            )}
-          </div>
-          {t.kyNgay.some(p => p.tren6 === null) && (
-            <p className="mt-1 text-xs text-slate-400">Đường đỏ đứt ở {t.kyNgay.filter(p => p.tren6 === null).map(p => ngay(p.d)).join(', ')}: lần chốt đó không có cột số tháng tồn.</p>
-          )}
-        </>) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={duLieuThang} margin={{ top: 24, right: 16, left: -4, bottom: 0 }}>
-              <CartesianGrid stroke="#eef2f6" vertical={false} />
-              <XAxis dataKey="d" tick={{ fontSize: 12, fill: '#64748b' }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
-              <YAxis domain={[0, tranThang]} ticks={ticksThang} tick={{ fontSize: 12, fill: '#94a3b8' }} tickLine={false} axisLine={false} width={44} />
-              <Tooltip formatter={(v: number, k: string) => [`${v.toFixed(2)} tỷ`, k === 't6' ? 'Tồn > 6 tháng' : 'Tồn ≤ 6 tháng']} />
-              <Bar dataKey="t6" stackId="a" fill="#dc2626" isAnimationActive={false}>
-                <LabelList dataKey="t6" position="center" formatter={so1} style={{ fontSize: 12, fontWeight: 700, fill: '#fff' }} />
-              </Bar>
-              <Bar dataKey="con" stackId="a" fill="#cbd5e1" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-                <LabelList dataKey="v" position="top" formatter={so1} style={{ fontSize: 13, fontWeight: 700, fill: '#334155' }} />
-              </Bar>
-            </ComposedChart>
-          </ResponsiveContainer>
-        )}
+      {/* ---- A · xu hướng ---- */}
+      <Card title="Tồn cuối tháng (tỷ)" right={<Chu items={[['> 6 tháng', MAU.cu], ['≤ 6 tháng', MAU.moi]]} />}>
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={duLieuA} margin={{ top: 30, right: 40, left: -4, bottom: 0 }}>
+            <CartesianGrid stroke="#eef2f6" vertical={false} />
+            <XAxis dataKey="d" tick={{ ...truc, fontWeight: 600 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} />
+            <YAxis domain={[0, tranA]} tick={truc} tickLine={false} axisLine={false} width={44} />
+            <Tooltip formatter={(v: number, k: string) => [`${v.toFixed(2)} tỷ`, k === 'cu' ? '> 6 tháng' : '≤ 6 tháng']} />
+            {t.dinh && laDinh && <ReferenceLine x={thang(t.dinh.d)} stroke="#0f172a" strokeDasharray="5 4" label={{ value: `Đỉnh ${ngay(t.dinh.d)}`, position: 'insideTopLeft', fontSize: 13, fontWeight: 700, fill: '#0f172a' }} />}
+            <Area type="linear" dataKey="cu" stackId="a" stroke="#b91c1c" strokeWidth={2} fill={MAU.cu} fillOpacity={0.85} isAnimationActive={false}>
+              <LabelList dataKey="cu" content={(p: any) => p.value == null ? null : (
+                <text x={p.index === duLieuA.length - 1 ? p.x - 4 : p.x} y={p.value > 35 ? p.y + 18 : p.y - 8} textAnchor={p.index === duLieuA.length - 1 ? 'end' : 'middle'} fontSize={13} fontWeight={700} fill={p.value > 35 ? '#fff' : '#b91c1c'}>{so1(p.value)}</text>
+              )} />
+            </Area>
+            <Area type="linear" dataKey="moi" stackId="a" stroke="#1d4ed8" strokeWidth={2} fill={MAU.moi} fillOpacity={0.5} isAnimationActive={false}>
+              <LabelList dataKey="tong" position="top" formatter={(v: number) => so1(v)} style={{ fontSize: 13, fontWeight: 700, fill: '#1d4ed8' }} />
+            </Area>
+          </AreaChart>
+        </ResponsiveContainer>
       </Card>
 
-      {/* ---- Tuổi tồn + phân loại sản phẩm ---- */}
+      {/* ---- B · dòng hàng cũ + D · phân bố tuổi ---- */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card title="Tuổi tồn kho" cap="Theo số tháng nằm kho (cột số tháng tồn kho)">
-          <div className="my-2 flex h-8 overflow-hidden rounded-lg">
-            {TUOI.map(a => <div key={a.k} style={{ width: `${pt(g(a.k).v, tong)}%`, background: a.mau }} title={`${a.nhan}: ${ty(g(a.k).v)} tỷ`} />)}
-          </div>
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 font-semibold">Nhóm tuổi</th><th className="py-2 text-right font-semibold">Tỷ</th><th className="py-2 text-right font-semibold">Mã SAP</th><th className="py-2 text-right font-semibold">%</th><th />
-            </tr></thead>
-            <tbody>
-              {TUOI.map(a => {
-                const x = g(a.k);
-                const dam = a.k === 'a4' || a.k === 'a5';
-                return (
-                  <tr key={a.k} className="border-b border-slate-100">
-                    <td className="py-2"><i className="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: a.mau }} />{a.nhan}</td>
-                    <td className={`py-2 text-right tabular-nums ${dam ? 'font-bold' : ''}`}>{ty(x.v)}</td>
-                    <td className="py-2 text-right tabular-nums text-slate-500">{x.ma.toLocaleString('en-US')}</td>
-                    <td className={`py-2 text-right tabular-nums ${dam ? 'font-bold' : ''}`}>{pct(x.v, tong)}</td>
-                    <td className="py-2 pl-3">{a.tag && <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${a.tag[1]}`}>{a.tag[0]}</span>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="mt-3 text-sm text-slate-600">
-            Tình trạng KH giao: {data.giao.filter(x => x.v > 0).map((x, i) => (
-              <React.Fragment key={x.k}>{i > 0 && ' · '}{i === 0 ? <b>{x.k} {ty(x.v)}</b> : <>{x.k} {ty(x.v)}</>}{i === 0 && ` (${pct(x.v, tong)})`}</React.Fragment>
-            ))}
-            {data.tong.kyGuiMa0 > 0 && <> · Ký gửi {data.tong.kyGuiMa0.toLocaleString('en-US')} mã giá trị 0</>}
-          </p>
+        <Card title="Hàng cũ vào / ra mỗi tháng (tỷ)" right={<Chu items={[['Vượt mốc 6 tháng', MAU.cu], ['Xuất đi', MAU.xanh], ['Ròng', '#0f172a', 'l']]} />}>
+          <ResponsiveContainer width="100%" height={300}>
+            <ComposedChart data={duLieuB} stackOffset="sign" margin={{ top: 24, right: 12, left: -8, bottom: 0 }}>
+              <CartesianGrid stroke="#eef2f6" vertical={false} />
+              <XAxis dataKey="d" tick={{ ...truc, fontWeight: 600 }} tickLine={false} axisLine={false} />
+              <YAxis tick={truc} tickLine={false} axisLine={false} width={40} />
+              <ReferenceLine y={0} stroke="#64748b" />
+              <Tooltip formatter={(v: number, k: string) => [`${Math.abs(v).toFixed(2)} tỷ`, k === 'vao' ? 'Vượt mốc 6 tháng' : k === 'ra' ? 'Xuất đi' : 'Ròng']} />
+              <Bar dataKey="vao" stackId="x" fill={MAU.cu} radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                <LabelList dataKey="vao" position="top" formatter={(v: number) => `+${so1(v)}`} style={{ fontSize: 13, fontWeight: 700, fill: '#dc2626' }} />
+              </Bar>
+              <Bar dataKey="ra" stackId="x" fill={MAU.xanh} radius={[0, 0, 3, 3]} isAnimationActive={false}>
+                <LabelList dataKey="ra" content={(p: any) => (p.value == null || p.value > -0.05 ? null : (
+                  <text x={p.x + p.width / 2} y={Math.max(p.y, p.y + p.height) + 15} textAnchor="middle" fontSize={13} fontWeight={700} fill="#059669">−{so1(-p.value)}</text>
+                ))} />
+              </Bar>
+              <Line type="linear" dataKey="rong" stroke="#0f172a" strokeWidth={1.5} strokeDasharray="4 3" dot={{ r: 3, fill: '#0f172a' }} isAnimationActive={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </Card>
 
-        <Card title="Tồn theo phân loại sản phẩm" cap="Nhóm sản phẩm theo HEX (bảng sản xuất) · xám = tồn ≤ 6 tháng, đỏ = > 6 tháng">
-          <table className="w-full text-sm">
-            <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 font-semibold">Phân loại</th><th /><th className="py-2 text-right font-semibold">Tỷ</th><th className="py-2 text-right font-semibold">Mã SAP</th><th className="py-2 text-right font-semibold">&gt; 6 tháng</th>
-            </tr></thead>
-            <tbody>
-              {pl.map(x => {
-                const r = pt(x.tren6, x.v);
-                return (
-                  <tr key={x.k ?? '_'} className="border-b border-slate-100">
-                    <td className={`py-2 pr-2 font-bold ${x.k ? 'text-slate-800' : 'text-slate-400'}`}>{x.k ?? 'Chưa xác định'}</td>
-                    <td className="w-[38%] py-2">
-                      <div className="relative h-3.5">
-                        <div className="absolute inset-y-0 left-0 rounded-sm bg-slate-400" style={{ width: `${(x.v / plMax) * 100}%` }} />
-                        <div className="absolute inset-y-0 left-0 rounded-l-sm bg-red-600" style={{ width: `${(x.tren6 / plMax) * 100}%` }} />
-                      </div>
-                    </td>
-                    <td className="py-2 text-right font-bold tabular-nums">{ty(x.v)}</td>
-                    <td className="py-2 text-right tabular-nums text-slate-500">{x.ma.toLocaleString('en-US')}</td>
-                    <td className={`py-2 text-right tabular-nums ${r >= 50 ? 'font-bold text-red-600' : r >= 35 ? 'font-bold text-amber-700' : 'text-slate-700'}`}>{ty(x.tren6)} ({r.toFixed(0)}%)</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="mt-3 text-sm text-slate-600">
-            {plCao.length > 0 && <>Trong các nhóm lớn, {plCao.map((x, i) => <React.Fragment key={x.k}>{i > 0 && ' và '}<b className="text-red-600">{x.k}</b> ({pt(x.tren6, x.v).toFixed(0)}%)</React.Fragment>)} tồn lâu nhiều nhất. </>}
-            {plMoi.length > 0 && <>{plMoi.map(x => x.k).join(', ')} gần như toàn hàng mới. </>}
-            {chuaPl && chuaPl.ma > 0 && <>{chuaPl.ma.toLocaleString('en-US')} mã chưa xác định phân loại (không khớp HEX / mã SAP bên sản xuất).</>}
-          </p>
+        <Card title="Tuổi tồn (tháng) · tỷ" right={<Chu items={KH} />}>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={duLieuD} margin={{ top: 24, right: 8, left: -12, bottom: 0 }}>
+              <CartesianGrid stroke="#eef2f6" vertical={false} />
+              <ReferenceArea x1="7" x2="?" fill="#fef2f2" fillOpacity={1} label={{ value: '> 6 tháng', position: 'insideTopLeft', fontSize: 13, fontWeight: 700, fill: '#dc2626' }} />
+              <XAxis dataKey="nhan" tick={{ ...truc, fontSize: 12, fontWeight: 600 }} tickLine={false} axisLine={{ stroke: '#cbd5e1' }} interval={0} />
+              <YAxis tick={truc} tickLine={false} axisLine={false} width={40} />
+              <Tooltip formatter={(v: number, k: string) => [`${v.toFixed(2)} tỷ`, k === 'sun' ? 'Sun Group' : k === 'khac' ? 'Khách khác' : 'Không PSA']} labelFormatter={l => `${l} tháng`} />
+              <Bar dataKey="sun" stackId="h" fill={MAU.sun} isAnimationActive={false} />
+              <Bar dataKey="khac" stackId="h" fill={MAU.khac} isAnimationActive={false} />
+              <Bar dataKey="kpsa" stackId="h" fill={MAU.kpsa} isAnimationActive={false}>
+                <LabelList dataKey="tong" position="top" formatter={(v: number) => (v >= tong.v / 1000 * 0.03 ? so1(v) : '')} style={{ fontSize: 12, fontWeight: 700, fill: '#334155' }} />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 
-      {/* ---- Công trình ---- */}
-      <Card title="Công trình tồn nhiều nhất" cap="Sắp theo giá trị · thanh đỏ = phần > 6 tháng · bấm tên → danh sách mã của công trình">
+      {/* ---- C · treemap trạng thái ---- */}
+      <Card title="Trạng thái tồn (tỷ)" right={thangMau}>
+        <div className="relative h-[300px] w-full">
+          {oTree.map(o => {
+            const p = o.v ? o.tren6 / o.v : 0, dam = p >= 0.5, info = NHOM[o.k];
+            const lon = o.w >= 150 && o.h >= 100, vua = o.w >= 70 && o.h >= 50;
+            return (
+              <div key={o.k} title={`${info.ten}: ${ty(o.v)} tỷ · > 6 tháng ${(p * 100).toFixed(0)}% · ${info.ai}`}
+                className={`absolute flex flex-col overflow-hidden rounded-md border-2 border-white p-3 ${dam ? 'text-white' : 'text-slate-900'}`}
+                style={{ left: `${o.x / 10}%`, top: `${(o.y / 300) * 100}%`, width: `${o.w / 10}%`, height: `${(o.h / 300) * 100}%`, background: mauCu(p) }}>
+                {lon ? (<>
+                  <p className="text-sm font-bold leading-tight">{info.ten}</p>
+                  <p className="mt-1 text-2xl font-extrabold tabular-nums">{ty(o.v)}</p>
+                  <p className="text-sm font-semibold">{(p * 100).toFixed(0)}% &gt; 6 tháng</p>
+                </>) : vua ? (<>
+                  <p className="text-xs font-bold leading-tight">{info.ten}</p>
+                  <p className="text-base font-extrabold tabular-nums">{ty(o.v)}</p>
+                </>) : <p className="text-xs font-bold tabular-nums">{ty(o.v)}</p>}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* ---- E · ma trận + F · bản đồ nhiệt ---- */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Card title="Ưu tiên công trình" right={<Chu items={[['Tăng', MAU.cam, 'o'], ['Giảm', MAU.xanh, 'o'], ['Ổn định', '#94a3b8', 'o']]} />}>
+          <ResponsiveContainer width="100%" height={380}>
+            <ScatterChart margin={{ top: 16, right: 20, left: -4, bottom: 8 }}>
+              <CartesianGrid stroke="#eef2f6" />
+              <ReferenceArea x1={nguongX} y1={50} y2={105} fill="#fef2f2" fillOpacity={1} stroke="none" ifOverflow="extendDomain" label={{ value: 'LỚN & CŨ', position: 'insideBottomRight', fontSize: 13, fontWeight: 800, fill: '#dc2626' }} />
+              <ReferenceArea x1={nguongX} y1={0} y2={50} fill="#fff" fillOpacity={0} stroke="none" label={{ value: 'LỚN, CÒN MỚI', position: 'insideTopRight', fontSize: 13, fontWeight: 800, fill: '#d97706' }} />
+              <ReferenceLine x={nguongX} stroke="#cbd5e1" strokeDasharray="5 4" />
+              <ReferenceLine y={50} stroke="#cbd5e1" strokeDasharray="5 4" />
+              <XAxis type="number" dataKey="x" name="Tồn" domain={[0, (max: number) => Math.ceil(max * 1.1 / 5) * 5]} tick={truc} tickLine={false} tickFormatter={v => `${v} tỷ`} />
+              <YAxis type="number" dataKey="y" name="> 6 tháng" domain={[0, 105]} ticks={[0, 25, 50, 75, 100]} tick={truc} tickLine={false} width={48} tickFormatter={v => `${v}%`} />
+              <Tooltip cursor={{ strokeDasharray: '3 3' }} content={({ payload }) => {
+                const d = payload?.[0]?.payload as typeof diem[number] | undefined;
+                if (!d) return null;
+                return <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm shadow"><b>{tenNgan(d.name)}</b><br />{so1(d.x)} tỷ · {d.y.toFixed(0)}% &gt; 6 tháng</div>;
+              }} />
+              <Scatter data={diem} isAnimationActive={false} onClick={(d: any) => onOpenProject?.(d?.name)} className={onOpenProject ? 'cursor-pointer' : ''}
+                shape={(p: any) => {
+                  const d = p.payload as typeof diem[number];
+                  return (
+                    <g>
+                      <circle cx={p.cx} cy={p.cy} r={d.r} fill={d.mau} fillOpacity={0.8} stroke="#fff" strokeWidth={1.5} />
+                      {d.nhan && <text x={p.cx + (d.nhan === 'L' ? -d.r - 4 : d.nhan === 'R' ? d.r + 4 : 0)} y={p.cy + (d.nhan === 'T' ? -d.r - 5 : d.nhan === 'B' ? d.r + 14 : 4)}
+                        textAnchor={d.nhan === 'L' ? 'end' : d.nhan === 'R' ? 'start' : 'middle'} fontSize={12} fontWeight={700} fill="#0f172a">{d.ten}</text>}
+                    </g>
+                  );
+                }} />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card title="Công trình theo tháng (tỷ)" right={thangMau}>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] border-separate border-spacing-0.5 text-sm">
+              <thead><tr className="text-sm text-slate-600">
+                <th className="py-1 text-left font-bold">Công trình</th>
+                {ngayNhiet.map(d => <th key={d} className="py-1 font-bold">{d === data.date ? ngay(d) : thang(d)}</th>)}
+                <th />
+              </tr></thead>
+              <tbody>
+                {nhiet.map(c => (
+                  <tr key={c.name}>
+                    <td className="max-w-[180px] truncate py-0.5 pr-2">{tenCt(c.name, 'font-semibold text-slate-800')}</td>
+                    {c.thang!.map(x => {
+                      const p = x.v > 0 ? x.tren6 / x.v : 0;
+                      return <td key={x.d} className={`rounded px-1 py-1.5 text-center text-sm font-bold tabular-nums ${p >= 0.5 ? 'text-white' : 'text-slate-800'}`} style={{ background: x.co ? mauCu(p) : '#f8fafc' }}>{x.co ? so1(x.v / 1000) : '–'}</td>;
+                    })}
+                    <td className="px-1"><Spark vals={c.thang!.map(x => x.v)} mau={c.thang![c.thang!.length - 1].v > (c.thang![c.thang!.length - 3]?.v ?? 0) ? MAU.cam : MAU.xanh} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {onXemTheoCongTrinh && <button type="button" onClick={onXemTheoCongTrinh} className="mt-2 text-sm font-semibold text-blue-700 hover:underline">Xem {t.soCt} công trình →</button>}
+        </Card>
+      </div>
+
+      {/* ---- G · khách hàng + khu vực ---- */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Card title="Khách hàng" right={<Chu items={KH} />}>
+          <div className="space-y-4">
+            {data.sunDon !== null && bar100('Đơn chưa nhập kho', [{ v: data.sunDon, mau: MAU.sun, chu: `${(data.sunDon * 100).toFixed(0)}%` }, { v: 1 - data.sunDon, mau: MAU.khac }])}
+            {(['v', 'tren6'] as const).map(f => <React.Fragment key={f}>{bar100(f === 'v' ? `Tồn ${ty(tong.v)}` : `> 6 tháng ${ty(tong.tren6)}`,
+              (['sun', 'khac', 'kpsa'] as const).map(k => {
+                const x = data.khach.find(q => q.k === k)?.[f] ?? 0, s = f === 'v' ? tong.v : tong.tren6;
+                return { v: x, mau: MAU[k], chu: k === 'sun' ? `${pt(x, s).toFixed(0)}%` : undefined };
+              }))}</React.Fragment>)}
+          </div>
+        </Card>
+
+        <Card title="Khu vực (tỷ)" right={<Chu items={[['≤ 6 tháng', '#cbd5e1'], ['> 6 tháng', MAU.cu]]} />}>
+          {(() => {
+            const kv = data.khuVuc.filter(x => x.v >= tong.v * 0.005);
+            const max = Math.max(1, ...kv.map(x => x.v));
+            const ten = (k: string) => k === '(LẺ)' ? 'Hàng lẻ / Showroom' : k === '(TRỐNG)' ? 'Chưa có khu vực' : k.charAt(0) + k.slice(1).toLowerCase();
+            return (
+              <table className="w-full text-sm"><tbody>
+                {kv.map(x => {
+                  const r = pt(x.tren6, x.v);
+                  return (
+                    <tr key={x.k}>
+                      <td className="w-40 py-1.5 pr-2 text-right font-semibold text-slate-800">{ten(x.k)}</td>
+                      <td className="py-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-5 overflow-hidden rounded" style={{ width: `${(x.v / max) * 70}%` }}>
+                            <div className="h-full bg-slate-300" style={{ width: `${100 - r}%` }} />
+                            <div className={`h-full ${r >= 50 ? 'bg-red-700' : 'bg-red-500'}`} style={{ width: `${r}%` }} />
+                          </div>
+                          <b className="text-base tabular-nums">{ty(x.v)}</b>
+                        </div>
+                      </td>
+                      <td className={`w-16 py-1.5 text-right text-base tabular-nums ${r >= 50 ? 'font-bold text-red-700' : r >= 30 ? 'font-bold text-amber-700' : 'text-slate-500'}`}>{r.toFixed(0)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody></table>
+            );
+          })()}
+        </Card>
+      </div>
+
+      {/* ---- việc cần làm ---- */}
+      <Card title="Việc cần làm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead><tr className="border-b border-slate-200 text-left text-xs uppercase text-slate-500">
-              <th className="py-2 font-semibold">#</th><th className="py-2 font-semibold">Công trình</th><th className="py-2 text-right font-semibold">Tồn (tỷ)</th>
-              <th className="py-2 pl-4 font-semibold">Cơ cấu tuổi</th><th className="py-2 text-right font-semibold">&gt; 6 tháng</th><th className="py-2 text-right font-semibold">Tuổi TB</th><th className="py-2 pl-4 font-semibold">Đánh giá</th>
+              <th className="w-6 py-2" /><th className="py-2 font-bold">Việc</th><th className="py-2 text-right font-bold">Tỷ</th>
+              <th className="py-2 pl-5 font-bold">Cần làm</th><th className="py-2 pl-4 font-bold">Ai</th>
             </tr></thead>
             <tbody>
-              {top.map((c, i) => {
-                const r = pt(c.tren6, c.v);
-                const [nhan, cls] = danhGia(c);
-                return (
-                  <tr key={c.name} className="border-b border-slate-100">
-                    <td className="py-2.5 text-slate-500">{i + 1}</td>
-                    <td className="py-2.5">
-                      {onOpenProject ? <button type="button" onClick={() => onOpenProject(c.name)} className="text-left font-bold text-slate-800 hover:text-blue-700 hover:underline">{c.name}</button> : <b>{c.name}</b>}
-                    </td>
-                    <td className="py-2.5 text-right font-bold tabular-nums">{ty(c.v)}</td>
-                    <td className="py-2.5 pl-4">
-                      <div className="relative h-2.5 w-44 overflow-hidden rounded bg-slate-200">
-                        <div className="absolute inset-y-0 left-0 bg-slate-700" style={{ width: `${(c.v / ctMax) * 100}%` }} />
-                        <div className="absolute inset-y-0 left-0 bg-red-600" style={{ width: `${(c.tren6 / ctMax) * 100}%` }} />
-                      </div>
-                    </td>
-                    <td className={`py-2.5 text-right tabular-nums ${r >= 50 ? 'font-bold text-red-600' : r >= 20 ? 'font-bold text-amber-700' : 'text-slate-600'}`}>
-                      {c.tren6 < 0.5 ? '0' : r >= 20 ? `${ty(c.tren6)} (${r.toFixed(0)}%)` : ty(c.tren6)}
-                    </td>
-                    <td className="py-2.5 text-right tabular-nums">{c.tuoiTb === null ? '—' : `${c.tuoiTb.toFixed(1)} th`}</td>
-                    <td className="py-2.5 pl-4"><span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${cls}`}>{nhan}</span></td>
-                  </tr>
-                );
-              })}
+              {viec.map((x, i) => (
+                <tr key={i} className="border-b border-slate-100">
+                  <td className="py-2.5"><i className="block h-3 w-3 rounded-full" style={{ background: x.mau }} /></td>
+                  <td className="py-2.5 font-bold text-slate-800">{x.ten}</td>
+                  <td className="py-2.5 text-right text-base font-extrabold tabular-nums">{ty(x.tyV)}</td>
+                  <td className="py-2.5 pl-5 text-slate-700">{x.lam}</td>
+                  <td className="whitespace-nowrap py-2.5 pl-4 font-semibold text-slate-600">{x.ai}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-        {conLai.length > 0 && (
-          <p className="mt-2 text-sm text-slate-500">
-            … {conLai.length} công trình khác · {ty(conLai.reduce((s, c) => s + c.v, 0))} tỷ
-            {onXemTheoCongTrinh && <> — <button type="button" onClick={onXemTheoCongTrinh} className="font-semibold text-blue-700 hover:underline">xem tab "Theo công trình"</button></>}
-          </p>
-        )}
       </Card>
     </div>
   );

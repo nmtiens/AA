@@ -54,7 +54,7 @@ function WrappedYAxisTick(props: any) {
   const startY = -(totalHeight / 2) + lineHeight / 2;
 
   return (
-    <text x={x} y={y} textAnchor="end" fill="#64748b" fontSize={fontSize}>
+    <text x={x} y={y} textAnchor="end" fill="#334155" fontSize={fontSize}>
       {lines.map((line, i) => (
         <tspan key={i} x={x} dy={i === 0 ? startY : lineHeight}>
           {line}
@@ -65,12 +65,12 @@ function WrappedYAxisTick(props: any) {
 }
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
-  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Giá trị (tỷ)' },
+  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Giá trị (tỷ)' },
+  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Giá trị (tỷ)' },
+  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Giá trị (tỷ)' },
+  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho', unitValue: 'Giá trị (tỷ)' },
+  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Giá trị (tỷ)' },
 };
 
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
@@ -110,7 +110,7 @@ function PinnedPopover({ x, y, containerWidth, containerHeight, label, value, un
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
-            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-xs font-semibold"
+            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-sm font-semibold"
           >
             <Eye size={13} /> Xem chi tiết
           </button>
@@ -158,7 +158,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -250,7 +250,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
   }, [raw, displayMode, hasValidRange]);
 
   const maxCharsPerLine = embedded ? 18 : 24;
-  const yAxisFontSize = embedded ? 9 : 10;
+  const yAxisFontSize = 12;
   const yAxisWidth = maxCharsPerLine * (yAxisFontSize * 0.62) + 16;
 
   const maxLinesNeeded = useMemo(() => {
@@ -312,15 +312,9 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          Xu hướng {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
+          {theme.label} theo công trình {topN ? `(Top ${topN})` : ''}
         </h4>
       </div>
-
-      {isStock && (
-        <div className={`${embedded ? 'mb-3' : 'bg-white rounded-xl border border-slate-100 p-3 shadow-sm mb-4'} text-xs text-slate-400`}>
-          Dữ liệu tồn kho không có thông tin theo xưởng, chỉ lọc theo công trình.
-        </div>
-      )}
 
       <div
         ref={chartWrapRef}
@@ -329,7 +323,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
       >
         {!hasValidRange ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-            Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
+            Chọn khoảng ngày
           </div>
         ) : loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
@@ -345,7 +339,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
               <XAxis
                 type="number"
                 tickFormatter={fmt}
-                tick={{ fontSize: 10, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: '#475569' }}
               />
               <YAxis
                 type="category"
@@ -359,7 +353,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                 labelFormatter={(l) => `Công trình: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
-              <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: embedded ? 11 : 13 }} />
+              <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: 13 }} />
               <Bar
                 dataKey="total"
                 name={unit}
@@ -374,7 +368,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                     fill={pinned?.point.congTrinhCode === entry.congTrinhCode ? theme.barDark : theme.bar}
                   />
                 ))}
-                <LabelList dataKey="total" position="right" formatter={(v: number) => v > 0 ? fmt(v) : ''} fontSize={embedded ? 9 : 10} fill={theme.barDark} />
+                <LabelList dataKey="total" position="right" formatter={(v: number) => v > 0 ? fmt(v) : ''} fontSize={12} fontWeight={700} fill={theme.barDark} />
               </Bar>
               {chartData.length > 0 && (
                 <ReferenceLine
@@ -384,13 +378,13 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB theo CT: ${fmtShort(avgAll)}`;
+                    const text = `TB: ${fmtShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x}
                         y={viewBox.y - 6}
                         textAnchor="middle"
-                        fontSize={embedded ? 10 : 11}
+                        fontSize={12}
                         fontWeight={600}
                         fill="#16a34a"
                       >
@@ -407,7 +401,7 @@ export default function ByCongTrinhChart({ source, embedded = false, displayMode
         )}
         {chartData.length > 0 && !loading && (
           <div
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
             style={{
               color: theme.barDark,
               borderColor: theme.bar,

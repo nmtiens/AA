@@ -67,10 +67,6 @@ export const BopM2Section = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: strin
   });
   const [dangDoc, setDangDoc] = useState(false);
   const [loi, setLoi] = useState<string | null>(null);
-  const [nhuCau, setNhuCau] = useState(TAT_CA);
-  const [ipo, setIpo] = useState<string | null>(null); // null = mặc định của file
-  const [oVl, setOVl] = useState<ChonO>(null);
-  const [oHex, setOHex] = useState<ChonO>(null);
   const oFile = useRef<HTMLInputElement>(null);
   // 'tai' = đang hỏi DB; 'db' = đang hiện dữ liệu DB; 'khong' = DB chưa có công trình này
   const [nguonDb, setNguonDb] = useState<'tai' | 'db' | 'khong'>(() => {
@@ -107,19 +103,6 @@ export const BopM2Section = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: strin
     try { localStorage.removeItem(khoaLuu(tenCongTrinh)); } catch { /* bỏ qua */ }
   };
 
-  // II. BOM theo danh mục vật liệu — Count of CODE VẬT LIỆU (dòng CODE trống không đếm)
-  const vl = useMemo(() => (duLieu?.vatLieu ?? []).filter(v => v.code), [duLieu]);
-  const dsNhuCau = useMemo(() => giaTriLoc(vl, (v: VatLieuM2) => v.nhuCau), [vl]);
-  const vlLoc = useMemo(() => vl.filter(v => nhuCau === TAT_CA || (v.nhuCau || TRONG_M2) === nhuCau), [vl, nhuCau]);
-  const bangVl = useMemo(() => pivotM2(vlLoc, v => v.nhom, v => v.m), [vlLoc]);
-
-  // 3/ Tình trạng vật tư theo đơn hàng — Count of HEX, lọc TÌNH TRẠNG IPO FINAL
-  const hex = useMemo(() => duLieu?.hex ?? [], [duLieu]);
-  const dsIpo = useMemo(() => giaTriLoc(hex, (h: HexM2) => h.ipo), [hex]);
-  const ipoChon = ipo ?? (dsIpo.includes(MAC_DINH_IPO) ? MAC_DINH_IPO : TAT_CA);
-  const hexLoc = useMemo(() => hex.filter(h => ipoChon === TAT_CA || (h.ipo || TRONG_M2) === ipoChon), [hex, ipoChon]);
-  const bangHex = useMemo(() => pivotM2(hexLoc, h => h.nhomSp, h => h.final), [hexLoc]);
-
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -142,13 +125,42 @@ export const BopM2Section = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: strin
       </div>
       {loi && <p className="rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">{loi}</p>}
 
-      {duLieu && (<>
+      {duLieu && <HaiBangBom duLieu={duLieu} onHexClick={onHexClick} />}
+    </div>
+  );
+};
+
+/** 2 pivot của tab BOM (II. BOM theo danh mục vật liệu + 3/ Tình trạng vật tư theo đơn hàng) trên 1 bộ dữ liệu */
+const HaiBangBom = ({ duLieu, onHexClick, coCt = false }: {
+  duLieu: Pick<DuLieuM2, 'hex' | 'vatLieu'>; onHexClick?: (hex: string) => void;
+  /** Nhiều công trình: danh sách chi tiết có thêm cột CÔNG TRÌNH */
+  coCt?: boolean;
+}) => {
+  const [nhuCau, setNhuCau] = useState(TAT_CA);
+  const [ipo, setIpo] = useState<string | null>(null); // null = mặc định của file
+  const [oVl, setOVl] = useState<ChonO>(null);
+  const [oHex, setOHex] = useState<ChonO>(null);
+  // II. BOM theo danh mục vật liệu — Count of CODE VẬT LIỆU (dòng CODE trống không đếm)
+  const vl = useMemo(() => (duLieu?.vatLieu ?? []).filter(v => v.code), [duLieu]);
+  const dsNhuCau = useMemo(() => giaTriLoc(vl, (v: VatLieuM2) => v.nhuCau), [vl]);
+  const vlLoc = useMemo(() => vl.filter(v => nhuCau === TAT_CA || (v.nhuCau || TRONG_M2) === nhuCau), [vl, nhuCau]);
+  const bangVl = useMemo(() => pivotM2(vlLoc, v => v.nhom, v => v.m), [vlLoc]);
+
+  // 3/ Tình trạng vật tư theo đơn hàng — Count of HEX, lọc TÌNH TRẠNG IPO FINAL
+  const hex = useMemo(() => duLieu?.hex ?? [], [duLieu]);
+  const dsIpo = useMemo(() => giaTriLoc(hex, (h: HexM2) => h.ipo), [hex]);
+  const ipoChon = ipo ?? (dsIpo.includes(MAC_DINH_IPO) ? MAC_DINH_IPO : TAT_CA);
+  const hexLoc = useMemo(() => hex.filter(h => ipoChon === TAT_CA || (h.ipo || TRONG_M2) === ipoChon), [hex, ipoChon]);
+  const bangHex = useMemo(() => pivotM2(hexLoc, h => h.nhomSp, h => h.final), [hexLoc]);
+
+  return (
+    <>
         <section className="space-y-2">
           <h3 className="text-lg font-bold text-red-600">II. BOM - THEO DANH MỤC VẬT LIỆU (BOP-M2)</h3>
           <Loc nhan="PHÂN LOẠI NHU CẦU ĐẶT MUA" gia={nhuCau} ds={dsNhuCau} onDoi={v => { setNhuCau(v); setOVl(null); }} />
           <Pivot cotDong="NHÓM VẬT TƯ" p={bangVl} chon={oVl} onChon={setOVl} />
           {oVl ? (
-            <ChiTiet tieuDe={`Chi tiết vật liệu: ${tenO(oVl)}`} cot={COT_VL} onDong={() => setOVl(null)}
+            <ChiTiet tieuDe={`Chi tiết vật liệu: ${tenO(oVl)}`} cot={coCt ? [['CÔNG TRÌNH', v => v.ct ?? ''], ...COT_VL] : COT_VL} onDong={() => setOVl(null)}
               ds={vlLoc.filter(khopO(oVl, (v: VatLieuM2) => v.nhom, v => v.m))} />
           ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng để xem danh sách vật liệu.</p>}
         </section>
@@ -158,12 +170,67 @@ export const BopM2Section = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: strin
           <Loc nhan="TÌNH TRẠNG IPO FINAL" gia={ipoChon} ds={dsIpo} onDoi={v => { setIpo(v); setOHex(null); }} />
           <Pivot cotDong="PHÂN LOẠI NHÓM SẢN PHẨM" p={bangHex} chon={oHex} onChon={setOHex} />
           {oHex ? (
-            <ChiTiet tieuDe={`Chi tiết HEX: ${tenO(oHex)}`} cot={COT_HEX} onDong={() => setOHex(null)} onHex={onHexClick}
+            <ChiTiet tieuDe={`Chi tiết HEX: ${tenO(oHex)}`} cot={coCt ? [['CÔNG TRÌNH', h => h.ct ?? ''], ...COT_HEX] : COT_HEX} onDong={() => setOHex(null)} onHex={onHexClick}
               ds={hexLoc.filter(khopO(oHex, (h: HexM2) => h.nhomSp, h => h.final))} />
           ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng để xem danh sách HEX.</p>}
         </section>
 
-      </>)}
+    </>
+  );
+};
+
+// ============================================================================
+// BOM cho TẤT CẢ công trình đang xem (trang Báo cáo tiến độ công trình): cùng 2 pivot, gộp mọi công trình đã nạp
+// BOP-M2 vào DB (GET /api/bop-m2/nhieu). Công trình chưa nạp file thì không có số.
+// ============================================================================
+type KqNhieu = { khoa: string; soCt: number; duLieu: Pick<DuLieuM2, 'hex' | 'vatLieu'> };
+// Nhớ kết quả /api/bop-m2/nhieu theo danh sách mã công trình trong phiên (5 phút): chuyển qua lại tab Tổng quan /
+// BOP / BOT / BOM không tải lại; trang gọi taiTruocBomTatCa lúc mở để bấm BOM là có số ngay
+const boNhoNhieu = new Map<string, { luc: number; kq?: KqNhieu; dangTai?: Promise<KqNhieu> }>();
+const khoaMa = (tenCongTrinh: string[]) => [...new Set(tenCongTrinh.map(maCtOf).filter((x): x is string => !!x))].sort().join(',');
+export const taiTruocBomTatCa = (tenCongTrinh: string[]): Promise<KqNhieu> | null => {
+  const khoa = khoaMa(tenCongTrinh);
+  if (!khoa) return null;
+  const e = boNhoNhieu.get(khoa);
+  if (e && Date.now() - e.luc < NHO_MS) return e.dangTai ?? Promise.resolve(e.kq!);
+  const dangTai = fetch(`${API_BASE_URL}/bop-m2/nhieu?cts=${encodeURIComponent(khoa)}`)
+    .then(r => (r.ok ? r.json() : Promise.reject(new Error(`Lỗi ${r.status}`))))
+    .then((d: { soCt: number; hex: HexM2[]; vatLieu: VatLieuM2[] }) => {
+      const kq: KqNhieu = { khoa, soCt: d.soCt, duLieu: { hex: d.hex ?? [], vatLieu: d.vatLieu ?? [] } };
+      boNhoNhieu.set(khoa, { luc: Date.now(), kq });
+      if (boNhoNhieu.size > 6) boNhoNhieu.delete(boNhoNhieu.keys().next().value!);
+      return kq;
+    })
+    .catch(err => { boNhoNhieu.delete(khoa); throw err; });
+  boNhoNhieu.set(khoa, { luc: Date.now(), dangTai });
+  return dangTai;
+};
+
+export const BomTatCa = ({ tenCongTrinh, onHexClick }: { tenCongTrinh: string[]; onHexClick?: (hex: string) => void }) => {
+  const khoa = useMemo(() => khoaMa(tenCongTrinh), [tenCongTrinh]);
+  const ma = khoa ? khoa.split(',') : [];
+  const [kq, setKq] = useState<KqNhieu | null>(() => boNhoNhieu.get(khoa)?.kq ?? null);
+  const [loi, setLoi] = useState<string | null>(null);
+  useEffect(() => {
+    if (!khoa) return;
+    let bo = false;
+    setLoi(null);
+    const co = boNhoNhieu.get(khoa)?.kq;
+    if (co) { setKq(co); return; }
+    taiTruocBomTatCa(tenCongTrinh)?.then(k => { if (!bo) setKq(k); })
+      .catch(e => { if (!bo) setLoi(e instanceof Error ? e.message : String(e)); });
+    return () => { bo = true; };
+  }, [khoa]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dangTai = !!khoa && kq?.khoa !== khoa && !loi;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-500">
+        {!khoa ? 'Không có công trình nào có mã CTxx-xxx trong phạm vi đang xem.'
+          : loi ? <span className="text-red-600">Không tải được BOP-M2 ({loi}).</span>
+          : dangTai ? 'Đang tải BOP-M2 của các công trình…'
+          : <>Gộp <b className="text-slate-800">{kq!.soCt}</b> / {ma.length} công trình đã nạp file BOP-M2 vào DB · {kq!.duLieu.hex.length.toLocaleString('en-US')} HEX · {kq!.duLieu.vatLieu.length.toLocaleString('en-US')} dòng vật liệu</>}
+      </p>
+      {kq && kq.khoa === khoa && <HaiBangBom key={khoa} duLieu={kq.duLieu} onHexClick={onHexClick} coCt />}
     </div>
   );
 };

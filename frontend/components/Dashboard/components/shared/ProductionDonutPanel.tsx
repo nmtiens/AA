@@ -118,7 +118,7 @@ function layoutSliceLabels(
   }
 
   // Cột 2 bên: giãn dọc tối thiểu VGAP, không ra khỏi khung
-  const VGAP = 13;   // > chiều cao chữ để không đè
+  const VGAP = 16;   // > chiều cao chữ để không đè (nhãn bản to 12.5px)
   for (const side of [1, -1] as const) {
     const list = out.filter(l => l.zone === 'side' && l.side === side).sort((a, b) => a.y - b.y);
     const ys = spreadCentered(list.map(l => l.y), VGAP, 6, height - 6);
@@ -170,8 +170,8 @@ interface DonutProps {
 const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf, metric, large = false, hideTitle = false }) => {
   const sum = data.reduce((s, d) => s + d.value, 0);
   // Khung vẽ rộng hơn vòng tròn để có chỗ cho nhãn ngoài
-  const W = large ? 272 : 200, H = large ? 224 : 168;
-  const OUTER = large ? 86 : 62, INNER = large ? 50 : 36, PAD = 1;
+  const W = large ? 360 : 200, H = large ? 290 : 168;
+  const OUTER = large ? 112 : 62, INNER = large ? 68 : 36, PAD = 1;
   const labels = useMemo(
     () => layoutSliceLabels(data.map(d => d.value), W / 2, H / 2, INNER, OUTER, W, H, PAD),
     [data, W, H, INNER, OUTER],
@@ -183,7 +183,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
     if (l.zone === 'inside') {
       return (
         <text x={l.x} y={l.y} fill="#ffffff" textAnchor="middle" dominantBaseline="central"
-              fontSize={large ? 11 : 10} fontWeight={600} opacity={dim ? 0.5 : 1} pointerEvents="none">
+              fontSize={large ? 13 : 10} fontWeight={700} opacity={dim ? 0.5 : 1} pointerEvents="none">
           {l.text}
         </text>
       );
@@ -203,7 +203,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
         <polyline points={`${p1.join(',')} ${p2.join(',')} ${p3.join(',')}`} fill="none" stroke={p.fill} strokeWidth={1} />
         <circle cx={p1[0]} cy={p1[1]} r={2} fill={p.fill} stroke="#ffffff" strokeWidth={0.75} />
         <text x={l.x} y={l.y} textAnchor={anchor} dominantBaseline="central"
-              fontSize={large ? 10.5 : 9.5} fontWeight={600} fill="#334155">
+              fontSize={large ? 12.5 : 9.5} fontWeight={700} fill="#1e293b">
           {l.text}
         </text>
       </g>
@@ -218,7 +218,7 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
     <div className="flex-1 flex flex-col min-h-0 py-3 first:pt-0 last:pb-0">
       {!hideTitle && <p className="text-xs font-semibold text-slate-700 mb-2">{title}</p>}
       {data.length === 0 ? (
-        <p className="flex-1 flex items-center justify-center text-xs text-slate-400">Không có dữ liệu</p>
+        <p className="flex-1 flex items-center justify-center text-sm text-slate-500">Không có dữ liệu</p>
       ) : (
         // flex-wrap + chú thích rộng tối thiểu 8rem: khung hẹp thì chú thích xuống dưới vòng tròn thay vì bị bóp mất tên
         <div className="flex-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -262,14 +262,14 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                 {(() => {
                   const v = picked.length ? pickedSum : sum;
                   const txt = metric === 'count' ? fmtInt(v) : fmtTy(v);
-                  const size = txt.length <= 6 ? (large ? 16 : 12) : txt.length <= 8 ? (large ? 14 : 11) : (large ? 12 : 10);
+                  const size = txt.length <= 6 ? (large ? 24 : 12) : txt.length <= 8 ? (large ? 21 : 11) : (large ? 18 : 10);
                   return (
                     <span className="font-semibold tabular-nums text-slate-900 leading-tight" style={{ fontSize: size }}>
                       {txt}
                     </span>
                   );
                 })()}
-                <span className="text-[0.625rem] text-slate-500 leading-tight">
+                <span className={`${large ? 'text-sm' : 'text-[0.625rem]'} font-medium text-slate-600 leading-tight`}>
                   {picked.length
                     ? `${metric === 'count' ? '' : 'Tỷ · '}đã chọn ${((pickedSum / (sum || 1)) * 100).toFixed(1)}%`
                     : metric === 'count' ? 'hạng mục' : 'Tỷ'}
@@ -286,14 +286,14 @@ const Donut: React.FC<DonutProps> = ({ title, data, selected, onSelect, colorOf,
                   type="button"
                   onClick={() => onSelect(d.name)}
                   title={`${d.name}: ${fmtInt(d.cts.size)} công trình · ${fmtInt(d.items)} hạng mục · ${fmtTy(d.totalTy)} Tỷ`}
-                  className={`w-full flex items-center gap-2 rounded-md px-1.5 py-1 text-left ${large ? 'text-sm' : 'text-xs'} hover:bg-slate-50 ${selected.includes(d.name) ? 'bg-slate-100 font-semibold' : ''} ${isPicked(d.name) ? '' : 'opacity-50'} ${d.name === OTHERS ? 'cursor-default' : ''}`}
+                  className={`w-full flex items-center gap-2 rounded-md px-1.5 py-1 text-left ${large ? 'text-base' : 'text-xs'} hover:bg-slate-50 ${selected.includes(d.name) ? 'bg-slate-100 font-semibold' : ''} ${isPicked(d.name) ? '' : 'opacity-50'} ${d.name === OTHERS ? 'cursor-default' : ''}`}
                 >
                   <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: colorOf(d.name, i) }} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
                       <span className="truncate flex-1 text-slate-700">{d.name}</span>
                       <span className="tabular-nums font-semibold text-slate-900">{metric === 'count' ? fmtInt(d.value) : fmtTy(d.value)}</span>
-                      <span className="w-9 text-right tabular-nums text-slate-400">
+                      <span className={`${large ? 'w-12' : 'w-9'} text-right tabular-nums text-slate-600`}>
                         {sum > 0 ? ((d.value / sum) * 100 < 1 && d.value > 0 ? '<1%' : `${Math.round((d.value / sum) * 100)}%`) : '—'}
                       </span>
                     </span>
@@ -458,15 +458,12 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
     <div className={`${className} flex flex-col bg-white rounded-2xl border border-slate-200 p-5 lg:p-6 min-h-0`}>
       {/* Tiêu đề: cùng kiểu với thẻ phễu bên trái */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-slate-900">Nhóm đơn hàng</h3>
-          <p className="text-sm text-slate-500 mt-0.5 flex items-center gap-1">
-            Hạng mục đang theo dõi · bấm biểu đồ để lọc cả trang
-            <span title={MIX_SCOPE_HELP} aria-label={MIX_SCOPE_HELP} className="inline-flex cursor-help text-slate-400 hover:text-slate-600">
-              <Info size={14} />
-            </span>
-          </p>
-        </div>
+        <h3 className="flex items-center gap-1.5 text-lg font-semibold text-slate-900">
+          Nhóm đơn hàng
+          <span title={MIX_SCOPE_HELP} aria-label={MIX_SCOPE_HELP} className="inline-flex cursor-help text-slate-400 hover:text-slate-600">
+            <Info size={14} />
+          </span>
+        </h3>
         <div className="flex items-center gap-2 shrink-0">
           {onClear && (
             <button
@@ -496,13 +493,13 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
       {/* Dải tóm tắt phạm vi đang chọn — đổi ngay khi bấm vào lát */}
       {summary && (
         <div className={`mb-4 rounded-xl px-3 py-2.5 ${picked.length ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-slate-50'}`}>
-          <p className="text-[0.6875rem] text-slate-500 truncate" title={picked.join(' · ')}>
-            {picked.length
-              ? <>Đang chọn: <span className="font-semibold text-slate-800">{picked.join(' · ')}</span></>
-              : 'Tất cả (bấm vào biểu đồ để lọc)'}
-          </p>
-          {scopeNote && (
-            <p className="text-[0.6875rem] text-slate-500 truncate" title={scopeNote}>{scopeNote}</p>
+          {picked.length > 0 && (
+            <p className="text-sm text-slate-600 truncate" title={picked.join(' · ')}>
+              Đang chọn: <span className="font-semibold text-slate-800">{picked.join(' · ')}</span>
+            </p>
+          )}
+          {scopeNote && !/:\s*tất cả$/i.test(scopeNote) && (
+            <p className="text-sm text-slate-600 truncate" title={scopeNote}>{scopeNote}</p>
           )}
           <div className="mt-1.5 grid grid-cols-3 divide-x divide-slate-200 text-center">
             {[
@@ -511,9 +508,9 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
               { label: 'Giá trị', value: fmtTy(summary.totalTy), unit: 'Tỷ' },
             ].map(s => (
               <div key={s.label} className="px-1">
-                <p className="text-xs text-slate-500">{s.label}</p>
-                <p className="text-lg font-bold tabular-nums text-slate-900 leading-tight">
-                  {s.value}{s.unit && <span className="ml-0.5 text-[0.6875rem] font-medium text-slate-400">{s.unit}</span>}
+                <p className="text-sm text-slate-600">{s.label}</p>
+                <p className="text-xl font-bold tabular-nums text-slate-900 leading-tight">
+                  {s.value}{s.unit && <span className="ml-0.5 text-sm font-medium text-slate-600">{s.unit}</span>}
                 </p>
               </div>
             ))}
@@ -533,7 +530,7 @@ export const OrderMixCard: React.FC<OrderMixCardProps> = ({
           ))}
         </div>
         <div className="ml-auto pb-1.5">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-sm">
               {(['count', 'value'] as const).map(m => (
                 <button
                   key={m}

@@ -143,9 +143,9 @@ export default function YearPlanTable() {
     <div className="mb-8 bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3">
         <Target className="h-4 w-4 text-amber-600" />
-        <h4 className="text-sm font-bold uppercase tracking-wide text-slate-700">Kế hoạch năm – Thực hiện nhập kho</h4>
-        <span className="text-xs text-slate-500">
-          · Năm {year}{mode === 'total' ? (xuong ? ` · Xưởng ${xuong}` : ' · Tất cả xưởng') : ' · Theo khu vực sản xuất'} · Đơn vị: Tỷ đồng
+        <h4 className="text-base font-bold text-slate-800">KH năm – Nhập kho (tỷ)</h4>
+        <span className="text-sm font-semibold text-slate-600">
+          {year}{mode === 'total' && xuong ? ` · ${xuong}` : ''}
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-slate-200 p-0.5">
@@ -154,28 +154,28 @@ export default function YearPlanTable() {
                 key={k}
                 type="button"
                 onClick={() => setMode(k)}
-                className={`rounded-md px-2.5 py-0.5 text-xs font-semibold ${mode === k ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`rounded-md px-2.5 py-0.5 text-sm font-semibold ${mode === k ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
               >
                 {l}
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => setOpen(new Set(ALL_KEYS))} className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50">Mở hết</button>
-          <button type="button" onClick={() => setOpen(new Set(['y']))} className="rounded-md border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50">Thu gọn</button>
+          <button type="button" onClick={() => setOpen(new Set(ALL_KEYS))} className="rounded-md border border-slate-200 px-2 py-0.5 text-sm text-slate-700 hover:bg-slate-50">Mở hết</button>
+          <button type="button" onClick={() => setOpen(new Set(['y']))} className="rounded-md border border-slate-200 px-2 py-0.5 text-sm text-slate-700 hover:bg-slate-50">Thu gọn</button>
         </div>
       </div>
 
       {loading ? (
-        <p className="p-6 text-center text-sm text-slate-400">Đang tải…</p>
+        <p className="p-6 text-center text-sm text-slate-500">Đang tải…</p>
       ) : mode === 'total' ? (
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-500">
+          <thead className="bg-slate-50 text-sm text-slate-600">
             <tr>
               <th className="px-4 py-2 text-left font-medium">Kỳ</th>
-              <th className="px-4 py-2 text-right font-medium text-amber-700">Kế hoạch năm (tỷ)</th>
-              <th className="px-4 py-2 text-right font-medium text-teal-700">Thực hiện nhập kho (tỷ)</th>
+              <th className="px-4 py-2 text-right font-medium text-amber-700">Kế hoạch</th>
+              <th className="px-4 py-2 text-right font-medium text-teal-700">Thực hiện</th>
               <th className="w-56 px-4 py-2 text-left font-medium">% đạt</th>
-              <th className="px-4 py-2 text-right font-medium">Chênh lệch (tỷ)</th>
+              <th className="px-4 py-2 text-right font-medium">Chênh lệch</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -196,7 +196,7 @@ export default function YearPlanTable() {
                         <div className="h-1.5 flex-1 rounded-full bg-slate-100">
                           <div className={`h-1.5 rounded-full ${barTone(pct)}`} style={{ width: `${Math.min(100, pct)}%` }} />
                         </div>
-                        <span className="w-14 text-right text-xs tabular-nums">{pct.toFixed(1)}%</span>
+                        <span className="w-16 text-right text-sm font-semibold tabular-nums">{pct.toFixed(1)}%</span>
                       </div>
                     ) : <span className="text-xs text-slate-300">—</span>}
                   </td>
@@ -212,7 +212,7 @@ export default function YearPlanTable() {
         // Theo khu vực sản xuất: mỗi xưởng 3 cột KH / TH / % đạt, cuối bảng là Tổng
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500">
+            <thead className="bg-slate-50 text-sm text-slate-600">
               <tr>
                 <th rowSpan={2} className="sticky left-0 z-20 bg-slate-50 px-4 py-2 text-left font-medium">Kỳ</th>
                 {[...workshops, 'Tổng'].map(w => (
@@ -251,7 +251,7 @@ export default function YearPlanTable() {
                       <td className={`px-3 py-1.5 text-right tabular-nums text-teal-800 ${total ? 'bg-slate-50 font-semibold' : ''}`}>
                         {!started ? <span className="text-slate-300">—</span> : formatTy(th)}
                       </td>
-                      <td className={`px-3 py-1.5 text-right text-xs font-semibold tabular-nums ${total ? 'bg-slate-50' : ''} ${started && pct !== null ? pctTone(pct) : 'text-slate-300'}`}>
+                      <td className={`px-3 py-1.5 text-right text-sm font-semibold tabular-nums ${total ? 'bg-slate-50' : ''} ${started && pct !== null ? pctTone(pct) : 'text-slate-300'}`}>
                         {started && pct !== null ? `${pct.toFixed(1)}%` : '—'}
                       </td>
                     </React.Fragment>
@@ -269,12 +269,6 @@ export default function YearPlanTable() {
           </table>
         </div>
       )}
-      <p className="border-t border-slate-100 px-5 py-2 text-[0.6875rem] text-slate-500">
-        Kế hoạch: bảng khsx_nam (theo tháng × xưởng). Thực hiện: giá trị nhập kho (không tính hạng mục HỦY). Kỳ chưa tới chỉ hiện kế hoạch.
-        {mode === 'total'
-          ? ' Chế độ Tổng hợp theo bộ lọc Xưởng; bộ lọc công trình / ĐVT / nhóm SP không áp dụng vì kế hoạch năm không chia theo các tiêu chí đó.'
-          : ' Cột xưởng theo "Setup gộp xưởng" (các xưởng nhỏ gộp vào xưởng / nhóm KHÁC do ADMIN setup).'}
-      </p>
     </div>
   );
 }

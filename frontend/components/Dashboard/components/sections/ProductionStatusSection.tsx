@@ -52,12 +52,9 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
   
 
       <div className="flex flex-row justify-between items-start border-b border-slate-100 pb-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-semibold text-slate-700 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-wood-600" /> TÌNH TRẠNG SẢN XUẤT
-          </h3>
-          <p className="text-xs text-slate-500">Tổng hợp năng lực sản xuất hiện tại và phân bổ chi tiết theo xưởng</p>
-        </div>
+        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <Activity className="w-5 h-5 text-wood-600" /> TÌNH TRẠNG SẢN XUẤT
+        </h3>
         <button
           onClick={handleExportProductionStatus}
           className="p-1.5 text-slate-500 hover:text-wood-600 hover:bg-wood-50 rounded-lg transition-colors border border-slate-200"
@@ -69,8 +66,8 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
 
       <div>
         <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <Layers className="w-4 h-4 text-wood-500" /> 1. Phân tích Khả năng & Thành tiền
-          <span className="normal-case font-medium text-slate-400">(Tỷ đồng)</span>
+          <Layers className="w-4 h-4 text-wood-500" /> Khả năng sản xuất
+          <span className="normal-case font-semibold text-slate-600">(tỷ)</span>
         </h4>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-green-50/50 rounded-xl p-2 border border-green-100 flex flex-col gap-2">
@@ -145,14 +142,14 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
       <div ref={pivotWorkshopRef}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
           <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-            <TableIcon className="w-4 h-4 text-wood-500" /> 2. Chi tiết Giá trị (Tình Trạng x Khu vực sản xuất)
-            {workshopMetric !== 'COUNT_HEX' && <span className="normal-case font-medium text-slate-400">(Tỷ đồng)</span>}
+            <TableIcon className="w-4 h-4 text-wood-500" /> Tình trạng × Xưởng
+            {workshopMetric !== 'COUNT_HEX' && <span className="normal-case font-semibold text-slate-600">(tỷ)</span>}
           </h4>
           <MetricSwitcher current={workshopMetric} onChange={setWorkshopMetric} />
         </div>
         {pivotWorkshopData ? (
           <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
-            <table className="w-full text-xs text-right min-w-[900px]">
+            <table className="w-full text-sm text-right min-w-[900px]">
               <thead className="bg-wood-50 text-slate-700 font-semibold uppercase">
                 <tr>
                   <th className="px-3 py-2 text-left bg-wood-50 border-b border-wood-200 min-w-[150px]">
@@ -272,7 +269,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
                       {formatNumber(pivotWorkshopData.colTotals[w], workshopMetric)}
                     </td>
                   ))}
-                  <td className="px-3 py-2 text-wood-800 text-sm">
+                  <td className="px-3 py-2 text-wood-800 text-base">
                     {formatNumber(pivotWorkshopData.grandTotal, workshopMetric)}
                   </td>
                 </tr>
@@ -281,7 +278,7 @@ export const ProductionStatusSection: React.FC<ProductionStatusSectionProps> = (
           </div>
         ) : (
           <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
-            Không đủ dữ liệu hoặc thiếu cấu hình cột để tạo bảng Pivot.
+            Không có dữ liệu
           </div>
         )}
       </div>

@@ -564,16 +564,35 @@ export const fetchStockByProject = async (
   }
 };
 
+/** Nhóm trạng thái của dòng tồn (xem /api/stock/health): mỗi dòng vào nhóm đầu tiên khớp theo thứ tự này */
+export type StockNhom = 'huy' | 'daXuat' | 'khongPsa' | 'khongXuat' | 'chuaDongBo' | 'chuaXuat' | 'motPhan';
+
+/** Sức khoẻ tồn kho (triệu đồng). Tuổi tính từ ngày nhập kho; "cũ" = tuổi > 6 tháng */
 export interface StockHealth {
   date: string;
-  tong: { v: number; ma: number; congTrinh: number; dong: number; xuatHangTren6: number; kyGuiMa0: number };
-  /** a1 ≤1 tháng · a2 1–3 · a3 3–6 · a4 6–12 · a5 >12 · kr không rõ */
-  tuoi: Partial<Record<'a1' | 'a2' | 'a3' | 'a4' | 'a5' | 'kr', { v: number; ma: number }>>;
-  giao: { k: string; v: number; ma: number }[];
-  phanLoai: { k: string | null; v: number; ma: number; tren6: number }[];
-  congTrinh: { name: string; v: number; ma: number; tren6: number; tren12: number; tuoiTb: number | null }[];
-  /** Mọi lần chốt từ cuối năm trước tới ngày xem; tren6 = null khi lần chốt thiếu cột tuổi */
-  chuoi: { d: string; v: number; tren6: number | null }[];
+  /** ma = mã SAP có giá trị; chuaDongBo = mọi HEX chưa nhập kho đồng bộ (kể cả đã vào nhóm khác) */
+  tong: { v: number; ma: number; congTrinh: number; tren6: number; chuaDongBo: number };
+  /** Mọi lần chốt từ cuối năm trước tới ngày xem */
+  chuoi: { d: string; v: number; tren6: number; tuoiBq: number | null }[];
+  /** Lần chốt cuối mỗi tháng (tháng đang xem = ngày xem) */
+  cuoiThang: string[];
+  /** Cuối tháng cách 2 tháng — mốc so sánh cột "vTruoc" */
+  mocTruoc: string | null;
+  /** Hàng cũ giữa 2 lần chốt cuối tháng: vao = vừa vượt mốc 6 tháng, ra = hàng cũ không còn ở lần sau */
+  dongCu: { d0: string; d1: string; o0: number; o1: number; ra: number; vao: number }[];
+  nhom: { k: StockNhom; v: number; tren6: number; ma: number }[];
+  /** b = tuổi (tháng) 0–12, 13 = 13–18, 19 = 19–24, 25 = > 24, null = không có ngày nhập; kh: sun / khac / kpsa */
+  hist: { b: number | null; kh: string; v: number }[];
+  khach: { k: string; v: number; tren6: number; t46: number }[];
+  /** Tỷ trọng Sun Group trong giá trị đơn chưa nhập kho (PSA, bỏ HUỶ) */
+  sunDon: number | null;
+  khuVuc: { k: string; v: number; tren6: number; sun: number }[];
+  /** 15 công trình lớn nhất có thêm vTruoc / xuat60 / conSx; 10 công trình đầu có thang (6 lần chốt cuối tháng) */
+  congTrinh: {
+    name: string; mct: string[]; v: number; ma: number; tren6: number; xuatCuoi: string | null;
+    vTruoc: number | null; xuat60: number | null; conSx: number | null;
+    thang: { d: string; v: number; tren6: number; co: boolean }[] | null;
+  }[];
 }
 
 /** Sức khoẻ tồn kho tại 1 ngày chốt (cửa sổ Tồn kho, tab Tổng quan) */

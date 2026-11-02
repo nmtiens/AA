@@ -23,9 +23,9 @@ export const WeeklyVennDiagram = ({
   return (
     <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg border border-slate-200 shadow-sm h-full w-full">
       <div className="text-center mb-4">
-        <h3 className="text-lg font-bold text-slate-800">Mô phỏng Venn Diagram</h3>
-        <p className="text-sm font-medium text-slate-600">
-          (Tổng KH: {formatTy(totalPlan)} - Tổng TH: {formatTy(totalActual)} · Tỷ đồng)
+        <h3 className="text-lg font-bold text-slate-800">KH vs TH (tỷ)</h3>
+        <p className="text-base text-slate-600">
+          KH <b className="text-xl text-slate-900 tabular-nums">{formatTy(totalPlan)}</b> · TH <b className="text-xl text-slate-900 tabular-nums">{formatTy(totalActual)}</b>
         </p>
       </div>
 

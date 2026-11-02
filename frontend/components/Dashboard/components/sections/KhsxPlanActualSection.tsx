@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   Legend, ResponsiveContainer, BarChart, Bar, LabelList,
 } from 'recharts';
@@ -40,7 +41,7 @@ const ThStackLabel = ({ x, y, width, item }: { x?: number; y?: number; width?: n
   const percent = Math.round((item.thValue / item.khValue) * 100);
   const color = percent >= 80 ? '#059669' : percent >= 50 ? '#d97706' : '#dc2626';
   return (
-    <text x={x + width / 2} y={y - 5} fill={color} fontSize={10} fontWeight={700} textAnchor="middle">
+    <text x={x + width / 2} y={y - 5} fill={color} fontSize={12} fontWeight={700} textAnchor="middle">
       {percent}%
     </text>
   );
@@ -179,19 +180,11 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
             <div className="bg-gradient-to-br from-orange-500 to-indigo-600 p-2 rounded-lg text-white">
               <BarChart2 size={24} />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">Thống kê Tổng hợp: Kế hoạch & Nhập kho</h3>
-              <p className="text-xs text-slate-500">
-                So sánh trực quan giữa Kế hoạch (KH) và Thực tế (TH) với bộ lọc thời gian thống nhất
-              </p>
-            </div>
+            <h3 className="text-lg font-bold text-slate-800">Kế hoạch & Nhập kho</h3>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100">
-            <div className="flex items-center gap-2 mr-2">
-              <Filter size={14} className="text-slate-500" />
-              <span className="text-[0.625rem] font-bold text-slate-500 uppercase">BỘ LỌC THỜI GIAN CHUNG:</span>
-            </div>
+            <Filter size={16} className="text-slate-600" />
 
             <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-sm">
                {/* MỚI: Xem theo NĂM — bỏ mọi lọc Tháng/Tuần/Ngày, chỉ còn Năm */}
@@ -200,22 +193,22 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   setViewMode('YEAR');
                   setUnifiedTimeFilters((prev) => ({ ...prev, thang: [], tuan: [], ngay: [] }));
                 }}
-                className={`px-3 py-1 text-[0.625rem] font-bold rounded ${
+                className={`px-3 py-1 text-sm font-bold rounded ${
                   viewMode === 'YEAR' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                Xem theo NĂM
+                Năm
               </button>
               <button
                 onClick={() => {
                   setViewMode('MONTH');
                   setUnifiedTimeFilters((prev) => ({ ...prev, tuan: [], ngay: [] }));
                 }}
-                className={`px-3 py-1 text-[0.625rem] font-bold rounded ${
+                className={`px-3 py-1 text-sm font-bold rounded ${
                   viewMode === 'MONTH' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                Xem theo THÁNG
+                Tháng
               </button>
               <button
                 onClick={() => {
@@ -227,11 +220,11 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                     return prev;
                   });
                 }}
-                className={`px-3 py-1 text-[0.625rem] font-bold rounded ${
+                className={`px-3 py-1 text-sm font-bold rounded ${
                   viewMode === 'WEEK' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                Xem theo TUẦN
+                Tuần
               </button>
             </div>
 
@@ -290,15 +283,15 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
         {viewMode === 'YEAR' ? (
   <div className="bg-slate-50/50 rounded-xl border border-slate-200 p-4" ref={inventorySectionRef}>
     <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2 uppercase tracking-wide">
-      <BarChart2 className="w-4 h-4 text-emerald-600" /> Phân bổ Kế hoạch theo Xưởng ({selectedRevenueYearLabel})
+      <BarChart2 className="w-4 h-4 text-emerald-600" /> KH theo xưởng {selectedRevenueYearLabel} <span className="normal-case font-semibold text-slate-600">(tỷ)</span>
     </h4>
     {yearlyPlan2026WorkshopChartData.length > 0 ? (
       <div className="w-full h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={yearlyPlan2026WorkshopChartData} margin={{ top: 20, right: 30, left: 0, bottom: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
-                    <YAxis tickFormatter={(val) => formatTy(val)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 12, fill: '#475569' }} interval={0} />
+                    <YAxis tickFormatter={(val) => formatTy(val)} tick={{ fontSize: 12, fill: '#475569' }} />
                     <RechartsTooltip
                       formatter={(value: number, name: string) => [
                         `${formatTy(value)} Tỷ`,
@@ -307,10 +300,10 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                       cursor={{ fill: '#f8fafc' }}
                     />
                     <Legend verticalAlign="top" height={36} />
-                    <Bar dataKey="plan" name="Kế hoạch (Tỷ)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30}>
-                      <LabelList dataKey="plan" position="top" formatter={(val: number) => (val > 0 ? formatTy(val) : '')} fontSize={10} fill="#059669" />
+                    <Bar dataKey="plan" name="Kế hoạch" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30}>
+                      <LabelList dataKey="plan" position="top" formatter={(val: number) => (val > 0 ? formatTy(val) : '')} fontSize={12} fontWeight={700} fill="#059669" />
                     </Bar>
-                    <Bar dataKey="actual" name="Thực hiện (Tỷ)" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
+                    <Bar dataKey="actual" name="Thực hiện" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={30}>
                       <LabelList
                         dataKey="actual"
                         position="top"
@@ -322,9 +315,9 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           if (actual <= 0) return null;
                           const percent = plan > 0 ? (actual / plan) * 100 : 0;
                           return (
-                            <text x={x + width / 2} y={y - 15} fill="#2563eb" fontSize={10} textAnchor="middle">
+                            <text x={x + width / 2} y={y - 18} fill="#2563eb" fontSize={12} fontWeight={700} textAnchor="middle">
                               <tspan x={x + width / 2} dy="0">{formatTy(actual)}</tspan>
-                              <tspan x={x + width / 2} dy="12">({Math.round(percent)}%)</tspan>
+                              <tspan x={x + width / 2} dy="14">({Math.round(percent)}%)</tspan>
                             </text>
                           );
                         }}
@@ -334,8 +327,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                 </ResponsiveContainer>
               </div>
             ) : (
-                <div className="h-[200px] flex items-center justify-center text-slate-400">
-        Không có dữ liệu xưởng cho năm {selectedRevenueYearLabel}
+                <div className="h-[200px] flex items-center justify-center text-slate-500">
+        Không có dữ liệu {selectedRevenueYearLabel}
       </div>
             )}
           </div>
@@ -348,17 +341,14 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <div className="p-1.5 bg-orange-100 rounded text-orange-600">
                     <Calendar size={18} />
                   </div>
-                  <p className="text-xs font-bold text-orange-800 opacity-70 uppercase">Tổng KH Sản Xuất (Tỷ)</p>
+                  <p className="text-sm font-bold text-orange-800 uppercase">Kế hoạch (tỷ)</p>
                 </div>
                 <h4 className="text-2xl lg:text-3xl font-bold text-orange-600 tracking-tight">
                   {formatTy(totalKhsxAmount)}
                 </h4>
-                <div className="mt-1 text-[0.625rem] text-orange-800/60 italic">
-                  {`Chế độ xem: ${viewMode === 'MONTH' ? 'Theo Tháng' : 'Theo Tuần'}`}
-                </div>
                 {viewMode === 'MONTH' && weeklyKhFallback !== undefined && (
                   <div
-                    className="mt-1.5 rounded-md bg-amber-100/70 px-2 py-1 text-[0.6875rem] font-medium text-amber-800"
+                    className="mt-1.5 rounded-md bg-amber-100/70 px-2 py-1 text-sm font-medium text-amber-800"
                     title="Kỳ đang xem chưa nhập kế hoạch THÁNG (bảng KHSX). Số dưới đây là tổng kế hoạch TUẦN trong cùng kỳ — chuyển sang 'Xem theo TUẦN' để so KH tuần với thực hiện."
                   >
                     Chưa có KH tháng · KH tuần: {formatTy(weeklyKhFallback)} tỷ
@@ -371,7 +361,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                     <TrendingUp size={18} />
                   </div>
                   <p
-                    className="text-xs font-bold text-teal-800 opacity-70 uppercase"
+                    className="text-sm font-bold text-teal-800 uppercase"
                     title="Nhập kho của các hạng mục CÓ trong kế hoạch cùng kỳ ÷ tổng kế hoạch. Nhập kho của hạng mục ngoài kế hoạch không tính vào tỷ lệ."
                   >
                     Tỷ lệ NK theo KH / KH
@@ -409,12 +399,12 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   <div className="p-1.5 bg-indigo-100 rounded text-indigo-600">
                     <Import size={18} />
                   </div>
-                  <p className="text-xs font-bold text-indigo-800 opacity-70 uppercase">Tổng Thực Hiện (NK) (Tỷ)</p>
+                  <p className="text-sm font-bold text-indigo-800 uppercase">Nhập kho (tỷ)</p>
                 </div>
                 <h4 className="text-2xl lg:text-3xl font-bold text-indigo-600 tracking-tight">
                   {formatTy(totalInventoryAmount)}
                 </h4>
-                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem]">
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
                   <span className="inline-flex items-center gap-1 text-indigo-800/80">
                     <i className="h-2 w-2 rounded-sm" style={{ background: TH_PLAN_COLOR }} />
                     Theo KH: <b className="tabular-nums">{formatTy(totalInventoryPlanAmount)}</b>
@@ -431,14 +421,14 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={inventorySectionRef}>
               <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
-                <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
-                  SO SÁNH: KH vs TH (Theo Xưởng) <span className="normal-case font-normal text-slate-400">· % = NK theo KH / KH · rê chuột xem số</span>
+                <div className="absolute top-3 left-4 text-sm font-bold text-slate-700 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
+                  KH vs NK theo xưởng <span className="normal-case">(tỷ)</span>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={combinedWorkshopData} margin={{ top: 20, right: 30, left: 10, bottom: 50 }} barGap={3}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 10 }} interval={0} />
-                    <YAxis tickFormatter={formatTy} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
+                    <XAxis dataKey="name" angle={-25} textAnchor="end" height={60} tick={{ fontSize: 12 }} interval={0} />
+                    <YAxis tickFormatter={formatTy} tick={{ fontSize: 12 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<WorkshopChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
                     <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
@@ -450,8 +440,8 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                 </ResponsiveContainer>
               </div>
               <div className="h-[350px] w-full bg-slate-50 rounded-lg border border-slate-100 p-3 relative group hover:shadow-md transition-shadow">
-                <div className="absolute top-3 left-4 text-xs font-bold text-slate-600 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
-                  SO SÁNH: KH vs TH (Theo Công Trình - Top 10) <span className="normal-case font-normal text-slate-400">· % = NK theo KH / KH</span>
+                <div className="absolute top-3 left-4 text-sm font-bold text-slate-700 uppercase z-10 bg-white/80 px-2 py-1 rounded backdrop-blur-sm shadow-sm">
+                  KH vs NK top 10 công trình <span className="normal-case">(tỷ)</span>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={combinedProjectData} margin={{ top: 20, right: 30, left: 10, bottom: 80 }} barGap={3}>
@@ -461,11 +451,11 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                       angle={-50}
                       textAnchor="end"
                       height={80}
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: 12 }}
                       interval={0}
                       tickFormatter={(value) => (value.includes('_') ? value.split('_').pop() : value)}
                     />
-                    <YAxis tickFormatter={formatTy} tick={{ fontSize: 10 }} width={45} domain={['auto', 'auto']} />
+                    <YAxis tickFormatter={formatTy} tick={{ fontSize: 12 }} width={45} domain={['auto', 'auto']} />
                     <RechartsTooltip content={<ProjectChartTooltip />} cursor={{ fill: '#f8fafc' }} />
                     <Legend verticalAlign="top" height={36} iconType="circle" />
                     <Bar dataKey="khValue" name="Kế hoạch (KH)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
@@ -482,7 +472,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
               <div className="w-full mt-4">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                    <TableIcon className="w-4 h-4 text-orange-600" /> Phân tích Kế hoạch-Thực hiện Tuần
+                    <TableIcon className="w-4 h-4 text-orange-600" /> KH – NK tuần
                   </h4>
                 </div>
 
@@ -494,11 +484,11 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <TableIcon className="w-4 h-4 text-wood-500" />
                           {(() => {
                             const w = parseInt(unifiedTimeFilters.tuan[0] || '0');
-                            if (!w) return 'KẾ HOẠCH-THỰC HIỆN TUẦN';
+                            if (!w) return 'TUẦN';
                             const { start, end } = planWeekRange(parseInt(unifiedTimeFilters.nam[0] || '') || new Date().getFullYear(), w);
                             const fmt = (d: Date) =>
-                              `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
-                            return `KẾ HOẠCH-THỰC HIỆN TUẦN ${w} (từ ${fmt(start)} đến ${fmt(end)})`;
+                              `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+                            return `TUẦN ${w} · ${fmt(start)}–${fmt(end)}`;
                           })()}
                         </h4>
                         <button
@@ -509,15 +499,15 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <Eye size={16} />
                         </button>
                       </div>
-                      <table className="w-full text-xs text-right min-w-[800px]">
+                      <table className="w-full text-sm text-right min-w-[800px]">
                         <thead className="bg-wood-50 text-slate-700 font-semibold uppercase">
                           <tr>
                             <th className="px-4 py-3 text-left sticky left-0 bg-wood-50 border-b border-wood-200 z-10 w-32">
-                              Xưởng Chính
+                              Xưởng
                             </th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Thành tiền Kế hoạch (tỷ)</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Nhập kho Tuần (tỷ)</th>
-                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">Tỷ lệ (Tuần/KH)</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">KH (tỷ)</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">NK tuần (tỷ)</th>
+                            <th className="px-4 py-3 border-b border-wood-200 text-orange-900">NK / KH</th>
                             <th className="px-4 py-3 border-b border-wood-200 text-green-700 bg-green-50">ĐÚNG TIẾN ĐỘ</th>
                             <th className="px-4 py-3 border-b border-wood-200 text-red-700 bg-red-50">CHẬM TIẾN ĐỘ</th>
                             <th className="px-4 py-3 border-b border-wood-200 text-teal-700 bg-teal-50">NGOÀI KẾ HOẠCH</th>
@@ -539,7 +529,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                                 <td className="px-4 py-3 font-bold text-slate-800">{formatTy(item.actualWeek)}</td>
                                 <td className="px-4 py-3">
                                   <span
-                                    className={`px-2 py-1 rounded font-bold text-[0.625rem] inline-block w-16 text-center ${
+                                    className={`px-2 py-1 rounded font-bold text-xs inline-block w-16 text-center ${
                                       percent >= 80
                                         ? 'bg-green-100 text-green-700'
                                         : percent >= 50
@@ -613,7 +603,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   </div>
                 ) : (
                   <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
-                    Không có dữ liệu phân tích tuần (Kiểm tra lại bộ lọc hoặc dữ liệu nguồn).
+                    Không có dữ liệu tuần
                   </div>
                 )}
               </div>
@@ -623,33 +613,33 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
               <div className="w-full mt-6">
                 <div className="flex justify-between items-center mb-4">
                   <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2 uppercase tracking-wide">
-                    <Activity className="w-4 h-4 text-purple-600" /> Phân tích Năng suất (Dữ liệu Điểm danh)
+                    <Activity className="w-4 h-4 text-purple-600" /> Năng suất
                   </h4>
                 </div>
 
                 {productivityAnalysisData.length > 0 ? (
                   <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg">
-                    <table className="w-full text-xs text-right min-w-[1200px]">
+                    <table className="w-full text-sm text-right min-w-[1200px]">
                       <thead className="bg-purple-50 text-slate-700 font-semibold uppercase">
                         <tr>
                           <th className="px-4 py-3 text-left border-b border-purple-200 sticky left-0 bg-purple-50 z-10 w-[200px]">
-                            Xưởng Chính
+                            Xưởng
                           </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600" title="Định biên">
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Định biên">
                             ĐỊNH BIÊN
                           </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600" title="Trung bình cộng">
-                            TRUNG BÌNH SỐ LƯỢNG CÔNG NHÂN
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Trung bình số lượng công nhân">
+                            TB CÔNG NHÂN
                           </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ CÔNG HÀNH CHÍNH</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-slate-600">TỔNG GIỜ TĂNG CA</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700">TỶ LỆ GIỜ TĂNG CA (%)</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-purple-800 bg-purple-100/30">
-                            DOANH SỐ NHẬP KHO (TỶ)
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Tổng giờ công hành chính">GIỜ HC</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-slate-700" title="Tổng giờ tăng ca">GIỜ TĂNG CA</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700" title="Tỷ lệ giờ tăng ca">% TĂNG CA</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-purple-800 bg-purple-100/30" title="Doanh số nhập kho">
+                            NHẬP KHO (TỶ)
                           </th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 GIỜ (TRIỆU)</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700">BÌNH QUÂN DOANH SỐ / 1 CÔNG NHÂN (TRIỆU)</th>
-                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700">BÌNH QUÂN GIỜ CÔNG / 1 CÔNG NHÂN</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700" title="Bình quân doanh số / 1 giờ">DS / GIỜ (TRIỆU)</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-blue-700" title="Bình quân doanh số / 1 công nhân">DS / CN (TRIỆU)</th>
+                          <th className="px-2 py-3 border-b border-purple-200 text-orange-700" title="Bình quân giờ công / 1 công nhân">GIỜ / CN</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -715,7 +705,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                   </div>
                 ) : (
                   <div className="p-8 text-center text-slate-500 bg-slate-50 rounded-lg">
-                    Không có dữ liệu năng suất cho tuần này.
+                    Không có dữ liệu năng suất
                   </div>
                 )}
 
@@ -729,17 +719,14 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
       </div>
 
       {/* Modal: Chi tiết Phân tích Kế hoạch-Thực hiện Tuần */}
-      {isWeeklyDetailModalOpen && (
-        <div className="fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0">
-          <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-7xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      {isWeeklyDetailModalOpen && createPortal(
+        <div className="fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0">
+          <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <div>
-                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                  <TableIcon className="text-orange-600" size={20} />
-                  Chi tiết Phân tích Kế hoạch-Thực hiện Tuần
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">Dữ liệu chi tiết từng loại hình kế hoạch và thực hiện</p>
-              </div>
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <TableIcon className="text-orange-600" size={20} />
+                Chi tiết KH – NK tuần
+              </h3>
               <button
                 onClick={() => setIsWeeklyDetailModalOpen(false)}
                 className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors"
@@ -750,15 +737,15 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
 
             <div className="flex-1 overflow-auto p-6 bg-slate-50/50 custom-scrollbar">
               <div className="overflow-x-auto custom-scrollbar border border-slate-200 rounded-lg bg-white shadow-sm">
-                <table className="w-full text-xs text-right min-w-[1500px]">
+                <table className="w-full text-sm text-right min-w-[1500px]">
                   <thead className="bg-orange-50 text-slate-700 font-semibold uppercase sticky top-0 z-20">
                     <tr>
                       <th className="px-4 py-3 text-left sticky left-0 bg-orange-50 border-b border-orange-200 z-30 w-32 shadow-[1px_0_3px_rgba(0,0,0,0.1)]">
-                        Xưởng Chính
+                        Xưởng
                       </th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Thành tiền Kế hoạch (tỷ)</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Nhập kho Tuần (tỷ)</th>
-                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">Tỷ lệ (Tuần/KH)</th>
+                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">KH (tỷ)</th>
+                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">NK tuần (tỷ)</th>
+                      <th className="px-4 py-3 border-b border-orange-200 text-orange-900">NK / KH</th>
                       <th className="px-4 py-3 border-b border-orange-200 text-green-700 bg-green-50">ĐÚNG KẾ HOẠCH</th>
                       <th className="px-4 py-3 border-b border-orange-200 text-blue-700 bg-blue-50">
                         THỰC HIỆN ĐÚNG KH 1 PHẦN
@@ -788,7 +775,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
                           <td className="px-4 py-3 font-bold text-slate-800">{formatTy(item.actualWeek)}</td>
                           <td className="px-4 py-3">
                             <span
-                              className={`px-2 py-1 rounded font-bold text-[0.625rem] inline-block w-16 text-center ${
+                              className={`px-2 py-1 rounded font-bold text-xs inline-block w-16 text-center ${
                                 percent >= 80
                                   ? 'bg-green-100 text-green-700'
                                   : percent >= 50
@@ -863,7 +850,7 @@ export const KhsxPlanActualSection: React.FC<KhsxPlanActualSectionProps> = ({
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </>
   );
 };

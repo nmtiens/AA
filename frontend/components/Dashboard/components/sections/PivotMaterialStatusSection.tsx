@@ -33,13 +33,13 @@ export const PivotMaterialStatusSection = ({
   <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-emerald-100 flex flex-col">
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
       <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
-        <ListFilter className="w-4 h-4 text-emerald-600" />Tình trạng Vật tư (Nhóm x Trạng thái)
+        <ListFilter className="w-4 h-4 text-emerald-600" />Vật tư × trạng thái
       </h3>
       <div className="flex items-center gap-2">
         {selectedMaterialGroups.length > 0 && (
           <button
             onClick={() => setSelectedMaterialGroups([])}
-            className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200 flex items-center gap-1"
+            className="text-sm px-2 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200 flex items-center gap-1"
           >
             <CloseIcon size={12} /> Bỏ chọn ({selectedMaterialGroups.length})
           </button>
@@ -47,23 +47,23 @@ export const PivotMaterialStatusSection = ({
         <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
           <button
             onClick={() => setMatStatusMetric('COUNT_PR')}
-            className={`px-2 py-1 text-[0.625rem] font-bold rounded flex items-center gap-1 transition-all ${matStatusMetric === 'COUNT_PR' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-2 py-1 text-sm font-bold rounded flex items-center gap-1 transition-all ${matStatusMetric === 'COUNT_PR' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             <Hash size={12} /> Số dòng PR
           </button>
           <div className="w-px h-3 bg-slate-300 mx-1"></div>
           <button
             onClick={() => setMatStatusMetric('SUM_QTY')}
-            className={`px-2 py-1 text-[0.625rem] font-bold rounded flex items-center gap-1 transition-all ${matStatusMetric === 'SUM_QTY' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`px-2 py-1 text-sm font-bold rounded flex items-center gap-1 transition-all ${matStatusMetric === 'SUM_QTY' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <Calculator size={12} /> Khối lượng Yêu cầu
+            <Calculator size={12} /> Khối lượng
           </button>
         </div>
       </div>
     </div>
     {pivotMaterialStatusData ? (
       <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[500px]">
-        <table className="w-full text-xs text-right min-w-[800px] border-separate border-spacing-0">
+        <table className="w-full text-sm text-right min-w-[800px] border-separate border-spacing-0">
           <thead className="bg-emerald-50 text-slate-700 font-semibold uppercase">
             <tr>
               {/* Góc trên-trái: cột tick + Nhóm Vật Tư, ghim top + left */}
@@ -105,7 +105,7 @@ export const PivotMaterialStatusSection = ({
                     const matrix = pivotMaterialStatusData.matrix || {};
                     const val = matrix[group]?.[s] || 0;
                     return (
-                      <td key={s} className={`px-3 py-2 whitespace-nowrap ${val === 0 ? 'text-slate-300' : 'text-slate-600'}`}>
+                      <td key={s} className={`px-3 py-2 whitespace-nowrap ${val === 0 ? 'text-slate-300' : 'text-slate-700'}`}>
                         {val === 0 ? '-' : (matStatusMetric === 'SUM_QTY' ? formatDecimal(val) : formatNumber(val))}
                       </td>
                     );
@@ -123,7 +123,7 @@ export const PivotMaterialStatusSection = ({
               {/* Góc dưới-trái */}
               <td className="px-3 py-2 sticky left-0 bottom-0 z-40 bg-emerald-100"></td>
               <td className="px-3 py-2 text-left sticky left-10 bottom-0 z-40 bg-emerald-100 shadow-[2px_-1px_2px_rgba(0,0,0,0.05)]">
-                Tổng Cộng (Toàn bộ)
+                Tổng Cộng
               </td>
               {pivotMaterialStatusData.uniqueStatuses.map((s: string) => (
                 <td key={s} className="px-3 py-2 whitespace-nowrap sticky bottom-0 z-20 bg-emerald-100">
@@ -131,7 +131,7 @@ export const PivotMaterialStatusSection = ({
                 </td>
               ))}
               {/* Góc dưới-phải */}
-              <td className="px-3 py-2 text-emerald-900 text-sm sticky bottom-0 right-0 z-40 bg-emerald-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
+              <td className="px-3 py-2 text-emerald-900 text-base sticky bottom-0 right-0 z-40 bg-emerald-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
                 {matStatusMetric === 'SUM_QTY' ? formatDecimal(pivotMaterialStatusData.grandTotal) : formatNumber(pivotMaterialStatusData.grandTotal)}
               </td>
             </tr>
@@ -143,16 +143,6 @@ export const PivotMaterialStatusSection = ({
     )}
     {pivotMaterialStatusData && (
       <ShowMoreRows shown={visibleGroups.length} total={totalRows} onMore={showMore} onAll={showAll} />
-    )}
-    {pivotMaterialStatusData && (
-      <p className="mt-2 text-[0.6875rem] text-slate-500">
-        Cột theo Trạng thái chung của dòng PR. {matStatusMetric === 'COUNT_PR'
-          ? '1 ô = số dòng PR (1 Số PR · line), không phải số hạng mục.'
-          : 'Khối lượng yêu cầu cộng theo nguyên số, KHÔNG quy đổi đơn vị (kg, m, cái… cộng chung) — chỉ nên so trong cùng 1 nhóm vật tư.'}
-        {(pivotMaterialStatusData.closedShort ?? 0) > 0 && (
-          <> 3.ĐÃ NHẬP KHO gồm cả <b className="text-violet-700">{formatNumber(pivotMaterialStatusData.closedShort ?? 0)}</b> dòng PR đã ĐÓNG khi chưa nhận đủ (dùng tồn / đóng thiếu / không mua) — xem nhóm "Đã nhập kho – Đóng PR" ở tab BOM.</>
-        )}
-      </p>
     )}
   </div>
   );

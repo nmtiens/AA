@@ -117,10 +117,10 @@ const CustomLineLabel = (props: any) => {
     return (
         <g>
             <rect
-                x={x - 18}
-                y={labelY - 12}
-                width={36}
-                height={16}
+                x={x - 22}
+                y={labelY - 13}
+                width={44}
+                height={18}
                 fill="white"
                 fillOpacity={0.7}
                 rx={4}
@@ -129,8 +129,8 @@ const CustomLineLabel = (props: any) => {
                 x={x}
                 y={labelY}
                 fill="#3b82f6"
-                fontSize={10}
-                fontWeight={600}
+                fontSize={12}
+                fontWeight={700}
                 textAnchor="middle"
                 dominantBaseline="middle"
             >
@@ -177,7 +177,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
 
         if (viewMode === 'MONTH') {
             const currentMonth = thang[0] || (new Date().getMonth() + 1).toString();
-            return `Thống kê Tháng ${currentMonth.padStart(2, '0')}/${currentYear}`;
+            return `T${currentMonth.padStart(2, '0')}/${currentYear}`;
         }
 
         if (viewMode === 'WEEK') {
@@ -195,7 +195,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                     // Single Day
                     const day = parseInt(ngay[0]);
                     const month = parseInt(thang[0]) || (new Date().getMonth() + 1);
-                    return `Thống kê ngày ${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${currentYear} (Tuần ${currentWeek.padStart(2, '0')})`;
+                    return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${currentYear} · Tuần ${currentWeek.padStart(2, '0')}`;
                 } else {
                     // Multiple Days
                     // Assuming days are sorted or we find min/max
@@ -203,12 +203,12 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                     const minDay = days[0];
                     const maxDay = days[days.length - 1];
                     const month = parseInt(thang[0]) || (new Date().getMonth() + 1);
-                    return `Thống kê Từ ngày ${minDay.toString().padStart(2, '0')} đến ngày ${maxDay.toString().padStart(2, '0')} /${month.toString().padStart(2, '0')}/${currentYear} (Tuần ${currentWeek.padStart(2, '0')})`;
+                    return `${minDay.toString().padStart(2, '0')}–${maxDay.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${currentYear} · Tuần ${currentWeek.padStart(2, '0')}`;
                 }
             }
 
             // Full Week
-            return `Thống kê Từ ngày ${fmtDate(start)} đến ngày ${fmtFullDate(end)} (Tuần ${currentWeek.padStart(2, '0')})`;
+            return `${fmtDate(start)}–${fmtFullDate(end)} · Tuần ${currentWeek.padStart(2, '0')}`;
         }
 
         return '';
@@ -217,24 +217,20 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
     return (
         <div className="w-full mt-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
             <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h2 className="text-lg font-bold text-slate-800 uppercase flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-purple-600" />
-                        DASHBOARD HIỆU SUẤT VẬN HÀNH
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1 italic pl-7">
-                        {getDynamicDescription()}
-                    </p>
-                </div>
+                <h2 className="text-lg font-bold text-slate-800 uppercase flex flex-wrap items-center gap-2">
+                    <Activity className="w-5 h-5 text-purple-600" />
+                    HIỆU SUẤT VẬN HÀNH
+                    <span className="text-base font-semibold normal-case text-slate-600">{getDynamicDescription()}</span>
+                </h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                 {/* CHART 1 (Moved): Cấu Trúc Giờ Công, Tỷ Lệ OT & Doanh Số (Composed Chart) */}
                 <div className="md:col-span-2 bg-white p-4 rounded-lg border border-slate-200 shadow-sm animate-fade-in">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2">
                         <PieChart className="w-4 h-4 text-orange-500" />
-                        CẤU TRÚC GIỜ CÔNG, TỶ LỆ TĂNG CA & DOANH SỐ
+                        GIỜ CÔNG, TĂNG CA & DOANH SỐ
                     </h3>
                     <div className="h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -244,16 +240,16 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     dataKey="name"
                                     textAnchor="end"
                                     interval={0}
-                                    tick={{ fontSize: 10, fill: '#64748b' }}
+                                    tick={{ fontSize: 12, fill: '#475569' }}
                                     height={20}
                                 />
                                 <YAxis
                                     yAxisId="left"
                                     orientation="left"
-                                    tick={{ fontSize: 10, fill: '#64748b' }}
-                                    label={{ value: 'Giờ công', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#64748b', fontSize: 10 } }}
+                                    tick={{ fontSize: 12, fill: '#475569' }}
+                                    label={{ value: 'Giờ công', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#475569', fontSize: 12 } }}
                                 />
-                                <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <YAxis yAxisId="right" orientation="right" unit="%" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                                 {/* Trục ẩn riêng cho doanh số (nhãn hiển thị Tỷ) */}
                                 <YAxis yAxisId="sales" hide />
                                 <Tooltip content={<CustomTooltip />} />
@@ -291,7 +287,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                         dataKey="overtimeRate"
                                         position="top"
                                         formatter={(val: number) => val.toFixed(0) + '%'}
-                                        style={{ fontSize: 10, fill: '#eab308', fontWeight: 'bold' }}
+                                        style={{ fontSize: 12, fill: '#ca8a04', fontWeight: 'bold' }}
                                     />
                                 </Line>
                             </ComposedChart>
@@ -301,9 +297,9 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
 
                 {/* CHART 2: Hiệu Quả Nhân Sự (Bar Chart + Ref Line) */}
                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-blue-500" />
-                        HIỆU QUẢ: BQ DOANH SỐ / 1 CÔNG NHÂN (TRIỆU)
+                        DOANH SỐ / CÔNG NHÂN (TRIỆU)
                     </h3>
                     <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -313,7 +309,7 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     dataKey="name"
                                     textAnchor="end"
                                     interval={0}
-                                    tick={{ fontSize: 10, fill: '#64748b' }}
+                                    tick={{ fontSize: 12, fill: '#475569' }}
                                     height={20}
                                 />
                                 <YAxis hide />
@@ -326,11 +322,11 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                         dataKey="salesPerWorker"
                                         position="top"
                                         formatter={(val: number) => formatDecimal(val)}
-                                        style={{ fontSize: 10, fill: '#64748b', fontWeight: 500 }}
+                                        style={{ fontSize: 12, fill: '#334155', fontWeight: 700 }}
                                     />
                                 </Bar>
                                 <ReferenceLine y={overallAvgSalesPerWorker} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={2}>
-                                    <Label value={`TB AATN: ${formatDecimal(overallAvgSalesPerWorker)} Triệu`} position="insideTopRight" fill="#ef4444" fontSize={10} fontWeight="bold" dy={-20} dx={-10} />
+                                    <Label value={`TB AATN: ${formatDecimal(overallAvgSalesPerWorker)} Triệu`} position="insideTopRight" fill="#ef4444" fontSize={12} fontWeight="bold" dy={-20} dx={-10} />
                                 </ReferenceLine>
                             </BarChart>
                         </ResponsiveContainer>
@@ -339,9 +335,9 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
 
                 {/* CHART 3: Ma Trận Tương Quan (Bubble Chart) */}
                 <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                    <h3 className="text-sm font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                    <h3 className="text-base font-semibold text-slate-800 mb-4 flex items-center gap-2" title="Bóng to = tỉ lệ tăng ca cao · Màu nóng (cam/đỏ) = năng suất giờ cao">
                         <Activity className="w-4 h-4 text-emerald-500" />
-                        MA TRẬN TƯƠNG QUAN: QUY MÔ vs HIỆU QUẢ
+                        QUY MÔ vs HIỆU QUẢ
                     </h3>
                     <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -351,16 +347,16 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     type="number"
                                     dataKey="avgWorkers"
                                     name="Quy mô (CN)"
-                                    tick={{ fontSize: 10, fill: '#64748b' }}
-                                    label={{ value: 'Số Lượng Công Nhân', position: 'bottom', offset: 0, fontSize: 10, fill: '#64748b' }}
+                                    tick={{ fontSize: 12, fill: '#475569' }}
+                                    label={{ value: 'Số công nhân', position: 'bottom', offset: 0, fontSize: 12, fill: '#475569' }}
                                 />
                                 <YAxis
                                     type="number"
                                     dataKey="sales"
                                     name="Doanh số"
                                     tickFormatter={(val: number) => formatTrieuAsTy(val)}
-                                    tick={{ fontSize: 10, fill: '#64748b' }}
-                                    label={{ value: 'Doanh Số Nhập Kho (Tỷ)', angle: -90, position: 'insideLeft', fontSize: 10, fill: '#64748b', style: { textAnchor: 'middle' } }}
+                                    tick={{ fontSize: 12, fill: '#475569' }}
+                                    label={{ value: 'Doanh số (tỷ)', angle: -90, position: 'insideLeft', fontSize: 12, fill: '#475569', style: { textAnchor: 'middle' } }}
                                 />
                                 <ZAxis type="number" dataKey="overtimeRate" range={[50, 600]} name="Tỉ lệ Tăng ca" unit="%" />
                                 <Tooltip cursor={{ strokeDasharray: '3 3' }} content={
@@ -384,14 +380,11 @@ const ProductivityCharts: React.FC<ProductivityChartsProps> = ({ data, viewMode 
                                     {data.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={getColorForSalesPerHour(entry.salesPerHour, minSalesPerHour, maxSalesPerHour)} stroke="#000000" strokeWidth={0.5} strokeOpacity={0.2} />
                                     ))}
-                                    <LabelList dataKey="name" position="top" style={{ fontSize: 9, fill: '#334155', fontWeight: 600 }} />
+                                    <LabelList dataKey="name" position="top" style={{ fontSize: 12, fill: '#334155', fontWeight: 700 }} />
                                 </Scatter>
                             </ScatterChart>
                         </ResponsiveContainer>
                     </div>
-                    <p className="text-[0.625rem] text-slate-400 mt-2 text-center italic">
-                        *Bóng to = Tỉ lệ Tăng ca cao &bull; Màu nóng (Cam/Đỏ) = Năng suất giờ cao
-                    </p>
                 </div>
 
             </div>

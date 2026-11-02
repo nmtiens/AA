@@ -325,7 +325,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
         // Ngày làm việc đã qua trong năm = cả năm (1/1 + các ngày sau 1/1) − còn lại
         daQua: (laNgayLam(new Date(ngayMoi.getFullYear(), 0, 1)) ? 1 : 0) + ngayLamConLai(new Date(ngayMoi.getFullYear(), 0, 1)) - ngayLamConLai(ngayMoi),
         cuoiKy: new Date(ngayMoi.getFullYear(), 11, 31),
-        ghiChu: 'nhập kho mọi đơn trong năm, không theo bộ lọc',
       };
     }
     const t = thangTD;
@@ -340,7 +339,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
       conNgay: tong - qua,
       daQua: homNayTrongThang ? qua : t < ngayMoi.getMonth() + 1 ? tong : 0,
       cuoiKy: new Date(ngayMoi.getFullYear(), t, 0),
-      ghiChu: 'KH tháng (kế hoạch năm chia tháng) · nhập kho mọi đơn trong tháng',
     };
   }, [tienDo, khTh, ngayMoi, thangTD, p.namLabel, p.thucHienNam, p.keHoachNam, p.quy]);
   // KH tuần trong tháng: KH / nhập kho từng tuần (API KHSX theo tuần) — chỉ tải khi xem Tháng
@@ -421,7 +419,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const canMoiNgay = tuanChon ? (mucTuan > 0 ? mucTuan / ngayTuan : 0) : canMoiNgayKy;
   // Ngưỡng tô màu cột ngày: đạt KH tháng mỗi ngày => xanh (đang chọn tuần thì theo mức cần của tuần)
   const nguongDat = tuanChon ? canMoiNgay : mucKhThang > 0 ? mucKhThang : canMoiNgay;
-  const tenNguong = tuanChon ? `mục tiêu tuần ${tuanChon.tuan} (${formatTy(canMoiNgay)}/ngày)` : mucKhThang > 0 ? `KH tháng ${thangKh} (${formatTy(mucKhThang)}/ngày)` : 'mức cần';
   const tenKh = tienDo === 'nam' ? 'KH năm' : `KH tháng ${thangTD}`;
   // Kế hoạch nhập kho từng ngày (KH tuần của khsx theo ngày KHNK) — cột "Kế hoạch" cạnh cột nhập kho; theo bộ lọc
   // xưởng / công trình của biểu đồ (không lọc thì theo bộ lọc chung của trang)
@@ -470,8 +467,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   const vungHong = !tuanChon && mucKhThang > 0 && canMoiNgay > mucKhThang;
 
 
-  const tenKy = khoang?.tenTruoc ?? 'kỳ trước';
-
   // Ô "Chọn ngày" luôn khớp kỳ đang xem: danh sách = mọi ngày từ đầu năm trước tới hôm qua (mới nhất trước),
   // ngày chưa có số liệu ghi chú bên cạnh; ô tick = các ngày thuộc kỳ đang xem
   const nhan = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}${coSo.has(toISODateLocal(d)) ? '' : ' (chưa có số)'}`;
@@ -508,7 +503,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
     return (
       <span className={d === 0 ? 'text-slate-500' : tot ? 'text-emerald-700' : 'text-red-600'}>
         <b className="font-semibold">{d > 0 ? '▲' : d < 0 ? '▼' : ''} {chinh}</b>
-        {d !== 0 && <span className="opacity-80"> ({tuyet})</span>} so với {moc ?? tenKy}
+        {d !== 0 && <span className="opacity-80"> ({tuyet})</span>}{moc && ` so với ${moc}`}
       </span>
     );
   };
@@ -525,14 +520,14 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
   // Cần chú ý hôm nay: chỉ những việc cần làm, có số thật
   type Muc = { ten: React.ReactNode; phu: string; nhan: string; mau: string; bam?: () => void; to?: string };
   const canChuY: Muc[] = [];
-  if (p.vm.overdue > 0) canChuY.push({ ten: `${p.vm.overdue} vướng mắc quá hạn xử lý`, phu: `${p.vm.open} vướng mắc đang mở`, nhan: 'Trễ', mau: 'bg-red-50 text-red-700', to: '/vuong-mac' });
-  else if (p.vm.open > 0) canChuY.push({ ten: `${p.vm.open} vướng mắc đang mở`, phu: 'chưa có vướng mắc quá hạn', nhan: 'Vướng mắc', mau: 'bg-slate-100 text-slate-700', to: '/vuong-mac' });
+  if (p.vm.overdue > 0) canChuY.push({ ten: `${p.vm.overdue} vướng mắc quá hạn`, phu: `${p.vm.open} đang mở`, nhan: 'Trễ', mau: 'bg-red-50 text-red-700', to: '/vuong-mac' });
+  else if (p.vm.open > 0) canChuY.push({ ten: `${p.vm.open} vướng mắc đang mở`, phu: '', nhan: 'Vướng mắc', mau: 'bg-slate-100 text-slate-700', to: '/vuong-mac' });
   if (nkCuoi && canTong > 0 && nkCuoi.v < canTong) {
-    canChuY.push({ ten: `Nhập kho ${ngayNgan(parseVNDate(nkCuoi.ngay) ?? new Date())}: ${formatTy(nkCuoi.v)} tỷ`, phu: `thấp hơn mức cần ${formatTy(canTong)} tỷ/ngày để đạt ${tenKh}`, nhan: 'Chậm', mau: 'bg-amber-50 text-amber-800', bam: () => p.onMoTab('kh') });
+    canChuY.push({ ten: `Nhập kho ${ngayNgan(parseVNDate(nkCuoi.ngay) ?? new Date())}: ${formatTy(nkCuoi.v)} tỷ`, phu: `Cần ${formatTy(canTong)} tỷ/ngày`, nhan: 'Chậm', mau: 'bg-amber-50 text-amber-800', bam: () => p.onMoTab('kh') });
   }
-  if (conLaiTong > 0 && soNgayCon > 0) canChuY.push({ ten: `Còn ${formatTy(conLaiTong)} tỷ để đạt ${tienDo === 'nam' ? `KH năm ${p.namLabel}` : tenKh}`, phu: `≈ ${formatTy(canTong)} tỷ/ngày trong ${soNgayCon} ngày làm việc còn lại`, nhan: 'Kế hoạch', mau: 'bg-slate-100 text-slate-700', bam: p.onThucHienNam });
-  if (p.chuaTheSX > 0) canChuY.push({ ten: `Chưa thể sản xuất ${formatTrieuAsTy(p.chuaTheSX)} tỷ`, phu: `vướng SL chưa REV ${formatTrieuAsTy(p.vuongSL)} · chưa triển khai SX ${formatTrieuAsTy(p.chuaTrienKhai)}`, nhan: 'Vướng', mau: 'bg-red-50 text-red-700', bam: () => p.onMoTab('sx') });
-  if (p.diemNghen && p.diemNghen.count > 0) canChuY.push({ ten: `Điểm nghẽn: ${p.diemNghen.name}`, phu: `${p.diemNghen.count.toLocaleString('en-US')} hạng mục đang dừng ở đây`, nhan: 'Nghẽn', mau: 'bg-amber-50 text-amber-800', bam: () => p.onMoTab('nghen') });
+  if (conLaiTong > 0 && soNgayCon > 0) canChuY.push({ ten: `Còn ${formatTy(conLaiTong)} tỷ tới ${tienDo === 'nam' ? `KH ${p.namLabel}` : tenKh}`, phu: `${formatTy(canTong)} tỷ/ngày · ${soNgayCon} ngày`, nhan: 'Kế hoạch', mau: 'bg-slate-100 text-slate-700', bam: p.onThucHienNam });
+  if (p.chuaTheSX > 0) canChuY.push({ ten: `Chưa thể SX ${formatTrieuAsTy(p.chuaTheSX)} tỷ`, phu: `SL chưa REV ${formatTrieuAsTy(p.vuongSL)} · chưa triển khai ${formatTrieuAsTy(p.chuaTrienKhai)}`, nhan: 'Vướng', mau: 'bg-red-50 text-red-700', bam: () => p.onMoTab('sx') });
+  if (p.diemNghen && p.diemNghen.count > 0) canChuY.push({ ten: `Điểm nghẽn: ${p.diemNghen.name}`, phu: `${p.diemNghen.count.toLocaleString('en-US')} hạng mục`, nhan: 'Nghẽn', mau: 'bg-amber-50 text-amber-800', bam: () => p.onMoTab('nghen') });
 
   return (
     <div className="flex flex-col gap-4">
@@ -550,10 +545,10 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
           onChange={(v: string[]) => { if (!v.length) { setKy('ngay'); setTuyChon([]); return; } setTuyChon(v.map(o => o.replace(/ \(chưa có số\)$/, ''))); setKy('tuy'); }}
         />
         {khoang && (
-          <span className="text-sm text-slate-500">
-            {khoang.tu.getTime() === khoang.den.getTime() ? `số liệu ${ngayNgan(khoang.den)}` : `${ngayNgan(khoang.tu)} – ${ngayNgan(khoang.den)}`}
-            {chuaCoSo && <b className="font-semibold text-amber-700"> (chưa có số liệu ngày này)</b>}
-            {khoang.dates && khoang.dates.length > 1 && khoang.dates.length < Math.round((khoang.den.getTime() - khoang.tu.getTime()) / 86400000) + 1 ? ` (${khoang.dates.length} ngày đã chọn)` : ''} · so với {khoang.tenTruoc}
+          <span className="text-sm font-medium text-slate-700">
+            {khoang.tu.getTime() === khoang.den.getTime() ? ngayNgan(khoang.den) : `${ngayNgan(khoang.tu)} – ${ngayNgan(khoang.den)}`}
+            {chuaCoSo && <b className="font-semibold text-amber-700"> (chưa có số)</b>}
+            <span className="text-slate-500"> vs {khoang.tenTruoc}</span>
           </span>
         )}
         <div className="ml-auto flex items-center gap-2">
@@ -594,17 +589,17 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className="text-base text-slate-600">
                 {a && <>{dem ? `${formatTrieuAsTy(a.value)} tỷ` : `${a.count.toLocaleString('en-US')} hạng mục`} · </>}
-                {dem ? chenh(a?.count, b?.count) : chenh(a?.value, b?.value, 'pt')}
+                {dem ? chenh(a?.count, b?.count, 'so', khoang?.tenTruoc) : chenh(a?.value, b?.value, 'pt', khoang?.tenTruoc)}
               </span>
               {n && (
                 <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="min-w-0 text-base font-bold uppercase leading-tight text-slate-800">{x.k === 'order' ? `Đơn hàng mới tháng ${thangXem}:` : x.k === 'tkbv' ? `Bản vẽ mới tháng ${thangXem}:` : x.k === 'pthsp' ? `Phiếu mới tháng ${thangXem}:` : `Lũy kế T${thangXem}:`}</span>
+                    <span className="min-w-0 text-sm font-bold uppercase leading-tight text-slate-800">{x.k === 'order' ? `Đơn hàng mới tháng ${thangXem}:` : x.k === 'tkbv' ? `Bản vẽ mới tháng ${thangXem}:` : x.k === 'pthsp' ? `Phiếu mới tháng ${thangXem}:` : `Lũy kế T${thangXem}:`}</span>
                     <b className={`shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums ${m.chu}`}>{f(n[x.k].mtd.count, n[x.k].mtd.value)} <span className="text-xl font-semibold">{dem ? x.dv : 'tỷ'}</span></b>
                   </span>
                   <span className="flex items-baseline justify-between gap-2">
                     {/* Thẻ 1: dòng dưới = giá trị đơn hàng đang ở P001 (chưa triển khai) — cùng số thanh P001 của phễu */}
-                    <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Tháng ${String(thangTruoc).padStart(2, '0')}:`}</span>
+                    <span className="min-w-0 text-xs font-semibold uppercase leading-tight text-slate-500">{x.k === 'order' ? 'Giá trị P001 (chưa triển khai):' : `Tháng ${thangTruoc}:`}</span>
                     <span className={`shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums ${m.nhat}`}>
                       {x.k === 'order'
                         ? (p.giaTriP001 == null ? '—' : `${formatTrieuAsTy(p.giaTriP001)} tỷ`)
@@ -629,7 +624,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                 <span className={`min-w-0 flex-1 self-center text-lg font-bold uppercase tracking-wide ${m.chu}`}>6. Tồn kho</span>
                 <Eye size={17} className="shrink-0 text-slate-400 group-hover:text-slate-700" aria-hidden />
               </span>
-              <span className="mt-4 text-sm font-semibold uppercase tracking-wider text-slate-500">Dữ liệu ngày: {ngayDu(p.tonNgay)}</span>
+              <span className="mt-4 text-sm font-semibold uppercase tracking-wider text-slate-600">Dữ liệu ngày: {ngayDu(p.tonNgay)}</span>
               <span className="whitespace-nowrap text-[3.25rem] font-bold leading-tight tabular-nums text-slate-900">
                 {giaTri(p.tonKho, p.tonKho)}<span className="ml-2 text-xl font-medium text-slate-500">{dem ? 'items' : 'tỷ'}</span>
               </span>
@@ -638,12 +633,12 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               </span>
               <span className="mt-4 flex flex-col gap-1 border-t border-black/5 pt-3">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 text-base font-bold uppercase leading-tight text-slate-800">Tồn mới nhất ({ngayDu(p.tonNgay)})</span>
+                  <span className="min-w-0 text-sm font-bold uppercase leading-tight text-slate-800">Tồn mới nhất ({ngayDu(p.tonNgay)})</span>
                   <b className="shrink-0 whitespace-nowrap text-[2.25rem] font-bold tabular-nums text-slate-900">{giaTri(p.tonKho, p.tonKho)} <span className="text-xl font-semibold">{dem ? 'items' : 'tỷ'}</span></b>
                 </span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="min-w-0 text-sm font-semibold uppercase leading-tight text-slate-500">Tồn tháng {String(thangTruoc).padStart(2, '0')} ({ngayDu(cuoi)})</span>
-                  <span className="shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums text-slate-500">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
+                  <span className="min-w-0 text-xs font-semibold uppercase leading-tight text-slate-500">Tồn tháng {thangTruoc} ({ngayDu(cuoi)})</span>
+                  <span className="shrink-0 whitespace-nowrap text-2xl font-semibold tabular-nums text-slate-600">{giaTri(p.tonCuoiThangTruoc.count, p.tonCuoiThangTruoc.value)} {dem ? 'items' : 'tỷ'}</span>
                 </span>
               </span>
             </button>
@@ -666,14 +661,14 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
             const xTh = pt(td.th);
             const dangChayKy = td.daQua > 0 && td.conNgay > 0;
             const the = 'flex flex-col rounded-xl border border-slate-200 border-t-4 bg-white px-4 py-3 text-left';
-            const nhanThe = 'flex items-baseline justify-between gap-2 text-xs font-bold uppercase tracking-wide text-slate-500';
+            const nhanThe = 'flex items-baseline justify-between gap-2 text-sm font-bold uppercase tracking-wide text-slate-600';
             return (<>
               <div className="flex flex-wrap items-start gap-3">
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-xl font-bold text-slate-900">Nhập kho thành phẩm {laNam ? p.namLabel : `tháng ${thangTD}/${ngayMoi.getFullYear()}`}</h3>
-                  <p className="mt-0.5 text-sm text-slate-500" title="Nhập kho có ngày nhập trong kỳ của MỌI đơn (kể cả đơn đã xong), không tính hạng mục HỦY, không theo bộ lọc trang — khác số 'Đã nhập kho' ở trang Tổng quan công trình (chỉ đơn đang theo dõi, cộng mọi năm)">
-                    {td.ghiChu} · tính tới {ngayNgan(ngayMoi)} · đơn vị tỷ đồng
-                  </p>
+                  <h3 className="text-xl font-bold text-slate-900">
+                    Nhập kho {laNam ? p.namLabel : `T${thangTD}/${ngayMoi.getFullYear()}`} (tỷ)
+                    <span className="ml-2 text-base font-semibold text-slate-500">tới {ngayNgan(ngayMoi)}</span>
+                  </h3>
                 </div>
                 <span className="flex items-center gap-1.5">
                   {tienDo === 'thang' && (
@@ -700,7 +695,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                     <button type="button" onClick={() => setMoChuY(true)} title="Mở danh sách việc cần chú ý hôm nay"
                       className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3.5 text-sm font-semibold text-red-700 hover:bg-red-100">
                       Cần chú ý hôm nay
-                      <span className={`rounded-full px-2 text-xs font-semibold ${canChuY.some(m => m.nhan === 'Trễ' || m.nhan === 'Vướng') ? 'bg-red-600 text-white' : 'bg-white text-slate-700'}`}>{canChuY.length}</span>
+                      <span className={`rounded-full px-2 text-sm font-semibold ${canChuY.some(m => m.nhan === 'Trễ' || m.nhan === 'Vướng') ? 'bg-red-600 text-white' : 'bg-white text-slate-700'}`}>{canChuY.length}</span>
                     </button>
                   )}
                 </span>
@@ -712,21 +707,21 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                   className={`${the} border-t-emerald-600 transition enabled:hover:shadow-md`}>
                   <span className={nhanThe}>Đã nhập kho {p.onThucHienNam && <span className="normal-case tracking-normal text-blue-600">Chi tiết ›</span>}</span>
                   <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-emerald-700">{formatTy(td.th)} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
-                  <span className="mt-0.5 text-sm text-slate-600">{td.kh > 0 && <><b className="text-emerald-700">{Math.round(phanTram)}%</b> kế hoạch {laNam ? 'năm' : 'tháng'} · </>}{td.daQua} ngày</span>
+                  <span className="mt-0.5 text-base text-slate-700">{td.kh > 0 && <><b className="text-emerald-700">{Math.round(phanTram)}%</b> KH · </>}{td.daQua} ngày</span>
                 </button>
                 <button type="button" onClick={p.onKeHoachNam} disabled={!p.onKeHoachNam} title="Bấm để xem nhập kho so với kế hoạch theo tháng / xưởng"
                   className={`${the} border-t-slate-700 transition enabled:hover:shadow-md`}>
                   <span className={nhanThe}>Kế hoạch {laNam ? 'năm' : `tháng ${thangTD}`} {p.onKeHoachNam && <span className="normal-case tracking-normal text-blue-600">So KH ›</span>}</span>
                   <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-slate-900">{td.kh > 0 ? formatTy(td.kh) : '—'} <span className="text-base font-semibold text-slate-500">tỷ</span></span>
-                  <span className="mt-0.5 text-sm text-slate-600">
-                    {td.kh <= 0 ? 'Chưa có kế hoạch' : con > 0 ? <>Còn thiếu <b>{formatTy(con)} tỷ</b> · {td.conNgay} ngày ({LAM_CHU_NHAT ? 'tính cả CN' : 'T2–T7'}, tới {ngayNgan(td.cuoiKy)})</> : <b className="text-emerald-700">Đã đạt kế hoạch</b>}
+                  <span className="mt-0.5 text-base text-slate-700" title={td.kh > 0 && con > 0 ? `${LAM_CHU_NHAT ? 'Tính cả CN' : 'T2–T7'}, tới ${ngayNgan(td.cuoiKy)}` : undefined}>
+                    {td.kh <= 0 ? 'Chưa có KH' : con > 0 ? <>Thiếu <b>{formatTy(con)}</b> · {td.conNgay} ngày</> : <b className="text-emerald-700">Đã đạt KH</b>}
                   </span>
                 </button>
                 <div className={`${the} border-t-red-600`}>
                   <span className={nhanThe}>Cần mỗi ngày</span>
                   <span className="mt-1 text-[2rem] font-extrabold leading-tight tabular-nums text-red-600">{can > 0 ? formatTy(can) : '—'} <span className="text-base font-semibold text-slate-500">tỷ/ngày</span></span>
-                  <span className="mt-0.5 text-sm text-slate-600">
-                    {can > 0 && bq > 0 ? <>gấp <b className="text-red-600">{(can / bq).toFixed(1)} lần</b> nhịp từ đầu {laNam ? 'năm' : 'tháng'} ({formatTy(bq)})</> : con <= 0 ? 'Đã đủ kế hoạch' : 'Chưa có nhịp để so'}
+                  <span className="mt-0.5 text-base text-slate-700">
+                    {can > 0 && bq > 0 ? <><b className="text-red-600">×{(can / bq).toFixed(1)}</b> BQ ({formatTy(bq)})</> : con <= 0 ? 'Đã đạt KH' : '—'}
                   </span>
                 </div>
               </div>
@@ -734,10 +729,7 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
               {/* Thanh tiến độ */}
               {td.kh > 0 && (
                 <div className="mt-4 rounded-xl border border-slate-200 px-4 pb-2 pt-3 sm:px-5">
-                  <p className="text-base font-semibold text-slate-900">Tiến độ {tenKy} theo mốc {laNam ? 'quý' : mocTuan.length ? 'tuần' : 'ngày'}</p>
-                  <p className="text-xs text-slate-500">
-                    Xanh = đã nhập · xám = còn lại tới KH · cờ = KH cộng dồn {laNam ? 'từng quý' : 'tới mốc'}
-                  </p>
+                  <p className="text-base font-semibold text-slate-900">Tiến độ {tenKy}</p>
                   <button type="button" onClick={p.onThucHienNam} disabled={!p.onThucHienNam} title="Bấm để xem nhập kho theo tháng / xưởng"
                     className="relative mt-[4.5rem] block h-11 w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400">
                     <span className="absolute inset-0 rounded-lg bg-slate-200 ring-1 ring-inset ring-slate-300" />
@@ -786,7 +778,6 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                   <span className="block h-[4.25rem]" />
 
                   {tienDo === 'thang' && tuanMT.length > 0 && (<>
-                  <p className="mb-2 text-sm text-slate-500">Từng tuần: <b className="font-semibold text-slate-700">TH / mục tiêu</b> — chỉ tính các ngày nằm trong tháng {thangTD}; cộng các tuần = KH tháng</p>
                   <div className="mt-1 grid gap-3" style={{ gridTemplateColumns: `repeat(${tuanMT.length}, minmax(0, 1fr))` }}>
                     {tuanMT.map(w => {
                       // Tuần chưa tới: đề xuất = mức cần mỗi ngày (để bù phần còn thiếu của tháng) × số ngày làm việc trong tháng
@@ -805,25 +796,22 @@ export const TongQuanDauTrang: React.FC<Props> = p => {
                       const chon = tuanChon?.tuan === w.tuan;
                       return (
                         <button type="button" key={w.tuan} onClick={() => setTuanChon(c => (c?.tuan === w.tuan ? null : w))} aria-pressed={chon}
-                          title={`${nguon}${catThang ? `
+                          title={`${nguon}${chuaToi && deXuat > 0 && Math.abs(deXuat - w.muc) > 0.01 ? ` · cần ≈ ${formatTy(deXuat)} để bù` : ''}${catThang ? `
 TH cả tuần (kể cả T${thangKia}): ${formatTy(w.th)}` : ''}
 ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập kho từng ngày của tuần này'}`}
                           className={`flex min-w-0 flex-col rounded-xl px-4 py-3 text-left transition ${chon ? 'bg-slate-900 text-white ring-1 ring-slate-900 [&_*]:!text-white' : `bg-white hover:ring-slate-400 ring-1 ${dangChay ? 'ring-slate-900' : 'ring-slate-200'}`}`}>
-                          <span className="flex items-baseline justify-between gap-1 text-sm text-slate-500">
+                          <span className="flex items-baseline justify-between gap-1 text-sm text-slate-600">
                             <span className="text-base font-semibold text-slate-800">Tuần {w.tuan}</span>
                             <span className="truncate">{ngayNgan(w.tu)}–{ngayNgan(w.den)}</span>
                           </span>
                           {/* TH / mục tiêu + % trên 1 hàng; thanh nhỏ = % đạt */}
                           <span className="mt-2 flex items-baseline gap-1.5 tabular-nums">
                             <b className="text-2xl font-bold text-slate-900">{chuaToi ? '—' : formatTy(w.thTrong)}</b>
-                            <span className="text-sm text-slate-500">/ {formatTy(w.muc)}</span>
+                            <span className="text-base font-semibold text-slate-600">/ {formatTy(w.muc)}</span>
                             <span className={`ml-auto text-lg font-bold ${mau}`}>{chuaToi ? 'chưa tới' : pt === null ? '—' : `${pt}%`}</span>
                           </span>
                           <span className="mt-2 block h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
                             <span className={`block h-full rounded-full ${nen}`} style={{ width: `${chuaToi || pt === null ? 0 : Math.min(100, pt)}%` }} />
-                          </span>
-                          <span className="mt-1.5 line-clamp-2 text-xs leading-snug text-slate-500">
-                            {nguon}{chuaToi && deXuat > 0 && Math.abs(deXuat - w.muc) > 0.01 ? ` · cần ≈ ${formatTy(deXuat)} để bù` : ''}{dangChay ? ' · đang chạy' : ''}
                           </span>
                         </button>
                       );
@@ -839,18 +827,13 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
           <div className="mt-4 rounded-xl border border-slate-200 px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-start gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold text-slate-900">Nhập kho mỗi ngày</p>
-                {tuanChon ? (
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-sm text-slate-500">
+                <p className="text-base font-semibold text-slate-900">Nhập kho mỗi ngày (tỷ)</p>
+                {tuanChon && (
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-sm text-slate-600">
                     <b className="font-semibold text-slate-900">Tuần {tuanChon.tuan}</b> ({ngayNgan(tuanChon.tu)}–{ngayNgan(tuanChon.den)}) ·
                     Mục tiêu <b className="font-semibold text-slate-900">{formatTy(mucTuan)}</b> · TH <b className="font-semibold text-slate-900">{formatTy(thTuan)}</b>
                     {mucTuan > 0 && <> · <b className={`font-semibold ${thTuan >= mucTuan ? 'text-emerald-700' : 'text-red-600'}`}>{Math.round((thTuan / mucTuan) * 100)}%</b></>}
-                    <button type="button" onClick={() => setTuanChon(null)} className="ml-1 rounded-full border border-slate-300 px-2 text-xs text-slate-600 hover:bg-slate-50">✕ bỏ chọn tuần</button>
-                  </p>
-                ) : (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {LAM_CHU_NHAT ? 'Tính cả Chủ nhật' : 'T2–T7'}{nguongDat > 0 && ` · cột xanh = đạt ${tenNguong}, đỏ = dưới`}
-                    {vungHong && ` · vùng hồng = khoảng từ KH tháng tới mức cần để kịp ${tenKh}`}
+                    <button type="button" onClick={() => setTuanChon(null)} className="ml-1 rounded-full border border-slate-300 px-2 text-sm text-slate-700 hover:bg-slate-50">✕ Bỏ chọn</button>
                   </p>
                 )}
               </div>
@@ -859,20 +842,17 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                   emptyLabel="Tất cả" onClearAll={() => setLocXuong([])} />
                 <DashboardFilter label="Công trình" options={dsCt} selectedValues={locCt} onChange={setLocCt}
                   emptyLabel="Tất cả" onClearAll={() => setLocCt([])} />
-                {locDangBat && <button type="button" onClick={() => { setLocXuong([]); setLocCt([]); }} className="text-xs text-slate-500 underline hover:text-slate-900">Bỏ lọc</button>}
-                {locDangBat && !nkLoc && <span className="text-xs text-slate-400">đang tải…</span>}
+                {locDangBat && <button type="button" onClick={() => { setLocXuong([]); setLocCt([]); }} className="text-sm text-slate-600 underline hover:text-slate-900">Bỏ lọc</button>}
+                {locDangBat && !nkLoc && <span className="text-sm text-slate-500">đang tải…</span>}
               </span>
             </div>
-            {locDangBat && (
-              <p className="mt-1 text-xs text-slate-500">
-                Đang xem: <b className="font-semibold text-slate-800">{[locXuong.length ? `xưởng ${locXuong.join(', ')}` : '', locCt.length ? `${locCt.length} công trình` : ''].filter(Boolean).join(' · ')}</b>
-                {khLoc && !khLoc.coKh ? ' · KH chỉ lập theo xưởng nên không có đường kế hoạch / mức cần' : ' · đường kế hoạch & mức cần tính theo KH của xưởng đã chọn'}
-              </p>
+            {khLoc && !khLoc.coKh && (
+              <p className="mt-1 text-sm font-medium text-amber-700">Không có KH theo công trình</p>
             )}
             <div className="mt-3 flex flex-col gap-4 lg:flex-row">
               <div className="h-[26rem] min-w-0 flex-1">
               {duLieu.length === 0 ? (
-                <div className="flex h-full items-center justify-center text-sm text-slate-400">Chưa có số liệu nhập kho trong kỳ</div>
+                <div className="flex h-full items-center justify-center text-base text-slate-500">Chưa có số liệu</div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={duLieuVe} margin={{ top: 32, right: 12, left: -8, bottom: 0 }} barCategoryGap="22%" barGap={2}>
@@ -885,7 +865,7 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                         return (
                           <g transform={`translate(${x},${y})`}>
                             <text dy={14} textAnchor="middle" fontSize={14} fontWeight={600} fill="#334155">{payload.value}</text>
-                            <text dy={30} textAnchor="middle" fontSize={11} fill={thu === 'CN' ? '#f87171' : '#94a3b8'}>{thu}</text>
+                            <text dy={30} textAnchor="middle" fontSize={12} fill={thu === 'CN' ? '#dc2626' : '#64748b'}>{thu}</text>
                           </g>
                         );
                       }} />
@@ -937,28 +917,30 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
               <div className="flex shrink-0 flex-wrap gap-x-6 gap-y-3 lg:w-60 lg:flex-col lg:justify-center">
                 {canMoiNgay > 0 && (
                   <div className="border-l-4 border-red-600 pl-3">
-                    <b className="text-xl tabular-nums text-red-600">{formatTy(canMoiNgay)}</b>
-                    <p className="text-sm text-slate-600">Cần / ngày để đạt {tuanChon ? `mục tiêu tuần ${tuanChon.tuan}` : tenKh}</p>
+                    <b className="text-2xl tabular-nums text-red-600">{formatTy(canMoiNgay)}</b>
+                    <p className="text-sm font-medium text-slate-700">Cần/ngày</p>
                   </div>
                 )}
                 {binhQuan > 0 && (
                   <div className="border-l-4 border-blue-600 pl-3">
-                    <b className="text-xl tabular-nums text-blue-600">{formatTy(binhQuan)}</b>
-                    <p className="text-sm text-slate-600">Bình quân {nkCoSo.length} ngày có số</p>
+                    <b className="text-2xl tabular-nums text-blue-600">{formatTy(binhQuan)}</b>
+                    <p className="text-sm font-medium text-slate-700" title={`${nkCoSo.length} ngày có số`}>Bình quân/ngày</p>
                   </div>
                 )}
                 {!tuanChon && mucKhThang > 0 && (
                   <div className="border-l-4 border-emerald-600 pl-3" title={`KH tháng ${thangKh} ${formatTy(khThang)} tỷ chia đều ${LAM_CHU_NHAT ? 'mọi ngày (cả Chủ nhật)' : 'ngày làm việc (T2–T7)'}`}>
-                    <b className="text-xl tabular-nums text-emerald-700">{formatTy(mucKhThang)}</b>
-                    <p className="text-sm text-slate-600">KH tháng {thangKh} / ngày</p>
+                    <b className="text-2xl tabular-nums text-emerald-700">{formatTy(mucKhThang)}</b>
+                    <p className="text-sm font-medium text-slate-700">KH T{thangKh}/ngày</p>
                   </div>
                 )}
               </div>
             </div>
-            {(coKhNgay || coDeXuat) && (
-              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-slate-600">
-                {coKhNgay && <span className="inline-flex items-center gap-1.5" title="Kế hoạch tuần (bảng KHSX) theo ngày kế hoạch nhập kho, theo xưởng / công trình đang lọc"><i className="h-3 w-3 rounded-sm border border-blue-600 bg-blue-100" />Kế hoạch ngày (KH tuần)</span>}
-                {coDeXuat && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm border border-dashed border-slate-400 bg-slate-100" />Đề xuất mỗi ngày để đạt {tuanChon ? `KH tuần ${tuanChon.tuan}` : tenKh}</span>}
+            {(nguongDat > 0 || coKhNgay || coDeXuat) && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm font-medium text-slate-700">
+                {nguongDat > 0 && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm bg-[#12805c]" />Đạt</span>}
+                {nguongDat > 0 && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm bg-[#e8484d]" />Dưới mức</span>}
+                {coKhNgay && <span className="inline-flex items-center gap-1.5" title="Kế hoạch tuần (bảng KHSX) theo ngày kế hoạch nhập kho, theo xưởng / công trình đang lọc"><i className="h-3 w-3 rounded-sm border border-blue-600 bg-blue-100" />KH ngày</span>}
+                {coDeXuat && <span className="inline-flex items-center gap-1.5"><i className="h-3 w-3 rounded-sm border border-dashed border-slate-400 bg-slate-100" />Đề xuất</span>}
               </div>
             )}
           </div>
@@ -979,10 +961,10 @@ ${chon ? 'Bấm lần nữa để bỏ chọn tuần' : 'Bấm để xem nhập 
                 const noi = (
                   <>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[0.9375rem] font-medium text-slate-900">{m.ten}</span>
-                      <span className="block text-sm text-slate-500">{m.phu}</span>
+                      <span className="block text-base font-semibold text-slate-900">{m.ten}</span>
+                      {m.phu && <span className="block text-sm text-slate-600">{m.phu}</span>}
                     </span>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${m.mau}`}>{m.nhan}</span>
+                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-sm font-semibold ${m.mau}`}>{m.nhan}</span>
                   </>
                 );
                 const cls = 'flex w-full items-start gap-3 rounded-lg px-1 py-3 text-left hover:bg-slate-50';

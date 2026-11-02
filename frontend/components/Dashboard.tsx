@@ -12,7 +12,7 @@ import { DashboardFilter } from './Dashboard/components/shared/DashboardFilter';
 import { ProductionDonutPanel, type OrderMixSelection } from './Dashboard/components/shared/ProductionDonutPanel';
 import { categoryOptions } from './Dashboard/utils/filterMatch';
 import { parseVNDate } from './Dashboard/utils/dateHelpers';
-import { DEFAULT_FILTERS } from './Dashboard/core/tongQuanSanXuat';
+import { DEFAULT_FILTERS, khoaSanXuat } from './Dashboard/core/tongQuanSanXuat';
 import { useColumnKeys } from './Dashboard/hooks/useColumnKeys';
 import { useDashboardOptions } from './Dashboard/hooks/useDashboardOptions';
 import { useDashboardFilters } from './Dashboard/hooks/useDashboardFilters';
@@ -508,7 +508,7 @@ const {
     requestAnimationFrame(() => scrollToRef(productionStatusRef));
   };
   const TAB_DUOI: Array<[TabDuoi, string]> = [
-    ['sx', 'Tình trạng sản xuất'], ['nghen', 'Điểm nghẽn'], ['kh', 'Kế hoạch & Nhập kho'], ['ct', 'Công trình'], ['vt', 'Vật tư'],
+    ['sx', 'Tình trạng sản xuất'], ['nghen', 'Điểm nghẽn'], ['kh', 'Kế hoạch, Nhập kho & Phân tích'], ['ct', 'Công trình'], ['vt', 'Vật tư'],
   ];
 
   // Bộ lọc tổng: nhãn đang lọc (bấm ✕ bỏ) + nút "Bộ lọc" mở bảng chọn
@@ -637,6 +637,11 @@ const handleContinueToOrderColumnStep = () => {
     hexKey, congTrinhKey, hangMucKey, xuongKey, bopKey, tinhTrangKey,
     phanLoaiNhomSanPhamKey, triGiaDonHangTongKey, thanhTienTinhPhieuKey, thanhTienNhapKhoKey,
   ]);
+  // Bảng "Tình trạng đơn hàng theo Công trình": bấm số => danh sách hạng mục (HEX) — cùng bảng sản xuất đã lọc của trang
+  const nguonBangCongTrinh = useMemo(
+    () => ({ rows: filteredProductionData, khoa: khoaSanXuat(productionColumns) }),
+    [filteredProductionData, productionColumns]
+  );
 
   // Không có bảng nào và máy chủ cũng không tính được => mới báo không có dữ liệu (đang chờ số máy chủ thì vẫn vẽ trang)
   if (productionData.length === 0 && materialData.length === 0 && khsxData.length === 0 && sanLoi) {
@@ -670,9 +675,9 @@ const handleContinueToOrderColumnStep = () => {
       {/* Đầu trang (docs/designs/figma-thiet-ke-lai/9-tong-quan): tiêu đề + nút neo; hàng nhãn bộ lọc đang áp + nút "Bộ lọc" */}
       <div className="sticky top-0 z-40 border-b border-slate-200 bg-[#f5f6f8]/90 px-4 py-3 backdrop-blur md:px-8">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="shrink-0">
+          <div className="flex shrink-0 items-baseline gap-3">
             <h2 className="page-title">Tổng quan</h2>
-            {ngayDuLieu && <p className="text-sm text-slate-500">Dữ liệu đến {ngayDuLieu}</p>}
+            {ngayDuLieu && <span className="text-sm font-medium text-slate-600">đến {ngayDuLieu}</span>}
           </div>
           <nav className="ml-auto flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Đến khu">
             {([['Đơn hàng AATN', () => scrollToRef(factoryRevenueRef)]] as Array<[string, () => void]>)
@@ -692,7 +697,6 @@ const handleContinueToOrderColumnStep = () => {
             <span key={f.k} title={macDinh ? 'Lọc mặc định của trang' : undefined}
               className={`inline-flex max-w-full items-center gap-1 rounded-full border py-1 pl-3 pr-1 text-sm ${macDinh ? 'border-slate-300 bg-white text-slate-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
               <span className="truncate">{f.label}: {filters[f.k].length > 2 ? `${filters[f.k].length} mục` : filters[f.k].join(', ')}</span>
-              {macDinh && <span className="text-xs text-slate-400">mặc định</span>}
               <button type="button" onClick={() => datLoc(f.k, [])} className={`rounded-full p-0.5 ${macDinh ? 'hover:bg-slate-100' : 'hover:bg-red-100'}`} aria-label={`Bỏ lọc ${f.label}`}>
                 <X size={14} />
               </button>
@@ -703,10 +707,8 @@ const handleContinueToOrderColumnStep = () => {
             className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${moBoLoc ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}>
             <SlidersHorizontal size={14} aria-hidden /> Bộ lọc
           </button>
-          {hasActiveFilters ? (
-            <button type="button" onClick={clearFilters} className="text-sm text-slate-500 underline-offset-2 hover:text-slate-900 hover:underline">Về mặc định</button>
-          ) : (
-            <span className="text-sm text-slate-400">Lọc thêm theo {BO_LOC.filter(f => f.co && !filters[f.k].length).map(f => f.label.toLowerCase()).join(' · ')}</span>
+          {hasActiveFilters && (
+            <button type="button" onClick={clearFilters} className="text-sm text-slate-600 underline-offset-2 hover:text-slate-900 hover:underline">Về mặc định</button>
           )}
         </div>
         {moBoLoc && (
@@ -845,7 +847,7 @@ const handleContinueToOrderColumnStep = () => {
           <div className="flex gap-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
             {TAB_DUOI.map(([t, l]) => (
               <button key={t} type="button" role="tab" aria-selected={tabDuoi === t} onClick={() => setTabDuoi(t)}
-                className={`shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-[0.9375rem] transition ${tabDuoi === t ? 'border-slate-900 font-semibold text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-900'}`}>
+                className={`shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-[0.9375rem] transition ${tabDuoi === t ? 'border-slate-900 font-semibold text-slate-900' : 'border-transparent text-slate-600 hover:text-slate-900'}`}>
                 {l}
               </button>
             ))}
@@ -902,12 +904,15 @@ yearlyPlan2026WorkshopChartData={yearlyPlan2026WorkshopChartData}
 />
             </>)}
             {tabDuoi === 'ct' && (<>
+          <DanhSachHexProvider rows={productionData} columnKeys={funnelHexColumnKeys} currentUser={user?.username ?? ''}>
           <ProjectSummarySection
      sectionRef={null}
      bangCongTrinh={bangCongTrinh}
      projectSummaryMetric={projectSummaryMetric}
      setProjectSummaryMetric={setProjectSummaryMetric}
+     nguon={nguonBangCongTrinh}
    />
+          </DanhSachHexProvider>
            <PivotProjectSection
      sectionRef={null}
      pivotProjectData={pivotProjectData}

@@ -41,7 +41,7 @@ const KIND_CONFIG: Record<CategoryKind, {
     ownFilter: 'dvt',
     label: 'ĐVT',
     title: 'theo đơn vị tính',
-    avgLabel: 'TB theo đvt',
+    avgLabel: 'TB',
     noDataNote: 'Dữ liệu nguồn này không có thông tin đơn vị tính.',
     marginRight: [130, 150],
   },
@@ -51,8 +51,8 @@ const KIND_CONFIG: Record<CategoryKind, {
     nameField: 'phanLoaiName',
     ownFilter: 'phanLoai',
     label: 'Phân loại',
-    title: 'theo phân loại nhóm sản phẩm',
-    avgLabel: 'TB theo SP',
+    title: 'theo phân loại',
+    avgLabel: 'TB',
     noDataNote: 'Dữ liệu nguồn này không có thông tin phân loại nhóm sản phẩm.',
     marginRight: [90, 110],
   },
@@ -62,12 +62,12 @@ const formatDecimal = (v: number) => v.toLocaleString('vi-VN', { maximumFraction
 const formatShort = (v: number) => v.toLocaleString('vi-VN', { maximumFractionDigits: 0 });
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
-  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới', unitValue: 'Giá trị (tỷ)' },
+  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV', unitValue: 'Giá trị (tỷ)' },
+  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu', unitValue: 'Giá trị (tỷ)' },
+  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho', unitValue: 'Giá trị (tỷ)' },
+  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho', unitValue: 'Giá trị (tỷ)' },
+  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho', unitValue: 'Giá trị (tỷ)' },
 };
 
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
@@ -105,7 +105,7 @@ function PinnedPopover({ kindLabel, x, y, containerWidth, label, value, unit, mo
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
-            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-xs font-semibold"
+            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-sm font-semibold"
           >
             <Eye size={13} /> Xem chi tiết
           </button>
@@ -161,7 +161,7 @@ export default function TrendByCategoryChart({
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -294,15 +294,9 @@ export default function TrendByCategoryChart({
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          Xu hướng {theme.label} {cfg.title}
+          {theme.label} {cfg.title}
         </h4>
       </div>
-
-      {!supported && (
-        <div className={`${embedded ? 'mb-3' : 'bg-white rounded-xl border border-slate-100 p-3 shadow-sm mb-4'} text-xs text-slate-400`}>
-          {cfg.noDataNote}
-        </div>
-      )}
 
       <div
         ref={chartWrapRef}
@@ -310,11 +304,11 @@ export default function TrendByCategoryChart({
       >
         {!supported ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-            Không áp dụng cho nguồn dữ liệu này
+            Không áp dụng
           </div>
         ) : !hasValidRange ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-            Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
+            Chọn khoảng ngày
           </div>
         ) : loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
@@ -326,12 +320,12 @@ export default function TrendByCategoryChart({
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0}
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#475569' }} interval={0}
                      angle={chartData.length > 6 ? -35 : 0} textAnchor={chartData.length > 6 ? 'end' : 'middle'}
                      height={chartData.length > 6 ? 70 : 30} />
               <YAxis
                 tickFormatter={fmt}
-                tick={{ fontSize: 10, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: '#475569' }}
                 width={55}
                 domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
               />
@@ -340,7 +334,7 @@ export default function TrendByCategoryChart({
                 labelFormatter={(l) => `${cfg.label}: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
-              <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: embedded ? 11 : 13 }} />
+              <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: 13 }} />
               <Bar
                 dataKey="total"
                 name={unit}
@@ -359,7 +353,8 @@ export default function TrendByCategoryChart({
                   dataKey="total"
                   position="top"
                   formatter={(v: number) => (v > 0 ? fmt(v) : '')}
-                  fontSize={embedded ? 9 : 10}
+                  fontSize={12}
+                  fontWeight={700}
                   fill={theme.barDark}
                 />
               </Bar>
@@ -378,7 +373,7 @@ export default function TrendByCategoryChart({
                         y={viewBox.y}
                         dy={4}
                         textAnchor="start"
-                        fontSize={embedded ? 10 : 11}
+                        fontSize={12}
                         fontWeight={600}
                         fill="#16a34a"
                       >
@@ -395,7 +390,7 @@ export default function TrendByCategoryChart({
         )}
         {chartData.length > 0 && !loading && (
           <div
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
             style={{
               color: theme.barDark,
               borderColor: theme.bar,

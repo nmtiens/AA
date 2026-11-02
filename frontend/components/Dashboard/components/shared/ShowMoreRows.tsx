@@ -25,8 +25,8 @@ interface ShowMoreRowsProps {
 export const ShowMoreRows = ({ shown, total, onMore, onAll, step = ROW_STEP }: ShowMoreRowsProps) => {
   if (shown >= total) return null;
   return (
-    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-      <span>Đang hiện {shown} / {total} dòng</span>
+    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+      <span className="tabular-nums">{shown} / {total}</span>
       <div className="flex items-center gap-2">
         <button
           onClick={onMore}

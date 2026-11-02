@@ -22,6 +22,8 @@ import {
 
 export interface HexInfo {
   hex: string;
+  /** Tên công trình — chỉ gán ở view tất cả công trình (bảng hạng mục có thêm cột Công trình) */
+  congTrinh?: string;
   hangMuc: string;
   stage: string | null;
   status: string;              // cột Tình trạng (tinh_trang)
@@ -599,8 +601,10 @@ type DwellSel = { stage: string; dwell: string } | null;
 type ExtraSel = { kind: 'step'; key: StepKey } | { kind: 'qc'; st: 'bad' | 'wait' | 'ok' | 'none' } | { kind: 'gcn'; st: string | 'pending' } | null;
 const GCN_DONE = (st: string | null) => !gcnPending(st);
 
-export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
+export const BopTab = ({ items, khoItems = items, onHexClick, extra, tatCa = false }: {
   items: HexInfo[]; onHexClick?: (hex: string) => void;
+  /** View tất cả công trình: không tải số theo HEX (công đoạn SX / QC / GCN) => ẩn 3 ô đó và 3 cột tương ứng */
+  tatCa?: boolean;
   /** Hạng mục tính phần Kho (lũy kế): mọi hạng mục không hủy của công trình, không theo bộ lọc IPO */
   khoItems?: HexInfo[];
   /** Thông tin thêm theo HEX (số lượng theo công đoạn SX, QC, gia công ngoài); null = đang tải */
@@ -1026,7 +1030,8 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
         </div>
       </div>
 
-      {/* 3. Sản lượng theo công đoạn SX · QC · Gia công ngoài (dữ liệu thêm theo HEX) */}
+      {/* 3. Sản lượng theo công đoạn SX · QC · Gia công ngoài (dữ liệu thêm theo HEX) — không có ở view tất cả công trình */}
+      {!tatCa && (<>
       <div className="grid gap-3 xl:grid-cols-[1.2fr_1fr_1fr]">
         <div className="rounded-lg border border-slate-200 p-3">
           <p className="mb-2 text-xs font-semibold text-slate-700">
@@ -1135,6 +1140,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
             )}
         </div>
       </div>
+      </>)}
 
       {/* 4. Danh sách hạng mục */}
       {hasFilter ? (
@@ -1163,9 +1169,11 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
             <th className={`${th} text-left`}>Khu vực SX</th>
             <th className={`${th} text-left`}>Tình trạng</th>
             <th className={`${th} text-left`}>Ở công đoạn</th>
+            {!tatCa && <>
             <th className={`${th} text-left`} title="Số lượng đã giao theo công đoạn SX / SL tính phiếu (chỉ hạng mục trên chuyền)">Công đoạn SX</th>
             <th className={`${th} text-left`} title="Lần kiểm QC gần nhất: trạng thái · công đoạn · ngày">QC</th>
             <th className={`${th} text-left`} title="Tình trạng gia công ngoài">GCN</th>
+            </>}
           </>}
           extraCells={i => {
             const d = DWELL.find(x => x.key === dwellOf(i.dwell));
@@ -1193,6 +1201,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
                     </span>
                   ) : <span className="text-slate-300">—</span>}
                 </td>
+                {!tatCa && <>
                 <td className={`${td} whitespace-nowrap`} title={stepText.join(' · ') || undefined}>
                   {extra === null || extra === undefined ? <span className="text-slate-300">…</span>
                     : stepText.length === 0 ? <span className="text-slate-300">—</span> : (
@@ -1219,6 +1228,7 @@ export const BopTab = ({ items, khoItems = items, onHexClick, extra }: {
                     : !e?.gcn ? <span className="text-slate-300">—</span>
                       : <span className={GCN_DONE(e.gcn.st) ? 'text-slate-500' : 'font-medium text-orange-700'}>{e.gcn.st ?? 'Chưa ghi tình trạng'}</span>}
                 </td>
+                </>}
               </>
             );
           }}
@@ -2284,13 +2294,16 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
   planDates?: boolean;
   onHexClick?: (hex: string) => void;   // bấm mã HEX (vd. tab BOM mở cửa sổ vật tư)
   hexClickTitle?: string;
-}) => (
+}) => {
+  const coCt = rows.some(i => i.congTrinh);
+  return (
   <div className="max-h-[78vh] overflow-auto rounded-lg border border-slate-200 custom-scrollbar">
     <table className="w-full text-xs">
       <thead className="sticky top-0 bg-slate-50 text-slate-500">
         <tr>
           <th className={`${th} w-10 text-right`}>STT</th>
           <th className={`${th} text-left`}>Mã Hex</th>
+          {coCt && <th className={`${th} text-left`}>Công trình</th>}
           <th className={`${th} text-left`}>Hạng mục</th>
           <th className={`${th} text-left`}>Công đoạn</th>
           <th className={`${th} text-left`}>Xưởng</th>
@@ -2320,6 +2333,7 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
                 </button>
               ) : i.hex}
             </td>
+            {coCt && <td className={`${td} min-w-[180px] max-w-[260px] break-words font-medium text-slate-800`} title={i.congTrinh}>{i.congTrinh || '—'}</td>}
             <td className={`${td} min-w-[200px] max-w-[320px] break-words text-slate-600`} title={i.hangMuc}>{i.hangMuc}</td>
             <td className={`${td} text-slate-600`}>{i.stage ?? '—'}</td>
             <td className={`${td} whitespace-nowrap text-slate-600`}>{i.area || '—'}</td>
@@ -2342,3 +2356,4 @@ const HexTable = ({ rows, extraHead, extraCells, planDates = true, onHexClick, h
     </table>
   </div>
 );
+};

@@ -23,6 +23,8 @@ export const NHOM_VAT_TU = ['GỖ', 'TẤM VÁN', 'VẢI/DA/MÂY', 'KIM LOẠI',
 
 export interface HexM2 {
   hex: string; maNm: string; hangMuc: string; nhomSp: string; xuong: string;
+  /** Mã công trình (chỉ có ở view tất cả công trình) */
+  ct?: string;
   /** TÌNH TRẠNG IPO FINAL (đúng cột lọc của pivot; không lấy TÌNH TRẠNG IPO thay) */
   ipo: string; bop: string;
   /** Tình trạng theo nhóm vật tư (chỉ nhóm có ghi) */
@@ -31,6 +33,8 @@ export interface HexM2 {
 }
 export interface VatLieuM2 {
   nhom: string; code: string; moTa: string; ttMau: string; ngayDuyet: string; nhuCau: string; ghiChu: string;
+  /** Mã công trình (chỉ có ở view tất cả công trình) */
+  ct?: string;
   ttPr: string; ngayPr: string; ngayDuKien: string; ngayVe: string; m: string;
 }
 export interface DuLieuM2 { nguon: string; maCt: string; docLuc: string; hex: HexM2[]; vatLieu: VatLieuM2[] }

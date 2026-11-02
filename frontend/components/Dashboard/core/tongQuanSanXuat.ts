@@ -16,7 +16,7 @@ import {
 } from '../../../utils/productionMetrics';
 import { ON_LINE_STAGES, P002_STAGE } from './stages';
 import type { MetricType, BottleneckItem, WorkshopPivotData, ProjectPivotData } from '../types';
-import { mucBopTuDong, tinhBangCongTrinhBop, type BangCongTrinhBop, type MucBop } from '../../Construction/core/bopPivot';
+import { mucBopTuDong, tinhBangCongTrinhBop, mucCongDoan, stageOfBop, khoMuc, type BangCongTrinhBop, type MucBop, type KhoCot } from '../../Construction/core/bopPivot';
 
 // ---------------------------------------------------------------------------
 // Cột bảng sản xuất
@@ -349,6 +349,33 @@ export function tinhBangCongTrinh(rows: DataRow[], k: KhoaBangCongTrinh, metric:
     items.push({ ...mucBopTuDong(row, khoa), ct: projectNameOf(row[k.congTrinhKey]) });
   }
   return tinhBangCongTrinhBop(items, metric === 'COUNT' ? 'count' : 'remain', UNKNOWN_PROJECT);
+}
+
+/** Ô của bảng công trình: tổng đơn hàng / các công đoạn (1 hoặc cả nhóm) / 1 cột Kho */
+export type OBangCongTrinh = { donHang: true } | { stages: string[] } | { kho: KhoCot };
+/**
+ * HEX tạo nên 1 số của bảng "Tình trạng đơn hàng theo Công trình" (bấm số => danh sách hạng mục) — đúng quy tắc
+ * tinhBangCongTrinh / tinhPivotBop. ct = null: dòng TỔNG CỘNG.
+ */
+export function hexOBangCongTrinh(rows: DataRow[], k: KhoaBangCongTrinh & { hexKey?: string }, metric: ProjectSummaryMetric, ct: string | null, o: OBangCongTrinh): string[] {
+  const { isCancelledRow } = hamGiaTri(k);
+  const khoa = {
+    bopKey: k.bopKey, tinhTrangKey: k.tinhTrangKey, triGiaKey: k.triGiaDonHangTongKey, nhapKhoKey: k.thanhTienNhapKhoKey,
+    xuatKhoKey: k.xuatKhoKey || 'thanh_tien_xuat_kho_luy_ke', tonKhoKey: k.tonKhoKey || 'thanh_tien_ton_kho_hien_tai',
+  };
+  const m = metric === 'COUNT' ? 'count' : 'remain';
+  const stages = 'stages' in o ? new Set(o.stages) : null;
+  const out: string[] = [];
+  for (const row of rows) {
+    if (isCancelledRow(row)) continue;
+    if (ct !== null && projectNameOf(row[k.congTrinhKey]) !== ct) continue;
+    const i = mucBopTuDong(row, khoa);
+    const vao = 'donHang' in o ? true
+      : stages ? mucCongDoan([i], m).length > 0 && stages.has(stageOfBop(i))
+      : 'kho' in o ? khoMuc(i, m).nk > 0 && khoMuc(i, m)[o.kho] > 0 : false;
+    if (vao) out.push(String(row[k.hexKey || 'hex'] ?? '').trim());
+  }
+  return out.filter(Boolean);
 }
 
 export function tinhPivotWorkshop(rows: DataRow[], k: KhoaPivot, metric: MetricType): WorkshopPivotData | null {

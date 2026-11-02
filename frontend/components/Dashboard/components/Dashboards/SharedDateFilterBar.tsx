@@ -83,10 +83,10 @@ export default function SharedDateFilterBar({
       </div>
 
       {/* Dòng 1: khoảng ngày + preset */}
-      <div className="flex items-center flex-nowrap overflow-x-auto gap-2 text-xs">
-        <Calendar size={13} className="text-slate-400 shrink-0" />
+      <div className="flex items-center flex-nowrap overflow-x-auto gap-2 text-sm">
+        <Calendar size={13} className="text-slate-500 shrink-0" />
         <DateInput value={dateFrom} onChange={setDateFrom} />
-        <span className="text-slate-400 shrink-0">→</span>
+        <span className="text-slate-500 shrink-0">→</span>
         <DateInput value={dateTo} onChange={setDateTo} />
      {[{ label: '7 ngày', days: 7 }, { label: '30 ngày', days: 30 }, { label: '90 ngày', days: 90 }, { label: '1 năm', days: 365 }].map(p => {
   const active = activePresetDays === p.days;
@@ -112,14 +112,14 @@ export default function SharedDateFilterBar({
       </div>
 
       {/* Dòng 2: xưởng / công trình / ĐVT / phân loại — GỘP CHUNG DÙNG CHO TẤT CẢ BIỂU ĐỒ */}
-      <div className="flex items-center flex-nowrap overflow-visible gap-2 text-xs">
+      <div className="flex items-center flex-nowrap overflow-visible gap-2 text-sm">
         {showXuongFilter && (
           <SearchableSelect
             value={xuong}
             onChange={setXuong}
             options={xuongList}
             allLabel="Tất cả xưởng"
-            icon={<Layers size={13} className="text-slate-400 shrink-0" />}
+            icon={<Layers size={13} className="text-slate-500 shrink-0" />}
             widthClass="w-[180px]"
           />
         )}
@@ -129,7 +129,7 @@ export default function SharedDateFilterBar({
           onChange={setCongTrinh}
           options={congTrinhList}
           allLabel="Tất cả công trình"
-          icon={<Building2 size={13} className="text-slate-400 shrink-0" />}
+          icon={<Building2 size={13} className="text-slate-500 shrink-0" />}
           widthClass="w-[220px]"
         />
 
@@ -140,7 +140,7 @@ export default function SharedDateFilterBar({
               onChange={setDvt}
               options={dvtList}
               allLabel="Tất cả ĐVT"
-              icon={<Ruler size={13} className="text-slate-400 shrink-0" />}
+              icon={<Ruler size={13} className="text-slate-500 shrink-0" />}
               widthClass="w-[180px]"
             />
 
@@ -149,7 +149,7 @@ export default function SharedDateFilterBar({
               onChange={setPhanLoai}
               options={phanLoaiList}
               allLabel="Tất cả phân loại SP"
-              icon={<Tag size={13} className="text-slate-400 shrink-0" />}
+              icon={<Tag size={13} className="text-slate-500 shrink-0" />}
               widthClass="w-[220px]"
             />
           </>
@@ -157,7 +157,7 @@ export default function SharedDateFilterBar({
 
         {hasExtraFilters && (
           <button onClick={clearExtraFilters} className="px-2 py-1 rounded-md hover:underline text-slate-600 shrink-0">
-            Xóa lọc xưởng/công trình/ĐVT/phân loại
+            Xóa bộ lọc
           </button>
         )}
       </div>

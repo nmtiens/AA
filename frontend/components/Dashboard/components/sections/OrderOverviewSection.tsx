@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ShoppingCart, FileText, ClipboardList, Package, Box, Eye, Download, X,
   Layers, Building2, Briefcase, XCircle as CloseIcon,
@@ -160,7 +161,6 @@ export const OrderOverviewSection: React.FC<OrderOverviewSectionProps> = ({
   viewProjectWhitelist, // ✅ FIX
   overviewMetric,
   setOverviewMetric,
-  getContextLabel,
   overviewDateRangeDisplay,
   unifiedDateOptions,
   overviewDateFilters,
@@ -401,9 +401,6 @@ const periodLabel = overviewDateFilters.length > 1
                 ? `${overviewDateFilters.length} ngày đã chọn`
                 : latestUnifiedDate ? `ngày ${String(latestUnifiedDate.getDate()).padStart(2, '0')}/${String(latestUnifiedDate.getMonth() + 1).padStart(2, '0')}` : 'trong ngày'}
             </h3>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {getContextLabel()} · số lớn = trong ngày, dòng dưới = lũy kế tháng và T{prevMonthNo} · bấm 1 ô để xem chi tiết & xu hướng
-            </p>
           </div>
           <div className="flex rounded-lg bg-slate-100 p-1" role="group" aria-label="Chế độ hiển thị">
             {([['COUNT', 'Số lượng'], ['SUM', 'Giá trị']] as const).map(([k, l]) => (
@@ -414,7 +411,7 @@ const periodLabel = overviewDateFilters.length > 1
             ))}
           </div>
           <div className="flex items-center gap-2">
-            {overviewDateRangeDisplay && <span className="text-sm text-slate-500">{overviewDateRangeDisplay}</span>}
+            {overviewDateRangeDisplay && <span className="text-sm font-medium text-slate-700">{overviewDateRangeDisplay}</span>}
             <DashboardFilter
               label="Ngày báo cáo"
               options={unifiedDateOptions}
@@ -472,15 +469,15 @@ const periodLabel = overviewDateFilters.length > 1
             <div className="grid grid-cols-2 gap-px border-t border-slate-200 bg-slate-200 md:grid-cols-3 xl:grid-cols-6">
               {luong.map((x, idx) => (
                 <button key={x.k} type="button" onClick={x.mo} className={o} title={`${x.hint}\nBấm để xem chi tiết & xu hướng`}>
-                  <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                    {idx + 1}. {x.ten} <span className="text-xs text-slate-400">{x.ma}</span>
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                    {idx + 1}. {x.ten} <span className="text-xs text-slate-500">{x.ma}</span>
                     <Eye size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
                   </span>
                   <span className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
                     {so(x.s?.daily.count, x.s?.daily.value)}
-                    <span className="ml-1 text-sm font-medium text-slate-400">{dem ? x.dv : valueUnitLabel.toLowerCase()}</span>
+                    <span className="ml-1 text-sm font-medium text-slate-600">{dem ? x.dv : valueUnitLabel.toLowerCase()}</span>
                   </span>
-                  <span className="mt-0.5 text-sm text-slate-500">
+                  <span className="mt-0.5 text-sm font-medium tabular-nums text-slate-700">
                     Lũy kế tháng {so(x.s?.mtd.count, x.s?.mtd.value)} · T{prevMonthNo}: {so(x.s?.lastMonth?.count, x.s?.lastMonth?.value)}
                   </span>
                 </button>
@@ -488,15 +485,15 @@ const periodLabel = overviewDateFilters.length > 1
               <button type="button" className={o}
                 onClick={() => openModalWithTrendReset(() => { setIsStockDetailModalOpen(true); loadStockByProject(); })}
                 title={`Tồn kho ngày ${ngay(closestStockDate)} · mới nhất ${ngay(latestStockStats.date)}: ${so(latestStockStats.count, latestStockStats.value)}\nBấm để xem chi tiết`}>
-                <span className="flex items-center gap-1.5 text-sm text-slate-600">
-                  6. Tồn kho <span className="text-xs text-slate-400">{ngay(closestStockDate)}</span>
+                <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                  6. Tồn kho <span className="text-xs text-slate-500">{ngay(closestStockDate)}</span>
                   <Eye size={14} className="ml-auto text-slate-300 group-hover:text-slate-600" aria-hidden />
                 </span>
                 <span className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
                   {dem ? stockOverviewCardValue.toLocaleString('en-US') : formatValueNumber(stockOverviewCardValue)}
-                  <span className="ml-1 text-sm font-medium text-slate-400">{dem ? 'mục' : valueUnitLabel.toLowerCase()}</span>
+                  <span className="ml-1 text-sm font-medium text-slate-600">{dem ? 'mục' : valueUnitLabel.toLowerCase()}</span>
                 </span>
-                <span className="mt-0.5 text-sm text-slate-500">
+                <span className="mt-0.5 text-sm font-medium tabular-nums text-slate-700">
                   cuối T{prevMonthNo}: {so(latestStockStatsPrevMonth.count, latestStockStatsPrevMonth.value)}
                 </span>
               </button>
@@ -506,9 +503,9 @@ const periodLabel = overviewDateFilters.length > 1
       </div>
 
       {/* Modal: Chi tiết Đơn hàng mới (IPO) */}
-      {isIpoDetailModalOpen && (
-       <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      {isIpoDetailModalOpen && createPortal(
+       <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+          <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
   <div className="flex items-center gap-6">
     <div>
@@ -520,7 +517,7 @@ const periodLabel = overviewDateFilters.length > 1
     <div className="inline-flex items-center gap-1 bg-white border border-pink-200 rounded-lg p-1 shadow-sm">
       <button
         onClick={() => setIpoTab('detail')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           ipoTab === 'detail' ? 'bg-pink-600 text-white shadow-sm' : 'text-pink-600 hover:bg-pink-50'
         }`}
       >
@@ -529,7 +526,7 @@ const periodLabel = overviewDateFilters.length > 1
       </button>
       <button
         onClick={() => setIpoTab('chart')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           ipoTab === 'chart' ? 'bg-pink-600 text-white shadow-sm' : 'text-pink-600 hover:bg-pink-50'
         }`}
       >
@@ -542,7 +539,7 @@ const periodLabel = overviewDateFilters.length > 1
     <DisplayModeToggle current={ipoMetric} onChange={setIpoMetric} />
     <button
       onClick={handleOpenOrderExport}
-      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-pink-50 text-pink-700 hover:bg-pink-100 rounded-lg text-xs font-bold border border-pink-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-pink-50 text-pink-700 hover:bg-pink-100 rounded-lg text-sm font-bold border border-pink-200 transition-all shadow-sm active:scale-95 cursor-pointer"
       title="Xuất dữ liệu Đơn hàng mới (P001) ra file .CSV"
     >
       <Download size={15} />
@@ -604,12 +601,12 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Modal: Chi tiết Triển khai Bản vẽ (TKBV) */}
-      {isTkbvDetailModalOpen && (
-        <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      {isTkbvDetailModalOpen && createPortal(
+        <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+          <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
   <div className="flex items-center gap-6">
     <div>
@@ -621,7 +618,7 @@ const periodLabel = overviewDateFilters.length > 1
     <div className="inline-flex items-center gap-1 bg-white border border-blue-200 rounded-lg p-1 shadow-sm">
       <button
         onClick={() => setTkbvTab('detail')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           tkbvTab === 'detail' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-600 hover:bg-blue-50'
         }`}
       >
@@ -630,7 +627,7 @@ const periodLabel = overviewDateFilters.length > 1
       </button>
         <button
         onClick={() => setTkbvTab('chart')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           tkbvTab === 'chart' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-600 hover:bg-blue-50'
         }`}
       >
@@ -643,7 +640,7 @@ const periodLabel = overviewDateFilters.length > 1
     <DisplayModeToggle current={tkbvMetric} onChange={setTkbvMetric} />
     <button
       onClick={() => handleOpenGenericExport('tkbv')}
-      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-bold border border-blue-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-sm font-bold border border-blue-200 transition-all shadow-sm active:scale-95 cursor-pointer"
       title="Xuất dữ liệu TKBV ra file .CSV"
     >
       <Download size={15} />
@@ -703,12 +700,12 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Modal: Chi tiết Đã Tính Phiếu (PTHSP) */}
-      {isPthspDetailModalOpen && (
-        <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      {isPthspDetailModalOpen && createPortal(
+        <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+          <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
   <div className="flex items-center gap-6">
     <div>
@@ -720,7 +717,7 @@ const periodLabel = overviewDateFilters.length > 1
     <div className="inline-flex items-center gap-1 bg-white border border-purple-200 rounded-lg p-1 shadow-sm">
       <button
         onClick={() => setPthspTab('detail')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           pthspTab === 'detail' ? 'bg-purple-600 text-white shadow-sm' : 'text-purple-600 hover:bg-purple-50'
         }`}
       >
@@ -729,7 +726,7 @@ const periodLabel = overviewDateFilters.length > 1
       </button>
        <button
         onClick={() => setPthspTab('chart')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           pthspTab === 'chart' ? 'bg-purple-600 text-white shadow-sm' : 'text-purple-600 hover:bg-purple-50'
         }`}
       >
@@ -742,7 +739,7 @@ const periodLabel = overviewDateFilters.length > 1
     <DisplayModeToggle current={pthspMetric} onChange={setPthspMetric} />
     <button
       onClick={() => handleOpenGenericExport('pthsp')}
-      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-xs font-bold border border-purple-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-sm font-bold border border-purple-200 transition-all shadow-sm active:scale-95 cursor-pointer"
       title="Xuất dữ liệu PTHSP ra file .CSV"
     >
       <Download size={15} />
@@ -803,12 +800,12 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Modal: Chi tiết Nhập Kho */}
-      {isInventoryDetailModalOpen && (
-        <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[97%] max-w-none h-[94vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      {isInventoryDetailModalOpen && createPortal(
+        <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+          <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
   <div className="flex items-center gap-6">
     <div>
@@ -821,7 +818,7 @@ const periodLabel = overviewDateFilters.length > 1
      
       <button
         onClick={() => setInventoryTab('detail')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           inventoryTab === 'detail' ? 'bg-teal-600 text-white shadow-sm' : 'text-teal-600 hover:bg-teal-50'
         }`}
       >
@@ -830,7 +827,7 @@ const periodLabel = overviewDateFilters.length > 1
       </button>
        <button
         onClick={() => setInventoryTab('chart')}
-        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+        className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
           inventoryTab === 'chart' ? 'bg-teal-600 text-white shadow-sm' : 'text-teal-600 hover:bg-teal-50'
         }`}
       >
@@ -843,7 +840,7 @@ const periodLabel = overviewDateFilters.length > 1
     <DisplayModeToggle current={inventoryMetric} onChange={setInventoryMetric} />
     <button
       onClick={() => handleOpenGenericExport('inventory')}
-      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg text-xs font-bold border border-teal-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-teal-50 text-teal-700 hover:bg-teal-100 rounded-lg text-sm font-bold border border-teal-200 transition-all shadow-sm active:scale-95 cursor-pointer"
       title="Xuất dữ liệu Nhập kho ra file .CSV"
     >
       <Download size={15} />
@@ -912,12 +909,12 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Modal: Chi tiết Xuất kho */}
-    {isExportDetailModalOpen && (
-  <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-    <div className="bg-white rounded-2xl shadow-2xl w-[90%] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+    {isExportDetailModalOpen && createPortal(
+  <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+    <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
         <div className="flex items-center gap-6">
           <div>
@@ -929,7 +926,7 @@ const periodLabel = overviewDateFilters.length > 1
           <div className="inline-flex items-center gap-1 bg-white border border-amber-200 rounded-lg p-1 shadow-sm">
             <button
               onClick={() => setExportTab('detail')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
                 exportTab === 'detail' ? 'bg-amber-600 text-white shadow-sm' : 'text-amber-600 hover:bg-amber-50'
               }`}
             >
@@ -938,7 +935,7 @@ const periodLabel = overviewDateFilters.length > 1
             </button>
             <button
               onClick={() => setExportTab('chart')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-sm font-bold transition-all ${
                 exportTab === 'chart' ? 'bg-amber-600 text-white shadow-sm' : 'text-amber-600 hover:bg-amber-50'
               }`}
             >
@@ -951,7 +948,7 @@ const periodLabel = overviewDateFilters.length > 1
           <DisplayModeToggle current={exportMetric} onChange={setExportMetric} />
           <button
             onClick={() => handleOpenGenericExport('export')}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold border border-amber-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-sm font-bold border border-amber-200 transition-all shadow-sm active:scale-95 cursor-pointer"
             title="Xuất dữ liệu Xuất kho ra file .CSV"
           >
             <Download size={15} />
@@ -1020,20 +1017,20 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Modal: Chi tiết Tồn kho */}
-    {isStockDetailModalOpen && (
-  <div className={`fixed inset-y-0 right-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
-    <div className="bg-white rounded-2xl shadow-2xl w-[95%] max-w-[1440px] max-h-[94vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+    {isStockDetailModalOpen && createPortal(
+  <div className={`fixed inset-y-0 right-0 z-[60] flex bg-black/50 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-20' : 'md:left-64'}`}>
+    <div className="bg-white shadow-2xl w-full h-full overflow-hidden flex flex-col animate-in fade-in duration-200">
       <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
         <div className="flex items-center gap-6">
           <div>
             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Box className="text-slate-600" size={20} />
-              Tồn kho thành phẩm
+              Tồn kho thành phẩm (tỷ)
+              {closestStockDate && <span className="text-sm font-semibold text-slate-600">{closestStockDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>}
             </h3>
-            {closestStockDate && <p className="text-xs text-slate-500">Chốt ngày {closestStockDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} · đơn vị tỷ đồng</p>}
           </div>
           <div className="inline-flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1 shadow-sm">
             {([['tongquan', 'Tổng quan sức khoẻ', Activity], ['detail', 'Theo công trình', Table2], ['chart', 'Biểu đồ theo bộ lọc', TrendingUp]] as const).map(([k, nhan, Icon]) => (
@@ -1054,7 +1051,7 @@ const periodLabel = overviewDateFilters.length > 1
           {stockTab !== 'tongquan' && <DisplayModeToggle current={stockMetric} onChange={setStockMetric} />}
           <button
             onClick={() => handleOpenGenericExport('stock')}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-xs font-bold border border-slate-200 transition-all shadow-sm active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-bold border border-slate-200 transition-all shadow-sm active:scale-95 cursor-pointer"
             title="Xuất dữ liệu Tồn kho ra file .CSV"
           >
             <Download size={15} />
@@ -1101,14 +1098,14 @@ const periodLabel = overviewDateFilters.length > 1
                     }))}
                     title="Chi tiết theo Công trình"
                     icon={Briefcase}
-                    dateLabel={`NGÀY TỒN LỌC ${
+                    dateLabel={`NGÀY TỒN ${
                       closestStockDate
                         ? `(${closestStockDate.getDate().toString().padStart(2, '0')}/${(closestStockDate.getMonth() + 1)
                             .toString()
                             .padStart(2, '0')}/${closestStockDate.getFullYear()})`
                         : ''
                     }`}
-                    mtdLabel={`GIÁ TRỊ TỒN MỚI NHẤT ${
+                    mtdLabel={`MỚI NHẤT ${
                       latestStockStats.date
                         ? `(${latestStockStats.date.getDate().toString().padStart(2, '0')}/${(
                             latestStockStats.date.getMonth() + 1
@@ -1136,7 +1133,7 @@ const periodLabel = overviewDateFilters.length > 1
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
       {/* Bấm số ở bảng Nhập kho / Xuất kho: dòng của bảng nguồn nhap_kho / xuat_kho trong kỳ */}
       <DetailDataModal
         open={nguon.mo}

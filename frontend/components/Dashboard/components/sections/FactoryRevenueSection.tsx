@@ -228,7 +228,7 @@ export const FactoryRevenueSection = ({
                 </span>
                 <span className="mt-1 block text-[2rem] font-bold leading-tight tabular-nums text-emerald-700">
                   {formatTy(factoryRevenueStats.actual)}
-                  <span className="ml-1.5 text-base font-medium text-slate-400">tỷ · {formatDecimal(factoryRevenueStats.percent)}%</span>
+                  <span className="ml-1.5 text-base font-semibold text-slate-600">tỷ · {formatDecimal(factoryRevenueStats.percent)}%</span>
                 </span>
               </button>
               <div className="relative mt-3 h-2 rounded-full bg-slate-100" aria-hidden>
@@ -244,7 +244,6 @@ export const FactoryRevenueSection = ({
                     Kế hoạch năm {formatTy(targetRevenue2026)} tỷ
                   </button>
                 ) : <>Kế hoạch năm {formatTy(targetRevenue2026)} tỷ</>}
-                <span className="text-slate-500"> · vạch đỏ = mốc quý</span>
               </p>
             </div>
             {theDau}
@@ -254,20 +253,17 @@ export const FactoryRevenueSection = ({
           <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
             <Target size={18} />
           </div>
-          <div>
-            <h3 className="text-sm font-semibold tracking-tight text-slate-900 leading-tight">
-              Tổng quan doanh số nhà máy · Năm 2026
-            </h3>
-            <p className="text-xs text-slate-500 leading-tight mt-0.5">Tiến độ thực hiện (Nhập kho) so với chỉ tiêu kế hoạch năm</p>
-          </div>
+          <h3 className="text-base font-semibold tracking-tight text-slate-900 leading-tight">
+            Doanh số nhà máy 2026 (tỷ)
+          </h3>
         </div>
 
         {/* ===== HÀNG TRÊN: TIẾN ĐỘ TỔNG THỂ + 3 CARD ===== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
           {/* Cột trái: thanh tiến độ (nhãn nằm trong khung) */}
           <div className="lg:col-span-1 relative">
-            <p className="absolute top-2.5 left-3 z-10 text-[0.6875rem] font-medium tracking-wide text-slate-500">
-              Tiến độ tổng thể (Tỷ)
+            <p className="absolute top-2.5 left-3 z-10 text-xs font-semibold text-slate-700">
+              Tiến độ (tỷ)
             </p>
             <div ref={chartWrapperRef} className="h-[104px] w-full bg-slate-50 rounded-xl border border-slate-200 px-2">
               <ResponsiveContainer width="100%" height="100%">
@@ -289,7 +285,7 @@ export const FactoryRevenueSection = ({
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}
                   />
                   <Bar dataKey="thucHien" stackId="a" fill="#3b82f6" radius={[4, 0, 0, 4]}>
-                    <LabelList dataKey="thucHien" position="center" fill="white" fontSize={10} fontWeight="bold" formatter={(val: number) => val > 0 ? formatTy(val) : ''} />
+                    <LabelList dataKey="thucHien" position="center" fill="white" fontSize={12} fontWeight="bold" formatter={(val: number) => val > 0 ? formatTy(val) : ''} />
                   </Bar>
                   <Bar dataKey="conLai" stackId="a" fill="#e2e8f0" radius={[0, 4, 4, 0]} />
 
@@ -339,15 +335,15 @@ export const FactoryRevenueSection = ({
             >
               <span className="flex items-center gap-2 mb-1">
                 <span className="p-1.5 bg-emerald-100 rounded-lg text-emerald-600"><Target size={15} /></span>
-                <span className="text-xs font-medium text-emerald-800 tracking-wide">Kế hoạch năm</span>
+                <span className="text-sm font-semibold text-emerald-800">Kế hoạch năm</span>
               </span>
               <span className="flex items-baseline gap-1.5 pl-0.5">
                 <span className="text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 leading-none">{formatTy(targetRevenue2026)}</span>
-                <span className="text-xs font-medium text-emerald-500">Tỷ</span>
+                <span className="text-sm font-medium text-emerald-700">tỷ</span>
               </span>
               {onPlanClick && (
-                <span className="absolute top-2 right-3 inline-flex items-center gap-1 text-[0.625rem] font-medium text-emerald-600 opacity-70 group-hover:opacity-100">
-                  <Eye size={12} /> Chi tiết
+                <span className="absolute top-2 right-3 inline-flex items-center text-emerald-600 opacity-70 group-hover:opacity-100">
+                  <Eye size={14} />
                 </span>
               )}
             </button>
@@ -362,15 +358,15 @@ export const FactoryRevenueSection = ({
             >
               <span className="flex items-center gap-2 mb-1">
                 <span className="p-1.5 bg-blue-100 rounded-lg text-blue-600"><CheckCircle size={15} /></span>
-                <span className="text-xs font-medium text-blue-800 tracking-wide">Thực hiện lũy kế</span>
+                <span className="text-sm font-semibold text-blue-800">Thực hiện lũy kế</span>
               </span>
               <span className="flex items-baseline gap-1.5 pl-0.5">
                 <span className="text-3xl font-semibold tabular-nums tracking-tight text-blue-600 leading-none">{formatTy(factoryRevenueStats.actual)}</span>
-                <span className="text-xs font-medium text-blue-500">Tỷ</span>
+                <span className="text-sm font-medium text-blue-700">tỷ</span>
               </span>
               {onActualClick && (
-                <span className="absolute top-2 right-3 inline-flex items-center gap-1 text-[0.625rem] font-medium text-blue-500 opacity-70 group-hover:opacity-100">
-                  <Eye size={12} /> Chi tiết
+                <span className="absolute top-2 right-3 inline-flex items-center text-blue-500 opacity-70 group-hover:opacity-100">
+                  <Eye size={14} />
                 </span>
               )}
             </button>
@@ -379,7 +375,7 @@ export const FactoryRevenueSection = ({
             <div className="px-4 py-3 bg-gradient-to-br from-violet-50 to-fuchsia-50 rounded-xl border border-violet-100 flex flex-col justify-center relative overflow-hidden">
               <div className="flex items-center gap-2 mb-1">
                 <div className="p-1.5 bg-violet-100 rounded-lg text-violet-600"><Activity size={15} /></div>
-                <p className="text-xs font-medium text-violet-800 tracking-wide">Tỷ lệ đạt</p>
+                <p className="text-sm font-semibold text-violet-800">Tỷ lệ đạt</p>
               </div>
               <div className="flex items-baseline gap-1 pl-0.5">
                 <h4 className={`text-3xl font-semibold tabular-nums tracking-tight leading-none ${factoryRevenueStats.percent >= 100 ? 'text-emerald-600' : factoryRevenueStats.percent >= 80 ? 'text-violet-600' : 'text-amber-600'}`}>
@@ -421,15 +417,9 @@ export const FactoryRevenueSection = ({
         panelClassName="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col focus:outline-none"
       >
             <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
-              <div>
-                <h2 id="factory-funnel-detail-title" className="text-lg font-bold text-slate-800">
-                  Chi tiết dữ liệu Phễu{selectedFunnelItem ? ` — ${selectedFunnelItem.name}` : ''}
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  {selectedFunnelItem ? 'Phân tích giá trị theo Công trình' : 'Phân tích giá trị theo BOP'}
-                  {onPivotValueClick && ' · bấm con số để xem danh sách HEX'}
-                </p>
-              </div>
+              <h2 id="factory-funnel-detail-title" className="text-lg font-bold text-slate-800">
+                Chi tiết phễu{selectedFunnelItem ? ` — ${selectedFunnelItem.name}` : ''}
+              </h2>
               <button
                 type="button"
                 onClick={closeFunnelModal}

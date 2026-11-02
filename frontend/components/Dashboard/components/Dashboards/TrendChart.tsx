@@ -128,12 +128,12 @@ function formatChartData(
 }
 
 const THEME: Record<TrendSource, { bar: string; barDark: string; label: string; unitValue: string }> = {
-  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới',    unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV',    unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu',       unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho',         unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho',         unitValue: 'Tổng trị giá (Tỷ đồng)' },
-  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho',          unitValue: 'Tổng trị giá (Tỷ đồng)' },
+  order:     { bar: '#ec4899', barDark: '#be185d', label: 'Đơn hàng mới',    unitValue: 'Giá trị (tỷ)' },
+  tkbv:      { bar: '#3b82f6', barDark: '#1d4ed8', label: 'Triển khai BV',    unitValue: 'Giá trị (tỷ)' },
+  pthsp:     { bar: '#a855f7', barDark: '#7e22ce', label: 'Tính phiếu',       unitValue: 'Giá trị (tỷ)' },
+  inventory: { bar: '#14b8a6', barDark: '#0f766e', label: 'Nhập kho',         unitValue: 'Giá trị (tỷ)' },
+  export:    { bar: '#f59e0b', barDark: '#b45309', label: 'Xuất kho',         unitValue: 'Giá trị (tỷ)' },
+  stock:     { bar: '#64748b', barDark: '#334155', label: 'Tồn kho',          unitValue: 'Giá trị (tỷ)' },
 };
 
 interface DetailResponse { rows: Record<string, any>[]; columns: string[]; truncated: boolean; }
@@ -170,7 +170,7 @@ function PinnedPopover({ x, y, containerWidth, label, value, unit, money, onView
         <div className="mt-2.5 flex items-center justify-between gap-2 bg-indigo-50 rounded-full pl-3 pr-1.5 py-1.5">
           <button
             onClick={onViewDetail}
-            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-xs font-semibold"
+            className="flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 text-sm font-semibold"
           >
             <Eye size={13} /> Xem chi tiết
           </button>
@@ -218,7 +218,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
 
   const theme = THEME[source];
   // Tồn kho đếm theo mã SAP (ma_id_sap), không theo HEX
-  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã tồn (mã SAP)' : 'Số lượng HEX') : theme.unitValue;
+  const unit = displayMode === 'COUNT' ? (source === 'stock' ? 'Số mã SAP' : 'Số lượng HEX') : theme.unitValue;
   // Giá trị: API trả triệu đồng -> đổi sang Tỷ, hiển thị 2 số lẻ.
   const isMoney = displayMode !== 'COUNT';
   const fmt = (v: number) => (isMoney ? formatTy(v) : formatDecimal(v));
@@ -393,7 +393,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
       <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
         <h4 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
           <BarChart2 className="w-4 h-4" style={{ color: theme.bar }} />
-          Xu hướng {theme.label} theo thời gian
+          Xu hướng {theme.label}
         </h4>
       </div>
 
@@ -403,7 +403,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
       >
         {!hasValidRange ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">
-            Vui lòng chọn đầy đủ khoảng ngày (Từ - Đến)
+            Chọn khoảng ngày
           </div>
         ) : loading ? (
           <div className="h-full flex items-center justify-center text-slate-400 text-sm">Đang tải...</div>
@@ -415,10 +415,10 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
               onClick={handleChartClick}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
+              <XAxis dataKey="period" tick={{ fontSize: 12, fill: '#475569' }} interval={0} />
               <YAxis
                 tickFormatter={fmt}
-                tick={{ fontSize: 10, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: '#475569' }}
                 width={55}
                 domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.15)]}
               />
@@ -427,7 +427,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                 labelFormatter={(l) => `Kỳ: ${l}`}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
-              <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: embedded ? 11 : 13 }} />
+              <Legend verticalAlign="top" height={embedded ? 28 : 36} wrapperStyle={{ fontSize: 13 }} />
               <Bar
                 dataKey="total"
                 name={unit}
@@ -447,18 +447,20 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                   position="top"
                   offset={10}
                   formatter={(v: number | null) => (v == null ? '' : fmt(v))}
-                  fontSize={embedded ? 9 : 10}
+                  fontSize={12}
+                  fontWeight={700}
                   fill={theme.barDark}
                 />
               </Bar>
               {showPlan && (
-                <Bar dataKey="plan" name="Kế hoạch năm (Tỷ đồng)" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
+                <Bar dataKey="plan" name="Kế hoạch (tỷ)" fill={PLAN_COLOR} radius={[4, 4, 0, 0]} barSize={embedded ? 22 : 30}>
                   <LabelList
                     dataKey="plan"
                     position="top"
                     offset={10}
                     formatter={(v: number) => (v > 0 ? fmt(v) : '')}
-                    fontSize={embedded ? 9 : 10}
+                    fontSize={12}
+                    fontWeight={700}
                     fill={PLAN_DARK}
                   />
                 </Bar>
@@ -471,14 +473,14 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
                   strokeDasharray="6 4"
                   label={(props: any) => {
                     const { viewBox } = props;
-                    const text = `TB theo ngày: ${fmtShort(avgAll)}`;
+                    const text = `TB: ${fmtShort(avgAll)}`;
                     return (
                       <text
                         x={viewBox.x + viewBox.width + 8}
                         y={viewBox.y}
                         dy={4}
                         textAnchor="start"
-                        fontSize={embedded ? 10 : 11}
+                        fontSize={12}
                         fontWeight={600}
                         fill="#16a34a"
                       >
@@ -499,7 +501,7 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
             title={isStock
               ? `Tồn kho là số chụp tại từng ngày nên không cộng các ngày — hiện số của ngày mới nhất có dữ liệu.${stockMissing ? ` ${stockMissing} ngày không có dữ liệu tồn kho (để trống).` : ''}`
               : displayMode === 'COUNT' ? 'Số HEX duy nhất trong khoảng — 1 HEX nhập ở nhiều ngày chỉ tính 1' : undefined}
-            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-xs font-semibold"
+            className="absolute top-3 right-4 z-10 rounded-full border px-3 py-1 text-sm font-bold"
             style={{
               color: theme.barDark,
               borderColor: theme.bar,
@@ -507,21 +509,13 @@ export default function TrendChart({ source, embedded = false, displayMode, plan
             }}
           >
             {isStock
-              ? (stockLatest ? `Mới nhất (${stockLatest.period}): ${fmt(stockLatest.total ?? 0)}` : 'Không có dữ liệu tồn kho')
+              ? (stockLatest ? `${stockLatest.period}: ${fmt(stockLatest.total ?? 0)}` : 'Không có dữ liệu')
               : `Tổng: ${fmt(totalAll)}`}
-            {isStock && stockMissing > 0 && (
-              <span className="font-normal text-slate-500"> · {stockMissing} ngày không có dữ liệu</span>
-            )}
             {showPlan && (
               <span style={{ color: PLAN_DARK }}>
                 {' '}· KH: {fmt(planTotal)} · Đạt {planTotal > 0 ? ((totalAll / planTotal) * 100).toFixed(1) : '0'}%
               </span>
             )}
-          </div>
-        )}
-        {planOverlay && !showPlan && chartData.length > 0 && !loading && (
-          <div className="absolute bottom-1 right-4 z-10 text-[0.6875rem] text-amber-700">
-            Cột Kế hoạch năm chỉ hiện khi xem theo Tháng, chế độ Giá trị
           </div>
         )}
 

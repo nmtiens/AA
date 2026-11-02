@@ -52,14 +52,14 @@ const totalMaterialPages = Math.max(
     <div ref={sectionRef} className="w-full bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
-          <Box className="w-4 h-4 text-slate-600" />Chi tiết Dữ liệu Vật tư (Lọc theo Công trình)
+          <Box className="w-4 h-4 text-slate-600" />Chi tiết vật tư
         </h3>
-       <span className="text-xs text-slate-500">
-  Hiển thị {paginatedMaterialList.length} / {displayedMaterialData.length} dòng
+       <span className="text-sm text-slate-600 tabular-nums">
+  {paginatedMaterialList.length} / {displayedMaterialData.length}
 </span>
       </div>
 <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[600px]">
-        <table className="w-full text-xs text-left whitespace-nowrap">
+        <table className="w-full text-sm text-left whitespace-nowrap">
           <thead className="bg-slate-100 text-slate-700 font-semibold sticky top-0 z-10">
             <tr>
               <th className="px-3 py-2 border-b border-slate-200 text-center w-10">STT</th>
@@ -74,7 +74,7 @@ const totalMaterialPages = Math.max(
             {paginatedMaterialList.length > 0 ? (
               paginatedMaterialList.map((row, index) => (
                 <tr key={index} className={`transition-colors border-b border-slate-100 ${getMaterialRowClassName(row)}`}>
-                  <td className="px-3 py-2 text-center opacity-70 font-mono text-xs">
+                  <td className="px-3 py-2 text-center text-slate-500 font-mono text-sm">
                     {(materialListPage - 1) * MATERIAL_ITEMS_PER_PAGE + index + 1}
                   </td>
                   {MATERIAL_LIST_COLUMNS.map((col, colIdx) => (
@@ -93,7 +93,7 @@ const totalMaterialPages = Math.max(
         </table>
       </div>
       {totalMaterialPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-xs text-slate-600">
+        <div className="flex items-center justify-between mt-4 text-sm text-slate-700">
           <div>Trang {materialListPage} / {totalMaterialPages}</div>
           <div className="flex items-center gap-2">
             <button

@@ -47,21 +47,13 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
           <div className="bg-red-50 p-2 rounded-lg text-red-600">
             <AlertTriangle size={24} />
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">BÁO CÁO TỶ TRỌNG ĐIỂM NGHẼN</h3>
-            <p className="text-xs text-slate-500">
-              Phân tích thời gian tồn tại của các hạng mục (HEX) tại từng công đoạn
-            </p>
-          </div>
+          <h3 className="text-lg font-bold text-slate-800">ĐIỂM NGHẼN (HEX)</h3>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg border border-slate-200 shadow-inner">
-            <span className="text-[0.625rem] font-bold text-slate-500 uppercase tracking-wider px-2 hidden sm:inline-block">
-              CHẾ ĐỘ XEM:
-            </span>
             <button
               onClick={() => setBottleneckViewMode('BOP')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${
+              className={`px-3 py-1.5 text-sm font-bold rounded-md transition-all duration-200 ${
                 bottleneckViewMode === 'BOP'
                   ? 'bg-white text-indigo-700 shadow-sm border border-indigo-100/50'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
@@ -71,7 +63,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
             </button>
             <button
               onClick={() => setBottleneckViewMode('TÌNH TRẠNG')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all duration-200 ${
+              className={`px-3 py-1.5 text-sm font-bold rounded-md transition-all duration-200 ${
                 bottleneckViewMode === 'TÌNH TRẠNG'
                   ? 'bg-white text-indigo-700 shadow-sm border border-indigo-100/50'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
@@ -105,12 +97,12 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                 angle={-45}
                 textAnchor="end"
                 height={80}
-                tick={{ fontSize: 10, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: '#475569' }}
                 interval={0}
               />
               <YAxis
                 tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-                tick={{ fontSize: 10, fill: '#64748b' }}
+                tick={{ fontSize: 12, fill: '#475569' }}
               />
               <RechartsTooltip
                 formatter={(value: number, name: string) => [value, name]}
@@ -121,7 +113,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                 verticalAlign="top"
                 height={36}
                 iconType="circle"
-                wrapperStyle={{ fontSize: '11px', fontWeight: 500 }}
+                wrapperStyle={{ fontSize: '13px', fontWeight: 600 }}
               />
 
               <Bar dataKey="Từ 4 tuần trở lên" stackId="a" fill="#ef4444" barSize={30}>
@@ -129,7 +121,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   dataKey="Từ 4 tuần trở lên"
                   position="center"
                   fill="#ffffff"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight="bold"
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
@@ -139,7 +131,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   dataKey="3 tuần"
                   position="center"
                   fill="#ffffff"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight="bold"
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
@@ -149,7 +141,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   dataKey="2 tuần"
                   position="center"
                   fill="#ffffff"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight="bold"
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
@@ -159,7 +151,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   dataKey="4-7 NGÀY"
                   position="center"
                   fill="#ffffff"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight="bold"
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
@@ -169,7 +161,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   dataKey="<3 NGÀY"
                   position="center"
                   fill="#ffffff"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight="bold"
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
@@ -179,7 +171,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   dataKey="Chưa có số ngày"
                   position="center"
                   fill="#475569"
-                  fontSize={10}
+                  fontSize={12}
                   fontWeight="bold"
                   formatter={(v: any) => (v > 0 ? v : '')}
                 />
@@ -192,7 +184,7 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
         <div className="bg-red-50/50 rounded-xl p-5 border border-red-100 flex flex-col">
           <div className="flex items-center gap-2 mb-4 text-red-700">
             <Clock className="w-5 h-5" />
-            <h4 className="font-bold uppercase text-sm">Top Điểm Nghẽn Sản Xuất (Trên 4 Tuần)</h4>
+            <h4 className="font-bold uppercase text-sm">Top nghẽn ≥ 4 tuần</h4>
           </div>
 
           {prodBottlenecks.length > 0 ? (
@@ -203,42 +195,36 @@ export const BottleneckSection: React.FC<BottleneckSectionProps> = ({
                   className="bg-white p-3 rounded-lg border border-red-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 font-bold text-xs">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-100 text-red-700 font-bold text-sm">
                       {index + 1}
                     </span>
-                    <div>
-                      <p className="text-xs font-bold text-slate-700">{item.name}</p>
-                      <p className="text-[0.625rem] text-red-500 font-medium">Tồn đọng lâu</p>
-                    </div>
+                    <p className="text-sm font-bold text-slate-700">{item.name}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-lg font-bold text-red-600 block leading-none">{item.count}</span>
-                    <span className="text-[0.5625rem] text-slate-400 uppercase">items</span>
-                  </div>
+                  <span className="text-2xl font-bold text-red-600 leading-none tabular-nums">{item.count}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 text-center p-4">
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-600 text-center p-4">
               <CheckCircle className="w-10 h-10 text-green-400 mb-2 opacity-50" />
-              <p className="text-xs">Không có công đoạn nào tồn đọng trên 4 tuần.</p>
+              <p className="text-sm">Không có nghẽn ≥ 4 tuần</p>
             </div>
           )}
 
           <div className="mt-4 pt-4 border-t border-red-200">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500">Tổng cảnh báo (sản xuất):</span>
-              <span className="font-bold text-red-700">
-                {prodBottlenecks.reduce((a, b) => a + b.count, 0)} items
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-semibold text-slate-700">Tổng</span>
+              <span className="text-xl font-bold text-red-700 tabular-nums">
+                {prodBottlenecks.reduce((a, b) => a + b.count, 0)}
               </span>
             </div>
             {designWait && (
               <div
-                className="mt-2 flex justify-between items-center rounded-lg bg-white px-3 py-2 text-xs border border-slate-200"
+                className="mt-2 flex justify-between items-center rounded-lg bg-white px-3 py-2 text-sm border border-slate-200"
                 title="Hạng mục chưa triển khai bản vẽ tồn ≥ 4 tuần — chờ thiết kế, không phải nghẽn trong xưởng (tách khỏi top nghẽn sản xuất)"
               >
-                <span className="text-slate-600">{designWait.name} · chờ triển khai bản vẽ</span>
-                <span className="font-bold text-slate-800">{designWait.count} items</span>
+                <span className="text-slate-700">{designWait.name} · chờ bản vẽ</span>
+                <span className="text-base font-bold text-slate-800 tabular-nums">{designWait.count}</span>
               </div>
             )}
           </div>

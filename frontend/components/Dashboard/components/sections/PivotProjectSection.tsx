@@ -31,22 +31,21 @@ export const PivotProjectSection = ({
   <div ref={sectionRef} className="scroll-mt-24 w-full bg-white p-5 rounded-xl shadow-sm border border-wood-100 flex flex-col">
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-4 gap-3">
       <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
-        <LayoutList className="w-4 h-4 text-blue-500" />Chi tiết Giá trị (Công trình x Tình trạng)
-        {projectMetric !== 'COUNT_HEX' && <span className="font-medium text-xs text-slate-400">(Tỷ đồng)</span>}
+        <LayoutList className="w-4 h-4 text-blue-500" />Công trình × tình trạng{projectMetric !== 'COUNT_HEX' && ' (tỷ)'}
       </h3>
       <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
         <MetricSwitcher current={projectMetric} onChange={setProjectMetric} />
         <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
           <button
             onClick={() => setExcludeFabrics(false)}
-            className={`flex items-center gap-1.5 px-2 py-1 text-[0.625rem] font-bold uppercase rounded-md transition-all ${!excludeFabrics ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+            className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold uppercase rounded-md transition-all ${!excludeFabrics ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
             title="Hiển thị tất cả hạng mục"
           >
             <CheckCircle size={12} /> Đủ hạng mục
           </button>
           <button
             onClick={() => setExcludeFabrics(true)}
-            className={`flex items-center gap-1.5 px-2 py-1 text-[0.625rem] font-bold uppercase rounded-md transition-all ${excludeFabrics ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
+            className={`flex items-center gap-1.5 px-2 py-1 text-xs font-bold uppercase rounded-md transition-all ${excludeFabrics ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-200'}`}
             title="Loại bỏ Vải, Gối khỏi thống kê"
           >
             <MinusCircle size={12} /> Trừ Vải/Gối
@@ -56,7 +55,7 @@ export const PivotProjectSection = ({
     </div>
     {pivotProjectData ? (
       <div className="overflow-auto custom-scrollbar border border-slate-200 rounded-lg max-h-[550px]">
-        <table className="w-full text-xs text-right min-w-[800px] border-separate border-spacing-0">
+        <table className="w-full text-sm text-right min-w-[800px] border-separate border-spacing-0">
           <thead className="bg-blue-50/50 text-slate-700 font-semibold uppercase">
             <tr>
               {/* Góc trên-trái: ghim cả top + left, z cao nhất */}
@@ -84,7 +83,7 @@ export const PivotProjectSection = ({
                   const matrix = pivotProjectData.matrix || {};
                   const val = matrix[p]?.[s] || 0;
                   return (
-                    <td key={s} className={`px-3 py-2 whitespace-nowrap ${val === 0 ? 'text-slate-300' : 'text-slate-600'}`}>
+                    <td key={s} className={`px-3 py-2 whitespace-nowrap ${val === 0 ? 'text-slate-300' : 'text-slate-700'}`}>
                       {val === 0 ? '-' : formatNumber(val, projectMetric)}
                     </td>
                   );
@@ -108,7 +107,7 @@ export const PivotProjectSection = ({
                 </td>
               ))}
               {/* Góc dưới-phải: ghim cả bottom + right, z cao nhất */}
-              <td className="px-3 py-2 text-blue-900 text-sm sticky bottom-0 right-0 z-40 bg-blue-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
+              <td className="px-3 py-2 text-blue-900 text-base sticky bottom-0 right-0 z-40 bg-blue-100 shadow-[-2px_-1px_2px_rgba(0,0,0,0.05)]">
                 {formatNumber(pivotProjectData.grandTotal, projectMetric)}
               </td>
             </tr>
