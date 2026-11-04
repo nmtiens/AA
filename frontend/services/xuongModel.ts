@@ -365,6 +365,14 @@ export function nguoiDangBan(dangChay: DongViec[], boQua?: string): Map<string, 
   return out;
 }
 
+/**
+ * Người chọn sẵn khi mở Điểm danh. Lần đầu trong ca: cả tổ (bỏ tick người vắng nhanh hơn tick từng người). Đã chốt quân
+ * số bằng "chỉ nhập số" thì KHÔNG chọn sẵn: không biết là ai, lưu vội sẽ chấm công dư người (chốt 8, tổ 49).
+ */
+export function chonSanDiemDanh(lanDau: boolean, soDaChot: number | null, caTo: string[], coMatTruoc: string[]): string[] {
+  return lanDau && soDaChot === null ? caTo : coMatTruoc;
+}
+
 /** Người chọn sẵn khi Bắt đầu / Tiếp tục: Tiếp tục giữ nhóm lần trước; còn lại = người có mặt chưa làm hạng mục khác */
 export function nguoiChonSan(r: Pick<DongViec, 'nguoi'>, tiepTuc: boolean, cv: CongViec, ca: LoaiCa | null, now: number, ban: Map<string, string>): string[] {
   if (tiepTuc && r.nguoi?.length) return r.nguoi;

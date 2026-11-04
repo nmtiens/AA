@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, UserPlus, Search as SearchIcon, Loader2, X } from 'lucide-react';
 import { BottomSheet } from '../mobileUi';
 import {
-  TEN_CA, hhmm, mocTrongNgay, coMatLuc, tenGon,
+  TEN_CA, hhmm, mocTrongNgay, coMatLuc, tenGon, chonSanDiemDanh,
   type CongViec, type CongNhanTo, type LoaiCa,
 } from '../../../services/xuongModel';
 import { xuongApi, type CongNhanTim } from '../../../services/xuongApi';
@@ -152,8 +152,9 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
   });
   const [tim, setTim] = useState('');
   const [nguoiMoi, setNguoiMoi] = useState<CongNhanTo[]>([]);
-  // Lần đầu trong ca: mặc định cả tổ có mặt (bỏ tick người vắng nhanh hơn tick từng người)
-  const [chon, setChon] = useState<Set<string>>(() => new Set(lanDau ? ds.filter(x => !x.toKhac).map(x => x.mnv) : coMatTruoc));
+  // Ca đã chốt bằng "chỉ nhập số", chưa điểm tên: số đã chốt (để đối chiếu với số tên đang chọn)
+  const soDaChot = lanDau && (cv.quanSo[ca] ?? 0) > 0 ? cv.quanSo[ca]! : null;
+  const [chon, setChon] = useState<Set<string>>(() => new Set(chonSanDiemDanh(lanDau, soDaChot, ds.filter(x => !x.toKhac).map(x => x.mnv), [...coMatTruoc])));
   // Giờ cho người vừa tick / bỏ tick: lần điểm danh đầu (hoặc trong 30 phút đầu ca) = đúng giờ đầu ca — tổ trưởng
   // điểm danh muộn thì cả tổ không bị tính trễ; sau đó (đến trễ / về sớm) = giờ hiện tại
   const [gio, setGio] = useState(() => hhmmTuPhut(lanDau || now < batDauCa + 30 * 60_000 ? phut(batDauCa) : phut(now)));
@@ -295,7 +296,8 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
             )}
           </div>
         )}
-        <button className={NUT_CHINH} disabled={!doi && !lanDau} onClick={luu}>
+        {/* Chưa chọn ai mà lưu sẽ ghi đè quân số đã chốt thành 0 */}
+        <button className={NUT_CHINH} disabled={(!doi && !lanDau) || (soDaChot !== null && chon.size === 0)} onClick={luu}>
           {/* Có người vắng thì chữ ngắn lại cho vừa 1 dòng */}
           {!lanDau && !doi ? `${chon.size} người có mặt`
             : soVang > 0 ? `Lưu · ${chon.size} có mặt, ${soVang} vắng`
@@ -303,6 +305,12 @@ export function DiemDanhSheet({ ca, cv, now, onLuu, onChiNhapSo, onClose }: {
         </button>
       </div>}>
       <div className="space-y-4 pb-2">
+        {soDaChot !== null && (
+          <p className={`rounded-2xl ${MAU.ngung.nen} p-3 text-base ${MAU.ngung.chu}`} role="status">
+            Ca này đã chốt {soDaChot} người bằng số, chưa có tên. Chạm tên đúng những người có mặt.
+            {chon.size > 0 && chon.size !== soDaChot && <b> Lưu sẽ đổi quân số từ {soDaChot} thành {chon.size}.</b>}
+          </p>
+        )}
         <div ref={thanhTren} className={gon ? 'sticky top-0 z-10 -mx-5 space-y-2 border-b border-slate-100 bg-white px-5 pb-3 pt-1' : 'space-y-4'}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-lg font-semibold text-slate-900"><span className="tabular-nums">{chon.size}</span> / {ds.length} có mặt</p>

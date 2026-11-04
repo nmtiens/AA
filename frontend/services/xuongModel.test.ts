@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nguoiChonSan,
+  nguoiChonSan, chonSanDiemDanh,
   gioVN, caCanChot, caHienTai, apDung, nhomDangLam, soNguoiRanh, chiaDeu, trichHex, thoiLuong, hhmm, mocTrongNgay,
   choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon, apDungDiemDanh,
   type DongViec, type LichCa,
@@ -19,6 +19,18 @@ const dong = (p: Partial<DongViec>): DongViec => ({
   hex: '250301895', congDoanId: 'CD1', trangThai: 'dang_lam', slGiaoDen: 0, slNhan: 10, slHoanThanh: 0, slGiao: 0,
   soNguoi: null, dangChayTu: null, suKienCuoi: null, co: [], tenHangMuc: null, maCongTrinh: null, tenCongTrinh: null,
   dvt: null, goiYKe: [], ...p,
+});
+
+describe('chonSanDiemDanh', () => {
+  it('lần đầu trong ca: cả tổ', () => {
+    expect(chonSanDiemDanh(true, null, ['A', 'B'], [])).toEqual(['A', 'B']);
+  });
+  it('đã chốt bằng số, chưa điểm tên: không chọn sẵn ai', () => {
+    expect(chonSanDiemDanh(true, 8, ['A', 'B'], [])).toEqual([]);
+  });
+  it('đã điểm tên: giữ người đang có mặt', () => {
+    expect(chonSanDiemDanh(false, null, ['A', 'B'], ['B'])).toEqual(['B']);
+  });
 });
 
 describe('nguoiChonSan', () => {
