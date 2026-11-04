@@ -711,7 +711,8 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
               {cv.chamCong ? 'Điểm danh' : 'Chốt'}<ChevronRight size="1.1em" aria-hidden /></span>
           </button>
         )}
-        {cv?.chamCong && !laTram && !caChot && ca && daDiemDanh(cv, ca) && (() => {
+        {/* Luôn có lối vào Điểm danh: chốt bằng "chỉ nhập số" (không điểm tên) hoặc đã qua giờ ca thì băng đỏ trên không còn */}
+        {cv?.chamCong && !laTram && !caChot && ca && (() => {
           const coMatNay = coMatLuc(cv, ca, now);
           const gan = new Set(nhom.dangChay.flatMap(r => r.nguoi ?? []));
           // Dải vàng "N người đang rảnh" ở đáy đang hiện thì không lặp lại nút ở đầu
@@ -721,7 +722,9 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
               <button className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-2 text-left active:bg-slate-100"
                 onClick={() => setSheet({ loai: 'diemDanh', ca })}>
                 <span className="flex items-center gap-2 whitespace-nowrap text-base text-slate-800"><Users size="1.1em" className="shrink-0" aria-hidden />
-                  <b className="tabular-nums">{coMatNay.length}</b> có mặt</span>
+                  {daDiemDanh(cv, ca) ? <><b className="tabular-nums">{coMatNay.length}</b> có mặt</>
+                    : typeof quanSo === 'number' ? <><b className="tabular-nums">{quanSo}</b> người · chưa điểm tên</>
+                    : 'Chưa điểm danh'}</span>
                 {/* Cạnh nút "chưa gắn việc" thì bỏ chữ cho khỏi bị bóp (cả ô vẫn mở Điểm danh) */}
                 {!chuaGan && <span className="shrink-0 text-base font-medium text-slate-600">Điểm danh</span>}
               </button>
