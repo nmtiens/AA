@@ -22,6 +22,13 @@ const luuToken = (tok: unknown) => {
 };
 
 export const coTram = () => { try { return !!localStorage.getItem(TRAM_TOKEN_KEY) && !!localStorage.getItem(TRAM_DEVICE_KEY); } catch { return false; } };
+/** Mã trạm trong token (để thu hồi trạm cũ khi đổi tổ); token hỏng / chưa có: null */
+export const deviceIdTram = (): string | null => {
+  try {
+    const phan = (localStorage.getItem(TRAM_TOKEN_KEY) ?? '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(phan)).did ?? null;
+  } catch { return null; }
+};
 export const xoaTram = () => { try { localStorage.removeItem(TRAM_TOKEN_KEY); localStorage.removeItem(TRAM_DEVICE_KEY); } catch { /* bỏ qua */ } };
 
 /** Hàng đợi riêng của trạm: mỗi lô máy chủ nhận kèm token gia hạn (trạm dùng hằng ngày nên không hết hạn) */

@@ -5,7 +5,7 @@ import { xuongApi } from '../../../services/xuongApi';
 import { authXuong } from '../../../services/xuongClock';
 import { LoiLuuMay, type SuKienCho, type SuKienNhap } from '../../../services/xuongQueue';
 import {
-  coTram, xoaTram, hangDoiTram, doLechTram, tramApi, type BangTramMayChu, type CongNhanTram, type HangMucTram,
+  coTram, xoaTram, deviceIdTram, hangDoiTram, doLechTram, tramApi, tramQuanLyApi, type BangTramMayChu, type CongNhanTram, type HangMucTram,
 } from '../../../services/xuongTramApi';
 import {
   docMaQuet, caChoLanQuet, daHetCa, ngayCa, vaoHang, raHang, raCa, vaoCa, hangCua, daVaoCa, xongHang,
@@ -234,14 +234,16 @@ const soSet = (n: number, dvt: string | null) => `${Number(n.toFixed(3)).toLocal
 
 export default function TramQuet() {
   const [daCoTram, setDaCoTram] = useState(coTram);
-  if (!daCoTram) return <DangKyTram onXong={() => setDaCoTram(true)} />;
-  return <ManTram onDangKyLai={() => { xoaTram(); setDaCoTram(false); }} />;
+  // Đổi tổ: giữ nguyên trạm hiện tại tới khi đăng ký xong tổ mới, nên huỷ giữa chừng trạm vẫn chạy
+  const [doiTo, setDoiTo] = useState(false);
+  if (!daCoTram || doiTo) return <DangKyTram doiTo={doiTo} onHuy={() => setDoiTo(false)} onXong={() => { setDoiTo(false); setDaCoTram(true); }} />;
+  return <ManTram onDangKyLai={() => { xoaTram(); setDaCoTram(false); }} onDoiTo={() => setDoiTo(true)} />;
 }
 
 // ---------------------------------------------------------------------------
 // Màn trạm
 // ---------------------------------------------------------------------------
-function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
+function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: () => void }) {
   const [bang, setBang] = useState<BangTramMayChu | null>(() => docLs<BangTramMayChu>(KHOA_BANG));
   const [cho, setCho] = useState<SuKienCho[]>([]);
   const [congNhan, setCongNhan] = useState<Map<string, CongNhanTram>>(() => new Map((docLs<CongNhanTram[]>(KHOA_CN) ?? []).map(c => [c.mnv, c])));
@@ -553,7 +555,12 @@ function ManTram({ onDangKyLai }: { onDangKyLai: () => void }) {
         <span className="hidden h-9 w-px bg-slate-200 sm:block" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="truncate text-xl font-semibold text-slate-900">Trạm {bang?.to.ten ?? '…'}{bang?.tram.ten ? ` · ${bang.tram.ten}` : ''}</p>
-          <p className="text-base text-slate-600">{bang?.to.xuong ?? ''}{cho.length ? ` · ${cho.length} lượt chờ gửi` : ''}</p>
+          <p className="flex items-center gap-3 text-base text-slate-600">
+            <span>{bang?.to.xuong ?? ''}{cho.length ? ` · ${cho.length} lượt chờ gửi` : ''}</span>
+            {/* Lượt chờ gửi đi theo token trạm: đổi tổ lúc này sẽ gửi nhầm sang tổ mới */}
+            <button type="button" className="font-medium text-slate-700 underline underline-offset-4"
+              onClick={() => (cho.length ? baoTin('loi', `Còn ${cho.length} lượt chờ gửi — có sóng gửi xong mới đổi tổ được`) : onDoiTo())}>Đổi tổ</button>
+          </p>
         </div>
         <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-base font-medium ${mang === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
           {mang === 'ok' ? <Wifi size="1.1em" aria-hidden /> : <WifiOff size="1.1em" aria-hidden />}{mang === 'ok' ? 'Có sóng' : 'Mất sóng — vẫn quét được'}
@@ -700,7 +707,7 @@ function GoMa({ onXong, onDong }: { onXong: (v: string) => void; onDong: () => v
 // ---------------------------------------------------------------------------
 // Đăng ký máy làm trạm (quản lý xưởng / tổ trưởng đăng nhập trên máy trạm, đăng ký xong thì đăng xuất)
 // ---------------------------------------------------------------------------
-function DangKyTram({ onXong }: { onXong: () => void }) {
+function DangKyTram({ doiTo, onHuy, onXong }: { doiTo: boolean; onHuy: () => void; onXong: () => void }) {
   const [coNguoi, setCoNguoi] = useState(() => !!getToken() || !!localStorage.getItem('xuong_token'));
   const [dm, setDm] = useState<{ to: Array<{ id: number; xuong: string; ten: string; congDoan: string[] }>; congDoan: Array<{ id: string; ten: string }> } | null>(null);
   const [toId, setToId] = useState<number | null>(null);
@@ -708,6 +715,8 @@ function DangKyTram({ onXong }: { onXong: () => void }) {
   const [ten, setTen] = useState('');
   const [loi, setLoi] = useState('');
   const [dang, setDang] = useState(false);
+  // Đổi tổ để thử nhiều lần: không phải đăng nhập lại (máy để chung ở xưởng thì giữ mặc định: đăng xuất)
+  const [giuDangNhap, setGiuDangNhap] = useState(false);
 
   useEffect(() => {
     if (!coNguoi) return;
@@ -719,7 +728,9 @@ function DangKyTram({ onXong }: { onXong: () => void }) {
 
   if (!coNguoi) {
     return <DangNhapXuong onSuccess={() => setCoNguoi(true)}
-      ghiChu={<p className="text-base text-slate-700">Máy này chưa là trạm quét. Quản lý xưởng hoặc tổ trưởng đăng nhập để đăng ký.</p>} />;
+      ghiChu={doiTo
+        ? <p className="text-base text-slate-700">Quản lý xưởng hoặc tổ trưởng đăng nhập để đổi tổ của trạm. <button type="button" className="font-medium underline underline-offset-4" onClick={onHuy}>Quay lại trạm</button></p>
+        : <p className="text-base text-slate-700">Máy này chưa là trạm quét. Quản lý xưởng hoặc tổ trưởng đăng nhập để đăng ký.</p>} />;
   }
   const to = dm?.to.find(t => t.id === toId) ?? null;
   const tenCd = new Map((dm?.congDoan ?? []).map(c => [c.id, c.ten]));
@@ -727,21 +738,30 @@ function DangKyTram({ onXong }: { onXong: () => void }) {
   const dangKy = async () => {
     if (!toId) return;
     setDang(true); setLoi('');
+    const tramCu = doiTo ? deviceIdTram() : null;
     const r = await tramApi.dangKy(authXuong, toId, cds, ten.trim());
+    if (!r.ok) { setDang(false); setLoi(r.message); return; }
+    // Đổi tổ: thu hồi trạm cũ (không có quyền với tổ cũ thì thôi, trạm cũ tự hết dùng vì máy đã có token mới);
+    // bỏ dữ liệu tổ cũ lưu trên máy để màn trạm không hiện nhầm
+    if (tramCu) await tramQuanLyApi(authXuong).thuHoi(tramCu);
     setDang(false);
-    if (!r.ok) { setLoi(r.message); return; }
+    if (doiTo) {
+      try { for (const k of [KHOA_BANG, KHOA_CN, KHOA_CA]) localStorage.removeItem(k); } catch { /* bỏ qua */ }
+    }
     // Máy trạm để chung ở xưởng: bỏ phiên người đăng ký, chỉ giữ token trạm
-    try {
-      localStorage.removeItem('app_token'); sessionStorage.removeItem('app_token');
-      localStorage.removeItem('app_user_persist'); localStorage.removeItem('xuong_token');
-    } catch { /* bỏ qua */ }
+    if (!giuDangNhap) {
+      try {
+        localStorage.removeItem('app_token'); sessionStorage.removeItem('app_token');
+        localStorage.removeItem('app_user_persist'); localStorage.removeItem('xuong_token');
+      } catch { /* bỏ qua */ }
+    }
     onXong();
   };
 
   return (
     <div className="mx-auto flex min-h-full max-w-xl flex-col gap-4 bg-white p-6">
       <LogoAADayDu className="mx-auto h-24 w-auto" />
-      <h1 className="text-2xl font-semibold text-slate-900">Đăng ký máy này làm trạm quét</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">{doiTo ? 'Đổi tổ của trạm' : 'Đăng ký máy này làm trạm quét'}</h1>
       <p className="text-base text-slate-600">Trạm gắn với một tổ. Đăng ký xong, máy tự đăng xuất tài khoản của bạn — công nhân chỉ quét được thẻ và phiếu.</p>
       <label className="text-base font-semibold text-slate-800" htmlFor="tram-to">Tổ</label>
       <select id="tram-to" className="h-14 rounded-2xl border border-slate-300 px-3 text-lg" value={toId ?? ''}
@@ -763,7 +783,14 @@ function DangKyTram({ onXong }: { onXong: () => void }) {
       <label className="text-base font-semibold text-slate-800" htmlFor="tram-ten">Tên trạm (vd "cửa kho")</label>
       <input id="tram-ten" className="h-14 rounded-2xl border border-slate-300 px-3 text-lg" value={ten} maxLength={80} onChange={e => setTen(e.target.value)} />
       {loi && <p className="text-base text-red-700" role="alert">{loi}</p>}
-      <button className={NUT_CHINH} disabled={!toId || dang} onClick={() => void dangKy()}>{dang ? 'Đang đăng ký…' : 'Đăng ký trạm'}</button>
+      {doiTo && (
+        <label className="flex min-h-12 items-center gap-3 text-base text-slate-800">
+          <input type="checkbox" className="h-6 w-6" checked={giuDangNhap} onChange={e => setGiuDangNhap(e.target.checked)} />
+          Giữ đăng nhập trên máy này (khi đang thử, để đổi tổ tiếp)
+        </label>
+      )}
+      <button className={NUT_CHINH} disabled={!toId || dang} onClick={() => void dangKy()}>{dang ? 'Đang đăng ký…' : doiTo ? 'Đổi sang tổ này' : 'Đăng ký trạm'}</button>
+      {doiTo && <button type="button" className={NUT_PHU} onClick={onHuy}>Quay lại trạm</button>}
     </div>
   );
 }
