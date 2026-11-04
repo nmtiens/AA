@@ -30,6 +30,12 @@ const GIO_MS = 3_600_000;
 
 const moc = (ngay: string, hhmm: string): number => Date.parse(`${ngay}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
 
+/**
+ * Ngày-tổ gần như không có việc: thường là quân số / điểm danh sai (chọn cả tổ khi chỉ vài người làm), một ngày như vậy
+ * làm lệch cả kỳ báo cáo. Dưới 1 giờ công thì bỏ qua (vừa điểm danh xong chưa nói lên gì).
+ */
+export const tyLeCoViecThap = (gioNguoi: number, gioCong: number): boolean => gioNguoi >= 1 && gioCong / gioNguoi < 0.1;
+
 /** Thứ trong tuần của một ngày 'YYYY-MM-DD' (0 = Chủ nhật) */
 export const thuTrongTuan = (ngay: string): number => new Date(`${ngay}T12:00:00${VN_OFFSET}`).getUTCDay();
 

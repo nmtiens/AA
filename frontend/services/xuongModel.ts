@@ -338,6 +338,7 @@ export const TEN_CO: Record<string, string> = {
   tam_ngung_khi_khong_chay: 'Tạm ngưng khi không chạy',
   tiep_tuc_khi_chua_tam_ngung: 'Tiếp tục khi chưa tạm ngưng',
   hoan_thanh_chua_bat_dau: 'Xong khi chưa bắt đầu',
+  ty_le_co_viec_thap: 'Tỷ lệ có việc dưới 10% — kiểm tra quân số / điểm danh',
   giao_vuot_hoan_thanh: 'Giao nhiều hơn số đã xong',
   hoan_thanh_vuot_nhan: 'Xong nhiều hơn số đã nhận',
   chua_xac_nhan: 'Chưa xác nhận cuối ngày',

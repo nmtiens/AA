@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, thuTrongTuan } from '../src/server/xuong/allocation.js';
+import { cuaSoTrongNgay, phanBoGioCong, trangThaiXacNhan, thuTrongTuan, tyLeCoViecThap } from '../src/server/xuong/allocation.js';
 import type { LichCaRow } from '../src/server/xuong/types.js';
 import { tomTatDiemDanh } from '../src/server/xuong/chamCong.js';
 
@@ -260,5 +260,20 @@ describe('tomTatDiemDanh — trễ / về sớm', () => {
     assert.equal(tt.X.veSomP, 0);
     assert.equal(tt.Y.treP, 0);
     assert.equal(tt.Y.veSomP, 60);
+  });
+});
+
+describe('tyLeCoViecThap', () => {
+  it('dưới 10% giờ công có việc: gắn cờ', () => {
+    assert.equal(tyLeCoViecThap(299.95, 0.48), true);
+    assert.equal(tyLeCoViecThap(100, 9.9), true);
+  });
+  it('từ 10% trở lên: không', () => {
+    assert.equal(tyLeCoViecThap(100, 10), false);
+    assert.equal(tyLeCoViecThap(3.94, 3.34), false);
+  });
+  it('dưới 1 giờ công (vừa điểm danh): bỏ qua', () => {
+    assert.equal(tyLeCoViecThap(0.5, 0), false);
+    assert.equal(tyLeCoViecThap(0, 0), false);
   });
 });

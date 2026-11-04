@@ -82422,6 +82422,7 @@ function tomTatDiemDanh(coMat, ngay2, lichCa) {
 var VN_OFFSET = "+07:00";
 var GIO_MS = 36e5;
 var moc = (ngay2, hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
+var tyLeCoViecThap = (gioNguoi, gioCong) => gioNguoi >= 1 && gioCong / gioNguoi < 0.1;
 var thuTrongTuan = (ngay2) => (/* @__PURE__ */ new Date(`${ngay2}T12:00:00${VN_OFFSET}`)).getUTCDay();
 function truNghi(start, end, nghi) {
   let doan = [[start, end]];
@@ -85012,16 +85013,16 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay] = await Promise.all([
       poolMra.query(`SELECT to_id, to_char(ngay,'YYYY-MM-DD') AS ngay, v FROM xuong_phien_ban
                   WHERE to_id = ANY($1::int[]) AND ngay BETWEEN $2::date AND $3::date ORDER BY ngay`, [toIds, tu, den]),
-      // Nhật ký công đoạn có đủ Bắt đầu và Hoàn thành (cặp hex × công đoạn có bắt đầu / hoàn thành trong kỳ)
+      // Nhật ký đủ: mỗi công đoạn hoàn thành trong kỳ có ghi lúc bắt đầu (tổ trạm: lượt quét vào hàng thay cho Bắt đầu).
+      // Hạng mục đang làm dở chưa xét — chưa tới lúc có Hoàn thành
       poolMra.query(
-        `WITH hl AS (SELECT * FROM xuong_su_kien e WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai IN ('bat_dau','hoan_thanh')
+        `WITH hl AS (SELECT * FROM xuong_su_kien e WHERE e.xuong = $1 AND e.nguon = 'app' AND e.loai IN ('bat_dau','nguoi_vao','hoan_thanh')
                        AND ($4::int[] IS NULL OR e.to_id = ANY($4::int[]))
                        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)),
               cap AS (SELECT DISTINCT hex, cong_doan_id FROM hl
-                      WHERE (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date)
+                      WHERE loai = 'hoan_thanh' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN $2::date AND $3::date)
          SELECT count(*)::int AS tong,
-                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai = 'bat_dau')
-                                   AND EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai = 'hoan_thanh'))::int AS du
+                count(*) FILTER (WHERE EXISTS (SELECT 1 FROM hl WHERE hl.hex = cap.hex AND hl.cong_doan_id = cap.cong_doan_id AND hl.loai IN ('bat_dau','nguoi_vao')))::int AS du
          FROM cap`,
         [xuong, tu, den, chiTo]
       ),
@@ -85331,7 +85332,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           gioCong: lam2(gcNgay),
           gioCongTangCa: lam2(tcNgay),
           gioCho: lam2(kq.gioCho.thuong + kq.gioCho.tangCa),
-          co: kq.co,
+          // Hôm nay chưa hết ca: tỷ lệ còn thay đổi, chưa gắn cờ
+          co: x.ngay < homNay && tyLeCoViecThap(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa, gcNgay) ? [...kq.co, "ty_le_co_viec_thap"] : kq.co,
           quanSo: quanSoCua.get(`${toId}|${x.ngay}`) ?? {},
           hangMuc: hmNgay.sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa)),
           nhan: nhanCua.get(`${toId}|${x.ngay}`) ?? [],

@@ -32,6 +32,7 @@ const thoiGian = (h: number) => (h < 1 ? `${Math.round(h * 60)} phút` : `${so(h
 
 const TEN_LY_DO_CHO: Record<string, string> = {
   nguoi_ranh: 'Người rảnh (khai ít hơn quân số)',
+  het_nguoi: 'Không còn ai ở hàng',
   khong_viec: 'Không có hạng mục chạy',
   ...Object.fromEntries(LY_DO_TAM_NGUNG.map(l => [l.ma, `Tạm ngưng: ${l.ten.toLowerCase()}`])),
 };
@@ -1101,7 +1102,7 @@ function TabChatLuong({ d, ds }: { d: BaoCao; ds: BaoCaoTo[] }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 rxl:grid-cols-4">
         <ChiSo ten="Nhật ký đủ Bắt đầu và Hoàn thành" giaTri={pNk === null ? '—' : `${pNk}%`}
-          phu={`${cs.nhatKy.du}/${cs.nhatKy.tong} cặp hạng mục × công đoạn, mục tiêu ≥ 90% (MRA 85%)`} dat={pNk === null ? null : pNk >= 90} />
+          phu={`${cs.nhatKy.du}/${cs.nhatKy.tong} công đoạn xong có ghi lúc bắt đầu (tổ trạm: quét vào hàng), mục tiêu ≥ 90% (MRA 85%)`} dat={pNk === null ? null : pNk >= 90} />
         <ChiSo ten="Ngày-tổ có chốt quân số" giaTri={pChot === null ? '—' : `${pChot}%`}
           phu={`${cs.chotQuanSo.ngayChot}/${cs.chotQuanSo.ngayCoChay} ngày có hạng mục chạy, mục tiêu ≥ 90%`} dat={pChot === null ? null : pChot >= 90} />
         <ChiSo ten="Thao tác tới máy chủ trong 1 giờ" giaTri={pGui === null ? '—' : `${pGui}%`}
@@ -1264,8 +1265,13 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
   const tom = useMemo(() => {
     const ns = ds.flatMap(t => t.theoNgay);
     // Công nhân / ngày: chỉ ngày có số công nhân (ngày MRA không có điểm danh thì không có)
-    const soNgay = new Set(ns.filter(n => (n.quanSo.chinh ?? 0) > 0).map(n => n.ngay)).size;
-    const cn = ns.reduce((a, n) => a + (n.quanSo.chinh ?? 0), 0);
+    // Hôm nay chưa điểm danh xong thì không cộng vào trung bình, trừ khi kỳ chỉ có hôm nay
+    const coSo = ns.filter(n => (n.quanSo.chinh ?? 0) > 0);
+    const daXong = coSo.filter(n => n.ngay < homNay);
+    const tinhCn = daXong.length ? daXong : coSo;
+    const boHomNay = tinhCn.length < coSo.length;
+    const soNgay = new Set(tinhCn.map(n => n.ngay)).size;
+    const cn = tinhCn.reduce((a, n) => a + (n.quanSo.chinh ?? 0), 0);
     // Tỷ lệ có việc: chỉ so trên các tổ-ngày có giờ công (ngày MRA không có điểm danh chỉ có giờ công SP)
     const gcCoGio = ns.filter(n => n.gioNguoi > 0).reduce((a, n) => a + n.gioCong, 0);
     const coMra = ns.some(n => n.nguon === 'mra');
@@ -1275,8 +1281,8 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
     const ch = ns.reduce((a, n) => a + n.gioCho, 0);
     const lyDo = congLyDo(ns.map(n => n.gioChoLyDo ?? {}));
     const xong = ns.flatMap(n => n.xong);
-    return { soNgay, cnTb: soNgay ? cn / soNgay : 0, gn, gc, gcCoGio, coMra, tc, ch, lyDo, xong, soHmXong: new Set(xong.map(x => x.hex)).size };
-  }, [ds]);
+    return { soNgay, boHomNay, cnTb: soNgay ? cn / soNgay : 0, gn, gc, gcCoGio, coMra, tc, ch, lyDo, xong, soHmXong: new Set(xong.map(x => x.hex)).size };
+  }, [ds, homNay]);
   const pDung = phanTram(tom.gcCoGio, tom.gn);
   const soKhop = d?.soKhopTram ?? [];
   const tabs = TABS.filter(x => x.id !== 'soKhop' || soKhop.length);
@@ -1329,8 +1335,8 @@ export default function BaoCaoXuong({ xuong }: { xuong: string }) {
       {/* Tab Kế hoạch & phân tích có số riêng theo tuần — ẩn 5 thẻ của khoảng ngày để khỏi lẫn */}
       {d && tab !== 'keHoach' && (
         <div className="grid grid-cols-2 gap-3 rmd:grid-cols-3 rxl:grid-cols-5">
-          <The ten="Công nhân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu · quân số chốt ca chính`} />
-          <The ten="Giờ công sản phẩm" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ công${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}`} />
+          <The ten="Công nhân / ngày" giaTri={tom.soNgay ? so(tom.cnTb) : '—'} phu={`${tom.soNgay} ngày có số liệu${tom.boHomNay ? ', chưa tính hôm nay' : ''} · quân số chốt ca chính`} />
+          <The ten="Giờ công sản phẩm" giaTri={so(tom.gc)} phu={`trên ${so(tom.gn)} giờ công${tom.tc > 0 ? ` · tăng ca ${so(tom.tc)}` : ''}${den === homNay ? ` · hôm nay tính đến ${hhmm(Date.now())}` : ''}`} />
           <The ten="Tỷ lệ có việc" giaTri={pDung === null ? '—' : `${pDung}%`} phu="giờ công sản phẩm ÷ giờ công, mục tiêu ≥ 80%"
             mau={pDung === null ? undefined : pDung >= 80 ? 'text-emerald-700' : pDung >= 50 ? 'text-amber-700' : 'text-red-700'} />
           <The ten="Giờ chờ việc" giaTri={so(tom.ch)}
