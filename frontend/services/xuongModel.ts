@@ -235,6 +235,21 @@ export const slConLam = (r: DongViec) => Math.max(0, r.slNhan - r.slHoanThanh);
 export const slChoGiao = (r: DongViec) => Math.max(0, r.slHoanThanh - r.slGiao);
 export const slChoNhan = (r: DongViec) => Math.max(0, r.slGiaoDen - r.slNhan);
 
+/**
+ * Camera chạy liên tục: mã còn nằm trước camera bị đọc lại nhiều lần mỗi giây. Hàm trả về true khi là lượt quét mới: mã
+ * khác mã trước, hoặc cùng mã nhưng đã rời camera ít nhất `giuMs` (đưa ra rồi quét lại).
+ */
+export function taoLocMaLap(giuMs = 2000): (ma: string, now: number) => boolean {
+  let cuoi = '';
+  let thayLuc = 0;
+  return (ma, now) => {
+    const lap = ma === cuoi && now - thayLuc < giuMs;
+    cuoi = ma;
+    thayLuc = now;
+    return !lap;
+  };
+}
+
 /** Lấy mã hạng mục 9 số từ nội dung QR (QR có thể là mã trần hoặc đường dẫn chứa mã) */
 export function trichHex(text: string): string | null {
   const m = /(?:^|\D)(\d{9})(?!\d)/.exec(text.trim());

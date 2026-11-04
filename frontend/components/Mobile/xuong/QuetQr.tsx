@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X as XIcon, Keyboard } from 'lucide-react';
-import { trichHex } from '../../../services/xuongModel';
+import { taoLocMaLap, trichHex } from '../../../services/xuongModel';
 import { NUT_PHU } from './xuongUi';
 
 // ============================================================================
@@ -33,6 +33,68 @@ async function taoDetector(caMaVach = false): Promise<Detector> {
   return new BarcodeDetector({ formats: caMaVach ? DANG_THE as never : ['qr_code'] }) as unknown as Detector;
 }
 
+const moCamera = () => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+const loiCamera = (e: unknown) => ((e as { name?: string })?.name === 'NotAllowedError'
+  ? 'Chưa cho phép dùng camera. Mở cài đặt trình duyệt để cho phép, hoặc gõ mã.'
+  : 'Không mở được camera trên máy này. Hãy gõ mã.');
+
+/**
+ * Camera nhúng trong màn trạm: tự mở khi vào màn, chạy liên tục, không che màn hình. Một lượt đọc một lần (taoLocMaLap);
+ * quét phiếu rồi quét thẻ liền nhau không phải bấm gì. Máy không có camera: báo ngay trong khung, máy quét USB / Gõ mã vẫn dùng được.
+ */
+export function KhungCamera({ onRaw, className = '' }: { onRaw: (raw: string) => void; className?: string }) {
+  const video = useRef<HTMLVideoElement>(null);
+  const [loi, setLoi] = useState('');
+  const [san, setSan] = useState(false);
+  const onRawRef = useRef(onRaw);
+  onRawRef.current = onRaw;
+
+  useEffect(() => {
+    let dung = false;
+    let stream: MediaStream | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const moi = taoLocMaLap();
+    (async () => {
+      try {
+        stream = await moCamera();
+        if (dung) { stream.getTracks().forEach(t => t.stop()); return; }
+        const v = video.current!;
+        v.srcObject = stream;
+        await v.play();
+        setSan(true);
+        const det = await taoDetector(true);
+        const quet = async () => {
+          if (dung) return;
+          try {
+            if (v.readyState >= 2 && !document.hidden) {
+              const ma = (await det.detect(v))[0]?.rawValue;
+              if (ma && moi(ma, Date.now())) { navigator.vibrate?.(60); onRawRef.current(ma); }
+            }
+          } catch { /* khung hình lỗi — quét khung sau */ }
+          timer = setTimeout(quet, 200);
+        };
+        quet();
+      } catch (e) { if (!dung) setLoi(loiCamera(e)); }
+    })();
+    return () => {
+      dung = true;
+      clearTimeout(timer);
+      stream?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  return (
+    <div className={`relative overflow-hidden rounded-[1.75rem] border-4 border-dashed border-aa-600 bg-white/5 ${className}`}>
+      <video ref={video} playsInline muted aria-label="Camera quét mã" className={`h-full w-full object-cover ${san ? '' : 'invisible'}`} />
+      {!san && (
+        <p className="absolute inset-0 flex items-center justify-center p-4 text-center text-lg font-semibold text-white" role={loi ? 'alert' : undefined}>
+          {loi || 'Đang mở camera…'}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function QuetQr({ onHex, onGoMa, onClose, onRaw, tieuDe = 'Quét QR trên phiếu' }: {
   onHex: (hex: string) => void;
   onGoMa: () => void;
@@ -57,7 +119,7 @@ export default function QuetQr({ onHex, onGoMa, onClose, onRaw, tieuDe = 'Quét 
     let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        stream = await moCamera();
         if (dung) { stream.getTracks().forEach(t => t.stop()); return; }
         const v = video.current!;
         v.srcObject = stream;
@@ -79,12 +141,7 @@ export default function QuetQr({ onHex, onGoMa, onClose, onRaw, tieuDe = 'Quét 
           timer = setTimeout(quet, 200);
         };
         quet();
-      } catch (e) {
-        const ten = (e as { name?: string })?.name;
-        setLoi(ten === 'NotAllowedError'
-          ? 'Chưa cho phép dùng camera. Mở cài đặt trình duyệt để cho phép, hoặc gõ mã.'
-          : 'Không mở được camera trên máy này. Hãy gõ mã.');
-      }
+      } catch (e) { setLoi(loiCamera(e)); }
     })();
     return () => {
       dung = true;

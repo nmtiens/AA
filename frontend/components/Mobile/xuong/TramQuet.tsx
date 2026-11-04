@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Keyboard, LogOut, MoveRight, RefreshCw, ScanLine, UserRound, Wifi, WifiOff, X as XIcon } from 'lucide-react';
+import { Keyboard, LogOut, MoveRight, RefreshCw, UserRound, Wifi, WifiOff, X as XIcon } from 'lucide-react';
 import { getToken } from '../../../services/userService';
 import { xuongApi } from '../../../services/xuongApi';
 import { authXuong } from '../../../services/xuongClock';
@@ -13,7 +13,7 @@ import {
 } from '../../../utils/xuongTheNv';
 import { hhmm } from '../../../services/xuongModel';
 import DangNhapXuong from './DangNhapXuong';
-import QuetQr from './QuetQr';
+import { KhungCamera } from './QuetQr';
 import { NUT_CHINH, NUT_PHU, MAU } from './xuongUi';
 import { LogoAANgang, LogoAADayDu } from '../../LogoAA';
 
@@ -254,7 +254,6 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
   const [nhom, setNhom] = useState<Nhom | null>(null);
   const [thongBao, setThongBao] = useState<ThongBao>(null);
   const [mang, setMang] = useState<'ok' | 'mat' | 'dang_ky_lai'>('ok');
-  const [camera, setCamera] = useState(false);
   const [goMa, setGoMa] = useState(false);
   const [now, setNow] = useState(Date.now());
   const caNguoi = useRef<Record<string, { ngay: string; loaiCa: LoaiCaTram }>>(docLs(KHOA_CA) ?? {});
@@ -477,7 +476,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
   }, [bang, nguoi, baoTin, tenHm, taoNhom, hangMuc]);
 
   const quet = useCallback((raw: string) => {
-    setCamera(false); setGoMa(false);
+    setGoMa(false);
     const r = docMaQuet(raw, m => congNhan.has(m));
     if (r.loai === 'the' && !r.biet) { if (!nhom) setNguoi(null); baoTin('loi', `Thẻ ${r.mnv} chưa có trong danh sách — báo tổ trưởng`); return; }
     if (r.loai === 'the') { void quetThe(r.mnv); return; }
@@ -547,6 +546,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
   const hangNguoi = nguoi ? hangCua(board, nguoi.mnv) : null;
   const conGiay = nguoi ? Math.max(0, Math.ceil((nguoi.han - now) / 1000)) : 0;
   const mau = thongBao?.loai === 'ok' ? MAU.chay : thongBao?.loai === 'loi' ? MAU.loi : MAU.cho;
+  const dangCho = !nguoi && !nhom && !phieuCho;
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#f4f6fa]">
@@ -592,8 +592,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
                 <p className="mt-2 text-lg text-sky-800">Hàng chưa nhận — vào hàng thì trạm Nhận đủ {soSet(hmCua(phieuCho.hex, phieuCho.ds[0].id)?.conNhan ?? 0, hmCua(phieuCho.hex, phieuCho.ds[0].id)?.dvt ?? null)}</p>
               )}
               <p className="mt-3 text-2xl font-semibold text-emerald-700">Quét thẻ của bạn</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <button className={NUT_CHINH} onClick={() => setCamera(true)}><Camera size="1.25em" /> Quét thẻ bằng camera</button>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> Gõ mã thẻ</button>
                 <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setPhieuCho(null)}><XIcon size="1.25em" /> Huỷ</button>
               </div>
@@ -608,7 +607,7 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
               congNhan={congNhan} onDoi={giaHanNhom} onVao={() => void vaoHangNhom()} onHuy={() => setNhom(null)}
               onRa={x => void raHangNhom(x)} hm={hmCua(nhom.hex, nhom.cd)} />
           )}
-          {nhom || phieuCho ? null : nguoi ? (
+          {!nhom && !phieuCho && nguoi && (
             <div className="rounded-2xl bg-white p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <UserRound size="2em" className="shrink-0 text-slate-500" aria-hidden />
@@ -628,27 +627,21 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
               )}
               <p className="mt-3 text-base text-slate-600">Quét phiếu PTHSP để vào hàng (tự rời hàng đang làm).</p>
             </div>
-          ) : (
-            // Chờ quét: khối tối lớn, khung quét bấm được để mở camera (thiết kế "Trạm quét thẻ")
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 rounded-3xl bg-slate-900 p-6 text-center sm:p-8">
-              <button onClick={() => setCamera(true)} aria-label="Quét bằng camera"
-                className="flex aspect-square w-full max-w-[18rem] flex-col items-center justify-center gap-3 rounded-[1.75rem] border-4 border-dashed border-aa-600 bg-white/5 text-white active:bg-white/10">
-                <ScanLine size="5em" strokeWidth={1.5} aria-hidden />
-                <span className="flex items-center gap-2 text-lg font-semibold"><Camera size="1.1em" aria-hidden /> Bấm để quét bằng camera</span>
-              </button>
+          )}
+          {/* Camera luôn chạy, cùng 1 chỗ trong cây để đổi bước không phải mở lại (mở camera mất vài giây): chờ quét thì khối tối
+              lớn (thiết kế "Trạm quét thẻ"), đang ở một bước thì thu nhỏ dưới bảng của bước đó */}
+          <div className={`flex flex-col items-center justify-center rounded-3xl bg-slate-900 text-center ${dangCho ? 'flex-1 gap-6 p-6 sm:p-8' : 'gap-3 p-3'}`}>
+            <KhungCamera onRaw={quet} className={dangCho ? 'aspect-square w-full max-w-[22rem]' : 'h-40 w-full max-w-xs'} />
+            {dangCho && (
               <div>
                 <p className="text-2xl font-semibold text-white">Quét phiếu hạng mục, rồi quét thẻ của bạn</p>
                 <p className="mt-1 text-lg text-slate-400">Đầu ca / cuối ca: chỉ cần quét thẻ</p>
               </div>
-              <button className={`${NUT_PHU} h-16 w-full max-w-xs text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> Gõ mã</button>
-            </div>
-          )}
-          {nguoi && !nhom && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setCamera(true)}><Camera size="1.25em" /> Quét phiếu bằng camera</button>
-              <button className={`${NUT_PHU} h-16 text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> Gõ mã phiếu</button>
-            </div>
-          )}
+            )}
+            {!nhom && !phieuCho && (
+              <button className={`${NUT_PHU} h-16 w-full max-w-xs text-lg`} onClick={() => setGoMa(true)}><Keyboard size="1.25em" /> {nguoi ? 'Gõ mã phiếu' : 'Gõ mã'}</button>
+            )}
+          </div>
         </section>
 
         {/* Bên phải: ai đang ở hàng nào */}
@@ -678,10 +671,6 @@ function ManTram({ onDangKyLai, onDoiTo }: { onDangKyLai: () => void; onDoiTo: (
         </section>
       </main>
 
-      {camera && (
-        <QuetQr tieuDe={nguoi ? 'Quét phiếu hạng mục' : phieuCho ? 'Quét thẻ người khai' : 'Quét phiếu hoặc thẻ'} onRaw={quet} onHex={h => quet(h)}
-          onGoMa={() => { setCamera(false); setGoMa(true); }} onClose={() => setCamera(false)} />
-      )}
       {goMa && <GoMa onXong={quet} onDong={() => setGoMa(false)} />}
     </div>
   );

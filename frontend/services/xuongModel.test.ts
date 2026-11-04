@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  nguoiChonSan, chonSanDiemDanh,
+  nguoiChonSan, chonSanDiemDanh, taoLocMaLap,
   gioVN, caCanChot, caHienTai, apDung, nhomDangLam, soNguoiRanh, chiaDeu, trichHex, thoiLuong, hhmm, mocTrongNgay,
   choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon, apDungDiemDanh,
   type DongViec, type LichCa,
@@ -19,6 +19,24 @@ const dong = (p: Partial<DongViec>): DongViec => ({
   hex: '250301895', congDoanId: 'CD1', trangThai: 'dang_lam', slGiaoDen: 0, slNhan: 10, slHoanThanh: 0, slGiao: 0,
   soNguoi: null, dangChayTu: null, suKienCuoi: null, co: [], tenHangMuc: null, maCongTrinh: null, tenCongTrinh: null,
   dvt: null, goiYKe: [], ...p,
+});
+
+describe('taoLocMaLap', () => {
+  it('mã còn trước camera chỉ tính 1 lượt, dù giữ lâu', () => {
+    const moi = taoLocMaLap(2000);
+    expect(moi('A', 0)).toBe(true);
+    expect([200, 400, 1900, 3800, 5700].map(t => moi('A', t))).toEqual([false, false, false, false, false]);
+  });
+  it('đưa ra khỏi camera đủ lâu rồi quét lại: lượt mới', () => {
+    const moi = taoLocMaLap(2000);
+    moi('A', 0);
+    expect(moi('A', 2500)).toBe(true);
+  });
+  it('đổi mã (phiếu rồi thẻ): lượt mới ngay', () => {
+    const moi = taoLocMaLap(2000);
+    moi('A', 0);
+    expect(moi('B', 100)).toBe(true);
+  });
 });
 
 describe('chonSanDiemDanh', () => {
