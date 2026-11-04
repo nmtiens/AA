@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Factory, RefreshCw, Rocket, ListTree, Activity, Users, ListOrdered, Clock, ShieldCheck, AlertTriangle, BarChart3, Contact } from 'lucide-react';
+import { Factory, RefreshCw, Rocket, Route, ListTree, Activity, Users, ListOrdered, Clock, ShieldCheck, AlertTriangle, BarChart3, Contact } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { xuongSetupApi, type SetupXuong } from '../../services/xuongSetupApi';
 import { XuongToSetup, XuongCongDoanSetup, XuongLichCaSetup, XuongQuanLySetup, XuongCanXem } from './XuongSetupMuc';
 import TrienKhaiXuong from './TrienKhaiXuong';
+import TuyenMacDinhXuong from './TuyenMacDinhXuong';
 import KhaiChiTietXuong from './KhaiChiTietXuong';
 import TheoDoiTrienKhai from './TheoDoiTrienKhai';
 import BaoCaoXuong from './BaoCaoXuong';
@@ -12,15 +13,16 @@ import { KHO_DIEN_THOAI } from './xuongDesktopUi';
 
 // ============================================================================
 // THẺ "XƯỞNG" TRONG SETUP DỮ LIỆU (T8 — docs/designs/xuong-checkin.md).
-// Mục con: Báo cáo xưởng / tổ · Triển khai hạng mục (QT1/QT2, 7A) · Tổ & tổ trưởng · Nhân sự (chấm công) · Công đoạn · Lịch ca · Quản lý xưởng · Cần xem.
+// Mục con: Báo cáo xưởng / tổ · Triển khai hạng mục (QT1/QT2, 7A) · Tuyến mặc định · Tổ & tổ trưởng · Nhân sự (chấm công) · Công đoạn · Lịch ca · Quản lý xưởng · Cần xem.
 // Quyền: admin mọi xưởng; quản lý xưởng chỉ xưởng của mình (backend kiểm lại).
 // Dùng chung cho mục "Quản lý" của app Xưởng (/xuong): `trongApp` = chừa chỗ thanh điều hướng dưới, tiêu đề lớn hơn.
 // ============================================================================
 
-type Muc = 'bao-cao' | 'trien-khai' | 'khai-chi-tiet' | 'theo-doi' | 'to' | 'nhan-su' | 'cong-doan' | 'lich-ca' | 'quan-ly' | 'can-xem';
+type Muc = 'bao-cao' | 'trien-khai' | 'tuyen-mac-dinh' | 'khai-chi-tiet' | 'theo-doi' | 'to' | 'nhan-su' | 'cong-doan' | 'lich-ca' | 'quan-ly' | 'can-xem';
 const MUC: Array<{ id: Muc; ten: string; icon: React.ReactNode }> = [
   { id: 'bao-cao', ten: 'Báo cáo', icon: <BarChart3 size={15} /> },
   { id: 'trien-khai', ten: 'Triển khai hạng mục', icon: <Rocket size={15} /> },
+  { id: 'tuyen-mac-dinh', ten: 'Tuyến mặc định', icon: <Route size={15} /> },
   { id: 'khai-chi-tiet', ten: 'Khai CĐ chi tiết', icon: <ListTree size={15} /> },
   { id: 'theo-doi', ten: 'Theo dõi triển khai', icon: <Activity size={15} /> },
   { id: 'to', ten: 'Tổ & tổ trưởng', icon: <Users size={15} /> },
@@ -119,6 +121,7 @@ export default function XuongSetup({ trongApp = false }: { trongApp?: boolean })
             {gon && !toTruong && mucHien === 'theo-doi' && <p className="mb-3 text-base text-slate-600">Điện thoại chỉ hiện mục dùng tại xưởng. Tổ, công đoạn, lịch ca, triển khai: bấm <b>Mục cấu hình…</b> hoặc làm trên máy tính.</p>}
             {mucHien === 'bao-cao' && <BaoCaoXuong xuong={d.xuong} />}
             {mucHien === 'trien-khai' && <TrienKhaiXuong xuong={d.xuong} bao={bao} />}
+            {mucHien === 'tuyen-mac-dinh' && <TuyenMacDinhXuong xuong={d.xuong} bao={bao} />}
             {mucHien === 'khai-chi-tiet' && <KhaiChiTietXuong xuong={d.xuong} bao={bao} />}
             {mucHien === 'theo-doi' && <TheoDoiTrienKhai xuong={d.xuong} />}
             {mucHien === 'to' && <XuongToSetup d={d} bao={bao} tai={tai} />}

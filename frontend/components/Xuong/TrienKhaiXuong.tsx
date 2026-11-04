@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, RefreshCw, X, Plus, Rocket, Check } from 'lucide-react';
+import { Search, RefreshCw, Rocket, Check } from 'lucide-react';
 import { xuongSetupApi, type DanhSachTrienKhai, type HangMucTrienKhai, type ThanhPhanTrienKhai } from '../../services/xuongSetupApi';
 import { INPUT, BTN, BTN_CHINH, KHUNG, TH, TD } from './xuongDesktopUi';
-import ChonTuyen, { tenCongDoan } from './ChonTuyen';
+import { tenCongDoan } from './ChonTuyen';
+import KhaiThanhPhan, { loiThanhPhan } from './KhaiThanhPhan';
 
 // ============================================================================
 // TRIỂN KHAI HẠNG MỤC (QT1 + QT2 gộp một màn — cải tiến 8, quyết định 7A: máy tính trước).
@@ -42,17 +43,9 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
   useEffect(() => { tai(); }, [tai]);
 
   const tenCd = useMemo(() => tenCongDoan(d?.congDoan ?? [], xuong), [d, xuong]);
-  const dsXuong = useMemo(() => [...new Set((d?.congDoan ?? []).map(c => c.xuong))].sort((a, b) => (a === xuong ? -1 : b === xuong ? 1 : a.localeCompare(b))), [d, xuong]);
   const xuongCd = useMemo(() => new Map((d?.congDoan ?? []).map(c => [c.id, c.xuong])), [d]);
   // Hợp lệ: có thành phần; thành phần xưởng chính có tuyến; đầu tuyến thuộc xưởng thực hiện
-  const loiTp = (ds: ThanhPhanTrienKhai[]): string | null => {
-    if (!ds.length) return 'chưa có thành phần';
-    for (const t of ds) {
-      if (t.xuong === xuong && !t.tuyen.length) return `${t.ten}: chưa có tuyến`;
-      if (t.tuyen.length && xuongCd.get(t.tuyen[0]) !== t.xuong) return `${t.ten}: đầu tuyến phải thuộc xưởng ${t.xuong}`;
-    }
-    return null;
-  };
+  const loiTp = (ds: ThanhPhanTrienKhai[]) => loiThanhPhan(ds, xuong, xuongCd);
 
   const dsChon = (d?.hangMuc ?? []).filter(h => chon.has(h.hex));
   // Thành phần dùng khi triển khai: của riêng hạng mục nếu hợp lệ; chưa hợp lệ mà mẫu đang soạn hợp lệ => dùng mẫu
@@ -116,7 +109,7 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
                       {t.map(x => (
                         <div key={x.ten}><b>{x.ten}</b>{x.xuong !== xuong ? ` (${x.xuong})` : ''}: {x.tuyen.length ? x.tuyen.map(tenCd).join(' → ') : <i className="text-slate-500">xưởng {x.xuong} tự khai CĐ chi tiết</i>}</div>
                       ))}
-                      {laGoiY && t.length > 0 && <span className="rounded bg-emerald-50 px-1 text-emerald-700">gợi ý</span>}
+                      {laGoiY && t.length > 0 && <span className="rounded bg-emerald-50 px-1 text-emerald-700">{h.goiYNguon === 'mac_dinh' ? 'mặc định' : 'gợi ý'}</span>}
                       {loi && <span className="text-amber-700">{t.length ? loi : 'Chưa có thành phần — khai ở dưới'}</span>}
                     </td>
                   </tr>
@@ -135,32 +128,8 @@ export default function TrienKhaiXuong({ xuong, bao }: { xuong: string; bao: Bao
           xưởng phụ có thể để trống tuyến — xưởng phụ tự khai CĐ chi tiết.
         </p>
         {mau.length === 0 && <p className="text-sm text-slate-500">Chưa có thành phần — thêm ít nhất một (hạng mục một khối: chỉ GỖ).</p>}
-        {mau.map((t, k) => (
-          <div key={k} className="space-y-2 rounded-lg border border-slate-200 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <select value={t.ten} aria-label="Thành phần" className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-semibold"
-                onChange={e => setMau(m => m.map((x, j2) => (j2 === k ? { ...x, ten: e.target.value } : x)))}>
-                {(d?.thanhPhan ?? []).filter(n => n === t.ten || !mau.some(x => x.ten === n)).map(n => <option key={n} value={n}>{n}</option>)}
-              </select>
-              <label className="flex items-center gap-1.5 text-sm text-slate-700">Xưởng thực hiện
-                <select value={t.xuong} aria-label="Xưởng thực hiện" className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm"
-                  onChange={e => setMau(m => m.map((x, j2) => (j2 === k ? { ...x, xuong: e.target.value, tuyen: [] } : x)))}>
-                  {dsXuong.map(x => <option key={x} value={x}>{x}{x === xuong ? ' (xưởng chính)' : ' — xưởng phụ'}</option>)}
-                </select>
-              </label>
-              <button type="button" className="ml-auto text-slate-400 hover:text-red-600" aria-label={`Bỏ thành phần ${t.ten}`}
-                onClick={() => setMau(m => m.filter((_, j2) => j2 !== k))}><X size={15} /></button>
-            </div>
-            {t.xuong !== xuong && !t.tuyen.length && <p className="text-xs text-slate-500">Để trống: xưởng {t.xuong} nhận thông báo và tự khai CĐ chi tiết.</p>}
-            <ChonTuyen tuyen={t.tuyen} onDoi={tuyen => setMau(m => m.map((x, j2) => (j2 === k ? { ...x, tuyen } : x)))}
-              congDoan={d?.congDoan ?? []} xuong={t.xuong} xuongGoc={xuong} />
-          </div>
-        ))}
+        <KhaiThanhPhan ds={mau} onDoi={setMau} tenThanhPhan={d?.thanhPhan ?? []} congDoan={d?.congDoan ?? []} xuong={xuong} />
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={BTN} disabled={!d || mau.length >= (d?.thanhPhan.length ?? 0)}
-            onClick={() => setMau(m => [...m, { ten: (d?.thanhPhan ?? []).find(n => !m.some(x => x.ten === n)) ?? 'GỖ', xuong, tuyen: [] }])}>
-            <Plus size={14} /> Thêm thành phần
-          </button>
           {dsChon.length === 1 && (tp[dsChon[0].hex] ?? []).length > 0 && (
             <button type="button" className={BTN} onClick={() => setMau(tp[dsChon[0].hex])}>Lấy thành phần của {dsChon[0].hex}</button>
           )}

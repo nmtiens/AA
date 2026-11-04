@@ -80,7 +80,7 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
   const soLe = !!h && choSoLe(h.dvt, h.soLuongDonHang, h.daTrienKhai);
   const conLai = h && h.soLuongDonHang !== null ? lamTronSl(h.soLuongDonHang - h.daTrienKhai) : null;
   const tenCd = (id: string) => d?.congDoan.find(c => c.id === id)?.ten ?? id;
-  // Thành phần + tuyến gợi ý theo lần triển khai trước của cùng nhóm sản phẩm (sửa chi tiết trên máy tính)
+  // Thành phần + tuyến: mặc định của nhóm sản phẩm, chưa khai thì theo lần triển khai trước (sửa trên máy tính)
   const thanhPhan = h?.goiYThanhPhan ?? [];
   const duTuyen = thanhPhan.length > 0 && thanhPhan.every(t => t.xuong !== xuong || t.tuyen.length > 0);
   const trienKhai = async () => {
@@ -97,11 +97,12 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
       footer={<button className={NUT_CHINH} disabled={!h || !duTuyen || gui} onClick={trienKhai}>Triển khai {hienSl(sl)} {dv}</button>}>
       <div className="space-y-4 pb-2">
         {dsXuong.length > 1 && (
-          <div className="flex flex-wrap gap-2">
+          // 1 hàng cuộn ngang: 7 xưởng xuống 3 hàng thì đẩy phần số lượng ra khỏi màn
+          <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rmd:mx-0 rmd:flex-wrap rmd:px-0" aria-label="Chọn xưởng">
             {dsXuong.map(x => (
-              <button key={x} onClick={() => setXuong(x)}
-                className={`min-h-14 rounded-2xl px-4 text-base font-medium ${xuong === x ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-800'}`}>
-                Xưởng {x}
+              <button key={x} onClick={() => setXuong(x)} aria-pressed={xuong === x}
+                className={`min-h-12 shrink-0 rounded-2xl px-4 text-base font-medium ${xuong === x ? 'bg-slate-900 text-white' : 'border border-slate-300 bg-white text-slate-800'}`}>
+                {x}
               </button>
             ))}
           </div>
@@ -150,25 +151,33 @@ export default function TrienKhaiGon({ hexBanDau, xuongBanDau, onQuet, onXong, o
                 {conLai !== null && ` · còn ${hienSl(Math.max(0, conLai))}`}
               </p>
             </div>
-            <div className="space-y-2">
-              <p className="text-base font-medium text-slate-800">Số lượng triển khai ({dv})</p>
-              <BoDem value={sl} onChange={setSl} min={soLe ? 0.001 : 1} soLe={soLe} nhan="số lượng triển khai" />
-              {conLai !== null && sl > conLai && (
-                <p className={`text-base font-medium ${MAU.ngung.chu}`}>
-                  {conLai <= 0 ? 'Hạng mục đã triển khai đủ số đơn hàng' : `Vượt số còn lại (${hienSl(conLai)} ${dv})`} — kiểm tra lại trước khi triển khai.
-                </p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <p className="text-base font-medium text-slate-800">Thành phần & tuyến (gợi ý theo nhóm sản phẩm {h.nhom ?? '—'})</p>
-              {duTuyen
-                ? thanhPhan.map(t => (
-                  <p key={t.ten} className="text-base text-slate-800">
-                    <b>{t.ten}</b>{t.xuong !== xuong ? ` (xưởng ${t.xuong})` : ''}: {t.tuyen.length ? t.tuyen.map(tenCd).join(' → ') : `xưởng ${t.xuong} tự khai CĐ chi tiết`}
-                  </p>
-                ))
-                : <p className={`text-base ${MAU.ngung.chu}`}>Chưa có thành phần / tuyến gợi ý cho nhóm này — triển khai trên máy tính (Setup dữ liệu → Xưởng) để chọn.</p>}
-            </div>
+            {duTuyen ? (
+              <>
+                <div className="space-y-2">
+                  <p className="text-base font-medium text-slate-800">Số lượng triển khai ({dv})</p>
+                  <BoDem value={sl} onChange={setSl} min={soLe ? 0.001 : 1} soLe={soLe} nhan="số lượng triển khai" />
+                  {conLai !== null && sl > conLai && (
+                    <p className={`text-base font-medium ${MAU.ngung.chu}`}>
+                      {conLai <= 0 ? 'Hạng mục đã triển khai đủ số đơn hàng' : `Vượt số còn lại (${hienSl(conLai)} ${dv})`} — kiểm tra lại trước khi triển khai.
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-base font-medium text-slate-800">Tuyến {h.goiYNguon === 'mac_dinh' ? 'mặc định' : 'theo lần trước'} · nhóm {h.nhom ?? '—'}</p>
+                  {thanhPhan.map(t => (
+                    <p key={t.ten} className="text-base text-slate-800">
+                      <b>{t.ten}</b>{t.xuong !== xuong ? ` (xưởng ${t.xuong})` : ''}: {t.tuyen.length ? t.tuyen.map(tenCd).join(' → ') : `xưởng ${t.xuong} tự khai CĐ chi tiết`}
+                    </p>
+                  ))}
+                </div>
+              </>
+            ) : (
+              // Chưa có tuyến thì không triển khai được: báo ngay chỗ nhập số lượng, không để khuất dưới đáy
+              <div className={`space-y-1 rounded-2xl border ${MAU.ngung.vien} ${MAU.ngung.nen} p-4`} role="status">
+                <p className={`text-base font-semibold ${MAU.ngung.chu}`}>Nhóm {h.nhom ?? 'này'} chưa có tuyến ở xưởng {xuong}</p>
+                <p className="text-base text-slate-700">Khai trên máy tính: Setup dữ liệu → Xưởng → Tuyến mặc định.</p>
+              </div>
+            )}
           </div>
         )}
       </div>

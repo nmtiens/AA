@@ -10,6 +10,7 @@
 // ============================================================================
 
 export const KHOA_EP = 'xuong_ep_dien_thoai';
+const RONG_MAC_DINH = 412;
 export type BoCuc = 'tu_dong' | 'dien_thoai' | 'may_tinh';
 export function docBoCuc(): BoCuc {
   try { const v = localStorage.getItem(KHOA_EP); return v === '1' ? 'dien_thoai' : v === '0' ? 'may_tinh' : 'tu_dong'; } catch { return 'tu_dong'; }
@@ -25,16 +26,20 @@ export function rongManThat(): number | null {
   let ep: string | null = null;
   try { ep = localStorage.getItem(KHOA_EP); } catch { /* bỏ qua */ }
   if (ep === '0') return null;
-  if (ep === '1') return Math.min(412, window.innerWidth);
+  if (ep === '1') return Math.min(RONG_MAC_DINH, window.innerWidth);
   // Chỉ điện thoại thật: chạm là chính (không chuột: hover: none), có điểm chạm, màn nhỏ (cạnh dài < 1100).
   // Laptop / máy tính màn cảm ứng có chuột (hover: hover) hoặc màn lớn => không bao giờ bật.
   const cam = window.matchMedia?.('(pointer: coarse)').matches && window.matchMedia?.('(hover: none)').matches
     && navigator.maxTouchPoints > 0;
   const manNho = screen.width > 0 && Math.max(screen.width, screen.height) < 1100;
   // Điện thoại ở chế độ máy tính dựng trang rộng ~980px: cửa sổ rộng hơn 1100px chắc chắn là máy tính / màn lớn
-  if (!cam || !manNho || window.innerWidth < 768 || window.innerWidth > 1100) return null;
+  if (!cam || window.innerWidth < 768 || window.innerWidth > 1100) return null;
   // screen.width vẫn là bề rộng màn thật; trang rộng hơn hẳn => viewport bị ép
   if (screen.width > 0 && screen.width < 768 && window.innerWidth > screen.width * 1.25) return screen.width;
+  // Máy báo screen theo trang đã ép rộng (app đã cài, trình duyệt khác Chrome): cảm ứng + màn dọc dài chỉ có thể là điện
+  // thoại (máy bảng dọc cao / rộng ≤ 1,6)
+  if (window.innerHeight / window.innerWidth >= 1.7) return RONG_MAC_DINH;
+  if (!manNho) return null;
   // Dự phòng: trình duyệt thu nhỏ trang để vừa màn (tỉ lệ < 0,8)
   const tiLe = window.visualViewport?.scale ?? 1;
   if (tiLe < 0.8 && window.innerWidth * tiLe < 768) return Math.round(window.innerWidth * tiLe);

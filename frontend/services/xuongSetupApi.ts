@@ -61,8 +61,16 @@ export interface ThanhPhanTrienKhai { ten: string; xuong: string; tuyen: string[
 export interface HangMucTrienKhai {
   hex: string; ten: string | null; maCongTrinh: string | null; tenCongTrinh: string | null; dvt: string | null;
   soLuongDonHang: number | null; nhom: string | null; daTrienKhai: number; goiYThanhPhan: ThanhPhanTrienKhai[] | null;
+  /** Gợi ý lấy từ tuyến mặc định của nhóm hay lần triển khai trước */
+  goiYNguon?: 'mac_dinh' | 'lan_truoc' | null;
 }
 export type CongDoanTk = { id: string; xuong: string; ten: string; cdTachMa: string | null; thuTu: number };
+/** Tuyến mặc định theo nhóm sản phẩm của xưởng */
+export interface DsTuyenMacDinh {
+  xuong: string; coBang: boolean;
+  nhom: Array<{ nhom: string; soHangMuc: number; macDinh: ThanhPhanTrienKhai[] | null; luc: string | null; lanTruoc: ThanhPhanTrienKhai[] | null }>;
+  congDoan: CongDoanTk[]; thanhPhan: string[];
+}
 export interface DanhSachTrienKhai {
   xuong: string; hangMuc: HangMucTrienKhai[];
   congDoan: CongDoanTk[];
@@ -336,6 +344,9 @@ export const xuongSetupApi = {
   phanTich: (xuong: string, tu: string, den: string) => goi<PhanTichXuong>('GET', `/api/xuong/phan-tich?${q({ xuong, tu, den })}`),
   keHoachTuan: (xuong: string, nam: number, tuan: number) =>
     goi<KeHoachTuan>('GET', `/api/xuong/ke-hoach-tuan?${q({ xuong, nam: String(nam), tuan: String(tuan) })}`),
+  dsTuyenMacDinh: (xuong: string) => goi<DsTuyenMacDinh>('GET', `/api/xuong/setup/tuyen-mac-dinh?${q({ xuong })}`),
+  luuTuyenMacDinh: (xuong: string, nhom: string, thanhPhan: ThanhPhanTrienKhai[]) => goi<unknown>('PUT', '/api/xuong/setup/tuyen-mac-dinh', { xuong, nhom, thanhPhan }),
+  boTuyenMacDinh: (xuong: string, nhom: string) => goi<unknown>('DELETE', '/api/xuong/setup/tuyen-mac-dinh', { xuong, nhom }),
   trienKhai: (xuong: string, items: Array<{ hex: string; soLuong: number; thanhPhan: ThanhPhanTrienKhai[] }>) =>
     goi<{ soHangMuc: number }>('POST', '/api/xuong/trien-khai', { xuong, items }),
   /** Huỷ một đợt triển khai (trien_khai + khai_bao_cd của đợt); máy chủ chặn khi tổ đã nhận hàng của đợt */

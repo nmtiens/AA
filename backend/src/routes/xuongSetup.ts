@@ -19,6 +19,7 @@ import { xoaGioCongLuu } from './xuongBaoCao.js';
 import { baoHangChoNhan, baoXuongPhu } from './xuongThongBao.js';
 import { sqlThaoTacCanXuLy } from '../server/xuong/canXem.js';
 import { kiemTraHuyDot } from '../server/xuong/huyTrienKhai.js';
+import { chonGoiY, loiThanhPhan, type ThanhPhanTuyen } from '../server/xuong/tuyenMacDinh.js';
 
 // ============================================================================
 // MỤC XƯỞNG — PHẦN MÁY TÍNH (T8, docs/designs/xuong-checkin.md)
@@ -33,6 +34,7 @@ import { kiemTraHuyDot } from '../server/xuong/huyTrienKhai.js';
 //   POST /api/xuong/hex-tom-tat            hạng mục đang ở công đoạn nào (cột trong HexDetailModal)
 //   GET  /api/xuong/trien-khai?xuong=&q=   danh sách hạng mục của xưởng chính để triển khai (QT1/QT2, 7A)
 //   POST /api/xuong/trien-khai             triển khai số lượng + tuyến → công đoạn đầu tiên thấy "Chờ nhận"
+//   GET / PUT / DELETE /api/xuong/setup/tuyen-mac-dinh   tuyến mặc định theo nhóm sản phẩm của xưởng
 //   POST /api/xuong/trien-khai/huy         huỷ một đợt triển khai (trien_khai + khai_bao_cd của đợt) — chặn khi tổ đã nhận
 // Quyền: ADMIN mọi xưởng; quản lý xưởng (quyền xuong_quan_ly + bảng xuong_quan_ly) trong xưởng của mình.
 // ============================================================================
@@ -548,6 +550,95 @@ app.post('/api/xuong/hex-tom-tat', async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// Tuyến mặc định theo nhóm sản phẩm. Bảng tạo bằng backend/sql/supabase/2026-11-04_xuong_tuyen_mac_dinh.sql; chưa chạy
+// file đó thì triển khai vẫn chạy theo lần trước như cũ.
+// ---------------------------------------------------------------------------
+let bangTuyenMacDinh: { co: boolean; luc: number } | null = null;
+async function coBangTuyenMacDinh(): Promise<boolean> {
+  if (bangTuyenMacDinh && (bangTuyenMacDinh.co || Date.now() - bangTuyenMacDinh.luc < 60_000)) return bangTuyenMacDinh.co;
+  const r = await poolMra.query(`SELECT to_regclass('xuong_tuyen_mac_dinh') IS NOT NULL AS co`);
+  bangTuyenMacDinh = { co: !!r.rows[0]?.co, luc: Date.now() };
+  return bangTuyenMacDinh.co;
+}
+
+async function tuyenMacDinhCua(xuong: string): Promise<Map<string, { thanhPhan: ThanhPhanTuyen[]; luc: string }>> {
+  if (!(await coBangTuyenMacDinh())) return new Map();
+  const r = await poolMra.query('SELECT nhom, thanh_phan, updated_at FROM xuong_tuyen_mac_dinh WHERE xuong = $1', [xuong]);
+  return new Map(r.rows.map(x => [String(x.nhom), { thanhPhan: x.thanh_phan as ThanhPhanTuyen[], luc: x.updated_at }]));
+}
+
+/** Thành phần lần triển khai trước theo nhóm (bản cũ chỉ có 1 tuyến => 1 thành phần GỖ) */
+const thanhPhanLanTruoc = (rows: Row[], xuong: string) => new Map<string, ThanhPhanTuyen[]>(rows.map(x => [String(x.nhom ?? ''), Array.isArray(x.thanh_phan)
+  ? (x.thanh_phan as Array<Record<string, unknown>>).map(t => ({ ten: String(t.ten ?? ''), xuong: String(t.xuong ?? xuong), tuyen: Array.isArray(t.tuyen) ? (t.tuyen as unknown[]).map(String) : [] }))
+  : [{ ten: 'GỖ', xuong, tuyen: ((x.tuyen as unknown[]) ?? []).map(String) }]]));
+
+app.get('/api/xuong/setup/tuyen-mac-dinh', async (req: Request, res: Response) => {
+  try {
+    const xuong = String(req.query.xuong ?? '').toUpperCase();
+    const { ds } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    const [nhom, cd, lanTruoc, macDinh, coBang] = await Promise.all([
+      pool.query(
+        `SELECT phan_loai_nhom_san_pham AS nhom, count(DISTINCT hex::text)::int AS so FROM production_status_app
+         WHERE UPPER(TRIM(xuong_chinh)) = $1 AND hex IS NOT NULL AND COALESCE(tam_ngung_huy_don_hang_tong, '') = ''
+           AND COALESCE(TRIM(phan_loai_nhom_san_pham), '') <> ''
+         GROUP BY 1 ORDER BY 1`, [xuong]),
+      poolMra.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
+      lanTrienKhaiTruoc(xuong),
+      tuyenMacDinhCua(xuong),
+      coBangTuyenMacDinh(),
+    ]);
+    const truoc = thanhPhanLanTruoc(lanTruoc.rows, xuong);
+    res.json({
+      success: true, available: true, xuong, coBang,
+      nhom: nhom.rows.map(x => {
+        const ten = String(x.nhom);
+        return { nhom: ten, soHangMuc: Number(x.so), macDinh: macDinh.get(ten)?.thanhPhan ?? null, luc: macDinh.get(ten)?.luc ?? null, lanTruoc: truoc.get(ten) ?? null };
+      }),
+      congDoan: cd.rows.map(x => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu })),
+      thanhPhan: THANH_PHAN,
+    });
+  } catch (e) { fail(res, e, '/api/xuong/setup/tuyen-mac-dinh'); }
+});
+
+const tuyenMacDinhSchema = z.object({
+  xuong: z.string().trim().min(1).max(20),
+  nhom: z.string().trim().min(1).max(200),
+  thanhPhan: z.array(z.object({ ten: z.enum(THANH_PHAN), xuong: z.string().trim().min(1).max(20), tuyen: z.array(z.string().max(40)).max(30) })).min(1).max(THANH_PHAN.length),
+});
+
+app.put('/api/xuong/setup/tuyen-mac-dinh', async (req: Request, res: Response) => {
+  try {
+    const p = tuyenMacDinhSchema.safeParse(req.body);
+    if (!p.success) return res.status(400).json({ success: false, message: 'Cần xưởng, nhóm sản phẩm và ít nhất một thành phần' });
+    const xuong = p.data.xuong.toUpperCase();
+    const { ds } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    if (!(await coBangTuyenMacDinh())) return res.status(503).json({ success: false, message: 'Chưa tạo bảng tuyến mặc định (chạy file SQL 2026-11-04_xuong_tuyen_mac_dinh.sql)' });
+    const thanhPhan = p.data.thanhPhan.map(t => ({ ...t, xuong: t.xuong.toUpperCase() }));
+    const cd = await poolMra.query('SELECT id, xuong FROM xuong_cong_doan WHERE active');
+    const loi = loiThanhPhan(thanhPhan, xuong, new Map(cd.rows.map(x => [String(x.id), String(x.xuong)])));
+    if (loi) return res.status(400).json({ success: false, message: loi });
+    await poolMra.query(
+      `INSERT INTO xuong_tuyen_mac_dinh (xuong, nhom, thanh_phan, user_id, updated_at) VALUES ($1, $2, $3::jsonb, $4, now())
+       ON CONFLICT (xuong, nhom) DO UPDATE SET thanh_phan = EXCLUDED.thanh_phan, user_id = EXCLUDED.user_id, updated_at = now()`,
+      [xuong, p.data.nhom, JSON.stringify(thanhPhan), Number(req.user!.id)]);
+    res.json({ success: true, available: true });
+  } catch (e) { fail(res, e, '/api/xuong/setup/tuyen-mac-dinh'); }
+});
+
+app.delete('/api/xuong/setup/tuyen-mac-dinh', async (req: Request, res: Response) => {
+  try {
+    const xuong = String(req.body?.xuong ?? '').toUpperCase();
+    const nhom = String(req.body?.nhom ?? '');
+    const { ds } = await xuongDuocSua(req);
+    if (!xuong || !nhom || !quanLyDuoc(ds, xuong)) return khongQuyen(res, 'Cần quyền quản lý xưởng này');
+    if (await coBangTuyenMacDinh()) await poolMra.query('DELETE FROM xuong_tuyen_mac_dinh WHERE xuong = $1 AND nhom = $2', [xuong, nhom]);
+    res.json({ success: true, available: true });
+  } catch (e) { fail(res, e, '/api/xuong/setup/tuyen-mac-dinh'); }
+});
+
+// ---------------------------------------------------------------------------
 // Triển khai hạng mục (QT1 / QT2 gộp — cải tiến 8, quyết định 7A)
 // ---------------------------------------------------------------------------
 app.get('/api/xuong/trien-khai', async (req: Request, res: Response) => {
@@ -571,7 +662,7 @@ app.get('/api/xuong/trien-khai', async (req: Request, res: Response) => {
        FROM production_status_app WHERE ${dk} ORDER BY hex::text, updated_at DESC NULLS LAST) t
        ORDER BY updated_at DESC NULLS LAST, hex DESC LIMIT 300`, params);
     const hexes = sp.rows.map(x => String(x.hex));
-    const [tk, cd, lanTruoc] = await Promise.all([
+    const [tk, cd, lanTruoc, macDinh] = await Promise.all([
       hexes.length ? poolMra.query(
         `SELECT hex, sum(so_luong)::float AS sl FROM xuong_su_kien e WHERE loai = 'trien_khai' AND hex = ANY($1::text[])
            AND du_lieu->>'xuong' = $2 AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
@@ -579,19 +670,23 @@ app.get('/api/xuong/trien-khai', async (req: Request, res: Response) => {
       poolMra.query(`SELECT id, xuong, cd_chi_tiet, cd_tach_ma, thu_tu FROM xuong_cong_doan WHERE active ORDER BY xuong, thu_tu, cd_chi_tiet`),
       // Tuyến lần triển khai gần nhất theo nhóm sản phẩm (gợi ý — cải tiến 8)
       lanTrienKhaiTruoc(xuong),
+      tuyenMacDinhCua(xuong),
     ]);
     const daTk = new Map(tk.rows.map(x => [String(x.hex), Number(x.sl)]));
-    // Gợi ý theo lần triển khai trước của cùng nhóm sản phẩm: các thành phần (bản cũ chỉ có 1 tuyến => 1 thành phần GỖ)
-    const goiY = new Map(lanTruoc.rows.map(x => [String(x.nhom ?? ''), Array.isArray(x.thanh_phan)
-      ? (x.thanh_phan as Array<Record<string, unknown>>).map(t => ({ ten: String(t.ten ?? ''), xuong: String(t.xuong ?? xuong), tuyen: Array.isArray(t.tuyen) ? (t.tuyen as unknown[]).map(String) : [] }))
-      : [{ ten: 'GỖ', xuong, tuyen: ((x.tuyen as unknown[]) ?? []).map(String) }]]));
-    const ds2 = sp.rows.map(x => ({
+    const goiYLanTruoc = thanhPhanLanTruoc(lanTruoc.rows, xuong);
+    const xuongCd = new Map(cd.rows.map(x => [String(x.id), String(x.xuong)]));
+    const ds2 = sp.rows.map(x => {
+      const nhom = String(x.phan_loai_nhom_san_pham ?? '');
+      const g = chonGoiY(macDinh.get(nhom)?.thanhPhan, goiYLanTruoc.get(nhom), xuong, xuongCd);
+      return {
       hex: String(x.hex), ten: x.ten_hang_muc, maCongTrinh: x.ma_cong_trinh, tenCongTrinh: x.ten_cong_trinh, dvt: x.dvt,
       soLuongDonHang: x.so_luong_don_hang_tong === null ? null : Number(x.so_luong_don_hang_tong),
       nhom: x.phan_loai_nhom_san_pham ?? null,
       daTrienKhai: daTk.get(String(x.hex)) ?? 0,
-      goiYThanhPhan: goiY.get(String(x.phan_loai_nhom_san_pham ?? '')) ?? null,
-    })).filter(x => !chiChua || x.soLuongDonHang === null || x.daTrienKhai < x.soLuongDonHang);
+      goiYThanhPhan: g.thanhPhan,
+      goiYNguon: g.nguon,
+      };
+    }).filter(x => !chiChua || x.soLuongDonHang === null || x.daTrienKhai < x.soLuongDonHang);
     res.json({
       success: true, available: true, xuong,
       hangMuc: ds2,
