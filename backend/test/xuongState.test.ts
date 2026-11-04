@@ -35,6 +35,22 @@ describe('tinhTrangThai — chuỗi bình thường', () => {
     assert.deepEqual(xong.doanChay, [{ start: T0 + 600_000, end: T0 + 70 * 60_000 }]);
   });
 
+  it('xong thẳng từ tạm ngưng: không mở thêm đoạn chạy, không gắn cờ', () => {
+    const own = [ev({ loai: 'nhan', soLuong: 10 }, 0), ev({ loai: 'bat_dau', soNguoi: 5 }, 0), ev({ loai: 'tam_ngung' }, 30)];
+    own.push(ev({ loai: 'hoan_thanh', soLuong: 10 }, 90));
+    const kq = tinhTrangThai(own, [giaoDen(10)]);
+    assert.equal(kq.trangThai, 'cho_giao');
+    assert.deepEqual(kq.co, []);
+    assert.deepEqual(kq.doanChay, [{ start: T0, end: T0 + 30 * 60_000 }]);
+  });
+
+  it('xong một phần từ tạm ngưng: vẫn tạm ngưng phần còn lại', () => {
+    const own = [ev({ loai: 'nhan', soLuong: 10 }, 0), ev({ loai: 'bat_dau', soNguoi: 5 }, 0), ev({ loai: 'tam_ngung' }, 30), ev({ loai: 'hoan_thanh', soLuong: 4 }, 90)];
+    const kq = tinhTrangThai(own, [giaoDen(10)]);
+    assert.equal(kq.trangThai, 'tam_ngung');
+    assert.deepEqual(kq.doanChay, [{ start: T0, end: T0 + 30 * 60_000 }]);
+  });
+
   it('xong một phần: vẫn đang chạy phần còn lại; xong hết số đã nhận mới dừng đồng hồ', () => {
     const own = [ev({ loai: 'nhan', soLuong: 10 }, 0), ev({ loai: 'bat_dau', soNguoi: 5 }, 0), ev({ loai: 'hoan_thanh', soLuong: 6 }, 30)];
     const motPhan = tinhTrangThai(own, [giaoDen(10)]);

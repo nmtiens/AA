@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  nguoiChonSan,
   gioVN, caCanChot, caHienTai, apDung, nhomDangLam, soNguoiRanh, chiaDeu, trichHex, thoiLuong, hhmm, mocTrongNgay,
   choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon, apDungDiemDanh,
   type DongViec, type LichCa,
@@ -18,6 +19,23 @@ const dong = (p: Partial<DongViec>): DongViec => ({
   hex: '250301895', congDoanId: 'CD1', trangThai: 'dang_lam', slGiaoDen: 0, slNhan: 10, slHoanThanh: 0, slGiao: 0,
   soNguoi: null, dangChayTu: null, suKienCuoi: null, co: [], tenHangMuc: null, maCongTrinh: null, tenCongTrinh: null,
   dvt: null, goiYKe: [], ...p,
+});
+
+describe('nguoiChonSan', () => {
+  const coMat = { chinh: [
+    { mnv: 'A', vao: 0, ra: null }, { mnv: 'B', vao: 0, ra: null }, { mnv: 'C', vao: 0, ra: null },
+  ] };
+  const cv = { coMat } as unknown as Parameters<typeof nguoiChonSan>[2];
+  it('Bắt đầu: người có mặt chưa làm hạng mục khác', () => {
+    expect(nguoiChonSan({ nguoi: [] }, false, cv, 'chinh', 10, new Map([['B', '260000001']]))).toEqual(['A', 'C']);
+  });
+  it('Tiếp tục: giữ nhóm lần trước', () => {
+    expect(nguoiChonSan({ nguoi: ['B'] }, true, cv, 'chinh', 10, new Map())).toEqual(['B']);
+  });
+  it('Tiếp tục chưa có nhóm cũ / chưa điểm danh tên: như Bắt đầu', () => {
+    expect(nguoiChonSan({ nguoi: [] }, true, cv, 'chinh', 10, new Map())).toEqual(['A', 'B', 'C']);
+    expect(nguoiChonSan({ nguoi: [] }, false, { coMat: {} } as never, 'chinh', 10, new Map())).toEqual([]);
+  });
 });
 
 describe('giờ Việt Nam', () => {

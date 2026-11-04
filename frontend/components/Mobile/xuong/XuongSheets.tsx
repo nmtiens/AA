@@ -7,7 +7,7 @@ import { BottomSheet, NO_SCROLLBAR } from '../mobileUi';
 import { compressImageWebp } from '../PhotoPicker';
 import {
   LY_DO_TAM_NGUNG, TEN_CA, LOAI_CA_TANG_CA, moTaSuKien, hhmm, mocTrongNgay, khoaDong, slConLam, slChoGiao, slChoNhan,
-  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, tenGon,
+  choSoLe, lamTronSl, hienSl, coMatLuc, daDiemDanh, nguoiDangBan, nguoiChonSan, tenGon,
   type CongViec, type DongViec, type LoaiCa, type MaLyDo, type CongNhanTo,
 } from '../../../services/xuongModel';
 import { xuongApi, type DanhMucXuong, type DongLichSu, type GoiYHex } from '../../../services/xuongApi';
@@ -105,12 +105,12 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca = null, n
   const dsNguoi = [...(cv?.congNhan ?? []), ...them.filter(t => !(cv?.congNhan ?? []).some(c => c.mnv === t.mnv))];
   const caTo = dsNguoi.map(c => c.mnv);
   const ban = nguoiDangBan(dangChayKhac);
-  const [chon, setChon] = useState<Set<string>>(() => new Set(tiepTuc && r.nguoi?.length ? r.nguoi : []));
+  const [chon, setChon] = useState<Set<string>>(() => new Set(cv && theoTen ? nguoiChonSan(r, tiepTuc, cv, ca, now, ban) : []));
   const [moThem, setMoThem] = useState(false);
   const soLam = theoTen ? chon.size : n;
   const chuyen = [...chon].filter(m => ban.has(m)).length;
   const vuot = !theoTen && ranh !== null && n > ranh;
-  // Chọn nhanh 1 chạm: người đã điểm danh có mặt và chưa làm hạng mục khác (vẫn chạm sửa từng tên được)
+  // Chọn thêm 1 chạm (Tiếp tục: ngoài nhóm lần trước): người có mặt và chưa làm hạng mục khác
   const ranhCoMat = cv && theoTen ? coMatLuc(cv, ca, now).filter(m => !ban.has(m)) : [];
   const daChonHetRanh = ranhCoMat.length > 0 && ranhCoMat.every(m => chon.has(m));
   const dongTu = tiepTuc ? 'Tiếp tục' : 'Bắt đầu';
@@ -122,8 +122,9 @@ export function BatDauSheet({ r, tiepTuc, quanSo, dangChayKhac, cv, ca = null, n
         {theoTen && (<>
           <p className={chuyen ? `text-base font-medium ${MAU.ngung.chu}` : CHU_PHU}>
             {chuyen ? `${chuyen} người đang làm hạng mục khác sẽ chuyển sang ${r.hex}.`
-              : 'Chạm tên người làm hạng mục này. Tên mờ là người đang làm hạng mục khác (chọn thì chuyển sang).'}
+              : 'Chạm tên để chọn hoặc bỏ. Tên mờ là người đang làm hạng mục khác (chọn thì chuyển sang).'}
           </p>
+          {chon.size > 0 && <button className="min-h-11 text-base font-medium text-slate-700 underline underline-offset-4" onClick={() => setChon(new Set())}>Bỏ chọn hết</button>}
           {ranhCoMat.length > 0 && !daChonHetRanh && (
             <button className={`${NUT_PHU} w-full`} onClick={() => setChon(s => new Set([...s, ...ranhCoMat]))}>
               <Users size="1.1em" aria-hidden /> Chọn {ranhCoMat.length} người có mặt đang rảnh

@@ -365,6 +365,12 @@ export function nguoiDangBan(dangChay: DongViec[], boQua?: string): Map<string, 
   return out;
 }
 
+/** Người chọn sẵn khi Bắt đầu / Tiếp tục: Tiếp tục giữ nhóm lần trước; còn lại = người có mặt chưa làm hạng mục khác */
+export function nguoiChonSan(r: Pick<DongViec, 'nguoi'>, tiepTuc: boolean, cv: CongViec, ca: LoaiCa | null, now: number, ban: Map<string, string>): string[] {
+  if (tiepTuc && r.nguoi?.length) return r.nguoi;
+  return coMatLuc(cv, ca, now).filter(m => !ban.has(m));
+}
+
 /** Tên gọn để hiện trên chip / dòng: "Nguyễn Văn An" → "An", trùng tên thì thêm đuôi mã */
 export function tenGon(mnv: string, ds: CongNhanTo[]): string {
   const c = ds.find(x => x.mnv === mnv);

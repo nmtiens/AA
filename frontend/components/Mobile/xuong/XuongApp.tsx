@@ -428,7 +428,8 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       ...(anhCho.length || p.lucXayRa !== undefined ? { duLieu: { ...(anhCho.length ? { anhCho } : {}), ...(p.lucXayRa !== undefined ? { khaiBu: true } : {}) } } : {}) }],
       `Nhận ${hienSl(p.soLuong)} ${[...(cv?.choNhan ?? []), ...(cv?.dangLam ?? [])].find(x => x.hex === hex)?.dvt?.trim() || 'cái'} ${hex}`,
       c => apDung(c, khoa(hex, p.congDoanId), x => ({ ...x, slNhan: x.slNhan + p.soLuong, suKienCuoi: new Date().toISOString() }), moi))
-      .then(ok => { if (ok) setTab('dangLam'); });
+      // Còn hạng mục khác chờ nhận thì ở lại tab này (nhận liền nhiều hạng mục không phải bấm quay lại)
+      .then(ok => { if (ok && !(cv?.choNhan ?? []).some(x => khoaDong(x) !== khoa(hex, p.congDoanId))) setTab('dangLam'); });
   };
 
   const chiaNguoi = (m: Record<string, number>, ten: Record<string, string[]> | null = null) => {
@@ -608,7 +609,11 @@ export default function XuongApp({ moTo, onTongQuan, dangXem = true, onSoTo }: {
       <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'tamNgung', r }, 'tạm ngưng')}>Tạm ngưng</button>
       <button className={NUT_PHU_DOC} aria-label={`Cập nhật tiến độ ${r.hex}`} onClick={() => moThaoTac({ loai: 'tienDo', r }, 'cập nhật tiến độ')}>Tiến độ</button>
     </>);
-    if (r.trangThai === 'tam_ngung') return <button className={NUT_DONG} onClick={() => batDau(r, 'tiep_tuc')}>Tiếp tục</button>;
+    // Xong thẳng từ tạm ngưng: Tiếp tục rồi mới Xong sẽ tạo đoạn chạy không có thật, lệch giờ công
+    if (r.trangThai === 'tam_ngung') return (<>
+      <button className={NUT_DONG} onClick={() => batDau(r, 'tiep_tuc')}>Tiếp tục</button>
+      <button className={NUT_PHU_DOC} onClick={() => moThaoTac({ loai: 'giao', r, cheDo: 'xong' }, r.cuoiTuyen ? 'xong' : 'xong — giao')}>Xong</button>
+    </>);
     return <button className={NUT_DONG} onClick={() => batDau(r, 'bat_dau')}>Bắt đầu</button>;
   };
 
