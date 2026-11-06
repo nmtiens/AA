@@ -39,9 +39,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ms/index.js
+// node_modules/ms/index.js
 var require_ms = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ms/index.js"(exports, module) {
+  "node_modules/ms/index.js"(exports, module) {
     var s = 1e3;
     var m = s * 60;
     var h = m * 60;
@@ -155,9 +155,9 @@ var require_ms = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/common.js
+// node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/common.js"(exports, module) {
+  "node_modules/debug/src/common.js"(exports, module) {
     function setup(env) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -332,9 +332,9 @@ var require_common = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/browser.js
+// node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/browser.js"(exports, module) {
+  "node_modules/debug/src/browser.js"(exports, module) {
     exports.formatArgs = formatArgs;
     exports.save = save;
     exports.load = load3;
@@ -502,9 +502,9 @@ var require_browser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-flag/index.js
+// node_modules/has-flag/index.js
 var require_has_flag = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-flag/index.js"(exports, module) {
+  "node_modules/has-flag/index.js"(exports, module) {
     "use strict";
     module.exports = (flag, argv = process.argv) => {
       const prefix = flag.startsWith("-") ? "" : flag.length === 1 ? "-" : "--";
@@ -515,9 +515,9 @@ var require_has_flag = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/supports-color/index.js
+// node_modules/supports-color/index.js
 var require_supports_color = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/supports-color/index.js"(exports, module) {
+  "node_modules/supports-color/index.js"(exports, module) {
     "use strict";
     var os = __require("os");
     var tty = __require("tty");
@@ -617,9 +617,9 @@ var require_supports_color = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/node.js
+// node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/node.js"(exports, module) {
+  "node_modules/debug/src/node.js"(exports, module) {
     var tty = __require("tty");
     var util = __require("util");
     exports.init = init;
@@ -791,9 +791,9 @@ var require_node = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/debug/src/index.js
+// node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/debug/src/index.js"(exports, module) {
+  "node_modules/debug/src/index.js"(exports, module) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module.exports = require_browser();
     } else {
@@ -802,9 +802,9 @@ var require_src = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/depd/index.js
+// node_modules/depd/index.js
 var require_depd = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/depd/index.js"(exports, module) {
+  "node_modules/depd/index.js"(exports, module) {
     var relative = __require("path").relative;
     module.exports = depd;
     var basePath = process.cwd();
@@ -1108,9 +1108,9 @@ var require_depd = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/setprototypeof/index.js
+// node_modules/setprototypeof/index.js
 var require_setprototypeof = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/setprototypeof/index.js"(exports, module) {
+  "node_modules/setprototypeof/index.js"(exports, module) {
     "use strict";
     module.exports = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
     function setProtoOf(obj, proto) {
@@ -1128,9 +1128,9 @@ var require_setprototypeof = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/statuses/codes.json
+// node_modules/statuses/codes.json
 var require_codes = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/statuses/codes.json"(exports, module) {
+  "node_modules/statuses/codes.json"(exports, module) {
     module.exports = {
       "100": "Continue",
       "101": "Switching Protocols",
@@ -1199,9 +1199,9 @@ var require_codes = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/statuses/index.js
+// node_modules/statuses/index.js
 var require_statuses = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/statuses/index.js"(exports, module) {
+  "node_modules/statuses/index.js"(exports, module) {
     "use strict";
     var codes = require_codes();
     module.exports = status;
@@ -1270,9 +1270,9 @@ var require_statuses = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits_browser.js
+// node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits_browser.js"(exports, module) {
+  "node_modules/inherits/inherits_browser.js"(exports, module) {
     if (typeof Object.create === "function") {
       module.exports = function inherits(ctor, superCtor) {
         if (superCtor) {
@@ -1302,9 +1302,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits.js
+// node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/inherits/inherits.js"(exports, module) {
+  "node_modules/inherits/inherits.js"(exports, module) {
     try {
       util = __require("util");
       if (typeof util.inherits !== "function") throw "";
@@ -1316,9 +1316,9 @@ var require_inherits = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/toidentifier/index.js
+// node_modules/toidentifier/index.js
 var require_toidentifier = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/toidentifier/index.js"(exports, module) {
+  "node_modules/toidentifier/index.js"(exports, module) {
     "use strict";
     module.exports = toIdentifier;
     function toIdentifier(str) {
@@ -1329,9 +1329,9 @@ var require_toidentifier = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/http-errors/index.js
+// node_modules/http-errors/index.js
 var require_http_errors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/http-errors/index.js"(exports, module) {
+  "node_modules/http-errors/index.js"(exports, module) {
     "use strict";
     var deprecate = require_depd()("http-errors");
     var setPrototypeOf = require_setprototypeof();
@@ -1493,9 +1493,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/bytes/index.js
+// node_modules/bytes/index.js
 var require_bytes = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/bytes/index.js"(exports, module) {
+  "node_modules/bytes/index.js"(exports, module) {
     "use strict";
     module.exports = bytes;
     module.exports.format = format;
@@ -1582,9 +1582,9 @@ var require_bytes = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/safer-buffer/safer.js
+// node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/safer-buffer/safer.js"(exports, module) {
+  "node_modules/safer-buffer/safer.js"(exports, module) {
     "use strict";
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
@@ -1650,9 +1650,9 @@ var require_safer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js
+// node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/bom-handling.js"(exports) {
+  "node_modules/iconv-lite/lib/bom-handling.js"(exports) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports.PrependBOM = PrependBOMWrapper;
@@ -1696,9 +1696,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js
+// node_modules/iconv-lite/lib/helpers/merge-exports.js
 var require_merge_exports = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
+  "node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module) {
     "use strict";
     var hasOwn = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module2) {
@@ -1712,9 +1712,9 @@ var require_merge_exports = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js
+// node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/internal.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/internal.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = {
@@ -1893,9 +1893,9 @@ var require_internal = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js
+// node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf32.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf32.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._utf32 = Utf32Codec;
@@ -2128,9 +2128,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js
+// node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf16.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf16.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf16be = Utf16BECodec;
@@ -2271,9 +2271,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js
+// node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/utf7.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf7.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports.utf7 = Utf7Codec;
@@ -2489,9 +2489,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js
+// node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._sbcs = SBCSCodec;
@@ -2551,9 +2551,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js
+// node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // Not supported by iconv, not sure why.
@@ -2706,9 +2706,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module) {
     "use strict";
     module.exports = {
       "437": "cp437",
@@ -3161,9 +3161,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js
+// node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     exports._dbcs = DBCSCodec;
@@ -3621,9 +3621,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json
+// node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module) {
     module.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -3752,9 +3752,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json
+// node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -3940,9 +3940,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json
+// node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4210,9 +4210,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json
+// node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module) {
     module.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4272,16 +4272,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module) {
     module.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json
+// node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4558,9 +4558,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json
+// node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module) {
     module.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -4741,9 +4741,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json
+// node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
+  "node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module) {
     module.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -4869,9 +4869,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js
+// node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module) {
     "use strict";
     module.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5116,9 +5116,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/index.js
+// node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/encodings/index.js"(exports, module) {
+  "node_modules/iconv-lite/encodings/index.js"(exports, module) {
     "use strict";
     var mergeModules = require_merge_exports();
     var modules = [
@@ -5141,9 +5141,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/streams.js
+// node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/streams.js"(exports, module) {
+  "node_modules/iconv-lite/lib/streams.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     module.exports = function(streamModule) {
@@ -5238,9 +5238,9 @@ var require_streams = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/index.js
+// node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/iconv-lite/lib/index.js"(exports, module) {
+  "node_modules/iconv-lite/lib/index.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5370,9 +5370,9 @@ var require_lib = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/unpipe/index.js
+// node_modules/unpipe/index.js
 var require_unpipe = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/unpipe/index.js"(exports, module) {
+  "node_modules/unpipe/index.js"(exports, module) {
     "use strict";
     module.exports = unpipe;
     function hasPipeDataListeners(stream) {
@@ -5408,9 +5408,9 @@ var require_unpipe = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/raw-body/index.js
+// node_modules/raw-body/index.js
 var require_raw_body = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/raw-body/index.js"(exports, module) {
+  "node_modules/raw-body/index.js"(exports, module) {
     "use strict";
     var asyncHooks = tryRequireAsyncHooks();
     var bytes = require_bytes();
@@ -5597,9 +5597,9 @@ var require_raw_body = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ee-first/index.js
+// node_modules/ee-first/index.js
 var require_ee_first = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ee-first/index.js"(exports, module) {
+  "node_modules/ee-first/index.js"(exports, module) {
     "use strict";
     module.exports = first;
     function first(stuff, done) {
@@ -5653,9 +5653,9 @@ var require_ee_first = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/on-finished/index.js
+// node_modules/on-finished/index.js
 var require_on_finished = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/on-finished/index.js"(exports, module) {
+  "node_modules/on-finished/index.js"(exports, module) {
     "use strict";
     module.exports = onFinished;
     module.exports.isFinished = isFinished;
@@ -5757,9 +5757,9 @@ var require_on_finished = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js
+// node_modules/type-is/node_modules/content-type/dist/index.js
 var require_dist = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -5896,9 +5896,9 @@ var require_dist = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-db/db.json
+// node_modules/mime-db/db.json
 var require_db = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-db/db.json"(exports, module) {
+  "node_modules/mime-db/db.json"(exports, module) {
     module.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -15244,16 +15244,16 @@ var require_db = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-db/index.js
+// node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-db/index.js"(exports, module) {
+  "node_modules/mime-db/index.js"(exports, module) {
     module.exports = require_db();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-types/mimeScore.js
+// node_modules/mime-types/mimeScore.js
 var require_mimeScore = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-types/mimeScore.js"(exports, module) {
+  "node_modules/mime-types/mimeScore.js"(exports, module) {
     var FACET_SCORES = {
       "prs.": 100,
       "x-": 200,
@@ -15295,9 +15295,9 @@ var require_mimeScore = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/mime-types/index.js
+// node_modules/mime-types/index.js
 var require_mime_types = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/mime-types/index.js"(exports) {
+  "node_modules/mime-types/index.js"(exports) {
     "use strict";
     var db = require_mime_db();
     var extname = __require("path").extname;
@@ -15401,9 +15401,9 @@ var require_mime_types = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/media-typer/index.js
+// node_modules/media-typer/index.js
 var require_media_typer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/media-typer/index.js"(exports) {
+  "node_modules/media-typer/index.js"(exports) {
     "use strict";
     var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
     var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
@@ -15465,9 +15465,9 @@ var require_media_typer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/type-is/index.js
+// node_modules/type-is/index.js
 var require_type_is = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/type-is/index.js"(exports, module) {
+  "node_modules/type-is/index.js"(exports, module) {
     "use strict";
     var contentType = require_dist();
     var mime = require_mime_types();
@@ -15556,9 +15556,9 @@ var require_type_is = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js
+// node_modules/body-parser/node_modules/content-type/dist/index.js
 var require_dist2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -15695,9 +15695,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/utils.js
+// node_modules/body-parser/lib/utils.js
 var require_utils = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/utils.js"(exports, module) {
+  "node_modules/body-parser/lib/utils.js"(exports, module) {
     "use strict";
     var bytes = require_bytes();
     var contentType = require_dist2();
@@ -15747,9 +15747,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/read.js
+// node_modules/body-parser/lib/read.js
 var require_read = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/read.js"(exports, module) {
+  "node_modules/body-parser/lib/read.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var getBody = require_raw_body();
@@ -15905,9 +15905,9 @@ var require_read = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/json.js
+// node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/json.js"(exports, module) {
+  "node_modules/body-parser/lib/types/json.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:json");
     var read = require_read();
@@ -16004,9 +16004,9 @@ var require_json = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/raw.js
+// node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/raw.js"(exports, module) {
+  "node_modules/body-parser/lib/types/raw.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:raw");
     var read = require_read();
@@ -16026,9 +16026,9 @@ var require_raw = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/text.js
+// node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/text.js"(exports, module) {
+  "node_modules/body-parser/lib/types/text.js"(exports, module) {
     "use strict";
     var debug = require_src()("body-parser:text");
     var read = require_read();
@@ -16043,24 +16043,24 @@ var require_text = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/type.js
+// node_modules/es-errors/type.js
 var require_type = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/type.js"(exports, module) {
+  "node_modules/es-errors/type.js"(exports, module) {
     "use strict";
     module.exports = TypeError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/util.inspect.js
+// node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/util.inspect.js"(exports, module) {
+  "node_modules/object-inspect/util.inspect.js"(exports, module) {
     module.exports = __require("util").inspect;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/index.js
+// node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-inspect/index.js"(exports, module) {
+  "node_modules/object-inspect/index.js"(exports, module) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -16589,9 +16589,9 @@ var require_object_inspect = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-list/index.js
+// node_modules/side-channel-list/index.js
 var require_side_channel_list = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-list/index.js"(exports, module) {
+  "node_modules/side-channel-list/index.js"(exports, module) {
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
@@ -16682,113 +16682,113 @@ var require_side_channel_list = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-object-atoms/index.js
+// node_modules/es-object-atoms/index.js
 var require_es_object_atoms = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-object-atoms/index.js"(exports, module) {
+  "node_modules/es-object-atoms/index.js"(exports, module) {
     "use strict";
     module.exports = Object;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/index.js
+// node_modules/es-errors/index.js
 var require_es_errors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/index.js"(exports, module) {
+  "node_modules/es-errors/index.js"(exports, module) {
     "use strict";
     module.exports = Error;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/eval.js
+// node_modules/es-errors/eval.js
 var require_eval = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/eval.js"(exports, module) {
+  "node_modules/es-errors/eval.js"(exports, module) {
     "use strict";
     module.exports = EvalError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/range.js
+// node_modules/es-errors/range.js
 var require_range = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/range.js"(exports, module) {
+  "node_modules/es-errors/range.js"(exports, module) {
     "use strict";
     module.exports = RangeError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/ref.js
+// node_modules/es-errors/ref.js
 var require_ref = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/ref.js"(exports, module) {
+  "node_modules/es-errors/ref.js"(exports, module) {
     "use strict";
     module.exports = ReferenceError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/syntax.js
+// node_modules/es-errors/syntax.js
 var require_syntax = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/syntax.js"(exports, module) {
+  "node_modules/es-errors/syntax.js"(exports, module) {
     "use strict";
     module.exports = SyntaxError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-errors/uri.js
+// node_modules/es-errors/uri.js
 var require_uri = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-errors/uri.js"(exports, module) {
+  "node_modules/es-errors/uri.js"(exports, module) {
     "use strict";
     module.exports = URIError;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/abs.js
+// node_modules/math-intrinsics/abs.js
 var require_abs = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/abs.js"(exports, module) {
+  "node_modules/math-intrinsics/abs.js"(exports, module) {
     "use strict";
     module.exports = Math.abs;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/floor.js
+// node_modules/math-intrinsics/floor.js
 var require_floor = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/floor.js"(exports, module) {
+  "node_modules/math-intrinsics/floor.js"(exports, module) {
     "use strict";
     module.exports = Math.floor;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/max.js
+// node_modules/math-intrinsics/max.js
 var require_max = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/max.js"(exports, module) {
+  "node_modules/math-intrinsics/max.js"(exports, module) {
     "use strict";
     module.exports = Math.max;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/min.js
+// node_modules/math-intrinsics/min.js
 var require_min = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/min.js"(exports, module) {
+  "node_modules/math-intrinsics/min.js"(exports, module) {
     "use strict";
     module.exports = Math.min;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/pow.js
+// node_modules/math-intrinsics/pow.js
 var require_pow = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/pow.js"(exports, module) {
+  "node_modules/math-intrinsics/pow.js"(exports, module) {
     "use strict";
     module.exports = Math.pow;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/round.js
+// node_modules/math-intrinsics/round.js
 var require_round = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/round.js"(exports, module) {
+  "node_modules/math-intrinsics/round.js"(exports, module) {
     "use strict";
     module.exports = Math.round;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/isNaN.js
+// node_modules/math-intrinsics/isNaN.js
 var require_isNaN = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/isNaN.js"(exports, module) {
+  "node_modules/math-intrinsics/isNaN.js"(exports, module) {
     "use strict";
     module.exports = Number.isNaN || function isNaN2(a) {
       return a !== a;
@@ -16796,9 +16796,9 @@ var require_isNaN = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/sign.js
+// node_modules/math-intrinsics/sign.js
 var require_sign = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/math-intrinsics/sign.js"(exports, module) {
+  "node_modules/math-intrinsics/sign.js"(exports, module) {
     "use strict";
     var $isNaN = require_isNaN();
     module.exports = function sign(number4) {
@@ -16810,17 +16810,17 @@ var require_sign = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/gopd/gOPD.js
+// node_modules/gopd/gOPD.js
 var require_gOPD = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/gopd/gOPD.js"(exports, module) {
+  "node_modules/gopd/gOPD.js"(exports, module) {
     "use strict";
     module.exports = Object.getOwnPropertyDescriptor;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/gopd/index.js
+// node_modules/gopd/index.js
 var require_gopd = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/gopd/index.js"(exports, module) {
+  "node_modules/gopd/index.js"(exports, module) {
     "use strict";
     var $gOPD = require_gOPD();
     if ($gOPD) {
@@ -16834,9 +16834,9 @@ var require_gopd = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/es-define-property/index.js
+// node_modules/es-define-property/index.js
 var require_es_define_property = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/es-define-property/index.js"(exports, module) {
+  "node_modules/es-define-property/index.js"(exports, module) {
     "use strict";
     var $defineProperty = Object.defineProperty || false;
     if ($defineProperty) {
@@ -16850,9 +16850,9 @@ var require_es_define_property = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/shams.js
+// node_modules/has-symbols/shams.js
 var require_shams = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/shams.js"(exports, module) {
+  "node_modules/has-symbols/shams.js"(exports, module) {
     "use strict";
     module.exports = function hasSymbols() {
       if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
@@ -16905,9 +16905,9 @@ var require_shams = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/index.js
+// node_modules/has-symbols/index.js
 var require_has_symbols = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/has-symbols/index.js"(exports, module) {
+  "node_modules/has-symbols/index.js"(exports, module) {
     "use strict";
     var origSymbol = typeof Symbol !== "undefined" && Symbol;
     var hasSymbolSham = require_shams();
@@ -16929,26 +16929,26 @@ var require_has_symbols = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js
+// node_modules/get-proto/Reflect.getPrototypeOf.js
 var require_Reflect_getPrototypeOf = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
+  "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js
+// node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
+  "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
     "use strict";
     var $Object = require_es_object_atoms();
     module.exports = $Object.getPrototypeOf || null;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/function-bind/implementation.js
+// node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/function-bind/implementation.js"(exports, module) {
+  "node_modules/function-bind/implementation.js"(exports, module) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
@@ -17022,42 +17022,42 @@ var require_implementation = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/function-bind/index.js
+// node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/function-bind/index.js"(exports, module) {
+  "node_modules/function-bind/index.js"(exports, module) {
     "use strict";
     var implementation = require_implementation();
     module.exports = Function.prototype.bind || implementation;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js
+// node_modules/call-bind-apply-helpers/functionCall.js
 var require_functionCall = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.call;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js
+// node_modules/call-bind-apply-helpers/functionApply.js
 var require_functionApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
     "use strict";
     module.exports = Function.prototype.apply;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js
+// node_modules/call-bind-apply-helpers/reflectApply.js
 var require_reflectApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
     "use strict";
     module.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js
+// node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $apply = require_functionApply();
@@ -17067,9 +17067,9 @@ var require_actualApply = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js
+// node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bind-apply-helpers/index.js"(exports, module) {
+  "node_modules/call-bind-apply-helpers/index.js"(exports, module) {
     "use strict";
     var bind = require_function_bind();
     var $TypeError = require_type();
@@ -17084,9 +17084,9 @@ var require_call_bind_apply_helpers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/dunder-proto/get.js
+// node_modules/dunder-proto/get.js
 var require_get = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/dunder-proto/get.js"(exports, module) {
+  "node_modules/dunder-proto/get.js"(exports, module) {
     "use strict";
     var callBind = require_call_bind_apply_helpers();
     var gOPD = require_gopd();
@@ -17115,9 +17115,9 @@ var require_get = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-proto/index.js
+// node_modules/get-proto/index.js
 var require_get_proto = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-proto/index.js"(exports, module) {
+  "node_modules/get-proto/index.js"(exports, module) {
     "use strict";
     var reflectGetProto = require_Reflect_getPrototypeOf();
     var originalGetProto = require_Object_getPrototypeOf();
@@ -17135,9 +17135,9 @@ var require_get_proto = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/hasown/index.js
+// node_modules/hasown/index.js
 var require_hasown = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/hasown/index.js"(exports, module) {
+  "node_modules/hasown/index.js"(exports, module) {
     "use strict";
     var call = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
@@ -17146,9 +17146,9 @@ var require_hasown = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/get-intrinsic/index.js
+// node_modules/get-intrinsic/index.js
 var require_get_intrinsic = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/get-intrinsic/index.js"(exports, module) {
+  "node_modules/get-intrinsic/index.js"(exports, module) {
     "use strict";
     var undefined2;
     var $Object = require_es_object_atoms();
@@ -17477,9 +17477,9 @@ var require_get_intrinsic = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/call-bound/index.js
+// node_modules/call-bound/index.js
 var require_call_bound = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/call-bound/index.js"(exports, module) {
+  "node_modules/call-bound/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBindBasic = require_call_bind_apply_helpers();
@@ -17500,9 +17500,9 @@ var require_call_bound = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-map/index.js
+// node_modules/side-channel-map/index.js
 var require_side_channel_map = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-map/index.js"(exports, module) {
+  "node_modules/side-channel-map/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17556,9 +17556,9 @@ var require_side_channel_map = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel-weakmap/index.js
+// node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel-weakmap/index.js"(exports, module) {
+  "node_modules/side-channel-weakmap/index.js"(exports, module) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17629,9 +17629,9 @@ var require_side_channel_weakmap = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/side-channel/index.js
+// node_modules/side-channel/index.js
 var require_side_channel = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/side-channel/index.js"(exports, module) {
+  "node_modules/side-channel/index.js"(exports, module) {
     "use strict";
     var $TypeError = require_type();
     var inspect = require_object_inspect();
@@ -17669,9 +17669,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/formats.js
+// node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/formats.js"(exports, module) {
+  "node_modules/qs/lib/formats.js"(exports, module) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17695,9 +17695,9 @@ var require_formats = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/utils.js
+// node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/utils.js"(exports, module) {
+  "node_modules/qs/lib/utils.js"(exports, module) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -18001,9 +18001,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/stringify.js
+// node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/stringify.js"(exports, module) {
+  "node_modules/qs/lib/stringify.js"(exports, module) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -18298,9 +18298,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/parse.js
+// node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/parse.js"(exports, module) {
+  "node_modules/qs/lib/parse.js"(exports, module) {
     "use strict";
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
@@ -18626,9 +18626,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/index.js
+// node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/qs/lib/index.js"(exports, module) {
+  "node_modules/qs/lib/index.js"(exports, module) {
     "use strict";
     var stringify = require_stringify();
     var parse3 = require_parse();
@@ -18641,9 +18641,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js
+// node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
+  "node_modules/body-parser/lib/types/urlencoded.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("body-parser:urlencoded");
@@ -18727,9 +18727,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/body-parser/index.js
+// node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/body-parser/index.js"(exports, module) {
+  "node_modules/body-parser/index.js"(exports, module) {
     "use strict";
     exports = module.exports = bodyParser;
     exports.json = require_json();
@@ -18742,9 +18742,9 @@ var require_body_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/merge-descriptors/index.js
+// node_modules/merge-descriptors/index.js
 var require_merge_descriptors = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/merge-descriptors/index.js"(exports, module) {
+  "node_modules/merge-descriptors/index.js"(exports, module) {
     "use strict";
     function mergeDescriptors(destination, source, overwrite = true) {
       if (!destination) {
@@ -18766,9 +18766,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/encodeurl/index.js
+// node_modules/encodeurl/index.js
 var require_encodeurl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/encodeurl/index.js"(exports, module) {
+  "node_modules/encodeurl/index.js"(exports, module) {
     "use strict";
     module.exports = encodeUrl;
     var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
@@ -18780,9 +18780,9 @@ var require_encodeurl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/escape-html/index.js
+// node_modules/escape-html/index.js
 var require_escape_html = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/escape-html/index.js"(exports, module) {
+  "node_modules/escape-html/index.js"(exports, module) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
     module.exports = escapeHtml;
@@ -18827,9 +18827,9 @@ var require_escape_html = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/parseurl/index.js
+// node_modules/parseurl/index.js
 var require_parseurl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/parseurl/index.js"(exports, module) {
+  "node_modules/parseurl/index.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var parse3 = url2.parse;
@@ -18911,9 +18911,9 @@ var require_parseurl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/finalhandler/index.js
+// node_modules/finalhandler/index.js
 var require_finalhandler = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/finalhandler/index.js"(exports, module) {
+  "node_modules/finalhandler/index.js"(exports, module) {
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
@@ -19038,9 +19038,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/view.js
+// node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/view.js"(exports, module) {
+  "node_modules/express/lib/view.js"(exports, module) {
     "use strict";
     var debug = require_src()("express:view");
     var path = __require("node:path");
@@ -19132,9 +19132,9 @@ var require_view = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/content-type/index.js
+// node_modules/content-type/index.js
 var require_content_type = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/content-type/index.js"(exports) {
+  "node_modules/content-type/index.js"(exports) {
     "use strict";
     var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
     var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
@@ -19236,9 +19236,9 @@ var require_content_type = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js
+// node_modules/etag/index.js
 var require_etag = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/etag/index.js"(exports, module) {
+  "node_modules/etag/index.js"(exports, module) {
     "use strict";
     module.exports = etag;
     var crypto4 = __require("crypto");
@@ -19278,9 +19278,9 @@ var require_etag = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/forwarded/index.js
+// node_modules/forwarded/index.js
 var require_forwarded = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/forwarded/index.js"(exports, module) {
+  "node_modules/forwarded/index.js"(exports, module) {
     "use strict";
     module.exports = forwarded;
     function forwarded(req) {
@@ -19325,9 +19325,9 @@ var require_forwarded = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js
+// node_modules/ipaddr.js/lib/ipaddr.js
 var require_ipaddr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
+  "node_modules/ipaddr.js/lib/ipaddr.js"(exports, module) {
     (function() {
       var expandIPv6, ipaddr, ipv4Part, ipv4Regexes, ipv6Part, ipv6Regexes, matchCIDR, root, zoneIndex;
       ipaddr = {};
@@ -19947,9 +19947,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/proxy-addr/index.js
+// node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/proxy-addr/index.js"(exports, module) {
+  "node_modules/proxy-addr/index.js"(exports, module) {
     "use strict";
     module.exports = proxyaddr;
     module.exports.all = alladdrs;
@@ -20106,9 +20106,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/utils.js
+// node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/utils.js"(exports) {
+  "node_modules/express/lib/utils.js"(exports) {
     "use strict";
     var { METHODS } = __require("node:http");
     var contentType = require_content_type();
@@ -20233,9 +20233,9 @@ var require_utils3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/wrappy/wrappy.js
+// node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/wrappy/wrappy.js"(exports, module) {
+  "node_modules/wrappy/wrappy.js"(exports, module) {
     module.exports = wrappy;
     function wrappy(fn, cb) {
       if (fn && cb) return wrappy(fn)(cb);
@@ -20263,9 +20263,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/once/once.js
+// node_modules/once/once.js
 var require_once = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/once/once.js"(exports, module) {
+  "node_modules/once/once.js"(exports, module) {
     var wrappy = require_wrappy();
     module.exports = wrappy(once);
     module.exports.strict = wrappy(onceStrict);
@@ -20307,9 +20307,9 @@ var require_once = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/is-promise/index.js
+// node_modules/is-promise/index.js
 var require_is_promise = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/is-promise/index.js"(exports, module) {
+  "node_modules/is-promise/index.js"(exports, module) {
     module.exports = isPromise;
     module.exports.default = isPromise;
     function isPromise(obj) {
@@ -20318,9 +20318,9 @@ var require_is_promise = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/path-to-regexp/dist/index.js
+// node_modules/path-to-regexp/dist/index.js
 var require_dist3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/path-to-regexp/dist/index.js"(exports) {
+  "node_modules/path-to-regexp/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PathError = exports.TokenData = void 0;
@@ -20687,9 +20687,9 @@ var require_dist3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/lib/layer.js
+// node_modules/router/lib/layer.js
 var require_layer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/lib/layer.js"(exports, module) {
+  "node_modules/router/lib/layer.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var pathRegexp = require_dist3();
@@ -20837,9 +20837,9 @@ var require_layer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/lib/route.js
+// node_modules/router/lib/route.js
 var require_route = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/lib/route.js"(exports, module) {
+  "node_modules/router/lib/route.js"(exports, module) {
     "use strict";
     var debug = require_src()("router:route");
     var Layer = require_layer();
@@ -20957,9 +20957,9 @@ var require_route = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/router/index.js
+// node_modules/router/index.js
 var require_router = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/router/index.js"(exports, module) {
+  "node_modules/router/index.js"(exports, module) {
     "use strict";
     var isPromise = require_is_promise();
     var Layer = require_layer();
@@ -21355,9 +21355,9 @@ var require_router = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/application.js
+// node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/application.js"(exports, module) {
+  "node_modules/express/lib/application.js"(exports, module) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
@@ -21616,9 +21616,9 @@ var require_application = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js
+// node_modules/accepts/node_modules/content-type/dist/index.js
 var require_dist4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/accepts/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -21755,9 +21755,9 @@ var require_dist4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js
+// node_modules/accepts/node_modules/negotiator/lib/accept.js
 var require_accept = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/accept.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     module.exports = parseAccept;
@@ -21783,9 +21783,9 @@ var require_accept = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js
+// node_modules/accepts/node_modules/negotiator/lib/charset.js
 var require_charset = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredCharsets;
@@ -21855,9 +21855,9 @@ var require_charset = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js
+// node_modules/accepts/node_modules/negotiator/lib/encoding.js
 var require_encoding = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     var parseAccept = require_accept();
     module.exports = preferredEncodings;
@@ -21955,9 +21955,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js
+// node_modules/accepts/node_modules/negotiator/lib/language.js
 var require_language = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAccept = require_accept();
@@ -22039,9 +22039,9 @@ var require_language = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js
+// node_modules/accepts/node_modules/negotiator/lib/mediaType.js
 var require_mediaType = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     var contentType = require_dist4();
     var parseAcceptHeader = require_accept();
@@ -22136,9 +22136,9 @@ var require_mediaType = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js
+// node_modules/accepts/node_modules/negotiator/index.js
 var require_negotiator = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
+  "node_modules/accepts/node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset();
     var preferredEncodings = require_encoding();
@@ -22192,9 +22192,9 @@ var require_negotiator = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/accepts/index.js
+// node_modules/accepts/index.js
 var require_accepts = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/accepts/index.js"(exports, module) {
+  "node_modules/accepts/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator();
     var mime = require_mime_types();
@@ -22273,9 +22273,9 @@ var require_accepts = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/fresh/index.js
+// node_modules/fresh/index.js
 var require_fresh = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/fresh/index.js"(exports, module) {
+  "node_modules/fresh/index.js"(exports, module) {
     "use strict";
     var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
     module.exports = fresh;
@@ -22345,9 +22345,9 @@ var require_fresh = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/range-parser/index.js
+// node_modules/range-parser/index.js
 var require_range_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/range-parser/index.js"(exports, module) {
+  "node_modules/range-parser/index.js"(exports, module) {
     "use strict";
     module.exports = rangeParser;
     function rangeParser(size, str, options) {
@@ -22438,9 +22438,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/request.js
+// node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/request.js"(exports, module) {
+  "node_modules/express/lib/request.js"(exports, module) {
     "use strict";
     var accepts = require_accepts();
     var isIP2 = __require("node:net").isIP;
@@ -22586,9 +22586,9 @@ var require_request = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/content-disposition/index.js
+// node_modules/content-disposition/index.js
 var require_content_disposition = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/content-disposition/index.js"(exports, module) {
+  "node_modules/content-disposition/index.js"(exports, module) {
     "use strict";
     module.exports = contentDisposition;
     module.exports.parse = parse3;
@@ -22795,9 +22795,9 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js
+// node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cookie-signature/index.js"(exports) {
+  "node_modules/cookie-signature/index.js"(exports) {
     var crypto4 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
@@ -22813,9 +22813,9 @@ var require_cookie_signature = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cookie/index.js
+// node_modules/cookie/index.js
 var require_cookie = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cookie/index.js"(exports) {
+  "node_modules/cookie/index.js"(exports) {
     "use strict";
     exports.parse = parse3;
     exports.serialize = serialize;
@@ -22979,9 +22979,9 @@ var require_cookie = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/send/index.js
+// node_modules/send/index.js
 var require_send = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/send/index.js"(exports, module) {
+  "node_modules/send/index.js"(exports, module) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("send");
@@ -23462,9 +23462,9 @@ var require_send = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/vary/index.js
+// node_modules/vary/index.js
 var require_vary = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/vary/index.js"(exports, module) {
+  "node_modules/vary/index.js"(exports, module) {
     "use strict";
     module.exports = vary;
     module.exports.append = append;
@@ -23535,9 +23535,9 @@ var require_vary = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/response.js
+// node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/response.js"(exports, module) {
+  "node_modules/express/lib/response.js"(exports, module) {
     "use strict";
     var contentDisposition = require_content_disposition();
     var createError = require_http_errors();
@@ -24005,9 +24005,9 @@ var require_response = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/serve-static/index.js
+// node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/serve-static/index.js"(exports, module) {
+  "node_modules/serve-static/index.js"(exports, module) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
@@ -24109,9 +24109,9 @@ var require_serve_static = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/lib/express.js
+// node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/lib/express.js"(exports, module) {
+  "node_modules/express/lib/express.js"(exports, module) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter = __require("node:events").EventEmitter;
@@ -24149,17 +24149,17 @@ var require_express = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express/index.js
+// node_modules/express/index.js
 var require_express2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/express/index.js"(exports, module) {
+  "node_modules/express/index.js"(exports, module) {
     "use strict";
     module.exports = require_express();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/object-assign/index.js
+// node_modules/object-assign/index.js
 var require_object_assign = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/object-assign/index.js"(exports, module) {
+  "node_modules/object-assign/index.js"(exports, module) {
     "use strict";
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -24227,9 +24227,9 @@ var require_object_assign = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/cors/lib/index.js
+// node_modules/cors/lib/index.js
 var require_lib3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/cors/lib/index.js"(exports, module) {
+  "node_modules/cors/lib/index.js"(exports, module) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -24435,9 +24435,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/charset.js
+// node_modules/negotiator/lib/charset.js
 var require_charset2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/charset.js"(exports, module) {
+  "node_modules/negotiator/lib/charset.js"(exports, module) {
     "use strict";
     module.exports = preferredCharsets;
     module.exports.preferredCharsets = preferredCharsets;
@@ -24522,9 +24522,9 @@ var require_charset2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/encoding.js
+// node_modules/negotiator/lib/encoding.js
 var require_encoding2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/encoding.js"(exports, module) {
+  "node_modules/negotiator/lib/encoding.js"(exports, module) {
     "use strict";
     module.exports = preferredEncodings;
     module.exports.preferredEncodings = preferredEncodings;
@@ -24635,9 +24635,9 @@ var require_encoding2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/language.js
+// node_modules/negotiator/lib/language.js
 var require_language2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/language.js"(exports, module) {
+  "node_modules/negotiator/lib/language.js"(exports, module) {
     "use strict";
     module.exports = preferredLanguages;
     module.exports.preferredLanguages = preferredLanguages;
@@ -24730,9 +24730,9 @@ var require_language2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/mediaType.js
+// node_modules/negotiator/lib/mediaType.js
 var require_mediaType2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/lib/mediaType.js"(exports, module) {
+  "node_modules/negotiator/lib/mediaType.js"(exports, module) {
     "use strict";
     module.exports = preferredMediaTypes;
     module.exports.preferredMediaTypes = preferredMediaTypes;
@@ -24892,9 +24892,9 @@ var require_mediaType2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/negotiator/index.js
+// node_modules/negotiator/index.js
 var require_negotiator2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/negotiator/index.js"(exports, module) {
+  "node_modules/negotiator/index.js"(exports, module) {
     "use strict";
     var preferredCharsets = require_charset2();
     var preferredEncodings = require_encoding2();
@@ -24947,9 +24947,9 @@ var require_negotiator2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/safe-buffer/index.js
+// node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/safe-buffer/index.js"(exports, module) {
+  "node_modules/safe-buffer/index.js"(exports, module) {
     var buffer = __require("buffer");
     var Buffer3 = buffer.Buffer;
     function copyProps(src, dst) {
@@ -25005,9 +25005,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/compressible/index.js
+// node_modules/compressible/index.js
 var require_compressible = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/compressible/index.js"(exports, module) {
+  "node_modules/compressible/index.js"(exports, module) {
     "use strict";
     var db = require_mime_db();
     var COMPRESSIBLE_TYPE_REGEXP = /^text\/|\+(?:json|text|xml)$/i;
@@ -25028,9 +25028,9 @@ var require_compressible = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/on-headers/index.js
+// node_modules/on-headers/index.js
 var require_on_headers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/on-headers/index.js"(exports, module) {
+  "node_modules/on-headers/index.js"(exports, module) {
     "use strict";
     module.exports = onHeaders;
     var http = __require("http");
@@ -25126,9 +25126,9 @@ var require_on_headers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/compression/index.js
+// node_modules/compression/index.js
 var require_compression = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/compression/index.js"(exports, module) {
+  "node_modules/compression/index.js"(exports, module) {
     "use strict";
     var Negotiator = require_negotiator2();
     var Buffer3 = require_safe_buffer().Buffer;
@@ -25297,9 +25297,9 @@ var require_compression = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/address-error.js
+// node_modules/ip-address/dist/address-error.js
 var require_address_error = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/address-error.js"(exports) {
+  "node_modules/ip-address/dist/address-error.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.AddressError = void 0;
@@ -25314,9 +25314,9 @@ var require_address_error = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/common.js
+// node_modules/ip-address/dist/common.js
 var require_common2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/common.js"(exports) {
+  "node_modules/ip-address/dist/common.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.isInSubnet = isInSubnet;
@@ -25414,9 +25414,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js
+// node_modules/ip-address/dist/v4/constants.js
 var require_constants = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v4/constants.js"(exports) {
+  "node_modules/ip-address/dist/v4/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_SUBNET_STRING = exports.RE_ADDRESS = exports.GROUPS = exports.BITS = void 0;
@@ -25455,9 +25455,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv4.js
+// node_modules/ip-address/dist/ipv4.js
 var require_ipv4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv4.js"(exports) {
+  "node_modules/ip-address/dist/ipv4.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26013,9 +26013,9 @@ var require_ipv4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js
+// node_modules/ip-address/dist/v6/constants.js
 var require_constants2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/constants.js"(exports) {
+  "node_modules/ip-address/dist/v6/constants.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.SPECIAL_PURPOSE = exports.RE_URL_WITH_PORT = exports.RE_URL = exports.RE_ZONE_STRING = exports.RE_SUBNET_STRING = exports.RE_BAD_ADDRESS = exports.RE_BAD_CHARACTERS = exports.TYPES = exports.SCOPES = exports.GROUPS = exports.BITS = void 0;
@@ -26103,9 +26103,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js
+// node_modules/ip-address/dist/v6/helpers.js
 var require_helpers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/helpers.js"(exports) {
+  "node_modules/ip-address/dist/v6/helpers.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.escapeHtml = escapeHtml;
@@ -26142,9 +26142,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js
+// node_modules/ip-address/dist/v6/regular-expressions.js
 var require_regular_expressions = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
+  "node_modules/ip-address/dist/v6/regular-expressions.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -26234,9 +26234,9 @@ var require_regular_expressions = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv6.js
+// node_modules/ip-address/dist/ipv6.js
 var require_ipv6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ipv6.js"(exports) {
+  "node_modules/ip-address/dist/ipv6.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27563,9 +27563,9 @@ var require_ipv6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ip-address.js
+// node_modules/ip-address/dist/ip-address.js
 var require_ip_address = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ip-address/dist/ip-address.js"(exports) {
+  "node_modules/ip-address/dist/ip-address.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -27613,9 +27613,9 @@ var require_ip_address = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/dotenv/lib/main.js
+// node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/dotenv/lib/main.js"(exports, module) {
+  "node_modules/dotenv/lib/main.js"(exports, module) {
     var fs = __require("fs");
     var path = __require("path");
     var os = __require("os");
@@ -27932,9 +27932,9 @@ var require_main = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/data-stream.js
+// node_modules/jws/lib/data-stream.js
 var require_data_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/data-stream.js"(exports, module) {
+  "node_modules/jws/lib/data-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var Stream = __require("stream");
     var util = __require("util");
@@ -27980,9 +27980,9 @@ var require_data_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
+// node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
 var require_param_bytes_for_alg = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
+  "node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports, module) {
     "use strict";
     function getParamSize(keySize) {
       var result = (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
@@ -28004,9 +28004,9 @@ var require_param_bytes_for_alg = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
+// node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
 var require_ecdsa_sig_formatter = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
+  "node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports, module) {
     "use strict";
     var Buffer3 = require_safe_buffer().Buffer;
     var getParamBytesForAlg = require_param_bytes_for_alg();
@@ -28144,9 +28144,9 @@ var require_ecdsa_sig_formatter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js
+// node_modules/buffer-equal-constant-time/index.js
 var require_buffer_equal_constant_time = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/buffer-equal-constant-time/index.js"(exports, module) {
+  "node_modules/buffer-equal-constant-time/index.js"(exports, module) {
     "use strict";
     var Buffer3 = __require("buffer").Buffer;
     var SlowBuffer = __require("buffer").SlowBuffer;
@@ -28178,9 +28178,9 @@ var require_buffer_equal_constant_time = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js
+// node_modules/jwa/index.js
 var require_jwa = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jwa/index.js"(exports, module) {
+  "node_modules/jwa/index.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var crypto4 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
@@ -28402,9 +28402,9 @@ var require_jwa = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/tostring.js
+// node_modules/jws/lib/tostring.js
 var require_tostring = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/tostring.js"(exports, module) {
+  "node_modules/jws/lib/tostring.js"(exports, module) {
     var Buffer3 = __require("buffer").Buffer;
     module.exports = function toString(obj) {
       if (typeof obj === "string")
@@ -28416,9 +28416,9 @@ var require_tostring = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/sign-stream.js
+// node_modules/jws/lib/sign-stream.js
 var require_sign_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/sign-stream.js"(exports, module) {
+  "node_modules/jws/lib/sign-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28491,9 +28491,9 @@ var require_sign_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/verify-stream.js
+// node_modules/jws/lib/verify-stream.js
 var require_verify_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/lib/verify-stream.js"(exports, module) {
+  "node_modules/jws/lib/verify-stream.js"(exports, module) {
     var Buffer3 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -28606,9 +28606,9 @@ var require_verify_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jws/index.js
+// node_modules/jws/index.js
 var require_jws = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jws/index.js"(exports) {
+  "node_modules/jws/index.js"(exports) {
     var SignStream = require_sign_stream();
     var VerifyStream = require_verify_stream();
     var ALGORITHMS = [
@@ -28639,9 +28639,9 @@ var require_jws = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/decode.js
+// node_modules/jsonwebtoken/decode.js
 var require_decode = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/decode.js"(exports, module) {
+  "node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
     module.exports = function(jwt4, options) {
       options = options || {};
@@ -28671,9 +28671,9 @@ var require_decode = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js
+// node_modules/jsonwebtoken/lib/JsonWebTokenError.js
 var require_JsonWebTokenError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/JsonWebTokenError.js"(exports, module) {
     var JsonWebTokenError = function(message, error61) {
       Error.call(this, message);
       if (Error.captureStackTrace) {
@@ -28689,9 +28689,9 @@ var require_JsonWebTokenError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js
+// node_modules/jsonwebtoken/lib/NotBeforeError.js
 var require_NotBeforeError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/NotBeforeError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = function(message, date5) {
       JsonWebTokenError.call(this, message);
@@ -28704,9 +28704,9 @@ var require_NotBeforeError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js
+// node_modules/jsonwebtoken/lib/TokenExpiredError.js
 var require_TokenExpiredError = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/TokenExpiredError.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var TokenExpiredError = function(message, expiredAt) {
       JsonWebTokenError.call(this, message);
@@ -28719,9 +28719,9 @@ var require_TokenExpiredError = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js
+// node_modules/jsonwebtoken/lib/timespan.js
 var require_timespan = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/timespan.js"(exports, module) {
     var ms = require_ms();
     module.exports = function(time3, iat) {
       var timestamp = iat || Math.floor(Date.now() / 1e3);
@@ -28740,9 +28740,9 @@ var require_timespan = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/constants.js
+// node_modules/semver/internal/constants.js
 var require_constants3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/constants.js"(exports, module) {
+  "node_modules/semver/internal/constants.js"(exports, module) {
     "use strict";
     var SEMVER_SPEC_VERSION = "2.0.0";
     var MAX_LENGTH = 256;
@@ -28772,9 +28772,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/debug.js
+// node_modules/semver/internal/debug.js
 var require_debug = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/debug.js"(exports, module) {
+  "node_modules/semver/internal/debug.js"(exports, module) {
     "use strict";
     var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
     };
@@ -28782,9 +28782,9 @@ var require_debug = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/re.js
+// node_modules/semver/internal/re.js
 var require_re = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/re.js"(exports, module) {
+  "node_modules/semver/internal/re.js"(exports, module) {
     "use strict";
     var {
       MAX_SAFE_COMPONENT_LENGTH,
@@ -28870,9 +28870,9 @@ var require_re = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/parse-options.js
+// node_modules/semver/internal/parse-options.js
 var require_parse_options = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/parse-options.js"(exports, module) {
+  "node_modules/semver/internal/parse-options.js"(exports, module) {
     "use strict";
     var looseOption = Object.freeze({ loose: true });
     var emptyOpts = Object.freeze({});
@@ -28889,9 +28889,9 @@ var require_parse_options = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/identifiers.js
+// node_modules/semver/internal/identifiers.js
 var require_identifiers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/identifiers.js"(exports, module) {
+  "node_modules/semver/internal/identifiers.js"(exports, module) {
     "use strict";
     var numeric = /^[0-9]+$/;
     var compareIdentifiers = (a, b) => {
@@ -28914,9 +28914,9 @@ var require_identifiers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/semver.js
+// node_modules/semver/classes/semver.js
 var require_semver = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/semver.js"(exports, module) {
+  "node_modules/semver/classes/semver.js"(exports, module) {
     "use strict";
     var debug = require_debug();
     var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants3();
@@ -29206,9 +29206,9 @@ var require_semver = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/parse.js
+// node_modules/semver/functions/parse.js
 var require_parse2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/parse.js"(exports, module) {
+  "node_modules/semver/functions/parse.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = (version3, options, throwErrors = false) => {
@@ -29228,9 +29228,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/valid.js
+// node_modules/semver/functions/valid.js
 var require_valid = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/valid.js"(exports, module) {
+  "node_modules/semver/functions/valid.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var valid = (version3, options) => {
@@ -29241,9 +29241,9 @@ var require_valid = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/clean.js
+// node_modules/semver/functions/clean.js
 var require_clean = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/clean.js"(exports, module) {
+  "node_modules/semver/functions/clean.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var clean = (version3, options) => {
@@ -29254,9 +29254,9 @@ var require_clean = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/inc.js
+// node_modules/semver/functions/inc.js
 var require_inc = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/inc.js"(exports, module) {
+  "node_modules/semver/functions/inc.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var inc = (version3, release, options, identifier, identifierBase) => {
@@ -29278,9 +29278,9 @@ var require_inc = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/diff.js
+// node_modules/semver/functions/diff.js
 var require_diff = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/diff.js"(exports, module) {
+  "node_modules/semver/functions/diff.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var diff = (version1, version22) => {
@@ -29322,9 +29322,9 @@ var require_diff = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/major.js
+// node_modules/semver/functions/major.js
 var require_major = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/major.js"(exports, module) {
+  "node_modules/semver/functions/major.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var major = (a, loose) => new SemVer(a, loose).major;
@@ -29332,9 +29332,9 @@ var require_major = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/minor.js
+// node_modules/semver/functions/minor.js
 var require_minor = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/minor.js"(exports, module) {
+  "node_modules/semver/functions/minor.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var minor = (a, loose) => new SemVer(a, loose).minor;
@@ -29342,9 +29342,9 @@ var require_minor = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/patch.js
+// node_modules/semver/functions/patch.js
 var require_patch = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/patch.js"(exports, module) {
+  "node_modules/semver/functions/patch.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var patch = (a, loose) => new SemVer(a, loose).patch;
@@ -29352,9 +29352,9 @@ var require_patch = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/prerelease.js
+// node_modules/semver/functions/prerelease.js
 var require_prerelease = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/prerelease.js"(exports, module) {
+  "node_modules/semver/functions/prerelease.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var prerelease = (version3, options) => {
@@ -29365,9 +29365,9 @@ var require_prerelease = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare.js
+// node_modules/semver/functions/compare.js
 var require_compare = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare.js"(exports, module) {
+  "node_modules/semver/functions/compare.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
@@ -29375,9 +29375,9 @@ var require_compare = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rcompare.js
+// node_modules/semver/functions/rcompare.js
 var require_rcompare = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rcompare.js"(exports, module) {
+  "node_modules/semver/functions/rcompare.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var rcompare = (a, b, loose) => compare(b, a, loose);
@@ -29385,9 +29385,9 @@ var require_rcompare = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-loose.js
+// node_modules/semver/functions/compare-loose.js
 var require_compare_loose = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-loose.js"(exports, module) {
+  "node_modules/semver/functions/compare-loose.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var compareLoose = (a, b) => compare(a, b, true);
@@ -29395,9 +29395,9 @@ var require_compare_loose = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-build.js
+// node_modules/semver/functions/compare-build.js
 var require_compare_build = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/compare-build.js"(exports, module) {
+  "node_modules/semver/functions/compare-build.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var compareBuild = (a, b, loose) => {
@@ -29409,9 +29409,9 @@ var require_compare_build = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/sort.js
+// node_modules/semver/functions/sort.js
 var require_sort = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/sort.js"(exports, module) {
+  "node_modules/semver/functions/sort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
@@ -29419,9 +29419,9 @@ var require_sort = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rsort.js
+// node_modules/semver/functions/rsort.js
 var require_rsort = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/rsort.js"(exports, module) {
+  "node_modules/semver/functions/rsort.js"(exports, module) {
     "use strict";
     var compareBuild = require_compare_build();
     var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
@@ -29429,9 +29429,9 @@ var require_rsort = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gt.js
+// node_modules/semver/functions/gt.js
 var require_gt = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gt.js"(exports, module) {
+  "node_modules/semver/functions/gt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gt = (a, b, loose) => compare(a, b, loose) > 0;
@@ -29439,9 +29439,9 @@ var require_gt = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lt.js
+// node_modules/semver/functions/lt.js
 var require_lt = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lt.js"(exports, module) {
+  "node_modules/semver/functions/lt.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lt = (a, b, loose) => compare(a, b, loose) < 0;
@@ -29449,9 +29449,9 @@ var require_lt = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/eq.js
+// node_modules/semver/functions/eq.js
 var require_eq = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/eq.js"(exports, module) {
+  "node_modules/semver/functions/eq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var eq = (a, b, loose) => compare(a, b, loose) === 0;
@@ -29459,9 +29459,9 @@ var require_eq = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/neq.js
+// node_modules/semver/functions/neq.js
 var require_neq = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/neq.js"(exports, module) {
+  "node_modules/semver/functions/neq.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var neq = (a, b, loose) => compare(a, b, loose) !== 0;
@@ -29469,9 +29469,9 @@ var require_neq = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gte.js
+// node_modules/semver/functions/gte.js
 var require_gte = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/gte.js"(exports, module) {
+  "node_modules/semver/functions/gte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var gte = (a, b, loose) => compare(a, b, loose) >= 0;
@@ -29479,9 +29479,9 @@ var require_gte = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lte.js
+// node_modules/semver/functions/lte.js
 var require_lte = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/lte.js"(exports, module) {
+  "node_modules/semver/functions/lte.js"(exports, module) {
     "use strict";
     var compare = require_compare();
     var lte = (a, b, loose) => compare(a, b, loose) <= 0;
@@ -29489,9 +29489,9 @@ var require_lte = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/cmp.js
+// node_modules/semver/functions/cmp.js
 var require_cmp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/cmp.js"(exports, module) {
+  "node_modules/semver/functions/cmp.js"(exports, module) {
     "use strict";
     var eq = require_eq();
     var neq = require_neq();
@@ -29539,9 +29539,9 @@ var require_cmp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/coerce.js
+// node_modules/semver/functions/coerce.js
 var require_coerce = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/coerce.js"(exports, module) {
+  "node_modules/semver/functions/coerce.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var parse3 = require_parse2();
@@ -29585,9 +29585,9 @@ var require_coerce = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/truncate.js
+// node_modules/semver/functions/truncate.js
 var require_truncate = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/truncate.js"(exports, module) {
+  "node_modules/semver/functions/truncate.js"(exports, module) {
     "use strict";
     var parse3 = require_parse2();
     var constants = require_constants3();
@@ -29626,9 +29626,9 @@ var require_truncate = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/lrucache.js
+// node_modules/semver/internal/lrucache.js
 var require_lrucache = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/internal/lrucache.js"(exports, module) {
+  "node_modules/semver/internal/lrucache.js"(exports, module) {
     "use strict";
     var LRUCache = class {
       constructor() {
@@ -29664,9 +29664,9 @@ var require_lrucache = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/range.js
+// node_modules/semver/classes/range.js
 var require_range2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/range.js"(exports, module) {
+  "node_modules/semver/classes/range.js"(exports, module) {
     "use strict";
     var SPACE_CHARACTERS = /\s+/g;
     var Range = class _Range {
@@ -30049,9 +30049,9 @@ var require_range2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/comparator.js
+// node_modules/semver/classes/comparator.js
 var require_comparator = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/classes/comparator.js"(exports, module) {
+  "node_modules/semver/classes/comparator.js"(exports, module) {
     "use strict";
     var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
     var Comparator = class _Comparator {
@@ -30162,9 +30162,9 @@ var require_comparator = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/satisfies.js
+// node_modules/semver/functions/satisfies.js
 var require_satisfies = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/functions/satisfies.js"(exports, module) {
+  "node_modules/semver/functions/satisfies.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var satisfies = (version3, range, options) => {
@@ -30179,9 +30179,9 @@ var require_satisfies = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/to-comparators.js
+// node_modules/semver/ranges/to-comparators.js
 var require_to_comparators = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/to-comparators.js"(exports, module) {
+  "node_modules/semver/ranges/to-comparators.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
@@ -30189,9 +30189,9 @@ var require_to_comparators = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js
+// node_modules/semver/ranges/max-satisfying.js
 var require_max_satisfying = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
+  "node_modules/semver/ranges/max-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30218,9 +30218,9 @@ var require_max_satisfying = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js
+// node_modules/semver/ranges/min-satisfying.js
 var require_min_satisfying = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
+  "node_modules/semver/ranges/min-satisfying.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30247,9 +30247,9 @@ var require_min_satisfying = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-version.js
+// node_modules/semver/ranges/min-version.js
 var require_min_version = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/min-version.js"(exports, module) {
+  "node_modules/semver/ranges/min-version.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Range = require_range2();
@@ -30306,9 +30306,9 @@ var require_min_version = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/valid.js
+// node_modules/semver/ranges/valid.js
 var require_valid2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/valid.js"(exports, module) {
+  "node_modules/semver/ranges/valid.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var validRange = (range, options) => {
@@ -30322,9 +30322,9 @@ var require_valid2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/outside.js
+// node_modules/semver/ranges/outside.js
 var require_outside = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/outside.js"(exports, module) {
+  "node_modules/semver/ranges/outside.js"(exports, module) {
     "use strict";
     var SemVer = require_semver();
     var Comparator = require_comparator();
@@ -30391,9 +30391,9 @@ var require_outside = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/gtr.js
+// node_modules/semver/ranges/gtr.js
 var require_gtr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/gtr.js"(exports, module) {
+  "node_modules/semver/ranges/gtr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var gtr = (version3, range, options) => outside(version3, range, ">", options);
@@ -30401,9 +30401,9 @@ var require_gtr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/ltr.js
+// node_modules/semver/ranges/ltr.js
 var require_ltr = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/ltr.js"(exports, module) {
+  "node_modules/semver/ranges/ltr.js"(exports, module) {
     "use strict";
     var outside = require_outside();
     var ltr = (version3, range, options) => outside(version3, range, "<", options);
@@ -30411,9 +30411,9 @@ var require_ltr = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/intersects.js
+// node_modules/semver/ranges/intersects.js
 var require_intersects = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/intersects.js"(exports, module) {
+  "node_modules/semver/ranges/intersects.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var intersects = (r1, r2, options) => {
@@ -30425,9 +30425,9 @@ var require_intersects = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/simplify.js
+// node_modules/semver/ranges/simplify.js
 var require_simplify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/simplify.js"(exports, module) {
+  "node_modules/semver/ranges/simplify.js"(exports, module) {
     "use strict";
     var satisfies = require_satisfies();
     var compare = require_compare();
@@ -30475,9 +30475,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/subset.js
+// node_modules/semver/ranges/subset.js
 var require_subset = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/ranges/subset.js"(exports, module) {
+  "node_modules/semver/ranges/subset.js"(exports, module) {
     "use strict";
     var Range = require_range2();
     var Comparator = require_comparator();
@@ -30637,9 +30637,9 @@ var require_subset = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/semver/index.js
+// node_modules/semver/index.js
 var require_semver2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/semver/index.js"(exports, module) {
+  "node_modules/semver/index.js"(exports, module) {
     "use strict";
     var internalRe = require_re();
     var constants = require_constants3();
@@ -30734,25 +30734,25 @@ var require_semver2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
+// node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js
 var require_asymmetricKeyDetailsSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/asymmetricKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=15.7.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
+// node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js
 var require_rsaPssKeyDetailsSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/rsaPssKeyDetailsSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, ">=16.9.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
+// node_modules/jsonwebtoken/lib/validateAsymmetricKey.js
 var require_validateAsymmetricKey = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/validateAsymmetricKey.js"(exports, module) {
     var ASYMMETRIC_KEY_DETAILS_SUPPORTED = require_asymmetricKeyDetailsSupported();
     var RSA_PSS_KEY_DETAILS_SUPPORTED = require_rsaPssKeyDetailsSupported();
     var allowedAlgorithmsForKeys = {
@@ -30803,17 +30803,17 @@ var require_validateAsymmetricKey = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js
+// node_modules/jsonwebtoken/lib/psSupported.js
 var require_psSupported = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
+  "node_modules/jsonwebtoken/lib/psSupported.js"(exports, module) {
     var semver = require_semver2();
     module.exports = semver.satisfies(process.version, "^6.12.0 || >=8.0.0");
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/verify.js
+// node_modules/jsonwebtoken/verify.js
 var require_verify = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/verify.js"(exports, module) {
+  "node_modules/jsonwebtoken/verify.js"(exports, module) {
     var JsonWebTokenError = require_JsonWebTokenError();
     var NotBeforeError = require_NotBeforeError();
     var TokenExpiredError = require_TokenExpiredError();
@@ -31026,9 +31026,9 @@ var require_verify = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.includes/index.js
+// node_modules/lodash.includes/index.js
 var require_lodash = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.includes/index.js"(exports, module) {
+  "node_modules/lodash.includes/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_SAFE_INTEGER = 9007199254740991;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31210,9 +31210,9 @@ var require_lodash = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isboolean/index.js
+// node_modules/lodash.isboolean/index.js
 var require_lodash2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isboolean/index.js"(exports, module) {
+  "node_modules/lodash.isboolean/index.js"(exports, module) {
     var boolTag = "[object Boolean]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31226,9 +31226,9 @@ var require_lodash2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isinteger/index.js
+// node_modules/lodash.isinteger/index.js
 var require_lodash3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isinteger/index.js"(exports, module) {
+  "node_modules/lodash.isinteger/index.js"(exports, module) {
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
     var NAN = 0 / 0;
@@ -31290,9 +31290,9 @@ var require_lodash3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isnumber/index.js
+// node_modules/lodash.isnumber/index.js
 var require_lodash4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isnumber/index.js"(exports, module) {
+  "node_modules/lodash.isnumber/index.js"(exports, module) {
     var numberTag = "[object Number]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31306,9 +31306,9 @@ var require_lodash4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isplainobject/index.js
+// node_modules/lodash.isplainobject/index.js
 var require_lodash5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isplainobject/index.js"(exports, module) {
+  "node_modules/lodash.isplainobject/index.js"(exports, module) {
     var objectTag = "[object Object]";
     function isHostObject(value) {
       var result = false;
@@ -31350,9 +31350,9 @@ var require_lodash5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.isstring/index.js
+// node_modules/lodash.isstring/index.js
 var require_lodash6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.isstring/index.js"(exports, module) {
+  "node_modules/lodash.isstring/index.js"(exports, module) {
     var stringTag = "[object String]";
     var objectProto = Object.prototype;
     var objectToString = objectProto.toString;
@@ -31367,9 +31367,9 @@ var require_lodash6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/lodash.once/index.js
+// node_modules/lodash.once/index.js
 var require_lodash7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/lodash.once/index.js"(exports, module) {
+  "node_modules/lodash.once/index.js"(exports, module) {
     var FUNC_ERROR_TEXT = "Expected a function";
     var INFINITY = 1 / 0;
     var MAX_INTEGER = 17976931348623157e292;
@@ -31448,9 +31448,9 @@ var require_lodash7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/sign.js
+// node_modules/jsonwebtoken/sign.js
 var require_sign2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/sign.js"(exports, module) {
+  "node_modules/jsonwebtoken/sign.js"(exports, module) {
     var timespan = require_timespan();
     var PS_SUPPORTED = require_psSupported();
     var validateAsymmetricKey = require_validateAsymmetricKey();
@@ -31673,9 +31673,9 @@ var require_sign2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/index.js
+// node_modules/jsonwebtoken/index.js
 var require_jsonwebtoken = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/jsonwebtoken/index.js"(exports, module) {
+  "node_modules/jsonwebtoken/index.js"(exports, module) {
     module.exports = {
       decode: require_decode(),
       verify: require_verify(),
@@ -31687,9 +31687,9 @@ var require_jsonwebtoken = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-array/index.js
+// node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-array/index.js"(exports) {
+  "node_modules/postgres-array/index.js"(exports) {
     "use strict";
     exports.parse = function(source, transform2) {
       return new ArrayParser(source, transform2).parse();
@@ -31781,9 +31781,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js
+// node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/arrayParser.js"(exports, module) {
+  "node_modules/pg-types/lib/arrayParser.js"(exports, module) {
     var array2 = require_postgres_array();
     module.exports = {
       create: function(source, transform2) {
@@ -31797,9 +31797,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-date/index.js
+// node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-date/index.js"(exports, module) {
+  "node_modules/postgres-date/index.js"(exports, module) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -31884,9 +31884,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/xtend/mutable.js
+// node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/xtend/mutable.js"(exports, module) {
+  "node_modules/xtend/mutable.js"(exports, module) {
     module.exports = extend2;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     function extend2(target) {
@@ -31903,9 +31903,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-interval/index.js
+// node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-interval/index.js"(exports, module) {
+  "node_modules/postgres-interval/index.js"(exports, module) {
     "use strict";
     var extend2 = require_mutable();
     module.exports = PostgresInterval;
@@ -31994,9 +31994,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/postgres-bytea/index.js
+// node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/postgres-bytea/index.js"(exports, module) {
+  "node_modules/postgres-bytea/index.js"(exports, module) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module.exports = function parseBytea(input2) {
@@ -32030,9 +32030,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/textParsers.js
+// node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/textParsers.js"(exports, module) {
+  "node_modules/pg-types/lib/textParsers.js"(exports, module) {
     var array2 = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -32230,9 +32230,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-int8/index.js
+// node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-int8/index.js"(exports, module) {
+  "node_modules/pg-int8/index.js"(exports, module) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -32310,9 +32310,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js
+// node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
+  "node_modules/pg-types/lib/binaryParsers.js"(exports, module) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -32510,9 +32510,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/builtins.js
+// node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/lib/builtins.js"(exports, module) {
+  "node_modules/pg-types/lib/builtins.js"(exports, module) {
     module.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -32578,9 +32578,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-types/index.js
+// node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-types/index.js"(exports) {
+  "node_modules/pg-types/index.js"(exports) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -32619,9 +32619,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/defaults.js
+// node_modules/pg/lib/defaults.js
 var require_defaults = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/defaults.js"(exports, module) {
+  "node_modules/pg/lib/defaults.js"(exports, module) {
     "use strict";
     var user;
     try {
@@ -32688,9 +32688,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/utils.js
+// node_modules/pg/lib/utils.js
 var require_utils4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/utils.js"(exports, module) {
+  "node_modules/pg/lib/utils.js"(exports, module) {
     "use strict";
     var defaults2 = require_defaults();
     var { isDate } = __require("util/types");
@@ -32836,9 +32836,9 @@ var require_utils4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/utils.js
+// node_modules/pg/lib/crypto/utils.js
 var require_utils5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/utils.js"(exports, module) {
+  "node_modules/pg/lib/crypto/utils.js"(exports, module) {
     var nodeCrypto = __require("crypto");
     module.exports = {
       postgresMd5PasswordHash,
@@ -32887,9 +32887,9 @@ var require_utils5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js
+// node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
+  "node_modules/pg/lib/crypto/cert-signatures.js"(exports, module) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -33000,9 +33000,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js
+// node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/crypto/sasl.js"(exports, module) {
+  "node_modules/pg/lib/crypto/sasl.js"(exports, module) {
     "use strict";
     var crypto4 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -33185,9 +33185,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/type-overrides.js
+// node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/type-overrides.js"(exports, module) {
+  "node_modules/pg/lib/type-overrides.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -33220,9 +33220,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-connection-string/index.js
+// node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-connection-string/index.js"(exports, module) {
+  "node_modules/pg-connection-string/index.js"(exports, module) {
     "use strict";
     function parse3(str, options = {}) {
       if (str.charAt(0) === "/") {
@@ -33408,9 +33408,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection-parameters.js
+// node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection-parameters.js"(exports, module) {
+  "node_modules/pg/lib/connection-parameters.js"(exports, module) {
     "use strict";
     var dns = __require("dns");
     var defaults2 = require_defaults();
@@ -33559,9 +33559,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/result.js
+// node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/result.js"(exports, module) {
+  "node_modules/pg/lib/result.js"(exports, module) {
     "use strict";
     var types2 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -33650,9 +33650,9 @@ var require_result = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/query.js
+// node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/query.js"(exports, module) {
+  "node_modules/pg/lib/query.js"(exports, module) {
     "use strict";
     var { EventEmitter } = __require("events");
     var Result2 = require_result();
@@ -33852,9 +33852,9 @@ var require_query = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/messages.js
+// node_modules/pg-protocol/dist/messages.js
 var require_messages = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/messages.js"(exports) {
+  "node_modules/pg-protocol/dist/messages.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NoticeMessage = exports.DataRowMessage = exports.CommandCompleteMessage = exports.ReadyForQueryMessage = exports.NotificationResponseMessage = exports.BackendKeyDataMessage = exports.AuthenticationMD5Password = exports.ParameterStatusMessage = exports.ParameterDescriptionMessage = exports.RowDescriptionMessage = exports.Field = exports.CopyResponse = exports.CopyDataMessage = exports.DatabaseError = exports.copyDone = exports.emptyQuery = exports.replicationStart = exports.portalSuspended = exports.noData = exports.closeComplete = exports.bindComplete = exports.parseComplete = void 0;
@@ -34017,9 +34017,9 @@ var require_messages = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js
+// node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
+  "node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Writer = void 0;
@@ -34121,9 +34121,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js
+// node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/serializer.js"(exports) {
+  "node_modules/pg-protocol/dist/serializer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.serialize = void 0;
@@ -34343,9 +34343,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js
+// node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
+  "node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.BufferReader = void 0;
@@ -34402,9 +34402,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/parser.js
+// node_modules/pg-protocol/dist/parser.js
 var require_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/parser.js"(exports) {
+  "node_modules/pg-protocol/dist/parser.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Parser = void 0;
@@ -34709,9 +34709,9 @@ var require_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/index.js
+// node_modules/pg-protocol/dist/index.js
 var require_dist5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-protocol/dist/index.js"(exports) {
+  "node_modules/pg-protocol/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
@@ -34733,18 +34733,18 @@ var require_dist5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js
+// node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-cloudflare/dist/empty.js"(exports) {
+  "node_modules/pg-cloudflare/dist/empty.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {};
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/stream.js
+// node_modules/pg/lib/stream.js
 var require_stream = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/stream.js"(exports, module) {
+  "node_modules/pg/lib/stream.js"(exports, module) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module.exports = {
       /**
@@ -34808,9 +34808,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection.js
+// node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/connection.js"(exports, module) {
+  "node_modules/pg/lib/connection.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var { parse: parse3, serialize } = require_dist5();
@@ -35006,9 +35006,9 @@ var require_connection = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/split2/index.js
+// node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/split2/index.js"(exports, module) {
+  "node_modules/split2/index.js"(exports, module) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -35107,9 +35107,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/helper.js
+// node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/helper.js"(exports, module) {
+  "node_modules/pgpass/lib/helper.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var Stream = __require("stream").Stream;
@@ -35278,9 +35278,9 @@ var require_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/index.js
+// node_modules/pgpass/lib/index.js
 var require_lib4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pgpass/lib/index.js"(exports, module) {
+  "node_modules/pgpass/lib/index.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var fs = __require("fs");
@@ -35299,9 +35299,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/client.js
+// node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/client.js"(exports, module) {
+  "node_modules/pg/lib/client.js"(exports, module) {
     var EventEmitter = __require("events").EventEmitter;
     var utils = require_utils4();
     var nodeUtils = __require("util");
@@ -35987,9 +35987,9 @@ var require_client = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg-pool/index.js
+// node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg-pool/index.js"(exports, module) {
+  "node_modules/pg-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var NOOP = function() {
@@ -36413,9 +36413,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/query.js
+// node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/query.js"(exports, module) {
+  "node_modules/pg/lib/native/query.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var util = __require("util");
@@ -36554,9 +36554,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/client.js
+// node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/client.js"(exports, module) {
+  "node_modules/pg/lib/native/client.js"(exports, module) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -36888,17 +36888,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/index.js
+// node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/native/index.js"(exports, module) {
+  "node_modules/pg/lib/native/index.js"(exports, module) {
     "use strict";
     module.exports = require_client2();
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/index.js
+// node_modules/pg/lib/index.js
 var require_lib5 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/pg/lib/index.js"(exports, module) {
+  "node_modules/pg/lib/index.js"(exports, module) {
     "use strict";
     var Client2 = require_client();
     var defaults2 = require_defaults();
@@ -36962,9 +36962,9 @@ var require_lib5 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/bn.js/lib/bn.js
+// node_modules/bn.js/lib/bn.js
 var require_bn = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/bn.js/lib/bn.js"(exports, module) {
+  "node_modules/bn.js/lib/bn.js"(exports, module) {
     (function(module2, exports2) {
       "use strict";
       function assert2(val, msg) {
@@ -39782,9 +39782,9 @@ var require_bn = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js
+// node_modules/asn1.js/lib/asn1/base/reporter.js
 var require_reporter = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/reporter.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     function Reporter(options) {
@@ -39883,9 +39883,9 @@ var require_reporter = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js
+// node_modules/asn1.js/lib/asn1/base/buffer.js
 var require_buffer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/buffer.js"(exports) {
     "use strict";
     var inherits = require_inherits();
     var Reporter = require_reporter().Reporter;
@@ -40000,9 +40000,9 @@ var require_buffer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/minimalistic-assert/index.js
+// node_modules/minimalistic-assert/index.js
 var require_minimalistic_assert = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/minimalistic-assert/index.js"(exports, module) {
+  "node_modules/minimalistic-assert/index.js"(exports, module) {
     module.exports = assert2;
     function assert2(val, msg) {
       if (!val)
@@ -40015,9 +40015,9 @@ var require_minimalistic_assert = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js
+// node_modules/asn1.js/lib/asn1/base/node.js
 var require_node2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/base/node.js"(exports, module) {
     "use strict";
     var Reporter = require_reporter().Reporter;
     var EncoderBuffer = require_buffer().EncoderBuffer;
@@ -40550,9 +40550,9 @@ var require_node2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js
+// node_modules/asn1.js/lib/asn1/constants/der.js
 var require_der = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/constants/der.js"(exports) {
     "use strict";
     function reverse(map2) {
       const res = {};
@@ -40606,9 +40606,9 @@ var require_der = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js
+// node_modules/asn1.js/lib/asn1/encoders/der.js
 var require_der2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/encoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -40837,9 +40837,9 @@ var require_der2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js
+// node_modules/asn1.js/lib/asn1/encoders/pem.js
 var require_pem = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/encoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var DEREncoder = require_der2();
@@ -40861,9 +40861,9 @@ var require_pem = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js
+// node_modules/asn1.js/lib/asn1/encoders/index.js
 var require_encoders = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/encoders/index.js"(exports) {
     "use strict";
     var encoders = exports;
     encoders.der = require_der2();
@@ -40871,9 +40871,9 @@ var require_encoders = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js
+// node_modules/asn1.js/lib/asn1/decoders/der.js
 var require_der3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/decoders/der.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var bignum = require_bn();
@@ -41143,9 +41143,9 @@ var require_der3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js
+// node_modules/asn1.js/lib/asn1/decoders/pem.js
 var require_pem2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
+  "node_modules/asn1.js/lib/asn1/decoders/pem.js"(exports, module) {
     "use strict";
     var inherits = require_inherits();
     var Buffer3 = require_safer().Buffer;
@@ -41189,9 +41189,9 @@ var require_pem2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js
+// node_modules/asn1.js/lib/asn1/decoders/index.js
 var require_decoders = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/decoders/index.js"(exports) {
     "use strict";
     var decoders = exports;
     decoders.der = require_der3();
@@ -41199,9 +41199,9 @@ var require_decoders = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js
+// node_modules/asn1.js/lib/asn1/api.js
 var require_api = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/api.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/api.js"(exports) {
     "use strict";
     var encoders = require_encoders();
     var decoders = require_decoders();
@@ -41248,9 +41248,9 @@ var require_api = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js
+// node_modules/asn1.js/lib/asn1/base/index.js
 var require_base = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/base/index.js"(exports) {
     "use strict";
     var base = exports;
     base.Reporter = require_reporter().Reporter;
@@ -41260,9 +41260,9 @@ var require_base = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js
+// node_modules/asn1.js/lib/asn1/constants/index.js
 var require_constants4 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
+  "node_modules/asn1.js/lib/asn1/constants/index.js"(exports) {
     "use strict";
     var constants = exports;
     constants._reverse = function reverse(map2) {
@@ -41279,9 +41279,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1.js
+// node_modules/asn1.js/lib/asn1.js
 var require_asn1 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/asn1.js/lib/asn1.js"(exports) {
+  "node_modules/asn1.js/lib/asn1.js"(exports) {
     "use strict";
     var asn1 = exports;
     asn1.bignum = require_bn();
@@ -41293,9 +41293,9 @@ var require_asn1 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-constants.js
+// node_modules/web-push/src/web-push-constants.js
 var require_web_push_constants = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-constants.js"(exports, module) {
+  "node_modules/web-push/src/web-push-constants.js"(exports, module) {
     "use strict";
     var WebPushConstants = {};
     WebPushConstants.supportedContentEncodings = {
@@ -41312,9 +41312,9 @@ var require_web_push_constants = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js
+// node_modules/web-push/src/urlsafe-base64-helper.js
 var require_urlsafe_base64_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
+  "node_modules/web-push/src/urlsafe-base64-helper.js"(exports, module) {
     "use strict";
     function validate2(base643) {
       return /^[A-Za-z0-9\-_]+$/.test(base643);
@@ -41325,9 +41325,9 @@ var require_urlsafe_base64_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js
+// node_modules/web-push/src/vapid-helper.js
 var require_vapid_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/vapid-helper.js"(exports, module) {
+  "node_modules/web-push/src/vapid-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var asn1 = require_asn1();
@@ -41502,9 +41502,9 @@ var require_vapid_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js
+// node_modules/http_ece/ece.js
 var require_ece = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/http_ece/ece.js"(exports, module) {
+  "node_modules/http_ece/ece.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var AES_GCM = "aes-128-gcm";
@@ -41953,9 +41953,9 @@ var require_ece = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js
+// node_modules/web-push/src/encryption-helper.js
 var require_encryption_helper = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/encryption-helper.js"(exports, module) {
+  "node_modules/web-push/src/encryption-helper.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var ece = require_ece();
@@ -42006,9 +42006,9 @@ var require_encryption_helper = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-error.js
+// node_modules/web-push/src/web-push-error.js
 var require_web_push_error = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-error.js"(exports, module) {
+  "node_modules/web-push/src/web-push-error.js"(exports, module) {
     "use strict";
     function WebPushError(message, statusCode, headers, body, endpoint) {
       Error.captureStackTrace(this, this.constructor);
@@ -42024,9 +42024,9 @@ var require_web_push_error = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/helpers.js
+// node_modules/agent-base/dist/helpers.js
 var require_helpers2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/helpers.js"(exports) {
+  "node_modules/agent-base/dist/helpers.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42094,9 +42094,9 @@ var require_helpers2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/index.js
+// node_modules/agent-base/dist/index.js
 var require_dist6 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/agent-base/dist/index.js"(exports) {
+  "node_modules/agent-base/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42250,9 +42250,9 @@ var require_dist6 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
+  "node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -42346,9 +42346,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 var require_dist7 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/https-proxy-agent/dist/index.js"(exports) {
+  "node_modules/https-proxy-agent/dist/index.js"(exports) {
     "use strict";
     var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
       if (k2 === void 0) k2 = k;
@@ -42496,9 +42496,9 @@ var require_dist7 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-lib.js
+// node_modules/web-push/src/web-push-lib.js
 var require_web_push_lib = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/web-push-lib.js"(exports, module) {
+  "node_modules/web-push/src/web-push-lib.js"(exports, module) {
     "use strict";
     var url2 = __require("url");
     var https = __require("https");
@@ -42783,9 +42783,9 @@ var require_web_push_lib = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/index.js
+// node_modules/web-push/src/index.js
 var require_src2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/web-push/src/index.js"(exports, module) {
+  "node_modules/web-push/src/index.js"(exports, module) {
     "use strict";
     var vapidHelper = require_vapid_helper();
     var encryptionHelper = require_encryption_helper();
@@ -42807,9 +42807,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js
+// node_modules/nodemailer/lib/fetch/cookies.js
 var require_cookies = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
+  "node_modules/nodemailer/lib/fetch/cookies.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var SESSION_TIMEOUT = 1800;
@@ -43019,9 +43019,9 @@ var require_cookies = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/package.json
+// node_modules/nodemailer/package.json
 var require_package = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/package.json"(exports, module) {
+  "node_modules/nodemailer/package.json"(exports, module) {
     module.exports = {
       name: "nodemailer",
       version: "6.9.16",
@@ -43068,9 +43068,9 @@ var require_package = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js
+// node_modules/nodemailer/lib/fetch/index.js
 var require_fetch = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/fetch/index.js"(exports, module) {
     "use strict";
     var http = __require("http");
     var https = __require("https");
@@ -43307,9 +43307,9 @@ var require_fetch = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js
+// node_modules/nodemailer/lib/shared/index.js
 var require_shared = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/shared/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/shared/index.js"(exports, module) {
     "use strict";
     var urllib = __require("url");
     var util = __require("util");
@@ -43819,9 +43819,9 @@ var require_shared = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js
+// node_modules/nodemailer/lib/mime-funcs/mime-types.js
 var require_mime_types2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-funcs/mime-types.js"(exports, module) {
     "use strict";
     var path = __require("path");
     var defaultMimeType = "application/octet-stream";
@@ -45917,9 +45917,9 @@ var require_mime_types2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js
+// node_modules/nodemailer/lib/punycode/index.js
 var require_punycode = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/punycode/index.js"(exports, module) {
     "use strict";
     var maxInt = 2147483647;
     var base = 36;
@@ -46159,9 +46159,9 @@ var require_punycode = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js
+// node_modules/nodemailer/lib/base64/index.js
 var require_base64 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/base64/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/base64/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46257,9 +46257,9 @@ var require_base64 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js
+// node_modules/nodemailer/lib/qp/index.js
 var require_qp = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/qp/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/qp/index.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     function encode3(buffer) {
@@ -46419,9 +46419,9 @@ var require_qp = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js
+// node_modules/nodemailer/lib/mime-funcs/index.js
 var require_mime_funcs = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-funcs/index.js"(exports, module) {
     "use strict";
     var base643 = require_base64();
     var qp = require_qp();
@@ -46915,9 +46915,9 @@ var require_mime_funcs = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js
+// node_modules/nodemailer/lib/addressparser/index.js
 var require_addressparser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/addressparser/index.js"(exports, module) {
     "use strict";
     function _handleAddress(tokens) {
       let isGroup = false;
@@ -47164,9 +47164,9 @@ var require_addressparser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js
+// node_modules/nodemailer/lib/mime-node/last-newline.js
 var require_last_newline = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/last-newline.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var LastNewline = class extends Transform {
@@ -47197,9 +47197,9 @@ var require_last_newline = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js
+// node_modules/nodemailer/lib/mime-node/le-windows.js
 var require_le_windows = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/le-windows.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47241,9 +47241,9 @@ var require_le_windows = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js
+// node_modules/nodemailer/lib/mime-node/le-unix.js
 var require_le_unix = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/le-unix.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -47278,9 +47278,9 @@ var require_le_unix = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js
+// node_modules/nodemailer/lib/mime-node/index.js
 var require_mime_node = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mime-node/index.js"(exports, module) {
     "use strict";
     var crypto4 = __require("crypto");
     var fs = __require("fs");
@@ -48252,9 +48252,9 @@ var require_mime_node = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js
+// node_modules/nodemailer/lib/mail-composer/index.js
 var require_mail_composer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mail-composer/index.js"(exports, module) {
     "use strict";
     var MimeNode = require_mime_node();
     var mimeFuncs = require_mime_funcs();
@@ -48698,9 +48698,9 @@ var require_mail_composer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js
+// node_modules/nodemailer/lib/dkim/message-parser.js
 var require_message_parser = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/message-parser.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var MessageParser = class extends Transform {
@@ -48829,9 +48829,9 @@ var require_message_parser = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js
+// node_modules/nodemailer/lib/dkim/relaxed-body.js
 var require_relaxed_body = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/relaxed-body.js"(exports, module) {
     "use strict";
     var Transform = __require("stream").Transform;
     var crypto4 = __require("crypto");
@@ -48938,9 +48938,9 @@ var require_relaxed_body = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js
+// node_modules/nodemailer/lib/dkim/sign.js
 var require_sign3 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/sign.js"(exports, module) {
     "use strict";
     var punycode = require_punycode();
     var mimeFuncs = require_mime_funcs();
@@ -49011,9 +49011,9 @@ var require_sign3 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js
+// node_modules/nodemailer/lib/dkim/index.js
 var require_dkim = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/dkim/index.js"(exports, module) {
     "use strict";
     var MessageParser = require_message_parser();
     var RelaxedBody = require_relaxed_body();
@@ -49214,9 +49214,9 @@ var require_dkim = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
+// node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js
 var require_http_proxy_client = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/http-proxy-client.js"(exports, module) {
     "use strict";
     var net = __require("net");
     var tls = __require("tls");
@@ -49310,9 +49310,9 @@ var require_http_proxy_client = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js
+// node_modules/nodemailer/lib/mailer/mail-message.js
 var require_mail_message = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
+  "node_modules/nodemailer/lib/mailer/mail-message.js"(exports, module) {
     "use strict";
     var shared = require_shared();
     var MimeNode = require_mime_node();
@@ -49574,9 +49574,9 @@ var require_mail_message = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js
+// node_modules/nodemailer/lib/mailer/index.js
 var require_mailer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/mailer/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var shared = require_shared();
@@ -49943,9 +49943,9 @@ var require_mailer = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js
+// node_modules/nodemailer/lib/smtp-connection/data-stream.js
 var require_data_stream2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/data-stream.js"(exports, module) {
     "use strict";
     var stream = __require("stream");
     var Transform = stream.Transform;
@@ -50032,9 +50032,9 @@ var require_data_stream2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js
+// node_modules/nodemailer/lib/smtp-connection/index.js
 var require_smtp_connection = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-connection/index.js"(exports, module) {
     "use strict";
     var packageInfo = require_package();
     var EventEmitter = __require("events").EventEmitter;
@@ -51449,9 +51449,9 @@ var require_smtp_connection = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js
+// node_modules/nodemailer/lib/xoauth2/index.js
 var require_xoauth2 = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/xoauth2/index.js"(exports, module) {
     "use strict";
     var Stream = __require("stream").Stream;
     var nmfetch = require_fetch();
@@ -51754,9 +51754,9 @@ var require_xoauth2 = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js
+// node_modules/nodemailer/lib/smtp-pool/pool-resource.js
 var require_pool_resource = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-pool/pool-resource.js"(exports, module) {
     "use strict";
     var SMTPConnection = require_smtp_connection();
     var assign = require_shared().assign;
@@ -51975,9 +51975,9 @@ var require_pool_resource = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json
+// node_modules/nodemailer/lib/well-known/services.json
 var require_services = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
+  "node_modules/nodemailer/lib/well-known/services.json"(exports, module) {
     module.exports = {
       "1und1": {
         host: "smtp.1und1.de",
@@ -52279,9 +52279,9 @@ var require_services = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js
+// node_modules/nodemailer/lib/well-known/index.js
 var require_well_known = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/well-known/index.js"(exports, module) {
     "use strict";
     var services = require_services();
     var normalized = {};
@@ -52315,9 +52315,9 @@ var require_well_known = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js
+// node_modules/nodemailer/lib/smtp-pool/index.js
 var require_smtp_pool = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-pool/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var PoolResource = require_pool_resource();
@@ -52860,9 +52860,9 @@ var require_smtp_pool = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js
+// node_modules/nodemailer/lib/smtp-transport/index.js
 var require_smtp_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/smtp-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var SMTPConnection = require_smtp_connection();
@@ -53218,9 +53218,9 @@ var require_smtp_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js
+// node_modules/nodemailer/lib/sendmail-transport/index.js
 var require_sendmail_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/sendmail-transport/index.js"(exports, module) {
     "use strict";
     var spawn = __require("child_process").spawn;
     var packageData = require_package();
@@ -53393,9 +53393,9 @@ var require_sendmail_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js
+// node_modules/nodemailer/lib/stream-transport/index.js
 var require_stream_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/stream-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53507,9 +53507,9 @@ var require_stream_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js
+// node_modules/nodemailer/lib/json-transport/index.js
 var require_json_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/json-transport/index.js"(exports, module) {
     "use strict";
     var packageData = require_package();
     var shared = require_shared();
@@ -53576,9 +53576,9 @@ var require_json_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js
+// node_modules/nodemailer/lib/ses-transport/index.js
 var require_ses_transport = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
+  "node_modules/nodemailer/lib/ses-transport/index.js"(exports, module) {
     "use strict";
     var EventEmitter = __require("events");
     var packageData = require_package();
@@ -53857,9 +53857,9 @@ var require_ses_transport = __commonJS({
   }
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js
+// node_modules/nodemailer/lib/nodemailer.js
 var require_nodemailer = __commonJS({
-  "../../../../../../../../../../../project_v2/backend/node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
+  "node_modules/nodemailer/lib/nodemailer.js"(exports, module) {
     "use strict";
     var Mailer = require_mailer();
     var shared = require_shared();
@@ -53990,7 +53990,7 @@ var require_nodemailer = __commonJS({
 var import_express = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/helmet/index.mjs
+// node_modules/helmet/index.mjs
 var dashify = (str) => str.replace(/[A-Z]/g, (capitalLetter) => "-" + capitalLetter.toLowerCase());
 var errify = (err) => err instanceof Error ? err : new Error(String(err));
 var isString = (value) => typeof value === "string";
@@ -54560,7 +54560,7 @@ var helmet = Object.assign(
 // src/server/app.ts
 var import_compression = __toESM(require_compression(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/express-rate-limit/dist/index.mjs
+// node_modules/express-rate-limit/dist/index.mjs
 var import_ip_address = __toESM(require_ip_address(), 1);
 var import_debug = __toESM(require_src(), 1);
 import { isIPv6 } from "node:net";
@@ -55581,7 +55581,7 @@ if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
 // src/server/auth.ts
 var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/pg/esm/index.mjs
+// node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
 var Client = import_lib.default.Client;
 var Pool = import_lib.default.Pool;
@@ -56343,7 +56343,7 @@ app.use(async (req, _res, next) => {
 // src/vuongMacPush.ts
 var import_web_push = __toESM(require_src2(), 1);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/external.js
+// node_modules/zod/v4/classic/external.js
 var external_exports = {};
 __export(external_exports, {
   $brand: () => $brand,
@@ -56600,7 +56600,7 @@ __export(external_exports, {
   xor: () => xor
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/index.js
+// node_modules/zod/v4/core/index.js
 var core_exports2 = {};
 __export(core_exports2, {
   $ZodAny: () => $ZodAny,
@@ -56907,7 +56907,7 @@ __export(core_exports2, {
   version: () => version2
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/util.js
+// node_modules/zod/v4/core/util.js
 var util_exports = {};
 __export(util_exports, {
   BIGINT_FORMAT_RANGES: () => BIGINT_FORMAT_RANGES,
@@ -57744,7 +57744,7 @@ function constantCatch(value) {
   return fn;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/core.js
+// node_modules/zod/v4/core/core.js
 var _a;
 var NEVER = /* @__PURE__ */ Object.freeze({
   status: "aborted"
@@ -57867,7 +57867,7 @@ function config(newConfig) {
   return globalConfig;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/errors.js
+// node_modules/zod/v4/core/errors.js
 function _getMessage() {
   const internals = this._zod;
   internals.message ?? (internals.message = JSON.stringify(internals.def, jsonStringifyReplacer, 2));
@@ -58063,7 +58063,7 @@ function prettifyError(error61) {
   return lines.join("\n");
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/parse.js
+// node_modules/zod/v4/core/parse.js
 function finalizeParams(callee, params) {
   return { callee: params?.callee ?? callee, Err: params?.Err };
 }
@@ -58206,7 +58206,7 @@ var _safeDecodeAsync = (_Err) => async (schema, value, _ctx) => {
 };
 var safeDecodeAsync = /* @__PURE__ */ _safeDecodeAsync($ZodRealError);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/regexes.js
+// node_modules/zod/v4/core/regexes.js
 var regexes_exports = {};
 __export(regexes_exports, {
   base64: () => base64,
@@ -58372,7 +58372,7 @@ var sha512_hex = /^[0-9a-fA-F]{128}$/;
 var sha512_base64 = /* @__PURE__ */ fixedBase64(86, "==");
 var sha512_base64url = /* @__PURE__ */ fixedBase64url(86);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/checks.js
+// node_modules/zod/v4/core/checks.js
 var $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
   var _a3;
   inst._zod ?? (inst._zod = {});
@@ -58916,7 +58916,7 @@ var $ZodCheckOverwrite = /* @__PURE__ */ $constructor("$ZodCheckOverwrite", (ins
   };
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/doc.js
+// node_modules/zod/v4/core/doc.js
 var Doc = class {
   constructor(args = [], closed = {}) {
     this.content = [];
@@ -58953,14 +58953,14 @@ ${content.join("\n")}
   }
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/versions.js
+// node_modules/zod/v4/core/versions.js
 var version2 = {
   major: 4,
   minor: 5,
   patch: 4
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/schemas.js
+// node_modules/zod/v4/core/schemas.js
 var $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
   var _a3;
   inst ?? (inst = {});
@@ -61224,7 +61224,7 @@ function handleRefineResult(result, payload, input2, inst) {
   }
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/memoizer.js
+// node_modules/zod/v4/core/memoizer.js
 var $ZodCyclicError = class extends Error {
   constructor() {
     super(`Cannot parse a reference cycle that closes through a transform`);
@@ -61465,7 +61465,7 @@ function isBackEdge(ctx, value) {
   return backEdges !== void 0 && value !== null && typeof value === "object" && backEdges.has(value);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/index.js
+// node_modules/zod/v4/locales/index.js
 var locales_exports = {};
 __export(locales_exports, {
   ar: () => ar_default,
@@ -61532,7 +61532,7 @@ __export(locales_exports, {
   zhTW: () => zh_TW_default
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ar.js
+// node_modules/zod/v4/locales/ar.js
 var error = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0641", verb: "\u0623\u0646 \u064A\u062D\u0648\u064A" },
@@ -61642,7 +61642,7 @@ function ar_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/az.js
+// node_modules/zod/v4/locales/az.js
 var error2 = () => {
   const Sizable = {
     string: { unit: "simvol", verb: "olmal\u0131d\u0131r" },
@@ -61751,7 +61751,7 @@ function az_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/be.js
+// node_modules/zod/v4/locales/be.js
 function getBelarusianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -61918,7 +61918,7 @@ function be_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/bg.js
+// node_modules/zod/v4/locales/bg.js
 var error4 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0430", verb: "\u0434\u0430 \u0441\u044A\u0434\u044A\u0440\u0436\u0430" },
@@ -62042,7 +62042,7 @@ function bg_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/bn.js
+// node_modules/zod/v4/locales/bn.js
 var error5 = () => {
   const Sizable = {
     string: { unit: "\u0985\u0995\u09CD\u09B7\u09B0", verb: "\u09A5\u09BE\u0995\u09A4\u09C7 \u09B9\u09AC\u09C7" },
@@ -62154,7 +62154,7 @@ function bn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ca.js
+// node_modules/zod/v4/locales/ca.js
 var error6 = () => {
   const Sizable = {
     string: { unit: "car\xE0cters", verb: "contenir" },
@@ -62266,7 +62266,7 @@ function ca_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ckb.js
+// node_modules/zod/v4/locales/ckb.js
 var error7 = () => {
   const Sizable = {
     string: { unit: "\u067E\u06CC\u062A", verb: "\u0628\u06CE\u062A" },
@@ -62397,7 +62397,7 @@ function ckb_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/cs.js
+// node_modules/zod/v4/locales/cs.js
 var error8 = () => {
   const Sizable = {
     string: { unit: "znak\u016F", verb: "m\xEDt" },
@@ -62512,7 +62512,7 @@ function cs_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/da.js
+// node_modules/zod/v4/locales/da.js
 var error9 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "havde" },
@@ -62631,7 +62631,7 @@ function da_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/de.js
+// node_modules/zod/v4/locales/de.js
 var error10 = () => {
   const Sizable = {
     string: { unit: "Zeichen", verb: "zu haben" },
@@ -62743,7 +62743,7 @@ function de_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/el.js
+// node_modules/zod/v4/locales/el.js
 var error11 = () => {
   const Sizable = {
     string: { unit: "\u03C7\u03B1\u03C1\u03B1\u03BA\u03C4\u03AE\u03C1\u03B5\u03C2", verb: "\u03BD\u03B1 \u03AD\u03C7\u03B5\u03B9" },
@@ -62854,7 +62854,7 @@ function el_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/en.js
+// node_modules/zod/v4/locales/en.js
 var error12 = () => {
   const Sizable = {
     string: { unit: "characters", verb: "to have" },
@@ -62977,7 +62977,7 @@ function en_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/eo.js
+// node_modules/zod/v4/locales/eo.js
 var error13 = () => {
   const Sizable = {
     string: { unit: "karaktrojn", verb: "havi" },
@@ -63090,7 +63090,7 @@ function eo_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/es.js
+// node_modules/zod/v4/locales/es.js
 var error14 = () => {
   const Sizable = {
     string: { unit: "caracteres", verb: "tener" },
@@ -63225,7 +63225,7 @@ function es_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fa.js
+// node_modules/zod/v4/locales/fa.js
 var error15 = () => {
   const Sizable = {
     string: { unit: "\u06A9\u0627\u0631\u0627\u06A9\u062A\u0631", verb: "\u062F\u0627\u0634\u062A\u0647 \u0628\u0627\u0634\u062F" },
@@ -63343,7 +63343,7 @@ function fa_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fi.js
+// node_modules/zod/v4/locales/fi.js
 var error16 = () => {
   const Sizable = {
     string: { unit: "merkki\xE4", subject: "merkkijonon" },
@@ -63459,7 +63459,7 @@ function fi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fr.js
+// node_modules/zod/v4/locales/fr.js
 var error17 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63587,7 +63587,7 @@ function fr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/fr-CA.js
+// node_modules/zod/v4/locales/fr-CA.js
 var error18 = () => {
   const Sizable = {
     string: { unit: "caract\xE8res", verb: "avoir" },
@@ -63698,7 +63698,7 @@ function fr_CA_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/gu.js
+// node_modules/zod/v4/locales/gu.js
 var error19 = () => {
   const Sizable = {
     string: { unit: "\u0A85\u0A95\u0ACD\u0AB7\u0AB0", verb: "\u0AB9\u0ACB\u0AB5\u0ABE \u0A9C\u0ACB\u0A88\u0A8F" },
@@ -63810,7 +63810,7 @@ function gu_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/he.js
+// node_modules/zod/v4/locales/he.js
 var error20 = () => {
   const TypeNames = {
     string: { label: "\u05DE\u05D7\u05E8\u05D5\u05D6\u05EA", gender: "f" },
@@ -64010,7 +64010,7 @@ function he_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hi.js
+// node_modules/zod/v4/locales/hi.js
 var error21 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0930\u0916\u0928\u0947 \u0915\u0947 \u0932\u093F\u090F" },
@@ -64120,7 +64120,7 @@ function hi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hr.js
+// node_modules/zod/v4/locales/hr.js
 var error22 = () => {
   const Sizable = {
     string: { unit: "znakova", verb: "imati" },
@@ -64245,7 +64245,7 @@ function hr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hu.js
+// node_modules/zod/v4/locales/hu.js
 var error23 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "legyen" },
@@ -64357,7 +64357,7 @@ function hu_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/hy.js
+// node_modules/zod/v4/locales/hy.js
 function getArmenianPlural(count, one, many) {
   return Math.abs(count) === 1 ? one : many;
 }
@@ -64514,7 +64514,7 @@ function hy_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/id.js
+// node_modules/zod/v4/locales/id.js
 var error25 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "memiliki" },
@@ -64624,7 +64624,7 @@ function id_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/is.js
+// node_modules/zod/v4/locales/is.js
 var error26 = () => {
   const Sizable = {
     string: { unit: "stafi", verb: "a\xF0 hafa" },
@@ -64737,7 +64737,7 @@ function is_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/it.js
+// node_modules/zod/v4/locales/it.js
 var error27 = () => {
   const Sizable = {
     string: { unit: "caratteri", verb: "avere" },
@@ -64849,7 +64849,7 @@ function it_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ja.js
+// node_modules/zod/v4/locales/ja.js
 var error28 = () => {
   const Sizable = {
     string: { unit: "\u6587\u5B57", verb: "\u3067\u3042\u308B" },
@@ -64960,7 +64960,7 @@ function ja_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ka.js
+// node_modules/zod/v4/locales/ka.js
 var error29 = () => {
   const Sizable = {
     string: { unit: "\u10E1\u10D8\u10DB\u10D1\u10DD\u10DA\u10DD", verb: "\u10E3\u10DC\u10D3\u10D0 \u10E8\u10D4\u10D8\u10EA\u10D0\u10D5\u10D3\u10D4\u10E1" },
@@ -65076,7 +65076,7 @@ function ka_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/km.js
+// node_modules/zod/v4/locales/km.js
 var error30 = () => {
   const Sizable = {
     string: { unit: "\u178F\u17BD\u17A2\u1780\u17D2\u179F\u179A", verb: "\u1782\u17BD\u179A\u1798\u17B6\u1793" },
@@ -65190,12 +65190,12 @@ function km_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/kh.js
+// node_modules/zod/v4/locales/kh.js
 function kh_default() {
   return km_default();
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/kn.js
+// node_modules/zod/v4/locales/kn.js
 var error31 = () => {
   const Sizable = {
     string: { unit: "\u0C85\u0C95\u0CCD\u0CB7\u0CB0\u0C97\u0CB3\u0CC1", verb: "\u0CB9\u0CCA\u0C82\u0CA6\u0CB2\u0CC1" },
@@ -65309,7 +65309,7 @@ function kn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ko.js
+// node_modules/zod/v4/locales/ko.js
 var error32 = () => {
   const Sizable = {
     string: { unit: "\uBB38\uC790", verb: "to have" },
@@ -65424,7 +65424,7 @@ function ko_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/lt.js
+// node_modules/zod/v4/locales/lt.js
 var capitalizeFirstCharacter = (text) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
@@ -65630,7 +65630,7 @@ function lt_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/mk.js
+// node_modules/zod/v4/locales/mk.js
 var error34 = () => {
   const Sizable = {
     string: { unit: "\u0437\u043D\u0430\u0446\u0438", verb: "\u0434\u0430 \u0438\u043C\u0430\u0430\u0442" },
@@ -65743,7 +65743,7 @@ function mk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ms.js
+// node_modules/zod/v4/locales/ms.js
 var error35 = () => {
   const Sizable = {
     string: { unit: "aksara", verb: "mempunyai" },
@@ -65854,7 +65854,7 @@ function ms_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ne.js
+// node_modules/zod/v4/locales/ne.js
 var error36 = () => {
   const Sizable = {
     string: { unit: "\u0905\u0915\u094D\u0937\u0930", verb: "\u0939\u0941\u0928\u0941\u092A\u0930\u094D\u091B" },
@@ -65964,7 +65964,7 @@ function ne_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/nl.js
+// node_modules/zod/v4/locales/nl.js
 var error37 = () => {
   const Sizable = {
     string: { unit: "tekens", verb: "heeft" },
@@ -66078,7 +66078,7 @@ function nl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/nn.js
+// node_modules/zod/v4/locales/nn.js
 var error38 = () => {
   const Sizable = {
     string: { unit: "teikn", verb: "\xE5 ha" },
@@ -66190,7 +66190,7 @@ function nn_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/no.js
+// node_modules/zod/v4/locales/no.js
 var error39 = () => {
   const Sizable = {
     string: { unit: "tegn", verb: "\xE5 ha" },
@@ -66302,7 +66302,7 @@ function no_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ota.js
+// node_modules/zod/v4/locales/ota.js
 var error40 = () => {
   const Sizable = {
     string: { unit: "harf", verb: "olmal\u0131d\u0131r" },
@@ -66415,7 +66415,7 @@ function ota_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ps.js
+// node_modules/zod/v4/locales/ps.js
 var error41 = () => {
   const Sizable = {
     string: { unit: "\u062A\u0648\u06A9\u064A", verb: "\u0648\u0644\u0631\u064A" },
@@ -66533,7 +66533,7 @@ function ps_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pl.js
+// node_modules/zod/v4/locales/pl.js
 var error42 = () => {
   const Sizable = {
     string: { unit: "znak\xF3w", verb: "mie\u0107" },
@@ -66646,7 +66646,7 @@ function pl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pt.js
+// node_modules/zod/v4/locales/pt.js
 var error43 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66788,7 +66788,7 @@ function pt_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/pt-BR.js
+// node_modules/zod/v4/locales/pt-BR.js
 var error44 = () => {
   const Sizable = {
     string: { unit: "caracteres" },
@@ -66931,7 +66931,7 @@ function pt_BR_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ro.js
+// node_modules/zod/v4/locales/ro.js
 var error45 = () => {
   const Sizable = {
     string: { unit: "caractere", verb: "s\u0103 aib\u0103" },
@@ -67052,7 +67052,7 @@ function ro_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ru.js
+// node_modules/zod/v4/locales/ru.js
 function getRussianPlural(count, one, few, many) {
   const absCount = Math.abs(count);
   const lastDigit = absCount % 10;
@@ -67219,7 +67219,7 @@ function ru_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sk.js
+// node_modules/zod/v4/locales/sk.js
 var error47 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "ma\u0165" },
@@ -67334,7 +67334,7 @@ function sk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sl.js
+// node_modules/zod/v4/locales/sl.js
 var error48 = () => {
   const Sizable = {
     string: { unit: "znakov", verb: "imeti" },
@@ -67447,7 +67447,7 @@ function sl_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/sv.js
+// node_modules/zod/v4/locales/sv.js
 var error49 = () => {
   const Sizable = {
     string: { unit: "tecken", verb: "att ha" },
@@ -67561,7 +67561,7 @@ function sv_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ta.js
+// node_modules/zod/v4/locales/ta.js
 var error50 = () => {
   const Sizable = {
     string: { unit: "\u0B8E\u0BB4\u0BC1\u0BA4\u0BCD\u0BA4\u0BC1\u0B95\u0BCD\u0B95\u0BB3\u0BCD", verb: "\u0B95\u0BCA\u0BA3\u0BCD\u0B9F\u0BBF\u0BB0\u0BC1\u0B95\u0BCD\u0B95 \u0BB5\u0BC7\u0BA3\u0BCD\u0B9F\u0BC1\u0BAE\u0BCD" },
@@ -67675,7 +67675,7 @@ function ta_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/th.js
+// node_modules/zod/v4/locales/th.js
 var error51 = () => {
   const Sizable = {
     string: { unit: "\u0E15\u0E31\u0E27\u0E2D\u0E31\u0E01\u0E29\u0E23", verb: "\u0E04\u0E27\u0E23\u0E21\u0E35" },
@@ -67789,7 +67789,7 @@ function th_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/tk.js
+// node_modules/zod/v4/locales/tk.js
 var error52 = () => {
   const Sizable = {
     string: { unit: "simwol", verb: "bolmaly" },
@@ -67895,7 +67895,7 @@ function tk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/tr.js
+// node_modules/zod/v4/locales/tr.js
 var error53 = () => {
   const Sizable = {
     string: { unit: "karakter", verb: "olmal\u0131" },
@@ -68004,7 +68004,7 @@ function tr_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/uk.js
+// node_modules/zod/v4/locales/uk.js
 var error54 = () => {
   const Sizable = {
     string: { unit: "\u0441\u0438\u043C\u0432\u043E\u043B\u0456\u0432", verb: "\u043C\u0430\u0442\u0438\u043C\u0435" },
@@ -68116,12 +68116,12 @@ function uk_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ua.js
+// node_modules/zod/v4/locales/ua.js
 function ua_default() {
   return uk_default();
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/ur.js
+// node_modules/zod/v4/locales/ur.js
 var error55 = () => {
   const Sizable = {
     string: { unit: "\u062D\u0631\u0648\u0641", verb: "\u06C1\u0648\u0646\u0627" },
@@ -68235,7 +68235,7 @@ function ur_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/uz.js
+// node_modules/zod/v4/locales/uz.js
 var error56 = () => {
   const Sizable = {
     string: { unit: "belgi", verb: "bo\u2018lishi kerak" },
@@ -68347,7 +68347,7 @@ function uz_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/vi.js
+// node_modules/zod/v4/locales/vi.js
 var error57 = () => {
   const Sizable = {
     string: { unit: "k\xFD t\u1EF1", verb: "c\xF3" },
@@ -68459,7 +68459,7 @@ function vi_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/zh-CN.js
+// node_modules/zod/v4/locales/zh-CN.js
 var error58 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u7B26", verb: "\u5305\u542B" },
@@ -68572,7 +68572,7 @@ function zh_CN_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/zh-TW.js
+// node_modules/zod/v4/locales/zh-TW.js
 var error59 = () => {
   const Sizable = {
     string: { unit: "\u5B57\u5143", verb: "\u64C1\u6709" },
@@ -68683,7 +68683,7 @@ function zh_TW_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/locales/yo.js
+// node_modules/zod/v4/locales/yo.js
 var error60 = () => {
   const Sizable = {
     string: { unit: "\xE0mi", verb: "n\xED" },
@@ -68794,7 +68794,7 @@ function yo_default() {
   };
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/registries.js
+// node_modules/zod/v4/core/registries.js
 var _a2;
 var $output = /* @__PURE__ */ Symbol("ZodOutput");
 var $input = /* @__PURE__ */ Symbol("ZodInput");
@@ -68844,7 +68844,7 @@ function registry() {
 (_a2 = globalThis).__zod_globalRegistry ?? (_a2.__zod_globalRegistry = registry());
 var globalRegistry = globalThis.__zod_globalRegistry;
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/compile.js
+// node_modules/zod/v4/core/compile.js
 var INVALID = /* @__PURE__ */ Symbol.for("zod.compile.invalid");
 var FALLBACK_FLAG = /* @__PURE__ */ Symbol.for("zod.compile.fallback");
 var ZodCompileAsyncError = class extends Error {
@@ -70387,7 +70387,7 @@ function generateTransformCheck(doc, ctx, schema, accessor) {
   return accessor;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/api.js
+// node_modules/zod/v4/core/api.js
 // @__NO_SIDE_EFFECTS__
 function _string(Class2, params) {
   return new Class2({
@@ -71443,7 +71443,7 @@ function _stringFormat(Class2, format, fnOrRegex, _params = {}) {
   return inst;
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/to-json-schema.js
+// node_modules/zod/v4/core/to-json-schema.js
 function assignProps(target, ...sources) {
   for (const source of sources) {
     for (const key of Reflect.ownKeys(source)) {
@@ -71974,7 +71974,7 @@ var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) =
   return finalize(ctx, schema);
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema-processors.js
+// node_modules/zod/v4/core/json-schema-processors.js
 var formatMap = {
   guid: "uuid",
   url: "uri",
@@ -72632,7 +72632,7 @@ function toJSONSchema(input2, params) {
   return finalize(ctx, input2);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema-generator.js
+// node_modules/zod/v4/core/json-schema-generator.js
 var JSONSchemaGenerator = class {
   /** @deprecated Access via ctx instead */
   get metadataRegistry() {
@@ -72710,10 +72710,10 @@ var JSONSchemaGenerator = class {
   }
 };
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/json-schema.js
+// node_modules/zod/v4/core/json-schema.js
 var json_schema_exports = {};
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 var schemas_exports2 = {};
 __export(schemas_exports2, {
   ZodAny: () => ZodAny,
@@ -72890,7 +72890,7 @@ __export(schemas_exports2, {
   xor: () => xor
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/checks.js
+// node_modules/zod/v4/classic/checks.js
 var checks_exports2 = {};
 __export(checks_exports2, {
   endsWith: () => _endsWith,
@@ -72925,7 +72925,7 @@ __export(checks_exports2, {
   uppercase: () => _uppercase
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/errors.js
+// node_modules/zod/v4/classic/errors.js
 var _installedErrorProtos = /* @__PURE__ */ new WeakSet([Object.prototype, Error.prototype]);
 function _lazyMethod(proto, key, make) {
   Object.defineProperty(proto, key, {
@@ -72971,7 +72971,7 @@ var ZodRealError = /* @__PURE__ */ $constructor("ZodError", initializer2, void 0
   Parent: Error
 });
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/parse.js
+// node_modules/zod/v4/classic/parse.js
 var parse2 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
@@ -72985,7 +72985,7 @@ var safeDecode2 = /* @__PURE__ */ _safeDecode(ZodRealError);
 var safeEncodeAsync2 = /* @__PURE__ */ _safeEncodeAsync(ZodRealError);
 var safeDecodeAsync2 = /* @__PURE__ */ _safeDecodeAsync(ZodRealError);
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/schemas.js
+// node_modules/zod/v4/classic/schemas.js
 function _ensureDefaultLocale() {
   if (!globalConfig.localeError)
     config(en_default());
@@ -74396,7 +74396,7 @@ function preprocess(fn, schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/compat.js
+// node_modules/zod/v4/classic/compat.js
 var ZodIssueCode = {
   invalid_type: "invalid_type",
   too_big: "too_big",
@@ -74422,7 +74422,7 @@ var ZodFirstPartyTypeKind;
 /* @__PURE__ */ (function(ZodFirstPartyTypeKind2) {
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/iso.js
+// node_modules/zod/v4/classic/iso.js
 var iso_exports = {};
 __export(iso_exports, {
   ZodISODate: () => ZodISODate,
@@ -74447,7 +74447,7 @@ function duration2(params) {
   return _isoDuration(ZodISODuration, params);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/from-json-schema.js
+// node_modules/zod/v4/classic/from-json-schema.js
 var z = {
   ...schemas_exports2,
   ...checks_exports2,
@@ -74987,7 +74987,7 @@ function fromJSONSchema(schema, params) {
   return convertSchema(normalized, ctx);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/core/visit.js
+// node_modules/zod/v4/core/visit.js
 var RESOLVING = /* @__PURE__ */ Symbol("z.visit/resolving");
 function visit(schema, fnOrHandlers) {
   const fn = typeof fnOrHandlers === "function" ? fnOrHandlers : (node2, rewritten) => {
@@ -75142,7 +75142,7 @@ function visit(schema, fnOrHandlers) {
   return run(schema);
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/deep-partial.js
+// node_modules/zod/v4/classic/deep-partial.js
 function deepPartial(schema) {
   return visit(schema, {
     object: (s) => s.partial(),
@@ -75154,7 +75154,7 @@ function deepPartial(schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/in-out.js
+// node_modules/zod/v4/classic/in-out.js
 function withChecks(side, checks) {
   if (!checks?.length)
     return side;
@@ -75184,7 +75184,7 @@ function output(schema) {
   });
 }
 
-// ../../../../../../../../../../../project_v2/backend/node_modules/zod/v4/classic/coerce.js
+// node_modules/zod/v4/classic/coerce.js
 var coerce_exports = {};
 __export(coerce_exports, {
   bigint: () => bigint3,
@@ -77657,11 +77657,1453 @@ app.get("/api/overview/by-group", async (req, res) => {
   }
 });
 
+// src/server/tonKhoV5.ts
+var DA_KHAC = "Kh\xE1c";
+var DANH_MUC_DU_AN = [
+  { ten: "Nam Ph\u01B0\u01A1ng", khop: /NAM PHƯƠNG/ },
+  { ten: "Mini Hotel", khop: /MINI HOTEL/ },
+  { ten: "Holiday Inn B\xE0 N\xE0", khop: /HOLIDAY IN(N)? BÀ NÀ/ },
+  { ten: "T\xE2y H\u1ED3 View", khop: /T(Â|A)Y H(Ồ|Ô|O) VIEW/ },
+  { ten: "Tr\u1EE5c \u0110\xF4ng T\xE2y 2C", khop: /TRỤC ĐÔNG TÂY/ },
+  { ten: "St.Regis + Marriott 43 \u0110TM", khop: /ST\.REGIS|43 ĐẶNG THAI MAI|^MARRIOTT_ĐẠI TRÀ/ },
+  { ten: "Chateau de Saigon", khop: /CHATEAU/ },
+  { ten: "C\xE1t B\xE0 HH3", khop: /CÁT BÀ TÒA HH3/ },
+  { ten: "Ti\u1EBFn B\u1ED9 Plaza", khop: /TIẾN BỘ/ }
+];
+var nhomDuAn = (ma, ten) => {
+  const t = (ten ?? "").normalize("NFC").toUpperCase();
+  const m = (ma ?? "").trim();
+  for (const d of DANH_MUC_DU_AN) if (d.khop.test(t)) return d.ten;
+  if (/^EM\d/.test(m)) return "Xu\u1EA5t kh\u1EA9u (EM)";
+  if (/^TỒN/.test(m)) return "H\xE0ng l\u1EBB (m\xE3 T\u1ED2N)";
+  return DA_KHAC;
+};
+var NGUONG_GOI_DUNG = 0.02;
+var SO_NGAY_XUAT_GAN = 60;
+var SO_THANG_LO_NHAP = 13;
+var SO_GOI_SO_SANH = 2;
+var SO_GOI_CU = 8;
+var SO_MA_DU = 4;
+var SO_SERI_LO = 7;
+var chuanHoa = (s) => (s ?? "").normalize("NFC").trim();
+var laDaXuat = (tkh) => chuanHoa(tkh).toUpperCase() === "\u0110\xC3 XU\u1EA4T";
+var laHuy = (tn, ipo) => /^h[uúủ]y$/i.test(chuanHoa(tn)) || chuanHoa(ipo).toUpperCase().includes("H\u1EE6Y");
+var laXuatTinh = (r) => chuanHoa(r.co).toUpperCase() === "T\xCDNH" && r.tt > 0;
+var MOT_NGAY = 864e5;
+var soNgay = (den, tu) => Math.round((Date.parse(den) - Date.parse(tu)) / MOT_NGAY);
+var luiNgay = (d, n) => new Date(Date.parse(d) - n * MOT_NGAY).toISOString().slice(0, 10);
+var tinhTuoi = (d, nk) => nk ? Math.floor((10 * soNgay(d, nk) + 152) / 304) : null;
+var laCu = (d, nk) => (tinhTuoi(d, nk) ?? 0) > 6;
+var chonCuoiThang = (ngay3) => {
+  const ds2 = [...new Set(ngay3)].sort();
+  const theoThang = /* @__PURE__ */ new Map();
+  for (const d of ds2) theoThang.set(d.slice(0, 7), d);
+  const kq = [...theoThang.values()];
+  if (kq.length >= 2 && soNgay(kq[kq.length - 1], kq[kq.length - 2]) < 7) kq.splice(-2, 1);
+  return kq;
+};
+var dauThangSau = (d, n) => {
+  const t = new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1 + n, 1));
+  return t.toISOString().slice(0, 10);
+};
+var kieuGhiChu = (gc) => {
+  const g = gc ?? "";
+  if (/NHÀ CUNG CẤP|\bNCC\b|GIA CÔNG|\bGC\b|C\s*TIỆN|CTIỆN|PHÔI|SƠN ĐEN|TRỤ CHÂN|QUY CÁCH/i.test(g)) return "GC";
+  if (/BỔ SUNG|SỬA|\bBS\b/i.test(g)) return "BS";
+  if (/PHÒNG|BLOCK|TẦNG|CĂN|GIAO SAU|GIAO TRƯỚC|\bQR\b|CCBV|NCBV|CĐB|PHIẾU/i.test(g)) return "GIAO";
+  return g.trim() ? "KHAC" : "TRONG";
+};
+var LAP_TAI_CT = /LẮP TẠI CÔNG TRÌNH|CÔNG TRÌNH LẮP|KÍNH CÔNG TRÌNH|ĐÁ CÔNG TRÌNH|KÍNH \+ ĐÁ CÔNG TRÌNH|ĐÁ\+KÍNH CÔNG TRÌNH|NHÀ THẦU PHỤ|\bNTP\b|TẠI CÔNG TRÌNH/;
+var lam = (x) => Math.round(x * 1e3) / 1e3;
+var cong = (m, k, x) => m.set(k, (m.get(k) ?? 0) + x);
+var lamMap = (m) => Object.fromEntries([...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, lam(v)]));
+var dauBang = (m) => [...m].sort((a, b) => b[1] - a[1]);
+var tong = (a, f) => a.reduce((s, x) => s + f(x), 0);
+var pct = (a, b) => b ? Math.round(a / b * 100) : null;
+var tenNhomSp = (nsp) => (nsp || "?").replace(/^\d+\.\s*/, "");
+var laDonCon = (p) => /ĐANG SẢN XUẤT|CẦN XỬ LÝ|TẠM/.test(p.ipo ?? "") && p.ttda !== "\u0110\xD3NG D\u1EF0 \xC1N";
+var tinhTonKhoV5 = (input2) => phanTichV5(input2).kq;
+var daPhanTich = /* @__PURE__ */ new WeakMap();
+var phanTichV5 = (input2) => {
+  const co2 = daPhanTich.get(input2);
+  if (co2) return co2;
+  const pt = tinhPhanTich(input2);
+  daPhanTich.set(input2, pt);
+  return pt;
+};
+var tinhPhanTich = (input2) => {
+  const { date: date5 } = input2;
+  const ton = input2.ton;
+  const O = ton.filter((t) => t.v);
+  const P = new Map(input2.psa.map((p) => [p.hex, p]));
+  const nhap = input2.nhap.filter((r) => r.d <= date5);
+  const xuat = input2.xuat.filter((r) => r.d <= date5);
+  const tonMoc = input2.tonMoc.filter((t) => t.d <= date5);
+  const S = chonCuoiThang(input2.ngayChot.filter((d) => d <= date5));
+  const d60 = luiNgay(date5, SO_NGAY_XUAT_GAN);
+  const daCua = /* @__PURE__ */ new Map();
+  const daOf = (ct, ten) => {
+    const k = `${ct}|${ten}`;
+    let v = daCua.get(k);
+    if (v === void 0) {
+      v = nhomDuAn(ct, ten);
+      daCua.set(k, v);
+    }
+    return v;
+  };
+  const daTon = (t) => {
+    const p = t.hex ? P.get(t.hex) : void 0;
+    return daOf(t.ct, p ? p.ten : t.ten);
+  };
+  const XT = /* @__PURE__ */ new Map();
+  const xtCt = /* @__PURE__ */ new Map();
+  const coDongXuat = /* @__PURE__ */ new Set();
+  const giaoTrong = /* @__PURE__ */ new Map();
+  const cuoiXuatDa = /* @__PURE__ */ new Map();
+  const xuatDa = /* @__PURE__ */ new Map();
+  const themXt = (m, k, r) => {
+    const a = m.get(k) ?? { tt: 0, sl: 0, d: "", tt60: 0 };
+    a.tt += r.tt;
+    a.sl += r.sl || 0;
+    if (r.d > a.d) a.d = r.d;
+    if (r.d >= d60) a.tt60 += r.tt;
+    m.set(k, a);
+  };
+  for (const r of xuat) {
+    if (r.hex) coDongXuat.add(r.hex);
+    if (laXuatTinh(r)) {
+      if (r.hex) themXt(XT, r.hex, r);
+      if (r.ct) {
+        themXt(xtCt, r.ct, r);
+        const da = daOf(r.ct, r.ten);
+        cong(xuatDa, da, r.tt);
+        if (!laHuy(r.tn, r.ipo) && r.d > (cuoiXuatDa.get(da) ?? "")) cuoiXuatDa.set(da, r.d);
+      }
+    }
+    if (r.hex && chuanHoa(r.co) === "" && kieuGhiChu(r.gc) === "GIAO") cong(giaoTrong, r.hex, r.sl || 0);
+  }
+  const nhapDa = /* @__PURE__ */ new Map();
+  const nhapCt = /* @__PURE__ */ new Map();
+  for (const r of nhap) {
+    if (!r.ct) continue;
+    cong(nhapDa, daOf(r.ct, r.ten), r.tt);
+    cong(nhapCt, r.ct, r.tt);
+  }
+  const theoNgay = /* @__PURE__ */ new Map();
+  for (const t of tonMoc) {
+    const e = theoNgay.get(t.d) ?? { v: 0, cu: 0, cu12: 0, ct: /* @__PURE__ */ new Map() };
+    const tuoi = tinhTuoi(t.d, t.nk) ?? 0;
+    e.v += t.v;
+    if (tuoi > 6) e.cu += t.v;
+    if (tuoi > 12) e.cu12 += t.v;
+    const k = t.ct ?? "";
+    const c = e.ct.get(k) ?? { ten: t.ten, v: 0, cu: 0, cu12: 0 };
+    if (t.ten && (!c.ten || t.ten < c.ten)) c.ten = t.ten;
+    c.v += t.v;
+    if (tuoi > 6) c.cu += t.v;
+    e.ct.set(k, c);
+    theoNgay.set(t.d, e);
+  }
+  const ngayCoTon = [...theoNgay.keys()].sort();
+  const moc2 = ngayCoTon.map((d) => {
+    const e = theoNgay.get(d);
+    return { d, v: lam(e.v), cu: lam(e.cu) };
+  });
+  const duAnMoc = ngayCoTon.map((d) => {
+    const m = /* @__PURE__ */ new Map();
+    for (const [ct, c] of theoNgay.get(d).ct) {
+      const k = daOf(ct, c.ten), a = m.get(k) ?? { v: 0, cu: 0 };
+      a.v += c.v;
+      a.cu += c.cu;
+      m.set(k, a);
+    }
+    return { d, da: Object.fromEntries([...m].map(([k, a]) => [k, { v: lam(a.v), cu: lam(a.cu) }])) };
+  });
+  const lo = /* @__PURE__ */ new Map();
+  const maCt = /* @__PURE__ */ new Map();
+  const laMoc = new Set(S);
+  for (const t of tonMoc) {
+    if (!laMoc.has(t.d) || !t.v) continue;
+    const ct = t.ct ?? "";
+    if (t.nk) {
+      const m = lo.get(t.d) ?? /* @__PURE__ */ new Map();
+      const k = `${t.sap}|${ct}|${t.nk}`, e = m.get(k) ?? { v: 0, nk: t.nk, ct, sap: t.sap, ten: t.ten };
+      e.v += t.v;
+      m.set(k, e);
+      lo.set(t.d, m);
+    }
+    const m2 = maCt.get(t.d) ?? /* @__PURE__ */ new Map();
+    const k2 = `${t.sap}|${ct}`, e2 = m2.get(k2) ?? { q: 0, v: 0 };
+    e2.q += t.sl || 0;
+    e2.v += t.v;
+    m2.set(k2, e2);
+    maCt.set(t.d, m2);
+  }
+  const raTheoCt = /* @__PURE__ */ new Map();
+  const loVao = [], loRa = [];
+  const vaoRa = S.map((d, i) => {
+    if (!i) return { vao: null, ra: null };
+    const A = S[i - 1];
+    const truoc = lo.get(A) ?? /* @__PURE__ */ new Map();
+    const sau = lo.get(d) ?? /* @__PURE__ */ new Map();
+    let vao = 0, ra = 0;
+    for (const [k, e] of truoc) {
+      if (!laCu(A, e.nk)) continue;
+      const dv = e.v - (sau.get(k)?.v ?? 0);
+      if (dv > 0) {
+        ra += dv;
+        if (i >= S.length - 3) cong(raTheoCt, e.ct, dv);
+        loRa.push({ i, d, A, sap: e.sap, ct: e.ct, ten: e.ten, nk: e.nk, dau: e.v, cuoi: e.v - dv, gt: dv });
+      }
+    }
+    for (const [k, e] of sau) {
+      if (laCu(d, e.nk) && (!truoc.has(k) || !laCu(A, e.nk))) {
+        vao += e.v;
+        loVao.push({ i, d, A, sap: e.sap, ct: e.ct, ten: e.ten, nk: e.nk, dau: truoc.get(k)?.v ?? 0, cuoi: e.v, gt: e.v });
+      }
+    }
+    return { vao, ra };
+  });
+  const tongV = tong(O, (t) => t.v);
+  const cuRows = O.filter((t) => laCu(date5, t.nk));
+  const tongCu = tong(cuRows, (t) => t.v);
+  const tonCt = /* @__PURE__ */ new Map();
+  const cuCt = /* @__PURE__ */ new Map();
+  for (const t of O) {
+    cong(tonCt, t.ct ?? "", t.v);
+    if (laCu(date5, t.nk)) cong(cuCt, t.ct ?? "", t.v);
+  }
+  const tenCt = /* @__PURE__ */ new Map();
+  for (const t of O) if (t.ct && t.ten && !tenCt.has(t.ct)) tenCt.set(t.ct, t.ten.trim());
+  const pmCt = (ct) => {
+    const m = /* @__PURE__ */ new Map();
+    for (const t of O) {
+      const p = t.ct === ct && t.hex ? P.get(t.hex) : void 0;
+      if (p?.pm) cong(m, p.pm, t.v);
+    }
+    return dauBang(m)[0]?.[0] ?? null;
+  };
+  let goiCt = null;
+  for (const [ct, v] of tonCt) {
+    if (!/^CT\d/.test(ct) || tongV <= 0 || v < NGUONG_GOI_DUNG * tongV) continue;
+    if ((xtCt.get(ct)?.tt60 ?? 0) > 0) continue;
+    if (!goiCt || v > (tonCt.get(goiCt) ?? 0)) goiCt = ct;
+  }
+  const xuatCuoiCt = (ct) => xtCt.get(ct)?.d || null;
+  let goiDung = null;
+  if (goiCt) {
+    const xc = xuatCuoiCt(goiCt);
+    goiDung = {
+      ct: goiCt,
+      ten: tenCt.get(goiCt) ?? "",
+      pm: pmCt(goiCt),
+      ton: lam(tonCt.get(goiCt) ?? 0),
+      cu: lam(cuCt.get(goiCt) ?? 0),
+      nhap: lam(nhapCt.get(goiCt) ?? 0),
+      xuat: lam(xtCt.get(goiCt)?.tt ?? 0),
+      xuatCuoi: xc,
+      ngayKhongXuat: xc ? soNgay(date5, xc) : null
+    };
+  }
+  const soSanhGoi = [];
+  const goiCungPm = [];
+  if (goiDung) {
+    const pm = goiDung.pm, daGoi = daOf(goiDung.ct, goiDung.ten);
+    const pmDon = /* @__PURE__ */ new Map();
+    const cungPm = /* @__PURE__ */ new Map();
+    for (const p of input2.psaNhom) {
+      if (!p.ct || !p.pm || p.ct === goiDung.ct || !/^CT\d/.test(p.ct)) continue;
+      const m = pmDon.get(p.ct) ?? /* @__PURE__ */ new Map();
+      cong(m, p.pm, p.gtd);
+      pmDon.set(p.ct, m);
+      cungPm.set(p.ct, !!cungPm.get(p.ct) || daOf(p.ct, p.ten) === daGoi);
+    }
+    for (const [ct, m] of pmDon) if (dauBang(m)[0][0] !== pm) cungPm.delete(ct);
+    const xepHang = [...cungPm].map(([ct, cungDa]) => ({ ct, cungDa, x60: xtCt.get(ct)?.tt60 ?? 0 })).filter((x) => x.x60 > 0).sort((a, b) => Number(b.cungDa) - Number(a.cungDa) || b.x60 - a.x60).map((x) => x.ct);
+    const tenGoi = (ct) => tenCt.get(ct) ?? input2.psaNhom.find((p) => p.ct === ct)?.ten?.trim() ?? "";
+    for (const ct of xepHang.slice(SO_GOI_SO_SANH)) {
+      goiCungPm.push({ ct, ten: tenGoi(ct), ton: lam(tonCt.get(ct) ?? 0), xuat60: lam(xtCt.get(ct)?.tt60 ?? 0), xuatCuoi: xuatCuoiCt(ct) });
+    }
+    const cts = [goiDung.ct, ...xepHang.slice(0, SO_GOI_SO_SANH)];
+    const thangN = /* @__PURE__ */ new Map(), thangX = /* @__PURE__ */ new Map();
+    for (const c of cts) {
+      thangN.set(c, /* @__PURE__ */ new Map());
+      thangX.set(c, /* @__PURE__ */ new Map());
+    }
+    let dau = date5.slice(0, 7);
+    for (const r of nhap) {
+      const m = r.ct ? thangN.get(r.ct) : void 0;
+      if (m) {
+        const t = r.d.slice(0, 7);
+        cong(m, t, r.tt);
+        if (t < dau) dau = t;
+      }
+    }
+    for (const r of xuat) {
+      const m = r.ct ? thangX.get(r.ct) : void 0;
+      if (m && laXuatTinh(r)) {
+        const t = r.d.slice(0, 7);
+        cong(m, t, r.tt);
+        if (t < dau) dau = t;
+      }
+    }
+    const thang2 = [];
+    for (let i = 0; i < 240; i++) {
+      const t = dauThangSau(`${dau}-01`, i).slice(0, 7);
+      thang2.push(t);
+      if (t >= date5.slice(0, 7)) break;
+    }
+    for (const ct of cts) {
+      const mN = thangN.get(ct), mX = thangX.get(ct);
+      let a = 0, b = 0, batDau = false;
+      const nhapLuyKe = [], xuatLuyKe = [];
+      for (const t of thang2) {
+        if (mN.has(t) || mX.has(t)) batDau = true;
+        a += mN.get(t) ?? 0;
+        b += mX.get(t) ?? 0;
+        nhapLuyKe.push(batDau ? lam(a) : null);
+        xuatLuyKe.push(batDau ? lam(b) : null);
+      }
+      soSanhGoi.push({
+        ct,
+        ten: tenGoi(ct),
+        thang: thang2,
+        nhapLuyKe,
+        xuatLuyKe,
+        ton: lam(tonCt.get(ct) ?? 0),
+        xuat60: lam(xtCt.get(ct)?.tt60 ?? 0),
+        xuatCuoi: xuatCuoiCt(ct)
+      });
+    }
+  }
+  const donDa = /* @__PURE__ */ new Map();
+  for (const p of input2.psaNhom) {
+    if (laHuy(p.tn, p.ipo)) continue;
+    const k = daOf(p.ct, p.ten), a = donDa.get(k) ?? { gtd: 0, nhapCap: 0, con: 0 };
+    a.gtd += p.gtd;
+    a.nhapCap += p.nhapCap;
+    if (laDonCon(p)) a.con += p.con;
+    donDa.set(k, a);
+  }
+  const nhomTon = /* @__PURE__ */ new Map();
+  for (const t of O) {
+    const k = daTon(t);
+    const a = nhomTon.get(k);
+    if (a) a.push(t);
+    else nhomTon.set(k, [t]);
+  }
+  const duAn = [...nhomTon].map(([k, a]) => {
+    const pm = /* @__PURE__ */ new Map(), ns = /* @__PURE__ */ new Map();
+    const ma = /* @__PURE__ */ new Set();
+    let cu = 0, cu12 = 0, moi = 0, khongNgay = 0, v = 0;
+    for (const t of a) {
+      v += t.v;
+      ma.add(`${t.sap}|${t.ct}`);
+      const tuoi = tinhTuoi(date5, t.nk);
+      if (tuoi === null) khongNgay += t.v;
+      else if (tuoi > 6) {
+        cu += t.v;
+        if (tuoi > 12) cu12 += t.v;
+      } else moi += t.v;
+      const p = t.hex ? P.get(t.hex) : void 0;
+      if (p) {
+        if (p.pm) cong(pm, p.pm, t.v);
+        cong(ns, tenNhomSp(p.nsp), t.v);
+      }
+    }
+    const don = donDa.get(k) ?? { gtd: 0, nhapCap: 0, con: 0 };
+    return {
+      duAn: k,
+      pm: dauBang(pm).slice(0, 2).map((x) => x[0]),
+      hang: dauBang(ns).slice(0, 3).map(([ten, x]) => ({ ten, v: lam(x) })),
+      ton: lam(v),
+      moi: lam(moi),
+      cu: lam(cu),
+      khongNgay: lam(khongNgay),
+      cu12: lam(cu12),
+      soMa: ma.size,
+      pctNhap: pct(don.nhapCap, don.gtd),
+      pctXuat: pct(xuatDa.get(k) ?? 0, nhapDa.get(k) ?? 0),
+      xuatCuoi: cuoiXuatDa.get(k) ?? null,
+      donChuaNhap: lam(don.con)
+    };
+  }).sort((a, b) => b.ton - a.ton);
+  const H = /* @__PURE__ */ new Map();
+  for (const t of O) {
+    const co2 = t.hex ? P.has(t.hex) : false;
+    const k = co2 ? t.hex : `_${t.sap}${t.ct}`;
+    const e = H.get(k) ?? { hex: co2 ? t.hex : null, rows: [] };
+    e.rows.push(t);
+    H.set(k, e);
+  }
+  const NHOM = [
+    ["chuaXuat", "Ch\u01B0a xu\u1EA5t T\xCDNH"],
+    ["giaoDo", "Giao d\u1EDF"],
+    ["ganXong", "G\u1EA7n xong"],
+    ["theoNhip", "Theo nh\u1ECBp nh\u1EADp"],
+    ["huy", "\u0110\u01A1n hu\u1EF7"],
+    ["khongPsa", "Kh\xF4ng PSA"]
+  ];
+  const chia = new Map(NHOM.map(([k, nhom]) => [k, { k, nhom, gt: 0, cu: 0, hex: 0 }]));
+  const cxDa = /* @__PURE__ */ new Map();
+  const nhomCuaTon = /* @__PURE__ */ new Map();
+  for (const r of H.values()) {
+    const p = r.hex ? P.get(r.hex) : void 0;
+    let nhom;
+    if (!p) nhom = "khongPsa";
+    else if (laHuy(p.tn, p.ipo)) nhom = "huy";
+    else {
+      const n = p.sln || 0, x = XT.get(p.hex)?.sl ?? 0;
+      const rx = n > 0 ? x / n : 0, rn = p.sld > 0 ? n / p.sld : 0;
+      nhom = rx < 0.05 ? "chuaXuat" : rx >= 0.85 ? rn >= 0.8 ? "ganXong" : "theoNhip" : "giaoDo";
+      if (nhom === "chuaXuat") {
+        const thieu = (giaoTrong.get(p.hex) ?? 0) >= 0.5 * (n || 1);
+        const da = daOf(p.ct, p.ten);
+        const A = cxDa.get(da) ?? { duAn: da, t01: 0, t23: 0, t46: 0, t6: 0, khong: 0, thieuBo: 0, tong: 0 };
+        for (const t of r.rows) {
+          const tuoi = tinhTuoi(date5, t.nk);
+          const k = thieu ? "thieuBo" : tuoi === null ? "khong" : tuoi > 6 ? "t6" : tuoi > 3 ? "t46" : tuoi > 1 ? "t23" : "t01";
+          A[k] += t.v;
+          A.tong += t.v;
+          nhomCuaTon.set(t, { nhom, cx: { duAn: da, k } });
+        }
+        cxDa.set(da, A);
+      }
+    }
+    const s = chia.get(nhom);
+    s.hex++;
+    for (const t of r.rows) {
+      s.gt += t.v;
+      if (laCu(date5, t.nk)) s.cu += t.v;
+      if (!nhomCuaTon.has(t)) nhomCuaTon.set(t, { nhom });
+    }
+  }
+  const phanChia = [...chia.values()].map((s) => ({ ...s, gt: lam(s.gt), cu: lam(s.cu) }));
+  const chuaXuatTong = tong([...cxDa.values()], (a) => a.tong);
+  const chuaXuat4 = tong([...cxDa.values()], (a) => a.t46 + a.t6);
+  const chuaXuatDuAn = [...cxDa.values()].sort((a, b) => b.t46 + b.t6 - (a.t46 + a.t6) || b.tong - a.tong).map((a) => ({ duAn: a.duAn, t01: lam(a.t01), t23: lam(a.t23), t46: lam(a.t46), t6: lam(a.t6), khong: lam(a.khong), thieuBo: lam(a.thieuBo), tong: lam(a.tong) }));
+  const dongHuy = O.filter((t) => {
+    const p = t.hex ? P.get(t.hex) : void 0;
+    return !!p && laHuy(p.tn, p.ipo);
+  });
+  const huyGt = tong(dongHuy, (t) => t.v);
+  const dongCuHuy = dongHuy.filter((t) => laCu(date5, t.nk));
+  const laCuHuy = new Set(dongCuHuy);
+  const huyCu = tong(dongCuHuy, (t) => t.v);
+  const ghiMa = /* @__PURE__ */ new Map();
+  for (const t of dongHuy) {
+    const m = (t.gc ?? "").match(/CT\d{2}-\d{3}/)?.[0];
+    if (m && m !== t.ct) cong(ghiMa, m, t.v);
+  }
+  const soGhi = dauBang(ghiMa)[0]?.[0] ?? null;
+  const khongPsa = O.filter((t) => !(t.hex && P.has(t.hex)));
+  const kpCt = /* @__PURE__ */ new Map();
+  for (const t of khongPsa) cong(kpCt, t.ct ?? "", t.v);
+  const cuTheoCt = /* @__PURE__ */ new Map();
+  for (const t of cuRows) {
+    const k = t.ct ?? "";
+    const a = cuTheoCt.get(k);
+    if (a) a.push(t);
+    else cuTheoCt.set(k, [t]);
+  }
+  const dongGoi = [];
+  for (const [ct, a] of cuTheoCt) {
+    const huy = tong(a.filter((t) => laCuHuy.has(t)), (t) => t.v);
+    const cu = tong(a, (t) => t.v) - huy;
+    const pm = /* @__PURE__ */ new Map();
+    for (const t of a) {
+      const p = t.hex ? P.get(t.hex) : void 0;
+      if (p?.pm) cong(pm, p.pm, t.v);
+    }
+    const ten = (a[0].ten ?? "").trim(), da = daTon(a[0]), pmChinh = dauBang(pm)[0]?.[0] ?? null;
+    const ra932 = raTheoCt.get(ct) ?? 0;
+    if (cu > 0.5 || ra932 > 0 || !huy) dongGoi.push({ ct, ten, duAn: da, pm: pmChinh, cu, ra93: ra932, xuat60: xtCt.get(ct)?.tt60 ?? 0, xuatCuoi: xuatCuoiCt(ct) });
+    if (huy) dongGoi.push({ ct, ten, duAn: da, pm: pmChinh, cu: huy, ra93: 0, xuat60: null, xuatCuoi: null, huy: true });
+  }
+  dongGoi.sort((a, b) => b.cu - a.cu);
+  const goiDau = dongGoi.slice(0, SO_GOI_CU), goiSau = dongGoi.slice(SO_GOI_CU);
+  const iRa = Math.max(1, S.length - 3);
+  const cuaSoNgay = S.length >= 2 ? soNgay(S[S.length - 1], S[iRa - 1]) : 0;
+  const vao93 = tong(vaoRa.slice(iRa), (x) => x.vao ?? 0), ra93 = tong(vaoRa.slice(iRa), (x) => x.ra ?? 0);
+  const seri = duAn.map((d) => d.duAn).filter((k) => k !== DA_KHAC).slice(0, SO_SERI_LO);
+  const daSeri = (t) => {
+    const k = daTon(t);
+    return seri.includes(k) ? k : DA_KHAC;
+  };
+  const moThang = dauThangSau(date5, -SO_THANG_LO_NHAP);
+  const thangLo = (t) => !t.nk ? "khong" : t.nk < moThang ? "truoc" : t.nk.slice(0, 7);
+  const cot = /* @__PURE__ */ new Map();
+  for (const t of O) {
+    const thang2 = thangLo(t);
+    const c = cot.get(thang2) ?? { thang: thang2, tong: 0, cu: 0, da: /* @__PURE__ */ new Map() };
+    c.tong += t.v;
+    if (laCu(date5, t.nk)) c.cu += t.v;
+    cong(c.da, daSeri(t), t.v);
+    cot.set(thang2, c);
+  }
+  const hangCot = (t) => t === "truoc" ? "0" : t === "khong" ? "9" : t;
+  const moc6 = [];
+  const moc6Dong = [];
+  const sapVuotDa = /* @__PURE__ */ new Map();
+  let mocTruoc = date5;
+  for (let i = 1; i <= 3; i++) {
+    const d = dauThangSau(date5, i);
+    const dong2 = O.filter((t) => t.nk && !laCu(mocTruoc, t.nk) && laCu(d, t.nk));
+    const m = /* @__PURE__ */ new Map();
+    for (const t of dong2) {
+      cong(m, daSeri(t), t.v);
+      cong(sapVuotDa, daTon(t), t.v);
+    }
+    moc6.push({ moc: d, gt: lam(tong(dong2, (t) => t.v)), theoDuAn: lamMap(m) });
+    moc6Dong.push({ moc: d, dong: dong2 });
+    mocTruoc = d;
+  }
+  const tonTai = (d) => theoNgay.get(d)?.v ?? 0;
+  const kyDong = S.slice(1).map((b, i) => ({ den: b, tu: S[i], ngay: soNgay(b, S[i]), nhap: 0, xuat: 0 }));
+  for (const r of nhap) {
+    const k = kyDong.find((x) => r.d > x.tu && r.d <= x.den);
+    if (k) k.nhap += r.tt;
+  }
+  for (const r of xuat) {
+    if (!laXuatTinh(r)) continue;
+    const k = kyDong.find((x) => r.d > x.tu && r.d <= x.den);
+    if (k) k.xuat += r.tt;
+  }
+  const ky = kyDong.map((k, i) => {
+    const w = kyDong.slice(Math.max(0, i - 2), i + 1);
+    const xw = tong(w, (x) => x.xuat), nw = tong(w, (x) => x.ngay);
+    return {
+      den: k.den,
+      ngay: k.ngay,
+      nhap: lam(k.nhap),
+      xuatTinh: lam(k.xuat),
+      chuaDoiSoat: lam(tonTai(k.tu) + k.nhap - tonTai(k.den) - k.xuat),
+      ton: lam(tonTai(k.den)),
+      thangTon: i >= 2 && xw > 0 ? Math.round(tonTai(k.den) / (xw / nw * 30) * 100) / 100 : null
+    };
+  });
+  const du = tong(kyDong, (k) => k.nhap - k.xuat) + (S.length >= 2 ? tonTai(S[0]) - tonTai(S[S.length - 1]) : 0);
+  let raKho = 0;
+  for (let i = iRa; i < S.length; i++) {
+    const a = maCt.get(S[i - 1]), b = maCt.get(S[i]);
+    if (!a) continue;
+    for (const [k, e] of a) {
+      const dq = (b?.get(k)?.q ?? 0) - e.q;
+      if (dq < 0 && e.q) raKho += -dq * (e.v / e.q);
+    }
+  }
+  const thangTheoLo = raKho > 0 && cuaSoNgay > 0 ? Math.round(tongV / (raKho / cuaSoNgay * 30) * 100) / 100 : null;
+  const tvHex = /* @__PURE__ */ new Map();
+  const hexSoNgoai = /* @__PURE__ */ new Set();
+  const tonHex = /* @__PURE__ */ new Map();
+  for (const t of ton) {
+    if (!t.hex) continue;
+    if (t.v > 0) {
+      const a = tvHex.get(t.hex) ?? { v: 0, sl: 0 };
+      a.v += t.v;
+      a.sl += t.sl || 0;
+      tvHex.set(t.hex, a);
+    }
+    if (!(t.v > 0) && t.sl > 0) hexSoNgoai.add(t.hex);
+    if (t.v) {
+      const a = tonHex.get(t.hex) ?? { v: 0, sl: 0 };
+      a.v += t.v;
+      a.sl += t.sl || 0;
+      tonHex.set(t.hex, a);
+    }
+  }
+  const nhapHex = /* @__PURE__ */ new Map();
+  for (const r of nhap) {
+    if (!r.hex) continue;
+    const a = nhapHex.get(r.hex);
+    if (a) a.push(r);
+    else nhapHex.set(r.hex, [r]);
+  }
+  let chuaVaoSo = 0, lapCongTrinh = 0, hexChuaVaoSo = 0;
+  const dsChuaVaoSo = [], dsRoiKho = [];
+  for (const [h, rs] of nhapHex) {
+    const p = P.get(h);
+    if (!p || laHuy(p.tn, p.ipo) || coDongXuat.has(h) || !hexSoNgoai.has(h)) continue;
+    const zz = rs.filter((r) => r.sl === 0 && r.tt > 0);
+    if (!zz.length || zz.reduce((m, r) => r.d > m ? r.d : m, "") < `${date5.slice(0, 4)}-01-01`) continue;
+    const tt = tong(rs, (r) => r.tt), sl = tong(rs, (r) => r.sl || 0), tt0 = tong(zz, (r) => r.tt);
+    const t = tvHex.get(h), u = t && t.sl ? t.v / t.sl : (p.dg || 0) / 1e6;
+    const pend = Math.max(0, Math.min(tt0, tt - sl * u));
+    if (pend <= 0.5) continue;
+    chuaVaoSo += pend;
+    hexChuaVaoSo++;
+    const gc = zz.map((r) => chuanHoa(r.gc).toUpperCase()).join(" || ");
+    const lap = LAP_TAI_CT.test(gc);
+    if (lap) lapCongTrinh += pend;
+    dsChuaVaoSo.push({ hex: h, ct: p.ct, ten: p.ten, nhap: tt, sl, ton: t?.v ?? 0, gt: pend, lap, gc });
+  }
+  let daRoiKho = 0;
+  for (const [h, a] of tonHex) {
+    const p = P.get(h), giao = giaoTrong.get(h) ?? 0;
+    if (!p || !a.sl || !giao || laHuy(p.tn, p.ipo)) continue;
+    const r = Math.min(a.sl, Math.max(giao - (XT.get(h)?.sl ?? 0), 0));
+    if (r > 0) {
+      daRoiKho += r * a.v / a.sl;
+      dsRoiKho.push({ hex: h, ct: p.ct, ten: p.ten, sl: a.sl, giao, xuatSl: XT.get(h)?.sl ?? 0, ton: a.v, gt: r * a.v / a.sl });
+    }
+  }
+  const duPhanLoai = chuaVaoSo + daRoiKho;
+  const duGiua = (tu, den) => {
+    const m = /* @__PURE__ */ new Map();
+    const lay = (ct) => {
+      let e = m.get(ct);
+      if (!e) {
+        e = { ct, dau: 0, nhap: 0, xuat: 0, cuoi: 0, du: 0 };
+        m.set(ct, e);
+      }
+      return e;
+    };
+    for (const [ct, c] of theoNgay.get(tu)?.ct ?? []) lay(ct).dau += c.v;
+    for (const [ct, c] of theoNgay.get(den)?.ct ?? []) lay(ct).cuoi += c.v;
+    for (const r of nhap) if (r.d > tu && r.d <= den) lay(r.ct ?? "").nhap += r.tt;
+    for (const r of xuat) if (r.d > tu && r.d <= den && laXuatTinh(r)) lay(r.ct ?? "").xuat += r.tt;
+    for (const e of m.values()) e.du = e.dau + e.nhap - e.cuoi - e.xuat;
+    return [...m.values()];
+  };
+  const duCt = /* @__PURE__ */ new Map();
+  if (S.length >= 2) for (const e of duGiua(S[0], S[S.length - 1])) duCt.set(e.ct, e.du);
+  const tenPsa = /* @__PURE__ */ new Map();
+  for (const p of input2.psaNhom) if (p.ct && !tenPsa.has(p.ct)) tenPsa.set(p.ct, p.ten);
+  const maDu = dauBang(duCt).filter((x) => /^CT\d/.test(x[0])).slice(0, SO_MA_DU);
+  const tenMa = (ct) => tenPsa.get(ct) ?? tenCt.get(ct) ?? null;
+  const theoMa = maDu.map(([ct, v]) => {
+    const ten = tenMa(ct);
+    return { ct, ten: (ten ?? "").trim(), duAn: daOf(ct, ten), du: lam(v) };
+  });
+  theoMa.push({ ct: null, ten: "C\xE1c m\xE3 c\xF2n l\u1EA1i", duAn: null, du: lam(du - tong(maDu, (x) => x[1])) });
+  const daXuatSo = tong(O.filter((t) => laDaXuat(t.tkh)), (t) => t.v);
+  const cuoiThang = S.map((d, i) => {
+    const e = theoNgay.get(d), g = goiCt ? e?.ct.get(goiCt) : void 0;
+    return {
+      d,
+      v: lam(e?.v ?? 0),
+      cu: lam(e?.cu ?? 0),
+      cuGoi: lam(g?.cu ?? 0),
+      tonGoi: lam(g?.v ?? 0),
+      cu12: lam(e?.cu12 ?? 0),
+      vuotMoc: vaoRa[i].vao === null ? null : lam(vaoRa[i].vao),
+      ra: vaoRa[i].ra === null ? null : lam(vaoRa[i].ra)
+    };
+  });
+  const kq = {
+    date: date5,
+    tong: {
+      v: lam(tongV),
+      cu: lam(tongCu),
+      cu12: lam(tong(O.filter((t) => (tinhTuoi(date5, t.nk) ?? 0) > 12), (t) => t.v)),
+      khongNgay: lam(tong(O.filter((t) => !t.nk), (t) => t.v)),
+      ma: new Set(O.map((t) => t.sap)).size,
+      congTrinh: new Set(O.map((t) => (t.ten ?? "").replace(/\s+/g, " ").trim().toUpperCase())).size,
+      // theo tên: khớp số dòng tab Theo công trình
+      chuaXuat: lam(chuaXuatTong),
+      chuaXuat4: lam(chuaXuat4),
+      du: lam(du),
+      duPhanLoai: lam(duPhanLoai)
+    },
+    moc: moc2,
+    cuoiThang,
+    duAnMoc,
+    goiDung,
+    soSanhGoi,
+    goiCungPm,
+    duAn,
+    phanChia,
+    chuaXuatDuAn,
+    goiCu: {
+      dong: goiDau.map((g) => ({ ...g, cu: lam(g.cu), ra93: lam(g.ra93), xuat60: g.xuat60 === null ? null : lam(g.xuat60) })),
+      conLai: { soGoi: goiSau.length, cu: lam(tong(goiSau, (g) => g.cu)), ra93: lam(ra93 - tong(goiDau, (g) => g.ra93)) },
+      tong: { cu: lam(tongCu), ra93: lam(ra93) },
+      ngay: cuaSoNgay,
+      vao: lam(vao93),
+      ra: lam(ra93),
+      vaoThang: cuaSoNgay ? lam(vao93 / cuaSoNgay * 30) : 0,
+      raThang: cuaSoNgay ? lam(ra93 / cuaSoNgay * 30) : 0
+    },
+    loNhap: {
+      seri: [...seri, DA_KHAC],
+      cot: [...cot.values()].sort((a, b) => hangCot(a.thang).localeCompare(hangCot(b.thang))).map((c) => ({ thang: c.thang, tong: lam(c.tong), cu: lam(c.cu), theoDuAn: lamMap(c.da) })),
+      vachCu: luiNgay(date5, 198),
+      moc6
+    },
+    ky: {
+      dong: ky,
+      tong: { nhap: lam(tong(kyDong, (k) => k.nhap)), xuatTinh: lam(tong(kyDong, (k) => k.xuat)), chuaDoiSoat: lam(du) },
+      thangTheoLo
+    },
+    soSach: {
+      tu: S.length >= 2 ? S[0] : null,
+      du: lam(du),
+      choVeKho: lam(chuaVaoSo - lapCongTrinh),
+      lapCongTrinh: lam(lapCongTrinh),
+      daRoiKho: lam(daRoiKho),
+      chuaRo: lam(du - duPhanLoai),
+      hexChuaVaoSo,
+      theoMa,
+      kiemKe: [
+        { ten: "\u0110\u01A1n hu\u1EF7 c\xF2n trong s\u1ED5 t\u1ED3n", gt: lam(huyGt), ghiChu: soGhi ? `S\u1ED5 ghi ${soGhi}, ch\u1EDD x\xE1c nh\u1EADn` : null },
+        { ten: "Tr\u1EA1ng th\xE1i \u0110\xC3 XU\u1EA4T, v\u1EABn trong s\u1ED5 t\u1ED3n", gt: lam(daXuatSo), ghiChu: null },
+        { ten: "\u0110\xE3 r\u1EDDi kho, \u01B0\u1EDBc t\xEDnh", gt: lam(daRoiKho), ghiChu: "Suy t\u1EEB ghi ch\xFA d\xF2ng xu\u1EA5t c\u1EDD tr\u1ED1ng" }
+      ]
+    },
+    doiChieu: {
+      sapVuot: {
+        den: moc6[moc6.length - 1].moc,
+        gt: lam(tong(moc6, (m) => m.gt)),
+        theoDuAn: dauBang(sapVuotDa).map(([d, gt]) => ({ duAn: d, gt: lam(gt) }))
+      },
+      khongPsa: {
+        gt: lam(tong(khongPsa, (t) => t.v)),
+        cu: lam(tong(khongPsa.filter((t) => laCu(date5, t.nk)), (t) => t.v)),
+        lonNhat: dauBang(kpCt).slice(0, 5).map(([ct, v]) => ({ ct, ten: tenCt.get(ct) ?? "", v: lam(v) }))
+      },
+      huy: { gt: lam(huyGt), cu: lam(huyCu), ct: [...new Set(dongHuy.map((t) => t.ct ?? ""))], soGhi }
+    }
+  };
+  return {
+    kq,
+    O,
+    P,
+    nhap,
+    xuat,
+    S,
+    d60,
+    daOf,
+    daTon,
+    daSeri,
+    theoNgay,
+    nhomTon: nhomCuaTon,
+    dongHuy: new Set(dongHuy),
+    khongPsa,
+    loVao,
+    loRa,
+    iRa,
+    goiCt,
+    goiDau,
+    goiSau,
+    moc6Dong,
+    thangLo,
+    chuaVaoSo: dsChuaVaoSo,
+    roiKho: dsRoiKho,
+    duGiua,
+    maDu: maDu.map((x) => x[0]),
+    tenMa
+  };
+};
+var ngayDauChot = (date5) => `${Number(date5.slice(0, 4)) - 1}-12-31`;
+var sqlNgayChot = (date5) => ({
+  sql: `SELECT DISTINCT date_parsed::text AS d FROM ton_kho WHERE date_parsed >= $1::date AND date_parsed <= $2::date ORDER BY 1`,
+  params: [ngayDauChot(date5), date5]
+});
+var cotTon = (t) => `s.ma_id_sap::text AS sap, s.hex::bigint::text AS hex, TRIM(s.ma_cong_trinh) AS ct, s.ten_cong_trinh AS ten, s.ngay_nhap_kho::text AS nk,
+        s.so_luong::float8 AS sl, (${t.giaTriTon})::float8 AS v, s.tinh_trang_ke_hoach_giao_hang AS tkh, s.ghi_chu AS gc`;
+var dieuKienPham = (t) => {
+  const dk = (c) => c.length ? `AND ${c.join(" AND ")}` : "";
+  const dkPsa = (ps) => {
+    if (!t.phamViPsa) return "";
+    const c = [`TRIM(ma_cong_trinh) IN (SELECT TRIM(s.ma_cong_trinh) FROM ton_kho s WHERE s.date_parsed = $1::date ${dk(t.phamViTon(ps))})`, ...t.phamViPsa(ps)];
+    return `WHERE ${c.join(" AND ")}`;
+  };
+  return { dk, dkPsa };
+};
+var NGAY_N = `COALESCE(n.date_parsed, n.date)`;
+var NGAY_X = `COALESCE(x.date_parsed, x.date)`;
+var coXuatSql = `TRIM(COALESCE(x.tinh_doi_voi_hang_tp, ''))`;
+var NHAP_CAP_SQL = `LEAST(COALESCE(thanh_tien_nhap_kho_luy_ke, 0), COALESCE(tri_gia_don_hang_tong, 0))`;
+var DON_CON_SQL = `GREATEST(COALESCE(gia_tri_don_hang_con_lai, 0), 0)`;
+var sqlTonKhoV5 = (t) => {
+  const { dk, dkPsa } = dieuKienPham(t);
+  const cteHex = (ps) => `ht AS MATERIALIZED (SELECT DISTINCT s.hex::bigint AS h FROM ton_kho s
+    WHERE s.date_parsed = $1::date AND s.hex IS NOT NULL ${dk(t.phamViTon(ps))})`;
+  const pTon = [t.date];
+  const ton = {
+    sql: `SELECT ${cotTon(t)}
+      FROM ton_kho s WHERE s.date_parsed = $1::date ${dk(t.phamViTon(pTon))}`,
+    params: pTon
+  };
+  const pMoc = [t.date, t.cuoiThang, ngayDauChot(t.date)];
+  const tonMoc = {
+    sql: `SELECT s.date_parsed::text AS d, CASE WHEN s.date_parsed = ANY($2::date[]) THEN s.ma_id_sap::text END AS sap, TRIM(s.ma_cong_trinh) AS ct,
+        s.ngay_nhap_kho::text AS nk, MIN(s.ten_cong_trinh) AS ten, SUM(${t.giaTriTon})::float8 AS v, SUM(s.so_luong)::float8 AS sl
+      FROM ton_kho s WHERE s.date_parsed >= $3::date AND s.date_parsed <= $1::date AND ${t.giaTriTon} <> 0 ${dk(t.phamViTon(pMoc))}
+      GROUP BY 1, 2, 3, 4`,
+    params: pMoc
+  };
+  const pPsa = [t.date];
+  const whereGom = dkPsa(pPsa);
+  const psa = {
+    sql: `WITH ${cteHex(pPsa)}
+      SELECT hex::text AS hex, TRIM(ma_cong_trinh) AS ct, ten_cong_trinh AS ten, ten_pm AS pm, tinh_trang_ipo AS ipo, NULL::text AS ttda,
+          tam_ngung_huy_don_hang_tong AS tn, phan_loai_nhom_san_pham AS nsp, don_gia_co_oh::float8 AS dg, so_luong_don_hang_tong::float8 AS sld,
+          so_luong_nhap_kho_luy_ke::float8 AS sln, NULL::float8 AS gtd, NULL::float8 AS nhap_cap, NULL::float8 AS con
+        FROM production_status_app WHERE hex IN (SELECT h FROM ht)
+      UNION ALL
+      SELECT NULL, TRIM(ma_cong_trinh), ten_cong_trinh, ten_pm, tinh_trang_ipo, tinh_trang_du_an, tam_ngung_huy_don_hang_tong, NULL, NULL, NULL, NULL,
+          SUM(tri_gia_don_hang_tong)::float8, SUM(${NHAP_CAP_SQL})::float8, SUM(${DON_CON_SQL})::float8
+        FROM production_status_app ${whereGom}
+        GROUP BY 2, 3, 4, 5, 6, 7`,
+    params: pPsa
+  };
+  const pL = [t.date, t.cuoiThang];
+  const hexTon = cteHex(pL);
+  const whereP = dkPsa(pL);
+  const coLoc = t.phamViPsa ? "WHERE p.hex IS NOT NULL" : "";
+  const luong = {
+    sql: `WITH ${hexTon},
+      p AS MATERIALIZED (SELECT hex, TRIM(ma_cong_trinh) AS ct, ten_cong_trinh AS ten, tinh_trang_ipo AS ipo, tam_ngung_huy_don_hang_tong AS tn
+        FROM production_status_app ${whereP}),
+      n AS (SELECT n.*, ${NGAY_N} AS d, ${t.tienNhap} AS tt, n.hex::bigint AS h FROM nhap_kho n WHERE ${NGAY_N} <= $1::date),
+      x AS (SELECT ${NGAY_X} AS d, x.hex::bigint AS h, ${coXuatSql} AS co, ${t.soLuongXuat} AS sl, x.thanh_tien_xuat_kho AS tt, x.ghi_chu
+        FROM xuat_kho x WHERE ${NGAY_X} <= $1::date)
+      SELECT 'n' AS loai,
+          LEAST((date_trunc('month', n.d) + INTERVAL '1 month - 1 day')::date, ($2::date[])[width_bucket(n.d - 1, $2::date[]) + 1])::text AS d,
+          CASE WHEN ht.h IS NOT NULL THEN n.h::text END AS hex, p.ct, p.ten, NULL::text AS tn, NULL::text AS ipo, '' AS co,
+          SUM(n.so_luong_nhap_kho)::float8 AS sl, SUM(n.tt)::float8 AS tt,
+          CASE WHEN ht.h IS NOT NULL AND n.so_luong_nhap_kho = 0 AND n.tt > 0 THEN n.ghi_chu END AS gc
+        FROM n LEFT JOIN p ON p.hex = n.h LEFT JOIN ht ON ht.h = n.h ${coLoc}
+        GROUP BY 2, 3, 4, 5, 11, CASE WHEN ht.h IS NOT NULL THEN SIGN(n.so_luong_nhap_kho) END, CASE WHEN ht.h IS NOT NULL THEN n.tt > 0 END
+      UNION ALL
+      SELECT 'x', x.d::text, CASE WHEN ht.h IS NOT NULL THEN x.h::text END, p.ct, p.ten, p.tn, p.ipo, x.co,
+          SUM(x.sl)::float8, SUM(x.tt)::float8, CASE WHEN ht.h IS NOT NULL AND x.co = '' THEN x.ghi_chu END
+        FROM x LEFT JOIN p ON p.hex = x.h LEFT JOIN ht ON ht.h = x.h ${coLoc}
+        GROUP BY 2, 3, 4, 5, 6, 7, 8, 11, x.tt > 0`,
+    params: pL
+  };
+  return { ton, tonMoc, psa, luong };
+};
+var sqlTonNgay = (t, ngay3) => {
+  const ps = [ngay3];
+  return {
+    sql: `SELECT s.date_parsed::text AS d, ${cotTon(t)}
+      FROM ton_kho s WHERE s.date_parsed = ANY($1::date[]) ${dieuKienPham(t).dk(t.phamViTon(ps))}`,
+    params: ps
+  };
+};
+var sqlDongLuong = (t, o) => {
+  const ps = [t.date];
+  const whereP = dieuKienPham(t).dkPsa(ps);
+  const ngay3 = o.loai === "n" ? NGAY_N : NGAY_X;
+  const dk = [`${ngay3} <= $1::date`];
+  if (t.phamViPsa) dk.push("p.hex IS NOT NULL");
+  if (o.cts) {
+    ps.push(o.cts);
+    dk.push(`p.ct = ANY($${ps.length}::text[])`);
+  }
+  if (o.tu) {
+    ps.push(o.tu);
+    dk.push(`${ngay3} > $${ps.length}::date`);
+  }
+  if (o.den) {
+    ps.push(o.den);
+    dk.push(`${ngay3} <= $${ps.length}::date`);
+  }
+  const cte = `WITH p AS MATERIALIZED (SELECT hex, TRIM(ma_cong_trinh) AS ct, ten_cong_trinh AS ten, ten_hang_muc AS hm, tinh_trang_ipo AS ipo, tam_ngung_huy_don_hang_tong AS tn
+        FROM production_status_app ${whereP})`;
+  return {
+    sql: o.loai === "n" ? `${cte}
+      SELECT ${ngay3}::text AS d, n.hex::bigint::text AS hex, p.ct, p.ten, COALESCE(NULLIF(TRIM(n.ten_hang_muc), ''), p.hm) AS hm, NULLIF(n.lenh_san_xuat, 0)::bigint::text AS ctu,
+          n.so_luong_nhap_kho::float8 AS sl, (${t.tienNhap})::float8 AS tt, n.ghi_chu AS gc
+        FROM nhap_kho n LEFT JOIN p ON p.hex = n.hex::bigint WHERE ${dk.join(" AND ")}` : `${cte}
+      SELECT ${ngay3}::text AS d, x.hex::bigint::text AS hex, p.ct, p.ten, COALESCE(NULLIF(TRIM(x.ten_hang_muc), ''), p.hm) AS hm, x.so_phieu AS ctu, p.tn, p.ipo, ${coXuatSql} AS co,
+          (${t.soLuongXuat})::float8 AS sl, x.thanh_tien_xuat_kho::float8 AS tt, x.ghi_chu AS gc
+        FROM xuat_kho x LEFT JOIN p ON p.hex = x.hex::bigint WHERE ${dk.join(" AND ")}`,
+    params: ps
+  };
+};
+var sqlDonPsa = (t, cts) => {
+  const ps = t.phamViPsa ? [t.date] : [];
+  const w = dieuKienPham(t).dkPsa(ps);
+  ps.push(cts);
+  return {
+    sql: `SELECT hex::text AS hex, TRIM(ma_cong_trinh) AS ct, ten_cong_trinh AS ten, ten_hang_muc AS hm, ten_pm AS pm, tinh_trang_ipo AS ipo, tinh_trang_du_an AS ttda,
+        tam_ngung_huy_don_hang_tong AS tn, tri_gia_don_hang_tong::float8 AS gtd, (${NHAP_CAP_SQL})::float8 AS nhap_cap, (${DON_CON_SQL})::float8 AS con
+      FROM production_status_app ${w ? `${w} AND` : "WHERE"} COALESCE(TRIM(ma_cong_trinh), '') = ANY($${ps.length}::text[])`,
+    params: ps
+  };
+};
+var sqlMoTaPsa = (sapKey, xuong) => ({
+  sql: `SELECT hex::text AS hex, ${sapKey} AS sap, ten_hang_muc AS hm, ${xuong("xuong_chinh")} AS xg, phan_loai_nhom_san_pham AS nsp
+    FROM production_status_app ORDER BY updated_at DESC NULLS LAST, id DESC`,
+  params: []
+});
+var so = (x) => Number(x) || 0;
+var ghepDongTon = (t) => ({ sap: t.sap, hex: t.hex, ct: t.ct, ten: t.ten, nk: t.nk, sl: so(t.sl), v: so(t.v), tkh: t.tkh, gc: t.gc });
+var ghepDauVaoV5 = (date5, ngayChot, r) => {
+  const n = so;
+  const input2 = {
+    date: date5,
+    ngayChot,
+    ton: r.ton.map(ghepDongTon),
+    tonMoc: r.tonMoc.map((t) => ({ d: t.d, sap: t.sap, ct: t.ct, ten: t.ten, nk: t.nk, v: n(t.v), sl: n(t.sl) })),
+    psa: [],
+    psaNhom: [],
+    nhap: [],
+    xuat: []
+  };
+  for (const p of r.psa) {
+    if (p.hex) input2.psa.push({ hex: p.hex, ct: p.ct, ten: p.ten, pm: p.pm, ipo: p.ipo, tn: p.tn, nsp: p.nsp, dg: n(p.dg), sld: n(p.sld), sln: n(p.sln) });
+    else input2.psaNhom.push({ ct: p.ct, ten: p.ten, pm: p.pm, ipo: p.ipo, ttda: p.ttda, tn: p.tn, gtd: n(p.gtd), nhapCap: n(p.nhap_cap), con: n(p.con) });
+  }
+  for (const x of r.luong) {
+    if (x.loai === "n") input2.nhap.push({ d: x.d, hex: x.hex, ct: x.ct, ten: x.ten, sl: x.sl === null ? null : n(x.sl), tt: n(x.tt), gc: x.gc });
+    else input2.xuat.push({ d: x.d, hex: x.hex, ct: x.ct, ten: x.ten, tn: x.tn, ipo: x.ipo, co: x.co, sl: n(x.sl), tt: n(x.tt), gc: x.gc });
+  }
+  return input2;
+};
+
+// src/server/tonKhoV5ChiTiet.ts
+var LOAI_CHI_TIET = [
+  "ton",
+  "phan_chia",
+  "chua_xuat",
+  "huy",
+  "khong_psa",
+  "sap_vuot",
+  "moc6",
+  "lo_nhap",
+  "goi_cu",
+  "goi_ra",
+  "goi_vao",
+  "kiem_ke",
+  "moc",
+  "vuot_moc",
+  "ra",
+  "so_moc",
+  "nhap",
+  "xuat_tinh",
+  "chua_doi_soat",
+  "du",
+  "so_sach",
+  "da_nhap",
+  "don_chua_nhap"
+];
+var LoiChiTiet = class extends Error {
+};
+var ghepDocThem = (ngay3, tonNgay, nhap, xuat, don) => {
+  const so7 = (x) => Number(x) || 0;
+  const them = {};
+  if (tonNgay) {
+    const m = Object.fromEntries(ngay3.map((d) => [d, []]));
+    for (const r of tonNgay) m[r.d]?.push(ghepDongTon(r));
+    them.tonNgay = m;
+  }
+  if (nhap) them.nhap = nhap.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, sl: r.sl === null ? null : so7(r.sl), tt: so7(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
+  if (xuat) them.xuat = xuat.map((r) => ({ d: r.d, hex: r.hex, ct: r.ct, ten: r.ten, tn: r.tn, ipo: r.ipo, co: r.co, sl: so7(r.sl), tt: so7(r.tt), gc: r.gc, ctu: r.ctu, hm: r.hm }));
+  if (don) them.don = don.map((r) => ({ hex: r.hex, ct: r.ct, ten: r.ten, hm: r.hm, pm: r.pm, ipo: r.ipo, ttda: r.ttda, tn: r.tn, gtd: so7(r.gtd), nhapCap: so7(r.nhap_cap), con: so7(r.con) }));
+  return them;
+};
+var SO_DONG_TOI_DA = 5e3;
+var MA_CT_DAI = 64;
+var TEN_DAI = 200;
+var DS_DAI = 40;
+var laNgay = (s) => {
+  if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(s);
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+};
+var mot = (q, k, dai = TEN_DAI) => {
+  const v = q[k];
+  if (v === void 0 || v === "") return void 0;
+  if (typeof v !== "string") throw new LoiChiTiet(`Tham s\u1ED1 ${k} kh\xF4ng h\u1EE3p l\u1EC7`);
+  if (v.length > dai) throw new LoiChiTiet(`Tham s\u1ED1 ${k} qu\xE1 d\xE0i`);
+  return v;
+};
+var ds = (q, k) => {
+  const v = q[k];
+  if (v === void 0 || v === "") return void 0;
+  const a = (Array.isArray(v) ? v : [v]).flatMap((x) => {
+    if (typeof x !== "string") throw new LoiChiTiet(`Tham s\u1ED1 ${k} kh\xF4ng h\u1EE3p l\u1EC7`);
+    return x.split(",");
+  }).map((x) => x.trim()).filter(Boolean);
+  if (a.length > DS_DAI || a.some((x) => x.length > TEN_DAI)) throw new LoiChiTiet(`Tham s\u1ED1 ${k} qu\xE1 d\xE0i`);
+  return a.length ? a : void 0;
+};
+var ngay = (q, k) => {
+  const v = mot(q, k, 10);
+  if (v !== void 0 && !laNgay(v)) throw new LoiChiTiet(`Tham s\u1ED1 ${k} kh\xF4ng ph\u1EA3i ng\xE0y`);
+  return v;
+};
+var trongDs = (q, k, cho) => {
+  const v = mot(q, k);
+  if (v !== void 0 && !cho.includes(v)) throw new LoiChiTiet(`Tham s\u1ED1 ${k} kh\xF4ng h\u1EE3p l\u1EC7`);
+  return v;
+};
+var co = (q, k) => mot(q, k, 1) === "1" ? true : void 0;
+var NHOM_CHIA = ["chuaXuat", "giaoDo", "ganXong", "theoNhip", "huy", "khongPsa"];
+var NHOM_TUOI = ["t01", "t23", "t46", "t6", "thieuBo", "khong"];
+var THANG_LO = /^(\d{4}-\d{2}|truoc|khong)$/;
+var TEN_TUOI = { t01: "0\u20131 th\xE1ng", t23: "2\u20133 th\xE1ng", t46: "4\u20136 th\xE1ng", t6: "tr\xEAn 6 th\xE1ng", thieuBo: "giao thi\u1EBFu b\u1ED9", khong: "kh\xF4ng r\xF5 ng\xE0y" };
+var thangVn = (t) => `${t.slice(5, 7)}/${t.slice(0, 4)}`;
+var docYeuCauChiTiet = (q) => {
+  const loai = trongDs(q, "loai", LOAI_CHI_TIET);
+  if (!loai) throw new LoiChiTiet("Thi\u1EBFu loai");
+  const yc = {
+    loai,
+    ct: mot(q, "ct", MA_CT_DAI),
+    duAn: ds(q, "duAn"),
+    tuoi: trongDs(q, "tuoi", ["moi", "cu", "cu12", "khong"]),
+    nsp: mot(q, "nsp"),
+    nhom: trongDs(q, "nhom", NHOM_CHIA),
+    nhomTuoi: ds(q, "nhomTuoi"),
+    thang: ds(q, "thang"),
+    seri: mot(q, "seri"),
+    moc: ngay(q, "moc"),
+    d: ngay(q, "d"),
+    tu: ngay(q, "tu"),
+    den: ngay(q, "den"),
+    denThang: mot(q, "denThang", 7),
+    f: trongDs(q, "f", ["v", "cu"]),
+    phan: trongDs(q, "phan", ["goi", "con"]),
+    muc: mot(q, "muc", 16),
+    cu: co(q, "cu"),
+    huy: co(q, "huy"),
+    conLai: co(q, "conLai"),
+    lon: co(q, "lon"),
+    xuat60: co(q, "xuat60")
+  };
+  if (yc.nhomTuoi?.some((k) => !NHOM_TUOI.includes(k))) throw new LoiChiTiet("Tham s\u1ED1 nhomTuoi kh\xF4ng h\u1EE3p l\u1EC7");
+  if (yc.thang?.some((t) => !THANG_LO.test(t))) throw new LoiChiTiet("Tham s\u1ED1 thang kh\xF4ng h\u1EE3p l\u1EC7");
+  if (yc.denThang !== void 0 && !/^\d{4}-\d{2}$/.test(yc.denThang)) throw new LoiChiTiet("Tham s\u1ED1 denThang kh\xF4ng h\u1EE3p l\u1EC7");
+  const can = (dk, ten) => {
+    if (!dk) throw new LoiChiTiet(`Thi\u1EBFu ${ten}`);
+  };
+  switch (loai) {
+    case "phan_chia":
+      can(yc.nhom, "nhom");
+      break;
+    case "moc6":
+      can(yc.moc, "moc");
+      break;
+    case "lo_nhap":
+      can(yc.thang, "thang");
+      break;
+    case "goi_cu":
+      can(yc.ct || yc.conLai, "ct");
+      break;
+    case "kiem_ke":
+      can(["huy", "da_xuat", "roi_kho"].includes(yc.muc ?? ""), "muc");
+      break;
+    case "so_sach":
+      can(["cho_ve", "lap_ct", "roi_kho", "chua_ro", "phan_loai"].includes(yc.muc ?? ""), "muc");
+      break;
+    case "moc":
+    case "vuot_moc":
+    case "ra":
+      can(yc.d, "d");
+      break;
+    case "so_moc":
+      can(yc.tu && yc.den && yc.tu <= yc.den, "tu, den");
+      break;
+    case "nhap":
+    case "xuat_tinh":
+      can(yc.ct || yc.duAn || yc.tu && yc.den, "ct, duAn ho\u1EB7c tu + den");
+      break;
+    case "chua_doi_soat":
+      can(yc.den, "den");
+      break;
+    case "da_nhap":
+    case "don_chua_nhap":
+      can(yc.duAn, "duAn");
+      break;
+    default:
+      break;
+  }
+  return yc;
+};
+var coChot = (input2, d, ten) => {
+  if (d > input2.date || !input2.ngayChot.includes(d)) throw new LoiChiTiet(`${ten} kh\xF4ng ph\u1EA3i ng\xE0y ch\u1ED1t`);
+};
+var dauKy = (a, den) => {
+  const i = a.S.indexOf(den);
+  if (i < 1) throw new LoiChiTiet("Kh\xF4ng c\xF3 k\u1EF3 t\u1EA1i m\u1ED1c n\xE0y");
+  return a.S[i - 1];
+};
+var canDocChiTiet = (input2, yc) => {
+  const a = phanTichV5(input2);
+  const can = { tonNgay: [], nhap: null, xuat: null, don: null };
+  const maDuAn = (ds2, chua) => [...new Set(ds2.filter((r) => r.ct && chua.includes(a.daOf(r.ct, r.ten))).map((r) => r.ct))];
+  switch (yc.loai) {
+    case "moc":
+      coChot(input2, yc.d, "d");
+      can.tonNgay = [yc.d];
+      break;
+    case "vuot_moc":
+      can.tonNgay = [yc.d];
+      dauKy(a, yc.d);
+      break;
+    case "ra":
+      can.tonNgay = [dauKy(a, yc.d), yc.d];
+      break;
+    case "so_moc":
+      coChot(input2, yc.tu, "tu");
+      coChot(input2, yc.den, "den");
+      can.tonNgay = [yc.tu, yc.den];
+      break;
+    case "goi_ra":
+    case "goi_vao":
+      can.tonNgay = a.S.slice(a.iRa - 1);
+      break;
+    case "chua_doi_soat":
+      dauKy(a, yc.den);
+      break;
+    case "moc6":
+      if (!a.moc6Dong.some((m) => m.moc === yc.moc)) throw new LoiChiTiet("moc kh\xF4ng c\xF3 trong b\xE1o c\xE1o");
+      break;
+    case "nhap":
+      can.nhap = { cts: yc.ct ? [yc.ct] : yc.duAn ? maDuAn(a.nhap, yc.duAn) : null, tu: yc.tu ?? null, den: yc.den ?? null };
+      break;
+    case "xuat_tinh":
+      can.xuat = { cts: yc.ct ? [yc.ct] : yc.duAn ? maDuAn(a.xuat, yc.duAn) : null, tu: yc.tu ?? null, den: yc.den ?? null };
+      break;
+    case "du":
+      if (yc.ct && a.S.length >= 2) {
+        const tu = a.S[0], den = a.S[a.S.length - 1];
+        can.tonNgay = [tu, den];
+        can.nhap = can.xuat = { cts: [yc.ct], tu, den };
+      }
+      break;
+    case "da_nhap":
+    case "don_chua_nhap":
+      can.don = [...new Set(input2.psaNhom.filter((p) => yc.duAn.includes(a.daOf(p.ct, p.ten))).map((p) => p.ct ?? ""))];
+      break;
+    default:
+      break;
+  }
+  can.tonNgay = [...new Set(can.tonNgay)].filter((d) => d !== input2.date);
+  return can;
+};
+var CT = { k: "ct", nhan: "C\xF4ng tr\xECnh", kieu: "chu" };
+var TEN = { k: "ten", nhan: "T\xEAn c\xF4ng tr\xECnh", kieu: "chu" };
+var HEX = { k: "hex", nhan: "HEX", kieu: "chu" };
+var SAP = { k: "sap", nhan: "M\xE3 SAP", kieu: "chu" };
+var HM = { k: "hm", nhan: "H\u1EA1ng m\u1EE5c", kieu: "chu" };
+var NSP = { k: "nsp", nhan: "Nh\xF3m SP", kieu: "chu" };
+var XG = { k: "xuong", nhan: "X\u01B0\u1EDFng", kieu: "chu" };
+var NK = { k: "nk", nhan: "Ng\xE0y nh\u1EADp", kieu: "ngay" };
+var TUOI = { k: "tuoi", nhan: "Tu\u1ED5i (th\xE1ng)", kieu: "so" };
+var GT = { k: "v", nhan: "Gi\xE1 tr\u1ECB", kieu: "ty" };
+var COT_TON = [CT, TEN, HEX, SAP, HM, NSP, XG, NK, TUOI, GT];
+var COT_LO = [{ k: "d", nhan: "M\u1ED1c", kieu: "ngay" }, CT, TEN, HEX, SAP, HM, NK];
+var COT_MA = (nhanDu) => [
+  CT,
+  TEN,
+  { k: "dau", nhan: "\u0110\u1EA7u k\u1EF3", kieu: "ty" },
+  { k: "nhap", nhan: "Nh\u1EADp", kieu: "ty" },
+  { k: "xuat", nhan: "Xu\u1EA5t T\xCDNH", kieu: "ty" },
+  { k: "cuoi", nhan: "Cu\u1ED1i k\u1EF3", kieu: "ty" },
+  { k: "du", nhan: nhanDu, kieu: "ty" }
+];
+var COT_DON = [CT, TEN, HEX, HM, { k: "ipo", nhan: "T\xECnh tr\u1EA1ng IPO", kieu: "chu" }, { k: "gtd", nhan: "Gi\xE1 tr\u1ECB \u0111\u01A1n", kieu: "ty" }, { k: "nhapCap", nhan: "\u0110\xE3 nh\u1EADp", kieu: "ty" }, { k: "con", nhan: "Ch\u01B0a nh\u1EADp", kieu: "ty" }];
+var dung = (tieuDe, cot, dong2, gt, raDong, phu) => {
+  const sap = [...dong2].sort((a, b) => gt(b) - gt(a));
+  return {
+    tieuDe,
+    tong: lam(tong(dong2, gt)),
+    soDong: dong2.length,
+    cot,
+    rows: sap.slice(0, SO_DONG_TOI_DA).map(raDong),
+    truncated: dong2.length > SO_DONG_TOI_DA,
+    ...phu ? { phu } : {}
+  };
+};
+var ngayNgan = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+var gon = (s) => (s ?? "").trim();
+var chiTietTonKhoV5 = (input2, yc, them = {}) => {
+  const a = phanTichV5(input2);
+  canDocChiTiet(input2, yc);
+  const { date: date5 } = input2;
+  const { O, S, kq } = a;
+  const moTa = (hex3, sap) => {
+    const m = (hex3 ? them.moTa?.hex.get(hex3) : void 0) ?? (sap ? them.moTa?.sap.get(sap) : void 0);
+    if (m) return m;
+    const p = hex3 ? a.P.get(hex3) : void 0;
+    return p ? { hm: null, xg: null, nsp: p.nsp } : null;
+  };
+  const dongTon = (d) => (t) => {
+    const m = moTa(t.hex, t.sap);
+    return { ct: t.ct ?? "", ten: gon(t.ten), hex: t.hex, sap: t.sap, hm: m?.hm ?? null, nsp: m?.nsp ? tenNhomSp(m.nsp) : null, xuong: m?.xg ?? null, nk: t.nk, tuoi: tinhTuoi(d, t.nk), v: lam(t.v) };
+  };
+  const banTon = (tieuDe, ds2, d = date5) => dung(tieuDe, COT_TON, ds2, (t) => t.v, dongTon(d));
+  const tonTai = (d) => {
+    if (d === date5) return O;
+    const r = them.tonNgay?.[d];
+    if (r) return r.filter((t) => t.v);
+    return input2.tonMoc.filter((t) => t.d === d).map((t) => ({ sap: t.sap, hex: null, ct: t.ct, ten: t.ten, nk: t.nk, sl: t.sl, v: t.v, tkh: null, gc: null }));
+  };
+  const coDuAn = yc.duAn ? new Set(yc.duAn) : null;
+  const tieuDeNhom = yc.duAn?.length ? ` \xB7 ${yc.duAn.join(", ")}` : "";
+  const duAnTai = (d, ct) => a.daOf(ct, a.theoNgay.get(d)?.ct.get(ct)?.ten ?? null);
+  switch (yc.loai) {
+    case "ton": {
+      const ds2 = O.filter((t) => {
+        if (yc.ct !== void 0 && (t.ct ?? "") !== yc.ct) return false;
+        if (coDuAn && !coDuAn.has(a.daTon(t))) return false;
+        if (yc.nsp !== void 0) {
+          const p = t.hex ? a.P.get(t.hex) : void 0;
+          if (!p || tenNhomSp(p.nsp) !== yc.nsp) return false;
+        }
+        const tuoi = tinhTuoi(date5, t.nk);
+        if (yc.tuoi === "moi") return tuoi !== null && tuoi <= 6;
+        if (yc.tuoi === "cu") return tuoi !== null && tuoi > 6;
+        if (yc.tuoi === "cu12") return tuoi !== null && tuoi > 12;
+        if (yc.tuoi === "khong") return tuoi === null;
+        return true;
+      });
+      const nhan = { moi: "\u2264 6 th\xE1ng", cu: "tr\xEAn 6 th\xE1ng", cu12: "tr\xEAn 12 th\xE1ng", khong: "kh\xF4ng r\xF5 ng\xE0y" }[yc.tuoi ?? "cu"];
+      return banTon(`T\u1ED3n${yc.tuoi ? ` ${nhan}` : ""}${yc.ct ? ` \xB7 ${yc.ct}` : ""}${tieuDeNhom}${yc.nsp ? ` \xB7 ${yc.nsp}` : ""}`, ds2);
+    }
+    case "phan_chia": {
+      const ds2 = O.filter((t) => a.nhomTon.get(t)?.nhom === yc.nhom && (!yc.cu || laCu(date5, t.nk)));
+      return banTon(`${kq.phanChia.find((p) => p.k === yc.nhom)?.nhom ?? ""}${yc.cu ? " \xB7 tr\xEAn 6 th\xE1ng" : ""}`, ds2);
+    }
+    case "chua_xuat": {
+      const ds2 = O.filter((t) => {
+        const cx = a.nhomTon.get(t)?.cx;
+        return !!cx && (!coDuAn || coDuAn.has(cx.duAn)) && (!yc.nhomTuoi || yc.nhomTuoi.includes(cx.k));
+      });
+      const tuoi = yc.nhomTuoi?.length === 2 && yc.nhomTuoi.includes("t46") && yc.nhomTuoi.includes("t6") ? " \xB7 t\u1EEB 4 th\xE1ng" : yc.nhomTuoi ? ` \xB7 ${yc.nhomTuoi.map((k) => TEN_TUOI[k]).join(", ")}` : "";
+      return banTon(`Ch\u01B0a xu\u1EA5t T\xCDNH${tuoi}${tieuDeNhom}`, ds2);
+    }
+    case "huy":
+      return banTon(`\u0110\u01A1n hu\u1EF7 c\xF2n trong t\u1ED3n${yc.cu ? " \xB7 tr\xEAn 6 th\xE1ng" : ""}`, O.filter((t) => a.dongHuy.has(t) && (yc.ct === void 0 || (t.ct ?? "") === yc.ct) && (!yc.cu || laCu(date5, t.nk))));
+    case "khong_psa":
+      return banTon(`T\u1ED3n kh\xF4ng c\xF3 \u0111\u01A1n trong PSA${yc.cu ? " \xB7 tr\xEAn 6 th\xE1ng" : ""}`, a.khongPsa.filter((t) => (yc.ct === void 0 || (t.ct ?? "") === yc.ct) && (!yc.cu || laCu(date5, t.nk))));
+    case "sap_vuot": {
+      const ds2 = a.moc6Dong.flatMap((m) => m.dong).filter((t) => !coDuAn || coDuAn.has(a.daTon(t)));
+      return banTon(`S\u1EAFp v\u01B0\u1EE3t 6 th\xE1ng t\u1EDBi ${ngayNgan(kq.doiChieu.sapVuot.den)}${tieuDeNhom}`, ds2);
+    }
+    case "moc6": {
+      const m = a.moc6Dong.find((x) => x.moc === yc.moc);
+      return banTon(`S\u1EAFp v\u01B0\u1EE3t 6 th\xE1ng t\u1EA1i ${ngayNgan(m.moc)}${yc.seri ? ` \xB7 ${yc.seri}` : ""}`, m.dong.filter((t) => yc.seri === void 0 || a.daSeri(t) === yc.seri));
+    }
+    case "lo_nhap": {
+      const ds2 = O.filter((t) => yc.thang.includes(a.thangLo(t)) && (yc.seri === void 0 || a.daSeri(t) === yc.seri) && (!yc.cu || laCu(date5, t.nk)));
+      const nhan = yc.thang.map((t) => t === "truoc" ? "tr\u01B0\u1EDBc c\u1EEDa s\u1ED5" : t === "khong" ? "kh\xF4ng r\xF5 ng\xE0y" : thangVn(t)).join(", ");
+      return banTon(`T\u1ED3n nh\u1EADp ${nhan}${yc.seri ? ` \xB7 ${yc.seri}` : ""}${yc.cu ? " \xB7 tr\xEAn 6 th\xE1ng" : ""}`, ds2);
+    }
+    case "goi_cu": {
+      const chon = yc.conLai ? a.goiSau.map((g) => `${g.ct}|${!!g.huy}`) : [`${yc.ct}|${!!yc.huy}`];
+      const khoa = new Set(chon);
+      const ds2 = O.filter((t) => laCu(date5, t.nk) && khoa.has(`${t.ct ?? ""}|${a.dongHuy.has(t)}`));
+      return banTon(yc.conLai ? `H\xE0ng c\u0169 \xB7 ${a.goiSau.length} g\xF3i c\xF2n l\u1EA1i` : `H\xE0ng c\u0169 \xB7 ${yc.ct}${yc.huy ? " \u0111\u01A1n hu\u1EF7" : ""}`, ds2);
+    }
+    case "goi_ra":
+    case "goi_vao":
+    case "vuot_moc":
+    case "ra": {
+      const nguon = yc.loai === "goi_vao" || yc.loai === "vuot_moc" ? a.loVao : a.loRa;
+      const dau = yc.loai === "goi_ra" || yc.loai === "goi_vao";
+      let lo = dau ? nguon.filter((l) => l.i >= a.iRa) : nguon.filter((l) => l.d === yc.d);
+      if (dau && yc.ct !== void 0) lo = lo.filter((l) => l.ct === yc.ct);
+      if (yc.conLai) {
+        const giu = new Set(a.goiDau.filter((g) => !g.huy).map((g) => g.ct));
+        lo = lo.filter((l) => !giu.has(l.ct));
+      }
+      return banLo(a, yc, lo, tonTai, moTa);
+    }
+    case "kiem_ke":
+      if (yc.muc === "huy") return banTon("\u0110\u01A1n hu\u1EF7 c\xF2n trong s\u1ED5 t\u1ED3n", O.filter((t) => a.dongHuy.has(t)));
+      if (yc.muc === "da_xuat") return banTon("Tr\u1EA1ng th\xE1i \u0110\xC3 XU\u1EA4T, v\u1EABn trong s\u1ED5 t\u1ED3n", O.filter((t) => laDaXuat(t.tkh)));
+      return banRoiKho(a, moTa);
+    case "moc": {
+      const ds2 = tonTai(yc.d).filter((t) => {
+        if (yc.cu && !laCu(yc.d, t.nk)) return false;
+        if (coDuAn && !coDuAn.has(duAnTai(yc.d, t.ct ?? ""))) return false;
+        if (yc.phan === "goi") return (t.ct ?? "") === a.goiCt;
+        if (yc.phan === "con") return (t.ct ?? "") !== a.goiCt;
+        return true;
+      });
+      const nhan = yc.phan === "goi" ? ` \xB7 ${a.goiCt ?? "g\xF3i \u0111\u1EE9ng y\xEAn"}` : yc.phan === "con" ? " \xB7 ph\u1EA7n c\xF2n l\u1EA1i" : "";
+      return banTon(`${yc.cu ? "H\xE0ng c\u0169" : "T\u1ED3n"} t\u1EA1i ${ngayNgan(yc.d)}${nhan}${tieuDeNhom}`, ds2, yc.d);
+    }
+    case "so_moc": {
+      const f = yc.f ?? "v";
+      const m = /* @__PURE__ */ new Map();
+      const them1 = (d, truong) => {
+        for (const t of tonTai(d)) {
+          const ct = t.ct ?? "";
+          if (coDuAn && !coDuAn.has(duAnTai(d, ct))) continue;
+          const v = f === "cu" && !laCu(d, t.nk) ? 0 : t.v;
+          const k = `${ct}|${t.sap}|${t.hex}`;
+          const e = m.get(k) ?? { ct, ten: t.ten, hex: t.hex, sap: t.sap, dau: 0, cuoi: 0 };
+          e[truong] += v;
+          m.set(k, e);
+        }
+      };
+      them1(yc.tu, "dau");
+      them1(yc.den, "cuoi");
+      const ds2 = [...m.values()].filter((e) => Math.abs(e.cuoi - e.dau) > 1e-9);
+      return dung(
+        `Thay \u0111\u1ED5i ${f === "cu" ? "h\xE0ng c\u0169" : "t\u1ED3n"} ${ngayNgan(yc.tu)} \u0111\u1EBFn ${ngayNgan(yc.den)}${tieuDeNhom}`,
+        [CT, TEN, HEX, SAP, HM, { k: "dau", nhan: ngayNgan(yc.tu), kieu: "ty" }, { k: "cuoi", nhan: ngayNgan(yc.den), kieu: "ty" }, { k: "chenh", nhan: "Ch\xEAnh", kieu: "ty" }],
+        ds2,
+        (e) => e.cuoi - e.dau,
+        (e) => ({ ct: e.ct, ten: gon(e.ten), hex: e.hex, sap: e.sap, hm: moTa(e.hex, e.sap)?.hm ?? null, dau: lam(e.dau), cuoi: lam(e.cuoi), chenh: lam(e.cuoi - e.dau) })
+      );
+    }
+    case "nhap":
+    case "xuat_tinh": {
+      const hop = (r) => (yc.ct === void 0 || (r.ct ?? "") === yc.ct) && (!coDuAn || !!r.ct && coDuAn.has(a.daOf(r.ct, r.ten))) && (yc.tu === void 0 || r.d > yc.tu) && (yc.den === void 0 || r.d <= yc.den) && (yc.denThang === void 0 || r.d.slice(0, 7) <= yc.denThang);
+      const cot = (nhan) => [{ k: "d", nhan: "Ng\xE0y", kieu: "ngay" }, { k: "ctu", nhan: "Ch\u1EE9ng t\u1EEB", kieu: "chu" }, CT, HEX, HM, { k: "sl", nhan: "S\u1ED1 l\u01B0\u1EE3ng", kieu: "so" }, { k: "tt", nhan, kieu: "ty" }, { k: "gc", nhan: "Ghi ch\xFA", kieu: "chu" }];
+      const dongLuong = (r) => ({ d: r.d, ctu: r.ctu ?? null, ct: r.ct, hex: r.hex, hm: r.hm ?? moTa(r.hex, null)?.hm ?? null, sl: r.sl, tt: lam(r.tt), gc: r.gc });
+      const nhanPham = `${yc.ct ? ` \xB7 ${yc.ct}` : ""}${tieuDeNhom}${yc.tu && yc.den ? ` \xB7 ${ngayNgan(yc.tu)} \u0111\u1EBFn ${ngayNgan(yc.den)}` : ""}${yc.denThang ? ` \xB7 l\u0169y k\u1EBF t\u1EDBi ${thangVn(yc.denThang)}` : ""}`;
+      if (yc.loai === "nhap") {
+        const ds3 = (them.nhap ?? a.nhap).filter((r) => r.d <= date5 && hop(r));
+        return dung(`Nh\u1EADp${nhanPham}`, cot("Th\xE0nh ti\u1EC1n"), ds3, (r) => r.tt, dongLuong);
+      }
+      const ds2 = (them.xuat ?? a.xuat).filter((r) => r.d <= date5 && laXuatTinh(r) && hop(r) && (!yc.xuat60 || r.d >= a.d60));
+      const phu = coDuAn ? [{ nhan: "\u0110\xE3 nh\u1EADp", gt: lam(tong(a.nhap.filter((r) => r.ct && coDuAn.has(a.daOf(r.ct, r.ten))), (r) => r.tt)) }] : void 0;
+      return dung(`Xu\u1EA5t T\xCDNH${yc.xuat60 ? " 60 ng\xE0y" : ""}${nhanPham}`, cot("Th\xE0nh ti\u1EC1n"), ds2, (r) => r.tt, dongLuong, phu);
+    }
+    case "chua_doi_soat": {
+      const tu = dauKy(a, yc.den);
+      return banMa(a, `Ch\u01B0a \u0111\u1ED1i so\xE1t ${ngayNgan(tu)} \u0111\u1EBFn ${ngayNgan(yc.den)}`, "Ch\u01B0a \u0111\u1ED1i so\xE1t", a.duGiua(tu, yc.den));
+    }
+    case "du": {
+      if (S.length < 2) return banMa(a, "Nh\u1EADp ch\u01B0a kh\u1EDBp", "D\u01B0", []);
+      const tu = S[0], den = S[S.length - 1];
+      if (yc.ct) return banDuHex(a, yc.ct, tu, den, tonTai, them, moTa);
+      let ds2 = a.duGiua(tu, den);
+      if (yc.conLai) ds2 = ds2.filter((e) => !a.maDu.includes(e.ct));
+      else if (yc.lon) ds2 = ds2.filter((e) => a.maDu.includes(e.ct) && lam(e.du) > 0);
+      if (coDuAn) ds2 = ds2.filter((e) => coDuAn.has(a.daOf(e.ct, a.tenMa(e.ct))));
+      return banMa(a, `Nh\u1EADp ch\u01B0a kh\u1EDBp${yc.conLai ? " \xB7 c\xE1c m\xE3 c\xF2n l\u1EA1i" : yc.lon ? " \xB7 m\xE3 l\u1EDBn" : ""}${tieuDeNhom}`, "D\u01B0", ds2);
+    }
+    case "so_sach": {
+      if (yc.muc === "roi_kho") return banRoiKho(a, moTa);
+      if (yc.muc === "phan_loai") {
+        const ds3 = [
+          ...a.chuaVaoSo.map((h) => ({ h, nhom: h.lap ? "L\u1EAFp t\u1EA1i c\xF4ng tr\xECnh" : "Ch\u1EDD v\u1EC1 kho" })),
+          ...a.roiKho.map((h) => ({ h, nhom: "\u0110\xE3 r\u1EDDi kho (\u01B0\u1EDBc)" }))
+        ];
+        return dung(
+          "Nh\u1EADp ch\u01B0a kh\u1EDBp \xB7 \u0111\xE3 ph\xE2n lo\u1EA1i",
+          [{ k: "nhom", nhan: "Nh\xF3m", kieu: "chu" }, CT, TEN, HEX, HM, { k: "ton", nhan: "T\u1ED3n", kieu: "ty" }, { k: "du", nhan: "D\u01B0", kieu: "ty" }],
+          ds3,
+          (x) => x.h.gt,
+          ({ h, nhom }) => ({ nhom, ct: h.ct, ten: gon(h.ten), hex: h.hex, hm: moTa(h.hex, null)?.hm ?? null, ton: lam(h.ton), du: lam(h.gt) })
+        );
+      }
+      if (yc.muc === "chua_ro") {
+        const pl = /* @__PURE__ */ new Map();
+        for (const h of [...a.chuaVaoSo, ...a.roiKho]) pl.set(h.ct ?? "", (pl.get(h.ct ?? "") ?? 0) + h.gt);
+        const ds3 = S.length >= 2 ? a.duGiua(S[0], S[S.length - 1]) : [];
+        const dong2 = new Map(ds3.map((e) => [e.ct, { ...e, pl: 0 }]));
+        for (const [ct, gt] of pl) {
+          const e = dong2.get(ct) ?? { ct, dau: 0, nhap: 0, xuat: 0, cuoi: 0, du: 0, pl: 0 };
+          e.pl = gt;
+          dong2.set(ct, e);
+        }
+        return dung(
+          "Nh\u1EADp ch\u01B0a kh\u1EDBp \xB7 ch\u01B0a r\xF5",
+          [...COT_MA("D\u01B0").slice(0, -1), { k: "du", nhan: "D\u01B0", kieu: "ty" }, { k: "pl", nhan: "\u0110\xE3 ph\xE2n lo\u1EA1i", kieu: "ty" }, { k: "chuaRo", nhan: "Ch\u01B0a r\xF5", kieu: "ty" }],
+          [...dong2.values()].filter((e) => Math.abs(e.du - e.pl) > 1e-9),
+          (e) => e.du - e.pl,
+          (e) => ({ ...dongMa(a, e), pl: lam(e.pl), chuaRo: lam(e.du - e.pl) })
+        );
+      }
+      const lap = yc.muc === "lap_ct";
+      const ds2 = a.chuaVaoSo.filter((h) => h.lap === lap);
+      return dung(
+        lap ? "L\u1EAFp t\u1EA1i c\xF4ng tr\xECnh" : "Ch\u1EDD v\u1EC1 kho",
+        [CT, TEN, HEX, HM, { k: "nhap", nhan: "Nh\u1EADp", kieu: "ty" }, { k: "sl", nhan: "SL nh\u1EADp", kieu: "so" }, { k: "ton", nhan: "T\u1ED3n", kieu: "ty" }, { k: "du", nhan: "D\u01B0", kieu: "ty" }, { k: "gc", nhan: "Ghi ch\xFA", kieu: "chu" }],
+        ds2,
+        (h) => h.gt,
+        (h) => ({ ct: h.ct, ten: gon(h.ten), hex: h.hex, hm: moTa(h.hex, null)?.hm ?? null, nhap: lam(h.nhap), sl: h.sl, ton: lam(h.ton), du: lam(h.gt), gc: h.gc })
+      );
+    }
+    case "da_nhap":
+    case "don_chua_nhap": {
+      const nguon = them.don ?? input2.psaNhom.map((p) => ({ hex: null, hm: null, ...p }));
+      const conLaiDon = yc.loai === "don_chua_nhap";
+      const ds2 = nguon.filter((p) => !laHuy(p.tn, p.ipo) && coDuAn.has(a.daOf(p.ct, p.ten)) && (!conLaiDon || laDonCon(p)));
+      const raDong = (p) => ({ ct: p.ct, ten: gon(p.ten), hex: p.hex, hm: p.hm, ipo: p.ipo, gtd: lam(p.gtd), nhapCap: lam(p.nhapCap), con: lam(p.con) });
+      return conLaiDon ? dung(`\u0110\u01A1n ch\u01B0a nh\u1EADp${tieuDeNhom}`, COT_DON, ds2.filter((p) => p.con), (p) => p.con, raDong) : dung(`\u0110\u01A1n \u0111\xE3 nh\u1EADp${tieuDeNhom}`, COT_DON, ds2, (p) => p.nhapCap, raDong, [{ nhan: "Gi\xE1 tr\u1ECB \u0111\u01A1n", gt: lam(tong(ds2, (p) => p.gtd)) }]);
+    }
+    default:
+      throw new LoiChiTiet("loai kh\xF4ng h\u1EE3p l\u1EC7");
+  }
+};
+var dongMa = (a, e) => ({
+  ct: e.ct || null,
+  ten: e.ct ? gon(a.tenMa(e.ct)) : "Kh\xF4ng g\xE1n \u0111\u01B0\u1EE3c m\xE3",
+  dau: lam(e.dau),
+  nhap: lam(e.nhap),
+  xuat: lam(e.xuat),
+  cuoi: lam(e.cuoi),
+  du: lam(e.du)
+});
+var banMa = (a, tieuDe, nhanDu, ds2) => dung(tieuDe, COT_MA(nhanDu), ds2.filter((e) => Math.abs(e.du) > 1e-9), (e) => e.du, (e) => dongMa(a, e));
+var banRoiKho = (a, moTa) => dung(
+  "\u0110\xE3 r\u1EDDi kho (\u01B0\u1EDBc)",
+  [CT, TEN, HEX, HM, { k: "sl", nhan: "SL t\u1ED3n", kieu: "so" }, { k: "giao", nhan: "SL giao ghi ch\xFA", kieu: "so" }, { k: "xuatSl", nhan: "SL xu\u1EA5t T\xCDNH", kieu: "so" }, { k: "ton", nhan: "T\u1ED3n", kieu: "ty" }, { k: "du", nhan: "\u0110\xE3 r\u1EDDi kho", kieu: "ty" }],
+  a.roiKho,
+  (h) => h.gt,
+  (h) => ({ ct: h.ct, ten: gon(h.ten), hex: h.hex, hm: moTa(h.hex, null)?.hm ?? null, sl: h.sl, giao: h.giao, xuatSl: h.xuatSl, ton: lam(h.ton), du: lam(h.gt) })
+);
+var banLo = (a, yc, lo, tonTai, moTa) => {
+  const vao = yc.loai === "vuot_moc" || yc.loai === "goi_vao";
+  const nhom = /* @__PURE__ */ new Map();
+  const dongLo = (d) => {
+    let m = nhom.get(d);
+    if (!m) {
+      m = /* @__PURE__ */ new Map();
+      for (const t of tonTai(d)) {
+        const k = `${t.sap}|${t.ct ?? ""}|${t.nk}`, c = m.get(k);
+        if (!c || t.v > c.v) m.set(k, t);
+      }
+      nhom.set(d, m);
+    }
+    return m;
+  };
+  const tieuDe = yc.loai === "vuot_moc" ? `V\u01B0\u1EE3t m\u1ED1c 6 th\xE1ng t\u1EA1i ${ngayNgan(yc.d)}` : yc.loai === "ra" ? `H\xE0ng c\u0169 ra t\u1EA1i ${ngayNgan(yc.d)}` : `${vao ? "H\xE0ng c\u0169 v\xE0o" : "H\xE0ng c\u0169 ra"} ${a.kq.goiCu.ngay} ng\xE0y${yc.ct ? ` \xB7 ${yc.ct}` : ""}${yc.conLai ? " \xB7 g\xF3i c\xF2n l\u1EA1i" : ""}`;
+  const cot = vao ? [...COT_LO, GT] : [...COT_LO, { k: "dau", nhan: "M\u1ED1c \u0111\u1EA7u", kieu: "ty" }, { k: "cuoi", nhan: "M\u1ED1c cu\u1ED1i", kieu: "ty" }, { k: "ra", nhan: "Ra", kieu: "ty" }];
+  return dung(tieuDe, cot, lo, (l) => l.gt, (l) => {
+    const t = dongLo(vao ? l.d : l.A).get(`${l.sap}|${l.ct}|${l.nk}`);
+    const hex3 = t?.hex ?? null;
+    const goc2 = { d: l.d, ct: l.ct, ten: gon(l.ten), hex: hex3, sap: l.sap, hm: moTa(hex3, l.sap)?.hm ?? null, nk: l.nk };
+    return vao ? { ...goc2, v: lam(l.gt) } : { ...goc2, dau: lam(l.dau), cuoi: lam(l.cuoi), ra: lam(l.gt) };
+  });
+};
+var banDuHex = (a, ct, tu, den, tonTai, them, moTa) => {
+  const m = /* @__PURE__ */ new Map();
+  const lay = (hex3, sap) => {
+    const k = hex3 ?? `sap:${sap}`;
+    let e = m.get(k);
+    if (!e) {
+      e = { hex: hex3, sap, dau: 0, nhap: 0, xuat: 0, cuoi: 0 };
+      m.set(k, e);
+    }
+    return e;
+  };
+  for (const t of tonTai(tu)) if ((t.ct ?? "") === ct) lay(t.hex, t.sap).dau += t.v;
+  for (const t of tonTai(den)) if ((t.ct ?? "") === ct) lay(t.hex, t.sap).cuoi += t.v;
+  const hop = (r) => r.ct === ct && r.d > tu && r.d <= den;
+  for (const r of them.nhap ?? a.nhap) if (hop(r)) lay(r.hex, null).nhap += r.tt;
+  for (const r of them.xuat ?? a.xuat) if (hop(r) && laXuatTinh(r)) lay(r.hex, null).xuat += r.tt;
+  const du = (e) => e.dau + e.nhap - e.cuoi - e.xuat;
+  return dung(
+    `Nh\u1EADp ch\u01B0a kh\u1EDBp \xB7 ${ct}`,
+    [HEX, SAP, HM, { k: "dau", nhan: "T\u1ED3n \u0111\u1EA7u", kieu: "ty" }, { k: "nhap", nhan: "Nh\u1EADp", kieu: "ty" }, { k: "xuat", nhan: "Xu\u1EA5t T\xCDNH", kieu: "ty" }, { k: "cuoi", nhan: "T\u1ED3n cu\u1ED1i", kieu: "ty" }, { k: "du", nhan: "D\u01B0", kieu: "ty" }],
+    [...m.values()].filter((e) => Math.abs(du(e)) > 1e-9),
+    du,
+    (e) => ({ hex: e.hex, sap: e.sap, hm: moTa(e.hex, e.sap)?.hm ?? null, dau: lam(e.dau), nhap: lam(e.nhap), xuat: lam(e.xuat), cuoi: lam(e.cuoi), du: lam(du(e)) })
+  );
+};
+
 // src/routes/stock.ts
 var stockDatesCache = /* @__PURE__ */ new Map();
 var stockQueryCache = createCache(40);
 var stockItemsCache = createCache(10);
 var STOCK_VERSION_KEYS = ["stock", "production"];
+var stockHealthVersionKeys = [...STOCK_VERSION_KEYS, "inventory", "export"];
+var stockHealthInputCache = createCache(3);
+var stockHealthMoTaCache = createCache(1);
+var stockHealthDetailCache = createCache(20);
 var parseStockFilters = (req) => ({
   // Mọi cách viết của công trình được chọn (xem server/projectAlias.ts)
   congTrinh: expandProjectNames(parseNameList(req.query.congTrinh)),
@@ -77822,178 +79264,89 @@ app.get("/api/stock/by-project", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-var TUOI_SQL = (a) => `(CASE WHEN ${a}.ngay_nhap_kho IS NULL THEN NULL ELSE ROUND((${a}.date_parsed - ${a}.ngay_nhap_kho) / 30.4) END)`;
-var PSA_DONG_BO = (a) => `(${a}.tinh_trang LIKE '01.1%' OR ${a}.tinh_trang LIKE '00.%')`;
-var PSA_HUY = (a) => `(${a}.tinh_trang = 'H\u1EE6Y' OR COALESCE(${a}.tam_ngung_huy_don_hang_tong, '') ILIKE 'H%Y')`;
-var NHOM_SQL = `CASE
-    WHEN p.hex IS NOT NULL AND ${PSA_HUY("p")} THEN 'huy'
-    WHEN UPPER(TRIM(s.tinh_trang_ke_hoach_giao_hang)) = '\u0110\xC3 XU\u1EA4T' THEN 'daXuat'
-    WHEN s.hex IS NULL OR p.hex IS NULL THEN 'khongPsa'
-    WHEN xc.xcuoi IS NULL OR xc.xcuoi < $1::date - 60 THEN 'khongXuat'
-    WHEN NOT ${PSA_DONG_BO("p")} THEN 'chuaDongBo'
-    WHEN xh.xcuoi IS NULL THEN 'chuaXuat'
-    ELSE 'motPhan' END`;
+var parseHealthFilters = (req) => ({ ...parseStockFilters(req), tinhTrang: [] });
+var healthCoLoc = (filters) => filters.congTrinh.length > 0 || hasProductionFilter(filters);
+var thamSoHealth = (date5, filters, cuoiThang) => ({
+  date: date5,
+  cuoiThang,
+  giaTriTon: numericColQualified("ton_kho", "s", "gia_tri"),
+  tienNhap: numericColQualified("nhap_kho", "n", "thanh_tien_nhap_kho"),
+  soLuongXuat: numericColQualified("xuat_kho", "x", "so_luong_xuat_kho"),
+  phamViTon: (ps) => stockScopeConds(filters, ps, "s"),
+  phamViPsa: healthCoLoc(filters) ? (ps) => productionConds(filters, ps) : null
+});
+var docLaiKhiDutKetNoi = async (doc) => {
+  try {
+    return await doc();
+  } catch (e) {
+    if (!/idle-in-transaction|Connection terminated|conn crashed/i.test(String(e?.message))) throw e;
+    return doc();
+  }
+};
+var docDauVaoHealth = (date5, filters) => cachedByVersions(stockHealthInputCache, `${date5}|${JSON.stringify(filters)}`, stockHealthVersionKeys, () => docLaiKhiDutKetNoi(async () => {
+  const chot = sqlNgayChot(date5);
+  const ngayChot = (await timedQuery(chot.sql, chot.params)).rows.map((r) => String(r.d));
+  const c = sqlTonKhoV5(thamSoHealth(date5, filters, chonCuoiThang(ngayChot)));
+  const [ton, tonMoc, psa, luong] = await Promise.all([
+    timedQuery(c.ton.sql, c.ton.params),
+    timedQuery(c.tonMoc.sql, c.tonMoc.params, { workMemMb: 32 }),
+    timedQuery(c.psa.sql, c.psa.params, { workMemMb: 32 }),
+    timedQuery(c.luong.sql, c.luong.params, { workMemMb: 32 })
+  ]);
+  return ghepDauVaoV5(date5, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows });
+}), workshopGroupsVersion());
 app.get("/api/stock/health", async (req, res) => {
   try {
     const { date: date5 } = req.query;
-    if (!date5 || !/^\d{4}-\d{2}-\d{2}$/.test(date5) || !parseSafeDate(date5)) return res.status(400).json({ error: "Invalid date" });
-    const filters = parseStockFilters(req);
-    const payload = await cachedByVersions(stockQueryCache, `health2|${date5}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
-      const n = (x) => Number(x) || 0;
-      const v = numericColQualified("ton_kho", "s", "gia_tri");
-      const params = [date5];
-      const scope = stockScopeConds(filters, params, "s");
-      const w = ["s.date_parsed = $1", ...scope].join(" AND ");
-      const snapSql = `WITH s AS MATERIALIZED (SELECT s.*, ${v} AS v, ${TUOI_SQL("s")} AS tuoi, s.hex::bigint AS h FROM ton_kho s WHERE ${w}),
-        p AS MATERIALIZED (SELECT DISTINCT ON (hex) hex, tinh_trang, tam_ngung_huy_don_hang_tong, khach_hang, khu_vuc_du_an
-          FROM production_status_app WHERE hex IN (SELECT h FROM s WHERE h IS NOT NULL) ORDER BY hex, updated_at DESC NULLS LAST, id DESC),
-        xc AS MATERIALIZED (SELECT ma_cong_trinh, MAX(date_parsed) AS xcuoi FROM xuat_kho
-          WHERE ma_cong_trinh IN (SELECT ma_cong_trinh FROM s) AND date_parsed <= $1::date GROUP BY 1),
-        xh AS MATERIALIZED (SELECT hex::bigint AS hex, MAX(date_parsed) AS xcuoi FROM xuat_kho
-          WHERE hex::bigint IN (SELECT h FROM s WHERE h IS NOT NULL) AND date_parsed <= $1::date GROUP BY 1),
-        j AS MATERIALIZED (SELECT s.*, p.hex AS phex, p.tinh_trang AS ptt, p.khu_vuc_du_an AS kv, xc.xcuoi AS ct_xcuoi,
-            CASE WHEN p.hex IS NULL THEN 'kpsa' WHEN p.khach_hang ILIKE '%SUN%' THEN 'sun' ELSE 'khac' END AS kh,
-            CASE WHEN p.hex IS NOT NULL AND NOT ${PSA_HUY("p")} AND NOT ${PSA_DONG_BO("p")} THEN 1 ELSE 0 END AS chua_db,
-            ${NHOM_SQL} AS nhom
-          FROM s LEFT JOIN p ON p.hex = s.h LEFT JOIN xc ON xc.ma_cong_trinh = s.ma_cong_trinh LEFT JOIN xh ON xh.hex = s.h)`;
-      const [snap, chuoiR] = await Promise.all([
-        timedQuery(`${snapSql}
-          SELECT (SELECT json_build_object('v', COALESCE(SUM(v),0), 'ma', COUNT(DISTINCT ma_id_sap) FILTER (WHERE v > 0),
-                    'ct', COUNT(DISTINCT ${normNameSql("ten_cong_trinh")}), 'tren6', COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0),
-                    'chuaDongBo', COALESCE(SUM(v) FILTER (WHERE chua_db = 1),0)) FROM j) AS tong,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT nhom AS k, SUM(v) AS v, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6,
-                COUNT(DISTINCT ma_id_sap) FILTER (WHERE v > 0) AS ma FROM j GROUP BY 1) x) AS nhom,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT CASE WHEN tuoi IS NULL THEN NULL WHEN tuoi > 24 THEN 25 WHEN tuoi > 18 THEN 19
-                WHEN tuoi > 12 THEN 13 ELSE GREATEST(tuoi, 0) END AS b, kh, SUM(v) AS v FROM j GROUP BY 1, 2) x) AS hist,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT kh AS k, SUM(v) AS v, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6,
-                COALESCE(SUM(v) FILTER (WHERE tuoi BETWEEN 4 AND 6),0) AS t46 FROM j GROUP BY 1) x) AS khach,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT COALESCE(NULLIF(UPPER(TRIM(kv)),''), CASE WHEN h IS NULL THEN '(L\u1EBA)' ELSE '(TR\u1ED0NG)' END) AS k,
-                SUM(v) AS v, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6, COALESCE(SUM(v) FILTER (WHERE kh = 'sun'),0) AS sun FROM j GROUP BY 1) x) AS kv,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT MIN(TRIM(REGEXP_REPLACE(ten_cong_trinh, '\\s+', ' ', 'g'))) AS name,
-                array_agg(DISTINCT NULLIF(TRIM(ma_cong_trinh), '')) FILTER (WHERE NULLIF(TRIM(ma_cong_trinh), '') IS NOT NULL) AS mct,
-                SUM(v) AS v, COUNT(DISTINCT ma_id_sap) FILTER (WHERE v > 0) AS ma, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6,
-                MAX(ct_xcuoi)::text AS xcuoi FROM j GROUP BY ${normNameSql("ten_cong_trinh")}) x) AS ct`, params, { workMemMb: 32 }),
-        // Mọi lần chốt từ cuối năm trước tới ngày xem: tổng, hàng cũ, tuổi bình quân theo giá trị
-        (() => {
-          const p2 = [date5];
-          const sc = stockScopeConds(filters, p2, "s");
-          return timedQuery(`SELECT s.date_parsed::text AS d, COALESCE(SUM(${v}),0) AS v,
-              COALESCE(SUM(${v}) FILTER (WHERE ${TUOI_SQL("s")} > 6),0) AS tren6,
-              SUM(${v} * ${TUOI_SQL("s")}) / NULLIF(SUM(${v}) FILTER (WHERE s.ngay_nhap_kho IS NOT NULL), 0) AS tuoi_bq
-            FROM ton_kho s WHERE s.date_parsed <= $1 AND s.date_parsed >= (date_trunc('year', $1::date) - INTERVAL '1 day')
-              ${sc.length ? "AND " + sc.join(" AND ") : ""}
-            GROUP BY 1 ORDER BY 1`, p2);
-        })()
-      ]);
-      const r0 = snap.rows[0] ?? {};
-      const chuoi = chuoiR.rows.map((r) => ({ d: String(r.d), v: n(r.v), tren6: n(r.tren6), tuoiBq: r.tuoi_bq === null ? null : n(r.tuoi_bq) }));
-      const cuoiThang = [];
-      for (const c of chuoi) {
-        if (cuoiThang.length && cuoiThang[cuoiThang.length - 1].slice(0, 7) === c.d.slice(0, 7)) cuoiThang[cuoiThang.length - 1] = c.d;
-        else cuoiThang.push(c.d);
-      }
-      const thangXem = date5.slice(0, 7);
-      const mocTruoc = cuoiThang.filter((d) => d.slice(0, 7) < thangXem).slice(-2)[0] ?? null;
-      const ctMap = /* @__PURE__ */ new Map();
-      for (const r of r0.ct ?? []) {
-        const name = r.name ? canonicalProjectName(String(r.name)) : "Ch\u01B0a x\xE1c \u0111\u1ECBnh";
-        const e = ctMap.get(name) ?? { name, mct: /* @__PURE__ */ new Set(), v: 0, ma: 0, tren6: 0, xuatCuoi: null };
-        for (const m of r.mct ?? []) e.mct.add(m);
-        e.v += n(r.v);
-        e.ma += n(r.ma);
-        e.tren6 += n(r.tren6);
-        if (r.xcuoi && (!e.xuatCuoi || r.xcuoi > e.xuatCuoi)) e.xuatCuoi = String(r.xcuoi);
-        ctMap.set(name, e);
-      }
-      const ctList = [...ctMap.values()].sort((a, b) => b.v - a.v);
-      const top = ctList.slice(0, 15);
-      const topMct = [...new Set(top.flatMap((c) => [...c.mct]))];
-      const ngayNhiet = [.../* @__PURE__ */ new Set([...cuoiThang.slice(-6), ...mocTruoc ? [mocTruoc] : []])];
-      const theoPhamVi = (own2) => {
-        const ps = [...own2];
-        const sc = stockScopeConds(filters, ps, "s");
-        return { ps, and: sc.length ? "AND " + sc.join(" AND ") : "" };
-      };
-      const qDong = theoPhamVi([cuoiThang]);
-      const qNhiet = theoPhamVi([ngayNhiet, topMct]);
-      const congTrinhLoc = filters.congTrinh.length > 0 || hasProductionFilter(filters);
-      const [dong2, heat, xuat, conSx, sunDon] = await Promise.all([
-        cuoiThang.length >= 2 ? timedQuery(`WITH k AS (SELECT s.date_parsed AS d, s.ma_id_sap, COALESCE(s.ma_cong_trinh, '') AS mct, SUM(${v}) AS v,
-              COALESCE(SUM(${v}) FILTER (WHERE ${TUOI_SQL("s")} > 6), 0) AS o
-            FROM ton_kho s WHERE s.date_parsed = ANY($1::date[]) ${qDong.and} GROUP BY 1, 2, 3),
-          d AS (SELECT d0, LEAD(d0) OVER (ORDER BY d0) AS d1 FROM unnest($1::date[]) AS d0)
-          SELECT d.d0::text AS d0, d.d1::text AS d1, SUM(a.o) AS o0, SUM(GREATEST(a.o - COALESCE(b.v, 0), 0)) AS ra
-          FROM d JOIN k a ON a.d = d.d0 LEFT JOIN k b ON b.d = d.d1 AND b.ma_id_sap = a.ma_id_sap AND b.mct = a.mct
-          WHERE d.d1 IS NOT NULL GROUP BY 1, 2 ORDER BY 1`, qDong.ps, { workMemMb: 32 }) : Promise.resolve({ rows: [] }),
-        timedQuery(`SELECT s.ma_cong_trinh AS mct, s.date_parsed::text AS d, SUM(${v}) AS v, COALESCE(SUM(${v}) FILTER (WHERE ${TUOI_SQL("s")} > 6), 0) AS tren6
-          FROM ton_kho s WHERE s.date_parsed = ANY($1::date[]) AND s.ma_cong_trinh = ANY($2::text[]) ${qNhiet.and} GROUP BY 1, 2`, qNhiet.ps),
-        timedQuery(`SELECT ma_cong_trinh AS mct, SUM(COALESCE(thanh_tien_xuat_kho, 0)) FILTER (WHERE date_parsed > $2::date - 60) AS x60
-          FROM xuat_kho WHERE ma_cong_trinh = ANY($1::text[]) AND date_parsed <= $2::date GROUP BY 1`, [topMct, date5]),
-        timedQuery(`SELECT ma_cong_trinh AS mct, SUM(gia_tri_con_lai) AS v FROM production_status_app p
-          WHERE ma_cong_trinh = ANY($1::text[]) AND gia_tri_con_lai > 0 AND NOT ${PSA_HUY("p")} AND NOT ${PSA_DONG_BO("p")} GROUP BY 1`, [topMct]),
-        timedQuery(`SELECT SUM(gia_tri_con_lai) FILTER (WHERE khach_hang ILIKE '%SUN%') AS sun, SUM(gia_tri_con_lai) AS tong
-          FROM production_status_app p WHERE gia_tri_con_lai > 0 AND NOT ${PSA_HUY("p")} AND NOT ${PSA_DONG_BO("p")}
-            ${congTrinhLoc ? `AND ma_cong_trinh IN (SELECT DISTINCT s.ma_cong_trinh FROM ton_kho s WHERE ${w})` : ""}`, congTrinhLoc ? params : [])
-      ]);
-      const tren6Ngay = new Map(chuoi.map((c) => [c.d, c.tren6]));
-      const theoMct = (rows, f) => new Map(rows.map((r) => [String(r.mct), f(r)]));
-      const x60 = theoMct(xuat.rows, (r) => n(r.x60));
-      const csx = theoMct(conSx.rows, (r) => n(r.v));
-      const heatMap = /* @__PURE__ */ new Map();
-      for (const r of heat.rows) {
-        const m = heatMap.get(r.mct) ?? /* @__PURE__ */ new Map();
-        m.set(String(r.d), { v: n(r.v), tren6: n(r.tren6) });
-        heatMap.set(r.mct, m);
-      }
-      const cong2 = (c, d) => {
-        let vv = 0, t6 = 0, co = false;
-        for (const m of c.mct) {
-          const x = heatMap.get(m)?.get(d);
-          if (x) {
-            vv += x.v;
-            t6 += x.tren6;
-            co = true;
-          }
-        }
-        return co ? { v: vv, tren6: t6 } : null;
-      };
-      const tong = r0.tong ?? {};
-      return {
-        date: date5,
-        tong: { v: n(tong.v), ma: n(tong.ma), congTrinh: n(tong.ct), tren6: n(tong.tren6), chuaDongBo: n(tong.chuaDongBo) },
-        chuoi,
-        cuoiThang,
-        mocTruoc,
-        dongCu: dong2.rows.map((r) => {
-          const o1 = tren6Ngay.get(String(r.d1)) ?? 0, o0 = n(r.o0), ra = n(r.ra);
-          return { d0: String(r.d0), d1: String(r.d1), o0, o1, ra, vao: o1 - (o0 - ra) };
-        }),
-        nhom: (r0.nhom ?? []).map((r) => ({ k: String(r.k), v: n(r.v), tren6: n(r.tren6), ma: n(r.ma) })),
-        hist: (r0.hist ?? []).map((r) => ({ b: r.b === null ? null : n(r.b), kh: String(r.kh), v: n(r.v) })),
-        khach: (r0.khach ?? []).map((r) => ({ k: String(r.k), v: n(r.v), tren6: n(r.tren6), t46: n(r.t46) })),
-        sunDon: n(sunDon.rows[0]?.tong) > 0 ? n(sunDon.rows[0].sun) / n(sunDon.rows[0].tong) : null,
-        khuVuc: (r0.kv ?? []).map((r) => ({ k: String(r.k), v: n(r.v), tren6: n(r.tren6), sun: n(r.sun) })).sort((a, b) => b.v - a.v),
-        congTrinh: ctList.map((c, i) => {
-          const them = i < top.length;
-          const sum = (m) => [...c.mct].reduce((s, k) => s + (m.get(k) ?? 0), 0);
-          return {
-            name: c.name,
-            mct: [...c.mct],
-            v: c.v,
-            ma: c.ma,
-            tren6: c.tren6,
-            xuatCuoi: c.xuatCuoi,
-            vTruoc: them && mocTruoc ? cong2(c, mocTruoc)?.v ?? 0 : null,
-            xuat60: them ? sum(x60) : null,
-            conSx: them ? sum(csx) : null,
-            thang: them && i < 10 ? cuoiThang.slice(-6).map((d) => ({ d, ...cong2(c, d) ?? { v: 0, tren6: 0 }, co: !!cong2(c, d) })) : null
-          };
-        })
-      };
-    }, workshopGroupsVersion());
+    if (!laNgay(date5)) return res.status(400).json({ error: "Invalid date" });
+    const filters = parseHealthFilters(req);
+    const payload = await cachedByVersions(
+      stockQueryCache,
+      `health5|${date5}|${JSON.stringify(filters)}`,
+      stockHealthVersionKeys,
+      async () => tinhTonKhoV5(await docDauVaoHealth(date5, filters)),
+      workshopGroupsVersion()
+    );
     res.json(payload);
   } catch (error61) {
     console.error("L\u1ED7i stock/health:", error61);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+var docMoTaHealth = () => cachedByVersions(stockHealthMoTaCache, "mo-ta", ["production"], async () => {
+  const c = sqlMoTaPsa(PSA_SAP_KEY, workshopGroupSql);
+  const bang = { hex: /* @__PURE__ */ new Map(), sap: /* @__PURE__ */ new Map() };
+  for (const r of (await timedQuery(c.sql, c.params, { workMemMb: 32 })).rows) {
+    const m = { hm: r.hm ?? null, xg: r.xg || null, nsp: r.nsp ?? null };
+    if (r.hex && !bang.hex.has(r.hex)) bang.hex.set(r.hex, m);
+    if (r.sap && !bang.sap.has(r.sap)) bang.sap.set(r.sap, m);
+  }
+  return bang;
+}, workshopGroupsVersion());
+app.get("/api/stock/health/chi-tiet", async (req, res) => {
+  try {
+    const { date: date5 } = req.query;
+    if (!laNgay(date5)) return res.status(400).json({ error: "Invalid date" });
+    const filters = parseHealthFilters(req);
+    const yc = docYeuCauChiTiet(req.query);
+    if (healthCoLoc(filters) && (yc.loai === "du" || yc.loai === "so_sach")) return res.status(400).json({ error: "Ch\u1EC9 t\xEDnh khi xem to\xE0n kho" });
+    const payload = await cachedByVersions(stockHealthDetailCache, `${date5}|${JSON.stringify(filters)}|${JSON.stringify(yc)}`, stockHealthVersionKeys, async () => {
+      const [input2, moTa] = await Promise.all([docDauVaoHealth(date5, filters), docMoTaHealth()]);
+      const can = canDocChiTiet(input2, yc);
+      const t = thamSoHealth(date5, filters, []);
+      const doc = (c) => docLaiKhiDutKetNoi(async () => (await timedQuery(c.sql, c.params)).rows);
+      const [tonNgay, nhap, xuat, don] = await Promise.all([
+        can.tonNgay.length ? doc(sqlTonNgay(t, can.tonNgay)) : null,
+        can.nhap ? doc(sqlDongLuong(t, { loai: "n", ...can.nhap })) : null,
+        can.xuat ? doc(sqlDongLuong(t, { loai: "x", ...can.xuat })) : null,
+        can.don ? doc(sqlDonPsa(t, can.don)) : null
+      ]);
+      return chiTietTonKhoV5(input2, yc, { moTa, ...ghepDocThem(can.tonNgay, tonNgay, nhap, xuat, don) });
+    }, workshopGroupsVersion());
+    res.json(payload);
+  } catch (error61) {
+    if (error61 instanceof LoiChiTiet) return res.status(400).json({ error: error61.message });
+    console.error("L\u1ED7i stock/health/chi-tiet:", error61);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -78206,15 +79559,15 @@ var docNhom = (v) => {
 };
 var laNgayHopLe = (s) => {
   if (typeof s !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const [nam, thang2, ngay2] = s.split("-").map(Number);
-  if (nam < 1 || thang2 < 1 || thang2 > 12 || ngay2 < 1) return false;
+  const [nam, thang2, ngay3] = s.split("-").map(Number);
+  if (nam < 1 || thang2 < 1 || thang2 > 12 || ngay3 < 1) return false;
   const nhuan = nam % 4 === 0 && nam % 100 !== 0 || nam % 400 === 0;
-  const soNgay = [31, nhuan ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][thang2 - 1];
-  return ngay2 <= soNgay;
+  const soNgay2 = [31, nhuan ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][thang2 - 1];
+  return ngay3 <= soNgay2;
 };
-var docNgayTruoc = (v, ngay2) => {
+var docNgayTruoc = (v, ngay3) => {
   if (v === void 0 || v === "") return { hopLe: true, truoc: null };
-  if (!laNgayHopLe(v) || v >= ngay2) return { hopLe: false };
+  if (!laNgayHopLe(v) || v >= ngay3) return { hopLe: false };
   return { hopLe: true, truoc: v };
 };
 var xepNhom = (diem) => {
@@ -78276,10 +79629,10 @@ var cacheTongHop = createCache(2);
 var cacheTongHopLoc = createCache(24);
 var cacheTenVatTu = createCache(12);
 var cacheChiTiet = createCache(16);
-var NHOM_SQL2 = sqlNhom("t.nhom_vat_tu");
+var NHOM_SQL = sqlNhom("t.nhom_vat_tu");
 var CHAM_SQL = `UPPER(TRIM(t.cham_luan_chuyen_tren_3_thang)) = 'X'`;
 var TEN_SQL = sqlTen("t.ten_vat_tu");
-var so = (v) => {
+var so2 = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
@@ -78291,10 +79644,10 @@ var soHoacNull = (v) => {
 var tinhTongHop = async (capNhat, loc) => {
   let rows;
   try {
-    const dieuKienLoc2 = loc ? `AND ${NHOM_SQL2} = ${sqlNhom("$1::text")} AND ${TEN_SQL} = ANY($2::text[])` : "";
+    const dieuKienLoc2 = loc ? `AND ${NHOM_SQL} = ${sqlNhom("$1::text")} AND ${TEN_SQL} = ANY($2::text[])` : "";
     const r = await timedQuery(
       `SELECT to_char(t."date", 'YYYY-MM-DD') AS ngay,
-              ${NHOM_SQL2} AS nhom,
+              ${NHOM_SQL} AS nhom,
               COALESCE(SUM(t.gia_tri), 0) AS gia_tri,
               COALESCE(SUM(t.gia_tri) FILTER (WHERE ${CHAM_SQL}), 0) AS gia_tri_cham,
               COUNT(DISTINCT t.ma_vat_tu) AS so_ma,
@@ -78314,13 +79667,13 @@ var tinhTongHop = async (capNhat, loc) => {
   const diem = rows.map((row) => ({
     ngay: String(row.ngay),
     nhom: String(row.nhom),
-    giaTri: so(row.gia_tri),
-    giaTriCham: so(row.gia_tri_cham),
-    soMa: so(row.so_ma),
-    soMaCham: so(row.so_ma_cham)
+    giaTri: so2(row.gia_tri),
+    giaTriCham: so2(row.gia_tri_cham),
+    soMa: so2(row.so_ma),
+    soMaCham: so2(row.so_ma_cham)
   }));
-  const ngay2 = [...new Set(diem.map((d) => d.ngay))].sort();
-  return { capNhat, ngay: ngay2, nhom: xepNhom(diem), diem };
+  const ngay3 = [...new Set(diem.map((d) => d.ngay))].sort();
+  return { capNhat, ngay: ngay3, nhom: xepNhom(diem), diem };
 };
 app.get("/api/ton-kho-vt/tong-hop", async (req, res) => {
   try {
@@ -78339,13 +79692,13 @@ app.post("/api/ton-kho-vt/tong-hop", async (req, res) => {
     const body = req.body ?? {};
     const nhom = docNhom(body.nhom);
     if (!nhom) return res.status(400).json({ error: "Thi\u1EBFu ho\u1EB7c sai t\xEAn nh\xF3m v\u1EADt t\u01B0" });
-    const ds = docDanhSachTen(body.ten);
-    if (!ds.hopLe || ds.ten.length === 0) return res.status(400).json({ error: "Danh s\xE1ch t\xEAn v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const ds2 = docDanhSachTen(body.ten);
+    if (!ds2.hopLe || ds2.ten.length === 0) return res.status(400).json({ error: "Danh s\xE1ch t\xEAn v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
     const pb = await docPhienBan();
-    const loc = { nhom, ten: ds.ten };
+    const loc = { nhom, ten: ds2.ten };
     const payload = await cachedByVersions(
       cacheTongHopLoc,
-      `tong-hop-loc|${nhom}|${hashKey(ds.ten)}`,
+      `tong-hop-loc|${nhom}|${hashKey(ds2.ten)}`,
       [],
       () => tinhTongHop(pb.capNhat, loc),
       pb.khoa
@@ -78364,7 +79717,7 @@ var tinhTenVatTu = async (nhom) => {
               COUNT(DISTINCT t.ma_vat_tu) AS so_ma,
               BOOL_OR(t."date" = (SELECT MAX(x."date") FROM ton_kho_vt x)) AS con_ton
        FROM ton_kho_vt t
-       WHERE ${NHOM_SQL2} = ${sqlNhom("$1::text")}
+       WHERE ${NHOM_SQL} = ${sqlNhom("$1::text")}
        GROUP BY 1`,
       [nhom],
       { timeoutMs: TIMEOUT_MS, workMemMb: 16 }
@@ -78374,7 +79727,7 @@ var tinhTenVatTu = async (nhom) => {
     if (!laThieuBang(e)) throw e;
     rows = [];
   }
-  const ten = rows.map((row) => ({ ten: String(row.ten), soMa: so(row.so_ma), conTon: row.con_ton === true })).sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
+  const ten = rows.map((row) => ({ ten: String(row.ten), soMa: so2(row.so_ma), conTon: row.con_ton === true })).sort((a, b) => a.ten.localeCompare(b.ten, "vi"));
   return { nhom, ten };
 };
 app.get("/api/ton-kho-vt/ten-vat-tu", async (req, res) => {
@@ -78393,7 +79746,7 @@ app.get("/api/ton-kho-vt/ten-vat-tu", async (req, res) => {
 var gopTheoMa = (dieuKienNgay) => `
   SELECT COALESCE(t.ma_vat_tu, '') AS ma,
          MAX(t.ten_vat_tu) AS ten,
-         MAX(${NHOM_SQL2}) AS nhom,
+         MAX(${NHOM_SQL}) AS nhom,
          MAX(t.dvt) AS dvt,
          COALESCE(SUM(t.so_luong), 0) AS so_luong,
          COALESCE(SUM(t.gia_tri), 0) AS gia_tri,
@@ -78403,7 +79756,7 @@ var gopTheoMa = (dieuKienNgay) => `
          MAX(t.ghi_chu) AS ghi_chu
   FROM ton_kho_vt t
   WHERE ${dieuKienNgay}
-    AND ($2::text = '' OR ${NHOM_SQL2} = ${sqlNhom("$2::text")})
+    AND ($2::text = '' OR ${NHOM_SQL} = ${sqlNhom("$2::text")})
     AND (cardinality($4::text[]) = 0 OR ${TEN_SQL} = ANY($4::text[]))
   GROUP BY COALESCE(t.ma_vat_tu, '')`;
 var SQL_CHI_TIET = `
@@ -78433,10 +79786,10 @@ var SQL_CHI_TIET = `
   SELECT to_char(m.d_truoc, 'YYYY-MM-DD') AS ngay_truoc, x.*
   FROM moc m
   LEFT JOIN dong x ON TRUE`;
-var tinhChiTiet = async (ngay2, nhom, coGia, truoc = null, ten = []) => {
+var tinhChiTiet = async (ngay3, nhom, coGia, truoc = null, ten = []) => {
   let rows;
   try {
-    const r = await timedQuery(SQL_CHI_TIET, [ngay2, nhom, truoc, ten], { timeoutMs: TIMEOUT_MS, workMemMb: 16 });
+    const r = await timedQuery(SQL_CHI_TIET, [ngay3, nhom, truoc, ten], { timeoutMs: TIMEOUT_MS, workMemMb: 16 });
     rows = r.rows;
   } catch (e) {
     if (!laThieuBang(e)) throw e;
@@ -78463,27 +79816,27 @@ var tinhChiTiet = async (ngay2, nhom, coGia, truoc = null, ten = []) => {
     });
   }
   dong2.sort(coGia ? (a, b) => (b.giaTri ?? 0) - (a.giaTri ?? 0) || (b.giaTriTruoc ?? 0) - (a.giaTriTruoc ?? 0) || (a.ma < b.ma ? -1 : a.ma > b.ma ? 1 : 0) : (a, b) => a.ma < b.ma ? -1 : a.ma > b.ma ? 1 : 0);
-  return { ngay: ngay2, ngayTruoc, coGia, dong: dong2 };
+  return { ngay: ngay3, ngayTruoc, coGia, dong: dong2 };
 };
 var xuLyChiTiet = async (req, res, src) => {
   try {
     if (!await userHasPermission(req, QUYEN_XEM)) return res.status(403).json(LOI_QUYEN);
-    const ngay2 = src.ngay;
-    if (!laNgayHopLe(ngay2)) return res.status(400).json({ error: "Ng\xE0y kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n d\u1EA1ng YYYY-MM-DD)" });
+    const ngay3 = src.ngay;
+    if (!laNgayHopLe(ngay3)) return res.status(400).json({ error: "Ng\xE0y kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n d\u1EA1ng YYYY-MM-DD)" });
     const nhom = docNhom(src.nhom);
     if (nhom === null) return res.status(400).json({ error: "Nh\xF3m v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const thamSoTruoc = docNgayTruoc(src.truoc ?? void 0, ngay2);
+    const thamSoTruoc = docNgayTruoc(src.truoc ?? void 0, ngay3);
     if (!thamSoTruoc.hopLe) return res.status(400).json({ error: "Ng\xE0y so s\xE1nh kh\xF4ng h\u1EE3p l\u1EC7 (c\u1EA7n d\u1EA1ng YYYY-MM-DD, tr\u01B0\u1EDBc ng\xE0y ch\u1ED1t)" });
     const { truoc } = thamSoTruoc;
-    const ds = docDanhSachTen(src.ten);
-    if (!ds.hopLe) return res.status(400).json({ error: "Danh s\xE1ch t\xEAn v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
+    const ds2 = docDanhSachTen(src.ten);
+    if (!ds2.hopLe) return res.status(400).json({ error: "Danh s\xE1ch t\xEAn v\u1EADt t\u01B0 kh\xF4ng h\u1EE3p l\u1EC7" });
     const coGia = await userHasPermission(req, MATERIAL_PRICE_PERMISSION);
     const pb = await docPhienBan();
     const payload = await cachedByVersions(
       cacheChiTiet,
-      `chi-tiet|${ngay2}|${truoc ?? ""}|${nhom}|${coGia ? 1 : 0}|${ds.ten.length ? hashKey(ds.ten) : ""}`,
+      `chi-tiet|${ngay3}|${truoc ?? ""}|${nhom}|${coGia ? 1 : 0}|${ds2.ten.length ? hashKey(ds2.ten) : ""}`,
       [],
-      () => tinhChiTiet(ngay2, nhom, coGia, truoc, ds.ten),
+      () => tinhChiTiet(ngay3, nhom, coGia, truoc, ds2.ten),
       pb.khoa
     );
     res.json(payload);
@@ -78493,8 +79846,8 @@ var xuLyChiTiet = async (req, res, src) => {
   }
 };
 app.get("/api/ton-kho-vt/chi-tiet", (req, res) => {
-  const { ngay: ngay2, nhom, truoc } = req.query;
-  return xuLyChiTiet(req, res, { ngay: ngay2, nhom, truoc });
+  const { ngay: ngay3, nhom, truoc } = req.query;
+  return xuLyChiTiet(req, res, { ngay: ngay3, nhom, truoc });
 });
 app.post("/api/ton-kho-vt/chi-tiet", (req, res) => xuLyChiTiet(req, res, req.body ?? {}));
 
@@ -79325,15 +80678,15 @@ var khsxNhapKhoCache = createCache(50);
 var KHSX_NHAPKHO_VERSION_KEYS = ["khsx", "inventory", "production"];
 app.get("/api/khsx-nhapkho/summary", async (req, res) => {
   try {
-    const { nam, thang: thang2, mode = "month", tuan, ngay: ngay2, congTrinh, xuong } = req.query;
+    const { nam, thang: thang2, mode = "month", tuan, ngay: ngay3, congTrinh, xuong } = req.query;
     if (!nam) return res.status(400).json({ error: "Missing nam" });
-    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay: ngay2, congTrinh, xuong });
+    const khsxCacheKey = JSON.stringify({ nam, thang: thang2, mode, tuan, ngay: ngay3, congTrinh, xuong });
     const khsxPayload = await cachedByVersions(khsxNhapKhoCache, khsxCacheKey, KHSX_NHAPKHO_VERSION_KEYS, async () => {
       const isWeek = mode === "week";
       const phanLoaiPattern = isWeek ? "%TU\u1EA6N%" : "%TH\xC1NG%";
       const normalize = (s) => s.trim().toUpperCase();
       const numList = (v) => String(v ?? "").split(",").map((x) => Number(x.trim())).filter((x) => Number.isFinite(x) && x > 0);
-      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay2);
+      const thangList = numList(thang2), tuanList = numList(tuan), ngayList = numList(ngay3);
       const useThang = thangList.length > 0 && !(isWeek && tuanList.length > 0);
       const congTrinhList = expandProjectNames(parseNameList(congTrinh));
       const xuongList = xuong ? xuong.split(",").map(normalize).filter(Boolean) : [];
@@ -82022,14 +83375,14 @@ import { createHash as createHash4 } from "node:crypto";
 var NGUONG_LECH_MS = 5 * 6e4;
 var DUNG_SAI_TUONG_LAI_MS = 2 * 6e4;
 function hieuChinhGio(deviceTs, lechMs, sauDoiGio, serverNow) {
-  const co = [];
+  const co2 = [];
   const lech = typeof lechMs === "number" && Number.isFinite(lechMs) ? Math.round(lechMs) : null;
-  if (lech === null) co.push("chua_do_lech");
-  else if (Math.abs(lech) > NGUONG_LECH_MS) co.push("lech_dong_ho_lon");
-  if (sauDoiGio) co.push("doi_gio_may");
+  if (lech === null) co2.push("chua_do_lech");
+  else if (Math.abs(lech) > NGUONG_LECH_MS) co2.push("lech_dong_ho_lon");
+  if (sauDoiGio) co2.push("doi_gio_may");
   const ts = deviceTs + (lech ?? 0);
-  if (ts > serverNow + DUNG_SAI_TUONG_LAI_MS) co.push("gio_tuong_lai");
-  return { ts, co };
+  if (ts > serverNow + DUNG_SAI_TUONG_LAI_MS) co2.push("gio_tuong_lai");
+  return { ts, co: co2 };
 }
 
 // src/server/xuong/state.ts
@@ -82050,7 +83403,7 @@ function suKienConHieuLuc(events) {
   }
   return events.filter((e) => e.loai !== "huy" && !biHuy.has(e.id)).sort(soSanhSuKien);
 }
-var so2 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var so3 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
 var THANH_PHAN = ["G\u1ED6", "SOFA", "KIM LO\u1EA0I", "K\xCDNH", "\u0110\xC1"];
 var dsChuoi = (v) => Array.isArray(v) ? v.map(String).filter(Boolean) : [];
 function tuyenTheoThanhPhan(evts) {
@@ -82074,10 +83427,10 @@ function tuyenTheoThanhPhan(evts) {
   return [...m.entries()].map(([thanhPhan, tuyen]) => ({ thanhPhan, tuyen }));
 }
 function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
-  const tong = incoming.reduce((a, e) => a + so2(e.soLuong), 0);
-  if (!congDoanId) return tong;
+  const tong2 = incoming.reduce((a, e) => a + so3(e.soLuong), 0);
+  if (!congDoanId) return tong2;
   const qua = tuyen.filter((t) => t.tuyen.includes(congDoanId));
-  if (qua.length < 2) return tong;
+  if (qua.length < 2) return tong2;
   const theoTp = new Map(qua.map((t) => [t.thanhPhan, 0]));
   let chung = 0;
   for (const e of incoming) {
@@ -82091,8 +83444,8 @@ function slGiaoDenDongBo(incoming, tuyen, congDoanId) {
       });
       if (nhanh.length && nhanh.length < qua.length) tp2 = nhanh[0].thanhPhan;
     }
-    if (tp2 === null) chung += so2(e.soLuong);
-    else theoTp.set(tp2, (theoTp.get(tp2) ?? 0) + so2(e.soLuong));
+    if (tp2 === null) chung += so3(e.soLuong);
+    else theoTp.set(tp2, (theoTp.get(tp2) ?? 0) + so3(e.soLuong));
   }
   return chung + Math.min(...theoTp.values());
 }
@@ -82105,7 +83458,7 @@ var nhanNgoaiApp = (e) => !!(e.congDoanNguonId || e.xuongNguon);
 function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
   const own2 = suKienConHieuLuc(cuaCongDoan);
   const incoming = suKienConHieuLuc(giaoDen2).filter((e) => e.loai === "giao" || e.loai === "khai_bao_cd");
-  const co = /* @__PURE__ */ new Set();
+  const co2 = /* @__PURE__ */ new Set();
   const slGiaoDen = slGiaoDenDongBo(incoming, tuyen, congDoanId);
   let slNhan = 0;
   let slNhanTrongApp = 0;
@@ -82118,7 +83471,7 @@ function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
   const doanChay = [];
   const batDauChay = (e) => {
     if (dangChayTu !== null) {
-      co.add("bat_dau_hai_lan");
+      co2.add("bat_dau_hai_lan");
     } else {
       dangChayTu = e.ts;
       doanChay.push({ start: e.ts, end: null });
@@ -82136,38 +83489,38 @@ function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
   for (const e of own2) {
     switch (e.loai) {
       case "nhan":
-        slNhan += so2(e.soLuong);
-        if (!nhanNgoaiApp(e)) slNhanTrongApp += so2(e.soLuong);
+        slNhan += so3(e.soLuong);
+        if (!nhanNgoaiApp(e)) slNhanTrongApp += so3(e.soLuong);
         break;
       case "bat_dau":
         batDauChay(e);
         break;
       case "tiep_tuc":
-        if (dangChayTu === null && !tamNgung) co.add("tiep_tuc_khi_chua_tam_ngung");
+        if (dangChayTu === null && !tamNgung) co2.add("tiep_tuc_khi_chua_tam_ngung");
         batDauChay(e);
         break;
       case "tam_ngung":
-        if (!dungChay(e)) co.add("tam_ngung_khi_khong_chay");
+        if (!dungChay(e)) co2.add("tam_ngung_khi_khong_chay");
         tamNgung = true;
         break;
       case "hoan_thanh":
-        if (!daBatDau) co.add("hoan_thanh_chua_bat_dau");
-        slHoanThanh += so2(e.soLuong);
+        if (!daBatDau) co2.add("hoan_thanh_chua_bat_dau");
+        slHoanThanh += so3(e.soLuong);
         if (slHoanThanh >= slNhan) {
           dungChay(e);
           tamNgung = false;
         }
         break;
       case "giao":
-        slGiao += so2(e.soLuong);
+        slGiao += so3(e.soLuong);
         break;
       default:
         break;
     }
   }
-  if (slNhanTrongApp > slGiaoDen) co.add("nhan_chua_thay_giao");
-  if (slGiao > slHoanThanh) co.add("giao_vuot_hoan_thanh");
-  if (slHoanThanh > slNhan && slNhan > 0) co.add("hoan_thanh_vuot_nhan");
+  if (slNhanTrongApp > slGiaoDen) co2.add("nhan_chua_thay_giao");
+  if (slGiao > slHoanThanh) co2.add("giao_vuot_hoan_thanh");
+  if (slHoanThanh > slNhan && slNhan > 0) co2.add("hoan_thanh_vuot_nhan");
   let trangThai;
   if (dangChayTu !== null) trangThai = "dang_lam";
   else if (tamNgung) trangThai = "tam_ngung";
@@ -82188,7 +83541,7 @@ function tinhTrangThai(cuaCongDoan, giaoDen2, tuyen = [], congDoanId = null) {
     dangChayTu,
     suKienCuoi,
     doanChay,
-    co: [...co].sort()
+    co: [...co2].sort()
   };
 }
 
@@ -82210,7 +83563,7 @@ function khungCaChinh(lich) {
   }
   return khung;
 }
-var dauNgayVN = (ngay2) => Date.parse(`${ngay2}T00:00:00Z`) - VN;
+var dauNgayVN = (ngay3) => Date.parse(`${ngay3}T00:00:00Z`) - VN;
 var ngayCuaTs = (ts) => new Date(ts + VN).toISOString().slice(0, 10);
 function gioTrongCaNgay(a, b, d, khung, tinhChuNhat = false) {
   if (b <= a || !tinhChuNhat && new Date(d + VN).getUTCDay() === 0) return 0;
@@ -82336,9 +83689,9 @@ var pairKey = (hex3, congDoanId) => `${hex3}|${congDoanId}`;
 var MNV_RE = /^[A-Z0-9][A-Z0-9._-]{1,19}$/;
 var chuanMnv = (s) => String(s ?? "").trim().toUpperCase().replace(/\s+/g, "");
 function nguoiTrongSuKien(duLieu) {
-  const ds = Array.isArray(duLieu?.nguoi) ? duLieu.nguoi : [];
+  const ds2 = Array.isArray(duLieu?.nguoi) ? duLieu.nguoi : [];
   const out = [];
-  for (const x of ds) {
+  for (const x of ds2) {
     const o = typeof x === "string" ? { mnv: x } : x;
     const mnv = chuanMnv(o?.mnv);
     if (!MNV_RE.test(mnv)) continue;
@@ -82350,9 +83703,9 @@ function nguoiTrongSuKien(duLieu) {
 function kiemTraDiemDanh(duLieu) {
   const ca = duLieu?.loaiCa;
   if (typeof ca !== "string" || !LOAI_CA.includes(ca)) return "Lo\u1EA1i ca kh\xF4ng h\u1EE3p l\u1EC7";
-  const ds = Array.isArray(duLieu?.nguoi) ? duLieu.nguoi : [];
-  if (!ds.length || ds.length > 300) return "Danh s\xE1ch \u0111i\u1EC3m danh tr\u1ED1ng ho\u1EB7c qu\xE1 d\xE0i";
-  if (nguoiTrongSuKien(duLieu).length !== ds.length) return "M\xE3 nh\xE2n vi\xEAn kh\xF4ng h\u1EE3p l\u1EC7";
+  const ds2 = Array.isArray(duLieu?.nguoi) ? duLieu.nguoi : [];
+  if (!ds2.length || ds2.length > 300) return "Danh s\xE1ch \u0111i\u1EC3m danh tr\u1ED1ng ho\u1EB7c qu\xE1 d\xE0i";
+  if (nguoiTrongSuKien(duLieu).length !== ds2.length) return "M\xE3 nh\xE2n vi\xEAn kh\xF4ng h\u1EE3p l\u1EC7";
   return null;
 }
 function doanCoMat(evts) {
@@ -82386,19 +83739,19 @@ function doanCoMat(evts) {
   for (const ca of Object.keys(out)) out[ca] = out[ca].filter((d) => d.end === null || d.end > d.start);
   return out;
 }
-var gomTheoNguoi = (ds) => {
+var gomTheoNguoi = (ds2) => {
   const m = {};
-  for (const d of ds) (m[d.mnv] ??= []).push(d);
+  for (const d of ds2) (m[d.mnv] ??= []).push(d);
   return m;
 };
-function tomTatDiemDanh(coMat, ngay2, lichCa) {
-  const moc2 = (hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00+07:00`);
+function tomTatDiemDanh(coMat, ngay3, lichCa) {
+  const moc2 = (hhmm) => Date.parse(`${ngay3}T${hhmm.slice(0, 5)}:00+07:00`);
   const chinh = lichCa.find((c) => c.loaiCa === "chinh");
   const bd = chinh ? moc2(chinh.gioBatDau) : null;
   const kt = chinh ? moc2(chinh.gioKetThuc) : null;
   const out = {};
-  for (const [ca, ds] of Object.entries(coMat)) {
-    for (const d of ds) {
+  for (const [ca, ds2] of Object.entries(coMat)) {
+    for (const d of ds2) {
       const x = out[d.mnv] ??= { vao: d.start, ra: d.end, ca: [], treP: 0, veSomP: 0 };
       x.vao = Math.min(x.vao, d.start);
       x.ra = x.ra === null || d.end === null ? null : Math.max(x.ra, d.end);
@@ -82406,11 +83759,11 @@ function tomTatDiemDanh(coMat, ngay2, lichCa) {
     }
   }
   if (bd !== null && kt !== null) {
-    for (const [mnv, ds] of Object.entries(gomTheoNguoi(coMat.chinh ?? []))) {
+    for (const [mnv, ds2] of Object.entries(gomTheoNguoi(coMat.chinh ?? []))) {
       const x = out[mnv];
       if (!x) continue;
-      const vao = Math.min(...ds.map((d) => d.start));
-      const ra = ds.some((d) => d.end === null) ? null : Math.max(...ds.map((d) => d.end));
+      const vao = Math.min(...ds2.map((d) => d.start));
+      const ra = ds2.some((d) => d.end === null) ? null : Math.max(...ds2.map((d) => d.end));
       x.treP = Math.max(0, Math.round((vao - bd) / 6e4));
       x.veSomP = ra !== null && ra < kt ? Math.round((kt - ra) / 6e4) : 0;
     }
@@ -82421,9 +83774,9 @@ function tomTatDiemDanh(coMat, ngay2, lichCa) {
 // src/server/xuong/allocation.ts
 var VN_OFFSET = "+07:00";
 var GIO_MS = 36e5;
-var moc = (ngay2, hhmm) => Date.parse(`${ngay2}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
+var moc = (ngay3, hhmm) => Date.parse(`${ngay3}T${hhmm.slice(0, 5)}:00${VN_OFFSET}`);
 var tyLeCoViecThap = (gioNguoi, gioCong) => gioNguoi >= 1 && gioCong / gioNguoi < 0.1;
-var thuTrongTuan = (ngay2) => (/* @__PURE__ */ new Date(`${ngay2}T12:00:00${VN_OFFSET}`)).getUTCDay();
+var thuTrongTuan = (ngay3) => (/* @__PURE__ */ new Date(`${ngay3}T12:00:00${VN_OFFSET}`)).getUTCDay();
 function truNghi(start, end, nghi) {
   let doan = [[start, end]];
   for (const [ns, ne] of nghi) {
@@ -82440,13 +83793,13 @@ function truNghi(start, end, nghi) {
   }
   return doan.filter(([s, e]) => e > s);
 }
-function cuaSoCuaCa(ngay2, ca) {
-  const start = moc(ngay2, ca.gioBatDau);
-  let end = moc(ngay2, ca.gioKetThuc);
+function cuaSoCuaCa(ngay3, ca) {
+  const start = moc(ngay3, ca.gioBatDau);
+  let end = moc(ngay3, ca.gioKetThuc);
   if (end <= start) end += 24 * GIO_MS;
   const nghi = (ca.nghi ?? []).map(([a, b]) => {
-    let ns = moc(ngay2, a);
-    let ne = moc(ngay2, b);
+    let ns = moc(ngay3, a);
+    let ne = moc(ngay3, b);
     if (ns < start) {
       ns += 24 * GIO_MS;
       ne += 24 * GIO_MS;
@@ -82456,15 +83809,15 @@ function cuaSoCuaCa(ngay2, ca) {
   });
   return truNghi(start, end, nghi).map(([s, e]) => ({ loaiCa: ca.loaiCa, start: s, end: e }));
 }
-function cuaSoTrongNgay(ngay2, lichCa, caTangCaDaKhai) {
+function cuaSoTrongNgay(ngay3, lichCa, caTangCaDaKhai) {
   const theoLoai = new Map(lichCa.map((c) => [c.loaiCa, c]));
   const out = [];
   const chinh = theoLoai.get("chinh");
-  if (chinh && thuTrongTuan(ngay2) !== 0) out.push(...cuaSoCuaCa(ngay2, chinh));
+  if (chinh && thuTrongTuan(ngay3) !== 0) out.push(...cuaSoCuaCa(ngay3, chinh));
   for (const loai of new Set(caTangCaDaKhai)) {
     if (!LOAI_CA_TANG_CA.includes(loai)) continue;
     const ca = theoLoai.get(loai);
-    if (ca) out.push(...cuaSoCuaCa(ngay2, ca));
+    if (ca) out.push(...cuaSoCuaCa(ngay3, ca));
   }
   return out.sort((a, b) => a.start - b.start);
 }
@@ -82479,10 +83832,10 @@ function phanBoGioCong(input2) {
     soNguoiTheoKey.get(c.key).push(c);
   }
   const khaiLuc = (key, t) => {
-    const ds = soNguoiTheoKey.get(key);
-    if (!ds) return null;
+    const ds2 = soNguoiTheoKey.get(key);
+    if (!ds2) return null;
     let v = null;
-    for (const c of ds) {
+    for (const c of ds2) {
       if (c.at <= t) v = c;
       else break;
     }
@@ -82515,12 +83868,12 @@ function phanBoGioCong(input2) {
   const doanNgung = input2.doanNgung ?? {};
   const lyDoCho = (t) => {
     let tot = null;
-    for (const ds of Object.values(doanNgung)) {
-      for (const d of ds) if (d.start <= t && t < (d.end ?? input2.now) && (!tot || d.start > tot.start)) tot = d;
+    for (const ds2 of Object.values(doanNgung)) {
+      for (const d of ds2) if (d.start <= t && t < (d.end ?? input2.now) && (!tot || d.start > tot.start)) tot = d;
     }
     return tot ? tot.lyDo : "khong_viec";
   };
-  const coDiemDanhNgay = new Set(Object.values(input2.coMat ?? {}).flatMap((ds) => (ds ?? []).map((d) => d.mnv)));
+  const coDiemDanhNgay = new Set(Object.values(input2.coMat ?? {}).flatMap((ds2) => (ds2 ?? []).map((d) => d.mnv)));
   for (const cs of input2.cuaSo) {
     const laTangCa = cs.loaiCa !== "chinh";
     const boChon = new Set(laTangCa ? input2.boChonTangCa?.[cs.loaiCa] ?? [] : []);
@@ -82534,19 +83887,19 @@ function phanBoGioCong(input2) {
       }
       for (const c of soNguoiTheoKey.get(k) ?? []) if (c.at > cs.start && c.at < end) mocs.add(c.at);
     }
-    for (const ds2 of Object.values(doanNgung)) {
-      for (const d of ds2) for (const t of [d.start, d.end ?? input2.now]) if (t > cs.start && t < end) mocs.add(t);
+    for (const ds3 of Object.values(doanNgung)) {
+      for (const d of ds3) for (const t of [d.start, d.end ?? input2.now]) if (t > cs.start && t < end) mocs.add(t);
     }
     const coMat = input2.coMat?.[cs.loaiCa] ?? [];
     const coDiemDanh = coMat.length > 0;
     for (const d of coMat) for (const t of [d.start, d.end ?? input2.now]) if (t > cs.start && t < end) mocs.add(t);
-    const ds = [...mocs].sort((a, b) => a - b);
+    const ds2 = [...mocs].sort((a, b) => a - b);
     const q = input2.quanSo[cs.loaiCa];
     const daChot = coDiemDanh || typeof q === "number" && q >= 0;
     if (!daChot) coTo.add("chua_chot_quan_so");
-    for (let i = 0; i + 1 < ds.length; i++) {
-      const s = ds[i];
-      const gio = (ds[i + 1] - s) / GIO_MS;
+    for (let i = 0; i + 1 < ds2.length; i++) {
+      const s = ds2[i];
+      const gio = (ds2[i + 1] - s) / GIO_MS;
       if (gio <= 0) continue;
       const chay2 = ks.filter((k) => dangChayLuc(k, s));
       for (const k of chay2) out[k].gioChay += gio;
@@ -82555,8 +83908,8 @@ function phanBoGioCong(input2) {
         for (const d of coMat) if (d.start <= s && s < (d.end ?? input2.now)) coMatDd.add(d.mnv);
       }
       const tenLuc = (k) => {
-        const ds2 = nguoiLuc(k, s);
-        return ds2 && coDiemDanh ? ds2.filter((m) => coMatDd.has(m) || !coDiemDanhNgay.has(m)) : ds2;
+        const ds3 = nguoiLuc(k, s);
+        return ds3 && coDiemDanh ? ds3.filter((m) => coMatDd.has(m) || !coDiemDanhNgay.has(m)) : ds3;
       };
       const khai = chay2.map((k) => {
         const t = tenLuc(k);
@@ -82570,7 +83923,7 @@ function phanBoGioCong(input2) {
         if (n > 0 && (out[k].soNguoiMin === 0 || n < out[k].soNguoiMin)) out[k].soNguoiMin = n;
       }
       const tongKhai = khai.reduce((a, [, n]) => a + n, 0);
-      const cong2 = (k, h) => {
+      const cong3 = (k, h) => {
         if (laTangCa) out[k].gioCongTangCa += h;
         else out[k].gioCongThuong += h;
       };
@@ -82594,7 +83947,7 @@ function phanBoGioCong(input2) {
         }
       };
       if (!daChot) {
-        for (const [k, n] of khai) cong2(k, n * gio);
+        for (const [k, n] of khai) cong3(k, n * gio);
         tinhNguoi(1);
         continue;
       }
@@ -82609,14 +83962,14 @@ function phanBoGioCong(input2) {
         continue;
       }
       if (tongKhai <= Q) {
-        for (const [k, n] of khai) cong2(k, n * gio);
+        for (const [k, n] of khai) cong3(k, n * gio);
         const du = (Q - tongKhai) * gio;
         if (laTangCa) gioCho.tangCa += du;
         else gioCho.thuong += du;
         choVi("nguoi_ranh", du);
       } else {
         for (const [k, n] of khai) {
-          cong2(k, n * Q / tongKhai * gio);
+          cong3(k, n * Q / tongKhai * gio);
           coHangMuc(k, "khai_vuot_quan_so");
         }
         coTo.add("khai_vuot_quan_so");
@@ -82646,14 +83999,14 @@ function phanBoGioCong(input2) {
     co: [...coTo].sort()
   };
 }
-function trangThaiXacNhan(ngay2, ngayHoatDongCuoi) {
-  if (ngayHoatDongCuoi >= ngay2) return "tinh";
+function trangThaiXacNhan(ngay3, ngayHoatDongCuoi) {
+  if (ngayHoatDongCuoi >= ngay3) return "tinh";
   let d = /* @__PURE__ */ new Date(`${ngayHoatDongCuoi}T12:00:00${VN_OFFSET}`);
   let boQua = 0;
   for (; ; ) {
     d = new Date(d.getTime() + 24 * GIO_MS);
     const key = d.toISOString().slice(0, 10);
-    if (key >= ngay2) break;
+    if (key >= ngay3) break;
     if (d.getUTCDay() !== 0) boQua++;
   }
   if (boQua === 0) return "tinh";
@@ -82792,17 +84145,17 @@ var mnvCua = (e) => {
   const m = chuanMnv(e.duLieu?.mnv);
   return MNV_RE.test(m) ? m : null;
 };
-function cheDoTheoNgay(ds) {
+function cheDoTheoNgay(ds2) {
   const theoTo = /* @__PURE__ */ new Map();
-  for (const m of [...ds].sort((a, b) => a.tuNgay.localeCompare(b.tuNgay))) {
+  for (const m of [...ds2].sort((a, b) => a.tuNgay.localeCompare(b.tuNgay))) {
     if (!theoTo.has(m.toId)) theoTo.set(m.toId, []);
     theoTo.get(m.toId).push(m);
   }
-  return (toId, ngay2) => {
+  return (toId, ngay3) => {
     if (toId === null) return "cu";
     let v = "cu";
     for (const m of theoTo.get(toId) ?? []) {
-      if (m.tuNgay <= ngay2) v = m.cheDo;
+      if (m.tuNgay <= ngay3) v = m.cheDo;
       else break;
     }
     return v;
@@ -82882,9 +84235,9 @@ function mocTuDong(khoi, t) {
 var nguonCua = (e) => e.duLieu?.tuGan === true ? "tu_gan" : e.duLieu?.phanCong === true ? "phan_cong" : e.duLieu?.ghiHo === true ? "ghi_ho" : "quet";
 var TU_GAN_SAU_MS = 30 * 6e4;
 function boSungPhanCongTuGan(evts, now) {
-  const ds = [...evts].sort(soSanhSuKien);
+  const ds2 = [...evts].sort(soSanhSuKien);
   const coMat = /* @__PURE__ */ new Map();
-  for (const e of ds) {
+  for (const e of ds2) {
     if (e.loai !== "vao_ca") continue;
     for (const n of nguoiTrongSuKien(e.duLieu)) {
       const t = n.luc ?? e.ts;
@@ -82893,7 +84246,7 @@ function boSungPhanCongTuGan(evts, now) {
     }
   }
   const out = [];
-  for (const e of ds) {
+  for (const e of ds2) {
     if (e.loai === "nguoi_vao" && e.duLieu?.phanCong === true) {
       const mnv = mnvCua(e);
       const p = mnv ? coMat.get(`${mnv}|${ngayCa(e.ts)}`) : void 0;
@@ -82906,12 +84259,12 @@ function boSungPhanCongTuGan(evts, now) {
   const vaoHang = out.filter((e) => e.loai === "nguoi_vao" && e.hex && e.congDoanId && mnvCua(e));
   const raCa = out.filter((e) => e.loai === "ra_ca" && mnvCua(e));
   for (const [k, p] of coMat) {
-    const [mnv, ngay2] = k.split("|");
+    const [mnv, ngay3] = k.split("|");
     if (now < p + TU_GAN_SAU_MS) continue;
-    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay2 && e.ts <= p + TU_GAN_SAU_MS)) continue;
+    if (vaoHang.some((e) => mnvCua(e) === mnv && ngayCa(e.ts) === ngay3 && e.ts <= p + TU_GAN_SAU_MS)) continue;
     if (raCa.some((e) => mnvCua(e) === mnv && e.ts >= p && e.ts <= p + TU_GAN_SAU_MS)) continue;
-    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay2)) continue;
-    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay2).sort(soSanhSuKien).pop();
+    if (out.some((e) => e.loai === "nguoi_ra" && e.duLieu?.tuChoiTuGan === true && mnvCua(e) === mnv && String(e.duLieu?.ngayCa ?? ngayCa(e.ts)) === ngay3)) continue;
+    const truoc = vaoHang.filter((e) => mnvCua(e) === mnv && e.ts < p && ngayCa(e.ts) < ngay3).sort(soSanhSuKien).pop();
     if (!truoc) continue;
     let nhan = 0, ht = 0;
     for (const e of out) {
@@ -82922,7 +84275,7 @@ function boSungPhanCongTuGan(evts, now) {
     if (nhan > 0 && ht >= nhan) continue;
     out.push({
       ...truoc,
-      id: `tugan:${mnv}:${ngay2}`,
+      id: `tugan:${mnv}:${ngay3}`,
       ts: p,
       serverTs: p,
       suaCho: null,
@@ -82967,15 +84320,15 @@ function chuyenDoiTram(evts, opts) {
     });
   };
   const doiHang = (key, d, t, truoc, laXong) => {
-    const ds = [...oHang.get(key) ?? []].sort();
-    const sau = ds.length;
-    soNguoi.push({ key, at: t, soNguoi: sau, nguoi: ds });
+    const ds2 = [...oHang.get(key) ?? []].sort();
+    const sau = ds2.length;
+    soNguoi.push({ key, at: t, soNguoi: sau, nguoi: ds2 });
     if (truoc === 0) {
       (doanChay[key] ??= []).push({ start: t, end: null });
-      gia("bat_dau", key, d, t, sau, ds);
+      gia("bat_dau", key, d, t, sau, ds2);
     } else if (sau === 0) {
-      const ds2 = doanChay[key];
-      if (ds2?.length) ds2[ds2.length - 1].end = t;
+      const ds22 = doanChay[key];
+      if (ds22?.length) ds22[ds22.length - 1].end = t;
       if (!laXong) gia("tam_ngung", key, d, t, 0, []);
     }
   };
@@ -83066,27 +84419,27 @@ function chuyenDoiTram(evts, opts) {
 var TRONG_TOI_DA_MS = 30 * 6e4;
 var DOAN_TOI_DA_MS = 4 * GIO_MS2;
 function coSuaNgay(doan, coMat, now) {
-  const co = /* @__PURE__ */ new Set();
-  const ds = [...doan].sort((a, b) => a.start - b.start);
-  for (const d of ds) {
-    if (d.ketThuc === "tu_dong") co.add("tu_dong");
-    if (d.ketThuc === "ngoai_ca") co.add("ngoai_ca");
-    if ((d.end ?? now) - d.start > DOAN_TOI_DA_MS) co.add("doan_dai");
+  const co2 = /* @__PURE__ */ new Set();
+  const ds2 = [...doan].sort((a, b) => a.start - b.start);
+  for (const d of ds2) {
+    if (d.ketThuc === "tu_dong") co2.add("tu_dong");
+    if (d.ketThuc === "ngoai_ca") co2.add("ngoai_ca");
+    if ((d.end ?? now) - d.start > DOAN_TOI_DA_MS) co2.add("doan_dai");
   }
-  if (coMat.length && !ds.length) co.add("khong_vao_hang");
+  if (coMat.length && !ds2.length) co2.add("khong_vao_hang");
   for (const c of coMat) {
     const cEnd = c.end ?? now;
     let t = c.start;
-    for (const d of ds) {
+    for (const d of ds2) {
       const s = Math.max(d.start, c.start);
       const e = Math.min(d.end ?? now, cEnd);
       if (e <= s) continue;
-      if (s - t > TRONG_TOI_DA_MS) co.add("khoang_trong");
+      if (s - t > TRONG_TOI_DA_MS) co2.add("khoang_trong");
       t = Math.max(t, e);
     }
-    if (ds.length && cEnd - t > TRONG_TOI_DA_MS && c.end !== null) co.add("khoang_trong");
+    if (ds2.length && cEnd - t > TRONG_TOI_DA_MS && c.end !== null) co2.add("khoang_trong");
   }
-  return [...co].sort();
+  return [...co2].sort();
 }
 function nhomLanTruoc(doan, key) {
   const dong2 = doan.filter((d) => d.key === key && d.end !== null);
@@ -83099,7 +84452,7 @@ function nhomLanTruoc(doan, key) {
 var URL_XUONG = "/xuong";
 var clip2 = (s, n = 140) => s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
 async function guiTinXuong(tins, actorId) {
-  let tong = 0;
+  let tong2 = 0;
   try {
     const users = await activeUsers();
     const byId = new Map(users.map((u) => [u.id, u]));
@@ -83135,12 +84488,12 @@ async function guiTinXuong(tins, actorId) {
         tag: `${t.kind}-${t.hex ?? ""}-${vnDayKey(/* @__PURE__ */ new Date())}`,
         target: { hex: t.hex ?? "", category: "xuong", id: 0, url: t.url ?? URL_XUONG }
       });
-      tong += ids.length;
+      tong2 += ids.length;
     }
   } catch (e) {
     console.error("[xuong-thong-bao] l\u1ED7i", e);
   }
-  return tong;
+  return tong2;
 }
 async function nguoiCuaTo(toIds) {
   const out = /* @__PURE__ */ new Map();
@@ -83175,11 +84528,11 @@ async function quanLyCuaXuong(xuongs) {
   }
   return out;
 }
-var so3 = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
-async function baoHangChoNhan(ds, actorId) {
+var so4 = (n) => n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+async function baoHangChoNhan(ds2, actorId) {
   try {
-    if (!ds.length) return;
-    const cds = [...new Set(ds.map((d) => d.congDoanDenId))];
+    if (!ds2.length) return;
+    const cds = [...new Set(ds2.map((d) => d.congDoanDenId))];
     const r = await poolMra.query(
       `SELECT tc.to_id, tc.cong_doan_id, c.cd_chi_tiet FROM xuong_to_cong_doan tc JOIN xuong_cong_doan c ON c.id = tc.cong_doan_id
        WHERE tc.cong_doan_id = ANY($1::text[])`,
@@ -83188,13 +84541,13 @@ async function baoHangChoNhan(ds, actorId) {
     const nguoi = await nguoiCuaTo([...new Set(r.rows.map((x) => Number(x.to_id)))]);
     const tins = [];
     for (const x of r.rows) {
-      const cua = ds.filter((d) => d.congDoanDenId === x.cong_doan_id);
+      const cua = ds2.filter((d) => d.congDoanDenId === x.cong_doan_id);
       if (!cua.length) continue;
       tins.push({
         kind: "xuong_cho_nhan",
         userIds: nguoi.get(Number(x.to_id)) ?? [],
         title: `C\xF3 h\xE0ng giao t\u1EDBi ${x.cd_chi_tiet}`,
-        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so3(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
+        body: cua.slice(0, 5).map((d) => `${d.hex}: ${so4(d.soLuong)} c\xE1i`).join(" \xB7 ") + (cua.length > 5 ? ` \xB7 v\xE0 ${cua.length - 5} h\u1EA1ng m\u1EE5c kh\xE1c` : ""),
         hex: cua.length === 1 ? cua[0].hex : null
       });
     }
@@ -83216,13 +84569,13 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     for (const it of items) {
       for (const t of it.thanhPhan) {
         if (t.xuong !== xuongChinh && !t.tuyen.length) {
-          them(t.xuong, `${it.hex} \xB7 ${so3(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
+          them(t.xuong, `${it.hex} \xB7 ${so4(it.soLuong)} c\xE1i \u2014 ${t.ten.toLowerCase()}: c\u1EA7n khai C\u0110 chi ti\u1EBFt`);
           continue;
         }
         for (const id of t.tuyen) {
           const c = cdMap.get(id);
           if (!c || c.xuong === xuongChinh) continue;
-          them(c.xuong, `${it.hex} \xB7 ${so3(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
+          them(c.xuong, `${it.hex} \xB7 ${so4(it.soLuong)} c\xE1i (${c.cd_chi_tiet})`);
         }
       }
     }
@@ -83238,9 +84591,9 @@ async function baoXuongPhu(xuongChinh, items, actorId) {
     console.error("[xuong-thong-bao] x\u01B0\u1EDFng ph\u1EE5", e);
   }
 }
-async function nhacSang(ngay2) {
+async function nhacSang(ngay3) {
   const tins = [];
-  const thu = (/* @__PURE__ */ new Date(`${ngay2}T12:00:00+07:00`)).getUTCDay();
+  const thu = (/* @__PURE__ */ new Date(`${ngay3}T12:00:00+07:00`)).getUTCDay();
   if (thu !== 0) {
     const r = await poolMra.query(
       `SELECT t.id, t.ten_to FROM xuong_to t
@@ -83249,7 +84602,7 @@ async function nhacSang(ngay2) {
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien e WHERE e.to_id = t.id AND e.loai = 'quan_so' AND e.du_lieu->>'loaiCa' = 'chinh'
                            AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))`,
-      [ngay2]
+      [ngay3]
     );
     const nguoi = await nguoiCuaTo(r.rows.map((x) => Number(x.id)));
     for (const x of r.rows) {
@@ -83281,21 +84634,21 @@ async function nhacSang(ngay2) {
     if (!theoToLau.has(k)) theoToLau.set(k, []);
     theoToLau.get(k).push(`${x.hex} (${x.cd_chi_tiet})`);
   }
-  for (const [to, ds] of theoToLau) {
+  for (const [to, ds2] of theoToLau) {
     tins.push({
       kind: "xuong_chay_lau",
       userIds: nguoiLau.get(to) ?? [],
       moiNgayMotLan: true,
       title: "H\u1EA1ng m\u1EE5c \u0111ang ch\u1EA1y h\u01A1n 2 ng\xE0y ch\u01B0a c\u1EADp nh\u1EADt",
-      body: `${ds.length} h\u1EA1ng m\u1EE5c: ${ds.slice(0, 5).join(" \xB7 ")} \u2014 ki\u1EC3m tra: c\xF2n l\xE0m, t\u1EA1m ng\u01B0ng hay \u0111\xE3 xong?`
+      body: `${ds2.length} h\u1EA1ng m\u1EE5c: ${ds2.slice(0, 5).join(" \xB7 ")} \u2014 ki\u1EC3m tra: c\xF2n l\xE0m, t\u1EA1m ng\u01B0ng hay \u0111\xE3 xong?`
     });
   }
-  const co = await poolMra.query(
+  const co2 = await poolMra.query(
     `SELECT xuong, count(*)::int AS n FROM xuong_su_kien e WHERE ${sqlThaoTacCanXuLy("e", 24)} AND xuong IS NOT NULL
      GROUP BY xuong`
   );
-  const ql = await quanLyCuaXuong(co.rows.map((x) => String(x.xuong)));
-  for (const x of co.rows) {
+  const ql = await quanLyCuaXuong(co2.rows.map((x) => String(x.xuong)));
+  for (const x of co2.rows) {
     tins.push({
       kind: "xuong_co",
       userIds: ql.get(x.xuong) ?? [],
@@ -83319,7 +84672,7 @@ async function donAnhMoCoi() {
     if (!isMissingSchema(e)) console.error("[xuong] d\u1ECDn \u1EA3nh m\u1ED3 c\xF4i l\u1ED7i", e);
   }
 }
-async function nhacChieu(ngay2) {
+async function nhacChieu(ngay3) {
   const tins = [];
   const tc = await poolMra.query(
     `SELECT DISTINCT t.id, t.ten_to, e.du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e JOIN xuong_to t ON t.id = e.to_id
@@ -83328,7 +84681,7 @@ async function nhacChieu(ngay2) {
        AND NOT EXISTS (SELECT 1 FROM xuong_su_kien q WHERE q.to_id = t.id AND q.loai = 'quan_so' AND q.du_lieu->>'loaiCa' = e.du_lieu->>'loaiCa'
                          AND (q.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h2 WHERE h2.loai = 'huy' AND h2.sua_cho = q.id))`,
-    [ngay2]
+    [ngay3]
   );
   const nguoiTc = await nguoiCuaTo([...new Set(tc.rows.map((x) => Number(x.id)))]);
   for (const x of tc.rows) {
@@ -83347,7 +84700,7 @@ async function nhacChieu(ngay2) {
                                       AND (e.device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $1::date
                                       AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id))
      GROUP BY t.id, t.ten_to`,
-    [ngay2]
+    [ngay3]
   );
   const nguoiXn = await nguoiCuaTo(xn.rows.map((x) => Number(x.id)));
   for (const x of xn.rows) {
@@ -83364,11 +84717,11 @@ async function nhacChieu(ngay2) {
 app.get("/api/cron/xuong", cronAuth, async (req, res) => {
   try {
     const t0 = Date.now();
-    const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay3 = vnDayKey(/* @__PURE__ */ new Date());
     const gio = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", hour12: false }).format(/* @__PURE__ */ new Date()));
     const dot = req.query.dot === "sang" || req.query.dot === "chieu" ? req.query.dot : gio < 12 ? "sang" : "chieu";
-    const daGui = dot === "sang" ? await nhacSang(ngay2) : await nhacChieu(ngay2);
-    res.json({ ok: true, dot, ngay: ngay2, daGui, ms: Date.now() - t0 });
+    const daGui = dot === "sang" ? await nhacSang(ngay3) : await nhacChieu(ngay3);
+    res.json({ ok: true, dot, ngay: ngay3, daGui, ms: Date.now() - t0 });
   } catch (e) {
     if (isMissingSchema(e)) return res.json({ ok: true, available: false });
     console.error("L\u1ED7i cron xuong:", e);
@@ -83408,23 +84761,23 @@ async function xuongQuanLy(userId) {
   const r = await poolMra.query("SELECT xuong FROM xuong_quan_ly WHERE user_id = $1", [Number(userId)]);
   return new Set(r.rows.map((x) => String(x.xuong)));
 }
-var quanLyDuoc = (ds, xuong) => ds.has("*") || !!xuong && ds.has(xuong);
+var quanLyDuoc = (ds2, xuong) => ds2.has("*") || !!xuong && ds2.has(xuong);
 async function toTruongCua(userId) {
   const r = await poolMra.query("SELECT id, xuong FROM xuong_to WHERE active AND to_truong_user_id = $1", [Number(userId)]);
   return r.rows.map((x) => ({ id: Number(x.id), xuong: String(x.xuong) }));
 }
 async function phamViXem(userId, xuong) {
-  const ds = await xuongQuanLy(userId);
-  if (ds.has("*")) return { chiTo: null };
-  return phamViTheoQuyen(ds, await toTruongCua(userId), xuong);
+  const ds2 = await xuongQuanLy(userId);
+  if (ds2.has("*")) return { chiTo: null };
+  return phamViTheoQuyen(ds2, await toTruongCua(userId), xuong);
 }
 var COT_SU_KIEN = `id, loai, hex, cong_doan_id, to_id, xuong, so_luong, cong_doan_den_id, cong_doan_nguon_id, xuong_nguon,
   so_nguoi, ly_do_tam_ngung, tien_do, ghi_chu, du_lieu, device_ts, lech_ms, device_ts_hieu_chinh, server_ts, user_id,
   user_id_khai, sent_by, device_id, sua_cho, nguon, nguoi_thao_tac_goc, co`;
 async function nguoiDungTheoId(ids) {
-  const ds = [...new Set(ids.map(Number).filter((x) => Number.isInteger(x) && x > 0))];
-  if (!ds.length) return /* @__PURE__ */ new Map();
-  const r = await pool.query("SELECT id, full_name, username, msnv, permissions, role, is_active FROM users WHERE id = ANY($1::int[])", [ds]);
+  const ds2 = [...new Set(ids.map(Number).filter((x) => Number.isInteger(x) && x > 0))];
+  if (!ds2.length) return /* @__PURE__ */ new Map();
+  const r = await pool.query("SELECT id, full_name, username, msnv, permissions, role, is_active FROM users WHERE id = ANY($1::int[])", [ds2]);
   return new Map(r.rows.map((x) => [Number(x.id), { ...x, id: Number(x.id) }]));
 }
 async function msnvCua(userId) {
@@ -83511,9 +84864,9 @@ async function cuaSoCacTo(db, toIds, tu, den) {
     if (!lich.length) continue;
     const cs = [];
     for (let d = Date.parse(`${tu}T12:00:00+07:00`); vnDayKey(new Date(d)) <= den; d += 864e5) {
-      const ngay2 = vnDayKey(new Date(d));
-      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay2).map((r) => String(r.ca));
-      cs.push(...cuaSoTrongNgay(ngay2, lich, ca));
+      const ngay3 = vnDayKey(new Date(d));
+      const ca = tc.rows.filter((r) => Number(r.to_id) === Number(x.id) && vnDayKey(new Date(r.ts)) === ngay3).map((r) => String(r.ca));
+      cs.push(...cuaSoTrongNgay(ngay3, lich, ca));
     }
     out.set(Number(x.id), cs);
   }
@@ -83739,8 +85092,8 @@ function kiemTraTheoLoai(e) {
   if ((e.loai === "nguoi_vao" || e.loai === "nguoi_ra") && !mnvCua({ duLieu: e.duLieu ?? null })) return "M\xE3 nh\xE2n vi\xEAn kh\xF4ng h\u1EE3p l\u1EC7";
   if ((e.loai === "vao_ca" || e.loai === "ra_ca") && e.duLieu?.tram === true) {
     const m = mnvCua({ duLieu: e.duLieu });
-    const ds = Array.isArray(e.duLieu.nguoi) ? e.duLieu.nguoi : [];
-    if (!m || ds.length !== 1 || chuanMnv(ds[0]?.mnv ?? ds[0]) !== m) return "V\xE0o / ra ca t\u1EEB tr\u1EA1m ph\u1EA3i \u0111\xFAng m\u1ED9t ng\u01B0\u1EDDi";
+    const ds2 = Array.isArray(e.duLieu.nguoi) ? e.duLieu.nguoi : [];
+    if (!m || ds2.length !== 1 || chuanMnv(ds2[0]?.mnv ?? ds2[0]) !== m) return "V\xE0o / ra ca t\u1EEB tr\u1EA1m ph\u1EA3i \u0111\xFAng m\u1ED9t ng\u01B0\u1EDDi";
   }
   if (e.loai === "quan_so") {
     const ca = e.duLieu?.loaiCa;
@@ -83782,8 +85135,8 @@ async function ghiVaTinhLai(client, ghi, dichDb = []) {
     const pb = /* @__PURE__ */ new Map();
     for (const x of ghi) {
       if (!x.to_id) continue;
-      const ngay2 = vnDayKey(new Date(x.device_ts_hieu_chinh));
-      pb.set(`${x.to_id}|${ngay2}`, { to_id: x.to_id, ngay: ngay2 });
+      const ngay3 = vnDayKey(new Date(x.device_ts_hieu_chinh));
+      pb.set(`${x.to_id}|${ngay3}`, { to_id: x.to_id, ngay: ngay3 });
       if (x.loai === "ra_ca" && new Date(new Date(x.device_ts_hieu_chinh).getTime() + 7 * 36e5).getUTCHours() < 12) {
         const truoc = vnDayKey(new Date(new Date(x.device_ts_hieu_chinh).getTime() - 24 * 36e5));
         pb.set(`${x.to_id}|${truoc}`, { to_id: x.to_id, ngay: truoc });
@@ -83910,7 +85263,7 @@ app.post("/api/xuong/events", async (req, res) => {
           toId = d.to_id === null || d.to_id === void 0 ? null : Number(d.to_id);
           xuong = d.xuong ?? null;
         }
-        const co = [];
+        const co2 = [];
         let duLieu = e.duLieu ?? null;
         if (e.loai === "nguoi_vao" || e.loai === "nguoi_ra" || (e.loai === "vao_ca" || e.loai === "ra_ca") && duLieu?.tram === true) {
           if (!(toId && (laToTruong.has(toId) || quanLyDuoc(quanLy, xuongTo.get(toId) ?? null)))) {
@@ -83918,7 +85271,7 @@ app.post("/api/xuong/events", async (req, res) => {
             continue;
           }
           duLieu = { ...duLieu ?? {}, tram: true, ...duLieu?.phanCong === true ? {} : { ghiHo: true } };
-          co.push(duLieu.phanCong === true ? "phan_cong" : "to_truong_ghi_ho");
+          co2.push(duLieu.phanCong === true ? "phan_cong" : "to_truong_ghi_ho");
         }
         if (e.loai !== "huy") {
           if (toId) {
@@ -83927,7 +85280,7 @@ app.post("/api/xuong/events", async (req, res) => {
                 tuChoi.push({ id: e.id, reason: "T\xE0i kho\u1EA3n kh\xF4ng thu\u1ED9c t\u1ED5 n\xE0y" });
                 continue;
               }
-              co.push("quan_ly_ghi_ho");
+              co2.push("quan_ly_ghi_ho");
             }
           } else if (!quanLyDuoc(quanLy, xuong)) {
             tuChoi.push({ id: e.id, reason: "Thao t\xE1c kh\xF4ng g\u1EAFn t\u1ED5 ch\u1EC9 qu\u1EA3n l\xFD x\u01B0\u1EDFng \u0111\u01B0\u1EE3c ghi" });
@@ -83939,10 +85292,10 @@ app.post("/api/xuong/events", async (req, res) => {
         if (e.userId && e.userId !== sentBy) {
           if (nguoiTrenMay.has(e.userId)) {
             userId = e.userId;
-            co.push("gui_ho");
+            co2.push("gui_ho");
           } else {
             userIdKhai = e.userId;
-            co.push("tac_gia_khong_xac_minh");
+            co2.push("tac_gia_khong_xac_minh");
           }
         }
         if (hex3 && congDoanId && (e.loai === "nhan" || e.loai === "hoan_thanh" || e.loai === "giao")) {
@@ -83971,10 +85324,10 @@ app.post("/api/xuong/events", async (req, res) => {
           }
           soCap.set(k, c);
         }
-        if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && !e.soNguoi) co.push("thieu_so_nguoi");
+        if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && !e.soNguoi) co2.push("thieu_so_nguoi");
         const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
-        co.push(...gio.co);
-        if (e.duLieu && e.duLieu.khaiBu === true) co.push("khai_bu");
+        co2.push(...gio.co);
+        if (e.duLieu && e.duLieu.khaiBu === true) co2.push("khai_bu");
         ghi.push({
           id: e.id,
           loai: e.loai,
@@ -83999,7 +85352,7 @@ app.post("/api/xuong/events", async (req, res) => {
           sent_by: sentBy,
           device_id: deviceId,
           sua_cho: e.suaCho ?? null,
-          co
+          co: co2
         });
       }
       const moi = await ghiVaTinhLai(client, ghi, dichDb);
@@ -84151,14 +85504,14 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     }
     const st = cds.length ? (await poolMra.query(`SELECT * FROM xuong_trang_thai WHERE cong_doan_id = ANY($1::text[]) AND trang_thai <> 'xong'`, [cds])).rows : [];
     const info = await thongTinHangMuc([...new Set(st.map((x) => String(x.hex)))]);
-    const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
+    const ngay3 = vnDayKey(/* @__PURE__ */ new Date());
     const hom = await poolMra.query(
       `SELECT loai, du_lieu, device_ts_hieu_chinh FROM xuong_su_kien e
        WHERE to_id = $1 AND loai IN ('quan_so','tang_ca')
          AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
        ORDER BY device_ts_hieu_chinh`,
-      [toId, ngay2]
+      [toId, ngay3]
     );
     const quanSo = {};
     const tangCa = [];
@@ -84176,7 +85529,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date < $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
          ORDER BY du_lieu->>'loaiCa', device_ts_hieu_chinh DESC`,
-        [toId, ngay2]
+        [toId, ngay3]
       ),
       poolMra.query(
         `SELECT so_nguoi FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'tang_ca' AND so_nguoi IS NOT NULL
@@ -84188,7 +85541,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         `SELECT 1 FROM xuong_su_kien e WHERE to_id = $1 AND loai = 'xac_nhan_cuoi_ngay'
            AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id) LIMIT 1`,
-        [toId, ngay2]
+        [toId, ngay3]
       ),
       xuongTo ? lichCaCuaXuong(xuongTo) : Promise.resolve([])
     ]);
@@ -84246,15 +85599,15 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
     const dangOTram = cheDoHom === "tram" ? kqTram?.dangO ?? {} : null;
     const hoTenTram = /* @__PURE__ */ new Map();
     if (kqTram?.doanNguoi.length) {
-      const ds = [...new Set(kqTram.doanNguoi.map((d) => d.mnv))];
-      for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [ds])).rows) hoTenTram.set(String(x.mnv), String(x.ho_ten));
+      const ds2 = [...new Set(kqTram.doanNguoi.map((d) => d.mnv))];
+      for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [ds2])).rows) hoTenTram.set(String(x.mnv), String(x.ho_ten));
     }
     const viSaoHetNguoi = (k) => {
-      const ds = (kqTram?.doanNguoi ?? []).filter((d) => d.key === k && d.end !== null && d.end > d.start);
-      if (!ds.length) return null;
-      const T = Math.max(...ds.map((d) => d.end));
+      const ds2 = (kqTram?.doanNguoi ?? []).filter((d) => d.key === k && d.end !== null && d.end > d.start);
+      if (!ds2.length) return null;
+      const T = Math.max(...ds2.map((d) => d.end));
       const ten = (m) => (hoTenTram.get(m) ?? m).split(" ").slice(-1)[0];
-      const cau = ds.filter((d) => d.end === T).map((d) => {
+      const cau = ds2.filter((d) => d.end === T).map((d) => {
         if (d.ketThuc === "doi_hang") {
           const sau = kqTram.doanNguoi.find((x) => x.mnv === d.mnv && x.start === T && x.key !== k);
           const ten2 = sau ? info.get(sau.hex)?.ten_hang_muc ?? sau.hex : "h\xE0ng kh\xE1c";
@@ -84300,12 +85653,12 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
         `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e
          WHERE to_id = $1 AND loai IN ('vao_ca','ra_ca')
            AND device_ts_hieu_chinh > ($2::date - 1)::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh'`,
-        [toId, ngay2]
+        [toId, ngay3]
       )).rows;
       const cheDoTo = cheDoTheoNgay(await mocCheDo(poolMra, [toId]));
-      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay2 || e.loai === "ra_ca");
-      for (const [ca, ds] of Object.entries(doanCoMat(evs))) {
-        coMatHomNay[ca] = (ds ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
+      const evs = locTheoCheDo(suKienConHieuLuc(dd.map(toSuKien)), cheDoTo).filter((e) => vnDayKey(new Date(e.ts)) === ngay3 || e.loai === "ra_ca");
+      for (const [ca, ds2] of Object.entries(doanCoMat(evs))) {
+        coMatHomNay[ca] = (ds2 ?? []).map((d) => ({ mnv: d.mnv, vao: d.start, ra: d.end }));
       }
       const muon = [...new Set(Object.values(coMatHomNay).flat().map((x) => x.mnv))];
       const cn = await poolMra.query(
@@ -84320,7 +85673,7 @@ app.get("/api/xuong/cong-viec", async (req, res) => {
       success: true,
       available: true,
       serverNow: Date.now(),
-      ngay: ngay2,
+      ngay: ngay3,
       to: { id: toId, xuong: xuongTo, ten: toRow?.ten_to ?? null },
       congDoan: cdRows.rows.map((x) => ({ id: x.id, ten: x.cd_chi_tiet, xuong: x.xuong })),
       // Kèm số còn nhận được (đã triển khai / đơn hàng − đã nhận); đã nhận đủ thì không còn chờ nhận
@@ -84363,22 +85716,22 @@ async function lichCaCuaXuong(xuong, db = poolMra) {
   );
   return r.rows.map((x) => ({ loaiCa: x.loai_ca, gioBatDau: x.bd, gioKetThuc: x.kt, nghi: Array.isArray(x.nghi) ? x.nghi : [] }));
 }
-async function gioCongToNgay(toId, ngay2) {
-  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay2]);
+async function gioCongToNgay(toId, ngay3) {
+  const pb = await poolMra.query("SELECT v FROM xuong_phien_ban WHERE to_id = $1 AND ngay = $2::date", [toId, ngay3]);
   const toRow = await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId]);
   const xuong = toRow.rows[0]?.xuong;
   if (!xuong) return null;
   const lichCa = await lichCaCuaXuong(String(xuong));
   const bamLichCa = dauLichCa(lichCa);
   const v = `${pb.rows[0]?.v ?? 0}|${bamLichCa}`;
-  const key = `${toId}|${ngay2}`;
-  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay2;
+  const key = `${toId}|${ngay3}`;
+  const today = vnDayKey(/* @__PURE__ */ new Date()) === ngay3;
   const hit = gioCongCache.get(key);
   if (hit && hit.v === v && !today) return hit.payload;
   const r = await poolMra.query(
     `SELECT ${COT_SU_KIEN} FROM xuong_su_kien
      WHERE to_id = $1 AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date BETWEEN ($2::date - 7) AND ($2::date + 1)`,
-    [toId, ngay2]
+    [toId, ngay3]
   );
   const capTrongCuaSo = new Set(r.rows.filter((x) => x.hex && x.cong_doan_id).map((x) => pairKey(x.hex, x.cong_doan_id)));
   const lichSu = (await suKienTheoHex(poolMra, [...new Set(r.rows.filter((x) => x.hex).map((x) => String(x.hex)))])).filter((x) => x.hex && x.cong_doan_id && capTrongCuaSo.has(pairKey(x.hex, x.cong_doan_id)));
@@ -84389,13 +85742,13 @@ async function gioCongToNgay(toId, ngay2) {
   const mocTo = await mocCheDo(poolMra, [toId]);
   const cheDo = cheDoTheoNgay(mocTo);
   const chinhThuc = await phanBoTheoCach(tatCa, "chinh_thuc");
-  const soKhop = cheDo(toId, ngay2) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
+  const soKhop = cheDo(toId, ngay3) === "song_song" ? await phanBoTheoCach(tatCa, "so_khop") : null;
   const payload = {
     ...chinhThuc.pb,
     bamLichCa,
-    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay2, lichCa),
-    cheDo: cheDo(toId, ngay2),
-    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay2, lichCa) } } : {}
+    diemDanh: tomTatDiemDanh(chinhThuc.coMat, ngay3, lichCa),
+    cheDo: cheDo(toId, ngay3),
+    ...soKhop ? { soKhopTram: { ...soKhop.pb, diemDanh: tomTatDiemDanh(soKhop.coMat, ngay3, lichCa) } } : {}
   };
   gioCongCache.delete(key);
   gioCongCache.set(key, { v, payload });
@@ -84408,13 +85761,13 @@ async function gioCongToNgay(toId, ngay2) {
   async function phanBoTheoCach(tatCa2, cach) {
     const conHieuLuc = locTheoCheDo(suKienConHieuLuc(tatCa2), cheDo, cach);
     const tram = await soTram(poolMra, tatCa2, cach, now);
-    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay2;
+    const trongNgay = (e) => vnDayKey(new Date(e.ts)) === ngay3;
     const caTangCa = conHieuLuc.filter((e) => e.loai === "tang_ca" && trongNgay(e)).map((e) => String(e.duLieu?.loaiCa));
     const boChon = {};
     for (const e of conHieuLuc.filter((x) => x.loai === "tang_ca" && trongNgay(x))) {
       const ca = String(e.duLieu?.loaiCa);
-      const ds = Array.isArray(e.duLieu?.boChon) ? e.duLieu.boChon.map(String) : [];
-      boChon[ca] = [...boChon[ca] ?? [], ...ds];
+      const ds2 = Array.isArray(e.duLieu?.boChon) ? e.duLieu.boChon.map(String) : [];
+      boChon[ca] = [...boChon[ca] ?? [], ...ds2];
     }
     const quanSo = {};
     for (const e of conHieuLuc.filter((x) => x.loai === "quan_so" && trongNgay(x))) {
@@ -84431,7 +85784,7 @@ async function gioCongToNgay(toId, ngay2) {
         capCuaTo.get(k).push(e);
         if (e.loai !== "tien_do") {
           const d = vnDayKey(new Date(e.ts));
-          if (d <= ngay2 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+          if (d <= ngay3 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
         }
         if ((e.loai === "bat_dau" || e.loai === "tiep_tuc") && e.soNguoi !== null) {
           soNguoi.push({ key: k, at: e.ts, soNguoi: e.soNguoi, nguoi: dsTen(e.duLieu?.nguoi) });
@@ -84449,7 +85802,7 @@ async function gioCongToNgay(toId, ngay2) {
         for (const p of e.duLieu.hangMuc) {
           if (typeof p.hex === "string" && typeof p.congDoanId === "string" && p.trangThai === "van_lam") {
             const k = pairKey(p.hex, p.congDoanId);
-            if (d <= ngay2 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
+            if (d <= ngay3 && (!ngayCuoi.has(k) || ngayCuoi.get(k) < d)) ngayCuoi.set(k, d);
           }
         }
       }
@@ -84466,8 +85819,8 @@ async function gioCongToNgay(toId, ngay2) {
     for (const [k, evts] of capCuaTo) {
       const st = tinhTrangThai(evts, []);
       if (st.doanChay.length) doanChay[k] = st.doanChay;
-      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay2}T00:00:00+07:00`)) {
-        const tt = trangThaiXacNhan(ngay2, ngayCuoi.get(k) ?? ngay2);
+      if (st.dangChayTu !== null && st.dangChayTu < Date.parse(`${ngay3}T00:00:00+07:00`)) {
+        const tt = trangThaiXacNhan(ngay3, ngayCuoi.get(k) ?? ngay3);
         if (tt === "ngung") ngungTinh.push(k);
         if (tt === "chua_xac_nhan") chuaXacNhan.push(k);
       }
@@ -84485,10 +85838,10 @@ async function gioCongToNgay(toId, ngay2) {
         }
       }
     }
-    const truaMai = Date.parse(`${ngay2}T12:00:00+07:00`) + 24 * 36e5;
-    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay2}T00:00:00+07:00`) && e.ts < truaMai)));
-    const cuaSo = cuaSoTrongNgay(ngay2, lichCa, caTangCa);
-    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay2) === "tram" : cheDo(toId, ngay2) !== "cu";
+    const truaMai = Date.parse(`${ngay3}T12:00:00+07:00`) + 24 * 36e5;
+    const coMat = doanCoMat(conHieuLuc.filter((e) => e.loai === "vao_ca" && trongNgay(e) || e.loai === "ra_ca" && (trongNgay(e) || e.duLieu?.loaiCa !== "chinh" && e.ts > Date.parse(`${ngay3}T00:00:00+07:00`) && e.ts < truaMai)));
+    const cuaSo = cuaSoTrongNgay(ngay3, lichCa, caTangCa);
+    const dungTram = cach === "chinh_thuc" ? cheDo(toId, ngay3) === "tram" : cheDo(toId, ngay3) !== "cu";
     const coMatTinh = dungTram ? noiCoMatTangCa(coMat, cuaSo) : coMat;
     const pb2 = phanBoGioCong({
       cuaSo,
@@ -84509,11 +85862,11 @@ app.get("/api/xuong/to/:id/gio-cong", async (req, res) => {
   try {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.params.id);
-    const ngay2 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
+    const ngay3 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : vnDayKey(/* @__PURE__ */ new Date());
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
-    const kq = await gioCongToNgay(toId, ngay2);
+    const kq = await gioCongToNgay(toId, ngay3);
     if (!kq) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
-    res.json({ success: true, available: true, toId, ngay: ngay2, ...kq });
+    res.json({ success: true, available: true, toId, ngay: ngay3, ...kq });
   } catch (e) {
     fail(res, e, "/api/xuong/to/:id/gio-cong");
   }
@@ -84600,15 +85953,15 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
     const capNgay = [...toNgay].sort((a, b) => a.split("|")[1] < b.split("|")[1] ? 1 : -1);
     const gioCong = /* @__PURE__ */ new Map();
     await runWithLimit(capNgay.slice(0, 20).map((k) => async () => {
-      const [to, ngay2] = k.split("|");
-      const kq = await gioCongToNgay(Number(to), ngay2);
+      const [to, ngay3] = k.split("|");
+      const kq = await gioCongToNgay(Number(to), ngay3);
       if (!kq) return;
       for (const x of st.rows) {
         const h = kq.theoHangMuc[pairKey(hex3, String(x.cong_doan_id))];
         if (h) gioCong.set(String(x.cong_doan_id), (gioCong.get(String(x.cong_doan_id)) ?? 0) + h.gioCongThuong + h.gioCongTangCa);
       }
     }), 2);
-    const lam4 = (n) => Math.round(n * 100) / 100;
+    const lam5 = (n) => Math.round(n * 100) / 100;
     const evtsMra = evts.filter((e) => laMra.has(e.id));
     const cdMra = [...new Set(evtsMra.map((e) => e.congDoanId).filter((x) => !!x))];
     const congDoanMra = cdMra.map((cdId) => {
@@ -84633,7 +85986,7 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         ten: cdMap.get(cdId)?.cd_chi_tiet ?? null,
         xuong: cdMap.get(cdId)?.xuong ?? null,
         thuTu: cdMap.get(cdId)?.thu_tu ?? null,
-        gioChay: lam4(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO2, 0)),
+        gioChay: lam5(t.doanChay.reduce((a, d) => a + ((d.end ?? t.suKienCuoi ?? d.start) - d.start) / GIO2, 0)),
         gioCong: 0,
         nhanCongMra: nc.length ? nc[nc.length - 1].soNguoi : null
       };
@@ -84664,9 +86017,9 @@ app.get("/api/xuong/hex/:hex", async (req, res) => {
         ten: cdMap.get(String(x.cong_doan_id))?.cd_chi_tiet ?? null,
         xuong: x.xuong ?? null,
         thuTu: cdMap.get(String(x.cong_doan_id))?.thu_tu ?? null,
-        gioChay: lam4(gioChay.get(String(x.cong_doan_id)) ?? 0),
-        gioCong: lam4(gioCong.get(String(x.cong_doan_id)) ?? 0),
-        gioChayCa: lam4(gioChayCa.get(String(x.cong_doan_id)) ?? 0),
+        gioChay: lam5(gioChay.get(String(x.cong_doan_id)) ?? 0),
+        gioCong: lam5(gioCong.get(String(x.cong_doan_id)) ?? 0),
+        gioChayCa: lam5(gioChayCa.get(String(x.cong_doan_id)) ?? 0),
         viTriTuyen: viTri.get(String(x.cong_doan_id)) ?? null,
         nguon: "app",
         nhanCongMra: null
@@ -84846,12 +86199,12 @@ app.get("/api/xuong/tim-hex", async (req, res) => {
       `SELECT DISTINCT hex::text AS hex FROM production_status_app WHERE hex IS NOT NULL AND hex::text LIKE $1 LIMIT 10`,
       [mau]
     );
-    const ds = [.../* @__PURE__ */ new Set([...cuaTo, ...khac.rows.map((x) => String(x.hex))])].filter((h) => HEX_RE.test(h)).slice(0, 10);
-    const info = await thongTinHangMuc(ds);
+    const ds2 = [.../* @__PURE__ */ new Set([...cuaTo, ...khac.rows.map((x) => String(x.hex))])].filter((h) => HEX_RE.test(h)).slice(0, 10);
+    const info = await thongTinHangMuc(ds2);
     res.json({
       success: true,
       available: true,
-      ketQua: ds.map((h) => ({
+      ketQua: ds2.map((h) => ({
         hex: h,
         cuaTo: cuaTo.includes(h),
         tenHangMuc: info.get(h)?.ten_hang_muc ?? null,
@@ -84912,20 +86265,20 @@ import crypto3 from "node:crypto";
 // src/server/xuong/soKhopTram.ts
 var NGUONG_CHENH_PHAN_TRAM = 10;
 var NGUONG_CHENH_GIO = 0.5;
-var lam = (n) => Math.round(n * 100) / 100;
+var lam2 = (n) => Math.round(n * 100) / 100;
 function soSanh(chinhThuc, tram) {
   const chenh = tram - chinhThuc;
   const phanTram = chinhThuc > 0 ? Math.round(chenh / chinhThuc * 100) : null;
   const lon = Math.abs(chenh) >= NGUONG_CHENH_GIO && (phanTram === null || Math.abs(phanTram) >= NGUONG_CHENH_PHAN_TRAM);
-  return { chinhThuc: lam(chinhThuc), tram: lam(tram), chenh: lam(chenh), phanTram, lon };
+  return { chinhThuc: lam2(chinhThuc), tram: lam2(tram), chenh: lam2(chenh), phanTram, lon };
 }
 var tongGio = (g) => g.thuong + g.tangCa;
 var gioSp = (pb) => Object.values(pb.theoHangMuc).reduce((a, h) => a + h.gioCongThuong + h.gioCongTangCa, 0);
 var coSoTram = (pb) => tongGio(pb.gioNguoiTo) > 0 || gioSp(pb) > 0 || Object.keys(pb.theoNguoi ?? {}).length > 0 || Object.keys(pb.diemDanh ?? {}).length > 0;
 var doLech = (s) => Math.abs(s.chenh);
-function gomSoKhopTram(ds, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
+function gomSoKhopTram(ds2, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
   const theoTo = /* @__PURE__ */ new Map();
-  for (const { toId, ngay: ngay2, kq } of ds) {
+  for (const { toId, ngay: ngay3, kq } of ds2) {
     const tr = kq.soKhopTram;
     if (!tr) continue;
     const ct = kq;
@@ -84949,7 +86302,7 @@ function gomSoKhopTram(ds, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
     }).sort((x, y) => Number(y.gioCong.lon || y.gioCongSp.lon) - Number(x.gioCong.lon || x.gioCongSp.lon) || Math.max(doLech(y.gioCong), doLech(y.gioCongSp)) - Math.max(doLech(x.gioCong), doLech(x.gioCongSp)) || (x.hoTen ?? x.mnv).localeCompare(y.hoTen ?? y.mnv));
     if (!theoTo.has(toId)) theoTo.set(toId, []);
     theoTo.get(toId).push({
-      ngay: ngay2,
+      ngay: ngay3,
       gioCong: soSanh(tongGio(ct.gioNguoiTo), tongGio(tr.gioNguoiTo)),
       gioCongSp: soSanh(gioSp(ct), gioSp(tr)),
       soNguoi: {
@@ -84964,12 +86317,12 @@ function gomSoKhopTram(ds, tenTo, tenNguoi2 = /* @__PURE__ */ new Map()) {
   for (const [toId, ngays] of theoTo) {
     if (ngays.every((n) => n.khongCoTram)) continue;
     ngays.sort((a, b) => b.ngay.localeCompare(a.ngay));
-    const cong2 = (f, ben) => ngays.reduce((a, n) => a + f(n)[ben], 0);
+    const cong3 = (f, ben) => ngays.reduce((a, n) => a + f(n)[ben], 0);
     out.push({
       toId,
       ten: tenTo.get(toId) ?? `T\u1ED5 ${toId}`,
-      gioCong: soSanh(cong2((n) => n.gioCong, "chinhThuc"), cong2((n) => n.gioCong, "tram")),
-      gioCongSp: soSanh(cong2((n) => n.gioCongSp, "chinhThuc"), cong2((n) => n.gioCongSp, "tram")),
+      gioCong: soSanh(cong3((n) => n.gioCong, "chinhThuc"), cong3((n) => n.gioCong, "tram")),
+      gioCongSp: soSanh(cong3((n) => n.gioCongSp, "chinhThuc"), cong3((n) => n.gioCongSp, "tram")),
       soNgay: ngays.length,
       soNgayLon: ngays.filter((n) => n.gioCong.lon || n.gioCongSp.lon).length,
       theoNgay: ngays
@@ -84989,11 +86342,11 @@ async function xoaGioCongLuu(xuong) {
     if (!isMissingSchema(e)) throw e;
   }
 }
-var cong = (a, b) => {
+var cong2 = (a, b) => {
   a.thuong += b.thuong;
   a.tangCa += b.tangCa;
 };
-var lam2 = (n) => Math.round(n * 100) / 100;
+var lam3 = (n) => Math.round(n * 100) / 100;
 var minN = (a, b) => a > 0 && b > 0 ? Math.min(a, b) : a || b;
 app.get("/api/xuong/bao-cao", async (req, res) => {
   try {
@@ -85005,9 +86358,9 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     const homNay = vnDayKey(/* @__PURE__ */ new Date());
     const den = typeof req.query.den === "string" && NGAY_RE2.test(req.query.den) ? req.query.den : homNay;
     const tu = typeof req.query.tu === "string" && NGAY_RE2.test(req.query.tu) ? req.query.tu : den;
-    const soNgay = (Date.parse(den) - Date.parse(tu)) / 864e5;
-    const rutGon = soNgay > 62;
-    if (soNgay < 0 || soNgay > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
+    const soNgay2 = (Date.parse(den) - Date.parse(tu)) / 864e5;
+    const rutGon = soNgay2 > 62;
+    if (soNgay2 < 0 || soNgay2 > 185) return res.status(400).json({ success: false, message: "Kho\u1EA3ng ng\xE0y ph\u1EA3i t\u1EEB 1 t\u1EDBi 186 ng\xE0y (kho\u1EA3ng 6 th\xE1ng)" });
     const toRows = (await poolMra.query("SELECT id, ten_to, active FROM xuong_to WHERE xuong = $1 ORDER BY ten_to", [xuong])).rows.filter((t) => !chiTo || chiTo.includes(Number(t.id)));
     const toIds = toRows.map((t) => Number(t.id));
     const [pb, kpiNk, kpiGui, hienTai, qsNgay, nhanNgay, xongNgay] = await Promise.all([
@@ -85125,14 +86478,14 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
     for (const x of nhanNgay.rows) {
       const k = `${x.to_id}|${x.ngay}`;
       if (!nhanCua.has(k)) nhanCua.set(k, []);
-      nhanCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam2(Number(x.sl)) });
+      nhanCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam3(Number(x.sl)) });
       tatCaHex.add(String(x.hex));
     }
     const xongCua = /* @__PURE__ */ new Map();
     for (const x of xongNgay.rows) {
       const k = `${x.to_id}|${x.ngay}`;
       if (!xongCua.has(k)) xongCua.set(k, []);
-      xongCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam2(Number(x.sl)) });
+      xongCua.get(k).push({ hex: String(x.hex), congDoanId: String(x.cong_doan_id), soLuong: lam3(Number(x.sl)) });
       tatCaHex.add(String(x.hex));
     }
     const dangChayNay = new Set((await poolMra.query(
@@ -85217,7 +86570,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
               if (e.ts < t0 || e.ts >= t1 || !(e.sl > 0)) continue;
               const k = `${toId}|${ngayCuaTs(e.ts)}`;
               if (coApp.has(k)) continue;
-              layNgay(k)[dich].push({ hex: c.hex, congDoanId: c.cd, soLuong: lam2(e.sl) });
+              layNgay(k)[dich].push({ hex: c.hex, congDoanId: c.cd, soLuong: lam3(e.sl) });
             }
           }
         }
@@ -85234,10 +86587,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
             const [moThuong, lan] = [...dem2.entries()].sort((p, q) => q[1] - p[1] || q[0] - p[0])[0];
             const lonNhat = Math.max(...xs.map((x) => x.soNguoiMax));
             if (!(lan >= 2 && lan / xs.length >= 0.5 && moThuong === lonNhat)) continue;
-            const tong2 = xs.reduce((a, x) => a + x.gioCongThuong, 0);
+            const tong3 = xs.reduce((a, x) => a + x.gioCongThuong, 0);
             const tran = lonNhat * Math.max(...xs.map((x) => x.gioChay));
-            if (tong2 > tran && tong2 > 0) {
-              const he = tran / tong2;
+            if (tong3 > tran && tong3 > 0) {
+              const he = tran / tong3;
               for (const x of xs) {
                 m.gioCong -= x.gioCongThuong * (1 - he);
                 x.gioCongThuong *= he;
@@ -85285,8 +86638,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       for (const x of pb.rows.filter((p) => Number(p.to_id) === toId)) {
         const kq = ketQua.get(`${toId}|${x.ngay}`);
         if (!kq) continue;
-        cong(gioNguoi, kq.gioNguoiTo);
-        cong(gioCho, kq.gioCho);
+        cong2(gioNguoi, kq.gioNguoiTo);
+        cong2(gioCho, kq.gioCho);
         for (const [ly, h2] of Object.entries(kq.gioChoLyDo ?? {})) gioChoLyDo[ly] = (gioChoLyDo[ly] ?? 0) + h2;
         let gcNgay = 0;
         let tcNgay = 0;
@@ -85298,11 +86651,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
             hmNgay.push({
               hex: k.split("|")[0],
               congDoanId: k.split("|")[1],
-              gioChay: lam2(h2.gioChay),
-              gioCongThuong: lam2(h2.gioCongThuong),
-              gioCongTangCa: lam2(h2.gioCongTangCa),
+              gioChay: lam3(h2.gioChay),
+              gioCongThuong: lam3(h2.gioCongThuong),
+              gioCongTangCa: lam3(h2.gioCongTangCa),
               dangChay: x.ngay === homNay && dangChayNay.has(k),
-              gioNguoiKhai: lam2(h2.gioNguoiKhai ?? 0),
+              gioNguoiKhai: lam3(h2.gioNguoiKhai ?? 0),
               soNguoiMax: h2.soNguoiMax ?? 0,
               soNguoiMin: h2.soNguoiMin ?? 0
             });
@@ -85328,26 +86681,26 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         if (kq.co.includes("khai_vuot_quan_so")) khaiVuot++;
         theoNgay.push({
           ngay: x.ngay,
-          gioNguoi: lam2(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa),
-          gioCong: lam2(gcNgay),
-          gioCongTangCa: lam2(tcNgay),
-          gioCho: lam2(kq.gioCho.thuong + kq.gioCho.tangCa),
+          gioNguoi: lam3(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa),
+          gioCong: lam3(gcNgay),
+          gioCongTangCa: lam3(tcNgay),
+          gioCho: lam3(kq.gioCho.thuong + kq.gioCho.tangCa),
           // Hôm nay chưa hết ca: tỷ lệ còn thay đổi, chưa gắn cờ
           co: x.ngay < homNay && tyLeCoViecThap(kq.gioNguoiTo.thuong + kq.gioNguoiTo.tangCa, gcNgay) ? [...kq.co, "ty_le_co_viec_thap"] : kq.co,
           quanSo: quanSoCua.get(`${toId}|${x.ngay}`) ?? {},
           hangMuc: hmNgay.sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa)),
           nhan: nhanCua.get(`${toId}|${x.ngay}`) ?? [],
           xong: xongCua.get(`${toId}|${x.ngay}`) ?? [],
-          gioChoLyDo: Object.fromEntries(Object.entries(kq.gioChoLyDo ?? {}).map(([k, v]) => [k, lam2(v)]))
+          gioChoLyDo: Object.fromEntries(Object.entries(kq.gioChoLyDo ?? {}).map(([k, v]) => [k, lam3(v)]))
         });
       }
       for (const [k, m] of mraNgay) {
         if (!k.startsWith(`${toId}|`)) continue;
-        const ngay2 = k.slice(k.indexOf("|") + 1);
+        const ngay3 = k.slice(k.indexOf("|") + 1);
         gioNguoi.thuong += m.gioNguoi;
         gioCho.thuong += m.gioCho;
         gioCong.thuong += m.gioCong;
-        const hmNgay = [...m.hm.values()].map((x) => ({ ...x, gioChay: lam2(x.gioChay), gioCongThuong: lam2(x.gioCongThuong), gioNguoiKhai: lam2(x.gioNguoiKhai) }));
+        const hmNgay = [...m.hm.values()].map((x) => ({ ...x, gioChay: lam3(x.gioChay), gioCongThuong: lam3(x.gioCongThuong), gioNguoiKhai: lam3(x.gioNguoiKhai) }));
         for (const x of m.hm.values()) {
           const kk = `${x.hex}|${x.congDoanId}`;
           const cur = hm.get(kk) ?? { gioChay: 0, thuong: 0, tangCa: 0, gnk: 0, max: 0, min: 0 };
@@ -85361,11 +86714,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         }
         for (const x of [...m.nhan, ...m.xong]) tatCaHex.add(x.hex);
         theoNgay.push({
-          ngay: ngay2,
-          gioNguoi: lam2(m.gioNguoi),
-          gioCong: lam2(m.gioCong),
+          ngay: ngay3,
+          gioNguoi: lam3(m.gioNguoi),
+          gioCong: lam3(m.gioCong),
           gioCongTangCa: 0,
-          gioCho: lam2(m.gioCho),
+          gioCho: lam3(m.gioCho),
           co: [],
           quanSo: m.quanSo ? { chinh: m.quanSo } : {},
           hangMuc: hmNgay.sort((a, b) => b.gioCongThuong - a.gioCongThuong),
@@ -85381,13 +86734,13 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         toId,
         ten: t.ten_to,
         active: t.active,
-        gioNguoi: { thuong: lam2(gioNguoi.thuong), tangCa: lam2(gioNguoi.tangCa) },
-        gioCong: { thuong: lam2(gioCong.thuong), tangCa: lam2(gioCong.tangCa) },
-        gioCho: { thuong: lam2(gioCho.thuong), tangCa: lam2(gioCho.tangCa) },
+        gioNguoi: { thuong: lam3(gioNguoi.thuong), tangCa: lam3(gioNguoi.tangCa) },
+        gioCong: { thuong: lam3(gioCong.thuong), tangCa: lam3(gioCong.tangCa) },
+        gioCho: { thuong: lam3(gioCho.thuong), tangCa: lam3(gioCho.tangCa) },
         ngayCoChay,
         ngayChot,
         khaiVuot,
-        gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lam2(v)])),
+        gioChoLyDo: Object.fromEntries(Object.entries(gioChoLyDo).map(([k, v]) => [k, lam3(v)])),
         dangChay: h ? Number(h.dang_chay) : 0,
         tamNgung: h ? Number(h.tam_ngung) : 0,
         choNhan: h ? Number(h.cho_nhan) : 0,
@@ -85395,10 +86748,10 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         theoHangMuc: [...hm.entries()].map(([k, v]) => ({
           hex: k.split("|")[0],
           congDoanId: k.split("|")[1],
-          gioChay: lam2(v.gioChay),
-          gioCongThuong: lam2(v.thuong),
-          gioCongTangCa: lam2(v.tangCa),
-          gioNguoiKhai: lam2(v.gnk),
+          gioChay: lam3(v.gioChay),
+          gioCongThuong: lam3(v.thuong),
+          gioCongTangCa: lam3(v.tangCa),
+          gioNguoiKhai: lam3(v.gnk),
           soNguoiMax: v.max,
           soNguoiMin: v.min
         })).sort((a, b) => b.gioCongThuong + b.gioCongTangCa - (a.gioCongThuong + a.gioCongTangCa))
@@ -85466,7 +86819,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         const kq = ketQua.get(`${x.to_id}|${x.ngay}`);
         if (!kq) continue;
         const a = appNgay.get(x.ngay) ?? { thuong: 0, tangCa: 0 };
-        cong(a, kq.gioNguoiTo);
+        cong2(a, kq.gioNguoiTo);
         appNgay.set(x.ngay, a);
       }
       const qsNgay2 = new Map(qs.rows.map((x) => [String(x.ngay), Number(x.so)]));
@@ -85479,11 +86832,11 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           return {
             ngay: n,
             congNhan: d ? Number(d.cn) : 0,
-            gioHc: d ? lam2(Number(d.hc)) : 0,
-            gioTc: d ? lam2(Number(d.tc)) : 0,
+            gioHc: d ? lam3(Number(d.hc)) : 0,
+            gioTc: d ? lam3(Number(d.tc)) : 0,
             quanSoApp: qsNgay2.get(n) ?? 0,
-            gioThuongApp: a ? lam2(a.thuong) : 0,
-            gioTangCaApp: a ? lam2(a.tangCa) : 0
+            gioThuongApp: a ? lam3(a.thuong) : 0,
+            gioTangCaApp: a ? lam3(a.tangCa) : 0
           };
         })
       };
@@ -85514,12 +86867,12 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           ra: dd?.ra ?? null,
           treP: dd?.treP ?? 0,
           veSomP: dd?.veSomP ?? 0,
-          coMatThuong: lam2(n.coMatThuong),
-          coMatTangCa: lam2(n.coMatTangCa),
-          congThuong: lam2(n.congThuong),
-          congTangCa: lam2(n.congTangCa),
-          cho: lam2(n.cho),
-          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam2(g) })).sort((a, b) => b.gio - a.gio),
+          coMatThuong: lam3(n.coMatThuong),
+          coMatTangCa: lam3(n.coMatTangCa),
+          congThuong: lam3(n.congThuong),
+          congTangCa: lam3(n.congTangCa),
+          cho: lam3(n.cho),
+          hangMuc: Object.entries(n.theoHangMuc).map(([k, g]) => ({ hex: k.split("|")[0], congDoanId: k.split("|")[1], gio: lam3(g) })).sort((a, b) => b.gio - a.gio),
           vang: false
         });
       }
@@ -85554,24 +86907,24 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       );
       for (const x of r.rows) tenNguoi2.set(String(x.mnv), { hoTen: String(x.ho_ten), tenTo: x.ten_to ?? null, chucVu: x.chuc_vu ?? null });
     }
-    const theoNguoi = [...nguoiNgay.entries()].map(([mnv, ds]) => {
+    const theoNguoi = [...nguoiNgay.entries()].map(([mnv, ds2]) => {
       const t = tenNguoi2.get(mnv);
-      const cong2 = (f) => lam2(ds.reduce((a, x) => a + f(x), 0));
+      const cong3 = (f) => lam3(ds2.reduce((a, x) => a + f(x), 0));
       return {
         mnv,
         hoTen: t?.hoTen ?? null,
-        tenTo: t?.tenTo ?? ds[ds.length - 1]?.tenTo ?? null,
+        tenTo: t?.tenTo ?? ds2[ds2.length - 1]?.tenTo ?? null,
         chucVu: t?.chucVu ?? null,
-        soNgay: new Set(ds.filter((x) => !x.vang).map((x) => x.ngay)).size,
-        soNgayVang: new Set(ds.filter((x) => x.vang).map((x) => x.ngay)).size,
-        lanTre: ds.filter((x) => x.treP > 0).length,
-        lanVeSom: ds.filter((x) => x.veSomP > 0).length,
-        coMatThuong: cong2((x) => x.coMatThuong),
-        coMatTangCa: cong2((x) => x.coMatTangCa),
-        congThuong: cong2((x) => x.congThuong),
-        congTangCa: cong2((x) => x.congTangCa),
-        cho: cong2((x) => x.cho),
-        ngay: ds.sort((a, b) => b.ngay.localeCompare(a.ngay)).map((x) => ({
+        soNgay: new Set(ds2.filter((x) => !x.vang).map((x) => x.ngay)).size,
+        soNgayVang: new Set(ds2.filter((x) => x.vang).map((x) => x.ngay)).size,
+        lanTre: ds2.filter((x) => x.treP > 0).length,
+        lanVeSom: ds2.filter((x) => x.veSomP > 0).length,
+        coMatThuong: cong3((x) => x.coMatThuong),
+        coMatTangCa: cong3((x) => x.coMatTangCa),
+        congThuong: cong3((x) => x.congThuong),
+        congTangCa: cong3((x) => x.congTangCa),
+        cho: cong3((x) => x.cho),
+        ngay: ds2.sort((a, b) => b.ngay.localeCompare(a.ngay)).map((x) => ({
           ...x,
           hangMuc: x.hangMuc.map((h) => ({ ...h, tenHangMuc: info.get(h.hex)?.ten_hang_muc ?? null, tenCongDoan: cdTen.get(h.congDoanId) ?? h.congDoanId }))
         }))
@@ -85602,21 +86955,21 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
           congDoanId: c.congDoanId,
           tenCongDoan: cdTen.get(c.congDoanId) ?? c.congDoanId,
           to: [...c.to].sort(),
-          gioChay: lam2(c.gioChay),
-          gioCong: lam2(c.thuong + c.tangCa),
-          gioCongTangCa: lam2(c.tangCa),
-          slXong: lam2(c.slXong),
+          gioChay: lam3(c.gioChay),
+          gioCong: lam3(c.thuong + c.tangCa),
+          gioCongTangCa: lam3(c.tangCa),
+          slXong: lam3(c.slXong),
           // Số công nhân bình quân lúc chạy = giờ người khai / giờ chạy
           // giờ chạy rất ngắn (vài phút) làm tròn lệch => không cho vượt số người khai nhiều nhất
-          soNguoiTb: c.gioChay > 0 ? lam2(Math.min(c.max, c.gnk / c.gioChay)) : 0,
+          soNguoiTb: c.gioChay > 0 ? lam3(Math.min(c.max, c.gnk / c.gioChay)) : 0,
           soNguoiMax: c.max,
           soNguoiMin: c.min,
           trangThai: tt ? String(tt.trang_thai) : null,
-          slNhan: tt ? lam2(Number(tt.sl_nhan)) : 0,
-          slHoanThanh: tt ? lam2(Number(tt.sl_ht)) : 0,
+          slNhan: tt ? lam3(Number(tt.sl_nhan)) : 0,
+          slHoanThanh: tt ? lam3(Number(tt.sl_ht)) : 0,
           // Giao đến / đã giao (MRA cũ không có => null)
-          slGiaoDen: tt && tt.sl_gd !== null ? lam2(Number(tt.sl_gd)) : null,
-          slGiao: tt && tt.sl_gi !== null ? lam2(Number(tt.sl_gi)) : null
+          slGiaoDen: tt && tt.sl_gd !== null ? lam3(Number(tt.sl_gd)) : null,
+          slGiao: tt && tt.sl_gi !== null ? lam3(Number(tt.sl_gi)) : null
         };
       }).sort((a, b) => (cdThuTu.get(a.congDoanId) ?? 999) - (cdThuTu.get(b.congDoanId) ?? 999) || b.gioCong - a.gioCong);
       const i = info.get(hex3);
@@ -85626,8 +86979,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
         tenCongTrinh: i?.ten_cong_trinh ?? null,
         dvt: i?.dvt ?? null,
         soLuongDonHang: i?.so_luong_don_hang_tong ? Number(i.so_luong_don_hang_tong) : null,
-        gioCong: lam2(congDoan.reduce((a, c) => a + c.gioCong, 0)),
-        slXong: lam2(congDoan.reduce((a, c) => a + c.slXong, 0)),
+        gioCong: lam3(congDoan.reduce((a, c) => a + c.gioCong, 0)),
+        slXong: lam3(congDoan.reduce((a, c) => a + c.slXong, 0)),
         congDoan
       };
     }).sort((a, b) => b.gioCong - a.gioCong);
@@ -85681,7 +87034,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       const tk = tkHm.get(h.hex) ?? (mh ? { sl: mh.sl, luc: new Date(mh.luc).toISOString(), tuyen: [], mra: true } : null);
       Object.assign(h, { trienKhai: tk, keHoach: khHm.get(h.hex) ?? null });
     }
-    const tong = theoTo.reduce((a, t) => ({
+    const tong2 = theoTo.reduce((a, t) => ({
       ngayCoChay: a.ngayCoChay + t.ngayCoChay,
       ngayChot: a.ngayChot + t.ngayChot,
       khaiVuot: a.khaiVuot + t.khaiVuot
@@ -85703,8 +87056,8 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
       chiSo: {
         nhatKy: { tong: kpiNk.rows[0]?.tong ?? 0, du: kpiNk.rows[0]?.du ?? 0 },
         guiTrong1Gio: { tong: kpiGui.rows[0]?.tong ?? 0, nhanh: kpiGui.rows[0]?.nhanh ?? 0 },
-        chotQuanSo: { ngayCoChay: tong.ngayCoChay, ngayChot: tong.ngayChot },
-        khaiVuotQuanSo: tong.khaiVuot
+        chotQuanSo: { ngayCoChay: tong2.ngayCoChay, ngayChot: tong2.ngayChot },
+        khaiVuotQuanSo: tong2.khaiVuot
       },
       // Khoảng > 2 tháng: không gửi chi tiết hạng mục từng ngày (6 tháng xưởng lớn > 8 MB) — chỉ số đếm
       rutGon,
@@ -85737,7 +87090,7 @@ app.get("/api/xuong/bao-cao", async (req, res) => {
 });
 
 // src/server/xuong/huyTrienKhai.ts
-var so4 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
+var so5 = (v) => typeof v === "number" && Number.isFinite(v) ? v : 0;
 var EPS2 = 5e-4;
 function suKienCuaDot(evts, trienKhaiId) {
   const con = suKienConHieuLuc(evts);
@@ -85768,7 +87121,7 @@ function kiemTraHuyDot(evts, trienKhaiId) {
   const chan = [];
   for (const cd of [...new Set(huy.map((e) => e.congDoanDenId).filter((x) => !!x))]) {
     const nhan = suKienConHieuLuc(evts.filter((e) => e.congDoanId === cd || e.loai === "huy")).filter((e) => e.loai === "nhan" && !e.congDoanNguonId && !e.xuongNguon);
-    const slNhan = nhan.reduce((a, e) => a + so4(e.soLuong), 0);
+    const slNhan = nhan.reduce((a, e) => a + so5(e.soLuong), 0);
     const truoc = giaoDen(evts, cd);
     const conLai = giaoDen(sau, cd);
     if (slNhan > conLai + EPS2 && conLai < truoc - EPS2) {
@@ -85779,10 +87132,10 @@ function kiemTraHuyDot(evts, trienKhaiId) {
 }
 
 // src/server/xuong/tuyenMacDinh.ts
-function loiThanhPhan(ds, xuong, xuongCd) {
-  if (!ds.length) return "C\u1EA7n \xEDt nh\u1EA5t m\u1ED9t th\xE0nh ph\u1EA7n";
-  if (new Set(ds.map((t) => t.ten)).size !== ds.length) return "M\u1ED7i th\xE0nh ph\u1EA7n ch\u1EC9 khai m\u1ED9t l\u1EA7n";
-  for (const t of ds) {
+function loiThanhPhan(ds2, xuong, xuongCd) {
+  if (!ds2.length) return "C\u1EA7n \xEDt nh\u1EA5t m\u1ED9t th\xE0nh ph\u1EA7n";
+  if (new Set(ds2.map((t) => t.ten)).size !== ds2.length) return "M\u1ED7i th\xE0nh ph\u1EA7n ch\u1EC9 khai m\u1ED9t l\u1EA7n";
+  for (const t of ds2) {
     if (t.xuong === xuong && !t.tuyen.length) return `${t.ten}: th\xE0nh ph\u1EA7n c\u1EE7a x\u01B0\u1EDFng ch\xEDnh c\u1EA7n tuy\u1EBFn c\xF4ng \u0111o\u1EA1n`;
     const thieu = t.tuyen.find((id) => !xuongCd.has(id));
     if (thieu) return `${t.ten}: c\xF4ng \u0111o\u1EA1n ${thieu} kh\xF4ng t\u1ED3n t\u1EA1i ho\u1EB7c \u0111\xE3 t\u1EAFt`;
@@ -85798,8 +87151,8 @@ function chonGoiY(macDinh, lanTruoc, xuong, xuongCd) {
 // src/routes/xuongSetup.ts
 var gioRe = /^([01]\d|2[0-3]):[0-5]\d$/;
 async function xuongDuocSua(req) {
-  const ds = await xuongQuanLy(req.user.id);
-  return { ds, admin: ds.has("*") };
+  const ds2 = await xuongQuanLy(req.user.id);
+  return { ds: ds2, admin: ds2.has("*") };
 }
 var khongQuyen = (res, msg = "Ch\u1EC9 admin ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y \u0111\u01B0\u1EE3c thay \u0111\u1ED5i") => res.status(403).json({ success: false, message: msg });
 async function lanTrienKhaiTruoc(xuong) {
@@ -85826,17 +87179,17 @@ async function lanTrienKhaiTruoc(xuong) {
 }
 app.get("/api/xuong/setup", async (req, res) => {
   try {
-    const { ds, admin } = await xuongDuocSua(req);
+    const { ds: ds2, admin } = await xuongDuocSua(req);
     const toTruong = admin ? [] : await toTruongCua(req.user.id);
-    if (!ds.size && !toTruong.length) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    if (!ds2.size && !toTruong.length) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
     const tatCa = toTruong.length ? [...new Set(toTruong.map((t) => t.xuong))].sort() : (await poolMra.query(
       `SELECT DISTINCT xuong FROM (SELECT xuong FROM xuong_cong_doan UNION SELECT xuong FROM xuong_to) x ORDER BY xuong`
-    )).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
+    )).rows.map((x) => String(x.xuong)).filter((x) => admin || ds2.has(x));
     const yeuCau = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : null;
     const xuong = yeuCau && tatCa.includes(yeuCau) ? yeuCau : yeuCau && !toTruong.length ? yeuCau : tatCa[0] ?? null;
     if (!xuong) return res.json({ success: true, available: true, admin, dsXuong: tatCa, xuong: null, chiTo: null });
     const chiTo = toTruong.length ? toTruong.filter((t) => t.xuong === xuong).map((t) => t.id) : null;
-    if (!chiTo && !quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    if (!chiTo && !quanLyDuoc(ds2, xuong)) return khongQuyen(res);
     const [cd, to, tc, tv, lc, ql] = await Promise.all([
       poolMra.query(`SELECT id, xuong, ten_cd, cd_tach_ma, cd_chi_tiet, thu_tu, la_bao_bi, active FROM xuong_cong_doan
                   WHERE xuong = $1 ORDER BY thu_tu, cd_tach_ma, cd_chi_tiet`, [xuong]),
@@ -85917,12 +87270,12 @@ app.get("/api/xuong/setup", async (req, res) => {
 });
 app.get("/api/xuong/tong-quan", async (req, res) => {
   try {
-    const { ds, admin } = await xuongDuocSua(req);
-    if (!ds.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
-    const dsXuong = (await poolMra.query(`SELECT DISTINCT xuong FROM xuong_to WHERE active ORDER BY xuong`)).rows.map((x) => String(x.xuong)).filter((x) => admin || ds.has(x));
+    const { ds: ds2, admin } = await xuongDuocSua(req);
+    if (!ds2.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    const dsXuong = (await poolMra.query(`SELECT DISTINCT xuong FROM xuong_to WHERE active ORDER BY xuong`)).rows.map((x) => String(x.xuong)).filter((x) => admin || ds2.has(x));
     const xuong = typeof req.query.xuong === "string" && req.query.xuong ? req.query.xuong.toUpperCase() : dsXuong[0] ?? null;
     if (!xuong) return res.json({ success: true, available: true, dsXuong, xuong: null, to: [] });
-    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    if (!quanLyDuoc(ds2, xuong)) return khongQuyen(res);
     await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
     const r = await poolMra.query(
       `WITH homnay AS (SELECT (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AS d)
@@ -85977,18 +87330,18 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
     const diemDanh = /* @__PURE__ */ new Map();
     if (r.rows.length && await coBangCongNhan()) {
       const ids = r.rows.map((x) => Number(x.id));
-      const ngay2 = vnDayKey(/* @__PURE__ */ new Date());
+      const ngay3 = vnDayKey(/* @__PURE__ */ new Date());
       const now = Date.now();
-      const [ev, ds2, lichCa] = await Promise.all([
+      const [ev, ds22, lichCa] = await Promise.all([
         poolMra.query(
           `SELECT ${COT_SU_KIEN} FROM xuong_su_kien e WHERE to_id = ANY($1::int[]) AND loai IN ('vao_ca','ra_ca')
              AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date`,
-          [ids, ngay2]
+          [ids, ngay3]
         ),
         poolMra.query(`SELECT mnv, ho_ten, to_id FROM xuong_cong_nhan WHERE active AND to_id = ANY($1::int[])`, [ids]),
         lichCaCuaXuong(xuong)
       ]);
-      const ten = new Map(ds2.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
+      const ten = new Map(ds22.rows.map((x) => [String(x.mnv), String(x.ho_ten)]));
       const thieu = [...new Set(ev.rows.flatMap((x) => (Array.isArray(x.du_lieu?.nguoi) ? x.du_lieu.nguoi : []).map((n) => String(n?.mnv ?? ""))))].filter((m) => m && !ten.has(m));
       if (thieu.length) {
         for (const x of (await poolMra.query("SELECT mnv, ho_ten FROM xuong_cong_nhan WHERE mnv = ANY($1::text[])", [thieu])).rows) ten.set(String(x.mnv), String(x.ho_ten));
@@ -86006,8 +87359,8 @@ app.get("/api/xuong/tong-quan", async (req, res) => {
         const caChinh = [...coMat.chinh ?? [], ...coMat.chu_nhat ?? []];
         const daDiemDanh = caChinh.length > 0;
         const dangCo = new Set(caChinh.filter((d) => d.end === null || d.end > now).map((d) => d.mnv));
-        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay2, lichCa);
-        const doi = ds2.rows.filter((x) => Number(x.to_id) === id).map((x) => String(x.mnv));
+        const tomTat = tomTatDiemDanh({ chinh: coMat.chinh ?? [] }, ngay3, lichCa);
+        const doi = ds22.rows.filter((x) => Number(x.to_id) === id).map((x) => String(x.mnv));
         const daTung = new Set(caChinh.map((d) => d.mnv));
         diemDanh.set(id, {
           daDiemDanh,
@@ -86061,8 +87414,8 @@ app.post("/api/xuong/setup/cong-doan", async (req, res) => {
     const p = congDoanSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "Thi\u1EBFu t\xEAn c\xF4ng \u0111o\u1EA1n / x\u01B0\u1EDFng / th\u1EE9 t\u1EF1" });
     const d = { ...p.data, xuong: p.data.xuong.toUpperCase() };
-    const { ds } = await xuongDuocSua(req);
-    if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds2, d.xuong)) return khongQuyen(res);
     if (d.id) {
       const cu = await poolMra.query("SELECT xuong FROM xuong_cong_doan WHERE id = $1", [d.id]);
       if (!cu.rows[0]) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y c\xF4ng \u0111o\u1EA1n" });
@@ -86099,8 +87452,8 @@ app.post("/api/xuong/setup/to", async (req, res) => {
     const p = toSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "D\u1EEF li\u1EC7u t\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
     const d = { ...p.data, xuong: p.data.xuong.toUpperCase(), thanhVien: [...new Set(p.data.thanhVien.map((x) => x.toUpperCase().replace(/\s+/g, "")).filter(Boolean))] };
-    const { ds, admin } = await xuongDuocSua(req);
-    if (!quanLyDuoc(ds, d.xuong)) return khongQuyen(res);
+    const { ds: ds2, admin } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds2, d.xuong)) return khongQuyen(res);
     if (d.capQuyen && !admin) return khongQuyen(res, "Ch\u1EC9 admin \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n t\xE0i kho\u1EA3n");
     const hoTen = new Map(d.thanhVien.length ? (await pool.query(`SELECT upper(msnv) AS mnv, full_name FROM users WHERE msnv IS NOT NULL AND upper(msnv) = ANY($1::text[])`, [d.thanhVien])).rows.filter((r) => r.full_name).map((r) => [String(r.mnv), String(r.full_name)]) : []);
     const kq = await withTransactionMra(async (client) => {
@@ -86184,8 +87537,8 @@ app.put("/api/xuong/setup/lich-ca", async (req, res) => {
     const p = lichCaSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "Gi\u1EDD ph\u1EA3i d\u1EA1ng HH:MM" });
     const d = { ...p.data, xuong: p.data.xuong === "*" ? "*" : p.data.xuong.toUpperCase() };
-    const { ds, admin } = await xuongDuocSua(req);
-    if (d.xuong === "*" ? !admin : !quanLyDuoc(ds, d.xuong)) return khongQuyen(res, d.xuong === "*" ? "Ch\u1EC9 admin s\u1EEDa l\u1ECBch m\u1EB7c \u0111\u1ECBnh" : void 0);
+    const { ds: ds2, admin } = await xuongDuocSua(req);
+    if (d.xuong === "*" ? !admin : !quanLyDuoc(ds2, d.xuong)) return khongQuyen(res, d.xuong === "*" ? "Ch\u1EC9 admin s\u1EEDa l\u1ECBch m\u1EB7c \u0111\u1ECBnh" : void 0);
     await poolMra.query(
       `INSERT INTO xuong_lich_ca (xuong, loai_ca, gio_bat_dau, gio_ket_thuc, nghi) VALUES ($1,$2,$3,$4,$5::jsonb)
        ON CONFLICT (xuong, loai_ca) DO UPDATE SET gio_bat_dau = EXCLUDED.gio_bat_dau, gio_ket_thuc = EXCLUDED.gio_ket_thuc, nghi = EXCLUDED.nghi`,
@@ -86205,8 +87558,8 @@ app.delete("/api/xuong/setup/lich-ca", async (req, res) => {
     if (!xuong || xuong === "*" || !LOAI_CA.includes(loaiCa)) {
       return res.status(400).json({ success: false, message: "Ch\u1EC9 b\u1ECF \u0111\u01B0\u1EE3c l\u1ECBch ri\xEAng c\u1EE7a m\u1ED9t x\u01B0\u1EDFng" });
     }
-    const { ds } = await xuongDuocSua(req);
-    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res);
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds2, xuong)) return khongQuyen(res);
     await poolMra.query("DELETE FROM xuong_lich_ca WHERE xuong = $1 AND loai_ca = $2", [xuong, loaiCa]);
     xoaCacheGioCong();
     await xoaGioCongLuu(xuong);
@@ -86240,8 +87593,8 @@ app.post("/api/xuong/setup/quan-ly", async (req, res) => {
 });
 app.get("/api/xuong/setup/nguoi-dung", async (req, res) => {
   try {
-    const { ds } = await xuongDuocSua(req);
-    if (!ds.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!ds2.size) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng");
     const q = String(req.query.q ?? "").trim();
     if (q.length < 2) return res.json({ success: true, available: true, ketQua: [] });
     const mau = `%${q.replace(/[%_\\]/g, "\\$&")}%`;
@@ -86359,8 +87712,8 @@ var thanhPhanLanTruoc = (rows, xuong) => new Map(rows.map((x) => [String(x.nhom 
 app.get("/api/xuong/setup/tuyen-mac-dinh", async (req, res) => {
   try {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
-    const { ds } = await xuongDuocSua(req);
-    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     const [nhom, cd, lanTruoc, macDinh, coBang] = await Promise.all([
       pool.query(
         `SELECT phan_loai_nhom_san_pham AS nhom, count(DISTINCT hex::text)::int AS so FROM production_status_app
@@ -86401,8 +87754,8 @@ app.put("/api/xuong/setup/tuyen-mac-dinh", async (req, res) => {
     const p = tuyenMacDinhSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "C\u1EA7n x\u01B0\u1EDFng, nh\xF3m s\u1EA3n ph\u1EA9m v\xE0 \xEDt nh\u1EA5t m\u1ED9t th\xE0nh ph\u1EA7n" });
     const xuong = p.data.xuong.toUpperCase();
-    const { ds } = await xuongDuocSua(req);
-    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     if (!await coBangTuyenMacDinh()) return res.status(503).json({ success: false, message: "Ch\u01B0a t\u1EA1o b\u1EA3ng tuy\u1EBFn m\u1EB7c \u0111\u1ECBnh (ch\u1EA1y file SQL 2026-11-04_xuong_tuyen_mac_dinh.sql)" });
     const thanhPhan = p.data.thanhPhan.map((t) => ({ ...t, xuong: t.xuong.toUpperCase() }));
     const cd = await poolMra.query("SELECT id, xuong FROM xuong_cong_doan WHERE active");
@@ -86422,8 +87775,8 @@ app.delete("/api/xuong/setup/tuyen-mac-dinh", async (req, res) => {
   try {
     const xuong = String(req.body?.xuong ?? "").toUpperCase();
     const nhom = String(req.body?.nhom ?? "");
-    const { ds } = await xuongDuocSua(req);
-    if (!xuong || !nhom || !quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!xuong || !nhom || !quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     if (await coBangTuyenMacDinh()) await poolMra.query("DELETE FROM xuong_tuyen_mac_dinh WHERE xuong = $1 AND nhom = $2", [xuong, nhom]);
     res.json({ success: true, available: true });
   } catch (e) {
@@ -86433,8 +87786,8 @@ app.delete("/api/xuong/setup/tuyen-mac-dinh", async (req, res) => {
 app.get("/api/xuong/trien-khai", async (req, res) => {
   try {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
-    const { ds } = await xuongDuocSua(req);
-    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     const q = String(req.query.q ?? "").trim();
     const chiChua = req.query.chua === "1";
     const hexLoc = typeof req.query.hex === "string" && HEX_RE.test(req.query.hex) ? req.query.hex : null;
@@ -86470,7 +87823,7 @@ app.get("/api/xuong/trien-khai", async (req, res) => {
     const daTk = new Map(tk.rows.map((x) => [String(x.hex), Number(x.sl)]));
     const goiYLanTruoc = thanhPhanLanTruoc(lanTruoc.rows, xuong);
     const xuongCd = new Map(cd.rows.map((x) => [String(x.id), String(x.xuong)]));
-    const ds2 = sp.rows.map((x) => {
+    const ds22 = sp.rows.map((x) => {
       const nhom = String(x.phan_loai_nhom_san_pham ?? "");
       const g = chonGoiY(macDinh.get(nhom)?.thanhPhan, goiYLanTruoc.get(nhom), xuong, xuongCd);
       return {
@@ -86490,7 +87843,7 @@ app.get("/api/xuong/trien-khai", async (req, res) => {
       success: true,
       available: true,
       xuong,
-      hangMuc: ds2,
+      hangMuc: ds22,
       congDoan: cd.rows.map((x) => ({ id: x.id, xuong: x.xuong, ten: x.cd_chi_tiet, cdTachMa: x.cd_tach_ma, thuTu: x.thu_tu })),
       thanhPhan: THANH_PHAN
     });
@@ -86518,8 +87871,8 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     if (!p.success) return res.status(400).json({ success: false, message: "M\u1ED7i h\u1EA1ng m\u1EE5c c\u1EA7n m\xE3 9 s\u1ED1, s\u1ED1 l\u01B0\u1EE3ng > 0 v\xE0 \xEDt nh\u1EA5t m\u1ED9t th\xE0nh ph\u1EA7n / c\xF4ng \u0111o\u1EA1n" });
     const xuong = p.data.xuong.toUpperCase();
     const me2 = Number(req.user.id);
-    const { ds } = await xuongDuocSua(req);
-    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     const items = p.data.items.map((it) => ({
       hex: it.hex,
       soLuong: it.soLuong,
@@ -86534,12 +87887,12 @@ app.post("/api/xuong/trien-khai", async (req, res) => {
     }
     await ensureWorkshopGroups();
     const hexes = [...new Set(items.map((i) => i.hex))];
-    const dung = new Set((await pool.query(
+    const dung2 = new Set((await pool.query(
       `SELECT DISTINCT hex::text AS hex FROM production_status_app
        WHERE hex::text = ANY($1::text[]) AND (UPPER(TRIM(xuong_chinh)) = $2 OR ${workshopGroupSql("xuong_chinh")} = $2)`,
       [hexes, xuong]
     )).rows.map((x) => String(x.hex)));
-    const sai = hexes.filter((h) => !dung.has(h));
+    const sai = hexes.filter((h) => !dung2.has(h));
     if (sai.length) return res.status(400).json({ success: false, message: `Kh\xF4ng thu\u1ED9c x\u01B0\u1EDFng ch\xEDnh ${xuong}: ${sai.slice(0, 8).join(", ")}${sai.length > 8 ? "\u2026" : ""}` });
     const kq = await withTransactionMra(async (client) => {
       const cdIds = [...new Set(items.flatMap((i) => i.thanhPhan.flatMap((t) => t.tuyen)))];
@@ -86595,7 +87948,7 @@ app.post("/api/xuong/trien-khai/huy", async (req, res) => {
     const id = String(req.body?.trienKhaiId ?? "");
     if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ success: false, message: "Thi\u1EBFu \u0111\u1EE3t tri\u1EC3n khai c\u1EA7n hu\u1EF7" });
     const me2 = Number(req.user.id);
-    const { ds } = await xuongDuocSua(req);
+    const { ds: ds2 } = await xuongDuocSua(req);
     const lyDo = typeof req.body?.lyDo === "string" && req.body.lyDo.trim() ? req.body.lyDo.trim().slice(0, 500) : null;
     const kq = await withTransactionMra(async (client) => {
       const d = (await client.query(
@@ -86603,7 +87956,7 @@ app.post("/api/xuong/trien-khai/huy", async (req, res) => {
         [id]
       )).rows[0];
       if (!d) return { loi: "Kh\xF4ng t\xECm th\u1EA5y \u0111\u1EE3t tri\u1EC3n khai", ma: 404 };
-      if (!quanLyDuoc(ds, d.xuong_chinh ?? null)) return { loi: `Ch\u1EC9 admin ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng ch\xEDnh ${d.xuong_chinh ?? ""} \u0111\u01B0\u1EE3c hu\u1EF7 \u0111\u1EE3t tri\u1EC3n khai`, ma: 403 };
+      if (!quanLyDuoc(ds2, d.xuong_chinh ?? null)) return { loi: `Ch\u1EC9 admin ho\u1EB7c qu\u1EA3n l\xFD x\u01B0\u1EDFng ch\xEDnh ${d.xuong_chinh ?? ""} \u0111\u01B0\u1EE3c hu\u1EF7 \u0111\u1EE3t tri\u1EC3n khai`, ma: 403 };
       const rows = await suKienTheoHex(client, [String(d.hex)]);
       const k = kiemTraHuyDot(rows.map(toSuKien), id);
       if (!k) return { loi: "\u0110\u1EE3t tri\u1EC3n khai \u0111\xE3 \u0111\u01B0\u1EE3c hu\u1EF7", ma: 400 };
@@ -86658,8 +88011,8 @@ async function choKhaiChiTiet(xuong, trienKhaiIds) {
 app.get("/api/xuong/khai-chi-tiet", async (req, res) => {
   try {
     const xuong = String(req.query.xuong ?? "").toUpperCase();
-    const { ds } = await xuongDuocSua(req);
-    if (!xuong || !quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!xuong || !quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     const rows = await choKhaiChiTiet(xuong);
     const hexes = [...new Set(rows.map((x) => String(x.hex)))];
     const [sp, cd] = await Promise.all([
@@ -86706,8 +88059,8 @@ app.post("/api/xuong/khai-chi-tiet", async (req, res) => {
     if (!p.success) return res.status(400).json({ success: false, message: "M\u1ED7i th\xE0nh ph\u1EA7n c\u1EA7n \xEDt nh\u1EA5t m\u1ED9t c\xF4ng \u0111o\u1EA1n chi ti\u1EBFt" });
     const xuong = p.data.xuong.toUpperCase();
     const me2 = Number(req.user.id);
-    const { ds } = await xuongDuocSua(req);
-    if (!quanLyDuoc(ds, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
+    const { ds: ds2 } = await xuongDuocSua(req);
+    if (!quanLyDuoc(ds2, xuong)) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     const kq = await withTransactionMra(async (client) => {
       const cho = await choKhaiChiTiet(xuong, [...new Set(p.data.items.map((i) => i.trienKhaiId))]);
       const conCho = new Map(cho.map((x) => [`${x.id}|${x.thanh_phan}`, x]));
@@ -86748,7 +88101,7 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
     const pv = xuong ? await phamViXem(req.user.id, xuong) : null;
     if (!pv) return khongQuyen(res, "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y");
     await suaChoGiaoCuoiTuyen((await poolMra.query(`SELECT hex, cong_doan_id FROM xuong_trang_thai WHERE xuong = $1 AND trang_thai = 'cho_giao' LIMIT 500`, [xuong])).rows.map((x) => [String(x.hex), String(x.cong_doan_id)]));
-    const soNgay = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
+    const soNgay2 = Math.min(400, Math.max(1, Number(req.query.ngay) || 90));
     const tatCa = req.query.tatCa === "1";
     const tk = await poolMra.query(
       `SELECT e.hex, sum(e.so_luong)::float AS sl, min(e.device_ts_hieu_chinh) AS dau, max(e.device_ts_hieu_chinh) AS cuoi,
@@ -86759,13 +88112,13 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
                THEN e.du_lieu->'thanhPhan' ELSE '[]'::jsonb END) tp WHERE upper(tp->>'xuong') = $1))
          AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)
        GROUP BY e.hex ORDER BY max(e.device_ts_hieu_chinh) DESC LIMIT 400`,
-      [xuong, String(soNgay)]
+      [xuong, String(soNgay2)]
     );
     const dangCo = await poolMra.query(
       `SELECT hex, max(su_kien_cuoi) AS cuoi FROM xuong_trang_thai
        WHERE xuong = $1 AND (trang_thai <> 'xong' OR su_kien_cuoi >= now() - ($2 || ' days')::interval)
        GROUP BY hex ORDER BY max(su_kien_cuoi) DESC NULLS LAST LIMIT 400`,
-      [xuong, String(soNgay)]
+      [xuong, String(soNgay2)]
     );
     const daTk = new Set(tk.rows.map((x) => String(x.hex)));
     const chuaTk = dangCo.rows.filter((x) => !daTk.has(String(x.hex))).map((x) => ({ hex: String(x.hex), sl: 0, dau: null, cuoi: x.cuoi, xuong_chinh: null, chuaTrienKhai: true }));
@@ -86893,7 +88246,7 @@ app.get("/api/xuong/theo-doi-trien-khai", async (req, res) => {
 
 // src/routes/xuongPhanTich.ts
 var NGAY_RE3 = /^\d{4}-\d{2}-\d{2}$/;
-var lam3 = (n, le = 2) => Math.round(n * 10 ** le) / 10 ** le;
+var lam4 = (n, le = 2) => Math.round(n * 10 ** le) / 10 ** le;
 var trungVi = (a) => {
   if (!a.length) return null;
   const s = [...a].sort((x, y) => x - y);
@@ -86971,14 +88324,14 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
         ten: cdMap.get(cd)?.ten ?? cd,
         thuTu: cdMap.get(cd)?.thuTu ?? 999,
         soHm: cs.length,
-        slXong: lam3(cs.reduce((a, c) => a + c.slXong, 0), 1),
-        gioCaTv: lam3(trungVi(coChay.map((c) => c.gioCa)) ?? 0, 1),
-        gioCaP75: lam3(phanVi(coChay.map((c) => c.gioCa), 0.75) ?? 0, 1),
-        gioCa: lam3(cs.reduce((a, c) => a + c.gioCa, 0), 0),
-        ngayChayTv: lam3((trungVi(coChay.map((c) => c.gioChay)) ?? 0) / 24, 1),
-        gioTrenDvTv: lam3(trungVi(cs.filter((c) => c.slXong > 0 && c.gioCa > 0).map((c) => c.gioCa / c.slXong)) ?? 0, 3),
+        slXong: lam4(cs.reduce((a, c) => a + c.slXong, 0), 1),
+        gioCaTv: lam4(trungVi(coChay.map((c) => c.gioCa)) ?? 0, 1),
+        gioCaP75: lam4(phanVi(coChay.map((c) => c.gioCa), 0.75) ?? 0, 1),
+        gioCa: lam4(cs.reduce((a, c) => a + c.gioCa, 0), 0),
+        ngayChayTv: lam4((trungVi(coChay.map((c) => c.gioChay)) ?? 0) / 24, 1),
+        gioTrenDvTv: lam4(trungVi(cs.filter((c) => c.slXong > 0 && c.gioCa > 0).map((c) => c.gioCa / c.slXong)) ?? 0, 3),
         soNgung: cs.reduce((a, c) => a + c.soNgung, 0),
-        gioNgung: lam3(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
+        gioNgung: lam4(cs.reduce((a, c) => a + c.gioNgung, 0), 1),
         hmNgung: cs.filter((c) => c.soNgung > 0).length
       };
     }).sort((a, b) => a.thuTu - b.thuTu || b.soHm - a.soHm);
@@ -86988,14 +88341,14 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
       theoNhom.get(h.nhom).push(h);
     }
     const nhom = [...theoNhom.entries()].map(([ten, hs]) => {
-      const ngay2 = hs.map((h) => h.ngay).filter((x) => x !== null);
+      const ngay3 = hs.map((h) => h.ngay).filter((x) => x !== null);
       return {
         ten,
         soHm: hs.length,
-        soXong: ngay2.length,
-        ngayTv: lam3(trungVi(ngay2) ?? 0, 1),
-        ngayP75: lam3(phanVi(ngay2, 0.75) ?? 0, 1),
-        gioCaTv: lam3(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
+        soXong: ngay3.length,
+        ngayTv: lam4(trungVi(ngay3) ?? 0, 1),
+        ngayP75: lam4(phanVi(ngay3, 0.75) ?? 0, 1),
+        gioCaTv: lam4(trungVi(hs.map((h) => h.gioCa).filter((x) => x > 0)) ?? 0, 1)
       };
     }).sort((a, b) => b.soHm - a.soHm);
     const thangMap = /* @__PURE__ */ new Map();
@@ -87008,7 +88361,7 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
       if (h.xong !== null) lay(thang(h.xong)).soXong++;
     }
     for (const c of caps) lay(thang(c.dau)).gioCa += c.gioCa;
-    const theoThang = [...thangMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => ({ thang: m, soXong: v.soXong, soBatDau: v.soBatDau, gioCa: lam3(v.gioCa, 0) }));
+    const theoThang = [...thangMap.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([m, v]) => ({ thang: m, soXong: v.soXong, soBatDau: v.soBatDau, gioCa: lam4(v.gioCa, 0) }));
     const ngayAll = hms.map((h) => h.ngay).filter((x) => x !== null);
     res.json({
       success: true,
@@ -87021,16 +88374,16 @@ app.get("/api/xuong/phan-tich", async (req, res) => {
         soCap: caps.length,
         tu: new Date(Math.min(...caps.map((c) => c.dau))).toISOString(),
         den: new Date(Math.max(...caps.map((c) => c.xongCuoi ?? c.dau))).toISOString(),
-        gioCa: lam3(caps.reduce((a, c) => a + c.gioCa, 0), 0),
+        gioCa: lam4(caps.reduce((a, c) => a + c.gioCa, 0), 0),
         soNgung: caps.reduce((a, c) => a + c.soNgung, 0),
-        gioNgung: lam3(caps.reduce((a, c) => a + c.gioNgung, 0), 0),
-        ngayTv: lam3(trungVi(ngayAll) ?? 0, 1),
-        ngayP75: lam3(phanVi(ngayAll, 0.75) ?? 0, 1)
+        gioNgung: lam4(caps.reduce((a, c) => a + c.gioNgung, 0), 0),
+        ngayTv: lam4(trungVi(ngayAll) ?? 0, 1),
+        ngayP75: lam4(phanVi(ngayAll, 0.75) ?? 0, 1)
       },
       congDoan,
       nhom,
       theoThang,
-      lauNhat: hms.filter((h) => h.ngay !== null).sort((a, b) => b.ngay - a.ngay).slice(0, 15).map((h) => ({ hex: h.hex, ten: h.ten, congTrinh: h.congTrinh, nhom: h.nhom, ngay: lam3(h.ngay, 1), gioCa: lam3(h.gioCa, 1), soCd: h.soCd }))
+      lauNhat: hms.filter((h) => h.ngay !== null).sort((a, b) => b.ngay - a.ngay).slice(0, 15).map((h) => ({ hex: h.hex, ten: h.ten, congTrinh: h.congTrinh, nhom: h.nhom, ngay: lam4(h.ngay, 1), gioCa: lam4(h.gioCa, 1), soCd: h.soCd }))
     });
   } catch (e) {
     fail(res, e, "/api/xuong/phan-tich");
@@ -87264,7 +88617,7 @@ app.get("/api/xuong/ke-hoach-tuan", async (req, res) => {
     for (const ds2 of cdTheoHex.values()) ds2.sort((a, b) => Number(a.thuTu ?? 999) - Number(b.thuTu ?? 999));
     const duBao = /* @__PURE__ */ new Map();
     const now = Date.now();
-    const cuoiNgay = (ngay2) => dauNgayVN(ngay2) + NGAY;
+    const cuoiNgay = (ngay3) => dauNgayVN(ngay3) + NGAY;
     if (hexKh.length && cuoiNgay(khoang.end) > now) {
       const evApp = (await suKienTheoHex(poolMra, hexKh)).map(toSuKien);
       const cdIdsTuyen = [...new Set(evApp.flatMap((e) => {
@@ -87455,14 +88808,14 @@ app.post("/api/xuong/cong-nhan/sua", async (req, res) => {
     const mnv = chuanMnv(p.data.mnv);
     const cu = (await poolMra.query("SELECT * FROM xuong_cong_nhan WHERE mnv = $1", [mnv])).rows[0];
     if (!cu) return res.status(404).json({ success: false, message: "Kh\xF4ng c\xF3 ng\u01B0\u1EDDi n\xE0y" });
-    const ds = await xuongQuanLy(req.user.id);
+    const ds2 = await xuongQuanLy(req.user.id);
     let xuongMoi = cu.xuong ?? null;
     if (p.data.toId) {
       const to = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [p.data.toId])).rows[0];
       if (!to) return res.status(404).json({ success: false, message: "T\u1ED5 kh\xF4ng t\u1ED3n t\u1EA1i" });
       xuongMoi = String(to.xuong);
     }
-    if (!quanLyDuoc(ds, cu.xuong ?? null) || !quanLyDuoc(ds, xuongMoi)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
+    if (!quanLyDuoc(ds2, cu.xuong ?? null) || !quanLyDuoc(ds2, xuongMoi)) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng n\xE0y" });
     const r = await poolMra.query(
       `UPDATE xuong_cong_nhan SET to_id = CASE WHEN $2::boolean THEN $3::int ELSE to_id END, xuong = $4,
          active = COALESCE($5, active), ho_ten = COALESCE($6, ho_ten), cap_nhat = now() WHERE mnv = $1 RETURNING *`,
@@ -87489,8 +88842,8 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
     if (!await coBangCongNhan()) return chuaBat(res);
     const p = napSchema.safeParse(req.body);
     if (!p.success) return res.status(400).json({ success: false, message: "File kh\xF4ng \u0111\xFAng d\u1EA1ng (c\u1EA7n m\xE3 NV, h\u1ECD t\xEAn)" });
-    const ds = await xuongQuanLy(req.user.id);
-    if (!ds.size) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng" });
+    const ds2 = await xuongQuanLy(req.user.id);
+    if (!ds2.size) return res.status(403).json({ success: false, message: "C\u1EA7n quy\u1EC1n qu\u1EA3n l\xFD x\u01B0\u1EDFng" });
     const toRows = (await poolMra.query("SELECT id, xuong, ten_to FROM xuong_to WHERE active")).rows;
     const timTo = (xuong, ten) => {
       if (!ten) return null;
@@ -87509,7 +88862,7 @@ app.post("/api/xuong/cong-nhan/nap", async (req, res) => {
       const to = timTo(x.xuong?.trim().toUpperCase() || null, x.tenTo ?? null);
       if (x.tenTo && !to) toKhongKhop.add(`${x.xuong ?? ""} ${x.tenTo}`.trim());
       const xuong = (to ? String(to.xuong) : x.xuong?.trim().toUpperCase()) || null;
-      if (!quanLyDuoc(ds, xuong)) {
+      if (!quanLyDuoc(ds2, xuong)) {
         if (loi.length < 20) loi.push(`D\xF2ng ${i + 2}: kh\xF4ng c\xF3 quy\u1EC1n x\u01B0\u1EDFng ${xuong ?? "(tr\u1ED1ng)"}`);
         continue;
       }
@@ -87725,7 +89078,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
     poolMra.query("UPDATE xuong_phien_thiet_bi SET lan_cuoi = now() WHERE device_id = $1 AND user_id = $2", [t.deviceId, t.sentBy]).catch(() => {
     });
     const now = Date.now();
-    const ngay2 = ngayCa(now);
+    const ngay3 = ngayCa(now);
     const [toRow, cdRows, lichCa, tangCa, moc2] = await Promise.all([
       poolMra.query("SELECT ten_to FROM xuong_to WHERE id = $1", [t.toId]),
       poolMra.query(
@@ -87738,19 +89091,19 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
         `SELECT DISTINCT du_lieu->>'loaiCa' AS ca FROM xuong_su_kien e
          WHERE to_id = $1 AND loai = 'tang_ca' AND (device_ts_hieu_chinh AT TIME ZONE 'Asia/Ho_Chi_Minh')::date = $2::date
            AND NOT EXISTS (SELECT 1 FROM xuong_su_kien h WHERE h.loai = 'huy' AND h.sua_cho = e.id)`,
-        [t.toId, ngay2]
+        [t.toId, ngay3]
       ),
       mocCheDo(poolMra, [t.toId])
     ]);
-    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay2);
+    const cheDo = cheDoTheoNgay(moc2)(t.toId, ngay3);
     const cds = cdRows.rows.map((x) => String(x.id));
     const evs = await soTramCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const dangO = Object.entries(st?.kq.dangO ?? {}).filter(([k]) => cds.some((c) => k.endsWith(`|${c}`)));
     const ddTay = await diemDanhTayCuaTo(t.toId, now - 36 * 36e5, now + 6e4);
-    const ddHom = [...suKienConHieuLuc(evs), ...ddTay].filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && ngayCa(e.ts) === ngay2).sort((a, b) => a.ts - b.ts);
+    const ddHom = [...suKienConHieuLuc(evs), ...ddTay].filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && ngayCa(e.ts) === ngay3).sort((a, b) => a.ts - b.ts);
     const coMat = Object.values(doanCoMat(ddHom)).flat().filter((d) => d && d.end === null).map((d) => d.mnv);
-    const oHang = new Set(dangO.flatMap(([, ds]) => ds));
+    const oHang = new Set(dangO.flatMap(([, ds2]) => ds2));
     const chuaVaoHang = [...new Set(coMat)].filter((m) => !oHang.has(m));
     const hm = cds.length ? (await poolMra.query(
       `SELECT hex, cong_doan_id, trang_thai, sl_giao_den, sl_nhan, sl_hoan_thanh FROM xuong_trang_thai
@@ -87775,7 +89128,7 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
       success: true,
       available: true,
       serverNow: now,
-      ngay: ngay2,
+      ngay: ngay3,
       cheDo,
       token: giaHan(req, t),
       tram: { ten: t.ten, congDoan: t.congDoan },
@@ -87783,9 +89136,9 @@ app.get("/api/xuong/tram/may/bang", async (req, res) => {
       congDoan: cdRows.rows.map((x) => ({ id: String(x.id), ten: x.cd_chi_tiet })),
       lichCa,
       tangCa: tangCa.rows.map((x) => String(x.ca)),
-      dangO: dangO.map(([k, ds]) => {
+      dangO: dangO.map(([k, ds2]) => {
         const [hex3, congDoanId] = k.split("|");
-        return { hex: hex3, congDoanId, tenHangMuc: info.get(hex3)?.ten_hang_muc ?? null, nguoi: ds.map(nguoi) };
+        return { hex: hex3, congDoanId, tenHangMuc: info.get(hex3)?.ten_hang_muc ?? null, nguoi: ds2.map(nguoi) };
       }),
       chuaVaoHang: chuaVaoHang.map(nguoi),
       hangMuc: hm.map((x) => ({
@@ -87917,8 +89270,8 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
         continue;
       }
       const gio = hieuChinhGio(e.deviceTs, e.lechMs ?? null, e.sauDoiGio, serverNow);
-      const co = ["tram", ...gio.co];
-      if (e.duLieu?.ngoaiCa === true) co.push("ngoai_ca");
+      const co2 = ["tram", ...gio.co];
+      if (e.duLieu?.ngoaiCa === true) co2.push("ngoai_ca");
       let soLuong = null;
       if (e.loai === "nhan" || e.loai === "hoan_thanh") {
         const k = pairKey(e.hex, e.congDoanId);
@@ -87934,7 +89287,7 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
           soLuong = lamTron3(con);
           c.nhan += soLuong;
           lamDuoc.add(k);
-          co.push("nhan_du");
+          co2.push("nhan_du");
         } else {
           const con = c.nhan - c.ht;
           if (con <= SAI_SO) {
@@ -87944,7 +89297,7 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
           soLuong = lamTron3(con);
           c.ht += soLuong;
           lamDuoc.delete(k);
-          co.push("xong_het");
+          co2.push("xong_het");
         }
         soCap.set(k, c);
       }
@@ -87963,7 +89316,7 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
           continue;
         }
         e.duLieu.khaiBoi = kb;
-        co.push("khai_ho");
+        co2.push("khai_ho");
       }
       ghi.push({
         id: e.id,
@@ -87989,7 +89342,7 @@ app.post("/api/xuong/tram/may/events", async (req, res) => {
         sent_by: t.sentBy,
         device_id: t.deviceId,
         sua_cho: null,
-        co
+        co: co2
       });
     }
     if (ghi.length) await withTransactionMra((client) => ghiVaTinhLai(client, ghi));
@@ -88011,8 +89364,8 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
     const now = Date.now();
-    const ngay2 = ngayCa(now);
-    const dauNgay = Date.parse(`${ngay2}T06:00:00+07:00`);
+    const ngay3 = ngayCa(now);
+    const dauNgay = Date.parse(`${ngay3}T06:00:00+07:00`);
     const evs = await soTramCuaTo(toId, now - 4 * 864e5, now + 6e4);
     const st = await soTram(poolMra, evs, "so_khop", now);
     const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId);
@@ -88049,10 +89402,10 @@ app.get("/api/xuong/to/:id/phan-cong", async (req, res) => {
     res.json({
       success: true,
       available: true,
-      ngay: ngay2,
+      ngay: ngay3,
       serverNow: now,
       suaDuoc: quanLy || laToTruong,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay2),
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay3),
       nguoi: mnvs.map((m) => {
         const dang = doan.find((d) => d.mnv === m && d.end === null);
         const truoc = doan.filter((d) => d.mnv === m && d.start < dauNgay).sort((a, b) => b.start - a.start)[0];
@@ -88086,19 +89439,19 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     if (!await coQuyenXuong(req)) return res.status(403).json({ success: false, message: "T\xE0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c c\u1EA5p quy\u1EC1n m\u1EE5c X\u01B0\u1EDFng" });
     const toId = Number(req.params.id);
     const now = Date.now();
-    const ngay2 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
+    const ngay3 = typeof req.query.ngay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.ngay) ? req.query.ngay : ngayCa(now);
     if (!Number.isInteger(toId) || toId <= 0) return res.status(400).json({ success: false, message: "T\u1ED5 kh\xF4ng h\u1EE3p l\u1EC7" });
     const toRow = (await poolMra.query("SELECT xuong FROM xuong_to WHERE id = $1", [toId])).rows[0];
     if (!toRow) return res.status(404).json({ success: false, message: "Kh\xF4ng t\xECm th\u1EA5y t\u1ED5" });
     const pv = await phamViXem(req.user.id, String(toRow.xuong));
     if (!pv || pv.chiTo && !pv.chiTo.includes(toId)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem t\u1ED5 n\xE0y" });
-    const dau = Date.parse(`${ngay2}T05:00:00+07:00`);
+    const dau = Date.parse(`${ngay3}T05:00:00+07:00`);
     const cuoi = dau + 25 * 36e5;
     const evs = await soTramCuaTo(toId, dau, cuoi);
     const st = await soTram(poolMra, evs, "so_khop", now);
-    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay2);
+    const doan = (st?.kq.doanNguoi ?? []).filter((d) => d.toId === toId && ngayCa(d.start) === ngay3);
     const hl = suKienConHieuLuc(evs);
-    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay2);
+    const dd = hl.filter((e) => (e.loai === "vao_ca" || e.loai === "ra_ca") && laSuKienTram(e) && ngayCa(e.ts) === ngay3);
     const coMat = Object.values(doanCoMat(dd)).flat().filter((d) => !!d);
     const mnvs = [.../* @__PURE__ */ new Set([...doan.map((d) => d.mnv), ...coMat.map((d) => d.mnv)])];
     const [ten, info] = await Promise.all([
@@ -88114,25 +89467,25 @@ app.get("/api/xuong/to/:id/sua-ngay", async (req, res) => {
     res.json({
       success: true,
       available: true,
-      ngay: ngay2,
+      ngay: ngay3,
       serverNow: now,
       gioTheoNguon,
-      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay2),
+      cheDo: cheDoTheoNgay(await mocCheDo(poolMra, [toId]))(toId, ngay3),
       // Huỷ / ghi hộ: tổ trưởng của tổ (sự kiện trạm trong 7 ngày) hoặc quản lý xưởng
       suaDuoc: quanLy || laToTruong,
       nguoi: mnvs.sort().map((m) => {
         const cm = coMat.filter((d) => d.mnv === m);
-        const ds = doan.filter((d) => d.mnv === m).sort((a, b) => a.start - b.start);
+        const ds2 = doan.filter((d) => d.mnv === m).sort((a, b) => a.start - b.start);
         return {
           mnv: m,
           hoTen: hoTen.get(m) ?? m,
           coMat: cm.map((d) => ({ start: d.start, end: d.end })),
-          doan: ds.map((d) => ({ ...d, tenHangMuc: info.get(d.hex)?.ten_hang_muc ?? null })),
-          co: coSuaNgay(ds, cm, now)
+          doan: ds2.map((d) => ({ ...d, tenHangMuc: info.get(d.hex)?.ten_hang_muc ?? null })),
+          co: coSuaNgay(ds2, cm, now)
         };
       }),
       // Sự kiện trạm của ngày (để huỷ từng dòng)
-      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay2 && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
+      suKien: hl.filter((e) => laSuKienTram(e) && ngayCa(e.ts) === ngay3 && e.toId === toId).map((e) => ({ id: e.id, loai: e.loai, mnv: mnvCua(e), hex: e.hex, congDoanId: e.congDoanId, ts: e.ts }))
     });
   } catch (e) {
     fail(res, e, "/api/xuong/to/:id/sua-ngay");
@@ -89674,12 +91027,12 @@ function nenBanGhi(recs) {
     return i;
   };
   const chu = Object.fromEntries(COT_CHU.map((k) => [k, recs.map((r) => ma(String(r[k])))]));
-  const so6 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
+  const so7 = Object.fromEntries(COT_SO.map((k) => [k, recs.map((r) => r[k])]));
   return {
     n: recs.length,
     tu,
     chu,
-    so: so6,
+    so: so7,
     open: recs.map((r) => r.open ? 1 : 0),
     qtyDone: recs.map((r) => r.qtyDone ? 1 : 0),
     planMet: recs.map((r) => r.planMet ? 1 : 0),
@@ -89812,7 +91165,7 @@ var nhoKetQua = (k, buf) => {
     ketQuaNho.delete(cu);
   }
 };
-function layHoacDung(khoa, ver, luuDb, dung) {
+function layHoacDung(khoa, ver, luuDb, dung2) {
   const k = `${khoa}|${ver}`;
   const nho2 = ketQuaNho.get(k);
   if (nho2) return Promise.resolve({ buf: nho2, nguon: "mem", timing: "" });
@@ -89827,7 +91180,7 @@ function layHoacDung(khoa, ver, luuDb, dung) {
           return { buf: buf2, nguon: nguon.v, timing: "" };
         }
       }
-      const { buf, timing } = await dung();
+      const { buf, timing } = await dung2();
       nhoKetQua(k, buf);
       if (luuDb) await luuSnapshot(khoa, ver, buf);
       return { buf, nguon: "tinh", timing };
@@ -89910,9 +91263,9 @@ app.get("/api/cron/tong-quan", cronAuth, async (_req, res) => {
 });
 
 // src/server/hoiDapDanhMuc.ts
-var so5 = (col) => numericExprQualified(`t."${col}"`);
+var so6 = (col) => numericExprQualified(`t."${col}"`);
 var XUONG = { id: "xuong_chinh", ten: "X\u01B0\u1EDFng", dn: ["x\u01B0\u1EDFng", "xuong chinh"], kieu: "xuong" };
-var CT = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
+var CT2 = { id: "ten_cong_trinh", ten: "C\xF4ng tr\xECnh", dn: ["c\xF4ng tr\xECnh", "d\u1EF1 \xE1n", "t\xEAn c\xF4ng tr\xECnh", "ct"], kieu: "ct" };
 var MA_CT2 = { id: "ma_cong_trinh", ten: "M\xE3 c\xF4ng tr\xECnh", dn: ["m\xE3 c\xF4ng tr\xECnh", "m\xE3 ct", "m\xE3 d\u1EF1 \xE1n"], kieu: "ma" };
 var KT = `(CASE WHEN t.ngay_khnk_tuan ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN left(t.ngay_khnk_tuan, 10)::date END)`;
 var TUAN_DAT = `(t.hex::text = ANY(__KH_TUAN_DAT__))`;
@@ -89931,8 +91284,8 @@ var NHOM_BOT_SQL = `(CASE WHEN NOT ${MO} THEN NULL
   WHEN ${HAN_KH} <= ${HOM_NAY_VN} + 14 THEN '${NHOM_BOT[1]}'
   WHEN ${HAN_KH} <= ${HOM_NAY_VN} + 30 THEN '${NHOM_BOT[2]}'
   ELSE '${NHOM_BOT[3]}' END)`;
-var HM = { id: "ten_hang_muc", ten: "H\u1EA1ng m\u1EE5c", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn h\u1EA1ng m\u1EE5c", "s\u1EA3n ph\u1EA9m"], kieu: "chu" };
-var HEX = { id: "hex", ten: "HEX", dn: ["hex", "m\xE3 hex"], kieu: "ma", sql: `t.hex::text` };
+var HM2 = { id: "ten_hang_muc", ten: "H\u1EA1ng m\u1EE5c", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn h\u1EA1ng m\u1EE5c", "s\u1EA3n ph\u1EA9m"], kieu: "chu" };
+var HEX2 = { id: "hex", ten: "HEX", dn: ["hex", "m\xE3 hex"], kieu: "ma", sql: `t.hex::text` };
 var LOAI_5M = [["man", "Con ng\u01B0\u1EDDi"], ["machine", "M\xE1y"], ["material", "V\u1EADt t\u01B0"], ["method", "Ph\u01B0\u01A1ng ph\xE1p"], ["measurement", "\u0110o l\u01B0\u1EDDng"]];
 var LOAI_5M_SQL = `(CASE t.category ${LOAI_5M.map(([ma, ten]) => `WHEN '${ma}' THEN '${ten}'`).join(" ")} ELSE t.category END)`;
 var NGAY_KHSX = `COALESCE(t.ngay_khnk, make_date(t.nam::int, GREATEST(LEAST(t.thang::int, 12), 1), 1))`;
@@ -89943,8 +91296,8 @@ function loaiKhsx(bangId, q) {
   if (moc2 === "tuan" || moc2 === "ngay") return "TU\u1EA6N";
   if (moc2) return "TH\xC1NG";
   if (q.tu && q.den) {
-    const soNgay = Math.round((Date.parse(q.den) - Date.parse(q.tu)) / 864e5) + 1;
-    if (soNgay < 28) return "TU\u1EA6N";
+    const soNgay2 = Math.round((Date.parse(q.den) - Date.parse(q.tu)) / 864e5) + 1;
+    if (soNgay2 < 28) return "TU\u1EA6N";
   }
   return "TH\xC1NG";
 }
@@ -89965,10 +91318,10 @@ var DANH_MUC = [
     cot: [
       { id: "date", ten: "Ng\xE0y nh\u1EADp kho", dn: ["ng\xE0y nh\u1EADp", "ng\xE0y"], kieu: "ngay" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "ten_chi_tiet", ten: "Chi ti\u1EBFt", dn: ["t\xEAn chi ti\u1EBFt"], kieu: "chu" },
       { id: "ghi_chu", ten: "Ghi ch\xFA", kieu: "chu" },
       { id: "thanh_tien_nhap_kho", ten: "Gi\xE1 tr\u1ECB nh\u1EADp kho", dn: ["gi\xE1 tr\u1ECB", "th\xE0nh ti\u1EC1n", "gi\xE1 tr\u1ECB nh\u1EADp"], kieu: "so", sql: "t.thanh_tien_nhap_kho_num", tien: true },
@@ -89991,10 +91344,10 @@ var DANH_MUC = [
     cot: [
       { id: "date", ten: "Ng\xE0y xu\u1EA5t kho", dn: ["ng\xE0y xu\u1EA5t", "ng\xE0y"], kieu: "ngay" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "so_phieu", ten: "S\u1ED1 phi\u1EBFu", dn: ["phi\u1EBFu xu\u1EA5t"], kieu: "ma" },
       { id: "tinh_doi_voi_hang_tp", ten: "Lo\u1EA1i xu\u1EA5t", tuDien: true, dn: ["t\xEDnh \u0111\u1ED1i v\u1EDBi h\xE0ng tp", "lo\u1EA1i"], kieu: "chu" },
       { id: "ghi_chu", ten: "Ghi ch\xFA", kieu: "chu" },
@@ -90017,9 +91370,9 @@ var DANH_MUC = [
     hien: ["date", "ma_id_sap", "ten_cong_trinh", "ten_san_pham", "so_luong", "gia_tri", "so_thang_ton_kho"],
     cot: [
       { id: "date", ten: "Ng\xE0y ch\u1ED1t t\u1ED3n", dn: ["ng\xE0y ch\u1ED1t", "ng\xE0y"], kieu: "ngay" },
-      CT,
+      CT2,
       MA_CT2,
-      HEX,
+      HEX2,
       { id: "ten_san_pham", ten: "S\u1EA3n ph\u1EA9m", dn: ["h\u1EA1ng m\u1EE5c", "t\xEAn s\u1EA3n ph\u1EA9m"], kieu: "chu" },
       { id: "ma_id_sap", ten: "M\xE3 SAP", dn: ["m\xE3 id sap", "sap", "id sap"], kieu: "ma", sql: "t.ma_id_sap::text" },
       { id: "nhom_ct", ten: "Nh\xF3m c\xF4ng tr\xECnh", dn: ["nh\xF3m ct"], kieu: "chu" },
@@ -90048,10 +91401,10 @@ var DANH_MUC = [
       { id: "ngay_nhan_tu_pm", ten: "Ng\xE0y nh\u1EADn t\u1EEB PM", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
       { id: "ngay_can", ten: "Ng\xE0y c\u1EA7n", kieu: "ngay" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
       { id: "ten_pc", ten: "PC", dn: ["t\xEAn pc"], kieu: "chu", tuDien: true },
       { id: "khu_vuc", ten: "Khu v\u1EF1c", kieu: "chu" },
@@ -90077,10 +91430,10 @@ var DANH_MUC = [
     cot: [
       { id: "ngay_nhan", ten: "Ng\xE0y tri\u1EC3n khai", dn: ["ng\xE0y nh\u1EADn", "ng\xE0y"], kieu: "ngay" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "nguoi_trien_khai", ten: "Ng\u01B0\u1EDDi tri\u1EC3n khai", tuDien: true, dn: ["ng\u01B0\u1EDDi v\u1EBD", "k\u1EF9 thu\u1EADt"], kieu: "chu" },
       { id: "so_luong_trien_khai", ten: "S\u1ED1 l\u01B0\u1EE3ng tri\u1EC3n khai", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
       { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true }
@@ -90104,10 +91457,10 @@ var DANH_MUC = [
       { id: "ngay_duyet", ten: "Ng\xE0y duy\u1EC7t phi\u1EBFu", dn: ["ng\xE0y duy\u1EC7t"], kieu: "ngay" },
       { id: "tinh_trang_phieu", ten: "T\xECnh tr\u1EA1ng phi\u1EBFu", dn: ["tr\u1EA1ng th\xE1i phi\u1EBFu", "t\xECnh tr\u1EA1ng"], kieu: "chu", tuDien: true },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "so_luong_tinh", ten: "S\u1ED1 l\u01B0\u1EE3ng t\xEDnh", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
       { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", sql: "t.tri_gia_don_hang_tong_num", tien: true }
     ]
@@ -90129,10 +91482,10 @@ var DANH_MUC = [
       { id: "tinh_trang_ipo", ten: "T\xECnh tr\u1EA1ng IPO", dn: ["ipo"], kieu: "chu" },
       { id: "tinh_trang_du_an", ten: "T\xECnh tr\u1EA1ng d\u1EF1 \xE1n", tuDien: true, kieu: "chu" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "ten_pm", ten: "PM", dn: ["t\xEAn pm"], kieu: "chu", tuDien: true },
       { id: "ten_pc", ten: "PC", dn: ["t\xEAn pc"], kieu: "chu", tuDien: true },
       { id: "khach_hang", ten: "Kh\xE1ch h\xE0ng", tuDien: true, dn: ["ch\u1EE7 \u0111\u1EA7u t\u01B0"], kieu: "chu" },
@@ -90155,7 +91508,7 @@ var DANH_MUC = [
       { id: "tri_gia_don_hang_tong", ten: "Tr\u1ECB gi\xE1 \u0111\u01A1n h\xE0ng", dn: ["tr\u1ECB gi\xE1", "gi\xE1 tr\u1ECB"], kieu: "so", tien: true },
       { id: "thanh_tien_tinh_phieu", ten: "\u0110\xE3 t\xEDnh phi\u1EBFu", dn: ["gi\xE1 tr\u1ECB t\xEDnh phi\u1EBFu"], kieu: "so", tien: true },
       { id: "thanh_tien_nhap_kho_luy_ke", ten: "\u0110\xE3 nh\u1EADp kho", dn: ["nh\u1EADp kho l\u0169y k\u1EBF", "\u0111\xE3 nh\u1EADp"], kieu: "so", tien: true },
-      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so5("thanh_tien_xuat_kho_luy_ke"), tien: true },
+      { id: "thanh_tien_xuat_kho_luy_ke", ten: "\u0110\xE3 xu\u1EA5t kho", dn: ["xu\u1EA5t kho l\u0169y k\u1EBF", "\u0111\xE3 xu\u1EA5t"], kieu: "so", sql: so6("thanh_tien_xuat_kho_luy_ke"), tien: true },
       { id: "thanh_tien_ton_kho_hien_tai", ten: "T\u1ED3n kho hi\u1EC7n t\u1EA1i", dn: ["gi\xE1 tr\u1ECB t\u1ED3n"], kieu: "so", tien: true },
       { id: "gia_tri_con_lai", ten: "Gi\xE1 tr\u1ECB c\xF2n l\u1EA1i", dn: ["c\xF2n l\u1EA1i", "ch\u01B0a nh\u1EADp"], kieu: "so", tien: true, sql: CON_LAI },
       { id: "so_luong_don_hang_tong", ten: "S\u1ED1 l\u01B0\u1EE3ng \u0111\u01A1n h\xE0ng", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so" },
@@ -90181,7 +91534,7 @@ var DANH_MUC = [
       { id: "tinh_trang_pr", ten: "T\xECnh tr\u1EA1ng PR", tuDien: true, kieu: "chu" },
       { id: "nguoi_tao", ten: "Ng\u01B0\u1EDDi t\u1EA1o", kieu: "chu" },
       { id: "nguoi_yeu_cau", ten: "Ng\u01B0\u1EDDi y\xEAu c\u1EA7u", tuDien: true, kieu: "chu" },
-      CT,
+      CT2,
       { id: "so_pr", ten: "S\u1ED1 PR", kieu: "ma", sql: "t.so_pr::bigint::text" },
       { id: "so_po", ten: "S\u1ED1 PO", kieu: "ma", sql: "t.so_po::bigint::text" },
       { id: "ten_vat_tu", ten: "T\xEAn v\u1EADt t\u01B0", dn: ["v\u1EADt li\u1EC7u"], kieu: "chu" },
@@ -90224,12 +91577,12 @@ var DANH_MUC = [
       { id: "thang", ten: "Th\xE1ng", kieu: "ma", sql: "t.thang::text" },
       { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::int::text" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["gi\xE1 tr\u1ECB", "k\u1EBF ho\u1EA1ch"], kieu: "so", sql: "t.thanh_tien_ke_hoach_num", tien: true },
-      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so5("so_luong_kh") }
+      { id: "so_luong_kh", ten: "S\u1ED1 l\u01B0\u1EE3ng k\u1EBF ho\u1EA1ch", dn: ["s\u1ED1 l\u01B0\u1EE3ng", "sl"], kieu: "so", sql: so6("so_luong_kh") }
     ]
   },
   {
@@ -90268,13 +91621,13 @@ var DANH_MUC = [
       { id: "nam", ten: "N\u0103m", kieu: "ma", sql: "t.nam::text" },
       { id: "tuan", ten: "Tu\u1EA7n", kieu: "ma", sql: "t.tuan::text" },
       XUONG,
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      HEX,
+      HM2,
+      HEX2,
       { id: "tinh_trang_thuc_hien_ke_hoach", ten: "T\xECnh tr\u1EA1ng th\u1EF1c hi\u1EC7n", tuDien: true, dn: ["t\xECnh tr\u1EA1ng", "k\u1EBFt qu\u1EA3"], kieu: "chu" },
-      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so5("thanh_tien_ke_hoach"), tien: true },
-      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so5("nhap_kho_tuan"), tien: true },
+      { id: "thanh_tien_ke_hoach", ten: "Gi\xE1 tr\u1ECB k\u1EBF ho\u1EA1ch", dn: ["k\u1EBF ho\u1EA1ch", "gi\xE1 tr\u1ECB"], kieu: "so", sql: so6("thanh_tien_ke_hoach"), tien: true },
+      { id: "nhap_kho_tuan", ten: "Nh\u1EADp kho tu\u1EA7n", dn: ["th\u1EF1c hi\u1EC7n", "nh\u1EADp kho"], kieu: "so", sql: so6("nhap_kho_tuan"), tien: true },
       { id: "dung_ke_hoach", ten: "\u0110\xFAng k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
       { id: "thuc_hien_dung_ke_hoach_1_phan", ten: "\u0110\xFAng KH 1 ph\u1EA7n", kieu: "so", tien: true },
       { id: "rot_ke_hoach", ten: "R\u1EDBt k\u1EBF ho\u1EA1ch", kieu: "so", tien: true },
@@ -90338,10 +91691,10 @@ var DANH_MUC = [
       { id: "stage", ten: "C\xF4ng \u0111o\u1EA1n", tuDien: true, kieu: "chu" },
       // "tổ 4A có bao nhiêu vướng mắc": tổ = xưởng. Chỉ thêm ở bảng này — ở bảng sản xuất "tổ đá / tổ sơn" là tổ nhỏ trong xưởng
       { ...XUONG, id: "xuong", dn: [...XUONG.dn ?? [], "t\u1ED5"], sql: "t.xuong" },
-      CT,
+      CT2,
       MA_CT2,
-      HM,
-      { ...HEX, sql: "t.hex" },
+      HM2,
+      { ...HEX2, sql: "t.hex" },
       { id: "handler", ten: "Ng\u01B0\u1EDDi x\u1EED l\xFD", tuDien: true, dn: ["ng\u01B0\u1EDDi ph\u1EE5 tr\xE1ch"], kieu: "chu" },
       { id: "created_by", ten: "Ng\u01B0\u1EDDi b\xE1o", dn: ["ng\u01B0\u1EDDi t\u1EA1o"], kieu: "chu" },
       { id: "bot_end", ten: "H\u1EA1n BOT", dn: ["h\u1EA1n", "bot"], kieu: "ngay", sql: `(t.bot_end AT TIME ZONE 'Asia/Ho_Chi_Minh')::date` },
@@ -90760,15 +92113,15 @@ function taoLoiDan(bangs, sx, gt, homNay, cau = "") {
   bangs.forEach(({ b, cot }) => {
     dong2.push(`## ${b.id} \u2014 ${b.ten} (c\xE1ch g\u1ECDi: ${b.dn.join(", ")}). C\u1ED9t ng\xE0y ch\xEDnh: ${b.ngay}.${b.chot ? " \u1EA2nh ch\u1EE5p t\u1ED3n theo ng\xE0y (kh\xF4ng c\u1ED9ng nhi\u1EC1u ng\xE0y)." : ""}${b.noiSx && sx.length ? " D\xF9ng \u0111\u01B0\u1EE3c c\u1ED9t sx:*." : ""} \u0110\u1EBFm: 1 d\xF2ng = 1 ${b.dong}.`);
     cot.forEach((c) => {
-      const ds = !CO_TEN_RIENG.has(c.id) ? (gt[b.id]?.[c.id] ?? c.gt ?? []).slice(0, 30) : [];
-      dong2.push(`- ${c.id}: ${c.ten}${c.dn?.length ? ` (g\u1ECDi l\xE0: ${c.dn.join(", ")})` : ""} [${c.kieu}${c.tien ? ", ti\u1EC1n TRI\u1EC6U \u0111\u1ED3ng" : ""}]${ds.length ? ` gi\xE1 tr\u1ECB: ${ds.join(" | ")}` : ""}`);
+      const ds2 = !CO_TEN_RIENG.has(c.id) ? (gt[b.id]?.[c.id] ?? c.gt ?? []).slice(0, 30) : [];
+      dong2.push(`- ${c.id}: ${c.ten}${c.dn?.length ? ` (g\u1ECDi l\xE0: ${c.dn.join(", ")})` : ""} [${c.kieu}${c.tien ? ", ti\u1EC1n TRI\u1EC6U \u0111\u1ED3ng" : ""}]${ds2.length ? ` gi\xE1 tr\u1ECB: ${ds2.join(" | ")}` : ""}`);
     });
   });
   if (sx.length) {
     dong2.push("## C\u1ED9t sx:<id> \u2014 th\xF4ng tin h\u1EA1ng m\u1EE5c t\u1EEB b\u1EA3ng s\u1EA3n xu\u1EA5t, n\u1ED1i qua HEX (ch\u1EC9 d\xF9ng \u0111\u1EC3 l\u1ECDc / chia nh\xF3m, kh\xF4ng c\u1ED9ng)");
     sx.forEach((c) => {
-      const ds = !CO_TEN_RIENG.has(c.id) ? (gt.production_status_app?.[c.id] ?? []).slice(0, 30) : [];
-      dong2.push(`- sx:${c.id}: ${c.ten} [${c.kieu}]${ds.length ? ` gi\xE1 tr\u1ECB: ${ds.join(" | ")}` : ""}`);
+      const ds2 = !CO_TEN_RIENG.has(c.id) ? (gt.production_status_app?.[c.id] ?? []).slice(0, 30) : [];
+      dong2.push(`- sx:${c.id}: ${c.ten} [${c.kieu}]${ds2.length ? ` gi\xE1 tr\u1ECB: ${ds2.join(" | ")}` : ""}`);
     });
   }
   const hn = iso(homNay);
@@ -90818,9 +92171,9 @@ C\xE2u: "\u0111\u01A1n h\xE0ng tr\xEAn 1 t\u1EF7 c\u1EE7a PM tu\u1EA5n" => {"loa
 C\xE2u: "TOWEL CABINET BF11" => {"loai":"tim_kiem"}${vdGan(cau, bangs, sx)}`;
 }
 function vdGan(cau, bangs, sx) {
-  const ds = cau ? chonViDu(cau, bangs, sx) : [];
-  if (!ds.length) return "";
-  return "\n\nV\xED d\u1EE5 g\u1EA7n c\xE2u h\u1ECFi (c\xE1c v\xED d\u1EE5 n\xE0y t\xEDnh v\u1EDBi h\xF4m nay = 2026-10-19, th\u1EE9 hai \u2014 c\xE2u th\u1EADt ph\u1EA3i t\xEDnh k\u1EF3 theo h\xF4m nay \u1EDF tr\xEAn):\n" + ds.map((v) => `C\xE2u: "${v.cau}" => ${JSON.stringify({ loai: "truy_van", tv: v.tv })}`).join("\n");
+  const ds2 = cau ? chonViDu(cau, bangs, sx) : [];
+  if (!ds2.length) return "";
+  return "\n\nV\xED d\u1EE5 g\u1EA7n c\xE2u h\u1ECFi (c\xE1c v\xED d\u1EE5 n\xE0y t\xEDnh v\u1EDBi h\xF4m nay = 2026-10-19, th\u1EE9 hai \u2014 c\xE2u th\u1EADt ph\u1EA3i t\xEDnh k\u1EF3 theo h\xF4m nay \u1EDF tr\xEAn):\n" + ds2.map((v) => `C\xE2u: "${v.cau}" => ${JSON.stringify({ loai: "truy_van", tv: v.tv })}`).join("\n");
 }
 function docKetQuaAI(text) {
   const s = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
@@ -90834,7 +92187,7 @@ function docKetQuaAI(text) {
   }
 }
 var cache2 = /* @__PURE__ */ new Map();
-var ngay = "";
+var ngay2 = "";
 var dem = 0;
 var LoiAI = class extends Error {
 };
@@ -90842,8 +92195,8 @@ async function hoiAI(loiDan, cau, khoaCache) {
   const hit = cache2.get(khoaCache);
   if (hit && Date.now() - hit.at < 864e5) return hit.kq;
   const hn = iso(/* @__PURE__ */ new Date());
-  if (hn !== ngay) {
-    ngay = hn;
+  if (hn !== ngay2) {
+    ngay2 = hn;
     dem = 0;
   }
   if (dem >= MAX_NGAY()) throw new LoiAI("H\u1EBFt l\u01B0\u1EE3t h\u1ECFi AI h\xF4m nay");
@@ -90907,8 +92260,8 @@ async function quyenCua(req) {
   if (!a.active) return null;
   return (q) => a.role === "ADMIN" || a.perms.has(q);
 }
-var xemBang = (b, co) => b.quyen.some(co);
-var xemCot = (c, co) => !c.quyen || co(c.quyen);
+var xemBang = (b, co2) => b.quyen.some(co2);
+var xemCot = (c, co2) => !c.quyen || co2(c.quyen);
 var cotNgay = (b) => b.cot.find((x) => x.id === b.ngay);
 var CO_DAU = "\xE0\xE1\u1EA3\xE3\u1EA1\u0103\u1EB1\u1EAF\u1EB3\u1EB5\u1EB7\xE2\u1EA7\u1EA5\u1EA9\u1EAB\u1EAD\xE8\xE9\u1EBB\u1EBD\u1EB9\xEA\u1EC1\u1EBF\u1EC3\u1EC5\u1EC7\xEC\xED\u1EC9\u0129\u1ECB\xF2\xF3\u1ECF\xF5\u1ECD\xF4\u1ED3\u1ED1\u1ED5\u1ED7\u1ED9\u01A1\u1EDD\u1EDB\u1EDF\u1EE1\u1EE3\xF9\xFA\u1EE7\u0169\u1EE5\u01B0\u1EEB\u1EE9\u1EED\u1EEF\u1EF1\u1EF3\xFD\u1EF7\u1EF9\u1EF5\u0111\xF0";
 var goc = (ch) => ch === "\u0111" || ch === "\xF0" ? "d" : ch.normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -90958,32 +92311,32 @@ var SX = "production_status_app";
 var laSx = (id) => id.startsWith("sx:");
 var NOI_SX = `LEFT JOIN ${SX} p ON p.hex::text = t.hex::text`;
 var tuBang = (b, ids) => `${b.id} t${ids.some(laSx) ? ` ${NOI_SX}` : ""}`;
-function timCot(b, id, co) {
+function timCot(b, id, co2) {
   if (laSx(id)) {
     const sx = bangTheoId.get(SX);
     if (!b.noiSx) throw new LoiHoi(`B\u1EA3ng ${b.ten} kh\xF4ng n\u1ED1i \u0111\u01B0\u1EE3c sang b\u1EA3ng s\u1EA3n xu\u1EA5t`);
-    if (!xemBang(sx, co)) throw new LoiHoi("B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem b\u1EA3ng s\u1EA3n xu\u1EA5t");
+    if (!xemBang(sx, co2)) throw new LoiHoi("B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem b\u1EA3ng s\u1EA3n xu\u1EA5t");
     const g = sx.cot.find((x) => x.id === id.slice(3));
-    if (!g || !xemCot(g, co)) throw new LoiHoi(`B\u1EA3ng s\u1EA3n xu\u1EA5t kh\xF4ng c\xF3 c\u1ED9t "${id.slice(3)}"`);
+    if (!g || !xemCot(g, co2)) throw new LoiHoi(`B\u1EA3ng s\u1EA3n xu\u1EA5t kh\xF4ng c\xF3 c\u1ED9t "${id.slice(3)}"`);
     return { ...g, id, sql: sqlCot(g).replace(/(?<![\w."])t\./g, "p.") };
   }
   const c = b.cot.find((x) => x.id === id);
   if (!c) throw new LoiHoi(`B\u1EA3ng ${b.ten} kh\xF4ng c\xF3 c\u1ED9t "${id}"`);
-  if (!xemCot(c, co)) throw new LoiHoi(`B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem c\u1ED9t ${c.ten}`);
+  if (!xemCot(c, co2)) throw new LoiHoi(`B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem c\u1ED9t ${c.ten}`);
   return c;
 }
 var mangGt = (gt) => (gt === void 0 ? [] : Array.isArray(gt) ? gt : [gt]).map((v) => String(v).trim()).filter(Boolean);
-function dieuKienLoc(b, l, co, p) {
-  const c = timCot(b, l.cot, co);
+function dieuKienLoc(b, l, co2, p) {
+  const c = timCot(b, l.cot, co2);
   const e = sqlCot(c);
-  const ds = mangGt(l.gt);
+  const ds2 = mangGt(l.gt);
   const thamSo = (v) => {
     p.push(v);
     return `$${p.length}`;
   };
   if (l.op === "rong") return c.kieu === "so" || c.kieu === "ngay" ? `${e} IS NULL` : `${gonTen(e)} IS NULL`;
   if (l.op === "co") return c.kieu === "so" || c.kieu === "ngay" ? `${e} IS NOT NULL` : `${gonTen(e)} IS NOT NULL`;
-  if (!ds.length) throw new LoiHoi(`Thi\u1EBFu gi\xE1 tr\u1ECB l\u1ECDc cho ${c.ten}`);
+  if (!ds2.length) throw new LoiHoi(`Thi\u1EBFu gi\xE1 tr\u1ECB l\u1ECDc cho ${c.ten}`);
   if (c.kieu === "so" || c.kieu === "ngay") {
     const doi = (v) => {
       if (c.kieu === "ngay") {
@@ -90995,10 +92348,10 @@ function dieuKienLoc(b, l, co, p) {
       return n;
     };
     const ep = c.kieu === "ngay" ? "::date" : "::numeric";
-    const so1 = () => `${thamSo(doi(ds[0]))}${ep}`;
+    const so1 = () => `${thamSo(doi(ds2[0]))}${ep}`;
     switch (l.op) {
       case "bang":
-        return ds.length > 1 ? `${e} = ANY(${thamSo(ds.map(doi))}${ep}[])` : `${e} = ${so1()}`;
+        return ds2.length > 1 ? `${e} = ANY(${thamSo(ds2.map(doi))}${ep}[])` : `${e} = ${so1()}`;
       case "khac":
         return `(${e} IS NULL OR ${e} <> ${so1()})`;
       case "lon_hon":
@@ -91010,8 +92363,8 @@ function dieuKienLoc(b, l, co, p) {
       case "nho_hon_bang":
         return `${e} <= ${so1()}`;
       case "trong_khoang": {
-        if (ds.length < 2) throw new LoiHoi(`${c.ten}: "trong kho\u1EA3ng" c\u1EA7n 2 gi\xE1 tr\u1ECB`);
-        return `${e} BETWEEN ${thamSo(doi(ds[0]))}${ep} AND ${thamSo(doi(ds[1]))}${ep}`;
+        if (ds2.length < 2) throw new LoiHoi(`${c.ten}: "trong kho\u1EA3ng" c\u1EA7n 2 gi\xE1 tr\u1ECB`);
+        return `${e} BETWEEN ${thamSo(doi(ds2[0]))}${ep} AND ${thamSo(doi(ds2[1]))}${ep}`;
       }
       default:
         throw new LoiHoi(`${c.ten}: kh\xF4ng l\u1ECDc "${l.op}" v\u1EDBi c\u1ED9t s\u1ED1 / ng\xE0y`);
@@ -91019,14 +92372,14 @@ function dieuKienLoc(b, l, co, p) {
   }
   const coMaCt = !laSx(c.id) && b.cot.some((x) => x.id === "ma_cong_trinh");
   const giongChu = (phu) => {
-    const a = thamSo(ds.map(thich));
+    const a = thamSo(ds2.map(thich));
     const k = `${khongDau(e)} LIKE ANY(${a}::text[])`;
-    return phu && c.kieu === "ct" && coMaCt ? `(${k} OR ${khongDau(sqlCot(timCot(b, "ma_cong_trinh", co)))} LIKE ANY(${a}::text[]))` : k;
+    return phu && c.kieu === "ct" && coMaCt ? `(${k} OR ${khongDau(sqlCot(timCot(b, "ma_cong_trinh", co2)))} LIKE ANY(${a}::text[]))` : k;
   };
   const bangChu = () => {
-    if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds))}::text[])`;
-    if (c.kieu === "ct") return `${normNameSql(e)} = ANY(${thamSo(expandProjectNames(ds))}::text[])`;
-    return `${khongDau(e)} = ANY(${thamSo(ds.map(boDau2))}::text[])`;
+    if (c.kieu === "xuong") return `UPPER(TRIM(COALESCE(${e}, ''))) = ANY(${thamSo(expandWorkshops(ds2))}::text[])`;
+    if (c.kieu === "ct") return `${normNameSql(e)} = ANY(${thamSo(expandProjectNames(ds2))}::text[])`;
+    return `${khongDau(e)} = ANY(${thamSo(ds2.map(boDau2))}::text[])`;
   };
   switch (l.op) {
     case "bang":
@@ -91041,7 +92394,7 @@ function dieuKienLoc(b, l, co, p) {
       throw new LoiHoi(`${c.ten}: ch\u1EC9 l\u1ECDc b\u1EB1ng / kh\xE1c / ch\u1EE9a v\u1EDBi c\u1ED9t ch\u1EEF`);
   }
 }
-async function phanLoc(b, q, co, p, coNhomNgay, loaiKh = null) {
+async function phanLoc(b, q, co2, p, coNhomNgay, loaiKh = null) {
   const dk = [];
   if (!q.gomHuy && b.huy === "hex") dk.push(notCancelledHexCond("t.hex"));
   if (!q.gomHuy && b.huy === "ipo") dk.push(`UPPER(COALESCE(t.tinh_trang_ipo, '')) NOT LIKE '%H\u1EE6Y%'`);
@@ -91059,7 +92412,7 @@ async function phanLoc(b, q, co, p, coNhomNgay, loaiKh = null) {
     p.push(`%${loaiKh}%`);
     dk.push(`UPPER(TRIM(${sqlCot(cotLoaiKh)})) LIKE $${p.length}`);
   }
-  q.loc.forEach((l) => dk.push(dieuKienLoc(b, l, co, p)));
+  q.loc.forEach((l) => dk.push(dieuKienLoc(b, l, co2, p)));
   let ngayChot;
   if (b.chot && !coNhomNgay && !q.loc.some((l) => l.cot === b.ngay)) {
     const pp = [];
@@ -91097,11 +92450,11 @@ async function ngayMoiNhat(b) {
   const d = b.phienBan ? await cachedByVersions(cacheMaxNgay, b.id, [b.phienBan], tinh) : await tinh();
   return d ?? void 0;
 }
-async function chay(b, q, co) {
+async function chay(b, q, co2) {
   const p = [];
   const nhom = q.nhom.map((n) => {
     const [id, moc2] = n.split("@");
-    const c = timCot(b, id, co);
+    const c = timCot(b, id, co2);
     if (moc2) {
       if (c.kieu !== "ngay" || !Object.hasOwn(MOC, moc2)) throw new LoiHoi(`Kh\xF4ng nh\xF3m ${c.ten} theo "${moc2}"`);
       return { c, moc: moc2, sql: MOC[moc2](sqlCot(c)) };
@@ -91112,16 +92465,16 @@ async function chay(b, q, co) {
   });
   const coNhomNgay = nhom.some((n) => n.c.kieu === "ngay");
   const loaiKh = loaiKhsx(b.id, q) ?? void 0;
-  const { where, ngayChot } = await phanLoc(b, q, co, p, coNhomNgay, loaiKh);
+  const { where, ngayChot } = await phanLoc(b, q, co2, p, coNhomNgay, loaiKh);
   const tu = tuBang(b, [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot ?? ""), ...q.loc.map((l) => l.cot), ...q.kieu === "dong" ? q.cotXem ?? [] : []]);
   const boHuy = !q.gomHuy && !!b.huy;
   const maxNgay = await ngayMoiNhat(b);
   if (q.kieu === "dong") {
     const ids = (q.cotXem?.length ? q.cotXem : b.hien).filter((id) => {
       const c = b.cot.find((x) => x.id === id);
-      return c && xemCot(c, co);
+      return c && xemCot(c, co2);
     });
-    const cots = ids.map((id) => timCot(b, id, co));
+    const cots = ids.map((id) => timCot(b, id, co2));
     const chon = cots.map((c, i) => `${c.kieu === "ngay" ? MOC.ngay(sqlCot(c)) : sqlCot(c)} AS c${i}`);
     const gioiHan = Math.min(q.gioiHan ?? 100, 200);
     const sapCot = q.sap && cots[q.sap.cot] ? `c${q.sap.cot} ${q.sap.giam ? "DESC" : "ASC"} NULLS LAST` : `${sqlCot(cotNgay(b))} DESC NULLS LAST`;
@@ -91146,11 +92499,11 @@ async function chay(b, q, co) {
       loaiKh
     };
   }
-  const doList = q.do.length ? q.do : b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co)));
+  const doList = q.do.length ? q.do : b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co2)));
   const doDa = doList.map((d) => {
     if (d.ham === "dem") return { d, c: void 0, sql: ["COUNT(*)"] };
     if (!d.cot) throw new LoiHoi("Thi\u1EBFu c\u1ED9t c\u1EA7n t\xEDnh");
-    const c = timCot(b, d.cot, co);
+    const c = timCot(b, d.cot, co2);
     const e = sqlCot(c);
     if (d.ham === "dem_khac") return { d, c, sql: [`COUNT(DISTINCT ${c.kieu === "ngay" || c.kieu === "so" ? e : gonTen(e)})`] };
     if (d.ham === "max" || d.ham === "min") {
@@ -91181,7 +92534,7 @@ async function chay(b, q, co) {
   });
   const rows = r.rows;
   const dongTong = nhom.length ? rows.find((x) => Number(x.la_tong) !== 0) : rows[0];
-  const tong = dongTong ? [...nhom.map(() => null), ...raVal(docDo(dongTong)).map((v) => typeof v === "number" ? v : null)] : null;
+  const tong2 = dongTong ? [...nhom.map(() => null), ...raVal(docDo(dongTong)).map((v) => typeof v === "number" ? v : null)] : null;
   const gop = /* @__PURE__ */ new Map();
   rows.filter((x) => !nhom.length || Number(x.la_tong) === 0).forEach((row) => {
     const g = nhom.map((n, i) => {
@@ -91231,7 +92584,7 @@ async function chay(b, q, co) {
       tien: x.d.ham !== "dem" && x.d.ham !== "dem_khac" && !!x.c?.tien
     }))
   ];
-  return { cot, dong: dong2, tong: nhom.length ? tong : null, soDong: nhom.length ? soDong : 1, ngayChot, maxNgay, boHuy, loaiKh };
+  return { cot, dong: dong2, tong: nhom.length ? tong2 : null, soDong: nhom.length ? soDong : 1, ngayChot, maxNgay, boHuy, loaiKh };
 }
 var tenDo = (b, ham, c) => {
   if (ham === "dem" || !c) return `S\u1ED1 ${b.dong}`;
@@ -91245,9 +92598,9 @@ var cacheGt = createCache(300);
 var phienBanCua = (b) => [b.phienBan, ...b.huy ? ["production"] : []];
 app.get("/api/hoi-dap/danh-muc", limiter, async (req, res) => {
   try {
-    const co = await quyenCua(req);
-    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
-    const bang = DANH_MUC.filter((b) => xemBang(b, co)).map((b) => ({
+    const co2 = await quyenCua(req);
+    if (!co2) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
+    const bang = DANH_MUC.filter((b) => xemBang(b, co2)).map((b) => ({
       id: b.id,
       ten: b.ten,
       dn: b.dn,
@@ -91256,9 +92609,9 @@ app.get("/api/hoi-dap/danh-muc", limiter, async (req, res) => {
       huy: !!b.huy,
       dong: b.dong,
       soChinh: b.soChinh,
-      noiSx: !!b.noiSx && xemBang(bangTheoId.get(SX), co),
-      mac: b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co))),
-      cot: b.cot.filter((c) => xemCot(c, co)).map((c) => ({ id: c.id, ten: c.ten, dn: c.dn ?? [], kieu: c.kieu, tien: !!c.tien, ...c.gt ? { gt: c.gt } : {} }))
+      noiSx: !!b.noiSx && xemBang(bangTheoId.get(SX), co2),
+      mac: b.mac.filter((m) => !m.cot || b.cot.some((c) => c.id === m.cot && xemCot(c, co2))),
+      cot: b.cot.filter((c) => xemCot(c, co2)).map((c) => ({ id: c.id, ten: c.ten, dn: c.dn ?? [], kieu: c.kieu, tien: !!c.tien, ...c.gt ? { gt: c.gt } : {} }))
     }));
     res.json({ success: true, bang, ai: aiBat() });
   } catch (e) {
@@ -91267,10 +92620,10 @@ app.get("/api/hoi-dap/danh-muc", limiter, async (req, res) => {
   }
 });
 var cacheTd = createCache(40);
-async function layTuDien(co, coTenCt = true) {
+async function layTuDien(co2, coTenCt = true) {
   const gt = {};
-  for (const b of DANH_MUC.filter((x) => xemBang(x, co))) {
-    const cots = b.cot.filter((c) => c.tuDien && xemCot(c, co));
+  for (const b of DANH_MUC.filter((x) => xemBang(x, co2))) {
+    const cots = b.cot.filter((c) => c.tuDien && xemCot(c, co2));
     if (!cots.length) continue;
     const tinh = async () => {
       const out = {};
@@ -91292,7 +92645,7 @@ async function layTuDien(co, coTenCt = true) {
     gt[b.id] = b.phienBan ? await cachedByVersions(cacheTd, `${b.id}|${cots.map((c) => c.id).join(",")}`, [b.phienBan], tinh) : await tinh();
   }
   let ct = [];
-  if (coTenCt && DANH_MUC.some((b) => xemBang(b, co) && b.cot.some((c) => c.kieu === "ct"))) {
+  if (coTenCt && DANH_MUC.some((b) => xemBang(b, co2) && b.cot.some((c) => c.kieu === "ct"))) {
     const r = await cachedByVersions(cacheTd, "ct", ["production"], async () => {
       const x = await timedQuery(`SELECT DISTINCT ${gonTen("t.ten_cong_trinh")} AS v FROM ${SX} t`, [], { timeoutMs: 15e3 });
       return { ct: [...new Set(x.rows.map((y) => canonicalProjectName(y.v)).filter(Boolean))] };
@@ -91303,9 +92656,9 @@ async function layTuDien(co, coTenCt = true) {
 }
 app.get("/api/hoi-dap/tu-dien", limiter, async (req, res) => {
   try {
-    const co = await quyenCua(req);
-    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
-    res.json({ success: true, ...await layTuDien(co) });
+    const co2 = await quyenCua(req);
+    if (!co2) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
+    res.json({ success: true, ...await layTuDien(co2) });
   } catch (e) {
     console.error("hoi-dap/tu-dien", e);
     res.status(500).json({ success: false, message: "L\u1ED7i \u0111\u1ECDc t\u1EEB \u0111i\u1EC3n gi\xE1 tr\u1ECB" });
@@ -91313,15 +92666,15 @@ app.get("/api/hoi-dap/tu-dien", limiter, async (req, res) => {
 });
 app.get("/api/hoi-dap/gia-tri", limiter, async (req, res) => {
   try {
-    const co = await quyenCua(req);
+    const co2 = await quyenCua(req);
     const b = bangTheoId.get(String(req.query.bang ?? ""));
-    if (!co || !b || !xemBang(b, co)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem b\u1EA3ng n\xE0y" });
-    const c = timCot(b, String(req.query.cot ?? ""), co);
+    if (!co2 || !b || !xemBang(b, co2)) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n xem b\u1EA3ng n\xE0y" });
+    const c = timCot(b, String(req.query.cot ?? ""), co2);
     if (c.kieu === "so" || c.kieu === "ngay") return res.json({ success: true, gt: [] });
     const q = String(req.query.q ?? "").slice(0, 100).trim();
     const tinh = async () => {
       const p = [];
-      const { where } = await phanLoc(b, { loc: [], gomHuy: false }, co, p, false);
+      const { where } = await phanLoc(b, { loc: [], gomHuy: false }, co2, p, false);
       const e = c.kieu === "xuong" ? `NULLIF(${workshopGroupSql(sqlCot(c))}, '')` : gonTen(sqlCot(c));
       const dk = [`${e} IS NOT NULL`];
       if (q) {
@@ -91353,13 +92706,13 @@ app.post("/api/hoi-dap/truy-van", limiter, async (req, res) => {
   if (!kq.success) return res.status(400).json({ success: false, message: "Truy v\u1EA5n kh\xF4ng h\u1EE3p l\u1EC7" });
   const q = kq.data;
   try {
-    const co = await quyenCua(req);
+    const co2 = await quyenCua(req);
     const b = bangTheoId.get(q.bang);
-    if (!co || !b || !xemBang(b, co)) return res.status(403).json({ success: false, message: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem s\u1ED1 li\u1EC7u b\u1EA3ng n\xE0y" });
-    [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot).filter((x) => !!x), ...q.loc.map((l) => l.cot), ...q.cotXem ?? []].forEach((id) => timCot(b, id, co));
-    const tinh = () => chay(b, q, co);
+    if (!co2 || !b || !xemBang(b, co2)) return res.status(403).json({ success: false, message: "B\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem s\u1ED1 li\u1EC7u b\u1EA3ng n\xE0y" });
+    [...q.nhom.map((n) => n.split("@")[0]), ...q.do.map((d) => d.cot).filter((x) => !!x), ...q.loc.map((l) => l.cot), ...q.cotXem ?? []].forEach((id) => timCot(b, id, co2));
+    const tinh = () => chay(b, q, co2);
     const bot = coBot(q);
-    const khoa = hashKey({ q, gia: co("materials_view_price"), ...bot ? { ngay: (/* @__PURE__ */ new Date()).toDateString() } : {} });
+    const khoa = hashKey({ q, gia: co2("materials_view_price"), ...bot ? { ngay: (/* @__PURE__ */ new Date()).toDateString() } : {} });
     const ketQua = b.phienBan ? await cachedByVersions(cacheKq, khoa, bot ? [...phienBanCua(b), "inventory"] : phienBanCua(b), tinh, workshopGroupsVersion()) : await tinh();
     res.json({ success: true, ...ketQua });
   } catch (e) {
@@ -91389,13 +92742,13 @@ app.post("/api/hoi-dap/ai", aiLimiter, async (req, res) => {
   if (!cau) return res.status(400).json({ success: false, message: "Thi\u1EBFu c\xE2u h\u1ECFi" });
   if (!aiBat()) return res.status(503).json({ success: false, message: "Ch\u01B0a b\u1EADt AI" });
   try {
-    const co = await quyenCua(req);
-    if (!co) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
-    const bangs = DANH_MUC.filter((b2) => xemBang(b2, co)).map((b2) => ({ b: b2, cot: b2.cot.filter((c) => xemCot(c, co)) }));
+    const co2 = await quyenCua(req);
+    if (!co2) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 quy\u1EC1n" });
+    const bangs = DANH_MUC.filter((b2) => xemBang(b2, co2)).map((b2) => ({ b: b2, cot: b2.cot.filter((c) => xemCot(c, co2)) }));
     if (!bangs.length) return res.status(403).json({ success: false, message: "Kh\xF4ng c\xF3 b\u1EA3ng n\xE0o \u0111\u01B0\u1EE3c xem" });
     const sxB = bangTheoId.get(SX);
-    const sx = xemBang(sxB, co) ? sxB.cot.filter((c) => xemCot(c, co) && c.kieu !== "so" && c.kieu !== "ct" && c.kieu !== "xuong" && c.id !== "hex") : [];
-    const { gt } = await layTuDien(co, false);
+    const sx = xemBang(sxB, co2) ? sxB.cot.filter((c) => xemCot(c, co2) && c.kieu !== "so" && c.kieu !== "ct" && c.kieu !== "xuong" && c.id !== "hex") : [];
+    const { gt } = await layTuDien(co2, false);
     const homNay = /* @__PURE__ */ new Date();
     const loiDan = taoLoiDan(bangs, sx, gt, homNay, cau);
     const noiDung = truoc ? `C\xE2u h\u1ECFi tr\u01B0\u1EDBc (ch\u1EC9 \u0111\u1EC3 hi\u1EC3u c\xE2u n\u1ED1i ti\u1EBFp, n\u1EBFu c\xE2u b\xE2y gi\u1EDD kh\xF4ng n\xF3i \u0111\u1ED1i t\u01B0\u1EE3ng th\xEC d\xF9ng \u0111\u1ED1i t\u01B0\u1EE3ng c\u1EE7a c\xE2u tr\u01B0\u1EDBc): "${truoc}"
@@ -91405,9 +92758,9 @@ C\xE2u h\u1ECFi b\xE2y gi\u1EDD: "${cau}"` : cau;
     const tv = TruyVanAISchema.safeParse(kq.tv);
     if (!tv.success) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI vi\u1EBFt truy v\u1EA5n sai d\u1EA1ng" });
     const b = bangTheoId.get(tv.data.bang);
-    if (!b || !xemBang(b, co)) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI ch\u1ECDn b\u1EA3ng kh\xF4ng c\xF3 ho\u1EB7c b\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem" });
+    if (!b || !xemBang(b, co2)) return res.json({ success: true, loai: "khong_hieu", giaiThich: "AI ch\u1ECDn b\u1EA3ng kh\xF4ng c\xF3 ho\u1EB7c b\u1EA1n ch\u01B0a c\xF3 quy\u1EC1n xem" });
     try {
-      [...tv.data.nhom.map((n) => n.split("@")[0]), ...tv.data.do.map((d) => d.cot).filter((x) => !!x), ...tv.data.loc.map((l) => l.cot), ...tv.data.cotXem ?? []].forEach((id) => timCot(b, id, co));
+      [...tv.data.nhom.map((n) => n.split("@")[0]), ...tv.data.do.map((d) => d.cot).filter((x) => !!x), ...tv.data.loc.map((l) => l.cot), ...tv.data.cotXem ?? []].forEach((id) => timCot(b, id, co2));
     } catch (e) {
       return res.json({ success: true, loai: "khong_hieu", giaiThich: e instanceof LoiHoi ? `AI d\xF9ng c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7: ${e.message}` : "AI d\xF9ng c\u1ED9t kh\xF4ng h\u1EE3p l\u1EC7" });
     }
@@ -91465,24 +92818,24 @@ app.get("/api/hoi-dap/nhat-ky", limiter, async (req, res) => {
   if (!req.user) return res.status(401).json({ success: false });
   const a = await loadUserAccess(req.user.id);
   if (a.role !== "ADMIN") return res.status(403).json({ success: false, message: "Ch\u1EC9 qu\u1EA3n tr\u1ECB" });
-  const ngay2 = Math.min(365, Math.max(1, Number(req.query.ngay) || 30));
+  const ngay3 = Math.min(365, Math.max(1, Number(req.query.ngay) || 30));
   const chiChe = req.query.loai !== "tat-ca";
   try {
-    const [tk, ds] = await Promise.all([
+    const [tk, ds2] = await Promise.all([
       timedQuery(
         `SELECT duong, COUNT(*) tong, COUNT(*) FILTER (WHERE danh_gia = 1) tot, COUNT(*) FILTER (WHERE danh_gia = -1) che
            FROM hoi_dap_nhat_ky WHERE created_at >= NOW() - ($1 || ' days')::interval GROUP BY duong ORDER BY 2 DESC`,
-        [ngay2]
+        [ngay3]
       ),
       timedQuery(
         `SELECT k.id, k.created_at, u.username, k.cau, k.truoc, k.duong, k.hieu, k.tv, k.danh_gia, k.ghi_chu
            FROM hoi_dap_nhat_ky k LEFT JOIN users u ON u.id = k.user_id
           WHERE k.created_at >= NOW() - ($1 || ' days')::interval ${chiChe ? "AND k.danh_gia = -1" : ""}
           ORDER BY k.created_at DESC LIMIT 500`,
-        [ngay2]
+        [ngay3]
       )
     ]);
-    res.json({ success: true, thongKe: tk.rows.map((r) => ({ duong: r.duong, tong: +r.tong, tot: +r.tot, che: +r.che })), cau: ds.rows });
+    res.json({ success: true, thongKe: tk.rows.map((r) => ({ duong: r.duong, tong: +r.tong, tot: +r.tot, che: +r.che })), cau: ds2.rows });
   } catch (e) {
     if (loiChuaCoBang(e)) return res.json({ success: true, thongKe: [], cau: [], chuaCoBang: true });
     console.error("hoi-dap/nhat-ky GET", e);

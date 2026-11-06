@@ -564,35 +564,64 @@ export const fetchStockByProject = async (
   }
 };
 
-/** Nhóm trạng thái của dòng tồn (xem /api/stock/health): mỗi dòng vào nhóm đầu tiên khớp theo thứ tự này */
-export type StockNhom = 'huy' | 'daXuat' | 'khongPsa' | 'khongXuat' | 'chuaDongBo' | 'chuaXuat' | 'motPhan';
-
-/** Sức khoẻ tồn kho (triệu đồng). Tuổi tính từ ngày nhập kho; "cũ" = tuổi > 6 tháng */
+/** Báo cáo Tồn kho thành phẩm v5 (/api/stock/health), triệu đồng; backend: server/tonKhoV5.ts.
+ *  Tuổi tính từ ngày nhập; "cũ" = tuổi > 6 tháng (từ 198 ngày); chỉ xuất TÍNH vào % xuất, xuất cuối, xuất 60 ngày. */
 export interface StockHealth {
   date: string;
-  /** ma = mã SAP có giá trị; chuaDongBo = mọi HEX chưa nhập kho đồng bộ (kể cả đã vào nhóm khác) */
-  tong: { v: number; ma: number; congTrinh: number; tren6: number; chuaDongBo: number };
+  /** chuaXuat = HEX xuất TÍNH < 5% số nhập; chuaXuat4 = phần từ 4 tháng trở lên; du = nhập chưa khớp xuất + tồn */
+  tong: { v: number; cu: number; cu12: number; khongNgay: number; ma: number; congTrinh: number; chuaXuat: number; chuaXuat4: number; du: number; duPhanLoai: number };
   /** Mọi lần chốt từ cuối năm trước tới ngày xem */
-  chuoi: { d: string; v: number; tren6: number; tuoiBq: number | null }[];
-  /** Lần chốt cuối mỗi tháng (tháng đang xem = ngày xem) */
-  cuoiThang: string[];
-  /** Cuối tháng cách 2 tháng — mốc so sánh cột "vTruoc" */
-  mocTruoc: string | null;
-  /** Hàng cũ giữa 2 lần chốt cuối tháng: vao = vừa vượt mốc 6 tháng, ra = hàng cũ không còn ở lần sau */
-  dongCu: { d0: string; d1: string; o0: number; o1: number; ra: number; vao: number }[];
-  nhom: { k: StockNhom; v: number; tren6: number; ma: number }[];
-  /** b = tuổi (tháng) 0–12, 13 = 13–18, 19 = 19–24, 25 = > 24, null = không có ngày nhập; kh: sun / khac / kpsa */
-  hist: { b: number | null; kh: string; v: number }[];
-  khach: { k: string; v: number; tren6: number; t46: number }[];
-  /** Tỷ trọng Sun Group trong giá trị đơn chưa nhập kho (PSA, bỏ HUỶ) */
-  sunDon: number | null;
-  khuVuc: { k: string; v: number; tren6: number; sun: number }[];
-  /** 15 công trình lớn nhất có thêm vTruoc / xuat60 / conSx; 10 công trình đầu có thang (6 lần chốt cuối tháng) */
-  congTrinh: {
-    name: string; mct: string[]; v: number; ma: number; tren6: number; xuatCuoi: string | null;
-    vTruoc: number | null; xuat60: number | null; conSx: number | null;
-    thang: { d: string; v: number; tren6: number; co: boolean }[] | null;
+  moc: { d: string; v: number; cu: number }[];
+  /** Mốc cuối tháng (mốc cuối = ngày xem). cuGoi/tonGoi của gói đứng yên; vuotMoc/ra đo theo lô, null ở mốc đầu */
+  cuoiThang: { d: string; v: number; cu: number; cuGoi: number; tonGoi: number; cu12: number; vuotMoc: number | null; ra: number | null }[];
+  duAnMoc: { d: string; da: Record<string, { v: number; cu: number }> }[];
+  /** Gói CT.. tồn ≥ 2% tổng, không xuất TÍNH 60 ngày, lớn nhất */
+  goiDung: { ct: string; ten: string; pm: string | null; ton: number; cu: number; nhap: number; xuat: number; xuatCuoi: string | null; ngayKhongXuat: number | null } | null;
+  /** Gói đứng yên + tối đa 2 gói cùng PM có xuất 60 ngày, ưu tiên cùng dự án rồi xuất lớn nhất; lũy kế null trước tháng đầu của gói */
+  soSanhGoi: { ct: string; ten: string; thang: string[]; nhapLuyKe: (number | null)[]; xuatLuyKe: (number | null)[]; ton: number; xuat60: number; xuatCuoi: string | null }[];
+  /** Gói cùng PM còn lại, chỉ ghi dòng số */
+  goiCungPm: { ct: string; ten: string; ton: number; xuat60: number; xuatCuoi: string | null }[];
+  /** Sắp giảm dần theo tồn; pctNhap theo tiền đơn (bỏ huỷ), pctXuat = xuất TÍNH tiền / nhập tiền */
+  duAn: {
+    duAn: string; pm: string[]; hang: { ten: string; v: number }[]; ton: number; moi: number; cu: number; khongNgay: number; cu12: number;
+    soMa: number; pctNhap: number | null; pctXuat: number | null; xuatCuoi: string | null; donChuaNhap: number;
   }[];
+  /** k: chuaXuat, giaoDo, ganXong, theoNhip, huy, khongPsa */
+  phanChia: { k: string; nhom: string; gt: number; cu: number; hex: number }[];
+  /** Mọi dự án có hàng chưa xuất TÍNH, sắp theo phần từ 4 tháng; thieuBo là suy luận từ ghi chú */
+  chuaXuatDuAn: { duAn: string; t01: number; t23: number; t46: number; t6: number; khong: number; thieuBo: number; tong: number }[];
+  /** Cửa sổ ngay = 3 cặp mốc cuối tháng gần nhất; huy = phần đơn huỷ tách dòng riêng */
+  goiCu: {
+    dong: { ct: string; ten: string; duAn: string; pm: string | null; cu: number; ra93: number; xuat60: number | null; xuatCuoi: string | null; huy?: boolean }[];
+    conLai: { soGoi: number; cu: number; ra93: number };
+    tong: { cu: number; ra93: number };
+    ngay: number; vao: number; ra: number; vaoThang: number; raThang: number;
+  };
+  /** thang: 'truoc', 'YYYY-MM', 'khong'; moc6 là mức trần khi tồn không đổi; vachCu = ngày nhập ứng với mốc cũ */
+  loNhap: {
+    seri: string[];
+    cot: { thang: string; tong: number; cu: number; theoDuAn: Record<string, number> }[];
+    vachCu: string;
+    moc6: { moc: string; gt: number; theoDuAn: Record<string, number> }[];
+  };
+  /** thangTon = tồn / xuất TÍNH 3 kỳ; thangTheoLo = tồn / mức giảm theo mã + công trình 3 kỳ (2 cách đo) */
+  ky: {
+    dong: { den: string; ngay: number; nhap: number; xuatTinh: number; chuaDoiSoat: number; ton: number; thangTon: number | null }[];
+    tong: { nhap: number; xuatTinh: number; chuaDoiSoat: number };
+    thangTheoLo: number | null;
+  };
+  /** du = choVeKho + lapCongTrinh + daRoiKho + chuaRo; theoMa: 4 mã lớn nhất + dòng ct null "các mã còn lại" */
+  soSach: {
+    tu: string | null; du: number; choVeKho: number; lapCongTrinh: number; daRoiKho: number; chuaRo: number; hexChuaVaoSo: number;
+    theoMa: { ct: string | null; ten: string; duAn: string | null; du: number }[];
+    kiemKe: { ten: string; gt: number; ghiChu: string | null }[];
+  };
+  /** Số cho khối "Vấn đề cần trả lời" */
+  doiChieu: {
+    sapVuot: { den: string; gt: number; theoDuAn: { duAn: string; gt: number }[] };
+    khongPsa: { gt: number; cu: number; lonNhat: { ct: string; ten: string; v: number }[] };
+    huy: { gt: number; cu: number; ct: string[]; soGhi: string | null };
+  };
 }
 
 /** Sức khoẻ tồn kho tại 1 ngày chốt (cửa sổ Tồn kho, tab Tổng quan) */
@@ -601,6 +630,43 @@ export const fetchStockHealth = async (dateISO: string, opts?: OverviewFilterOpt
   appendFilterParams(params, opts);
   const r = await fetch(`${API_BASE_URL}/stock/health?${params.toString()}`, { signal: opts?.signal });
   if (!r.ok) throw new Error(`Lỗi ${r.status}`);
+  return r.json();
+};
+
+/** Yêu cầu chi tiết của 1 con số báo cáo v5. Ý nghĩa từng loai + tham số: đầu file backend/src/server/tonKhoV5ChiTiet.ts */
+export type StockHealthDetailLoai =
+  | 'ton' | 'phan_chia' | 'chua_xuat' | 'huy' | 'khong_psa' | 'sap_vuot' | 'moc6' | 'lo_nhap' | 'goi_cu' | 'goi_ra' | 'goi_vao' | 'kiem_ke'
+  | 'moc' | 'vuot_moc' | 'ra' | 'so_moc' | 'nhap' | 'xuat_tinh' | 'chua_doi_soat' | 'du' | 'so_sach' | 'da_nhap' | 'don_chua_nhap';
+export interface StockHealthDetailQuery {
+  loai: StockHealthDetailLoai;
+  ct?: string; duAn?: string[]; tuoi?: 'moi' | 'cu' | 'cu12' | 'khong'; nsp?: string; nhom?: string; nhomTuoi?: string[];
+  thang?: string[]; seri?: string; moc?: string; d?: string; tu?: string; den?: string; denThang?: string;
+  f?: 'v' | 'cu'; phan?: 'goi' | 'con'; muc?: string;
+  cu?: boolean; huy?: boolean; conLai?: boolean; lon?: boolean; xuat60?: boolean;
+}
+/** Danh sách dòng tạo nên 1 con số. tong: triệu đồng, đủ kể cả khi cắt dòng (tối đa 5000); cột kieu 'ty' có giá trị triệu đồng; phu: số phụ để đọc % */
+export interface StockHealthDetail {
+  tieuDe: string;
+  tong: number;
+  soDong: number;
+  cot: { k: string; nhan: string; kieu: 'chu' | 'ty' | 'ngay' | 'so' }[];
+  rows: Record<string, any>[];
+  truncated: boolean;
+  phu?: { nhan: string; gt: number }[];
+}
+export const fetchStockHealthDetail = async (dateISO: string, yc: StockHealthDetailQuery, opts?: OverviewFilterOpts): Promise<StockHealthDetail> => {
+  const params = new URLSearchParams({ date: dateISO });
+  appendFilterParams(params, opts);
+  for (const [k, v] of Object.entries(yc)) {
+    if (v === undefined || v === false) continue;
+    if (Array.isArray(v)) v.forEach(x => params.append(k, x));
+    else params.set(k, v === true ? '1' : v);
+  }
+  const r = await fetch(`${API_BASE_URL}/stock/health/chi-tiet?${params.toString()}`, { signal: opts?.signal });
+  if (!r.ok) {
+    const loi = await r.json().catch(() => null);
+    throw new Error(loi?.error || `Lỗi ${r.status}`);
+  }
   return r.json();
 };
 

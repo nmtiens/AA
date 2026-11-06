@@ -8,6 +8,13 @@ import { createCache, cachedByVersions } from '../server/cache.js';
 import { laGioNghiDb } from '../server/gioNghi.js';
 import { app, warmupLimiter } from '../server/app.js';
 import { expandWorkshops, workshopGroupsVersion, workshopGroupSql } from '../server/workshopGroups.js';
+import {
+  chonCuoiThang, ghepDauVaoV5, sqlDonPsa, sqlDongLuong, sqlMoTaPsa, sqlNgayChot, sqlTonKhoV5, sqlTonNgay, tinhTonKhoV5,
+  type InputTonKhoV5, type ThamSoSql,
+} from '../server/tonKhoV5.js';
+import {
+  LoiChiTiet, canDocChiTiet, chiTietTonKhoV5, docYeuCauChiTiet, ghepDocThem, laNgay, type BangMoTa, type ChiTietTonKho,
+} from '../server/tonKhoV5ChiTiet.js';
 
 // --- CACHE IN-MEMORY CHO /api/stock/dates (theo bộ lọc tổng) ---
 // TRƯỚC: 1 biến module-level duy nhất (không phân biệt filter).
@@ -18,6 +25,11 @@ const stockDatesCache = new Map<string, { versions: Record<string, string>; payl
 const stockQueryCache = createCache<unknown>(40);
 const stockItemsCache = createCache<unknown>(10);
 const STOCK_VERSION_KEYS = ['stock', 'production'];
+// Báo cáo v5: đầu vào đọc 5–10 giây nên giữ lại để bấm chi tiết liên tiếp không đọc lại; mỗi đầu vào ~10 MB => giữ rất ít
+const stockHealthVersionKeys = [...STOCK_VERSION_KEYS, 'inventory', 'export'];
+const stockHealthInputCache = createCache<InputTonKhoV5>(3);
+const stockHealthMoTaCache = createCache<BangMoTa>(1);
+const stockHealthDetailCache = createCache<ChiTietTonKho>(20);
 
 interface StockFilterParams {
   congTrinh: string[];
@@ -218,173 +230,97 @@ app.get('/api/stock/by-project', async (req: Request, res: Response) => {
   }
 });
 
-// "Sức khoẻ" tồn kho tại 1 ngày chốt (cửa sổ Tồn kho, tab Tổng quan). Cùng phạm vi lọc với /api/stock/by-project.
-// Giá trị: triệu đồng. Tuổi = (ngày chốt − ngày nhập kho) / 30,4 làm tròn tháng, tính lại cho MỌI lần chốt — cột
-// so_thang_ton_kho gốc bị hỏng ở vài lần chốt (28/02, 01/10, 15/10…). "Hàng cũ" = tuổi > 6 (từ 7 tháng).
-// Nhóm trạng thái: mỗi dòng tồn vào nhóm ĐẦU TIÊN khớp (thứ tự trong NHOM_SQL), theo trạng thái HEX trong PSA (dòng
-// mới nhất) + lịch sử xuất kho theo mã công trình và theo HEX — phân loại để giao việc, không phải nguyên nhân đã xác nhận.
-const TUOI_SQL = (a: string) => `(CASE WHEN ${a}.ngay_nhap_kho IS NULL THEN NULL ELSE ROUND((${a}.date_parsed - ${a}.ngay_nhap_kho) / 30.4) END)`;
-const PSA_DONG_BO = (a: string) => `(${a}.tinh_trang LIKE '01.1%' OR ${a}.tinh_trang LIKE '00.%')`;
-const PSA_HUY = (a: string) => `(${a}.tinh_trang = 'HỦY' OR COALESCE(${a}.tam_ngung_huy_don_hang_tong, '') ILIKE 'H%Y')`;
-const NHOM_SQL = `CASE
-    WHEN p.hex IS NOT NULL AND ${PSA_HUY('p')} THEN 'huy'
-    WHEN UPPER(TRIM(s.tinh_trang_ke_hoach_giao_hang)) = 'ĐÃ XUẤT' THEN 'daXuat'
-    WHEN s.hex IS NULL OR p.hex IS NULL THEN 'khongPsa'
-    WHEN xc.xcuoi IS NULL OR xc.xcuoi < $1::date - 60 THEN 'khongXuat'
-    WHEN NOT ${PSA_DONG_BO('p')} THEN 'chuaDongBo'
-    WHEN xh.xcuoi IS NULL THEN 'chuaXuat'
-    ELSE 'motPhan' END`;
+// Báo cáo "Tồn kho thành phẩm" v5 tại 1 ngày chốt (cửa sổ Tồn kho, tab Tổng quan sức khoẻ). Cùng phạm vi lọc với
+// /api/stock/by-project. Route chỉ đọc dữ liệu; cách tính và câu truy vấn ở server/tonKhoV5.ts. Giá trị: triệu đồng.
+// Bỏ lọc tinhTrang: cột production_status_app.tinh_trang đã đổi nội dung, báo cáo này không dùng
+const parseHealthFilters = (req: Request): StockFilterParams => ({ ...parseStockFilters(req), tinhTrang: [] });
+const healthCoLoc = (filters: StockFilterParams) => filters.congTrinh.length > 0 || hasProductionFilter(filters);
+const thamSoHealth = (date: string, filters: StockFilterParams, cuoiThang: string[]): ThamSoSql => ({
+  date,
+  cuoiThang,
+  giaTriTon: numericColQualified('ton_kho', 's', 'gia_tri'),
+  tienNhap: numericColQualified('nhap_kho', 'n', 'thanh_tien_nhap_kho'),
+  soLuongXuat: numericColQualified('xuat_kho', 'x', 'so_luong_xuat_kho'),
+  phamViTon: ps => stockScopeConds(filters, ps, 's'),
+  phamViPsa: healthCoLoc(filters) ? ps => productionConds(filters, ps) : null,
+});
+// DB gói free có lúc khựng hàng chục giây rồi cắt kết nối: câu đọc chạy lại 1 lần là qua, khỏi báo lỗi cho người xem
+const docLaiKhiDutKetNoi = async <T>(doc: () => Promise<T>): Promise<T> => {
+  try {
+    return await doc();
+  } catch (e) {
+    if (!/idle-in-transaction|Connection terminated|conn crashed/i.test(String((e as Error)?.message))) throw e;
+    return doc();
+  }
+};
+
+const docDauVaoHealth = (date: string, filters: StockFilterParams) =>
+  cachedByVersions(stockHealthInputCache, `${date}|${JSON.stringify(filters)}`, stockHealthVersionKeys, () => docLaiKhiDutKetNoi(async () => {
+    const chot = sqlNgayChot(date);
+    const ngayChot = (await timedQuery(chot.sql, chot.params)).rows.map(r => String(r.d));
+    const c = sqlTonKhoV5(thamSoHealth(date, filters, chonCuoiThang(ngayChot)));
+    const [ton, tonMoc, psa, luong] = await Promise.all([
+      timedQuery(c.ton.sql, c.ton.params),
+      timedQuery(c.tonMoc.sql, c.tonMoc.params, { workMemMb: 32 }),
+      timedQuery(c.psa.sql, c.psa.params, { workMemMb: 32 }),
+      timedQuery(c.luong.sql, c.luong.params, { workMemMb: 32 }),
+    ]);
+    return ghepDauVaoV5(date, ngayChot, { ton: ton.rows, tonMoc: tonMoc.rows, psa: psa.rows, luong: luong.rows });
+  }), workshopGroupsVersion());
+
 app.get('/api/stock/health', async (req: Request, res: Response) => {
   try {
-    const { date } = req.query as { date: string };
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !parseSafeDate(date)) return res.status(400).json({ error: 'Invalid date' });
-    const filters = parseStockFilters(req);
+    const { date } = req.query;
+    if (!laNgay(date)) return res.status(400).json({ error: 'Invalid date' });
+    const filters = parseHealthFilters(req);
 
-    const payload = await cachedByVersions(stockQueryCache, `health2|${date}|${JSON.stringify(filters)}`, STOCK_VERSION_KEYS, async () => {
-      const n = (x: unknown) => Number(x) || 0;
-      const v = numericColQualified('ton_kho', 's', 'gia_tri');
-      const params: any[] = [date];
-      const scope = stockScopeConds(filters, params, 's');
-      const w = ['s.date_parsed = $1', ...scope].join(' AND ');
-
-      // Lần chốt ngày xem: dòng tồn + PSA mới nhất theo HEX + ngày xuất cuối theo mã công trình / theo HEX
-      const snapSql = `WITH s AS MATERIALIZED (SELECT s.*, ${v} AS v, ${TUOI_SQL('s')} AS tuoi, s.hex::bigint AS h FROM ton_kho s WHERE ${w}),
-        p AS MATERIALIZED (SELECT DISTINCT ON (hex) hex, tinh_trang, tam_ngung_huy_don_hang_tong, khach_hang, khu_vuc_du_an
-          FROM production_status_app WHERE hex IN (SELECT h FROM s WHERE h IS NOT NULL) ORDER BY hex, updated_at DESC NULLS LAST, id DESC),
-        xc AS MATERIALIZED (SELECT ma_cong_trinh, MAX(date_parsed) AS xcuoi FROM xuat_kho
-          WHERE ma_cong_trinh IN (SELECT ma_cong_trinh FROM s) AND date_parsed <= $1::date GROUP BY 1),
-        xh AS MATERIALIZED (SELECT hex::bigint AS hex, MAX(date_parsed) AS xcuoi FROM xuat_kho
-          WHERE hex::bigint IN (SELECT h FROM s WHERE h IS NOT NULL) AND date_parsed <= $1::date GROUP BY 1),
-        j AS MATERIALIZED (SELECT s.*, p.hex AS phex, p.tinh_trang AS ptt, p.khu_vuc_du_an AS kv, xc.xcuoi AS ct_xcuoi,
-            CASE WHEN p.hex IS NULL THEN 'kpsa' WHEN p.khach_hang ILIKE '%SUN%' THEN 'sun' ELSE 'khac' END AS kh,
-            CASE WHEN p.hex IS NOT NULL AND NOT ${PSA_HUY('p')} AND NOT ${PSA_DONG_BO('p')} THEN 1 ELSE 0 END AS chua_db,
-            ${NHOM_SQL} AS nhom
-          FROM s LEFT JOIN p ON p.hex = s.h LEFT JOIN xc ON xc.ma_cong_trinh = s.ma_cong_trinh LEFT JOIN xh ON xh.hex = s.h)`;
-      const [snap, chuoiR] = await Promise.all([
-        timedQuery(`${snapSql}
-          SELECT (SELECT json_build_object('v', COALESCE(SUM(v),0), 'ma', COUNT(DISTINCT ma_id_sap) FILTER (WHERE v > 0),
-                    'ct', COUNT(DISTINCT ${normNameSql('ten_cong_trinh')}), 'tren6', COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0),
-                    'chuaDongBo', COALESCE(SUM(v) FILTER (WHERE chua_db = 1),0)) FROM j) AS tong,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT nhom AS k, SUM(v) AS v, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6,
-                COUNT(DISTINCT ma_id_sap) FILTER (WHERE v > 0) AS ma FROM j GROUP BY 1) x) AS nhom,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT CASE WHEN tuoi IS NULL THEN NULL WHEN tuoi > 24 THEN 25 WHEN tuoi > 18 THEN 19
-                WHEN tuoi > 12 THEN 13 ELSE GREATEST(tuoi, 0) END AS b, kh, SUM(v) AS v FROM j GROUP BY 1, 2) x) AS hist,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT kh AS k, SUM(v) AS v, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6,
-                COALESCE(SUM(v) FILTER (WHERE tuoi BETWEEN 4 AND 6),0) AS t46 FROM j GROUP BY 1) x) AS khach,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT COALESCE(NULLIF(UPPER(TRIM(kv)),''), CASE WHEN h IS NULL THEN '(LẺ)' ELSE '(TRỐNG)' END) AS k,
-                SUM(v) AS v, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6, COALESCE(SUM(v) FILTER (WHERE kh = 'sun'),0) AS sun FROM j GROUP BY 1) x) AS kv,
-            (SELECT COALESCE(json_agg(x), '[]') FROM (SELECT MIN(TRIM(REGEXP_REPLACE(ten_cong_trinh, '\\s+', ' ', 'g'))) AS name,
-                array_agg(DISTINCT NULLIF(TRIM(ma_cong_trinh), '')) FILTER (WHERE NULLIF(TRIM(ma_cong_trinh), '') IS NOT NULL) AS mct,
-                SUM(v) AS v, COUNT(DISTINCT ma_id_sap) FILTER (WHERE v > 0) AS ma, COALESCE(SUM(v) FILTER (WHERE tuoi > 6),0) AS tren6,
-                MAX(ct_xcuoi)::text AS xcuoi FROM j GROUP BY ${normNameSql('ten_cong_trinh')}) x) AS ct`, params, { workMemMb: 32 }),
-        // Mọi lần chốt từ cuối năm trước tới ngày xem: tổng, hàng cũ, tuổi bình quân theo giá trị
-        (() => {
-          const p2: any[] = [date];
-          const sc = stockScopeConds(filters, p2, 's');
-          return timedQuery(`SELECT s.date_parsed::text AS d, COALESCE(SUM(${v}),0) AS v,
-              COALESCE(SUM(${v}) FILTER (WHERE ${TUOI_SQL('s')} > 6),0) AS tren6,
-              SUM(${v} * ${TUOI_SQL('s')}) / NULLIF(SUM(${v}) FILTER (WHERE s.ngay_nhap_kho IS NOT NULL), 0) AS tuoi_bq
-            FROM ton_kho s WHERE s.date_parsed <= $1 AND s.date_parsed >= (date_trunc('year', $1::date) - INTERVAL '1 day')
-              ${sc.length ? 'AND ' + sc.join(' AND ') : ''}
-            GROUP BY 1 ORDER BY 1`, p2);
-        })(),
-      ]);
-
-      const r0 = snap.rows[0] ?? {};
-      const chuoi = chuoiR.rows.map(r => ({ d: String(r.d), v: n(r.v), tren6: n(r.tren6), tuoiBq: r.tuoi_bq === null ? null : n(r.tuoi_bq) }));
-      // Cuối mỗi tháng = lần chốt cuối cùng trong tháng (tháng của ngày xem lấy chính ngày xem)
-      const cuoiThang: string[] = [];
-      for (const c of chuoi) {
-        if (cuoiThang.length && cuoiThang[cuoiThang.length - 1].slice(0, 7) === c.d.slice(0, 7)) cuoiThang[cuoiThang.length - 1] = c.d;
-        else cuoiThang.push(c.d);
-      }
-      const thangXem = date.slice(0, 7);
-      const mocTruoc = cuoiThang.filter(d => d.slice(0, 7) < thangXem).slice(-2)[0] ?? null; // cuối tháng cách 2 tháng
-
-      // Công trình: gộp tên chuẩn
-      const ctMap = new Map<string, { name: string; mct: Set<string>; v: number; ma: number; tren6: number; xuatCuoi: string | null }>();
-      for (const r of (r0.ct ?? []) as Record<string, any>[]) {
-        const name = r.name ? canonicalProjectName(String(r.name)) : 'Chưa xác định';
-        const e = ctMap.get(name) ?? { name, mct: new Set<string>(), v: 0, ma: 0, tren6: 0, xuatCuoi: null };
-        for (const m of (r.mct ?? []) as string[]) e.mct.add(m);
-        e.v += n(r.v); e.ma += n(r.ma); e.tren6 += n(r.tren6);
-        if (r.xcuoi && (!e.xuatCuoi || r.xcuoi > e.xuatCuoi)) e.xuatCuoi = String(r.xcuoi);
-        ctMap.set(name, e);
-      }
-      const ctList = [...ctMap.values()].sort((a, b) => b.v - a.v);
-      const top = ctList.slice(0, 15);
-      const topMct = [...new Set(top.flatMap(c => [...c.mct]))];
-
-      // Vòng 2: dòng hàng cũ giữa các lần chốt cuối tháng, bản đồ nhiệt, cột thêm cho công trình lớn, tỷ trọng Sun trong đơn
-      const ngayNhiet = [...new Set([...cuoiThang.slice(-6), ...(mocTruoc ? [mocTruoc] : [])])];
-      const theoPhamVi = (own: any[]) => { const ps = [...own]; const sc = stockScopeConds(filters, ps, 's'); return { ps, and: sc.length ? 'AND ' + sc.join(' AND ') : '' }; };
-      const qDong = theoPhamVi([cuoiThang]);
-      const qNhiet = theoPhamVi([ngayNhiet, topMct]);
-      const congTrinhLoc = filters.congTrinh.length > 0 || hasProductionFilter(filters);
-      const [dong, heat, xuat, conSx, sunDon] = await Promise.all([
-        cuoiThang.length >= 2 ? timedQuery(`WITH k AS (SELECT s.date_parsed AS d, s.ma_id_sap, COALESCE(s.ma_cong_trinh, '') AS mct, SUM(${v}) AS v,
-              COALESCE(SUM(${v}) FILTER (WHERE ${TUOI_SQL('s')} > 6), 0) AS o
-            FROM ton_kho s WHERE s.date_parsed = ANY($1::date[]) ${qDong.and} GROUP BY 1, 2, 3),
-          d AS (SELECT d0, LEAD(d0) OVER (ORDER BY d0) AS d1 FROM unnest($1::date[]) AS d0)
-          SELECT d.d0::text AS d0, d.d1::text AS d1, SUM(a.o) AS o0, SUM(GREATEST(a.o - COALESCE(b.v, 0), 0)) AS ra
-          FROM d JOIN k a ON a.d = d.d0 LEFT JOIN k b ON b.d = d.d1 AND b.ma_id_sap = a.ma_id_sap AND b.mct = a.mct
-          WHERE d.d1 IS NOT NULL GROUP BY 1, 2 ORDER BY 1`, qDong.ps, { workMemMb: 32 }) : Promise.resolve({ rows: [] as any[] }),
-        timedQuery(`SELECT s.ma_cong_trinh AS mct, s.date_parsed::text AS d, SUM(${v}) AS v, COALESCE(SUM(${v}) FILTER (WHERE ${TUOI_SQL('s')} > 6), 0) AS tren6
-          FROM ton_kho s WHERE s.date_parsed = ANY($1::date[]) AND s.ma_cong_trinh = ANY($2::text[]) ${qNhiet.and} GROUP BY 1, 2`, qNhiet.ps),
-        timedQuery(`SELECT ma_cong_trinh AS mct, SUM(COALESCE(thanh_tien_xuat_kho, 0)) FILTER (WHERE date_parsed > $2::date - 60) AS x60
-          FROM xuat_kho WHERE ma_cong_trinh = ANY($1::text[]) AND date_parsed <= $2::date GROUP BY 1`, [topMct, date]),
-        timedQuery(`SELECT ma_cong_trinh AS mct, SUM(gia_tri_con_lai) AS v FROM production_status_app p
-          WHERE ma_cong_trinh = ANY($1::text[]) AND gia_tri_con_lai > 0 AND NOT ${PSA_HUY('p')} AND NOT ${PSA_DONG_BO('p')} GROUP BY 1`, [topMct]),
-        timedQuery(`SELECT SUM(gia_tri_con_lai) FILTER (WHERE khach_hang ILIKE '%SUN%') AS sun, SUM(gia_tri_con_lai) AS tong
-          FROM production_status_app p WHERE gia_tri_con_lai > 0 AND NOT ${PSA_HUY('p')} AND NOT ${PSA_DONG_BO('p')}
-            ${congTrinhLoc ? `AND ma_cong_trinh IN (SELECT DISTINCT s.ma_cong_trinh FROM ton_kho s WHERE ${w})` : ''}`, congTrinhLoc ? params : []),
-      ]);
-
-      const tren6Ngay = new Map(chuoi.map(c => [c.d, c.tren6]));
-      const theoMct = <T>(rows: Record<string, any>[], f: (r: Record<string, any>) => T) => new Map(rows.map(r => [String(r.mct), f(r)]));
-      const x60 = theoMct(xuat.rows, r => n(r.x60));
-      const csx = theoMct(conSx.rows, r => n(r.v));
-      const heatMap = new Map<string, Map<string, { v: number; tren6: number }>>(); // mct -> ngày -> số
-      for (const r of heat.rows) {
-        const m = heatMap.get(r.mct) ?? new Map(); m.set(String(r.d), { v: n(r.v), tren6: n(r.tren6) }); heatMap.set(r.mct, m);
-      }
-      const cong = (c: typeof top[number], d: string) => {
-        let vv = 0, t6 = 0, co = false;
-        for (const m of c.mct) { const x = heatMap.get(m)?.get(d); if (x) { vv += x.v; t6 += x.tren6; co = true; } }
-        return co ? { v: vv, tren6: t6 } : null;
-      };
-      const tong = r0.tong ?? {};
-      return {
-        date,
-        tong: { v: n(tong.v), ma: n(tong.ma), congTrinh: n(tong.ct), tren6: n(tong.tren6), chuaDongBo: n(tong.chuaDongBo) },
-        chuoi,
-        cuoiThang,
-        mocTruoc,
-        dongCu: dong.rows.map(r => {
-          const o1 = tren6Ngay.get(String(r.d1)) ?? 0, o0 = n(r.o0), ra = n(r.ra);
-          return { d0: String(r.d0), d1: String(r.d1), o0, o1, ra, vao: o1 - (o0 - ra) };
-        }),
-        nhom: ((r0.nhom ?? []) as Record<string, any>[]).map(r => ({ k: String(r.k), v: n(r.v), tren6: n(r.tren6), ma: n(r.ma) })),
-        hist: ((r0.hist ?? []) as Record<string, any>[]).map(r => ({ b: r.b === null ? null : n(r.b), kh: String(r.kh), v: n(r.v) })),
-        khach: ((r0.khach ?? []) as Record<string, any>[]).map(r => ({ k: String(r.k), v: n(r.v), tren6: n(r.tren6), t46: n(r.t46) })),
-        sunDon: n(sunDon.rows[0]?.tong) > 0 ? n(sunDon.rows[0].sun) / n(sunDon.rows[0].tong) : null,
-        khuVuc: ((r0.kv ?? []) as Record<string, any>[]).map(r => ({ k: String(r.k), v: n(r.v), tren6: n(r.tren6), sun: n(r.sun) })).sort((a, b) => b.v - a.v),
-        congTrinh: ctList.map((c, i) => {
-          const them = i < top.length;
-          const sum = (m: Map<string, number>) => [...c.mct].reduce((s, k) => s + (m.get(k) ?? 0), 0);
-          return {
-            name: c.name, mct: [...c.mct], v: c.v, ma: c.ma, tren6: c.tren6, xuatCuoi: c.xuatCuoi,
-            vTruoc: them && mocTruoc ? (cong(c, mocTruoc)?.v ?? 0) : null,
-            xuat60: them ? sum(x60) : null,
-            conSx: them ? sum(csx) : null,
-            thang: them && i < 10 ? cuoiThang.slice(-6).map(d => ({ d, ...(cong(c, d) ?? { v: 0, tren6: 0 }), co: !!cong(c, d) })) : null,
-          };
-        }),
-      };
-    }, workshopGroupsVersion());
+    const payload = await cachedByVersions(stockQueryCache, `health5|${date}|${JSON.stringify(filters)}`, stockHealthVersionKeys,
+      async () => tinhTonKhoV5(await docDauVaoHealth(date, filters)), workshopGroupsVersion());
     res.json(payload);
   } catch (error) {
     console.error('Lỗi stock/health:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Hạng mục / xưởng / nhóm SP của cả PSA: HEX trước, không có thì dòng mới nhất của mã SAP (như /api/stock/items)
+const docMoTaHealth = () => cachedByVersions(stockHealthMoTaCache, 'mo-ta', ['production'], async () => {
+  const c = sqlMoTaPsa(PSA_SAP_KEY, workshopGroupSql);
+  const bang: BangMoTa = { hex: new Map(), sap: new Map() };
+  for (const r of (await timedQuery(c.sql, c.params, { workMemMb: 32 })).rows) {
+    const m = { hm: r.hm ?? null, xg: r.xg || null, nsp: r.nsp ?? null };
+    if (r.hex && !bang.hex.has(r.hex)) bang.hex.set(r.hex, m);
+    if (r.sap && !bang.sap.has(r.sap)) bang.sap.set(r.sap, m);
+  }
+  return bang;
+}, workshopGroupsVersion());
+
+// Danh sách dòng tạo nên 1 con số của báo cáo v5: loai + tham số ở đầu server/tonKhoV5ChiTiet.ts. Cùng đầu vào và bộ lọc với /api/stock/health.
+app.get('/api/stock/health/chi-tiet', async (req: Request, res: Response) => {
+  try {
+    const { date } = req.query;
+    if (!laNgay(date)) return res.status(400).json({ error: 'Invalid date' });
+    const filters = parseHealthFilters(req);
+    const yc = docYeuCauChiTiet(req.query as Record<string, unknown>);
+    if (healthCoLoc(filters) && (yc.loai === 'du' || yc.loai === 'so_sach')) return res.status(400).json({ error: 'Chỉ tính khi xem toàn kho' });
+
+    const payload = await cachedByVersions(stockHealthDetailCache, `${date}|${JSON.stringify(filters)}|${JSON.stringify(yc)}`, stockHealthVersionKeys, async () => {
+      const [input, moTa] = await Promise.all([docDauVaoHealth(date, filters), docMoTaHealth()]);
+      const can = canDocChiTiet(input, yc);
+      const t = thamSoHealth(date, filters, []);
+      const doc = (c: { sql: string; params: unknown[] }) => docLaiKhiDutKetNoi(async () => (await timedQuery(c.sql, c.params as any[])).rows);
+      const [tonNgay, nhap, xuat, don] = await Promise.all([
+        can.tonNgay.length ? doc(sqlTonNgay(t, can.tonNgay)) : null,
+        can.nhap ? doc(sqlDongLuong(t, { loai: 'n', ...can.nhap })) : null,
+        can.xuat ? doc(sqlDongLuong(t, { loai: 'x', ...can.xuat })) : null,
+        can.don ? doc(sqlDonPsa(t, can.don)) : null,
+      ]);
+      return chiTietTonKhoV5(input, yc, { moTa, ...ghepDocThem(can.tonNgay, tonNgay, nhap, xuat, don) });
+    }, workshopGroupsVersion());
+    res.json(payload);
+  } catch (error) {
+    if (error instanceof LoiChiTiet) return res.status(400).json({ error: error.message });
+    console.error('Lỗi stock/health/chi-tiet:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
