@@ -216,3 +216,43 @@ export function tinhBangCongTrinhBop<T extends MucBop & { ct: string }>(items: T
   rows.sort((a, b) => Number(a.name === cuoi) - Number(b.name === cuoi) || b.total - a.total || b.kho.nk - a.kho.nk || a.name.localeCompare(b.name, 'vi'));
   return { metric, stages: p.stages, groups: p.groups, rows, colTot: p.colTot, grand: p.grand, khoTot: p.khoTot, donHangTot: [...donHang.values()].reduce((a, b) => a + b, 0) };
 }
+
+// ---------------------------------------------------------------------------
+// Bảng BOP dạng cây: dòng gốc theo 1 chiều (công trình / sản phẩm / xưởng), mở ra các chiều còn lại
+// ---------------------------------------------------------------------------
+/** donHang = tổng đơn hàng của nút: mọi hạng mục ở khoItems, kể cả đã nhập kho đủ (số hạng mục / trị giá, triệu) */
+export interface NutBop {
+  ten: string; duong: string[]; cells: Record<string, number>; total: number; n: number; kho: Kho; donHang: number; con: NutBop[];
+}
+export type CayBop = Omit<PivotBop, 'dong' | 'kho'> & { goc: NutBop[]; donHangTot: number };
+
+/** cap(i): giá trị từng bậc của hạng mục, vd [công trình, sản phẩm, xưởng]; sapXep nhận bậc (0 = gốc) */
+export function tinhCayBop<T extends MucBop>(
+  items: T[], khoItems: T[], metric: BopMetric, cap: (i: T) => string[], sapXep: (a: NutBop, b: NutBop, bac: number) => number,
+): CayBop {
+  const NOI = ' ';
+  const khoa = (i: T) => { const c = cap(i); return c.map((_, n) => c.slice(0, n + 1).join(NOI)); };
+  const p = tinhPivotBop(items, khoItems, metric, khoa, true);
+  const donHang = new Map<string, number>();
+  let donHangTot = 0;
+  for (const i of khoItems) {
+    const v = metric === 'count' ? 1 : Math.max(i.total, 0);
+    donHangTot += v;
+    for (const k of khoa(i)) donHang.set(k, (donHang.get(k) ?? 0) + v);
+  }
+  const nut = new Map<string, NutBop>();
+  const goc: NutBop[] = [];
+  // Khoá ngắn trước để cha luôn có trước con
+  for (const k of [...new Set([...p.dong.keys(), ...donHang.keys()])].sort((a, b) => a.split(NOI).length - b.split(NOI).length)) {
+    const duong = k.split(NOI), d = p.dong.get(k);
+    const n: NutBop = {
+      ten: duong[duong.length - 1], duong, cells: d?.cells ?? {}, total: d?.total ?? 0, n: d?.n ?? 0,
+      kho: p.kho.get(k) ?? khoRong(), donHang: donHang.get(k) ?? 0, con: [],
+    };
+    nut.set(k, n);
+    if (duong.length === 1) goc.push(n); else nut.get(duong.slice(0, -1).join(NOI))!.con.push(n);
+  }
+  const sap = (ds: NutBop[], bac: number) => { ds.sort((a, b) => sapXep(a, b, bac)); ds.forEach(n => sap(n.con, bac + 1)); };
+  sap(goc, 0);
+  return { stages: p.stages, groups: p.groups, colTot: p.colTot, colN: p.colN, grand: p.grand, khoTot: p.khoTot, goc, donHangTot };
+}

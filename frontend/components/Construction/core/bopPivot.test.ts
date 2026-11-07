@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  khoCua, laKho, khoMuc, mucCongDoan, fmtGiaTriBop, tinhPivotBop, tinhBangCongTrinhBop, mucBopTuDong, type MucBop,
+  khoCua, laKho, khoMuc, mucCongDoan, fmtGiaTriBop, tinhPivotBop, tinhCayBop, tinhBangCongTrinhBop, mucBopTuDong, type MucBop,
 } from './bopPivot';
 
 type M = MucBop & { ct: string; nsp: string };
@@ -110,5 +110,30 @@ describe('mucBopTuDong', () => {
     const xong = mucBopTuDong({ bop: 'P022', tt: '', tg: 10, nk: 10 }, k);
     expect(xong.open).toBe(false);
     expect(xong.bucket).toBeNull();
+  });
+});
+
+describe('tinhCayBop', () => {
+  const cap = (i: M) => [i.ct, i.nsp];
+  const sap = (a: { ten: string }, b: { ten: string }) => a.ten.localeCompare(b.ten);
+  const ds = [
+    muc({ total: 100, remain: 100 }),
+    muc({ nsp: 'BÀN', total: 50, inv: 50, remain: 0, open: false, bucket: null, xuat: 20, tonKho: 30 }),
+    muc({ ct: 'CT B', stage: 'P001', bucket: 'notDeployed', total: 30, remain: 30 }),
+  ];
+  it('con cộng đúng bằng cha, cha cộng đúng bằng tổng', () => {
+    const c = tinhCayBop(ds, ds, 'remain', cap, sap);
+    expect(c.goc.map(n => n.ten)).toEqual(['CT A', 'CT B']);
+    const a = c.goc[0];
+    expect(a.con.map(n => n.ten)).toEqual(['BÀN', 'TỦ']);
+    expect([a.donHang, a.total, a.kho.nk]).toEqual([150, 100, 50]);
+    expect(a.con[0].duong).toEqual(['CT A', 'BÀN']);
+    expect(a.con.reduce((s, n) => s + n.donHang, 0)).toBe(a.donHang);
+    expect([c.donHangTot, c.grand, c.khoTot.nk]).toEqual([180, 130, 50]);
+  });
+  it('khoItems rộng hơn items: có dòng dù không còn công đoạn; nhóm cột theo mã công đoạn', () => {
+    const c = tinhCayBop([ds[2]], ds, 'count', cap, sap);
+    expect(c.goc.map(n => [n.ten, n.total, n.donHang])).toEqual([['CT A', 0, 2], ['CT B', 1, 1]]);
+    expect(c.groups.find(g => g.stages.includes('P012'))?.bucket).toBe('onLine');
   });
 });

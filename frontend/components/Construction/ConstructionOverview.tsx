@@ -513,7 +513,7 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
   const hexColumnKeys = useMemo<HexDetailColumnKeys>(() => hexColumnKeysOf(columns), [columns]);
 
   // View BOP / BOT / BOM cho tất cả công trình: hạng mục theo mọi bộ lọc trang (như bảng công trình);
-  // phần Kho của BOP = mọi hạng mục không hủy của các công trình đó (mọi Tình trạng IPO), như cửa sổ 1 công trình
+  // bảng BOP lấy cả phần Kho từ chính các hạng mục này, cùng số với bảng công trình ở trang Tổng quan
   const homNay = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   // Gắn tên công trình (tên chuẩn của trang) vào từng hạng mục => bảng chi tiết có cột Công trình
   const ganCt = (recs: Rec[]) => {
@@ -524,11 +524,6 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
     () => (viewCT === 'bop' || viewCT === 'bot' ? ganCt(rowsAll) : []),
     [viewCT, rowsAll, healthKeys, homNay] // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const khoTatCa = useMemo(() => {
-    if (viewCT !== 'bop') return [];
-    const cts = new Set(rowsAll.map(r => r.ct));
-    return ganCt(allRecords.filter(r => cts.has(r.ct) && r.status !== 'HỦY'));
-  }, [viewCT, rowsAll, allRecords, healthKeys, homNay]); // eslint-disable-line react-hooks/exhaustive-deps
   // Báo cáo điều phối KH tháng – tuần (tab BOT): mọi bộ lọc trang TRỪ Tình trạng IPO (cần cả hạng mục đã hoàn thành)
   const dieuPhoiTatCa = useMemo(
     () => (viewCT === 'bot' ? ganCt(groupRecords.filter(r => r.status !== 'HỦY' && activeKeys.every(k => r[k] === f[k]))) : []),
@@ -832,7 +827,9 @@ const ConstructionOverview: React.FC<Props> = ({ data, columns, currentUser = ''
             <p className="mb-4 text-sm text-slate-500">
               Tất cả công trình đang xem: <b className="text-slate-800">{fmtInt(tenCtTatCa.length)}</b> công trình · <b className="text-slate-800">{fmtInt(rowsAll.length)}</b> hạng mục (theo nhóm / bộ lọc phía trên). Bấm HEX để xem chi tiết hạng mục.
             </p>
-            {viewCT === 'bop' && <BopTab items={hangMucTatCa} khoItems={khoTatCa} onHexClick={setHexXem} extra={null} today={homNay} tatCa />}
+            {viewCT === 'bop' && (coBang
+              ? <BopTab items={hangMucTatCa} onHexClick={setHexXem} extra={null} today={homNay} tatCa />
+              : <p className="py-10 text-center text-sm font-semibold text-slate-500">Đang tải chi tiết hạng mục…</p>)}
             {viewCT === 'bot' && <BotKhnk items={hangMucTatCa} dieuPhoiItems={dieuPhoiTatCa} onHexClick={setHexXem} />}
             {viewCT === 'bom' && <BomTatCa tenCongTrinh={tenCtTatCa} onHexClick={setHexXem} />}
           </div>
