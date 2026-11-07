@@ -92,7 +92,7 @@ const thB = 'border-b border-r border-slate-300 px-2 py-1.5 font-bold';
 const tdB = 'border-b border-r border-slate-300 px-2 py-1.5';
 const td = 'px-3 py-2';
 
-const Chip = ({ active, onClick, children, tone = 'slate' }: {
+export const Chip = ({ active, onClick, children, tone = 'slate' }: {
   active: boolean; onClick: () => void; children: React.ReactNode; tone?: 'slate' | 'red' | 'amber' | 'emerald';
 }) => {
   const on = { slate: 'bg-slate-800 text-white', red: 'bg-red-600 text-white', amber: 'bg-amber-500 text-white', emerald: 'bg-emerald-600 text-white' }[tone];
@@ -589,7 +589,7 @@ const congDong = (m: Map<string, DongNsp>, nsp: string, xuong: string, cot: stri
   d.xs.set(xuong, x);
   m.set(nsp, d);
 };
-const NutMoTatCa = ({ onMo, onThu }: { onMo: () => void; onThu: () => void }) => (
+export const NutMoTatCa = ({ onMo, onThu }: { onMo: () => void; onThu: () => void }) => (
   <span className="ml-1.5 inline-flex gap-1 align-middle">
     <button type="button" title="Mở xưởng của mọi nhóm" onClick={onMo} className="rounded border border-slate-300 px-1 leading-4 hover:bg-white">+</button>
     <button type="button" title="Thu gọn tất cả" onClick={onThu} className="rounded border border-slate-300 px-1 leading-4 hover:bg-white">−</button>

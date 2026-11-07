@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { pivotM2, giaTriLoc, TRONG_M2 } from './core/bopM2';
 import { Pivot, ChiTiet, Loc, khopO, tenO, TAT_CA, type ChonO } from './PivotExcel';
-import type { HexInfo } from './ProjectHealthTabs';
+import { Chip, type HexInfo } from './ProjectHealthTabs';
+import { BangCayBot, TEN_CHIEU_BOT, type ChieuBot, type ChonBot } from './BangCayBot';
 import { fmtInt } from '../../utils/format';
 import { formatTrieuAsTy } from '../../utils/money';
 import { ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, Tooltip, Legend, CartesianGrid, LabelList, Cell } from 'recharts';
@@ -43,40 +44,45 @@ export const BotKhnk = ({ items, dieuPhoiItems, onHexClick }: {
 
   const thangOf = (h: HexInfo) => khoaNgay(h.khnkThang);
   const tuanOf = (h: HexInfo) => khoaNgay(h.khnkTuan);
-  const nspOf = (h: HexInfo) => h.nhomSp ?? '';
-  const bangThang = useMemo(() => pivotM2(loc, nspOf, thangOf), [loc]);
-  const bangTuan = useMemo(() => pivotM2(loc, nspOf, tuanOf), [loc]);
-  const [oThang, setOThang] = useState<ChonO>(null);
-  const [oTuan, setOTuan] = useState<ChonO>(null);
-  const doiIpo = (v: string) => { setIpo(v); setOThang(null); setOTuan(null); };
-  const tenOCot = (o: ChonO) => tenO(o && { ...o, m: o.m && nhanNgay(o.m) });
+  const tatCa = useMemo(() => hex.some(h => h.congTrinh), [hex]);
+  const nut: ChieuBot[] = tatCa ? ['ct', 'nsp', 'xuong'] : ['nsp', 'xuong'];
+  const [cheDo, setCheDo] = useState<ChieuBot | null>(null);
+  const cheDoChon = cheDo ?? nut[0];
+  const [oThang, setOThang] = useState<ChonBot>(null);
+  const [oTuan, setOTuan] = useState<ChonBot>(null);
+  const [moDp, setMoDp] = useState(false);
+  const boChon = () => { setOThang(null); setOTuan(null); };
+  const doiIpo = (v: string) => { setIpo(v); boChon(); };
+  const doiCheDo = (c: ChieuBot) => { setCheDo(c); boChon(); };
   // Điều phối: tính MỌI tình trạng IPO trừ Hủy — hạng mục làm xong chuyển "02. HOÀN THÀNH", lọc IPO sẽ mất phần đạt
   const nguonDp = useMemo(() => (dieuPhoiItems ?? items).filter(h => h.hex && !/HỦY/i.test(h.ipo ?? '')), [dieuPhoiItems, items]);
 
   return (
     <div className="space-y-5">
       <h3 className="text-lg font-bold text-red-600">V. BOT - KẾ HOẠCH NHẬP KHO</h3>
-      <Loc nhan="TÌNH TRẠNG IPO" gia={ipoChon} ds={dsIpo} onDoi={doiIpo} />
+      <div className="flex flex-wrap items-center gap-3">
+        <Loc nhan="TÌNH TRẠNG IPO" gia={ipoChon} ds={dsIpo} onDoi={doiIpo} />
+        <div className="flex gap-1">
+          {nut.map(c => <Chip key={c} active={cheDoChon === c} onClick={() => doiCheDo(c)}>Theo {TEN_CHIEU_BOT[c].toLowerCase()}</Chip>)}
+        </div>
+      </div>
 
       <section className="space-y-2">
         <h4 className="text-base font-bold text-slate-900">1/ KẾ HOẠCH NHẬP KHO <span className="text-red-600">THÁNG</span></h4>
-        <Pivot cotDong="PHÂN LOẠI NHÓM SẢN PHẨM" p={bangThang} chon={oThang} onChon={setOThang} nhanCot={nhanNgay} />
-        {oThang ? (
-          <ChiTiet tieuDe={`Chi tiết HEX: ${tenOCot(oThang)}`} cot={cot} onDong={() => setOThang(null)} onHex={onHexClick}
-            ds={loc.filter(khopO(oThang, nspOf, thangOf))} />
-        ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng để xem danh sách HEX.</p>}
+        <BangCayBot ds={loc} cotOf={thangOf} cheDo={cheDoChon} tatCa={tatCa} ten="KH tháng" chon={oThang} onChon={setOThang} />
+        {oThang && <ChiTiet tieuDe={oThang.ten} cot={cot} onDong={() => setOThang(null)} onHex={onHexClick} ds={oThang.ds} />}
       </section>
 
       <section className="space-y-2">
         <h4 className="text-base font-bold text-slate-900">2/ KẾ HOẠCH NHẬP KHO <span className="text-red-600">TUẦN</span></h4>
-        <Pivot cotDong="PHÂN LOẠI NHÓM SẢN PHẨM" p={bangTuan} chon={oTuan} onChon={setOTuan} nhanCot={nhanNgay} />
-        {oTuan ? (
-          <ChiTiet tieuDe={`Chi tiết HEX: ${tenOCot(oTuan)}`} cot={cot} onDong={() => setOTuan(null)} onHex={onHexClick}
-            ds={loc.filter(khopO(oTuan, nspOf, tuanOf))} />
-        ) : <p className="text-[0.6875rem] text-slate-400">Bấm vào một số trong bảng để xem danh sách HEX.</p>}
+        <BangCayBot ds={loc} cotOf={tuanOf} cheDo={cheDoChon} tatCa={tatCa} ten="KH tuần" chon={oTuan} onChon={setOTuan} />
+        {oTuan && <ChiTiet tieuDe={oTuan.ten} cot={cot} onDong={() => setOTuan(null)} onHex={onHexClick} ds={oTuan.ds} />}
       </section>
 
-      <DieuPhoiKeHoach loc={nguonDp} cot={cot} onHexClick={onHexClick} />
+      <button type="button" onClick={() => setMoDp(v => !v)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+        {moDp ? '▾' : '▸'} Theo dõi &amp; phân tích điều phối kế hoạch tháng – tuần
+      </button>
+      {moDp && <DieuPhoiKeHoach loc={nguonDp} cot={cot} onHexClick={onHexClick} />}
     </div>
   );
 };
