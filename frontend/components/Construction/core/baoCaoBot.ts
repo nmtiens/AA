@@ -28,6 +28,15 @@ export interface BaoCaoBot { cot: CotBot[]; dong: DongBot[]; tongCot: Record<str
 
 const cong = (m: Record<string, number>, k: string, v: number) => { m[k] = (m[k] ?? 0) + v; };
 
+const ngayVN = (d: Date) => new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 10);   // giờ Việt Nam UTC+7
+
+/** File công trình lưu trong ngày hôm nay (giờ Việt Nam)? `luu`: ISO giờ lưu file. */
+export const luuHomNay = (luu: string | undefined, bayGio: Date = new Date()): boolean => {
+  if (!luu) return false;
+  const d = new Date(luu);
+  return !Number.isNaN(d.getTime()) && ngayVN(d) === ngayVN(bayGio);
+};
+
 /** Khoá cột của 1 ô theo trạng thái bung năm. Tháng rỗng = CHƯA BOT. */
 export function khoaCot(thang: string, namMo: ReadonlySet<string>): string[] {
   if (!thang) return [CHUA_BOT];

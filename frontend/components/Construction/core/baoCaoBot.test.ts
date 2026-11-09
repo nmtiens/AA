@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { dungBaoCaoBot, CHUA_BOT, type OBot } from './baoCaoBot';
+import { dungBaoCaoBot, luuHomNay, CHUA_BOT, type OBot } from './baoCaoBot';
+
+describe('luuHomNay (giờ Việt Nam)', () => {
+  const bayGio = new Date('2026-11-09T10:00:00Z');   // 17:00 ngày 09/11 giờ VN
+  it('cùng ngày VN', () => {
+    expect(luuHomNay('2026-11-09T01:30:00Z', bayGio)).toBe(true);    // 08:30 09/11 VN
+    expect(luuHomNay('2026-11-08T17:05:00Z', bayGio)).toBe(true);    // 00:05 09/11 VN (UTC còn ngày 08)
+  });
+  it('khác ngày / trống', () => {
+    expect(luuHomNay('2026-11-08T16:55:00Z', bayGio)).toBe(false);   // 23:55 08/11 VN
+    expect(luuHomNay(undefined, bayGio)).toBe(false);
+    expect(luuHomNay('sai', bayGio)).toBe(false);
+  });
+});
 
 const o: OBot[] = [
   { ten: 'A', ipo: '01. ĐANG SẢN XUẤT', thang: '', ct: true, tt: 10, so: 1 },

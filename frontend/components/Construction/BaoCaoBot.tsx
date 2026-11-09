@@ -3,7 +3,7 @@ import { RefreshCw, Search, X, ChevronRight, ChevronDown } from 'lucide-react';
 import { ModalShell } from '../shared/ModalShell';
 import { API_BASE_URL } from '../../services/dataService';
 import { fmtInt } from '../../utils/format';
-import { dungBaoCaoBot, IPO_MAC_DINH, CHUA_BOT, type OBot, type CotBot } from './core/baoCaoBot';
+import { dungBaoCaoBot, luuHomNay, IPO_MAC_DINH, CHUA_BOT, type OBot, type CotBot } from './core/baoCaoBot';
 
 // ============================================================================
 // BÁO CÁO BOT — giá trị đơn hàng còn lại theo dự án, giống sheet BÁO CÁO BOT của MASTER_PROJECT_COORDINATION.xlsx.
@@ -11,7 +11,10 @@ import { dungBaoCaoBot, IPO_MAC_DINH, CHUA_BOT, type OBot, type CotBot } from '.
 // của trang. Không tự tải lại theo chu kỳ (để DB được ngủ) — bấm "Tải lại" để lấy số mới nhất.
 // ============================================================================
 
-interface DuLieu { coBang: boolean; capNhat: string | null; soFile: number; fileLoi: { nguon: string; loi: string }[]; ipos: string[]; o: OBot[] }
+interface DuLieu {
+  coBang: boolean; capNhat: string | null; soFile: number; fileLoi: { nguon: string; loi: string }[]; ipos: string[]; o: OBot[];
+  luuFile?: Record<string, string>;   // TÊN CÔNG TRÌNH -> giờ lưu file công trình gần nhất (tô xanh nếu lưu hôm nay)
+}
 interface DongChiTiet { maCt: string; hex: string; ipo: string; ngay: string; tt: number | null; nguon: string }
 interface ChonO { ten: string; cot: CotBot | null }
 
@@ -53,6 +56,9 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
     for (const d of dong) { for (const [k, v] of Object.entries(d.o)) m[k] = (m[k] ?? 0) + v; tong += d.tong; }
     return { o: m, tong };
   }, [bc, dong, tim]);
+  // Công trình có file lưu trong ngày (giờ VN) => tô xanh (dùng green: emerald-50..200 của dự án đã đổi sang xám, xem tailwind.config.js)
+  const homNay = useMemo(() => new Set(Object.entries(du?.luuFile ?? {}).filter(([, t]) => luuHomNay(t)).map(([ten]) => ten)), [du]);
+  const soMoi = dong.filter(d => homNay.has(d.ten)).length;
 
   const doiIpo = (x: string) => setIpo(s => { const n = new Set(s); if (n.has(x)) n.delete(x); else n.add(x); return n; });
   const doiNam = (nam: string) => setNamMo(s => { const n = new Set(s); if (n.has(nam)) n.delete(nam); else n.add(nam); return n; });
@@ -79,6 +85,10 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
         <span>Theo file công trình của PC (như sheet BÁO CÁO BOT của MASTER_PROJECT_COORDINATION) — không theo bộ lọc trang.</span>
         <span>Cập nhật: <b className="text-slate-800">{fmtLuc(du.capNhat)}</b> · {fmtInt(du.soFile)} file</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-sm bg-green-100 ring-1 ring-green-500" aria-hidden />
+          File công trình lưu hôm nay: <b className="text-green-800">{fmtInt(soMoi)}</b> công trình
+        </span>
         {du.fileLoi.length > 0 && (
           <span className="text-amber-700" title={du.fileLoi.map(f => `${f.nguon}: ${f.loi}`).join('\n')}>{du.fileLoi.length} file đọc lỗi</span>
         )}
@@ -125,13 +135,21 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
             </tr>
           </thead>
           <tbody>
-            {dong.map(d => (
-              <tr key={d.ten} className="hover:bg-blue-50/50">
-                <td className="sticky left-0 whitespace-nowrap border-b border-slate-100 bg-white px-2 py-1 text-slate-800">{d.ten || '(trống)'}</td>
+            {dong.map(d => {
+              const luu = du.luuFile?.[d.ten];
+              const moi = homNay.has(d.ten);
+              return (
+              <tr key={d.ten} className={moi ? 'bg-green-100 hover:bg-green-200' : 'hover:bg-blue-50/50'}
+                title={luu ? `File công trình lưu lần cuối: ${fmtLuc(luu)}` : undefined}>
+                <td className={`sticky left-0 whitespace-nowrap border-b border-slate-100 px-2 py-1 ${moi ? 'bg-green-100 font-semibold text-green-900' : 'bg-white text-slate-800'}`}>
+                  {d.ten || '(trống)'}
+                  {moi && <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{new Date(luu!).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>}
+                </td>
                 {bc.cot.map(c => <React.Fragment key={c.khoa}>{oSo(d.ten, c, d.o[c.khoa], c.loai === 'nam' && !!c.dangMo)}</React.Fragment>)}
                 {oSo(d.ten, null, d.tong, true)}
               </tr>
-            ))}
+              );
+            })}
             {dong.length === 0 && (
               <tr><td colSpan={bc.cot.length + 2} className="py-8 text-center text-slate-500">Không có công trình nào{tim ? ' khớp ô tìm' : ' theo lọc IPO đang chọn'}.</td></tr>
             )}

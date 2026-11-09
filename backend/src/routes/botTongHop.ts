@@ -4,7 +4,7 @@ import { app } from '../server/app.js';
 
 // ============================================================================
 // BÁO CÁO BOT — giá trị đơn hàng còn lại theo dự án (như sheet BÁO CÁO BOT của MASTER_PROJECT_COORDINATION.xlsx)
-//   GET /api/bot-tong-hop                         => { coBang, capNhat, soFile, fileLoi[], ipos[], o[] }
+//   GET /api/bot-tong-hop                         => { coBang, capNhat, soFile, fileLoi[], ipos[], o[], luuFile{tên CT: giờ lưu file} }
 //       o = các ô đã cộng sẵn: TÊN CÔNG TRÌNH × TÌNH TRẠNG IPO FINAL × tháng NGÀY CẦN GIAO PC ĐỀ XUẤT ('' = CHƯA BOT)
 //       (giao diện lọc IPO + dựng pivot năm / tháng: frontend/components/Construction/core/baoCaoBot.ts)
 //   GET /api/bot-tong-hop/chi-tiet?ten=&ipo=a|b&thang=&ct=1  => dòng HEX của 1 ô (thang: 'YYYY-MM', 'YYYY', 'CHUA', '' = cả hàng;
@@ -20,13 +20,17 @@ const LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
 
 app.get('/api/bot-tong-hop', async (_req: Request, res: Response) => {
   try {
-    const [o, f] = await Promise.all([
+    const [o, f, l] = await Promise.all([
       timedQuery(`SELECT COALESCE(ten_ct, '') AS ten, COALESCE(ipo, '') AS ipo,
                          COALESCE(to_char(ngay_can_giao, 'YYYY-MM'), '') AS thang, ${LA_CT} AS ct,
                          SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
                     FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
       timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
                     FROM bot_tong_hop_file`),
+      // Giờ lưu file công trình gần nhất của từng TÊN CÔNG TRÌNH (tô dòng "cập nhật hôm nay")
+      timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, to_char(MAX(f.mtime) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luu
+                    FROM (SELECT DISTINCT nguon, ten_ct FROM bot_tong_hop) b JOIN bot_tong_hop_file f USING (nguon)
+                   GROUP BY 1`),
     ]);
     const capNhat = f.rows.reduce((m: string, r) => (r.nap_luc > m ? r.nap_luc : m), '');
     res.json({
@@ -36,9 +40,10 @@ app.get('/api/bot-tong-hop', async (_req: Request, res: Response) => {
       fileLoi: f.rows.filter(r => r.loi).map(r => ({ nguon: chuoi(r.nguon), loi: chuoi(r.loi) })),
       ipos: [...new Set(o.rows.map(r => chuoi(r.ipo)))].sort(),
       o: o.rows.map(r => ({ ten: chuoi(r.ten), ipo: chuoi(r.ipo), thang: chuoi(r.thang), ct: !!r.ct, tt: r.tt === null ? null : Number(r.tt), so: r.so })),
+      luuFile: Object.fromEntries(l.rows.filter(r => r.luu).map(r => [chuoi(r.ten), chuoi(r.luu)])),
     });
   } catch (e) {
-    if ((e as { code?: string })?.code === '42P01') return res.json({ coBang: false, capNhat: null, soFile: 0, fileLoi: [], ipos: [], o: [] });
+    if ((e as { code?: string })?.code === '42P01') return res.json({ coBang: false, capNhat: null, soFile: 0, fileLoi: [], ipos: [], o: [], luuFile: {} });
     console.error('[bot-tong-hop]', e);
     res.status(500).json({ error: 'Không đọc được dữ liệu BÁO CÁO BOT' });
   }

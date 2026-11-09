@@ -79957,13 +79957,17 @@ var chuoi = (x) => x === null || x === void 0 ? "" : String(x);
 var LA_CT = `(COALESCE(ma_ct, '') ~ '^CT[0-9]{2}-[0-9]{3}')`;
 app.get("/api/bot-tong-hop", async (_req, res) => {
   try {
-    const [o, f] = await Promise.all([
+    const [o, f, l] = await Promise.all([
       timedQuery(`SELECT COALESCE(ten_ct, '') AS ten, COALESCE(ipo, '') AS ipo,
                          COALESCE(to_char(ngay_can_giao, 'YYYY-MM'), '') AS thang, ${LA_CT} AS ct,
                          SUM(tt_con_lai) AS tt, COUNT(*)::int AS so
                     FROM bot_tong_hop GROUP BY 1, 2, 3, 4`),
       timedQuery(`SELECT nguon, loi, to_char(nap_luc AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS nap_luc
-                    FROM bot_tong_hop_file`)
+                    FROM bot_tong_hop_file`),
+      // Giờ lưu file công trình gần nhất của từng TÊN CÔNG TRÌNH (tô dòng "cập nhật hôm nay")
+      timedQuery(`SELECT COALESCE(b.ten_ct, '') AS ten, to_char(MAX(f.mtime) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS luu
+                    FROM (SELECT DISTINCT nguon, ten_ct FROM bot_tong_hop) b JOIN bot_tong_hop_file f USING (nguon)
+                   GROUP BY 1`)
     ]);
     const capNhat = f.rows.reduce((m, r) => r.nap_luc > m ? r.nap_luc : m, "");
     res.json({
@@ -79972,10 +79976,11 @@ app.get("/api/bot-tong-hop", async (_req, res) => {
       soFile: f.rows.filter((r) => !r.loi).length,
       fileLoi: f.rows.filter((r) => r.loi).map((r) => ({ nguon: chuoi(r.nguon), loi: chuoi(r.loi) })),
       ipos: [...new Set(o.rows.map((r) => chuoi(r.ipo)))].sort(),
-      o: o.rows.map((r) => ({ ten: chuoi(r.ten), ipo: chuoi(r.ipo), thang: chuoi(r.thang), ct: !!r.ct, tt: r.tt === null ? null : Number(r.tt), so: r.so }))
+      o: o.rows.map((r) => ({ ten: chuoi(r.ten), ipo: chuoi(r.ipo), thang: chuoi(r.thang), ct: !!r.ct, tt: r.tt === null ? null : Number(r.tt), so: r.so })),
+      luuFile: Object.fromEntries(l.rows.filter((r) => r.luu).map((r) => [chuoi(r.ten), chuoi(r.luu)]))
     });
   } catch (e) {
-    if (e?.code === "42P01") return res.json({ coBang: false, capNhat: null, soFile: 0, fileLoi: [], ipos: [], o: [] });
+    if (e?.code === "42P01") return res.json({ coBang: false, capNhat: null, soFile: 0, fileLoi: [], ipos: [], o: [], luuFile: {} });
     console.error("[bot-tong-hop]", e);
     res.status(500).json({ error: "Kh\xF4ng \u0111\u1ECDc \u0111\u01B0\u1EE3c d\u1EEF li\u1EC7u B\xC1O C\xC1O BOT" });
   }
