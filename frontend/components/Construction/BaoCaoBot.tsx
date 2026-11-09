@@ -20,7 +20,8 @@ interface ChonO { ten: string; cot: CotBot | null }
 
 const NHAN_CHUA = 'CHƯA BOT';
 const fmtO = (v: number | undefined) => (v === undefined ? '' : fmtInt(v));
-const fmtLuc = (iso: string | null) => (iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
+const fmtNgay = (iso: string) => { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const fmtLuc =(iso: string | null) => (iso ? new Date(iso).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 
 export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }) => {
   const [du, setDu] = useState<DuLieu | null>(null);
@@ -56,7 +57,7 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
     for (const d of dong) { for (const [k, v] of Object.entries(d.o)) m[k] = (m[k] ?? 0) + v; tong += d.tong; }
     return { o: m, tong };
   }, [bc, dong, tim]);
-  // Công trình có file lưu trong ngày (giờ VN) => tô xanh (dùng green: emerald-50..200 của dự án đã đổi sang xám, xem tailwind.config.js)
+  // Công trình có file lưu trong ngày (giờ VN) => tô xanh, còn lại tô đỏ (chưa cập nhật hôm nay) (dùng green: emerald-50..200 của dự án đã đổi sang xám, xem tailwind.config.js)
   const homNay = useMemo(() => new Set(Object.entries(du?.luuFile ?? {}).filter(([, t]) => luuHomNay(t)).map(([ten]) => ten)), [du]);
   const soMoi = dong.filter(d => homNay.has(d.ten)).length;
 
@@ -87,7 +88,11 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
         <span>Cập nhật: <b className="text-slate-800">{fmtLuc(du.capNhat)}</b> · {fmtInt(du.soFile)} file</span>
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 rounded-sm bg-green-100 ring-1 ring-green-500" aria-hidden />
-          File công trình lưu hôm nay: <b className="text-green-800">{fmtInt(soMoi)}</b> công trình
+          Lưu file hôm nay: <b className="text-green-800">{fmtInt(soMoi)}</b>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-sm bg-red-50 ring-1 ring-red-500" aria-hidden />
+          Chưa cập nhật hôm nay: <b className="text-red-700">{fmtInt(dong.length - soMoi)}</b> (ô đỏ = ngày lưu gần nhất)
         </span>
         {du.fileLoi.length > 0 && (
           <span className="text-amber-700" title={du.fileLoi.map(f => `${f.nguon}: ${f.loi}`).join('\n')}>{du.fileLoi.length} file đọc lỗi</span>
@@ -139,11 +144,13 @@ export const BaoCaoBot = ({ onHexClick }: { onHexClick?: (hex: string) => void }
               const luu = du.luuFile?.[d.ten];
               const moi = homNay.has(d.ten);
               return (
-              <tr key={d.ten} className={moi ? 'bg-green-100 hover:bg-green-200' : 'hover:bg-blue-50/50'}
-                title={luu ? `File công trình lưu lần cuối: ${fmtLuc(luu)}` : undefined}>
-                <td className={`sticky left-0 whitespace-nowrap border-b border-slate-100 px-2 py-1 ${moi ? 'bg-green-100 font-semibold text-green-900' : 'bg-white text-slate-800'}`}>
+              <tr key={d.ten} className={moi ? 'bg-green-100 hover:bg-green-200' : 'bg-red-50 hover:bg-red-100'}
+                title={luu ? `File công trình lưu lần cuối: ${fmtLuc(luu)}` : 'Chưa thấy giờ lưu file công trình'}>
+                <td className={`sticky left-0 whitespace-nowrap border-b border-slate-100 px-2 py-1 ${moi ? 'bg-green-100 font-semibold text-green-900' : 'bg-red-50 text-red-800'}`}>
                   {d.ten || '(trống)'}
-                  {moi && <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{new Date(luu!).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>}
+                  {moi
+                    ? <span className="ml-2 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{new Date(luu!).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                    : <span className="ml-2 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{luu ? fmtNgay(luu) : 'chưa có'}</span>}
                 </td>
                 {bc.cot.map(c => <React.Fragment key={c.khoa}>{oSo(d.ten, c, d.o[c.khoa], c.loai === 'nam' && !!c.dangMo)}</React.Fragment>)}
                 {oSo(d.ten, null, d.tong, true)}
